@@ -2995,6 +2995,7 @@ pub fn make_merchant_url_with_response(
     Ok(merchant_url_with_response.to_string())
 }
 
+#[cfg(feature = "v1")]
 pub async fn make_ephemeral_key(
     state: SessionState,
     customer_id: id_type::CustomerId,
@@ -3015,6 +3016,64 @@ pub async fn make_ephemeral_key(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to create ephemeral key")?;
     Ok(services::ApplicationResponse::Json(ek))
+}
+
+#[cfg(feature = "v2")]
+pub async fn make_ephemeral_key(
+    state: SessionState,
+    customer_id: id_type::CustomerId,
+    merchant_id: id_type::MerchantId,
+    headers: &actix_web::http::header::HeaderMap,
+) -> errors::RouterResponse<ephemeral_key::EphemeralKey> {
+    let store = &state.store;
+    let id = utils::generate_id(consts::ID_LENGTH, "eki");
+    let secret = format!("epk_{}", &Uuid::new_v4().simple().to_string());
+    let resource_type = services::authentication::get_header_value_by_key(
+        crate::headers::X_RESOURCE_TYPE.to_string(),
+        headers,
+    )?
+    .map(ephemeral_key::ResourceType::from_str)
+    .transpose()
+    .change_context(errors::ApiErrorResponse::InternalServerError)?
+    .get_required_value("ResourceType")?;
+    let ek = ephemeral_key::EphemeralKeyNew {
+        id,
+        customer_id: customer_id.to_owned(),
+        merchant_id: merchant_id.to_owned(),
+        secret,
+        resource_type,
+    };
+    let ek = store
+        .create_ephemeral_key(ek, state.conf.eph_key.validity)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to create ephemeral key")?;
+    Ok(services::ApplicationResponse::Json(ek))
+}
+
+#[cfg(feature = "v2")]
+pub async fn create_ephemeral_key(
+    state: &SessionState,
+    customer_id: &id_type::CustomerId,
+    merchant_id: &id_type::MerchantId,
+    resource_type: ephemeral_key::ResourceType,
+) -> RouterResult<ephemeral_key::EphemeralKey> {
+    let store = &state.store;
+    let id = utils::generate_id(consts::ID_LENGTH, "eki");
+    let secret = format!("epk_{}", &Uuid::new_v4().simple().to_string());
+    let ek = ephemeral_key::EphemeralKeyNew {
+        id,
+        customer_id: customer_id.to_owned(),
+        merchant_id: merchant_id.to_owned(),
+        secret,
+        resource_type,
+    };
+    let ek = store
+        .create_ephemeral_key(ek, state.conf.eph_key.validity)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to create ephemeral key")?;
+    Ok(ek)
 }
 
 pub async fn delete_ephemeral_key(
