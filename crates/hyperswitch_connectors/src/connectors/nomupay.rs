@@ -184,6 +184,7 @@ where
         req: &RouterData<Flow, Request, Response>,
         connectors: &Connectors,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        let is_post_req = matches!(self.get_http_method(), Method::Post);
         let body = self.get_request_body(req, connectors)?;
         let auth = nomupay::NomupayAuthType::try_from(&req.connector_auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
@@ -193,11 +194,17 @@ where
             .chars()
             .skip(base_url.len())
             .collect();
+        let req_method = if is_post_req {
+            "POST".to_string()
+        } else {
+            "GET".to_string()
+        };
+
         let sign = get_signature(
             req.connector_meta_data.to_owned(),
             auth,
             body,
-            "POST".to_string(),
+            req_method,
             path,
         )?;
 
@@ -368,8 +375,86 @@ impl ConnectorIntegration<PoCreate, PayoutsData, PayoutsResponseData> for Nomupa
 impl ConnectorIntegration<PoCancel, PayoutsData, PayoutsResponseData> for Nomupay {}
 #[cfg(feature = "payouts")]
 impl ConnectorIntegration<PoEligibility, PayoutsData, PayoutsResponseData> for Nomupay {}
+
 #[cfg(feature = "payouts")]
-impl ConnectorIntegration<PoSync, PayoutsData, PayoutsResponseData> for Nomupay {}
+impl ConnectorIntegration<PoSync, PayoutsData, PayoutsResponseData> for Nomupay {
+    fn get_url(
+        &self,
+        req: &PayoutsRouterData<PoSync>,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        let nomupay_pmt = req.request.connector_payout_id.clone().ok_or(
+            errors::ConnectorError::MissingRequiredField {
+                field_name: "connector_payout_id",
+            },
+        )?;
+        Ok(format!(
+            "{}/v1alpha1/payments/{}",
+            self.base_url(connectors),
+            nomupay_pmt
+        ))
+    }
+
+    fn get_headers(
+        &self,
+        req: &PayoutsRouterData<PoSync>,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_http_method(&self) -> Method {
+        Method::Get
+    }
+
+    fn build_request(
+        &self,
+        req: &PayoutsRouterData<PoSync>,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        let request = RequestBuilder::new()
+            .method(Method::Get)
+            .url(&types::PayoutSyncType::get_url(self, req, connectors)?)
+            .attach_default_headers()
+            .headers(types::PayoutSyncType::get_headers(self, req, connectors)?)
+            .set_body(types::PayoutSyncType::get_request_body(
+                self, req, connectors,
+            )?)
+            .build();
+
+        Ok(Some(request))
+    }
+
+    // #[instrument(skip_all)]
+    fn handle_response(
+        &self,
+        data: &PayoutsRouterData<PoSync>,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<PayoutsRouterData<PoSync>, errors::ConnectorError> {
+        let response: nomupay::NomupayPaymentResponse = res
+            .response
+            .parse_struct("NomupayFulfillResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+}
 
 #[cfg(feature = "payouts")]
 impl api::Payouts for Nomupay {}
