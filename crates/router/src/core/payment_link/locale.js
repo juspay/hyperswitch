@@ -3,11 +3,11 @@ The languages supported by locale.js are:
  1) English (en)
  2) Hebrew (he)
  3) French (fr)
- 4) British English (en_GB)
+ 4) British English (en_gb)
  5) Arabic (ar)
  6) Japanese (ja)
  7) German (de)
- 8) Belgian French (fr_BE)
+ 8) Belgian French (fr_be)
  9) Spanish (es)
  10) Catalan (ca)
  11) Portuguese (pt)
@@ -17,7 +17,7 @@ The languages supported by locale.js are:
  15) Swedish (sv)
  16) Russian (ru)
  17) Chinese (zh)
- 19) Traditional Chinese (zh_Hant)
+ 19) Traditional Chinese (zh_hant)
 */
 const locales = {
     en: {
@@ -113,7 +113,7 @@ const locales = {
       errorCode: "Code d'erreur",
       errorMessage: "Message d'erreur"
     },
-    en_GB: {
+    en_gb: {
       expiresOn: "Link expires on: ",
       refId: "Ref Id: ",
       requestedBy: "Requested by ",
@@ -238,7 +238,7 @@ const locales = {
       errorCode: "Fehlercode",
       errorMessage: "Fehlermeldung"
     },
-    fr_BE: {
+    fr_be: {
       expiresOn: "Le lien expire le: ",
       refId: "ID de référence: ",
       requestedBy: "Demandé par ",
@@ -550,7 +550,7 @@ const locales = {
       errorCode: "错误代码",
       errorMessage: "错误信息"
     },
-    zh_Hant: {
+    zh_hant: {
       expiresOn: "連結到期日期：",
       refId: "參考編號：",
       requestedBy: "請求者 ",
@@ -584,6 +584,7 @@ const locales = {
   };
 
   function getTranslations(locale_str) {
-    var locale = locale_str || 'en'; // defaults if locale is not present in payment details.
+    var fallback_locale = 'en';
+    var locale = locale_str.toLowerCase().replace(/-/g, "_") || fallback_locale; // defaults if locale is not present in payment details.
     return locales[locale] || locales['en']; // defaults if locale is not implemented in locales.
   }
