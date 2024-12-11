@@ -155,15 +155,17 @@ pub fn mk_app(
         }
     }
 
+    #[cfg(all(feature = "oltp", any(feature = "v1", feature = "v2"),))]
+    {
+        server_app = server_app.service(routes::EphemeralKey::server(state.clone()))
+    }
     #[cfg(all(
         feature = "oltp",
         any(feature = "v1", feature = "v2"),
         not(feature = "customer_v2")
     ))]
     {
-        server_app = server_app
-            .service(routes::EphemeralKey::server(state.clone()))
-            .service(routes::Poll::server(state.clone()))
+        server_app = server_app.service(routes::Poll::server(state.clone()))
     }
 
     #[cfg(feature = "olap")]

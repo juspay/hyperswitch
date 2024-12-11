@@ -1184,6 +1184,7 @@ async fn create_vault_request<R: pm_types::VaultingInterface>(
     jwekey: &settings::Jwekey,
     locker: &settings::Locker,
     payload: Vec<u8>,
+    tenant_id: id_type::TenantId,
 ) -> CustomResult<request::Request, errors::VaultError> {
     let private_key = jwekey.vault_private_key.peek().as_bytes();
 
@@ -1204,6 +1205,10 @@ async fn create_vault_request<R: pm_types::VaultingInterface>(
         headers::CONTENT_TYPE,
         consts::VAULT_HEADER_CONTENT_TYPE.into(),
     );
+    request.add_header(
+        headers::X_TENANT_ID,
+        tenant_id.get_string_repr().to_owned().into(),
+    );
     request.set_body(request::RequestContent::Json(Box::new(jwe_payload)));
     Ok(request)
 }
@@ -1217,7 +1222,9 @@ pub async fn call_to_vault<V: pm_types::VaultingInterface>(
     let locker = &state.conf.locker;
     let jwekey = state.conf.jwekey.get_inner();
 
-    let request = create_vault_request::<V>(jwekey, locker, payload).await?;
+    let request =
+        create_vault_request::<V>(jwekey, locker, payload, state.tenant.tenant_id.to_owned())
+            .await?;
     let response = services::call_connector_api(state, request, V::get_vaulting_flow_name())
         .await
         .change_context(errors::VaultError::VaultAPIError);

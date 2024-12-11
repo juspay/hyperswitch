@@ -65,7 +65,6 @@ pub async fn ephemeral_key_create(
     .await
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 #[instrument(skip_all, fields(flow = ?Flow::EphemeralKeyDelete))]
 pub async fn ephemeral_key_delete(
     state: web::Data<AppState>,

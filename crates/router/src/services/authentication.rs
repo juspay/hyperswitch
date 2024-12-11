@@ -1379,7 +1379,7 @@ where
             get_header_value_by_key(headers::X_RESOURCE_TYPE.to_string(), request_headers)?
                 .map(ephemeral_key::ResourceType::from_str)
                 .transpose()
-                .change_context(errors::ApiErrorResponse::InternalServerError)?
+                .change_context(errors::ApiErrorResponse::Unauthorized)? // Should this be a 5xx?
                 .get_required_value("ResourceType")?;
 
         fp_utils::when(resource_type != ephemeral_key.resource_type, || {
@@ -3148,7 +3148,7 @@ pub fn get_header_value_by_key(key: String, headers: &HeaderMap) -> RouterResult
         })
         .transpose()
 }
-pub fn get_id_type_by_key_from_headers<T: std::str::FromStr>(
+pub fn get_id_type_by_key_from_headers<T: FromStr>(
     key: String,
     headers: &HeaderMap,
 ) -> RouterResult<Option<T>> {

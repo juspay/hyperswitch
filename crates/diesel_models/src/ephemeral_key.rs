@@ -55,6 +55,8 @@ impl common_utils::events::ApiEventMetric for EphemeralKey {
     PartialEq,
     Eq,
 )]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 pub enum ResourceType {
     Payment,
     PaymentMethod,

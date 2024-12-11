@@ -539,7 +539,6 @@ pub struct HeaderPayload {
     pub x_app_id: Option<String>,
     pub x_redirect_uri: Option<String>,
     pub client_secret: Option<common_utils::types::ClientSecret>,
-    pub resource_type: Option<ephemeral_key::ResourceType>,
 }
 
 impl HeaderPayload {
