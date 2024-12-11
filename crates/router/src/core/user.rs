@@ -800,7 +800,7 @@ async fn handle_existing_user_invitation(
         is_email_sent = state
             .email_client
             .compose_and_send_email(
-                email_types::get_base_url(&state),
+                email_types::get_base_url(state),
                 Box::new(email_contents),
                 state.conf.proxy.https_url.as_ref(),
             )
@@ -945,7 +945,7 @@ async fn handle_new_user_invitation(
         let send_email_result = state
             .email_client
             .compose_and_send_email(
-                email_types::get_base_url(&state),
+                email_types::get_base_url(state),
                 Box::new(email_contents),
                 state.conf.proxy.https_url.as_ref(),
             )
