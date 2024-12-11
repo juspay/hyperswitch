@@ -13729,7 +13729,7 @@
             "example": "2024-02-24T11:04:09.922Z",
             "nullable": true
           },
-          "client_secret": {
+          "ephemeral_key": {
             "type": "string",
             "description": "For Client based calls",
             "nullable": true
