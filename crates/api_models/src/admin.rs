@@ -2589,7 +2589,7 @@ pub struct ProfileUpdate {
 
     /// Indicates if the overcapture is always requested or not.
     #[schema(default = false, example = false)]
-    pub always_request_overcapture: bool,
+    pub always_request_overcapture: Option<bool>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]

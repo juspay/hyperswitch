@@ -409,7 +409,7 @@ pub struct ProfileUpdateInternal {
     pub is_auto_retries_enabled: Option<bool>,
     pub max_auto_retries_enabled: Option<i16>,
     pub is_click_to_pay_enabled: Option<bool>,
-    pub always_request_overcapture: bool,
+    pub always_request_overcapture: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -452,6 +452,7 @@ impl ProfileUpdateInternal {
             is_auto_retries_enabled,
             max_auto_retries_enabled,
             is_click_to_pay_enabled,
+            always_request_overcapture
         } = self;
         Profile {
             id: source.id,
