@@ -383,7 +383,6 @@ keys = "accept-language,user-agent"
 enabled = false
 global_tenant = { schema = "public", redis_key_prefix = "" }
 
-
 [multitenancy.tenants.public]
 base_url = "http://localhost:8080" 
 schema = "public"     
