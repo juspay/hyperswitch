@@ -383,8 +383,13 @@ keys = "accept-language,user-agent"
 enabled = false
 global_tenant = { schema = "public", redis_key_prefix = "" }
 
-[multitenancy.tenants]
-public = { base_url = "http://localhost:8080", schema = "public", redis_key_prefix = "", clickhouse_database = "default"}
+
+[multitenancy.tenants.public]
+base_url = "http://localhost:8080" 
+schema = "public"     
+redis_key_prefix = ""
+clickhouse_database = "default"
+user = { cc_url =  "http://localhost:9090" }
 
 [email]
 sender_email = "example@example.com"

@@ -9,7 +9,7 @@ use crate::{
     consts, errors,
     logger::error,
     routes::{metrics, SessionState},
-    services::email::types::ApiKeyExpiryReminder,
+    services::email::types::{self as email_types, ApiKeyExpiryReminder},
     types::{api, domain::UserEmail, storage},
     utils::OptionExt,
 };
@@ -91,6 +91,7 @@ impl ProcessTrackerWorkflow<SessionState> for ApiKeyExpiryWorkflow {
             .email_client
             .clone()
             .compose_and_send_email(
+                &email_types::get_base_url(state),
                 Box::new(email_contents),
                 state.conf.proxy.https_url.as_ref(),
             )

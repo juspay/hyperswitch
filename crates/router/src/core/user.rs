@@ -86,6 +86,7 @@ pub async fn signup_with_merchant_id(
     let send_email_result = state
         .email_client
         .compose_and_send_email(
+            &email_types::get_base_url(&state),
             Box::new(email_contents),
             state.conf.proxy.https_url.as_ref(),
         )
@@ -215,6 +216,7 @@ pub async fn connect_account(
         let send_email_result = state
             .email_client
             .compose_and_send_email(
+                &email_types::get_base_url(&state),
                 Box::new(email_contents),
                 state.conf.proxy.https_url.as_ref(),
             )
@@ -264,6 +266,7 @@ pub async fn connect_account(
         let magic_link_result = state
             .email_client
             .compose_and_send_email(
+                &email_types::get_base_url(&state),
                 Box::new(magic_link_email),
                 state.conf.proxy.https_url.as_ref(),
             )
@@ -279,6 +282,7 @@ pub async fn connect_account(
         let welcome_email_result = state
             .email_client
             .compose_and_send_email(
+                &email_types::get_base_url(&state),
                 Box::new(welcome_to_community_email),
                 state.conf.proxy.https_url.as_ref(),
             )
@@ -399,6 +403,7 @@ pub async fn forgot_password(
     state
         .email_client
         .compose_and_send_email(
+            &email_types::get_base_url(&state),
             Box::new(email_contents),
             state.conf.proxy.https_url.as_ref(),
         )
@@ -795,6 +800,7 @@ async fn handle_existing_user_invitation(
         is_email_sent = state
             .email_client
             .compose_and_send_email(
+                &email_types::get_base_url(&state),
                 Box::new(email_contents),
                 state.conf.proxy.https_url.as_ref(),
             )
@@ -939,6 +945,7 @@ async fn handle_new_user_invitation(
         let send_email_result = state
             .email_client
             .compose_and_send_email(
+                &email_types::get_base_url(&state),
                 Box::new(email_contents),
                 state.conf.proxy.https_url.as_ref(),
             )
@@ -1071,6 +1078,7 @@ pub async fn resend_invite(
     state
         .email_client
         .compose_and_send_email(
+            &email_types::get_base_url(&state),
             Box::new(email_contents),
             state.conf.proxy.https_url.as_ref(),
         )
@@ -1696,6 +1704,7 @@ pub async fn send_verification_mail(
     state
         .email_client
         .compose_and_send_email(
+            &email_types::get_base_url(&state),
             Box::new(email_contents),
             state.conf.proxy.https_url.as_ref(),
         )
