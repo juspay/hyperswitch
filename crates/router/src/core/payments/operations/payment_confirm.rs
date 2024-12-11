@@ -1340,9 +1340,13 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             .payment_intent
             .tax_details
             .as_ref()
-            .and_then(|td| td.default.as_ref())
-            .map(|default_tax| default_tax.order_tax_amount);
-        let payment_attempt_fut = tokio::spawn(
+            .and_then(|td| {
+                td.payment_method_type
+                    .as_ref()
+                    .map(|payment_method_tax| payment_method_tax.order_tax_amount)
+                    .or_else(|| td.default.as_ref().map(|default_tax| default_tax.order_tax_amount))
+            });
+        let payment_attempt_fut: tokio::task::JoinHandle<Result<hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt, error_stack::Report<hyperswitch_domain_models::errors::api_error_response::ApiErrorResponse>>> = tokio::spawn(
             async move {
                 m_db.update_payment_attempt_with_attempt_id(
                     m_payment_data_payment_attempt,

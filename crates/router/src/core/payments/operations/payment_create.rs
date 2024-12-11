@@ -1206,7 +1206,7 @@ impl PaymentCreate {
                 attempt_id,
                 status,
                 currency,
-                order_tax_amount: request.order_tax_amount,
+                order_tax_amount: None,
                 payment_method,
                 capture_method: request.capture_method,
                 capture_on: request.capture_on,

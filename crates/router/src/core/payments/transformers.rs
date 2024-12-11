@@ -2413,6 +2413,17 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             .clone();
         let shipping_cost = payment_data.payment_intent.shipping_cost;
 
+        let order_tax_amount = payment_data
+                .payment_intent
+                .tax_details
+                .as_ref()
+                .and_then(|td| {
+                    td.payment_method_type
+                        .as_ref()
+                        .map(|payment_method_tax| payment_method_tax.order_tax_amount)
+                        .or_else(|| td.default.as_ref().map(|default_tax| default_tax.order_tax_amount))
+                });
+
         Ok(Self {
             payment_method_data: (payment_method_data.get_required_value("payment_method_data")?),
             setup_future_usage: payment_data.payment_intent.setup_future_usage,
@@ -2424,12 +2435,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             statement_descriptor: payment_data.payment_intent.statement_descriptor_name,
             capture_method: payment_data.payment_attempt.capture_method,
             amount: amount.get_amount_as_i64(),
-            order_tax_amount: payment_data
-                .payment_intent
-                .tax_details
-                .as_ref()
-                .and_then(|td| td.default.as_ref())
-                .map(|default_tax| default_tax.order_tax_amount),
+            order_tax_amount,
             minor_amount: amount,
             currency: payment_data.currency,
             browser_info,
