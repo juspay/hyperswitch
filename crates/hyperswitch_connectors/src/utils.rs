@@ -34,7 +34,7 @@ use image::Luma;
 use masking::{ExposeInterface, PeekInterface, Secret};
 use once_cell::sync::Lazy;
 use regex::Regex;
-use router_env::{logger, metrics::add_attributes};
+use router_env::logger;
 use serde::Serializer;
 use serde_json::Value;
 
@@ -133,11 +133,8 @@ pub(crate) fn handle_json_response_deserialization_failure(
     res: Response,
     connector: &'static str,
 ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-    crate::metrics::CONNECTOR_RESPONSE_DESERIALIZATION_FAILURE.add(
-        &crate::metrics::CONTEXT,
-        1,
-        &add_attributes([("connector", connector)]),
-    );
+    crate::metrics::CONNECTOR_RESPONSE_DESERIALIZATION_FAILURE
+        .add(1, router_env::metric_attributes!(("connector", connector)));
 
     let response_data = String::from_utf8(res.response.to_vec())
         .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
@@ -1190,7 +1187,9 @@ pub trait PaymentsAuthorizeRequestData {
 impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
     fn is_auto_capture(&self) -> Result<bool, Error> {
         match self.capture_method {
-            Some(enums::CaptureMethod::Automatic) | None => Ok(true),
+            Some(enums::CaptureMethod::Automatic)
+            | Some(enums::CaptureMethod::SequentialAutomatic)
+            | None => Ok(true),
             Some(enums::CaptureMethod::Manual) => Ok(false),
             Some(_) => Err(errors::ConnectorError::CaptureMethodNotSupported.into()),
         }
@@ -1409,7 +1408,9 @@ pub trait PaymentsSyncRequestData {
 impl PaymentsSyncRequestData for PaymentsSyncData {
     fn is_auto_capture(&self) -> Result<bool, Error> {
         match self.capture_method {
-            Some(enums::CaptureMethod::Automatic) | None => Ok(true),
+            Some(enums::CaptureMethod::Automatic)
+            | Some(enums::CaptureMethod::SequentialAutomatic)
+            | None => Ok(true),
             Some(enums::CaptureMethod::Manual) => Ok(false),
             Some(_) => Err(errors::ConnectorError::CaptureMethodNotSupported.into()),
         }
@@ -1542,7 +1543,9 @@ pub trait PaymentsCompleteAuthorizeRequestData {
 impl PaymentsCompleteAuthorizeRequestData for CompleteAuthorizeData {
     fn is_auto_capture(&self) -> Result<bool, Error> {
         match self.capture_method {
-            Some(enums::CaptureMethod::Automatic) | None => Ok(true),
+            Some(enums::CaptureMethod::Automatic)
+            | Some(enums::CaptureMethod::SequentialAutomatic)
+            | None => Ok(true),
             Some(enums::CaptureMethod::Manual) => Ok(false),
             Some(_) => Err(errors::ConnectorError::CaptureMethodNotSupported.into()),
         }
@@ -1612,7 +1615,9 @@ pub trait PaymentsPreProcessingRequestData {
 impl PaymentsPreProcessingRequestData for PaymentsPreProcessingData {
     fn is_auto_capture(&self) -> Result<bool, Error> {
         match self.capture_method {
-            Some(enums::CaptureMethod::Automatic) | None => Ok(true),
+            Some(enums::CaptureMethod::Automatic)
+            | None
+            | Some(enums::CaptureMethod::SequentialAutomatic) => Ok(true),
             Some(enums::CaptureMethod::Manual) => Ok(false),
             Some(enums::CaptureMethod::ManualMultiple) | Some(enums::CaptureMethod::Scheduled) => {
                 Err(errors::ConnectorError::CaptureMethodNotSupported.into())

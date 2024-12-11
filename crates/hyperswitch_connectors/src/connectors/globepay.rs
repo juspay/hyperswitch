@@ -195,7 +195,11 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let query_params = get_globlepay_query_params(&req.connector_auth_type)?;
-        if req.request.capture_method == Some(common_enums::enums::CaptureMethod::Automatic) {
+        if matches!(
+            req.request.capture_method,
+            Some(common_enums::enums::CaptureMethod::Automatic)
+                | Some(common_enums::enums::CaptureMethod::SequentialAutomatic)
+        ) {
             Ok(format!(
                 "{}api/v1.0/gateway/partners/{}/orders/{}{query_params}",
                 self.base_url(connectors),

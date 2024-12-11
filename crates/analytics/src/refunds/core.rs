@@ -16,7 +16,6 @@ use currency_conversion::{conversion::convert, types::ExchangeRates};
 use error_stack::ResultExt;
 use router_env::{
     logger,
-    metrics::add_attributes,
     tracing::{self, Instrument},
 };
 
@@ -73,7 +72,7 @@ pub async fn get_metrics(
                         &req.group_by_names.clone(),
                         &auth_scoped,
                         &req.filters,
-                        &req.time_series.map(|t| t.granularity),
+                        req.time_series.map(|t| t.granularity),
                         &req.time_range,
                     )
                     .await
@@ -121,14 +120,14 @@ pub async fn get_metrics(
         match task_type {
             TaskType::MetricTask(metric, data) => {
                 let data = data?;
-                let attributes = &add_attributes([
+                let attributes = router_env::metric_attributes!(
                     ("metric_type", metric.to_string()),
                     ("source", pool.to_string()),
-                ]);
+                );
 
                 let value = u64::try_from(data.len());
                 if let Ok(val) = value {
-                    metrics::BUCKETS_FETCHED.record(&metrics::CONTEXT, val, attributes);
+                    metrics::BUCKETS_FETCHED.record(val, attributes);
                     logger::debug!("Attributes: {:?}, Buckets fetched: {}", attributes, val);
                 }
 
@@ -168,13 +167,13 @@ pub async fn get_metrics(
             }
             TaskType::DistributionTask(distribution, data) => {
                 let data = data?;
-                let attributes = &add_attributes([
+                let attributes = router_env::metric_attributes!(
                     ("distribution_type", distribution.to_string()),
                     ("source", pool.to_string()),
-                ]);
+                );
                 let value = u64::try_from(data.len());
                 if let Ok(val) = value {
-                    metrics::BUCKETS_FETCHED.record(&metrics::CONTEXT, val, attributes);
+                    metrics::BUCKETS_FETCHED.record(val, attributes);
                     logger::debug!("Attributes: {:?}, Buckets fetched: {}", attributes, val);
                 }
 

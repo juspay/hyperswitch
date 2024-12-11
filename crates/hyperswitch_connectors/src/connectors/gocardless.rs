@@ -340,7 +340,7 @@ impl ConnectorValidation for Gocardless {
     ) -> CustomResult<(), errors::ConnectorError> {
         let capture_method = capture_method.unwrap_or_default();
         match capture_method {
-            enums::CaptureMethod::Automatic => Ok(()),
+            enums::CaptureMethod::Automatic | enums::CaptureMethod::SequentialAutomatic => Ok(()),
             enums::CaptureMethod::Manual
             | enums::CaptureMethod::ManualMultiple
             | enums::CaptureMethod::Scheduled => Err(construct_not_implemented_error_report(

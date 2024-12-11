@@ -35,7 +35,6 @@ use hyperswitch_domain_models::{
     router_response_types::{MandateRevokeResponseData, VerifyWebhookSourceResponseData},
 };
 use masking::Maskable;
-use router_env::metrics::add_attributes;
 use serde_json::json;
 
 #[cfg(feature = "payouts")]
@@ -121,9 +120,8 @@ pub trait ConnectorIntegration<T, Req, Resp>:
         _connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         metrics::UNIMPLEMENTED_FLOW.add(
-            &metrics::CONTEXT,
             1,
-            &add_attributes([("connector", req.connector.clone())]),
+            router_env::metric_attributes!(("connector", req.connector.clone())),
         );
         Ok(None)
     }
@@ -348,7 +346,7 @@ pub trait ConnectorValidation: ConnectorCommon {
     ) -> CustomResult<(), errors::ConnectorError> {
         let capture_method = capture_method.unwrap_or_default();
         match capture_method {
-            CaptureMethod::Automatic => Ok(()),
+            CaptureMethod::Automatic | CaptureMethod::SequentialAutomatic => Ok(()),
             CaptureMethod::Manual | CaptureMethod::ManualMultiple | CaptureMethod::Scheduled => {
                 Err(errors::ConnectorError::NotSupported {
                     message: capture_method.to_string(),

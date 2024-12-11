@@ -705,7 +705,7 @@ impl CustomerDeleteBridge for customers::GlobalId {
             payment_methods_deleted: true,
             id: self.id.clone(),
         };
-        metrics::CUSTOMER_REDACTED.add(&metrics::CONTEXT, 1, &[]);
+        metrics::CUSTOMER_REDACTED.add(1, &[]);
         Ok(services::ApplicationResponse::Json(response))
     }
 }
@@ -943,7 +943,7 @@ impl CustomerDeleteBridge for customers::CustomerId {
             address_deleted: true,
             payment_methods_deleted: true,
         };
-        metrics::CUSTOMER_REDACTED.add(&metrics::CONTEXT, 1, &[]);
+        metrics::CUSTOMER_REDACTED.add(1, &[]);
         Ok(services::ApplicationResponse::Json(response))
     }
 }

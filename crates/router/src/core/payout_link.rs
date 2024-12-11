@@ -384,7 +384,7 @@ pub async fn filter_payout_methods(
                     let currency_country_filter = check_currency_country_filters(
                         payout_filter,
                         request_payout_method_type,
-                        &payout.destination_currency,
+                        payout.destination_currency,
                         address
                             .as_ref()
                             .and_then(|address| address.country)
@@ -443,7 +443,7 @@ pub async fn filter_payout_methods(
 pub fn check_currency_country_filters(
     payout_method_filter: Option<&PaymentMethodFilters>,
     request_payout_method_type: &api_models::payment_methods::RequestPaymentMethodTypes,
-    currency: &common_enums::Currency,
+    currency: common_enums::Currency,
     country: Option<&common_enums::CountryAlpha2>,
 ) -> errors::RouterResult<Option<bool>> {
     if matches!(
@@ -472,7 +472,7 @@ pub fn check_currency_country_filters(
             currency_country_filter
                 .currency
                 .as_ref()
-                .map(|currency_hash_set| currency_hash_set.contains(currency))
+                .map(|currency_hash_set| currency_hash_set.contains(&currency))
         });
         Ok(currency_filter.or(country_filter))
     }

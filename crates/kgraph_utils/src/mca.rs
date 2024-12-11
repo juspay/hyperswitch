@@ -515,13 +515,13 @@ fn compile_graph_for_countries_and_currencies(
 fn compile_config_graph(
     builder: &mut cgraph::ConstraintGraphBuilder<dir::DirValue>,
     config: &kgraph_types::CountryCurrencyFilter,
-    connector: &api_enums::RoutableConnectors,
+    connector: api_enums::RoutableConnectors,
 ) -> Result<cgraph::NodeId, KgraphError> {
     let mut agg_node_id: Vec<(cgraph::NodeId, cgraph::Relation, cgraph::Strength)> = Vec::new();
     let mut pmt_enabled: Vec<dir::DirValue> = Vec::new();
     if let Some(pmt) = config
         .connector_configs
-        .get(connector)
+        .get(&connector)
         .or(config.default_configs.as_ref())
         .map(|inner| inner.0.clone())
     {
@@ -635,7 +635,7 @@ fn compile_merchant_connector_graph(
 
     let config_info = "Config for respective PaymentMethodType for the connector";
 
-    let config_enabled_agg_id = compile_config_graph(builder, config, &connector)?;
+    let config_enabled_agg_id = compile_config_graph(builder, config, connector)?;
 
     let domain_level_node_id = builder
         .make_all_aggregator(

@@ -71,7 +71,7 @@ impl PayeezyTest {
             ..Default::default()
         })
     }
-    fn get_request_interval(&self) -> u64 {
+    fn get_request_interval(self) -> u64 {
         20
     }
 }
