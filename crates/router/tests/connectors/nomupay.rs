@@ -50,7 +50,7 @@ impl NomupayTest {
                     }),
                     phone: None,
                     email: None,
-                }),
+                }.into()),
                 None,
                 None,
             )),
