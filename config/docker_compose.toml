@@ -685,7 +685,7 @@ connector_list = "cybersource"
 sender_email = "example@example.com"                 # Sender email
 aws_region = ""                                      # AWS region used by AWS SES
 allowed_unverified_days = 1                          # Number of days the api calls ( with jwt token ) can be made without verifying the email
-active_email_client = "NO_EMAIL_CLIENT"              # The currently active email client
+active_email_client = "SMTP"              # The currently active email client
 recon_recipient_email = "recon@example.com"          # Recipient email for recon request email
 prod_intent_recipient_email = "business@example.com" # Recipient email for prod intent email
 
@@ -696,3 +696,10 @@ sts_role_session_name = "" # An identifier for the assumed role session, used to
 
 [theme_storage]
 file_storage_backend = "file_system" # Theme storage backend to be used
+
+# Configuration for smtp, applicable when the active email client is SMTP
+[email.smtp]
+host = "127.0.0.1" # SMTP host
+port = 1025 # SMTP port
+timeout = 10 # Timeout for SMTP connection in seconds
+connection = "plaintext" #currently plaintext and starttls are supported

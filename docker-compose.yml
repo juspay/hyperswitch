@@ -51,10 +51,18 @@ services:
     environment:
       # format -> postgresql://DB_USER:DB_PASSWORD@HOST:PORT/DATABASE_NAME
       - DATABASE_URL=postgresql://db_user:db_pass@pg:5432/hyperswitch_db
+  
+  mailhog:
+    image: mailhog/mailhog
+    networks:
+      - router_net
+    ports:
+      - "1025:1025"
+      - "8025:8025"
 
   ### Application services
   hyperswitch-server:
-    image: juspaydotin/hyperswitch-router:standalone
+    image: juspaydotin/hyperswitch-router:nightly
     pull_policy: always
     command: /local/bin/router -f /local/config/docker_compose.toml
     ports:
