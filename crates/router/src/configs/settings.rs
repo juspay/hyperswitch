@@ -129,26 +129,6 @@ pub struct Settings<S: SecretState> {
     pub network_tokenization_service: Option<SecretStateContainer<NetworkTokenizationService, S>>,
     pub network_tokenization_supported_connectors: NetworkTokenizationSupportedConnectors,
     pub theme_storage: FileStorageConfig,
-    pub connectors_supporting_extended_authentication: ExtendedAuthorizationConnectors,
-}
-
-#[derive(Debug, Deserialize, Clone, Default)]
-pub struct ExtendedAuthorizationConnectors {
-    #[serde(deserialize_with = "deserialize_hashmap")]
-    connector_list: HashMap<enums::Connector, HashSet<enums::PaymentMethodType>>,
-}
-
-impl ExtendedAuthorizationConnectors {
-    pub fn is_connector_and_payment_method_type_supported(
-        &self,
-        connector: enums::Connector,
-        payment_method: enums::PaymentMethodType,
-    ) -> bool {
-        self.connector_list
-            .get(&connector)
-            .and_then(|payment_methods| payment_methods.get(&payment_method))
-            .is_some()
-    }
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]

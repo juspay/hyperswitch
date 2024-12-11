@@ -546,7 +546,5 @@ pub(crate) async fn fetch_raw_secrets(
         network_tokenization_service,
         network_tokenization_supported_connectors: conf.network_tokenization_supported_connectors,
         theme_storage: conf.theme_storage,
-        connectors_supporting_extended_authentication: conf
-            .connectors_supporting_extended_authentication,
     }
 }
