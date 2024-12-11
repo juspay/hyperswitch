@@ -29,6 +29,7 @@ use hyperswitch_interfaces::secrets_interface::{
     secret_state::{RawSecret, SecretStateContainer, SecuredSecret},
     SecretManagementInterface, SecretsManagementError,
 };
+use refunds::distribution::{RefundDistribution, RefundDistributionRow};
 pub use types::AnalyticsDomain;
 pub mod lambda_utils;
 pub mod utils;
@@ -52,7 +53,7 @@ use api_models::analytics::{
     sdk_events::{
         SdkEventDimensions, SdkEventFilters, SdkEventMetrics, SdkEventMetricsBucketIdentifier,
     },
-    Distribution, Granularity, TimeRange,
+    Granularity, PaymentDistributionBody, RefundDistributionBody, TimeRange,
 };
 use clickhouse::ClickhouseClient;
 pub use clickhouse::ClickhouseConfig;
@@ -115,7 +116,7 @@ impl AnalyticsProvider {
         dimensions: &[PaymentDimensions],
         auth: &AuthInfo,
         filters: &PaymentFilters,
-        granularity: &Option<Granularity>,
+        granularity: Option<Granularity>,
         time_range: &TimeRange,
     ) -> types::MetricsResult<HashSet<(PaymentMetricsBucketIdentifier, PaymentMetricRow)>> {
         // Metrics to get the fetch time for each payment metric
@@ -215,11 +216,11 @@ impl AnalyticsProvider {
 
     pub async fn get_payment_distribution(
         &self,
-        distribution: &Distribution,
+        distribution: &PaymentDistributionBody,
         dimensions: &[PaymentDimensions],
         auth: &AuthInfo,
         filters: &PaymentFilters,
-        granularity: &Option<Granularity>,
+        granularity: Option<Granularity>,
         time_range: &TimeRange,
     ) -> types::MetricsResult<Vec<(PaymentMetricsBucketIdentifier, PaymentDistributionRow)>> {
         // Metrics to get the fetch time for each payment metric
@@ -329,7 +330,7 @@ impl AnalyticsProvider {
         dimensions: &[PaymentIntentDimensions],
         auth: &AuthInfo,
         filters: &PaymentIntentFilters,
-        granularity: &Option<Granularity>,
+        granularity: Option<Granularity>,
         time_range: &TimeRange,
     ) -> types::MetricsResult<HashSet<(PaymentIntentMetricsBucketIdentifier, PaymentIntentMetricRow)>>
     {
@@ -434,7 +435,7 @@ impl AnalyticsProvider {
         dimensions: &[RefundDimensions],
         auth: &AuthInfo,
         filters: &RefundFilters,
-        granularity: &Option<Granularity>,
+        granularity: Option<Granularity>,
         time_range: &TimeRange,
     ) -> types::MetricsResult<HashSet<(RefundMetricsBucketIdentifier, RefundMetricRow)>> {
         // Metrics to get the fetch time for each refund metric
@@ -528,13 +529,123 @@ impl AnalyticsProvider {
         .await
     }
 
+    pub async fn get_refund_distribution(
+        &self,
+        distribution: &RefundDistributionBody,
+        dimensions: &[RefundDimensions],
+        auth: &AuthInfo,
+        filters: &RefundFilters,
+        granularity: &Option<Granularity>,
+        time_range: &TimeRange,
+    ) -> types::MetricsResult<Vec<(RefundMetricsBucketIdentifier, RefundDistributionRow)>> {
+        // Metrics to get the fetch time for each payment metric
+        metrics::request::record_operation_time(
+            async {
+                match self {
+                        Self::Sqlx(pool) => {
+                        distribution.distribution_for
+                            .load_distribution(
+                                distribution,
+                                dimensions,
+                                auth,
+                                filters,
+                                granularity,
+                                time_range,
+                                pool,
+                            )
+                            .await
+                    }
+                                        Self::Clickhouse(pool) => {
+                        distribution.distribution_for
+                            .load_distribution(
+                                distribution,
+                                dimensions,
+                                auth,
+                                filters,
+                                granularity,
+                                time_range,
+                                pool,
+                            )
+                            .await
+                    }
+                                    Self::CombinedCkh(sqlx_pool, ckh_pool) => {
+                        let (ckh_result, sqlx_result) = tokio::join!(distribution.distribution_for
+                            .load_distribution(
+                                distribution,
+                                dimensions,
+                                auth,
+                                filters,
+                                granularity,
+                                time_range,
+                                ckh_pool,
+                            ),
+                            distribution.distribution_for
+                            .load_distribution(
+                                distribution,
+                                dimensions,
+                                auth,
+                                filters,
+                                granularity,
+                                time_range,
+                                sqlx_pool,
+                            ));
+                        match (&sqlx_result, &ckh_result) {
+                            (Ok(ref sqlx_res), Ok(ref ckh_res)) if sqlx_res != ckh_res => {
+                                router_env::logger::error!(clickhouse_result=?ckh_res, postgres_result=?sqlx_res, "Mismatch between clickhouse & postgres payments analytics distribution")
+                            },
+                            _ => {}
+
+                        };
+
+                        ckh_result
+                    }
+                                    Self::CombinedSqlx(sqlx_pool, ckh_pool) => {
+                        let (ckh_result, sqlx_result) = tokio::join!(distribution.distribution_for
+                            .load_distribution(
+                                distribution,
+                                dimensions,
+                                auth,
+                                filters,
+                                granularity,
+                                time_range,
+                                ckh_pool,
+                            ),
+                            distribution.distribution_for
+                            .load_distribution(
+                                distribution,
+                                dimensions,
+                                auth,
+                                filters,
+                                granularity,
+                                time_range,
+                                sqlx_pool,
+                            ));
+                        match (&sqlx_result, &ckh_result) {
+                            (Ok(ref sqlx_res), Ok(ref ckh_res)) if sqlx_res != ckh_res => {
+                                router_env::logger::error!(clickhouse_result=?ckh_res, postgres_result=?sqlx_res, "Mismatch between clickhouse & postgres payments analytics distribution")
+                            },
+                            _ => {}
+
+                        };
+
+                        sqlx_result
+                    }
+                }
+            },
+            &metrics::METRIC_FETCH_TIME,
+            &distribution.distribution_for,
+            self,
+        )
+        .await
+    }
+
     pub async fn get_frm_metrics(
         &self,
         metric: &FrmMetrics,
         dimensions: &[FrmDimensions],
         merchant_id: &common_utils::id_type::MerchantId,
         filters: &FrmFilters,
-        granularity: &Option<Granularity>,
+        granularity: Option<Granularity>,
         time_range: &TimeRange,
     ) -> types::MetricsResult<Vec<(FrmMetricsBucketIdentifier, FrmMetricRow)>> {
         // Metrics to get the fetch time for each refund metric
@@ -634,7 +745,7 @@ impl AnalyticsProvider {
         dimensions: &[DisputeDimensions],
         auth: &AuthInfo,
         filters: &DisputeFilters,
-        granularity: &Option<Granularity>,
+        granularity: Option<Granularity>,
         time_range: &TimeRange,
     ) -> types::MetricsResult<HashSet<(DisputeMetricsBucketIdentifier, DisputeMetricRow)>> {
         // Metrics to get the fetch time for each refund metric
@@ -734,7 +845,7 @@ impl AnalyticsProvider {
         dimensions: &[SdkEventDimensions],
         publishable_key: &str,
         filters: &SdkEventFilters,
-        granularity: &Option<Granularity>,
+        granularity: Option<Granularity>,
         time_range: &TimeRange,
     ) -> types::MetricsResult<HashSet<(SdkEventMetricsBucketIdentifier, SdkEventMetricRow)>> {
         match self {
@@ -799,7 +910,7 @@ impl AnalyticsProvider {
         metric: &AuthEventMetrics,
         merchant_id: &common_utils::id_type::MerchantId,
         publishable_key: &str,
-        granularity: &Option<Granularity>,
+        granularity: Option<Granularity>,
         time_range: &TimeRange,
     ) -> types::MetricsResult<HashSet<(AuthEventMetricsBucketIdentifier, AuthEventMetricRow)>> {
         match self {
@@ -830,7 +941,7 @@ impl AnalyticsProvider {
         dimensions: &[ApiEventDimensions],
         merchant_id: &common_utils::id_type::MerchantId,
         filters: &ApiEventFilters,
-        granularity: &Option<Granularity>,
+        granularity: Option<Granularity>,
         time_range: &TimeRange,
     ) -> types::MetricsResult<HashSet<(ApiEventMetricsBucketIdentifier, ApiEventMetricRow)>> {
         match self {

@@ -433,7 +433,7 @@ pub async fn render_pm_collect_link(
 
 fn generate_task_id_for_payment_method_status_update_workflow(
     key_id: &str,
-    runner: &storage::ProcessTrackerRunner,
+    runner: storage::ProcessTrackerRunner,
     task: &str,
 ) -> String {
     format!("{runner}_{task}_{key_id}")
@@ -467,7 +467,7 @@ pub async fn add_payment_method_status_update_task(
 
     let process_tracker_id = generate_task_id_for_payment_method_status_update_workflow(
         payment_method.get_id().as_str(),
-        &runner,
+        runner,
         task,
     );
     let process_tracker_entry = storage::ProcessTrackerNew::new(
@@ -588,6 +588,7 @@ pub async fn retrieve_payment_method_with_token(
                 mandate_id,
                 payment_method_info,
                 business_profile,
+                payment_attempt.connector.clone(),
             )
             .await
             .map(|card| Some((card, enums::PaymentMethod::Card)))?
@@ -622,6 +623,7 @@ pub async fn retrieve_payment_method_with_token(
                 mandate_id,
                 payment_method_info,
                 business_profile,
+                payment_attempt.connector.clone(),
             )
             .await
             .map(|card| Some((card, enums::PaymentMethod::Card)))?

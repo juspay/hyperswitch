@@ -1911,6 +1911,79 @@
         ]
       }
     },
+    "/v2/payments/{id}/update-intent": {
+      "put": {
+        "tags": [
+          "Payments"
+        ],
+        "summary": "Payments - Update Intent",
+        "description": "**Update a payment intent object**\n\nYou will require the 'API - Key' from the Hyperswitch dashboard to make the call.",
+        "operationId": "Update a Payment Intent",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The unique identifier for the Payment Intent",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile ID associated to the payment intent",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": {
+              "X-Profile-Id": "pro_abcdefghijklmnop"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PaymentsUpdateIntentRequest"
+              },
+              "examples": {
+                "Update a payment intent with minimal fields": {
+                  "value": {
+                    "amount_details": {
+                      "currency": "USD",
+                      "order_amount": 6540
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Payment Intent Updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentsIntentResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Payment Intent Not Found"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
     "/v2/payments/{id}/confirm-intent": {
       "post": {
         "tags": [
@@ -3007,6 +3080,75 @@
           },
           "surcharge_calculation": {
             "$ref": "#/components/schemas/SurchargeCalculationOverride"
+          },
+          "surcharge_amount": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
+          },
+          "tax_on_surcharge": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "AmountDetailsUpdate": {
+        "type": "object",
+        "properties": {
+          "order_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The payment amount. Amount for the payment in the lowest denomination of the currency, (i.e) in cents for USD denomination, in yen for JPY denomination etc. E.g., Pass 100 to charge $1.00 and 1 for 1¥ since ¥ is a zero-decimal currency. Read more about [the Decimal and Non-Decimal Currencies](https://github.com/juspay/hyperswitch/wiki/Decimal-and-Non%E2%80%90Decimal-Currencies)",
+            "example": 6540,
+            "nullable": true,
+            "minimum": 0
+          },
+          "currency": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Currency"
+              }
+            ],
+            "nullable": true
+          },
+          "shipping_cost": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
+          },
+          "order_tax_amount": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
+          },
+          "skip_external_tax_calculation": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TaxCalculationOverride"
+              }
+            ],
+            "nullable": true
+          },
+          "skip_surcharge_calculation": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SurchargeCalculationOverride"
+              }
+            ],
+            "nullable": true
           },
           "surcharge_amount": {
             "allOf": [
@@ -5433,7 +5575,8 @@
           "automatic",
           "manual",
           "manual_multiple",
-          "scheduled"
+          "scheduled",
+          "sequential_automatic"
         ]
       },
       "CaptureResponse": {
@@ -8438,6 +8581,24 @@
             "type": "string",
             "enum": [
               "user_iban"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_bsb_number"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_bank_sort_code"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_bank_routing_number"
             ]
           },
           {
@@ -15844,6 +16005,176 @@
           }
         }
       },
+      "PaymentsUpdateIntentRequest": {
+        "type": "object",
+        "properties": {
+          "amount_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AmountDetailsUpdate"
+              }
+            ],
+            "nullable": true
+          },
+          "routing_algorithm_id": {
+            "type": "string",
+            "description": "The routing algorithm id to be used for the payment",
+            "nullable": true
+          },
+          "capture_method": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CaptureMethod"
+              }
+            ],
+            "nullable": true
+          },
+          "authentication_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AuthenticationType"
+              }
+            ],
+            "default": "no_three_ds",
+            "nullable": true
+          },
+          "billing": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Address"
+              }
+            ],
+            "nullable": true
+          },
+          "shipping": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Address"
+              }
+            ],
+            "nullable": true
+          },
+          "customer_present": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PresenceOfCustomerDuringPayment"
+              }
+            ],
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "description": "A description for the payment",
+            "example": "It's my first payment request",
+            "nullable": true
+          },
+          "return_url": {
+            "type": "string",
+            "description": "The URL to which you want the user to be redirected after the completion of the payment operation",
+            "example": "https://hyperswitch.io",
+            "nullable": true
+          },
+          "setup_future_usage": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FutureUsage"
+              }
+            ],
+            "nullable": true
+          },
+          "apply_mit_exemption": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MitExemptionRequest"
+              }
+            ],
+            "nullable": true
+          },
+          "statement_descriptor": {
+            "type": "string",
+            "description": "For non-card charges, you can use this value as the complete description that appears on your customers’ statements. Must contain at least one letter, maximum 22 characters.",
+            "example": "Hyperswitch Router",
+            "nullable": true,
+            "maxLength": 22
+          },
+          "order_details": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OrderDetailsWithAmount"
+            },
+            "description": "Use this object to capture the details about the different products for which the payment is being made. The sum of amount across different products here should be equal to the overall payment amount",
+            "example": "[{\n        \"product_name\": \"Apple iPhone 16\",\n        \"quantity\": 1,\n        \"amount\" : 69000\n        \"product_img_link\" : \"https://dummy-img-link.com\"\n    }]",
+            "nullable": true
+          },
+          "allowed_payment_method_types": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PaymentMethodType"
+            },
+            "description": "Use this parameter to restrict the Payment Method Types to show for a given PaymentIntent",
+            "nullable": true
+          },
+          "metadata": {
+            "type": "object",
+            "description": "Metadata is useful for storing additional, unstructured information on an object. This metadata will override the metadata that was passed in payments",
+            "nullable": true
+          },
+          "connector_metadata": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ConnectorMetadata"
+              }
+            ],
+            "nullable": true
+          },
+          "feature_metadata": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FeatureMetadata"
+              }
+            ],
+            "nullable": true
+          },
+          "payment_link_config": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentLinkConfigRequest"
+              }
+            ],
+            "nullable": true
+          },
+          "request_incremental_authorization": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RequestIncrementalAuthorization"
+              }
+            ],
+            "nullable": true
+          },
+          "session_expiry": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Will be used to expire client secret after certain amount of time to be supplied in seconds, if not sent it will be taken from profile config\n(900) for 15 mins",
+            "example": 900,
+            "nullable": true,
+            "minimum": 0
+          },
+          "frm_metadata": {
+            "type": "object",
+            "description": "Additional data related to some frm(Fraud Risk Management) connectors",
+            "nullable": true
+          },
+          "request_external_three_ds_authentication": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/External3dsAuthenticationRequest"
+              }
+            ],
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
       "PayoutActionRequest": {
         "type": "object"
       },
@@ -17135,10 +17466,10 @@
       },
       "PresenceOfCustomerDuringPayment": {
         "type": "string",
-        "description": "Set to true to indicate that the customer is in your checkout flow during this payment, and therefore is able to authenticate. This parameter should be false when merchant's doing merchant initiated payments and customer is not present while doing the payment.",
+        "description": "Set to `present` to indicate that the customer is in your checkout flow during this payment, and therefore is able to authenticate. This parameter should be `absent` when merchant's doing merchant initiated payments and customer is not present while doing the payment.",
         "enum": [
-          "Present",
-          "Absent"
+          "present",
+          "absent"
         ]
       },
       "PrimaryBusinessDetails": {
@@ -17188,7 +17519,8 @@
       "ProfileCreate": {
         "type": "object",
         "required": [
-          "profile_name"
+          "profile_name",
+          "is_click_to_pay_enabled"
         ],
         "properties": {
           "profile_name": {
@@ -17346,6 +17678,12 @@
           "is_network_tokenization_enabled": {
             "type": "boolean",
             "description": "Indicates if network tokenization is enabled or not."
+          },
+          "is_click_to_pay_enabled": {
+            "type": "boolean",
+            "description": "Indicates if click to pay is enabled or not.",
+            "default": false,
+            "example": false
           }
         },
         "additionalProperties": false
@@ -17378,7 +17716,8 @@
           "redirect_to_merchant_with_http_post",
           "is_tax_connector_enabled",
           "is_network_tokenization_enabled",
-          "should_collect_cvv_during_payment"
+          "should_collect_cvv_during_payment",
+          "is_click_to_pay_enabled"
         ],
         "properties": {
           "merchant_id": {
@@ -17558,6 +17897,12 @@
           "should_collect_cvv_during_payment": {
             "type": "boolean",
             "description": "Indicates if CVV should be collected during payment or not."
+          },
+          "is_click_to_pay_enabled": {
+            "type": "boolean",
+            "description": "Indicates if click to pay is enabled or not.",
+            "default": false,
+            "example": false
           }
         }
       },

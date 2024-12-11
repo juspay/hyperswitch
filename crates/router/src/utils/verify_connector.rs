@@ -23,6 +23,7 @@ pub fn generate_card_from_details(
         card_type: None,
         card_issuing_country: None,
         bank_code: None,
+        card_holder_name: None,
     })
 }
 

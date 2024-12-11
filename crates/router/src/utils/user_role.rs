@@ -13,7 +13,10 @@ use storage_impl::errors::StorageError;
 use crate::{
     consts,
     core::errors::{UserErrors, UserResult},
-    db::user_role::{ListUserRolesByOrgIdPayload, ListUserRolesByUserIdPayload},
+    db::{
+        errors::StorageErrorExt,
+        user_role::{ListUserRolesByOrgIdPayload, ListUserRolesByUserIdPayload},
+    },
     routes::SessionState,
     services::authorization::{self as authz, roles},
     types::domain,
@@ -68,55 +71,43 @@ pub async fn validate_role_name(
     Ok(())
 }
 
-pub async fn set_role_permissions_in_cache_by_user_role(
+pub async fn set_role_info_in_cache_by_user_role(
     state: &SessionState,
     user_role: &UserRole,
 ) -> bool {
-    let Some(ref merchant_id) = user_role.merchant_id else {
-        return false;
-    };
-
     let Some(ref org_id) = user_role.org_id else {
         return false;
     };
-    set_role_permissions_in_cache_if_required(
-        state,
-        user_role.role_id.as_str(),
-        merchant_id,
-        org_id,
-    )
-    .await
-    .map_err(|e| logger::error!("Error setting permissions in cache {:?}", e))
-    .is_ok()
-}
-
-pub async fn set_role_permissions_in_cache_by_role_id_merchant_id_org_id(
-    state: &SessionState,
-    role_id: &str,
-    merchant_id: &id_type::MerchantId,
-    org_id: &id_type::OrganizationId,
-) -> bool {
-    set_role_permissions_in_cache_if_required(state, role_id, merchant_id, org_id)
+    set_role_info_in_cache_if_required(state, user_role.role_id.as_str(), org_id)
         .await
         .map_err(|e| logger::error!("Error setting permissions in cache {:?}", e))
         .is_ok()
 }
 
-pub async fn set_role_permissions_in_cache_if_required(
+pub async fn set_role_info_in_cache_by_role_id_org_id(
     state: &SessionState,
     role_id: &str,
-    merchant_id: &id_type::MerchantId,
+    org_id: &id_type::OrganizationId,
+) -> bool {
+    set_role_info_in_cache_if_required(state, role_id, org_id)
+        .await
+        .map_err(|e| logger::error!("Error setting permissions in cache {:?}", e))
+        .is_ok()
+}
+
+pub async fn set_role_info_in_cache_if_required(
+    state: &SessionState,
+    role_id: &str,
     org_id: &id_type::OrganizationId,
 ) -> UserResult<()> {
     if roles::predefined_roles::PREDEFINED_ROLES.contains_key(role_id) {
         return Ok(());
     }
 
-    let role_info =
-        roles::RoleInfo::from_role_id_in_merchant_scope(state, role_id, merchant_id, org_id)
-            .await
-            .change_context(UserErrors::InternalServerError)
-            .attach_printable("Error getting role_info from role_id")?;
+    let role_info = roles::RoleInfo::from_role_id_and_org_id(state, role_id, org_id)
+        .await
+        .change_context(UserErrors::InternalServerError)
+        .attach_printable("Error getting role_info from role_id")?;
 
     authz::set_role_info_in_cache(
         state,
@@ -179,34 +170,96 @@ pub async fn update_v1_and_v2_user_roles_in_db(
     (updated_v1_role, updated_v2_role)
 }
 
+pub async fn get_single_org_id(
+    state: &SessionState,
+    user_role: &UserRole,
+) -> UserResult<id_type::OrganizationId> {
+    let (_, entity_type) = user_role
+        .get_entity_id_and_type()
+        .ok_or(UserErrors::InternalServerError)?;
+    match entity_type {
+        EntityType::Tenant => Ok(state
+            .store
+            .list_merchant_and_org_ids(&state.into(), 1, None)
+            .await
+            .change_context(UserErrors::InternalServerError)
+            .attach_printable("Failed to get merchants list for org")?
+            .pop()
+            .ok_or(UserErrors::InternalServerError)
+            .attach_printable("No merchants to get merchant or org id")?
+            .1),
+        EntityType::Organization | EntityType::Merchant | EntityType::Profile => user_role
+            .org_id
+            .clone()
+            .ok_or(UserErrors::InternalServerError)
+            .attach_printable("Org_id not found"),
+    }
+}
+
 pub async fn get_single_merchant_id(
     state: &SessionState,
     user_role: &UserRole,
+    org_id: &id_type::OrganizationId,
 ) -> UserResult<id_type::MerchantId> {
-    match user_role.entity_type {
-        Some(EntityType::Organization) => Ok(state
+    let (_, entity_type) = user_role
+        .get_entity_id_and_type()
+        .ok_or(UserErrors::InternalServerError)?;
+    match entity_type {
+        EntityType::Tenant | EntityType::Organization => Ok(state
             .store
-            .list_merchant_accounts_by_organization_id(
-                &state.into(),
-                user_role
-                    .org_id
-                    .as_ref()
-                    .ok_or(UserErrors::InternalServerError)
-                    .attach_printable("org_id not found")?,
-            )
+            .list_merchant_accounts_by_organization_id(&state.into(), org_id)
             .await
-            .change_context(UserErrors::InternalServerError)
-            .attach_printable("Failed to get merchant list for org")?
+            .to_not_found_response(UserErrors::InvalidRoleOperationWithMessage(
+                "Invalid Org Id".to_string(),
+            ))?
             .first()
             .ok_or(UserErrors::InternalServerError)
             .attach_printable("No merchants found for org_id")?
             .get_id()
             .clone()),
-        Some(EntityType::Merchant) | Some(EntityType::Profile) | None => user_role
+        EntityType::Merchant | EntityType::Profile => user_role
             .merchant_id
             .clone()
             .ok_or(UserErrors::InternalServerError)
             .attach_printable("merchant_id not found"),
+    }
+}
+
+pub async fn get_single_profile_id(
+    state: &SessionState,
+    user_role: &UserRole,
+    merchant_id: &id_type::MerchantId,
+) -> UserResult<id_type::ProfileId> {
+    let (_, entity_type) = user_role
+        .get_entity_id_and_type()
+        .ok_or(UserErrors::InternalServerError)?;
+    match entity_type {
+        EntityType::Tenant | EntityType::Organization | EntityType::Merchant => {
+            let key_store = state
+                .store
+                .get_merchant_key_store_by_merchant_id(
+                    &state.into(),
+                    merchant_id,
+                    &state.store.get_master_key().to_vec().into(),
+                )
+                .await
+                .change_context(UserErrors::InternalServerError)?;
+
+            Ok(state
+                .store
+                .list_profile_by_merchant_id(&state.into(), &key_store, merchant_id)
+                .await
+                .change_context(UserErrors::InternalServerError)?
+                .pop()
+                .ok_or(UserErrors::InternalServerError)?
+                .get_id()
+                .to_owned())
+        }
+        EntityType::Profile => user_role
+            .profile_id
+            .clone()
+            .ok_or(UserErrors::InternalServerError)
+            .attach_printable("profile_id not found"),
     }
 }
 
@@ -224,6 +277,10 @@ pub async fn get_lineage_for_user_id_and_entity_for_accepting_invite(
     )>,
 > {
     match entity_type {
+        EntityType::Tenant => Err(UserErrors::InvalidRoleOperationWithMessage(
+            "Tenant roles are not allowed for this operation".to_string(),
+        )
+        .into()),
         EntityType::Organization => {
             let Ok(org_id) =
                 id_type::OrganizationId::try_from(std::borrow::Cow::from(entity_id.clone()))
@@ -373,37 +430,9 @@ pub async fn get_single_merchant_id_and_profile_id(
     state: &SessionState,
     user_role: &UserRole,
 ) -> UserResult<(id_type::MerchantId, id_type::ProfileId)> {
-    let merchant_id = get_single_merchant_id(state, user_role).await?;
-    let (_, entity_type) = user_role
-        .get_entity_id_and_type()
-        .ok_or(UserErrors::InternalServerError)?;
-    let profile_id = match entity_type {
-        EntityType::Organization | EntityType::Merchant => {
-            let key_store = state
-                .store
-                .get_merchant_key_store_by_merchant_id(
-                    &state.into(),
-                    &merchant_id,
-                    &state.store.get_master_key().to_vec().into(),
-                )
-                .await
-                .change_context(UserErrors::InternalServerError)?;
-
-            state
-                .store
-                .list_profile_by_merchant_id(&state.into(), &key_store, &merchant_id)
-                .await
-                .change_context(UserErrors::InternalServerError)?
-                .pop()
-                .ok_or(UserErrors::InternalServerError)?
-                .get_id()
-                .to_owned()
-        }
-        EntityType::Profile => user_role
-            .profile_id
-            .clone()
-            .ok_or(UserErrors::InternalServerError)?,
-    };
+    let org_id = get_single_org_id(state, user_role).await?;
+    let merchant_id = get_single_merchant_id(state, user_role, &org_id).await?;
+    let profile_id = get_single_profile_id(state, user_role, &merchant_id).await?;
 
     Ok((merchant_id, profile_id))
 }

@@ -141,7 +141,9 @@ impl ConnectorValidation for Stripe {
     ) -> CustomResult<(), errors::ConnectorError> {
         let capture_method = capture_method.unwrap_or_default();
         match capture_method {
-            enums::CaptureMethod::Automatic | enums::CaptureMethod::Manual => Ok(()),
+            enums::CaptureMethod::SequentialAutomatic
+            | enums::CaptureMethod::Automatic
+            | enums::CaptureMethod::Manual => Ok(()),
             enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => Err(
                 connector_utils::construct_not_supported_error_report(capture_method, self.id()),
             ),

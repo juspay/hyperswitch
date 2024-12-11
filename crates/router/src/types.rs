@@ -282,7 +282,7 @@ impl Capturable for PaymentsAuthorizeData {
     {
         match payment_data.get_capture_method().unwrap_or_default()
         {
-            common_enums::CaptureMethod::Automatic => {
+            common_enums::CaptureMethod::Automatic|common_enums::CaptureMethod::SequentialAutomatic  => {
                 let intent_status = common_enums::IntentStatus::foreign_from(attempt_status);
                 match intent_status {
                     common_enums::IntentStatus::Succeeded
@@ -365,7 +365,7 @@ impl Capturable for CompleteAuthorizeData {
             .get_capture_method()
             .unwrap_or_default()
         {
-            common_enums::CaptureMethod::Automatic => {
+            common_enums::CaptureMethod::Automatic | common_enums::CaptureMethod::SequentialAutomatic => {
                 let intent_status = common_enums::IntentStatus::foreign_from(attempt_status);
                 match intent_status {
                     common_enums::IntentStatus::Succeeded|

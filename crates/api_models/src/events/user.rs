@@ -2,22 +2,25 @@ use common_utils::events::{ApiEventMetric, ApiEventsType};
 
 #[cfg(feature = "dummy_connector")]
 use crate::user::sample_data::SampleDataRequest;
+#[cfg(feature = "control_center_theme")]
+use crate::user::theme::{
+    CreateThemeRequest, GetThemeResponse, UpdateThemeRequest, UploadFileRequest,
+};
 use crate::user::{
     dashboard_metadata::{
         GetMetaDataRequest, GetMetaDataResponse, GetMultipleMetaDataPayload, SetMetaDataRequest,
     },
-    theme::{CreateThemeRequest, GetThemeResponse, UpdateThemeRequest, UploadFileRequest},
     AcceptInviteFromEmailRequest, AuthSelectRequest, AuthorizeResponse, BeginTotpResponse,
     ChangePasswordRequest, ConnectAccountRequest, CreateInternalUserRequest,
-    CreateUserAuthenticationMethodRequest, ForgotPasswordRequest, GetSsoAuthUrlRequest,
-    GetUserAuthenticationMethodsRequest, GetUserDetailsResponse, GetUserRoleDetailsRequest,
-    GetUserRoleDetailsResponseV2, InviteUserRequest, ReInviteUserRequest, RecoveryCodes,
-    ResetPasswordRequest, RotatePasswordRequest, SendVerifyEmailRequest, SignUpRequest,
-    SignUpWithMerchantIdRequest, SsoSignInRequest, SwitchMerchantRequest,
-    SwitchOrganizationRequest, SwitchProfileRequest, TokenResponse, TwoFactorAuthStatusResponse,
-    TwoFactorStatus, UpdateUserAccountDetailsRequest, UpdateUserAuthenticationMethodRequest,
-    UserFromEmailRequest, UserMerchantCreate, VerifyEmailRequest, VerifyRecoveryCodeRequest,
-    VerifyTotpRequest,
+    CreateTenantUserRequest, CreateUserAuthenticationMethodRequest, ForgotPasswordRequest,
+    GetSsoAuthUrlRequest, GetUserAuthenticationMethodsRequest, GetUserDetailsResponse,
+    GetUserRoleDetailsRequest, GetUserRoleDetailsResponseV2, InviteUserRequest,
+    ReInviteUserRequest, RecoveryCodes, ResetPasswordRequest, RotatePasswordRequest,
+    SendVerifyEmailRequest, SignUpRequest, SignUpWithMerchantIdRequest, SsoSignInRequest,
+    SwitchMerchantRequest, SwitchOrganizationRequest, SwitchProfileRequest, TokenResponse,
+    TwoFactorAuthStatusResponse, TwoFactorStatus, UpdateUserAccountDetailsRequest,
+    UpdateUserAuthenticationMethodRequest, UserFromEmailRequest, UserMerchantCreate,
+    UserOrgMerchantCreateRequest, VerifyEmailRequest, VerifyRecoveryCodeRequest, VerifyTotpRequest,
 };
 
 common_utils::impl_api_event_type!(
@@ -34,6 +37,8 @@ common_utils::impl_api_event_type!(
         SwitchMerchantRequest,
         SwitchProfileRequest,
         CreateInternalUserRequest,
+        CreateTenantUserRequest,
+        UserOrgMerchantCreateRequest,
         UserMerchantCreate,
         AuthorizeResponse,
         ConnectAccountRequest,
@@ -62,7 +67,14 @@ common_utils::impl_api_event_type!(
         UpdateUserAuthenticationMethodRequest,
         GetSsoAuthUrlRequest,
         SsoSignInRequest,
-        AuthSelectRequest,
+        AuthSelectRequest
+    )
+);
+
+#[cfg(feature = "control_center_theme")]
+common_utils::impl_api_event_type!(
+    Miscellaneous,
+    (
         GetThemeResponse,
         UploadFileRequest,
         CreateThemeRequest,

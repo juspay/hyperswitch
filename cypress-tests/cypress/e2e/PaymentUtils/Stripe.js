@@ -1,4 +1,4 @@
-import { getCustomExchange } from "./Commons";
+import { cardRequiredField, getCustomExchange } from "./Commons";
 
 const successfulNo3DSCardDetails = {
   card_number: "4242424242424242",
@@ -61,7 +61,7 @@ const payment_method_data_3ds = {
     card_extended_bin: null,
     card_exp_month: "10",
     card_exp_year: "50",
-    card_holder_name: null,
+    card_holder_name: "morino",
     payment_checks: null,
     authentication_data: null,
   },
@@ -79,7 +79,7 @@ const payment_method_data_no3ds = {
     card_extended_bin: null,
     card_exp_month: "10",
     card_exp_year: "50",
-    card_holder_name: null,
+    card_holder_name: "morino",
     payment_checks: {
       cvc_check: "pass",
       address_line1_check: "pass",
@@ -88,6 +88,25 @@ const payment_method_data_no3ds = {
     authentication_data: null,
   },
   billing: null,
+};
+
+const requiredFields = {
+  payment_methods: [
+    {
+      payment_method: "card",
+      payment_method_types: [
+        {
+          payment_method_type: "credit",
+          card_networks: [
+            {
+              eligible_connectors: ["stripe"],
+            },
+          ],
+          required_fields: cardRequiredField,
+        },
+      ],
+    },
+  ],
 };
 
 export const connectorDetails = {
@@ -119,6 +138,40 @@ export const connectorDetails = {
         body: {
           status: "requires_payment_method",
           setup_future_usage: "off_session",
+        },
+      },
+    },
+    PaymentIntentWithShippingCost: {
+      Request: {
+        currency: "USD",
+        shipping_cost: 50,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+          shipping_cost: 50,
+          amount: 6500,
+        },
+      },
+    },
+    PaymentConfirmWithShippingCost: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          shipping_cost: 50,
+          amount_received: 6550,
+          amount: 6500,
+          net_amount: 6550,
         },
       },
     },
@@ -942,6 +995,17 @@ export const connectorDetails = {
           status: "requires_customer_action",
         },
       },
+    },
+  },
+  pm_list: {
+    PmListResponse: {
+      PmListNull: {
+        payment_methods: [],
+      },
+      pmListDynamicFieldWithoutBilling: requiredFields,
+      pmListDynamicFieldWithBilling: requiredFields,
+      pmListDynamicFieldWithNames: requiredFields,
+      pmListDynamicFieldWithEmail: requiredFields,
     },
   },
 };
