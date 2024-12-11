@@ -6288,6 +6288,10 @@ pub struct PaymentMethodsListRequest {}
 pub struct PaymentMethodListResponse {
     /// The list of payment methods that are enabled for the business profile
     pub payment_methods: Vec<payment_methods::ResponsePaymentMethodTypes>,
+
+    /// The list of payment methods that are saved by the given customer
+    /// This field is only returned if the customer_id is provided in the request
+    pub customer_payment_methods: Vec<payment_methods::CustomerPaymentMethod>,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]

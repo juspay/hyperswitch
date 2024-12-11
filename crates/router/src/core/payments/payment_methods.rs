@@ -17,7 +17,7 @@ pub async fn list_payment_methods(
     profile: domain::Profile,
     key_store: domain::MerchantKeyStore,
     payment_id: id_type::GlobalPaymentId,
-    req: api_models::payments::PaymentMethodsListRequest,
+    _req: api_models::payments::PaymentMethodsListRequest,
     header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
 ) -> errors::RouterResponse<api_models::payments::PaymentMethodListResponse> {
     let db = &*state.store;
@@ -152,6 +152,7 @@ impl PaymentMethodsEnabledWithRequiredFieldsAndSurchargeContainer {
 
         api_models::payments::PaymentMethodListResponse {
             payment_methods: response_payment_methods,
+            customer_payment_methods: Vec::new(),
         }
     }
 }
