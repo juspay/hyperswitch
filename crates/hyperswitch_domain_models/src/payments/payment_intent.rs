@@ -287,6 +287,11 @@ pub enum PaymentIntentUpdate {
         status: storage_enums::IntentStatus,
         updated_by: String,
     },
+    /// Update the payment intent details on payment sdk session call, before calling the connector.
+    SessionIntentUpdate {
+        prerouting_algorithm: serde_json::Value,
+        updated_by: String,
+    },
 }
 
 #[cfg(feature = "v2")]
@@ -320,6 +325,7 @@ pub struct PaymentIntentUpdateInternal {
     pub shipping_address: Option<Encryptable<Secret<serde_json::Value>>>,
     pub merchant_order_reference_id: Option<String>,
     pub is_payment_processor_token_flow: Option<bool>,
+    pub prerouting_algorithm: Option<serde_json::Value>,
 }
 
 #[cfg(feature = "v1")]
@@ -378,19 +384,32 @@ impl From<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal {
             } => Self {
                 status: Some(status),
                 active_attempt_id: Some(active_attempt_id),
+                prerouting_algorithm: None,
                 modified_at: common_utils::date_time::now(),
                 updated_by,
             },
             PaymentIntentUpdate::ConfirmIntentPostUpdate { status, updated_by } => Self {
                 status: Some(status),
                 active_attempt_id: None,
+                prerouting_algorithm: None,
                 modified_at: common_utils::date_time::now(),
                 updated_by,
             },
             PaymentIntentUpdate::SyncUpdate { status, updated_by } => Self {
                 status: Some(status),
                 active_attempt_id: None,
+                prerouting_algorithm: None,
                 modified_at: common_utils::date_time::now(),
+                updated_by,
+            },
+            PaymentIntentUpdate::SessionIntentUpdate {
+                prerouting_algorithm,
+                updated_by,
+            } => Self {
+                status: None,
+                active_attempt_id: None,
+                modified_at: common_utils::date_time::now(),
+                prerouting_algorithm: Some(prerouting_algorithm),
                 updated_by,
             },
         }
@@ -419,6 +438,14 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
             },
             PaymentIntentUpdate::SyncUpdate { status, updated_by } => Self {
                 status: Some(status),
+                updated_by,
+                ..Default::default()
+            },
+            PaymentIntentUpdate::SessionIntentUpdate {
+                prerouting_algorithm,
+                updated_by,
+            } => Self {
+                prerouting_algorithm: Some(prerouting_algorithm),
                 updated_by,
                 ..Default::default()
             },

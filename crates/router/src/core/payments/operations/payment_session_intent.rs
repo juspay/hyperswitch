@@ -136,7 +136,7 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentIntentData<F>, PaymentsSess
 }
 
 #[async_trait]
-impl<F: Clone> UpdateTracker<F, payments::PaymentIntentData<F>, PaymentsSessionRequest>
+impl<F: Clone + Sync> UpdateTracker<F, payments::PaymentIntentData<F>, PaymentsSessionRequest>
     for PaymentSessionIntent
 {
     #[instrument(skip_all)]
@@ -158,7 +158,26 @@ impl<F: Clone> UpdateTracker<F, payments::PaymentIntentData<F>, PaymentsSessionR
     where
         F: 'b + Send,
     {
-        todo!()
+        let prerouting_algorithm = payment_data.payment_intent.prerouting_algorithm.clone();
+        payment_data.payment_intent = match prerouting_algorithm {
+            Some(prerouting_algorithm) => state
+                .store
+                .update_payment_intent(
+                    &state.into(),
+                    payment_data.payment_intent,
+                    storage::PaymentIntentUpdate::SessionIntentUpdate {
+                        prerouting_algorithm,
+                        updated_by: storage_scheme.to_string(),
+                    },
+                    key_store,
+                    storage_scheme,
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?,
+            None => payment_data.payment_intent,
+        };
+
+        Ok((Box::new(self), payment_data))
     }
 }
 

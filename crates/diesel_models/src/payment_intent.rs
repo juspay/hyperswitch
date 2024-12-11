@@ -373,6 +373,11 @@ pub enum PaymentIntentUpdate {
         status: storage_enums::IntentStatus,
         updated_by: String,
     },
+    /// Update the payment intent details on payment sdk session call, before calling the connector.
+    SessionIntentUpdate {
+        prerouting_algorithm: serde_json::Value,
+        updated_by: String,
+    },
 }
 
 #[cfg(feature = "v1")]
@@ -529,6 +534,7 @@ pub struct PaymentIntentUpdateInternal {
     // pub metadata: Option<pii::SecretSerdeValue>,
     pub modified_at: PrimitiveDateTime,
     pub active_attempt_id: Option<common_utils::id_type::GlobalAttemptId>,
+    pub prerouting_algorithm: Option<serde_json::Value>,
     // pub description: Option<String>,
     // pub statement_descriptor: Option<String>,
     // #[diesel(deserialize_as = super::OptionalDieselArray<pii::SecretSerdeValue>)]
@@ -603,6 +609,7 @@ impl PaymentIntentUpdate {
             // metadata,
             modified_at: _,
             active_attempt_id,
+            prerouting_algorithm,
             // description,
             // statement_descriptor,
             // order_details,
@@ -629,6 +636,7 @@ impl PaymentIntentUpdate {
             // metadata: metadata.or(source.metadata),
             modified_at: common_utils::date_time::now(),
             active_attempt_id: active_attempt_id.or(source.active_attempt_id),
+            prerouting_algorithm: prerouting_algorithm.or(source.prerouting_algorithm),
             // description: description.or(source.description),
             // statement_descriptor: statement_descriptor.or(source.statement_descriptor),
             // order_details: order_details.or(source.order_details),
@@ -750,13 +758,25 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
             } => Self {
                 status: Some(status),
                 active_attempt_id: Some(active_attempt_id),
+                prerouting_algorithm: None,
                 modified_at: common_utils::date_time::now(),
                 updated_by,
             },
             PaymentIntentUpdate::ConfirmIntentPostUpdate { status, updated_by } => Self {
                 status: Some(status),
                 active_attempt_id: None,
+                prerouting_algorithm: None,
                 modified_at: common_utils::date_time::now(),
+                updated_by,
+            },
+            PaymentIntentUpdate::SessionIntentUpdate {
+                prerouting_algorithm,
+                updated_by,
+            } => Self {
+                status: None,
+                active_attempt_id: None,
+                modified_at: common_utils::date_time::now(),
+                prerouting_algorithm: Some(prerouting_algorithm),
                 updated_by,
             },
         }
