@@ -214,6 +214,7 @@ diesel::table! {
         is_auto_retries_enabled -> Nullable<Bool>,
         max_auto_retries_enabled -> Nullable<Int2>,
         is_click_to_pay_enabled -> Bool,
+        always_request_overcapture -> Bool,
     }
 }
 
@@ -965,6 +966,7 @@ diesel::table! {
         tax_details -> Nullable<Jsonb>,
         skip_external_tax_calculation -> Nullable<Bool>,
         psd2_sca_exemption_type -> Nullable<ScaExemptionType>,
+        request_overcapture -> Nullable<Bool>,
     }
 }
 

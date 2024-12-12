@@ -227,6 +227,10 @@ pub struct PaymentsCreateIntentRequest {
     #[schema(value_type = Option<External3dsAuthenticationRequest>)]
     pub request_external_three_ds_authentication:
         Option<common_enums::External3dsAuthenticationRequest>,
+
+    /// Whether to perform overcapture (if applicable)
+    #[schema(value_type = Option<OverCaptureRequest>)]
+    pub request_overcapture: Option<common_enums::OverCaptureRequest>,
 }
 
 #[cfg(feature = "v2")]
@@ -388,6 +392,10 @@ pub struct PaymentsUpdateIntentRequest {
     #[schema(value_type = Option<External3dsAuthenticationRequest>)]
     pub request_external_three_ds_authentication:
         Option<common_enums::External3dsAuthenticationRequest>,
+
+    /// Whether to perform overcapture (if applicable)
+    #[schema(value_type = Option<OverCaptureRequest>)]
+    pub request_overcapture: Option<common_enums::OverCaptureRequest>,
 }
 
 #[derive(Debug, serde::Serialize, Clone, ToSchema)]
@@ -516,6 +524,10 @@ pub struct PaymentsIntentResponse {
     /// Whether to perform external authentication (if applicable)
     #[schema(value_type = External3dsAuthenticationRequest)]
     pub request_external_three_ds_authentication: common_enums::External3dsAuthenticationRequest,
+
+    /// Whether to perform overcapture (if applicable)
+    #[schema(value_type = OverCaptureRequest)]
+    pub request_overcapture: common_enums::OverCaptureRequest,
 }
 
 #[cfg(feature = "v2")]
@@ -1013,6 +1025,9 @@ pub struct PaymentsRequest {
     /// Choose what kind of sca exemption is required for this payment
     #[schema(value_type = Option<ScaExemptionType>)]
     pub psd2_sca_exemption_type: Option<api_enums::ScaExemptionType>,
+
+    /// Whether to request overcapture on this payment
+    pub request_overcapture: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
