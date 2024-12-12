@@ -57,6 +57,7 @@ use redis_interface::errors::RedisError;
 use router_env::{instrument, tracing};
 #[cfg(feature = "olap")]
 use router_types::transformers::ForeignFrom;
+use rustc_hash::FxHashMap;
 use scheduler::utils as pt_utils;
 #[cfg(feature = "v2")]
 pub use session_operation::payments_session_core;
@@ -5862,6 +5863,7 @@ pub fn should_add_task_to_process_tracker<F: Clone, D: OperationSessionGetters<F
     )
 }
 
+#[cfg(feature = "v1")]
 pub async fn perform_session_token_routing<F, D>(
     state: SessionState,
     merchant_account: &domain::MerchantAccount,
@@ -5929,16 +5931,14 @@ where
     //     }
     // }
 
-    let routing_enabled_pms = HashSet::from([
-        enums::PaymentMethodType::GooglePay,
-        enums::PaymentMethodType::ApplePay,
-        enums::PaymentMethodType::Klarna,
-        enums::PaymentMethodType::Paypal,
-    ]);
+    let routing_enabled_pmts = &crate::consts::ROUTING_ENABLED_PAYMENT_METHOD_TYPES;
+    let routing_enabled_pms = &crate::consts::ROUTING_ENABLED_PAYMENT_METHODS;
 
     let mut chosen = Vec::<api::SessionConnectorData>::new();
     for connector_data in &connectors {
-        if routing_enabled_pms.contains(&connector_data.payment_method_type) {
+        if routing_enabled_pmts.contains(&connector_data.payment_method_type)
+            || routing_enabled_pms.contains(&connector_data.payment_method)
+        {
             chosen.push(connector_data.clone());
         }
     }
@@ -5964,7 +5964,7 @@ where
     let mut final_list: Vec<api::SessionConnectorData> = Vec::new();
 
     for connector_data in connectors {
-        if !routing_enabled_pms.contains(&connector_data.payment_method_type) {
+        if !routing_enabled_pmts.contains(&connector_data.payment_method_type) {
             final_list.push(connector_data);
         } else if let Some(choice) = result.get(&connector_data.payment_method_type) {
             let routing_choice = choice
@@ -5980,6 +5980,76 @@ where
     }
 
     Ok(final_list)
+}
+
+pub struct SessionTokenRoutingResult {
+    pub final_result: Vec<api::SessionConnectorData>,
+    pub routing_result:
+        FxHashMap<common_enums::PaymentMethodType, Vec<api::routing::SessionRoutingChoice>>,
+}
+#[cfg(feature = "v2")]
+pub async fn perform_session_token_routing<F, D>(
+    state: SessionState,
+    merchant_account: &domain::MerchantAccount,
+    key_store: &domain::MerchantKeyStore,
+    payment_data: &D,
+    connectors: Vec<api::SessionConnectorData>,
+) -> RouterResult<SessionTokenRoutingResult>
+where
+    F: Clone,
+    D: OperationSessionGetters<F>,
+{
+    let routing_enabled_pmts = &crate::consts::ROUTING_ENABLED_PAYMENT_METHOD_TYPES;
+    let routing_enabled_pms = &crate::consts::ROUTING_ENABLED_PAYMENT_METHODS;
+
+    let mut chosen = Vec::<api::SessionConnectorData>::new();
+    for connector_data in &connectors {
+        if routing_enabled_pmts.contains(&connector_data.payment_method_type)
+            || routing_enabled_pms.contains(&connector_data.payment_method)
+        {
+            chosen.push(connector_data.clone());
+        }
+    }
+    let sfr = SessionFlowRoutingInput {
+        state: &state,
+        country: payment_data
+            .get_payment_intent()
+            .billing_address
+            .as_ref()
+            .and_then(|address| address.get_inner().address.as_ref())
+            .and_then(|details| details.country),
+        key_store,
+        merchant_account,
+        payment_intent: payment_data.get_payment_intent(),
+
+        chosen,
+    };
+    let result = self_routing::perform_session_flow_routing(sfr, &enums::TransactionType::Payment)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("error performing session flow routing")?;
+
+    let mut final_list: Vec<api::SessionConnectorData> = Vec::new();
+
+    for connector_data in connectors {
+        if !routing_enabled_pmts.contains(&connector_data.payment_method_type) {
+            final_list.push(connector_data);
+        } else if let Some(choice) = result.get(&connector_data.payment_method_type) {
+            let routing_choice = choice
+                .first()
+                .ok_or(errors::ApiErrorResponse::InternalServerError)?;
+            if connector_data.connector.connector_name == routing_choice.connector.connector_name
+                && connector_data.connector.merchant_connector_id
+                    == routing_choice.connector.merchant_connector_id
+            {
+                final_list.push(connector_data);
+            }
+        }
+    }
+    Ok(SessionTokenRoutingResult {
+        final_result: final_list,
+        routing_result: result,
+    })
 }
 
 #[cfg(feature = "v1")]

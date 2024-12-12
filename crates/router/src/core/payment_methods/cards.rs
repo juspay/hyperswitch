@@ -3368,11 +3368,9 @@ pub async fn list_payment_methods(
         })?;
 
     // filter out payment connectors based on profile_id
-    let filtered_mcas = helpers::filter_mca_based_on_profile_and_connector_type(
-        all_mcas.clone(),
-        &profile_id,
-        ConnectorType::PaymentProcessor,
-    );
+    let filtered_mcas = all_mcas
+        .clone()
+        .filter_based_on_profile_and_connector_type(&profile_id, ConnectorType::PaymentProcessor);
 
     logger::debug!(mca_before_filtering=?filtered_mcas);
 
@@ -3529,19 +3527,9 @@ pub async fn list_payment_methods(
     if let Some((payment_attempt, payment_intent)) =
         payment_attempt.as_ref().zip(payment_intent.as_ref())
     {
-        let routing_enabled_pms = HashSet::from([
-            api_enums::PaymentMethod::BankTransfer,
-            api_enums::PaymentMethod::BankDebit,
-            api_enums::PaymentMethod::BankRedirect,
-        ]);
+        let routing_enabled_pms = &crate::consts::ROUTING_ENABLED_PAYMENT_METHODS;
 
-        let routing_enabled_pm_types = HashSet::from([
-            api_enums::PaymentMethodType::GooglePay,
-            api_enums::PaymentMethodType::ApplePay,
-            api_enums::PaymentMethodType::Klarna,
-            api_enums::PaymentMethodType::Paypal,
-            api_enums::PaymentMethodType::SamsungPay,
-        ]);
+        let routing_enabled_pm_types = &crate::consts::ROUTING_ENABLED_PAYMENT_METHOD_TYPES;
 
         let mut chosen = Vec::<api::SessionConnectorData>::new();
         for intermediate in &response {
@@ -3559,6 +3547,7 @@ pub async fn list_payment_methods(
 
                 chosen.push(api::SessionConnectorData {
                     payment_method_type: intermediate.payment_method_type,
+                    payment_method: intermediate.payment_method,
                     connector: connector_data,
                     business_sub_label: None,
                 });
@@ -5244,13 +5233,13 @@ pub async fn get_mca_status(
             .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
                 id: merchant_id.get_string_repr().to_owned(),
             })?;
-        let merchant_connector_accounts = domain::MerchantConnectorAccounts::new(mcas);
 
-        return Ok(merchant_connector_accounts
-            .is_merchant_connector_account_id_in_connector_mandate_details(
+        return Ok(
+            mcas.is_merchant_connector_account_id_in_connector_mandate_details(
                 profile_id.as_ref(),
                 &connector_mandate_details,
-            ));
+            ),
+        );
     }
     Ok(false)
 }

@@ -179,7 +179,7 @@ where
         merchant_id: &common_utils::id_type::MerchantId,
         get_disabled: bool,
         key_store: &domain::MerchantKeyStore,
-    ) -> CustomResult<Vec<domain::MerchantConnectorAccount>, errors::StorageError>;
+    ) -> CustomResult<domain::MerchantConnectorAccounts, errors::StorageError>;
 
     #[cfg(all(feature = "olap", feature = "v2"))]
     async fn list_connector_account_by_profile_id(
@@ -500,9 +500,14 @@ impl MerchantConnectorAccountInterface for Store {
         merchant_id: &common_utils::id_type::MerchantId,
         get_disabled: bool,
         key_store: &domain::MerchantKeyStore,
-    ) -> CustomResult<Vec<domain::MerchantConnectorAccount>, errors::StorageError> {
+    ) -> CustomResult<domain::MerchantConnectorAccounts, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
-        storage::MerchantConnectorAccount::find_by_merchant_id(&conn, merchant_id, get_disabled)
+        let merchant_connector_account_vec =
+            storage::MerchantConnectorAccount::find_by_merchant_id(
+                &conn,
+                merchant_id,
+                get_disabled,
+            )
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
             .async_and_then(|items| async {
@@ -520,7 +525,10 @@ impl MerchantConnectorAccountInterface for Store {
                 }
                 Ok(output)
             })
-            .await
+            .await?;
+        Ok(domain::MerchantConnectorAccounts::new(
+            merchant_connector_account_vec,
+        ))
     }
 
     #[instrument(skip_all)]
@@ -1253,7 +1261,7 @@ impl MerchantConnectorAccountInterface for MockDb {
         merchant_id: &common_utils::id_type::MerchantId,
         get_disabled: bool,
         key_store: &domain::MerchantKeyStore,
-    ) -> CustomResult<Vec<domain::MerchantConnectorAccount>, errors::StorageError> {
+    ) -> CustomResult<domain::MerchantConnectorAccounts, errors::StorageError> {
         let accounts = self
             .merchant_connector_accounts
             .lock()
@@ -1282,7 +1290,7 @@ impl MerchantConnectorAccountInterface for MockDb {
                     .change_context(errors::StorageError::DecryptionError)?,
             )
         }
-        Ok(output)
+        Ok(domain::MerchantConnectorAccounts::new(output))
     }
 
     #[cfg(all(feature = "olap", feature = "v2"))]
