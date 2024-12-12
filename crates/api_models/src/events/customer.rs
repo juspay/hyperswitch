@@ -1,11 +1,9 @@
 use common_utils::events::{ApiEventMetric, ApiEventsType};
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
-use crate::customers::CustomerId;
 #[cfg(all(feature = "v2", feature = "customer_v2"))]
 use crate::customers::GlobalId;
 use crate::customers::{
-    CustomerDeleteResponse, CustomerRequest, CustomerResponse, CustomerUpdateRequest,
+    CustomerDeleteResponse, CustomerId, CustomerRequest, CustomerResponse, CustomerUpdateRequest,
 };
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
@@ -76,6 +74,18 @@ impl ApiEventMetric for GlobalId {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::Customer {
             id: self.id.clone(),
+        })
+    }
+}
+
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
+impl ApiEventMetric for CustomerId {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Customer {
+            id: self
+                .get_merchant_reference_id()
+                .get_string_repr()
+                .to_string(),
         })
     }
 }

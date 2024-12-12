@@ -32,6 +32,8 @@ mod storage {
     use time::ext::NumericalDuration;
 
     use super::EphemeralKeyInterface;
+    #[cfg(feature = "v2")]
+    use crate::types::storage::ephemeral_key::ResourceType;
     use crate::{
         core::errors::{self, CustomResult},
         services::Store,
@@ -40,6 +42,7 @@ mod storage {
 
     #[async_trait::async_trait]
     impl EphemeralKeyInterface for Store {
+        #[cfg(feature = "v1")]
         #[instrument(skip_all)]
         async fn create_ephemeral_key(
             &self,
@@ -58,6 +61,63 @@ mod storage {
                 customer_id: new.customer_id,
                 merchant_id: new.merchant_id,
                 secret: new.secret,
+            };
+
+            match self
+                .get_redis_conn()
+                .map_err(Into::<errors::StorageError>::into)?
+                .serialize_and_set_multiple_hash_field_if_not_exist(
+                    &[(&secret_key, &created_ek), (&id_key, &created_ek)],
+                    "ephkey",
+                    None,
+                )
+                .await
+            {
+                Ok(v) if v.contains(&HsetnxReply::KeyNotSet) => {
+                    Err(errors::StorageError::DuplicateValue {
+                        entity: "ephemeral key",
+                        key: None,
+                    }
+                    .into())
+                }
+                Ok(_) => {
+                    let expire_at = expires.assume_utc().unix_timestamp();
+                    self.get_redis_conn()
+                        .map_err(Into::<errors::StorageError>::into)?
+                        .set_expire_at(&secret_key, expire_at)
+                        .await
+                        .change_context(errors::StorageError::KVError)?;
+                    self.get_redis_conn()
+                        .map_err(Into::<errors::StorageError>::into)?
+                        .set_expire_at(&id_key, expire_at)
+                        .await
+                        .change_context(errors::StorageError::KVError)?;
+                    Ok(created_ek)
+                }
+                Err(er) => Err(er).change_context(errors::StorageError::KVError),
+            }
+        }
+
+        #[cfg(feature = "v2")]
+        #[instrument(skip_all)]
+        async fn create_ephemeral_key(
+            &self,
+            new: EphemeralKeyNew,
+            validity: i64,
+        ) -> CustomResult<EphemeralKey, errors::StorageError> {
+            let secret_key = format!("epkey_{}", &new.secret);
+            let id_key = format!("epkey_{}", &new.id);
+
+            let created_at = date_time::now();
+            let expires = created_at.saturating_add(validity.hours());
+            let created_ek = EphemeralKey {
+                id: new.id,
+                created_at: created_at.assume_utc().unix_timestamp(),
+                expires: expires.assume_utc().unix_timestamp(),
+                customer_id: new.customer_id,
+                merchant_id: new.merchant_id,
+                secret: new.secret,
+                resource_type: new.resource_type,
             };
 
             match self
@@ -130,6 +190,7 @@ mod storage {
 
 #[async_trait::async_trait]
 impl EphemeralKeyInterface for MockDb {
+    #[cfg(feature = "v1")]
     async fn create_ephemeral_key(
         &self,
         ek: EphemeralKeyNew,
@@ -146,6 +207,29 @@ impl EphemeralKeyInterface for MockDb {
             created_at: created_at.assume_utc().unix_timestamp(),
             expires: expires.assume_utc().unix_timestamp(),
             secret: ek.secret,
+        };
+        ephemeral_keys.push(ephemeral_key.clone());
+        Ok(ephemeral_key)
+    }
+
+    #[cfg(feature = "v2")]
+    async fn create_ephemeral_key(
+        &self,
+        ek: EphemeralKeyNew,
+        validity: i64,
+    ) -> CustomResult<EphemeralKey, errors::StorageError> {
+        let mut ephemeral_keys = self.ephemeral_keys.lock().await;
+        let created_at = common_utils::date_time::now();
+        let expires = created_at.saturating_add(validity.hours());
+
+        let ephemeral_key = EphemeralKey {
+            id: ek.id,
+            merchant_id: ek.merchant_id,
+            customer_id: ek.customer_id,
+            created_at: created_at.assume_utc().unix_timestamp(),
+            expires: expires.assume_utc().unix_timestamp(),
+            secret: ek.secret,
+            resource_type: ek.resource_type,
         };
         ephemeral_keys.push(ephemeral_key.clone());
         Ok(ephemeral_key)

@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use actix_web::http::header::HeaderMap;
 #[cfg(all(
     any(feature = "v2", feature = "v1"),
@@ -11,7 +13,11 @@ use api_models::payouts;
 use api_models::{payment_methods::PaymentMethodListRequest, payments};
 use async_trait::async_trait;
 use common_enums::TokenPurpose;
+#[cfg(feature = "v2")]
+use common_utils::fp_utils;
 use common_utils::{date_time, id_type};
+#[cfg(feature = "v2")]
+use diesel_models::ephemeral_key;
 use error_stack::{report, ResultExt};
 use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
 use masking::PeekInterface;
@@ -1329,6 +1335,7 @@ where
 #[derive(Debug)]
 pub struct EphemeralKeyAuth;
 
+#[cfg(feature = "v1")]
 #[async_trait]
 impl<A> AuthenticateAndFetch<AuthenticationData, A> for EphemeralKeyAuth
 where
@@ -1346,6 +1353,45 @@ where
             .get_ephemeral_key(api_key)
             .await
             .change_context(errors::ApiErrorResponse::Unauthorized)?;
+
+        MerchantIdAuth(ephemeral_key.merchant_id)
+            .authenticate_and_fetch(request_headers, state)
+            .await
+    }
+}
+
+#[cfg(feature = "v2")]
+#[async_trait]
+impl<A> AuthenticateAndFetch<AuthenticationData, A> for EphemeralKeyAuth
+where
+    A: SessionStateInfo + Sync,
+{
+    async fn authenticate_and_fetch(
+        &self,
+        request_headers: &HeaderMap,
+        state: &A,
+    ) -> RouterResult<(AuthenticationData, AuthenticationType)> {
+        let api_key =
+            get_api_key(request_headers).change_context(errors::ApiErrorResponse::Unauthorized)?;
+        let ephemeral_key = state
+            .store()
+            .get_ephemeral_key(api_key)
+            .await
+            .change_context(errors::ApiErrorResponse::Unauthorized)?;
+
+        let resource_type = HeaderMapStruct::new(request_headers)
+            .get_mandatory_header_value_by_key(headers::X_RESOURCE_TYPE)
+            .and_then(|val| {
+                ephemeral_key::ResourceType::from_str(val).change_context(
+                    errors::ApiErrorResponse::InvalidRequestData {
+                        message: format!("`{}` header is invalid", headers::X_RESOURCE_TYPE),
+                    },
+                )
+            })?;
+
+        fp_utils::when(resource_type != ephemeral_key.resource_type, || {
+            Err(errors::ApiErrorResponse::Unauthorized)
+        })?;
 
         MerchantIdAuth(ephemeral_key.merchant_id)
             .authenticate_and_fetch(request_headers, state)
@@ -3109,7 +3155,7 @@ pub fn get_header_value_by_key(key: String, headers: &HeaderMap) -> RouterResult
         })
         .transpose()
 }
-pub fn get_id_type_by_key_from_headers<T: std::str::FromStr>(
+pub fn get_id_type_by_key_from_headers<T: FromStr>(
     key: String,
     headers: &HeaderMap,
 ) -> RouterResult<Option<T>> {

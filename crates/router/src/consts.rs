@@ -171,19 +171,19 @@ pub const DEFAULT_SDK_LAYOUT: &str = "tabs";
 
 /// Vault Add request url
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-pub const ADD_VAULT_REQUEST_URL: &str = "/vault/add";
+pub const ADD_VAULT_REQUEST_URL: &str = "/api/v2/vault/add";
 
 /// Vault Get Fingerprint request url
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-pub const VAULT_FINGERPRINT_REQUEST_URL: &str = "/fingerprint";
+pub const VAULT_FINGERPRINT_REQUEST_URL: &str = "/api/v2/vault/fingerprint";
 
 /// Vault Retrieve request url
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-pub const VAULT_RETRIEVE_REQUEST_URL: &str = "/vault/retrieve";
+pub const VAULT_RETRIEVE_REQUEST_URL: &str = "/api/v2/vault/retrieve";
 
 /// Vault Delete request url
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-pub const VAULT_DELETE_REQUEST_URL: &str = "/vault/delete";
+pub const VAULT_DELETE_REQUEST_URL: &str = "/api/v2/vault/delete";
 
 /// Vault Header content type
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
