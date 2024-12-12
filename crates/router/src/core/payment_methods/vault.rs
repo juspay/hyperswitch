@@ -66,6 +66,7 @@ impl Vaultable for domain::Card {
             nickname: self.nick_name.as_ref().map(|name| name.peek().clone()),
             card_last_four: None,
             card_token: None,
+            card_holder_name: self.card_holder_name.clone(),
         };
 
         value1
@@ -119,6 +120,7 @@ impl Vaultable for domain::Card {
             card_issuing_country: None,
             card_type: None,
             nick_name: value1.nickname.map(masking::Secret::new),
+            card_holder_name: value1.card_holder_name,
         };
 
         let supp_data = SupplementaryVaultData {
