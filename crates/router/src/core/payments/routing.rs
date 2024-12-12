@@ -1393,18 +1393,17 @@ pub async fn perform_elimination_routing(
     business_profile: &domain::Profile,
     elimination_routing_configs_params_interpolator: routing::helpers::SuccessBasedRoutingConfigParamsInterpolator,
 ) -> RoutingResult<Vec<api_routing::RoutableConnectorChoice>> {
-    let dynamic_routing_algo_ref: api_routing::DynamicRoutingAlgorithmRef =
-        business_profile
-            .dynamic_routing_algorithm
-            .clone()
-            .map(|val| val.parse_value("DynamicRoutingAlgorithmRef"))
-            .transpose()
-            .change_context(errors::RoutingError::DeserializationError {
-                from: "JSON".to_string(),
-                to: "DynamicRoutingAlgorithmRef".to_string(),
-            })
-            .attach_printable("unable to deserialize DynamicRoutingAlgorithmRef from JSON")?
-            .unwrap_or_default();
+    let dynamic_routing_algo_ref: api_routing::DynamicRoutingAlgorithmRef = business_profile
+        .dynamic_routing_algorithm
+        .clone()
+        .map(|val| val.parse_value("DynamicRoutingAlgorithmRef"))
+        .transpose()
+        .change_context(errors::RoutingError::DeserializationError {
+            from: "JSON".to_string(),
+            to: "DynamicRoutingAlgorithmRef".to_string(),
+        })
+        .attach_printable("unable to deserialize DynamicRoutingAlgorithmRef from JSON")?
+        .unwrap_or_default();
 
     let elimination_algo_ref = dynamic_routing_algo_ref
         .elimination_routing_algorithm
@@ -1471,7 +1470,8 @@ pub async fn perform_elimination_routing(
                 "unable to calculate/fetch success rate from dynamic routing service",
             )?;
 
-        let mut connectors = Vec::with_capacity(elimination_based_connectors.labels_with_score.len());
+        let mut connectors =
+            Vec::with_capacity(elimination_based_connectors.labels_with_score.len());
         for label_with_score in elimination_based_connectors.labels_with_score {
             let (connector, merchant_connector_id) = label_with_score.label
                 .split_once(':')
