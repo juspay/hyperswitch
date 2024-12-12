@@ -1571,10 +1571,6 @@ impl<'a> TryFrom<&AdyenRouterData<&types::PaymentsAuthorizeRouterData>>
     fn try_from(
         item: &AdyenRouterData<&types::PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
-        println!(
-            "sahkal bdebijdqi {:?}",
-            item.router_data.request.payment_method_data
-        );
         match item
             .router_data
             .request

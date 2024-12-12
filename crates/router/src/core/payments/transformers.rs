@@ -2592,7 +2592,6 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             }
         });
 
-        println!("qelfhqwkudhkuqw {:?}", payment_method_data);
         let amount = payment_data.payment_attempt.get_total_amount();
 
         let customer_name = additional_data
