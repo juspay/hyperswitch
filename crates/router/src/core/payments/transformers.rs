@@ -3700,6 +3700,7 @@ impl ForeignFrom<api_models::admin::PaymentLinkConfigRequest>
             enabled_saved_payment_method: config.enabled_saved_payment_method,
             hide_card_nickname_field: config.hide_card_nickname_field,
             show_card_form_by_default: config.show_card_form_by_default,
+            details_layout: config.details_layout,
             transaction_details: config.transaction_details.map(|transaction_details| {
                 transaction_details
                     .iter()
@@ -3707,6 +3708,11 @@ impl ForeignFrom<api_models::admin::PaymentLinkConfigRequest>
                         diesel_models::PaymentLinkTransactionDetails::foreign_from(details.clone())
                     })
                     .collect()
+            }),
+            background_image: config.background_image.map(|background_image| {
+                diesel_models::business_profile::PaymentLinkBackgroundImageConfig::foreign_from(
+                    background_image.clone(),
+                )
             }),
         }
     }
@@ -3754,6 +3760,7 @@ impl ForeignFrom<diesel_models::PaymentLinkConfigRequestForPayments>
             enabled_saved_payment_method: config.enabled_saved_payment_method,
             hide_card_nickname_field: config.hide_card_nickname_field,
             show_card_form_by_default: config.show_card_form_by_default,
+            details_layout: config.details_layout,
             transaction_details: config.transaction_details.map(|transaction_details| {
                 transaction_details
                     .iter()
@@ -3763,6 +3770,11 @@ impl ForeignFrom<diesel_models::PaymentLinkConfigRequestForPayments>
                         )
                     })
                     .collect()
+            }),
+            background_image: config.background_image.map(|background_image| {
+                api_models::admin::PaymentLinkBackgroundImageConfig::foreign_from(
+                    background_image.clone(),
+                )
             }),
         }
     }

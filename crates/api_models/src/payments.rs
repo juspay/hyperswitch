@@ -6684,6 +6684,9 @@ pub struct PaymentLinkDetails {
     pub show_card_form_by_default: bool,
     pub locale: Option<String>,
     pub transaction_details: Option<Vec<admin::PaymentLinkTransactionDetails>>,
+    pub background_image: Option<admin::PaymentLinkBackgroundImageConfig>,
+    pub details_layout: Option<api_enums::PaymentLinkDetailsLayout>,
+    pub branding_visibility: Option<bool>,
 }
 
 #[derive(Debug, serde::Serialize, Clone)]
