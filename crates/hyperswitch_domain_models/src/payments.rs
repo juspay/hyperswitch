@@ -520,6 +520,19 @@ pub struct HeaderPayload {
     pub x_redirect_uri: Option<String>,
 }
 
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ClickToPayMetaData {
+    pub dpa_id: String,
+    pub dpa_name: String,
+    pub locale: String,
+    pub card_brands: Vec<String>,
+    pub acquirer_bin: String,
+    pub acquirer_merchant_id: String,
+    pub merchant_category_code: String,
+    pub merchant_country_code: String,
+}
+
 // TODO: uncomment fields as necessary
 #[cfg(feature = "v2")]
 #[derive(Default, Debug, Clone)]

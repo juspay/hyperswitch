@@ -207,3 +207,6 @@ pub const VAULT_GET_FINGERPRINT_FLOW_TYPE: &str = "get_fingerprint_vault";
 
 /// Max volume split for Dynamic routing
 pub const DYNAMIC_ROUTING_MAX_VOLUME: u8 = 100;
+
+/// Click To Pay
+pub const CLICK_TO_PAY: &str = "CLICK_TO_PAY";
