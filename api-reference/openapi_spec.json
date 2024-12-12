@@ -3922,7 +3922,91 @@
         ]
       }
     },
-    "/account/:account_id/business_profile/:profile_id/dynamic_routing/success_based/toggle": {
+    "/account/{account_id}/business_profile/{profile_id}/dynamic_routing/success_based/config/{algorithm_id}": {
+      "patch": {
+        "tags": [
+          "Routing"
+        ],
+        "summary": "Routing - Update success based dynamic routing config for profile",
+        "description": "Update success based dynamic routing algorithm",
+        "operationId": "Update success based dynamic routing configs",
+        "parameters": [
+          {
+            "name": "account_id",
+            "in": "path",
+            "description": "Merchant id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "profile_id",
+            "in": "path",
+            "description": "Profile id under which Dynamic routing needs to be toggled",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "algorithm_id",
+            "in": "path",
+            "description": "Success based routing algorithm id which was last activated to update the config",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DynamicRoutingFeatures"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Routing Algorithm updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoutingDictionaryRecord"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Update body is malformed"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Resource missing"
+          },
+          "422": {
+            "description": "Unprocessable request"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          },
+          {
+            "jwt_key": []
+          }
+        ]
+      }
+    },
+    "/account/{account_id}/business_profile/{profile_id}/dynamic_routing/success_based/toggle": {
       "post": {
         "tags": [
           "Routing"
@@ -3930,6 +4014,80 @@
         "summary": "Routing - Toggle success based dynamic routing for profile",
         "description": "Create a success based dynamic routing algorithm",
         "operationId": "Toggle success based dynamic routing algorithm",
+        "parameters": [
+          {
+            "name": "account_id",
+            "in": "path",
+            "description": "Merchant id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "profile_id",
+            "in": "path",
+            "description": "Profile id under which Dynamic routing needs to be toggled",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "enable",
+            "in": "query",
+            "description": "Feature to enable for success based routing",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/DynamicRoutingFeatures"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Routing Algorithm created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoutingDictionaryRecord"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request body is malformed"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Resource missing"
+          },
+          "422": {
+            "description": "Unprocessable request"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          },
+          {
+            "jwt_key": []
+          }
+        ]
+      }
+    },
+    "/account/{account_id}/business_profile/{profile_id}/dynamic_routing/elimination/toggle": {
+      "post": {
+        "tags": [
+          "Routing"
+        ],
+        "summary": "Routing - Toggle elimination routing for profile",
+        "description": "Create a elimination based dynamic routing algorithm",
+        "operationId": "Toggle elimination routing algorithm",
         "parameters": [
           {
             "name": "account_id",

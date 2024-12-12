@@ -260,7 +260,7 @@ pub async fn routing_update_default_config_for_profile() {}
 /// Create a success based dynamic routing algorithm
 #[utoipa::path(
     post,
-    path = "/account/:account_id/business_profile/:profile_id/dynamic_routing/success_based/toggle",
+    path = "/account/{account_id}/business_profile/{profile_id}/dynamic_routing/success_based/toggle",
     params(
         ("account_id" = String, Path, description = "Merchant id"),
         ("profile_id" = String, Path, description = "Profile id under which Dynamic routing needs to be toggled"),
@@ -286,7 +286,7 @@ pub async fn toggle_success_based_routing() {}
 /// Update success based dynamic routing algorithm
 #[utoipa::path(
     patch,
-    path = "/account/:account_id/business_profile/:profile_id/dynamic_routing/success_based/config/:algorithm_id",
+    path = "/account/{account_id}/business_profile/{profile_id}/dynamic_routing/success_based/config/{algorithm_id}",
     params(
         ("account_id" = String, Path, description = "Merchant id"),
         ("profile_id" = String, Path, description = "Profile id under which Dynamic routing needs to be toggled"),
@@ -313,7 +313,7 @@ pub async fn success_based_routing_update_configs() {}
 /// Create a elimination based dynamic routing algorithm
 #[utoipa::path(
     post,
-    path = "/account/:account_id/business_profile/:profile_id/dynamic_routing/elimination/toggle",
+    path = "/account/{account_id}/business_profile/{profile_id}/dynamic_routing/elimination/toggle",
     params(
         ("account_id" = String, Path, description = "Merchant id"),
         ("profile_id" = String, Path, description = "Profile id under which Dynamic routing needs to be toggled"),

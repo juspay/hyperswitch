@@ -159,7 +159,9 @@ Never share your secret api keys. Keep them guarded and secure.
         routes::routing::routing_retrieve_linked_config,
         routes::routing::routing_retrieve_default_config_for_profiles,
         routes::routing::routing_update_default_config_for_profile,
+        routes::routing::success_based_routing_update_configs,
         routes::routing::toggle_success_based_routing,
+        routes::routing::toggle_elimination_routing,
 
         // Routes for blocklist
         routes::blocklist::remove_entry_from_blocklist,
