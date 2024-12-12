@@ -878,8 +878,9 @@ impl super::RedisConnectionPool {
 mod tests {
     #![allow(clippy::expect_used, clippy::unwrap_used)]
 
-    use crate::{errors::RedisError, RedisConnectionPool, RedisEntryId, RedisSettings};
     use std::collections::HashMap;
+
+    use crate::{errors::RedisError, RedisConnectionPool, RedisEntryId, RedisSettings};
 
     #[tokio::test]
     async fn test_consumer_group_create() {
