@@ -14,9 +14,18 @@ impl<F: Clone + Sync> TryFrom<PaymentData<F>> for UasPreAuthenticationRequestDat
     fn try_from(payment_data: PaymentData<F>) -> Result<Self, Self::Error> {
         let service_details = ServiceDetails {
             service_session_ids: Some(ServiceSessionIds {
-                merchant_transaction_id: None,
-                correlation_id: None,
-                x_src_flow_id: None,
+                merchant_transaction_id: payment_data
+                    .service_details
+                    .as_ref()
+                    .and_then(|details| details.merchant_transaction_id.clone()),
+                correlation_id: payment_data
+                    .service_details
+                    .as_ref()
+                    .and_then(|details| details.correlation_id.clone()),
+                x_src_flow_id: payment_data
+                    .service_details
+                    .as_ref()
+                    .and_then(|details| details.x_src_flow_id.clone()),
             }),
         };
         let currency = payment_data.payment_attempt.currency.ok_or(
@@ -31,11 +40,6 @@ impl<F: Clone + Sync> TryFrom<PaymentData<F>> for UasPreAuthenticationRequestDat
         Ok(Self {
             service_details: Some(service_details),
             transaction_details: Some(transaction_details),
-            source_authentication_id: payment_data
-                .authentication
-                .ok_or(ApiErrorResponse::InternalServerError)
-                .attach_printable("missing payment_data.authentication")?
-                .authentication_id,
         })
     }
 }

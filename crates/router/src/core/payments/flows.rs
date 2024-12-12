@@ -520,7 +520,8 @@ default_imp_for_connector_request_id!(
     connector::Worldline,
     connector::Worldpay,
     connector::Zen,
-    connector::Zsl
+    connector::Zsl,
+    connector::CtpMastercard
 );
 
 macro_rules! default_imp_for_accept_dispute {
@@ -1724,7 +1725,8 @@ default_imp_for_fraud_check!(
     connector::Worldline,
     connector::Worldpay,
     connector::Zen,
-    connector::Zsl
+    connector::Zsl,
+    connector::CtpMastercard
 );
 
 #[cfg(feature = "frm")]
@@ -2355,7 +2357,8 @@ default_imp_for_connector_authentication!(
     connector::Worldline,
     connector::Worldpay,
     connector::Zen,
-    connector::Zsl
+    connector::Zsl,
+    connector::CtpMastercard
 );
 
 macro_rules! default_imp_for_authorize_session_token {

@@ -5925,7 +5925,8 @@
         "enum": [
           "threedsecureio",
           "netcetera",
-          "gpayments"
+          "gpayments",
+          "ctp_mastercard"
         ]
       },
       "AuthenticationStatus": {
@@ -8736,6 +8737,7 @@
           "checkout",
           "coinbase",
           "cryptopay",
+          "ctp_mastercard",
           "cybersource",
           "datatrans",
           "deutschebank",
@@ -17109,6 +17111,14 @@
               }
             ],
             "nullable": true
+          },
+          "service_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ServiceDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -17484,6 +17494,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/ScaExemptionType"
+              }
+            ],
+            "nullable": true
+          },
+          "service_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ServiceDetails"
               }
             ],
             "nullable": true
@@ -18689,6 +18707,14 @@
               }
             ],
             "nullable": true
+          },
+          "service_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ServiceDetails"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -19727,6 +19753,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/ScaExemptionType"
+              }
+            ],
+            "nullable": true
+          },
+          "service_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ServiceDetails"
               }
             ],
             "nullable": true
@@ -21691,6 +21725,11 @@
           "is_click_to_pay_enabled": {
             "type": "boolean",
             "description": "Indicates if click to pay is enabled or not."
+          },
+          "authentication_product_ids": {
+            "type": "object",
+            "description": "Product authentication ids",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -21927,6 +21966,11 @@
             "description": "Indicates if click to pay is enabled or not.",
             "default": false,
             "example": false
+          },
+          "authentication_product_ids": {
+            "type": "object",
+            "description": "Product authentication ids",
+            "nullable": true
           }
         }
       },
@@ -23645,6 +23689,23 @@
           "reference": {
             "type": "string",
             "example": "U2PVVSEV4V9Y"
+          }
+        }
+      },
+      "ServiceDetails": {
+        "type": "object",
+        "properties": {
+          "merchant_transaction_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "correlation_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "x_src_flow_id": {
+            "type": "string",
+            "nullable": true
           }
         }
       },

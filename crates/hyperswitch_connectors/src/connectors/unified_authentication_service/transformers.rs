@@ -201,10 +201,11 @@ impl TryFrom<&UnifiedAuthenticationServiceRouterData<&UasPreAuthenticationRouter
     ) -> Result<Self, Self::Error> {
         let auth_type =
             UnifiedAuthenticationServiceAuthType::try_from(&item.router_data.connector_auth_type)?;
+        let authentication_id = item.router_data.authentication_id.clone().ok_or(errors::ConnectorError::MissingRequiredField { field_name: "authentication_id" })?;
         Ok(Self {
             authenticate_by: CTP_MASTERCARD.to_owned(),
-            session_id: item.router_data.request.source_authentication_id.clone(),
-            source_authentication_id: item.router_data.request.source_authentication_id.clone(),
+            session_id: authentication_id.clone(),
+            source_authentication_id: authentication_id,
             authentication_info: None,
             service_details: Some(ServiceDetails {
                 service_session_ids: item.router_data.request.service_details.clone().and_then(
@@ -354,7 +355,7 @@ impl TryFrom<&UasPostAuthenticationRouterData>
         let auth_type = UnifiedAuthenticationServiceAuthType::try_from(&item.connector_auth_type)?;
         Ok(Self {
             authenticate_by: CTP_MASTERCARD.to_owned(),
-            source_authentication_id: item.request.source_authentication_id.clone(),
+            source_authentication_id: item.authentication_id.clone().ok_or(errors::ConnectorError::MissingRequiredField { field_name: "authentication_id" })?,
             auth_creds: AuthType::HeaderKey {
                 api_key: auth_type.api_key,
             },

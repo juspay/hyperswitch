@@ -3488,7 +3488,8 @@
         "enum": [
           "threedsecureio",
           "netcetera",
-          "gpayments"
+          "gpayments",
+          "ctp_mastercard"
         ]
       },
       "AuthenticationStatus": {
@@ -6374,6 +6375,7 @@
           "checkout",
           "coinbase",
           "cryptopay",
+          "ctp_mastercard",
           "cybersource",
           "datatrans",
           "deutschebank",
@@ -17737,6 +17739,11 @@
             "description": "Indicates if click to pay is enabled or not.",
             "default": false,
             "example": false
+          },
+          "authentication_product_ids": {
+            "type": "object",
+            "description": "Product authentication ids",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -17956,6 +17963,11 @@
             "description": "Indicates if click to pay is enabled or not.",
             "default": false,
             "example": false
+          },
+          "authentication_product_ids": {
+            "type": "object",
+            "description": "Product authentication ids",
+            "nullable": true
           }
         }
       },
@@ -19759,6 +19771,23 @@
           "reference": {
             "type": "string",
             "example": "U2PVVSEV4V9Y"
+          }
+        }
+      },
+      "ServiceDetails": {
+        "type": "object",
+        "properties": {
+          "merchant_transaction_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "correlation_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "x_src_flow_id": {
+            "type": "string",
+            "nullable": true
           }
         }
       },

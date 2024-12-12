@@ -150,6 +150,9 @@ impl AuthenticationConnectorData {
             enums::AuthenticationConnectors::Gpayments => {
                 Ok(ConnectorEnum::Old(Box::new(connector::Gpayments::new())))
             }
+            enums::AuthenticationConnectors::CtpMastercard => {
+                Ok(ConnectorEnum::Old(Box::new(&connector::CtpMastercard)))
+            }
         }
     }
 }

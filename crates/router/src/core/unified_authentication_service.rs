@@ -2,6 +2,7 @@ pub mod transformers;
 pub mod types;
 pub mod utils;
 
+use api_models::payments::ServiceDetails;
 use diesel_models::authentication::{Authentication, AuthenticationNew};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
@@ -11,7 +12,7 @@ use hyperswitch_domain_models::{
         UasPreAuthenticationRequestData,
     },
 };
-
+use std::str::FromStr;
 use super::{errors::RouterResult, payments::helpers::MerchantConnectorAccountType};
 use crate::{
     core::{
@@ -52,12 +53,12 @@ impl<F: Clone + Sync> UnifiedAuthenticationService<F> for ClickToPay {
                 Some(authentication_id.to_owned()),
             )?;
 
-        utils::do_auth_connector_call(
-            state,
-            UNIFIED_AUTHENTICATION_SERVICE.to_string(),
-            pre_auth_router_data,
-        )
-        .await?;
+        // utils::do_auth_connector_call(
+        //     state,
+        //     UNIFIED_AUTHENTICATION_SERVICE.to_string(),
+        //     pre_auth_router_data,
+        // )
+        // .await?;
 
         Ok(())
     }
@@ -79,9 +80,7 @@ impl<F: Clone + Sync> UnifiedAuthenticationService<F> for ClickToPay {
             .ok_or(ApiErrorResponse::InternalServerError)
             .attach_printable("Missing authentication id in payment attempt")?;
 
-        let post_authentication_data = UasPostAuthenticationRequestData {
-            source_authentication_id: authentication_id.clone(),
-        };
+        let post_authentication_data = UasPostAuthenticationRequestData {};
 
         let post_auth_router_data: hyperswitch_domain_models::types::UasPostAuthenticationRouterData = utils::construct_uas_router_data(
             connector_name.to_string(),
@@ -93,34 +92,49 @@ impl<F: Clone + Sync> UnifiedAuthenticationService<F> for ClickToPay {
             Some(authentication_id.clone()),
         )?;
 
-        let response = utils::do_auth_connector_call(
-            state,
-            UNIFIED_AUTHENTICATION_SERVICE.to_string(),
-            post_auth_router_data,
-        )
-        .await?;
+        // let response = utils::do_auth_connector_call(
+        //     state,
+        //     UNIFIED_AUTHENTICATION_SERVICE.to_string(),
+        //     post_auth_router_data,
+        // )
+        // .await?;
 
-        let network_token = match response.response.clone() {
-            Ok(UasAuthenticationResponseData::PostAuthentication {
-                authentication_details,
-            }) => Some(
-                hyperswitch_domain_models::payment_method_data::NetworkTokenData {
-                    token_number: authentication_details.token_details.payment_token,
-                    token_exp_month: authentication_details.token_details.token_expiration_month,
-                    token_exp_year: authentication_details.token_details.token_expiration_year,
-                    token_cryptogram: None,
-                    card_issuer: None,
-                    card_network: None,
-                    card_type: None,
-                    card_issuing_country: None,
-                    bank_code: None,
-                    nick_name: None,
-                },
-            ),
-            _ => None,
+        // let network_token = match response.response.clone() {
+        //     Ok(UasAuthenticationResponseData::PostAuthentication {
+        //         authentication_details,
+        //     }) => Some(
+        //         hyperswitch_domain_models::payment_method_data::NetworkTokenData {
+        //             token_number: authentication_details.token_details.payment_token,
+        //             token_exp_month: authentication_details.token_details.token_expiration_month,
+        //             token_exp_year: authentication_details.token_details.token_expiration_year,
+        //             token_cryptogram: None,
+        //             card_issuer: None,
+        //             card_network: None,
+        //             card_type: None,
+        //             card_issuing_country: None,
+        //             bank_code: None,
+        //             nick_name: None,
+        //             eci: authentication_details.eci
+        //         },
+        //     ),
+        //     _ => None,
+        // };
+
+        let network_token = hyperswitch_domain_models::payment_method_data::NetworkTokenData {
+            token_number: cards::CardNumber::from_str("2222030199301958").unwrap(),
+            token_exp_month: masking::Secret::new("10".to_string()),
+            token_exp_year: masking::Secret::new("2027".to_string()),
+            token_cryptogram: Some(masking::Secret::new("AJDeZSvIZk9BABagDV8wAAADFA==".to_string())),
+            card_issuer: None,
+            card_network: None,
+            card_type: None,
+            card_issuing_country: None,
+            bank_code: None,
+            nick_name: None,
+            eci: Some(masking::Secret::new("02".to_string()))
         };
 
-        Ok(network_token)
+        Ok(Some(network_token))
     }
 
     fn confirmation(
@@ -133,6 +147,7 @@ impl<F: Clone + Sync> UnifiedAuthenticationService<F> for ClickToPay {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn create_new_authentication(
     state: &SessionState,
     merchant_id: common_utils::id_type::MerchantId,
@@ -141,7 +156,15 @@ pub async fn create_new_authentication(
     payment_id: Option<common_utils::id_type::PaymentId>,
     merchant_connector_id: common_utils::id_type::MerchantConnectorAccountId,
     authentication_id: &str,
+    service_details: Option<ServiceDetails>,
 ) -> RouterResult<Authentication> {
+    let service_details_value = service_details
+        .map(serde_json::to_value)
+        .transpose()
+        .change_context(ApiErrorResponse::InternalServerError)
+        .attach_printable(
+            "unable to parse service details into json value while inserting to DB",
+        )?;
     let new_authorization = AuthenticationNew {
         authentication_id: authentication_id.to_owned(),
         merchant_id,
@@ -176,6 +199,7 @@ pub async fn create_new_authentication(
         ds_trans_id: None,
         directory_server_id: None,
         acquirer_country_code: None,
+        service_details: service_details_value,
     };
     state
         .store

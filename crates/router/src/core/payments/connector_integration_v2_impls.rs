@@ -1155,7 +1155,8 @@ default_imp_for_new_connector_integration_payouts!(
     connector::Worldline,
     connector::Worldpay,
     connector::Zen,
-    connector::Plaid
+    connector::Plaid,
+    connector::CtpMastercard
 );
 
 #[cfg(feature = "payouts")]
@@ -1758,7 +1759,8 @@ default_imp_for_new_connector_integration_frm!(
     connector::Worldline,
     connector::Worldpay,
     connector::Zen,
-    connector::Plaid
+    connector::Plaid,
+    connector::CtpMastercard
 );
 
 #[cfg(feature = "frm")]

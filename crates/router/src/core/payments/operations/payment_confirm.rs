@@ -597,6 +597,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             &request.payment_method_type,
             &mandate_type,
             &token,
+            &request.service_details
         )?;
 
         let (token_data, payment_method_info) = if let Some(token) = token.clone() {
@@ -778,6 +779,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 )), // connector_mandate_request_reference_id
             )),
         );
+
         let payment_data = PaymentData {
             flow: PhantomData,
             payment_intent,
@@ -818,6 +820,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             poll_config: None,
             tax_data: None,
             session_id: None,
+            service_details: request.service_details.clone(),
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -882,6 +885,8 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
             business_profile,
         ))
         .await?;
+
+        println!("clncjkqnwccxqwkjb {:?}", payment_data.payment_method_data);
 
         utils::when(payment_method_data.is_none(), || {
             Err(errors::ApiErrorResponse::PaymentMethodNotFound)
@@ -1101,8 +1106,11 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                 )
                 .await?;
 
-                payment_data.payment_method_data =
-                    network_token.map(domain::PaymentMethodData::NetworkToken);
+                payment_data.payment_attempt.payment_method = Some(common_enums::PaymentMethod::Card);
+
+                payment_data.payment_method_data = network_token.map(domain::PaymentMethodData::NetworkToken);
+
+                println!("sahkal {:?}",payment_data.payment_method_data );
 
                 unified_authentication_service::create_new_authentication(
                     state,
@@ -1112,6 +1120,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     Some(payment_data.payment_intent.get_id().clone()),
                     connector_transaction_id,
                     &authentication_id,
+                    payment_data.service_details.clone(),
                 )
                 .await?;
             }
