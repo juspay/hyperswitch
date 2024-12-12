@@ -14,7 +14,7 @@ use common_utils::{
 use error_stack::{report, ResultExt};
 use fred::{
     interfaces::{HashesInterface, KeysInterface, ListInterface, SetsInterface, StreamsInterface},
-    prelude::RedisErrorKind,
+    prelude::{LuaInterface, RedisErrorKind},
     types::{
         Expiration, FromRedis, MultipleIDs, MultipleKeys, MultipleOrderedPairs, MultipleStrings,
         MultipleValues, RedisKey, RedisMap, RedisValue, ScanType, Scanner, SetOptions, XCap,
@@ -852,6 +852,26 @@ impl super::RedisConnectionPool {
             .await
             .change_context(errors::RedisError::ConsumerGroupClaimFailed)
     }
+
+    #[instrument(level = "DEBUG", skip(self))]
+    pub async fn set_keys_using_script(
+        &self,
+        keys: Vec<String>,
+        values: Vec<String>,
+    ) -> CustomResult<(), errors::RedisError> {
+        let lua_script = r#"
+        local results = {}
+        for i = 1, #KEYS do
+            results[i] = redis.call("INCRBY", KEYS[i], ARGV[i])
+        end
+        return results
+        "#;
+
+        self.pool
+            .eval(lua_script, keys, values)
+            .await
+            .change_context(errors::RedisError::ConsumerGroupClaimFailed)
+    }
 }
 
 #[cfg(test)]
@@ -859,6 +879,7 @@ mod tests {
     #![allow(clippy::expect_used, clippy::unwrap_used)]
 
     use crate::{errors::RedisError, RedisConnectionPool, RedisEntryId, RedisSettings};
+    use std::collections::HashMap;
 
     #[tokio::test]
     async fn test_consumer_group_create() {
@@ -913,16 +934,24 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_delete_non_existing_key_success() {
+    async fn test_setting_keys_using_scripts() {
         let is_success = tokio::task::spawn_blocking(move || {
             futures::executor::block_on(async {
                 // Arrange
                 let pool = RedisConnectionPool::new(&RedisSettings::default())
                     .await
                     .expect("failed to create redis connection pool");
-
+                let mut keys_and_values = HashMap::new();
+                for i in 0..1000 {
+                    keys_and_values.insert(format!("key{}", i), i as i64);
+                }
+                let key = keys_and_values.keys().cloned().collect::<Vec<String>>();
+                let values = keys_and_values
+                    .values()
+                    .map(|val| val.to_string())
+                    .collect::<Vec<String>>();
                 // Act
-                let result = pool.delete_key("key not exists").await;
+                let result = pool.set_keys_using_script(key, values).await;
 
                 // Assert Setup
                 result.is_ok()
