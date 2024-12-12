@@ -27,6 +27,7 @@ function initializeSDK() {
   // @ts-ignore
   hyper = window.Hyper(pub_key, {
     isPreloadEnabled: false,
+    shouldUseTopRedirection: true,
   });
   // @ts-ignore
   widgets = hyper.widgets({
