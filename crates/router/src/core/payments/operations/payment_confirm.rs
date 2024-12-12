@@ -1046,10 +1046,6 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         business_profile: &domain::Profile,
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
-        println!(
-            "payment method {:?}  business sahkal{:?}",
-            payment_data.payment_attempt.payment_method, business_profile.is_click_to_pay_enabled
-        );
         if let Some(payment_method) = payment_data.payment_attempt.payment_method {
             if payment_method == storage_enums::PaymentMethod::Card
                 && business_profile.is_click_to_pay_enabled
