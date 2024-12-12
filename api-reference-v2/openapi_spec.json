@@ -17762,6 +17762,11 @@
             "description": "Indicates if click to pay is enabled or not.",
             "default": false,
             "example": false
+          },
+          "authentication_product_ids": {
+            "type": "object",
+            "description": "Product authentication ids",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -17981,6 +17986,11 @@
             "description": "Indicates if click to pay is enabled or not.",
             "default": false,
             "example": false
+          },
+          "authentication_product_ids": {
+            "type": "object",
+            "description": "Product authentication ids",
+            "nullable": true
           }
         }
       },
