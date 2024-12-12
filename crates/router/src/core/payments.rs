@@ -4265,6 +4265,7 @@ where
     pub poll_config: Option<router_types::PollConfig>,
     pub tax_data: Option<TaxData>,
     pub session_id: Option<String>,
+    pub service_details: Option<api_models::payments::CtpServiceDetails>,
 }
 
 #[derive(Clone, serde::Serialize, Debug)]

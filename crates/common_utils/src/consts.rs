@@ -142,3 +142,7 @@ pub const PUBLISHABLE_KEY_LENGTH: u16 = 39;
 /// The number of bytes allocated for the hashed connector transaction ID.
 /// Total number of characters equals CONNECTOR_TRANSACTION_ID_HASH_BYTES times 2.
 pub const CONNECTOR_TRANSACTION_ID_HASH_BYTES: usize = 25;
+
+/// Apple Pay validation url
+pub const APPLEPAY_VALIDATION_URL: &str =
+    "https://apple-pay-gateway-cert.apple.com/paymentservices/startSession";
