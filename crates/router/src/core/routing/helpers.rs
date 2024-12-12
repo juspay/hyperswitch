@@ -1066,7 +1066,7 @@ pub async fn push_metrics_with_update_window_for_contract_based_routing(
             ))?
             .0, first_contract_based_connector.score, first_contract_based_connector.current_count );
 
-        core_metrics::DYNAMIC_SUCCESS_BASED_ROUTING.add(
+        core_metrics::DYNAMIC_CONTRACT_BASED_ROUTING.add(
             &metrics::CONTEXT,
             1,
             &add_attributes([
