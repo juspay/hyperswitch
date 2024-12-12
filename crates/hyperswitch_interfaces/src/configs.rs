@@ -115,7 +115,7 @@ pub struct ConnectorParams {
 pub struct NoParams;
 
 impl NoParams {
-    /// function to statisfy connector param validation macro
+    /// function to satisfy connector param validation macro
     pub fn validate(&self, _parent_field: &str) -> Result<(), ApplicationError> {
         Ok(())
     }
