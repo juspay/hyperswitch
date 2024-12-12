@@ -2,6 +2,8 @@ pub mod transformers;
 pub mod types;
 pub mod utils;
 
+use std::str::FromStr;
+
 use api_models::payments::ServiceDetails;
 use diesel_models::authentication::{Authentication, AuthenticationNew};
 use error_stack::ResultExt;
@@ -12,7 +14,7 @@ use hyperswitch_domain_models::{
         UasPreAuthenticationRequestData,
     },
 };
-use std::str::FromStr;
+
 use super::{errors::RouterResult, payments::helpers::MerchantConnectorAccountType};
 use crate::{
     core::{
@@ -123,14 +125,16 @@ impl<F: Clone + Sync> UnifiedAuthenticationService<F> for ClickToPay {
             token_number: cards::CardNumber::from_str("2222030199301958").unwrap(),
             token_exp_month: masking::Secret::new("10".to_string()),
             token_exp_year: masking::Secret::new("2027".to_string()),
-            token_cryptogram: Some(masking::Secret::new("AJDeZSvIZk9BABagDV8wAAADFA==".to_string())),
+            token_cryptogram: Some(masking::Secret::new(
+                "AJDeZSvIZk9BABagDV8wAAADFA==".to_string(),
+            )),
             card_issuer: None,
             card_network: None,
             card_type: None,
             card_issuing_country: None,
             bank_code: None,
             nick_name: None,
-            eci: Some(masking::Secret::new("02".to_string()))
+            eci: Some(masking::Secret::new("02".to_string())),
         };
 
         Ok(Some(network_token))

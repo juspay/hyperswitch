@@ -596,7 +596,7 @@ pub struct NetworkTokenData {
     pub card_issuing_country: Option<String>,
     pub bank_code: Option<String>,
     pub nick_name: Option<Secret<String>>,
-    pub eci: Option<Secret<String>>
+    pub eci: Option<Secret<String>>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize)]

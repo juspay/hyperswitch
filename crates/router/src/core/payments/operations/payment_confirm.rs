@@ -597,7 +597,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             &request.payment_method_type,
             &mandate_type,
             &token,
-            &request.service_details
+            &request.service_details,
         )?;
 
         let (token_data, payment_method_info) = if let Some(token) = token.clone() {
@@ -1106,11 +1106,11 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                 )
                 .await?;
 
-                payment_data.payment_attempt.payment_method = Some(common_enums::PaymentMethod::Card);
+                payment_data.payment_attempt.payment_method =
+                    Some(common_enums::PaymentMethod::Card);
 
-                payment_data.payment_method_data = network_token.map(domain::PaymentMethodData::NetworkToken);
-
-                println!("sahkal {:?}",payment_data.payment_method_data );
+                payment_data.payment_method_data =
+                    network_token.map(domain::PaymentMethodData::NetworkToken);
 
                 unified_authentication_service::create_new_authentication(
                     state,

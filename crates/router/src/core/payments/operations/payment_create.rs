@@ -1012,7 +1012,7 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentDat
                 &request.payment_method_type,
                 &mandate_type,
                 &request.payment_token,
-                &request.service_details
+                &request.service_details,
             )?;
 
             helpers::validate_customer_id_mandatory_cases(
