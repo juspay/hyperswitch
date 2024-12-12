@@ -110,7 +110,7 @@ type PaymentsCreateIntentOperation<'b, F> =
     BoxedOperation<'b, F, PaymentsSessionRequest, payments::PaymentIntentData<F>>;
 
 #[async_trait]
-impl<F: Send + Clone> GetTracker<F, payments::PaymentIntentData<F>, PaymentsSessionRequest>
+impl<F: Send + Clone + Sync> GetTracker<F, payments::PaymentIntentData<F>, PaymentsSessionRequest>
     for PaymentSessionIntent
 {
     #[instrument(skip_all)]
