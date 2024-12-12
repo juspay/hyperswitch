@@ -4,6 +4,14 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.12.04.0-hotfix4
+
+### Features
+
+- **core:** Payment links - add support for custom background image and layout in details section ([#6830](https://github.com/juspay/hyperswitch/pull/6830)) ([`786adf9`](https://github.com/juspay/hyperswitch/commit/786adf994132e68dc38d0595e08e9c8c716abf7a))
+
+- - -
+
 ## 2024.12.04.0-hotfix3
 
 ### Bug Fixes
