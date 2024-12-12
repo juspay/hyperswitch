@@ -35,7 +35,9 @@ type CompleteAuthorizeOperation<'b, F> =
     BoxedOperation<'b, F, api::PaymentsRequest, PaymentData<F>>;
 
 #[async_trait]
-impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for CompleteAuthorize {
+impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
+    for CompleteAuthorize
+{
     #[instrument(skip_all)]
     async fn get_trackers<'a>(
         &'a self,
@@ -369,7 +371,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
 }
 
 #[async_trait]
-impl<F: Clone + Send> Domain<F, api::PaymentsRequest, PaymentData<F>> for CompleteAuthorize {
+impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for CompleteAuthorize {
     #[instrument(skip_all)]
     async fn get_or_create_customer_details<'a>(
         &'a self,
@@ -458,7 +460,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest, PaymentData<F>> for Comple
 }
 
 #[async_trait]
-impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for CompleteAuthorize {
+impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for CompleteAuthorize {
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,
@@ -504,7 +506,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Comple
     }
 }
 
-impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest, PaymentData<F>>
+impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentData<F>>
     for CompleteAuthorize
 {
     #[instrument(skip_all)]
