@@ -3356,12 +3356,85 @@ where
         }
     }
 
+    // If click_to_pay is enabled and authentication_product_ids is configured in profile, we need to attach click_to_pay block in the session response for invoking click_to_pay SDK
+    if business_profile.is_click_to_pay_enabled {
+        if let Some(value) = business_profile.authentication_product_ids.clone() {
+            let session_token = get_session_token_for_click_to_pay(
+                state,
+                merchant_account.get_id(),
+                key_store,
+                value,
+                payment_data.get_payment_intent(),
+            )
+            .await?;
+            payment_data.push_sessions_token(session_token);
+        }
+    }
+
     let call_connectors_end_time = Instant::now();
     let call_connectors_duration =
         call_connectors_end_time.saturating_duration_since(call_connectors_start_time);
     tracing::info!(duration = format!("Duration taken: {}", call_connectors_duration.as_millis()));
 
     Ok(payment_data)
+}
+
+#[cfg(feature = "v1")]
+pub async fn get_session_token_for_click_to_pay(
+    state: &SessionState,
+    merchant_id: &id_type::MerchantId,
+    key_store: &domain::MerchantKeyStore,
+    authentication_product_ids: serde_json::Value,
+    payment_intent: &hyperswitch_domain_models::payments::PaymentIntent,
+) -> RouterResult<api_models::payments::SessionToken> {
+    use common_utils::id_type::MerchantConnectorAccountId;
+    use hyperswitch_domain_models::payments::ClickToPayMetaData;
+
+    use crate::consts::CLICK_TO_PAY;
+
+    let mca_ids: HashMap<String, MerchantConnectorAccountId> = authentication_product_ids
+        .parse_value("HashMap<String, MerchantConnectorAccountId>")
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Error while parsing authentication product ids")?;
+    let click_to_pay_mca_id = mca_ids
+        .get(CLICK_TO_PAY)
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Error while getting click_to_pay mca_id from business profile")?;
+    let key_manager_state = &(state).into();
+    let merchant_connector_account = state
+        .store
+        .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+            key_manager_state,
+            merchant_id,
+            click_to_pay_mca_id,
+            key_store,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+            id: click_to_pay_mca_id.get_string_repr().to_string(),
+        })?;
+    let click_to_pay_metadata: ClickToPayMetaData = merchant_connector_account
+        .metadata
+        .parse_value("ClickToPayMetaData")
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Error while parsing ClickToPayMetaData")?;
+    Ok(api_models::payments::SessionToken::ClickToPay(Box::new(
+        api_models::payments::ClickToPaySessionResponse {
+            dpa_id: click_to_pay_metadata.dpa_id,
+            dpa_name: click_to_pay_metadata.dpa_name,
+            locale: click_to_pay_metadata.locale,
+            card_brands: click_to_pay_metadata.card_brands,
+            acquirer_bin: click_to_pay_metadata.acquirer_bin,
+            acquirer_merchant_id: click_to_pay_metadata.acquirer_merchant_id,
+            merchant_category_code: click_to_pay_metadata.merchant_category_code,
+            merchant_country_code: click_to_pay_metadata.merchant_country_code,
+            transaction_amount: payment_intent.amount,
+            transaction_currency_code: payment_intent
+                .currency
+                .ok_or(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("currency is not present in payment_data.payment_intent")?,
+        },
+    )))
 }
 
 #[cfg(feature = "v1")]
