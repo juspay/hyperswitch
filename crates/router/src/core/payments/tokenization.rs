@@ -401,7 +401,7 @@ where
                                             network_token_requestor_ref_id,
                                             network_token_locker_id,
                                             pm_network_token_data_encrypted.map(Into::into),
-                                            Some(storage_enums::PaymentDirection::Payin),
+                                            Some(storage_enums::PaymentDirection::Payin), // None
                                         )
                                         .await
                                     } else {
@@ -522,7 +522,7 @@ where
                                                 network_token_requestor_ref_id,
                                                 network_token_locker_id,
                                                 pm_network_token_data_encrypted.map(Into::into),
-                                                Some(storage_enums::PaymentDirection::Payin),
+                                                Some(storage_enums::PaymentDirection::Payin), // None
                                             )
                                             .await
                                         } else {
@@ -739,7 +739,7 @@ where
                                 network_token_requestor_ref_id,
                                 network_token_locker_id,
                                 pm_network_token_data_encrypted.map(Into::into),
-                                Some(storage_enums::PaymentDirection::Payin),
+                                Some(storage_enums::PaymentDirection::Payin), // None
                             )
                             .await?;
                         };

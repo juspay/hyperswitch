@@ -2110,7 +2110,7 @@ pub async fn create_recipient_disburse_account(
                 let connector_mandate_details = HashMap::from([(
                     merchant_connector_id.clone(),
                     PaymentsMandateReferenceRecord {
-                        connector_mandate_id: connector_payout_id.clone(),
+                        connector_mandate_id: connector_payout_id.clone(),  // then what will connector_mandate_id be
                         payment_method_type: Some(api_enums::PaymentMethodType::foreign_from(
                             &payout_method_data.clone(),
                         )),
@@ -2120,6 +2120,7 @@ pub async fn create_recipient_disburse_account(
                         original_payment_authorized_currency: Some(
                             payout_data.payouts.destination_currency,
                         ),
+                        payment_instrument_id: Some(Secret::new(connector_payout_id.clone())),
                     },
                 )]);
 
