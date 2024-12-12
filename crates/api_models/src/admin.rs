@@ -2305,7 +2305,7 @@ pub struct ProfileResponse {
 
     /// These key-value pairs are sent as additional custom headers in the outgoing webhook request.
     #[schema(value_type = Option<Object>, example = r#"{ "key1": "value-1", "key2": "value-2" }"#)]
-    pub outgoing_webhook_custom_http_headers: Option<HashMap<String, Secret<String>>>,
+    pub outgoing_webhook_custom_http_headers: Option<MaskedHeaders>,
 
     /// Will be used to determine the time till which your payment will be active once the payment session starts
     #[schema(value_type = Option<u32>, example = 900)]
