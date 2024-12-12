@@ -6942,6 +6942,31 @@
           }
         ]
       },
+      "CtpServiceDetails": {
+        "type": "object",
+        "properties": {
+          "merchant_transaction_id": {
+            "type": "string",
+            "description": "merchant transaction id",
+            "nullable": true
+          },
+          "correlation_id": {
+            "type": "string",
+            "description": "network transaction correlation id",
+            "nullable": true
+          },
+          "x_src_flow_id": {
+            "type": "string",
+            "description": "session transaction flow id",
+            "nullable": true
+          },
+          "provider": {
+            "type": "string",
+            "description": "provider Eg: Visa, Mastercard",
+            "nullable": true
+          }
+        }
+      },
       "Currency": {
         "type": "string",
         "description": "The three letter ISO currency code in uppercase. Eg: 'USD' for the United States Dollar.",
