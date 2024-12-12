@@ -4,6 +4,18 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.12.04.0-hotfix2
+
+### Features
+
+- **payments:** [Payment links] Add locale case fix ([#6820](https://github.com/juspay/hyperswitch/pull/6820)) ([`cb25eae`](https://github.com/juspay/hyperswitch/commit/cb25eaee442bcb999a8b1e1b2f38d6d88843e955))
+
+### Bug Fixes
+
+- **core:** Payments - map billing first and last name to card holder name ([#6817](https://github.com/juspay/hyperswitch/pull/6817)) ([`46e2175`](https://github.com/juspay/hyperswitch/commit/46e21753d207e5b480f6d4d215443bdbec7f5e40))
+
+- - -
+
 ## 2024.12.04.0-hotfix1
 
 ### Features
