@@ -200,27 +200,25 @@ impl TryFrom<&UnifiedAuthenticationServiceRouterData<&UasPreAuthenticationRouter
             source_authentication_id: authentication_id,
             authentication_info: None,
             service_details: Some(CtpServiceDetails {
-                service_session_ids: item.router_data.request.service_details.clone().and_then(
-                    |service_details| {
-                        Some(ServiceSessionIds {
-                            client_id: None,
-                            service_id: None,
-                            correlation_id: service_details
-                                .service_session_ids
-                                .clone()
-                                .and_then(|service_session_ids| service_session_ids.correlation_id),
-                            client_reference_id: None,
-                            merchant_transaction_id: service_details
-                                .service_session_ids
-                                .clone()
-                                .and_then(|service_session_ids| {
-                                    service_session_ids.merchant_transaction_id
-                                }),
-                            x_src_flow_id: service_details
-                                .service_session_ids
-                                .clone()
-                                .and_then(|service_session_ids| service_session_ids.x_src_flow_id),
-                        })
+                service_session_ids: item.router_data.request.service_details.clone().map(
+                    |service_details| ServiceSessionIds {
+                        client_id: None,
+                        service_id: None,
+                        correlation_id: service_details
+                            .service_session_ids
+                            .clone()
+                            .and_then(|service_session_ids| service_session_ids.correlation_id),
+                        client_reference_id: None,
+                        merchant_transaction_id: service_details
+                            .service_session_ids
+                            .clone()
+                            .and_then(|service_session_ids| {
+                                service_session_ids.merchant_transaction_id
+                            }),
+                        x_src_flow_id: service_details
+                            .service_session_ids
+                            .clone()
+                            .and_then(|service_session_ids| service_session_ids.x_src_flow_id),
                     },
                 ),
                 merchant_details: None,
