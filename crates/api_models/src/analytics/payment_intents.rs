@@ -5,7 +5,7 @@ use std::{
 
 use common_utils::id_type;
 
-use super::{NameDescription, TimeRange};
+use super::{ForexMetric, NameDescription, TimeRange};
 use crate::enums::{
     AuthenticationType, Connector, Currency, IntentStatus, PaymentMethod, PaymentMethodType,
 };
@@ -105,6 +105,17 @@ pub enum PaymentIntentMetrics {
     SessionizedPaymentsSuccessRate,
     SessionizedPaymentProcessedAmount,
     SessionizedPaymentsDistribution,
+}
+impl ForexMetric for PaymentIntentMetrics {
+    fn is_forex_metric(&self) -> bool {
+        matches!(
+            self,
+            Self::PaymentProcessedAmount
+                | Self::SmartRetriedAmount
+                | Self::SessionizedPaymentProcessedAmount
+                | Self::SessionizedSmartRetriedAmount
+        )
+    }
 }
 
 #[derive(Debug, Default, serde::Serialize)]

@@ -48,7 +48,7 @@ pub enum TaskType {
 #[instrument(skip_all)]
 pub async fn get_metrics(
     pool: &AnalyticsProvider,
-    ex_rates: &ExchangeRates,
+    ex_rates: &Option<ExchangeRates>,
     auth: &AuthInfo,
     req: GetPaymentMetricRequest,
 ) -> AnalyticsResult<PaymentsMetricsResponse<MetricsBucketResponse>> {
@@ -234,22 +234,25 @@ pub async fn get_metrics(
         .map(|(id, val)| {
             let mut collected_values = val.collect();
             if let Some(amount) = collected_values.payment_processed_amount {
-                let amount_in_usd = id
-                    .currency
-                    .and_then(|currency| {
-                        i64::try_from(amount)
-                            .inspect_err(|e| logger::error!("Amount conversion error: {:?}", e))
-                            .ok()
-                            .and_then(|amount_i64| {
-                                convert(ex_rates, currency, Currency::USD, amount_i64)
-                                    .inspect_err(|e| {
-                                        logger::error!("Currency conversion error: {:?}", e)
-                                    })
-                                    .ok()
-                            })
-                    })
-                    .map(|amount| (amount * rust_decimal::Decimal::new(100, 0)).to_u64())
-                    .unwrap_or_default();
+                let amount_in_usd = if let Some(ex_rates) = ex_rates {
+                    id.currency
+                        .and_then(|currency| {
+                            i64::try_from(amount)
+                                .inspect_err(|e| logger::error!("Amount conversion error: {:?}", e))
+                                .ok()
+                                .and_then(|amount_i64| {
+                                    convert(ex_rates, currency, Currency::USD, amount_i64)
+                                        .inspect_err(|e| {
+                                            logger::error!("Currency conversion error: {:?}", e)
+                                        })
+                                        .ok()
+                                })
+                        })
+                        .map(|amount| (amount * rust_decimal::Decimal::new(100, 0)).to_u64())
+                        .unwrap_or_default()
+                } else {
+                    None
+                };
                 collected_values.payment_processed_amount_in_usd = amount_in_usd;
                 total_payment_processed_amount += amount;
                 total_payment_processed_amount_in_usd += amount_in_usd.unwrap_or(0);
@@ -258,22 +261,25 @@ pub async fn get_metrics(
                 total_payment_processed_count += count;
             }
             if let Some(amount) = collected_values.payment_processed_amount_without_smart_retries {
-                let amount_in_usd = id
-                    .currency
-                    .and_then(|currency| {
-                        i64::try_from(amount)
-                            .inspect_err(|e| logger::error!("Amount conversion error: {:?}", e))
-                            .ok()
-                            .and_then(|amount_i64| {
-                                convert(ex_rates, currency, Currency::USD, amount_i64)
-                                    .inspect_err(|e| {
-                                        logger::error!("Currency conversion error: {:?}", e)
-                                    })
-                                    .ok()
-                            })
-                    })
-                    .map(|amount| (amount * rust_decimal::Decimal::new(100, 0)).to_u64())
-                    .unwrap_or_default();
+                let amount_in_usd = if let Some(ex_rates) = ex_rates {
+                    id.currency
+                        .and_then(|currency| {
+                            i64::try_from(amount)
+                                .inspect_err(|e| logger::error!("Amount conversion error: {:?}", e))
+                                .ok()
+                                .and_then(|amount_i64| {
+                                    convert(ex_rates, currency, Currency::USD, amount_i64)
+                                        .inspect_err(|e| {
+                                            logger::error!("Currency conversion error: {:?}", e)
+                                        })
+                                        .ok()
+                                })
+                        })
+                        .map(|amount| (amount * rust_decimal::Decimal::new(100, 0)).to_u64())
+                        .unwrap_or_default()
+                } else {
+                    None
+                };
                 collected_values.payment_processed_amount_without_smart_retries_usd = amount_in_usd;
                 total_payment_processed_amount_without_smart_retries += amount;
                 total_payment_processed_amount_without_smart_retries_usd +=
@@ -298,13 +304,19 @@ pub async fn get_metrics(
         query_data,
         meta_data: [PaymentsAnalyticsMetadata {
             total_payment_processed_amount: Some(total_payment_processed_amount),
-            total_payment_processed_amount_in_usd: Some(total_payment_processed_amount_in_usd),
+            total_payment_processed_amount_in_usd: if ex_rates.is_some() {
+                Some(total_payment_processed_amount_in_usd)
+            } else {
+                None
+            },
             total_payment_processed_amount_without_smart_retries: Some(
                 total_payment_processed_amount_without_smart_retries,
             ),
-            total_payment_processed_amount_without_smart_retries_usd: Some(
-                total_payment_processed_amount_without_smart_retries_usd,
-            ),
+            total_payment_processed_amount_without_smart_retries_usd: if ex_rates.is_some() {
+                Some(total_payment_processed_amount_without_smart_retries_usd)
+            } else {
+                None
+            },
             total_payment_processed_count: Some(total_payment_processed_count),
             total_payment_processed_count_without_smart_retries: Some(
                 total_payment_processed_count_without_smart_retries,
