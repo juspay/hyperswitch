@@ -972,6 +972,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     is_auto_retries_enabled: None,
                     max_auto_retries_enabled: None,
                     is_click_to_pay_enabled: None,
+                    authentication_product_ids,
                 }
             }
             ProfileUpdate::RoutingAlgorithmUpdate {
