@@ -55,7 +55,7 @@ master_enc_key = "73ad7bbbbc640c845a150f67d058b279849370cd2c1f3c67c4dd6c869213e1
 password_validity_in_days = 90
 two_factor_auth_expiry_in_secs = 300
 totp_issuer_name = "Hyperswitch"
-base_url = "http://localhost:8080"
+base_url = "http://localhost:9000"
 force_two_factor_auth = false
 force_cookies = true
 
