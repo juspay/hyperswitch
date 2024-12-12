@@ -156,10 +156,7 @@ impl ForeignTryFrom<ContractBasedRoutingConfigBody> for CalContractScoreConfig {
                 .change_context(DynamicRoutingError::MissingRequiredField {
                     field: "constants".to_string(),
                 })?,
-            time_scale: config
-                .time_scale
-                .clone()
-                .map(TimeScale::foreign_from),
+            time_scale: config.time_scale.clone().map(TimeScale::foreign_from),
         })
     }
 }
