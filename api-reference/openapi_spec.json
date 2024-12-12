@@ -5926,7 +5926,8 @@
           "threedsecureio",
           "netcetera",
           "gpayments",
-          "ctp_mastercard"
+          "ctp_mastercard",
+          "unified_authentication_service"
         ]
       },
       "AuthenticationStatus": {
