@@ -699,7 +699,7 @@ file_storage_backend = "file_system" # Theme storage backend to be used
 
 # Configuration for smtp, applicable when the active email client is SMTP
 [email.smtp]
-host = "127.0.0.1" # SMTP host
+host = "mailhog" # SMTP host
 port = 1025 # SMTP port
 timeout = 10 # Timeout for SMTP connection in seconds
 connection = "plaintext" #currently plaintext and starttls are supported
