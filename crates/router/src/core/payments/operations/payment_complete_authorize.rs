@@ -171,7 +171,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                     &request.payment_method_type,
                     &mandate_type,
                     &token,
-                    &request.service_details
+                    &request.service_details,
                 )?;
             }
         }
