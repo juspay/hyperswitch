@@ -119,6 +119,7 @@ impl MerchantConnectorAccount {
     }
 }
 
+#[cfg(feature = "v2")]
 /// Holds the payment methods enabled for a connector along with the connector name
 /// This struct is a flattened representation of the payment methods enabled for a connector
 #[derive(Debug)]
@@ -128,11 +129,13 @@ pub struct PaymentMethodsEnabledForConnector {
     pub connector: String,
 }
 
+#[cfg(feature = "v2")]
 /// Holds the payment methods enabled for a connector
 pub struct FlattenedPaymentMethodsEnabled {
     pub payment_methods_enabled: Vec<PaymentMethodsEnabledForConnector>,
 }
 
+#[cfg(feature = "v2")]
 impl FlattenedPaymentMethodsEnabled {
     /// This functions flattens the payment methods enabled from the connector accounts
     /// Retains the connector name and payment method in every flattened element
