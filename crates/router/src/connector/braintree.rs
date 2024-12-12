@@ -10,6 +10,7 @@ use common_utils::{
 };
 use diesel_models::enums;
 use error_stack::{report, Report, ResultExt};
+use hyperswitch_interfaces::webhooks::IncomingWebhookFlowError;
 use masking::{ExposeInterface, PeekInterface, Secret};
 use ring::hmac;
 use sha1::{Digest, Sha1};
@@ -179,7 +180,9 @@ impl ConnectorValidation for Braintree {
     ) -> CustomResult<(), errors::ConnectorError> {
         let capture_method = capture_method.unwrap_or_default();
         match capture_method {
-            enums::CaptureMethod::Automatic | enums::CaptureMethod::Manual => Ok(()),
+            enums::CaptureMethod::Automatic
+            | enums::CaptureMethod::Manual
+            | enums::CaptureMethod::SequentialAutomatic => Ok(()),
             enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => Err(
                 connector_utils::construct_not_implemented_error_report(capture_method, self.id()),
             ),
@@ -980,6 +983,7 @@ impl api::IncomingWebhook for Braintree {
     fn get_webhook_api_response(
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
+        _error_kind: Option<IncomingWebhookFlowError>,
     ) -> CustomResult<services::api::ApplicationResponse<serde_json::Value>, errors::ConnectorError>
     {
         Ok(services::api::ApplicationResponse::TextPlain(

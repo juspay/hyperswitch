@@ -30,7 +30,9 @@ type PaymentSessionOperation<'b, F> =
     BoxedOperation<'b, F, api::PaymentsStartRequest, PaymentData<F>>;
 
 #[async_trait]
-impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsStartRequest> for PaymentStart {
+impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsStartRequest>
+    for PaymentStart
+{
     #[instrument(skip_all)]
     async fn get_trackers<'a>(
         &'a self,
@@ -66,7 +68,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsStartRequest> f
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
         helpers::validate_payment_status_against_not_allowed_statuses(
-            &payment_intent.status,
+            payment_intent.status,
             &[
                 storage_enums::IntentStatus::Failed,
                 storage_enums::IntentStatus::Succeeded,
@@ -212,7 +214,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsStartRequest> f
 }
 
 #[async_trait]
-impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsStartRequest> for PaymentStart {
+impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsStartRequest> for PaymentStart {
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,
@@ -233,7 +235,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsStartRequest> for P
     }
 }
 
-impl<F: Send + Clone> ValidateRequest<F, api::PaymentsStartRequest, PaymentData<F>>
+impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsStartRequest, PaymentData<F>>
     for PaymentStart
 {
     #[instrument(skip_all)]

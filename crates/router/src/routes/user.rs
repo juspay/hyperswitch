@@ -1,3 +1,5 @@
+pub mod theme;
+
 use actix_web::{web, HttpRequest, HttpResponse};
 #[cfg(feature = "dummy_connector")]
 use api_models::user::sample_data::SampleDataRequest;
@@ -222,6 +224,47 @@ pub async fn internal_user_signup(
         json_payload.into_inner(),
         |state, _, req, _| user_core::create_internal_user(state, req),
         &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+pub async fn create_tenant_user(
+    state: web::Data<AppState>,
+    http_req: HttpRequest,
+    json_payload: web::Json<user_api::CreateTenantUserRequest>,
+) -> HttpResponse {
+    let flow = Flow::TenantUserCreate;
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &http_req,
+        json_payload.into_inner(),
+        |state, _, req, _| user_core::create_tenant_user(state, req),
+        &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(feature = "v1")]
+pub async fn user_org_create(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<user_api::UserOrgMerchantCreateRequest>,
+) -> HttpResponse {
+    let flow = Flow::UserOrgMerchantCreate;
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        json_payload.into_inner(),
+        |state, _auth: auth::UserFromToken, json_payload, _| {
+            user_core::create_org_merchant_for_user(state, json_payload)
+        },
+        &auth::JWTAuth {
+            permission: Permission::TenantAccountWrite,
+        },
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -482,23 +525,6 @@ pub async fn verify_email_request(
             user_core::send_verification_mail(state, req_body, auth_id.clone())
         },
         &auth::NoAuth,
-        api_locking::LockAction::NotApplicable,
-    ))
-    .await
-}
-
-#[cfg(feature = "recon")]
-pub async fn verify_recon_token(state: web::Data<AppState>, http_req: HttpRequest) -> HttpResponse {
-    let flow = Flow::ReconVerifyToken;
-    Box::pin(api::server_wrap(
-        flow,
-        state.clone(),
-        &http_req,
-        (),
-        |state, user, _req, _| user_core::verify_token(state, user),
-        &auth::JWTAuth {
-            permission: Permission::MerchantReconWrite,
-        },
         api_locking::LockAction::NotApplicable,
     ))
     .await

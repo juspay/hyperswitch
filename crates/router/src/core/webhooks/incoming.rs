@@ -12,9 +12,9 @@ use hyperswitch_domain_models::{
     router_request_types::VerifyWebhookSourceRequestData,
     router_response_types::{VerifyWebhookSourceResponseData, VerifyWebhookStatus},
 };
-use hyperswitch_interfaces::webhooks::IncomingWebhookRequestDetails;
+use hyperswitch_interfaces::webhooks::{IncomingWebhookFlowError, IncomingWebhookRequestDetails};
 use masking::{ExposeInterface, PeekInterface};
-use router_env::{instrument, metrics::add_attributes, tracing, tracing_actix_web::RequestId};
+use router_env::{instrument, tracing, tracing_actix_web::RequestId};
 
 use super::{types, utils, MERCHANT_ID};
 use crate::{
@@ -99,6 +99,7 @@ pub async fn incoming_webhooks_wrapper<W: types::OutgoingWebhookType>(
         .attach_printable("Could not convert webhook effect to string")?;
 
     let api_event = ApiEvent::new(
+        state.tenant.tenant_id.clone(),
         Some(merchant_account.get_id().clone()),
         flow,
         &request_id,
@@ -134,12 +135,8 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
     let key_manager_state = &(&state).into();
 
     metrics::WEBHOOK_INCOMING_COUNT.add(
-        &metrics::CONTEXT,
         1,
-        &[metrics::KeyValue::new(
-            MERCHANT_ID,
-            merchant_account.get_id().get_string_repr().to_owned(),
-        )],
+        router_env::metric_attributes!((MERCHANT_ID, merchant_account.get_id().clone())),
     );
     let mut request_details = IncomingWebhookRequestDetails {
         method: req.method().clone(),
@@ -200,16 +197,15 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
             );
 
             metrics::WEBHOOK_EVENT_TYPE_IDENTIFICATION_FAILURE_COUNT.add(
-                &metrics::CONTEXT,
                 1,
-                &[
-                    metrics::KeyValue::new(MERCHANT_ID, merchant_account.get_id().clone()),
-                    metrics::KeyValue::new("connector", connector_name.to_string()),
-                ],
+                router_env::metric_attributes!(
+                    (MERCHANT_ID, merchant_account.get_id().clone()),
+                    ("connector", connector_name)
+                ),
             );
 
             let response = connector
-                .get_webhook_api_response(&request_details)
+                .get_webhook_api_response(&request_details, None)
                 .switch()
                 .attach_printable("Failed while early return in case of event type parsing")?;
 
@@ -260,14 +256,25 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
         let merchant_connector_account = match merchant_connector_account {
             Some(merchant_connector_account) => merchant_connector_account,
             None => {
-                Box::pin(helper_utils::get_mca_from_object_reference_id(
+                match Box::pin(helper_utils::get_mca_from_object_reference_id(
                     &state,
                     object_ref_id.clone(),
                     &merchant_account,
                     &connector_name,
                     &key_store,
                 ))
-                .await?
+                .await
+                {
+                    Ok(mca) => mca,
+                    Err(error) => {
+                        return handle_incoming_webhook_error(
+                            error,
+                            &connector,
+                            connector_name.as_str(),
+                            &request_details,
+                        );
+                    }
+                }
             }
         };
 
@@ -317,12 +324,8 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
 
         if source_verified {
             metrics::WEBHOOK_SOURCE_VERIFIED_COUNT.add(
-                &metrics::CONTEXT,
                 1,
-                &[metrics::KeyValue::new(
-                    MERCHANT_ID,
-                    merchant_account.get_id().clone(),
-                )],
+                router_env::metric_attributes!((MERCHANT_ID, merchant_account.get_id().clone())),
             );
         } else if connector.is_webhook_source_verification_mandatory() {
             // if webhook consumption is mandatory for connector, fail webhook
@@ -358,7 +361,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                 id: profile_id.get_string_repr().to_owned(),
             })?;
 
-        match flow_type {
+        let result_response = match flow_type {
             api::WebhookFlow::Payment => Box::pin(payments_incoming_webhook_flow(
                 state.clone(),
                 req_state,
@@ -372,7 +375,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                 event_type,
             ))
             .await
-            .attach_printable("Incoming webhook flow for payments failed")?,
+            .attach_printable("Incoming webhook flow for payments failed"),
 
             api::WebhookFlow::Refund => Box::pin(refunds_incoming_webhook_flow(
                 state.clone(),
@@ -385,7 +388,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                 event_type,
             ))
             .await
-            .attach_printable("Incoming webhook flow for refunds failed")?,
+            .attach_printable("Incoming webhook flow for refunds failed"),
 
             api::WebhookFlow::Dispute => Box::pin(disputes_incoming_webhook_flow(
                 state.clone(),
@@ -399,7 +402,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                 event_type,
             ))
             .await
-            .attach_printable("Incoming webhook flow for disputes failed")?,
+            .attach_printable("Incoming webhook flow for disputes failed"),
 
             api::WebhookFlow::BankTransfer => Box::pin(bank_transfer_webhook_flow(
                 state.clone(),
@@ -411,9 +414,9 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                 source_verified,
             ))
             .await
-            .attach_printable("Incoming bank-transfer webhook flow failed")?,
+            .attach_printable("Incoming bank-transfer webhook flow failed"),
 
-            api::WebhookFlow::ReturnResponse => WebhookResponseTracker::NoEffect,
+            api::WebhookFlow::ReturnResponse => Ok(WebhookResponseTracker::NoEffect),
 
             api::WebhookFlow::Mandate => Box::pin(mandates_incoming_webhook_flow(
                 state.clone(),
@@ -425,7 +428,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                 event_type,
             ))
             .await
-            .attach_printable("Incoming webhook flow for mandates failed")?,
+            .attach_printable("Incoming webhook flow for mandates failed"),
 
             api::WebhookFlow::ExternalAuthentication => {
                 Box::pin(external_authentication_incoming_webhook_flow(
@@ -442,7 +445,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                     merchant_connector_account,
                 ))
                 .await
-                .attach_printable("Incoming webhook flow for external authentication failed")?
+                .attach_printable("Incoming webhook flow for external authentication failed")
             }
             api::WebhookFlow::FraudCheck => Box::pin(frm_incoming_webhook_flow(
                 state.clone(),
@@ -455,7 +458,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                 business_profile,
             ))
             .await
-            .attach_printable("Incoming webhook flow for fraud check failed")?,
+            .attach_printable("Incoming webhook flow for fraud check failed"),
 
             #[cfg(feature = "payouts")]
             api::WebhookFlow::Payout => Box::pin(payouts_incoming_webhook_flow(
@@ -468,25 +471,33 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                 source_verified,
             ))
             .await
-            .attach_printable("Incoming webhook flow for payouts failed")?,
+            .attach_printable("Incoming webhook flow for payouts failed"),
 
             _ => Err(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Unsupported Flow Type received in incoming webhooks")?,
+                .attach_printable("Unsupported Flow Type received in incoming webhooks"),
+        };
+
+        match result_response {
+            Ok(response) => response,
+            Err(error) => {
+                return handle_incoming_webhook_error(
+                    error,
+                    &connector,
+                    connector_name.as_str(),
+                    &request_details,
+                );
+            }
         }
     } else {
         metrics::WEBHOOK_INCOMING_FILTERED_COUNT.add(
-            &metrics::CONTEXT,
             1,
-            &[metrics::KeyValue::new(
-                MERCHANT_ID,
-                merchant_account.get_id().get_string_repr().to_owned(),
-            )],
+            router_env::metric_attributes!((MERCHANT_ID, merchant_account.get_id().clone())),
         );
         WebhookResponseTracker::NoEffect
     };
 
     let response = connector
-        .get_webhook_api_response(&request_details)
+        .get_webhook_api_response(&request_details, None)
         .switch()
         .attach_printable("Could not get incoming webhook api response from connector")?;
 
@@ -495,6 +506,44 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Could not convert webhook effect to string")?;
     Ok((response, webhook_effect, serialized_request))
+}
+
+fn handle_incoming_webhook_error(
+    error: error_stack::Report<errors::ApiErrorResponse>,
+    connector: &ConnectorEnum,
+    connector_name: &str,
+    request_details: &IncomingWebhookRequestDetails<'_>,
+) -> errors::RouterResult<(
+    services::ApplicationResponse<serde_json::Value>,
+    WebhookResponseTracker,
+    serde_json::Value,
+)> {
+    logger::error!(?error, "Incoming webhook flow failed");
+
+    // fetch the connector enum from the connector name
+    let connector_enum = api_models::connector_enums::Connector::from_str(connector_name)
+        .change_context(errors::ApiErrorResponse::InvalidDataValue {
+            field_name: "connector",
+        })
+        .attach_printable_lazy(|| format!("unable to parse connector name {connector_name:?}"))?;
+
+    // get the error response from the connector
+    if connector_enum.should_acknowledge_webhook_for_resource_not_found_errors() {
+        let response = connector
+            .get_webhook_api_response(
+                request_details,
+                Some(IncomingWebhookFlowError::from(error.current_context())),
+            )
+            .switch()
+            .attach_printable("Failed to get incoming webhook api response from connector")?;
+        Ok((
+            response,
+            WebhookResponseTracker::NoEffect,
+            serde_json::Value::Null,
+        ))
+    } else {
+        Err(error)
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -600,9 +649,11 @@ async fn payments_incoming_webhook_flow(
                         .unwrap_or(true) =>
                 {
                     metrics::WEBHOOK_PAYMENT_NOT_FOUND.add(
-                        &metrics::CONTEXT,
                         1,
-                        &add_attributes([("merchant_id", merchant_account.get_id().clone())]),
+                        router_env::metric_attributes!((
+                            "merchant_id",
+                            merchant_account.get_id().clone()
+                        )),
                     );
                     return Ok(WebhookResponseTracker::NoEffect);
                 }
@@ -661,7 +712,7 @@ async fn payouts_incoming_webhook_flow(
     event_type: webhooks::IncomingWebhookEvent,
     source_verified: bool,
 ) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
-    metrics::INCOMING_PAYOUT_WEBHOOK_METRIC.add(&metrics::CONTEXT, 1, &[]);
+    metrics::INCOMING_PAYOUT_WEBHOOK_METRIC.add(1, &[]);
     if source_verified {
         let db = &*state.store;
         //find payout_attempt by object_reference_id
@@ -777,7 +828,7 @@ async fn payouts_incoming_webhook_flow(
             status: updated_payout_attempt.status,
         })
     } else {
-        metrics::INCOMING_PAYOUT_WEBHOOK_SIGNATURE_FAILURE_METRIC.add(&metrics::CONTEXT, 1, &[]);
+        metrics::INCOMING_PAYOUT_WEBHOOK_SIGNATURE_FAILURE_METRIC.add(1, &[]);
         Err(report!(
             errors::ApiErrorResponse::WebhookAuthenticationFailed
         ))
@@ -937,7 +988,7 @@ async fn get_or_update_dispute_object(
     let db = &*state.store;
     match option_dispute {
         None => {
-            metrics::INCOMING_DISPUTE_WEBHOOK_NEW_RECORD_METRIC.add(&metrics::CONTEXT, 1, &[]);
+            metrics::INCOMING_DISPUTE_WEBHOOK_NEW_RECORD_METRIC.add(1, &[]);
             let dispute_id = generate_id(consts::ID_LENGTH, "dp");
             let new_dispute = diesel_models::dispute::DisputeNew {
                 dispute_id,
@@ -973,7 +1024,7 @@ async fn get_or_update_dispute_object(
         }
         Some(dispute) => {
             logger::info!("Dispute Already exists, Updating the dispute details");
-            metrics::INCOMING_DISPUTE_WEBHOOK_UPDATE_RECORD_METRIC.add(&metrics::CONTEXT, 1, &[]);
+            metrics::INCOMING_DISPUTE_WEBHOOK_UPDATE_RECORD_METRIC.add(1, &[]);
             let dispute_status = diesel_models::enums::DisputeStatus::foreign_try_from(event_type)
                 .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
                 .attach_printable("event type to dispute state conversion failure")?;
@@ -1388,7 +1439,7 @@ async fn disputes_incoming_webhook_flow(
     request_details: &IncomingWebhookRequestDetails<'_>,
     event_type: webhooks::IncomingWebhookEvent,
 ) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
-    metrics::INCOMING_DISPUTE_WEBHOOK_METRIC.add(&metrics::CONTEXT, 1, &[]);
+    metrics::INCOMING_DISPUTE_WEBHOOK_METRIC.add(1, &[]);
     if source_verified {
         let db = &*state.store;
         let dispute_details = connector.get_dispute_details(request_details).switch()?;
@@ -1434,14 +1485,14 @@ async fn disputes_incoming_webhook_flow(
             Some(dispute_object.created_at),
         ))
         .await?;
-        metrics::INCOMING_DISPUTE_WEBHOOK_MERCHANT_NOTIFIED_METRIC.add(&metrics::CONTEXT, 1, &[]);
+        metrics::INCOMING_DISPUTE_WEBHOOK_MERCHANT_NOTIFIED_METRIC.add(1, &[]);
         Ok(WebhookResponseTracker::Dispute {
             dispute_id: dispute_object.dispute_id,
             payment_id: dispute_object.payment_id,
             status: dispute_object.dispute_status,
         })
     } else {
-        metrics::INCOMING_DISPUTE_WEBHOOK_SIGNATURE_FAILURE_METRIC.add(&metrics::CONTEXT, 1, &[]);
+        metrics::INCOMING_DISPUTE_WEBHOOK_SIGNATURE_FAILURE_METRIC.add(1, &[]);
         Err(report!(
             errors::ApiErrorResponse::WebhookAuthenticationFailed
         ))
@@ -1756,11 +1807,20 @@ async fn update_connector_mandate_details(
         .switch()
         .attach_printable("Could not find connector mandate details in incoming webhook body")?;
 
-    if let Some(webhook_mandate_details) = webhook_connector_mandate_details {
+    let webhook_connector_network_transaction_id = connector
+        .get_network_txn_id(request_details)
+        .switch()
+        .attach_printable(
+            "Could not find connector network transaction id in incoming webhook body",
+        )?;
+
+    // Either one OR both of the fields are present
+    if webhook_connector_mandate_details.is_some()
+        || webhook_connector_network_transaction_id.is_some()
+    {
         let payment_attempt =
             get_payment_attempt_from_object_reference_id(state, object_ref_id, merchant_account)
                 .await?;
-
         if let Some(ref payment_method_id) = payment_attempt.payment_method_id {
             let key_manager_state = &state.into();
             let payment_method_info = state
@@ -1774,95 +1834,107 @@ async fn update_connector_mandate_details(
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
 
-            let mandate_details = payment_method_info
-                .connector_mandate_details
-                .clone()
-                .map(|val| {
-                    val.parse_value::<diesel_models::PaymentsMandateReference>(
-                        "PaymentsMandateReference",
-                    )
-                })
-                .transpose()
+            // Update connector's mandate details
+            let updated_connector_mandate_details =
+                if let Some(webhook_mandate_details) = webhook_connector_mandate_details {
+                    let mandate_details = payment_method_info
+                        .connector_mandate_details
+                        .clone()
+                        .map(|val| {
+                            val.parse_value::<diesel_models::PaymentsMandateReference>(
+                                "PaymentsMandateReference",
+                            )
+                        })
+                        .transpose()
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed to deserialize to Payment Mandate Reference")?;
+
+                    let merchant_connector_account_id = payment_attempt
+                        .merchant_connector_id
+                        .clone()
+                        .get_required_value("merchant_connector_id")?;
+
+                    if mandate_details
+                        .as_ref()
+                        .map(|details: &diesel_models::PaymentsMandateReference| {
+                            !details.0.contains_key(&merchant_connector_account_id)
+                        })
+                        .unwrap_or(true)
+                    {
+                        // Update the payment attempt to maintain consistency across tables.
+                        let (mandate_metadata, connector_mandate_request_reference_id) =
+                            payment_attempt
+                                .connector_mandate_detail
+                                .as_ref()
+                                .map(|details| {
+                                    (
+                                        details.mandate_metadata.clone(),
+                                        details.connector_mandate_request_reference_id.clone(),
+                                    )
+                                })
+                                .unwrap_or((None, None));
+
+                        let connector_mandate_reference_id = ConnectorMandateReferenceId {
+                            connector_mandate_id: Some(
+                                webhook_mandate_details
+                                    .connector_mandate_id
+                                    .peek()
+                                    .to_string(),
+                            ),
+                            payment_method_id: Some(payment_method_id.to_string()),
+                            mandate_metadata,
+                            connector_mandate_request_reference_id,
+                        };
+
+                        let attempt_update =
+                            storage::PaymentAttemptUpdate::ConnectorMandateDetailUpdate {
+                                connector_mandate_detail: Some(connector_mandate_reference_id),
+                                updated_by: merchant_account.storage_scheme.to_string(),
+                            };
+
+                        state
+                            .store
+                            .update_payment_attempt_with_attempt_id(
+                                payment_attempt.clone(),
+                                attempt_update,
+                                merchant_account.storage_scheme,
+                            )
+                            .await
+                            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+                        insert_mandate_details(
+                            &payment_attempt,
+                            &webhook_mandate_details,
+                            mandate_details,
+                        )?
+                    } else {
+                        logger::info!(
+                        "Skipping connector mandate details update since they are already present."
+                    );
+                        None
+                    }
+                } else {
+                    None
+                };
+
+            let pm_update = diesel_models::PaymentMethodUpdate::ConnectorNetworkTransactionIdAndMandateDetailsUpdate {
+                connector_mandate_details: updated_connector_mandate_details.map(masking::Secret::new),
+                network_transaction_id: webhook_connector_network_transaction_id
+                    .map(|webhook_network_transaction_id| webhook_network_transaction_id.get_id().clone()),
+            };
+
+            state
+                .store
+                .update_payment_method(
+                    key_manager_state,
+                    key_store,
+                    payment_method_info,
+                    pm_update,
+                    merchant_account.storage_scheme,
+                )
+                .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to deserialize to Payment Mandate Reference")?;
-
-            let merchant_connector_account_id = payment_attempt
-                .merchant_connector_id
-                .clone()
-                .get_required_value("merchant_connector_id")?;
-
-            if mandate_details
-                .as_ref()
-                .map(|details: &diesel_models::PaymentsMandateReference| {
-                    !details.0.contains_key(&merchant_connector_account_id)
-                })
-                .unwrap_or(true)
-            {
-                let updated_connector_mandate_details = insert_mandate_details(
-                    &payment_attempt,
-                    &webhook_mandate_details,
-                    mandate_details,
-                )?;
-                let pm_update = diesel_models::PaymentMethodUpdate::ConnectorMandateDetailsUpdate {
-                    connector_mandate_details: updated_connector_mandate_details,
-                };
-
-                state
-                    .store
-                    .update_payment_method(
-                        key_manager_state,
-                        key_store,
-                        payment_method_info,
-                        pm_update,
-                        merchant_account.storage_scheme,
-                    )
-                    .await
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed to update payment method in db")?;
-                // Update the payment attempt to maintain consistency across tables.
-
-                let (mandate_metadata, connector_mandate_request_reference_id) = payment_attempt
-                    .connector_mandate_detail
-                    .as_ref()
-                    .map(|details| {
-                        (
-                            details.mandate_metadata.clone(),
-                            details.connector_mandate_request_reference_id.clone(),
-                        )
-                    })
-                    .unwrap_or((None, None));
-
-                let connector_mandate_reference_id = ConnectorMandateReferenceId {
-                    connector_mandate_id: Some(
-                        webhook_mandate_details
-                            .connector_mandate_id
-                            .peek()
-                            .to_string(),
-                    ),
-                    payment_method_id: Some(payment_method_id.to_string()),
-                    mandate_metadata,
-                    connector_mandate_request_reference_id,
-                };
-
-                let attempt_update = storage::PaymentAttemptUpdate::ConnectorMandateDetailUpdate {
-                    connector_mandate_detail: Some(connector_mandate_reference_id),
-                    updated_by: merchant_account.storage_scheme.to_string(),
-                };
-
-                state
-                    .store
-                    .update_payment_attempt_with_attempt_id(
-                        payment_attempt.clone(),
-                        attempt_update,
-                        merchant_account.storage_scheme,
-                    )
-                    .await
-                    .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
-            } else {
-                logger::info!(
-                    "Skipping connector mandate details update since they are already present."
-                );
-            }
+                .attach_printable("Failed to update payment method in db")?;
         }
     }
     Ok(())

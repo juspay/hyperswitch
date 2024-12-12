@@ -32,7 +32,7 @@ where
         _dimensions: &[ApiEventDimensions],
         merchant_id: &common_utils::id_type::MerchantId,
         filters: &ApiEventFilters,
-        granularity: &Option<Granularity>,
+        granularity: Option<Granularity>,
         time_range: &TimeRange,
         pool: &T,
     ) -> MetricsResult<HashSet<(ApiEventMetricsBucketIdentifier, ApiEventMetricRow)>> {
@@ -68,7 +68,7 @@ where
                 alias: Some("end_bucket"),
             })
             .switch()?;
-        if let Some(granularity) = granularity.as_ref() {
+        if let Some(granularity) = granularity {
             granularity
                 .set_group_by_clause(&mut query_builder)
                 .attach_printable("Error adding granularity")

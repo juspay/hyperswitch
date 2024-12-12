@@ -33,17 +33,18 @@ where
         return Ok(role_info.clone());
     }
 
-    let role_info =
-        get_role_info_from_db(state, &token.role_id, &token.merchant_id, &token.org_id).await?;
+    let role_info = get_role_info_from_db(state, &token.role_id, &token.org_id).await?;
 
     let token_expiry =
         i64::try_from(token.exp).change_context(ApiErrorResponse::InternalServerError)?;
     let cache_ttl = token_expiry - common_utils::date_time::now_unix_timestamp();
 
-    set_role_info_in_cache(state, &token.role_id, &role_info, cache_ttl)
-        .await
-        .map_err(|e| logger::error!("Failed to set role info in cache {e:?}"))
-        .ok();
+    if cache_ttl > 0 {
+        set_role_info_in_cache(state, &token.role_id, &role_info, cache_ttl)
+            .await
+            .map_err(|e| logger::error!("Failed to set role info in cache {e:?}"))
+            .ok();
+    }
     Ok(role_info)
 }
 
@@ -66,7 +67,6 @@ pub fn get_cache_key_from_role_id(role_id: &str) -> String {
 async fn get_role_info_from_db<A>(
     state: &A,
     role_id: &str,
-    merchant_id: &id_type::MerchantId,
     org_id: &id_type::OrganizationId,
 ) -> RouterResult<roles::RoleInfo>
 where
@@ -74,7 +74,7 @@ where
 {
     state
         .store()
-        .find_role_by_role_id_in_merchant_scope(role_id, merchant_id, org_id)
+        .find_by_role_id_and_org_id(role_id, org_id)
         .await
         .map(roles::RoleInfo::from)
         .to_not_found_response(ApiErrorResponse::InvalidJwtToken)
@@ -98,7 +98,7 @@ where
 }
 
 pub fn check_permission(
-    required_permission: &permissions::Permission,
+    required_permission: permissions::Permission,
     role_info: &roles::RoleInfo,
 ) -> RouterResult<()> {
     role_info

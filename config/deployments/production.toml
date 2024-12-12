@@ -97,6 +97,7 @@ powertranz.base_url = "https://staging.ptranz.com/api/"
 prophetpay.base_url = "https://ccm-thirdparty.cps.golf/"
 rapyd.base_url = "https://sandboxapi.rapyd.net"
 razorpay.base_url = "https://api.juspay.in"
+redsys.base_url = "https://sis.redsys.es:25443/sis/realizarPago"
 riskified.base_url = "https://wh.riskified.com/api/"
 shift4.base_url = "https://api.shift4.com/"
 signifyd.base_url = "https://api.signifyd.com/"
@@ -110,6 +111,7 @@ thunes.base_url = "https://api.limonetik.com/"
 trustpay.base_url = "https://tpgw.trustpay.eu/"
 trustpay.base_url_bank_redirects = "https://aapi.trustpay.eu/"
 tsys.base_url = "https://gateway.transit-pass.com/"
+unified_authentication_service.base_url = "http://localhost:8000"
 volt.base_url = "https://api.volt.io/"
 wellsfargo.base_url = "https://api.cybersource.com/"
 wellsfargopayout.base_url = "https://api.wellsfargo.com/"
@@ -176,6 +178,8 @@ bank_redirect.giropay.connector_list = "adyen,globalpay,multisafepay"        # M
 card.credit = { connector_list = "cybersource" }            # Update Mandate supported payment method type and connector for card 
 card.debit = { connector_list = "cybersource" }             # Update Mandate supported payment method type and connector for card 
 
+[network_transaction_id_supported_connectors]
+connector_list = "stripe,adyen,cybersource"
 
 [payouts]
 payout_eligibility = true            # Defaults the eligibility of a payout method to true in case connector does not provide checks for payout eligibility

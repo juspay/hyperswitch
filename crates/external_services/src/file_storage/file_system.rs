@@ -1,6 +1,4 @@
-//!
 //! Module for local file system storage operations
-//!
 
 use std::{
     fs::{remove_file, File},

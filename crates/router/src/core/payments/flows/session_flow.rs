@@ -6,8 +6,9 @@ use common_utils::{
     types::{AmountConvertor, StringMajorUnitForConnector},
 };
 use error_stack::{Report, ResultExt};
+#[cfg(feature = "v2")]
+use hyperswitch_domain_models::payments::PaymentIntentData;
 use masking::ExposeInterface;
-use router_env::metrics::add_attributes;
 
 use super::{ConstructFlowSpecificData, Feature};
 use crate::{
@@ -26,12 +27,55 @@ use crate::{
     utils::OptionExt,
 };
 
+#[cfg(feature = "v2")]
+#[async_trait]
+impl
+    ConstructFlowSpecificData<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>
+    for PaymentIntentData<api::Session>
+{
+    async fn construct_router_data<'a>(
+        &self,
+        state: &routes::SessionState,
+        connector_id: &str,
+        merchant_account: &domain::MerchantAccount,
+        key_store: &domain::MerchantKeyStore,
+        customer: &Option<domain::Customer>,
+        merchant_connector_account: &domain::MerchantConnectorAccount,
+        merchant_recipient_data: Option<types::MerchantRecipientData>,
+        header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
+    ) -> RouterResult<types::PaymentsSessionRouterData> {
+        Box::pin(transformers::construct_payment_router_data_for_sdk_session(
+            state,
+            self.clone(),
+            connector_id,
+            merchant_account,
+            key_store,
+            customer,
+            merchant_connector_account,
+            merchant_recipient_data,
+            header_payload,
+        ))
+        .await
+    }
+
+    async fn get_merchant_recipient_data<'a>(
+        &self,
+        _state: &routes::SessionState,
+        _merchant_account: &domain::MerchantAccount,
+        _key_store: &domain::MerchantKeyStore,
+        _merchant_connector_account: &helpers::MerchantConnectorAccountType,
+        _connector: &api::ConnectorData,
+    ) -> RouterResult<Option<types::MerchantRecipientData>> {
+        Ok(None)
+    }
+}
+
+#[cfg(feature = "v1")]
 #[async_trait]
 impl
     ConstructFlowSpecificData<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>
     for PaymentData<api::Session>
 {
-    #[cfg(feature = "v1")]
     async fn construct_router_data<'a>(
         &self,
         state: &routes::SessionState,
@@ -60,21 +104,6 @@ impl
         .await
     }
 
-    #[cfg(feature = "v2")]
-    async fn construct_router_data<'a>(
-        &self,
-        state: &routes::SessionState,
-        connector_id: &str,
-        merchant_account: &domain::MerchantAccount,
-        key_store: &domain::MerchantKeyStore,
-        customer: &Option<domain::Customer>,
-        merchant_connector_account: &domain::MerchantConnectorAccount,
-        merchant_recipient_data: Option<types::MerchantRecipientData>,
-        header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
-    ) -> RouterResult<types::PaymentsSessionRouterData> {
-        todo!()
-    }
-
     async fn get_merchant_recipient_data<'a>(
         &self,
         _state: &routes::SessionState,
@@ -99,9 +128,8 @@ impl Feature<api::Session, types::PaymentsSessionData> for types::PaymentsSessio
         header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<Self> {
         metrics::SESSION_TOKEN_CREATED.add(
-            &metrics::CONTEXT,
             1,
-            &add_attributes([("connector", connector.connector_name.to_string())]),
+            router_env::metric_attributes!(("connector", connector.connector_name.to_string())),
         );
         self.decide_flow(
             state,
@@ -132,7 +160,7 @@ fn is_dynamic_fields_required(
     required_fields: &settings::RequiredFields,
     payment_method: enums::PaymentMethod,
     payment_method_type: enums::PaymentMethodType,
-    connector: &types::Connector,
+    connector: types::Connector,
     required_field_type: Vec<enums::FieldType>,
 ) -> bool {
     required_fields
@@ -140,7 +168,7 @@ fn is_dynamic_fields_required(
         .get(&payment_method)
         .and_then(|pm_type| pm_type.0.get(&payment_method_type))
         .and_then(|required_fields_for_connector| {
-            required_fields_for_connector.fields.get(connector)
+            required_fields_for_connector.fields.get(&connector)
         })
         .map(|required_fields_final| {
             required_fields_final
@@ -341,7 +369,7 @@ async fn create_applepay_session_token(
                 &state.conf.required_fields,
                 enums::PaymentMethod::Wallet,
                 enums::PaymentMethodType::ApplePay,
-                &connector.connector_name,
+                connector.connector_name,
                 billing_variants,
             )
             .then_some(payment_types::ApplePayBillingContactFields(vec![
@@ -369,7 +397,7 @@ async fn create_applepay_session_token(
                 &state.conf.required_fields,
                 enums::PaymentMethod::Wallet,
                 enums::PaymentMethodType::ApplePay,
-                &connector.connector_name,
+                connector.connector_name,
                 shipping_variants,
             )
             .then_some(payment_types::ApplePayShippingContactFields(vec![
@@ -809,7 +837,7 @@ fn create_gpay_session_token(
                 &state.conf.required_fields,
                 enums::PaymentMethod::Wallet,
                 enums::PaymentMethodType::GooglePay,
-                &connector.connector_name,
+                connector.connector_name,
                 billing_variants,
             )
         } else {
@@ -871,7 +899,7 @@ fn create_gpay_session_token(
                     &state.conf.required_fields,
                     enums::PaymentMethod::Wallet,
                     enums::PaymentMethodType::GooglePay,
-                    &connector.connector_name,
+                    connector.connector_name,
                     shipping_variants,
                 )
             } else {

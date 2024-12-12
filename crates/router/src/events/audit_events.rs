@@ -34,6 +34,7 @@ pub enum AuditEventType {
     PaymentApprove,
     PaymentCreate,
     PaymentStatus,
+    PaymentCompleteAuthorize,
     PaymentReject {
         error_code: Option<String>,
         error_message: Option<String>,
@@ -80,6 +81,7 @@ impl Event for AuditEvent {
             AuditEventType::PaymentApprove { .. } => "payment_approve",
             AuditEventType::PaymentCreate { .. } => "payment_create",
             AuditEventType::PaymentStatus { .. } => "payment_status",
+            AuditEventType::PaymentCompleteAuthorize => "payment_complete_authorize",
             AuditEventType::PaymentReject { .. } => "payment_rejected",
         };
         format!(

@@ -90,6 +90,12 @@ pub struct AuthenticationDataWithUser {
     pub profile_id: id_type::ProfileId,
 }
 
+#[derive(Clone)]
+pub struct UserFromTokenWithRoleInfo {
+    pub user: UserFromToken,
+    pub role_info: authorization::roles::RoleInfo,
+}
+
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 #[serde(
     tag = "api_auth_type",
@@ -273,6 +279,7 @@ pub struct UserFromToken {
 
 pub struct UserIdFromAuth {
     pub user_id: String,
+    pub tenant_id: Option<id_type::TenantId>,
 }
 
 #[cfg(feature = "olap")]
@@ -593,7 +600,7 @@ where
         }
 
         let report_failure = || {
-            metrics::PARTIAL_AUTH_FAILURE.add(&metrics::CONTEXT, 1, &[]);
+            metrics::PARTIAL_AUTH_FAILURE.add(1, &[]);
         };
 
         let payload = ExtractedPayload::from_headers(request_headers)
@@ -858,6 +865,7 @@ where
             Ok((
                 UserIdFromAuth {
                     user_id: payload.user_id.clone(),
+                    tenant_id: payload.tenant_id,
                 },
                 AuthenticationType::SinglePurposeOrLoginJwt {
                     user_id: payload.user_id,
@@ -899,6 +907,7 @@ where
             Ok((
                 UserIdFromAuth {
                     user_id: payload.user_id.clone(),
+                    tenant_id: payload.tenant_id,
                 },
                 AuthenticationType::SinglePurposeOrLoginJwt {
                     user_id: payload.user_id,
@@ -1320,7 +1329,6 @@ where
 #[derive(Debug)]
 pub struct EphemeralKeyAuth;
 
-// #[cfg(feature = "v1")]
 #[async_trait]
 impl<A> AuthenticateAndFetch<AuthenticationData, A> for EphemeralKeyAuth
 where
@@ -1672,7 +1680,7 @@ where
         )?;
 
         let role_info = authorization::get_role_info(state, &payload).await?;
-        authorization::check_permission(&self.permission, &role_info)?;
+        authorization::check_permission(self.permission, &role_info)?;
 
         Ok((
             (),
@@ -1705,7 +1713,7 @@ where
         )?;
 
         let role_info = authorization::get_role_info(state, &payload).await?;
-        authorization::check_permission(&self.permission, &role_info)?;
+        authorization::check_permission(self.permission, &role_info)?;
 
         Ok((
             UserFromToken {
@@ -1745,7 +1753,7 @@ where
         )?;
 
         let role_info = authorization::get_role_info(state, &payload).await?;
-        authorization::check_permission(&self.permission, &role_info)?;
+        authorization::check_permission(self.permission, &role_info)?;
 
         let key_manager_state = &(&state.session_state()).into();
         let key_store = state
@@ -1808,7 +1816,7 @@ where
         )?;
 
         let role_info = authorization::get_role_info(state, &payload).await?;
-        authorization::check_permission(&self.required_permission, &role_info)?;
+        authorization::check_permission(self.required_permission, &role_info)?;
 
         // Check if token has access to Organization that has been requested in the route
         if payload.org_id != self.organization_id {
@@ -1853,7 +1861,7 @@ where
         )?;
 
         let role_info = authorization::get_role_info(state, &payload).await?;
-        authorization::check_permission(&self.required_permission, &role_info)?;
+        authorization::check_permission(self.required_permission, &role_info)?;
 
         let merchant_id_from_header = HeaderMapStruct::new(request_headers)
             .get_id_type_from_header::<id_type::MerchantId>(headers::X_MERCHANT_ID)?;
@@ -1892,7 +1900,7 @@ where
             &state.session_state().tenant.tenant_id,
         )?;
         let role_info = authorization::get_role_info(state, &payload).await?;
-        authorization::check_permission(&self.required_permission, &role_info)?;
+        authorization::check_permission(self.required_permission, &role_info)?;
 
         let merchant_id_from_header = HeaderMapStruct::new(request_headers)
             .get_id_type_from_header::<id_type::MerchantId>(headers::X_MERCHANT_ID)?;
@@ -1962,7 +1970,7 @@ where
                 .get_required_value(headers::X_PROFILE_ID)?;
 
         let role_info = authorization::get_role_info(state, &payload).await?;
-        authorization::check_permission(&self.required_permission, &role_info)?;
+        authorization::check_permission(self.required_permission, &role_info)?;
 
         let merchant_id_from_header = HeaderMapStruct::new(request_headers)
             .get_id_type_from_header::<id_type::MerchantId>(headers::X_MERCHANT_ID)?;
@@ -2039,7 +2047,7 @@ where
         }
 
         let role_info = authorization::get_role_info(state, &payload).await?;
-        authorization::check_permission(&self.required_permission, &role_info)?;
+        authorization::check_permission(self.required_permission, &role_info)?;
 
         let merchant_id_from_header = HeaderMapStruct::new(request_headers)
             .get_id_type_from_header::<id_type::MerchantId>(headers::X_MERCHANT_ID)?;
@@ -2108,7 +2116,7 @@ where
         )?;
 
         let role_info = authorization::get_role_info(state, &payload).await?;
-        authorization::check_permission(&self.required_permission, &role_info)?;
+        authorization::check_permission(self.required_permission, &role_info)?;
 
         // Check if token has access to MerchantId that has been requested through query param
         if payload.merchant_id != self.merchant_id {
@@ -2149,7 +2157,7 @@ where
         }
 
         let role_info = authorization::get_role_info(state, &payload).await?;
-        authorization::check_permission(&self.required_permission, &role_info)?;
+        authorization::check_permission(self.required_permission, &role_info)?;
 
         let key_manager_state = &(&state.session_state()).into();
         let key_store = state
@@ -2213,7 +2221,7 @@ where
         }
 
         let role_info = authorization::get_role_info(state, &payload).await?;
-        authorization::check_permission(&self.required_permission, &role_info)?;
+        authorization::check_permission(self.required_permission, &role_info)?;
 
         let key_manager_state = &(&state.session_state()).into();
         let key_store = state
@@ -2284,7 +2292,7 @@ where
         }
 
         let role_info = authorization::get_role_info(state, &payload).await?;
-        authorization::check_permission(&self.required_permission, &role_info)?;
+        authorization::check_permission(self.required_permission, &role_info)?;
 
         let key_manager_state = &(&state.session_state()).into();
         let key_store = state
@@ -2358,7 +2366,7 @@ where
         }
 
         let role_info = authorization::get_role_info(state, &payload).await?;
-        authorization::check_permission(&self.required_permission, &role_info)?;
+        authorization::check_permission(self.required_permission, &role_info)?;
 
         let key_manager_state = &(&state.session_state()).into();
         let key_store = state
@@ -2425,7 +2433,7 @@ where
         )?;
 
         let role_info = authorization::get_role_info(state, &payload).await?;
-        authorization::check_permission(&self.required_permission, &role_info)?;
+        authorization::check_permission(self.required_permission, &role_info)?;
 
         let key_manager_state = &(&state.session_state()).into();
         let key_store = state
@@ -2490,7 +2498,7 @@ where
                 .get_required_value(headers::X_PROFILE_ID)?;
 
         let role_info = authorization::get_role_info(state, &payload).await?;
-        authorization::check_permission(&self.required_permission, &role_info)?;
+        authorization::check_permission(self.required_permission, &role_info)?;
 
         let key_manager_state = &(&state.session_state()).into();
         let key_store = state
@@ -2545,7 +2553,8 @@ where
     T: serde::de::DeserializeOwned,
     A: SessionStateInfo + Sync,
 {
-    let cookie_token_result = get_cookie_from_header(headers).and_then(cookies::parse_cookie);
+    let cookie_token_result =
+        get_cookie_from_header(headers).and_then(cookies::get_jwt_from_cookies);
     let auth_header_token_result = get_jwt_from_authorization_header(headers);
     let force_cookie = state.conf().user.force_cookies;
 
@@ -2589,7 +2598,7 @@ where
         )?;
 
         let role_info = authorization::get_role_info(state, &payload).await?;
-        authorization::check_permission(&self.permission, &role_info)?;
+        authorization::check_permission(self.permission, &role_info)?;
 
         let key_manager_state = &(&state.session_state()).into();
         let key_store = state
@@ -2653,7 +2662,7 @@ where
             .get_id_type_from_header::<id_type::ProfileId>(headers::X_PROFILE_ID)?;
 
         let role_info = authorization::get_role_info(state, &payload).await?;
-        authorization::check_permission(&self.permission, &role_info)?;
+        authorization::check_permission(self.permission, &role_info)?;
 
         let key_manager_state = &(&state.session_state()).into();
         let key_store = state
@@ -2726,7 +2735,7 @@ where
         )?;
 
         let role_info = authorization::get_role_info(state, &payload).await?;
-        authorization::check_permission(&self.permission, &role_info)?;
+        authorization::check_permission(self.permission, &role_info)?;
 
         let key_manager_state = &(&state.session_state()).into();
         let key_store = state
@@ -2983,7 +2992,6 @@ pub fn get_auth_type_and_flow<A: SessionStateInfo + Sync + Send>(
     Ok((Box::new(HeaderAuth(ApiKeyAuth)), api::AuthFlow::Merchant))
 }
 
-#[cfg(feature = "v1")]
 pub fn check_client_secret_and_get_auth<T>(
     headers: &HeaderMap,
     payload: &impl ClientSecretFetch,
@@ -3019,44 +3027,6 @@ where
     Ok((Box::new(HeaderAuth(ApiKeyAuth)), api::AuthFlow::Merchant))
 }
 
-#[cfg(feature = "v2")]
-pub fn check_client_secret_and_get_auth<T>(
-    headers: &HeaderMap,
-    payload: &impl ClientSecretFetch,
-) -> RouterResult<(
-    Box<dyn AuthenticateAndFetch<AuthenticationData, T>>,
-    api::AuthFlow,
-)>
-where
-    T: SessionStateInfo + Sync + Send,
-    ApiKeyAuth: AuthenticateAndFetch<AuthenticationData, T>,
-    PublishableKeyAuth: AuthenticateAndFetch<AuthenticationData, T>,
-{
-    let api_key = get_api_key(headers)?;
-    if api_key.starts_with("pk_") {
-        payload
-            .get_client_secret()
-            .check_value_present("client_secret")
-            .map_err(|_| errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "client_secret",
-            })?;
-        return Ok((
-            Box::new(HeaderAuth(PublishableKeyAuth)),
-            api::AuthFlow::Client,
-        ));
-    }
-
-    if payload.get_client_secret().is_some() {
-        return Err(errors::ApiErrorResponse::InvalidRequestData {
-            message: "client_secret is not a valid parameter".to_owned(),
-        }
-        .into());
-    }
-
-    Ok((Box::new(HeaderAuth(ApiKeyAuth)), api::AuthFlow::Merchant))
-}
-
-#[cfg(feature = "v1")]
 pub async fn get_ephemeral_or_other_auth<T>(
     headers: &HeaderMap,
     is_merchant_flow: bool,
@@ -3089,7 +3059,6 @@ where
     }
 }
 
-#[cfg(feature = "v1")]
 pub fn is_ephemeral_auth<A: SessionStateInfo + Sync + Send>(
     headers: &HeaderMap,
 ) -> RouterResult<Box<dyn AuthenticateAndFetch<AuthenticationData, A>>> {
@@ -3102,17 +3071,10 @@ pub fn is_ephemeral_auth<A: SessionStateInfo + Sync + Send>(
     }
 }
 
-#[cfg(feature = "v2")]
-pub fn is_ephemeral_auth<A: SessionStateInfo + Sync + Send>(
-    headers: &HeaderMap,
-) -> RouterResult<Box<dyn AuthenticateAndFetch<AuthenticationData, A>>> {
-    todo!()
-}
-
 pub fn is_jwt_auth(headers: &HeaderMap) -> bool {
     headers.get(headers::AUTHORIZATION).is_some()
         || get_cookie_from_header(headers)
-            .and_then(cookies::parse_cookie)
+            .and_then(cookies::get_jwt_from_cookies)
             .is_ok()
 }
 
@@ -3174,10 +3136,13 @@ pub fn get_jwt_from_authorization_header(headers: &HeaderMap) -> RouterResult<&s
 }
 
 pub fn get_cookie_from_header(headers: &HeaderMap) -> RouterResult<&str> {
-    headers
+    let cookie = headers
         .get(cookies::get_cookie_header())
-        .and_then(|header_value| header_value.to_str().ok())
-        .ok_or(errors::ApiErrorResponse::InvalidCookie.into())
+        .ok_or(report!(errors::ApiErrorResponse::CookieNotFound))?;
+
+    cookie
+        .to_str()
+        .change_context(errors::ApiErrorResponse::InvalidCookie)
 }
 
 pub fn strip_jwt_token(token: &str) -> RouterResult<&str> {
@@ -3219,7 +3184,7 @@ where
             &state.session_state().tenant.tenant_id,
         )?;
         let role_info = authorization::get_role_info(state, &payload).await?;
-        authorization::check_permission(&self.permission, &role_info)?;
+        authorization::check_permission(self.permission, &role_info)?;
 
         let key_manager_state = &(&state.session_state()).into();
         let key_store = state
@@ -3267,5 +3232,93 @@ where
         };
 
         Ok((auth, auth_type))
+    }
+}
+
+#[cfg(feature = "recon")]
+#[async_trait]
+impl<A> AuthenticateAndFetch<UserFromTokenWithRoleInfo, A> for JWTAuth
+where
+    A: SessionStateInfo + Sync,
+{
+    async fn authenticate_and_fetch(
+        &self,
+        request_headers: &HeaderMap,
+        state: &A,
+    ) -> RouterResult<(UserFromTokenWithRoleInfo, AuthenticationType)> {
+        let payload = parse_jwt_payload::<A, AuthToken>(request_headers, state).await?;
+        if payload.check_in_blacklist(state).await? {
+            return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
+        }
+        authorization::check_tenant(
+            payload.tenant_id.clone(),
+            &state.session_state().tenant.tenant_id,
+        )?;
+        let role_info = authorization::get_role_info(state, &payload).await?;
+        authorization::check_permission(self.permission, &role_info)?;
+
+        let user = UserFromToken {
+            user_id: payload.user_id.clone(),
+            merchant_id: payload.merchant_id.clone(),
+            org_id: payload.org_id,
+            role_id: payload.role_id,
+            profile_id: payload.profile_id,
+            tenant_id: payload.tenant_id,
+        };
+
+        Ok((
+            UserFromTokenWithRoleInfo { user, role_info },
+            AuthenticationType::MerchantJwt {
+                merchant_id: payload.merchant_id,
+                user_id: Some(payload.user_id),
+            },
+        ))
+    }
+}
+
+#[cfg(feature = "recon")]
+#[derive(serde::Serialize, serde::Deserialize)]
+pub struct ReconToken {
+    pub user_id: String,
+    pub merchant_id: id_type::MerchantId,
+    pub role_id: String,
+    pub exp: u64,
+    pub org_id: id_type::OrganizationId,
+    pub profile_id: id_type::ProfileId,
+    pub tenant_id: Option<id_type::TenantId>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub acl: Option<String>,
+}
+
+#[cfg(all(feature = "olap", feature = "recon"))]
+impl ReconToken {
+    pub async fn new_token(
+        user_id: String,
+        merchant_id: id_type::MerchantId,
+        settings: &Settings,
+        org_id: id_type::OrganizationId,
+        profile_id: id_type::ProfileId,
+        tenant_id: Option<id_type::TenantId>,
+        role_info: authorization::roles::RoleInfo,
+    ) -> UserResult<String> {
+        let exp_duration = std::time::Duration::from_secs(consts::JWT_TOKEN_TIME_IN_SECS);
+        let exp = jwt::generate_exp(exp_duration)?.as_secs();
+        let acl = role_info.get_recon_acl();
+        let optional_acl_str = serde_json::to_string(&acl)
+            .inspect_err(|err| logger::error!("Failed to serialize acl to string: {}", err))
+            .change_context(errors::UserErrors::InternalServerError)
+            .attach_printable("Failed to serialize acl to string. Using empty ACL")
+            .ok();
+        let token_payload = Self {
+            user_id,
+            merchant_id,
+            role_id: role_info.get_role_id().to_string(),
+            exp,
+            org_id,
+            profile_id,
+            tenant_id,
+            acl: optional_acl_str,
+        };
+        jwt::generate_jwt(&token_payload, settings).await
     }
 }

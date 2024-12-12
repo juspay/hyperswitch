@@ -32,7 +32,7 @@ pub struct PaymentStatus;
 
 type PaymentStatusOperation<'b, F, R> = BoxedOperation<'b, F, R, PaymentData<F>>;
 
-impl<F: Send + Clone> Operation<F, api::PaymentsRequest> for PaymentStatus {
+impl<F: Send + Clone + Sync> Operation<F, api::PaymentsRequest> for PaymentStatus {
     type Data = PaymentData<F>;
     fn to_domain(&self) -> RouterResult<&dyn Domain<F, api::PaymentsRequest, PaymentData<F>>> {
         Ok(self)
@@ -44,7 +44,7 @@ impl<F: Send + Clone> Operation<F, api::PaymentsRequest> for PaymentStatus {
         Ok(self)
     }
 }
-impl<F: Send + Clone> Operation<F, api::PaymentsRequest> for &PaymentStatus {
+impl<F: Send + Clone + Sync> Operation<F, api::PaymentsRequest> for &PaymentStatus {
     type Data = PaymentData<F>;
     fn to_domain(&self) -> RouterResult<&dyn Domain<F, api::PaymentsRequest, PaymentData<F>>> {
         Ok(*self)
@@ -58,7 +58,7 @@ impl<F: Send + Clone> Operation<F, api::PaymentsRequest> for &PaymentStatus {
 }
 
 #[async_trait]
-impl<F: Clone + Send> Domain<F, api::PaymentsRequest, PaymentData<F>> for PaymentStatus {
+impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for PaymentStatus {
     #[instrument(skip_all)]
     async fn get_or_create_customer_details<'a>(
         &'a self,
@@ -138,7 +138,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest, PaymentData<F>> for Paymen
 }
 
 #[async_trait]
-impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for PaymentStatus {
+impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for PaymentStatus {
     async fn update_trackers<'b>(
         &'b self,
         _state: &'b SessionState,
@@ -168,7 +168,9 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
 }
 
 #[async_trait]
-impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRetrieveRequest> for PaymentStatus {
+impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRetrieveRequest>
+    for PaymentStatus
+{
     async fn update_trackers<'b>(
         &'b self,
         _state: &'b SessionState,
@@ -198,7 +200,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRetrieveRequest> fo
 }
 
 #[async_trait]
-impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRetrieveRequest>
+impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRetrieveRequest>
     for PaymentStatus
 {
     #[instrument(skip_all)]
@@ -493,7 +495,7 @@ async fn get_tracker_for_sync<
         payment_method_info,
         force_sync: Some(
             request.force_sync
-                && (helpers::check_force_psync_precondition(&payment_attempt.status)
+                && (helpers::check_force_psync_precondition(payment_attempt.status)
                     || contains_encoded_data),
         ),
         payment_attempt,
@@ -532,7 +534,7 @@ async fn get_tracker_for_sync<
     Ok(get_trackers_response)
 }
 
-impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRetrieveRequest, PaymentData<F>>
+impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRetrieveRequest, PaymentData<F>>
     for PaymentStatus
 {
     fn validate_request<'b>(

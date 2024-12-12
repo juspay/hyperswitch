@@ -108,6 +108,7 @@ pub enum RoutableConnectors {
     Prophetpay,
     Rapyd,
     Razorpay,
+    // Redsys,
     Riskified,
     Shift4,
     Signifyd,
@@ -119,6 +120,7 @@ pub enum RoutableConnectors {
     // Thunes
     // Tsys,
     Tsys,
+    // UnifiedAuthenticationService,
     Volt,
     Wellsfargo,
     // Wellsfargopayout,

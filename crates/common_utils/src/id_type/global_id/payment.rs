@@ -20,7 +20,7 @@ impl GlobalPaymentId {
     }
 
     /// Generate a new GlobalPaymentId from a cell id
-    pub fn generate(cell_id: crate::id_type::CellId) -> Self {
+    pub fn generate(cell_id: &crate::id_type::CellId) -> Self {
         let global_id = super::GlobalId::generate(cell_id, super::GlobalEntity::Payment);
         Self(global_id)
     }
@@ -57,7 +57,7 @@ crate::impl_to_sql_from_sql_global_id_type!(GlobalAttemptId);
 impl GlobalAttemptId {
     /// Generate a new GlobalAttemptId from a cell id
     pub fn generate(cell_id: &super::CellId) -> Self {
-        let global_id = super::GlobalId::generate(cell_id.clone(), super::GlobalEntity::Attempt);
+        let global_id = super::GlobalId::generate(cell_id, super::GlobalEntity::Attempt);
         Self(global_id)
     }
 

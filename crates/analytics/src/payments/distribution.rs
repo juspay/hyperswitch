@@ -2,7 +2,7 @@ use api_models::analytics::{
     payments::{
         PaymentDimensions, PaymentDistributions, PaymentFilters, PaymentMetricsBucketIdentifier,
     },
-    Distribution, Granularity, TimeRange,
+    Granularity, PaymentDistributionBody, TimeRange,
 };
 use diesel_models::enums as storage_enums;
 use time::PrimitiveDateTime;
@@ -53,11 +53,11 @@ where
     #[allow(clippy::too_many_arguments)]
     async fn load_distribution(
         &self,
-        distribution: &Distribution,
+        distribution: &PaymentDistributionBody,
         dimensions: &[PaymentDimensions],
         auth: &AuthInfo,
         filters: &PaymentFilters,
-        granularity: &Option<Granularity>,
+        granularity: Option<Granularity>,
         time_range: &TimeRange,
         pool: &T,
     ) -> MetricsResult<Vec<(PaymentMetricsBucketIdentifier, PaymentDistributionRow)>>;
@@ -75,11 +75,11 @@ where
 {
     async fn load_distribution(
         &self,
-        distribution: &Distribution,
+        distribution: &PaymentDistributionBody,
         dimensions: &[PaymentDimensions],
         auth: &AuthInfo,
         filters: &PaymentFilters,
-        granularity: &Option<Granularity>,
+        granularity: Option<Granularity>,
         time_range: &TimeRange,
         pool: &T,
     ) -> MetricsResult<Vec<(PaymentMetricsBucketIdentifier, PaymentDistributionRow)>> {

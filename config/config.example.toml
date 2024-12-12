@@ -252,6 +252,7 @@ powertranz.base_url = "https://staging.ptranz.com/api/"
 prophetpay.base_url = "https://ccm-thirdparty.cps.golf/"
 rapyd.base_url = "https://sandboxapi.rapyd.net"
 razorpay.base_url = "https://sandbox.juspay.in/"
+redsys.base_url = "https://sis-t.redsys.es:25443/sis/realizarPago"
 riskified.base_url = "https://sandbox.riskified.com/api"
 shift4.base_url = "https://api.shift4.com/"
 signifyd.base_url = "https://api.signifyd.com/"
@@ -266,6 +267,7 @@ stripe.base_url_file_upload = "https://files.stripe.com/"
 trustpay.base_url = "https://test-tpgw.trustpay.eu/"
 trustpay.base_url_bank_redirects = "https://aapi.trustpay.eu/"
 tsys.base_url = "https://stagegw.transnox.com/"
+unified_authentication_service.base_url = "http://localhost:8000"
 volt.base_url = "https://api.sandbox.volt.io/"
 wellsfargo.base_url = "https://apitest.cybersource.com/"
 wellsfargopayout.base_url = "https://api-sandbox.wellsfargo.com/"
@@ -787,6 +789,13 @@ check_token_status_url= ""    # base url to check token status from token servic
 [network_tokenization_supported_connectors]
 connector_list = "cybersource" # Supported connectors for network tokenization
 
+[network_transaction_id_supported_connectors]
+connector_list = "stripe,adyen,cybersource" # Supported connectors for network transaction id
+
 [grpc_client.dynamic_routing_client] # Dynamic Routing Client Configuration
 host = "localhost" # Client Host
 port = 7000        # Client Port
+service = "dynamo" # Service name
+
+[theme_storage]
+file_storage_backend = "file_system" # Theme storage backend to be used

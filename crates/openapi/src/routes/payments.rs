@@ -549,8 +549,6 @@ pub fn payments_incremental_authorization() {}
 pub fn payments_external_authentication() {}
 
 /// Payments - Complete Authorize
-///
-///
 #[utoipa::path(
   post,
   path = "/{payment_id}/complete_authorize",
@@ -569,8 +567,6 @@ pub fn payments_external_authentication() {}
 pub fn payments_complete_authorize() {}
 
 /// Dynamic Tax Calculation
-///
-///
 #[utoipa::path(
     post,
     path = "/payments/{payment_id}/calculate_tax",
@@ -587,8 +583,6 @@ pub fn payments_complete_authorize() {}
 pub fn payments_dynamic_tax_calculation() {}
 
 /// Payments - Post Session Tokens
-///
-///
 #[utoipa::path(
     post,
     path = "/payments/{payment_id}/post_session_tokens",
@@ -652,6 +646,43 @@ pub fn payments_create_intent() {}
 )]
 #[cfg(feature = "v2")]
 pub fn payments_get_intent() {}
+
+/// Payments - Update Intent
+///
+/// **Update a payment intent object**
+///
+/// You will require the 'API - Key' from the Hyperswitch dashboard to make the call.
+#[utoipa::path(
+  put,
+  path = "/v2/payments/{id}/update-intent",
+  params (("id" = String, Path, description = "The unique identifier for the Payment Intent"),
+      (
+        "X-Profile-Id" = String, Header,
+        description = "Profile ID associated to the payment intent",
+        example = json!({"X-Profile-Id": "pro_abcdefghijklmnop"})
+      ),
+    ),
+  request_body(
+      content = PaymentsUpdateIntentRequest,
+      examples(
+          (
+              "Update a payment intent with minimal fields" = (
+                  value = json!({"amount_details": {"order_amount": 6540, "currency": "USD"}})
+              )
+          ),
+      ),
+  ),
+  responses(
+      (status = 200, description = "Payment Intent Updated", body = PaymentsIntentResponse),
+      (status = 404, description = "Payment Intent Not Found")
+  ),
+  tag = "Payments",
+  operation_id = "Update a Payment Intent",
+  security(("api_key" = [])),
+)]
+#[cfg(feature = "v2")]
+pub fn payments_update_intent() {}
+
 /// Payments - Confirm Intent
 ///
 /// **Confirms a payment intent object with the payment method data**
