@@ -348,7 +348,7 @@ pub async fn get_or_insert_payment_method(
                     None,
                     None,
                     None,
-                    Some(storage_enums::PaymentDirection::Payin),
+                    Some(storage_enums::PaymentDirection::Payin), // None
                 )
                 .await
             } else {
@@ -1958,7 +1958,7 @@ pub async fn save_migration_payment_method(
                 None,
                 None,
                 None,
-                Some(storage_enums::PaymentDirection::Payin),
+                Some(storage_enums::PaymentDirection::Payin), // None
             )
             .await?;
 

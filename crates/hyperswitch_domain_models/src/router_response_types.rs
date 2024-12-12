@@ -446,10 +446,11 @@ pub struct RetrieveFileResponse {
 
 #[cfg(feature = "payouts")]
 #[derive(Clone, Debug, Default)]
-pub struct PayoutsResponseData {
+pub struct PayoutsResponseData {  // here
     pub status: Option<common_enums::PayoutStatus>,
     pub connector_payout_id: Option<String>,
     pub payout_eligible: Option<bool>,
+    // pub transfer_method_id: Option<String>,
     pub should_add_next_step_to_process_tracker: bool,
     pub error_code: Option<String>,
     pub error_message: Option<String>,

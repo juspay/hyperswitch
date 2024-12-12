@@ -306,11 +306,12 @@ pub struct PaymentsMandateReference(
 );
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct PaymentsMandateReferenceRecord {
+pub struct PaymentsMandateReferenceRecord {  // here
     pub connector_mandate_id: String,
     pub payment_method_type: Option<common_enums::PaymentMethodType>,
     pub original_payment_authorized_amount: Option<i64>,
     pub original_payment_authorized_currency: Option<common_enums::Currency>,
+    pub payment_instrument_id: Option<masking::Secret<String>>,
 }
 
 #[cfg(all(
@@ -2288,6 +2289,7 @@ impl
             Some(PaymentsMandateReference(HashMap::from([(
                 mca_id.get_required_value("merchant_connector_id")?,
                 PaymentsMandateReferenceRecord {
+                    payment_instrument_id: record.clone().payment_instrument_id, //here
                     connector_mandate_id: record
                         .payment_instrument_id
                         .get_required_value("payment_instrument_id")?
