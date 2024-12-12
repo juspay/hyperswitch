@@ -28,7 +28,7 @@ use hyperswitch_domain_models::{
     },
 };
 use hyperswitch_interfaces::{
-    api::{self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorValidation},
+    api::{self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorSpecifications, ConnectorValidation},
     configs::Connectors,
     errors,
     events::connector_api_logs::ConnectorEvent,
@@ -38,28 +38,9 @@ use hyperswitch_interfaces::{
 use transformers as placetopay;
 
 use crate::{
-<<<<<<< HEAD:crates/router/src/connector/placetopay.rs
-    configs::settings,
-    connector::utils as connector_utils,
-    core::errors::{self, CustomResult},
-    events::connector_api_logs::ConnectorEvent,
-    headers,
-    services::{
-        self,
-        request::{self},
-        ConnectorIntegration, ConnectorSpecifications, ConnectorValidation,
-    },
-    types::{
-        self,
-        api::{self, enums, ConnectorCommon, ConnectorCommonExt},
-        ErrorResponse, Response,
-    },
-    utils::BytesExt,
-=======
     constants::headers,
     types::ResponseRouterData,
     utils::{construct_not_supported_error_report, convert_amount},
->>>>>>> main:crates/hyperswitch_connectors/src/connectors/placetopay.rs
 };
 
 #[derive(Clone)]

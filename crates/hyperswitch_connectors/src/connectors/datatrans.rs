@@ -2,7 +2,7 @@ pub mod transformers;
 
 use api_models::webhooks::{IncomingWebhookEvent, ObjectReferenceId};
 use base64::Engine;
-use common_enums::{CaptureMethod, PaymentMethodType};
+use common_enums::{CaptureMethod, PaymentMethodType, PaymentMethod};
 use common_utils::{
     consts::BASE64_ENGINE,
     errors::CustomResult,
@@ -30,7 +30,7 @@ use hyperswitch_domain_models::{
     },
 };
 use hyperswitch_interfaces::{
-    api::{self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorValidation},
+    api::{self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorSpecifications, ConnectorValidation},
     configs::Connectors,
     errors,
     events::connector_api_logs::ConnectorEvent,
@@ -156,6 +156,7 @@ impl ConnectorValidation for Datatrans {
     fn validate_capture_method(
         &self,
         capture_method: Option<CaptureMethod>,
+        _payment_method: PaymentMethod,
         _pmt: Option<PaymentMethodType>,
     ) -> CustomResult<(), errors::ConnectorError> {
         let capture_method = capture_method.unwrap_or_default();
@@ -682,3 +683,5 @@ impl IncomingWebhook for Datatrans {
         Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 }
+
+impl ConnectorSpecifications for Datatrans {}
