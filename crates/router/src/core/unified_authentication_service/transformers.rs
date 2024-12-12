@@ -2,7 +2,7 @@ use error_stack::Report;
 use hyperswitch_domain_models::{
     errors::api_error_response::ApiErrorResponse,
     router_request_types::unified_authentication_service::{
-        ServiceDetails, ServiceSessionIds, TransactionDetails, UasPreAuthenticationRequestData,
+        CtpServiceDetails, ServiceSessionIds, TransactionDetails, UasPreAuthenticationRequestData,
     },
 };
 
@@ -12,7 +12,7 @@ use crate::core::payments::PaymentData;
 impl<F: Clone + Sync> TryFrom<PaymentData<F>> for UasPreAuthenticationRequestData {
     type Error = Report<ApiErrorResponse>;
     fn try_from(payment_data: PaymentData<F>) -> Result<Self, Self::Error> {
-        let service_details = ServiceDetails {
+        let service_details = CtpServiceDetails {
             service_session_ids: Some(ServiceSessionIds {
                 merchant_transaction_id: None,
                 correlation_id: None,
