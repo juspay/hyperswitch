@@ -194,6 +194,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsCaptureRequest>
             poll_config: None,
             tax_data: None,
             session_id: None,
+            vault_operation:None
         };
 
         let get_trackers_response = operations::GetTrackerResponse {

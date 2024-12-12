@@ -4270,6 +4270,18 @@ where
     pub poll_config: Option<router_types::PollConfig>,
     pub tax_data: Option<TaxData>,
     pub session_id: Option<String>,
+    pub vault_operation: Option<PaymentMethodDataAction>,
+}
+
+#[derive(Clone, serde::Serialize, Debug)]
+pub enum PaymentMethodDataAction{
+    VaultData(VaultData)
+}
+
+#[derive(Clone, serde::Serialize, Debug)]
+pub struct VaultData {
+    pub card_data: hyperswitch_domain_models::payment_method_data::Card,
+    pub network_token_data: hyperswitch_domain_models::payment_method_data::NetworkTokenData,
 }
 
 #[derive(Clone, serde::Serialize, Debug)]
