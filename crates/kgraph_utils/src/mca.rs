@@ -605,6 +605,7 @@ fn compile_config_graph(
         .map_err(KgraphError::GraphConstructionError)
 }
 
+#[cfg(feature = "v1")]
 fn compile_merchant_connector_graph(
     builder: &mut cgraph::ConstraintGraphBuilder<dir::DirValue>,
     mca: admin_api::MerchantConnectorResponse,
@@ -675,6 +676,7 @@ fn compile_merchant_connector_graph(
     Ok(())
 }
 
+#[cfg(feature = "v1")]
 pub fn make_mca_graph(
     accts: Vec<admin_api::MerchantConnectorResponse>,
     config: &kgraph_types::CountryCurrencyFilter,
@@ -691,6 +693,7 @@ pub fn make_mca_graph(
     Ok(builder.build())
 }
 
+#[cfg(feature = "v1")]
 #[cfg(test)]
 mod tests {
     #![allow(clippy::expect_used)]
@@ -711,61 +714,61 @@ mod tests {
         use api_models::{admin::*, payment_methods::*};
         let profile_id = common_utils::generate_profile_id_of_default_length();
 
-        #[cfg(feature = "v2")]
-        let stripe_account = MerchantConnectorResponse {
-            connector_type: api_enums::ConnectorType::FizOperations,
-            connector_name: "stripe".to_string(),
-            id: common_utils::generate_merchant_connector_account_id_of_default_length(),
-            connector_label: Some("something".to_string()),
-            connector_account_details: masking::Secret::new(serde_json::json!({})),
-            disabled: None,
-            metadata: None,
-            payment_methods_enabled: Some(vec![PaymentMethodsEnabled {
-                payment_method: api_enums::PaymentMethod::Card,
-                payment_method_types: Some(vec![
-                    RequestPaymentMethodTypes {
-                        payment_method_type: api_enums::PaymentMethodType::Credit,
-                        payment_experience: None,
-                        card_networks: Some(vec![
-                            api_enums::CardNetwork::Visa,
-                            api_enums::CardNetwork::Mastercard,
-                        ]),
-                        accepted_currencies: Some(AcceptedCurrencies::EnableOnly(vec![
-                            api_enums::Currency::INR,
-                        ])),
-                        accepted_countries: None,
-                        minimum_amount: Some(MinorUnit::new(10)),
-                        maximum_amount: Some(MinorUnit::new(1000)),
-                        recurring_enabled: true,
-                        installment_payment_enabled: true,
-                    },
-                    RequestPaymentMethodTypes {
-                        payment_method_type: api_enums::PaymentMethodType::Debit,
-                        payment_experience: None,
-                        card_networks: Some(vec![
-                            api_enums::CardNetwork::Maestro,
-                            api_enums::CardNetwork::JCB,
-                        ]),
-                        accepted_currencies: Some(AcceptedCurrencies::EnableOnly(vec![
-                            api_enums::Currency::GBP,
-                        ])),
-                        accepted_countries: None,
-                        minimum_amount: Some(MinorUnit::new(10)),
-                        maximum_amount: Some(MinorUnit::new(1000)),
-                        recurring_enabled: true,
-                        installment_payment_enabled: true,
-                    },
-                ]),
-            }]),
-            frm_configs: None,
-            connector_webhook_details: None,
-            profile_id,
-            applepay_verified_domains: None,
-            pm_auth_config: None,
-            status: api_enums::ConnectorStatus::Inactive,
-            additional_merchant_data: None,
-            connector_wallets_details: None,
-        };
+        // #[cfg(feature = "v2")]
+        // let stripe_account = MerchantConnectorResponse {
+        //     connector_type: api_enums::ConnectorType::FizOperations,
+        //     connector_name: "stripe".to_string(),
+        //     id: common_utils::generate_merchant_connector_account_id_of_default_length(),
+        //     connector_label: Some("something".to_string()),
+        //     connector_account_details: masking::Secret::new(serde_json::json!({})),
+        //     disabled: None,
+        //     metadata: None,
+        //     payment_methods_enabled: Some(vec![PaymentMethodsEnabled {
+        //         payment_method: api_enums::PaymentMethod::Card,
+        //         payment_method_types: Some(vec![
+        //             RequestPaymentMethodTypes {
+        //                 payment_method_type: api_enums::PaymentMethodType::Credit,
+        //                 payment_experience: None,
+        //                 card_networks: Some(vec![
+        //                     api_enums::CardNetwork::Visa,
+        //                     api_enums::CardNetwork::Mastercard,
+        //                 ]),
+        //                 accepted_currencies: Some(AcceptedCurrencies::EnableOnly(vec![
+        //                     api_enums::Currency::INR,
+        //                 ])),
+        //                 accepted_countries: None,
+        //                 minimum_amount: Some(MinorUnit::new(10)),
+        //                 maximum_amount: Some(MinorUnit::new(1000)),
+        //                 recurring_enabled: true,
+        //                 installment_payment_enabled: true,
+        //             },
+        //             RequestPaymentMethodTypes {
+        //                 payment_method_type: api_enums::PaymentMethodType::Debit,
+        //                 payment_experience: None,
+        //                 card_networks: Some(vec![
+        //                     api_enums::CardNetwork::Maestro,
+        //                     api_enums::CardNetwork::JCB,
+        //                 ]),
+        //                 accepted_currencies: Some(AcceptedCurrencies::EnableOnly(vec![
+        //                     api_enums::Currency::GBP,
+        //                 ])),
+        //                 accepted_countries: None,
+        //                 minimum_amount: Some(MinorUnit::new(10)),
+        //                 maximum_amount: Some(MinorUnit::new(1000)),
+        //                 recurring_enabled: true,
+        //                 installment_payment_enabled: true,
+        //             },
+        //         ]),
+        //     }]),
+        //     frm_configs: None,
+        //     connector_webhook_details: None,
+        //     profile_id,
+        //     applepay_verified_domains: None,
+        //     pm_auth_config: None,
+        //     status: api_enums::ConnectorStatus::Inactive,
+        //     additional_merchant_data: None,
+        //     connector_wallets_details: None,
+        // };
         #[cfg(feature = "v1")]
         let stripe_account = MerchantConnectorResponse {
             connector_type: api_enums::ConnectorType::FizOperations,

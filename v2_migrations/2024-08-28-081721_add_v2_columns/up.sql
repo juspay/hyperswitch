@@ -52,3 +52,7 @@ ADD COLUMN payment_method_type_v2 VARCHAR,
     ADD COLUMN payment_method_billing_address BYTEA,
     ADD COLUMN redirection_data JSONB,
     ADD COLUMN connector_payment_data VARCHAR(512);
+
+-- Change the type of the column from JSON to JSONB
+ALTER TABLE merchant_connector_account
+ALTER COLUMN payment_methods_enabled TYPE JSONB [ ];
