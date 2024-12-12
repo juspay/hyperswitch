@@ -68,6 +68,7 @@ pub enum Connector {
     Checkout,
     Coinbase,
     Cryptopay,
+    CtpMastercard,
     Cybersource,
     Datatrans,
     Deutschebank,
@@ -278,6 +279,7 @@ impl Connector {
             | Self::Threedsecureio
             | Self::Datatrans
             | Self::Netcetera
+            | Self::CtpMastercard
             | Self::Noon
             | Self::Stripe => false,
             Self::Checkout | Self::Nmi | Self::Cybersource => true,

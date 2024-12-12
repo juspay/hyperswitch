@@ -386,6 +386,17 @@ where
                 mandate_type,
             )
             .await?;
+        operation
+            .to_domain()?
+            .call_unified_authentication_service_if_eligible(
+                state,
+                &mut payment_data,
+                &mut should_continue_transaction,
+                &connector_details,
+                &business_profile,
+                &key_store,
+            )
+            .await?;
 
         operation
             .to_domain()?

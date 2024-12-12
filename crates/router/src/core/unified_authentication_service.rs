@@ -2,6 +2,7 @@ pub mod transformers;
 pub mod types;
 pub mod utils;
 
+use api_models::payments::CtpServiceDetails;
 use diesel_models::authentication::{Authentication, AuthenticationNew};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
@@ -23,7 +24,6 @@ use crate::{
     },
     db::domain,
     routes::SessionState,
-    types::api,
 };
 
 #[cfg(feature = "v1")]
@@ -42,7 +42,8 @@ impl<F: Clone + Sync> UnifiedAuthenticationService<F> for ClickToPay {
         let pre_authentication_data =
             UasPreAuthenticationRequestData::try_from(payment_data.clone())?;
 
-        let pre_auth_router_data: api::unified_authentication_service::UasPreAuthenticationRouterData = utils::construct_uas_router_data(
+        let pre_auth_router_data: hyperswitch_domain_models::types::UasPreAuthenticationRouterData =
+            utils::construct_uas_router_data(
                 connector_name.to_string(),
                 payment_method,
                 payment_data.payment_attempt.merchant_id.clone(),
@@ -72,7 +73,6 @@ impl<F: Clone + Sync> UnifiedAuthenticationService<F> for ClickToPay {
         payment_method: common_enums::PaymentMethod,
     ) -> RouterResult<Option<hyperswitch_domain_models::payment_method_data::NetworkTokenData>>
     {
-        let post_authentication_data = UasPostAuthenticationRequestData;
         let authentication_id = payment_data
             .payment_attempt
             .authentication_id
@@ -80,7 +80,9 @@ impl<F: Clone + Sync> UnifiedAuthenticationService<F> for ClickToPay {
             .ok_or(ApiErrorResponse::InternalServerError)
             .attach_printable("Missing authentication id in payment attempt")?;
 
-        let post_auth_router_data: api::unified_authentication_service::UasPostAuthenticationRouterData = utils::construct_uas_router_data(
+        let post_authentication_data = UasPostAuthenticationRequestData {};
+
+        let post_auth_router_data: hyperswitch_domain_models::types::UasPostAuthenticationRouterData = utils::construct_uas_router_data(
             connector_name.to_string(),
             payment_method,
             payment_data.payment_attempt.merchant_id.clone(),
@@ -105,13 +107,16 @@ impl<F: Clone + Sync> UnifiedAuthenticationService<F> for ClickToPay {
                     token_number: authentication_details.token_details.payment_token,
                     token_exp_month: authentication_details.token_details.token_expiration_month,
                     token_exp_year: authentication_details.token_details.token_expiration_year,
-                    token_cryptogram: None,
+                    token_cryptogram: authentication_details
+                        .dynamic_data_details
+                        .and_then(|data| data.dynamic_data_value),
                     card_issuer: None,
                     card_network: None,
                     card_type: None,
                     card_issuing_country: None,
                     bank_code: None,
                     nick_name: None,
+                    eci: authentication_details.eci,
                 },
             ),
             _ => None,
@@ -130,6 +135,7 @@ impl<F: Clone + Sync> UnifiedAuthenticationService<F> for ClickToPay {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn create_new_authentication(
     state: &SessionState,
     merchant_id: common_utils::id_type::MerchantId,
@@ -138,7 +144,15 @@ pub async fn create_new_authentication(
     payment_id: Option<common_utils::id_type::PaymentId>,
     merchant_connector_id: common_utils::id_type::MerchantConnectorAccountId,
     authentication_id: &str,
+    service_details: Option<CtpServiceDetails>,
 ) -> RouterResult<Authentication> {
+    let service_details_value = service_details
+        .map(serde_json::to_value)
+        .transpose()
+        .change_context(ApiErrorResponse::InternalServerError)
+        .attach_printable(
+            "unable to parse service details into json value while inserting to DB",
+        )?;
     let new_authorization = AuthenticationNew {
         authentication_id: authentication_id.to_owned(),
         merchant_id,
@@ -146,7 +160,7 @@ pub async fn create_new_authentication(
         connector_authentication_id: None,
         payment_method_id: "".to_string(),
         authentication_type: None,
-        authentication_status: common_enums::AuthenticationStatus::Started,
+        authentication_status: common_enums::AuthenticationStatus::Success,
         authentication_lifecycle_status: common_enums::AuthenticationLifecycleStatus::Unused,
         error_message: None,
         error_code: None,
@@ -173,7 +187,7 @@ pub async fn create_new_authentication(
         ds_trans_id: None,
         directory_server_id: None,
         acquirer_country_code: None,
-        service_details: None,
+        service_details: service_details_value,
     };
     state
         .store

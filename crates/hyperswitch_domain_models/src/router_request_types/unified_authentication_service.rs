@@ -25,7 +25,7 @@ pub struct TransactionDetails {
 }
 
 #[derive(Clone, Debug)]
-pub struct UasPostAuthenticationRequestData;
+pub struct UasPostAuthenticationRequestData {}
 
 #[derive(Debug, Clone)]
 pub enum UasAuthenticationResponseData {

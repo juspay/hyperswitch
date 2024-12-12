@@ -58,6 +58,7 @@ pub struct Profile {
     pub is_auto_retries_enabled: Option<bool>,
     pub max_auto_retries_enabled: Option<i16>,
     pub is_click_to_pay_enabled: bool,
+    pub authentication_product_ids: Option<serde_json::Value>,
 }
 
 #[cfg(feature = "v1")]
@@ -102,6 +103,7 @@ pub struct ProfileNew {
     pub is_auto_retries_enabled: Option<bool>,
     pub max_auto_retries_enabled: Option<i16>,
     pub is_click_to_pay_enabled: bool,
+    pub authentication_product_ids: Option<serde_json::Value>,
 }
 
 #[cfg(feature = "v1")]
@@ -143,6 +145,7 @@ pub struct ProfileUpdateInternal {
     pub is_auto_retries_enabled: Option<bool>,
     pub max_auto_retries_enabled: Option<i16>,
     pub is_click_to_pay_enabled: Option<bool>,
+    pub authentication_product_ids: Option<serde_json::Value>,
 }
 
 #[cfg(feature = "v1")]
@@ -183,6 +186,7 @@ impl ProfileUpdateInternal {
             is_auto_retries_enabled,
             max_auto_retries_enabled,
             is_click_to_pay_enabled,
+            authentication_product_ids,
         } = self;
         Profile {
             profile_id: source.profile_id,
@@ -244,6 +248,8 @@ impl ProfileUpdateInternal {
             max_auto_retries_enabled: max_auto_retries_enabled.or(source.max_auto_retries_enabled),
             is_click_to_pay_enabled: is_click_to_pay_enabled
                 .unwrap_or(source.is_click_to_pay_enabled),
+            authentication_product_ids: authentication_product_ids
+                .or(source.authentication_product_ids),
         }
     }
 }
@@ -299,6 +305,7 @@ pub struct Profile {
     pub is_auto_retries_enabled: Option<bool>,
     pub max_auto_retries_enabled: Option<i16>,
     pub is_click_to_pay_enabled: bool,
+    pub authentication_product_ids: Option<serde_json::Value>,
 }
 
 impl Profile {
@@ -358,6 +365,7 @@ pub struct ProfileNew {
     pub is_auto_retries_enabled: Option<bool>,
     pub max_auto_retries_enabled: Option<i16>,
     pub is_click_to_pay_enabled: bool,
+    pub authentication_product_ids: Option<serde_json::Value>,
 }
 
 #[cfg(feature = "v2")]
@@ -401,6 +409,7 @@ pub struct ProfileUpdateInternal {
     pub is_auto_retries_enabled: Option<bool>,
     pub max_auto_retries_enabled: Option<i16>,
     pub is_click_to_pay_enabled: Option<bool>,
+    pub authentication_product_ids: Option<serde_json::Value>,
 }
 
 #[cfg(feature = "v2")]
@@ -443,6 +452,7 @@ impl ProfileUpdateInternal {
             is_auto_retries_enabled,
             max_auto_retries_enabled,
             is_click_to_pay_enabled,
+            authentication_product_ids,
         } = self;
         Profile {
             id: source.id,
@@ -509,6 +519,8 @@ impl ProfileUpdateInternal {
             max_auto_retries_enabled: max_auto_retries_enabled.or(source.max_auto_retries_enabled),
             is_click_to_pay_enabled: is_click_to_pay_enabled
                 .unwrap_or(source.is_click_to_pay_enabled),
+            authentication_product_ids: authentication_product_ids
+                .unwrap_or(source.authentication_product_ids),
         }
     }
 }

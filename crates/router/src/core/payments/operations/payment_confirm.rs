@@ -597,6 +597,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             &request.payment_method_type,
             &mandate_type,
             &token,
+            &request.ctp_service_details,
         )?;
 
         let (token_data, payment_method_info) = if let Some(token) = token.clone() {
@@ -778,6 +779,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 )), // connector_mandate_request_reference_id
             )),
         );
+
         let payment_data = PaymentData {
             flow: PhantomData,
             payment_intent,
@@ -818,7 +820,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             poll_config: None,
             tax_data: None,
             session_id: None,
-            service_details: None,
+            service_details: request.ctp_service_details.clone(),
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -883,7 +885,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
             business_profile,
         ))
         .await?;
-
+        println!("logg1 {:?}", payment_data.payment_method_data);
         utils::when(payment_method_data.is_none(), || {
             Err(errors::ApiErrorResponse::PaymentMethodNotFound)
         })?;
@@ -1044,10 +1046,10 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         business_profile: &domain::Profile,
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
-        let is_click_to_pay_enabled = true; // fetch from business profile
-
         if let Some(payment_method) = payment_data.payment_attempt.payment_method {
-            if payment_method == storage_enums::PaymentMethod::Card && is_click_to_pay_enabled {
+            if payment_method == storage_enums::PaymentMethod::Card
+                && business_profile.is_click_to_pay_enabled
+            {
                 let connector_name = CTP_MASTERCARD; // since the above checks satisfies the connector should be click to pay hence hardcoded the connector name
                 let connector_mca = helpers::get_merchant_connector_account(
                     state,
@@ -1102,19 +1104,28 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                 )
                 .await?;
 
-                payment_data.payment_method_data =
-                    network_token.map(domain::PaymentMethodData::NetworkToken);
+                payment_data.payment_attempt.payment_method =
+                    Some(common_enums::PaymentMethod::Card);
 
-                unified_authentication_service::create_new_authentication(
-                    state,
-                    payment_data.payment_attempt.merchant_id.clone(),
-                    connector_name.to_string(),
-                    business_profile.get_id().clone(),
-                    Some(payment_data.payment_intent.get_id().clone()),
-                    connector_transaction_id,
-                    &authentication_id,
-                )
-                .await?;
+                payment_data.payment_method_data = network_token
+                    .clone()
+                    .map(domain::PaymentMethodData::NetworkToken);
+
+                network_token
+                    .async_map(|_data| {
+                        unified_authentication_service::create_new_authentication(
+                            state,
+                            payment_data.payment_attempt.merchant_id.clone(),
+                            connector_name.to_string(),
+                            business_profile.get_id().clone(),
+                            Some(payment_data.payment_intent.get_id().clone()),
+                            connector_transaction_id,
+                            &authentication_id,
+                            payment_data.service_details.clone(),
+                        )
+                    })
+                    .await
+                    .transpose()?;
             }
         }
 
