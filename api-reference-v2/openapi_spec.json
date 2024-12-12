@@ -13843,13 +13843,13 @@
         "type": "object",
         "description": "Details of all the payment methods enabled for the connector for the given merchant account",
         "required": [
-          "payment_method"
+          "payment_method_type"
         ],
         "properties": {
-          "payment_method": {
+          "payment_method_type": {
             "$ref": "#/components/schemas/PaymentMethod"
           },
-          "payment_method_types": {
+          "payment_method_subtypes": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/RequestPaymentMethodTypes"
@@ -18594,9 +18594,13 @@
       "ResponsePaymentMethodTypes": {
         "type": "object",
         "required": [
+          "payment_method_type",
           "payment_method_subtype"
         ],
         "properties": {
+          "payment_method_type": {
+            "$ref": "#/components/schemas/PaymentMethodType"
+          },
           "payment_method_subtype": {
             "$ref": "#/components/schemas/PaymentMethodType"
           },
