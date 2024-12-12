@@ -852,7 +852,7 @@ pub async fn create_payment_method(
             key_manager_state,
             customer_id.get_string_repr(),
             merchant_account.get_id(),
-            &key_store,
+            key_store,
             merchant_account.storage_scheme,
         )
         .await
@@ -862,7 +862,7 @@ pub async fn create_payment_method(
     let payment_method_billing_address: Option<Encryptable<Secret<serde_json::Value>>> = req
         .billing
         .clone()
-        .async_map(|billing| cards::create_encrypted_data(&key_manager_state, key_store, billing))
+        .async_map(|billing| cards::create_encrypted_data(key_manager_state, key_store, billing))
         .await
         .transpose()
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -972,7 +972,7 @@ pub async fn payment_method_intent_create(
             key_manager_state,
             customer_id.get_string_repr(),
             merchant_account.get_id(),
-            &key_store,
+            key_store,
             merchant_account.storage_scheme,
         )
         .await
@@ -982,7 +982,7 @@ pub async fn payment_method_intent_create(
     let payment_method_billing_address: Option<Encryptable<Secret<serde_json::Value>>> = req
         .billing
         .clone()
-        .async_map(|billing| cards::create_encrypted_data(&key_manager_state, key_store, billing))
+        .async_map(|billing| cards::create_encrypted_data(key_manager_state, key_store, billing))
         .await
         .transpose()
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1058,7 +1058,7 @@ pub async fn payment_method_intent_confirm(
             key_manager_state,
             customer_id.get_string_repr(),
             merchant_account.get_id(),
-            &key_store,
+            key_store,
             merchant_account.storage_scheme,
         )
         .await
@@ -1275,7 +1275,7 @@ pub async fn create_pm_additional_data_update(
     };
     let key_manager_state = &(state).into();
     let pmd: Encryptable<Secret<serde_json::Value>> =
-        cards::create_encrypted_data(&key_manager_state, key_store, card)
+        cards::create_encrypted_data(key_manager_state, key_store, card)
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Unable to encrypt Payment method data")?;
