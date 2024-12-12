@@ -168,7 +168,7 @@ pub fn diesel_enum(
 ///
 
 /// # Panics
-/// 
+///
 ///
 /// Panics if a struct without named fields is provided as input to the macro
 // FIXME: Remove allowed warnings, raise compile errors in a better manner instead of panicking

@@ -2414,15 +2414,19 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
         let shipping_cost = payment_data.payment_intent.shipping_cost;
 
         let order_tax_amount = payment_data
-                .payment_intent
-                .tax_details
-                .as_ref()
-                .and_then(|td| {
-                    td.payment_method_type
-                        .as_ref()
-                        .map(|payment_method_tax| payment_method_tax.order_tax_amount)
-                        .or_else(|| td.default.as_ref().map(|default_tax| default_tax.order_tax_amount))
-                });
+            .payment_intent
+            .tax_details
+            .as_ref()
+            .and_then(|td| {
+                td.payment_method_type
+                    .as_ref()
+                    .map(|payment_method_tax| payment_method_tax.order_tax_amount)
+                    .or_else(|| {
+                        td.default
+                            .as_ref()
+                            .map(|default_tax| default_tax.order_tax_amount)
+                    })
+            });
 
         Ok(Self {
             payment_method_data: (payment_method_data.get_required_value("payment_method_data")?),
