@@ -4,6 +4,14 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.12.11.0-hotfix2
+
+### Bug Fixes
+
+- **webhooks:** Mask custom outgoing webhook headers in profile response ([#6826](https://github.com/juspay/hyperswitch/pull/6826)) ([`6f2ac77`](https://github.com/juspay/hyperswitch/commit/6f2ac77b4fed13d3080a15eeaef079b3d026a68b))
+
+- - -
+
 ## 2024.12.11.0-hotfix1
 
 ### Refactors
