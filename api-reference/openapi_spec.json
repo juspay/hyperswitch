@@ -17091,6 +17091,11 @@
               }
             ],
             "nullable": true
+          },
+          "request_overcapture": {
+            "type": "boolean",
+            "description": "Whether to request overcapture on this payment",
+            "nullable": true
           }
         }
       },
@@ -17468,6 +17473,11 @@
                 "$ref": "#/components/schemas/ScaExemptionType"
               }
             ],
+            "nullable": true
+          },
+          "request_overcapture": {
+            "type": "boolean",
+            "description": "Whether to request overcapture on this payment",
             "nullable": true
           }
         }
@@ -18671,6 +18681,11 @@
               }
             ],
             "nullable": true
+          },
+          "request_overcapture": {
+            "type": "boolean",
+            "description": "Whether to request overcapture on this payment",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -19711,6 +19726,11 @@
                 "$ref": "#/components/schemas/ScaExemptionType"
               }
             ],
+            "nullable": true
+          },
+          "request_overcapture": {
+            "type": "boolean",
+            "description": "Whether to request overcapture on this payment",
             "nullable": true
           }
         }
@@ -21673,6 +21693,10 @@
           "is_click_to_pay_enabled": {
             "type": "boolean",
             "description": "Indicates if click to pay is enabled or not."
+          },
+          "always_request_overcapture": {
+            "type": "boolean",
+            "description": "Indicates if the overcapture is always requested or not."
           }
         },
         "additionalProperties": false
@@ -21706,7 +21730,8 @@
           "is_tax_connector_enabled",
           "is_network_tokenization_enabled",
           "is_auto_retries_enabled",
-          "is_click_to_pay_enabled"
+          "is_click_to_pay_enabled",
+          "always_request_overcapture"
         ],
         "properties": {
           "merchant_id": {
@@ -21907,6 +21932,12 @@
           "is_click_to_pay_enabled": {
             "type": "boolean",
             "description": "Indicates if click to pay is enabled or not.",
+            "default": false,
+            "example": false
+          },
+          "always_request_overcapture": {
+            "type": "boolean",
+            "description": "Indicates if the overcapture is always requested or not.",
             "default": false,
             "example": false
           }
