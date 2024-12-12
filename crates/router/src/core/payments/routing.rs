@@ -1393,8 +1393,11 @@ pub async fn perform_elimination_routing(
     business_profile: &domain::Profile,
     elimination_routing_configs_params_interpolator: routing::helpers::SuccessBasedRoutingConfigParamsInterpolator,
 ) -> RoutingResult<Vec<api_routing::RoutableConnectorChoice>> {
+<<<<<<< HEAD
     use external_services::grpc_client::dynamic_routing::elimination_rate_client::EliminationBasedRouting;
 
+=======
+>>>>>>> 3ff2e0041c75116393ea26b3841ec39887b718df
     let dynamic_routing_algo_ref: api_routing::DynamicRoutingAlgorithmRef = business_profile
         .dynamic_routing_algorithm
         .clone()
