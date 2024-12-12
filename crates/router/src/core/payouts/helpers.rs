@@ -223,7 +223,7 @@ pub fn should_create_connector_transfer_method(
                     payments_mandate_reference.get(merchant_connector_id).map(
                         |payments_mandate_reference_record| {
                             payments_mandate_reference_record
-                                .connector_mandate_id
+                                .connector_mandate_id //here should be change
                                 .clone()
                         },
                     )
