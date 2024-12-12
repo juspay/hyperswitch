@@ -1,4 +1,4 @@
-use error_stack::Report;
+use error_stack::{Report, ResultExt};
 use hyperswitch_domain_models::{
     errors::api_error_response::ApiErrorResponse,
     router_request_types::unified_authentication_service::{
@@ -31,6 +31,11 @@ impl<F: Clone + Sync> TryFrom<PaymentData<F>> for UasPreAuthenticationRequestDat
         Ok(Self {
             service_details: Some(service_details),
             transaction_details: Some(transaction_details),
+            source_authentication_id: payment_data
+                .authentication
+                .ok_or(ApiErrorResponse::InternalServerError)
+                .attach_printable("missing payment_data.authentication")?
+                .authentication_id,
         })
     }
 }

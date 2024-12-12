@@ -23,7 +23,6 @@ use crate::{
     },
     db::domain,
     routes::SessionState,
-    types::api,
 };
 
 #[cfg(feature = "v1")]
@@ -42,7 +41,8 @@ impl<F: Clone + Sync> UnifiedAuthenticationService<F> for ClickToPay {
         let pre_authentication_data =
             UasPreAuthenticationRequestData::try_from(payment_data.clone())?;
 
-        let pre_auth_router_data: api::unified_authentication_service::UasPreAuthenticationRouterData = utils::construct_uas_router_data(
+        let pre_auth_router_data: hyperswitch_domain_models::types::UasPreAuthenticationRouterData =
+            utils::construct_uas_router_data(
                 connector_name.to_string(),
                 payment_method,
                 payment_data.payment_attempt.merchant_id.clone(),
@@ -72,7 +72,6 @@ impl<F: Clone + Sync> UnifiedAuthenticationService<F> for ClickToPay {
         payment_method: common_enums::PaymentMethod,
     ) -> RouterResult<Option<hyperswitch_domain_models::payment_method_data::NetworkTokenData>>
     {
-        let post_authentication_data = UasPostAuthenticationRequestData;
         let authentication_id = payment_data
             .payment_attempt
             .authentication_id
@@ -80,7 +79,11 @@ impl<F: Clone + Sync> UnifiedAuthenticationService<F> for ClickToPay {
             .ok_or(ApiErrorResponse::InternalServerError)
             .attach_printable("Missing authentication id in payment attempt")?;
 
-        let post_auth_router_data: api::unified_authentication_service::UasPostAuthenticationRouterData = utils::construct_uas_router_data(
+        let post_authentication_data = UasPostAuthenticationRequestData {
+            source_authentication_id: authentication_id.clone(),
+        };
+
+        let post_auth_router_data: hyperswitch_domain_models::types::UasPostAuthenticationRouterData = utils::construct_uas_router_data(
             connector_name.to_string(),
             payment_method,
             payment_data.payment_attempt.merchant_id.clone(),
