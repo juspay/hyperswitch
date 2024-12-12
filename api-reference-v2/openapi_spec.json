@@ -5395,6 +5395,11 @@
                 "description": "A list of allowed domains (glob patterns) where this link can be embedded / opened from",
                 "uniqueItems": true,
                 "nullable": true
+              },
+              "branding_visibility": {
+                "type": "boolean",
+                "description": "Toggle for HyperSwitch branding visibility",
+                "nullable": true
               }
             }
           }
@@ -7713,6 +7718,61 @@
             "nullable": true
           }
         }
+      },
+      "ElementPosition": {
+        "type": "string",
+        "enum": [
+          "left",
+          "top left",
+          "top",
+          "top right",
+          "right",
+          "bottom right",
+          "bottom",
+          "bottom left",
+          "center"
+        ]
+      },
+      "ElementSize": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "Variants"
+            ],
+            "properties": {
+              "Variants": {
+                "$ref": "#/components/schemas/SizeVariants"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "Percentage"
+            ],
+            "properties": {
+              "Percentage": {
+                "type": "integer",
+                "format": "int32",
+                "minimum": 0
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "Pixels"
+            ],
+            "properties": {
+              "Pixels": {
+                "type": "integer",
+                "format": "int32",
+                "minimum": 0
+              }
+            }
+          }
+        ]
       },
       "EnablePaymentLinkRequest": {
         "type": "string",
@@ -12320,6 +12380,35 @@
           }
         }
       },
+      "PaymentLinkBackgroundImageConfig": {
+        "type": "object",
+        "required": [
+          "url"
+        ],
+        "properties": {
+          "url": {
+            "type": "string",
+            "description": "URL of the image",
+            "example": "https://hyperswitch.io/favicon.ico"
+          },
+          "position": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ElementPosition"
+              }
+            ],
+            "nullable": true
+          },
+          "size": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ElementSize"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
       "PaymentLinkConfig": {
         "type": "object",
         "required": [
@@ -12380,6 +12469,27 @@
               "$ref": "#/components/schemas/PaymentLinkTransactionDetails"
             },
             "description": "Dynamic details related to merchant to be rendered in payment link",
+            "nullable": true
+          },
+          "background_image": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentLinkBackgroundImageConfig"
+              }
+            ],
+            "nullable": true
+          },
+          "details_layout": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentLinkDetailsLayout"
+              }
+            ],
+            "nullable": true
+          },
+          "branding_visibility": {
+            "type": "boolean",
+            "description": "Toggle for HyperSwitch branding visibility",
             "nullable": true
           }
         }
@@ -12450,8 +12560,31 @@
             },
             "description": "Dynamic details related to merchant to be rendered in payment link",
             "nullable": true
+          },
+          "background_image": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentLinkBackgroundImageConfig"
+              }
+            ],
+            "nullable": true
+          },
+          "details_layout": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentLinkDetailsLayout"
+              }
+            ],
+            "nullable": true
           }
         }
+      },
+      "PaymentLinkDetailsLayout": {
+        "type": "string",
+        "enum": [
+          "layout1",
+          "layout2"
+        ]
       },
       "PaymentLinkInitiateRequest": {
         "type": "object",
@@ -19579,6 +19712,13 @@
               }
             }
           }
+        ]
+      },
+      "SizeVariants": {
+        "type": "string",
+        "enum": [
+          "cover",
+          "contain"
         ]
       },
       "StraightThroughAlgorithm": {
