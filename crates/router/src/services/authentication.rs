@@ -13,7 +13,10 @@ use api_models::payouts;
 use api_models::{payment_methods::PaymentMethodListRequest, payments};
 use async_trait::async_trait;
 use common_enums::TokenPurpose;
-use common_utils::{date_time, fp_utils, id_type};
+#[cfg(feature = "v2")]
+use common_utils::fp_utils;
+use common_utils::{date_time, id_type};
+#[cfg(feature = "v2")]
 use diesel_models::ephemeral_key;
 use error_stack::{report, ResultExt};
 use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};

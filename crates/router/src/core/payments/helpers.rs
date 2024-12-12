@@ -50,8 +50,6 @@ use super::{
     operations::{BoxedOperation, Operation, PaymentResponse},
     CustomerDetails, PaymentData,
 };
-#[cfg(feature = "v2")]
-use crate::core::admin as core_admin;
 use crate::{
     configs::settings::{ConnectorRequestReferenceIdConfig, TempLockerEnableConfig},
     connector,
@@ -86,6 +84,8 @@ use crate::{
         OptionExt, StringExt,
     },
 };
+#[cfg(feature = "v2")]
+use crate::{core::admin as core_admin, headers};
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use crate::{
     core::payment_methods::cards::create_encrypted_data, types::storage::CustomerUpdate::Update,
@@ -3029,13 +3029,14 @@ pub async fn make_ephemeral_key(
     let id = utils::generate_id(consts::ID_LENGTH, "eki");
     let secret = format!("epk_{}", &Uuid::new_v4().simple().to_string());
     let resource_type = services::authentication::get_header_value_by_key(
-        crate::headers::X_RESOURCE_TYPE.to_string(),
+        headers::X_RESOURCE_TYPE.to_string(),
         headers,
     )?
     .map(ephemeral_key::ResourceType::from_str)
     .transpose()
     .change_context(errors::ApiErrorResponse::InternalServerError)?
-    .get_required_value("ResourceType")?;
+    .get_required_value("ResourceType")
+    .attach_printable("Falied to convert ResourceType from string")?;
     let ek = ephemeral_key::EphemeralKeyNew {
         id,
         customer_id: customer_id.to_owned(),
