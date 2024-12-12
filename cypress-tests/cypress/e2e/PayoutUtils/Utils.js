@@ -4,7 +4,7 @@ import { connectorDetails as adyenConnectorDetails } from "./Adyen.js";
 import { connectorDetails as adyenPlatformConnectorDetails } from "./AdyenPlatform.js";
 import { connectorDetails as CommonConnectorDetails } from "./Commons.js";
 import { connectorDetails as wiseConnectorDetails } from "./Wise.js";
-import { connectorDetails as nomupayConnectorDetails} from "./Nomupay.js"
+import { connectorDetails as nomupayConnectorDetails } from "./Nomupay.js";
 
 const connectorDetails = {
   adyen: adyenConnectorDetails,
