@@ -444,6 +444,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::DeviceChannel,
         api_models::payments::ThreeDsCompletionIndicator,
         api_models::payments::MifinityData,
+        api_models::payments::ClickToPaySessionResponse,
         api_models::enums::TransactionStatus,
         api_models::payments::PaymentCreatePaymentLinkConfig,
         api_models::payments::ThreeDsData,

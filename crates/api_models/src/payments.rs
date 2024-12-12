@@ -6984,6 +6984,7 @@ pub struct ClickToPaySessionResponse {
     pub merchant_category_code: String,
     pub merchant_country_code: String,
     pub transaction_amount: MinorUnit,
+    #[schema(value_type = Currency)]
     pub transaction_currency_code: common_enums::Currency,
 }
 
