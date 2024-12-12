@@ -504,8 +504,7 @@ impl PaymentIntent {
                 .payment_link_config
                 .map(ApiModelToDieselModelConvertor::convert_from),
             routing_algorithm_id: request.routing_algorithm_id,
-            request_overcapture: request.request_overcapture
-                .unwrap_or_default(),
+            request_overcapture: request.request_overcapture.unwrap_or_default(),
         })
     }
 }

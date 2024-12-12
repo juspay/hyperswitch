@@ -150,7 +150,7 @@ impl From<ProfileSetter> for Profile {
             is_auto_retries_enabled: value.is_auto_retries_enabled,
             max_auto_retries_enabled: value.max_auto_retries_enabled,
             is_click_to_pay_enabled: value.is_click_to_pay_enabled,
-            always_request_overcapture: value.always_request_overcapture
+            always_request_overcapture: value.always_request_overcapture,
         }
     }
 }
@@ -201,7 +201,7 @@ pub struct ProfileGeneralUpdate {
     pub is_auto_retries_enabled: Option<bool>,
     pub max_auto_retries_enabled: Option<i16>,
     pub is_click_to_pay_enabled: Option<bool>,
-    pub always_request_overcapture: Option<bool>
+    pub always_request_overcapture: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -304,7 +304,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     is_auto_retries_enabled,
                     max_auto_retries_enabled,
                     is_click_to_pay_enabled,
-                    always_request_overcapture
+                    always_request_overcapture,
                 }
             }
             ProfileUpdate::RoutingAlgorithmUpdate {

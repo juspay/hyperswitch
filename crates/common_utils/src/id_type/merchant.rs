@@ -110,7 +110,10 @@ impl MerchantId {
 
     /// get_should_always_enable_overcapture key
     pub fn get_should_always_enable_overcapture(&self) -> String {
-        format!("should_always_enable_overcapture_{}", self.get_string_repr())
+        format!(
+            "should_always_enable_overcapture_{}",
+            self.get_string_repr()
+        )
     }
 
     /// get_requires_cvv_key

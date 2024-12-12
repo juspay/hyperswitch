@@ -1351,9 +1351,7 @@ impl behaviour::Conversion for PaymentIntent {
             payment_link_config,
             routing_algorithm_id,
             psd2_sca_exemption_type: None,
-            request_overcapture: Some(
-                request_overcapture.as_bool(),
-            ),
+            request_overcapture: Some(request_overcapture.as_bool()),
         })
     }
     async fn convert_back(
@@ -1552,9 +1550,7 @@ impl behaviour::Conversion for PaymentIntent {
             tax_details: amount_details.tax_details,
             enable_payment_link: Some(self.enable_payment_link.as_bool()),
             apply_mit_exemption: Some(self.apply_mit_exemption.as_bool()),
-            request_overcapture: Some(
-                self.request_overcapture.as_bool(),
-            ),
+            request_overcapture: Some(self.request_overcapture.as_bool()),
         })
     }
 }

@@ -452,7 +452,7 @@ impl ProfileUpdateInternal {
             is_auto_retries_enabled,
             max_auto_retries_enabled,
             is_click_to_pay_enabled,
-            always_request_overcapture
+            always_request_overcapture,
         } = self;
         Profile {
             id: source.id,
