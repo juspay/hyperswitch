@@ -870,7 +870,7 @@ impl super::RedisConnectionPool {
         self.pool
             .eval(lua_script, keys, values)
             .await
-            .change_context(errors::RedisError::ConsumerGroupClaimFailed)
+            .change_context(errors::RedisError::IncrementHashFieldFailed)
     }
 }
 
