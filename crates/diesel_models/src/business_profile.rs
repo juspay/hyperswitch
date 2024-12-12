@@ -520,7 +520,7 @@ impl ProfileUpdateInternal {
             is_click_to_pay_enabled: is_click_to_pay_enabled
                 .unwrap_or(source.is_click_to_pay_enabled),
             authentication_product_ids: authentication_product_ids
-                .unwrap_or(source.authentication_product_ids),
+                .or(source.authentication_product_ids),
         }
     }
 }
