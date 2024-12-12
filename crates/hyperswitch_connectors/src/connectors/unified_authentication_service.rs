@@ -26,7 +26,10 @@ use hyperswitch_domain_models::{
     },
 };
 use hyperswitch_interfaces::{
-    api::{self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorSpecifications, ConnectorValidation},
+    api::{
+        self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorSpecifications,
+        ConnectorValidation,
+    },
     configs::Connectors,
     errors,
     events::connector_api_logs::ConnectorEvent,
@@ -599,4 +602,4 @@ impl webhooks::IncomingWebhook for UnifiedAuthenticationService {
     }
 }
 
-impl ConnectorSpecifications for  UnifiedAuthenticationService{}
+impl ConnectorSpecifications for UnifiedAuthenticationService {}
