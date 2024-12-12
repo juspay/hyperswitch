@@ -24,6 +24,7 @@ api_models = { version = "0.1.0", path = "../api_models", features = ["errors"] 
 cards = { version = "0.1.0", path = "../cards" }
 common_enums = { version = "0.1.0", path = "../common_enums" }
 common_utils = { version = "0.1.0", path = "../common_utils", features = ["async_ext", "metrics", "encryption_service", "keymanager"] }
+common_types = { version = "0.1.0", path = "../common_types" }
 diesel_models = { version = "0.1.0", path = "../diesel_models", features = ["kv_store"], default-features = false }
 masking = { version = "0.1.0", path = "../masking" }
 router_derive = { version = "0.1.0", path = "../router_derive" }

@@ -14,7 +14,7 @@ use common_utils::{
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
     merchant_connector_account::MerchantConnectorAccount, payment_address::PaymentAddress,
-    router_data::ErrorResponse, types::OrderDetailsWithAmount,
+    router_data::ErrorResponse, router_request_types, types::OrderDetailsWithAmount,
 };
 #[cfg(feature = "payouts")]
 use masking::{ExposeInterface, PeekInterface};
@@ -235,7 +235,7 @@ pub async fn construct_refund_router_data<'a, F>(
     _payment_attempt: &storage::PaymentAttempt,
     _refund: &'a storage::Refund,
     _creds_identifier: Option<String>,
-    _charges: Option<types::ChargeRefunds>,
+    _split_refunds: Option<router_request_types::SplitRefundsRequest>,
 ) -> RouterResult<types::RefundsRouterData<F>> {
     todo!()
 }
@@ -253,7 +253,7 @@ pub async fn construct_refund_router_data<'a, F>(
     payment_attempt: &storage::PaymentAttempt,
     refund: &'a storage::Refund,
     creds_identifier: Option<String>,
-    charges: Option<types::ChargeRefunds>,
+    split_refunds: Option<router_request_types::SplitRefundsRequest>,
 ) -> RouterResult<types::RefundsRouterData<F>> {
     let profile_id = payment_intent
         .profile_id
@@ -362,7 +362,7 @@ pub async fn construct_refund_router_data<'a, F>(
             reason: refund.refund_reason.clone(),
             connector_refund_id: connector_refund_id.clone(),
             browser_info,
-            charges,
+            split_refunds,
             integrity_object: None,
             refund_status: refund.refund_status,
         },
