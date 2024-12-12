@@ -169,11 +169,11 @@ pub struct Tenant {
     pub schema: String,
     pub redis_key_prefix: String,
     pub clickhouse_database: String,
-    pub user: User,
+    pub user: TenantUserConfig,
 }
 
 #[derive(Debug, Deserialize, Clone)]
-pub struct User {
+pub struct TenantUserConfig {
     pub control_center_url: String,
 }
 
@@ -1129,7 +1129,7 @@ impl<'de> Deserialize<'de> for TenantConfig {
             schema: String,
             redis_key_prefix: String,
             clickhouse_database: String,
-            user: User,
+            user: TenantUserConfig,
         }
 
         let hashmap = <HashMap<id_type::TenantId, Inner>>::deserialize(deserializer)?;
