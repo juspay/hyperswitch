@@ -1336,23 +1336,33 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             ),
             None => (None, None, None),
         };
-        let order_tax_amount = payment_data
-            .payment_intent
-            .tax_details
-            .as_ref()
-            .and_then(|td| {
-                td.payment_method_type
-                    .as_ref()
-                    .map(|payment_method_tax| payment_method_tax.order_tax_amount)
-                    .or_else(|| td.default.as_ref().map(|default_tax| default_tax.order_tax_amount))
-            });
+
+        let pmt_order_tax_amount = payment_data
+        .payment_intent
+        .tax_details
+        .as_ref()
+        .and_then(|td| {
+            td.payment_method_type
+                .as_ref()
+                .map(|payment_method_tax| payment_method_tax.order_tax_amount)
+                .or_else(|| td.default.as_ref().map(|default_tax| default_tax.order_tax_amount))
+        });
+
+        let net_amount= hyperswitch_domain_models::payments::payment_attempt::NetAmount::new(
+            payment_data.payment_attempt.net_amount.get_order_amount(),
+            payment_data.payment_intent.shipping_cost,
+            pmt_order_tax_amount,
+            surcharge_amount,
+            tax_amount,
+        );
+    
         let payment_attempt_fut: tokio::task::JoinHandle<Result<hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt, error_stack::Report<hyperswitch_domain_models::errors::api_error_response::ApiErrorResponse>>> = tokio::spawn(
             async move {
                 m_db.update_payment_attempt_with_attempt_id(
                     m_payment_data_payment_attempt,
                     storage::PaymentAttemptUpdate::ConfirmUpdate {
                         currency: payment_data.currency,
-                        order_tax_amount,
+                        order_tax_amount: net_amount.get_order_tax_amount(),
                         status: attempt_status,
                         payment_method,
                         authentication_type,
@@ -1379,17 +1389,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                         client_source,
                         client_version,
                         customer_acceptance: payment_data.payment_attempt.customer_acceptance,
-                        net_amount:
-                            hyperswitch_domain_models::payments::payment_attempt::NetAmount::new(
-                                payment_data.payment_attempt.net_amount.get_order_amount(),
-                                payment_data.payment_intent.shipping_cost,
-                                payment_data
-                                    .payment_attempt
-                                    .net_amount
-                                    .get_order_tax_amount(),
-                                surcharge_amount,
-                                tax_amount,
-                            ),
+                        net_amount,
                         connector_mandate_detail: payment_data
                             .payment_attempt
                             .connector_mandate_detail,
