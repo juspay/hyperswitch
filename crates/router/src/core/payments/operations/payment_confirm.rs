@@ -1439,11 +1439,13 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                 .tax_details
                 .as_ref()
                 .and_then(|tax_details| {
-                    tax_details.payment_method_type
+                    tax_details
+                        .payment_method_type
                         .as_ref()
                         .map(|payment_method_tax| payment_method_tax.order_tax_amount)
                         .or_else(|| {
-                            tax_details.default
+                            tax_details
+                                .default
                                 .as_ref()
                                 .map(|default_tax| default_tax.order_tax_amount)
                         })
