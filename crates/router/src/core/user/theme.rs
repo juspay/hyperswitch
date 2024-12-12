@@ -38,6 +38,7 @@ pub async fn get_theme_using_lineage(
         .change_context(UserErrors::InternalServerError)?;
 
     Ok(ApplicationResponse::Json(theme_api::GetThemeResponse {
+        email_config: theme.email_config(),
         theme_id: theme.theme_id,
         theme_name: theme.theme_name,
         entity_type: theme.entity_type,
@@ -71,6 +72,7 @@ pub async fn get_theme_using_theme_id(
         .change_context(UserErrors::InternalServerError)?;
 
     Ok(ApplicationResponse::Json(theme_api::GetThemeResponse {
+        email_config: theme.email_config(),
         theme_id: theme.theme_id,
         theme_name: theme.theme_name,
         entity_type: theme.entity_type,
@@ -113,10 +115,19 @@ pub async fn create_theme(
 ) -> UserResponse<theme_api::GetThemeResponse> {
     theme_utils::validate_lineage(&state, &request.lineage).await?;
 
+    let email_config = if cfg!(feature = "email") {
+        request.email_config.ok_or(UserErrors::MissingEmailConfig)?
+    } else {
+        request
+            .email_config
+            .unwrap_or(state.conf.theme.email_config.clone())
+    };
+
     let new_theme = ThemeNew::new(
         Uuid::new_v4().to_string(),
         request.theme_name,
         request.lineage,
+        email_config,
     );
 
     let db_theme = state
@@ -147,6 +158,7 @@ pub async fn create_theme(
         .change_context(UserErrors::InternalServerError)?;
 
     Ok(ApplicationResponse::Json(theme_api::GetThemeResponse {
+        email_config: db_theme.email_config(),
         theme_id: db_theme.theme_id,
         entity_type: db_theme.entity_type,
         tenant_id: db_theme.tenant_id,
@@ -195,6 +207,7 @@ pub async fn update_theme(
         .change_context(UserErrors::InternalServerError)?;
 
     Ok(ApplicationResponse::Json(theme_api::GetThemeResponse {
+        email_config: db_theme.email_config(),
         theme_id: db_theme.theme_id,
         entity_type: db_theme.entity_type,
         tenant_id: db_theme.tenant_id,
