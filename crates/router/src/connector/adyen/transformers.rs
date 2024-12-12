@@ -1571,6 +1571,7 @@ impl<'a> TryFrom<&AdyenRouterData<&types::PaymentsAuthorizeRouterData>>
     fn try_from(
         item: &AdyenRouterData<&types::PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
+        println!("sahkal bdebijdqi {:?}", item.router_data.request.payment_method_data);
         match item
             .router_data
             .request
@@ -5446,7 +5447,7 @@ impl<'a>
                 .token_cryptogram
                 .clone()
                 .unwrap_or_default(),
-            eci: Some("07".to_string()),
+            eci: Some("02".to_string()),
         };
 
         Ok(AdyenPaymentRequest {

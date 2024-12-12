@@ -88,6 +88,7 @@ pub async fn retrieve_payment_method_core(
     merchant_key_store: &domain::MerchantKeyStore,
     business_profile: Option<&domain::Profile>,
 ) -> RouterResult<(Option<domain::PaymentMethodData>, Option<String>)> {
+    println!("logg4 {:?}", pm_data);
     match pm_data {
         pm_opt @ Some(pm @ domain::PaymentMethodData::Card(_)) => {
             let payment_token = payment_helpers::store_payment_method_data_in_vault(
@@ -100,7 +101,8 @@ pub async fn retrieve_payment_method_core(
                 business_profile,
             )
             .await?;
-
+            
+            println!("logg 6 {:?}",pm_opt);
             Ok((pm_opt.to_owned(), payment_token))
         }
         pm_opt @ Some(pm @ domain::PaymentMethodData::BankDebit(_)) => {
@@ -168,6 +170,9 @@ pub async fn retrieve_payment_method_core(
             .await?;
 
             Ok((pm_opt.to_owned(), payment_token))
+        }
+        pm_opt @ Some( _pm @ domain::PaymentMethodData::NetworkToken(_)) => {
+            Ok((pm_opt.to_owned(),None))
         }
         _ => Ok((None, None)),
     }
