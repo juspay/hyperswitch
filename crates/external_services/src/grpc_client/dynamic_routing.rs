@@ -1,5 +1,5 @@
 /// Module for Contract based routing
-pub mod contract_routing;
+pub mod contract_routing_client;
 
 use std::fmt::Debug;
 
@@ -8,7 +8,7 @@ use api_models::routing::{
     SuccessBasedRoutingConfig, SuccessBasedRoutingConfigBody,
 };
 use common_utils::{errors::CustomResult, ext_traits::OptionExt, transformers::ForeignTryFrom};
-pub use contract_routing::ContractScoreCalculatorClient;
+pub use contract_routing_client::ContractScoreCalculatorClient;
 use error_stack::ResultExt;
 use router_env::logger;
 use serde;
