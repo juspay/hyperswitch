@@ -4,10 +4,10 @@ use std::collections::HashMap;
 pub use api_models::admin;
 pub use api_models::{
     admin::{
-        MerchantAccountCreate, MerchantAccountDeleteResponse, MerchantAccountResponse,
-        MerchantAccountUpdate, MerchantConnectorCreate, MerchantConnectorDeleteResponse,
-        MerchantConnectorDetails, MerchantConnectorDetailsWrap, MerchantConnectorId,
-        MerchantConnectorResponse, MerchantDetails, MerchantId, OutgoingWebhookCustomHttpHeaders,
+        MaskedHeaders, MerchantAccountCreate, MerchantAccountDeleteResponse,
+        MerchantAccountResponse, MerchantAccountUpdate, MerchantConnectorCreate,
+        MerchantConnectorDeleteResponse, MerchantConnectorDetails, MerchantConnectorDetailsWrap,
+        MerchantConnectorId, MerchantConnectorResponse, MerchantDetails, MerchantId,
         PaymentMethodsEnabled, ProfileCreate, ProfileResponse, ProfileUpdate, ToggleAllKVRequest,
         ToggleAllKVResponse, ToggleKVRequest, ToggleKVResponse, WebhookDetails,
     },
@@ -132,12 +132,7 @@ impl ForeignTryFrom<domain::Profile> for ProfileResponse {
             })
             .transpose()?;
         let masked_outgoing_webhook_custom_http_headers =
-            outgoing_webhook_custom_http_headers.map(|headers_map| {
-                OutgoingWebhookCustomHttpHeaders {
-                    headers: headers_map,
-                }
-                .get_masked_headers()
-            });
+            outgoing_webhook_custom_http_headers.map(MaskedHeaders::from_headers);
 
         Ok(Self {
             merchant_id: item.merchant_id,
@@ -211,12 +206,7 @@ impl ForeignTryFrom<domain::Profile> for ProfileResponse {
             .transpose()
             .change_context(errors::ParsingError::IntegerOverflow)?;
         let masked_outgoing_webhook_custom_http_headers =
-            outgoing_webhook_custom_http_headers.map(|headers_map| {
-                OutgoingWebhookCustomHttpHeaders {
-                    headers: headers_map,
-                }
-                .get_masked_headers()
-            });
+            outgoing_webhook_custom_http_headers.map(MaskedHeaders::from_headers);
 
         Ok(Self {
             merchant_id: item.merchant_id,
