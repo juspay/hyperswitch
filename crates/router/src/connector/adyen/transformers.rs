@@ -89,6 +89,7 @@ pub enum AuthType {
     #[default]
     PreAuth,
 }
+#[serde_with::skip_serializing_none]
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AdditionalData {
@@ -107,6 +108,7 @@ pub struct AdditionalData {
     funds_availability: Option<String>,
 }
 
+#[serde_with::skip_serializing_none]
 #[derive(Default, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ShopperName {
@@ -114,6 +116,7 @@ pub struct ShopperName {
     last_name: Option<Secret<String>>,
 }
 
+#[serde_with::skip_serializing_none]
 #[derive(Default, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Address {
@@ -122,9 +125,10 @@ pub struct Address {
     house_number_or_name: Secret<String>,
     postal_code: Secret<String>,
     state_or_province: Option<Secret<String>>,
-    street: Secret<String>,
+    street: Option<Secret<String>>,
 }
 
+#[serde_with::skip_serializing_none]
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LineItem {
@@ -143,7 +147,6 @@ pub struct AdyenPaymentRequest<'a> {
     amount: Amount,
     merchant_account: Secret<String>,
     payment_method: AdyenPaymentMethod<'a>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     mpi_data: Option<AdyenMpiData>,
     reference: String,
     return_url: String,
@@ -170,13 +173,13 @@ pub struct AdyenPaymentRequest<'a> {
     merchant_order_reference: Option<String>,
 }
 
+#[serde_with::skip_serializing_none]
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct AdyenMpiData {
     directory_response: String,
     authentication_response: String,
     token_authentication_verification_value: Secret<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     eci: Option<String>,
 }
 
@@ -500,7 +503,7 @@ pub struct Amount {
 }
 
 #[derive(Debug, Clone, Serialize)]
-#[serde(tag = "type")]
+#[serde(untagged)]
 #[serde(rename_all = "lowercase")]
 pub enum AdyenPaymentMethod<'a> {
     AdyenAffirm(Box<PmdForPaymentType>),
@@ -1088,6 +1091,7 @@ pub struct BlikRedirectionData {
     blik_code: Secret<String>,
 }
 
+#[serde_with::skip_serializing_none]
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BankRedirectionWithIssuer<'a> {
@@ -1104,6 +1108,7 @@ pub struct AdyenMandate {
     stored_payment_method_id: Secret<String>,
 }
 
+#[serde_with::skip_serializing_none]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AdyenCard {
@@ -1211,6 +1216,7 @@ pub struct AdyenApplePay {
     apple_pay_token: Secret<String>,
 }
 
+#[serde_with::skip_serializing_none]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DokuBankData {
@@ -1219,6 +1225,7 @@ pub struct DokuBankData {
     shopper_email: Email,
 }
 // Refunds Request and Response
+#[serde_with::skip_serializing_none]
 #[derive(Default, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AdyenRefundRequest {
@@ -1726,16 +1733,22 @@ fn get_additional_data(item: &types::PaymentsAuthorizeRouterData) -> Option<Addi
     } else {
         None
     };
-    Some(AdditionalData {
-        authorisation_type,
-        manual_capture,
-        execute_three_d,
-        network_tx_reference: None,
-        recurring_detail_reference: None,
-        recurring_shopper_reference: None,
-        recurring_processing_model: None,
-        ..AdditionalData::default()
-    })
+    if authorisation_type.is_none() && manual_capture.is_none() && execute_three_d.is_none() {
+        //without this if-condition when the above 3 values are None, additionalData will be serialized to JSON like this -> additionalData: {}
+        //returning None, ensures that additionalData key will not be present in the serialized JSON
+        None
+    } else {
+        Some(AdditionalData {
+            authorisation_type,
+            manual_capture,
+            execute_three_d,
+            network_tx_reference: None,
+            recurring_detail_reference: None,
+            recurring_shopper_reference: None,
+            recurring_processing_model: None,
+            ..AdditionalData::default()
+        })
+    }
 }
 
 fn get_channel_type(pm_type: Option<storage_enums::PaymentMethodType>) -> Option<Channel> {
@@ -1766,7 +1779,7 @@ pub fn get_address_info(
                     house_number_or_name: a.get_line1()?.to_owned(),
                     postal_code: a.get_zip()?.to_owned(),
                     state_or_province: a.state.clone(),
-                    street: a.get_line2()?.to_owned(),
+                    street: a.get_optional_line2().to_owned(),
                 })
             },
         )
