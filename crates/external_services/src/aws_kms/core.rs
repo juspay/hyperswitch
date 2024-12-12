@@ -63,7 +63,7 @@ impl AwsKmsClient {
                 // Logging using `Debug` representation of the error as the `Display`
                 // representation does not hold sufficient information.
                 logger::error!(aws_kms_sdk_error=?error, "Failed to AWS KMS decrypt data");
-                metrics::AWS_KMS_DECRYPTION_FAILURES.add(&metrics::CONTEXT, 1, &[]);
+                metrics::AWS_KMS_DECRYPTION_FAILURES.add(1, &[]);
             })
             .change_context(AwsKmsError::DecryptionFailed)?;
 
@@ -75,7 +75,7 @@ impl AwsKmsClient {
             })?;
 
         let time_taken = start.elapsed();
-        metrics::AWS_KMS_DECRYPT_TIME.record(&metrics::CONTEXT, time_taken.as_secs_f64(), &[]);
+        metrics::AWS_KMS_DECRYPT_TIME.record(time_taken.as_secs_f64(), &[]);
 
         Ok(output)
     }
@@ -99,7 +99,7 @@ impl AwsKmsClient {
                 // Logging using `Debug` representation of the error as the `Display`
                 // representation does not hold sufficient information.
                 logger::error!(aws_kms_sdk_error=?error, "Failed to AWS KMS encrypt data");
-                metrics::AWS_KMS_ENCRYPTION_FAILURES.add(&metrics::CONTEXT, 1, &[]);
+                metrics::AWS_KMS_ENCRYPTION_FAILURES.add(1, &[]);
             })
             .change_context(AwsKmsError::EncryptionFailed)?;
 
@@ -108,7 +108,7 @@ impl AwsKmsClient {
             .ok_or(AwsKmsError::MissingCiphertextEncryptionOutput)
             .map(|blob| consts::BASE64_ENGINE.encode(blob.into_inner()))?;
         let time_taken = start.elapsed();
-        metrics::AWS_KMS_ENCRYPT_TIME.record(&metrics::CONTEXT, time_taken.as_secs_f64(), &[]);
+        metrics::AWS_KMS_ENCRYPT_TIME.record(time_taken.as_secs_f64(), &[]);
 
         Ok(output)
     }

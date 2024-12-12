@@ -38,7 +38,7 @@ pub async fn get_metrics(
                     &metric_type,
                     &merchant_id_scoped,
                     &publishable_key_scoped,
-                    &req.time_series.map(|t| t.granularity),
+                    req.time_series.map(|t| t.granularity),
                     &req.time_range,
                 )
                 .await

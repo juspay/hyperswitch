@@ -917,7 +917,6 @@ pub struct Data {
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
-
 pub struct MultisafepayPaymentDetails {
     pub account_holder_name: Option<Secret<String>>,
     pub account_id: Option<Secret<String>>,

@@ -348,7 +348,10 @@ mod tests {
         ))
         .await;
         let state = &Arc::new(app_state)
-            .get_session_state("public", || {})
+            .get_session_state(
+                &common_utils::id_type::TenantId::try_from_string("public".to_string()).unwrap(),
+                || {},
+            )
             .unwrap();
         #[allow(clippy::expect_used)]
         let mock_db = MockDb::new(&redis_interface::RedisSettings::default())

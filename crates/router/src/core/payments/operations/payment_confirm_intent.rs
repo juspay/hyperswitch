@@ -4,8 +4,10 @@ use api_models::{
     payments::{ExtendedCardInfo, GetAddressFromPaymentMethodData, PaymentsConfirmIntentRequest},
 };
 use async_trait::async_trait;
+use common_utils::{ext_traits::Encode, types::keymanager::ToEncryptable};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::payments::PaymentConfirmData;
+use masking::PeekInterface;
 use router_env::{instrument, tracing};
 use tracing_futures::Instrument;
 
@@ -26,7 +28,7 @@ use crate::{
     types::{
         self,
         api::{self, ConnectorCallType, PaymentIdTypeExt},
-        domain::{self},
+        domain::{self, types as domain_types},
         storage::{self, enums as storage_enums},
     },
     utils::{self, OptionExt},
@@ -69,7 +71,7 @@ type BoxedConfirmOperation<'b, F> =
 
 // TODO: change the macro to include changes for v2
 // TODO: PaymentData in the macro should be an input
-impl<F: Send + Clone> Operation<F, PaymentsConfirmIntentRequest> for &PaymentIntentConfirm {
+impl<F: Send + Clone + Sync> Operation<F, PaymentsConfirmIntentRequest> for &PaymentIntentConfirm {
     type Data = PaymentConfirmData<F>;
     fn to_validate_request(
         &self,
@@ -97,7 +99,7 @@ impl<F: Send + Clone> Operation<F, PaymentsConfirmIntentRequest> for &PaymentInt
     }
 }
 #[automatically_derived]
-impl<F: Send + Clone> Operation<F, PaymentsConfirmIntentRequest> for PaymentIntentConfirm {
+impl<F: Send + Clone + Sync> Operation<F, PaymentsConfirmIntentRequest> for PaymentIntentConfirm {
     type Data = PaymentConfirmData<F>;
     fn to_validate_request(
         &self,
@@ -123,7 +125,7 @@ impl<F: Send + Clone> Operation<F, PaymentsConfirmIntentRequest> for PaymentInte
     }
 }
 
-impl<F: Send + Clone> ValidateRequest<F, PaymentsConfirmIntentRequest, PaymentConfirmData<F>>
+impl<F: Send + Clone + Sync> ValidateRequest<F, PaymentsConfirmIntentRequest, PaymentConfirmData<F>>
     for PaymentIntentConfirm
 {
     #[instrument(skip_all)]
@@ -143,7 +145,7 @@ impl<F: Send + Clone> ValidateRequest<F, PaymentsConfirmIntentRequest, PaymentCo
 }
 
 #[async_trait]
-impl<F: Send + Clone> GetTracker<F, PaymentConfirmData<F>, PaymentsConfirmIntentRequest>
+impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, PaymentsConfirmIntentRequest>
     for PaymentIntentConfirm
 {
     #[instrument(skip_all)]
@@ -176,12 +178,36 @@ impl<F: Send + Clone> GetTracker<F, PaymentConfirmData<F>, PaymentsConfirmIntent
 
         let cell_id = state.conf.cell_information.id.clone();
 
+        let batch_encrypted_data = domain_types::crypto_operation(
+            key_manager_state,
+            common_utils::type_name!(hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt),
+            domain_types::CryptoOperation::BatchEncrypt(
+                hyperswitch_domain_models::payments::payment_attempt::FromRequestEncryptablePaymentAttempt::to_encryptable(
+                    hyperswitch_domain_models::payments::payment_attempt::FromRequestEncryptablePaymentAttempt {
+                        payment_method_billing_address: request.payment_method_data.billing.as_ref().map(|address| address.clone().encode_to_value()).transpose().change_context(errors::ApiErrorResponse::InternalServerError).attach_printable("Failed to encode payment_method_billing address")?.map(masking::Secret::new),
+                    },
+                ),
+            ),
+            common_utils::types::keymanager::Identifier::Merchant(merchant_account.get_id().to_owned()),
+            key_store.key.peek(),
+        )
+        .await
+        .and_then(|val| val.try_into_batchoperation())
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed while encrypting payment intent details".to_string())?;
+
+        let encrypted_data =
+             hyperswitch_domain_models::payments::payment_attempt::FromRequestEncryptablePaymentAttempt::from_encryptable(batch_encrypted_data)
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed while encrypting payment intent details")?;
+
         let payment_attempt_domain_model =
             hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt::create_domain_model(
                 &payment_intent,
                 cell_id,
                 storage_scheme,
-                request
+                request,
+                encrypted_data
             )
             .await?;
 
@@ -202,11 +228,28 @@ impl<F: Send + Clone> GetTracker<F, PaymentConfirmData<F>, PaymentsConfirmIntent
             .clone()
             .map(hyperswitch_domain_models::payment_method_data::PaymentMethodData::from);
 
+        let payment_address = hyperswitch_domain_models::payment_address::PaymentAddress::new(
+            payment_intent
+                .shipping_address
+                .clone()
+                .map(|address| address.into_inner()),
+            payment_intent
+                .billing_address
+                .clone()
+                .map(|address| address.into_inner()),
+            payment_attempt
+                .payment_method_billing_address
+                .clone()
+                .map(|address| address.into_inner()),
+            Some(true),
+        );
+
         let payment_data = PaymentConfirmData {
             flow: std::marker::PhantomData,
             payment_intent,
             payment_attempt,
             payment_method_data,
+            payment_address,
         };
 
         let get_trackers_response = operations::GetTrackerResponse { payment_data };
@@ -216,7 +259,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentConfirmData<F>, PaymentsConfirmIntent
 }
 
 #[async_trait]
-impl<F: Clone + Send> Domain<F, PaymentsConfirmIntentRequest, PaymentConfirmData<F>>
+impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConfirmData<F>>
     for PaymentIntentConfirm
 {
     async fn get_customer_details<'a>(
@@ -305,7 +348,7 @@ impl<F: Clone + Send> Domain<F, PaymentsConfirmIntentRequest, PaymentConfirmData
 }
 
 #[async_trait]
-impl<F: Clone> UpdateTracker<F, PaymentConfirmData<F>, PaymentsConfirmIntentRequest>
+impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, PaymentsConfirmIntentRequest>
     for PaymentIntentConfirm
 {
     #[instrument(skip_all)]

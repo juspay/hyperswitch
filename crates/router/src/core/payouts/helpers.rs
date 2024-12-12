@@ -981,9 +981,9 @@ pub async fn get_gsm_record(
                         error_code,
                         error_message
                     );
-                    metrics::AUTO_PAYOUT_RETRY_GSM_MISS_COUNT.add(&metrics::CONTEXT, 1, &[]);
+                    metrics::AUTO_PAYOUT_RETRY_GSM_MISS_COUNT.add( 1, &[]);
                 } else {
-                    metrics::AUTO_PAYOUT_RETRY_GSM_FETCH_FAILURE_COUNT.add(&metrics::CONTEXT, 1, &[]);
+                    metrics::AUTO_PAYOUT_RETRY_GSM_FETCH_FAILURE_COUNT.add( 1, &[]);
                 };
                 err.change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("failed to fetch decision from gsm")
@@ -1010,11 +1010,11 @@ pub fn is_payout_initiated(status: api_enums::PayoutStatus) -> bool {
 }
 
 pub(crate) fn validate_payout_status_against_not_allowed_statuses(
-    payout_status: &api_enums::PayoutStatus,
+    payout_status: api_enums::PayoutStatus,
     not_allowed_statuses: &[api_enums::PayoutStatus],
     action: &'static str,
 ) -> Result<(), errors::ApiErrorResponse> {
-    fp_utils::when(not_allowed_statuses.contains(payout_status), || {
+    fp_utils::when(not_allowed_statuses.contains(&payout_status), || {
         Err(errors::ApiErrorResponse::PreconditionFailed {
             message: format!(
                 "You cannot {action} this payout because it has status {payout_status}",

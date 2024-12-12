@@ -78,8 +78,8 @@ impl PaymentInfo {
             address: Some(PaymentAddress::new(
                 None,
                 None,
-                Some(types::api::Address {
-                    address: Some(types::api::AddressDetails {
+                Some(hyperswitch_domain_models::address::Address {
+                    address: Some(hyperswitch_domain_models::address::AddressDetails {
                         first_name: Some(Secret::new("John".to_string())),
                         last_name: Some(Secret::new("Doe".to_string())),
                         ..Default::default()
@@ -549,6 +549,7 @@ pub trait ConnectorActions: Connector {
             header_payload: None,
             connector_mandate_request_reference_id: None,
             psd2_sca_exemption_type: None,
+            authentication_id: None,
         }
     }
 
@@ -601,7 +602,10 @@ pub trait ConnectorActions: Connector {
         ))
         .await;
         let state = Arc::new(app_state)
-            .get_session_state("public", || {})
+            .get_session_state(
+                &common_utils::id_type::TenantId::try_from_string("public".to_string()).unwrap(),
+                || {},
+            )
             .unwrap();
         let res = services::api::execute_connector_processing_step(
             &state,
@@ -641,7 +645,10 @@ pub trait ConnectorActions: Connector {
         ))
         .await;
         let state = Arc::new(app_state)
-            .get_session_state("public", || {})
+            .get_session_state(
+                &common_utils::id_type::TenantId::try_from_string("public".to_string()).unwrap(),
+                || {},
+            )
             .unwrap();
         let res = services::api::execute_connector_processing_step(
             &state,
@@ -682,7 +689,10 @@ pub trait ConnectorActions: Connector {
         ))
         .await;
         let state = Arc::new(app_state)
-            .get_session_state("public", || {})
+            .get_session_state(
+                &common_utils::id_type::TenantId::try_from_string("public".to_string()).unwrap(),
+                || {},
+            )
             .unwrap();
         let res = services::api::execute_connector_processing_step(
             &state,
@@ -722,7 +732,10 @@ pub trait ConnectorActions: Connector {
         ))
         .await;
         let state = Arc::new(app_state)
-            .get_session_state("public", || {})
+            .get_session_state(
+                &common_utils::id_type::TenantId::try_from_string("public".to_string()).unwrap(),
+                || {},
+            )
             .unwrap();
         let res = services::api::execute_connector_processing_step(
             &state,
@@ -813,7 +826,10 @@ pub trait ConnectorActions: Connector {
         ))
         .await;
         let state = Arc::new(app_state)
-            .get_session_state("public", || {})
+            .get_session_state(
+                &common_utils::id_type::TenantId::try_from_string("public".to_string()).unwrap(),
+                || {},
+            )
             .unwrap();
         let res = services::api::execute_connector_processing_step(
             &state,
@@ -850,7 +866,10 @@ async fn call_connector<
     ))
     .await;
     let state = Arc::new(app_state)
-        .get_session_state("public", || {})
+        .get_session_state(
+            &common_utils::id_type::TenantId::try_from_string("public".to_string()).unwrap(),
+            || {},
+        )
         .unwrap();
     services::api::execute_connector_processing_step(
         &state,
@@ -909,6 +928,7 @@ impl Default for CCardType {
             card_issuing_country: None,
             bank_code: None,
             nick_name: Some(Secret::new("nick_name".into())),
+            card_holder_name: Some(Secret::new("card holder name".into())),
         })
     }
 }

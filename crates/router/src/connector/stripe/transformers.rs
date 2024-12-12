@@ -72,7 +72,9 @@ impl From<Option<enums::CaptureMethod>> for StripeCaptureMethod {
             Some(p) => match p {
                 enums::CaptureMethod::ManualMultiple => Self::Manual,
                 enums::CaptureMethod::Manual => Self::Manual,
-                enums::CaptureMethod::Automatic => Self::Automatic,
+                enums::CaptureMethod::Automatic | enums::CaptureMethod::SequentialAutomatic => {
+                    Self::Automatic
+                }
                 enums::CaptureMethod::Scheduled => Self::Manual,
             },
             None => Self::Automatic,

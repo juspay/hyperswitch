@@ -20,7 +20,6 @@ use hyperswitch_domain_models::merchant_connector_account::{
 use masking::{ExposeInterface, PeekInterface, Secret};
 use pm_auth::{connector::plaid::transformers::PlaidAuthType, types as pm_auth_types};
 use regex::Regex;
-use router_env::metrics::add_attributes;
 use uuid::Uuid;
 
 #[cfg(any(feature = "v1", feature = "v2"))]
@@ -1199,7 +1198,7 @@ struct ConnectorAuthTypeAndMetadataValidation<'a> {
     connector_meta_data: &'a Option<pii::SecretSerdeValue>,
 }
 
-impl<'a> ConnectorAuthTypeAndMetadataValidation<'a> {
+impl ConnectorAuthTypeAndMetadataValidation<'_> {
     pub fn validate_auth_and_metadata_type(
         &self,
     ) -> Result<(), error_stack::Report<errors::ApiErrorResponse>> {
@@ -1393,6 +1392,10 @@ impl<'a> ConnectorAuthTypeAndMetadataValidation<'a> {
                 iatapay::transformers::IatapayAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            // api_enums::Connector::Inespay => {
+            //     inespay::transformers::InespayAuthType::try_from(self.auth_type)?;
+            //     Ok(())
+            // }
             api_enums::Connector::Itaubank => {
                 itaubank::transformers::ItaubankAuthType::try_from(self.auth_type)?;
                 Ok(())
@@ -1572,7 +1575,7 @@ struct ConnectorAuthTypeValidation<'a> {
     auth_type: &'a types::ConnectorAuthType,
 }
 
-impl<'a> ConnectorAuthTypeValidation<'a> {
+impl ConnectorAuthTypeValidation<'_> {
     fn validate_connector_auth_type(
         &self,
     ) -> Result<(), error_stack::Report<errors::ApiErrorResponse>> {
@@ -1662,7 +1665,7 @@ struct ConnectorStatusAndDisabledValidation<'a> {
     current_status: &'a api_enums::ConnectorStatus,
 }
 
-impl<'a> ConnectorStatusAndDisabledValidation<'a> {
+impl ConnectorStatusAndDisabledValidation<'_> {
     fn validate_status_and_disabled(
         &self,
     ) -> RouterResult<(api_enums::ConnectorStatus, Option<bool>)> {
@@ -1705,7 +1708,7 @@ struct PaymentMethodsEnabled<'a> {
     payment_methods_enabled: &'a Option<Vec<api_models::admin::PaymentMethodsEnabled>>,
 }
 
-impl<'a> PaymentMethodsEnabled<'a> {
+impl PaymentMethodsEnabled<'_> {
     fn get_payment_methods_enabled(&self) -> RouterResult<Option<Vec<pii::SecretSerdeValue>>> {
         let mut vec = Vec::new();
         let payment_methods_enabled = match self.payment_methods_enabled.clone() {
@@ -1731,7 +1734,7 @@ struct ConnectorMetadata<'a> {
     connector_metadata: &'a Option<pii::SecretSerdeValue>,
 }
 
-impl<'a> ConnectorMetadata<'a> {
+impl ConnectorMetadata<'_> {
     fn validate_apple_pay_certificates_in_mca_metadata(&self) -> RouterResult<()> {
         self.connector_metadata
             .clone()
@@ -1822,7 +1825,7 @@ struct ConnectorTypeAndConnectorName<'a> {
     connector_name: &'a api_enums::Connector,
 }
 
-impl<'a> ConnectorTypeAndConnectorName<'a> {
+impl ConnectorTypeAndConnectorName<'_> {
     fn get_routable_connector(&self) -> RouterResult<Option<api_enums::RoutableConnectors>> {
         let mut routable_connector =
             api_enums::RoutableConnectors::from_str(&self.connector_name.to_string()).ok();
@@ -1927,6 +1930,65 @@ impl<'a> MerchantDefaultConfigUpdate<'a> {
         }
         Ok(())
     }
+
+    async fn retrieve_and_delete_from_default_fallback_routing_algorithm_if_routable_connector_exists(
+        &self,
+    ) -> RouterResult<()> {
+        let mut default_routing_config = routing::helpers::get_merchant_default_config(
+            self.store,
+            self.merchant_id.get_string_repr(),
+            self.transaction_type,
+        )
+        .await?;
+
+        let mut default_routing_config_for_profile = routing::helpers::get_merchant_default_config(
+            self.store,
+            self.profile_id.get_string_repr(),
+            self.transaction_type,
+        )
+        .await?;
+
+        if let Some(routable_connector_val) = self.routable_connector {
+            let choice = routing_types::RoutableConnectorChoice {
+                choice_kind: routing_types::RoutableChoiceKind::FullStruct,
+                connector: *routable_connector_val,
+                merchant_connector_id: Some(self.merchant_connector_id.clone()),
+            };
+            if default_routing_config.contains(&choice) {
+                default_routing_config.retain(|mca| {
+                    mca.merchant_connector_id
+                        .as_ref()
+                        .map_or(true, |merchant_connector_id| {
+                            merchant_connector_id != self.merchant_connector_id
+                        })
+                });
+                routing::helpers::update_merchant_default_config(
+                    self.store,
+                    self.merchant_id.get_string_repr(),
+                    default_routing_config.clone(),
+                    self.transaction_type,
+                )
+                .await?;
+            }
+            if default_routing_config_for_profile.contains(&choice.clone()) {
+                default_routing_config_for_profile.retain(|mca| {
+                    mca.merchant_connector_id
+                        .as_ref()
+                        .map_or(true, |merchant_connector_id| {
+                            merchant_connector_id != self.merchant_connector_id
+                        })
+                });
+                routing::helpers::update_merchant_default_config(
+                    self.store,
+                    self.profile_id.get_string_repr(),
+                    default_routing_config_for_profile.clone(),
+                    self.transaction_type,
+                )
+                .await?;
+            }
+        }
+        Ok(())
+    }
 }
 #[cfg(feature = "v2")]
 struct DefaultFallbackRoutingConfigUpdate<'a> {
@@ -1953,6 +2015,40 @@ impl<'a> DefaultFallbackRoutingConfigUpdate<'a> {
             };
             if !default_routing_config_for_profile.contains(&choice.clone()) {
                 default_routing_config_for_profile.push(choice);
+
+                profile_wrapper
+                    .update_default_fallback_routing_of_connectors_under_profile(
+                        self.store,
+                        default_routing_config_for_profile,
+                        self.key_manager_state,
+                        &self.key_store,
+                    )
+                    .await?
+            }
+        }
+        Ok(())
+    }
+
+    async fn retrieve_and_delete_from_default_fallback_routing_algorithm_if_routable_connector_exists(
+        &self,
+    ) -> RouterResult<()> {
+        let profile_wrapper = ProfileWrapper::new(self.business_profile.clone());
+        let default_routing_config_for_profile =
+            &mut profile_wrapper.get_default_fallback_list_of_connector_under_profile()?;
+        if let Some(routable_connector_val) = self.routable_connector {
+            let choice = routing_types::RoutableConnectorChoice {
+                choice_kind: routing_types::RoutableChoiceKind::FullStruct,
+                connector: *routable_connector_val,
+                merchant_connector_id: Some(self.merchant_connector_id.clone()),
+            };
+            if default_routing_config_for_profile.contains(&choice.clone()) {
+                default_routing_config_for_profile.retain(|mca| {
+                    mca.merchant_connector_id
+                        .as_ref()
+                        .map_or(true, |merchant_connector_id| {
+                            merchant_connector_id != self.merchant_connector_id
+                        })
+                });
 
                 profile_wrapper
                     .update_default_fallback_routing_of_connectors_under_profile(
@@ -2719,7 +2815,6 @@ pub async fn create_connector(
     let key_manager_state = &(&state).into();
     #[cfg(feature = "dummy_connector")]
     req.connector_name
-        .clone()
         .validate_dummy_connector_enabled(state.conf.dummy_connector.enabled)
         .change_context(errors::ApiErrorResponse::InvalidRequestData {
             message: "Invalid connector name".to_string(),
@@ -2831,12 +2926,11 @@ pub async fn create_connector(
         .await?;
 
     metrics::MCA_CREATE.add(
-        &metrics::CONTEXT,
         1,
-        &add_attributes([
+        router_env::metric_attributes!(
             ("connector", req.connector_name.to_string()),
-            ("merchant", merchant_id.get_string_repr().to_owned()),
-        ]),
+            ("merchant", merchant_id.clone()),
+        ),
     );
 
     let mca_response = mca.foreign_try_into()?;
@@ -3135,7 +3229,7 @@ pub async fn delete_connector(
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
-    let _mca = db
+    let mca = db
         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
             key_manager_state,
             &merchant_id,
@@ -3156,6 +3250,26 @@ pub async fn delete_connector(
         .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
             id: merchant_connector_id.get_string_repr().to_string(),
         })?;
+
+    // delete the mca from the config as well
+    let merchant_default_config_delete = MerchantDefaultConfigUpdate {
+        routable_connector: &Some(
+            common_enums::RoutableConnectors::from_str(&mca.connector_name).map_err(|_| {
+                errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "connector_name",
+                }
+            })?,
+        ),
+        merchant_connector_id: &mca.get_id(),
+        store: db,
+        merchant_id: &merchant_id,
+        profile_id: &mca.profile_id,
+        transaction_type: &mca.connector_type.into(),
+    };
+
+    merchant_default_config_delete
+        .retrieve_and_delete_from_default_fallback_routing_algorithm_if_routable_connector_exists()
+        .await?;
 
     let response = api::MerchantConnectorDeleteResponse {
         merchant_id,
@@ -3202,6 +3316,32 @@ pub async fn delete_connector(
         .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
             id: id.clone().get_string_repr().to_string(),
         })?;
+
+    let business_profile = db
+        .find_business_profile_by_profile_id(key_manager_state, &key_store, &mca.profile_id)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
+            id: mca.profile_id.get_string_repr().to_owned(),
+        })?;
+
+    let merchant_default_config_delete = DefaultFallbackRoutingConfigUpdate {
+        routable_connector: &Some(
+            common_enums::RoutableConnectors::from_str(&mca.connector_name).map_err(|_| {
+                errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "connector_name",
+                }
+            })?,
+        ),
+        merchant_connector_id: &mca.get_id(),
+        store: db,
+        business_profile,
+        key_store,
+        key_manager_state,
+    };
+
+    merchant_default_config_delete
+        .retrieve_and_delete_from_default_fallback_routing_algorithm_if_routable_connector_exists()
+        .await?;
 
     let response = api::MerchantConnectorDeleteResponse {
         merchant_id: merchant_id.clone(),
@@ -3551,6 +3691,7 @@ impl ProfileCreateBridge for api::ProfileCreate {
             is_network_tokenization_enabled: self.is_network_tokenization_enabled,
             is_auto_retries_enabled: self.is_auto_retries_enabled.unwrap_or_default(),
             max_auto_retries_enabled: self.max_auto_retries_enabled.map(i16::from),
+            is_click_to_pay_enabled: self.is_click_to_pay_enabled,
         }))
     }
 
@@ -3658,6 +3799,7 @@ impl ProfileCreateBridge for api::ProfileCreate {
             tax_connector_id: self.tax_connector_id,
             is_tax_connector_enabled: self.is_tax_connector_enabled,
             is_network_tokenization_enabled: self.is_network_tokenization_enabled,
+            is_click_to_pay_enabled: self.is_click_to_pay_enabled,
         }))
     }
 }
@@ -3907,6 +4049,7 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                 is_network_tokenization_enabled: self.is_network_tokenization_enabled,
                 is_auto_retries_enabled: self.is_auto_retries_enabled,
                 max_auto_retries_enabled: self.max_auto_retries_enabled.map(i16::from),
+                is_click_to_pay_enabled: self.is_click_to_pay_enabled,
             },
         )))
     }
@@ -4003,6 +4146,7 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                 always_collect_shipping_details_from_wallet_connector: self
                     .always_collect_shipping_details_from_wallet_connector,
                 is_network_tokenization_enabled: self.is_network_tokenization_enabled,
+                is_click_to_pay_enabled: self.is_click_to_pay_enabled,
             },
         )))
     }

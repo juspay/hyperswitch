@@ -17,6 +17,8 @@ pub mod payment_reject;
 pub mod payment_response;
 #[cfg(feature = "v1")]
 pub mod payment_session;
+#[cfg(feature = "v2")]
+pub mod payment_session_intent;
 #[cfg(feature = "v1")]
 pub mod payment_start;
 #[cfg(feature = "v1")]
@@ -34,6 +36,8 @@ pub mod payment_confirm_intent;
 pub mod payment_create_intent;
 #[cfg(feature = "v2")]
 pub mod payment_get_intent;
+#[cfg(feature = "v2")]
+pub mod payment_update_intent;
 
 #[cfg(feature = "v2")]
 pub mod payment_get;
@@ -46,14 +50,12 @@ use error_stack::{report, ResultExt};
 use router_env::{instrument, tracing};
 
 #[cfg(feature = "v2")]
-pub use self::payment_confirm_intent::PaymentIntentConfirm;
-#[cfg(feature = "v2")]
-pub use self::payment_create_intent::PaymentIntentCreate;
-#[cfg(feature = "v2")]
 pub use self::payment_get::PaymentGet;
 #[cfg(feature = "v2")]
 pub use self::payment_get_intent::PaymentGetIntent;
 pub use self::payment_response::PaymentResponse;
+#[cfg(feature = "v2")]
+pub use self::payment_update_intent::PaymentUpdateIntent;
 #[cfg(feature = "v1")]
 pub use self::{
     payment_approve::PaymentApprove, payment_cancel::PaymentCancel,
@@ -63,6 +65,11 @@ pub use self::{
     payment_status::PaymentStatus, payment_update::PaymentUpdate,
     payments_incremental_authorization::PaymentIncrementalAuthorization,
     tax_calculation::PaymentSessionUpdate,
+};
+#[cfg(feature = "v2")]
+pub use self::{
+    payment_confirm_intent::PaymentIntentConfirm, payment_create_intent::PaymentIntentCreate,
+    payment_session_intent::PaymentSessionIntent,
 };
 use super::{helpers, CustomerDetails, OperationSessionGetters, OperationSessionSetters};
 use crate::{
@@ -284,6 +291,18 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
         _merchant_account: &domain::Profile,
         _key_store: &domain::MerchantKeyStore,
         _mandate_type: Option<api_models::payments::MandateTransactionType>,
+    ) -> CustomResult<(), errors::ApiErrorResponse> {
+        Ok(())
+    }
+
+    async fn call_unified_authentication_service_if_eligible<'a>(
+        &'a self,
+        _state: &SessionState,
+        _payment_data: &mut D,
+        _should_continue_confirm_transaction: &mut bool,
+        _connector_call_type: &ConnectorCallType,
+        _merchant_account: &domain::Profile,
+        _key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
         Ok(())
     }

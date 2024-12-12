@@ -189,8 +189,7 @@ impl TryFrom<&PayboxRouterData<&types::PaymentsCaptureRouterData>> for PayboxCap
         let auth_data: PayboxAuthType =
             PayboxAuthType::try_from(&item.router_data.connector_auth_type)
                 .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        let currency = diesel_models::enums::Currency::iso_4217(&item.router_data.request.currency)
-            .to_string();
+        let currency = item.router_data.request.currency.iso_4217().to_string();
         let paybox_meta_data: PayboxMeta =
             utils::to_connector_meta(item.router_data.request.connector_meta.clone())?;
         let format_time = common_utils::date_time::format_date(
@@ -387,9 +386,7 @@ impl TryFrom<&PayboxRouterData<&types::PaymentsAuthorizeRouterData>> for PayboxP
                     item.router_data.request.capture_method,
                     item.router_data.request.is_mandate_payment(),
                 )?;
-                let currency =
-                    diesel_models::enums::Currency::iso_4217(&item.router_data.request.currency)
-                        .to_string();
+                let currency = item.router_data.request.currency.iso_4217().to_string();
                 let expiration_date =
                     req_card.get_card_expiry_month_year_2_digit_with_delimiter("".to_owned())?;
                 let format_time = common_utils::date_time::format_date(
@@ -501,17 +498,22 @@ fn get_transaction_type(
     is_mandate_request: bool,
 ) -> Result<String, Error> {
     match (capture_method, is_mandate_request) {
-        (Some(enums::CaptureMethod::Automatic), false) | (None, false) => {
+        (Some(enums::CaptureMethod::Automatic), false)
+        | (None, false)
+        | (Some(enums::CaptureMethod::SequentialAutomatic), false) => {
             Ok(AUTH_AND_CAPTURE_REQUEST.to_string())
         }
         (Some(enums::CaptureMethod::Automatic), true) | (None, true) => {
             Err(errors::ConnectorError::NotSupported {
-                message: "Capture Not allowed in case of Creating the Subscriber".to_string(),
+                message: "Automatic Capture in CIT payments".to_string(),
                 connector: "Paybox",
             })?
         }
         (Some(enums::CaptureMethod::Manual), false) => Ok(AUTH_REQUEST.to_string()),
-        (Some(enums::CaptureMethod::Manual), true) => Ok(MANDATE_REQUEST.to_string()),
+        (Some(enums::CaptureMethod::Manual), true)
+        | (Some(enums::CaptureMethod::SequentialAutomatic), true) => {
+            Ok(MANDATE_REQUEST.to_string())
+        }
         _ => Err(errors::ConnectorError::CaptureMethodNotSupported)?,
     }
 }
@@ -731,12 +733,15 @@ impl<F>
     ) -> Result<Self, Self::Error> {
         match item.response.clone() {
             PayboxResponse::NonThreeDs(response) => {
-                let status = get_status_of_request(response.response_code.clone());
+                let status: bool = get_status_of_request(response.response_code.clone());
                 match status {
                     true => Ok(Self {
-                        status: match item.data.request.is_auto_capture()? {
-                            true => enums::AttemptStatus::Charged,
-                            false => enums::AttemptStatus::Authorized,
+                        status: match (
+                            item.data.request.is_auto_capture()?,
+                            item.data.request.is_cit_mandate_payment(),
+                        ) {
+                            (_, true) | (false, false) => enums::AttemptStatus::Authorized,
+                            (true, false) => enums::AttemptStatus::Charged,
                         },
                         response: Ok(types::PaymentsResponseData::TransactionResponse {
                             resource_id: types::ResponseId::ConnectorTransactionId(
@@ -884,8 +889,7 @@ impl<F> TryFrom<&PayboxRouterData<&types::RefundsRouterData<F>>> for PayboxRefun
         let auth_data: PayboxAuthType =
             PayboxAuthType::try_from(&item.router_data.connector_auth_type)
                 .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        let currency = diesel_models::enums::Currency::iso_4217(&item.router_data.request.currency)
-            .to_string();
+        let currency = item.router_data.request.currency.iso_4217().to_string();
         let format_time = common_utils::date_time::format_date(
             common_utils::date_time::now(),
             DateFormat::DDMMYYYYHHmmss,
@@ -1001,9 +1005,12 @@ impl<F>
         let status = get_status_of_request(response.response_code.clone());
         match status {
             true => Ok(Self {
-                status: match item.data.request.is_auto_capture()? {
-                    true => enums::AttemptStatus::Charged,
-                    false => enums::AttemptStatus::Authorized,
+                status: match (
+                    item.data.request.is_auto_capture()?,
+                    item.data.request.is_cit_mandate_payment(),
+                ) {
+                    (_, true) | (false, false) => enums::AttemptStatus::Authorized,
+                    (true, false) => enums::AttemptStatus::Charged,
                 },
                 response: Ok(types::PaymentsResponseData::TransactionResponse {
                     resource_id: types::ResponseId::ConnectorTransactionId(
@@ -1079,9 +1086,7 @@ impl TryFrom<&PayboxRouterData<&types::PaymentsCompleteAuthorizeRouterData>> for
                     item.router_data.request.capture_method,
                     item.router_data.request.is_mandate_payment(),
                 )?;
-                let currency =
-                    diesel_models::enums::Currency::iso_4217(&item.router_data.request.currency)
-                        .to_string();
+                let currency = item.router_data.request.currency.iso_4217().to_string();
                 let expiration_date =
                     req_card.get_card_expiry_month_year_2_digit_with_delimiter("".to_owned())?;
                 let format_time = common_utils::date_time::format_date(
@@ -1196,8 +1201,7 @@ impl
             Some(enums::CaptureMethod::Manual) => Ok(MANDATE_AUTH_ONLY.to_string()),
             _ => Err(errors::ConnectorError::CaptureMethodNotSupported),
         }?;
-        let currency = diesel_models::enums::Currency::iso_4217(&item.router_data.request.currency)
-            .to_string();
+        let currency = item.router_data.request.currency.iso_4217().to_string();
         let format_time = common_utils::date_time::format_date(
             common_utils::date_time::now(),
             DateFormat::DDMMYYYYHHmmss,
