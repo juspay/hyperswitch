@@ -85,6 +85,7 @@ impl TryFrom<(&types::TokenizationRouterData, PayLaterData)> for SquareTokenRequ
             PayLaterData::AfterpayClearpayRedirect { .. }
             | PayLaterData::KlarnaRedirect { .. }
             | PayLaterData::KlarnaSdk { .. }
+            | PayLaterData::KlarnaCheckout {}
             | PayLaterData::AffirmRedirect { .. }
             | PayLaterData::PayBrightRedirect { .. }
             | PayLaterData::WalleyRedirect { .. }

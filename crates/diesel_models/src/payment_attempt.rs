@@ -289,6 +289,7 @@ pub struct PaymentAttemptNew {
     pub attempt_id: String,
     pub status: storage_enums::AttemptStatus,
     pub amount: MinorUnit,
+    pub order_tax_amount: Option<MinorUnit>,
     pub currency: Option<storage_enums::Currency>,
     // pub auto_capture: Option<bool>,
     pub save_to_locker: Option<bool>,
@@ -349,7 +350,6 @@ pub struct PaymentAttemptNew {
     pub organization_id: id_type::OrganizationId,
     pub card_network: Option<String>,
     pub shipping_cost: Option<MinorUnit>,
-    pub order_tax_amount: Option<MinorUnit>,
     pub connector_mandate_detail: Option<ConnectorMandateReferenceId>,
 }
 

@@ -4110,6 +4110,7 @@ impl AttemptType {
             status: payment_attempt_status_fsm(payment_method_data, Some(true)),
 
             currency: old_payment_attempt.currency,
+            order_tax_amount: old_payment_attempt.order_tax_amount,
             save_to_locker: old_payment_attempt.save_to_locker,
 
             connector: None,

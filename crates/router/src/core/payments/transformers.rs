@@ -260,6 +260,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
             .get_amount_as_i64(),
         minor_amount: payment_data.payment_attempt.amount_details.net_amount,
         currency: payment_data.payment_intent.amount_details.currency,
+        order_tax_amount: None,
         browser_info: None,
         email: None,
         customer_name: None,
@@ -2433,25 +2434,6 @@ pub fn mobile_payment_next_steps_check(
     Ok(mobile_payment_next_step)
 }
 
-pub fn change_order_details_to_new_type(
-    order_amount: MinorUnit,
-    order_details: api_models::payments::OrderDetails,
-) -> Option<Vec<api_models::payments::OrderDetailsWithAmount>> {
-    Some(vec![api_models::payments::OrderDetailsWithAmount {
-        product_name: order_details.product_name,
-        quantity: order_details.quantity,
-        amount: order_amount,
-        product_img_link: order_details.product_img_link,
-        requires_shipping: order_details.requires_shipping,
-        product_id: order_details.product_id,
-        category: order_details.category,
-        sub_category: order_details.sub_category,
-        brand: order_details.brand,
-        product_type: order_details.product_type,
-        product_tax_code: order_details.product_tax_code,
-    }])
-}
-
 impl ForeignFrom<api_models::payments::QrCodeInformation> for api_models::payments::NextActionData {
     fn foreign_from(qr_info: api_models::payments::QrCodeInformation) -> Self {
         match qr_info {
@@ -2624,6 +2606,24 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             .clone();
         let shipping_cost = payment_data.payment_intent.shipping_cost;
 
+        let order_tax_amount =
+            payment_data
+                .payment_intent
+                .tax_details
+                .as_ref()
+                .and_then(|tax_details| {
+                    tax_details
+                        .payment_method_type
+                        .as_ref()
+                        .map(|payment_method_tax| payment_method_tax.order_tax_amount)
+                        .or_else(|| {
+                            tax_details
+                                .default
+                                .as_ref()
+                                .map(|default_tax| default_tax.order_tax_amount)
+                        })
+                });
+
         Ok(Self {
             payment_method_data: (payment_method_data.get_required_value("payment_method_data")?),
             setup_future_usage: payment_data.payment_intent.setup_future_usage,
@@ -2635,6 +2635,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             statement_descriptor: payment_data.payment_intent.statement_descriptor_name,
             capture_method: payment_data.payment_attempt.capture_method,
             amount: amount.get_amount_as_i64(),
+            order_tax_amount,
             minor_amount: amount,
             currency: payment_data.currency,
             browser_info,
@@ -3171,7 +3172,6 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSessionD
             .unwrap_or_default();
 
         let amount = payment_data.payment_intent.amount;
-
         let shipping_cost = payment_data
             .payment_intent
             .shipping_cost
