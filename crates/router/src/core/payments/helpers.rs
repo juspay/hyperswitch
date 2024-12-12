@@ -2652,7 +2652,7 @@ pub(crate) fn validate_payment_method_fields_present(
             && payment_method_data.is_none()
             && req.payment_token.is_none()
             && req.recurring_details.is_none()
-            && req.service_details.is_none(),
+            && req.ctp_service_details.is_none(),
         || {
             Err(errors::ApiErrorResponse::MissingRequiredField {
                 field_name: "payment_method_data",
@@ -3318,7 +3318,7 @@ pub(crate) fn validate_pm_or_token_given(
     payment_method_type: &Option<api_enums::PaymentMethodType>,
     mandate_type: &Option<api::MandateTransactionType>,
     token: &Option<String>,
-    ctp_service_details: &Option<api_models::payments::ServiceDetails>,
+    ctp_service_details: &Option<api_models::payments::CtpServiceDetails>,
 ) -> Result<(), errors::ApiErrorResponse> {
     utils::when(
         !matches!(

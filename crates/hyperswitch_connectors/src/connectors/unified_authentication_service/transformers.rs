@@ -38,7 +38,7 @@ pub struct UnifiedAuthenticationServicePreAuthenticateRequest {
     pub session_id: String,
     pub source_authentication_id: String,
     pub authentication_info: Option<AuthenticationInfo>,
-    pub service_details: Option<ServiceDetails>,
+    pub service_details: Option<CtpServiceDetails>,
     pub customer_details: Option<CustomerDetails>,
     pub pmt_details: Option<PaymentDetails>,
     pub auth_creds: AuthType,
@@ -115,7 +115,7 @@ pub struct AuthenticationInfo {
 }
 
 #[derive(Default, Debug, Serialize, PartialEq)]
-pub struct ServiceDetails {
+pub struct CtpServiceDetails {
     pub service_session_ids: Option<ServiceSessionIds>,
     pub merchant_details: Option<MerchantDetails>,
 }
@@ -199,7 +199,7 @@ impl TryFrom<&UnifiedAuthenticationServiceRouterData<&UasPreAuthenticationRouter
             session_id: authentication_id.clone(),
             source_authentication_id: authentication_id,
             authentication_info: None,
-            service_details: Some(ServiceDetails {
+            service_details: Some(CtpServiceDetails {
                 service_session_ids: item.router_data.request.service_details.clone().and_then(
                     |service_details| {
                         Some(ServiceSessionIds {

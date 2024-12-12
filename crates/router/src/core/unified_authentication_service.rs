@@ -2,7 +2,7 @@ pub mod transformers;
 pub mod types;
 pub mod utils;
 
-use api_models::payments::ServiceDetails;
+use api_models::payments::CtpServiceDetails;
 use diesel_models::authentication::{Authentication, AuthenticationNew};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
@@ -144,7 +144,7 @@ pub async fn create_new_authentication(
     payment_id: Option<common_utils::id_type::PaymentId>,
     merchant_connector_id: common_utils::id_type::MerchantConnectorAccountId,
     authentication_id: &str,
-    service_details: Option<ServiceDetails>,
+    service_details: Option<CtpServiceDetails>,
 ) -> RouterResult<Authentication> {
     let service_details_value = service_details
         .map(serde_json::to_value)

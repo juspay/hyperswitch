@@ -597,7 +597,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             &request.payment_method_type,
             &mandate_type,
             &token,
-            &request.service_details,
+            &request.ctp_service_details,
         )?;
 
         let (token_data, payment_method_info) = if let Some(token) = token.clone() {
@@ -820,7 +820,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             poll_config: None,
             tax_data: None,
             session_id: None,
-            service_details: request.service_details.clone(),
+            service_details: request.ctp_service_details.clone(),
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
