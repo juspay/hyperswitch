@@ -4589,7 +4589,7 @@ pub async fn filter_payment_methods(
                                     .map(|future_usage| {
                                         future_usage == common_enums::FutureUsage::OnSession
                                     })
-                                    .unwrap_or(false)
+                                    .unwrap_or(true)
                         })
                         .and_then(|res| {
                             res.then(|| {
