@@ -3,12 +3,12 @@ pub mod transformers;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 #[cfg(feature = "payouts")]
-use common_utils::request::{Method, Request, RequestBuilder};
+use common_utils::request::{Request, RequestBuilder};
 use common_utils::{
     errors::CustomResult,
     ext_traits::BytesExt,
     pii,
-    request::RequestContent,
+    request::{Method, RequestContent},
     types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector},
 };
 use error_stack::{report, ResultExt};

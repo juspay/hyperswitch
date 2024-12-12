@@ -118,6 +118,10 @@ describe("[Payout] [Bank Transfer - SEPA]", () => {
       }
     });
 
+    it("create customer", () => {
+      cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
+    });
+
     it("confirm-payout-call-with-manual-fulfill-test", () => {
       const data = utils.getConnectorDetails(globalState.get("connectorId"))[
         "bank_transfer_pm"

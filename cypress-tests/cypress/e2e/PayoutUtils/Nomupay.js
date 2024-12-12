@@ -1,21 +1,23 @@
-const billing = {
-  address: {
-    line1: "1467",
-    line2: "Harrison Street",
-    line3: "Harrison Street",
-    city: "Munich",
-    state: "CA",
-    zip: "80331",
-    country: "DE",
-    first_name: "John",
-    last_name: "Doe"
-  },
-  phone: {
-    number: "9123456789",
-    country_code: "+91"
-  },
-  email: `payout_customer${Date.now()}@example.com`
-};
+function get_billing(x) {
+  return {
+    address: {
+      line1: "1467",
+      line2: "Harrison Street",
+      line3: "Harrison Street",
+      city: "Munich",
+      state: "CA",
+      zip: "80331",
+      country: "DE",
+      first_name: "John",
+      last_name: "Doe"
+    },
+    phone: {
+      number: "9123456789",
+      country_code: "+91"
+    },
+    email: `payout_customer${Date.now() + x}@example.com`
+  }
+}
 
 const card_data = {
   card_number: "4111111111111111",
@@ -40,9 +42,9 @@ const bank = {
 };
 
 const error = {
-  type: "invalid_request",
-  message: `Payout Eligibility for Nomupay is not implemented`,
-  code: "IR_00",
+  code: "IR_04",
+  message: "Missing required param: connector_customer_id",
+  type: "invalid_request"
 }
 
 export const connectorDetails = {
@@ -128,7 +130,7 @@ export const connectorDetails = {
           payout_method_data: {
             bank: bank,
           },
-          billing: billing,
+          billing: get_billing(1),
         },
         Response: {
           status: 200,
@@ -144,7 +146,7 @@ export const connectorDetails = {
           payout_method_data: {
             bank: bank,
           },
-          billing: billing,
+          billing: get_billing(2),
         },
         Response: {
           status: 200,
@@ -161,7 +163,7 @@ export const connectorDetails = {
           payout_method_data: {
             bank: bank,
           },
-          billing: billing,
+          billing: get_billing(3),
           recurring: true,
         },
         Response: {
@@ -191,11 +193,12 @@ export const connectorDetails = {
         Request: {
           payout_token: "token",
           payout_type: "bank",
+          billing: get_billing(4),
         },
         Response: {
           status: 200,
           body: {
-            status: "success",
+            status: "pending",
             payout_type: "bank",
           },
         },
