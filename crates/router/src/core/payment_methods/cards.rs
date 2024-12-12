@@ -3203,9 +3203,6 @@ pub async fn list_payment_methods(
     let db = &*state.store;
     let pm_config_mapping = &state.conf.pm_filters;
     let key_manager_state = &(&state).into();
-
-    // Auth is possibly incorrect, why is it happening in core?
-    // Keep it as is for now
     let payment_intent = if let Some(cs) = &req.client_secret {
         if cs.starts_with("pm_") {
             validate_payment_method_and_client_secret(
@@ -3230,7 +3227,6 @@ pub async fn list_payment_methods(
         None
     };
 
-    // Shipping, billing address is needed for filtering based on country, currency, etc.
     let shipping_address = payment_intent
         .as_ref()
         .async_map(|pi| async {
@@ -3265,7 +3261,6 @@ pub async fn list_payment_methods(
         .transpose()?
         .flatten();
 
-    // This is needed for customer PML
     let customer = payment_intent
         .as_ref()
         .async_and_then(|pi| async {
@@ -3309,8 +3304,6 @@ pub async fn list_payment_methods(
         || setup_future_usage
             .map(|future_usage| future_usage == common_enums::FutureUsage::OffSession)
             .unwrap_or(false);
-
-    // This is most probably deprecated, can be inferred from path(?)
     let payment_type = payment_attempt.as_ref().map(|pa| {
         let amount = api::Amount::from(pa.net_amount.get_order_amount());
         let mandate_type = if pa.mandate_id.is_some() {
@@ -3324,7 +3317,6 @@ pub async fn list_payment_methods(
         helpers::infer_payment_type(amount, mandate_type.as_ref())
     });
 
-    // Include profile context, remove merchant ID
     let all_mcas = db
         .find_merchant_connector_account_by_merchant_id_and_disabled_list(
             key_manager_state,
@@ -3372,9 +3364,6 @@ pub async fn list_payment_methods(
     logger::debug!(mca_before_filtering=?filtered_mcas);
 
     let mut response: Vec<ResponsePaymentMethodIntermediate> = vec![];
-
-    // Should be deprecated, use get intent API
-    // Also, update it to be an impl method on some type
     // Key creation for storing PM_FILTER_CGRAPH
     let key = {
         format!(
@@ -3383,7 +3372,7 @@ pub async fn list_payment_methods(
             profile_id.get_string_repr()
         )
     };
-    // Find graph in cache or create it. Then call filter PM outside, which is common to both.
+
     if let Some(graph) = get_merchant_pm_filter_graph(&state, &key).await {
         // Derivation of PM_FILTER_CGRAPH from MokaCache successful
         for mca in &filtered_mcas {
@@ -3391,8 +3380,6 @@ pub async fn list_payment_methods(
                 Some(pm) => pm,
                 None => continue,
             };
-            // This can be written in the form of try_fold
-            // Can do some simpler filters before, the cheaper ones that don't need CGraph
             filter_payment_methods(
                 &graph,
                 mca.get_id(),
@@ -3469,17 +3456,13 @@ pub async fn list_payment_methods(
     );
 
     // Filter out wallet payment method from mca if customer has already saved it
-    // Can merge customer PML here
     customer
         .as_ref()
-        // Why big block using customer as parameter?
-        // Just get customer PMs, then do stuff.
         .async_map(|customer| async {
             let wallet_pm_exists = response
                 .iter()
                 .any(|mca| mca.payment_method == enums::PaymentMethod::Wallet);
             if wallet_pm_exists {
-                // Are we doing the same query in customer PML?
                 match db
                     .find_payment_method_by_customer_id_merchant_id_list(
                         &((&state).into()),
@@ -3489,7 +3472,6 @@ pub async fn list_payment_methods(
                         None,
                     )
                     .await
-                // Move above DB query to DB layer, then do other stuff
                 {
                     Ok(customer_payment_methods) => {
                         let customer_wallet_pm = customer_payment_methods
@@ -3531,7 +3513,6 @@ pub async fn list_payment_methods(
         HashMap<enums::PaymentMethodType, String>,
     > = HashMap::new();
 
-    // Ignore session flow routing in merchant PML
     if let Some((payment_attempt, payment_intent)) =
         payment_attempt.as_ref().zip(payment_intent.as_ref())
     {
@@ -3767,8 +3748,6 @@ pub async fn list_payment_methods(
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
     }
 
-    // For country filter, take PMs, accept country, return filtered PMs
-
     // Check for `use_billing_as_payment_method_billing` config under business_profile
     // If this is disabled, then the billing details in required fields will be empty and have to be collected by the customer
     let billing_address_for_calculating_required_fields = business_profile
@@ -3778,7 +3757,6 @@ pub async fn list_payment_methods(
         .then_some(billing_address.as_ref())
         .flatten();
 
-    // Make new module for dynamic fields, take required stuff as input, do not leak dynamic field related stuff in PM flow
     let req = api_models::payments::PaymentsRequest::foreign_try_from((
         payment_attempt.as_ref(),
         payment_intent.as_ref(),
@@ -3790,7 +3768,6 @@ pub async fn list_payment_methods(
     let req_val = serde_json::to_value(req).ok();
     logger::debug!(filtered_payment_methods=?response);
 
-    // IIRC someone said if payment experience is none, the others won't be populated or something
     let mut payment_experiences_consolidated_hm: HashMap<
         api_enums::PaymentMethod,
         HashMap<api_enums::PaymentMethodType, HashMap<api_enums::PaymentExperience, Vec<String>>>,
@@ -3882,7 +3859,6 @@ pub async fn list_payment_methods(
             },
         );
 
-        // Can possibly use HM.entry().or_insert() (or_insert_with())
         if let Some(payment_experience) = element.payment_experience {
             if let Some(payment_method_hm) =
                 payment_experiences_consolidated_hm.get_mut(&payment_method)
@@ -4004,7 +3980,6 @@ pub async fn list_payment_methods(
                 })
             }
 
-            // How do we wanna restructure `ResponsePaymentMethodTypes`?
             payment_method_types.push(ResponsePaymentMethodTypes {
                 payment_method_type: *payment_method_types_hm.0,
                 payment_experience: Some(payment_experience_types),
@@ -4184,8 +4159,6 @@ pub async fn list_payment_methods(
         .as_ref()
         .and_then(|intent| intent.request_external_three_ds_authentication)
         .unwrap_or(false);
-
-    // What to do about surcharge?
     let merchant_surcharge_configs =
         if let Some((payment_attempt, payment_intent, business_profile)) = payment_attempt
             .as_ref()
@@ -4244,7 +4217,6 @@ pub async fn list_payment_methods(
             merchant_name: merchant_account.merchant_name,
             payment_type,
             payment_methods: payment_method_responses,
-            // What should we do about this field? Not required
             mandate_payment: payment_attempt.and_then(|inner| inner.mandate_details).map(
                 |d| match d {
                     hyperswitch_domain_models::mandates::MandateDataType::SingleUse(i) => {
@@ -4473,7 +4445,6 @@ pub async fn call_surcharge_decision_management_for_saved_card(
     Ok(())
 }
 
-// Need not be async at all
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
     not(feature = "payment_methods_v2")
@@ -4492,14 +4463,12 @@ pub async fn filter_payment_methods(
     saved_payment_methods: &settings::EligiblePaymentMethods,
 ) -> errors::CustomResult<(), errors::ApiErrorResponse> {
     for payment_method in payment_methods.iter() {
-        // Create a wrapper struct PMs(Vec<PM>), iter, map, deserialize, log in case of deserialization errors, possibly have metrics about failures, return list of successful PMs
         let parse_result = serde_json::from_value::<PaymentMethodsEnabled>(
             payment_method.clone().expose().clone(),
         );
         if let Ok(payment_methods_enabled) = parse_result {
             let payment_method = payment_methods_enabled.payment_method;
 
-            // Can move this outside for loop, or even pass it to function, to avoid repeated deserialization
             let allowed_payment_method_types = payment_intent.and_then(|payment_intent| {
                 payment_intent
                     .allowed_payment_method_types
@@ -4515,8 +4484,6 @@ pub async fn filter_payment_methods(
                     })
             });
 
-            // Use iteration, fold etc.
-            // Use impl based stuff instead of hanging functions
             for payment_method_type_info in payment_methods_enabled
                 .payment_method_types
                 .unwrap_or_default()
@@ -4570,13 +4537,11 @@ pub async fn filter_payment_methods(
                         )));
                     };
 
-                    // Can use HashSet instead of Vec
                     let filter_pm_based_on_allowed_types = filter_pm_based_on_allowed_types(
                         allowed_payment_method_types.as_ref(),
                         payment_method_object.payment_method_type,
                     );
 
-                    // Ignore mandate related stuff (this and next block), ensure normal payments (non-mandate stuff) are not affected in any manner
                     if payment_attempt
                         .and_then(|attempt| attempt.mandate_details.as_ref())
                         .is_some()
@@ -4627,14 +4592,12 @@ pub async fn filter_payment_methods(
                             context_values.push(dir::DirValue::CaptureMethod(capture_method));
                         });
 
-                    // Remove this part, deprecate `card_networks` field in `PaymentMethodListRequest`
                     let filter_pm_card_network_based = filter_pm_card_network_based(
                         payment_method_object.card_networks.as_ref(),
                         req.card_networks.as_ref(),
                         payment_method_object.payment_method_type,
                     );
 
-                    // Check with the team, do not include if this part is only needed for PM management
                     let saved_payment_methods_filter = req
                         .client_secret
                         .as_ref()
@@ -4677,7 +4640,6 @@ pub async fn filter_payment_methods(
                             mca_id.get_string_repr().to_string(),
                             payment_method,
                         );
-                        // Don't mutate, iterate, return values
                         resp.push(response_pm_type);
                     } else {
                         logger::error!("Filtering Payment Methods Failed");
