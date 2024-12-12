@@ -119,6 +119,65 @@ impl MerchantConnectorAccount {
     }
 }
 
+/// Holds the payment methods enabled for a connector along with the connector name
+/// This struct is a flattened representation of the payment methods enabled for a connector
+#[derive(Debug)]
+pub struct PaymentMethodsEnabledForConnector {
+    pub payment_methods_enabled: common_utils::types::RequestPaymentMethodTypes,
+    pub payment_method: common_enums::PaymentMethod,
+    pub connector: String,
+}
+
+/// Holds the payment methods enabled for a connector
+pub struct FlattenedPaymentMethodsEnabled {
+    pub payment_methods_enabled: Vec<PaymentMethodsEnabledForConnector>,
+}
+
+impl FlattenedPaymentMethodsEnabled {
+    /// This functions flattens the payment methods enabled from the connector accounts
+    /// Retains the connector name and payment method in every flattened element
+    pub fn from_payment_connectors_list(payment_connectors: Vec<MerchantConnectorAccount>) -> Self {
+        let payment_methods_enabled_flattened_with_connector = payment_connectors
+            .into_iter()
+            .map(|connector| {
+                (
+                    connector.payment_methods_enabled.unwrap_or_default(),
+                    connector.connector_name,
+                )
+            })
+            .flat_map(|(payment_method_enabled, connector_name)| {
+                payment_method_enabled
+                    .into_iter()
+                    .flat_map(move |payment_method| {
+                        let request_payment_methods_enabled =
+                            payment_method.payment_method_subtypes.unwrap_or_default();
+                        let length = request_payment_methods_enabled.len();
+                        request_payment_methods_enabled.into_iter().zip(
+                            std::iter::repeat((
+                                connector_name.clone(),
+                                payment_method.payment_method_type,
+                            ))
+                            .take(length),
+                        )
+                    })
+            })
+            .map(
+                |(request_payment_methods, (connector_name, payment_method))| {
+                    PaymentMethodsEnabledForConnector {
+                        payment_methods_enabled: request_payment_methods,
+                        connector: connector_name.clone(),
+                        payment_method,
+                    }
+                },
+            )
+            .collect();
+
+        Self {
+            payment_methods_enabled: payment_methods_enabled_flattened_with_connector,
+        }
+    }
+}
+
 #[cfg(feature = "v1")]
 #[derive(Debug)]
 pub enum MerchantConnectorAccountUpdate {
@@ -558,12 +617,12 @@ common_utils::create_list_wrapper!(
                     .payment_methods_enabled.as_ref()
                     .unwrap_or(&Vec::default())
                     .iter()
-                    .flat_map(|payment_method_types| payment_method_types.payment_method_types.as_ref().unwrap_or(&ref_vector))
+                    .flat_map(|payment_method_types| payment_method_types.payment_method_subtypes.as_ref().unwrap_or(&ref_vector))
                     .filter(|payment_method_types_enabled| {
                         payment_method_types_enabled.payment_experience == Some(api_models::enums::PaymentExperience::InvokeSdkClient)
                     })
                     .map(|payment_method_types| {
-                        (connector_account, payment_method_types.payment_method_type)
+                        (connector_account, payment_method_types.payment_method_subtype)
                     })
                     .collect::<Vec<_>>()
             }).collect();

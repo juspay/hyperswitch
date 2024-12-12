@@ -2088,9 +2088,9 @@ impl MerchantConnectorAccountUpdateBridge for api_models::admin::MerchantConnect
         key_manager_state: &KeyManagerState,
         merchant_account: &domain::MerchantAccount,
     ) -> RouterResult<domain::MerchantConnectorAccountUpdate> {
-        let payment_methods_enabled = self.payment_methods_enabled.clone();
-
         let frm_configs = self.get_frm_config_as_secret();
+
+        let payment_methods_enabled = self.payment_methods_enabled;
 
         let auth = types::ConnectorAuthType::from_secret_value(
             self.connector_account_details

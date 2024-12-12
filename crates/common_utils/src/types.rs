@@ -1580,6 +1580,7 @@ where
     }
 }
 
+#[cfg(feature = "v2")]
 /// Details of all the payment methods enabled for the connector for the given merchant account
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, AsExpression)]
 #[serde(deny_unknown_fields)]
@@ -1587,10 +1588,10 @@ where
 pub struct PaymentMethodsEnabled {
     /// Type of payment method.
     #[schema(value_type = PaymentMethod,example = "card")]
-    pub payment_method: common_enums::PaymentMethod,
+    pub payment_method_type: common_enums::PaymentMethod,
 
     /// Payment method configuration, this includes all the filters associated with the payment method
-    pub payment_method_types: Option<Vec<RequestPaymentMethodTypes>>,
+    pub payment_method_subtypes: Option<Vec<RequestPaymentMethodTypes>>,
 }
 
 /// Details of a specific payment method subtype enabled for the connector for the given merchant account
@@ -1598,7 +1599,7 @@ pub struct PaymentMethodsEnabled {
 pub struct RequestPaymentMethodTypes {
     /// The payment method subtype
     #[schema(value_type = PaymentMethodType)]
-    pub payment_method_type: common_enums::PaymentMethodType,
+    pub payment_method_subtype: common_enums::PaymentMethodType,
 
     /// The payment experience for the payment method
     #[schema(value_type = Option<PaymentExperience>)]
@@ -1685,6 +1686,7 @@ pub enum AcceptedCurrencies {
     AllAccepted,
 }
 
+#[cfg(feature = "v2")]
 impl<DB> Queryable<Jsonb, DB> for PaymentMethodsEnabled
 where
     DB: Backend,
@@ -1697,4 +1699,5 @@ where
     }
 }
 
+#[cfg(feature = "v2")]
 crate::impl_to_sql_from_sql_json!(PaymentMethodsEnabled);

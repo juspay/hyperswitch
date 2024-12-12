@@ -1242,7 +1242,11 @@ pub struct ResponsePaymentMethodTypes {
 pub struct ResponsePaymentMethodTypes {
     /// The payment method type enabled
     #[schema(example = "klarna", value_type = PaymentMethodType)]
-    pub payment_method_subtype: api_enums::PaymentMethodType,
+    pub payment_method_type: common_enums::PaymentMethod,
+
+    /// The payment method subtype enabled
+    #[schema(example = "klarna", value_type = PaymentMethodType)]
+    pub payment_method_subtype: common_enums::PaymentMethodType,
 
     /// The list of card networks enabled, if applicable for a payment method type
     pub card_networks: Option<Vec<CardNetworkTypes>>,
