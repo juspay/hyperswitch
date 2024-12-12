@@ -354,7 +354,6 @@ impl Connector {
     }
     fn get_payment_methods_supporting_extended_authorization(self) -> Vec<PaymentMethod> {
         match self {
-            Self::Stripe => vec![PaymentMethod::Card],
             _ => vec![],
         }
     }
@@ -362,10 +361,6 @@ impl Connector {
         self,
     ) -> Vec<common_enums::PaymentMethodType> {
         match self {
-            Self::Stripe => vec![
-                common_enums::PaymentMethodType::Credit,
-                common_enums::PaymentMethodType::Debit,
-            ],
             _ => vec![],
         }
     }
