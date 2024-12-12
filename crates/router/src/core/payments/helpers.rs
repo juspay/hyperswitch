@@ -4435,7 +4435,7 @@ pub async fn get_additional_payment_data(
                         api_models::payments::AdditionalPaymentData::Card(Box::new(
                             api_models::payments::AdditionalCardInfo {
                                 card_issuer: card_info.card_issuer,
-                                card_network: card_network.or(card_info.card_network),
+                                card_network: card_network.clone().or(card_info.card_network),
                                 bank_code: card_info.bank_code,
                                 card_type: card_info.card_type,
                                 card_issuing_country: card_info.card_issuing_country,
@@ -4455,7 +4455,7 @@ pub async fn get_additional_payment_data(
                     api_models::payments::AdditionalPaymentData::Card(Box::new(
                         api_models::payments::AdditionalCardInfo {
                             card_issuer: None,
-                            card_network: None,
+                            card_network,
                             bank_code: None,
                             card_type: None,
                             card_issuing_country: None,
@@ -4698,7 +4698,7 @@ pub async fn get_additional_payment_data(
                         api_models::payments::AdditionalPaymentData::Card(Box::new(
                             api_models::payments::AdditionalCardInfo {
                                 card_issuer: card_info.card_issuer,
-                                card_network: card_network.or(card_info.card_network),
+                                card_network: card_network.clone().or(card_info.card_network),
                                 bank_code: card_info.bank_code,
                                 card_type: card_info.card_type,
                                 card_issuing_country: card_info.card_issuing_country,
@@ -4718,7 +4718,7 @@ pub async fn get_additional_payment_data(
                     api_models::payments::AdditionalPaymentData::Card(Box::new(
                         api_models::payments::AdditionalCardInfo {
                             card_issuer: None,
-                            card_network: None,
+                            card_network,
                             bank_code: None,
                             card_type: None,
                             card_issuing_country: None,
