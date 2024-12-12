@@ -49,8 +49,7 @@ use transformers::{self as zsl, get_status};
 
 use crate::{
     constants::headers,
-    types::{RefreshTokenRouterData, ResponseRouterData},
-    utils::construct_not_supported_error_report,
+    types::{RefreshTokenRouterData, ResponseRouterData}
 };
 
 #[derive(Debug, Clone)]
