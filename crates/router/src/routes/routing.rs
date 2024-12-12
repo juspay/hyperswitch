@@ -1071,7 +1071,7 @@ pub async fn success_based_routing_update_configs(
         flow,
         state,
         &req,
-        routing_payload_wrapper,
+        routing_payload_wrapper.clone(),
         |state, _, wrapper: routing_types::SuccessBasedRoutingPayloadWrapper, _| async {
             Box::pin(routing::success_based_routing_update_configs(
                 state,
@@ -1081,7 +1081,14 @@ pub async fn success_based_routing_update_configs(
             ))
             .await
         },
-        &auth::AdminApiAuth,
+        auth::auth_type(
+            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::JWTAuthProfileFromRoute {
+                profile_id: routing_payload_wrapper.profile_id,
+                required_permission: Permission::ProfileRoutingWrite,
+            },
+            req.headers(),
+        ),
         api_locking::LockAction::NotApplicable,
     ))
     .await

@@ -260,7 +260,7 @@ pub async fn routing_update_default_config_for_profile() {}
 /// Create a success based dynamic routing algorithm
 #[utoipa::path(
     post,
-    path = "/account/:account_id/business_profile/:profile_id/dynamic_routing/success_based/toggle",
+    path = "/account/{account_id}/business_profile/{profile_id}/dynamic_routing/success_based/toggle",
     params(
         ("account_id" = String, Path, description = "Merchant id"),
         ("profile_id" = String, Path, description = "Profile id under which Dynamic routing needs to be toggled"),
@@ -281,12 +281,39 @@ pub async fn routing_update_default_config_for_profile() {}
 pub async fn toggle_success_based_routing() {}
 
 #[cfg(feature = "v1")]
+/// Routing - Update success based dynamic routing config for profile
+///
+/// Update success based dynamic routing algorithm
+#[utoipa::path(
+    patch,
+    path = "/account/{account_id}/business_profile/{profile_id}/dynamic_routing/success_based/config/{algorithm_id}",
+    params(
+        ("account_id" = String, Path, description = "Merchant id"),
+        ("profile_id" = String, Path, description = "Profile id under which Dynamic routing needs to be toggled"),
+        ("algorithm_id" = String, Path, description = "Success based routing algorithm id which was last activated to update the config"),
+    ),
+    request_body = DynamicRoutingFeatures,
+    responses(
+        (status = 200, description = "Routing Algorithm updated", body = RoutingDictionaryRecord),
+        (status = 400, description = "Update body is malformed"),
+        (status = 500, description = "Internal server error"),
+        (status = 404, description = "Resource missing"),
+        (status = 422, description = "Unprocessable request"),
+        (status = 403, description = "Forbidden"),
+    ),
+   tag = "Routing",
+   operation_id = "Update success based dynamic routing configs",
+   security(("api_key" = []), ("jwt_key" = []))
+)]
+pub async fn success_based_routing_update_configs() {}
+
+#[cfg(feature = "v1")]
 /// Routing - Toggle elimination routing for profile
 ///
 /// Create a elimination based dynamic routing algorithm
 #[utoipa::path(
     post,
-    path = "/account/:account_id/business_profile/:profile_id/dynamic_routing/elimination/toggle",
+    path = "/account/{account_id}/business_profile/{profile_id}/dynamic_routing/elimination/toggle",
     params(
         ("account_id" = String, Path, description = "Merchant id"),
         ("profile_id" = String, Path, description = "Profile id under which Dynamic routing needs to be toggled"),
