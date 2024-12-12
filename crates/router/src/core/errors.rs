@@ -336,6 +336,10 @@ pub enum RoutingError {
     SuccessRateCalculationError,
     #[error("Success rate client from dynamic routing gRPC service not initialized")]
     SuccessRateClientInitializationError,
+    #[error("Elimintaion client from dynamic routing gRPC service not initialized")]
+    ElimintaionClientInitializationError,
+    #[error("Unable to analyze elimintaion routing config from dynamic routing service")]
+    ElimintaionRoutingCalculationError,
     #[error("Unable to convert from '{from}' to '{to}'")]
     GenericConversionError { from: String, to: String },
     #[error("Invalid success based connector label received from dynamic routing service: '{0}'")]

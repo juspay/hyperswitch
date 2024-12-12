@@ -600,6 +600,83 @@ pub async fn refresh_success_based_routing_cache(
     config
 }
 
+/// Retrieves cached elimination routing configs specific to tenant and profile
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+pub async fn get_cached_elimination_routing_config_for_profile<'a>(
+    state: &SessionState,
+    key: &str,
+) -> Option<Arc<routing_types::EliminationRoutingConfig>> {
+    cache::ELIMINATION_BASED_DYNAMIC_ALGORITHM_CACHE
+        .get_val::<Arc<routing_types::EliminationRoutingConfig>>(cache::CacheKey {
+            key: key.to_string(),
+            prefix: state.tenant.redis_key_prefix.clone(),
+        })
+        .await
+}
+
+/// Refreshes the cached success_based routing configs specific to tenant and profile
+#[cfg(feature = "v1")]
+pub async fn refresh_elimination_routing_cache(
+    state: &SessionState,
+    key: &str,
+    elimination_routing_config: routing_types::EliminationRoutingConfig,
+) -> Arc<routing_types::EliminationRoutingConfig> {
+    let config = Arc::new(elimination_routing_config);
+    cache::ELIMINATION_BASED_DYNAMIC_ALGORITHM_CACHE
+        .push(
+            cache::CacheKey {
+                key: key.to_string(),
+                prefix: state.tenant.redis_key_prefix.clone(),
+            },
+            config.clone(),
+        )
+        .await;
+    config
+}
+
+/// Checked fetch of success based routing configs
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+#[instrument(skip_all)]
+pub async fn fetch_elimintaion_routing_configs(
+    state: &SessionState,
+    business_profile: &domain::Profile,
+    elimination_routing_id: id_type::RoutingId,
+) -> RouterResult<routing_types::EliminationRoutingConfig> {
+    let key = format!(
+        "{}_{}",
+        business_profile.get_id().get_string_repr(),
+        elimination_routing_id.get_string_repr()
+    );
+
+    if let Some(config) =
+        get_cached_elimination_routing_config_for_profile(state, key.as_str()).await
+    {
+        Ok(config.as_ref().clone())
+    } else {
+        let elimination_algorithm = state
+            .store
+            .find_routing_algorithm_by_profile_id_algorithm_id(
+                business_profile.get_id(),
+                &elimination_routing_id,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::ResourceIdNotFound)
+            .attach_printable(
+                "unable to retrieve elimination routing algorithm for profile from db",
+            )?;
+
+        let elimination_config = elimination_algorithm
+            .algorithm_data
+            .parse_value::<routing_types::EliminationRoutingConfig>("EliminationRoutingConfig")
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("unable to parse EliminationRoutingConfig struct")?;
+
+        refresh_elimination_routing_cache(state, key.as_str(), elimination_config.clone()).await;
+
+        Ok(elimination_config)
+    }
+}
+
 /// Checked fetch of success based routing configs
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 #[instrument(skip_all)]
