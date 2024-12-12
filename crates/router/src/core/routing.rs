@@ -1478,7 +1478,7 @@ pub async fn contract_based_dynamic_routing_setup(
 
             utils::when(&mca.connector_name != &info.label, || {
                 Err(errors::ApiErrorResponse::InvalidRequestData {
-                    message: "Incorrect mca configuration recieved".to_string(),
+                    message: "Incorrect mca configuration received".to_string(),
                 })
             })?;
         }
@@ -1514,7 +1514,7 @@ pub async fn contract_based_dynamic_routing_setup(
             .unwrap_or(false),
         || {
             Err(errors::ApiErrorResponse::PreconditionFailed {
-                message: "Contract Routing with sepcified features is already enabled".to_string(),
+                message: "Contract Routing with specified features is already enabled".to_string(),
             })
         },
     )?;

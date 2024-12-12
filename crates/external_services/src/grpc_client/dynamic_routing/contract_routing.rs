@@ -17,7 +17,8 @@ use error_stack::ResultExt;
     missing_docs,
     unused_qualifications,
     clippy::unwrap_used,
-    clippy::as_conversions
+    clippy::as_conversions,
+    clippy::use_self
 )]
 pub mod contract_routing {
     tonic::include_proto!("contract_routing");
@@ -42,7 +43,7 @@ pub trait ContractBasedDynamicRouting: dyn_clone::DynClone + Send + Sync {
         params: String,
         response: Vec<RoutableConnectorChoiceWithStatus>,
     ) -> DynamicRoutingResult<UpdateContractResponse>;
-    /// To invalidates the contract scores agaisnt the id
+    /// To invalidates the contract scores against the id
     async fn invalidate_contracts(
         &self,
         id: String,
@@ -158,7 +159,7 @@ impl ForeignTryFrom<ContractBasedRoutingConfigBody> for CalContractScoreConfig {
             time_scale: config
                 .time_scale
                 .clone()
-                .map(|scale| TimeScale::foreign_from(scale)),
+                .map(TimeScale::foreign_from),
         })
     }
 }

@@ -1,3 +1,4 @@
+/// Module for Contract based routing
 pub mod contract_routing;
 
 use std::fmt::Debug;

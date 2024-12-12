@@ -936,7 +936,7 @@ pub async fn push_metrics_with_update_window_for_contract_based_routing(
     payment_attempt: &storage::PaymentAttempt,
     routable_connectors: Vec<routing_types::RoutableConnectorChoice>,
     business_profile: &domain::Profile,
-    dynamic_routing_config_params_interpolator: DynamicRoutingConfigParamsInterpolator,
+    _dynamic_routing_config_params_interpolator: DynamicRoutingConfigParamsInterpolator,
 ) -> RouterResult<()> {
     let dynamic_routing_algo_ref: routing_types::DynamicRoutingAlgorithmRef = business_profile
         .dynamic_routing_algorithm
@@ -1046,8 +1046,8 @@ pub async fn push_metrics_with_update_window_for_contract_based_routing(
                 "unable to calculate/fetch contract scores from dynamic routing service",
             )?;
 
-        let payment_status_attribute =
-            get_desired_payment_status_for_success_routing_metrics(payment_attempt.status);
+        // let payment_status_attribute =
+        //     get_desired_payment_status_for_success_routing_metrics(payment_attempt.status);
 
         let first_contract_based_connector = &contract_scores
             .labels_with_score

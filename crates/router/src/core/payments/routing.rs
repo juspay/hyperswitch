@@ -1445,7 +1445,7 @@ pub async fn perform_contract_based_routing(
     state: &SessionState,
     routable_connectors: Vec<api_routing::RoutableConnectorChoice>,
     business_profile: &domain::Profile,
-    dynamic_routing_config_params_interpolator: routing::helpers::DynamicRoutingConfigParamsInterpolator,
+    _dynamic_routing_config_params_interpolator: routing::helpers::DynamicRoutingConfigParamsInterpolator,
     contract_based_algo_ref: api_routing::ContractRoutingAlgorithm,
 ) -> RoutingResult<Vec<api_routing::RoutableConnectorChoice>> {
     if contract_based_algo_ref.enabled_feature
