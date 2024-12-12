@@ -20,7 +20,7 @@ use crate::{
     },
     types::{
         self,
-        api::{self, enums, ConnectorCommon, ConnectorCommonExt},
+        api::{self, enums, ConnectorCommon, ConnectorCommonExt, PaymentsCompleteAuthorize},
         ErrorResponse, Response,
     },
     utils::BytesExt,
@@ -190,10 +190,18 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
 
     fn get_url(
         &self,
-        _req: &types::PaymentsAuthorizeRouterData,
+        req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}/process", self.base_url(connectors)))
+        let auth_type = req.auth_type.clone();
+        match auth_type {
+            common_enums::enums::AuthenticationType::ThreeDs => {
+                Ok(format!("{}/mpi/lookup", self.base_url(connectors)))
+            }
+            common_enums::enums::AuthenticationType::NoThreeDs => {
+                Ok(format!("{}/process", self.base_url(connectors)))
+            }
+        }
     }
 
     fn get_request_body(
@@ -208,6 +216,9 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         )?;
         let connector_router_data = placetopay::PlacetopayRouterData::from((amount, req));
         let req_obj = placetopay::PlacetopayPaymentsRequest::try_from(&connector_router_data)?;
+        let printrequest = common_utils::ext_traits::Encode::encode_to_string_of_json(&req_obj)
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        println!("$$$$$ auth req {:?}", printrequest);
         Ok(RequestContent::Json(Box::new(req_obj)))
     }
 
@@ -239,9 +250,104 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
+        println!("$$$$$ auth res {:?}", res.response);
         let response: placetopay::PlacetopayPaymentsResponse = res
             .response
             .parse_struct("Placetopay PlacetopayPaymentsResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
+        types::RouterData::try_from(types::ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+}
+
+impl PaymentsCompleteAuthorize for Placetopay {}
+
+impl
+    ConnectorIntegration<
+        api::CompleteAuthorize,
+        types::CompleteAuthorizeData,
+        types::PaymentsResponseData,
+    > for Placetopay
+{
+    fn get_headers(
+        &self,
+        req: &types::PaymentsCompleteAuthorizeRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        _req: &types::PaymentsCompleteAuthorizeRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!("{}/mpi/query", self.base_url(connectors)))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &types::PaymentsCompleteAuthorizeRouterData,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let req_obj = placetopay::PlacetopayCompleteAuthorizeRequest::try_from(req)?;
+        let printrequest = common_utils::ext_traits::Encode::encode_to_string_of_json(&req_obj)
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        println!("$$$$$ complete auth req{:?}", printrequest);
+        Ok(RequestContent::Json(Box::new(req_obj)))
+    }
+
+    fn build_request(
+        &self,
+        req: &types::PaymentsCompleteAuthorizeRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        Ok(Some(
+            services::RequestBuilder::new()
+                .method(services::Method::Post)
+                .url(&types::PaymentsCompleteAuthorizeType::get_url(
+                    self, req, connectors,
+                )?)
+                .attach_default_headers()
+                .headers(types::PaymentsCompleteAuthorizeType::get_headers(
+                    self, req, connectors,
+                )?)
+                .set_body(types::PaymentsCompleteAuthorizeType::get_request_body(
+                    self, req, connectors,
+                )?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &types::PaymentsCompleteAuthorizeRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<types::PaymentsCompleteAuthorizeRouterData, errors::ConnectorError> {
+        println!("$$$$$ complete auth res {:?}", res.response);
+        let response: placetopay::PlacetopayCompleteAuthorizeResponse = res
+            .response
+            .parse_struct("placetopay PaymentsSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         event_builder.map(|i| i.set_response_body(&response));
@@ -292,6 +398,9 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let req_obj = placetopay::PlacetopayPsyncRequest::try_from(req)?;
+        let printrequest = common_utils::ext_traits::Encode::encode_to_string_of_json(&req_obj)
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        println!("$$$$$ sync req{:?}", printrequest);
         Ok(RequestContent::Json(Box::new(req_obj)))
     }
 
@@ -334,11 +443,13 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         })
     }
 
+
     fn get_error_response(
         &self,
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        println!("$$$$$ sync error res {:?}", res.response);
         self.build_error_response(res, event_builder)
     }
 }

@@ -225,7 +225,6 @@ default_imp_for_complete_authorize!(
     connector::Opayo,
     connector::Opennode,
     connector::Payone,
-    connector::Placetopay,
     connector::Plaid,
     connector::Riskified,
     connector::Signifyd,

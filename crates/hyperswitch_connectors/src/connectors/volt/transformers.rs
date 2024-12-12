@@ -274,6 +274,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, VoltPaymentsResponse, T, PaymentsRespon
             method: Method::Get,
             form_fields: Default::default(),
         });
+        println!("$$redirection_data: {:?}", redirection_data);
         Ok(Self {
             status: enums::AttemptStatus::AuthenticationPending,
             response: Ok(PaymentsResponseData::TransactionResponse {
