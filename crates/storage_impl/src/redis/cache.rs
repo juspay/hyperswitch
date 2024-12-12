@@ -89,6 +89,16 @@ pub static ELIMINATION_BASED_DYNAMIC_ALGORITHM_CACHE: Lazy<Cache> = Lazy::new(||
     )
 });
 
+/// Contract Routing based Dynamic Algorithm Cache
+pub static CONTRACT_BASED_DYNAMIC_ALGORITHM_CACHE: Lazy<Cache> = Lazy::new(|| {
+    Cache::new(
+        "CONTRACT_BASED_DYNAMIC_ALGORITHM_CACHE",
+        CACHE_TTL,
+        CACHE_TTI,
+        Some(MAX_CAPACITY),
+    )
+});
+
 /// Trait which defines the behaviour of types that's gonna be stored in Cache
 pub trait Cacheable: Any + Send + Sync + DynClone {
     fn as_any(&self) -> &dyn Any;
@@ -110,6 +120,7 @@ pub enum CacheKind<'a> {
     CGraph(Cow<'a, str>),
     SuccessBasedDynamicRoutingCache(Cow<'a, str>),
     EliminationBasedDynamicRoutingCache(Cow<'a, str>),
+    ContractBasedDynamicRoutingCache(Cow<'a, str>),
     PmFiltersCGraph(Cow<'a, str>),
     All(Cow<'a, str>),
 }
