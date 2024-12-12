@@ -124,6 +124,34 @@ describe("Corner cases", () => {
       );
     });
 
+    it("[Payment] Incorrect card type", () => {
+      const data = getConnectorDetails(globalState.get("commons"))["card_pm"][
+        "IncorrectCardType"
+      ];
+
+      cy.createConfirmPaymentTest(
+        paymentIntentBody,
+        data,
+        "no_three_ds",
+        "automatic",
+        globalState
+      );
+    });
+
+    it("[Payment] Empty card type", () => {
+      const data = getConnectorDetails(globalState.get("commons"))["card_pm"][
+        "EmptyCardType"
+      ];
+
+      cy.createConfirmPaymentTest(
+        paymentIntentBody,
+        data,
+        "no_three_ds",
+        "automatic",
+        globalState
+      );
+    });
+
     it("[Payment] Invalid `amount_to_capture`", () => {
       const data = getConnectorDetails(globalState.get("commons"))["card_pm"][
         "InvalidAmountToCapture"
