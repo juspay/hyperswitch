@@ -549,6 +549,7 @@ pub trait ConnectorActions: Connector {
             header_payload: None,
             connector_mandate_request_reference_id: None,
             psd2_sca_exemption_type: None,
+            authentication_id: None,
         }
     }
 
@@ -927,6 +928,7 @@ impl Default for CCardType {
             card_issuing_country: None,
             bank_code: None,
             nick_name: Some(Secret::new("nick_name".into())),
+            card_holder_name: Some(Secret::new("card holder name".into())),
         })
     }
 }

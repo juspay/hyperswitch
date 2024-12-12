@@ -114,6 +114,7 @@ pub struct RefundDistributionBody {
 #[serde(rename_all = "camelCase")]
 pub struct ReportRequest {
     pub time_range: TimeRange,
+    pub emails: Option<Vec<Secret<String, EmailStrategy>>>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]

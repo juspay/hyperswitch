@@ -4,7 +4,6 @@ use hyperswitch_domain_models::errors::api_error_response::ApiErrorResponse;
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::payments::PaymentConfirmData;
 use masking::ExposeInterface;
-use router_env::metrics::add_attributes;
 
 // use router_env::tracing::Instrument;
 use super::{ConstructFlowSpecificData, Feature};
@@ -205,7 +204,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                 &auth_router_data.response,
             );
             auth_router_data.integrity_check = integrity_result;
-            metrics::PAYMENT_COUNT.add(&metrics::CONTEXT, 1, &[]); // Move outside of the if block
+            metrics::PAYMENT_COUNT.add(1, &[]); // Move outside of the if block
 
             match auth_router_data.response.clone() {
                 Err(_) => Ok(auth_router_data),
@@ -369,12 +368,11 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                 > = connector.connector.get_connector_integration();
 
                 metrics::EXECUTE_PRETASK_COUNT.add(
-                    &metrics::CONTEXT,
                     1,
-                    &add_attributes([
+                    router_env::metric_attributes!(
                         ("connector", connector.connector_name.to_string()),
                         ("flow", format!("{:?}", api::Authorize)),
-                    ]),
+                    ),
                 );
 
                 logger::debug!(completed_pre_tasks=?true);
@@ -503,9 +501,8 @@ pub async fn authorize_preprocessing_steps<F: Clone>(
         .to_payment_failed_response()?;
 
         metrics::PREPROCESSING_STEPS_COUNT.add(
-            &metrics::CONTEXT,
             1,
-            &add_attributes([
+            router_env::metric_attributes!(
                 ("connector", connector.connector_name.to_string()),
                 ("payment_method", router_data.payment_method.to_string()),
                 (
@@ -513,11 +510,10 @@ pub async fn authorize_preprocessing_steps<F: Clone>(
                     router_data
                         .request
                         .payment_method_type
-                        .as_ref()
                         .map(|inner| inner.to_string())
                         .unwrap_or("null".to_string()),
                 ),
-            ]),
+            ),
         );
         let mut authorize_router_data = helpers::router_data_type_conversion::<_, F, _, _, _, _>(
             resp.clone(),
