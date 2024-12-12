@@ -885,9 +885,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
             business_profile,
         ))
         .await?;
-
-        println!("clncjkqnwccxqwkjb {:?}", payment_data.payment_method_data);
-
+        println!("logg1 {:?}", payment_data.payment_method_data);
         utils::when(payment_method_data.is_none(), || {
             Err(errors::ApiErrorResponse::PaymentMethodNotFound)
         })?;
@@ -1048,6 +1046,10 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         business_profile: &domain::Profile,
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
+        println!(
+            "payment method {:?}  business sahkal{:?}",
+            payment_data.payment_attempt.payment_method, business_profile.is_click_to_pay_enabled
+        );
         if let Some(payment_method) = payment_data.payment_attempt.payment_method {
             if payment_method == storage_enums::PaymentMethod::Card
                 && business_profile.is_click_to_pay_enabled
@@ -1109,20 +1111,25 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                 payment_data.payment_attempt.payment_method =
                     Some(common_enums::PaymentMethod::Card);
 
-                payment_data.payment_method_data =
-                    network_token.clone().map(domain::PaymentMethodData::NetworkToken);
+                payment_data.payment_method_data = network_token
+                    .clone()
+                    .map(domain::PaymentMethodData::NetworkToken);
 
-                network_token.async_map( |_data| {
-                    unified_authentication_service::create_new_authentication(
-                        state,
-                        payment_data.payment_attempt.merchant_id.clone(),
-                        connector_name.to_string(),
-                        business_profile.get_id().clone(),
-                        Some(payment_data.payment_intent.get_id().clone()),
-                        connector_transaction_id,
-                        &authentication_id,
-                        payment_data.service_details.clone())
-                    }).await.transpose()?;
+                network_token
+                    .async_map(|_data| {
+                        unified_authentication_service::create_new_authentication(
+                            state,
+                            payment_data.payment_attempt.merchant_id.clone(),
+                            connector_name.to_string(),
+                            business_profile.get_id().clone(),
+                            Some(payment_data.payment_intent.get_id().clone()),
+                            connector_transaction_id,
+                            &authentication_id,
+                            payment_data.service_details.clone(),
+                        )
+                    })
+                    .await
+                    .transpose()?;
             }
         }
 

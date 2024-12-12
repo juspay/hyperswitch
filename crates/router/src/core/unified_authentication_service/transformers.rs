@@ -1,4 +1,4 @@
-use error_stack::{Report, ResultExt};
+use error_stack::Report;
 use hyperswitch_domain_models::{
     errors::api_error_response::ApiErrorResponse,
     router_request_types::unified_authentication_service::{

@@ -107,14 +107,16 @@ impl<F: Clone + Sync> UnifiedAuthenticationService<F> for ClickToPay {
                     token_number: authentication_details.token_details.payment_token,
                     token_exp_month: authentication_details.token_details.token_expiration_month,
                     token_exp_year: authentication_details.token_details.token_expiration_year,
-                    token_cryptogram: authentication_details.dynamic_data_details.and_then(|data| data.dynamic_data_value),
+                    token_cryptogram: authentication_details
+                        .dynamic_data_details
+                        .and_then(|data| data.dynamic_data_value),
                     card_issuer: None,
                     card_network: None,
                     card_type: None,
                     card_issuing_country: None,
                     bank_code: None,
                     nick_name: None,
-                    eci: authentication_details.eci
+                    eci: authentication_details.eci,
                 },
             ),
             _ => None,

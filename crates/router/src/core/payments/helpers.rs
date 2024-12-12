@@ -2659,6 +2659,7 @@ pub(crate) fn validate_payment_method_fields_present(
             })
         },
     )?;
+
     utils::when(
         req.payment_method.is_some() && req.payment_method_type.is_some(),
         || {

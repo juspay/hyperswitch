@@ -171,9 +171,6 @@ pub async fn retrieve_payment_method_core(
 
             Ok((pm_opt.to_owned(), payment_token))
         }
-        pm_opt @ Some(_pm @ domain::PaymentMethodData::NetworkToken(_)) => {
-            Ok((pm_opt.to_owned(), None))
-        }
         _ => Ok((None, None)),
     }
 }

@@ -4,14 +4,11 @@ use common_utils::{
     errors::CustomResult,
     ext_traits::BytesExt,
     request::{Method, Request, RequestBuilder, RequestContent},
-    types::{
-        AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector, StringMinorUnit,
-        StringMinorUnitForConnector,
-    },
+    types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector},
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
-    router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
+    router_data::{AccessToken, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
         payments::{Authorize, Capture, PSync, PaymentMethodToken, Session, SetupMandate, Void},
@@ -28,11 +25,7 @@ use hyperswitch_domain_models::{
         RefundsData, SetupMandateRequestData,
     },
     router_response_types::{PaymentsResponseData, RefundsResponseData},
-    types::{
-        PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
-        RefundSyncRouterData, RefundsRouterData, UasPostAuthenticationRouterData,
-        UasPreAuthenticationRouterData,
-    },
+    types::{UasPostAuthenticationRouterData, UasPreAuthenticationRouterData},
 };
 use hyperswitch_interfaces::{
     api::{self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorValidation},
@@ -43,7 +36,6 @@ use hyperswitch_interfaces::{
     types::{self, Response},
     webhooks,
 };
-use masking::{ExposeInterface, Mask};
 use transformers as unified_authentication_service;
 
 use crate::{constants::headers, types::ResponseRouterData, utils};

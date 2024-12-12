@@ -243,6 +243,7 @@ pub struct ConnectorConfig {
     pub zsl: Option<ConnectorTomlConfig>,
     pub taxjar: Option<ConnectorTomlConfig>,
     pub ctp_mastercard: Option<ConnectorTomlConfig>,
+    pub unified_authentication_service: Option<ConnectorTomlConfig>,
 }
 
 impl ConnectorConfig {
@@ -298,6 +299,9 @@ impl ConnectorConfig {
             AuthenticationConnectors::Netcetera => Ok(connector_data.netcetera),
             AuthenticationConnectors::Gpayments => Ok(connector_data.gpayments),
             AuthenticationConnectors::CtpMastercard => Ok(connector_data.ctp_mastercard),
+            AuthenticationConnectors::UnifiedAuthenticationService => {
+                Ok(connector_data.unified_authentication_service)
+            }
         }
     }
 

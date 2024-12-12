@@ -1,30 +1,18 @@
 use common_enums::enums;
-use common_utils::types::{FloatMajorUnit, StringMinorUnit};
+use common_utils::types::FloatMajorUnit;
 use hyperswitch_domain_models::{
-    payment_method_data::PaymentMethodData,
     router_data::{ConnectorAuthType, RouterData},
-    router_flow_types::refunds::{Execute, RSync},
-    router_request_types::{
-        unified_authentication_service::{
-            DynamicData, PostAuthenticationDetails, TokenDetails, UasAuthenticationResponseData,
-        },
-        ResponseId,
+    router_request_types::unified_authentication_service::{
+        DynamicData, PostAuthenticationDetails, TokenDetails, UasAuthenticationResponseData,
     },
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
-    types::{
-        PaymentsAuthorizeRouterData, RefundsRouterData, UasPostAuthenticationRouterData,
-        UasPreAuthenticationRouterData,
-    },
+    types::{UasPostAuthenticationRouterData, UasPreAuthenticationRouterData},
 };
 use hyperswitch_interfaces::errors;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
-use crate::{
-    types::{RefundsResponseRouterData, ResponseRouterData},
-    utils::PaymentsAuthorizeRequestData,
-};
+use crate::types::ResponseRouterData;
 
 const CTP_MASTERCARD: &str = "ctp_mastercard";
 
@@ -201,9 +189,13 @@ impl TryFrom<&UnifiedAuthenticationServiceRouterData<&UasPreAuthenticationRouter
     ) -> Result<Self, Self::Error> {
         let auth_type =
             UnifiedAuthenticationServiceAuthType::try_from(&item.router_data.connector_auth_type)?;
-        let authentication_id = item.router_data.authentication_id.clone().ok_or(errors::ConnectorError::MissingRequiredField { field_name: "authentication_id" })?;
+        let authentication_id = item.router_data.authentication_id.clone().ok_or(
+            errors::ConnectorError::MissingRequiredField {
+                field_name: "authentication_id",
+            },
+        )?;
         Ok(Self {
-            authenticate_by: CTP_MASTERCARD.to_owned(),
+            authenticate_by: item.router_data.connector.clone(),
             session_id: authentication_id.clone(),
             source_authentication_id: authentication_id,
             authentication_info: None,
@@ -289,7 +281,6 @@ pub enum UnifiedAuthenticationServicePreAuthenticateStatus {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UnifiedAuthenticationServicePreAuthenticateResponse {
     status: UnifiedAuthenticationServicePreAuthenticateStatus,
-    id: String,
 }
 
 impl<F, T>
@@ -327,6 +318,11 @@ pub struct UnifiedAuthenticationServicePostAuthenticateRequest {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UnifiedAuthenticationServicePostAuthenticateResponse {
+    pub authentication_details: AuthenticationDetails,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct AuthenticationDetails {
     pub eci: Option<String>,
     pub token_details: UasTokenDetails,
     pub dynamic_data_details: Option<UasDynamicData>,
@@ -355,7 +351,11 @@ impl TryFrom<&UasPostAuthenticationRouterData>
         let auth_type = UnifiedAuthenticationServiceAuthType::try_from(&item.connector_auth_type)?;
         Ok(Self {
             authenticate_by: CTP_MASTERCARD.to_owned(),
-            source_authentication_id: item.authentication_id.clone().ok_or(errors::ConnectorError::MissingRequiredField { field_name: "authentication_id" })?,
+            source_authentication_id: item.authentication_id.clone().ok_or(
+                errors::ConnectorError::MissingRequiredField {
+                    field_name: "authentication_id",
+                },
+            )?,
             auth_creds: AuthType::HeaderKey {
                 api_key: auth_type.api_key,
             },
@@ -385,23 +385,38 @@ impl<F, T>
         Ok(Self {
             response: Ok(UasAuthenticationResponseData::PostAuthentication {
                 authentication_details: PostAuthenticationDetails {
-                    eci: item.response.eci,
+                    eci: item.response.authentication_details.eci,
                     token_details: TokenDetails {
-                        payment_token: item.response.token_details.payment_token,
+                        payment_token: item
+                            .response
+                            .authentication_details
+                            .token_details
+                            .payment_token,
                         payment_account_reference: item
                             .response
+                            .authentication_details
                             .token_details
                             .payment_account_reference,
-                        token_expiration_month: item.response.token_details.token_expiration_month,
-                        token_expiration_year: item.response.token_details.token_expiration_year,
+                        token_expiration_month: item
+                            .response
+                            .authentication_details
+                            .token_details
+                            .token_expiration_month,
+                        token_expiration_year: item
+                            .response
+                            .authentication_details
+                            .token_details
+                            .token_expiration_year,
                     },
-                    dynamic_data_details: item.response.dynamic_data_details.map(|dynamic_data| {
-                        DynamicData {
+                    dynamic_data_details: item
+                        .response
+                        .authentication_details
+                        .dynamic_data_details
+                        .map(|dynamic_data| DynamicData {
                             dynamic_data_value: dynamic_data.dynamic_data_value,
                             dynamic_data_type: dynamic_data.dynamic_data_type,
                             ds_trans_id: dynamic_data.ds_trans_id,
-                        }
-                    }),
+                        }),
                 },
             }),
             ..item.data
