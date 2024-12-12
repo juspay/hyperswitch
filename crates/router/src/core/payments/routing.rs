@@ -1307,7 +1307,7 @@ pub async fn perform_success_based_routing(
             .ok_or(errors::RoutingError::SuccessRateClientInitializationError)
             .attach_printable("success_rate gRPC client not found")?;
 
-        let success_based_routing_configs = routing::helpers::fetch_success_based_routing_configs(
+        let success_based_routing_configs = routing::helpers::fetch_dynamic_routing_configs(
             state,
             business_profile,
             success_based_algo_ref
@@ -1352,6 +1352,127 @@ pub async fn perform_success_based_routing(
 
         let mut connectors = Vec::with_capacity(success_based_connectors.labels_with_score.len());
         for label_with_score in success_based_connectors.labels_with_score {
+            let (connector, merchant_connector_id) = label_with_score.label
+                .split_once(':')
+                .ok_or(errors::RoutingError::InvalidSuccessBasedConnectorLabel(label_with_score.label.to_string()))
+                .attach_printable(
+                    "unable to split connector_name and mca_id from the label obtained by the dynamic routing service",
+                )?;
+            connectors.push(api_routing::RoutableConnectorChoice {
+                choice_kind: api_routing::RoutableChoiceKind::FullStruct,
+                connector: common_enums::RoutableConnectors::from_str(connector)
+                    .change_context(errors::RoutingError::GenericConversionError {
+                        from: "String".to_string(),
+                        to: "RoutableConnectors".to_string(),
+                    })
+                    .attach_printable("unable to convert String to RoutableConnectors")?,
+                merchant_connector_id: Some(
+                    common_utils::id_type::MerchantConnectorAccountId::wrap(
+                        merchant_connector_id.to_string(),
+                    )
+                    .change_context(errors::RoutingError::GenericConversionError {
+                        from: "String".to_string(),
+                        to: "MerchantConnectorAccountId".to_string(),
+                    })
+                    .attach_printable("unable to convert MerchantConnectorAccountId from string")?,
+                ),
+            });
+        }
+        logger::debug!(success_based_routing_connectors=?connectors);
+        Ok(connectors)
+    } else {
+        Ok(routable_connectors)
+    }
+}
+
+/// elimination dynamic routing
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+pub async fn perform_elimination_routing(
+    state: &SessionState,
+    routable_connectors: Vec<api_routing::RoutableConnectorChoice>,
+    business_profile: &domain::Profile,
+    elimination_routing_configs_params_interpolator: routing::helpers::SuccessBasedRoutingConfigParamsInterpolator,
+) -> RoutingResult<Vec<api_routing::RoutableConnectorChoice>> {
+    let dynamic_routing_algo_ref: api_routing::DynamicRoutingAlgorithmRef =
+        business_profile
+            .dynamic_routing_algorithm
+            .clone()
+            .map(|val| val.parse_value("DynamicRoutingAlgorithmRef"))
+            .transpose()
+            .change_context(errors::RoutingError::DeserializationError {
+                from: "JSON".to_string(),
+                to: "DynamicRoutingAlgorithmRef".to_string(),
+            })
+            .attach_printable("unable to deserialize DynamicRoutingAlgorithmRef from JSON")?
+            .unwrap_or_default();
+
+    let elimination_algo_ref = dynamic_routing_algo_ref
+        .elimination_routing_algorithm
+        .ok_or(errors::RoutingError::GenericNotFoundError { field: "elimintaion_algorithm".to_string() })
+        .attach_printable(
+            "elimintaion_algorithm not found in dynamic_routing_algorithm from business_profile table",
+        )?;
+
+    if elimination_algo_ref.enabled_feature
+        == api_routing::DynamicRoutingFeatures::DynamicConnectorSelection
+    {
+        logger::debug!(
+            "performing elimintaion_routing for profile {}",
+            business_profile.get_id().get_string_repr()
+        );
+        let client = state
+            .grpc_client
+            .dynamic_routing
+            .success_rate_client
+            .as_ref()
+            .ok_or(errors::RoutingError::SuccessRateClientInitializationError)
+            .attach_printable("success_rate gRPC client not found")?;
+
+        let elimination_routing_config = routing::helpers::fetch_dynamic_routing_configs(
+            state,
+            business_profile,
+            elimination_algo_ref
+                .algorithm_id_with_timestamp
+                .algorithm_id
+                .ok_or(errors::RoutingError::GenericNotFoundError {
+                    field: "elimination_routing_algorithm_id".to_string(),
+                })
+                .attach_printable(
+                    "elimintaion_routing_algorithm_id not found in business_profile",
+                )?,
+        )
+        .await
+        .change_context(errors::RoutingError::SuccessBasedRoutingConfigError)
+        .attach_printable("unable to fetch elimination dynamic routing configs")?;
+
+        let elimination_routing_config_params = elimination_routing_configs_params_interpolator
+            .get_string_val(
+                elimination_routing_config
+                    .params
+                    .as_ref()
+                    .ok_or(errors::RoutingError::SuccessBasedRoutingParamsNotFoundError)?,
+            );
+
+        let tenant_business_profile_id = routing::helpers::generate_tenant_business_profile_id(
+            &state.tenant.redis_key_prefix,
+            business_profile.get_id().get_string_repr(),
+        );
+
+        let elimination_based_connectors: CalSuccessRateResponse = client
+            .calculate_success_rate(
+                tenant_business_profile_id,
+                elimination_routing_config,
+                elimination_routing_config_params,
+                routable_connectors,
+            )
+            .await
+            .change_context(errors::RoutingError::SuccessRateCalculationError)
+            .attach_printable(
+                "unable to calculate/fetch success rate from dynamic routing service",
+            )?;
+
+        let mut connectors = Vec::with_capacity(elimination_based_connectors.labels_with_score.len());
+        for label_with_score in elimination_based_connectors.labels_with_score {
             let (connector, merchant_connector_id) = label_with_score.label
                 .split_once(':')
                 .ok_or(errors::RoutingError::InvalidSuccessBasedConnectorLabel(label_with_score.label.to_string()))

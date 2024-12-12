@@ -603,15 +603,15 @@ pub async fn refresh_success_based_routing_cache(
 /// Checked fetch of success based routing configs
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 #[instrument(skip_all)]
-pub async fn fetch_success_based_routing_configs(
+pub async fn fetch_dynamic_routing_configs(
     state: &SessionState,
     business_profile: &domain::Profile,
-    success_based_routing_id: id_type::RoutingId,
+    dynamic_routing_id: id_type::RoutingId,
 ) -> RouterResult<routing_types::SuccessBasedRoutingConfig> {
     let key = format!(
         "{}_{}",
         business_profile.get_id().get_string_repr(),
-        success_based_routing_id.get_string_repr()
+        dynamic_routing_id.get_string_repr()
     );
 
     if let Some(config) =
@@ -619,25 +619,25 @@ pub async fn fetch_success_based_routing_configs(
     {
         Ok(config.as_ref().clone())
     } else {
-        let success_rate_algorithm = state
+        let dynamic_algorithm = state
             .store
             .find_routing_algorithm_by_profile_id_algorithm_id(
                 business_profile.get_id(),
-                &success_based_routing_id,
+                &dynamic_routing_id,
             )
             .await
             .change_context(errors::ApiErrorResponse::ResourceIdNotFound)
-            .attach_printable("unable to retrieve success_rate_algorithm for profile from db")?;
+            .attach_printable("unable to retrieve dynamic algorithm for profile from db")?;
 
-        let success_rate_config = success_rate_algorithm
+        let dynamic_config = dynamic_algorithm
             .algorithm_data
             .parse_value::<routing_types::SuccessBasedRoutingConfig>("SuccessBasedRoutingConfig")
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("unable to parse success_based_routing_config struct")?;
 
-        refresh_success_based_routing_cache(state, key.as_str(), success_rate_config.clone()).await;
+        refresh_success_based_routing_cache(state, key.as_str(), dynamic_config.clone()).await;
 
-        Ok(success_rate_config)
+        Ok(dynamic_config)
     }
 }
 
@@ -682,7 +682,7 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
             },
         )?;
 
-        let success_based_routing_configs = fetch_success_based_routing_configs(
+        let success_based_routing_configs = fetch_dynamic_routing_configs(
             state,
             business_profile,
             success_based_algo_ref
