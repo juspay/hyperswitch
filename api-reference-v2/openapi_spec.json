@@ -19762,7 +19762,7 @@
           }
         }
       },
-      "ServiceDetails": {
+      "CtpServiceDetails": {
         "type": "object",
         "properties": {
           "merchant_transaction_id": {

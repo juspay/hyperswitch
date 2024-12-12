@@ -17113,7 +17113,7 @@
           "service_details": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/ServiceDetails"
+                "$ref": "#/components/schemas/CtpServiceDetails"
               }
             ],
             "nullable": true
@@ -17499,7 +17499,7 @@
           "service_details": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/ServiceDetails"
+                "$ref": "#/components/schemas/CtpServiceDetails"
               }
             ],
             "nullable": true
@@ -18709,7 +18709,7 @@
           "service_details": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/ServiceDetails"
+                "$ref": "#/components/schemas/CtpServiceDetails"
               }
             ],
             "nullable": true
@@ -19758,7 +19758,7 @@
           "service_details": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/ServiceDetails"
+                "$ref": "#/components/schemas/CtpServiceDetails"
               }
             ],
             "nullable": true
@@ -23680,7 +23680,7 @@
           }
         }
       },
-      "ServiceDetails": {
+      "CtpServiceDetails": {
         "type": "object",
         "properties": {
           "merchant_transaction_id": {
