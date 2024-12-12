@@ -64,6 +64,7 @@ pub struct PaymentMethod {
     pub network_token_requestor_reference_id: Option<String>,
     pub network_token_locker_id: Option<String>,
     pub network_token_payment_method_data: Option<Encryption>,
+    pub transaction_flow: Option<storage_enums::PaymentDirection>,
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
@@ -92,6 +93,7 @@ pub struct PaymentMethod {
     pub network_token_requestor_reference_id: Option<String>,
     pub network_token_locker_id: Option<String>,
     pub network_token_payment_method_data: Option<Encryption>,
+    pub transaction_flow: Option<storage_enums::PaymentDirection>,
 }
 
 impl PaymentMethod {
@@ -152,6 +154,7 @@ pub struct PaymentMethodNew {
     pub network_token_requestor_reference_id: Option<String>,
     pub network_token_locker_id: Option<String>,
     pub network_token_payment_method_data: Option<Encryption>,
+    pub transaction_flow: Option<storage_enums::PaymentDirection>,
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
@@ -180,6 +183,7 @@ pub struct PaymentMethodNew {
     pub network_token_requestor_reference_id: Option<String>,
     pub network_token_locker_id: Option<String>,
     pub network_token_payment_method_data: Option<Encryption>,
+    pub transaction_flow: Option<storage_enums::PaymentDirection>,
 }
 
 impl PaymentMethodNew {
@@ -322,6 +326,7 @@ pub struct PaymentMethodUpdateInternal {
     network_token_requestor_reference_id: Option<String>,
     network_token_locker_id: Option<String>,
     network_token_payment_method_data: Option<Encryption>,
+    transaction_flow: Option<storage_enums::PaymentDirection>,
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
@@ -341,6 +346,7 @@ impl PaymentMethodUpdateInternal {
             network_token_requestor_reference_id,
             network_token_locker_id,
             network_token_payment_method_data,
+            transaction_flow,
         } = self;
 
         PaymentMethod {
@@ -369,6 +375,7 @@ impl PaymentMethodUpdateInternal {
             network_token_locker_id: network_token_locker_id.or(source.network_token_locker_id),
             network_token_payment_method_data: network_token_payment_method_data
                 .or(source.network_token_payment_method_data),
+            transaction_flow: transaction_flow.or(source.transaction_flow),
         }
     }
 }
@@ -395,6 +402,7 @@ pub struct PaymentMethodUpdateInternal {
     last_modified: PrimitiveDateTime,
     network_token_locker_id: Option<String>,
     network_token_payment_method_data: Option<Encryption>,
+    transaction_flow: Option<storage_enums::PaymentDirection>,
 }
 
 #[cfg(all(
@@ -419,6 +427,7 @@ impl PaymentMethodUpdateInternal {
             last_modified,
             network_token_locker_id,
             network_token_payment_method_data,
+            transaction_flow,
         } = self;
 
         PaymentMethod {
@@ -459,6 +468,7 @@ impl PaymentMethodUpdateInternal {
             network_token_locker_id: network_token_locker_id.or(source.network_token_locker_id),
             network_token_payment_method_data: network_token_payment_method_data
                 .or(source.network_token_payment_method_data),
+            transaction_flow: transaction_flow.or(source.transaction_flow),
         }
     }
 }
@@ -489,6 +499,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 last_modified: common_utils::date_time::now(),
                 network_token_locker_id: None,
                 network_token_payment_method_data: None,
+                transaction_flow: None,
             },
             PaymentMethodUpdate::PaymentMethodDataUpdate {
                 payment_method_data,
@@ -508,6 +519,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 last_modified: common_utils::date_time::now(),
                 network_token_locker_id: None,
                 network_token_payment_method_data: None,
+                transaction_flow: None,
             },
             PaymentMethodUpdate::LastUsedUpdate { last_used_at } => Self {
                 metadata: None,
@@ -525,6 +537,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 last_modified: common_utils::date_time::now(),
                 network_token_locker_id: None,
                 network_token_payment_method_data: None,
+                transaction_flow: None,
             },
             PaymentMethodUpdate::UpdatePaymentMethodDataAndLastUsed {
                 payment_method_data,
@@ -545,6 +558,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 last_modified: common_utils::date_time::now(),
                 network_token_locker_id: None,
                 network_token_payment_method_data: None,
+                transaction_flow: None,
             },
             PaymentMethodUpdate::NetworkTransactionIdAndStatusUpdate {
                 network_transaction_id,
@@ -565,6 +579,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 last_modified: common_utils::date_time::now(),
                 network_token_locker_id: None,
                 network_token_payment_method_data: None,
+                transaction_flow: None,
             },
             PaymentMethodUpdate::StatusUpdate { status } => Self {
                 metadata: None,
@@ -582,6 +597,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 last_modified: common_utils::date_time::now(),
                 network_token_locker_id: None,
                 network_token_payment_method_data: None,
+                transaction_flow: None,
             },
             PaymentMethodUpdate::AdditionalDataUpdate {
                 payment_method_data,
@@ -609,6 +625,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 last_modified: common_utils::date_time::now(),
                 network_token_locker_id,
                 network_token_payment_method_data,
+                transaction_flow: None,
             },
             PaymentMethodUpdate::ConnectorMandateDetailsUpdate {
                 connector_mandate_details,
@@ -628,6 +645,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 last_modified: common_utils::date_time::now(),
                 network_token_locker_id: None,
                 network_token_payment_method_data: None,
+                transaction_flow: None,
             },
             PaymentMethodUpdate::NetworkTokenDataUpdate {
                 network_token_requestor_reference_id,
@@ -649,6 +667,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 network_token_requestor_reference_id,
                 network_token_locker_id,
                 network_token_payment_method_data,
+                transaction_flow: None,
             },
             PaymentMethodUpdate::ConnectorNetworkTransactionIdAndMandateDetailsUpdate {
                 connector_mandate_details,
@@ -670,6 +689,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 network_token_requestor_reference_id: None,
                 network_token_locker_id: None,
                 network_token_payment_method_data: None,
+                transaction_flow: None,
             },
         }
     }
@@ -695,6 +715,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 network_token_locker_id: None,
                 network_token_requestor_reference_id: None,
                 network_token_payment_method_data: None,
+                transaction_flow: None,
             },
             PaymentMethodUpdate::LastUsedUpdate { last_used_at } => Self {
                 payment_method_data: None,
@@ -710,6 +731,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 network_token_locker_id: None,
                 network_token_requestor_reference_id: None,
                 network_token_payment_method_data: None,
+                transaction_flow: None,
             },
             PaymentMethodUpdate::UpdatePaymentMethodDataAndLastUsed {
                 payment_method_data,
@@ -728,6 +750,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 network_token_locker_id: None,
                 network_token_requestor_reference_id: None,
                 network_token_payment_method_data: None,
+                transaction_flow: None,
             },
             PaymentMethodUpdate::NetworkTransactionIdAndStatusUpdate {
                 network_transaction_id,
@@ -746,6 +769,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 network_token_locker_id: None,
                 network_token_requestor_reference_id: None,
                 network_token_payment_method_data: None,
+                transaction_flow: None,
             },
             PaymentMethodUpdate::StatusUpdate { status } => Self {
                 payment_method_data: None,
@@ -761,6 +785,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 network_token_locker_id: None,
                 network_token_requestor_reference_id: None,
                 network_token_payment_method_data: None,
+                transaction_flow: None,
             },
             PaymentMethodUpdate::AdditionalDataUpdate {
                 payment_method_data,
@@ -785,6 +810,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 network_token_requestor_reference_id,
                 network_token_locker_id,
                 network_token_payment_method_data,
+                transaction_flow: None,
             },
             PaymentMethodUpdate::ConnectorMandateDetailsUpdate {
                 connector_mandate_details,
@@ -802,6 +828,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 network_token_locker_id: None,
                 network_token_requestor_reference_id: None,
                 network_token_payment_method_data: None,
+                transaction_flow: None,
             },
         }
     }
@@ -854,6 +881,7 @@ impl From<&PaymentMethodNew> for PaymentMethod {
             network_token_payment_method_data: payment_method_new
                 .network_token_payment_method_data
                 .clone(),
+            transaction_flow: payment_method_new.transaction_flow,
         }
     }
 }
@@ -890,6 +918,7 @@ impl From<&PaymentMethodNew> for PaymentMethod {
             network_token_payment_method_data: payment_method_new
                 .network_token_payment_method_data
                 .clone(),
+            transaction_flow: payment_method_new.transaction_flow,
         }
     }
 }
