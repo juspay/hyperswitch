@@ -944,7 +944,7 @@ mod tests {
                     .expect("failed to create redis connection pool");
                 let mut keys_and_values = HashMap::new();
                 for i in 0..10 {
-                    keys_and_values.insert(format!("key{}", i), i as i64);
+                    keys_and_values.insert(format!("key{}", i), i);
                 }
                 let key = keys_and_values.keys().cloned().collect::<Vec<String>>();
                 let values = keys_and_values
