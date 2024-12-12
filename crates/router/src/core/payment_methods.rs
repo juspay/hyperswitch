@@ -128,6 +128,7 @@ pub async fn retrieve_payment_method_core(
         pm @ Some(domain::PaymentMethodData::GiftCard(_)) => Ok((pm.to_owned(), None)),
         pm @ Some(domain::PaymentMethodData::OpenBanking(_)) => Ok((pm.to_owned(), None)),
         pm @ Some(domain::PaymentMethodData::MobilePayment(_)) => Ok((pm.to_owned(), None)),
+        pm @ Some(domain::PaymentMethodData::NetworkToken(_)) => Ok((pm.to_owned(), None)),
         pm_opt @ Some(pm @ domain::PaymentMethodData::BankTransfer(_)) => {
             let payment_token = payment_helpers::store_payment_method_data_in_vault(
                 state,

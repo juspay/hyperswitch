@@ -33,8 +33,13 @@ use hyperswitch_domain_models::{
             PreProcessing, Reject, SdkSessionUpdate,
         },
         webhooks::VerifyWebhookSource,
+        PostAuthenticate, PreAuthenticate,
     },
     router_request_types::{
+        unified_authentication_service::{
+            UasAuthenticationResponseData, UasPostAuthenticationRequestData,
+            UasPreAuthenticationRequestData,
+        },
         AcceptDisputeRequestData, AuthorizeSessionTokenData, CompleteAuthorizeData,
         ConnectorCustomerData, DefendDisputeRequestData, MandateRevokeRequestData,
         PaymentsApproveData, PaymentsIncrementalAuthorizationData, PaymentsPostProcessingData,
@@ -70,6 +75,7 @@ use hyperswitch_interfaces::{
             PaymentsPreProcessing, TaxCalculation,
         },
         ConnectorIntegration, ConnectorMandateRevoke, ConnectorRedirectResponse,
+        UasPostAuthentication, UasPreAuthentication, UnifiedAuthenticationService,
     },
     errors::ConnectorError,
 };
@@ -2373,4 +2379,137 @@ default_imp_for_revoking_mandates!(
     connectors::Zen,
     connectors::Zsl,
     connectors::CtpMastercard
+);
+
+macro_rules! default_imp_for_uas_pre_authentication {
+    ($($path:ident::$connector:ident),*) => {
+        $( impl UnifiedAuthenticationService for $path::$connector {}
+            impl UasPreAuthentication for $path::$connector {}
+            impl
+            ConnectorIntegration<
+            PreAuthenticate,
+            UasPreAuthenticationRequestData,
+            UasAuthenticationResponseData
+        > for $path::$connector
+        {}
+    )*
+    };
+}
+
+default_imp_for_uas_pre_authentication!(
+    connectors::Airwallex,
+    connectors::Amazonpay,
+    connectors::Bambora,
+    connectors::Bamboraapac,
+    connectors::Billwerk,
+    connectors::Bitpay,
+    connectors::Boku,
+    connectors::Cashtocode,
+    connectors::Coinbase,
+    connectors::Cryptopay,
+    connectors::CtpMastercard,
+    connectors::Deutschebank,
+    connectors::Digitalvirgo,
+    connectors::Dlocal,
+    connectors::Elavon,
+    connectors::Fiserv,
+    connectors::Fiservemea,
+    connectors::Fiuu,
+    connectors::Forte,
+    connectors::Globepay,
+    connectors::Gocardless,
+    connectors::Helcim,
+    connectors::Inespay,
+    connectors::Jpmorgan,
+    connectors::Nomupay,
+    connectors::Novalnet,
+    connectors::Nexinets,
+    connectors::Nexixpay,
+    connectors::Payeezy,
+    connectors::Payu,
+    connectors::Powertranz,
+    connectors::Prophetpay,
+    connectors::Mollie,
+    connectors::Multisafepay,
+    connectors::Rapyd,
+    connectors::Razorpay,
+    connectors::Redsys,
+    connectors::Shift4,
+    connectors::Stax,
+    connectors::Square,
+    connectors::Taxjar,
+    connectors::Thunes,
+    connectors::Tsys,
+    connectors::Worldline,
+    connectors::Worldpay,
+    connectors::Volt,
+    connectors::Xendit,
+    connectors::Zen,
+    connectors::Zsl
+);
+
+macro_rules! default_imp_for_uas_post_authentication {
+    ($($path:ident::$connector:ident),*) => {
+        $( impl UasPostAuthentication for $path::$connector {}
+            impl
+            ConnectorIntegration<
+                PostAuthenticate,
+                UasPostAuthenticationRequestData,
+                UasAuthenticationResponseData
+        > for $path::$connector
+        {}
+    )*
+    };
+}
+
+default_imp_for_uas_post_authentication!(
+    connectors::Airwallex,
+    connectors::Amazonpay,
+    connectors::Bambora,
+    connectors::Bamboraapac,
+    connectors::Billwerk,
+    connectors::Bitpay,
+    connectors::Boku,
+    connectors::Cashtocode,
+    connectors::Coinbase,
+    connectors::Cryptopay,
+    connectors::CtpMastercard,
+    connectors::Deutschebank,
+    connectors::Digitalvirgo,
+    connectors::Dlocal,
+    connectors::Elavon,
+    connectors::Fiserv,
+    connectors::Fiservemea,
+    connectors::Fiuu,
+    connectors::Forte,
+    connectors::Globepay,
+    connectors::Gocardless,
+    connectors::Helcim,
+    connectors::Inespay,
+    connectors::Jpmorgan,
+    connectors::Nomupay,
+    connectors::Novalnet,
+    connectors::Nexinets,
+    connectors::Nexixpay,
+    connectors::Payeezy,
+    connectors::Payu,
+    connectors::Powertranz,
+    connectors::Prophetpay,
+    connectors::Mollie,
+    connectors::Multisafepay,
+    connectors::Rapyd,
+    connectors::Razorpay,
+    connectors::Redsys,
+    connectors::Shift4,
+    connectors::Stax,
+    connectors::Square,
+    connectors::Taxjar,
+    connectors::Thunes,
+    connectors::Tsys,
+    connectors::Worldline,
+    connectors::Worldpay,
+    connectors::Volt,
+    connectors::Xendit,
+    connectors::Zen,
+    connectors::Zsl
 );

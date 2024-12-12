@@ -1,3 +1,8 @@
+use hyperswitch_domain_models::router_flow_types::{PostAuthenticate, PreAuthenticate};
+use hyperswitch_interfaces::api::{
+    UasPostAuthenticationV2, UasPreAuthenticationV2, UnifiedAuthenticationServiceV2,
+};
+
 #[cfg(feature = "frm")]
 use crate::types::fraud_check as frm_types;
 use crate::{
@@ -1050,8 +1055,6 @@ default_imp_for_new_connector_integration_payouts!(
     connector::Airwallex,
     connector::Amazonpay,
     connector::Authorizedotnet,
-    connector::Bambora,
-    connector::Bamboraapac,
     connector::Bankofamerica,
     connector::Billwerk,
     connector::Bitpay,
@@ -2054,8 +2057,6 @@ default_imp_for_new_connector_integration_connector_authentication!(
     connector::Aci,
     connector::Adyen,
     connector::Adyenplatform,
-    connector::Airwallex,
-    connector::Amazonpay,
     connector::Authorizedotnet,
     connector::Bambora,
     connector::Bamboraapac,
@@ -2139,12 +2140,12 @@ default_imp_for_new_connector_integration_connector_authentication!(
 
 macro_rules! default_imp_for_new_connector_integration_uas {
     ($($path:ident::$connector:ident),*) => {
-        $( impl api::UnifiedAuthenticationServiceV2 for $path::$connector {}
-            impl api::UasPreAuthenticationV2 for $path::$connector {}
-            impl api::UasPostAuthenticationV2 for $path::$connector {}
+        $( impl UnifiedAuthenticationServiceV2 for $path::$connector {}
+            impl UasPreAuthenticationV2 for $path::$connector {}
+            impl UasPostAuthenticationV2 for $path::$connector {}
             impl
             services::ConnectorIntegrationV2<
-            api::PreAuthenticate,
+            PreAuthenticate,
             types::UasFlowData,
             types::UasPreAuthenticationRequestData,
             types::UasAuthenticationResponseData,
@@ -2152,7 +2153,7 @@ macro_rules! default_imp_for_new_connector_integration_uas {
         {}
         impl
             services::ConnectorIntegrationV2<
-            api::PostAuthenticate,
+            PostAuthenticate,
             types::UasFlowData,
             types::UasPostAuthenticationRequestData,
             types::UasAuthenticationResponseData,
@@ -2163,88 +2164,40 @@ macro_rules! default_imp_for_new_connector_integration_uas {
 }
 
 default_imp_for_new_connector_integration_uas!(
+    connector::Adyenplatform,
     connector::Aci,
     connector::Adyen,
-    connector::Adyenplatform,
-    connector::Airwallex,
-    connector::Amazonpay,
     connector::Authorizedotnet,
-    connector::Bambora,
-    connector::Bamboraapac,
     connector::Bankofamerica,
-    connector::Billwerk,
-    connector::Bitpay,
     connector::Bluesnap,
-    connector::Boku,
     connector::Braintree,
-    connector::Cashtocode,
     connector::Checkout,
-    connector::Cryptopay,
-    connector::Coinbase,
     connector::Cybersource,
-    connector::Datatrans,
-    connector::Deutschebank,
-    connector::Digitalvirgo,
-    connector::Dlocal,
     connector::Ebanx,
-    connector::Elavon,
-    connector::Fiserv,
-    connector::Fiservemea,
-    connector::Forte,
-    connector::Fiuu,
     connector::Globalpay,
-    connector::Globepay,
-    connector::Gocardless,
     connector::Gpayments,
-    connector::Helcim,
     connector::Iatapay,
-    connector::Inespay,
     connector::Itaubank,
-    connector::Jpmorgan,
     connector::Klarna,
     connector::Mifinity,
-    connector::Mollie,
-    connector::Multisafepay,
     connector::Netcetera,
-    connector::Nexinets,
-    connector::Nexixpay,
     connector::Nmi,
-    connector::Nomupay,
     connector::Noon,
-    connector::Novalnet,
     connector::Nuvei,
     connector::Opayo,
     connector::Opennode,
     connector::Paybox,
-    connector::Payeezy,
     connector::Payme,
     connector::Payone,
     connector::Paypal,
-    connector::Payu,
     connector::Placetopay,
-    connector::Powertranz,
-    connector::Prophetpay,
-    connector::Rapyd,
-    connector::Razorpay,
-    connector::Redsys,
+    connector::Plaid,
     connector::Riskified,
     connector::Signifyd,
-    connector::Square,
-    connector::Stax,
     connector::Stripe,
-    connector::Shift4,
-    connector::Taxjar,
-    connector::Trustpay,
     connector::Threedsecureio,
-    connector::Thunes,
-    connector::Tsys,
-    connector::Volt,
+    connector::Trustpay,
     connector::Wellsfargo,
-    connector::Wise,
-    connector::Worldline,
-    connector::Worldpay,
-    connector::Zen,
-    connector::Zsl,
-    connector::Plaid,
-    connector::CtpMastercard
+    connector::Wellsfargopayout,
+    connector::Wise
 );

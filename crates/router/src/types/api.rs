@@ -36,9 +36,6 @@ pub mod payments_v2;
 pub mod payouts_v2;
 pub mod refunds_v2;
 
-pub mod unified_authentication_service;
-pub mod unified_authentication_service_v2;
-
 use std::{fmt::Debug, str::FromStr};
 
 use api_models::routing::{self as api_routing, RoutableConnectorChoice};
@@ -53,6 +50,7 @@ pub use hyperswitch_interfaces::api::{
     ConnectorMandateRevoke, ConnectorMandateRevokeV2, ConnectorVerifyWebhookSource,
     ConnectorVerifyWebhookSourceV2, CurrencyUnit,
 };
+use hyperswitch_interfaces::api::{UnifiedAuthenticationService, UnifiedAuthenticationServiceV2};
 
 #[cfg(feature = "frm")]
 pub use self::fraud_check::*;
@@ -61,7 +59,7 @@ pub use self::payouts::*;
 pub use self::{
     admin::*, api_keys::*, authentication::*, configs::*, customers::*, disputes::*, files::*,
     payment_link::*, payment_methods::*, payments::*, poll::*, refunds::*, refunds_v2::*,
-    unified_authentication_service::*, webhooks::*,
+    webhooks::*,
 };
 use super::transformers::ForeignTryFrom;
 use crate::{

@@ -1,30 +1,41 @@
 use common_enums::enums;
-use common_utils::types::StringMinorUnit;
+use common_utils::types::{FloatMajorUnit, StringMinorUnit};
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     router_data::{ConnectorAuthType, RouterData},
     router_flow_types::refunds::{Execute, RSync},
-    router_request_types::ResponseId,
+    router_request_types::{
+        unified_authentication_service::{
+            DynamicData, PostAuthenticationDetails, TokenDetails, UasAuthenticationResponseData,
+        },
+        ResponseId,
+    },
     router_response_types::{PaymentsResponseData, RefundsResponseData},
-    types::{PaymentsAuthorizeRouterData, RefundsRouterData},
+    types::{
+        PaymentsAuthorizeRouterData, RefundsRouterData, UasPostAuthenticationRouterData,
+        UasPreAuthenticationRouterData,
+    },
 };
 use hyperswitch_interfaces::errors;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
+use time::PrimitiveDateTime;
 
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
     utils::PaymentsAuthorizeRequestData,
 };
 
+const CTP_MASTERCARD: &str = "ctp_mastercard";
+
 //TODO: Fill the struct with respective fields
 pub struct UnifiedAuthenticationServiceRouterData<T> {
-    pub amount: StringMinorUnit, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
+    pub amount: FloatMajorUnit, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
     pub router_data: T,
 }
 
-impl<T> From<(StringMinorUnit, T)> for UnifiedAuthenticationServiceRouterData<T> {
-    fn from((amount, item): (StringMinorUnit, T)) -> Self {
+impl<T> From<(FloatMajorUnit, T)> for UnifiedAuthenticationServiceRouterData<T> {
+    fn from((amount, item): (FloatMajorUnit, T)) -> Self {
         //Todo :  use utils to convert the amount to the type of amount that a connector accepts
         Self {
             amount,
@@ -33,11 +44,143 @@ impl<T> From<(StringMinorUnit, T)> for UnifiedAuthenticationServiceRouterData<T>
     }
 }
 
-//TODO: Fill the struct with respective fields
+#[derive(Debug, Serialize, PartialEq)]
+pub struct UnifiedAuthenticationServicePreAuthenticateRequest {
+    pub authenticate_by: String,
+    pub session_id: String,
+    pub source_authentication_id: String,
+    pub authentication_info: Option<AuthenticationInfo>,
+    pub service_details: Option<ServiceDetails>,
+    pub customer_details: Option<CustomerDetails>,
+    pub pmt_details: Option<PaymentDetails>,
+    pub auth_creds: AuthType,
+    pub transaction_details: Option<TransactionDetails>,
+}
+
+#[derive(Debug, Serialize, PartialEq)]
+#[serde(tag = "auth_type")]
+pub enum AuthType {
+    HeaderKey { api_key: Secret<String> },
+}
+
 #[derive(Default, Debug, Serialize, PartialEq)]
-pub struct UnifiedAuthenticationServicePaymentsRequest {
-    amount: StringMinorUnit,
-    card: UnifiedAuthenticationServiceCard,
+pub struct PaymentDetails {
+    pub pan: cards::CardNumber,
+    pub digital_card_id: Option<String>,
+    pub payment_data_type: Option<String>,
+    pub encrypted_src_card_details: Option<String>,
+    pub card_expiry_date: Secret<String>,
+    pub cardholder_name: Secret<String>,
+    pub card_token_number: Secret<String>,
+    pub account_type: u8,
+}
+
+#[derive(Default, Debug, Serialize, PartialEq)]
+pub struct TransactionDetails {
+    pub amount: FloatMajorUnit,
+    pub currency: enums::Currency,
+    pub date: Option<PrimitiveDateTime>,
+    pub pan_source: Option<String>,
+    pub protection_type: Option<String>,
+    pub entry_mode: Option<String>,
+    pub transaction_type: Option<String>,
+    pub otp_value: Option<String>,
+    pub three_ds_data: Option<ThreeDSData>,
+}
+
+#[derive(Default, Debug, Serialize, PartialEq)]
+pub struct ThreeDSData {
+    pub browser: BrowserInfo,
+    pub acquirer: Acquirer,
+}
+
+#[derive(Default, Debug, Serialize, PartialEq)]
+pub struct Acquirer {
+    pub merchant_id: String,
+    pub bin: u32,
+}
+
+#[derive(Default, Debug, Serialize, PartialEq)]
+pub struct BrowserInfo {
+    pub accept_header: String,
+    pub screen_width: u32,
+    pub screen_height: u32,
+    pub java_enabled: bool,
+    pub javascript_enabled: bool,
+    pub language: String,
+    pub user_agent: String,
+    pub color_depth: u32,
+    pub ip: String,
+    pub tz: i32,
+    pub time_zone: i8,
+    pub challenge_window_size: String,
+}
+
+#[derive(Default, Debug, Serialize, PartialEq)]
+pub struct AuthenticationInfo {
+    pub authentication_type: Option<String>,
+    pub authentication_reasons: Option<Vec<String>>,
+    pub consent_received: bool,
+    pub is_authenticated: bool,
+    pub locale: Option<String>,
+    pub supported_card_brands: Option<String>,
+}
+
+#[derive(Default, Debug, Serialize, PartialEq)]
+pub struct ServiceDetails {
+    pub service_session_ids: Option<ServiceSessionIds>,
+    pub merchant_details: Option<MerchantDetails>,
+}
+
+#[derive(Default, Debug, Serialize, PartialEq)]
+pub struct ServiceSessionIds {
+    pub client_id: Option<String>,
+    pub service_id: Option<String>,
+    pub correlation_id: Option<String>,
+    pub client_reference_id: Option<String>,
+    pub merchant_transaction_id: Option<String>,
+    pub x_src_flow_id: Option<String>,
+}
+
+#[derive(Default, Debug, Serialize, PartialEq)]
+pub struct MerchantDetails {
+    pub merchant_id: String,
+    pub merchant_name: String,
+    pub mcc: String,
+    pub country_code: String,
+    pub name: String,
+    pub requestor_id: String,
+    pub requestor_name: String,
+    pub configuration_id: String,
+    pub merchant_country: String,
+    pub merchant_category_code: u32,
+}
+
+#[derive(Default, Debug, Serialize, PartialEq)]
+pub struct Address {
+    pub city: String,
+    pub country: String,
+    pub line1: Secret<String>,
+    pub line2: Secret<String>,
+    pub line3: Option<Secret<String>>,
+    pub post_code: Secret<String>,
+    pub state: Secret<String>,
+}
+
+#[derive(Default, Debug, Serialize, PartialEq)]
+pub struct CustomerDetails {
+    pub name: Secret<String>,
+    pub email: Option<Secret<String>>,
+    pub phone_number: Option<Secret<String>>,
+    pub customer_id: String,
+    #[serde(rename = "type")]
+    pub customer_type: Option<String>,
+    pub billing_address: Address,
+    pub shipping_address: Address,
+    pub wallet_account_id: Secret<String>,
+    pub email_hash: Secret<String>,
+    pub country_code: String,
+    pub national_identifier: String,
 }
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
@@ -49,29 +192,72 @@ pub struct UnifiedAuthenticationServiceCard {
     complete: bool,
 }
 
-impl TryFrom<&UnifiedAuthenticationServiceRouterData<&PaymentsAuthorizeRouterData>>
-    for UnifiedAuthenticationServicePaymentsRequest
+impl TryFrom<&UnifiedAuthenticationServiceRouterData<&UasPreAuthenticationRouterData>>
+    for UnifiedAuthenticationServicePreAuthenticateRequest
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: &UnifiedAuthenticationServiceRouterData<&PaymentsAuthorizeRouterData>,
+        item: &UnifiedAuthenticationServiceRouterData<&UasPreAuthenticationRouterData>,
     ) -> Result<Self, Self::Error> {
-        match item.router_data.request.payment_method_data.clone() {
-            PaymentMethodData::Card(req_card) => {
-                let card = UnifiedAuthenticationServiceCard {
-                    number: req_card.card_number,
-                    expiry_month: req_card.card_exp_month,
-                    expiry_year: req_card.card_exp_year,
-                    cvc: req_card.card_cvc,
-                    complete: item.router_data.request.is_auto_capture()?,
-                };
-                Ok(Self {
-                    amount: item.amount.clone(),
-                    card,
-                })
-            }
-            _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
-        }
+        let auth_type =
+            UnifiedAuthenticationServiceAuthType::try_from(&item.router_data.connector_auth_type)?;
+        let authentication_id = item.router_data.authentication_id.clone().ok_or(errors::ConnectorError::MissingRequiredField { field_name: "authentication_id" })?;
+        Ok(Self {
+            authenticate_by: CTP_MASTERCARD.to_owned(),
+            session_id: authentication_id.clone(),
+            source_authentication_id: authentication_id,
+            authentication_info: None,
+            service_details: Some(ServiceDetails {
+                service_session_ids: item.router_data.request.service_details.clone().and_then(
+                    |service_details| {
+                        Some(ServiceSessionIds {
+                            client_id: None,
+                            service_id: None,
+                            correlation_id: service_details
+                                .service_session_ids
+                                .clone()
+                                .and_then(|service_session_ids| service_session_ids.correlation_id),
+                            client_reference_id: None,
+                            merchant_transaction_id: service_details
+                                .service_session_ids
+                                .clone()
+                                .and_then(|service_session_ids| {
+                                    service_session_ids.merchant_transaction_id
+                                }),
+                            x_src_flow_id: service_details
+                                .service_session_ids
+                                .clone()
+                                .and_then(|service_session_ids| service_session_ids.x_src_flow_id),
+                        })
+                    },
+                ),
+                merchant_details: None,
+            }),
+            customer_details: None,
+            pmt_details: None,
+            auth_creds: AuthType::HeaderKey {
+                api_key: auth_type.api_key,
+            },
+            transaction_details: Some(TransactionDetails {
+                amount: item.amount,
+                currency: item
+                    .router_data
+                    .request
+                    .transaction_details
+                    .clone()
+                    .ok_or(errors::ConnectorError::MissingRequiredField {
+                        field_name: "transaction_details",
+                    })?
+                    .currency,
+                date: None,
+                pan_source: None,
+                protection_type: None,
+                entry_mode: None,
+                transaction_type: None,
+                otp_value: None,
+                three_ds_data: None,
+            }),
+        })
     }
 }
 
@@ -92,31 +278,17 @@ impl TryFrom<&ConnectorAuthType> for UnifiedAuthenticationServiceAuthType {
         }
     }
 }
-// PaymentsResponse
-//TODO: Append the remaining status flags
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "lowercase")]
-pub enum UnifiedAuthenticationServicePaymentStatus {
-    Succeeded,
-    Failed,
-    #[default]
-    Processing,
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum UnifiedAuthenticationServicePreAuthenticateStatus {
+    ACKSUCCESS,
+    ACKFAILURE,
 }
 
-impl From<UnifiedAuthenticationServicePaymentStatus> for common_enums::AttemptStatus {
-    fn from(item: UnifiedAuthenticationServicePaymentStatus) -> Self {
-        match item {
-            UnifiedAuthenticationServicePaymentStatus::Succeeded => Self::Charged,
-            UnifiedAuthenticationServicePaymentStatus::Failed => Self::Failure,
-            UnifiedAuthenticationServicePaymentStatus::Processing => Self::Authorizing,
-        }
-    }
-}
-
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct UnifiedAuthenticationServicePaymentsResponse {
-    status: UnifiedAuthenticationServicePaymentStatus,
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct UnifiedAuthenticationServicePreAuthenticateResponse {
+    status: UnifiedAuthenticationServicePreAuthenticateStatus,
     id: String,
 }
 
@@ -124,112 +296,113 @@ impl<F, T>
     TryFrom<
         ResponseRouterData<
             F,
-            UnifiedAuthenticationServicePaymentsResponse,
+            UnifiedAuthenticationServicePreAuthenticateResponse,
             T,
-            PaymentsResponseData,
+            UasAuthenticationResponseData,
         >,
-    > for RouterData<F, T, PaymentsResponseData>
+    > for RouterData<F, T, UasAuthenticationResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: ResponseRouterData<
             F,
-            UnifiedAuthenticationServicePaymentsResponse,
+            UnifiedAuthenticationServicePreAuthenticateResponse,
             T,
-            PaymentsResponseData,
+            UasAuthenticationResponseData,
         >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            status: common_enums::AttemptStatus::from(item.response.status),
-            response: Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::ConnectorTransactionId(item.response.id),
-                redirection_data: Box::new(None),
-                mandate_reference: Box::new(None),
-                connector_metadata: None,
-                network_txn_id: None,
-                connector_response_reference_id: None,
-                incremental_authorization_allowed: None,
-                charge_id: None,
-            }),
+            response: Ok(UasAuthenticationResponseData::PreAuthentication {}),
             ..item.data
         })
     }
 }
 
-//TODO: Fill the struct with respective fields
-// REFUND :
-// Type definition for RefundRequest
-#[derive(Default, Debug, Serialize)]
-pub struct UnifiedAuthenticationServiceRefundRequest {
-    pub amount: StringMinorUnit,
+#[derive(Debug, Serialize, PartialEq)]
+pub struct UnifiedAuthenticationServicePostAuthenticateRequest {
+    pub authenticate_by: String,
+    pub source_authentication_id: String,
+    pub auth_creds: AuthType,
 }
 
-impl<F> TryFrom<&UnifiedAuthenticationServiceRouterData<&RefundsRouterData<F>>>
-    for UnifiedAuthenticationServiceRefundRequest
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct UnifiedAuthenticationServicePostAuthenticateResponse {
+    pub eci: Option<String>,
+    pub token_details: UasTokenDetails,
+    pub dynamic_data_details: Option<UasDynamicData>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct UasTokenDetails {
+    pub payment_token: cards::CardNumber,
+    pub payment_account_reference: String,
+    pub token_expiration_month: Secret<String>,
+    pub token_expiration_year: Secret<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct UasDynamicData {
+    pub dynamic_data_value: Option<Secret<String>>,
+    pub dynamic_data_type: String,
+    pub ds_trans_id: Option<String>,
+}
+
+impl TryFrom<&UasPostAuthenticationRouterData>
+    for UnifiedAuthenticationServicePostAuthenticateRequest
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &UasPostAuthenticationRouterData) -> Result<Self, Self::Error> {
+        let auth_type = UnifiedAuthenticationServiceAuthType::try_from(&item.connector_auth_type)?;
+        Ok(Self {
+            authenticate_by: CTP_MASTERCARD.to_owned(),
+            source_authentication_id: item.authentication_id.clone().ok_or(errors::ConnectorError::MissingRequiredField { field_name: "authentication_id" })?,
+            auth_creds: AuthType::HeaderKey {
+                api_key: auth_type.api_key,
+            },
+        })
+    }
+}
+
+impl<F, T>
+    TryFrom<
+        ResponseRouterData<
+            F,
+            UnifiedAuthenticationServicePostAuthenticateResponse,
+            T,
+            UasAuthenticationResponseData,
+        >,
+    > for RouterData<F, T, UasAuthenticationResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: &UnifiedAuthenticationServiceRouterData<&RefundsRouterData<F>>,
+        item: ResponseRouterData<
+            F,
+            UnifiedAuthenticationServicePostAuthenticateResponse,
+            T,
+            UasAuthenticationResponseData,
+        >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            amount: item.amount.to_owned(),
-        })
-    }
-}
-
-// Type definition for Refund Response
-
-#[allow(dead_code)]
-#[derive(Debug, Serialize, Default, Deserialize, Clone)]
-pub enum RefundStatus {
-    Succeeded,
-    Failed,
-    #[default]
-    Processing,
-}
-
-impl From<RefundStatus> for enums::RefundStatus {
-    fn from(item: RefundStatus) -> Self {
-        match item {
-            RefundStatus::Succeeded => Self::Success,
-            RefundStatus::Failed => Self::Failure,
-            RefundStatus::Processing => Self::Pending,
-            //TODO: Review mapping
-        }
-    }
-}
-
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
-pub struct RefundResponse {
-    id: String,
-    status: RefundStatus,
-}
-
-impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>> for RefundsRouterData<Execute> {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: RefundsResponseRouterData<Execute, RefundResponse>,
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            response: Ok(RefundsResponseData {
-                connector_refund_id: item.response.id.to_string(),
-                refund_status: enums::RefundStatus::from(item.response.status),
-            }),
-            ..item.data
-        })
-    }
-}
-
-impl TryFrom<RefundsResponseRouterData<RSync, RefundResponse>> for RefundsRouterData<RSync> {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: RefundsResponseRouterData<RSync, RefundResponse>,
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            response: Ok(RefundsResponseData {
-                connector_refund_id: item.response.id.to_string(),
-                refund_status: enums::RefundStatus::from(item.response.status),
+            response: Ok(UasAuthenticationResponseData::PostAuthentication {
+                authentication_details: PostAuthenticationDetails {
+                    eci: item.response.eci,
+                    token_details: TokenDetails {
+                        payment_token: item.response.token_details.payment_token,
+                        payment_account_reference: item
+                            .response
+                            .token_details
+                            .payment_account_reference,
+                        token_expiration_month: item.response.token_details.token_expiration_month,
+                        token_expiration_year: item.response.token_details.token_expiration_year,
+                    },
+                    dynamic_data_details: item.response.dynamic_data_details.map(|dynamic_data| {
+                        DynamicData {
+                            dynamic_data_value: dynamic_data.dynamic_data_value,
+                            dynamic_data_type: dynamic_data.dynamic_data_type,
+                            ds_trans_id: dynamic_data.ds_trans_id,
+                        }
+                    }),
+                },
             }),
             ..item.data
         })
@@ -239,8 +412,5 @@ impl TryFrom<RefundsResponseRouterData<RSync, RefundResponse>> for RefundsRouter
 //TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
 pub struct UnifiedAuthenticationServiceErrorResponse {
-    pub status_code: u16,
-    pub code: String,
-    pub message: String,
-    pub reason: Option<String>,
+    pub error: String,
 }
