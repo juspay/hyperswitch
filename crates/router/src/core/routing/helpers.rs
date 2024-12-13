@@ -12,6 +12,8 @@ use api_models::routing as routing_types;
 use common_utils::ext_traits::ValueExt;
 use common_utils::{ext_traits::Encode, id_type, types::keymanager::KeyManagerState};
 use diesel_models::configs;
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+use diesel_models::dynamic_routing_stats::DynamicRoutingStatsNew;
 #[cfg(feature = "v1")]
 use diesel_models::routing_algorithm;
 use error_stack::ResultExt;
@@ -24,7 +26,7 @@ use hyperswitch_domain_models::api::ApplicationResponse;
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
 use router_env::logger;
 #[cfg(any(feature = "dynamic_routing", feature = "v1"))]
-use router_env::{instrument, metrics::add_attributes, tracing};
+use router_env::{instrument, tracing};
 use rustc_hash::FxHashSet;
 use storage_impl::redis::cache;
 
@@ -40,7 +42,7 @@ use crate::{
     utils::StringExt,
 };
 #[cfg(feature = "v1")]
-use crate::{core::metrics as core_metrics, routes::metrics, types::transformers::ForeignInto};
+use crate::{core::metrics as core_metrics, types::transformers::ForeignInto};
 pub const SUCCESS_BASED_DYNAMIC_ROUTING_ALGORITHM: &str =
     "Success rate based dynamic routing algorithm";
 pub const ELIMINATION_BASED_DYNAMIC_ROUTING_ALGORITHM: &str =
@@ -838,10 +840,26 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
             first_success_based_connector.to_string(),
         );
 
+        let dynamic_routing_stats = DynamicRoutingStatsNew {
+            payment_id: payment_attempt.payment_id.to_owned(),
+            attempt_id: payment_attempt.attempt_id.clone(),
+            merchant_id: payment_attempt.merchant_id.to_owned(),
+            profile_id: payment_attempt.profile_id.to_owned(),
+            amount: payment_attempt.get_total_amount(),
+            success_based_routing_connector: first_success_based_connector.to_string(),
+            payment_connector: payment_connector.to_string(),
+            currency: payment_attempt.currency,
+            payment_method: payment_attempt.payment_method,
+            capture_method: payment_attempt.capture_method,
+            authentication_type: payment_attempt.authentication_type,
+            payment_status: payment_attempt.status,
+            conclusive_classification: outcome,
+            created_at: common_utils::date_time::now(),
+        };
+
         core_metrics::DYNAMIC_SUCCESS_BASED_ROUTING.add(
-            &metrics::CONTEXT,
             1,
-            &add_attributes([
+            router_env::metric_attributes!(
                 (
                     "tenant",
                     state.tenant.tenant_id.get_string_repr().to_owned(),
@@ -895,9 +913,16 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
                 ),
                 ("payment_status", payment_attempt.status.to_string()),
                 ("conclusive_classification", outcome.to_string()),
-            ]),
+            ),
         );
         logger::debug!("successfully pushed success_based_routing metrics");
+
+        state
+            .store
+            .insert_dynamic_routing_stat_entry(dynamic_routing_stats)
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to push dynamic routing stats to db")?;
 
         client
             .update_success_rate(
@@ -1245,11 +1270,7 @@ pub async fn disable_dynamic_routing_algorithm(
     let db = state.store.as_ref();
     let key_manager_state = &state.into();
     let timestamp = common_utils::date_time::now_unix_timestamp();
-    let profile_id = business_profile
-        .get_id()
-        .clone()
-        .get_string_repr()
-        .to_owned();
+    let profile_id = business_profile.get_id().clone();
     let (algorithm_id, dynamic_routing_algorithm, cache_entries_to_redact) =
         match dynamic_routing_type {
             routing_types::DynamicRoutingType::SuccessRateBasedRouting => {
@@ -1406,9 +1427,8 @@ pub async fn disable_dynamic_routing_algorithm(
     .await?;
 
     core_metrics::ROUTING_UNLINK_CONFIG_SUCCESS_RESPONSE.add(
-        &metrics::CONTEXT,
         1,
-        &add_attributes([("profile_id", profile_id)]),
+        router_env::metric_attributes!(("profile_id", profile_id)),
     );
 
     Ok(ApplicationResponse::Json(response))
@@ -1531,9 +1551,8 @@ where
         .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?;
     let updated_routing_record = routing_algorithm.foreign_into();
     core_metrics::ROUTING_CREATE_SUCCESS_RESPONSE.add(
-        &metrics::CONTEXT,
         1,
-        &add_attributes([("profile_id", profile_id.get_string_repr().to_owned())]),
+        router_env::metric_attributes!(("profile_id", profile_id.clone())),
     );
     Ok(ApplicationResponse::Json(updated_routing_record))
 }
@@ -1619,9 +1638,8 @@ pub async fn default_specific_dynamic_routing_setup(
     let new_record = record.foreign_into();
 
     core_metrics::ROUTING_CREATE_SUCCESS_RESPONSE.add(
-        &metrics::CONTEXT,
         1,
-        &add_attributes([("profile_id", profile_id.get_string_repr().to_string())]),
+        router_env::metric_attributes!(("profile_id", profile_id.clone())),
     );
     Ok(ApplicationResponse::Json(new_record))
 }

@@ -19,6 +19,8 @@ pub const TOTP_TOLERANCE: u8 = 1;
 pub const TOTP_MAX_ATTEMPTS: u8 = 4;
 /// Number of maximum attempts user has for recovery code
 pub const RECOVERY_CODE_MAX_ATTEMPTS: u8 = 4;
+/// The default number of organizations to fetch for a tenant-level user
+pub const ORG_LIST_LIMIT_FOR_TENANT: u32 = 20;
 
 pub const MAX_PASSWORD_LENGTH: usize = 70;
 pub const MIN_PASSWORD_LENGTH: usize = 8;

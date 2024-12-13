@@ -1,8 +1,10 @@
 mod payments;
+mod ui;
 use std::num::{ParseFloatError, TryFromIntError};
 
 pub use payments::ProductType;
 use serde::{Deserialize, Serialize};
+pub use ui::*;
 use utoipa::ToSchema;
 
 pub use super::connector_enums::RoutableConnectors;
@@ -20,7 +22,9 @@ pub mod diesel_exports {
         DbMandateStatus as MandateStatus, DbPaymentMethodIssuerCode as PaymentMethodIssuerCode,
         DbPaymentType as PaymentType, DbRefundStatus as RefundStatus,
         DbRequestIncrementalAuthorization as RequestIncrementalAuthorization,
-        DbScaExemptionType as ScaExemptionType, DbWebhookDeliveryAttempt as WebhookDeliveryAttempt,
+        DbScaExemptionType as ScaExemptionType,
+        DbSuccessBasedRoutingConclusiveState as SuccessBasedRoutingConclusiveState,
+        DbWebhookDeliveryAttempt as WebhookDeliveryAttempt,
     };
 }
 
@@ -2826,10 +2830,9 @@ pub enum PermissionGroup {
     ReconReportsView,
     ReconReportsManage,
     ReconOpsView,
-    // Alias is added for backward compatibility with database
-    // TODO: Remove alias post migration
-    #[serde(alias = "recon_ops")]
     ReconOpsManage,
+    // TODO: To be deprecated, make sure DB is migrated before removing
+    ReconOps,
 }
 
 #[derive(Clone, Debug, serde::Serialize, PartialEq, Eq, Hash, strum::EnumIter)]
@@ -3207,6 +3210,7 @@ pub enum ApiVersion {
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
 pub enum EntityType {
+    Tenant = 3,
     Organization = 2,
     Merchant = 1,
     Profile = 0,
@@ -3282,10 +3286,20 @@ pub enum DeleteStatus {
 }
 
 #[derive(
-    Clone, Copy, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, strum::Display, Hash,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    Hash,
+    strum::EnumString,
 )]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
+#[router_derive::diesel_enum(storage_type = "db_enum")]
 pub enum SuccessBasedRoutingConclusiveState {
     // pc: payment connector
     // sc: success based routing outcome/first connector
@@ -3332,8 +3346,9 @@ pub enum MitExemptionRequest {
     Skip,
 }
 
-/// Set to true to indicate that the customer is in your checkout flow during this payment, and therefore is able to authenticate. This parameter should be false when merchant's doing merchant initiated payments and customer is not present while doing the payment.
+/// Set to `present` to indicate that the customer is in your checkout flow during this payment, and therefore is able to authenticate. This parameter should be `absent` when merchant's doing merchant initiated payments and customer is not present while doing the payment.
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, Default, ToSchema)]
+#[serde(rename_all = "snake_case")]
 pub enum PresenceOfCustomerDuringPayment {
     /// Customer is present during the payment. This is the default value
     #[default]
@@ -3342,7 +3357,19 @@ pub enum PresenceOfCustomerDuringPayment {
     Absent,
 }
 
-#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, Default, ToSchema)]
+impl From<ConnectorType> for TransactionType {
+    fn from(connector_type: ConnectorType) -> Self {
+        match connector_type {
+            #[cfg(feature = "payouts")]
+            ConnectorType::PayoutProcessor => Self::Payout,
+            _ => Self::Payment,
+        }
+    }
+}
+
+#[derive(
+    Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize, Default, ToSchema,
+)]
 #[serde(rename_all = "snake_case")]
 pub enum TaxCalculationOverride {
     /// Skip calling the external tax provider
@@ -3352,7 +3379,27 @@ pub enum TaxCalculationOverride {
     Calculate,
 }
 
-#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, Default, ToSchema)]
+impl From<Option<bool>> for TaxCalculationOverride {
+    fn from(value: Option<bool>) -> Self {
+        match value {
+            Some(true) => Self::Calculate,
+            _ => Self::Skip,
+        }
+    }
+}
+
+impl TaxCalculationOverride {
+    pub fn as_bool(self) -> bool {
+        match self {
+            Self::Skip => false,
+            Self::Calculate => true,
+        }
+    }
+}
+
+#[derive(
+    Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize, Default, ToSchema,
+)]
 #[serde(rename_all = "snake_case")]
 pub enum SurchargeCalculationOverride {
     /// Skip calculating surcharge
@@ -3360,6 +3407,24 @@ pub enum SurchargeCalculationOverride {
     Skip,
     /// Calculate surcharge
     Calculate,
+}
+
+impl From<Option<bool>> for SurchargeCalculationOverride {
+    fn from(value: Option<bool>) -> Self {
+        match value {
+            Some(true) => Self::Calculate,
+            _ => Self::Skip,
+        }
+    }
+}
+
+impl SurchargeCalculationOverride {
+    pub fn as_bool(self) -> bool {
+        match self {
+            Self::Skip => false,
+            Self::Calculate => true,
+        }
+    }
 }
 
 /// Connector Mandate Status
@@ -3398,4 +3463,42 @@ pub enum ErrorCategory {
     ProcessorDeclineUnauthorized,
     IssueWithPaymentMethod,
     ProcessorDeclineIncorrectData,
+}
+
+#[derive(
+    Clone,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+    Hash,
+)]
+pub enum PaymentChargeType {
+    #[serde(untagged)]
+    Stripe(StripeChargeType),
+}
+
+#[derive(
+    Clone,
+    Debug,
+    Default,
+    Hash,
+    Eq,
+    PartialEq,
+    ToSchema,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    strum::EnumString,
+)]
+#[serde(rename_all = "lowercase")]
+#[strum(serialize_all = "lowercase")]
+pub enum StripeChargeType {
+    #[default]
+    Direct,
+    Destination,
 }
