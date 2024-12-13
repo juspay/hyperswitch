@@ -4,13 +4,13 @@ use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
-use crate::enums as storage_enums;
 #[cfg(feature = "v1")]
 use crate::schema::payment_intent;
 #[cfg(feature = "v2")]
 use crate::schema_v2::payment_intent;
 #[cfg(feature = "v2")]
 use crate::types::{FeatureMetadata, OrderDetailsWithAmount};
+use crate::{business_profile::PaymentLinkBackgroundImageConfig, enums as storage_enums};
 
 #[cfg(feature = "v2")]
 #[derive(Clone, Debug, PartialEq, Identifiable, Queryable, Serialize, Deserialize, Selectable)]
@@ -161,6 +161,10 @@ pub struct PaymentLinkConfigRequestForPayments {
     pub show_card_form_by_default: Option<bool>,
     /// Dynamic details related to merchant to be rendered in payment link
     pub transaction_details: Option<Vec<PaymentLinkTransactionDetails>>,
+    /// Configurations for the background image for details section
+    pub background_image: Option<PaymentLinkBackgroundImageConfig>,
+    /// Custom layout for details section
+    pub details_layout: Option<common_enums::PaymentLinkDetailsLayout>,
 }
 
 common_utils::impl_to_sql_from_sql_json!(PaymentLinkConfigRequestForPayments);
