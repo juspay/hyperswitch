@@ -4,7 +4,7 @@
 //! and deserialization while calling redis.
 //! It also includes instruments to provide tracing.
 
-use std::fmt::Debug;
+use std::{collections::HashMap, fmt::Debug};
 
 use common_utils::{
     errors::CustomResult,
@@ -854,15 +854,19 @@ impl super::RedisConnectionPool {
     }
 
     #[instrument(level = "DEBUG", skip(self))]
-    pub async fn set_keys_using_script(
+    pub async fn incr_keys_using_script(
         &self,
-        keys: Vec<String>,
-        values: Vec<String>,
+        keys_and_values: HashMap<String, usize>,
     ) -> CustomResult<(), errors::RedisError> {
         let lua_script = include_str!("scripts/set_script.lua");
+        let key = keys_and_values.keys().cloned().collect::<Vec<_>>();
+        let values = keys_and_values
+            .values()
+            .map(|val| val.to_string())
+            .collect::<Vec<String>>();
 
         self.pool
-            .eval(lua_script, keys, values)
+            .eval(lua_script, key, values)
             .await
             .change_context(errors::RedisError::IncrementHashFieldFailed)
     }
@@ -960,13 +964,9 @@ mod tests {
                 for i in 0..10 {
                     keys_and_values.insert(format!("key{}", i), i);
                 }
-                let key = keys_and_values.keys().cloned().collect::<Vec<String>>();
-                let values = keys_and_values
-                    .values()
-                    .map(|val| val.to_string())
-                    .collect::<Vec<String>>();
+
                 // Act
-                let result = pool.set_keys_using_script(key, values).await;
+                let result = pool.incr_keys_using_script(keys_and_values).await;
 
                 // Assert Setup
                 result.is_ok()
