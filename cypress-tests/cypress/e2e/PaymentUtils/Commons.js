@@ -637,8 +637,6 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_payment_method",
-          shipping_cost: 50,
-          amount: 6500,
         },
       },
     }),
@@ -708,6 +706,20 @@ export const connectorDetails = {
         currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
+      },
+    }),
+    No3DSFailPayment: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {},
       },
     }),
     Capture: getCustomExchange({
@@ -1457,7 +1469,7 @@ export const connectorDetails = {
       Request: {
         currency: "USD",
         customer_acceptance: null,
-        setup_future_usage: "off_session",
+        setup_future_usage: "on_session",
         authentication_type: "no_three_ds",
       },
       Response: {
@@ -1470,7 +1482,7 @@ export const connectorDetails = {
     PaymentWithBilling: {
       Request: {
         currency: "USD",
-        setup_future_usage: "off_session",
+        setup_future_usage: "on_session",
         billing: {
           address: {
             line1: "1467",
@@ -1500,7 +1512,7 @@ export const connectorDetails = {
     PaymentWithFullName: {
       Request: {
         currency: "USD",
-        setup_future_usage: "off_session",
+        setup_future_usage: "on_session",
         billing: {
           address: {
             first_name: "joseph",
@@ -1522,7 +1534,7 @@ export const connectorDetails = {
     PaymentWithBillingEmail: {
       Request: {
         currency: "USD",
-        setup_future_usage: "off_session",
+        setup_future_usage: "on_session",
         email: "hyperswitch_sdk_demo_id1@gmail.com",
         billing: {
           address: {
