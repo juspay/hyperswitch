@@ -201,23 +201,23 @@ pub struct ConnectorData {
 #[derive(Clone)]
 pub struct SessionConnectorData {
     pub payment_method_sub_type: api_enums::PaymentMethodType,
-    pub payment_method: api_enums::PaymentMethod,
+    pub payment_method_type: api_enums::PaymentMethod,
     pub connector: ConnectorData,
     pub business_sub_label: Option<String>,
 }
 
 impl SessionConnectorData {
     pub fn new(
-        payment_method_type: api_enums::PaymentMethodType,
+        payment_method_sub_type: api_enums::PaymentMethodType,
         connector: ConnectorData,
         business_sub_label: Option<String>,
-        payment_method: api_enums::PaymentMethod,
+        payment_method_type: api_enums::PaymentMethod,
     ) -> Self {
         Self {
-            payment_method_sub_type: payment_method_type,
+            payment_method_sub_type,
             connector,
             business_sub_label,
-            payment_method,
+            payment_method_type,
         }
     }
 }
