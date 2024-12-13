@@ -45,10 +45,7 @@ pub async fn customers_retrieve(
 ) -> HttpResponse {
     let flow = Flow::CustomersRetrieve;
 
-    let payload = web::Json(customers::CustomerId::new_customer_id_struct(
-        path.into_inner(),
-    ))
-    .into_inner();
+    let customer_id = path.into_inner();
 
     let auth = if auth::is_jwt_auth(req.headers()) {
         Box::new(auth::JWTAuth {
@@ -65,14 +62,14 @@ pub async fn customers_retrieve(
         flow,
         state,
         &req,
-        payload,
-        |state, auth: auth::AuthenticationData, req, _| {
+        customer_id,
+        |state, auth: auth::AuthenticationData, customer_id, _| {
             retrieve_customer(
                 state,
                 auth.merchant_account,
                 auth.profile_id,
                 auth.key_store,
-                req,
+                customer_id,
             )
         },
         &*auth,
@@ -269,18 +266,15 @@ pub async fn customers_delete(
     path: web::Path<id_type::CustomerId>,
 ) -> impl Responder {
     let flow = Flow::CustomersDelete;
-    let payload = web::Json(customers::CustomerId {
-        customer_id: path.into_inner(),
-    })
-    .into_inner();
+    let customer_id = path.into_inner();
 
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
-        payload,
-        |state, auth: auth::AuthenticationData, req, _| {
-            delete_customer(state, auth.merchant_account, req, auth.key_store)
+        customer_id,
+        |state, auth: auth::AuthenticationData, customer_id, _| {
+            delete_customer(state, auth.merchant_account, customer_id, auth.key_store)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
@@ -302,21 +296,19 @@ pub async fn get_customer_mandates(
     path: web::Path<id_type::CustomerId>,
 ) -> impl Responder {
     let flow = Flow::CustomersGetMandates;
-    let customer_id = customers::CustomerId {
-        customer_id: path.into_inner(),
-    };
+    let customer_id = path.into_inner();
 
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
         customer_id,
-        |state, auth: auth::AuthenticationData, req, _| {
+        |state, auth: auth::AuthenticationData, customer_id, _| {
             crate::core::mandate::get_customer_mandates(
                 state,
                 auth.merchant_account,
                 auth.key_store,
-                req,
+                customer_id,
             )
         },
         auth::auth_type(

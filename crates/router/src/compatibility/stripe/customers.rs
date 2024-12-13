@@ -74,7 +74,7 @@ pub async fn customer_retrieve(
     req: HttpRequest,
     path: web::Path<id_type::CustomerId>,
 ) -> HttpResponse {
-    let payload = customer_types::CustomerId::new_customer_id_struct(path.into_inner());
+    let customer_id = path.into_inner();
 
     let flow = Flow::CustomersRetrieve;
 
@@ -91,9 +91,15 @@ pub async fn customer_retrieve(
         flow,
         state.into_inner(),
         &req,
-        payload,
-        |state, auth: auth::AuthenticationData, req, _| {
-            customers::retrieve_customer(state, auth.merchant_account, None, auth.key_store, req)
+        customer_id,
+        |state, auth: auth::AuthenticationData, customer_id, _| {
+            customers::retrieve_customer(
+                state,
+                auth.merchant_account,
+                None,
+                auth.key_store,
+                customer_id,
+            )
         },
         &auth::HeaderAuth(auth::ApiKeyAuth),
         api_locking::LockAction::NotApplicable,
@@ -169,7 +175,7 @@ pub async fn customer_delete(
     req: HttpRequest,
     path: web::Path<id_type::CustomerId>,
 ) -> HttpResponse {
-    let payload = customer_types::CustomerId::new_customer_id_struct(path.into_inner());
+    let customer_id = path.into_inner();
 
     let flow = Flow::CustomersDelete;
 
@@ -186,9 +192,9 @@ pub async fn customer_delete(
         flow,
         state.into_inner(),
         &req,
-        payload,
-        |state, auth: auth::AuthenticationData, req, _| {
-            customers::delete_customer(state, auth.merchant_account, req, auth.key_store)
+        customer_id,
+        |state, auth: auth::AuthenticationData, customer_id, _| {
+            customers::delete_customer(state, auth.merchant_account, customer_id, auth.key_store)
         },
         &auth::HeaderAuth(auth::ApiKeyAuth),
         api_locking::LockAction::NotApplicable,

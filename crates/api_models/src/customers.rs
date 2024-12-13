@@ -219,42 +219,6 @@ impl CustomerResponse {
 }
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
-#[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct CustomerId {
-    pub customer_id: id_type::CustomerId,
-}
-
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
-impl CustomerId {
-    pub fn get_merchant_reference_id(&self) -> id_type::CustomerId {
-        self.customer_id.clone()
-    }
-
-    pub fn new_customer_id_struct(cust: id_type::CustomerId) -> Self {
-        Self { customer_id: cust }
-    }
-}
-
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
-#[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct CustomerId {
-    pub merchant_reference_id: id_type::CustomerId,
-}
-
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
-impl CustomerId {
-    pub fn get_merchant_reference_id(&self) -> id_type::CustomerId {
-        self.merchant_reference_id.clone()
-    }
-
-    pub fn new_customer_id_struct(cust: id_type::CustomerId) -> Self {
-        Self {
-            merchant_reference_id: cust,
-        }
-    }
-}
-
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 #[derive(Debug, Deserialize, Serialize, ToSchema)]
 pub struct CustomerDeleteResponse {
     /// The identifier for the customer object

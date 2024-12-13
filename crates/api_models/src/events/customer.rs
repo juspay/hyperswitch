@@ -1,7 +1,5 @@
 use common_utils::events::{ApiEventMetric, ApiEventsType};
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
-use crate::customers::CustomerId;
 use crate::customers::{CustomerDeleteResponse, CustomerRequest, CustomerResponse};
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
@@ -52,15 +50,6 @@ impl ApiEventMetric for CustomerResponse {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::Customer {
             customer_id: Some(self.id.clone()),
-        })
-    }
-}
-
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
-impl ApiEventMetric for CustomerId {
-    fn get_api_event_type(&self) -> Option<ApiEventsType> {
-        Some(ApiEventsType::Customer {
-            customer_id: self.get_merchant_reference_id().clone(),
         })
     }
 }

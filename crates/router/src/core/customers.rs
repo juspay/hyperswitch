@@ -457,7 +457,7 @@ pub async fn retrieve_customer(
     merchant_account: domain::MerchantAccount,
     _profile_id: Option<id_type::ProfileId>,
     key_store: domain::MerchantKeyStore,
-    req: customers::CustomerId,
+    customer_id: id_type::CustomerId,
 ) -> errors::CustomerResponse<customers::CustomerResponse> {
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
@@ -465,7 +465,7 @@ pub async fn retrieve_customer(
     let response = db
         .find_customer_by_customer_id_merchant_id(
             key_manager_state,
-            &req.customer_id,
+            &customer_id,
             merchant_account.get_id(),
             &key_store,
             merchant_account.storage_scheme,
@@ -736,19 +736,20 @@ trait CustomerDeleteBridge {
 pub async fn delete_customer(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
-    req: customers::CustomerId,
+    customer_id: id_type::CustomerId,
     key_store: domain::MerchantKeyStore,
 ) -> errors::CustomerResponse<customers::CustomerDeleteResponse> {
     let db = &*state.store;
     let key_manager_state = &(&state).into();
-    req.fetch_domain_model_and_update_and_generate_delete_customer_response(
-        db,
-        &key_store,
-        &merchant_account,
-        key_manager_state,
-        &state,
-    )
-    .await
+    customer_id
+        .fetch_domain_model_and_update_and_generate_delete_customer_response(
+            db,
+            &key_store,
+            &merchant_account,
+            key_manager_state,
+            &state,
+        )
+        .await
 }
 
 #[cfg(all(
@@ -757,7 +758,7 @@ pub async fn delete_customer(
     not(feature = "payment_methods_v2")
 ))]
 #[async_trait::async_trait]
-impl CustomerDeleteBridge for customers::CustomerId {
+impl CustomerDeleteBridge for id_type::CustomerId {
     async fn fetch_domain_model_and_update_and_generate_delete_customer_response<'a>(
         &'a self,
         db: &'a dyn StorageInterface,
@@ -769,7 +770,7 @@ impl CustomerDeleteBridge for customers::CustomerId {
         let customer_orig = db
             .find_customer_by_customer_id_merchant_id(
                 key_manager_state,
-                &self.customer_id,
+                self,
                 merchant_account.get_id(),
                 key_store,
                 merchant_account.storage_scheme,
@@ -778,7 +779,7 @@ impl CustomerDeleteBridge for customers::CustomerId {
             .switch()?;
 
         let customer_mandates = db
-            .find_mandate_by_merchant_id_customer_id(merchant_account.get_id(), &self.customer_id)
+            .find_mandate_by_merchant_id_customer_id(merchant_account.get_id(), self)
             .await
             .switch()?;
 
@@ -792,7 +793,7 @@ impl CustomerDeleteBridge for customers::CustomerId {
             .find_payment_method_by_customer_id_merchant_id_list(
                 key_manager_state,
                 key_store,
-                &self.customer_id,
+                self,
                 merchant_account.get_id(),
                 None,
             )
@@ -804,7 +805,7 @@ impl CustomerDeleteBridge for customers::CustomerId {
                     if pm.get_payment_method_type() == Some(enums::PaymentMethod::Card) {
                         cards::delete_card_from_locker(
                             state,
-                            &self.customer_id,
+                            self,
                             merchant_account.get_id(),
                             pm.locker_id.as_ref().unwrap_or(&pm.payment_method_id),
                         )
@@ -815,7 +816,7 @@ impl CustomerDeleteBridge for customers::CustomerId {
                         {
                             network_tokenization::delete_network_token_from_locker_and_token_service(
                             state,
-                            &self.customer_id,
+                            self,
                             merchant_account.get_id(),
                             pm.payment_method_id.clone(),
                             pm.network_token_locker_id,
@@ -889,7 +890,7 @@ impl CustomerDeleteBridge for customers::CustomerId {
         match db
             .update_address_by_merchant_id_customer_id(
                 key_manager_state,
-                &self.customer_id,
+                self,
                 merchant_account.get_id(),
                 update_address,
                 key_store,
@@ -932,7 +933,7 @@ impl CustomerDeleteBridge for customers::CustomerId {
 
         db.update_customer_by_customer_id_merchant_id(
             key_manager_state,
-            self.customer_id.clone(),
+            self.clone(),
             merchant_account.get_id().to_owned(),
             customer_orig,
             updated_customer,
@@ -943,7 +944,7 @@ impl CustomerDeleteBridge for customers::CustomerId {
         .switch()?;
 
         let response = customers::CustomerDeleteResponse {
-            customer_id: self.customer_id.clone(),
+            customer_id: self.clone(),
             customer_deleted: true,
             address_deleted: true,
             payment_methods_deleted: true,
