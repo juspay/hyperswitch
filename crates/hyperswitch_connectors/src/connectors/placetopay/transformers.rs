@@ -1,12 +1,12 @@
 use common_enums::{enums, Currency};
-use common_utils::{consts::BASE64_ENGINE, date_time, types::MinorUnit};
+use common_utils::{consts::BASE64_ENGINE, date_time, request::Method, types::MinorUnit};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     router_data::{ConnectorAuthType, RouterData},
     router_flow_types::refunds::{Execute, RSync},
     router_request_types::ResponseId,
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    router_response_types::{PaymentsResponseData, RedirectForm, RefundsResponseData},
     types,
 };
 use hyperswitch_interfaces::errors;
@@ -44,6 +44,7 @@ pub struct PlacetopayPaymentsRequest {
     instrument: PlacetopayInstrument,
     ip_address: Secret<String, common_utils::pii::IpAddress>,
     user_agent: String,
+    return_url: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -125,6 +126,7 @@ impl TryFrom<&PlacetopayRouterData<&types::PaymentsAuthorizeRouterData>>
                         .get_card_expiry_month_year_2_digit_with_delimiter("/".to_owned())?,
                     cvv: req_card.card_cvc.clone(),
                 };
+                let return_url = item.router_data.request.complete_authorize_url.clone();
                 Ok(Self {
                     ip_address,
                     user_agent,
@@ -133,6 +135,7 @@ impl TryFrom<&PlacetopayRouterData<&types::PaymentsAuthorizeRouterData>>
                     instrument: PlacetopayInstrument {
                         card: card.to_owned(),
                     },
+                    return_url,
                 })
             }
             PaymentMethodData::Wallet(_)
@@ -230,9 +233,8 @@ pub struct PlacetopayStatusResponse {
 impl From<PlacetopayTransactionStatus> for enums::AttemptStatus {
     fn from(item: PlacetopayTransactionStatus) -> Self {
         match item {
-            PlacetopayTransactionStatus::Approved | PlacetopayTransactionStatus::Ok => {
-                Self::Charged
-            }
+            PlacetopayTransactionStatus::Approved => Self::Charged,
+            PlacetopayTransactionStatus::Ok => Self::AuthenticationPending,
             PlacetopayTransactionStatus::Failed
             | PlacetopayTransactionStatus::Rejected
             | PlacetopayTransactionStatus::Error => Self::Failure,
@@ -242,13 +244,114 @@ impl From<PlacetopayTransactionStatus> for enums::AttemptStatus {
         }
     }
 }
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum PlacetopayCompleteAuthorizeStatus {
+    Ok,
+    Failed,
+    Approved,
+    // ApprovedPartial,
+    // PartialExpired,
+    Rejected,
+    Pending,
+    PendingValidation,
+    PendingProcess,
+    // Refunded,
+    // Reversed,
+    Error,
+    // Unknown,
+    // Manual,
+    // Dispute,
+    //The statuses that are commented out are awaiting clarification on the connector.
+}
+
+impl From<PlacetopayCompleteAuthorizeStatus> for enums::AttemptStatus {
+    fn from(item: PlacetopayCompleteAuthorizeStatus) -> Self {
+        match item {
+            PlacetopayCompleteAuthorizeStatus::Approved | PlacetopayCompleteAuthorizeStatus::Ok => {
+                Self::Charged
+            }
+            PlacetopayCompleteAuthorizeStatus::Failed
+            | PlacetopayCompleteAuthorizeStatus::Rejected
+            | PlacetopayCompleteAuthorizeStatus::Error => Self::Failure,
+            PlacetopayCompleteAuthorizeStatus::Pending
+            | PlacetopayCompleteAuthorizeStatus::PendingValidation
+            | PlacetopayCompleteAuthorizeStatus::PendingProcess => Self::Pending,
+        }
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(untagged)]
+pub enum PlacetopayPaymentsResponse {
+    PlacetopayNo3dsResponse(PlacetopayNo3dsResponse),
+    Placetopay3dsResponse(Placetopay3dsResponse),
+}
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct PlacetopayPaymentsResponse {
-    status: PlacetopayStatusResponse,
-    internal_reference: u64,
-    authorization: Option<String>,
+pub struct PlacetopayNo3dsResponse {
+    pub status: PlacetopayStatusResponse,
+    pub internal_reference: u64,
+    pub authorization: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Placetopay3dsResponse {
+    pub status: PlacetopayStatusResponse,
+    pub data: Placetopay3dsData,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Placetopay3dsData {
+    redirect_url: String,
+    identifier: String,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PlacetopayCompleteAuthorizeResponse {
+    pub status: Placetopay3dsStatusResponse,
+    pub data: PlacetopayPsync3dsData,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PlacetopayPsync3dsData {
+    id: String,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Placetopay3dsStatusResponse {
+    status: PlacetopayCompleteAuthorizeStatus,
+}
+
+impl<F, T>
+    TryFrom<ResponseRouterData<F, PlacetopayCompleteAuthorizeResponse, T, PaymentsResponseData>>
+    for RouterData<F, T, PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<F, PlacetopayCompleteAuthorizeResponse, T, PaymentsResponseData>,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            status: enums::AttemptStatus::from(item.response.status.status),
+            response: Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::NoResponseId,
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(None),
+                connector_metadata: None,
+                network_txn_id: None,
+                connector_response_reference_id: None,
+                incremental_authorization_allowed: None,
+                charge_id: None,
+            }),
+            ..item.data
+        })
+    }
 }
 
 impl<F, T> TryFrom<ResponseRouterData<F, PlacetopayPaymentsResponse, T, PaymentsResponseData>>
@@ -258,26 +361,112 @@ impl<F, T> TryFrom<ResponseRouterData<F, PlacetopayPaymentsResponse, T, Payments
     fn try_from(
         item: ResponseRouterData<F, PlacetopayPaymentsResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            status: enums::AttemptStatus::from(item.response.status.status),
-            response: Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::ConnectorTransactionId(
-                    item.response.internal_reference.to_string(),
-                ),
-                redirection_data: Box::new(None),
-                mandate_reference: Box::new(None),
-                connector_metadata: item
-                    .response
-                    .authorization
-                    .clone()
-                    .map(|authorization| serde_json::json!(authorization)),
-                network_txn_id: None,
-                connector_response_reference_id: None,
-                incremental_authorization_allowed: None,
-                charge_id: None,
+        match item.response {
+            PlacetopayPaymentsResponse::Placetopay3dsResponse(response) => {
+                let url = response.data.redirect_url;
+                let redirection_data = Some(RedirectForm::Form {
+                    endpoint: url,
+                    method: Method::Get,
+                    form_fields: Default::default(),
+                });
+                Ok(Self {
+                    status: enums::AttemptStatus::from(response.status.status),
+                    response: Ok(PaymentsResponseData::TransactionResponse {
+                        resource_id: ResponseId::ConnectorTransactionId(
+                            response.data.identifier.to_string(),
+                        ),
+                        redirection_data: Box::new(redirection_data),
+                        mandate_reference: Box::new(None),
+                        connector_metadata: None,
+                        network_txn_id: None,
+                        connector_response_reference_id: None,
+                        incremental_authorization_allowed: None,
+                        charge_id: None,
+                    }),
+                    ..item.data
+                })
+            }
+            PlacetopayPaymentsResponse::PlacetopayNo3dsResponse(response) => Ok(Self {
+                status: enums::AttemptStatus::from(response.status.status),
+                response: Ok(PaymentsResponseData::TransactionResponse {
+                    resource_id: ResponseId::ConnectorTransactionId(
+                        response.internal_reference.to_string(),
+                    ),
+                    redirection_data: Box::new(None),
+                    mandate_reference: Box::new(None),
+                    connector_metadata: response
+                        .authorization
+                        .clone()
+                        .map(|authorization| serde_json::json!(authorization)),
+                    network_txn_id: None,
+                    connector_response_reference_id: None,
+                    incremental_authorization_allowed: None,
+                    charge_id: None,
+                }),
+                ..item.data
             }),
-            ..item.data
-        })
+        }
+    }
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PlacetopayCompleteAuthorizeRequest {
+    auth: PlacetopayAuth,
+    id: String,
+    instrument: PlacetopayInstrument,
+}
+
+impl TryFrom<&types::PaymentsCompleteAuthorizeRouterData> for PlacetopayCompleteAuthorizeRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &types::PaymentsCompleteAuthorizeRouterData) -> Result<Self, Self::Error> {
+        let auth = PlacetopayAuth::try_from(&item.connector_auth_type)?;
+        let id = item.request.connector_transaction_id.clone().ok_or(
+            errors::ConnectorError::MissingRequiredField {
+                field_name: "connector_transaction_id",
+            },
+        )?;
+
+        match item.request.payment_method_data.clone() {
+            Some(PaymentMethodData::Card(req_card)) => {
+                let card = PlacetopayCard {
+                    number: req_card.card_number.clone(),
+                    expiration: req_card
+                        .clone()
+                        .get_card_expiry_month_year_2_digit_with_delimiter("/".to_owned())?,
+                    cvv: req_card.card_cvc.clone(),
+                };
+                Ok(Self {
+                    auth,
+                    id,
+                    instrument: PlacetopayInstrument {
+                        card: card.to_owned(),
+                    },
+                })
+            }
+            Some(PaymentMethodData::BankTransfer(..))
+            | Some(PaymentMethodData::Wallet(..))
+            | Some(PaymentMethodData::BankDebit(..))
+            | Some(PaymentMethodData::BankRedirect(..))
+            | Some(PaymentMethodData::PayLater(..))
+            | Some(PaymentMethodData::Crypto(..))
+            | Some(PaymentMethodData::Reward)
+            | Some(PaymentMethodData::RealTimePayment(..))
+            | Some(PaymentMethodData::MobilePayment(..))
+            | Some(PaymentMethodData::MandatePayment)
+            | Some(PaymentMethodData::Upi(..))
+            | Some(PaymentMethodData::GiftCard(..))
+            | Some(PaymentMethodData::CardRedirect(..))
+            | Some(PaymentMethodData::Voucher(..))
+            | Some(PaymentMethodData::OpenBanking(..))
+            | Some(PaymentMethodData::CardToken(..))
+            | Some(PaymentMethodData::NetworkToken(..))
+            | Some(PaymentMethodData::CardDetailsForNetworkTransactionId(_))
+            | None => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("Placetopay"),
+            )
+            .into()),
+        }
     }
 }
 
