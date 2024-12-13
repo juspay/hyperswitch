@@ -15,7 +15,8 @@ use diesel_models::routing_algorithm::RoutingAlgorithm;
 use error_stack::ResultExt;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use external_services::grpc_client::dynamic_routing::{
-    contract_routing_client::ContractBasedDynamicRouting, success_rate_client::SuccessBasedDynamicRouting,
+    contract_routing_client::ContractBasedDynamicRouting,
+    success_rate_client::SuccessBasedDynamicRouting,
 };
 use hyperswitch_domain_models::{mandates, payment_address};
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]

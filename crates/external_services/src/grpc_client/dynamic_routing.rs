@@ -11,9 +11,9 @@ pub mod elimination_rate_client;
 /// Success Routing Client Interface Implementation
 pub mod success_rate_client;
 
+pub use contract_routing_client::ContractScoreCalculatorClient;
 pub use elimination_rate_client::EliminationAnalyserClient;
 pub use success_rate_client::SuccessRateCalculatorClient;
-pub use contract_routing_client::ContractScoreCalculatorClient;
 
 use super::Client;
 /// Result type for Dynamic Routing
