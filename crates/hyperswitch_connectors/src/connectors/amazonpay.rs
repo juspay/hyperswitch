@@ -315,7 +315,7 @@ impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> fo
     }
 
     // uncomment this after implementing try_from()
-    
+
     /*
     fn get_request_body(
         &self,

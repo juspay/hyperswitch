@@ -18,7 +18,7 @@ use crate::{
     utils::PaymentsAuthorizeRequestData,
 };
 
-use crates::api_models::PaymentsRequest;
+// use crates::api_models::PaymentsRequest;
 
 //TODO: Fill the struct with respective fields
 pub struct AmazonpayRouterData<T> {
@@ -81,7 +81,7 @@ pub enum AmazonpayPaymentIntent {
 }
 
 
-impl TryFrom<&AmazonpayRouterData<&PaymentsSessionRouterData>> for AmazonpayFinalizeRequests {
+impl TryFrom<&AmazonpayRouterData<&PaymentsSessionRouterData>> for AmazonpayFinalizeRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: &AmazonpayRouterData<&PaymentsSessionRouterData>,
