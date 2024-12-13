@@ -927,6 +927,26 @@ mod tests {
 
         assert!(is_success);
     }
+    #[tokio::test]
+    async fn test_delete_non_existing_key_success() {
+        let is_success = tokio::task::spawn_blocking(move || {
+            futures::executor::block_on(async {
+                // Arrange
+                let pool = RedisConnectionPool::new(&RedisSettings::default())
+                    .await
+                    .expect("failed to create redis connection pool");
+
+                // Act
+                let result = pool.delete_key("key not exists").await;
+
+                // Assert Setup
+                result.is_ok()
+            })
+        })
+        .await
+        .expect("Spawn block failure");
+        assert!(is_success);
+    }
 
     #[tokio::test]
     async fn test_setting_keys_using_scripts() {
