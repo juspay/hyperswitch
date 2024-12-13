@@ -8674,6 +8674,57 @@
           }
         }
       },
+      "ClickToPaySessionResponse": {
+        "type": "object",
+        "required": [
+          "dpaId",
+          "dpaName",
+          "locale",
+          "cardBrands",
+          "acquirerBin",
+          "acquirerMerchantId",
+          "merchantCategoryCode",
+          "merchantCountryCode",
+          "transactionAmount",
+          "transactionCurrencyCode"
+        ],
+        "properties": {
+          "dpaId": {
+            "type": "string"
+          },
+          "dpaName": {
+            "type": "string"
+          },
+          "locale": {
+            "type": "string"
+          },
+          "cardBrands": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "acquirerBin": {
+            "type": "string"
+          },
+          "acquirerMerchantId": {
+            "type": "string"
+          },
+          "merchantCategoryCode": {
+            "type": "string"
+          },
+          "merchantCountryCode": {
+            "type": "string"
+          },
+          "transactionAmount": {
+            "type": "string",
+            "example": "38.02"
+          },
+          "transactionCurrencyCode": {
+            "$ref": "#/components/schemas/Currency"
+          }
+        }
+      },
       "Comparison": {
         "type": "object",
         "description": "Represents a single comparison condition.",
@@ -23938,6 +23989,27 @@
                     "type": "string",
                     "enum": [
                       "paze"
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ClickToPaySessionResponse"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "wallet_name"
+                ],
+                "properties": {
+                  "wallet_name": {
+                    "type": "string",
+                    "enum": [
+                      "click_to_pay"
                     ]
                   }
                 }

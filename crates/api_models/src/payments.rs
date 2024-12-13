@@ -5943,6 +5943,8 @@ pub enum SessionToken {
     OpenBanking(OpenBankingSessionToken),
     /// The session response structure for Paze
     Paze(Box<PazeSessionTokenResponse>),
+    /// The sessions response structure for ClickToPay
+    ClickToPay(Box<ClickToPaySessionResponse>),
     /// Whenever there is no session token response or an error in session response
     NoSessionTokenReceived,
 }
@@ -6979,6 +6981,23 @@ pub enum PaymentLinkStatusWrap {
 pub struct ExtendedCardInfoResponse {
     // Encrypted customer payment method data
     pub payload: String,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ClickToPaySessionResponse {
+    pub dpa_id: String,
+    pub dpa_name: String,
+    pub locale: String,
+    pub card_brands: Vec<String>,
+    pub acquirer_bin: String,
+    pub acquirer_merchant_id: String,
+    pub merchant_category_code: String,
+    pub merchant_country_code: String,
+    #[schema(value_type = String, example = "38.02")]
+    pub transaction_amount: StringMajorUnit,
+    #[schema(value_type = Currency)]
+    pub transaction_currency_code: common_enums::Currency,
 }
 
 #[cfg(feature = "v1")]
