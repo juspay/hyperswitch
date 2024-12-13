@@ -995,7 +995,8 @@ pub struct PaymentsRequest {
     pub recurring_details: Option<RecurringDetails>,
 
     /// Fee information to be charged on the payment being collected
-    pub charges: Option<PaymentChargeRequest>,
+    #[schema(value_type = Option<SplitPaymentsRequest>)]
+    pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
 
     /// Merchant's identifier for the payment/invoice. This will be sent to the connector
     /// if the connector provides support to accept multiple reference ids.
@@ -1217,22 +1218,6 @@ mod payments_request_test {
             Some(vec!["customer_id and customer.id"])
         );
     }
-}
-
-/// Fee information to be charged on the payment being collected
-#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
-#[serde(rename_all = "snake_case")]
-pub struct PaymentChargeRequest {
-    /// Stripe's charge type
-    #[schema(value_type = PaymentChargeType, example = "direct")]
-    pub charge_type: api_enums::PaymentChargeType,
-
-    /// Platform fees to be collected on the payment
-    #[schema(value_type = i64, example = 6540)]
-    pub fees: MinorUnit,
-
-    /// Identifier for the reseller's account to send the funds to
-    pub transfer_account_id: String,
 }
 
 /// Details of surcharge applied on this payment, if applicable
@@ -4687,7 +4672,7 @@ pub struct PaymentsResponse {
     pub updated: Option<PrimitiveDateTime>,
 
     /// Fee information to be charged on the payment being collected
-    pub charges: Option<PaymentChargeResponse>,
+    pub split_payments: Option<SplitPaymentsResponse>,
 
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. FRM Metadata is useful for storing additional, structured information on an object related to FRM.
     #[schema(value_type = Option<Object>, example = r#"{ "fulfillment_method" : "deliver", "coverage_request" : "fraud" }"#)]
@@ -4935,8 +4920,8 @@ pub struct PaymentStartRedirectionParams {
 }
 
 /// Fee information to be charged on the payment being collected
-#[derive(Setter, Clone, Default, Debug, PartialEq, serde::Serialize, ToSchema)]
-pub struct PaymentChargeResponse {
+#[derive(Setter, Clone, Debug, PartialEq, serde::Serialize, ToSchema)]
+pub struct StripeSplitPaymentsResponse {
     /// Identifier for charge created for the payment
     pub charge_id: Option<String>,
 
@@ -4950,6 +4935,13 @@ pub struct PaymentChargeResponse {
 
     /// Identifier for the reseller's account where the funds were transferred
     pub transfer_account_id: String,
+}
+
+#[derive(Clone, Debug, PartialEq, serde::Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum SplitPaymentsResponse {
+    /// StripeSplitPaymentsResponse
+    StripeSplitPayment(StripeSplitPaymentsResponse),
 }
 
 /// Details of external authentication
