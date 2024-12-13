@@ -5934,14 +5934,14 @@ where
     let routing_enabled_pmts = &consts::ROUTING_ENABLED_PAYMENT_METHOD_TYPES;
     let routing_enabled_pms = &consts::ROUTING_ENABLED_PAYMENT_METHODS;
 
-    let mut chosen = Vec::<api::SessionConnectorData>::new();
-    for connector_data in &connectors {
-        if routing_enabled_pmts.contains(&connector_data.payment_method_sub_type)
-            || routing_enabled_pms.contains(&connector_data.payment_method_type)
-        {
-            chosen.push(connector_data.clone());
-        }
-    }
+    let chosen = connectors
+        .iter()
+        .filter(|connector_data| {
+            routing_enabled_pmts.contains(&connector_data.payment_method_sub_type)
+                || routing_enabled_pms.contains(&connector_data.payment_method_type)
+        })
+        .cloned()
+        .collect();
     let sfr = SessionFlowRoutingInput {
         state: &state,
         country: payment_data
@@ -5953,7 +5953,6 @@ where
         merchant_account,
         payment_attempt: payment_data.get_payment_attempt(),
         payment_intent: payment_data.get_payment_intent(),
-
         chosen,
     };
     let result = self_routing::perform_session_flow_routing(sfr, &enums::TransactionType::Payment)
@@ -6002,14 +6001,14 @@ where
     let routing_enabled_pmts = &consts::ROUTING_ENABLED_PAYMENT_METHOD_TYPES;
     let routing_enabled_pms = &consts::ROUTING_ENABLED_PAYMENT_METHODS;
 
-    let mut chosen = Vec::<api::SessionConnectorData>::new();
-    for connector_data in &connectors {
-        if routing_enabled_pmts.contains(&connector_data.payment_method_sub_type)
-            || routing_enabled_pms.contains(&connector_data.payment_method_type)
-        {
-            chosen.push(connector_data.clone());
-        }
-    }
+    let chosen = connectors
+        .iter()
+        .filter(|connector_data| {
+            routing_enabled_pmts.contains(&connector_data.payment_method_sub_type)
+                || routing_enabled_pms.contains(&connector_data.payment_method_type)
+        })
+        .cloned()
+        .collect();
     let sfr = SessionFlowRoutingInput {
         state: &state,
         country: payment_data
