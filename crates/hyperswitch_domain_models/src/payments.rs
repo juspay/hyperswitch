@@ -281,7 +281,7 @@ pub struct PaymentIntent {
     /// The total amount captured for the order. This is the sum of all the captured amounts for the order.
     pub amount_captured: Option<MinorUnit>,
     /// The identifier for the customer. This is the identifier for the customer in the merchant's system.
-    pub customer_id: Option<id_type::CustomerId>,
+    pub customer_id: Option<id_type::GlobalCustomerId>,
     /// The description of the order. This will be passed to connectors which support description.
     pub description: Option<common_utils::types::Description>,
     /// The return url for the payment. This is the url to which the user will be redirected after the payment is completed.

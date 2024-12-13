@@ -27,3 +27,19 @@ impl GlobalCustomerId {
         Self(global_id)
     }
 }
+
+impl TryFrom<GlobalCustomerId> for crate::id_type::CustomerId {
+    type Error = error_stack::Report<crate::errors::ValidationError>;
+
+    fn try_from(value: GlobalCustomerId) -> Result<Self, Self::Error> {
+        Self::try_from(std::borrow::Cow::from(value.get_string_repr().to_owned()))
+    }
+}
+
+impl crate::events::ApiEventMetric for GlobalCustomerId {
+    fn get_api_event_type(&self) -> Option<crate::events::ApiEventsType> {
+        Some(crate::events::ApiEventsType::Customer {
+            customer_id: Some(self.clone()),
+        })
+    }
+}

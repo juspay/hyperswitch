@@ -219,9 +219,9 @@ impl PaymentMethod {
             .await
     }
 
-    pub async fn find_by_customer_id_merchant_id_status(
+    pub async fn find_by_global_customer_id_merchant_id_status(
         conn: &PgPooledConn,
-        customer_id: &common_utils::id_type::CustomerId,
+        customer_id: &common_utils::id_type::GlobalCustomerId,
         merchant_id: &common_utils::id_type::MerchantId,
         status: storage_enums::PaymentMethodStatus,
         limit: Option<i64>,

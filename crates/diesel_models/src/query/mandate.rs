@@ -63,7 +63,10 @@ impl Mandate {
 
     //Fix this function once V2 mandate is schema is being built
     #[cfg(all(feature = "v2", feature = "customer_v2"))]
-    pub async fn find_by_global_id(_conn: &PgPooledConn, _id: &str) -> StorageResult<Vec<Self>> {
+    pub async fn find_by_global_customer_id(
+        _conn: &PgPooledConn,
+        customer_id: &common_utils::id_type::GlobalCustomerId,
+    ) -> StorageResult<Vec<Self>> {
         todo!()
     }
 

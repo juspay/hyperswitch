@@ -154,7 +154,7 @@ pub struct PaymentsCreateIntentRequest {
 
     /// The identifier for the customer
     #[schema(value_type = Option<String>, max_length = 64, min_length = 1, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
-    pub customer_id: Option<id_type::CustomerId>,
+    pub customer_id: Option<id_type::GlobalCustomerId>,
 
     /// Set to `present` to indicate that the customer is in your checkout flow during this payment, and therefore is able to authenticate. This parameter should be `absent` when merchant's doing merchant initiated payments and customer is not present while doing the payment.
     #[schema(example = "present", value_type = Option<PresenceOfCustomerDuringPayment>)]
@@ -443,7 +443,7 @@ pub struct PaymentsIntentResponse {
 
     /// The identifier for the customer
     #[schema(value_type = Option<String>, max_length = 64, min_length = 1, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
-    pub customer_id: Option<id_type::CustomerId>,
+    pub customer_id: Option<id_type::GlobalCustomerId>,
 
     /// Set to `present` to indicate that the customer is in your checkout flow during this payment, and therefore is able to authenticate. This parameter should be `absent` when merchant's doing merchant initiated payments and customer is not present while doing the payment.
     #[schema(example = "present", value_type = PresenceOfCustomerDuringPayment)]

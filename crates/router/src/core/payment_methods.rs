@@ -1,4 +1,8 @@
 pub mod cards;
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
 pub mod migration;
 pub mod network_tokenization;
 pub mod surcharge_decision_configs;
@@ -677,7 +681,7 @@ pub(crate) async fn get_payment_method_create_request(
     payment_method_data: Option<&domain::PaymentMethodData>,
     payment_method_type: Option<storage_enums::PaymentMethod>,
     payment_method_subtype: Option<storage_enums::PaymentMethodType>,
-    customer_id: &Option<id_type::CustomerId>,
+    customer_id: &Option<id_type::GlobalCustomerId>,
     billing_name: Option<Secret<String>>,
 ) -> RouterResult<payment_methods::PaymentMethodCreate> {
     match payment_method_data {
@@ -848,7 +852,7 @@ pub async fn create_payment_method(
     let merchant_id = merchant_account.get_id();
     let customer_id = req.customer_id.to_owned();
 
-    db.find_customer_by_merchant_reference_id_merchant_id(
+    db.find_customer_by_global_id(
         &(state.into()),
         &customer_id,
         merchant_account.get_id(),
@@ -961,7 +965,7 @@ pub async fn payment_method_intent_create(
     let merchant_id = merchant_account.get_id();
     let customer_id = req.customer_id.to_owned();
 
-    db.find_customer_by_merchant_reference_id_merchant_id(
+    db.find_customer_by_global_id(
         &(state.into()),
         &customer_id,
         merchant_account.get_id(),
@@ -1049,7 +1053,7 @@ pub async fn payment_method_intent_confirm(
     )?;
 
     let customer_id = payment_method.customer_id.to_owned();
-    db.find_customer_by_merchant_reference_id_merchant_id(
+    db.find_customer_by_global_id(
         &(state.into()),
         &customer_id,
         merchant_account.get_id(),
@@ -1132,7 +1136,7 @@ pub async fn payment_method_intent_confirm(
 pub async fn create_payment_method_in_db(
     state: &SessionState,
     req: &api::PaymentMethodCreate,
-    customer_id: &id_type::CustomerId,
+    customer_id: &id_type::GlobalCustomerId,
     payment_method_id: id_type::GlobalPaymentMethodId,
     locker_id: Option<domain::VaultId>,
     merchant_id: &id_type::MerchantId,
@@ -1195,7 +1199,7 @@ pub async fn create_payment_method_in_db(
 pub async fn create_payment_method_for_intent(
     state: &SessionState,
     metadata: Option<common_utils::pii::SecretSerdeValue>,
-    customer_id: &id_type::CustomerId,
+    customer_id: &id_type::GlobalCustomerId,
     payment_method_id: id_type::GlobalPaymentMethodId,
     merchant_id: &id_type::MerchantId,
     key_store: &domain::MerchantKeyStore,
@@ -1421,7 +1425,7 @@ pub async fn list_customer_payment_method_util(
     profile: domain::Profile,
     key_store: domain::MerchantKeyStore,
     req: Option<api::PaymentMethodListRequest>,
-    customer_id: Option<id_type::CustomerId>,
+    customer_id: Option<id_type::GlobalCustomerId>,
     is_payment_associated: bool,
 ) -> RouterResponse<api::CustomerPaymentMethodsListResponse> {
     let limit = req.as_ref().and_then(|pml_req| pml_req.limit);
@@ -1481,7 +1485,7 @@ pub async fn list_customer_payment_method(
     profile: domain::Profile,
     key_store: domain::MerchantKeyStore,
     payment_intent: Option<PaymentIntent>,
-    customer_id: &id_type::CustomerId,
+    customer_id: &id_type::GlobalCustomerId,
     limit: Option<i64>,
     is_payment_associated: bool,
 ) -> RouterResponse<api::CustomerPaymentMethodsListResponse> {
@@ -1491,7 +1495,7 @@ pub async fn list_customer_payment_method(
     let customer = db
         .find_customer_by_global_id(
             key_manager_state,
-            customer_id.get_string_repr(),
+            customer_id,
             merchant_account.get_id(),
             &key_store,
             merchant_account.storage_scheme,
@@ -1514,7 +1518,7 @@ pub async fn list_customer_payment_method(
         .transpose()?;
 
     let saved_payment_methods = db
-        .find_payment_method_by_customer_id_merchant_id_status(
+        .find_payment_method_by_global_customer_id_merchant_id_status(
             key_manager_state,
             &key_store,
             customer_id,
@@ -1901,7 +1905,7 @@ pub async fn delete_payment_method(
     let _customer = db
         .find_customer_by_global_id(
             key_manager_state,
-            payment_method.customer_id.get_string_repr(),
+            &payment_method.customer_id,
             merchant_account.get_id(),
             &key_store,
             merchant_account.storage_scheme,
