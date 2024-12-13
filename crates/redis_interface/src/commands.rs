@@ -856,9 +856,9 @@ impl super::RedisConnectionPool {
     #[instrument(level = "DEBUG", skip(self))]
     pub async fn incr_keys_using_script(
         &self,
+        lua_script: &str,
         keys_and_values: HashMap<String, usize>,
     ) -> CustomResult<(), errors::RedisError> {
-        let lua_script = include_str!("scripts/set_script.lua");
         let key = keys_and_values.keys().cloned().collect::<Vec<_>>();
         let values = keys_and_values
             .values()
@@ -960,13 +960,22 @@ mod tests {
                 let pool = RedisConnectionPool::new(&RedisSettings::default())
                     .await
                     .expect("failed to create redis connection pool");
+                let lua_script = r#"
+                local results = {}
+                for i = 1, #KEYS do
+                    results[i] = redis.call("INCRBY", KEYS[i], ARGV[i])
+                end
+                return results
+                "#;
                 let mut keys_and_values = HashMap::new();
                 for i in 0..10 {
                     keys_and_values.insert(format!("key{}", i), i);
                 }
 
                 // Act
-                let result = pool.incr_keys_using_script(keys_and_values).await;
+                let result = pool
+                    .incr_keys_using_script(lua_script, keys_and_values)
+                    .await;
 
                 // Assert Setup
                 result.is_ok()
