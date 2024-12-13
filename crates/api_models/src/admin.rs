@@ -1970,6 +1970,10 @@ pub struct ProfileCreate {
     /// Indicates if click to pay is enabled or not.
     #[serde(default)]
     pub is_click_to_pay_enabled: bool,
+
+    /// Product authentication ids
+    #[schema(value_type = Option<Object>, example = r#"{ "key1": "value-1", "key2": "value-2" }"#)]
+    pub authentication_product_ids: Option<HashMap<String, id_type::MerchantConnectorAccountId>>,
 }
 
 #[nutype::nutype(
@@ -2082,6 +2086,10 @@ pub struct ProfileCreate {
     /// Indicates if click to pay is enabled or not.
     #[schema(default = false, example = false)]
     pub is_click_to_pay_enabled: bool,
+
+    /// Product authentication ids
+    #[schema(value_type = Option<Object>, example = r#"{ "key1": "value-1", "key2": "value-2" }"#)]
+    pub authentication_product_ids: Option<HashMap<String, id_type::MerchantConnectorAccountId>>,
 }
 
 #[cfg(feature = "v1")]
@@ -2214,6 +2222,10 @@ pub struct ProfileResponse {
     /// Indicates if click to pay is enabled or not.
     #[schema(default = false, example = false)]
     pub is_click_to_pay_enabled: bool,
+
+    /// Product authentication ids
+    #[schema(value_type = Option<Object>, example = r#"{ "key1": "value-1", "key2": "value-2" }"#)]
+    pub authentication_product_ids: Option<serde_json::Value>,
 }
 
 #[cfg(feature = "v2")]
@@ -2333,6 +2345,10 @@ pub struct ProfileResponse {
     /// Indicates if click to pay is enabled or not.
     #[schema(default = false, example = false)]
     pub is_click_to_pay_enabled: bool,
+
+    /// Product authentication ids
+    #[schema(value_type = Option<Object>, example = r#"{ "key1": "value-1", "key2": "value-2" }"#)]
+    pub authentication_product_ids: Option<serde_json::Value>,
 }
 
 #[cfg(feature = "v1")]
@@ -2459,6 +2475,10 @@ pub struct ProfileUpdate {
     /// Indicates if click to pay is enabled or not.
     #[schema(default = false, example = false)]
     pub is_click_to_pay_enabled: Option<bool>,
+
+    /// Product authentication ids
+    #[schema(value_type = Option<Object>, example = r#"{ "key1": "value-1", "key2": "value-2" }"#)]
+    pub authentication_product_ids: Option<HashMap<String, id_type::MerchantConnectorAccountId>>,
 }
 
 #[cfg(feature = "v2")]
@@ -2566,6 +2586,10 @@ pub struct ProfileUpdate {
     /// Indicates if click to pay is enabled or not.
     #[schema(default = false, example = false)]
     pub is_click_to_pay_enabled: Option<bool>,
+
+    /// Product authentication ids
+    #[schema(value_type = Option<Object>, example = r#"{ "key1": "value-1", "key2": "value-2" }"#)]
+    pub authentication_product_ids: Option<HashMap<String, id_type::MerchantConnectorAccountId>>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -2643,6 +2667,8 @@ pub struct BusinessPaymentLinkConfig {
     /// A list of allowed domains (glob patterns) where this link can be embedded / opened from
     #[schema(value_type = Option<HashSet<String>>)]
     pub allowed_domains: Option<HashSet<String>>,
+    /// Toggle for HyperSwitch branding visibility
+    pub branding_visibility: Option<bool>,
 }
 
 impl BusinessPaymentLinkConfig {
@@ -2701,6 +2727,11 @@ pub struct PaymentLinkConfigRequest {
     pub show_card_form_by_default: Option<bool>,
     /// Dynamic details related to merchant to be rendered in payment link
     pub transaction_details: Option<Vec<PaymentLinkTransactionDetails>>,
+    /// Configurations for the background image for details section
+    pub background_image: Option<PaymentLinkBackgroundImageConfig>,
+    /// Custom layout for details section
+    #[schema(value_type = Option<PaymentLinkDetailsLayout>, example = "layout1")]
+    pub details_layout: Option<api_enums::PaymentLinkDetailsLayout>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
@@ -2728,6 +2759,19 @@ pub struct TransactionDetailsUiConfiguration {
     pub is_value_bold: Option<bool>,
 }
 
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
+pub struct PaymentLinkBackgroundImageConfig {
+    /// URL of the image
+    #[schema(value_type = String, example = "https://hyperswitch.io/favicon.ico")]
+    pub url: common_utils::types::Url,
+    /// Position of the image in the UI
+    #[schema(value_type = Option<ElementPosition>, example = "top-left")]
+    pub position: Option<api_enums::ElementPosition>,
+    /// Size of the image in the UI
+    #[schema(value_type = Option<ElementSize>, example = "contain")]
+    pub size: Option<api_enums::ElementSize>,
+}
+
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq, ToSchema)]
 pub struct PaymentLinkConfig {
     /// custom theme for the payment link
@@ -2750,6 +2794,13 @@ pub struct PaymentLinkConfig {
     pub allowed_domains: Option<HashSet<String>>,
     /// Dynamic details related to merchant to be rendered in payment link
     pub transaction_details: Option<Vec<PaymentLinkTransactionDetails>>,
+    /// Configurations for the background image for details section
+    pub background_image: Option<PaymentLinkBackgroundImageConfig>,
+    /// Custom layout for details section
+    #[schema(value_type = Option<PaymentLinkDetailsLayout>, example = "layout1")]
+    pub details_layout: Option<api_enums::PaymentLinkDetailsLayout>,
+    /// Toggle for HyperSwitch branding visibility
+    pub branding_visibility: Option<bool>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
