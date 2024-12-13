@@ -3438,7 +3438,7 @@ pub async fn get_session_token_for_click_to_pay(
             acquirer_merchant_id: click_to_pay_metadata.acquirer_merchant_id,
             merchant_category_code: click_to_pay_metadata.merchant_category_code,
             merchant_country_code: click_to_pay_metadata.merchant_country_code,
-            transaction_amount: transaction_amount,
+            transaction_amount,
             transaction_currency_code: transaction_currency,
         },
     )))
