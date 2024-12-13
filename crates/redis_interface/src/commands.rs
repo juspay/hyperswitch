@@ -4,7 +4,7 @@
 //! and deserialization while calling redis.
 //! It also includes instruments to provide tracing.
 
-use std::{collections::HashMap, fmt::Debug};
+use std::fmt::Debug;
 
 use common_utils::{
     errors::CustomResult,
@@ -854,17 +854,16 @@ impl super::RedisConnectionPool {
     }
 
     #[instrument(level = "DEBUG", skip(self))]
-    pub async fn incr_keys_using_script(
+    pub async fn incr_keys_using_script<V>(
         &self,
         lua_script: &str,
-        keys_and_values: HashMap<String, usize>,
-    ) -> CustomResult<(), errors::RedisError> {
-        let key = keys_and_values.keys().cloned().collect::<Vec<_>>();
-        let values = keys_and_values
-            .values()
-            .map(|val| val.to_string())
-            .collect::<Vec<String>>();
-
+        key: Vec<String>,
+        values: V,
+    ) -> CustomResult<(), errors::RedisError>
+    where
+        V: TryInto<MultipleValues> + Debug + Send + Sync,
+        V::Error: Into<fred::error::RedisError> + Send + Sync,
+    {
         self.pool
             .eval(lua_script, key, values)
             .await
@@ -972,10 +971,14 @@ mod tests {
                     keys_and_values.insert(format!("key{}", i), i);
                 }
 
+                let key = keys_and_values.keys().cloned().collect::<Vec<_>>();
+                let values = keys_and_values
+                    .values()
+                    .map(|val| val.to_string())
+                    .collect::<Vec<String>>();
+
                 // Act
-                let result = pool
-                    .incr_keys_using_script(lua_script, keys_and_values)
-                    .await;
+                let result = pool.incr_keys_using_script(lua_script, key, values).await;
 
                 // Assert Setup
                 result.is_ok()
