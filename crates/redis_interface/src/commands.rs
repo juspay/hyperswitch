@@ -859,13 +859,7 @@ impl super::RedisConnectionPool {
         keys: Vec<String>,
         values: Vec<String>,
     ) -> CustomResult<(), errors::RedisError> {
-        let lua_script = r#"
-        local results = {}
-        for i = 1, #KEYS do
-            results[i] = redis.call("INCRBY", KEYS[i], ARGV[i])
-        end
-        return results
-        "#;
+        let lua_script = include_str!("scripts/set_script.lua");
 
         self.pool
             .eval(lua_script, keys, values)
