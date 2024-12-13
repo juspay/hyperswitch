@@ -16,6 +16,7 @@ use error_stack::{report, ResultExt};
 use futures::FutureExt;
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdateFields;
+use hyperswitch_domain_models::router_request_types::unified_authentication_service::UasAuthenticationResponseData;
 use masking::{ExposeInterface, PeekInterface};
 use router_derive::PaymentOperation;
 use router_env::{instrument, logger, tracing};
@@ -1093,7 +1094,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
 
                 payment_data.payment_attempt.authentication_id = Some(authentication_id.clone());
 
-                let network_token = ClickToPay::post_authentication(
+                let response = ClickToPay::post_authentication(
                     state,
                     key_store,
                     business_profile,
@@ -1104,15 +1105,10 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                 )
                 .await?;
 
-                payment_data.payment_attempt.payment_method =
-                    Some(common_enums::PaymentMethod::Card);
-
-                payment_data.payment_method_data = network_token
-                    .clone()
-                    .map(domain::PaymentMethodData::NetworkToken);
-
-                network_token
-                    .async_map(|_data| {
+                let network_token = match response.response.clone() {
+                    Ok(UasAuthenticationResponseData::PostAuthentication {
+                        authentication_details,
+                    }) => {
                         unified_authentication_service::create_new_authentication(
                             state,
                             payment_data.payment_attempt.merchant_id.clone(),
@@ -1122,10 +1118,73 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                             connector_transaction_id,
                             &authentication_id,
                             payment_data.service_details.clone(),
+                            common_enums::AuthenticationStatus::Success,
                         )
-                    })
-                    .await
-                    .transpose()?;
+                        .await?;
+
+                        Some(
+                            hyperswitch_domain_models::payment_method_data::NetworkTokenData {
+                                token_number: authentication_details.token_details.payment_token,
+                                token_exp_month: authentication_details
+                                    .token_details
+                                    .token_expiration_month,
+                                token_exp_year: authentication_details
+                                    .token_details
+                                    .token_expiration_year,
+                                token_cryptogram: authentication_details
+                                    .dynamic_data_details
+                                    .and_then(|data| data.dynamic_data_value),
+                                card_issuer: None,
+                                card_network: None,
+                                card_type: None,
+                                card_issuing_country: None,
+                                bank_code: None,
+                                nick_name: None,
+                                eci: authentication_details.eci,
+                            },
+                        )
+                    }
+                    _ => {
+                        unified_authentication_service::create_new_authentication(
+                            state,
+                            payment_data.payment_attempt.merchant_id.clone(),
+                            connector_name.to_string(),
+                            business_profile.get_id().clone(),
+                            Some(payment_data.payment_intent.get_id().clone()),
+                            connector_transaction_id,
+                            &authentication_id,
+                            payment_data.service_details.clone(),
+                            common_enums::AuthenticationStatus::Failed,
+                        )
+                        .await?;
+
+                        None
+                    }
+                };
+
+                payment_data.payment_attempt.payment_method =
+                    Some(common_enums::PaymentMethod::Card);
+
+                payment_data.payment_method_data = network_token
+                    .clone()
+                    .map(domain::PaymentMethodData::NetworkToken);
+
+                // network_token
+                //     .async_map(|_data| {
+                //         unified_authentication_service::create_new_authentication(
+                //             state,
+                //             payment_data.payment_attempt.merchant_id.clone(),
+                //             connector_name.to_string(),
+                //             business_profile.get_id().clone(),
+                //             Some(payment_data.payment_intent.get_id().clone()),
+                //             connector_transaction_id,
+                //             &authentication_id,
+                //             payment_data.service_details.clone(),
+                //             common_enums::AuthenticationStatus::Success
+                //         )
+                //     })
+                //     .await
+                //     .transpose()?;
             }
         }
 

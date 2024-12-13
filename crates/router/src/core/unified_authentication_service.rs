@@ -8,8 +8,7 @@ use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     errors::api_error_response::ApiErrorResponse,
     router_request_types::unified_authentication_service::{
-        UasAuthenticationResponseData, UasPostAuthenticationRequestData,
-        UasPreAuthenticationRequestData,
+        UasPostAuthenticationRequestData, UasPreAuthenticationRequestData,
     },
 };
 
@@ -71,8 +70,7 @@ impl<F: Clone + Sync> UnifiedAuthenticationService<F> for ClickToPay {
         merchant_connector_account: &MerchantConnectorAccountType,
         connector_name: &str,
         payment_method: common_enums::PaymentMethod,
-    ) -> RouterResult<Option<hyperswitch_domain_models::payment_method_data::NetworkTokenData>>
-    {
+    ) -> RouterResult<hyperswitch_domain_models::types::UasPostAuthenticationRouterData> {
         let authentication_id = payment_data
             .payment_attempt
             .authentication_id
@@ -99,30 +97,7 @@ impl<F: Clone + Sync> UnifiedAuthenticationService<F> for ClickToPay {
         )
         .await?;
 
-        let network_token = match response.response.clone() {
-            Ok(UasAuthenticationResponseData::PostAuthentication {
-                authentication_details,
-            }) => Some(
-                hyperswitch_domain_models::payment_method_data::NetworkTokenData {
-                    token_number: authentication_details.token_details.payment_token,
-                    token_exp_month: authentication_details.token_details.token_expiration_month,
-                    token_exp_year: authentication_details.token_details.token_expiration_year,
-                    token_cryptogram: authentication_details
-                        .dynamic_data_details
-                        .and_then(|data| data.dynamic_data_value),
-                    card_issuer: None,
-                    card_network: None,
-                    card_type: None,
-                    card_issuing_country: None,
-                    bank_code: None,
-                    nick_name: None,
-                    eci: authentication_details.eci,
-                },
-            ),
-            _ => None,
-        };
-
-        Ok(network_token)
+        Ok(response)
     }
 
     fn confirmation(
@@ -145,6 +120,7 @@ pub async fn create_new_authentication(
     merchant_connector_id: common_utils::id_type::MerchantConnectorAccountId,
     authentication_id: &str,
     service_details: Option<CtpServiceDetails>,
+    authentication_status: common_enums::AuthenticationStatus,
 ) -> RouterResult<Authentication> {
     let service_details_value = service_details
         .map(serde_json::to_value)
@@ -160,7 +136,7 @@ pub async fn create_new_authentication(
         connector_authentication_id: None,
         payment_method_id: "".to_string(),
         authentication_type: None,
-        authentication_status: common_enums::AuthenticationStatus::Success,
+        authentication_status,
         authentication_lifecycle_status: common_enums::AuthenticationLifecycleStatus::Unused,
         error_message: None,
         error_code: None,
