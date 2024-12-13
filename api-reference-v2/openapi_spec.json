@@ -6273,7 +6273,8 @@
             "type": "string"
           },
           "transactionAmount": {
-            "$ref": "#/components/schemas/MinorUnit"
+            "type": "string",
+            "example": "38.02"
           },
           "transactionCurrencyCode": {
             "$ref": "#/components/schemas/Currency"
