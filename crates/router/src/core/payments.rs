@@ -6005,7 +6005,7 @@ where
     let mut chosen = Vec::<api::SessionConnectorData>::new();
     for connector_data in &connectors {
         if routing_enabled_pmts.contains(&connector_data.payment_method_sub_type)
-            || routing_enabled_pms.contains(&connector_data.payment_method)
+            || routing_enabled_pms.contains(&connector_data.payment_method_type)
         {
             chosen.push(connector_data.clone());
         }
