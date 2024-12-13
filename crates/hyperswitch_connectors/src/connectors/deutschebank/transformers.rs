@@ -150,15 +150,15 @@ pub struct DeutschebankThreeDSInitializeRequestMeansOfPayment {
 pub struct DeutschebankThreeDSInitializeRequestCreditCard {
     number: String,
     expiry_date: DeutschebankThreeDSInitializeRequestCreditCardExpiry,
-    code: String,
-    cardholder: String,
+    code: Secret<String>,
+    cardholder: Secret<String>,
 }
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub struct DeutschebankThreeDSInitializeRequestCreditCardExpiry {
-    year: String,
-    month: String
+    year: Secret<String>,
+    month: Secret<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -247,11 +247,11 @@ impl TryFrom<&DeutschebankRouterData<&PaymentsAuthorizeRouterData>>
                                         credit_card: DeutschebankThreeDSInitializeRequestCreditCard {
                                             number: ccard.card_number.get_card_no(),
                                             expiry_date: DeutschebankThreeDSInitializeRequestCreditCardExpiry {
-                                                year: ccard.get_expiry_year_4_digit().expose(),
-                                                month: ccard.card_exp_month.expose(),
+                                                year: ccard.get_expiry_year_4_digit(),
+                                                month: ccard.card_exp_month,
                                             },
-                                            code: ccard.card_cvc.expose(),
-                                            cardholder: ccard.card_holder_name.unwrap().expose(),
+                                            code: ccard.card_cvc,
+                                            cardholder: ccard.card_holder_name.unwrap(),
                                         }},
                                     amount_total: DeutschebankThreeDSInitializeRequestAmountTotal {
                                         amount: item.amount.get_amount_as_i64(),
