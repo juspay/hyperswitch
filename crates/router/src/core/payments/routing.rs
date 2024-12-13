@@ -945,7 +945,7 @@ pub async fn perform_session_flow_routing(
 
     for connector_data in session_input.chosen.iter() {
         pm_type_map
-            .entry(connector_data.payment_method_type)
+            .entry(connector_data.payment_method_sub_type)
             .or_default()
             .insert(
                 connector_data.connector.connector_name.to_string(),
@@ -1102,7 +1102,7 @@ pub async fn perform_session_flow_routing(
 
     for connector_data in session_input.chosen.iter() {
         pm_type_map
-            .entry(connector_data.payment_method_type)
+            .entry(connector_data.payment_method_sub_type)
             .or_default()
             .insert(
                 connector_data.connector.connector_name.to_string(),

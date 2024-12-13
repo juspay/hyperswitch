@@ -1277,7 +1277,7 @@ pub async fn call_surcharge_decision_management_for_session_flow(
     } else {
         let payment_method_type_list = session_connector_data
             .iter()
-            .map(|session_connector_data| session_connector_data.payment_method_type)
+            .map(|session_connector_data| session_connector_data.payment_method_sub_type)
             .collect();
 
         #[cfg(feature = "v1")]
@@ -3292,8 +3292,8 @@ where
         payment_data.set_surcharge_details(session_surcharge_details.as_ref().and_then(
             |session_surcharge_details| {
                 session_surcharge_details.fetch_surcharge_details(
-                    session_connector_data.payment_method_type.into(),
-                    session_connector_data.payment_method_type,
+                    session_connector_data.payment_method_sub_type.into(),
+                    session_connector_data.payment_method_sub_type,
                     None,
                 )
             },
@@ -5936,7 +5936,7 @@ where
 
     let mut chosen = Vec::<api::SessionConnectorData>::new();
     for connector_data in &connectors {
-        if routing_enabled_pmts.contains(&connector_data.payment_method_type)
+        if routing_enabled_pmts.contains(&connector_data.payment_method_sub_type)
             || routing_enabled_pms.contains(&connector_data.payment_method)
         {
             chosen.push(connector_data.clone());
@@ -5964,9 +5964,9 @@ where
     let mut final_list: Vec<api::SessionConnectorData> = Vec::new();
 
     for connector_data in connectors {
-        if !routing_enabled_pmts.contains(&connector_data.payment_method_type) {
+        if !routing_enabled_pmts.contains(&connector_data.payment_method_sub_type) {
             final_list.push(connector_data);
-        } else if let Some(choice) = result.get(&connector_data.payment_method_type) {
+        } else if let Some(choice) = result.get(&connector_data.payment_method_sub_type) {
             let routing_choice = choice
                 .first()
                 .ok_or(errors::ApiErrorResponse::InternalServerError)?;
@@ -6004,7 +6004,7 @@ where
 
     let mut chosen = Vec::<api::SessionConnectorData>::new();
     for connector_data in &connectors {
-        if routing_enabled_pmts.contains(&connector_data.payment_method_type)
+        if routing_enabled_pmts.contains(&connector_data.payment_method_sub_type)
             || routing_enabled_pms.contains(&connector_data.payment_method)
         {
             chosen.push(connector_data.clone());
@@ -6032,9 +6032,9 @@ where
     let mut final_list: Vec<api::SessionConnectorData> = Vec::new();
 
     for connector_data in connectors {
-        if !routing_enabled_pmts.contains(&connector_data.payment_method_type) {
+        if !routing_enabled_pmts.contains(&connector_data.payment_method_sub_type) {
             final_list.push(connector_data);
-        } else if let Some(choice) = result.get(&connector_data.payment_method_type) {
+        } else if let Some(choice) = result.get(&connector_data.payment_method_sub_type) {
             let routing_choice = choice
                 .first()
                 .ok_or(errors::ApiErrorResponse::InternalServerError)?;
