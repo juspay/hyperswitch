@@ -236,6 +236,10 @@ pub enum RedirectForm {
         access_token: String,
         step_up_url: String,
     },
+    DeutschebankThreeDSChallengeFlow {
+        acs_url: String,
+        creq: String,
+    },
     Payme,
     Braintree {
         client_token: String,
@@ -313,6 +317,13 @@ impl From<RedirectForm> for diesel_models::payment_attempt::RedirectForm {
                 access_token,
                 step_up_url,
             },
+            RedirectForm::DeutschebankThreeDSChallengeFlow { 
+                acs_url, 
+                creq 
+            } => Self::DeutschebankThreeDSChallengeFlow { 
+                acs_url, 
+                creq 
+            },
             RedirectForm::Payme => Self::Payme,
             RedirectForm::Braintree {
                 client_token,
@@ -352,6 +363,7 @@ impl From<RedirectForm> for diesel_models::payment_attempt::RedirectForm {
                 form_fields,
                 collection_id,
             },
+            
         }
     }
 }
@@ -391,6 +403,13 @@ impl From<diesel_models::payment_attempt::RedirectForm> for RedirectForm {
             } => Self::CybersourceConsumerAuth {
                 access_token,
                 step_up_url,
+            },
+            diesel_models::RedirectForm::DeutschebankThreeDSChallengeFlow { 
+                acs_url, 
+                creq 
+            } => Self::DeutschebankThreeDSChallengeFlow { 
+                acs_url, 
+                creq 
             },
             diesel_models::payment_attempt::RedirectForm::Payme => Self::Payme,
             diesel_models::payment_attempt::RedirectForm::Braintree {
