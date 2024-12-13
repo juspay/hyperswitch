@@ -353,15 +353,11 @@ impl Connector {
         .map(types::RequestExtendedAuthorizationBool::from)
     }
     fn get_payment_methods_supporting_extended_authorization(self) -> Vec<PaymentMethod> {
-        match self {
-            _ => vec![],
-        }
+        vec![]
     }
     fn get_payment_method_types_supporting_extended_authorization(
         self,
     ) -> Vec<common_enums::PaymentMethodType> {
-        match self {
-            _ => vec![],
-        }
+        vec![]
     }
 }
