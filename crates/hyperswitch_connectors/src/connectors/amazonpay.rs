@@ -2,9 +2,9 @@ pub mod transformers;
 
 use common_utils::{
     errors::CustomResult,
-    ext_traits::BytesExt,
+    ext_traits::{BytesExt, Encode},
     request::{Method, Request, RequestBuilder, RequestContent},
-    types::{AmountConvertor, StringMinorUnit, StringMinorUnitForConnector},
+    types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector},
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
@@ -22,7 +22,7 @@ use hyperswitch_domain_models::{
     router_response_types::{PaymentsResponseData, RefundsResponseData},
     types::{
         PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
-        RefundSyncRouterData, RefundsRouterData,
+        RefundSyncRouterData, RefundsRouterData, PaymentsSessionRouterData
     },
 };
 use hyperswitch_interfaces::{
@@ -36,21 +36,122 @@ use hyperswitch_interfaces::{
     types::{self, Response},
     webhooks,
 };
-use masking::{ExposeInterface, Mask};
+use masking::{ExposeInterface, Mask, PeekInterface};
 use transformers as amazonpay;
 
 use crate::{constants::headers, types::ResponseRouterData, utils};
+use chrono::Utc;
+use masking::Secret;
+use sha2::{Sha256, Digest};
+use hex;
+use openssl::rsa::{Rsa, Padding};
+use openssl::sign::{Signer, RsaPssSaltlen};
+use openssl::hash::MessageDigest;
+use openssl::pkey::PKey;
+use base64::encode;
 
 #[derive(Clone)]
 pub struct Amazonpay {
-    amount_converter: &'static (dyn AmountConvertor<Output = StringMinorUnit> + Sync),
+    amount_converter: &'static (dyn AmountConvertor<Output = StringMajorUnit> + Sync),
 }
 
 impl Amazonpay {
     pub fn new() -> &'static Self {
         &Self {
-            amount_converter: &StringMinorUnitForConnector,
+            amount_converter: &StringMajorUnitForConnector,
         }
+    }
+
+    pub fn create_authorization_header (
+        &self,
+        auth: amazonpay::AmazonpayAuthType,
+        http_method: &Method,
+        hashed_payload: &String,
+        header: &Vec<(String, masking::Maskable<String>)>
+    ) -> String {
+        let amazonpay::AmazonpayAuthType {
+            public_key,
+            private_key
+        } = auth;
+
+        let algorithm = "AMZN-PAY-RSASSA-PSS".to_string();
+
+        let public_key = public_key.expose().clone();
+
+        let canonical_uri = "/sandbox/v2/charges".to_string();
+
+        let mut signed_headers = "accept;content-type;x-amz-pay-date;x-amz-pay-host;".to_string();
+        if *http_method == Method::Post {
+            signed_headers.push_str("x-amz-pay-idempotency-key");
+        }
+        signed_headers.push_str("x-amz-pay-region");
+
+        let signature = Self::create_signature(&private_key, http_method, &canonical_uri, &signed_headers, hashed_payload, header);
+
+        format!(
+            "{:?} PublicKeyId={:?}, SignedHeaders={:?}, Signature={:?}",
+            algorithm,
+            public_key,
+            signed_headers,
+            signature
+        )
+    }
+
+    fn create_signature(
+        private_key: &Secret<String>,
+        http_method: &Method,
+        canonical_uri: &String,
+        signed_headers: &String,
+        hashed_payload: &String,
+        header: &Vec<(String, masking::Maskable<String>)>
+    ) -> String {
+        let mut canonical_request = http_method.to_string() + "\n" + canonical_uri + "\n\n";
+
+        let mut lowercase_sorted_header_keys: Vec<String> = header.iter()
+        .map(|(key, _)| key.to_lowercase())
+        .collect();
+
+        lowercase_sorted_header_keys.sort();
+
+        for key in lowercase_sorted_header_keys {
+            if let Some(value) = header.iter().find(|(k, _)| k.to_lowercase() == key) {
+                canonical_request.push_str(&format!("{:?}:{:?}\n", key, value));
+            }
+        }
+
+        canonical_request.push_str(&("\n".to_owned() + signed_headers + "\n" + hashed_payload));
+
+        let hashed_canonical_request = hex::encode(Sha256::digest(canonical_request.as_bytes()));
+
+        let string_to_sign = "AMZN-PAY-RSASSA-PSS\n".to_string() + &hashed_canonical_request;
+
+        let signature = Self::sign(private_key, &string_to_sign);
+
+        signature
+    }
+
+    fn get_timestamp() -> String {
+        let date = Utc::now();
+        date.format("%Y-%m-%dT%H:%M:%SZ").to_string()
+    }
+
+    fn sign(
+        private_key_pem: &Secret<String>,
+        string_to_sign: &String
+    ) -> String {
+        let salt_length: i32 = 32;
+
+        let rsa = Rsa::private_key_from_pem(private_key_pem.peek().as_bytes()).expect("Failed to parse RSA private key");
+        let pkey = PKey::from_rsa(rsa).expect("Failed to create PKey from RSA private key");
+
+        let mut signer = Signer::new(MessageDigest::sha256(), &pkey).unwrap();
+        signer.set_rsa_padding(Padding::PKCS1_PSS).unwrap();
+        let _ = signer.set_rsa_pss_saltlen(RsaPssSaltlen::custom(salt_length));
+        signer.update(string_to_sign.as_bytes()).unwrap();
+
+        let signature = signer.sign_to_vec().unwrap();
+
+        encode(signature)
     }
 }
 
@@ -80,14 +181,50 @@ where
     fn build_headers(
         &self,
         req: &RouterData<Flow, Request, Response>,
-        _connectors: &Connectors,
+        connectors: &Connectors,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        let mut header = vec![(
-            headers::CONTENT_TYPE.to_string(),
-            self.get_content_type().to_string().into(),
-        )];
-        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
-        header.append(&mut api_key);
+        let timestamp = Amazonpay::get_timestamp();
+        let http_method = self.get_http_method();
+        let payload = self.get_request_body(req, connectors)?;
+        let hashed_payload = hex::encode(Sha256::digest(payload.get_inner_value().expose().as_bytes()));
+
+        let mut header = vec![
+            (
+                headers::CONTENT_TYPE.to_string(),
+                self.get_content_type().to_string().into(),
+            ),
+            (
+                headers::ACCEPT.to_string(),
+                "application/json".to_string().into(),
+            ),
+            (
+                "x-amz-pay-date".to_string(),
+                timestamp.into_masked(),
+            ),
+            (
+                "x-amz-pay-host".to_string(),
+                "pay-api.amazon.com".to_string().into_masked(),
+            ),
+            (
+                "x-amz-pay-region".to_string(),
+                "na".to_string().into_masked(),
+            ),
+        ];
+
+        if http_method == Method::Post {
+            header.push((
+                "x-amz-pay-idempotency-key".to_string(),
+                req.connector_request_reference_id.clone().into_masked(),
+            ));
+        }
+
+        let auth = amazonpay::AmazonpayAuthType::try_from(&req.connector_auth_type)?;
+        let authorization = self.create_authorization_header(auth, &http_method, &hashed_payload, &header);
+        header.push((
+            headers::AUTHORIZATION.to_string(),
+            authorization.into_masked(),
+        ));
+
         Ok(header)
     }
 }
@@ -113,17 +250,17 @@ impl ConnectorCommon for Amazonpay {
         connectors.amazonpay.base_url.as_ref()
     }
 
-    fn get_auth_header(
-        &self,
-        auth_type: &ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        let auth = amazonpay::AmazonpayAuthType::try_from(auth_type)
-            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        Ok(vec![(
-            headers::AUTHORIZATION.to_string(),
-            auth.api_key.expose().into_masked(),
-        )])
-    }
+    // fn get_auth_header(
+    //     &self,
+    //     auth_type: &ConnectorAuthType,
+    // ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    //     let auth = amazonpay::AmazonpayAuthType::try_from(auth_type)
+    //         .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+    //     Ok(vec![(
+    //         headers::AUTHORIZATION.to_string(),
+    //         auth.api_key.expose().into_masked(),
+    //     )])
+    // }
 
     fn build_error_response(
         &self,
@@ -155,6 +292,96 @@ impl ConnectorValidation for Amazonpay {
 
 impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Amazonpay {
     //TODO: implement sessions flow
+    fn get_headers(
+        &self,
+        req: &PaymentsSessionRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        // idempotency_key is not there for finalize checkout session but as it is a POST request, build_headers will push idempotency_key into the header vec, so need to handle this case
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        _req: &PaymentsSessionRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        // Ok(format!("{}/checkoutSessions/{}/finalize", self.base_url(connectors)))  // add checkoutSessionId variable
+    }
+
+    // uncomment this after implementing try_from()
+    
+    /*
+    fn get_request_body(
+        &self,
+        req: &PaymentsSessionRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let amount = utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_amount,
+            req.request.currency,
+        )?;
+
+        let connector_router_data = amazonpay::AmazonpayRouterData::from((amount, req));
+        let connector_req = amazonpay::AmazonpayFinalizeRequest::try_from(&connector_router_data)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
+    }
+    */
+
+    fn build_request(
+        &self,
+        req: &PaymentsSessionRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Ok(Some(
+            RequestBuilder::new()
+                .method(Method::Post)
+                .url(&types::PaymentsSessionType::get_url(
+                    self, req, connectors,
+                )?)
+                .attach_default_headers()
+                .headers(types::PaymentsSessionType::get_headers(
+                    self, req, connectors,
+                )?)
+                .set_body(types::PaymentsSessionType::get_request_body(
+                    self, req, connectors,
+                )?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &PaymentsSessionRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<PaymentsSessionRouterData, errors::ConnectorError> {
+        let response: amazonpay::AmazonpayPaymentsResponse = res
+            .response
+            .parse_struct("Amazonpay PaymentsAuthorizeResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
 }
 
 impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> for Amazonpay {}
@@ -180,9 +407,9 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
     fn get_url(
         &self,
         _req: &PaymentsAuthorizeRouterData,
-        _connectors: &Connectors,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        Ok(format!("{}/charges", self.base_url(connectors)))
     }
 
     fn get_request_body(

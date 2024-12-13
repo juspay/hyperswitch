@@ -2362,6 +2362,7 @@ impl GetPaymentMethodType for WalletData {
         match self {
             Self::AliPayQr(_) | Self::AliPayRedirect(_) => api_enums::PaymentMethodType::AliPay,
             Self::AliPayHkRedirect(_) => api_enums::PaymentMethodType::AliPayHk,
+            Self::AmazonPay(_) => api_enums::PaymentMethodType::AmazonPay,
             Self::MomoRedirect(_) => api_enums::PaymentMethodType::Momo,
             Self::KakaoPayRedirect(_) => api_enums::PaymentMethodType::KakaoPay,
             Self::GoPayRedirect(_) => api_enums::PaymentMethodType::GoPay,
@@ -3240,6 +3241,8 @@ pub enum WalletData {
     AliPayRedirect(AliPayRedirection),
     /// The wallet data for Ali Pay HK redirect
     AliPayHkRedirect(AliPayHkRedirection),
+    /// The wallet data for Amazon pay
+    AmazonPay(AmazonPayWalletData),
     /// The wallet data for Momo redirect
     MomoRedirect(MomoRedirection),
     /// The wallet data for KakaoPay redirect
@@ -3319,6 +3322,7 @@ impl GetAddressFromPaymentMethodData for WalletData {
             | Self::AliPayQr(_)
             | Self::AliPayRedirect(_)
             | Self::AliPayHkRedirect(_)
+            | Self::AmazonPay(_)
             | Self::MomoRedirect(_)
             | Self::KakaoPayRedirect(_)
             | Self::GoPayRedirect(_)
@@ -3585,6 +3589,11 @@ pub struct GpayTokenizationData {
     pub token_type: String,
     /// Token generated for the wallet
     pub token: String,
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct AmazonPayWalletData {
+    pub charge_permission_id: String
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]

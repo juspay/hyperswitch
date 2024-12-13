@@ -141,6 +141,7 @@ impl IntoDirValue for (api_enums::PaymentMethodType, api_enums::PaymentMethod) {
             api_enums::PaymentMethodType::AfterpayClearpay => {
                 Ok(dirval!(PayLaterType = AfterpayClearpay))
             }
+            api_enums::PaymentMethodType::AmazonPay => Ok(dirval!(WalletType = AmazonPay)),
             api_enums::PaymentMethodType::GooglePay => Ok(dirval!(WalletType = GooglePay)),
             api_enums::PaymentMethodType::ApplePay => Ok(dirval!(WalletType = ApplePay)),
             api_enums::PaymentMethodType::Paypal => Ok(dirval!(WalletType = Paypal)),
