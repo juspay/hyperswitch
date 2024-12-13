@@ -2593,13 +2593,10 @@ pub struct BusinessPayoutLinkConfig {
 }
 
 #[derive(Clone, Debug, serde::Serialize)]
-pub struct MaskedHeaders {
-    #[serde(flatten)]
-    headers: HashMap<String, Secret<String>>,
-}
+pub struct MaskedHeaders(HashMap<String, String>);
 
 impl MaskedHeaders {
-    fn mask_value(value: &str) -> Secret<String> {
+    fn mask_value(value: &str) -> String {
         let value_len = value.len();
 
         let masked_value = if value_len <= 4 {
@@ -2619,7 +2616,7 @@ impl MaskedHeaders {
                 .collect::<String>()
         };
 
-        Secret::new(masked_value)
+        masked_value
     }
 
     pub fn from_headers(headers: HashMap<String, Secret<String>>) -> Self {
@@ -2628,9 +2625,7 @@ impl MaskedHeaders {
             .map(|(key, value)| (key, Self::mask_value(value.peek())))
             .collect();
 
-        Self {
-            headers: masked_headers,
-        }
+        Self(masked_headers)
     }
 }
 
