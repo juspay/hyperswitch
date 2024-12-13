@@ -1144,7 +1144,22 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                             },
                         )
                     }
-                    _ => {
+                    Ok(UasAuthenticationResponseData::PreAuthentication {}) => {
+                        unified_authentication_service::create_new_authentication(
+                            state,
+                            payment_data.payment_attempt.merchant_id.clone(),
+                            connector_name.to_string(),
+                            business_profile.get_id().clone(),
+                            Some(payment_data.payment_intent.get_id().clone()),
+                            connector_transaction_id,
+                            &authentication_id,
+                            payment_data.service_details.clone(),
+                            common_enums::AuthenticationStatus::Started,
+                        )
+                        .await?;
+                        None
+                    }
+                    Err(_) => {
                         unified_authentication_service::create_new_authentication(
                             state,
                             payment_data.payment_attempt.merchant_id.clone(),
@@ -1168,23 +1183,6 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                 payment_data.payment_method_data = network_token
                     .clone()
                     .map(domain::PaymentMethodData::NetworkToken);
-
-                // network_token
-                //     .async_map(|_data| {
-                //         unified_authentication_service::create_new_authentication(
-                //             state,
-                //             payment_data.payment_attempt.merchant_id.clone(),
-                //             connector_name.to_string(),
-                //             business_profile.get_id().clone(),
-                //             Some(payment_data.payment_intent.get_id().clone()),
-                //             connector_transaction_id,
-                //             &authentication_id,
-                //             payment_data.service_details.clone(),
-                //             common_enums::AuthenticationStatus::Success
-                //         )
-                //     })
-                //     .await
-                //     .transpose()?;
             }
         }
 
