@@ -16,7 +16,7 @@ use error_stack::{report, ResultExt};
 use futures::FutureExt;
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdateFields;
-use hyperswitch_domain_models::router_request_types::unified_authentication_service::UasAuthenticationResponseData;
+use hyperswitch_domain_models::router_request_types::unified_authentication_service;
 use masking::{ExposeInterface, PeekInterface};
 use router_derive::PaymentOperation;
 use router_env::{instrument, logger, tracing};
@@ -40,7 +40,7 @@ use crate::{
             PaymentData,
         },
         unified_authentication_service::{
-            self,
+            self as uas_utils,
             types::{ClickToPay, UnifiedAuthenticationService, CTP_MASTERCARD},
         },
         utils as core_utils,
@@ -886,7 +886,6 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
             business_profile,
         ))
         .await?;
-        println!("logg1 {:?}", payment_data.payment_method_data);
         utils::when(payment_method_data.is_none(), || {
             Err(errors::ApiErrorResponse::PaymentMethodNotFound)
         })?;
@@ -1105,24 +1104,11 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                 )
                 .await?;
 
-                let network_token = match response.response.clone() {
-                    Ok(UasAuthenticationResponseData::PostAuthentication {
+                let (network_token, authentication_status) = match response.response.clone() {
+                    Ok(unified_authentication_service::UasAuthenticationResponseData::PostAuthentication {
                         authentication_details,
                     }) => {
-                        unified_authentication_service::create_new_authentication(
-                            state,
-                            payment_data.payment_attempt.merchant_id.clone(),
-                            connector_name.to_string(),
-                            business_profile.get_id().clone(),
-                            Some(payment_data.payment_intent.get_id().clone()),
-                            connector_transaction_id,
-                            &authentication_id,
-                            payment_data.service_details.clone(),
-                            common_enums::AuthenticationStatus::Success,
-                        )
-                        .await?;
-
-                        Some(
+                        (Some(
                             hyperswitch_domain_models::payment_method_data::NetworkTokenData {
                                 token_number: authentication_details.token_details.payment_token,
                                 token_exp_month: authentication_details
@@ -1141,40 +1127,10 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                                 bank_code: None,
                                 nick_name: None,
                                 eci: authentication_details.eci,
-                            },
-                        )
-                    }
-                    Ok(UasAuthenticationResponseData::PreAuthentication {}) => {
-                        unified_authentication_service::create_new_authentication(
-                            state,
-                            payment_data.payment_attempt.merchant_id.clone(),
-                            connector_name.to_string(),
-                            business_profile.get_id().clone(),
-                            Some(payment_data.payment_intent.get_id().clone()),
-                            connector_transaction_id,
-                            &authentication_id,
-                            payment_data.service_details.clone(),
-                            common_enums::AuthenticationStatus::Started,
-                        )
-                        .await?;
-                        None
-                    }
-                    Err(_) => {
-                        unified_authentication_service::create_new_authentication(
-                            state,
-                            payment_data.payment_attempt.merchant_id.clone(),
-                            connector_name.to_string(),
-                            business_profile.get_id().clone(),
-                            Some(payment_data.payment_intent.get_id().clone()),
-                            connector_transaction_id,
-                            &authentication_id,
-                            payment_data.service_details.clone(),
-                            common_enums::AuthenticationStatus::Failed,
-                        )
-                        .await?;
-
-                        None
-                    }
+                            }),common_enums::AuthenticationStatus::Success)
+                    },
+                    Ok(unified_authentication_service::UasAuthenticationResponseData::PreAuthentication {}) => (None, common_enums::AuthenticationStatus::Started),
+                    Err(_) => (None, common_enums::AuthenticationStatus::Failed)
                 };
 
                 payment_data.payment_attempt.payment_method =
@@ -1183,6 +1139,19 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                 payment_data.payment_method_data = network_token
                     .clone()
                     .map(domain::PaymentMethodData::NetworkToken);
+
+                uas_utils::create_new_authentication(
+                    state,
+                    payment_data.payment_attempt.merchant_id.clone(),
+                    connector_name.to_string(),
+                    business_profile.get_id().clone(),
+                    Some(payment_data.payment_intent.get_id().clone()),
+                    connector_transaction_id,
+                    &authentication_id,
+                    payment_data.service_details.clone(),
+                    authentication_status,
+                )
+                .await?;
             }
         }
 
