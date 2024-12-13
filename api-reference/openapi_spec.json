@@ -24014,6 +24014,13 @@
           }
         ]
       },
+      "SizeVariants": {
+        "type": "string",
+        "enum": [
+          "cover",
+          "contain"
+        ]
+      },
       "SplitPaymentsRequest": {
         "oneOf": [
           {
@@ -24060,13 +24067,6 @@
           }
         ],
         "description": "Charge specific fields for controlling the revert of funds from either platform or connected account. Check sub-fields for more details."
-      },
-      "SizeVariants": {
-        "type": "string",
-        "enum": [
-          "cover",
-          "contain"
-        ]
       },
       "StraightThroughAlgorithm": {
         "oneOf": [
