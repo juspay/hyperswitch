@@ -133,12 +133,14 @@ export function determineConnectorConfig(connectorConfig) {
         )
           .split("/")
           .pop()
+          .toLowerCase()
       : Cypress.spec.name.toLowerCase();
 
   try {
     const matchesSpec = specName.some(
       (name) => name && currentSpec.includes(name.toLowerCase())
     );
+
     return matchesSpec ? value : DEFAULT_CONNECTOR;
   } catch (error) {
     console.error("Error matching spec names:", error);
