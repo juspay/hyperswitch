@@ -3387,7 +3387,7 @@ pub async fn get_session_token_for_click_to_pay(
     authentication_product_ids: serde_json::Value,
     payment_intent: &hyperswitch_domain_models::payments::PaymentIntent,
 ) -> RouterResult<api_models::payments::SessionToken> {
-    use common_utils::id_type::MerchantConnectorAccountId;
+    use common_utils::{id_type::MerchantConnectorAccountId, types::AmountConvertor};
     use hyperswitch_domain_models::payments::ClickToPayMetaData;
 
     use crate::consts::CLICK_TO_PAY;
@@ -3418,6 +3418,16 @@ pub async fn get_session_token_for_click_to_pay(
         .parse_value("ClickToPayMetaData")
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Error while parsing ClickToPayMetaData")?;
+    let transaction_currency = payment_intent
+        .currency
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("currency is not present in payment_data.payment_intent")?;
+    let required_amount_type = common_utils::types::StringMajorUnitForConnector;
+    let transaction_amount = required_amount_type
+        .convert(payment_intent.amount, transaction_currency)
+        .change_context(errors::ApiErrorResponse::PreconditionFailed {
+            message: "Failed to convert amount to string major unit for clickToPay".to_string(),
+        })?;
     Ok(api_models::payments::SessionToken::ClickToPay(Box::new(
         api_models::payments::ClickToPaySessionResponse {
             dpa_id: click_to_pay_metadata.dpa_id,
@@ -3428,11 +3438,8 @@ pub async fn get_session_token_for_click_to_pay(
             acquirer_merchant_id: click_to_pay_metadata.acquirer_merchant_id,
             merchant_category_code: click_to_pay_metadata.merchant_category_code,
             merchant_country_code: click_to_pay_metadata.merchant_country_code,
-            transaction_amount: payment_intent.amount,
-            transaction_currency_code: payment_intent
-                .currency
-                .ok_or(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("currency is not present in payment_data.payment_intent")?,
+            transaction_amount: transaction_amount,
+            transaction_currency_code: transaction_currency,
         },
     )))
 }
