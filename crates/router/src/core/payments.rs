@@ -54,7 +54,7 @@ use masking::{ExposeInterface, PeekInterface, Secret};
 #[cfg(feature = "v2")]
 use operations::ValidateStatusForOperation;
 use redis_interface::errors::RedisError;
-use router_env::{instrument, metrics::add_attributes, tracing};
+use router_env::{instrument, tracing};
 #[cfg(feature = "olap")]
 use router_types::transformers::ForeignFrom;
 use scheduler::utils as pt_utils;
@@ -1650,18 +1650,14 @@ pub trait PaymentRedirectFlow: Sync {
         req: PaymentsRedirectResponseData,
     ) -> RouterResponse<api::RedirectionResponse> {
         metrics::REDIRECTION_TRIGGERED.add(
-            &metrics::CONTEXT,
             1,
-            &add_attributes([
+            router_env::metric_attributes!(
                 (
                     "connector",
                     req.connector.to_owned().unwrap_or("null".to_string()),
                 ),
-                (
-                    "merchant_id",
-                    merchant_account.get_id().get_string_repr().to_owned(),
-                ),
-            ]),
+                ("merchant_id", merchant_account.get_id().clone()),
+            ),
         );
         let connector = req.connector.clone().get_required_value("connector")?;
 
@@ -1723,12 +1719,8 @@ pub trait PaymentRedirectFlow: Sync {
         request: PaymentsRedirectResponseData,
     ) -> RouterResponse<api::RedirectionResponse> {
         metrics::REDIRECTION_TRIGGERED.add(
-            &metrics::CONTEXT,
             1,
-            &add_attributes([(
-                "merchant_id",
-                merchant_account.get_id().get_string_repr().to_owned(),
-            )]),
+            router_env::metric_attributes!(("merchant_id", merchant_account.get_id().clone())),
         );
 
         let payment_flow_response = self
@@ -4270,6 +4262,7 @@ where
     pub poll_config: Option<router_types::PollConfig>,
     pub tax_data: Option<TaxData>,
     pub session_id: Option<String>,
+    pub service_details: Option<api_models::payments::CtpServiceDetails>,
 }
 
 #[derive(Clone, serde::Serialize, Debug)]
@@ -4335,7 +4328,7 @@ pub fn if_not_create_change_operation<'a, Op, F>(
     current: &'a Op,
 ) -> BoxedOperation<'a, F, api::PaymentsRequest, PaymentData<F>>
 where
-    F: Send + Clone,
+    F: Send + Clone + Sync,
     Op: Operation<F, api::PaymentsRequest, Data = PaymentData<F>> + Send + Sync,
     &'a Op: Operation<F, api::PaymentsRequest, Data = PaymentData<F>>,
     PaymentStatus: Operation<F, api::PaymentsRequest, Data = PaymentData<F>>,
@@ -4576,11 +4569,7 @@ pub async fn apply_filters_on_payments(
             ))
         },
         &metrics::PAYMENT_LIST_LATENCY,
-        &metrics::CONTEXT,
-        &[router_env::opentelemetry::KeyValue::new(
-            "merchant_id",
-            merchant.get_id().clone(),
-        )],
+        router_env::metric_attributes!(("merchant_id", merchant.get_id().clone())),
     )
     .await
 }

@@ -1023,6 +1023,22 @@ pub struct PaymentsRequest {
     /// Choose what kind of sca exemption is required for this payment
     #[schema(value_type = Option<ScaExemptionType>)]
     pub psd2_sca_exemption_type: Option<api_enums::ScaExemptionType>,
+
+    /// Service details for click to pay external authentication
+    #[schema(value_type = Option<CtpServiceDetails>)]
+    pub ctp_service_details: Option<CtpServiceDetails>,
+}
+
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct CtpServiceDetails {
+    /// merchant transaction id
+    pub merchant_transaction_id: Option<String>,
+    /// network transaction correlation id
+    pub correlation_id: Option<String>,
+    /// session transaction flow id
+    pub x_src_flow_id: Option<String>,
+    /// provider Eg: Visa, Mastercard
+    pub provider: Option<String>,
 }
 
 #[cfg(feature = "v1")]
@@ -2114,14 +2130,29 @@ mod payment_method_data_serde {
                         if inner_map.is_empty() {
                             None
                         } else {
-                            Some(
-                                serde_json::from_value::<PaymentMethodData>(
-                                    payment_method_data_value,
-                                )
-                                .map_err(|serde_json_error| {
-                                    de::Error::custom(serde_json_error.to_string())
-                                })?,
+                            let payment_method_data = serde_json::from_value::<PaymentMethodData>(
+                                payment_method_data_value,
                             )
+                            .map_err(|serde_json_error| {
+                                de::Error::custom(serde_json_error.to_string())
+                            })?;
+                            let address_details = parsed_value
+                                .billing
+                                .as_ref()
+                                .and_then(|billing| billing.address.clone());
+                            match (payment_method_data.clone(), address_details.as_ref()) {
+                                (
+                                    PaymentMethodData::Card(ref mut card),
+                                    Some(billing_address_details),
+                                ) => {
+                                    if card.card_holder_name.is_none() {
+                                        card.card_holder_name =
+                                            billing_address_details.get_optional_full_name();
+                                    }
+                                    Some(PaymentMethodData::Card(card.clone()))
+                                }
+                                _ => Some(payment_method_data),
+                            }
                         }
                     } else {
                         Err(de::Error::custom("Expected a map for payment_method_data"))?
@@ -6855,6 +6886,9 @@ pub struct PaymentLinkDetails {
     pub show_card_form_by_default: bool,
     pub locale: Option<String>,
     pub transaction_details: Option<Vec<admin::PaymentLinkTransactionDetails>>,
+    pub background_image: Option<admin::PaymentLinkBackgroundImageConfig>,
+    pub details_layout: Option<api_enums::PaymentLinkDetailsLayout>,
+    pub branding_visibility: Option<bool>,
 }
 
 #[derive(Debug, serde::Serialize, Clone)]

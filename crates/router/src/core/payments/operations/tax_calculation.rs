@@ -36,7 +36,8 @@ type PaymentSessionUpdateOperation<'b, F> =
     BoxedOperation<'b, F, api::PaymentsDynamicTaxCalculationRequest, PaymentData<F>>;
 
 #[async_trait]
-impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsDynamicTaxCalculationRequest>
+impl<F: Send + Clone + Sync>
+    GetTracker<F, PaymentData<F>, api::PaymentsDynamicTaxCalculationRequest>
     for PaymentSessionUpdate
 {
     #[instrument(skip_all)]
@@ -178,6 +179,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsDynamicTaxCalcu
             poll_config: None,
             tax_data: Some(tax_data),
             session_id: request.session_id.clone(),
+            service_details: None,
         };
         let get_trackers_response = operations::GetTrackerResponse {
             operation: Box::new(self),
@@ -192,7 +194,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsDynamicTaxCalcu
 }
 
 #[async_trait]
-impl<F: Clone + Send> Domain<F, api::PaymentsDynamicTaxCalculationRequest, PaymentData<F>>
+impl<F: Clone + Send + Sync> Domain<F, api::PaymentsDynamicTaxCalculationRequest, PaymentData<F>>
     for PaymentSessionUpdate
 {
     #[instrument(skip_all)]
@@ -364,7 +366,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsDynamicTaxCalculationRequest, Payme
 }
 
 #[async_trait]
-impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsDynamicTaxCalculationRequest>
+impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsDynamicTaxCalculationRequest>
     for PaymentSessionUpdate
 {
     #[instrument(skip_all)]
@@ -442,7 +444,8 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsDynamicTaxCalculati
     }
 }
 
-impl<F: Send + Clone> ValidateRequest<F, api::PaymentsDynamicTaxCalculationRequest, PaymentData<F>>
+impl<F: Send + Clone + Sync>
+    ValidateRequest<F, api::PaymentsDynamicTaxCalculationRequest, PaymentData<F>>
     for PaymentSessionUpdate
 {
     #[instrument(skip_all)]

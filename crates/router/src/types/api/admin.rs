@@ -176,6 +176,7 @@ impl ForeignTryFrom<domain::Profile> for ProfileResponse {
             max_auto_retries_enabled: item.max_auto_retries_enabled,
             always_request_extended_authorization: item.always_request_extended_authorization,
             is_click_to_pay_enabled: item.is_click_to_pay_enabled,
+            authentication_product_ids: item.authentication_product_ids,
         })
     }
 }
@@ -244,6 +245,7 @@ impl ForeignTryFrom<domain::Profile> for ProfileResponse {
             is_tax_connector_enabled: item.is_tax_connector_enabled,
             is_network_tokenization_enabled: item.is_network_tokenization_enabled,
             is_click_to_pay_enabled: item.is_click_to_pay_enabled,
+            authentication_product_ids: item.authentication_product_ids,
         })
     }
 }
@@ -299,6 +301,13 @@ pub async fn create_profile_from_merchant_account(
             )),
         })
         .transpose()?;
+
+    let authentication_product_ids = request
+        .authentication_product_ids
+        .map(serde_json::to_value)
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("failed to parse product authentication id's to value")?;
 
     Ok(domain::Profile::from(domain::ProfileSetter {
         profile_id,
@@ -372,5 +381,6 @@ pub async fn create_profile_from_merchant_account(
         max_auto_retries_enabled: request.max_auto_retries_enabled.map(i16::from),
         always_request_extended_authorization: request.always_request_extended_authorization,
         is_click_to_pay_enabled: request.is_click_to_pay_enabled,
+        authentication_product_ids,
     }))
 }

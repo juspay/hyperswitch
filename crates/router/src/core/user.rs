@@ -104,10 +104,9 @@ pub async fn get_user_details(
 ) -> UserResponse<user_api::GetUserDetailsResponse> {
     let user = user_from_token.get_user_from_db(&state).await?;
     let verification_days_left = utils::user::get_verification_days_left(&state, &user)?;
-    let role_info = roles::RoleInfo::from_role_id_in_merchant_scope(
+    let role_info = roles::RoleInfo::from_role_id_and_org_id(
         &state,
         &user_from_token.role_id,
-        &user_from_token.merchant_id,
         &user_from_token.org_id,
     )
     .await
@@ -553,7 +552,7 @@ async fn handle_invitation(
         .into());
     }
 
-    let role_info = roles::RoleInfo::from_role_id_in_merchant_scope(
+    let role_info = roles::RoleInfo::from_role_id_in_lineage(
         state,
         &request.role_id,
         &user_from_token.merchant_id,
@@ -1371,10 +1370,9 @@ pub async fn list_user_roles_details(
         .await
         .to_not_found_response(UserErrors::InvalidRoleOperation)?;
 
-    let requestor_role_info = roles::RoleInfo::from_role_id_in_merchant_scope(
+    let requestor_role_info = roles::RoleInfo::from_role_id_and_org_id(
         &state,
         &user_from_token.role_id,
-        &user_from_token.merchant_id,
         &user_from_token.org_id,
     )
     .await
@@ -1526,7 +1524,7 @@ pub async fn list_user_roles_details(
             .collect::<HashSet<_>>()
             .into_iter()
             .map(|role_id| async {
-                let role_info = roles::RoleInfo::from_role_id_in_org_scope(
+                let role_info = roles::RoleInfo::from_role_id_and_org_id(
                     &state,
                     &role_id,
                     &user_from_token.org_id,
@@ -2533,10 +2531,9 @@ pub async fn list_orgs_for_user(
     state: SessionState,
     user_from_token: auth::UserFromToken,
 ) -> UserResponse<Vec<user_api::ListOrgsForUserResponse>> {
-    let role_info = roles::RoleInfo::from_role_id_in_merchant_scope(
+    let role_info = roles::RoleInfo::from_role_id_and_org_id(
         &state,
         &user_from_token.role_id,
-        &user_from_token.merchant_id,
         &user_from_token.org_id,
     )
     .await
@@ -2611,10 +2608,9 @@ pub async fn list_merchants_for_user_in_org(
     state: SessionState,
     user_from_token: auth::UserFromToken,
 ) -> UserResponse<Vec<user_api::ListMerchantsForUserInOrgResponse>> {
-    let role_info = roles::RoleInfo::from_role_id_in_merchant_scope(
+    let role_info = roles::RoleInfo::from_role_id_and_org_id(
         &state,
         &user_from_token.role_id,
-        &user_from_token.merchant_id,
         &user_from_token.org_id,
     )
     .await
@@ -2687,10 +2683,9 @@ pub async fn list_profiles_for_user_in_org_and_merchant_account(
     state: SessionState,
     user_from_token: auth::UserFromToken,
 ) -> UserResponse<Vec<user_api::ListProfilesForUserInOrgAndMerchantAccountResponse>> {
-    let role_info = roles::RoleInfo::from_role_id_in_merchant_scope(
+    let role_info = roles::RoleInfo::from_role_id_and_org_id(
         &state,
         &user_from_token.role_id,
-        &user_from_token.merchant_id,
         &user_from_token.org_id,
     )
     .await
@@ -2780,10 +2775,9 @@ pub async fn switch_org_for_user(
         .into());
     }
 
-    let role_info = roles::RoleInfo::from_role_id_in_merchant_scope(
+    let role_info = roles::RoleInfo::from_role_id_and_org_id(
         &state,
         &user_from_token.role_id,
-        &user_from_token.merchant_id,
         &user_from_token.org_id,
     )
     .await
@@ -2876,13 +2870,8 @@ pub async fn switch_org_for_user(
     )
     .await?;
 
-    utils::user_role::set_role_permissions_in_cache_by_role_id_merchant_id_org_id(
-        &state,
-        &role_id,
-        &merchant_id,
-        &request.org_id,
-    )
-    .await;
+    utils::user_role::set_role_info_in_cache_by_role_id_org_id(&state, &role_id, &request.org_id)
+        .await;
 
     let response = user_api::TokenResponse {
         token: token.clone(),
@@ -2905,10 +2894,9 @@ pub async fn switch_merchant_for_user_in_org(
     }
 
     let key_manager_state = &(&state).into();
-    let role_info = roles::RoleInfo::from_role_id_in_merchant_scope(
+    let role_info = roles::RoleInfo::from_role_id_and_org_id(
         &state,
         &user_from_token.role_id,
-        &user_from_token.merchant_id,
         &user_from_token.org_id,
     )
     .await
@@ -3065,13 +3053,7 @@ pub async fn switch_merchant_for_user_in_org(
     )
     .await?;
 
-    utils::user_role::set_role_permissions_in_cache_by_role_id_merchant_id_org_id(
-        &state,
-        &role_id,
-        &merchant_id,
-        &org_id,
-    )
-    .await;
+    utils::user_role::set_role_info_in_cache_by_role_id_org_id(&state, &role_id, &org_id).await;
 
     let response = user_api::TokenResponse {
         token: token.clone(),
@@ -3094,10 +3076,9 @@ pub async fn switch_profile_for_user_in_org_and_merchant(
     }
 
     let key_manager_state = &(&state).into();
-    let role_info = roles::RoleInfo::from_role_id_in_merchant_scope(
+    let role_info = roles::RoleInfo::from_role_id_and_org_id(
         &state,
         &user_from_token.role_id,
-        &user_from_token.merchant_id,
         &user_from_token.org_id,
     )
     .await
@@ -3175,10 +3156,9 @@ pub async fn switch_profile_for_user_in_org_and_merchant(
     )
     .await?;
 
-    utils::user_role::set_role_permissions_in_cache_by_role_id_merchant_id_org_id(
+    utils::user_role::set_role_info_in_cache_by_role_id_org_id(
         &state,
         &role_id,
-        &user_from_token.merchant_id,
         &user_from_token.org_id,
     )
     .await;
