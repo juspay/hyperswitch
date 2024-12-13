@@ -89,6 +89,7 @@ use crate::types::api::convert_connector_data_to_routable_connectors;
 use crate::{
     configs::settings::{ApplePayPreDecryptFlow, PaymentMethodTypeTokenFilter},
     connector::utils::missing_field_err,
+    consts,
     core::{
         errors::{self, CustomResult, RouterResponse, RouterResult},
         payment_methods::{cards, network_tokenization},
@@ -2308,7 +2309,7 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
                 .set_key_with_expiry(
                     &poll_id,
                     api_models::poll::PollStatus::Pending.to_string(),
-                    crate::consts::POLL_ID_TTL,
+                    consts::POLL_ID_TTL,
                 )
                 .await
                 .change_context(errors::StorageError::KVError)
@@ -5930,8 +5931,8 @@ where
     //     }
     // }
 
-    let routing_enabled_pmts = &crate::consts::ROUTING_ENABLED_PAYMENT_METHOD_TYPES;
-    let routing_enabled_pms = &crate::consts::ROUTING_ENABLED_PAYMENT_METHODS;
+    let routing_enabled_pmts = &consts::ROUTING_ENABLED_PAYMENT_METHOD_TYPES;
+    let routing_enabled_pms = &consts::ROUTING_ENABLED_PAYMENT_METHODS;
 
     let mut chosen = Vec::<api::SessionConnectorData>::new();
     for connector_data in &connectors {
@@ -5998,8 +5999,8 @@ where
     F: Clone,
     D: OperationSessionGetters<F>,
 {
-    let routing_enabled_pmts = &crate::consts::ROUTING_ENABLED_PAYMENT_METHOD_TYPES;
-    let routing_enabled_pms = &crate::consts::ROUTING_ENABLED_PAYMENT_METHODS;
+    let routing_enabled_pmts = &consts::ROUTING_ENABLED_PAYMENT_METHOD_TYPES;
+    let routing_enabled_pms = &consts::ROUTING_ENABLED_PAYMENT_METHODS;
 
     let mut chosen = Vec::<api::SessionConnectorData>::new();
     for connector_data in &connectors {
@@ -6119,7 +6120,7 @@ where
             let static_split: api_models::routing::RoutingVolumeSplit =
                 api_models::routing::RoutingVolumeSplit {
                     routing_type: api_models::routing::RoutingType::Static,
-                    split: crate::consts::DYNAMIC_ROUTING_MAX_VOLUME
+                    split: consts::DYNAMIC_ROUTING_MAX_VOLUME
                         - dynamic_routing_config
                             .dynamic_routing_volume_split
                             .unwrap_or_default(),

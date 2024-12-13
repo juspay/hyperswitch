@@ -78,6 +78,7 @@ use crate::{
         defaults::{get_billing_required_fields, get_shipping_required_fields},
         settings,
     },
+    consts as router_consts,
     core::{
         errors::{self, StorageErrorExt},
         payment_methods::{
@@ -104,8 +105,8 @@ use crate::{
 };
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use crate::{
-    consts as router_consts, core::payment_methods as pm_core, headers,
-    types::payment_methods as pm_types, utils::ConnectorResponseExt,
+    core::payment_methods as pm_core, headers, types::payment_methods as pm_types,
+    utils::ConnectorResponseExt,
 };
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
@@ -3527,9 +3528,9 @@ pub async fn list_payment_methods(
     if let Some((payment_attempt, payment_intent)) =
         payment_attempt.as_ref().zip(payment_intent.as_ref())
     {
-        let routing_enabled_pms = &crate::consts::ROUTING_ENABLED_PAYMENT_METHODS;
+        let routing_enabled_pms = &router_consts::ROUTING_ENABLED_PAYMENT_METHODS;
 
-        let routing_enabled_pm_types = &crate::consts::ROUTING_ENABLED_PAYMENT_METHOD_TYPES;
+        let routing_enabled_pm_types = &router_consts::ROUTING_ENABLED_PAYMENT_METHOD_TYPES;
 
         let mut chosen = Vec::<api::SessionConnectorData>::new();
         for intermediate in &response {
