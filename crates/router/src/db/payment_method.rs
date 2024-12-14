@@ -68,7 +68,7 @@ pub trait PaymentMethodInterface {
         key_store: &domain::MerchantKeyStore,
         id: &id_type::GlobalCustomerId,
         limit: Option<i64>,
-    ) -> CustomResult<Vec<storage_types::PaymentMethod>, errors::StorageError>;
+    ) -> CustomResult<Vec<domain::PaymentMethod>, errors::StorageError>;
 
     #[cfg(all(
         any(feature = "v1", feature = "v2"),
@@ -717,12 +717,33 @@ mod storage {
         ))]
         async fn find_payment_method_list_by_global_customer_id(
             &self,
-            _state: &KeyManagerState,
-            _key_store: &domain::MerchantKeyStore,
-            _id: &id_type::GlobalCustomerId,
-            _limit: Option<i64>,
-        ) -> CustomResult<Vec<storage_types::PaymentMethod>, errors::StorageError> {
-            todo!()
+            state: &KeyManagerState,
+            key_store: &domain::MerchantKeyStore,
+            customer_id: &id_type::GlobalCustomerId,
+            limit: Option<i64>,
+        ) -> CustomResult<Vec<domain::PaymentMethod>, errors::StorageError> {
+            let conn = connection::pg_connection_read(self).await?;
+            let payment_methods =
+                storage_types::PaymentMethod::find_by_global_customer_id(&conn, customer_id, limit)
+                    .await
+                    .map_err(|error| report!(errors::StorageError::from(error)))?;
+
+            let pm_futures = payment_methods
+                .into_iter()
+                .map(|pm| async {
+                    pm.convert(
+                        state,
+                        key_store.key.get_inner(),
+                        key_store.merchant_id.clone().into(),
+                    )
+                    .await
+                    .change_context(errors::StorageError::DecryptionError)
+                })
+                .collect::<Vec<_>>();
+
+            let domain_payment_methods = futures::future::try_join_all(pm_futures).await?;
+
+            Ok(domain_payment_methods)
         }
 
         #[cfg(all(
@@ -1181,11 +1202,29 @@ mod storage {
             key_store: &domain::MerchantKeyStore,
             id: &id_type::GlobalCustomerId,
             limit: Option<i64>,
-        ) -> CustomResult<Vec<storage_types::PaymentMethod>, errors::StorageError> {
+        ) -> CustomResult<Vec<domain::PaymentMethod>, errors::StorageError> {
             let conn = connection::pg_connection_read(self).await?;
-            storage_types::PaymentMethod::find_by_global_id(&conn, id, limit)
-                .await
-                .map_err(|error| report!(errors::StorageError::from(error)))
+            let payment_methods =
+                storage_types::PaymentMethod::find_by_global_customer_id(&conn, customer_id, limit)
+                    .await
+                    .map_err(|error| report!(errors::StorageError::from(error)))?;
+
+            let pm_futures = payment_methods
+                .into_iter()
+                .map(|pm| async {
+                    pm.convert(
+                        state,
+                        key_store.key.get_inner(),
+                        key_store.merchant_id.clone().into(),
+                    )
+                    .await
+                    .change_context(errors::StorageError::DecryptionError)
+                })
+                .collect::<Vec<_>>();
+
+            let domain_payment_methods = futures::future::try_join_all(pm_futures).await?;
+
+            Ok(domain_payment_methods)
         }
 
         #[cfg(all(
@@ -1541,7 +1580,7 @@ impl PaymentMethodInterface for MockDb {
         key_store: &domain::MerchantKeyStore,
         _id: &id_type::GlobalCustomerId,
         _limit: Option<i64>,
-    ) -> CustomResult<Vec<storage_types::PaymentMethod>, errors::StorageError> {
+    ) -> CustomResult<Vec<domain::PaymentMethod>, errors::StorageError> {
         todo!()
     }
 

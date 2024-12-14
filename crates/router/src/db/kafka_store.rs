@@ -1917,7 +1917,7 @@ impl PaymentMethodInterface for KafkaStore {
         key_store: &domain::MerchantKeyStore,
         id: &id_type::GlobalCustomerId,
         limit: Option<i64>,
-    ) -> CustomResult<Vec<storage::PaymentMethod>, errors::StorageError> {
+    ) -> CustomResult<Vec<domain::PaymentMethod>, errors::StorageError> {
         self.diesel_store
             .find_payment_method_list_by_global_customer_id(state, key_store, id, limit)
             .await

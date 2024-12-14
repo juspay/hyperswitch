@@ -540,7 +540,6 @@ mod storage {
                 )
                 .await
                 .change_context(errors::StorageError::DecryptionError)?;
-            //.await
 
             match result.name {
                 Some(ref name) if name.peek() == REDACTED => {
@@ -608,7 +607,6 @@ mod storage {
                 )
                 .await
                 .change_context(errors::StorageError::DecryptionError)?;
-            //.await
 
             match result.name {
                 Some(ref name) if name.peek() == REDACTED => {
@@ -882,13 +880,11 @@ mod storage {
                 )
                 .await
                 .change_context(errors::StorageError::DecryptionError)?;
-            //.await
 
-            match result.name {
-                Some(ref name) if name.peek() == REDACTED => {
-                    Err(errors::StorageError::CustomerRedacted)?
-                }
-                _ => Ok(result),
+            if result.status == common_enums::DeleteStatus::Redacted {
+                Err(report!(errors::StorageError::CustomerRedacted))
+            } else {
+                Ok(result)
             }
         }
 
