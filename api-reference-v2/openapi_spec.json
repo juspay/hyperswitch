@@ -1712,7 +1712,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/CustomerRequest"
+                "$ref": "#/components/schemas/CustomerUpdateRequest"
               },
               "examples": {
                 "Update name and email of a customer": {
@@ -7661,6 +7661,84 @@
             "maxLength": 64
           }
         }
+      },
+      "CustomerUpdateRequest": {
+        "type": "object",
+        "required": [
+          "name",
+          "email"
+        ],
+        "properties": {
+          "merchant_reference_id": {
+            "type": "string",
+            "description": "The merchant identifier for the customer object.",
+            "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
+            "nullable": true,
+            "maxLength": 64,
+            "minLength": 1
+          },
+          "name": {
+            "type": "string",
+            "description": "The customer's name",
+            "example": "Jon Test",
+            "maxLength": 255
+          },
+          "email": {
+            "type": "string",
+            "description": "The customer's email address",
+            "example": "JonTest@test.com",
+            "maxLength": 255
+          },
+          "phone": {
+            "type": "string",
+            "description": "The customer's phone number",
+            "example": "9123456789",
+            "nullable": true,
+            "maxLength": 255
+          },
+          "description": {
+            "type": "string",
+            "description": "An arbitrary string that you can attach to a customer object.",
+            "example": "First Customer",
+            "nullable": true,
+            "maxLength": 255
+          },
+          "phone_country_code": {
+            "type": "string",
+            "description": "The country code for the customer phone number",
+            "example": "+65",
+            "nullable": true,
+            "maxLength": 255
+          },
+          "default_billing_address": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AddressDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "default_shipping_address": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AddressDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "metadata": {
+            "type": "object",
+            "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500\ncharacters long. Metadata is useful for storing additional, structured information on an\nobject.",
+            "nullable": true
+          },
+          "default_payment_method_id": {
+            "type": "string",
+            "description": "The unique identifier of the payment method",
+            "example": "card_rGK4Vi5iSW70MY7J2mIg",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
       },
       "DecoupledAuthenticationType": {
         "type": "string",
