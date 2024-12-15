@@ -953,6 +953,7 @@ impl<F1, F2, T1, T2> ForeignFrom<(&RouterData<F1, T1, PaymentsResponseData>, T2)
                 .connector_mandate_request_reference_id
                 .clone(),
             psd2_sca_exemption_type: data.psd2_sca_exemption_type,
+            request_overcapture: data.request_overcapture,
         }
     }
 }
@@ -1019,6 +1020,7 @@ impl<F1, F2>
             header_payload: data.header_payload.clone(),
             connector_mandate_request_reference_id: None,
             psd2_sca_exemption_type: None,
+            request_overcapture: None,
         }
     }
 }

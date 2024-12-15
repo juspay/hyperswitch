@@ -17,7 +17,7 @@ payment_methods_v2 = []
 
 [dependencies]
 async-bb8-diesel = { git = "https://github.com/jarnura/async-bb8-diesel", rev = "53b4ab901aab7635c8215fd1c2d542c8db443094" }
-diesel = { version = "2.2.3", features = ["postgres", "serde_json", "time", "64-column-tables"] }
+diesel = { version = "2.2.3", features = ["postgres", "serde_json", "time", "128-column-tables"] }
 error-stack = "0.4.1"
 rustc-hash = "1.1.0"
 serde = { version = "1.0.197", features = ["derive"] }

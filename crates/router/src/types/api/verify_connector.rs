@@ -119,6 +119,7 @@ impl VerifyConnectorData {
             header_payload: None,
             connector_mandate_request_reference_id: None,
             psd2_sca_exemption_type: None,
+            request_overcapture: None,
         }
     }
 }

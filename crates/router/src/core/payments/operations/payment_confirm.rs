@@ -396,6 +396,10 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
 
         payment_attempt.capture_method = request.capture_method.or(payment_attempt.capture_method);
 
+        payment_attempt.request_overcapture = request
+            .request_overcapture
+            .or(Some(business_profile.always_request_overcapture));
+
         payment_attempt.customer_acceptance = request
             .customer_acceptance
             .clone()
@@ -1344,7 +1348,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             async move {
                 m_db.update_payment_attempt_with_attempt_id(
                     m_payment_data_payment_attempt,
-                    storage::PaymentAttemptUpdate::ConfirmUpdate {
+                    storage::PaymentAttemptUpdate::ConfirmUpdate { // Should we remove  todooo
                         currency: payment_data.currency,
                         status: attempt_status,
                         payment_method,
@@ -1386,6 +1390,8 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                         connector_mandate_detail: payment_data
                             .payment_attempt
                             .connector_mandate_detail,
+                        maximum_capturable_amount: None,
+                        overcapture_applied: None,
                     },
                     storage_scheme,
                 )

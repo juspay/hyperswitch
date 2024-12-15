@@ -541,6 +541,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         }
         let amount = payment_attempt.get_total_amount().into();
 
+        payment_attempt.request_overcapture = request.request_overcapture.or(Some(business_profile.always_request_overcapture)); // todoooo
+
         payment_attempt.connector_mandate_detail =
             Some(DieselConnectorMandateReferenceId::foreign_from(
                 api_models::payments::ConnectorMandateReferenceId::new(
@@ -1280,6 +1282,9 @@ impl PaymentCreate {
                 organization_id: organization_id.clone(),
                 profile_id,
                 connector_mandate_detail: None,
+                request_overcapture: request.request_overcapture,
+                overcapture_applied: None,
+                maximum_capturable_amount: None,
             },
             additional_pm_data,
 

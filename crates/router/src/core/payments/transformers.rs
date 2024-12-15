@@ -168,6 +168,7 @@ where
         header_payload: None,
         connector_mandate_request_reference_id,
         psd2_sca_exemption_type: None,
+        request_overcapture: None,
     };
     Ok(router_data)
 }
@@ -848,6 +849,7 @@ where
         header_payload,
         connector_mandate_request_reference_id,
         psd2_sca_exemption_type: payment_data.payment_intent.psd2_sca_exemption_type,
+        request_overcapture: payment_data.payment_attempt.request_overcapture,
     };
 
     Ok(router_data)

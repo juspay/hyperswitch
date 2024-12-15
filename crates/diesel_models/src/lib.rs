@@ -1,3 +1,5 @@
+#![recursion_limit = "128"]
+
 pub mod address;
 pub mod api_keys;
 pub mod blocklist_lookup;

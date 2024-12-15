@@ -3550,6 +3550,7 @@ mod tests {
             tax_details: None,
             skip_external_tax_calculation: None,
             psd2_sca_exemption_type: None,
+            request_overcapture: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent,).is_err())
@@ -3941,6 +3942,7 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
         header_payload: router_data.header_payload,
         connector_mandate_request_reference_id: router_data.connector_mandate_request_reference_id,
         psd2_sca_exemption_type: router_data.psd2_sca_exemption_type,
+        request_overcapture: router_data.request_overcapture,
     }
 }
 
@@ -4153,6 +4155,9 @@ impl AttemptType {
             organization_id: old_payment_attempt.organization_id,
             profile_id: old_payment_attempt.profile_id,
             connector_mandate_detail: None,
+            request_overcapture: old_payment_attempt.request_overcapture,
+            overcapture_applied: None,
+            maximum_capturable_amount: None,
         }
     }
 
