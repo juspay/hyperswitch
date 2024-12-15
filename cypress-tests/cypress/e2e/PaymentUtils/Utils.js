@@ -115,25 +115,15 @@ export function getValueByKey(jsonObject, key, keyNumber = 0) {
             "connector_account_details"
           )
         ) {
-          cy.task("getSharedState").then((state) => {
-            if (typeof state.MULTIPLE_CONNECTORS === "undefined") {
-              const MULTIPLE_CONNECTORS = {
-                status: true,
-                count: keys.length,
-              };
-              cy.task("setSharedState", { MULTIPLE_CONNECTORS });
-            }
-          });
-
+          // Set MULTIPLE_CONNECTORS state via command
+          cy.setMultipleConnectorsState(keys);
           return currentItem;
         }
       }
     }
-
     return data[key];
-  } else {
-    return null;
   }
+  return null;
 }
 
 export const should_continue_further = (data) => {
@@ -198,26 +188,31 @@ export function createBusinessProfile(
   globalState,
   multipleConnector = { nextConnector: false }
 ) {
-  cy.task("getSharedState").then((state) => {
-    const multipleConnectors = state.MULTIPLE_CONNECTORS;
-    cy.log(`MULTIPLE_CONNECTORS: ${JSON.stringify(multipleConnectors)}`);
+  const multipleConnectors = globalState.get("MULTIPLE_CONNECTORS");
+  cy.log(`MULTIPLE_CONNECTORS: ${JSON.stringify(multipleConnectors)}`);
 
-    if (multipleConnectors?.status) {
-      // Get MCA config and determine profile prefix
-      const mcaConfig = getConnectorDetails(globalState.get("connectorId"));
-      const { profilePrefix } = execConfig({
-        CONNECTOR_CREDENTIAL: multipleConnector?.nextConnector
-          ? multipleConnector
-          : mcaConfig?.multi_credential_config || multipleConnector,
-      });
-
-      cy.createBusinessProfileTest(
-        createBusinessProfileBody,
-        globalState,
-        profilePrefix
-      );
-    }
+  // Get MCA config and determine profile prefix
+  const mcaConfig = getConnectorDetails(globalState.get("connectorId"));
+  const { profilePrefix } = execConfig({
+    CONNECTOR_CREDENTIAL:
+      multipleConnector?.nextConnector && multipleConnectors?.status
+        ? multipleConnector
+        : mcaConfig?.multi_credential_config || multipleConnector,
   });
+
+  if (
+    !(
+      (multipleConnector?.nextConnector === true &&
+        multipleConnectors?.status === false) ||
+      typeof multipleConnectors === "undefined"
+    )
+  ) {
+    cy.createBusinessProfileTest(
+      createBusinessProfileBody,
+      globalState,
+      profilePrefix
+    );
+  }
 }
 
 export function createMerchantConnectorAccount(
@@ -227,29 +222,34 @@ export function createMerchantConnectorAccount(
   paymentMethodsEnabled,
   multipleConnector = { nextConnector: false }
 ) {
-  cy.task("getSharedState").then((state) => {
-    const multipleConnectors = state.MULTIPLE_CONNECTORS;
-    cy.log(`MULTIPLE_CONNECTORS: ${JSON.stringify(multipleConnectors)}`);
+  const multipleConnectors = globalState.get("MULTIPLE_CONNECTORS");
+  cy.log(`MULTIPLE_CONNECTORS: ${JSON.stringify(multipleConnectors)}`);
 
-    if (multipleConnectors?.status) {
-      // Get MCA config
-      const mcaConfig = getConnectorDetails(globalState.get("connectorId"));
-      const { profilePrefix, merchantConnectorPrefix } = execConfig({
-        CONNECTOR_CREDENTIAL: multipleConnector?.nextConnector
-          ? multipleConnector
-          : mcaConfig?.multi_credential_config || multipleConnector,
-      });
-
-      cy.createConnectorCallTest(
-        paymentType,
-        createMerchantConnectorAccountBody,
-        paymentMethodsEnabled,
-        globalState,
-        profilePrefix,
-        merchantConnectorPrefix
-      );
-    }
+  // Get MCA config
+  const mcaConfig = getConnectorDetails(globalState.get("connectorId"));
+  const { profilePrefix, merchantConnectorPrefix } = execConfig({
+    CONNECTOR_CREDENTIAL:
+      multipleConnector?.nextConnector && multipleConnectors?.status
+        ? multipleConnector
+        : mcaConfig?.multi_credential_config || multipleConnector,
   });
+
+  if (
+    !(
+      (multipleConnector?.nextConnector === true &&
+        multipleConnectors?.status === false) ||
+      typeof multipleConnectors === "undefined"
+    )
+  ) {
+    cy.createConnectorCallTest(
+      paymentType,
+      createMerchantConnectorAccountBody,
+      paymentMethodsEnabled,
+      globalState,
+      profilePrefix,
+      merchantConnectorPrefix
+    );
+  }
 }
 
 export function updateBusinessProfile(
@@ -261,27 +261,23 @@ export function updateBusinessProfile(
   always_collect_shipping_address_from_wallet_connector,
   globalState
 ) {
-  cy.task("getSharedState").then((state) => {
-    const multipleConnectors = state.MULTIPLE_CONNECTORS;
-    cy.log(`MULTIPLE_CONNECTORS: ${JSON.stringify(multipleConnectors)}`);
+  const multipleConnectors = globalState.get("MULTIPLE_CONNECTORS");
+  cy.log(`MULTIPLE_CONNECTORS: ${JSON.stringify(multipleConnectors)}`);
 
-    if (multipleConnectors?.status) {
-      // Get MCA config and determine profile prefix
-      const mcaConfig = getConnectorDetails(globalState.get("connectorId"));
-      const { profilePrefix } = execConfig({
-        CONNECTOR_CREDENTIAL: mcaConfig?.multi_credential_config,
-      });
-
-      cy.UpdateBusinessProfileTest(
-        updateBusinessProfileBody,
-        is_connector_agnostic_enabled,
-        collect_billing_address_from_wallet_connector,
-        collect_shipping_address_from_wallet_connector,
-        always_collect_billing_address_from_wallet_connector,
-        always_collect_shipping_address_from_wallet_connector,
-        globalState,
-        profilePrefix
-      );
-    }
+  // Get MCA config
+  const mcaConfig = getConnectorDetails(globalState.get("connectorId"));
+  const { profilePrefix } = execConfig({
+    CONNECTOR_CREDENTIAL: mcaConfig?.multi_credential_config,
   });
+
+  cy.UpdateBusinessProfileTest(
+    updateBusinessProfileBody,
+    is_connector_agnostic_enabled,
+    collect_billing_address_from_wallet_connector,
+    collect_shipping_address_from_wallet_connector,
+    always_collect_billing_address_from_wallet_connector,
+    always_collect_shipping_address_from_wallet_connector,
+    globalState,
+    profilePrefix
+  );
 }

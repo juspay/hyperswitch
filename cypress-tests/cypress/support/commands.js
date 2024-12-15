@@ -42,6 +42,18 @@ function logRequestId(xRequestId) {
   }
 }
 
+Cypress.Commands.add("setMultipleConnectorsState", (connectorKeys) => {
+  const MULTIPLE_CONNECTORS = {
+    status: true,
+    count: connectorKeys.length,
+  };
+
+  cy.then(() => {
+    // Update global state directly
+    cy.task("setGlobalState", MULTIPLE_CONNECTORS);
+  });
+});
+
 Cypress.Commands.add(
   "merchantCreateCallTest",
   (merchantCreateBody, globalState) => {

@@ -11,8 +11,6 @@ const reportName = process.env.REPORT_NAME || `${connectorId}_report`;
 export default defineConfig({
   e2e: {
     setupNodeEvents(on) {
-      let sharedState = {};
-
       on("task", {
         setGlobalState: (val) => {
           return (globalState = val || {});
@@ -26,15 +24,6 @@ export default defineConfig({
           // eslint-disable-next-line no-console
           console.log(message);
           return null;
-        },
-        // Shared state makes it possible to share state / environment variables between tests
-        // This is similar to globalState but much simpler
-        setSharedState: (state) => {
-          sharedState = { ...sharedState, ...state };
-          return null;
-        },
-        getSharedState: () => {
-          return sharedState;
         },
       });
     },
