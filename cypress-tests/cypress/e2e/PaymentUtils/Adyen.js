@@ -789,7 +789,7 @@ export const connectorDetails = {
     },
   },
   bank_redirect_pm: {
-    PaymentIntent: getCustomExchange({
+    PaymentIntent: {
       Request: {
         currency: "EUR",
       },
@@ -799,7 +799,7 @@ export const connectorDetails = {
           status: "requires_payment_method",
         },
       },
-    }),
+    },
     Ideal: {
       Request: {
         payment_method: "bank_redirect",
