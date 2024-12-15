@@ -856,7 +856,7 @@ impl super::RedisConnectionPool {
     #[instrument(level = "DEBUG", skip(self))]
     pub async fn incr_keys_using_script<V>(
         &self,
-        lua_script: &str,
+        lua_script: &'static str,
         key: Vec<String>,
         values: V,
     ) -> CustomResult<(), errors::RedisError>
