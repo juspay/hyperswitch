@@ -80,6 +80,7 @@ pub struct ApplePayRegularBillingDetails {
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]
 #[diesel(sql_type = Json)]
+#[serde(rename_all = "snake_case")]
 pub enum RecurringPaymentIntervalUnit {
     Year,
     Month,

@@ -6218,6 +6218,7 @@ pub struct ApplePayPaymentRequest {
     /// The required shipping contacht fields for connector
     pub required_shipping_contact_fields: Option<ApplePayShippingContactFields>,
     /// Recurring payment request for apple pay Merchant Token
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub recurring_payment_request: Option<ApplePayRecurringPaymentRequest>,
 }
 
@@ -6228,6 +6229,7 @@ pub struct ApplePayRecurringPaymentRequest {
     /// The regular billing cycle for the recurring payment, including start and end dates, an interval, and an interval count
     pub regular_billing: ApplePayRegularBillingRequest,
     /// A localized billing agreement that the payment sheet displays to the user before the user authorizes the payment
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub billing_agreement: Option<String>,
     /// A URL to a web page where the user can update or delete the payment method for the recurring payment
     #[schema(value_type = String, example = "https://hyperswitch.io")]
@@ -6244,14 +6246,18 @@ pub struct ApplePayRegularBillingRequest {
     /// The time that the payment occurs as part of a successful transaction
     pub payment_timing: ApplePayPaymentTiming,
     /// The date of the first payment
+    #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
     pub recurring_payment_start_date: Option<PrimitiveDateTime>,
     /// The date of the final payment
+    #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
     pub recurring_payment_end_date: Option<PrimitiveDateTime>,
     /// The amount of time — in calendar units, such as day, month, or year — that represents a fraction of the total payment interval
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub recurring_payment_interval_unit: Option<RecurringPaymentIntervalUnit>,
     /// The number of interval units that make up the total payment interval
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub recurring_payment_interval_count: Option<i32>,
 }
 
@@ -6561,10 +6567,12 @@ pub struct ApplePayRegularBillingDetails {
     /// The label that Apple Pay displays to the user in the payment sheet with the recurring details
     pub label: String,
     /// The date of the first payment
-    #[serde(with = "common_utils::custom_serde::iso8601::option")]
+    #[schema(example = "2023-09-10T23:59:59Z")]
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub recurring_payment_start_date: Option<PrimitiveDateTime>,
     /// The date of the final payment
-    #[serde(with = "common_utils::custom_serde::iso8601::option")]
+    #[schema(example = "2023-09-10T23:59:59Z")]
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub recurring_payment_end_date: Option<PrimitiveDateTime>,
     /// The amount of time — in calendar units, such as day, month, or year — that represents a fraction of the total payment interval
     pub recurring_payment_interval_unit: Option<RecurringPaymentIntervalUnit>,
