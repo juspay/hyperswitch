@@ -1354,7 +1354,10 @@ pub async fn get_additional_payout_data(
                             card_extended_bin: card_extended_bin.clone(),
                             card_exp_month: Some(card_data.expiry_month.clone()),
                             card_exp_year: Some(card_data.expiry_year.clone()),
-                            card_holder_name: card_data.card_holder_name.clone(),
+                            card_holder_name: card_data
+                                .card_holder_name
+                                .clone()
+                                .map(|name| Secret::new(name.peek().to_string())),
                         },
                     ))
                 });
@@ -1371,7 +1374,10 @@ pub async fn get_additional_payout_data(
                         card_extended_bin,
                         card_exp_month: Some(card_data.expiry_month.clone()),
                         card_exp_year: Some(card_data.expiry_year.clone()),
-                        card_holder_name: card_data.card_holder_name.clone(),
+                        card_holder_name: card_data
+                            .card_holder_name
+                            .clone()
+                            .map(|name| Secret::new(name.peek().to_string())),
                     },
                 ))
             }))

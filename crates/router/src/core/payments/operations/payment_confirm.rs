@@ -7,9 +7,7 @@ use api_models::{
     admin::ExtendedCardInfoConfig,
     enums::FrmSuggestion,
     // payment_methods::PaymentMethodsData,
-    payments::{
-        Address, ConnectorMandateReferenceId, ExtendedCardInfo, GetAddressFromPaymentMethodData,
-    },
+    payments::{ConnectorMandateReferenceId, ExtendedCardInfo, GetAddressFromPaymentMethodData},
 };
 use async_trait::async_trait;
 use common_utils::ext_traits::{AsyncExt, Encode, StringExt, ValueExt};
@@ -711,17 +709,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .and_then(|payment_method_data_billing| {
                 payment_method_data_billing.get_billing_address()
             });
-
-        // validate billing name for card holder name
-        helpers::validate_billing_name(
-            payment_method_data_billing
-                .as_ref()
-                .and_then(|billing: &Address| billing.address.as_ref())
-                .or(request
-                    .billing
-                    .as_ref()
-                    .and_then(|billing: &Address| billing.address.as_ref())),
-        )?;
 
         let unified_address =
             address.unify_with_payment_method_data_billing(payment_method_data_billing);

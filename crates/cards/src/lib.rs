@@ -7,7 +7,7 @@ use masking::{PeekInterface, StrongSecret};
 use serde::{de, Deserialize, Serialize};
 use time::{util::days_in_year_month, Date, Duration, PrimitiveDateTime, Time};
 
-pub use crate::validate::{CardNumber, CardNumberStrategy, CardNumberValidationErr};
+pub use crate::validate::{CardNumber, CardNumberStrategy, CardNumberValidationErr, NameType};
 
 #[derive(Serialize)]
 pub struct CardSecurityCode(StrongSecret<u16>);
@@ -64,48 +64,6 @@ impl<'de> Deserialize<'de> for CardExpirationMonth {
     {
         let month = u8::deserialize(deserializer)?;
         month.try_into().map_err(de::Error::custom)
-    }
-}
-
-#[derive(Serialize)]
-pub struct CardHolderName(StrongSecret<String>);
-
-impl TryFrom<String> for CardHolderName {
-    type Error = error_stack::Report<errors::ValidationError>;
-    fn try_from(card_holder_name: String) -> Result<Self, Self::Error> {
-        for char in card_holder_name.chars() {
-            validate_character_in_card_holder_name(char)?;
-        }
-        Ok(Self(StrongSecret::new(card_holder_name)))
-    }
-}
-
-fn validate_character_in_card_holder_name(
-    character: char,
-) -> Result<(), error_stack::Report<errors::ValidationError>> {
-    if character.is_alphabetic()
-        || character == ' '
-        || character == '.'
-        || character == '-'
-        || character == '\''
-        || character == '~'
-        || character == '`'
-    {
-        Ok(())
-    } else {
-        Err(report!(errors::ValidationError::InvalidValue {
-            message: "invalid character in card holder name".to_string()
-        }))
-    }
-}
-
-impl<'de> Deserialize<'de> for CardHolderName {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let card_holder_name = String::deserialize(deserializer)?;
-        card_holder_name.try_into().map_err(de::Error::custom)
     }
 }
 
@@ -226,13 +184,6 @@ impl Deref for CardExpirationMonth {
 
 impl Deref for CardExpirationYear {
     type Target = StrongSecret<u16>;
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl Deref for CardHolderName {
-    type Target = StrongSecret<String>;
     fn deref(&self) -> &Self::Target {
         &self.0
     }

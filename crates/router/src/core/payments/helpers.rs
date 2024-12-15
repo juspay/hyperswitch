@@ -130,14 +130,16 @@ pub async fn create_or_update_address_for_payment_by_request(
                                 line2: address.address.as_ref().and_then(|a| a.line2.clone()),
                                 line3: address.address.as_ref().and_then(|a| a.line3.clone()),
                                 state: address.address.as_ref().and_then(|a| a.state.clone()),
-                                first_name: address
-                                    .address
-                                    .as_ref()
-                                    .and_then(|a| a.first_name.clone()),
-                                last_name: address
-                                    .address
-                                    .as_ref()
-                                    .and_then(|a| a.last_name.clone()),
+                                first_name: address.address.as_ref().and_then(|a| {
+                                    a.first_name
+                                        .clone()
+                                        .map(|name| masking::Secret::new(name.peek().to_string()))
+                                }),
+                                last_name: address.address.as_ref().and_then(|a| {
+                                    a.last_name
+                                        .clone()
+                                        .map(|name| masking::Secret::new(name.peek().to_string()))
+                                }),
                                 zip: address.address.as_ref().and_then(|a| a.zip.clone()),
                                 phone_number: address
                                     .phone
@@ -346,8 +348,16 @@ pub async fn get_domain_address(
                         line2: address.address.as_ref().and_then(|a| a.line2.clone()),
                         line3: address.address.as_ref().and_then(|a| a.line3.clone()),
                         state: address.address.as_ref().and_then(|a| a.state.clone()),
-                        first_name: address.address.as_ref().and_then(|a| a.first_name.clone()),
-                        last_name: address.address.as_ref().and_then(|a| a.last_name.clone()),
+                        first_name: address.address.as_ref().and_then(|a| {
+                            a.first_name
+                                .clone()
+                                .map(|name| masking::Secret::new(name.peek().to_string()))
+                        }),
+                        last_name: address.address.as_ref().and_then(|a| {
+                            a.last_name
+                                .clone()
+                                .map(|name| masking::Secret::new(name.peek().to_string()))
+                        }),
                         zip: address.address.as_ref().and_then(|a| a.zip.clone()),
                         phone_number: address
                             .phone
@@ -995,45 +1005,7 @@ pub fn validate_card_data(
         )?;
 
         validate_card_expiry(&card.card_exp_month, &card.card_exp_year)?;
-        validate_card_holder_name(&card.card_holder_name)?;
     }
-    Ok(())
-}
-
-pub fn validate_billing_name(
-    billing_address: Option<&api_models::payments::AddressDetails>,
-) -> CustomResult<(), errors::ApiErrorResponse> {
-    let optional_first_name = billing_address.and_then(|address| address.first_name.clone());
-    let optional_last_name = billing_address.and_then(|address| address.last_name.clone());
-
-    if let Some(first_name) = optional_first_name {
-        let first_name = first_name.peek().to_string();
-        if first_name.len() > 256 {
-            Err(report!(errors::ApiErrorResponse::PreconditionFailed {
-                message: "Invalid First Name Length".to_string()
-            }))?
-        }
-        ::cards::CardHolderName::try_from(first_name).change_context(
-            errors::ApiErrorResponse::PreconditionFailed {
-                message: "Invalid First Name".to_string(),
-            },
-        )?;
-    }
-
-    if let Some(last_name) = optional_last_name {
-        let last_name = last_name.peek().to_string();
-        if last_name.len() > 256 {
-            Err(report!(errors::ApiErrorResponse::PreconditionFailed {
-                message: "Invalid Last Name Length".to_string()
-            }))?
-        }
-        ::cards::CardHolderName::try_from(last_name).change_context(
-            errors::ApiErrorResponse::PreconditionFailed {
-                message: "Invalid Last Name".to_string(),
-            },
-        )?;
-    }
-
     Ok(())
 }
 
@@ -1083,26 +1055,6 @@ pub fn validate_card_expiry(
         }))?
     }
 
-    Ok(())
-}
-
-pub fn validate_card_holder_name(
-    optional_card_holder_name: &Option<masking::Secret<String>>,
-) -> CustomResult<(), errors::ApiErrorResponse> {
-    if let Some(masked_card_holder_name) = optional_card_holder_name {
-        let card_holder_name = masked_card_holder_name.peek().to_string();
-        if card_holder_name.len() > 256 {
-            Err(report!(errors::ApiErrorResponse::PreconditionFailed {
-                message: "Invalid Card Holder Name Length".to_string()
-            }))?
-        }
-        // validate card holder name
-        ::cards::CardHolderName::try_from(card_holder_name).change_context(
-            errors::ApiErrorResponse::PreconditionFailed {
-                message: "Invalid Card Holder Name".to_string(),
-            },
-        )?;
-    }
     Ok(())
 }
 
@@ -2017,7 +1969,7 @@ pub async fn retrieve_card_with_permanent_token(
                             card_type: None,
                             card_issuing_country: None,
                             bank_code: None,
-                            nick_name: card_details_from_locker.nick_name.map(masking::Secret::new),
+                            nick_name: card_details_from_locker.nick_name,
                         };
 
             Ok(
@@ -2116,7 +2068,7 @@ pub async fn retrieve_card_with_permanent_token(
                                     token_cryptogram: None,
                                     token_exp_month: token_data.card_exp_month,
                                     token_exp_year: token_data.card_exp_year,
-                                    nick_name: token_data.nick_name.map(masking::Secret::new),
+                                    nick_name: token_data.nick_name,
                                     card_issuer: None,
                                     card_network: None,
                                     card_type: None,
@@ -2162,7 +2114,7 @@ pub async fn retrieve_card_with_permanent_token(
                             card_type: None,
                             card_issuing_country: None,
                             bank_code: None,
-                            nick_name: card_details_from_locker.nick_name.map(masking::Secret::new),
+                            nick_name: card_details_from_locker.nick_name,
                         };
 
                         Ok(
@@ -2196,7 +2148,7 @@ pub async fn fetch_card_details_from_locker(
     // The card_holder_name from locker retrieved card is considered if it is a non-empty string or else card_holder_name is picked
     // from payment_method_data.card_token object
     let name_on_card = if let Some(name) = card.name_on_card.clone() {
-        if name.clone().expose().is_empty() {
+        if name.peek().is_empty() {
             card_token_data
                 .and_then(|token_data| token_data.card_holder_name.clone())
                 .or(Some(name))
@@ -2218,7 +2170,7 @@ pub async fn fetch_card_details_from_locker(
             .card_cvc
             .unwrap_or_default(),
         card_issuer: None,
-        nick_name: card.nick_name.map(masking::Secret::new),
+        nick_name: card.nick_name,
         card_network: card
             .card_brand
             .map(|card_brand| enums::CardNetwork::from_str(&card_brand))

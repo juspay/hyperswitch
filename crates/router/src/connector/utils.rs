@@ -10,6 +10,7 @@ use api_models::{
     payments,
 };
 use base64::Engine;
+use cards::NameType;
 use common_utils::{
     date_time,
     errors::{ParsingError, ReportSwitchExt},
@@ -227,7 +228,7 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
             shipping_address
                 .clone()
                 .address
-                .and_then(|shipping_details| shipping_details.first_name)
+                .and_then(|shipping_details| shipping_details.first_name.map(From::from))
         })
     }
 
@@ -236,7 +237,7 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
             shipping_address
                 .clone()
                 .address
-                .and_then(|shipping_details| shipping_details.last_name)
+                .and_then(|shipping_details| shipping_details.last_name.map(From::from))
         })
     }
 
@@ -344,7 +345,7 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
                 billing_address
                     .clone()
                     .address
-                    .and_then(|billing_details| billing_details.first_name.clone())
+                    .and_then(|billing_details| billing_details.first_name.clone().map(From::from))
             })
             .ok_or_else(missing_field_err(
                 "payment_method_data.billing.address.first_name",
@@ -367,7 +368,7 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
                 billing_address
                     .clone()
                     .address
-                    .and_then(|billing_details| billing_details.last_name.clone())
+                    .and_then(|billing_details| billing_details.last_name.clone().map(From::from))
             })
             .ok_or_else(missing_field_err(
                 "payment_method_data.billing.address.last_name",
@@ -490,7 +491,7 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
                 billing_address
                     .clone()
                     .address
-                    .and_then(|billing_details| billing_details.first_name)
+                    .and_then(|billing_details| billing_details.first_name.map(From::from))
             })
     }
 
@@ -501,7 +502,7 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
                 billing_address
                     .clone()
                     .address
-                    .and_then(|billing_details| billing_details.last_name)
+                    .and_then(|billing_details| billing_details.last_name.map(From::from))
             })
     }
 
@@ -1795,9 +1796,9 @@ impl PhoneDetailsData for api::PhoneDetails {
 }
 
 pub trait AddressDetailsData {
-    fn get_first_name(&self) -> Result<&Secret<String>, Error>;
-    fn get_last_name(&self) -> Result<&Secret<String>, Error>;
-    fn get_full_name(&self) -> Result<Secret<String>, Error>;
+    fn get_first_name(&self) -> Result<&NameType, Error>;
+    fn get_last_name(&self) -> Result<&NameType, Error>;
+    fn get_full_name(&self) -> Result<NameType, Error>;
     fn get_line1(&self) -> Result<&Secret<String>, Error>;
     fn get_city(&self) -> Result<&String, Error>;
     fn get_line2(&self) -> Result<&Secret<String>, Error>;

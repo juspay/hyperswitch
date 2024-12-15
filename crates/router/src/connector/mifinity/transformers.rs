@@ -1,3 +1,4 @@
+use cards::NameType;
 use common_utils::{
     pii::{self, Email},
     types::StringMajorUnit,
@@ -74,8 +75,8 @@ pub struct Money {
 #[derive(Debug, Clone, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct MifinityClient {
-    first_name: Secret<String>,
-    last_name: Secret<String>,
+    first_name: NameType,
+    last_name: NameType,
     phone: Secret<String>,
     dialing_code: String,
     nationality: api_models::enums::CountryAlpha2,

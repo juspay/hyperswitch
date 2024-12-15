@@ -2,6 +2,7 @@ use api_models::{
     mandates, payment_methods,
     payments::{additional_info as payment_additional_types, ExtendedCardInfo},
 };
+use cards::NameType;
 use common_enums::enums as api_enums;
 use common_utils::{
     id_type,
@@ -81,7 +82,7 @@ pub struct Card {
     pub card_type: Option<String>,
     pub card_issuing_country: Option<String>,
     pub bank_code: Option<String>,
-    pub nick_name: Option<Secret<String>>,
+    pub nick_name: Option<NameType>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize, Default)]
@@ -94,7 +95,7 @@ pub struct CardDetailsForNetworkTransactionId {
     pub card_type: Option<String>,
     pub card_issuing_country: Option<String>,
     pub bank_code: Option<String>,
-    pub nick_name: Option<Secret<String>>,
+    pub nick_name: Option<NameType>,
 }
 
 impl CardDetailsForNetworkTransactionId {
@@ -371,7 +372,7 @@ pub enum BankRedirectData {
         card_number: Option<cards::CardNumber>,
         card_exp_month: Option<Secret<String>>,
         card_exp_year: Option<Secret<String>>,
-        card_holder_name: Option<Secret<String>>,
+        card_holder_name: Option<NameType>,
     },
     Bizum {},
     Blik {
@@ -511,7 +512,7 @@ pub struct GiftCardDetails {
 #[serde(rename_all = "snake_case")]
 pub struct CardToken {
     /// The card holder's name
-    pub card_holder_name: Option<Secret<String>>,
+    pub card_holder_name: Option<NameType>,
 
     /// The CVC number for the card
     pub card_cvc: Option<Secret<String>>,
@@ -523,25 +524,25 @@ pub enum BankDebitData {
     AchBankDebit {
         account_number: Secret<String>,
         routing_number: Secret<String>,
-        card_holder_name: Option<Secret<String>>,
-        bank_account_holder_name: Option<Secret<String>>,
+        card_holder_name: Option<NameType>,
+        bank_account_holder_name: Option<NameType>,
         bank_name: Option<common_enums::BankNames>,
         bank_type: Option<common_enums::BankType>,
         bank_holder_type: Option<common_enums::BankHolderType>,
     },
     SepaBankDebit {
         iban: Secret<String>,
-        bank_account_holder_name: Option<Secret<String>>,
+        bank_account_holder_name: Option<NameType>,
     },
     BecsBankDebit {
         account_number: Secret<String>,
         bsb_number: Secret<String>,
-        bank_account_holder_name: Option<Secret<String>>,
+        bank_account_holder_name: Option<NameType>,
     },
     BacsBankDebit {
         account_number: Secret<String>,
         sort_code: Secret<String>,
-        bank_account_holder_name: Option<Secret<String>>,
+        bank_account_holder_name: Option<NameType>,
     },
 }
 
@@ -592,7 +593,7 @@ pub struct NetworkTokenData {
     pub card_type: Option<String>,
     pub card_issuing_country: Option<String>,
     pub bank_code: Option<String>,
-    pub nick_name: Option<Secret<String>>,
+    pub nick_name: Option<NameType>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize)]

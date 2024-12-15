@@ -1,3 +1,4 @@
+use cards::NameType;
 use masking::{PeekInterface, Secret};
 
 #[derive(Default, Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -33,18 +34,16 @@ pub struct AddressDetails {
     pub line3: Option<Secret<String>>,
     pub zip: Option<Secret<String>>,
     pub state: Option<Secret<String>>,
-    pub first_name: Option<Secret<String>>,
-    pub last_name: Option<Secret<String>>,
+    pub first_name: Option<NameType>,
+    pub last_name: Option<NameType>,
 }
 
 impl AddressDetails {
-    pub fn get_optional_full_name(&self) -> Option<Secret<String>> {
+    pub fn get_optional_full_name(&self) -> Option<NameType> {
         match (self.first_name.as_ref(), self.last_name.as_ref()) {
-            (Some(first_name), Some(last_name)) => Some(Secret::new(format!(
-                "{} {}",
-                first_name.peek(),
-                last_name.peek()
-            ))),
+            (Some(first_name), Some(last_name)) => {
+                NameType::try_from(format!("{} {}", first_name.peek(), last_name.peek())).ok()
+            }
             (Some(name), None) | (None, Some(name)) => Some(name.to_owned()),
             _ => None,
         }

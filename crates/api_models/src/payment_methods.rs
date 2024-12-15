@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use std::str::FromStr;
 
-use cards::CardNumber;
+use cards::{CardNumber, NameType};
 use common_utils::{
     consts::SURCHARGE_PERCENTAGE_PRECISION_LENGTH,
     crypto::OptionalEncryptableName,
@@ -455,11 +455,11 @@ pub struct CardDetail {
 
     /// Card Holder Name
     #[schema(value_type = String,example = "John Doe")]
-    pub card_holder_name: Option<masking::Secret<String>>,
+    pub card_holder_name: Option<NameType>,
 
     /// Card Holder's Nick Name
     #[schema(value_type = Option<String>,example = "John Doe")]
-    pub nick_name: Option<masking::Secret<String>>,
+    pub nick_name: Option<NameType>,
 
     /// Card Issuing Country
     pub card_issuing_country: Option<String>,
@@ -541,11 +541,11 @@ pub struct MigrateCardDetail {
 
     /// Card Holder Name
     #[schema(value_type = String,example = "John Doe")]
-    pub card_holder_name: Option<masking::Secret<String>>,
+    pub card_holder_name: Option<NameType>,
 
     /// Card Holder's Nick Name
     #[schema(value_type = Option<String>,example = "John Doe")]
-    pub nick_name: Option<masking::Secret<String>>,
+    pub nick_name: Option<NameType>,
 
     /// Card Issuing Country
     pub card_issuing_country: Option<String>,
@@ -578,11 +578,11 @@ pub struct MigrateNetworkTokenData {
 
     /// Card Holder Name
     #[schema(value_type = String,example = "John Doe")]
-    pub card_holder_name: Option<masking::Secret<String>>,
+    pub card_holder_name: Option<NameType>,
 
     /// Card Holder's Nick Name
     #[schema(value_type = Option<String>,example = "John Doe")]
-    pub nick_name: Option<masking::Secret<String>>,
+    pub nick_name: Option<NameType>,
 
     /// Card Issuing Country
     pub card_issuing_country: Option<String>,
@@ -625,11 +625,11 @@ pub struct CardDetailUpdate {
 
     /// Card Holder Name
     #[schema(value_type = String,example = "John Doe")]
-    pub card_holder_name: Option<masking::Secret<String>>,
+    pub card_holder_name: Option<NameType>,
 
     /// Card Holder's Nick Name
     #[schema(value_type = Option<String>,example = "John Doe")]
-    pub nick_name: Option<masking::Secret<String>>,
+    pub nick_name: Option<NameType>,
 }
 
 #[cfg(all(
@@ -652,10 +652,7 @@ impl CardDetailUpdate {
                 .card_holder_name
                 .clone()
                 .or(card_data_from_locker.name_on_card),
-            nick_name: self
-                .nick_name
-                .clone()
-                .or(card_data_from_locker.nick_name.map(masking::Secret::new)),
+            nick_name: self.nick_name.clone().or(card_data_from_locker.nick_name),
             card_issuing_country: None,
             card_network: None,
             card_issuer: None,
@@ -670,7 +667,7 @@ impl CardDetailUpdate {
 pub struct CardDetailUpdate {
     /// Card Holder Name
     #[schema(value_type = String,example = "John Doe")]
-    pub card_holder_name: Option<masking::Secret<String>>,
+    pub card_holder_name: Option<NameType>,
 
     /// Card Holder's Nick Name
     #[schema(value_type = Option<String>,example = "John Doe")]
@@ -829,8 +826,8 @@ pub struct CardDetailsPaymentMethod {
     pub issuer_country: Option<String>,
     pub expiry_month: Option<masking::Secret<String>>,
     pub expiry_year: Option<masking::Secret<String>>,
-    pub nick_name: Option<masking::Secret<String>>,
-    pub card_holder_name: Option<masking::Secret<String>>,
+    pub nick_name: Option<NameType>,
+    pub card_holder_name: Option<NameType>,
     pub card_isin: Option<String>,
     pub card_issuer: Option<String>,
     pub card_network: Option<api_enums::CardNetwork>,
@@ -903,12 +900,12 @@ pub enum BankAccountAccessCreds {
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
 pub struct Card {
     pub card_number: CardNumber,
-    pub name_on_card: Option<masking::Secret<String>>,
+    pub name_on_card: Option<NameType>,
     pub card_exp_month: masking::Secret<String>,
     pub card_exp_year: masking::Secret<String>,
     pub card_brand: Option<String>,
     pub card_isin: Option<String>,
-    pub nick_name: Option<String>,
+    pub nick_name: Option<NameType>,
 }
 
 #[cfg(all(
@@ -934,13 +931,13 @@ pub struct CardDetailFromLocker {
     pub card_token: Option<masking::Secret<String>>,
 
     #[schema(value_type=Option<String>)]
-    pub card_holder_name: Option<masking::Secret<String>>,
+    pub card_holder_name: Option<NameType>,
 
     #[schema(value_type=Option<String>)]
     pub card_fingerprint: Option<masking::Secret<String>>,
 
     #[schema(value_type=Option<String>)]
-    pub nick_name: Option<masking::Secret<String>>,
+    pub nick_name: Option<NameType>,
 
     #[schema(value_type = Option<CardNetwork>)]
     pub card_network: Option<api_enums::CardNetwork>,
@@ -968,7 +965,7 @@ pub struct CardDetailFromLocker {
     pub expiry_year: Option<masking::Secret<String>>,
 
     #[schema(value_type=Option<String>)]
-    pub card_holder_name: Option<masking::Secret<String>>,
+    pub card_holder_name: Option<NameType>,
 
     #[schema(value_type=Option<String>)]
     pub card_fingerprint: Option<masking::Secret<String>>,
@@ -2155,14 +2152,14 @@ pub struct TokenizedBankRedirectValue2 {
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct PaymentMethodRecord {
     pub customer_id: id_type::CustomerId,
-    pub name: Option<masking::Secret<String>>,
+    pub name: Option<NameType>,
     pub email: Option<pii::Email>,
     pub phone: Option<masking::Secret<String>>,
     pub phone_country_code: Option<String>,
     pub merchant_id: Option<id_type::MerchantId>,
     pub payment_method: Option<api_enums::PaymentMethod>,
     pub payment_method_type: Option<api_enums::PaymentMethodType>,
-    pub nick_name: masking::Secret<String>,
+    pub nick_name: NameType,
     pub payment_instrument_id: Option<masking::Secret<String>>,
     pub card_number_masked: masking::Secret<String>,
     pub card_expiry_month: masking::Secret<String>,
@@ -2171,8 +2168,8 @@ pub struct PaymentMethodRecord {
     pub original_transaction_id: Option<String>,
     pub billing_address_zip: masking::Secret<String>,
     pub billing_address_state: masking::Secret<String>,
-    pub billing_address_first_name: masking::Secret<String>,
-    pub billing_address_last_name: masking::Secret<String>,
+    pub billing_address_first_name: NameType,
+    pub billing_address_last_name: NameType,
     pub billing_address_city: String,
     pub billing_address_country: Option<api_enums::CountryAlpha2>,
     pub billing_address_line1: masking::Secret<String>,

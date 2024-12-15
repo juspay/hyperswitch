@@ -8,6 +8,7 @@ use api_models::payment_methods::PaymentMethodsData;
 use api_models::{
     payment_methods::PaymentMethodDataWalletInfo, payments::ConnectorMandateReferenceId,
 };
+use cards::NameType;
 use common_enums::{ConnectorMandateStatus, PaymentMethod};
 use common_utils::{
     crypto::Encryptable,
@@ -79,7 +80,7 @@ pub async fn save_payment_method<FData>(
     merchant_account: &domain::MerchantAccount,
     payment_method_type: Option<storage_enums::PaymentMethodType>,
     key_store: &domain::MerchantKeyStore,
-    billing_name: Option<Secret<String>>,
+    billing_name: Option<NameType>,
     payment_method_billing_address: Option<&api::Address>,
     business_profile: &domain::Profile,
     mut original_connector_mandate_reference_id: Option<ConnectorMandateReferenceId>,

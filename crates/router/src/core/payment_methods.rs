@@ -13,6 +13,7 @@ use std::collections::HashSet;
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use std::str::FromStr;
 
+use ::cards::NameType;
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 pub use api_models::enums as api_enums;
 pub use api_models::enums::Connector;
@@ -753,7 +754,7 @@ pub(crate) async fn get_payment_method_create_request(
     payment_method: Option<storage_enums::PaymentMethod>,
     payment_method_type: Option<storage_enums::PaymentMethodType>,
     customer_id: &Option<id_type::CustomerId>,
-    billing_name: Option<Secret<String>>,
+    billing_name: Option<NameType>,
     payment_method_billing_address: Option<&api_models::payments::Address>,
 ) -> RouterResult<payment_methods::PaymentMethodCreate> {
     match payment_method_data {

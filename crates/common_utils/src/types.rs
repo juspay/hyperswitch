@@ -12,7 +12,7 @@ use std::{
     iter::Sum,
     ops::{Add, Mul, Sub},
     primitive::i64,
-    str::FromStr,
+    str::{FromStr, SplitWhitespace},
 };
 
 use common_enums::enums;
@@ -1075,11 +1075,11 @@ crate::impl_to_sql_from_sql_json!(ChargeRefunds);
 /// A common type of domain type that can be used for fields that contain a string with restriction of length
 #[derive(Debug, Clone, Serialize, Hash, PartialEq, Eq, AsExpression)]
 #[diesel(sql_type = sql_types::Text)]
-pub(crate) struct LengthString<const MAX_LENGTH: u16, const MIN_LENGTH: u16>(String);
+pub struct LengthString<const MAX_LENGTH: u16, const MIN_LENGTH: u16>(String);
 
 /// Error generated from violation of constraints for MerchantReferenceId
 #[derive(Debug, Error, PartialEq, Eq)]
-pub(crate) enum LengthStringError {
+pub enum LengthStringError {
     #[error("the maximum allowed length for this field is {0}")]
     /// Maximum length of string violated
     MaxLengthViolated(u16),
@@ -1087,6 +1087,11 @@ pub(crate) enum LengthStringError {
     #[error("the minimum required length for this field is {0}")]
     /// Minimum length of string violated
     MinLengthViolated(u16),
+}
+
+impl<const MAX_LENGTH: u16, const MIN_LENGTH: u16> masking::SerializableSecret
+    for LengthString<MAX_LENGTH, MIN_LENGTH>
+{
 }
 
 impl<const MAX_LENGTH: u16, const MIN_LENGTH: u16> LengthString<MAX_LENGTH, MIN_LENGTH> {
@@ -1109,6 +1114,47 @@ impl<const MAX_LENGTH: u16, const MIN_LENGTH: u16> LengthString<MAX_LENGTH, MIN_
 
     pub(crate) fn new_unchecked(input_string: String) -> Self {
         Self(input_string)
+    }
+
+    /// Trim the name
+    pub fn trim(&self) -> Self {
+        Self(self.0.trim().to_string())
+    }
+
+    /// Check if the string is empty
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    /// Split the string by whitespace
+    pub fn split_whitespace(&self) -> SplitWhitespace<'_> {
+        self.0.split_whitespace()
+    }
+
+    /// Split once at the first occurrence of the given character
+    pub fn split_once(&self, delimiter: char) -> Option<(&str, &str)> {
+        self.0.split_once(delimiter)
+    }
+
+    /// Split once at the last occurrence of the given character
+    pub fn rsplit_once(&self, delimiter: char) -> Option<(&str, &str)> {
+        self.0.rsplit_once(delimiter)
+    }
+}
+
+impl<const MAX_LENGTH: u16, const MIN_LENGTH: u16> Display
+    for LengthString<MAX_LENGTH, MIN_LENGTH>
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl<const MAX_LENGTH: u16, const MIN_LENGTH: u16> Default
+    for LengthString<MAX_LENGTH, MIN_LENGTH>
+{
+    fn default() -> Self {
+        Self(String::default())
     }
 }
 

@@ -1,6 +1,7 @@
 use std::str::FromStr;
 
 use api_models::payments;
+use cards::NameType;
 use common_utils::{
     crypto::Encryptable,
     date_time,
@@ -64,7 +65,7 @@ pub struct StripeCard {
     pub exp_month: masking::Secret<String>,
     pub exp_year: masking::Secret<String>,
     pub cvc: masking::Secret<String>,
-    pub holder_name: Option<masking::Secret<String>>,
+    pub holder_name: Option<NameType>,
 }
 
 // ApplePay wallet param is not available in stripe Docs
@@ -169,7 +170,7 @@ impl From<StripePaymentMethodDetails> for payments::PaymentMethodData {
 #[derive(Default, Serialize, PartialEq, Eq, Deserialize, Clone, Debug)]
 pub struct Shipping {
     pub address: AddressDetails,
-    pub name: Option<masking::Secret<String>>,
+    pub name: Option<NameType>,
     pub carrier: Option<String>,
     pub phone: Option<masking::Secret<String>>,
     pub tracking_number: Option<masking::Secret<String>>,

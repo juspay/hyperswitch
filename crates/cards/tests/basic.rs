@@ -1,8 +1,6 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
-use cards::{
-    CardExpiration, CardExpirationMonth, CardExpirationYear, CardHolderName, CardSecurityCode,
-};
+use cards::{CardExpiration, CardExpirationMonth, CardExpirationYear, CardSecurityCode};
 use common_utils::date_time;
 use masking::PeekInterface;
 
@@ -41,27 +39,6 @@ fn test_card_expiration_month() {
     assert_eq!(*derialized.peek(), 12);
 
     let invalid_deserialization = serde_json::from_str::<CardExpirationMonth>("13");
-    assert!(invalid_deserialization.is_err());
-}
-
-#[test]
-fn test_card_holder_name() {
-    // no panic
-    let card_holder_name = CardHolderName::try_from("Sakil O'Neil".to_string()).unwrap();
-
-    // will panic on unwrap
-    let invalid_card_holder_name = CardHolderName::try_from("$@k!l M*$t@k".to_string());
-
-    assert_eq!(*card_holder_name.peek(), "Sakil O'Neil");
-    assert!(invalid_card_holder_name.is_err());
-
-    let serialized = serde_json::to_string(&card_holder_name).unwrap();
-    assert_eq!(&serialized, "\"Sakil O'Neil\"");
-
-    let derialized = serde_json::from_str::<CardHolderName>(&serialized).unwrap();
-    assert_eq!(*derialized.peek(), "Sakil O'Neil".to_string());
-
-    let invalid_deserialization = serde_json::from_str::<CardHolderName>("$@k!l M*$t@k");
     assert!(invalid_deserialization.is_err());
 }
 

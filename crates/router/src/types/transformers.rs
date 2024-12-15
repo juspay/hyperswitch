@@ -4,6 +4,7 @@ use api_models::{
     enums as api_enums, gsm as gsm_api_types, payment_methods, payments,
     routing::ConnectorSelection,
 };
+use cards::NameType;
 use common_utils::{
     consts::X_HS_LATENCY,
     crypto::Encryptable,
@@ -724,6 +725,32 @@ impl From<&domain::Address> for api_types::Address {
         {
             None
         } else {
+            let first_name = address
+                .first_name
+                .clone()
+                .map(Encryptable::into_inner)
+                .and_then(|name| {
+                    NameType::try_from(name.expose())
+                        .map_err(|_| {
+                            report!(errors::ValidationError::InvalidValue {
+                                message: "Invalid first name".to_string()
+                            })
+                        })
+                        .ok()
+                });
+            let last_name = address
+                .last_name
+                .clone()
+                .map(Encryptable::into_inner)
+                .and_then(|name| {
+                    NameType::try_from(name.expose())
+                        .map_err(|_| {
+                            report!(errors::ValidationError::InvalidValue {
+                                message: "Invalid last name".to_string()
+                            })
+                        })
+                        .ok()
+                });
             Some(api_types::AddressDetails {
                 city: address.city.clone(),
                 country: address.country,
@@ -732,8 +759,8 @@ impl From<&domain::Address> for api_types::Address {
                 line3: address.line3.clone().map(Encryptable::into_inner),
                 state: address.state.clone().map(Encryptable::into_inner),
                 zip: address.zip.clone().map(Encryptable::into_inner),
-                first_name: address.first_name.clone().map(Encryptable::into_inner),
-                last_name: address.last_name.clone().map(Encryptable::into_inner),
+                first_name,
+                last_name,
             })
         };
 
@@ -770,6 +797,32 @@ impl ForeignFrom<domain::Address> for api_types::Address {
         {
             None
         } else {
+            let first_name = address
+                .first_name
+                .clone()
+                .map(Encryptable::into_inner)
+                .and_then(|name| {
+                    NameType::try_from(name.expose())
+                        .map_err(|_| {
+                            report!(errors::ValidationError::InvalidValue {
+                                message: "Invalid first name".to_string()
+                            })
+                        })
+                        .ok()
+                });
+            let last_name = address
+                .last_name
+                .clone()
+                .map(Encryptable::into_inner)
+                .and_then(|name| {
+                    NameType::try_from(name.expose())
+                        .map_err(|_| {
+                            report!(errors::ValidationError::InvalidValue {
+                                message: "Invalid last name".to_string()
+                            })
+                        })
+                        .ok()
+                });
             Some(api_types::AddressDetails {
                 city: address.city.clone(),
                 country: address.country,
@@ -778,8 +831,8 @@ impl ForeignFrom<domain::Address> for api_types::Address {
                 line3: address.line3.clone().map(Encryptable::into_inner),
                 state: address.state.clone().map(Encryptable::into_inner),
                 zip: address.zip.clone().map(Encryptable::into_inner),
-                first_name: address.first_name.clone().map(Encryptable::into_inner),
-                last_name: address.last_name.clone().map(Encryptable::into_inner),
+                first_name,
+                last_name,
             })
         };
 
@@ -1623,6 +1676,32 @@ impl ForeignFrom<(storage::PaymentLink, payments::PaymentLinkStatus)>
 
 impl From<domain::Address> for payments::AddressDetails {
     fn from(addr: domain::Address) -> Self {
+        let first_name = addr
+            .first_name
+            .clone()
+            .map(Encryptable::into_inner)
+            .and_then(|name| {
+                NameType::try_from(name.expose())
+                    .map_err(|_| {
+                        report!(errors::ValidationError::InvalidValue {
+                            message: "Invalid first name".to_string()
+                        })
+                    })
+                    .ok()
+            });
+        let last_name = addr
+            .last_name
+            .clone()
+            .map(Encryptable::into_inner)
+            .and_then(|name| {
+                NameType::try_from(name.expose())
+                    .map_err(|_| {
+                        report!(errors::ValidationError::InvalidValue {
+                            message: "Invalid first name".to_string()
+                        })
+                    })
+                    .ok()
+            });
         Self {
             city: addr.city,
             country: addr.country,
@@ -1631,8 +1710,8 @@ impl From<domain::Address> for payments::AddressDetails {
             line3: addr.line3.map(Encryptable::into_inner),
             zip: addr.zip.map(Encryptable::into_inner),
             state: addr.state.map(Encryptable::into_inner),
-            first_name: addr.first_name.map(Encryptable::into_inner),
-            last_name: addr.last_name.map(Encryptable::into_inner),
+            first_name,
+            last_name,
         }
     }
 }

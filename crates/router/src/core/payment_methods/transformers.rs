@@ -2,6 +2,7 @@
 use std::str::FromStr;
 
 use api_models::{enums as api_enums, payment_methods::Card};
+use cards::NameType;
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use common_utils::ext_traits::ValueExt;
 use common_utils::{
@@ -10,7 +11,7 @@ use common_utils::{
     pii::Email,
     request::RequestContent,
 };
-use error_stack::ResultExt;
+use error_stack::{report, ResultExt};
 use josekit::jwe;
 use router_env::tracing_actix_web::RequestId;
 use serde::{Deserialize, Serialize};
@@ -144,7 +145,7 @@ pub struct AddCardResponse {
     pub card_number: Option<cards::CardNumber>,
     pub card_exp_year: Option<Secret<String>>,
     pub card_exp_month: Option<Secret<String>>,
-    pub name_on_card: Option<Secret<String>>,
+    pub name_on_card: Option<NameType>,
     pub nickname: Option<String>,
     pub customer_id: Option<id_type::CustomerId>,
     pub duplicate: Option<bool>,
@@ -661,7 +662,16 @@ pub fn mk_get_card_response(card: GetCardResponse) -> errors::RouterResult<Card>
             .get_required_value("card_exp_year")?,
         card_brand: None,
         card_isin: None,
-        nick_name: card.card.nickname,
+        nick_name: card.card.nickname.and_then(|name| {
+            NameType::try_from(name)
+                .map_err(|_| {
+                    report!(errors::ApiErrorResponse::InvalidDataFormat {
+                        field_name: "nick_name".to_string(),
+                        expected_format: "NameType".to_string()
+                    })
+                })
+                .ok()
+        }),
     })
 }
 
@@ -793,7 +803,7 @@ pub fn get_card_detail(
         card_token: None,
         card_fingerprint: None,
         card_holder_name: response.name_on_card,
-        nick_name: response.nick_name.map(Secret::new),
+        nick_name: response.nick_name,
         card_isin: None,
         card_issuer: None,
         card_network: None,

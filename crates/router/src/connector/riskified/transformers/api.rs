@@ -1,4 +1,5 @@
 use api_models::payments::AdditionalPaymentData;
+use cards::NameType;
 use common_utils::{
     ext_traits::ValueExt,
     id_type,
@@ -104,8 +105,8 @@ pub struct ClientDetails {
 #[derive(Debug, Deserialize, Serialize, Eq, PartialEq, Clone)]
 pub struct RiskifiedCustomer {
     email: Option<Email>,
-    first_name: Option<Secret<String>>,
-    last_name: Option<Secret<String>>,
+    first_name: Option<NameType>,
+    last_name: Option<NameType>,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     created_at: PrimitiveDateTime,
     verified_email: bool,
@@ -123,8 +124,8 @@ pub enum CustomerAccountType {
 
 #[derive(Debug, Deserialize, Serialize, Eq, PartialEq, Clone)]
 pub struct OrderAddress {
-    first_name: Option<Secret<String>>,
-    last_name: Option<Secret<String>>,
+    first_name: Option<NameType>,
+    last_name: Option<NameType>,
     address1: Option<Secret<String>>,
     country_code: Option<common_enums::CountryAlpha2>,
     city: Option<String>,

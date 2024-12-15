@@ -2303,22 +2303,22 @@ pub fn validate_payment_method_update(
             })
         || card_updation_obj
             .card_holder_name
-            .map(|name| name.expose())
+            .map(|name| name.peek().to_string())
             .map_or(false, |new_card_holder_name| {
                 existing_card_data
                     .card_holder_name
-                    .map(|name| name.expose())
+                    .map(|name| name.peek().to_string())
                     .map_or(true, |old_card_holder_name| {
-                        new_card_holder_name != old_card_holder_name
+                        new_card_holder_name != old_card_holder_name.to_string()
                     })
             })
         || card_updation_obj
             .nick_name
-            .map(|nick_name| nick_name.expose())
+            .map(|nick_name| nick_name.peek().to_string())
             .map_or(false, |new_nick_name| {
                 existing_card_data
                     .nick_name
-                    .map(|nick_name| nick_name.expose())
+                    .map(|nick_name| nick_name.peek().to_string())
                     .map_or(true, |old_nick_name| new_nick_name != old_nick_name)
             })
 }
@@ -2567,7 +2567,7 @@ pub async fn add_card_hs(
             card_exp_year: card.card_exp_year.to_owned(),
             card_brand: card.card_network.as_ref().map(ToString::to_string),
             card_isin: None,
-            nick_name: card.nick_name.as_ref().map(Secret::peek).cloned(),
+            nick_name: card.nick_name.to_owned(),
         },
         ttl: state.conf.locker.ttl_for_storage_in_secs,
     });
@@ -2979,8 +2979,16 @@ pub async fn mock_call_to_locker_hs(
             card_number: store_card_req.card.card_number.peek().to_string(),
             card_exp_year: store_card_req.card.card_exp_year.peek().to_string(),
             card_exp_month: store_card_req.card.card_exp_month.peek().to_string(),
-            name_on_card: store_card_req.card.name_on_card.to_owned().expose_option(),
-            nickname: store_card_req.card.nick_name.to_owned(),
+            name_on_card: store_card_req
+                .card
+                .name_on_card
+                .to_owned()
+                .map(|name| name.peek().to_string()),
+            nickname: store_card_req
+                .card
+                .nick_name
+                .to_owned()
+                .map(|nick_name| nick_name.peek().to_string()),
             ..locker_mock_up
         },
         payment_methods::StoreLockerReq::LockerGeneric(store_generic_req) => {
@@ -3031,7 +3039,9 @@ pub async fn mock_get_card<'a>(
             .map(Some)?,
         card_exp_year: Some(locker_mock_up.card_exp_year.into()),
         card_exp_month: Some(locker_mock_up.card_exp_month.into()),
-        name_on_card: locker_mock_up.name_on_card.map(|card| card.into()),
+        name_on_card: locker_mock_up
+            .name_on_card
+            .and_then(|card| card.try_into().ok()),
         nickname: locker_mock_up.nickname,
         customer_id: locker_mock_up.customer_id,
         duplicate: locker_mock_up.duplicate,
@@ -5714,7 +5724,7 @@ impl TempLockerCardSupport {
         let card_holder_name = card
             .card_holder_name
             .clone()
-            .expose_option()
+            .map(|name| name.peek().to_string())
             .unwrap_or_default();
         let value1 = payment_methods::mk_card_value1(
             card_number,
