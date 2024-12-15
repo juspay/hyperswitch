@@ -213,6 +213,8 @@ impl
                     connector_response_reference_id: Some(item.response.transactionid),
                     incremental_authorization_allowed: None,
                     charge_id: None,
+                    overcapture_applied: None,
+                maximum_capturable_amount: None,
                 }),
                 enums::AttemptStatus::AuthenticationPending,
             ),
@@ -367,6 +369,8 @@ impl
                     connector_response_reference_id: Some(item.response.orderid),
                     incremental_authorization_allowed: None,
                     charge_id: None,
+                    overcapture_applied: None,
+                maximum_capturable_amount: None,
                 }),
                 if let Some(diesel_models::enums::CaptureMethod::Automatic) =
                     item.data.request.capture_method
@@ -751,6 +755,8 @@ impl
                     connector_response_reference_id: Some(item.response.orderid),
                     incremental_authorization_allowed: None,
                     charge_id: None,
+                    overcapture_applied: None,
+                maximum_capturable_amount: None,
                 }),
                 enums::AttemptStatus::CaptureInitiated,
             ),
@@ -846,6 +852,8 @@ impl<T>
                     connector_response_reference_id: Some(item.response.orderid),
                     incremental_authorization_allowed: None,
                     charge_id: None,
+                    overcapture_applied: None,
+                maximum_capturable_amount: None,
                 }),
                 enums::AttemptStatus::Charged,
             ),
@@ -903,6 +911,8 @@ impl TryFrom<types::PaymentsResponseRouterData<StandardResponse>>
                     connector_response_reference_id: Some(item.response.orderid),
                     incremental_authorization_allowed: None,
                     charge_id: None,
+                    overcapture_applied: None,
+                maximum_capturable_amount: None,
                 }),
                 if let Some(diesel_models::enums::CaptureMethod::Automatic) =
                     item.data.request.capture_method
@@ -954,6 +964,8 @@ impl<T>
                     connector_response_reference_id: Some(item.response.orderid),
                     incremental_authorization_allowed: None,
                     charge_id: None,
+                    overcapture_applied: None,
+                maximum_capturable_amount: None,
                 }),
                 enums::AttemptStatus::VoidInitiated,
             ),
@@ -1005,6 +1017,8 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, SyncResponse, T, types::Payments
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
                     charge_id: None,
+                    overcapture_applied: None,
+                maximum_capturable_amount: None,
                 }),
                 ..item.data
             }),

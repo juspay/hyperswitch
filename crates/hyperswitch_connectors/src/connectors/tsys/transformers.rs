@@ -251,6 +251,8 @@ fn get_payments_response(connector_response: TsysResponse) -> PaymentsResponseDa
         connector_response_reference_id: Some(connector_response.transaction_id),
         incremental_authorization_allowed: None,
         charge_id: None,
+        overcapture_applied: None,
+                maximum_capturable_amount: None,
     }
 }
 
@@ -276,6 +278,8 @@ fn get_payments_sync_response(
         ),
         incremental_authorization_allowed: None,
         charge_id: None,
+        overcapture_applied: None,
+                maximum_capturable_amount: None,
     }
 }
 

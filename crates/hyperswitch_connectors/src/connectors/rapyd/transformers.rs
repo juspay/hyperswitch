@@ -481,6 +481,8 @@ impl<F, T> TryFrom<ResponseRouterData<F, RapydPaymentsResponse, T, PaymentsRespo
                                     .to_owned(),
                                 incremental_authorization_allowed: None,
                                 charge_id: None,
+                                overcapture_applied: None,
+                maximum_capturable_amount: None,
                             }),
                         )
                     }

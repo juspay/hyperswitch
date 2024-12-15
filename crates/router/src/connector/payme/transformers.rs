@@ -260,6 +260,8 @@ impl TryFrom<&PaymePaySaleResponse> for types::PaymentsResponseData {
             connector_response_reference_id: None,
             incremental_authorization_allowed: None,
             charge_id: None,
+            overcapture_applied: None,
+                maximum_capturable_amount: None,
         })
     }
 }
@@ -327,6 +329,8 @@ impl From<&SaleQuery> for types::PaymentsResponseData {
             connector_response_reference_id: None,
             incremental_authorization_allowed: None,
             charge_id: None,
+            overcapture_applied: None,
+                maximum_capturable_amount: None,
         }
     }
 }
@@ -547,6 +551,8 @@ impl<F>
                             connector_response_reference_id: None,
                             incremental_authorization_allowed: None,
                             charge_id: None,
+                            overcapture_applied: None,
+                maximum_capturable_amount: None,
                         }),
                         ..item.data
                     }),
@@ -1124,6 +1130,8 @@ impl TryFrom<types::PaymentsCancelResponseRouterData<PaymeVoidResponse>>
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 charge_id: None,
+                overcapture_applied: None,
+                maximum_capturable_amount: None,
             })
         };
         Ok(Self {

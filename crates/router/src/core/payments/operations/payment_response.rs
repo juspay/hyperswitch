@@ -1532,6 +1532,8 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                             connector_response_reference_id,
                             incremental_authorization_allowed,
                             charge_id,
+                            overcapture_applied,
+                maximum_capturable_amount,
                             ..
                         } => {
                             payment_data
@@ -1733,8 +1735,8 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                             .payment_attempt
                                             .connector_mandate_detail
                                             .clone(),
-                                        overcapture_applied: None, // todooooooo
-                                        maximum_capturable_amount: None,
+                                        overcapture_applied,
+                                        maximum_capturable_amount,
                                     }),
                                 ),
                             };

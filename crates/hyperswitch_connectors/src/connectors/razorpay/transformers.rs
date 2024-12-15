@@ -797,6 +797,8 @@ impl<F, T> TryFrom<ResponseRouterData<F, RazorpayPaymentsResponse, T, PaymentsRe
                     connector_response_reference_id: Some(second_factor.txn_id),
                     incremental_authorization_allowed: None,
                     charge_id: None,
+                    overcapture_applied: None,
+                maximum_capturable_amount: None,
                 }),
                 ..item.data
             }),
@@ -1016,6 +1018,8 @@ impl<F, T> TryFrom<ResponseRouterData<F, RazorpaySyncResponse, T, PaymentsRespon
                 connector_response_reference_id: Some(item.response.second_factor.txn_id),
                 incremental_authorization_allowed: None,
                 charge_id: None,
+                overcapture_applied: None,
+                maximum_capturable_amount: None,
             }),
             ..item.data
         })

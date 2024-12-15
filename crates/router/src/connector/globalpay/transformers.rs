@@ -282,6 +282,9 @@ fn get_payment_response(
             connector_response_reference_id: response.reference,
             incremental_authorization_allowed: None,
             charge_id: None,
+            overcapture_applied: None,
+                maximum_capturable_amount: None,
+            
         }),
     }
 }

@@ -145,6 +145,8 @@ impl<F, T>
                 connector_response_reference_id: item.response.data.order_id,
                 incremental_authorization_allowed: None,
                 charge_id: None,
+                overcapture_applied: None,
+                maximum_capturable_amount: None,
             })
         } else {
             Ok(types::PaymentsResponseData::TransactionUnresolvedResponse {

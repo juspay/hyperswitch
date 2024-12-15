@@ -4691,6 +4691,12 @@ pub struct PaymentsResponse {
 
     /// Connector Identifier for the payment method
     pub connector_mandate_id: Option<String>,
+
+    /// Whether the payment is overcaptureable or not
+    pub overcapture_applied: Option<bool>,
+
+    /// Maximum capturable amount
+    pub maximum_capturable_amount: Option<MinorUnit>,
 }
 
 // Serialize is implemented because, this will be serialized in the api events.

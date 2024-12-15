@@ -221,6 +221,8 @@ impl<F, T> TryFrom<ResponseRouterData<F, GlobepayPaymentsResponse, T, PaymentsRe
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
                     charge_id: None,
+                    overcapture_applied: None,
+                maximum_capturable_amount: None,
                 }),
                 ..item.data
             })
@@ -295,6 +297,8 @@ impl<F, T> TryFrom<ResponseRouterData<F, GlobepaySyncResponse, T, PaymentsRespon
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
                     charge_id: None,
+                    overcapture_applied: None,
+                maximum_capturable_amount: None,
                 }),
                 ..item.data
             })

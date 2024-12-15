@@ -383,6 +383,8 @@ impl<F, T> TryFrom<ResponseRouterData<F, StaxPaymentsResponse, T, PaymentsRespon
                 ),
                 incremental_authorization_allowed: None,
                 charge_id: None,
+                overcapture_applied: None,
+                maximum_capturable_amount: None,
             }),
             ..item.data
         })

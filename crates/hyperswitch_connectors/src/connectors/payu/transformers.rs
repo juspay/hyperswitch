@@ -241,6 +241,8 @@ impl<F, T> TryFrom<ResponseRouterData<F, PayuPaymentsResponse, T, PaymentsRespon
                     .or(Some(item.response.order_id)),
                 incremental_authorization_allowed: None,
                 charge_id: None,
+                overcapture_applied: None,
+                maximum_capturable_amount: None,
             }),
             amount_captured: None,
             ..item.data
@@ -288,6 +290,8 @@ impl<F, T> TryFrom<ResponseRouterData<F, PayuPaymentsCaptureResponse, T, Payment
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 charge_id: None,
+                overcapture_applied: None,
+                maximum_capturable_amount: None,
             }),
             amount_captured: None,
             ..item.data
@@ -366,6 +370,8 @@ impl<F, T> TryFrom<ResponseRouterData<F, PayuPaymentsCancelResponse, T, Payments
                     .or(Some(item.response.order_id)),
                 incremental_authorization_allowed: None,
                 charge_id: None,
+                overcapture_applied: None,
+                maximum_capturable_amount: None,
             }),
             amount_captured: None,
             ..item.data
@@ -495,6 +501,8 @@ impl<F, T> TryFrom<ResponseRouterData<F, PayuPaymentsSyncResponse, T, PaymentsRe
                     .or(Some(order.order_id.clone())),
                 incremental_authorization_allowed: None,
                 charge_id: None,
+                overcapture_applied: None,
+                maximum_capturable_amount: None,
             }),
             amount_captured: Some(
                 order

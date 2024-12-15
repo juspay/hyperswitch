@@ -245,6 +245,8 @@ impl<F>
                         connector_response_reference_id: Some(response.ssl_txn_id.clone()),
                         incremental_authorization_allowed: None,
                         charge_id: None,
+                        overcapture_applied: None,
+                maximum_capturable_amount: None,
                     })
                 }
             }
@@ -392,6 +394,8 @@ impl TryFrom<PaymentsSyncResponseRouterData<ElavonSyncResponse>> for PaymentsSyn
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 charge_id: None,
+                overcapture_applied: None,
+                maximum_capturable_amount: None,
             }),
             ..item.data
         })
@@ -451,6 +455,8 @@ impl TryFrom<PaymentsCaptureResponseRouterData<ElavonPaymentsResponse>>
                         connector_response_reference_id: Some(response.ssl_txn_id.clone()),
                         incremental_authorization_allowed: None,
                         charge_id: None,
+                        overcapture_applied: None,
+                maximum_capturable_amount: None,
                     })
                 }
             }

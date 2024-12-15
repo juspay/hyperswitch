@@ -275,6 +275,8 @@ impl<F>
                         connector_response_reference_id: None,
                         incremental_authorization_allowed: None,
                         charge_id: None,
+                        overcapture_applied: None,
+                maximum_capturable_amount: None,
                     }),
                 )
             }
@@ -308,6 +310,8 @@ impl<F, T> TryFrom<ResponseRouterData<F, CashtocodePaymentsSyncResponse, T, Paym
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 charge_id: None,
+                overcapture_applied: None,
+                maximum_capturable_amount: None,
             }),
             ..item.data
         })

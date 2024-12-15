@@ -693,6 +693,8 @@ impl<F, T>
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
                     charge_id: None,
+                    overcapture_applied: None,
+                maximum_capturable_amount: None,
                 }),
                 amount_captured: None,
                 ..item.data
@@ -764,6 +766,8 @@ impl<F>
                             connector_response_reference_id: None,
                             incremental_authorization_allowed: None,
                             charge_id: None,
+                            overcapture_applied: None,
+                maximum_capturable_amount: None,
                         }),
                         ..item.data
                     }),
@@ -793,6 +797,8 @@ impl<F>
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
                     charge_id: None,
+                    overcapture_applied: None,
+                maximum_capturable_amount: None,
                 }),
                 ..item.data
             }),
@@ -838,6 +844,8 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, PayboxSyncResponse, T, types::Pa
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
                     charge_id: None,
+                    overcapture_applied: None,
+                maximum_capturable_amount: None,
                 }),
                 ..item.data
             }),
@@ -1034,6 +1042,8 @@ impl<F>
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
                     charge_id: None,
+                    overcapture_applied: None,
+                maximum_capturable_amount: None,
                 }),
                 ..item.data
             }),

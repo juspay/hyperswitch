@@ -315,6 +315,8 @@ impl<F, T>
                     connector_response_reference_id: Some(item.response.payment_id),
                     incremental_authorization_allowed: None,
                     charge_id: None,
+                    overcapture_applied: None,
+                maximum_capturable_amount: None,
                 })
             },
             ..item.data
@@ -401,6 +403,8 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, PlaidSyncResponse, T, types::Pay
                     connector_response_reference_id: Some(item.response.payment_id),
                     incremental_authorization_allowed: None,
                     charge_id: None,
+                    overcapture_applied: None,
+                    maximum_capturable_amount: None,
                 })
             },
             ..item.data

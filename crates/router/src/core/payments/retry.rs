@@ -421,6 +421,8 @@ where
             connector_metadata,
             redirection_data,
             charge_id,
+            overcapture_applied,
+            maximum_capturable_amount,
             ..
         }) => {
             let encoded_data = payment_data.get_payment_attempt().encoded_data.clone();
@@ -467,8 +469,8 @@ where
                 payment_method_data: additional_payment_method_data,
                 charge_id,
                 connector_mandate_detail: None,
-                overcapture_applied: None,
-                maximum_capturable_amount: None,
+                overcapture_applied,
+                maximum_capturable_amount,
             };
 
             #[cfg(feature = "v1")]

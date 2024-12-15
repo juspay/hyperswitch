@@ -323,6 +323,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             &payment_method_info,
             merchant_key_store,
             profile_id,
+            &business_profile,
             &customer_acceptance,
         )
         .await?;
@@ -1099,6 +1100,7 @@ impl PaymentCreate {
         payment_method_info: &Option<domain::PaymentMethod>,
         _key_store: &domain::MerchantKeyStore,
         profile_id: common_utils::id_type::ProfileId,
+        business_profile: &domain::Profile,
         customer_acceptance: &Option<payments::CustomerAcceptance>,
     ) -> RouterResult<(
         storage::PaymentAttemptNew,
@@ -1133,6 +1135,8 @@ impl PaymentCreate {
             .await
             .transpose()?
             .flatten();
+
+        let request_overcapture = request.request_overcapture.or(Some(business_profile.always_request_overcapture));
 
         if additional_pm_data.is_none() {
             // If recurring payment is made using payment_method_id, then fetch payment_method_data from retrieved payment_method object
@@ -1282,7 +1286,7 @@ impl PaymentCreate {
                 organization_id: organization_id.clone(),
                 profile_id,
                 connector_mandate_detail: None,
-                request_overcapture: request.request_overcapture,
+                request_overcapture,
                 overcapture_applied: None,
                 maximum_capturable_amount: None,
             },
