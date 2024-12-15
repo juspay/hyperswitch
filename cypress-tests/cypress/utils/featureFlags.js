@@ -45,6 +45,23 @@ function validateConfigValue(key, value) {
           console.error("CONNECTOR_CREDENTIAL must be an object.");
           return false;
         }
+        // Validate nextConnector and multipleConnectors if present
+        if (
+          value?.nextConnector !== undefined &&
+          typeof value.nextConnector !== "boolean"
+        ) {
+          console.error("nextConnector must be a boolean");
+          return false;
+        }
+
+        if (
+          value?.multipleConnectors &&
+          typeof value.multipleConnectors.status !== "boolean"
+        ) {
+          console.error("multipleConnectors.status must be a boolean");
+          return false;
+        }
+
         // Validate structure
         if (
           !value.value ||
@@ -110,42 +127,51 @@ export function getProfileAndConnectorId(connectorType) {
   return credentials[connectorType] || credentials.connector_1;
 }
 
+function getSpecName() {
+  return Cypress.spec.name.toLowerCase() === "__all"
+    ? String(
+        Cypress.mocha.getRunner().suite.ctx.test.invocationDetails.relativeFile
+      )
+        .split("/")
+        .pop()
+        .toLowerCase()
+    : Cypress.spec.name.toLowerCase();
+}
+
+function matchesSpecName(specName) {
+  if (!specName || !Array.isArray(specName) || specName.length === 0) {
+    return false;
+  }
+
+  const currentSpec = getSpecName();
+  return specName.some(
+    (name) => name && currentSpec.includes(name.toLowerCase())
+  );
+}
+
 export function determineConnectorConfig(connectorConfig) {
-  if (connectorConfig?.nextConnector) {
+  // Case 1: Multiple connectors configuration
+  if (
+    connectorConfig?.nextConnector &&
+    connectorConfig?.multipleConnectors?.status
+  ) {
     return "connector_2";
   }
 
+  // Case 2: Invalid or null configuration
   if (!connectorConfig || connectorConfig.value === "null") {
     return DEFAULT_CONNECTOR;
   }
 
-  const { specName = null, value } = connectorConfig;
+  const { specName, value } = connectorConfig;
 
-  if (!specName || !Array.isArray(specName) || specName.length === 0) {
+  // Case 3: No spec name matching needed
+  if (!specName) {
     return value;
   }
 
-  const currentSpec =
-    Cypress.spec.name.toLowerCase() === "__all"
-      ? String(
-          Cypress.mocha.getRunner().suite.ctx.test.invocationDetails
-            .relativeFile
-        )
-          .split("/")
-          .pop()
-          .toLowerCase()
-      : Cypress.spec.name.toLowerCase();
-
-  try {
-    const matchesSpec = specName.some(
-      (name) => name && currentSpec.includes(name.toLowerCase())
-    );
-
-    return matchesSpec ? value : DEFAULT_CONNECTOR;
-  } catch (error) {
-    console.error("Error matching spec names:", error);
-    return DEFAULT_CONNECTOR;
-  }
+  // Case 4: Match spec name and return appropriate connector
+  return matchesSpecName(specName) ? value : DEFAULT_CONNECTOR;
 }
 
 export function execConfig(configs) {

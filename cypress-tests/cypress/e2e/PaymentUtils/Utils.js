@@ -183,30 +183,47 @@ export function extractIntegerAtEnd(str) {
   return match ? parseInt(match[0], 10) : 0;
 }
 
+// Common helper function to check if operation should proceed
+function shouldProceedWithOperation(multipleConnector, multipleConnectors) {
+  return !(
+    (multipleConnector?.nextConnector === true &&
+      multipleConnectors?.status === false) ||
+    typeof multipleConnectors === "undefined"
+  );
+}
+
+// Helper to get connector configuration
+function getConnectorConfig(
+  globalState,
+  multipleConnector = { nextConnector: false }
+) {
+  const multipleConnectors = globalState.get("MULTIPLE_CONNECTORS");
+  const mcaConfig = getConnectorDetails(globalState.get("connectorId"));
+
+  return {
+    config: {
+      CONNECTOR_CREDENTIAL:
+        multipleConnector?.nextConnector && multipleConnectors?.status
+          ? multipleConnector
+          : mcaConfig?.multi_credential_config || multipleConnector,
+    },
+    multipleConnectors,
+  };
+}
+
+// Simplified createBusinessProfile
 export function createBusinessProfile(
   createBusinessProfileBody,
   globalState,
   multipleConnector = { nextConnector: false }
 ) {
-  const multipleConnectors = globalState.get("MULTIPLE_CONNECTORS");
-  cy.log(`MULTIPLE_CONNECTORS: ${JSON.stringify(multipleConnectors)}`);
+  const { config, multipleConnectors } = getConnectorConfig(
+    globalState,
+    multipleConnector
+  );
+  const { profilePrefix } = execConfig(config);
 
-  // Get MCA config and determine profile prefix
-  const mcaConfig = getConnectorDetails(globalState.get("connectorId"));
-  const { profilePrefix } = execConfig({
-    CONNECTOR_CREDENTIAL:
-      multipleConnector?.nextConnector && multipleConnectors?.status
-        ? multipleConnector
-        : mcaConfig?.multi_credential_config || multipleConnector,
-  });
-
-  if (
-    !(
-      (multipleConnector?.nextConnector === true &&
-        multipleConnectors?.status === false) ||
-      typeof multipleConnectors === "undefined"
-    )
-  ) {
+  if (shouldProceedWithOperation(multipleConnector, multipleConnectors)) {
     cy.createBusinessProfileTest(
       createBusinessProfileBody,
       globalState,
@@ -215,6 +232,7 @@ export function createBusinessProfile(
   }
 }
 
+// Simplified createMerchantConnectorAccount
 export function createMerchantConnectorAccount(
   paymentType,
   createMerchantConnectorAccountBody,
@@ -222,25 +240,13 @@ export function createMerchantConnectorAccount(
   paymentMethodsEnabled,
   multipleConnector = { nextConnector: false }
 ) {
-  const multipleConnectors = globalState.get("MULTIPLE_CONNECTORS");
-  cy.log(`MULTIPLE_CONNECTORS: ${JSON.stringify(multipleConnectors)}`);
+  const { config, multipleConnectors } = getConnectorConfig(
+    globalState,
+    multipleConnector
+  );
+  const { profilePrefix, merchantConnectorPrefix } = execConfig(config);
 
-  // Get MCA config
-  const mcaConfig = getConnectorDetails(globalState.get("connectorId"));
-  const { profilePrefix, merchantConnectorPrefix } = execConfig({
-    CONNECTOR_CREDENTIAL:
-      multipleConnector?.nextConnector && multipleConnectors?.status
-        ? multipleConnector
-        : mcaConfig?.multi_credential_config || multipleConnector,
-  });
-
-  if (
-    !(
-      (multipleConnector?.nextConnector === true &&
-        multipleConnectors?.status === false) ||
-      typeof multipleConnectors === "undefined"
-    )
-  ) {
+  if (shouldProceedWithOperation(multipleConnector, multipleConnectors)) {
     cy.createConnectorCallTest(
       paymentType,
       createMerchantConnectorAccountBody,
