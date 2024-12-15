@@ -2821,9 +2821,15 @@ pub enum PermissionGroup {
     MerchantDetailsManage,
     // TODO: To be deprecated, make sure DB is migrated before removing
     OrganizationManage,
-    ReconOps,
     AccountView,
     AccountManage,
+    ReconReportsView,
+    ReconReportsManage,
+    ReconOpsView,
+    // Alias is added for backward compatibility with database
+    // TODO: Remove alias post migration
+    #[serde(alias = "recon_ops")]
+    ReconOpsManage,
 }
 
 #[derive(Clone, Debug, serde::Serialize, PartialEq, Eq, Hash, strum::EnumIter)]
@@ -2833,7 +2839,8 @@ pub enum ParentGroup {
     Workflows,
     Analytics,
     Users,
-    Recon,
+    ReconOps,
+    ReconReports,
     Account,
 }
 
@@ -2856,7 +2863,13 @@ pub enum Resource {
     WebhookEvent,
     Payout,
     Report,
-    Recon,
+    ReconToken,
+    ReconFiles,
+    ReconAndSettlementAnalytics,
+    ReconUpload,
+    ReconReports,
+    RunRecon,
+    ReconConfig,
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd, serde::Serialize, Hash)]
