@@ -7250,13 +7250,20 @@
       "CustomerDeleteResponse": {
         "type": "object",
         "required": [
+          "id",
           "merchant_reference_id",
           "customer_deleted",
           "address_deleted",
-          "payment_methods_deleted",
-          "id"
+          "payment_methods_deleted"
         ],
         "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique identifier for the customer",
+            "example": "12345_cus_01926c58bc6e77c09e809964e72af8c8",
+            "maxLength": 64,
+            "minLength": 32
+          },
           "merchant_reference_id": {
             "type": "string",
             "description": "The identifier for the customer object",
@@ -7277,10 +7284,6 @@
             "type": "boolean",
             "description": "Whether payment methods deleted or not",
             "example": false
-          },
-          "id": {
-            "type": "string",
-            "description": "Global id"
           }
         }
       },
@@ -7576,7 +7579,10 @@
         "properties": {
           "id": {
             "type": "string",
-            "description": "Global id"
+            "description": "Unique identifier for the customer",
+            "example": "12345_cus_01926c58bc6e77c09e809964e72af8c8",
+            "maxLength": 64,
+            "minLength": 32
           },
           "merchant_reference_id": {
             "type": "string",

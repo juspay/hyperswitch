@@ -171,7 +171,13 @@ impl CustomerResponse {
 #[cfg(all(feature = "v2", feature = "customer_v2"))]
 #[derive(Debug, Clone, Serialize, ToSchema)]
 pub struct CustomerResponse {
-    /// Global id
+    /// Unique identifier for the customer
+    #[schema(
+        min_length = 32,
+        max_length = 64,
+        example = "12345_cus_01926c58bc6e77c09e809964e72af8c8",
+        value_type = String
+    )]
     pub id: id_type::GlobalCustomerId,
     /// The identifier for the customer object
     #[schema(value_type = String, max_length = 64, min_length = 1, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
@@ -238,7 +244,13 @@ pub struct CustomerDeleteResponse {
 #[cfg(all(feature = "v2", feature = "customer_v2"))]
 #[derive(Debug, Deserialize, Serialize, ToSchema)]
 pub struct CustomerDeleteResponse {
-    /// Global id
+    /// Unique identifier for the customer
+    #[schema(
+        min_length = 32,
+        max_length = 64,
+        example = "12345_cus_01926c58bc6e77c09e809964e72af8c8",
+        value_type = String
+    )]
     pub id: id_type::GlobalCustomerId,
     /// The identifier for the customer object
     #[schema(value_type = String, max_length = 255, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
