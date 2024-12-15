@@ -121,7 +121,12 @@ pub struct PaymentMethodCreate {
     pub metadata: Option<pii::SecretSerdeValue>,
 
     /// The unique identifier of the customer.
-    #[schema(value_type = String, max_length = 64, min_length = 1, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
+    #[schema(
+        min_length = 32,
+        max_length = 64,
+        example = "12345_cus_01926c58bc6e77c09e809964e72af8c8",
+        value_type = String
+    )]
     pub customer_id: id_type::GlobalCustomerId,
 
     /// Payment method data to be passed
@@ -145,7 +150,12 @@ pub struct PaymentMethodIntentCreate {
     pub billing: Option<payments::Address>,
 
     /// The unique identifier of the customer.
-    #[schema(value_type = String, max_length = 64, min_length = 1, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
+    #[schema(
+        min_length = 32,
+        max_length = 64,
+        example = "12345_cus_01926c58bc6e77c09e809964e72af8c8",
+        value_type = String
+    )]
     pub customer_id: id_type::GlobalCustomerId,
 }
 
@@ -782,7 +792,12 @@ pub struct PaymentMethodResponse {
     pub merchant_id: id_type::MerchantId,
 
     /// The unique identifier of the customer.
-    #[schema(value_type = Option<String>, max_length = 64, min_length = 1, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
+    #[schema(
+        min_length = 32,
+        max_length = 64,
+        example = "12345_cus_01926c58bc6e77c09e809964e72af8c8",
+        value_type = String
+    )]
     pub customer_id: id_type::GlobalCustomerId,
 
     /// The unique identifier of the Payment method
@@ -1780,7 +1795,12 @@ pub struct CustomerPaymentMethod {
     pub payment_method_id: String,
 
     /// The unique identifier of the customer.
-    #[schema(value_type = String, max_length = 64, min_length = 1, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
+    #[schema(
+        min_length = 32,
+        max_length = 64,
+        example = "12345_cus_01926c58bc6e77c09e809964e72af8c8",
+        value_type = String
+    )]
     pub customer_id: id_type::GlobalCustomerId,
 
     /// The type of payment method use for the payment.
