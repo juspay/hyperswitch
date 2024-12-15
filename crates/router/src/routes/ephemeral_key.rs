@@ -16,19 +16,19 @@ use crate::{
 pub async fn ephemeral_key_create(
     state: web::Data<AppState>,
     req: HttpRequest,
-    json_payload: web::Json<common_utils::id_type::CustomerId>,
+    json_payload: web::Json<api_models::ephemeral_key::EphemeralKeyCreateRequest>,
 ) -> HttpResponse {
     let flow = Flow::EphemeralKeyCreate;
-    let customer_id = json_payload.into_inner();
+    let payload = json_payload.into_inner();
     api::server_wrap(
         flow,
         state,
         &req,
-        customer_id,
-        |state, auth: auth::AuthenticationData, customer_id, _| {
+        payload,
+        |state, auth: auth::AuthenticationData, payload, _| {
             helpers::make_ephemeral_key(
                 state,
-                customer_id,
+                payload.customer_id,
                 auth.merchant_account.get_id().to_owned(),
             )
         },
