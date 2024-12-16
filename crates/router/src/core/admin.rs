@@ -20,7 +20,6 @@ use hyperswitch_domain_models::merchant_connector_account::{
 use masking::{ExposeInterface, PeekInterface, Secret};
 use pm_auth::{connector::plaid::transformers::PlaidAuthType, types as pm_auth_types};
 use regex::Regex;
-use router_env::metrics::add_attributes;
 use uuid::Uuid;
 
 #[cfg(any(feature = "v1", feature = "v2"))]
@@ -2927,12 +2926,11 @@ pub async fn create_connector(
         .await?;
 
     metrics::MCA_CREATE.add(
-        &metrics::CONTEXT,
         1,
-        &add_attributes([
+        router_env::metric_attributes!(
             ("connector", req.connector_name.to_string()),
-            ("merchant", merchant_id.get_string_repr().to_owned()),
-        ]),
+            ("merchant", merchant_id.clone()),
+        ),
     );
 
     let mca_response = mca.foreign_try_into()?;
@@ -3624,6 +3622,13 @@ impl ProfileCreateBridge for api::ProfileCreate {
             })
             .transpose()?;
 
+        let authentication_product_ids = self
+            .authentication_product_ids
+            .map(serde_json::to_value)
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("failed to parse product authentication id's to value")?;
+
         Ok(domain::Profile::from(domain::ProfileSetter {
             profile_id,
             merchant_id: merchant_account.get_id().clone(),
@@ -3694,6 +3699,7 @@ impl ProfileCreateBridge for api::ProfileCreate {
             is_auto_retries_enabled: self.is_auto_retries_enabled.unwrap_or_default(),
             max_auto_retries_enabled: self.max_auto_retries_enabled.map(i16::from),
             is_click_to_pay_enabled: self.is_click_to_pay_enabled,
+            authentication_product_ids,
             always_request_overcapture: self.always_request_overcapture,
         }))
     }
@@ -3745,6 +3751,13 @@ impl ProfileCreateBridge for api::ProfileCreate {
                 )),
             })
             .transpose()?;
+
+        let authentication_product_ids = self
+            .authentication_product_ids
+            .map(serde_json::to_value)
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("failed to parse product authentication id's to value")?;
 
         Ok(domain::Profile::from(domain::ProfileSetter {
             id: profile_id,
@@ -3803,6 +3816,7 @@ impl ProfileCreateBridge for api::ProfileCreate {
             is_tax_connector_enabled: self.is_tax_connector_enabled,
             is_network_tokenization_enabled: self.is_network_tokenization_enabled,
             is_click_to_pay_enabled: self.is_click_to_pay_enabled,
+            authentication_product_ids,
             always_request_overcapture: self.always_request_overcapture,
         }))
     }
@@ -4011,6 +4025,13 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
             })
             .transpose()?;
 
+        let authentication_product_ids = self
+            .authentication_product_ids
+            .map(serde_json::to_value)
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("failed to parse product authentication id's to value")?;
+
         Ok(domain::ProfileUpdate::Update(Box::new(
             domain::ProfileGeneralUpdate {
                 profile_name: self.profile_name,
@@ -4054,6 +4075,7 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                 is_auto_retries_enabled: self.is_auto_retries_enabled,
                 max_auto_retries_enabled: self.max_auto_retries_enabled.map(i16::from),
                 is_click_to_pay_enabled: self.is_click_to_pay_enabled,
+                authentication_product_ids,
                 always_request_overcapture: self.always_request_overcapture,
             },
         )))
@@ -4117,6 +4139,13 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
             })
             .transpose()?;
 
+        let authentication_product_ids = self
+            .authentication_product_ids
+            .map(serde_json::to_value)
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("failed to parse product authentication id's to value")?;
+
         Ok(domain::ProfileUpdate::Update(Box::new(
             domain::ProfileGeneralUpdate {
                 profile_name: self.profile_name,
@@ -4152,6 +4181,7 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                     .always_collect_shipping_details_from_wallet_connector,
                 is_network_tokenization_enabled: self.is_network_tokenization_enabled,
                 is_click_to_pay_enabled: self.is_click_to_pay_enabled,
+                authentication_product_ids,
                 always_request_overcapture: self.always_request_overcapture,
             },
         )))

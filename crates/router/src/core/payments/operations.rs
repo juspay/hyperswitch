@@ -295,6 +295,18 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
         Ok(())
     }
 
+    async fn call_unified_authentication_service_if_eligible<'a>(
+        &'a self,
+        _state: &SessionState,
+        _payment_data: &mut D,
+        _should_continue_confirm_transaction: &mut bool,
+        _connector_call_type: &ConnectorCallType,
+        _merchant_account: &domain::Profile,
+        _key_store: &domain::MerchantKeyStore,
+    ) -> CustomResult<(), errors::ApiErrorResponse> {
+        Ok(())
+    }
+
     #[allow(clippy::too_many_arguments)]
     async fn payments_dynamic_tax_calculation<'a>(
         &'a self,

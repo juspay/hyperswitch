@@ -11,7 +11,7 @@ use common_utils::{
 use common_utils::{crypto::OptionalEncryptableName, ext_traits::ValueExt};
 #[cfg(feature = "v2")]
 use masking::ExposeInterface;
-use masking::Secret;
+use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use url;
 use utoipa::ToSchema;
@@ -1971,6 +1971,10 @@ pub struct ProfileCreate {
     #[serde(default)]
     pub is_click_to_pay_enabled: bool,
 
+    /// Product authentication ids
+    #[schema(value_type = Option<Object>, example = r#"{ "key1": "value-1", "key2": "value-2" }"#)]
+    pub authentication_product_ids: Option<HashMap<String, id_type::MerchantConnectorAccountId>>,
+
     /// Indicates if the overcapture is always requested or not.
     #[serde(default)]
     pub always_request_overcapture: bool,
@@ -2087,6 +2091,10 @@ pub struct ProfileCreate {
     #[schema(default = false, example = false)]
     pub is_click_to_pay_enabled: bool,
 
+    /// Product authentication ids
+    #[schema(value_type = Option<Object>, example = r#"{ "key1": "value-1", "key2": "value-2" }"#)]
+    pub authentication_product_ids: Option<HashMap<String, id_type::MerchantConnectorAccountId>>,
+
     /// Indicates if the overcapture is always requested or not.
     #[schema(default = false, example = false)]
     pub always_request_overcapture: bool,
@@ -2198,7 +2206,7 @@ pub struct ProfileResponse {
 
     /// These key-value pairs are sent as additional custom headers in the outgoing webhook request.
     #[schema(value_type = Option<Object>, example = r#"{ "key1": "value-1", "key2": "value-2" }"#)]
-    pub outgoing_webhook_custom_http_headers: Option<HashMap<String, Secret<String>>>,
+    pub outgoing_webhook_custom_http_headers: Option<MaskedHeaders>,
 
     /// Merchant Connector id to be stored for tax_calculator connector
     #[schema(value_type = Option<String>)]
@@ -2222,6 +2230,10 @@ pub struct ProfileResponse {
     /// Indicates if click to pay is enabled or not.
     #[schema(default = false, example = false)]
     pub is_click_to_pay_enabled: bool,
+
+    /// Product authentication ids
+    #[schema(value_type = Option<Object>, example = r#"{ "key1": "value-1", "key2": "value-2" }"#)]
+    pub authentication_product_ids: Option<serde_json::Value>,
 
     /// Indicates if the overcapture is always requested or not.
     #[schema(default = false, example = false)]
@@ -2317,7 +2329,7 @@ pub struct ProfileResponse {
 
     /// These key-value pairs are sent as additional custom headers in the outgoing webhook request.
     #[schema(value_type = Option<Object>, example = r#"{ "key1": "value-1", "key2": "value-2" }"#)]
-    pub outgoing_webhook_custom_http_headers: Option<HashMap<String, Secret<String>>>,
+    pub outgoing_webhook_custom_http_headers: Option<MaskedHeaders>,
 
     /// Will be used to determine the time till which your payment will be active once the payment session starts
     #[schema(value_type = Option<u32>, example = 900)]
@@ -2345,6 +2357,10 @@ pub struct ProfileResponse {
     /// Indicates if click to pay is enabled or not.
     #[schema(default = false, example = false)]
     pub is_click_to_pay_enabled: bool,
+
+    /// Product authentication ids
+    #[schema(value_type = Option<Object>, example = r#"{ "key1": "value-1", "key2": "value-2" }"#)]
+    pub authentication_product_ids: Option<serde_json::Value>,
 
     /// Indicates if the overcapture is always requested or not.
     #[schema(default = false, example = false)]
@@ -2476,6 +2492,10 @@ pub struct ProfileUpdate {
     #[schema(default = false, example = false)]
     pub is_click_to_pay_enabled: Option<bool>,
 
+    /// Product authentication ids
+    #[schema(value_type = Option<Object>, example = r#"{ "key1": "value-1", "key2": "value-2" }"#)]
+    pub authentication_product_ids: Option<HashMap<String, id_type::MerchantConnectorAccountId>>,
+
     /// Indicates if the overcapture is always requested or not.
     #[schema(default = false, example = false)]
     pub always_request_overcapture: Option<bool>,
@@ -2587,6 +2607,10 @@ pub struct ProfileUpdate {
     #[schema(default = false, example = false)]
     pub is_click_to_pay_enabled: Option<bool>,
 
+    /// Product authentication ids
+    #[schema(value_type = Option<Object>, example = r#"{ "key1": "value-1", "key2": "value-2" }"#)]
+    pub authentication_product_ids: Option<HashMap<String, id_type::MerchantConnectorAccountId>>,
+
     /// Indicates if the overcapture is always requested or not.
     #[schema(default = false, example = false)]
     pub always_request_overcapture: Option<bool>,
@@ -2614,6 +2638,43 @@ pub struct BusinessPayoutLinkConfig {
     /// Allows for removing any validations / pre-requisites which are necessary in a production environment
     #[schema(value_type = Option<bool>, default = false)]
     pub payout_test_mode: Option<bool>,
+}
+
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct MaskedHeaders(HashMap<String, String>);
+
+impl MaskedHeaders {
+    fn mask_value(value: &str) -> String {
+        let value_len = value.len();
+
+        let masked_value = if value_len <= 4 {
+            "*".repeat(value_len)
+        } else {
+            value
+                .char_indices()
+                .map(|(index, ch)| {
+                    if index < 2 || index >= value_len - 2 {
+                        // Show the first two and last two characters, mask the rest with '*'
+                        ch
+                    } else {
+                        // Mask the remaining characters
+                        '*'
+                    }
+                })
+                .collect::<String>()
+        };
+
+        masked_value
+    }
+
+    pub fn from_headers(headers: HashMap<String, Secret<String>>) -> Self {
+        let masked_headers = headers
+            .into_iter()
+            .map(|(key, value)| (key, Self::mask_value(value.peek())))
+            .collect();
+
+        Self(masked_headers)
+    }
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -2667,6 +2728,8 @@ pub struct BusinessPaymentLinkConfig {
     /// A list of allowed domains (glob patterns) where this link can be embedded / opened from
     #[schema(value_type = Option<HashSet<String>>)]
     pub allowed_domains: Option<HashSet<String>>,
+    /// Toggle for HyperSwitch branding visibility
+    pub branding_visibility: Option<bool>,
 }
 
 impl BusinessPaymentLinkConfig {
@@ -2725,6 +2788,11 @@ pub struct PaymentLinkConfigRequest {
     pub show_card_form_by_default: Option<bool>,
     /// Dynamic details related to merchant to be rendered in payment link
     pub transaction_details: Option<Vec<PaymentLinkTransactionDetails>>,
+    /// Configurations for the background image for details section
+    pub background_image: Option<PaymentLinkBackgroundImageConfig>,
+    /// Custom layout for details section
+    #[schema(value_type = Option<PaymentLinkDetailsLayout>, example = "layout1")]
+    pub details_layout: Option<api_enums::PaymentLinkDetailsLayout>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
@@ -2752,6 +2820,19 @@ pub struct TransactionDetailsUiConfiguration {
     pub is_value_bold: Option<bool>,
 }
 
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
+pub struct PaymentLinkBackgroundImageConfig {
+    /// URL of the image
+    #[schema(value_type = String, example = "https://hyperswitch.io/favicon.ico")]
+    pub url: common_utils::types::Url,
+    /// Position of the image in the UI
+    #[schema(value_type = Option<ElementPosition>, example = "top-left")]
+    pub position: Option<api_enums::ElementPosition>,
+    /// Size of the image in the UI
+    #[schema(value_type = Option<ElementSize>, example = "contain")]
+    pub size: Option<api_enums::ElementSize>,
+}
+
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq, ToSchema)]
 pub struct PaymentLinkConfig {
     /// custom theme for the payment link
@@ -2774,6 +2855,13 @@ pub struct PaymentLinkConfig {
     pub allowed_domains: Option<HashSet<String>>,
     /// Dynamic details related to merchant to be rendered in payment link
     pub transaction_details: Option<Vec<PaymentLinkTransactionDetails>>,
+    /// Configurations for the background image for details section
+    pub background_image: Option<PaymentLinkBackgroundImageConfig>,
+    /// Custom layout for details section
+    #[schema(value_type = Option<PaymentLinkDetailsLayout>, example = "layout1")]
+    pub details_layout: Option<api_enums::PaymentLinkDetailsLayout>,
+    /// Toggle for HyperSwitch branding visibility
+    pub branding_visibility: Option<bool>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]

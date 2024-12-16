@@ -1,3 +1,4 @@
+use error_stack::ResultExt;
 #[cfg(feature = "frm")]
 use hyperswitch_domain_models::router_data_v2::flow_common_types::FrmFlowData;
 #[cfg(feature = "payouts")]
@@ -8,7 +9,8 @@ use hyperswitch_domain_models::{
     router_data_v2::{
         flow_common_types::{
             AccessTokenFlowData, DisputesFlowData, ExternalAuthenticationFlowData, FilesFlowData,
-            MandateRevokeFlowData, PaymentFlowData, RefundFlowData, WebhookSourceVerifyData,
+            MandateRevokeFlowData, PaymentFlowData, RefundFlowData, UasFlowData,
+            WebhookSourceVerifyData,
         },
         RouterDataV2,
     },
@@ -77,6 +79,7 @@ fn get_default_router_data<F, Req, Resp>(
         additional_merchant_data: None,
         header_payload: None,
         connector_mandate_request_reference_id: None,
+        authentication_id: None,
         psd2_sca_exemption_type: None,
         request_overcapture: None,
     }
@@ -686,6 +689,50 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp>
         router_data.merchant_id = merchant_id;
         router_data.connector_meta_data = connector_meta_data;
         router_data.address = address;
+        Ok(router_data)
+    }
+}
+
+impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for UasFlowData {
+    fn from_old_router_data(
+        old_router_data: &RouterData<T, Req, Resp>,
+    ) -> errors::CustomResult<RouterDataV2<T, Self, Req, Resp>, errors::ConnectorError>
+    where
+        Self: Sized,
+    {
+        let resource_common_data = Self {
+            authenticate_by: old_router_data.connector.clone(),
+            source_authentication_id: old_router_data
+                .authentication_id
+                .clone()
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "source_authentication_id",
+                })
+                .attach_printable("missing authentication id for uas")?,
+        };
+        Ok(RouterDataV2 {
+            flow: std::marker::PhantomData,
+            resource_common_data,
+            connector_auth_type: old_router_data.connector_auth_type.clone(),
+            request: old_router_data.request.clone(),
+            response: old_router_data.response.clone(),
+        })
+    }
+
+    fn to_old_router_data(
+        new_router_data: RouterDataV2<T, Self, Req, Resp>,
+    ) -> errors::CustomResult<RouterData<T, Req, Resp>, errors::ConnectorError>
+    where
+        Self: Sized,
+    {
+        let Self {
+            authenticate_by,
+            source_authentication_id,
+        } = new_router_data.resource_common_data;
+        let mut router_data =
+            get_default_router_data("uas", new_router_data.request, new_router_data.response);
+        router_data.connector = authenticate_by;
+        router_data.authentication_id = Some(source_authentication_id);
         Ok(router_data)
     }
 }
