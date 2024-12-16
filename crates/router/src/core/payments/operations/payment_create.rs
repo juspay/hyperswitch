@@ -613,6 +613,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             poll_config: None,
             tax_data: None,
             session_id: None,
+            service_details: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -1023,9 +1024,12 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentDat
             )?;
         }
 
-        if let Some(charges) = &request.charges {
+        if request.split_payments.is_some() {
             let amount = request.amount.get_required_value("amount")?;
-            helpers::validate_platform_fees_for_marketplace(amount, charges)?;
+            helpers::validate_platform_fees_for_marketplace(
+                amount,
+                request.split_payments.clone(),
+            )?;
         };
 
         let _request_straight_through: Option<api::routing::StraightThroughAlgorithm> = request
@@ -1346,17 +1350,7 @@ impl PaymentCreate {
                 request.capture_method,
             )?;
 
-        let charges = request
-            .charges
-            .as_ref()
-            .map(|charges| {
-                charges.encode_to_value().inspect_err(|err| {
-                    logger::warn!("Failed to serialize PaymentCharges - {}", err);
-                })
-            })
-            .transpose()
-            .change_context(errors::ApiErrorResponse::InternalServerError)?
-            .map(Secret::new);
+        let split_payments = request.split_payments.clone();
 
         // Derivation of directly supplied Customer data in our Payment Create Request
         let raw_customer_details = if request.customer_id.is_none()
@@ -1478,7 +1472,7 @@ impl PaymentCreate {
             session_expiry: Some(session_expiry),
             request_external_three_ds_authentication: request
                 .request_external_three_ds_authentication,
-            charges,
+            split_payments,
             frm_metadata: request.frm_metadata.clone(),
             billing_details: encrypted_data.billing_details,
             customer_details: encrypted_data.customer_details,

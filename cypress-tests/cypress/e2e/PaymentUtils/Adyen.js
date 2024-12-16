@@ -16,6 +16,14 @@ const successfulThreeDSTestCardDetails = {
   card_cvc: "737",
 };
 
+const failedNo3DSCardDetails = {
+  card_number: "4242424242424242",
+  card_exp_month: "01",
+  card_exp_year: "25",
+  card_holder_name: "joseph Doe",
+  card_cvc: "123",
+};
+
 const singleUseMandateData = {
   customer_acceptance: {
     acceptance_type: "offline",
@@ -179,6 +187,26 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
+        },
+      },
+    },
+    No3DSFailPayment: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: failedNo3DSCardDetails,
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_code: "2",
+          error_message: "Refused",
+          unified_code: "UE_9000",
+          unified_message: "Something went wrong",
         },
       },
     },
