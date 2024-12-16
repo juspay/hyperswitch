@@ -4,12 +4,12 @@ use std::collections::HashMap;
 pub use api_models::admin;
 pub use api_models::{
     admin::{
-        MerchantAccountCreate, MerchantAccountDeleteResponse, MerchantAccountResponse,
-        MerchantAccountUpdate, MerchantConnectorCreate, MerchantConnectorDeleteResponse,
-        MerchantConnectorDetails, MerchantConnectorDetailsWrap, MerchantConnectorId,
-        MerchantConnectorResponse, MerchantDetails, MerchantId, PaymentMethodsEnabled,
-        ProfileCreate, ProfileResponse, ProfileUpdate, ToggleAllKVRequest, ToggleAllKVResponse,
-        ToggleKVRequest, ToggleKVResponse, WebhookDetails,
+        MaskedHeaders, MerchantAccountCreate, MerchantAccountDeleteResponse,
+        MerchantAccountResponse, MerchantAccountUpdate, MerchantConnectorCreate,
+        MerchantConnectorDeleteResponse, MerchantConnectorDetails, MerchantConnectorDetailsWrap,
+        MerchantConnectorId, MerchantConnectorResponse, MerchantDetails, MerchantId,
+        PaymentMethodsEnabled, ProfileCreate, ProfileResponse, ProfileUpdate, ToggleAllKVRequest,
+        ToggleAllKVResponse, ToggleKVRequest, ToggleKVResponse, WebhookDetails,
     },
     organization::{
         OrganizationCreateRequest, OrganizationId, OrganizationResponse, OrganizationUpdateRequest,
@@ -131,6 +131,8 @@ impl ForeignTryFrom<domain::Profile> for ProfileResponse {
                     )
             })
             .transpose()?;
+        let masked_outgoing_webhook_custom_http_headers =
+            outgoing_webhook_custom_http_headers.map(MaskedHeaders::from_headers);
 
         Ok(Self {
             merchant_id: item.merchant_id,
@@ -168,7 +170,7 @@ impl ForeignTryFrom<domain::Profile> for ProfileResponse {
             always_collect_shipping_details_from_wallet_connector: item
                 .always_collect_shipping_details_from_wallet_connector,
             is_connector_agnostic_mit_enabled: item.is_connector_agnostic_mit_enabled,
-            outgoing_webhook_custom_http_headers,
+            outgoing_webhook_custom_http_headers: masked_outgoing_webhook_custom_http_headers,
             tax_connector_id: item.tax_connector_id,
             is_tax_connector_enabled: item.is_tax_connector_enabled,
             is_network_tokenization_enabled: item.is_network_tokenization_enabled,
@@ -176,6 +178,7 @@ impl ForeignTryFrom<domain::Profile> for ProfileResponse {
             max_auto_retries_enabled: item.max_auto_retries_enabled,
             always_request_extended_authorization: item.always_request_extended_authorization,
             is_click_to_pay_enabled: item.is_click_to_pay_enabled,
+            authentication_product_ids: item.authentication_product_ids,
         })
     }
 }
@@ -204,6 +207,8 @@ impl ForeignTryFrom<domain::Profile> for ProfileResponse {
             .map(admin::OrderFulfillmentTime::try_new)
             .transpose()
             .change_context(errors::ParsingError::IntegerOverflow)?;
+        let masked_outgoing_webhook_custom_http_headers =
+            outgoing_webhook_custom_http_headers.map(MaskedHeaders::from_headers);
 
         Ok(Self {
             merchant_id: item.merchant_id,
@@ -236,7 +241,7 @@ impl ForeignTryFrom<domain::Profile> for ProfileResponse {
             always_collect_billing_details_from_wallet_connector: item
                 .always_collect_billing_details_from_wallet_connector,
             is_connector_agnostic_mit_enabled: item.is_connector_agnostic_mit_enabled,
-            outgoing_webhook_custom_http_headers,
+            outgoing_webhook_custom_http_headers: masked_outgoing_webhook_custom_http_headers,
             order_fulfillment_time,
             order_fulfillment_time_origin: item.order_fulfillment_time_origin,
             should_collect_cvv_during_payment: item.should_collect_cvv_during_payment,
@@ -244,6 +249,7 @@ impl ForeignTryFrom<domain::Profile> for ProfileResponse {
             is_tax_connector_enabled: item.is_tax_connector_enabled,
             is_network_tokenization_enabled: item.is_network_tokenization_enabled,
             is_click_to_pay_enabled: item.is_click_to_pay_enabled,
+            authentication_product_ids: item.authentication_product_ids,
         })
     }
 }
@@ -299,6 +305,13 @@ pub async fn create_profile_from_merchant_account(
             )),
         })
         .transpose()?;
+
+    let authentication_product_ids = request
+        .authentication_product_ids
+        .map(serde_json::to_value)
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("failed to parse product authentication id's to value")?;
 
     Ok(domain::Profile::from(domain::ProfileSetter {
         profile_id,
@@ -372,5 +385,6 @@ pub async fn create_profile_from_merchant_account(
         max_auto_retries_enabled: request.max_auto_retries_enabled.map(i16::from),
         always_request_extended_authorization: request.always_request_extended_authorization,
         is_click_to_pay_enabled: request.is_click_to_pay_enabled,
+        authentication_product_ids,
     }))
 }

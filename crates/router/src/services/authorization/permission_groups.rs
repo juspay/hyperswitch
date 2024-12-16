@@ -33,6 +33,7 @@ impl PermissionGroupExt for PermissionGroup {
             | Self::OrganizationManage
             | Self::AccountManage
             | Self::ReconOpsManage
+            | Self::ReconOps
             | Self::ReconReportsManage => PermissionScope::Write,
         }
     }
@@ -49,7 +50,7 @@ impl PermissionGroupExt for PermissionGroup {
             | Self::MerchantDetailsManage
             | Self::AccountView
             | Self::AccountManage => ParentGroup::Account,
-            Self::ReconOpsView | Self::ReconOpsManage => ParentGroup::ReconOps,
+            Self::ReconOpsView | Self::ReconOpsManage | Self::ReconOps => ParentGroup::ReconOps,
             Self::ReconReportsView | Self::ReconReportsManage => ParentGroup::ReconReports,
         }
     }
@@ -81,7 +82,7 @@ impl PermissionGroupExt for PermissionGroup {
             }
 
             Self::ReconOpsView => vec![Self::ReconOpsView],
-            Self::ReconOpsManage => vec![Self::ReconOpsView, Self::ReconOpsManage],
+            Self::ReconOpsManage | Self::ReconOps => vec![Self::ReconOpsView, Self::ReconOpsManage],
 
             Self::ReconReportsView => vec![Self::ReconReportsView],
             Self::ReconReportsManage => vec![Self::ReconReportsView, Self::ReconReportsManage],

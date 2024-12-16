@@ -17,7 +17,7 @@ use hyperswitch_domain_models::payments::{
     PaymentConfirmData, PaymentIntentData, PaymentStatusData,
 };
 use router_derive;
-use router_env::{instrument, logger, metrics::add_attributes, tracing};
+use router_env::{instrument, logger, tracing};
 use storage_impl::DataModelExt;
 use tracing_futures::Instrument;
 
@@ -1655,7 +1655,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                     }
                                 }
 
-                                metrics::SUCCESSFUL_PAYMENT.add(&metrics::CONTEXT, 1, &[]);
+                                metrics::SUCCESSFUL_PAYMENT.add(1, &[]);
                             }
 
                             let payment_method_id =
@@ -2049,9 +2049,8 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
         Ok(()) => Ok(payment_data),
         Err(err) => {
             metrics::INTEGRITY_CHECK_FAILED.add(
-                &metrics::CONTEXT,
                 1,
-                &add_attributes([
+                router_env::metric_attributes!(
                     (
                         "connector",
                         payment_data
@@ -2062,13 +2061,9 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                     ),
                     (
                         "merchant_id",
-                        payment_data
-                            .payment_attempt
-                            .merchant_id
-                            .get_string_repr()
-                            .to_owned(),
-                    ),
-                ]),
+                        payment_data.payment_attempt.merchant_id.clone(),
+                    )
+                ),
             );
             Err(error_stack::Report::new(
                 errors::ApiErrorResponse::IntegrityCheckFailed {

@@ -2,7 +2,7 @@ use std::{fmt::Debug, marker::PhantomData, str::FromStr};
 
 use api_models::payments::{
     Address, ConnectorMandateReferenceId, CustomerDetails, CustomerDetailsResponse, FrmMessage,
-    PaymentChargeRequest, PaymentChargeResponse, RequestSurchargeDetails,
+    RequestSurchargeDetails,
 };
 use common_enums::{Currency, RequestIncrementalAuthorization};
 use common_utils::{
@@ -20,8 +20,10 @@ use hyperswitch_domain_models::payments::{PaymentConfirmData, PaymentIntentData}
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::ApiModelToDieselModelConvertor;
 use hyperswitch_domain_models::{payments::payment_intent::CustomerData, router_request_types};
-use masking::{ExposeInterface, Maskable, PeekInterface, Secret};
-use router_env::{instrument, metrics::add_attributes, tracing};
+#[cfg(feature = "v2")]
+use masking::PeekInterface;
+use masking::{ExposeInterface, Maskable, Secret};
+use router_env::{instrument, tracing};
 
 use super::{flows::Feature, types::AuthenticationData, OperationSessionGetters, PaymentData};
 use crate::{
@@ -167,6 +169,7 @@ where
         additional_merchant_data: None,
         header_payload: None,
         connector_mandate_request_reference_id,
+        authentication_id: None,
         psd2_sca_exemption_type: None,
     };
     Ok(router_data)
@@ -284,7 +287,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         metadata: payment_data.payment_intent.metadata.expose_option(),
         authentication_data: None,
         customer_acceptance: None,
-        charges: None,
+        split_payments: None,
         merchant_order_reference_id: None,
         integrity_object: None,
         shipping_cost: payment_data.payment_intent.amount_details.shipping_cost,
@@ -371,6 +374,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         additional_merchant_data: None,
         header_payload,
         connector_mandate_request_reference_id,
+        authentication_id: None,
         psd2_sca_exemption_type: None,
     };
 
@@ -435,7 +439,7 @@ pub async fn construct_router_data_for_psync<'a>(
         payment_method_type: Some(attempt.payment_method_subtype),
         currency: payment_intent.amount_details.currency,
         // TODO: Get the charges object from feature metadata
-        charges: None,
+        split_payments: None,
         payment_experience: None,
     };
 
@@ -504,6 +508,7 @@ pub async fn construct_router_data_for_psync<'a>(
         additional_merchant_data: None,
         header_payload,
         connector_mandate_request_reference_id: None,
+        authentication_id: None,
         psd2_sca_exemption_type: None,
     };
 
@@ -651,6 +656,7 @@ pub async fn construct_payment_router_data_for_sdk_session<'a>(
         header_payload,
         connector_mandate_request_reference_id: None,
         psd2_sca_exemption_type: None,
+        authentication_id: None,
     };
 
     Ok(router_data)
@@ -848,6 +854,7 @@ where
         }),
         header_payload,
         connector_mandate_request_reference_id,
+        authentication_id: None,
         psd2_sca_exemption_type: payment_data.payment_intent.psd2_sca_exemption_type,
     };
 
@@ -1873,26 +1880,22 @@ where
             )
         });
 
-        let charges_response = match payment_intent.charges {
+        let split_payments_response = match payment_intent.split_payments {
             None => None,
-            Some(charges) => {
-                let payment_charges: PaymentChargeRequest = charges
-                    .peek()
-                    .clone()
-                    .parse_value("PaymentChargeRequest")
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable(format!(
-                        "Failed to parse PaymentChargeRequest for payment_intent {:?}",
-                        payment_intent.payment_id
-                    ))?;
-
-                Some(PaymentChargeResponse {
-                    charge_id: payment_attempt.charge_id.clone(),
-                    charge_type: payment_charges.charge_type,
-                    application_fees: payment_charges.fees,
-                    transfer_account_id: payment_charges.transfer_account_id,
-                })
-            }
+            Some(split_payments) => match split_payments {
+                common_types::payments::SplitPaymentsRequest::StripeSplitPayment(
+                    stripe_split_payment,
+                ) => Some(
+                    api_models::payments::SplitPaymentsResponse::StripeSplitPayment(
+                        api_models::payments::StripeSplitPaymentsResponse {
+                            charge_id: payment_attempt.charge_id.clone(),
+                            charge_type: stripe_split_payment.charge_type,
+                            application_fees: stripe_split_payment.application_fees,
+                            transfer_account_id: stripe_split_payment.transfer_account_id,
+                        },
+                    ),
+                ),
+            },
         };
 
         let mandate_data = payment_data.get_setup_mandate().map(|d| api::MandateData {
@@ -2073,7 +2076,7 @@ where
                 .get_payment_method_info()
                 .map(|info| info.status),
             updated: Some(payment_intent.modified_at),
-            charges: charges_response,
+            split_payments: split_payments_response,
             frm_metadata: payment_intent.frm_metadata,
             merchant_order_reference_id: payment_intent.merchant_order_reference_id,
             order_tax_amount,
@@ -2087,14 +2090,13 @@ where
     };
 
     metrics::PAYMENT_OPS_COUNT.add(
-        &metrics::CONTEXT,
         1,
-        &add_attributes([
+        router_env::metric_attributes!(
             ("operation", format!("{:?}", operation)),
-            ("merchant", merchant_id.get_string_repr().to_owned()),
+            ("merchant", merchant_id.clone()),
             ("payment_method_type", payment_method_type),
             ("payment_method", payment_method),
-        ]),
+        ),
     );
 
     Ok(output)
@@ -2333,7 +2335,7 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             payment_method_id: None,
             payment_method_status: None,
             updated: None,
-            charges: None,
+            split_payments: None,
             frm_metadata: None,
             capture_before: pa.capture_before,
             extended_authorization_applied: pa.extended_authorization_applied,
@@ -2609,15 +2611,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             .as_ref()
             .map(|data| data.customer_id.clone());
 
-        let charges = match payment_data.payment_intent.charges {
-            Some(charges) => charges
-                .peek()
-                .clone()
-                .parse_value("PaymentCharges")
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to parse charges in to PaymentCharges")?,
-            None => None,
-        };
+        let split_payments = payment_data.payment_intent.split_payments.clone();
 
         let merchant_order_reference_id = payment_data
             .payment_intent
@@ -2669,6 +2663,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             customer_acceptance: payment_data.customer_acceptance,
             request_extended_authorization: attempt.request_extended_authorization,
             charges,
+            split_payments,
             merchant_order_reference_id,
             integrity_object: None,
             additional_payment_method_data,
@@ -2721,19 +2716,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSyncData
             },
             payment_method_type,
             currency: payment_data.currency,
-            charges: payment_data
-                .payment_intent
-                .charges
-                .as_ref()
-                .map(|charges| {
-                    charges
-                        .peek()
-                        .clone()
-                        .parse_value("PaymentCharges")
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Failed to parse charges in to PaymentCharges")
-                })
-                .transpose()?,
+            split_payments: payment_data.payment_intent.split_payments,
             payment_experience: payment_data.payment_attempt.payment_experience,
         })
     }
@@ -3532,12 +3515,8 @@ impl
             currency: intent_amount_details.currency,
             shipping_cost: attempt_amount_details.shipping_cost,
             order_tax_amount: attempt_amount_details.order_tax_amount,
-            external_tax_calculation: common_enums::TaxCalculationOverride::foreign_from(
-                intent_amount_details.skip_external_tax_calculation,
-            ),
-            surcharge_calculation: common_enums::SurchargeCalculationOverride::foreign_from(
-                intent_amount_details.skip_surcharge_calculation,
-            ),
+            external_tax_calculation: intent_amount_details.skip_external_tax_calculation,
+            surcharge_calculation: intent_amount_details.skip_surcharge_calculation,
             surcharge_amount: attempt_amount_details.surcharge_amount,
             tax_on_surcharge: attempt_amount_details.tax_on_surcharge,
             net_amount: attempt_amount_details.net_amount,
@@ -3575,12 +3554,8 @@ impl
                     .tax_details
                     .as_ref()
                     .and_then(|tax_details| tax_details.get_default_tax_amount())),
-            external_tax_calculation: common_enums::TaxCalculationOverride::foreign_from(
-                intent_amount_details.skip_external_tax_calculation,
-            ),
-            surcharge_calculation: common_enums::SurchargeCalculationOverride::foreign_from(
-                intent_amount_details.skip_surcharge_calculation,
-            ),
+            external_tax_calculation: intent_amount_details.skip_external_tax_calculation,
+            surcharge_calculation: intent_amount_details.skip_surcharge_calculation,
             surcharge_amount: attempt_amount_details
                 .and_then(|attempt| attempt.surcharge_amount)
                 .or(intent_amount_details.surcharge_amount),
@@ -3635,72 +3610,10 @@ impl ForeignFrom<hyperswitch_domain_models::payments::AmountDetails>
             order_tax_amount: amount_details.tax_details.and_then(|tax_details| {
                 tax_details.default.map(|default| default.order_tax_amount)
             }),
-            external_tax_calculation: common_enums::TaxCalculationOverride::foreign_from(
-                amount_details.skip_external_tax_calculation,
-            ),
-            surcharge_calculation: common_enums::SurchargeCalculationOverride::foreign_from(
-                amount_details.skip_surcharge_calculation,
-            ),
+            external_tax_calculation: amount_details.skip_external_tax_calculation,
+            surcharge_calculation: amount_details.skip_surcharge_calculation,
             surcharge_amount: amount_details.surcharge_amount,
             tax_on_surcharge: amount_details.tax_on_surcharge,
-        }
-    }
-}
-
-#[cfg(feature = "v2")]
-impl ForeignFrom<common_enums::TaxCalculationOverride>
-    for hyperswitch_domain_models::payments::TaxCalculationOverride
-{
-    fn foreign_from(tax_calculation_override: common_enums::TaxCalculationOverride) -> Self {
-        match tax_calculation_override {
-            common_enums::TaxCalculationOverride::Calculate => Self::Calculate,
-            common_enums::TaxCalculationOverride::Skip => Self::Skip,
-        }
-    }
-}
-
-#[cfg(feature = "v2")]
-impl ForeignFrom<hyperswitch_domain_models::payments::TaxCalculationOverride>
-    for common_enums::TaxCalculationOverride
-{
-    fn foreign_from(
-        tax_calculation_override: hyperswitch_domain_models::payments::TaxCalculationOverride,
-    ) -> Self {
-        match tax_calculation_override {
-            hyperswitch_domain_models::payments::TaxCalculationOverride::Calculate => {
-                Self::Calculate
-            }
-            hyperswitch_domain_models::payments::TaxCalculationOverride::Skip => Self::Skip,
-        }
-    }
-}
-
-#[cfg(feature = "v2")]
-impl ForeignFrom<common_enums::SurchargeCalculationOverride>
-    for hyperswitch_domain_models::payments::SurchargeCalculationOverride
-{
-    fn foreign_from(
-        surcharge_calculation_override: common_enums::SurchargeCalculationOverride,
-    ) -> Self {
-        match surcharge_calculation_override {
-            common_enums::SurchargeCalculationOverride::Calculate => Self::Calculate,
-            common_enums::SurchargeCalculationOverride::Skip => Self::Skip,
-        }
-    }
-}
-
-#[cfg(feature = "v2")]
-impl ForeignFrom<hyperswitch_domain_models::payments::SurchargeCalculationOverride>
-    for common_enums::SurchargeCalculationOverride
-{
-    fn foreign_from(
-        surcharge_calculation_override: hyperswitch_domain_models::payments::SurchargeCalculationOverride,
-    ) -> Self {
-        match surcharge_calculation_override {
-            hyperswitch_domain_models::payments::SurchargeCalculationOverride::Calculate => {
-                Self::Calculate
-            }
-            hyperswitch_domain_models::payments::SurchargeCalculationOverride::Skip => Self::Skip,
         }
     }
 }
@@ -3719,6 +3632,7 @@ impl ForeignFrom<api_models::admin::PaymentLinkConfigRequest>
             enabled_saved_payment_method: config.enabled_saved_payment_method,
             hide_card_nickname_field: config.hide_card_nickname_field,
             show_card_form_by_default: config.show_card_form_by_default,
+            details_layout: config.details_layout,
             transaction_details: config.transaction_details.map(|transaction_details| {
                 transaction_details
                     .iter()
@@ -3726,6 +3640,11 @@ impl ForeignFrom<api_models::admin::PaymentLinkConfigRequest>
                         diesel_models::PaymentLinkTransactionDetails::foreign_from(details.clone())
                     })
                     .collect()
+            }),
+            background_image: config.background_image.map(|background_image| {
+                diesel_models::business_profile::PaymentLinkBackgroundImageConfig::foreign_from(
+                    background_image.clone(),
+                )
             }),
         }
     }
@@ -3773,6 +3692,7 @@ impl ForeignFrom<diesel_models::PaymentLinkConfigRequestForPayments>
             enabled_saved_payment_method: config.enabled_saved_payment_method,
             hide_card_nickname_field: config.hide_card_nickname_field,
             show_card_form_by_default: config.show_card_form_by_default,
+            details_layout: config.details_layout,
             transaction_details: config.transaction_details.map(|transaction_details| {
                 transaction_details
                     .iter()
@@ -3782,6 +3702,11 @@ impl ForeignFrom<diesel_models::PaymentLinkConfigRequestForPayments>
                         )
                     })
                     .collect()
+            }),
+            background_image: config.background_image.map(|background_image| {
+                api_models::admin::PaymentLinkBackgroundImageConfig::foreign_from(
+                    background_image.clone(),
+                )
             }),
         }
     }

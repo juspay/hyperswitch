@@ -1911,6 +1911,79 @@
         ]
       }
     },
+    "/v2/payments/{id}/update-intent": {
+      "put": {
+        "tags": [
+          "Payments"
+        ],
+        "summary": "Payments - Update Intent",
+        "description": "**Update a payment intent object**\n\nYou will require the 'API - Key' from the Hyperswitch dashboard to make the call.",
+        "operationId": "Update a Payment Intent",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The unique identifier for the Payment Intent",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile ID associated to the payment intent",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": {
+              "X-Profile-Id": "pro_abcdefghijklmnop"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PaymentsUpdateIntentRequest"
+              },
+              "examples": {
+                "Update a payment intent with minimal fields": {
+                  "value": {
+                    "amount_details": {
+                      "currency": "USD",
+                      "order_amount": 6540
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Payment Intent Updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentsIntentResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Payment Intent Not Found"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
     "/v2/payments/{id}/confirm-intent": {
       "post": {
         "tags": [
@@ -3007,6 +3080,75 @@
           },
           "surcharge_calculation": {
             "$ref": "#/components/schemas/SurchargeCalculationOverride"
+          },
+          "surcharge_amount": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
+          },
+          "tax_on_surcharge": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "AmountDetailsUpdate": {
+        "type": "object",
+        "properties": {
+          "order_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The payment amount. Amount for the payment in the lowest denomination of the currency, (i.e) in cents for USD denomination, in yen for JPY denomination etc. E.g., Pass 100 to charge $1.00 and 1 for 1¥ since ¥ is a zero-decimal currency. Read more about [the Decimal and Non-Decimal Currencies](https://github.com/juspay/hyperswitch/wiki/Decimal-and-Non%E2%80%90Decimal-Currencies)",
+            "example": 6540,
+            "nullable": true,
+            "minimum": 0
+          },
+          "currency": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Currency"
+              }
+            ],
+            "nullable": true
+          },
+          "shipping_cost": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
+          },
+          "order_tax_amount": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
+          },
+          "skip_external_tax_calculation": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TaxCalculationOverride"
+              }
+            ],
+            "nullable": true
+          },
+          "skip_surcharge_calculation": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SurchargeCalculationOverride"
+              }
+            ],
+            "nullable": true
           },
           "surcharge_amount": {
             "allOf": [
@@ -5395,6 +5537,11 @@
                 "description": "A list of allowed domains (glob patterns) where this link can be embedded / opened from",
                 "uniqueItems": true,
                 "nullable": true
+              },
+              "branding_visibility": {
+                "type": "boolean",
+                "description": "Toggle for HyperSwitch branding visibility",
+                "nullable": true
               }
             }
           }
@@ -6080,6 +6227,57 @@
             "type": "boolean",
             "description": "Toggle for reverting the transfer that was made during the charge.\nIf set to false, the funds are pulled from the main platform's account.",
             "nullable": true
+          }
+        }
+      },
+      "ClickToPaySessionResponse": {
+        "type": "object",
+        "required": [
+          "dpaId",
+          "dpaName",
+          "locale",
+          "cardBrands",
+          "acquirerBin",
+          "acquirerMerchantId",
+          "merchantCategoryCode",
+          "merchantCountryCode",
+          "transactionAmount",
+          "transactionCurrencyCode"
+        ],
+        "properties": {
+          "dpaId": {
+            "type": "string"
+          },
+          "dpaName": {
+            "type": "string"
+          },
+          "locale": {
+            "type": "string"
+          },
+          "cardBrands": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "acquirerBin": {
+            "type": "string"
+          },
+          "acquirerMerchantId": {
+            "type": "string"
+          },
+          "merchantCategoryCode": {
+            "type": "string"
+          },
+          "merchantCountryCode": {
+            "type": "string"
+          },
+          "transactionAmount": {
+            "type": "string",
+            "example": "38.02"
+          },
+          "transactionCurrencyCode": {
+            "$ref": "#/components/schemas/Currency"
           }
         }
       },
@@ -6799,6 +6997,31 @@
             "type": "object"
           }
         ]
+      },
+      "CtpServiceDetails": {
+        "type": "object",
+        "properties": {
+          "merchant_transaction_id": {
+            "type": "string",
+            "description": "merchant transaction id",
+            "nullable": true
+          },
+          "correlation_id": {
+            "type": "string",
+            "description": "network transaction correlation id",
+            "nullable": true
+          },
+          "x_src_flow_id": {
+            "type": "string",
+            "description": "session transaction flow id",
+            "nullable": true
+          },
+          "provider": {
+            "type": "string",
+            "description": "provider Eg: Visa, Mastercard",
+            "nullable": true
+          }
+        }
       },
       "Currency": {
         "type": "string",
@@ -7715,6 +7938,61 @@
           }
         }
       },
+      "ElementPosition": {
+        "type": "string",
+        "enum": [
+          "left",
+          "top left",
+          "top",
+          "top right",
+          "right",
+          "bottom right",
+          "bottom",
+          "bottom left",
+          "center"
+        ]
+      },
+      "ElementSize": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "Variants"
+            ],
+            "properties": {
+              "Variants": {
+                "$ref": "#/components/schemas/SizeVariants"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "Percentage"
+            ],
+            "properties": {
+              "Percentage": {
+                "type": "integer",
+                "format": "int32",
+                "minimum": 0
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "Pixels"
+            ],
+            "properties": {
+              "Pixels": {
+                "type": "integer",
+                "format": "int32",
+                "minimum": 0
+              }
+            }
+          }
+        ]
+      },
       "EnablePaymentLinkRequest": {
         "type": "string",
         "description": "Whether payment link is requested to be enabled or not for this transaction",
@@ -8439,6 +8717,24 @@
             "type": "string",
             "enum": [
               "user_iban"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_bsb_number"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_bank_sort_code"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_bank_routing_number"
             ]
           },
           {
@@ -12230,59 +12526,6 @@
           }
         }
       },
-      "PaymentChargeRequest": {
-        "type": "object",
-        "description": "Fee information to be charged on the payment being collected",
-        "required": [
-          "charge_type",
-          "fees",
-          "transfer_account_id"
-        ],
-        "properties": {
-          "charge_type": {
-            "$ref": "#/components/schemas/PaymentChargeType"
-          },
-          "fees": {
-            "type": "integer",
-            "format": "int64",
-            "description": "Platform fees to be collected on the payment",
-            "example": 6540
-          },
-          "transfer_account_id": {
-            "type": "string",
-            "description": "Identifier for the reseller's account to send the funds to"
-          }
-        }
-      },
-      "PaymentChargeResponse": {
-        "type": "object",
-        "description": "Fee information to be charged on the payment being collected",
-        "required": [
-          "charge_type",
-          "application_fees",
-          "transfer_account_id"
-        ],
-        "properties": {
-          "charge_id": {
-            "type": "string",
-            "description": "Identifier for charge created for the payment",
-            "nullable": true
-          },
-          "charge_type": {
-            "$ref": "#/components/schemas/PaymentChargeType"
-          },
-          "application_fees": {
-            "type": "integer",
-            "format": "int64",
-            "description": "Platform fees collected on the payment",
-            "example": 6540
-          },
-          "transfer_account_id": {
-            "type": "string",
-            "description": "Identifier for the reseller's account where the funds were transferred"
-          }
-        }
-      },
       "PaymentChargeType": {
         "oneOf": [
           {
@@ -12355,6 +12598,35 @@
           }
         }
       },
+      "PaymentLinkBackgroundImageConfig": {
+        "type": "object",
+        "required": [
+          "url"
+        ],
+        "properties": {
+          "url": {
+            "type": "string",
+            "description": "URL of the image",
+            "example": "https://hyperswitch.io/favicon.ico"
+          },
+          "position": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ElementPosition"
+              }
+            ],
+            "nullable": true
+          },
+          "size": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ElementSize"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
       "PaymentLinkConfig": {
         "type": "object",
         "required": [
@@ -12415,6 +12687,27 @@
               "$ref": "#/components/schemas/PaymentLinkTransactionDetails"
             },
             "description": "Dynamic details related to merchant to be rendered in payment link",
+            "nullable": true
+          },
+          "background_image": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentLinkBackgroundImageConfig"
+              }
+            ],
+            "nullable": true
+          },
+          "details_layout": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentLinkDetailsLayout"
+              }
+            ],
+            "nullable": true
+          },
+          "branding_visibility": {
+            "type": "boolean",
+            "description": "Toggle for HyperSwitch branding visibility",
             "nullable": true
           }
         }
@@ -12485,8 +12778,31 @@
             },
             "description": "Dynamic details related to merchant to be rendered in payment link",
             "nullable": true
+          },
+          "background_image": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentLinkBackgroundImageConfig"
+              }
+            ],
+            "nullable": true
+          },
+          "details_layout": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentLinkDetailsLayout"
+              }
+            ],
+            "nullable": true
           }
         }
+      },
+      "PaymentLinkDetailsLayout": {
+        "type": "string",
+        "enum": [
+          "layout1",
+          "layout2"
+        ]
       },
       "PaymentLinkInitiateRequest": {
         "type": "object",
@@ -14810,10 +15126,10 @@
             "example": "2022-09-10T10:11:12Z",
             "nullable": true
           },
-          "charges": {
+          "split_payments": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/PaymentChargeResponse"
+                "$ref": "#/components/schemas/SplitPaymentsResponse"
               }
             ],
             "nullable": true
@@ -15721,10 +16037,10 @@
             "example": "2022-09-10T10:11:12Z",
             "nullable": true
           },
-          "charges": {
+          "split_payments": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/PaymentChargeResponse"
+                "$ref": "#/components/schemas/SplitPaymentsResponse"
               }
             ],
             "nullable": true
@@ -15919,6 +16235,176 @@
             "description": "The list of session token object"
           }
         }
+      },
+      "PaymentsUpdateIntentRequest": {
+        "type": "object",
+        "properties": {
+          "amount_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AmountDetailsUpdate"
+              }
+            ],
+            "nullable": true
+          },
+          "routing_algorithm_id": {
+            "type": "string",
+            "description": "The routing algorithm id to be used for the payment",
+            "nullable": true
+          },
+          "capture_method": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CaptureMethod"
+              }
+            ],
+            "nullable": true
+          },
+          "authentication_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AuthenticationType"
+              }
+            ],
+            "default": "no_three_ds",
+            "nullable": true
+          },
+          "billing": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Address"
+              }
+            ],
+            "nullable": true
+          },
+          "shipping": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Address"
+              }
+            ],
+            "nullable": true
+          },
+          "customer_present": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PresenceOfCustomerDuringPayment"
+              }
+            ],
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "description": "A description for the payment",
+            "example": "It's my first payment request",
+            "nullable": true
+          },
+          "return_url": {
+            "type": "string",
+            "description": "The URL to which you want the user to be redirected after the completion of the payment operation",
+            "example": "https://hyperswitch.io",
+            "nullable": true
+          },
+          "setup_future_usage": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FutureUsage"
+              }
+            ],
+            "nullable": true
+          },
+          "apply_mit_exemption": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MitExemptionRequest"
+              }
+            ],
+            "nullable": true
+          },
+          "statement_descriptor": {
+            "type": "string",
+            "description": "For non-card charges, you can use this value as the complete description that appears on your customers’ statements. Must contain at least one letter, maximum 22 characters.",
+            "example": "Hyperswitch Router",
+            "nullable": true,
+            "maxLength": 22
+          },
+          "order_details": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OrderDetailsWithAmount"
+            },
+            "description": "Use this object to capture the details about the different products for which the payment is being made. The sum of amount across different products here should be equal to the overall payment amount",
+            "example": "[{\n        \"product_name\": \"Apple iPhone 16\",\n        \"quantity\": 1,\n        \"amount\" : 69000\n        \"product_img_link\" : \"https://dummy-img-link.com\"\n    }]",
+            "nullable": true
+          },
+          "allowed_payment_method_types": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PaymentMethodType"
+            },
+            "description": "Use this parameter to restrict the Payment Method Types to show for a given PaymentIntent",
+            "nullable": true
+          },
+          "metadata": {
+            "type": "object",
+            "description": "Metadata is useful for storing additional, unstructured information on an object. This metadata will override the metadata that was passed in payments",
+            "nullable": true
+          },
+          "connector_metadata": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ConnectorMetadata"
+              }
+            ],
+            "nullable": true
+          },
+          "feature_metadata": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FeatureMetadata"
+              }
+            ],
+            "nullable": true
+          },
+          "payment_link_config": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentLinkConfigRequest"
+              }
+            ],
+            "nullable": true
+          },
+          "request_incremental_authorization": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RequestIncrementalAuthorization"
+              }
+            ],
+            "nullable": true
+          },
+          "session_expiry": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Will be used to expire client secret after certain amount of time to be supplied in seconds, if not sent it will be taken from profile config\n(900) for 15 mins",
+            "example": 900,
+            "nullable": true,
+            "minimum": 0
+          },
+          "frm_metadata": {
+            "type": "object",
+            "description": "Additional data related to some frm(Fraud Risk Management) connectors",
+            "nullable": true
+          },
+          "request_external_three_ds_authentication": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/External3dsAuthenticationRequest"
+              }
+            ],
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
       },
       "PayoutActionRequest": {
         "type": "object"
@@ -17211,10 +17697,10 @@
       },
       "PresenceOfCustomerDuringPayment": {
         "type": "string",
-        "description": "Set to true to indicate that the customer is in your checkout flow during this payment, and therefore is able to authenticate. This parameter should be false when merchant's doing merchant initiated payments and customer is not present while doing the payment.",
+        "description": "Set to `present` to indicate that the customer is in your checkout flow during this payment, and therefore is able to authenticate. This parameter should be `absent` when merchant's doing merchant initiated payments and customer is not present while doing the payment.",
         "enum": [
-          "Present",
-          "Absent"
+          "present",
+          "absent"
         ]
       },
       "PrimaryBusinessDetails": {
@@ -17429,6 +17915,11 @@
             "description": "Indicates if click to pay is enabled or not.",
             "default": false,
             "example": false
+          },
+          "authentication_product_ids": {
+            "type": "object",
+            "description": "Product authentication ids",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -17648,6 +18139,11 @@
             "description": "Indicates if click to pay is enabled or not.",
             "default": false,
             "example": false
+          },
+          "authentication_product_ids": {
+            "type": "object",
+            "description": "Product authentication ids",
+            "nullable": true
           }
         }
       },
@@ -18053,10 +18549,10 @@
             ],
             "nullable": true
           },
-          "charges": {
+          "split_refunds": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/ChargeRefunds"
+                "$ref": "#/components/schemas/SplitRefund"
               }
             ],
             "nullable": true
@@ -19604,6 +20100,27 @@
             ]
           },
           {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ClickToPaySessionResponse"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "wallet_name"
+                ],
+                "properties": {
+                  "wallet_name": {
+                    "type": "string",
+                    "enum": [
+                      "click_to_pay"
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
             "type": "object",
             "required": [
               "wallet_name"
@@ -19672,6 +20189,60 @@
             }
           }
         ]
+      },
+      "SizeVariants": {
+        "type": "string",
+        "enum": [
+          "cover",
+          "contain"
+        ]
+      },
+      "SplitPaymentsRequest": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "stripe_split_payment"
+            ],
+            "properties": {
+              "stripe_split_payment": {
+                "$ref": "#/components/schemas/StripeSplitPaymentRequest"
+              }
+            }
+          }
+        ],
+        "description": "Fee information for Split Payments to be charged on the payment being collected"
+      },
+      "SplitPaymentsResponse": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "stripe_split_payment"
+            ],
+            "properties": {
+              "stripe_split_payment": {
+                "$ref": "#/components/schemas/StripeSplitPaymentsResponse"
+              }
+            }
+          }
+        ]
+      },
+      "SplitRefund": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "stripe_split_refund"
+            ],
+            "properties": {
+              "stripe_split_refund": {
+                "$ref": "#/components/schemas/StripeSplitRefundRequest"
+              }
+            }
+          }
+        ],
+        "description": "Charge specific fields for controlling the revert of funds from either platform or connected account. Check sub-fields for more details."
       },
       "StraightThroughAlgorithm": {
         "oneOf": [
@@ -19749,6 +20320,77 @@
           "direct",
           "destination"
         ]
+      },
+      "StripeSplitPaymentRequest": {
+        "type": "object",
+        "description": "Fee information for Split Payments to be charged on the payment being collected for Stripe",
+        "required": [
+          "charge_type",
+          "application_fees",
+          "transfer_account_id"
+        ],
+        "properties": {
+          "charge_type": {
+            "$ref": "#/components/schemas/PaymentChargeType"
+          },
+          "application_fees": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Platform fees to be collected on the payment",
+            "example": 6540
+          },
+          "transfer_account_id": {
+            "type": "string",
+            "description": "Identifier for the reseller's account to send the funds to"
+          }
+        },
+        "additionalProperties": false
+      },
+      "StripeSplitPaymentsResponse": {
+        "type": "object",
+        "description": "Fee information to be charged on the payment being collected",
+        "required": [
+          "charge_type",
+          "application_fees",
+          "transfer_account_id"
+        ],
+        "properties": {
+          "charge_id": {
+            "type": "string",
+            "description": "Identifier for charge created for the payment",
+            "nullable": true
+          },
+          "charge_type": {
+            "$ref": "#/components/schemas/PaymentChargeType"
+          },
+          "application_fees": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Platform fees collected on the payment",
+            "example": 6540
+          },
+          "transfer_account_id": {
+            "type": "string",
+            "description": "Identifier for the reseller's account where the funds were transferred"
+          }
+        }
+      },
+      "StripeSplitRefundRequest": {
+        "type": "object",
+        "description": "Charge specific fields for controlling the revert of funds from either platform or connected account for Stripe. Check sub-fields for more details.",
+        "properties": {
+          "revert_platform_fee": {
+            "type": "boolean",
+            "description": "Toggle for reverting the application fee that was collected for the payment.\nIf set to false, the funds are pulled from the destination account.",
+            "nullable": true
+          },
+          "revert_transfer": {
+            "type": "boolean",
+            "description": "Toggle for reverting the transfer that was made during the charge.\nIf set to false, the funds are pulled from the main platform's account.",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
       },
       "SurchargeCalculationOverride": {
         "type": "string",
