@@ -186,9 +186,9 @@ export function extractIntegerAtEnd(str) {
 // Common helper function to check if operation should proceed
 function shouldProceedWithOperation(multipleConnector, multipleConnectors) {
   return !(
-    (multipleConnector?.nextConnector === true &&
-      multipleConnectors?.status === false) ||
-    typeof multipleConnectors === "undefined"
+    multipleConnector?.nextConnector === true &&
+    (multipleConnectors?.status === false ||
+      typeof multipleConnectors === "undefined")
   );
 }
 
