@@ -1,27 +1,18 @@
-name: wasm-check
+name: CI wasm-check
 
 on:
   push:
     branches:
       - main
-    # paths:
-    #   - ".github/workflows/**"
-    #   - "crates/**"
-    #   - "examples/**"
-    #   - "Cargo.lock"
-    #   - "Cargo.toml"
-
-  merge_group:
-    types:
-      - checks_requested
+  pull_request:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  formatting:
-    name: Check formatting
+  wasm-ci:
+    name: Check wasm build
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
