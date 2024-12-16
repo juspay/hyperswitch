@@ -21,8 +21,10 @@ v2 = ["common_utils/v2", "customer_v2"]
 customer_v2 = ["common_utils/customer_v2"]
 payment_methods_v2 = ["common_utils/payment_methods_v2"]
 dynamic_routing = []
+control_center_theme = ["dep:actix-web", "dep:actix-multipart"]
 
 [dependencies]
+actix-multipart = { version = "0.6.1", optional = true }
 actix-web = { version = "4.5.1", optional = true }
 error-stack = "0.4.1"
 indexmap = "2.3.0"
@@ -40,6 +42,7 @@ nutype = { version = "0.4.2", features = ["serde"] }
 # First party crates
 cards = { version = "0.1.0", path = "../cards" }
 common_enums = { version = "0.1.0", path = "../common_enums" }
+common_types = { version = "0.1.0", path = "../common_types" }
 common_utils = { version = "0.1.0", path = "../common_utils" }
 euclid = { version = "0.1.0", path = "../euclid" }
 masking = { version = "0.1.0", path = "../masking", default-features = false, features = ["alloc", "serde"] }

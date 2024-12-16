@@ -20,15 +20,15 @@ pub struct KafkaDisputeEvent<'a> {
     pub connector_dispute_id: &'a String,
     pub connector_reason: Option<&'a String>,
     pub connector_reason_code: Option<&'a String>,
-    #[serde(default, with = "time::serde::timestamp::milliseconds::option")]
+    #[serde(default, with = "time::serde::timestamp::nanoseconds::option")]
     pub challenge_required_by: Option<OffsetDateTime>,
-    #[serde(default, with = "time::serde::timestamp::milliseconds::option")]
+    #[serde(default, with = "time::serde::timestamp::nanoseconds::option")]
     pub connector_created_at: Option<OffsetDateTime>,
-    #[serde(default, with = "time::serde::timestamp::milliseconds::option")]
+    #[serde(default, with = "time::serde::timestamp::nanoseconds::option")]
     pub connector_updated_at: Option<OffsetDateTime>,
-    #[serde(default, with = "time::serde::timestamp::milliseconds")]
+    #[serde(default, with = "time::serde::timestamp::nanoseconds")]
     pub created_at: OffsetDateTime,
-    #[serde(default, with = "time::serde::timestamp::milliseconds")]
+    #[serde(default, with = "time::serde::timestamp::nanoseconds")]
     pub modified_at: OffsetDateTime,
     pub connector: &'a String,
     pub evidence: &'a Secret<serde_json::Value>,
@@ -72,7 +72,7 @@ impl<'a> KafkaDisputeEvent<'a> {
     }
 }
 
-impl<'a> super::KafkaMessage for KafkaDisputeEvent<'a> {
+impl super::KafkaMessage for KafkaDisputeEvent<'_> {
     fn key(&self) -> String {
         format!(
             "{}_{}_{}",

@@ -1,4 +1,3 @@
-
 const billing = {
   address: {
     line1: "1467",
@@ -9,21 +8,23 @@ const billing = {
     zip: "94122",
     country: "US",
     first_name: "John",
-    last_name: "Doe"
-  }
+    last_name: "Doe",
+  },
 };
 
 const browser_info = {
-  "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.110 Safari/537.36",
-  "accept_header": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
-  "language": "nl-NL",
-  "color_depth": 24,
-  "screen_height": 723,
-  "screen_width": 1536,
-  "time_zone": 0,
-  "java_enabled": true,
-  "java_script_enabled": true,
-  "ip_address": "127.0.0.1"
+  user_agent:
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.110 Safari/537.36",
+  accept_header:
+    "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
+  language: "nl-NL",
+  color_depth: 24,
+  screen_height: 723,
+  screen_width: 1536,
+  time_zone: 0,
+  java_enabled: true,
+  java_script_enabled: true,
+  ip_address: "127.0.0.1",
 };
 
 const successfulNoThreeDsCardDetailsRequest = {
@@ -55,9 +56,9 @@ const paymentMethodDataNoThreeDsResponse = {
     card_exp_year: "30",
     card_holder_name: null,
     payment_checks: null,
-    authentication_data: null
+    authentication_data: null,
   },
-  billing: null
+  billing: null,
 };
 
 const payment_method_data_3ds = {
@@ -73,12 +74,12 @@ const payment_method_data_3ds = {
     card_exp_year: "30",
     card_holder_name: null,
     payment_checks: null,
-    authentication_data: null
+    authentication_data: null,
   },
-  billing: null
+  billing: null,
 };
 
-const offileCustomerAcceptance = {
+const customerAcceptance = {
   acceptance_type: "offline",
   accepted_at: "1963-05-03T04:07:52.723Z",
   online: {
@@ -88,7 +89,7 @@ const offileCustomerAcceptance = {
 };
 
 const singleUseMandateData = {
-  customer_acceptance: offileCustomerAcceptance,
+  customer_acceptance: customerAcceptance,
   mandate_type: {
     single_use: {
       amount: 8000,
@@ -205,10 +206,11 @@ export const connectorDetails = {
       ResponseCustom: {
         body: {
           type: "invalid_request",
-          message: "You cannot cancel this payment because it has status processing",
+          message:
+            "You cannot cancel this payment because it has status processing",
           code: "IR_16",
-        }
-      }
+        },
+      },
     },
     VoidAfterConfirm: {
       Request: {},
@@ -227,7 +229,7 @@ export const connectorDetails = {
         },
         currency: "USD",
         setup_future_usage: "on_session",
-        customer_acceptance: offileCustomerAcceptance,
+        customer_acceptance: customerAcceptance,
       },
       Response: {
         body: {
@@ -242,7 +244,7 @@ export const connectorDetails = {
           card: successfulNoThreeDsCardDetailsRequest,
         },
         setup_future_usage: "off_session",
-        customer_acceptance: offileCustomerAcceptance,
+        customer_acceptance: customerAcceptance,
       },
       Response: {
         status: 200,
@@ -271,14 +273,14 @@ export const connectorDetails = {
         currency: "USD",
         setup_future_usage: "on_session",
         browser_info,
-        customer_acceptance: offileCustomerAcceptance,
+        customer_acceptance: customerAcceptance,
       },
       Response: {
         status: 200,
         body: {
-          status: "succeeded"
+          status: "succeeded",
         },
-      }
+      },
     },
     SaveCardUseNo3DSAutoCaptureOffSession: {
       Request: {
@@ -288,7 +290,7 @@ export const connectorDetails = {
           card: successfulNoThreeDsCardDetailsRequest,
         },
         setup_future_usage: "off_session",
-        customer_acceptance: offileCustomerAcceptance,
+        customer_acceptance: customerAcceptance,
       },
       Response: {
         status: 200,
@@ -396,7 +398,7 @@ export const connectorDetails = {
       Request: {},
       Response: {
         body: {
-          status: "succeeded"
+          status: "succeeded",
         },
       },
     },
@@ -404,9 +406,9 @@ export const connectorDetails = {
       Request: {},
       Response: {
         body: {
-          status: "succeeded"
-        }
-      }
+          status: "succeeded",
+        },
+      },
     },
     manualPaymentRefund: {
       Request: {
@@ -418,9 +420,9 @@ export const connectorDetails = {
       },
       Response: {
         body: {
-          status: "succeeded"
-        }
-      }
+          status: "succeeded",
+        },
+      },
     },
     manualPaymentPartialRefund: {
       Request: {
@@ -432,17 +434,17 @@ export const connectorDetails = {
       },
       Response: {
         body: {
-          status: "succeeded"
-        }
-      }
+          status: "succeeded",
+        },
+      },
     },
     SyncRefund: {
       Request: {},
       Response: {
         body: {
-          status: "succeeded"
-        }
-      }
+          status: "succeeded",
+        },
+      },
     },
     MandateSingleUseNo3DSAutoCapture: {
       Request: {
@@ -522,9 +524,10 @@ export const connectorDetails = {
         status: 200,
         body: {
           error_code: "internalErrorOccurred",
-          error_message: "We cannot currently process your request. Please contact support.",
+          error_message:
+            "We cannot currently process your request. Please contact support.",
           status: "failed",
-          payment_method_id: null
+          payment_method_id: null,
         },
       },
     },
@@ -556,9 +559,10 @@ export const connectorDetails = {
         status: 200,
         body: {
           error_code: "internalErrorOccurred",
-          error_message: "We cannot currently process your request. Please contact support.",
+          error_message:
+            "We cannot currently process your request. Please contact support.",
           status: "failed",
-          payment_method_id: null
+          payment_method_id: null,
         },
       },
     },
@@ -570,7 +574,7 @@ export const connectorDetails = {
         },
         currency: "USD",
         mandate_data: null,
-        customer_acceptance: offileCustomerAcceptance,
+        customer_acceptance: customerAcceptance,
       },
       Response: {
         status: 200,
@@ -587,7 +591,7 @@ export const connectorDetails = {
         },
         currency: "USD",
         mandate_data: null,
-        customer_acceptance: offileCustomerAcceptance,
+        customer_acceptance: customerAcceptance,
       },
       Response: {
         status: 200,
@@ -605,7 +609,7 @@ export const connectorDetails = {
         currency: "USD",
         mandate_data: null,
         authentication_type: "three_ds",
-        customer_acceptance: offileCustomerAcceptance,
+        customer_acceptance: customerAcceptance,
       },
       Response: {
         status: 200,
@@ -622,7 +626,7 @@ export const connectorDetails = {
         },
         mandate_data: null,
         authentication_type: "three_ds",
-        customer_acceptance: offileCustomerAcceptance,
+        customer_acceptance: customerAcceptance,
       },
       Response: {
         status: 200,
@@ -632,4 +636,4 @@ export const connectorDetails = {
       },
     },
   },
-}
+};

@@ -22,11 +22,11 @@ pub struct KafkaPaymentIntentEvent<'a> {
     pub connector_id: Option<&'a String>,
     pub statement_descriptor_name: Option<&'a String>,
     pub statement_descriptor_suffix: Option<&'a String>,
-    #[serde(with = "time::serde::timestamp::milliseconds")]
+    #[serde(with = "time::serde::timestamp::nanoseconds")]
     pub created_at: OffsetDateTime,
-    #[serde(with = "time::serde::timestamp::milliseconds")]
+    #[serde(with = "time::serde::timestamp::nanoseconds")]
     pub modified_at: OffsetDateTime,
-    #[serde(default, with = "time::serde::timestamp::milliseconds::option")]
+    #[serde(default, with = "time::serde::timestamp::nanoseconds::option")]
     pub last_synced: Option<OffsetDateTime>,
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
     pub off_session: Option<bool>,
@@ -60,11 +60,11 @@ pub struct KafkaPaymentIntentEvent<'a> {
     pub return_url: Option<&'a String>,
     pub metadata: Option<String>,
     pub statement_descriptor: Option<&'a String>,
-    #[serde(with = "time::serde::timestamp::milliseconds")]
+    #[serde(with = "time::serde::timestamp::nanoseconds")]
     pub created_at: OffsetDateTime,
-    #[serde(with = "time::serde::timestamp::milliseconds")]
+    #[serde(with = "time::serde::timestamp::nanoseconds")]
     pub modified_at: OffsetDateTime,
-    #[serde(default, with = "time::serde::timestamp::milliseconds::option")]
+    #[serde(default, with = "time::serde::timestamp::nanoseconds::option")]
     pub last_synced: Option<OffsetDateTime>,
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
     pub off_session: Option<bool>,
@@ -182,7 +182,7 @@ impl<'a> KafkaPaymentIntentEvent<'a> {
     }
 }
 
-impl<'a> super::KafkaMessage for KafkaPaymentIntentEvent<'a> {
+impl super::KafkaMessage for KafkaPaymentIntentEvent<'_> {
     fn key(&self) -> String {
         format!(
             "{}_{}",

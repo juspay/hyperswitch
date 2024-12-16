@@ -36,6 +36,8 @@ pub mod payment_confirm_intent;
 pub mod payment_create_intent;
 #[cfg(feature = "v2")]
 pub mod payment_get_intent;
+#[cfg(feature = "v2")]
+pub mod payment_update_intent;
 
 #[cfg(feature = "v2")]
 pub mod payment_get;
@@ -52,6 +54,8 @@ pub use self::payment_get::PaymentGet;
 #[cfg(feature = "v2")]
 pub use self::payment_get_intent::PaymentGetIntent;
 pub use self::payment_response::PaymentResponse;
+#[cfg(feature = "v2")]
+pub use self::payment_update_intent::PaymentUpdateIntent;
 #[cfg(feature = "v1")]
 pub use self::{
     payment_approve::PaymentApprove, payment_cancel::PaymentCancel,
@@ -287,6 +291,18 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
         _merchant_account: &domain::Profile,
         _key_store: &domain::MerchantKeyStore,
         _mandate_type: Option<api_models::payments::MandateTransactionType>,
+    ) -> CustomResult<(), errors::ApiErrorResponse> {
+        Ok(())
+    }
+
+    async fn call_unified_authentication_service_if_eligible<'a>(
+        &'a self,
+        _state: &SessionState,
+        _payment_data: &mut D,
+        _should_continue_confirm_transaction: &mut bool,
+        _connector_call_type: &ConnectorCallType,
+        _merchant_account: &domain::Profile,
+        _key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
         Ok(())
     }

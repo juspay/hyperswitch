@@ -43,6 +43,14 @@ impl TryFrom<&ConnectorAuthType> for AirwallexAuthType {
         }
     }
 }
+
+#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+pub struct ReferrerData {
+    #[serde(rename = "type")]
+    r_type: String,
+    version: String,
+}
+
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 pub struct AirwallexIntentRequest {
     // Unique ID to be sent for each transaction/operation request to the connector
@@ -51,10 +59,16 @@ pub struct AirwallexIntentRequest {
     currency: enums::Currency,
     //ID created in merchant's order system that corresponds to this PaymentIntent.
     merchant_order_id: String,
+    // This data is required to whitelist Hyperswitch at Airwallex.
+    referrer_data: ReferrerData,
 }
 impl TryFrom<&types::PaymentsPreProcessingRouterData> for AirwallexIntentRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsPreProcessingRouterData) -> Result<Self, Self::Error> {
+        let referrer_data = ReferrerData {
+            r_type: "hyperswitch".to_string(),
+            version: "1.0.0".to_string(),
+        };
         // amount and currency will always be Some since PaymentsPreProcessingData is constructed using PaymentsAuthorizeData
         let amount = item
             .request
@@ -73,6 +87,7 @@ impl TryFrom<&types::PaymentsPreProcessingRouterData> for AirwallexIntentRequest
             amount: utils::to_currency_base_unit(amount, currency)?,
             currency,
             merchant_order_id: item.connector_request_reference_id.clone(),
+            referrer_data,
         })
     }
 }
@@ -189,7 +204,9 @@ impl TryFrom<&AirwallexRouterData<&types::PaymentsAuthorizeRouterData>>
                     Some(AirwallexPaymentOptions::Card(AirwallexCardPaymentOptions {
                         auto_capture: matches!(
                             request.capture_method,
-                            Some(enums::CaptureMethod::Automatic) | None
+                            Some(enums::CaptureMethod::Automatic)
+                                | Some(enums::CaptureMethod::SequentialAutomatic)
+                                | None
                         ),
                     }));
                 Ok(AirwallexPaymentMethod::Card(AirwallexCard {

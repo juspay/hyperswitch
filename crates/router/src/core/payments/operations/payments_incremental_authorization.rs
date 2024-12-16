@@ -34,7 +34,7 @@ type PaymentIncrementalAuthorizationOperation<'b, F> =
     BoxedOperation<'b, F, PaymentsIncrementalAuthorizationRequest, payments::PaymentData<F>>;
 
 #[async_trait]
-impl<F: Send + Clone>
+impl<F: Send + Clone + Sync>
     GetTracker<F, payments::PaymentData<F>, PaymentsIncrementalAuthorizationRequest>
     for PaymentIncrementalAuthorization
 {
@@ -77,7 +77,7 @@ impl<F: Send + Clone>
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
         helpers::validate_payment_status_against_allowed_statuses(
-            &payment_intent.status,
+            payment_intent.status,
             &[enums::IntentStatus::RequiresCapture],
             "increment authorization",
         )?;
@@ -171,6 +171,7 @@ impl<F: Send + Clone>
             poll_config: None,
             tax_data: None,
             session_id: None,
+            service_details: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -186,7 +187,8 @@ impl<F: Send + Clone>
 }
 
 #[async_trait]
-impl<F: Clone> UpdateTracker<F, payments::PaymentData<F>, PaymentsIncrementalAuthorizationRequest>
+impl<F: Clone + Sync>
+    UpdateTracker<F, payments::PaymentData<F>, PaymentsIncrementalAuthorizationRequest>
     for PaymentIncrementalAuthorization
 {
     #[instrument(skip_all)]
@@ -278,7 +280,7 @@ impl<F: Clone> UpdateTracker<F, payments::PaymentData<F>, PaymentsIncrementalAut
     }
 }
 
-impl<F: Send + Clone>
+impl<F: Send + Clone + Sync>
     ValidateRequest<F, PaymentsIncrementalAuthorizationRequest, payments::PaymentData<F>>
     for PaymentIncrementalAuthorization
 {
@@ -304,7 +306,8 @@ impl<F: Send + Clone>
 }
 
 #[async_trait]
-impl<F: Clone + Send> Domain<F, PaymentsIncrementalAuthorizationRequest, payments::PaymentData<F>>
+impl<F: Clone + Send + Sync>
+    Domain<F, PaymentsIncrementalAuthorizationRequest, payments::PaymentData<F>>
     for PaymentIncrementalAuthorization
 {
     #[instrument(skip_all)]

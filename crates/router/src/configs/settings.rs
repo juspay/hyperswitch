@@ -6,7 +6,7 @@ use std::{
 #[cfg(feature = "olap")]
 use analytics::{opensearch::OpenSearchConfig, ReportConfig};
 use api_models::{enums, payment_methods::RequiredFieldInfo};
-use common_utils::{ext_traits::ConfigExt, id_type};
+use common_utils::{ext_traits::ConfigExt, id_type, types::theme::EmailThemeConfig};
 use config::{Environment, File};
 use error_stack::ResultExt;
 #[cfg(feature = "email")]
@@ -128,6 +128,7 @@ pub struct Settings<S: SecretState> {
     pub network_tokenization_supported_card_networks: NetworkTokenizationSupportedCardNetworks,
     pub network_tokenization_service: Option<SecretStateContainer<NetworkTokenizationService, S>>,
     pub network_tokenization_supported_connectors: NetworkTokenizationSupportedConnectors,
+    pub theme: ThemeSettings,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -886,6 +887,11 @@ impl Settings<SecuredSecret> {
             .validate()
             .map_err(|err| ApplicationError::InvalidConfigurationValueError(err.into()))?;
 
+        self.theme
+            .storage
+            .validate()
+            .map_err(|err| ApplicationError::InvalidConfigurationValueError(err.to_string()))?;
+
         Ok(())
     }
 }
@@ -985,6 +991,12 @@ impl Default for CellInformation {
             id_type::CellId::from_string("defid").expect("Failed to create a default for Cell Id");
         Self { id: cell_id }
     }
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct ThemeSettings {
+    pub storage: FileStorageConfig,
+    pub email_config: EmailThemeConfig,
 }
 
 fn deserialize_hashmap_inner<K, V>(

@@ -22,7 +22,6 @@ pub struct LinkTokenCreateResponse {
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "snake_case")]
-
 pub struct ExchangeTokenCreateRequest {
     pub public_token: String,
     pub client_secret: Option<String>,

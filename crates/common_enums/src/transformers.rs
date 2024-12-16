@@ -522,7 +522,7 @@ impl Country {
             CountryAlpha2::ZW => Self::Zimbabwe,
         }
     }
-    pub const fn to_alpha2(&self) -> CountryAlpha2 {
+    pub const fn to_alpha2(self) -> CountryAlpha2 {
         match self {
             Self::Afghanistan => CountryAlpha2::AF,
             Self::AlandIslands => CountryAlpha2::AX,
@@ -1028,7 +1028,7 @@ impl Country {
             CountryAlpha3::ZWE => Self::Zimbabwe,
         }
     }
-    pub const fn to_alpha3(&self) -> CountryAlpha3 {
+    pub const fn to_alpha3(self) -> CountryAlpha3 {
         match self {
             Self::Afghanistan => CountryAlpha3::AFG,
             Self::AlandIslands => CountryAlpha3::ALA,
@@ -1535,7 +1535,7 @@ impl Country {
             _ => Err(NumericCountryCodeParseError),
         }
     }
-    pub const fn to_numeric(&self) -> u32 {
+    pub const fn to_numeric(self) -> u32 {
         match self {
             Self::Afghanistan => 4,
             Self::AlandIslands => 248,
@@ -1905,6 +1905,8 @@ mod custom_serde {
 
         use super::*;
 
+        // `serde::Serialize` implementation needs the function to accept `&Country`
+        #[allow(clippy::trivially_copy_pass_by_ref)]
         pub fn serialize<S>(code: &Country, serializer: S) -> Result<S::Ok, S::Error>
         where
             S: serde::Serializer,
@@ -1914,7 +1916,7 @@ mod custom_serde {
 
         struct FieldVisitor;
 
-        impl<'de> Visitor<'de> for FieldVisitor {
+        impl Visitor<'_> for FieldVisitor {
             type Value = CountryAlpha2;
 
             fn expecting(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
@@ -1937,6 +1939,8 @@ mod custom_serde {
 
         use super::*;
 
+        // `serde::Serialize` implementation needs the function to accept `&Country`
+        #[allow(clippy::trivially_copy_pass_by_ref)]
         pub fn serialize<S>(code: &Country, serializer: S) -> Result<S::Ok, S::Error>
         where
             S: serde::Serializer,
@@ -1946,7 +1950,7 @@ mod custom_serde {
 
         struct FieldVisitor;
 
-        impl<'de> Visitor<'de> for FieldVisitor {
+        impl Visitor<'_> for FieldVisitor {
             type Value = CountryAlpha3;
 
             fn expecting(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
@@ -1969,6 +1973,8 @@ mod custom_serde {
 
         use super::*;
 
+        // `serde::Serialize` implementation needs the function to accept `&Country`
+        #[allow(clippy::trivially_copy_pass_by_ref)]
         pub fn serialize<S>(code: &Country, serializer: S) -> Result<S::Ok, S::Error>
         where
             S: serde::Serializer,
@@ -1978,7 +1984,7 @@ mod custom_serde {
 
         struct FieldVisitor;
 
-        impl<'de> Visitor<'de> for FieldVisitor {
+        impl Visitor<'_> for FieldVisitor {
             type Value = u32;
 
             fn expecting(&self, formatter: &mut Formatter<'_>) -> fmt::Result {

@@ -59,7 +59,7 @@ const payment_method_data_no3ds = {
     card_extended_bin: null,
     card_exp_month: "01",
     card_exp_year: "50",
-    card_holder_name: null,
+    card_holder_name: "joseph Doe",
     payment_checks: {
       avs_response: {
         code: "Y",
@@ -83,11 +83,29 @@ const payment_method_data_3ds = {
     card_extended_bin: null,
     card_exp_month: "01",
     card_exp_year: "50",
-    card_holder_name: null,
+    card_holder_name: "joseph Doe",
     payment_checks: null,
     authentication_data: null,
   },
   billing: null,
+};
+
+const billing_with_newline = {
+  address: {
+    line1: "1467",
+    line2: "Harrison Street\nApt 101",
+    line3: "Harrison Street\nApt 101",
+    city: "San Fransico\n city",
+    state: "California",
+    zip: "94122",
+    country: "NL",
+    first_name: "joseph",
+    last_name: "Doe",
+  },
+  phone: {
+    number: "9123456789",
+    country_code: "+91",
+  },
 };
 
 export const connectorDetails = {
@@ -107,6 +125,12 @@ export const connectorDetails = {
       },
     },
     PaymentIntentOffSession: {
+      Configs: {
+        CONNECTOR_CREDENTIAL: {
+          specName: ["incrementalAuth"],
+          value: "connector_2",
+        },
+      },
       Request: {
         currency: "USD",
         amount: 6500,
@@ -149,7 +173,46 @@ export const connectorDetails = {
         },
       },
     },
+    PaymentIntentWithShippingCost: {
+      Request: {
+        currency: "USD",
+        shipping_cost: 50,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+          shipping_cost: 50,
+          amount: 6500,
+        },
+      },
+    },
+    PaymentConfirmWithShippingCost: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          shipping_cost: 50,
+          amount_received: 6550,
+          amount: 6500,
+          net_amount: 6550,
+        },
+      },
+    },
     "3DSManualCapture": {
+      Configs: {
+        CONNECTOR_CREDENTIAL: {
+          value: "connector_1",
+        },
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -169,6 +232,11 @@ export const connectorDetails = {
       },
     },
     "3DSAutoCapture": {
+      Configs: {
+        CONNECTOR_CREDENTIAL: {
+          value: "connector_1",
+        },
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -188,6 +256,11 @@ export const connectorDetails = {
       },
     },
     No3DSManualCapture: {
+      Configs: {
+        CONNECTOR_CREDENTIAL: {
+          value: "connector_1",
+        },
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -208,6 +281,11 @@ export const connectorDetails = {
       },
     },
     No3DSAutoCapture: {
+      Configs: {
+        CONNECTOR_CREDENTIAL: {
+          value: "connector_1",
+        },
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -216,6 +294,7 @@ export const connectorDetails = {
         currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
+        billing: billing_with_newline,
       },
       Response: {
         status: 200,
@@ -228,6 +307,11 @@ export const connectorDetails = {
       },
     },
     Capture: {
+      Configs: {
+        CONNECTOR_CREDENTIAL: {
+          value: "connector_1",
+        },
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -247,6 +331,11 @@ export const connectorDetails = {
       },
     },
     PartialCapture: {
+      Configs: {
+        CONNECTOR_CREDENTIAL: {
+          value: "connector_1",
+        },
+      },
       Request: {},
       Response: {
         status: 200,
@@ -259,6 +348,11 @@ export const connectorDetails = {
       },
     },
     Void: {
+      Configs: {
+        CONNECTOR_CREDENTIAL: {
+          value: "connector_1",
+        },
+      },
       Request: {},
       Response: {
         status: 200,
@@ -268,6 +362,11 @@ export const connectorDetails = {
       },
     },
     Refund: {
+      Configs: {
+        CONNECTOR_CREDENTIAL: {
+          value: "connector_1",
+        },
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -284,6 +383,11 @@ export const connectorDetails = {
       },
     },
     manualPaymentRefund: {
+      Configs: {
+        CONNECTOR_CREDENTIAL: {
+          value: "connector_1",
+        },
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -305,6 +409,11 @@ export const connectorDetails = {
       },
     },
     manualPaymentPartialRefund: {
+      Configs: {
+        CONNECTOR_CREDENTIAL: {
+          value: "connector_1",
+        },
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -326,6 +435,11 @@ export const connectorDetails = {
       },
     },
     PartialRefund: {
+      Configs: {
+        CONNECTOR_CREDENTIAL: {
+          value: "connector_1",
+        },
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -342,6 +456,11 @@ export const connectorDetails = {
       },
     },
     SyncRefund: {
+      Configs: {
+        CONNECTOR_CREDENTIAL: {
+          value: "connector_1",
+        },
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -357,7 +476,26 @@ export const connectorDetails = {
         },
       },
     },
+    IncrementalAuth: {
+      Request: {
+        amount: 7000,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
+          amount: 7000,
+          amount_capturable: 7000,
+          amount_received: null,
+        },
+      },
+    },
     MandateSingleUse3DSAutoCapture: {
+      Configs: {
+        CONNECTOR_CREDENTIAL: {
+          value: "connector_1",
+        },
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -374,6 +512,11 @@ export const connectorDetails = {
       },
     },
     MandateSingleUse3DSManualCapture: {
+      Configs: {
+        CONNECTOR_CREDENTIAL: {
+          value: "connector_1",
+        },
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -390,6 +533,11 @@ export const connectorDetails = {
       },
     },
     MandateSingleUseNo3DSAutoCapture: {
+      Configs: {
+        CONNECTOR_CREDENTIAL: {
+          value: "connector_1",
+        },
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -406,6 +554,11 @@ export const connectorDetails = {
       },
     },
     MandateSingleUseNo3DSManualCapture: {
+      Configs: {
+        CONNECTOR_CREDENTIAL: {
+          value: "connector_1",
+        },
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -422,6 +575,11 @@ export const connectorDetails = {
       },
     },
     MandateMultiUseNo3DSAutoCapture: {
+      Configs: {
+        CONNECTOR_CREDENTIAL: {
+          value: "connector_1",
+        },
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -438,6 +596,11 @@ export const connectorDetails = {
       },
     },
     MandateMultiUseNo3DSManualCapture: {
+      Configs: {
+        CONNECTOR_CREDENTIAL: {
+          value: "connector_1",
+        },
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -454,6 +617,11 @@ export const connectorDetails = {
       },
     },
     MandateMultiUse3DSAutoCapture: {
+      Configs: {
+        CONNECTOR_CREDENTIAL: {
+          value: "connector_1",
+        },
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -470,6 +638,11 @@ export const connectorDetails = {
       },
     },
     MandateMultiUse3DSManualCapture: {
+      Configs: {
+        CONNECTOR_CREDENTIAL: {
+          value: "connector_1",
+        },
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -486,6 +659,11 @@ export const connectorDetails = {
       },
     },
     MITAutoCapture: {
+      Configs: {
+        CONNECTOR_CREDENTIAL: {
+          value: "connector_1",
+        },
+      },
       Request: {},
       Response: {
         status: 200,
@@ -495,6 +673,11 @@ export const connectorDetails = {
       },
     },
     MITManualCapture: {
+      Configs: {
+        CONNECTOR_CREDENTIAL: {
+          value: "connector_1",
+        },
+      },
       Request: {},
       Response: {
         status: 200,
@@ -504,6 +687,11 @@ export const connectorDetails = {
       },
     },
     ZeroAuthMandate: {
+      Configs: {
+        CONNECTOR_CREDENTIAL: {
+          value: "connector_1",
+        },
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -534,6 +722,11 @@ export const connectorDetails = {
       },
     },
     ZeroAuthConfirmPayment: {
+      Configs: {
+        CONNECTOR_CREDENTIAL: {
+          value: "connector_1",
+        },
+      },
       Request: {
         payment_type: "setup_mandate",
         payment_method: "card",
@@ -551,6 +744,11 @@ export const connectorDetails = {
       },
     },
     SaveCardUseNo3DSAutoCapture: {
+      Configs: {
+        CONNECTOR_CREDENTIAL: {
+          value: "connector_1",
+        },
+      },
       Request: {
         payment_method: "card",
         payment_method_type: "debit",
@@ -576,6 +774,11 @@ export const connectorDetails = {
       },
     },
     SaveCardUseNo3DSAutoCaptureOffSession: {
+      Configs: {
+        CONNECTOR_CREDENTIAL: {
+          value: "connector_1",
+        },
+      },
       Request: {
         payment_method: "card",
         payment_method_type: "debit",
@@ -600,6 +803,12 @@ export const connectorDetails = {
       },
     },
     SaveCardUseNo3DSManualCaptureOffSession: {
+      Configs: {
+        CONNECTOR_CREDENTIAL: {
+          specName: ["incrementalAuth"],
+          value: "connector_2",
+        },
+      },
       Request: {
         payment_method: "card",
         payment_method_type: "debit",
@@ -624,6 +833,11 @@ export const connectorDetails = {
       },
     },
     SaveCardConfirmAutoCaptureOffSession: {
+      Configs: {
+        CONNECTOR_CREDENTIAL: {
+          value: "connector_1",
+        },
+      },
       Request: {
         setup_future_usage: "off_session",
       },
@@ -635,6 +849,11 @@ export const connectorDetails = {
       },
     },
     SaveCardConfirmManualCaptureOffSession: {
+      Configs: {
+        CONNECTOR_CREDENTIAL: {
+          value: "connector_1",
+        },
+      },
       Request: {
         setup_future_usage: "off_session",
       },
@@ -646,6 +865,11 @@ export const connectorDetails = {
       },
     },
     SaveCardUseNo3DSManualCapture: {
+      Configs: {
+        CONNECTOR_CREDENTIAL: {
+          value: "connector_1",
+        },
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -670,6 +894,11 @@ export const connectorDetails = {
       },
     },
     PaymentMethodIdMandateNo3DSAutoCapture: {
+      Configs: {
+        CONNECTOR_CREDENTIAL: {
+          value: "connector_1",
+        },
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -694,6 +923,11 @@ export const connectorDetails = {
       },
     },
     PaymentMethodIdMandateNo3DSManualCapture: {
+      Configs: {
+        CONNECTOR_CREDENTIAL: {
+          value: "connector_1",
+        },
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -718,6 +952,11 @@ export const connectorDetails = {
       },
     },
     PaymentMethodIdMandate3DSAutoCapture: {
+      Configs: {
+        CONNECTOR_CREDENTIAL: {
+          value: "connector_1",
+        },
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -743,6 +982,11 @@ export const connectorDetails = {
       },
     },
     PaymentMethodIdMandate3DSManualCapture: {
+      Configs: {
+        CONNECTOR_CREDENTIAL: {
+          value: "connector_1",
+        },
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -764,6 +1008,257 @@ export const connectorDetails = {
         body: {
           status: "requires_customer_action",
         },
+      },
+    },
+  },
+  pm_list: {
+    PmListResponse: {
+      PmListNull: {
+        payment_methods: [],
+      },
+      pmListDynamicFieldWithoutBilling: {
+        payment_methods: [
+          {
+            payment_method: "card",
+            payment_method_types: [
+              {
+                payment_method_type: "credit",
+                card_networks: [
+                  {
+                    eligible_connectors: ["cybersource"],
+                  },
+                ],
+                required_fields: {
+                  "billing.address.first_name": {
+                    required_field:
+                      "payment_method_data.billing.address.first_name",
+                    display_name: "card_holder_name",
+                    field_type: "user_full_name",
+                    value: null,
+                  },
+                  "payment_method_data.card.card_number": {
+                    required_field: "payment_method_data.card.card_number",
+                    display_name: "card_number",
+                    field_type: "user_card_number",
+                    value: null,
+                  },
+                  "payment_method_data.card.card_cvc": {
+                    required_field: "payment_method_data.card.card_cvc",
+                    display_name: "card_cvc",
+                    field_type: "user_card_cvc",
+                    value: null,
+                  },
+
+                  "payment_method_data.card.card_exp_year": {
+                    required_field: "payment_method_data.card.card_exp_year",
+                    display_name: "card_exp_year",
+                    field_type: "user_card_expiry_year",
+                    value: null,
+                  },
+                  "billing.address.last_name": {
+                    required_field:
+                      "payment_method_data.billing.address.last_name",
+                    display_name: "card_holder_name",
+                    field_type: "user_full_name",
+                    value: null,
+                  },
+                  "billing.address.state": {
+                    required_field: "payment_method_data.billing.address.state",
+                    display_name: "state",
+                    field_type: "user_address_state",
+                    value: null,
+                  },
+                  "billing.email": {
+                    required_field: "payment_method_data.billing.email",
+                    display_name: "email",
+                    field_type: "user_email_address",
+                    value: "hyperswitch_sdk_demo_id@gmail.com",
+                  },
+                  "billing.address.zip": {
+                    required_field: "payment_method_data.billing.address.zip",
+                    display_name: "zip",
+                    field_type: "user_address_pincode",
+                    value: null,
+                  },
+                  "payment_method_data.card.card_exp_month": {
+                    required_field: "payment_method_data.card.card_exp_month",
+                    display_name: "card_exp_month",
+                    field_type: "user_card_expiry_month",
+                    value: null,
+                  },
+                  "billing.address.line1": {
+                    required_field: "payment_method_data.billing.address.line1",
+                    display_name: "line1",
+                    field_type: "user_address_line1",
+                    value: null,
+                  },
+                  "billing.address.city": {
+                    required_field: "payment_method_data.billing.address.city",
+                    display_name: "city",
+                    field_type: "user_address_city",
+                    value: null,
+                  },
+                },
+              },
+            ],
+          },
+        ],
+      },
+      pmListDynamicFieldWithBilling: {
+        payment_methods: [
+          {
+            payment_method: "card",
+            payment_method_types: [
+              {
+                payment_method_type: "credit",
+                card_networks: [
+                  {
+                    eligible_connectors: ["cybersource"],
+                  },
+                ],
+                required_fields: {
+                  "billing.address.city": {
+                    required_field: "payment_method_data.billing.address.city",
+                    display_name: "city",
+                    field_type: "user_address_city",
+                    value: "San Fransico",
+                  },
+                  "billing.address.state": {
+                    required_field: "payment_method_data.billing.address.state",
+                    display_name: "state",
+                    field_type: "user_address_state",
+                    value: "CA",
+                  },
+                  "billing.address.zip": {
+                    required_field: "payment_method_data.billing.address.zip",
+                    display_name: "zip",
+                    field_type: "user_address_pincode",
+                    value: "94122",
+                  },
+                  "billing.address.country": {
+                    required_field:
+                      "payment_method_data.billing.address.country",
+                    display_name: "country",
+                    field_type: {
+                      user_address_country: {
+                        options: ["ALL"],
+                      },
+                    },
+                    value: "PL",
+                  },
+                  "billing.address.first_name": {
+                    required_field:
+                      "payment_method_data.billing.address.first_name",
+                    display_name: "card_holder_name",
+                    field_type: "user_full_name",
+                    value: "joseph",
+                  },
+                  "billing.address.last_name": {
+                    required_field:
+                      "payment_method_data.billing.address.last_name",
+                    display_name: "card_holder_name",
+                    field_type: "user_full_name",
+                    value: "Doe",
+                  },
+                  "billing.email": {
+                    required_field: "payment_method_data.billing.email",
+                    display_name: "email",
+                    field_type: "user_email_address",
+                    value: "hyperswitch.example@gmail.com",
+                  },
+                  "payment_method_data.card.card_cvc": {
+                    required_field: "payment_method_data.card.card_cvc",
+                    display_name: "card_cvc",
+                    field_type: "user_card_cvc",
+                    value: null,
+                  },
+                  "billing.address.line1": {
+                    required_field: "payment_method_data.billing.address.line1",
+                    display_name: "line1",
+                    field_type: "user_address_line1",
+                    value: "1467",
+                  },
+                  "payment_method_data.card.card_exp_month": {
+                    required_field: "payment_method_data.card.card_exp_month",
+                    display_name: "card_exp_month",
+                    field_type: "user_card_expiry_month",
+                    value: null,
+                  },
+                  "payment_method_data.card.card_number": {
+                    required_field: "payment_method_data.card.card_number",
+                    display_name: "card_number",
+                    field_type: "user_card_number",
+                    value: null,
+                  },
+                  "payment_method_data.card.card_exp_year": {
+                    required_field: "payment_method_data.card.card_exp_year",
+                    display_name: "card_exp_year",
+                    field_type: "user_card_expiry_year",
+                    value: null,
+                  },
+                },
+              },
+            ],
+          },
+        ],
+      },
+      pmListDynamicFieldWithNames: {
+        payment_methods: [
+          {
+            payment_method: "card",
+            payment_method_types: [
+              {
+                payment_method_type: "credit",
+                card_networks: [
+                  {
+                    eligible_connectors: ["cybersource"],
+                  },
+                ],
+                required_fields: {
+                  "billing.address.last_name": {
+                    required_field:
+                      "payment_method_data.billing.address.last_name",
+                    display_name: "card_holder_name",
+                    field_type: "user_full_name",
+                    value: "Doe",
+                  },
+                  "billing.address.first_name": {
+                    required_field:
+                      "payment_method_data.billing.address.first_name",
+                    display_name: "card_holder_name",
+                    field_type: "user_full_name",
+                    value: "joseph",
+                  },
+                },
+              },
+            ],
+          },
+        ],
+      },
+      pmListDynamicFieldWithEmail: {
+        payment_methods: [
+          {
+            payment_method: "card",
+            payment_method_types: [
+              {
+                payment_method_type: "credit",
+                card_networks: [
+                  {
+                    eligible_connectors: ["cybersource"],
+                  },
+                ],
+                required_fields: {
+                  "billing.email": {
+                    required_field: "payment_method_data.billing.email",
+                    display_name: "email",
+                    field_type: "user_email_address",
+                    value: "hyperswitch.example@gmail.com",
+                  },
+                },
+              },
+            ],
+          },
+        ],
       },
     },
   },
