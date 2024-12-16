@@ -1164,7 +1164,9 @@ pub trait PaymentsAuthorizeRequestData {
     fn get_metadata_as_object(&self) -> Option<pii::SecretSerdeValue>;
     fn get_authentication_data(&self) -> Result<AuthenticationData, Error>;
     fn get_customer_name(&self) -> Result<Secret<String>, Error>;
-    fn get_card_holder_name_from_additional_payment_method_data(&self) -> Result<Secret<String>, Error>;
+    fn get_card_holder_name_from_additional_payment_method_data(
+        &self,
+    ) -> Result<Secret<String>, Error>;
 }
 
 impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
@@ -1327,7 +1329,9 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
             .ok_or_else(missing_field_err("customer_name"))
     }
 
-    fn get_card_holder_name_from_additional_payment_method_data(&self) -> Result<Secret<String>, Error> {
+    fn get_card_holder_name_from_additional_payment_method_data(
+        &self,
+    ) -> Result<Secret<String>, Error> {
         match &self.additional_payment_method_data {
             Some(payments::AdditionalPaymentData::Card(card_data)) => Ok(card_data
                 .card_holder_name

@@ -1643,11 +1643,11 @@ impl TryFrom<(&types::PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntent
                             state: shipping_address.and_then(|a| a.state.clone()),
                             name: format!(
                                 "{} {}",
-                                first_name.clone().expose(),
+                                first_name.clone().peek(),
                                 shipping_detail
                                     .last_name
                                     .clone()
-                                    .expose_option()
+                                    .map(|last_name| last_name.peek().to_string())
                                     .unwrap_or_default()
                             )
                             .into(),
@@ -1679,8 +1679,11 @@ impl TryFrom<(&types::PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntent
                         a.first_name.as_ref().map(|first_name| {
                             format!(
                                 "{} {}",
-                                first_name.clone().expose(),
-                                a.last_name.clone().expose_option().unwrap_or_default()
+                                first_name.clone().peek(),
+                                a.last_name
+                                    .clone()
+                                    .map(|name| name.peek().to_string())
+                                    .unwrap_or_default()
                             )
                             .into()
                         })

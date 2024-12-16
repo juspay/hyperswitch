@@ -11,6 +11,8 @@ use common_utils::{
     types::MinorUnit,
 };
 use error_stack::ResultExt;
+use masking::ExposeInterface;
+use router_env::logger;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
@@ -942,7 +944,16 @@ fn get_pmd_based_on_payment_method_type(
             payments::PaymentMethodData::BankRedirect(payments::BankRedirectData::Ideal {
                 billing_details: billing_details.as_ref().map(|billing_data| {
                     payments::BankRedirectBilling {
-                        billing_name: billing_data.get_optional_full_name(),
+                        billing_name: billing_data.get_optional_full_name().and_then(|name| {
+                            NameType::try_from(name.expose())
+                                .map_err(|err| {
+                                    logger::error!(
+                                        "Error while converting name to NameType: {}",
+                                        err
+                                    );
+                                })
+                                .ok()
+                        }),
                         email: billing_data.email.clone(),
                     }
                 }),

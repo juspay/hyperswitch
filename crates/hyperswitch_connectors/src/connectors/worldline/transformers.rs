@@ -470,7 +470,7 @@ impl From<payments::AddressDetails> for Shipping {
     fn from(value: payments::AddressDetails) -> Self {
         Self {
             city: value.city.clone(),
-            country_code: value.country.clone(),
+            country_code: value.country,
             name: Some(Name {
                 first_name: value.get_first_name().ok(),
                 surname: value.get_last_name().ok(),

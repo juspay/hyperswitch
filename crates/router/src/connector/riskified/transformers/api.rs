@@ -1,5 +1,4 @@
 use api_models::payments::AdditionalPaymentData;
-use cards::NameType;
 use common_utils::{
     ext_traits::ValueExt,
     id_type,
@@ -105,8 +104,8 @@ pub struct ClientDetails {
 #[derive(Debug, Deserialize, Serialize, Eq, PartialEq, Clone)]
 pub struct RiskifiedCustomer {
     email: Option<Email>,
-    first_name: Option<NameType>,
-    last_name: Option<NameType>,
+    first_name: Option<Secret<String>>,
+    last_name: Option<Secret<String>>,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     created_at: PrimitiveDateTime,
     verified_email: bool,
@@ -124,8 +123,8 @@ pub enum CustomerAccountType {
 
 #[derive(Debug, Deserialize, Serialize, Eq, PartialEq, Clone)]
 pub struct OrderAddress {
-    first_name: Option<NameType>,
-    last_name: Option<NameType>,
+    first_name: Option<Secret<String>>,
+    last_name: Option<Secret<String>>,
     address1: Option<Secret<String>>,
     country_code: Option<common_enums::CountryAlpha2>,
     city: Option<String>,
@@ -228,8 +227,8 @@ impl TryFrom<&RiskifiedRouterData<&frm_types::FrmCheckoutRouterData>>
                 customer: RiskifiedCustomer {
                     email: payment_data.request.email.clone(),
 
-                    first_name: address.get_first_name().ok().cloned(),
-                    last_name: address.get_last_name().ok().cloned(),
+                    first_name: address.get_first_name().ok(),
+                    last_name: address.get_last_name().ok(),
                     created_at: common_utils::date_time::now(),
                     verified_email: false,
                     id: payment_data.get_customer_id()?,
@@ -632,8 +631,8 @@ impl TryFrom<&api_models::payments::Address> for OrderAddress {
                     field_name: "address",
                 })?;
         Ok(Self {
-            first_name: address.first_name.clone(),
-            last_name: address.last_name.clone(),
+            first_name: address.first_name.clone().map(From::from),
+            last_name: address.last_name.clone().map(From::from),
             address1: address.line1.clone(),
             country_code: address.country,
             city: address.city.clone(),

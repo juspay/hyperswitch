@@ -1,4 +1,3 @@
-use cards::NameType;
 use common_utils::{ext_traits::ValueExt, pii::Email};
 use error_stack::{self, ResultExt};
 pub use hyperswitch_domain_models::router_request_types::fraud_check::RefundMethod;
@@ -92,7 +91,7 @@ pub struct Shipments {
 #[derive(Debug, Deserialize, Serialize, Eq, PartialEq, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Destination {
-    full_name: NameType,
+    full_name: Secret<String>,
     organization: Option<String>,
     email: Option<Email>,
     address: Address,
@@ -563,7 +562,7 @@ impl From<core_types::Product> for Product {
 impl From<core_types::Destination> for Destination {
     fn from(destination: core_types::Destination) -> Self {
         Self {
-            full_name: destination.full_name,
+            full_name: destination.full_name.into(),
             organization: destination.organization,
             email: destination.email,
             address: Address::from(destination.address),

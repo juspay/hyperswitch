@@ -1118,8 +1118,8 @@ fn build_bill_to(
     Ok(address_details
         .and_then(|addr| {
             addr.address.as_ref().map(|addr| BillTo {
-                first_name: addr.first_name.remove_new_line(),
-                last_name: addr.last_name.remove_new_line(),
+                first_name: addr.first_name.clone().map(From::from),
+                last_name: addr.last_name.clone().map(From::from),
                 address1: addr.line1.remove_new_line(),
                 locality: addr.city.remove_new_line(),
                 administrative_area: addr

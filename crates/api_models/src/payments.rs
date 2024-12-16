@@ -1606,9 +1606,7 @@ impl GetAddressFromPaymentMethodData for Card {
                 let first_name = card_holder_name_iter
                     .next()
                     .map(ToOwned::to_owned)
-                    .and_then(|name| {
-                        NameType::try_from(name).ok()
-                    });
+                    .and_then(|name| NameType::try_from(name).ok());
 
                 let last_name = card_holder_name_iter.collect::<Vec<_>>().join(" ");
                 let last_name = if last_name.is_empty_after_trim() {
@@ -3826,9 +3824,11 @@ pub struct AddressDetails {
 impl AddressDetails {
     pub fn get_optional_full_name(&self) -> Option<Secret<String>> {
         match (self.first_name.as_ref(), self.last_name.as_ref()) {
-            (Some(first_name), Some(last_name)) => {
-                Some(Secret::new(format!("{} {}", first_name.peek(), last_name.peek())))
-            }
+            (Some(first_name), Some(last_name)) => Some(Secret::new(format!(
+                "{} {}",
+                first_name.peek(),
+                last_name.peek()
+            ))),
             (Some(name), None) | (None, Some(name)) => Some(Secret::from(name.to_owned())),
             _ => None,
         }
@@ -6970,7 +6970,7 @@ mod billing_from_payment_method_data {
     #[test]
     fn test_bank_redirect_payment_method_data_eps() {
         let test_email = Email::try_from("example@example.com".to_string()).unwrap();
-        let test_first_name = Secret::new(String::from("Chaser"));
+        let test_first_name = NameType::try_from(String::from("Chaser")).unwrap();
 
         let bank_redirect_billing = BankRedirectBilling {
             billing_name: Some(test_first_name.clone()),
@@ -7021,7 +7021,7 @@ mod billing_from_payment_method_data {
     #[test]
     fn test_bank_debit_payment_method_data_ach() {
         let test_email = Email::try_from("example@example.com".to_string()).unwrap();
-        let test_first_name = Secret::new(String::from("Chaser"));
+        let test_first_name = NameType::try_from(String::from("Chaser")).unwrap();
 
         let bank_redirect_billing = BankDebitBilling {
             name: Some(test_first_name.clone()),
@@ -7064,7 +7064,11 @@ mod billing_from_payment_method_data {
         let billing_address = billing_address.unwrap();
 
         assert_eq!(
-            billing_address.address.unwrap().first_name.expose_option(),
+            billing_address
+                .address
+                .unwrap()
+                .first_name
+                .map(|name| name.peek().to_string()),
             Some(TEST_FIRST_NAME_SINGLE.into())
         );
     }
@@ -7089,7 +7093,9 @@ mod billing_from_payment_method_data {
         let billing_address = billing_details.address.unwrap();
 
         assert_eq!(
-            billing_address.first_name.expose_option(),
+            billing_address
+                .first_name
+                .map(|name| name.peek().to_string()),
             Some(TEST_FIRST_NAME.into())
         );
 

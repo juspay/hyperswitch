@@ -10,7 +10,6 @@ use api_models::{
     payments,
 };
 use base64::Engine;
-use cards::NameType;
 use common_utils::{
     date_time,
     errors::{ParsingError, ReportSwitchExt},
@@ -1796,9 +1795,9 @@ impl PhoneDetailsData for api::PhoneDetails {
 }
 
 pub trait AddressDetailsData {
-    fn get_first_name(&self) -> Result<&NameType, Error>;
-    fn get_last_name(&self) -> Result<&NameType, Error>;
-    fn get_full_name(&self) -> Result<NameType, Error>;
+    fn get_first_name(&self) -> Result<Secret<String>, Error>;
+    fn get_last_name(&self) -> Result<Secret<String>, Error>;
+    fn get_full_name(&self) -> Result<Secret<String>, Error>;
     fn get_line1(&self) -> Result<&Secret<String>, Error>;
     fn get_city(&self) -> Result<&String, Error>;
     fn get_line2(&self) -> Result<&Secret<String>, Error>;
@@ -1813,15 +1812,17 @@ pub trait AddressDetailsData {
 }
 
 impl AddressDetailsData for api::AddressDetails {
-    fn get_first_name(&self) -> Result<&Secret<String>, Error> {
+    fn get_first_name(&self) -> Result<Secret<String>, Error> {
         self.first_name
-            .as_ref()
+            .clone()
+            .map(From::from)
             .ok_or_else(missing_field_err("address.first_name"))
     }
 
-    fn get_last_name(&self) -> Result<&Secret<String>, Error> {
+    fn get_last_name(&self) -> Result<Secret<String>, Error> {
         self.last_name
-            .as_ref()
+            .clone()
+            .map(From::from)
             .ok_or_else(missing_field_err("address.last_name"))
     }
 
@@ -1830,7 +1831,6 @@ impl AddressDetailsData for api::AddressDetails {
         let last_name = self
             .get_last_name()
             .ok()
-            .cloned()
             .unwrap_or(Secret::new("".to_string()));
         let last_name = last_name.peek();
         let full_name = format!("{} {}", first_name, last_name).trim().to_string();

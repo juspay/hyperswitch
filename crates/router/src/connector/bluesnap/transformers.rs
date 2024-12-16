@@ -334,8 +334,8 @@ impl TryFrom<&BluesnapRouterData<&types::PaymentsAuthorizeRouterData>> for Blues
                         billing_contact: BillingDetails {
                             country_code: billing_address.country,
                             address_lines: Some(address),
-                            family_name: billing_address.last_name.to_owned(),
-                            given_name: billing_address.first_name.to_owned(),
+                            family_name: billing_address.last_name.to_owned().map(From::from),
+                            given_name: billing_address.first_name.to_owned().map(From::from),
                             postal_code: billing_address.zip,
                         },
                     }

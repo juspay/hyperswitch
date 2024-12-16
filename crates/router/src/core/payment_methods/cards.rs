@@ -2309,7 +2309,7 @@ pub fn validate_payment_method_update(
                     .card_holder_name
                     .map(|name| name.peek().to_string())
                     .map_or(true, |old_card_holder_name| {
-                        new_card_holder_name != old_card_holder_name.to_string()
+                        new_card_holder_name != old_card_holder_name
                     })
             })
         || card_updation_obj

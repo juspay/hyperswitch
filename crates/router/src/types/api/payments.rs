@@ -124,14 +124,14 @@ mod payments_test {
             card_number: "1234432112344321".to_string().try_into().unwrap(),
             card_exp_month: "12".to_string().into(),
             card_exp_year: "99".to_string().into(),
-            card_holder_name: Some(masking::Secret::new("JohnDoe".to_string())),
+            card_holder_name: cards::NameType::try_from("JohnDoe".to_string()).ok(),
             card_cvc: "123".to_string().into(),
             card_issuer: Some("HDFC".to_string()),
             card_network: Some(api_models::enums::CardNetwork::Visa),
             bank_code: None,
             card_issuing_country: None,
             card_type: None,
-            nick_name: Some(masking::Secret::new("nick_name".into())),
+            nick_name: cards::NameType::try_from("nick_name".into()).ok(),
         }
     }
 

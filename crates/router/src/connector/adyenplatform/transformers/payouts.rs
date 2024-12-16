@@ -1,6 +1,5 @@
 #[cfg(feature = "payouts")]
 use api_models::webhooks;
-use cards::NameType;
 use common_utils::pii;
 use error_stack::{report, ResultExt};
 use masking::Secret;
@@ -69,7 +68,7 @@ pub struct AdyenBankAccountDetails {
 #[serde(rename_all = "camelCase")]
 pub struct AdyenBankAccountHolder {
     address: Option<adyen::Address>,
-    full_name: NameType,
+    full_name: Secret<String>,
     #[serde(rename = "reference")]
     customer_id: Option<String>,
     #[serde(rename = "type")]

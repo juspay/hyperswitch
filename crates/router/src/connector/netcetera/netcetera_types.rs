@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 
-use cards::NameType;
 use common_utils::pii::Email;
 use serde::{Deserialize, Serialize};
 
@@ -614,7 +613,7 @@ pub struct Cardholder {
     ///
     /// Starting from EMV 3DS 2.3.1:
     /// This field is limited to 1-45 characters.
-    cardholder_name: Option<NameType>,
+    cardholder_name: Option<masking::Secret<String>>,
 
     /// City portion of the shipping address requested by the Cardholder.
     ///
