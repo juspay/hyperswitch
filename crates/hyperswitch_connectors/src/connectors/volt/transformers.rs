@@ -341,7 +341,8 @@ impl<F, T> TryFrom<ResponseRouterData<F, VoltPaymentsResponseData, T, PaymentsRe
     ) -> Result<Self, Self::Error> {
         match item.response {
             VoltPaymentsResponseData::PsyncResponse(payment_response) => {
-                let status = get_attempt_status((payment_response.status.clone(), item.data.status));
+                let status =
+                    get_attempt_status((payment_response.status.clone(), item.data.status));
                 Ok(Self {
                     status,
                     response: if is_payment_failure(status) {
