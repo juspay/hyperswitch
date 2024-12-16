@@ -472,6 +472,7 @@ async fn payments_create_core() {
         payments::CallConnectorAction::Trigger,
         None,
         hyperswitch_domain_models::payments::HeaderPayload::default(),
+        None,
     ))
     .await
     .unwrap();
@@ -734,6 +735,7 @@ async fn payments_create_core_adyen_no_redirect() {
         payments::CallConnectorAction::Trigger,
         None,
         hyperswitch_domain_models::payments::HeaderPayload::default(),
+        None,
     ))
     .await
     .unwrap();

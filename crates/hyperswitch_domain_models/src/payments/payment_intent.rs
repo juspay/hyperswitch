@@ -1219,7 +1219,7 @@ impl behaviour::Conversion for PaymentIntent {
             customer_present,
             routing_algorithm_id,
             payment_link_config,
-            platform_merchant_id
+            platform_merchant_id,
         } = self;
         Ok(DieselPaymentIntent {
             skip_external_tax_calculation: Some(amount_details.get_external_tax_action_as_bool()),
@@ -1290,7 +1290,7 @@ impl behaviour::Conversion for PaymentIntent {
             payment_link_config,
             routing_algorithm_id,
             psd2_sca_exemption_type: None,
-            platform_merchant_id
+            platform_merchant_id,
         })
     }
     async fn convert_back(
@@ -1423,7 +1423,7 @@ impl behaviour::Conversion for PaymentIntent {
                 ),
                 payment_link_config: storage_model.payment_link_config,
                 routing_algorithm_id: storage_model.routing_algorithm_id,
-                platform_merchant_id: storage_model.platform_merchant_id
+                platform_merchant_id: storage_model.platform_merchant_id,
             })
         }
         .await
@@ -1496,7 +1496,7 @@ impl behaviour::Conversion for PaymentIntent {
             tax_details: amount_details.tax_details,
             enable_payment_link: Some(self.enable_payment_link.as_bool()),
             apply_mit_exemption: Some(self.apply_mit_exemption.as_bool()),
-            platform_merchant_id: self.platform_merchant_id
+            platform_merchant_id: self.platform_merchant_id,
         })
     }
 }

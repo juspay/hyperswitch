@@ -281,7 +281,7 @@ impl MerchantAccountUpdateInternal {
             modified_at,
             organization_id,
             recon_status,
-            is_platform_account
+            is_platform_account,
         } = self;
 
         MerchantAccount {
@@ -296,7 +296,7 @@ impl MerchantAccountUpdateInternal {
             recon_status: recon_status.unwrap_or(source.recon_status),
             version: source.version,
             id: source.id,
-            is_platform_account: is_platform_account.unwrap_or(source.is_platform_account)
+            is_platform_account: is_platform_account.unwrap_or(source.is_platform_account),
         }
     }
 }

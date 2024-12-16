@@ -377,7 +377,7 @@ pub struct PaymentIntent {
     /// The straight through routing algorithm id that is used for this payment. This overrides the default routing algorithm that is configured in business profile.
     pub routing_algorithm_id: Option<id_type::RoutingId>,
     /// Identifier for the platform merchant.
-    pub platform_merchant_id: Option<id_type::MerchantId>
+    pub platform_merchant_id: Option<id_type::MerchantId>,
 }
 
 #[cfg(feature = "v2")]
@@ -424,7 +424,7 @@ impl PaymentIntent {
         profile: &business_profile::Profile,
         request: api_models::payments::PaymentsCreateIntentRequest,
         decrypted_payment_intent: DecryptedPaymentIntent,
-        platform_merchant_id: Option<&merchant_account::MerchantAccount>
+        platform_merchant_id: Option<&merchant_account::MerchantAccount>,
     ) -> CustomResult<Self, errors::api_error_response::ApiErrorResponse> {
         let connector_metadata = request
             .get_connector_metadata_as_value()
@@ -518,7 +518,8 @@ impl PaymentIntent {
                 .payment_link_config
                 .map(ApiModelToDieselModelConvertor::convert_from),
             routing_algorithm_id: request.routing_algorithm_id,
-            platform_merchant_id: platform_merchant_id.map(|merchant_account| merchant_account.get_id().to_owned())
+            platform_merchant_id: platform_merchant_id
+                .map(|merchant_account| merchant_account.get_id().to_owned()),
         })
     }
 }

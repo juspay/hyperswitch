@@ -68,7 +68,7 @@ pub struct AuthenticationData {
     pub merchant_account: domain::MerchantAccount,
     pub key_store: domain::MerchantKeyStore,
     pub profile: domain::Profile,
-    pub platform_merchant_account: Option<domain::MerchantAccount>
+    pub platform_merchant_account: Option<domain::MerchantAccount>,
 }
 
 #[derive(Clone, Debug)]
@@ -474,7 +474,7 @@ where
                     .attach_printable("Failed to fetch merchant key store for the merchant id")?
             } else {
                 key_store
-            }   
+            }
         };
 
         let profile = state
@@ -647,7 +647,8 @@ where
                     merchant_id: Some(merchant_id),
                     key_id: Some(key_id),
                 } => {
-                    let auth = construct_authentication_data(state, &merchant_id, request_headers).await?;
+                    let auth =
+                        construct_authentication_data(state, &merchant_id, request_headers).await?;
                     Ok((
                         auth.clone(),
                         AuthenticationType::ApiKey {
@@ -661,7 +662,8 @@ where
                     merchant_id: Some(merchant_id),
                     key_id: None,
                 } => {
-                    let auth = construct_authentication_data(state, &merchant_id, request_headers).await?;
+                    let auth =
+                        construct_authentication_data(state, &merchant_id, request_headers).await?;
                     Ok((
                         auth.clone(),
                         AuthenticationType::PublishableKey {
@@ -764,7 +766,7 @@ where
 
     // Get connected merchant account if API call is done by Platform merchant account on behalf of connected merchant account
     let (merchant, platform_merchant_account) =
-    get_platform_merchant_account(state, request_headers, merchant).await?;
+        get_platform_merchant_account(state, request_headers, merchant).await?;
 
     let auth = AuthenticationData {
         merchant_account: merchant,
@@ -1335,7 +1337,7 @@ where
             merchant_account: merchant,
             key_store,
             profile,
-            platform_merchant_account: None
+            platform_merchant_account: None,
         };
         Ok((
             auth,
@@ -1573,7 +1575,7 @@ where
             merchant_account: merchant,
             key_store,
             profile,
-            platform_merchant_account: None
+            platform_merchant_account: None,
         };
         Ok((
             auth.clone(),
@@ -1725,7 +1727,7 @@ where
                 merchant_account,
                 key_store,
                 profile,
-                platform_merchant_account: None
+                platform_merchant_account: None,
             },
             AuthenticationType::PublishableKey { merchant_id },
         ))
@@ -2097,7 +2099,7 @@ where
             merchant_account: merchant,
             key_store,
             profile,
-            platform_merchant_account: None
+            platform_merchant_account: None,
         };
 
         Ok((
@@ -2340,7 +2342,7 @@ where
             merchant_account: merchant,
             key_store,
             profile,
-            platform_merchant_account: None
+            platform_merchant_account: None,
         };
         Ok((
             auth.clone(),
@@ -2621,7 +2623,7 @@ where
             merchant_account: merchant,
             key_store,
             profile,
-            platform_merchant_account: None
+            platform_merchant_account: None,
         };
         Ok((
             auth.clone(),
@@ -2787,7 +2789,7 @@ where
             merchant_account: merchant,
             key_store,
             profile,
-            platform_merchant_account: None
+            platform_merchant_account: None,
         };
         Ok((
             auth,

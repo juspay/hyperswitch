@@ -226,7 +226,7 @@ where
         _payment_data: &mut D,
         _customer: &Option<domain::Customer>,
         _should_continue_capture: &mut bool,
-        _platform_merchant_account: Option<&domain::MerchantAccount>
+        _platform_merchant_account: Option<&domain::MerchantAccount>,
     ) -> RouterResult<Option<FrmData>> {
         todo!()
     }
@@ -279,7 +279,7 @@ where
                 payments::CallConnectorAction::Trigger,
                 None,
                 HeaderPayload::default(),
-                platform_merchant_account.map(|account| account.clone()),
+                platform_merchant_account.cloned(),
             ))
             .await?;
             logger::debug!("payment_id : {:?} has been cancelled since it has been found fraudulent by configured frm connector",payment_data.get_payment_attempt().payment_id);
@@ -337,7 +337,7 @@ where
                 payments::CallConnectorAction::Trigger,
                 None,
                 HeaderPayload::default(),
-                platform_merchant_account.map(|account| account.clone()),
+                platform_merchant_account.cloned(),
             ))
             .await?;
             logger::debug!("payment_id : {:?} has been captured since it has been found legit by configured frm connector",payment_data.get_payment_attempt().payment_id);

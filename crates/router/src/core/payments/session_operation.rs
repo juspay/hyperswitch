@@ -42,7 +42,7 @@ pub async fn payments_session_core<F, Res, Req, Op, FData, D>(
     payment_id: id_type::GlobalPaymentId,
     call_connector_action: CallConnectorAction,
     header_payload: HeaderPayload,
-    platform_merchant_account: Option<domain::MerchantAccount>
+    platform_merchant_account: Option<domain::MerchantAccount>,
 ) -> RouterResponse<Res>
 where
     F: Send + Clone + Sync,
@@ -72,7 +72,7 @@ where
             payment_id,
             call_connector_action,
             header_payload.clone(),
-            platform_merchant_account
+            platform_merchant_account,
         )
         .await?;
 
@@ -102,7 +102,7 @@ pub async fn payments_session_operation_core<F, Req, Op, FData, D>(
     payment_id: id_type::GlobalPaymentId,
     _call_connector_action: CallConnectorAction,
     header_payload: HeaderPayload,
-    platform_merchant_account: Option<domain::MerchantAccount>
+    platform_merchant_account: Option<domain::MerchantAccount>,
 ) -> RouterResult<(D, Req, Option<domain::Customer>, Option<u16>, Option<u128>)>
 where
     F: Send + Clone + Sync,
@@ -135,7 +135,7 @@ where
             &profile,
             &key_store,
             &header_payload,
-            platform_merchant_account.as_ref()
+            platform_merchant_account.as_ref(),
         )
         .await?;
 
