@@ -180,7 +180,7 @@ pub async fn recon_merchant_account_update(
         let theme = theme_utils::get_most_specific_theme_using_lineage(
             &state.clone(),
             ThemeLineage::Merchant {
-                tenant_id: state.tenant.tenant_id,
+                tenant_id: state.tenant.tenant_id.clone(),
                 org_id: auth.merchant_account.get_org_id().clone(),
                 merchant_id: merchant_id.clone(),
             },
