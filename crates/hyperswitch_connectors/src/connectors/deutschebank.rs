@@ -52,7 +52,7 @@ use crate::{
     types::ResponseRouterData,
     utils::{
         self, PaymentsAuthorizeRequestData, PaymentsCompleteAuthorizeRequestData,
-        RefundsRequestData, RouterData as ConnectorsRouterData,
+        RefundsRequestData, RouterData as ConnectorRouterData,
     },
 };
 
