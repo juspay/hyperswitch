@@ -4,6 +4,25 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.12.16.0
+
+### Features
+
+- **router:** Add `click_to_pay` block in payments sessions response if enabled ([#6829](https://github.com/juspay/hyperswitch/pull/6829)) ([`5aa8ea0`](https://github.com/juspay/hyperswitch/commit/5aa8ea03a8327b4eb12646f1bfe5522c6dfc0282))
+- **routing:** Build the gRPC interface for communicating with the external service to perform elimination routing ([#6672](https://github.com/juspay/hyperswitch/pull/6672)) ([`2a66f4a`](https://github.com/juspay/hyperswitch/commit/2a66f4a392a5175404816ba83736e3eeb3e2b53b))
+
+### Bug Fixes
+
+- **webhooks:** Mask custom outgoing webhook headers in profile response ([#6798](https://github.com/juspay/hyperswitch/pull/6798)) ([`09cf7a3`](https://github.com/juspay/hyperswitch/commit/09cf7a3ea9db3f760eb1c35ef3074dfedc8fc33f))
+
+### Refactors
+
+- **core:** Structure of split payments ([#6706](https://github.com/juspay/hyperswitch/pull/6706)) ([`5a85213`](https://github.com/juspay/hyperswitch/commit/5a85213e21702992bff1fc0b0345be2ea4f30981))
+
+**Full Changelog:** [`2024.12.13.0...2024.12.16.0`](https://github.com/juspay/hyperswitch/compare/2024.12.13.0...2024.12.16.0)
+
+- - -
+
 ## 2024.12.13.0
 
 ### Features
