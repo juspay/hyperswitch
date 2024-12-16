@@ -5814,12 +5814,14 @@
             "type": "string",
             "format": "date-time",
             "description": "The date of the first payment",
+            "example": "2023-09-10T23:59:59Z",
             "nullable": true
           },
           "recurring_payment_end_date": {
             "type": "string",
             "format": "date-time",
             "description": "The date of the final payment",
+            "example": "2023-09-10T23:59:59Z",
             "nullable": true
           },
           "recurring_payment_interval_unit": {
