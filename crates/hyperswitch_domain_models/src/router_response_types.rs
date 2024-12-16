@@ -167,7 +167,7 @@ impl PaymentsResponseData {
                     incremental_authorization_allowed: auth_incremental_auth_allowed,
                     charge_id: auth_charge_id,
                     overcapture_applied: auth_overcapture_applied,
-                maximum_capturable_amount: auth_maximum_capturable_amount,
+                    maximum_capturable_amount: auth_maximum_capturable_amount,
                 },
                 Self::TransactionResponse {
                     resource_id: capture_resource_id,
@@ -179,7 +179,7 @@ impl PaymentsResponseData {
                     incremental_authorization_allowed: capture_incremental_auth_allowed,
                     charge_id: capture_charge_id,
                     overcapture_applied: _,
-                maximum_capturable_amount: _,
+                    maximum_capturable_amount: _,
                 },
             ) => Ok(Self::TransactionResponse {
                 resource_id: capture_resource_id.clone(),
@@ -205,8 +205,7 @@ impl PaymentsResponseData {
                 incremental_authorization_allowed: (*capture_incremental_auth_allowed)
                     .or(*auth_incremental_auth_allowed),
                 charge_id: capture_charge_id.clone().or(auth_charge_id.clone()),
-                overcapture_applied: auth_overcapture_applied
-                    .clone(),
+                overcapture_applied: auth_overcapture_applied.clone(),
                 maximum_capturable_amount: auth_maximum_capturable_amount.clone(),
             }),
             _ => Err(ApiErrorResponse::NotSupported {

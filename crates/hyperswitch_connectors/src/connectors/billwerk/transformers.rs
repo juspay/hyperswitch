@@ -293,7 +293,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, BillwerkPaymentsResponse, T, PaymentsRe
             incremental_authorization_allowed: None,
             charge_id: None,
             overcapture_applied: None,
-                maximum_capturable_amount: None,
+            maximum_capturable_amount: None,
         };
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.state),

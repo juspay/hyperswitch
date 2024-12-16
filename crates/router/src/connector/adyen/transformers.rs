@@ -1555,7 +1555,10 @@ impl TryFrom<&AdyenRouterData<&types::PaymentsAuthorizeRouterData>> for AdyenPay
     fn try_from(
         item: &AdyenRouterData<&types::PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
-        println!("$$$$$4request_overcapture: {:?}", item.router_data.request_overcapture);
+        println!(
+            "$$$$$4request_overcapture: {:?}",
+            item.router_data.request_overcapture
+        );
         match item
             .router_data
             .request

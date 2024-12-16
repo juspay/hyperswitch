@@ -261,7 +261,7 @@ impl TryFrom<&PaymePaySaleResponse> for types::PaymentsResponseData {
             incremental_authorization_allowed: None,
             charge_id: None,
             overcapture_applied: None,
-                maximum_capturable_amount: None,
+            maximum_capturable_amount: None,
         })
     }
 }
@@ -330,7 +330,7 @@ impl From<&SaleQuery> for types::PaymentsResponseData {
             incremental_authorization_allowed: None,
             charge_id: None,
             overcapture_applied: None,
-                maximum_capturable_amount: None,
+            maximum_capturable_amount: None,
         }
     }
 }
@@ -552,7 +552,7 @@ impl<F>
                             incremental_authorization_allowed: None,
                             charge_id: None,
                             overcapture_applied: None,
-                maximum_capturable_amount: None,
+                            maximum_capturable_amount: None,
                         }),
                         ..item.data
                     }),

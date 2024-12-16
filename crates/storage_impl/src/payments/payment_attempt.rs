@@ -565,8 +565,8 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     profile_id: payment_attempt.profile_id.clone(),
                     connector_mandate_detail: payment_attempt.connector_mandate_detail.clone(),
                     request_overcapture: payment_attempt.request_overcapture,
-            overcapture_applied: payment_attempt.overcapture_applied,
-            maximum_capturable_amount: payment_attempt.maximum_capturable_amount,
+                    overcapture_applied: payment_attempt.overcapture_applied,
+                    maximum_capturable_amount: payment_attempt.maximum_capturable_amount,
                 };
 
                 let field = format!("pa_{}", created_attempt.attempt_id);

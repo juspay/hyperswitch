@@ -1442,7 +1442,8 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
             async move {
                 m_db.update_payment_attempt_with_attempt_id(
                     m_payment_data_payment_attempt,
-                    storage::PaymentAttemptUpdate::ConfirmUpdate { // Should we remove  todooo
+                    storage::PaymentAttemptUpdate::ConfirmUpdate {
+                        // Should we remove  todooo
                         currency: payment_data.currency,
                         status: attempt_status,
                         payment_method,

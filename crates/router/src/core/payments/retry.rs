@@ -661,7 +661,6 @@ pub fn make_new_payment_attempt(
         request_overcapture: old_payment_attempt.request_overcapture,
         overcapture_applied: Default::default(),
         maximum_capturable_amount: Default::default(),
-        
     }
 }
 

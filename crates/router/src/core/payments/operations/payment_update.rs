@@ -442,8 +442,9 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 id: profile_id.get_string_repr().to_owned(),
             })?;
 
-        payment_attempt.request_overcapture = request.request_overcapture.or(Some(business_profile.always_request_overcapture));
-
+        payment_attempt.request_overcapture = request
+            .request_overcapture
+            .or(Some(business_profile.always_request_overcapture));
 
         let surcharge_details = request.surcharge_details.map(|request_surcharge_details| {
             payments::types::SurchargeDetails::from((&request_surcharge_details, &payment_attempt))
@@ -801,7 +802,8 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
             .store
             .update_payment_attempt_with_attempt_id(
                 payment_data.payment_attempt,
-                storage::PaymentAttemptUpdate::Update { //should we remove todooo
+                storage::PaymentAttemptUpdate::Update {
+                    //should we remove todooo
                     currency: payment_data.currency,
                     status: get_attempt_status(),
                     authentication_type: None,
@@ -824,8 +826,8 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                             surcharge_amount,
                             tax_amount,
                         ),
-                        maximum_capturable_amount: None,
-                        overcapture_applied: None,
+                    maximum_capturable_amount: None,
+                    overcapture_applied: None,
                 },
                 storage_scheme,
             )

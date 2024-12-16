@@ -246,7 +246,7 @@ impl<F>
                         incremental_authorization_allowed: None,
                         charge_id: None,
                         overcapture_applied: None,
-                maximum_capturable_amount: None,
+                        maximum_capturable_amount: None,
                     })
                 }
             }
@@ -456,7 +456,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<ElavonPaymentsResponse>>
                         incremental_authorization_allowed: None,
                         charge_id: None,
                         overcapture_applied: None,
-                maximum_capturable_amount: None,
+                        maximum_capturable_amount: None,
                     })
                 }
             }

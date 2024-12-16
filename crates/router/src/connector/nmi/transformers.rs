@@ -214,7 +214,7 @@ impl
                     incremental_authorization_allowed: None,
                     charge_id: None,
                     overcapture_applied: None,
-                maximum_capturable_amount: None,
+                    maximum_capturable_amount: None,
                 }),
                 enums::AttemptStatus::AuthenticationPending,
             ),
@@ -370,7 +370,7 @@ impl
                     incremental_authorization_allowed: None,
                     charge_id: None,
                     overcapture_applied: None,
-                maximum_capturable_amount: None,
+                    maximum_capturable_amount: None,
                 }),
                 if let Some(diesel_models::enums::CaptureMethod::Automatic) =
                     item.data.request.capture_method
@@ -756,7 +756,7 @@ impl
                     incremental_authorization_allowed: None,
                     charge_id: None,
                     overcapture_applied: None,
-                maximum_capturable_amount: None,
+                    maximum_capturable_amount: None,
                 }),
                 enums::AttemptStatus::CaptureInitiated,
             ),
@@ -853,7 +853,7 @@ impl<T>
                     incremental_authorization_allowed: None,
                     charge_id: None,
                     overcapture_applied: None,
-                maximum_capturable_amount: None,
+                    maximum_capturable_amount: None,
                 }),
                 enums::AttemptStatus::Charged,
             ),
@@ -912,7 +912,7 @@ impl TryFrom<types::PaymentsResponseRouterData<StandardResponse>>
                     incremental_authorization_allowed: None,
                     charge_id: None,
                     overcapture_applied: None,
-                maximum_capturable_amount: None,
+                    maximum_capturable_amount: None,
                 }),
                 if let Some(diesel_models::enums::CaptureMethod::Automatic) =
                     item.data.request.capture_method
@@ -965,7 +965,7 @@ impl<T>
                     incremental_authorization_allowed: None,
                     charge_id: None,
                     overcapture_applied: None,
-                maximum_capturable_amount: None,
+                    maximum_capturable_amount: None,
                 }),
                 enums::AttemptStatus::VoidInitiated,
             ),
@@ -1018,7 +1018,7 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, SyncResponse, T, types::Payments
                     incremental_authorization_allowed: None,
                     charge_id: None,
                     overcapture_applied: None,
-                maximum_capturable_amount: None,
+                    maximum_capturable_amount: None,
                 }),
                 ..item.data
             }),

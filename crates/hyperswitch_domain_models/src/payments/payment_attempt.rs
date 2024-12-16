@@ -1092,7 +1092,7 @@ impl PaymentAttemptUpdate {
                 customer_acceptance,
                 connector_mandate_detail,
                 overcapture_applied,
-                maximum_capturable_amount
+                maximum_capturable_amount,
             } => DieselPaymentAttemptUpdate::ConfirmUpdate {
                 amount: net_amount.get_order_amount(),
                 currency,
@@ -1128,7 +1128,7 @@ impl PaymentAttemptUpdate {
                 order_tax_amount: net_amount.get_order_tax_amount(),
                 connector_mandate_detail,
                 overcapture_applied,
-                maximum_capturable_amount
+                maximum_capturable_amount,
             },
             Self::VoidUpdate {
                 status,

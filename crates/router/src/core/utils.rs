@@ -366,7 +366,6 @@ pub async fn construct_refund_router_data<'a, F>(
             split_refunds,
             integrity_object: None,
             refund_status: refund.refund_status,
-
         },
         response: Ok(types::RefundsResponseData {
             connector_refund_id: connector_refund_id.unwrap_or_default(),

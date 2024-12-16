@@ -759,7 +759,7 @@ impl<F>
                     incremental_authorization_allowed: None,
                     charge_id: None,
                     overcapture_applied: None,
-                maximum_capturable_amount: None,
+                    maximum_capturable_amount: None,
                 }),
                 ..item.data
             }),
@@ -797,7 +797,7 @@ impl<F>
                             incremental_authorization_allowed: None,
                             charge_id: None,
                             overcapture_applied: None,
-                maximum_capturable_amount: None,
+                            maximum_capturable_amount: None,
                         }),
                         ..item.data
                     })
@@ -855,7 +855,7 @@ impl<F>
                             incremental_authorization_allowed: None,
                             charge_id: None,
                             overcapture_applied: None,
-                maximum_capturable_amount: None,
+                            maximum_capturable_amount: None,
                         })
                     };
                     Ok(Self {
@@ -903,7 +903,7 @@ impl<F>
                                 incremental_authorization_allowed: None,
                                 charge_id: None,
                                 overcapture_applied: None,
-                maximum_capturable_amount: None,
+                                maximum_capturable_amount: None,
                             })
                         };
                         Self {
@@ -924,7 +924,7 @@ impl<F>
                             incremental_authorization_allowed: None,
                             charge_id: None,
                             overcapture_applied: None,
-                maximum_capturable_amount: None,
+                            maximum_capturable_amount: None,
                         });
                         Self {
                             response,
@@ -1197,7 +1197,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<FiuuPaymentResponse>> for PaymentsSy
                     incremental_authorization_allowed: None,
                     charge_id: None,
                     overcapture_applied: None,
-                maximum_capturable_amount: None,
+                    maximum_capturable_amount: None,
                 };
                 Ok(Self {
                     status,
@@ -1260,7 +1260,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<FiuuPaymentResponse>> for PaymentsSy
                     incremental_authorization_allowed: None,
                     charge_id: None,
                     overcapture_applied: None,
-                maximum_capturable_amount: None,
+                    maximum_capturable_amount: None,
                 };
                 Ok(Self {
                     status,
@@ -1431,7 +1431,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<PaymentCaptureResponse>>
             incremental_authorization_allowed: None,
             charge_id: None,
             overcapture_applied: None,
-                maximum_capturable_amount: None,
+            maximum_capturable_amount: None,
         };
         Ok(Self {
             status,
@@ -1544,7 +1544,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<FiuuPaymentCancelResponse>>
             incremental_authorization_allowed: None,
             charge_id: None,
             overcapture_applied: None,
-                maximum_capturable_amount: None,
+            maximum_capturable_amount: None,
         };
         Ok(Self {
             status,

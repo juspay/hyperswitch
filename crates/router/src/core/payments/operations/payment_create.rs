@@ -542,7 +542,9 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         }
         let amount = payment_attempt.get_total_amount().into();
 
-        payment_attempt.request_overcapture = request.request_overcapture.or(Some(business_profile.always_request_overcapture)); // todoooo
+        payment_attempt.request_overcapture = request
+            .request_overcapture
+            .or(Some(business_profile.always_request_overcapture)); // todoooo
 
         payment_attempt.connector_mandate_detail =
             Some(DieselConnectorMandateReferenceId::foreign_from(
@@ -1142,7 +1144,9 @@ impl PaymentCreate {
             .transpose()?
             .flatten();
 
-        let request_overcapture = request.request_overcapture.or(Some(business_profile.always_request_overcapture));
+        let request_overcapture = request
+            .request_overcapture
+            .or(Some(business_profile.always_request_overcapture));
 
         if additional_pm_data.is_none() {
             // If recurring payment is made using payment_method_id, then fetch payment_method_data from retrieved payment_method object

@@ -1118,7 +1118,8 @@ impl PaymentAttemptUpdate {
             connector_mandate_detail: connector_mandate_detail.or(source.connector_mandate_detail),
             request_overcapture: request_overcapture.or(source.request_overcapture),
             overcapture_applied: overcapture_applied.or(source.overcapture_applied),
-            maximum_capturable_amount: maximum_capturable_amount.or(source.maximum_capturable_amount),
+            maximum_capturable_amount: maximum_capturable_amount
+                .or(source.maximum_capturable_amount),
             ..source
         }
     }
@@ -2711,8 +2712,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     order_tax_amount: None,
                     connector_mandate_detail,
                     request_overcapture: None,
-                overcapture_applied,
-                maximum_capturable_amount,
+                    overcapture_applied,
+                    maximum_capturable_amount,
                 }
             }
             PaymentAttemptUpdate::ErrorUpdate {
@@ -2787,9 +2788,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     order_tax_amount: None,
                     connector_mandate_detail: None,
                     request_overcapture: None,
-                overcapture_applied: None,
-                maximum_capturable_amount: None,
-                    
+                    overcapture_applied: None,
+                    maximum_capturable_amount: None,
                 }
             }
             PaymentAttemptUpdate::StatusUpdate { status, updated_by } => Self {
@@ -2982,8 +2982,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     order_tax_amount: None,
                     connector_mandate_detail: None,
                     request_overcapture: None,
-                overcapture_applied: None,
-                maximum_capturable_amount: None,
+                    overcapture_applied: None,
+                    maximum_capturable_amount: None,
                 }
             }
             PaymentAttemptUpdate::PreprocessingUpdate {
@@ -3243,8 +3243,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     order_tax_amount: None,
                     connector_mandate_detail: None,
                     request_overcapture: None,
-                overcapture_applied: None,
-                maximum_capturable_amount: None,
+                    overcapture_applied: None,
+                    maximum_capturable_amount: None,
                 }
             }
             PaymentAttemptUpdate::IncrementalAuthorizationAmountUpdate {
@@ -3436,8 +3436,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     order_tax_amount: None,
                     connector_mandate_detail: None,
                     request_overcapture: None,
-                overcapture_applied: None,
-                maximum_capturable_amount: None,
+                    overcapture_applied: None,
+                    maximum_capturable_amount: None,
                 }
             }
             PaymentAttemptUpdate::PostSessionTokensUpdate {

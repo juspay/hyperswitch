@@ -1533,7 +1533,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                             incremental_authorization_allowed,
                             charge_id,
                             overcapture_applied,
-                maximum_capturable_amount,
+                            maximum_capturable_amount,
                             ..
                         } => {
                             payment_data
