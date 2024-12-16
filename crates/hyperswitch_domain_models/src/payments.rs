@@ -521,7 +521,6 @@ pub struct HeaderPayload {
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct ClickToPayMetaData {
     pub dpa_id: String,
     pub dpa_name: String,

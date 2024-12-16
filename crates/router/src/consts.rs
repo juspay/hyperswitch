@@ -209,4 +209,4 @@ pub const VAULT_GET_FINGERPRINT_FLOW_TYPE: &str = "get_fingerprint_vault";
 pub const DYNAMIC_ROUTING_MAX_VOLUME: u8 = 100;
 
 /// Click To Pay
-pub const CLICK_TO_PAY: &str = "CLICK_TO_PAY";
+pub const CLICK_TO_PAY: &str = "click_to_pay";
