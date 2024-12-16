@@ -34,7 +34,7 @@ where
         dimensions: &[RefundDimensions],
         auth: &AuthInfo,
         filters: &RefundFilters,
-        granularity: &Option<Granularity>,
+        granularity: Option<Granularity>,
         time_range: &TimeRange,
         pool: &T,
     ) -> MetricsResult<HashSet<(RefundMetricsBucketIdentifier, RefundMetricRow)>>
@@ -76,7 +76,7 @@ where
             query_builder.add_group_by_clause(dim).switch()?;
         }
 
-        if let Some(granularity) = granularity.as_ref() {
+        if let Some(granularity) = granularity {
             granularity
                 .set_group_by_clause(&mut query_builder)
                 .switch()?;
@@ -102,6 +102,8 @@ where
                         i.connector.clone(),
                         i.refund_type.as_ref().map(|i| i.0.to_string()),
                         i.profile_id.clone(),
+                        i.refund_reason.clone(),
+                        i.refund_error_message.clone(),
                         TimeRange {
                             start_time: match (granularity, i.start_bucket) {
                                 (Some(g), Some(st)) => g.clip_to_start(st)?,

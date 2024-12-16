@@ -193,6 +193,7 @@ impl ApiModelToDieselModelConvertor<api_models::admin::PaymentLinkConfigRequest>
             enabled_saved_payment_method: item.enabled_saved_payment_method,
             hide_card_nickname_field: item.hide_card_nickname_field,
             show_card_form_by_default: item.show_card_form_by_default,
+            details_layout: item.details_layout,
             transaction_details: item.transaction_details.map(|transaction_details| {
                 transaction_details
                     .into_iter()
@@ -202,6 +203,11 @@ impl ApiModelToDieselModelConvertor<api_models::admin::PaymentLinkConfigRequest>
                         )
                     })
                     .collect()
+            }),
+            background_image: item.background_image.map(|background_image| {
+                diesel_models::business_profile::PaymentLinkBackgroundImageConfig::convert_from(
+                    background_image,
+                )
             }),
         }
     }
@@ -216,6 +222,8 @@ impl ApiModelToDieselModelConvertor<api_models::admin::PaymentLinkConfigRequest>
             hide_card_nickname_field,
             show_card_form_by_default,
             transaction_details,
+            background_image,
+            details_layout,
         } = self;
         api_models::admin::PaymentLinkConfigRequest {
             theme,
@@ -226,12 +234,15 @@ impl ApiModelToDieselModelConvertor<api_models::admin::PaymentLinkConfigRequest>
             enabled_saved_payment_method,
             hide_card_nickname_field,
             show_card_form_by_default,
+            details_layout,
             transaction_details: transaction_details.map(|transaction_details| {
                 transaction_details
                     .into_iter()
                     .map(|transaction_detail| transaction_detail.convert_back())
                     .collect()
             }),
+            background_image: background_image
+                .map(|background_image| background_image.convert_back()),
         }
     }
 }
@@ -260,6 +271,31 @@ impl ApiModelToDieselModelConvertor<api_models::admin::PaymentLinkTransactionDet
             value,
             ui_configuration: ui_configuration
                 .map(|ui_configuration| ui_configuration.convert_back()),
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
+impl ApiModelToDieselModelConvertor<api_models::admin::PaymentLinkBackgroundImageConfig>
+    for diesel_models::business_profile::PaymentLinkBackgroundImageConfig
+{
+    fn convert_from(from: api_models::admin::PaymentLinkBackgroundImageConfig) -> Self {
+        Self {
+            url: from.url,
+            position: from.position,
+            size: from.size,
+        }
+    }
+    fn convert_back(self) -> api_models::admin::PaymentLinkBackgroundImageConfig {
+        let Self {
+            url,
+            position,
+            size,
+        } = self;
+        api_models::admin::PaymentLinkBackgroundImageConfig {
+            url,
+            position,
+            size,
         }
     }
 }
@@ -302,36 +338,12 @@ impl From<api_models::payments::AmountDetails> for payments::AmountDetails {
                     payment_method_type: None,
                 }
             }),
-            skip_external_tax_calculation: payments::TaxCalculationOverride::from(
-                amount_details.skip_external_tax_calculation(),
-            ),
-            skip_surcharge_calculation: payments::SurchargeCalculationOverride::from(
-                amount_details.skip_surcharge_calculation(),
-            ),
+            skip_external_tax_calculation: amount_details.skip_external_tax_calculation(),
+            skip_surcharge_calculation: amount_details.skip_surcharge_calculation(),
             surcharge_amount: amount_details.surcharge_amount(),
             tax_on_surcharge: amount_details.tax_on_surcharge(),
             // We will not receive this in the request. This will be populated after calling the connector / processor
             amount_captured: None,
-        }
-    }
-}
-
-#[cfg(feature = "v2")]
-impl From<common_enums::SurchargeCalculationOverride> for payments::SurchargeCalculationOverride {
-    fn from(surcharge_calculation_override: common_enums::SurchargeCalculationOverride) -> Self {
-        match surcharge_calculation_override {
-            common_enums::SurchargeCalculationOverride::Calculate => Self::Calculate,
-            common_enums::SurchargeCalculationOverride::Skip => Self::Skip,
-        }
-    }
-}
-
-#[cfg(feature = "v2")]
-impl From<common_enums::TaxCalculationOverride> for payments::TaxCalculationOverride {
-    fn from(tax_calculation_override: common_enums::TaxCalculationOverride) -> Self {
-        match tax_calculation_override {
-            common_enums::TaxCalculationOverride::Calculate => Self::Calculate,
-            common_enums::TaxCalculationOverride::Skip => Self::Skip,
         }
     }
 }

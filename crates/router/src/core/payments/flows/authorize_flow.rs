@@ -1,8 +1,9 @@
 use async_trait::async_trait;
 use common_enums as enums;
+use hyperswitch_domain_models::errors::api_error_response::ApiErrorResponse;
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::payments::PaymentConfirmData;
-use router_env::metrics::add_attributes;
+use masking::ExposeInterface;
 
 // use router_env::tracing::Instrument;
 use super::{ConstructFlowSpecificData, Feature};
@@ -16,9 +17,11 @@ use crate::{
     },
     logger,
     routes::{metrics, SessionState},
-    services,
-    services::api::ConnectorValidation,
-    types::{self, api, domain, transformers::ForeignFrom},
+    services::{self, api::ConnectorValidation},
+    types::{
+        self, api, domain,
+        transformers::{ForeignFrom, ForeignTryFrom},
+    },
     utils::OptionExt,
 };
 
@@ -173,8 +176,8 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         connector: &api::ConnectorData,
         call_connector_action: payments::CallConnectorAction,
         connector_request: Option<services::Request>,
-        _business_profile: &domain::Profile,
-        _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
+        business_profile: &domain::Profile,
+        header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<Self> {
         let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
             api::Authorize,
@@ -185,11 +188,11 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         if self.should_proceed_with_authorize() {
             self.decide_authentication_type();
             logger::debug!(auth_type=?self.auth_type);
-            let mut new_router_data = services::execute_connector_processing_step(
+            let mut auth_router_data = services::execute_connector_processing_step(
                 state,
                 connector_integration,
                 &self,
-                call_connector_action,
+                call_connector_action.clone(),
                 connector_request,
             )
             .await
@@ -197,14 +200,37 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
 
             // Initiating Integrity check
             let integrity_result = helpers::check_integrity_based_on_flow(
-                &new_router_data.request,
-                &new_router_data.response,
+                &auth_router_data.request,
+                &auth_router_data.response,
             );
+            auth_router_data.integrity_check = integrity_result;
+            metrics::PAYMENT_COUNT.add(1, &[]); // Move outside of the if block
 
-            new_router_data.integrity_check = integrity_result;
-
-            metrics::PAYMENT_COUNT.add(&metrics::CONTEXT, 1, &[]); // Metrics
-            Ok(new_router_data)
+            match auth_router_data.response.clone() {
+                Err(_) => Ok(auth_router_data),
+                Ok(authorize_response) => {
+                    // Check if the Capture API should be called based on the connector and other parameters
+                    if super::should_initiate_capture_flow(
+                        &connector.connector_name,
+                        self.request.customer_acceptance,
+                        self.request.capture_method,
+                        self.request.setup_future_usage,
+                        auth_router_data.status,
+                    ) {
+                        auth_router_data = Box::pin(process_capture_flow(
+                            auth_router_data,
+                            authorize_response,
+                            state,
+                            connector,
+                            call_connector_action.clone(),
+                            business_profile,
+                            header_payload,
+                        ))
+                        .await?;
+                    }
+                    Ok(auth_router_data)
+                }
+            }
         } else {
             Ok(self.clone())
         }
@@ -336,12 +362,11 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                 > = connector.connector.get_connector_integration();
 
                 metrics::EXECUTE_PRETASK_COUNT.add(
-                    &metrics::CONTEXT,
                     1,
-                    &add_attributes([
+                    router_env::metric_attributes!(
                         ("connector", connector.connector_name.to_string()),
                         ("flow", format!("{:?}", api::Authorize)),
-                    ]),
+                    ),
                 );
 
                 logger::debug!(completed_pre_tasks=?true);
@@ -470,9 +495,8 @@ pub async fn authorize_preprocessing_steps<F: Clone>(
         .to_payment_failed_response()?;
 
         metrics::PREPROCESSING_STEPS_COUNT.add(
-            &metrics::CONTEXT,
             1,
-            &add_attributes([
+            router_env::metric_attributes!(
                 ("connector", connector.connector_name.to_string()),
                 ("payment_method", router_data.payment_method.to_string()),
                 (
@@ -480,11 +504,10 @@ pub async fn authorize_preprocessing_steps<F: Clone>(
                     router_data
                         .request
                         .payment_method_type
-                        .as_ref()
                         .map(|inner| inner.to_string())
                         .unwrap_or("null".to_string()),
                 ),
-            ]),
+            ),
         );
         let mut authorize_router_data = helpers::router_data_type_conversion::<_, F, _, _, _, _>(
             resp.clone(),
@@ -565,4 +588,84 @@ pub async fn authorize_postprocessing_steps<F: Clone>(
     } else {
         Ok(router_data.clone())
     }
+}
+
+impl<F>
+    ForeignTryFrom<types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>>
+    for types::PaymentsCaptureData
+{
+    type Error = error_stack::Report<ApiErrorResponse>;
+
+    fn foreign_try_from(
+        item: types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
+    ) -> Result<Self, Self::Error> {
+        let response = item
+            .response
+            .map_err(|err| ApiErrorResponse::ExternalConnectorError {
+                code: err.code,
+                message: err.message,
+                connector: item.connector.clone(),
+                status_code: err.status_code,
+                reason: err.reason,
+            })?;
+
+        Ok(Self {
+            amount_to_capture: item.request.amount,
+            currency: item.request.currency,
+            connector_transaction_id: types::PaymentsResponseData::get_connector_transaction_id(
+                &response,
+            )?,
+            payment_amount: item.request.amount,
+            multiple_capture_data: None,
+            connector_meta: types::PaymentsResponseData::get_connector_metadata(&response)
+                .map(|secret| secret.expose()),
+            browser_info: None,
+            metadata: None,
+            capture_method: item.request.capture_method,
+            minor_payment_amount: item.request.minor_amount,
+            minor_amount_to_capture: item.request.minor_amount,
+            integrity_object: None,
+        })
+    }
+}
+
+async fn process_capture_flow(
+    mut router_data: types::RouterData<
+        api::Authorize,
+        types::PaymentsAuthorizeData,
+        types::PaymentsResponseData,
+    >,
+    authorize_response: types::PaymentsResponseData,
+    state: &SessionState,
+    connector: &api::ConnectorData,
+    call_connector_action: payments::CallConnectorAction,
+    business_profile: &domain::Profile,
+    header_payload: hyperswitch_domain_models::payments::HeaderPayload,
+) -> RouterResult<
+    types::RouterData<api::Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
+> {
+    // Convert RouterData into Capture RouterData
+    let capture_router_data = helpers::router_data_type_conversion(
+        router_data.clone(),
+        types::PaymentsCaptureData::foreign_try_from(router_data.clone())?,
+        Err(types::ErrorResponse::default()),
+    );
+
+    // Call capture request
+    let post_capture_router_data = super::call_capture_request(
+        capture_router_data,
+        state,
+        connector,
+        call_connector_action,
+        business_profile,
+        header_payload,
+    )
+    .await;
+
+    // Process capture response
+    let (updated_status, updated_response) =
+        super::handle_post_capture_response(authorize_response, post_capture_router_data)?;
+    router_data.status = updated_status;
+    router_data.response = Ok(updated_response);
+    Ok(router_data)
 }

@@ -33,7 +33,9 @@ type PaymentCancelOperation<'b, F> =
     BoxedOperation<'b, F, api::PaymentsCancelRequest, PaymentData<F>>;
 
 #[async_trait]
-impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsCancelRequest> for PaymentCancel {
+impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCancelRequest>
+    for PaymentCancel
+{
     #[instrument(skip_all)]
     async fn get_trackers<'a>(
         &'a self,
@@ -69,7 +71,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsCancelRequest> 
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
         helpers::validate_payment_status_against_not_allowed_statuses(
-            &payment_intent.status,
+            payment_intent.status,
             &[
                 enums::IntentStatus::Failed,
                 enums::IntentStatus::Succeeded,
@@ -204,6 +206,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsCancelRequest> 
             poll_config: None,
             tax_data: None,
             session_id: None,
+            service_details: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -219,7 +222,9 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsCancelRequest> 
 }
 
 #[async_trait]
-impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsCancelRequest> for PaymentCancel {
+impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsCancelRequest>
+    for PaymentCancel
+{
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,
@@ -287,7 +292,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsCancelRequest> for 
     }
 }
 
-impl<F: Send + Clone> ValidateRequest<F, api::PaymentsCancelRequest, PaymentData<F>>
+impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsCancelRequest, PaymentData<F>>
     for PaymentCancel
 {
     #[instrument(skip_all)]

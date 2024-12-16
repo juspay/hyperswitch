@@ -1,5 +1,6 @@
 use std::str::FromStr;
 
+use hyperswitch_domain_models::address::{Address, AddressDetails};
 use masking::Secret;
 use router::types::{self, api, domain, storage::enums, AccessToken, ConnectorAuthType};
 use serde_json::json;
@@ -59,8 +60,8 @@ impl Globalpay {
         Some(PaymentInfo {
             address: Some(types::PaymentAddress::new(
                 None,
-                Some(api::Address {
-                    address: Some(api::AddressDetails {
+                Some(Address {
+                    address: Some(AddressDetails {
                         country: Some(api_models::enums::CountryAlpha2::US),
                         ..Default::default()
                     }),

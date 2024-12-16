@@ -48,7 +48,7 @@ impl ValidateStatusForOperation for PaymentSessionIntent {
     }
 }
 
-impl<F: Send + Clone> Operation<F, PaymentsSessionRequest> for &PaymentSessionIntent {
+impl<F: Send + Clone + Sync> Operation<F, PaymentsSessionRequest> for &PaymentSessionIntent {
     type Data = payments::PaymentIntentData<F>;
     fn to_validate_request(
         &self,
@@ -66,7 +66,7 @@ impl<F: Send + Clone> Operation<F, PaymentsSessionRequest> for &PaymentSessionIn
     }
 }
 
-impl<F: Send + Clone> Operation<F, PaymentsSessionRequest> for PaymentSessionIntent {
+impl<F: Send + Clone + Sync> Operation<F, PaymentsSessionRequest> for PaymentSessionIntent {
     type Data = payments::PaymentIntentData<F>;
     fn to_validate_request(
         &self,
@@ -88,7 +88,7 @@ type PaymentsCreateIntentOperation<'b, F> =
     BoxedOperation<'b, F, PaymentsSessionRequest, payments::PaymentIntentData<F>>;
 
 #[async_trait]
-impl<F: Send + Clone> GetTracker<F, payments::PaymentIntentData<F>, PaymentsSessionRequest>
+impl<F: Send + Clone + Sync> GetTracker<F, payments::PaymentIntentData<F>, PaymentsSessionRequest>
     for PaymentSessionIntent
 {
     #[instrument(skip_all)]
@@ -132,7 +132,8 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentIntentData<F>, PaymentsSess
     }
 }
 
-impl<F: Send + Clone> ValidateRequest<F, PaymentsSessionRequest, payments::PaymentIntentData<F>>
+impl<F: Send + Clone + Sync>
+    ValidateRequest<F, PaymentsSessionRequest, payments::PaymentIntentData<F>>
     for PaymentSessionIntent
 {
     #[instrument(skip_all)]
@@ -150,7 +151,7 @@ impl<F: Send + Clone> ValidateRequest<F, PaymentsSessionRequest, payments::Payme
 }
 
 #[async_trait]
-impl<F: Clone + Send> Domain<F, PaymentsSessionRequest, payments::PaymentIntentData<F>>
+impl<F: Clone + Send + Sync> Domain<F, PaymentsSessionRequest, payments::PaymentIntentData<F>>
     for PaymentSessionIntent
 {
     #[instrument(skip_all)]

@@ -306,7 +306,7 @@ where
         } else if matches!(frm_data.fraud_check.frm_status, FraudCheckStatus::Legit)
             && matches!(
                 frm_data.fraud_check.payment_capture_method,
-                Some(CaptureMethod::Automatic)
+                Some(CaptureMethod::Automatic) | Some(CaptureMethod::SequentialAutomatic)
             )
         {
             let capture_request = api_models::payments::PaymentsCaptureRequest {

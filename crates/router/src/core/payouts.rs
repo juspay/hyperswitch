@@ -383,7 +383,7 @@ pub async fn payouts_confirm_core(
     let status = payout_attempt.status;
 
     helpers::validate_payout_status_against_not_allowed_statuses(
-        &status,
+        status,
         &[
             storage_enums::PayoutStatus::Cancelled,
             storage_enums::PayoutStatus::Success,
@@ -852,7 +852,9 @@ pub async fn payouts_list_core(
                         logger::warn!(?err, err_msg);
                     })
                     .ok()
-                    .map(payment_enums::Address::foreign_from)
+                    .as_ref()
+                    .map(hyperswitch_domain_models::address::Address::from)
+                    .map(payment_enums::Address::from)
                 });
 
                 pi_pa_tuple_vec.push((
@@ -2354,7 +2356,10 @@ pub async fn response_handler(
     let billing_address = payout_data.billing_address.to_owned();
     let customer_details = payout_data.customer_details.to_owned();
     let customer_id = payouts.customer_id;
-    let billing = billing_address.as_ref().map(From::from);
+    let billing = billing_address
+        .as_ref()
+        .map(hyperswitch_domain_models::address::Address::from)
+        .map(From::from);
 
     let translated_unified_message = helpers::get_translated_unified_code_and_message(
         state,

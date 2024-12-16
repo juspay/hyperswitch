@@ -1,32 +1,54 @@
-use common_utils::{ext_traits::ValueExt, pii, types::ChargeRefunds};
-use error_stack::{Report, ResultExt};
+use error_stack::{report, Report};
 use hyperswitch_domain_models::router_request_types;
-use masking::PeekInterface;
 
 use super::validator;
-use crate::{core::errors, types::transformers::ForeignTryFrom};
+use crate::core::errors;
 
-impl ForeignTryFrom<(ChargeRefunds, pii::SecretSerdeValue)>
-    for router_request_types::ChargeRefunds
-{
+pub struct SplitRefundInput {
+    pub refund_request: common_types::refunds::SplitRefund,
+    pub payment_charges: common_types::payments::SplitPaymentsRequest,
+    pub charge_id: Option<String>,
+}
+
+impl TryFrom<SplitRefundInput> for router_request_types::SplitRefundsRequest {
     type Error = Report<errors::ApiErrorResponse>;
-    fn foreign_try_from(item: (ChargeRefunds, pii::SecretSerdeValue)) -> Result<Self, Self::Error> {
-        let (refund_charges, charges) = item;
-        let payment_charges: router_request_types::PaymentCharges = charges
-            .peek()
-            .clone()
-            .parse_value("PaymentCharges")
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to parse charges into PaymentCharges")?;
 
-        Ok(Self {
-            charge_id: refund_charges.charge_id.clone(),
-            charge_type: payment_charges.charge_type.clone(),
-            transfer_account_id: payment_charges.transfer_account_id,
-            options: validator::validate_charge_refund(
-                &refund_charges,
-                &payment_charges.charge_type,
-            )?,
-        })
+    fn try_from(value: SplitRefundInput) -> Result<Self, Self::Error> {
+        let SplitRefundInput {
+            refund_request,
+            payment_charges,
+            charge_id,
+        } = value;
+
+        match refund_request {
+            common_types::refunds::SplitRefund::StripeSplitRefund(stripe_refund) => {
+                match payment_charges {
+                    common_types::payments::SplitPaymentsRequest::StripeSplitPayment(
+                        stripe_payment,
+                    ) => {
+                        let charge_id = charge_id.ok_or_else(|| {
+                            report!(errors::ApiErrorResponse::InternalServerError)
+                                .attach_printable("Missing `charge_id` in PaymentAttempt.")
+                        })?;
+
+                        let options = validator::validate_charge_refund(
+                            &common_types::refunds::SplitRefund::StripeSplitRefund(
+                                stripe_refund.clone(),
+                            ),
+                            &stripe_payment.charge_type,
+                        )?;
+
+                        Ok(Self::StripeSplitRefund(
+                            router_request_types::StripeSplitRefund {
+                                charge_id, // Use `charge_id` from `PaymentAttempt`
+                                transfer_account_id: stripe_payment.transfer_account_id,
+                                charge_type: stripe_payment.charge_type,
+                                options,
+                            },
+                        ))
+                    }
+                }
+            }
+        }
     }
 }

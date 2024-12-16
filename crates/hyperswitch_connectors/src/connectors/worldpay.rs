@@ -54,8 +54,8 @@ use response::{
     WP_CORRELATION_ID,
 };
 use ring::hmac;
-use transformers::{self as worldpay};
 
+use self::transformers as worldpay;
 use crate::{
     constants::headers,
     types::ResponseRouterData,
@@ -168,7 +168,9 @@ impl ConnectorValidation for Worldpay {
     ) -> CustomResult<(), errors::ConnectorError> {
         let capture_method = capture_method.unwrap_or_default();
         match capture_method {
-            enums::CaptureMethod::Automatic | enums::CaptureMethod::Manual => Ok(()),
+            enums::CaptureMethod::Automatic
+            | enums::CaptureMethod::Manual
+            | enums::CaptureMethod::SequentialAutomatic => Ok(()),
             enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => Err(
                 construct_not_implemented_error_report(capture_method, self.id()),
             ),

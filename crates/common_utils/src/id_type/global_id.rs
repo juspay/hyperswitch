@@ -29,7 +29,7 @@ pub(crate) enum GlobalEntity {
 }
 
 impl GlobalEntity {
-    fn prefix(&self) -> &'static str {
+    fn prefix(self) -> &'static str {
         match self {
             Self::Customer => "cus",
             Self::Payment => "pay",

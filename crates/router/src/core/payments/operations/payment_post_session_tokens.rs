@@ -32,7 +32,7 @@ type PaymentPostSessionTokensOperation<'b, F> =
     BoxedOperation<'b, F, api::PaymentsPostSessionTokensRequest, PaymentData<F>>;
 
 #[async_trait]
-impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsPostSessionTokensRequest>
+impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsPostSessionTokensRequest>
     for PaymentPostSessionTokens
 {
     #[instrument(skip_all)]
@@ -166,6 +166,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsPostSessionToke
             poll_config: None,
             tax_data: None,
             session_id: None,
+            service_details: None,
         };
         let get_trackers_response = operations::GetTrackerResponse {
             operation: Box::new(self),
@@ -180,7 +181,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsPostSessionToke
 }
 
 #[async_trait]
-impl<F: Clone + Send> Domain<F, api::PaymentsPostSessionTokensRequest, PaymentData<F>>
+impl<F: Clone + Send + Sync> Domain<F, api::PaymentsPostSessionTokensRequest, PaymentData<F>>
     for PaymentPostSessionTokens
 {
     #[instrument(skip_all)]
@@ -242,7 +243,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsPostSessionTokensRequest, PaymentDa
 }
 
 #[async_trait]
-impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsPostSessionTokensRequest>
+impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsPostSessionTokensRequest>
     for PaymentPostSessionTokens
 {
     #[instrument(skip_all)]
@@ -265,7 +266,8 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsPostSessionTokensRe
     }
 }
 
-impl<F: Send + Clone> ValidateRequest<F, api::PaymentsPostSessionTokensRequest, PaymentData<F>>
+impl<F: Send + Clone + Sync>
+    ValidateRequest<F, api::PaymentsPostSessionTokensRequest, PaymentData<F>>
     for PaymentPostSessionTokens
 {
     #[instrument(skip_all)]

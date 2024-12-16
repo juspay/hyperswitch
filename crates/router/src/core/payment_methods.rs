@@ -433,7 +433,7 @@ pub async fn render_pm_collect_link(
 
 fn generate_task_id_for_payment_method_status_update_workflow(
     key_id: &str,
-    runner: &storage::ProcessTrackerRunner,
+    runner: storage::ProcessTrackerRunner,
     task: &str,
 ) -> String {
     format!("{runner}_{task}_{key_id}")
@@ -467,7 +467,7 @@ pub async fn add_payment_method_status_update_task(
 
     let process_tracker_id = generate_task_id_for_payment_method_status_update_workflow(
         payment_method.get_id().as_str(),
-        &runner,
+        runner,
         task,
     );
     let process_tracker_entry = storage::ProcessTrackerNew::new(
@@ -588,6 +588,7 @@ pub async fn retrieve_payment_method_with_token(
                 mandate_id,
                 payment_method_info,
                 business_profile,
+                payment_attempt.connector.clone(),
             )
             .await
             .map(|card| Some((card, enums::PaymentMethod::Card)))?
@@ -622,6 +623,7 @@ pub async fn retrieve_payment_method_with_token(
                 mandate_id,
                 payment_method_info,
                 business_profile,
+                payment_attempt.connector.clone(),
             )
             .await
             .map(|card| Some((card, enums::PaymentMethod::Card)))?
@@ -754,7 +756,7 @@ pub(crate) async fn get_payment_method_create_request(
     payment_method_type: Option<storage_enums::PaymentMethodType>,
     customer_id: &Option<id_type::CustomerId>,
     billing_name: Option<Secret<String>>,
-    payment_method_billing_address: Option<&api_models::payments::Address>,
+    payment_method_billing_address: Option<&hyperswitch_domain_models::address::Address>,
 ) -> RouterResult<payment_methods::PaymentMethodCreate> {
     match payment_method_data {
         Some(pm_data) => match payment_method {
@@ -789,7 +791,8 @@ pub(crate) async fn get_payment_method_create_request(
                             .map(|card_network| card_network.to_string()),
                         client_secret: None,
                         payment_method_data: None,
-                        billing: payment_method_billing_address.cloned(),
+                        //TODO: why are we using api model in router internally
+                        billing: payment_method_billing_address.cloned().map(From::from),
                         connector_mandate_details: None,
                         network_transaction_id: None,
                     };

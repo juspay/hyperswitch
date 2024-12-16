@@ -72,7 +72,9 @@ impl From<Option<enums::CaptureMethod>> for StripeCaptureMethod {
             Some(p) => match p {
                 enums::CaptureMethod::ManualMultiple => Self::Manual,
                 enums::CaptureMethod::Manual => Self::Manual,
-                enums::CaptureMethod::Automatic => Self::Automatic,
+                enums::CaptureMethod::Automatic | enums::CaptureMethod::SequentialAutomatic => {
+                    Self::Automatic
+                }
                 enums::CaptureMethod::Scheduled => Self::Manual,
             },
             None => Self::Automatic,
@@ -1917,19 +1919,27 @@ impl TryFrom<(&types::PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntent
             None
         };
 
-        let (charges, customer) = match &item.request.charges {
-            Some(charges) => {
-                let charges = match &charges.charge_type {
-                    api_enums::PaymentChargeType::Stripe(charge_type) => match charge_type {
-                        api_enums::StripeChargeType::Direct => Some(IntentCharges {
-                            application_fee_amount: charges.fees,
-                            destination_account_id: None,
-                        }),
-                        api_enums::StripeChargeType::Destination => Some(IntentCharges {
-                            application_fee_amount: charges.fees,
-                            destination_account_id: Some(charges.transfer_account_id.clone()),
-                        }),
-                    },
+        let (charges, customer) = match &item.request.split_payments {
+            Some(common_types::payments::SplitPaymentsRequest::StripeSplitPayment(
+                stripe_split_payment,
+            )) => {
+                let charges = match &stripe_split_payment.charge_type {
+                    api_models::enums::PaymentChargeType::Stripe(charge_type) => {
+                        match charge_type {
+                            api_models::enums::StripeChargeType::Direct => Some(IntentCharges {
+                                application_fee_amount: stripe_split_payment.application_fees,
+                                destination_account_id: None,
+                            }),
+                            api_models::enums::StripeChargeType::Destination => {
+                                Some(IntentCharges {
+                                    application_fee_amount: stripe_split_payment.application_fees,
+                                    destination_account_id: Some(
+                                        stripe_split_payment.transfer_account_id.clone(),
+                                    ),
+                                })
+                            }
+                        }
+                    }
                 };
                 (charges, None)
             }
@@ -3008,32 +3018,38 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for ChargeRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         let amount = item.request.minor_refund_amount;
-        match item.request.charges.as_ref() {
+        match item.request.split_refunds.as_ref() {
             None => Err(errors::ConnectorError::MissingRequiredField {
-                field_name: "charges",
+                field_name: "split_refunds",
             }
             .into()),
-            Some(charges) => {
-                let (refund_application_fee, reverse_transfer) = match charges.options {
-                    types::ChargeRefundsOptions::Direct(types::DirectChargeRefund {
-                        revert_platform_fee,
-                    }) => (Some(revert_platform_fee), None),
-                    types::ChargeRefundsOptions::Destination(types::DestinationChargeRefund {
-                        revert_platform_fee,
-                        revert_transfer,
-                    }) => (Some(revert_platform_fee), Some(revert_transfer)),
-                };
-                Ok(Self {
-                    charge: charges.charge_id.clone(),
-                    refund_application_fee,
-                    reverse_transfer,
-                    amount: Some(amount),
-                    meta_data: StripeMetadata {
-                        order_id: Some(item.request.refund_id.clone()),
-                        is_refund_id_as_reference: Some("true".to_string()),
-                    },
-                })
-            }
+
+            Some(split_refunds) => match split_refunds {
+                types::SplitRefundsRequest::StripeSplitRefund(stripe_refund) => {
+                    let (refund_application_fee, reverse_transfer) = match &stripe_refund.options {
+                        types::ChargeRefundsOptions::Direct(types::DirectChargeRefund {
+                            revert_platform_fee,
+                        }) => (Some(*revert_platform_fee), None),
+                        types::ChargeRefundsOptions::Destination(
+                            types::DestinationChargeRefund {
+                                revert_platform_fee,
+                                revert_transfer,
+                            },
+                        ) => (Some(*revert_platform_fee), Some(*revert_transfer)),
+                    };
+
+                    Ok(Self {
+                        charge: stripe_refund.charge_id.clone(),
+                        refund_application_fee,
+                        reverse_transfer,
+                        amount: Some(amount),
+                        meta_data: StripeMetadata {
+                            order_id: Some(item.request.refund_id.clone()),
+                            is_refund_id_as_reference: Some("true".to_string()),
+                        },
+                    })
+                }
+            },
         }
     }
 }

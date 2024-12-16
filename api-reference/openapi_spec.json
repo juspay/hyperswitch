@@ -867,7 +867,6 @@
           "Payments"
         ],
         "summary": "Payments - Complete Authorize",
-        "description": "\n",
         "operationId": "Complete Authorize a Payment",
         "parameters": [
           {
@@ -918,7 +917,6 @@
           "Payments"
         ],
         "summary": "Payments - Post Session Tokens",
-        "description": "\n",
         "operationId": "Create Post Session Tokens for a Payment",
         "requestBody": {
           "content": {
@@ -1118,7 +1116,7 @@
           "Refunds"
         ],
         "summary": "Refunds - List",
-        "description": "Lists all the refunds associated with the merchant or a payment_id if payment_id is not provided",
+        "description": "Lists all the refunds associated with the merchant, or for a specific payment if payment_id is provided",
         "operationId": "List all Refunds",
         "requestBody": {
           "content": {
@@ -3931,7 +3929,7 @@
         ],
         "summary": "Routing - Toggle success based dynamic routing for profile",
         "description": "Create a success based dynamic routing algorithm",
-        "operationId": "Toggle success based dynamic routing algprithm",
+        "operationId": "Toggle success based dynamic routing algorithm",
         "parameters": [
           {
             "name": "account_id",
@@ -3957,7 +3955,7 @@
             "description": "Feature to enable for success based routing",
             "required": true,
             "schema": {
-              "$ref": "#/components/schemas/SuccessBasedRoutingFeatures"
+              "$ref": "#/components/schemas/DynamicRoutingFeatures"
             }
           }
         ],
@@ -6757,7 +6755,7 @@
                   },
                   "bank_account_bic": {
                     "type": "string",
-                    "description": "Bank account details for Giropay\nBank account bic code",
+                    "description": "Bank account bic code",
                     "nullable": true
                   },
                   "bank_account_iban": {
@@ -7976,6 +7974,11 @@
                 "description": "A list of allowed domains (glob patterns) where this link can be embedded / opened from",
                 "uniqueItems": true,
                 "nullable": true
+              },
+              "branding_visibility": {
+                "type": "boolean",
+                "description": "Toggle for HyperSwitch branding visibility",
+                "nullable": true
               }
             }
           }
@@ -8014,7 +8017,8 @@
           "automatic",
           "manual",
           "manual_multiple",
-          "scheduled"
+          "scheduled",
+          "sequential_automatic"
         ]
       },
       "CaptureResponse": {
@@ -8670,6 +8674,57 @@
           }
         }
       },
+      "ClickToPaySessionResponse": {
+        "type": "object",
+        "required": [
+          "dpaId",
+          "dpaName",
+          "locale",
+          "cardBrands",
+          "acquirerBin",
+          "acquirerMerchantId",
+          "merchantCategoryCode",
+          "merchantCountryCode",
+          "transactionAmount",
+          "transactionCurrencyCode"
+        ],
+        "properties": {
+          "dpaId": {
+            "type": "string"
+          },
+          "dpaName": {
+            "type": "string"
+          },
+          "locale": {
+            "type": "string"
+          },
+          "cardBrands": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "acquirerBin": {
+            "type": "string"
+          },
+          "acquirerMerchantId": {
+            "type": "string"
+          },
+          "merchantCategoryCode": {
+            "type": "string"
+          },
+          "merchantCountryCode": {
+            "type": "string"
+          },
+          "transactionAmount": {
+            "type": "string",
+            "example": "38.02"
+          },
+          "transactionCurrencyCode": {
+            "$ref": "#/components/schemas/Currency"
+          }
+        }
+      },
       "Comparison": {
         "type": "object",
         "description": "Represents a single comparison condition.",
@@ -9304,6 +9359,31 @@
             "type": "object"
           }
         ]
+      },
+      "CtpServiceDetails": {
+        "type": "object",
+        "properties": {
+          "merchant_transaction_id": {
+            "type": "string",
+            "description": "merchant transaction id",
+            "nullable": true
+          },
+          "correlation_id": {
+            "type": "string",
+            "description": "network transaction correlation id",
+            "nullable": true
+          },
+          "x_src_flow_id": {
+            "type": "string",
+            "description": "session transaction flow id",
+            "nullable": true
+          },
+          "provider": {
+            "type": "string",
+            "description": "provider Eg: Visa, Mastercard",
+            "nullable": true
+          }
+        }
       },
       "Currency": {
         "type": "string",
@@ -10236,6 +10316,69 @@
           }
         }
       },
+      "DynamicRoutingFeatures": {
+        "type": "string",
+        "enum": [
+          "metrics",
+          "dynamic_connector_selection",
+          "none"
+        ]
+      },
+      "ElementPosition": {
+        "type": "string",
+        "enum": [
+          "left",
+          "top left",
+          "top",
+          "top right",
+          "right",
+          "bottom right",
+          "bottom",
+          "bottom left",
+          "center"
+        ]
+      },
+      "ElementSize": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "Variants"
+            ],
+            "properties": {
+              "Variants": {
+                "$ref": "#/components/schemas/SizeVariants"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "Percentage"
+            ],
+            "properties": {
+              "Percentage": {
+                "type": "integer",
+                "format": "int32",
+                "minimum": 0
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "Pixels"
+            ],
+            "properties": {
+              "Pixels": {
+                "type": "integer",
+                "format": "int32",
+                "minimum": 0
+              }
+            }
+          }
+        ]
+      },
       "EnabledPaymentMethod": {
         "type": "object",
         "description": "Object for EnabledPaymentMethod",
@@ -10289,6 +10432,16 @@
             "description": "ephemeral key"
           }
         }
+      },
+      "ErrorCategory": {
+        "type": "string",
+        "enum": [
+          "frm_decline",
+          "processor_downtime",
+          "processor_decline_unauthorized",
+          "issue_with_payment_method",
+          "processor_decline_incorrect_data"
+        ]
       },
       "EventClass": {
         "type": "string",
@@ -10906,6 +11059,24 @@
             "type": "string",
             "enum": [
               "user_iban"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_bsb_number"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_bank_sort_code"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_bank_routing_number"
             ]
           },
           {
@@ -11633,6 +11804,14 @@
             "type": "string",
             "description": "error message unified across the connectors",
             "nullable": true
+          },
+          "error_category": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ErrorCategory"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -11766,6 +11945,14 @@
             "type": "string",
             "description": "error message unified across the connectors",
             "nullable": true
+          },
+          "error_category": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ErrorCategory"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -11861,6 +12048,14 @@
           "unified_message": {
             "type": "string",
             "description": "error message unified across the connectors",
+            "nullable": true
+          },
+          "error_category": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ErrorCategory"
+              }
+            ],
             "nullable": true
           }
         }
@@ -15046,59 +15241,6 @@
           }
         }
       },
-      "PaymentChargeRequest": {
-        "type": "object",
-        "description": "Fee information to be charged on the payment being collected",
-        "required": [
-          "charge_type",
-          "fees",
-          "transfer_account_id"
-        ],
-        "properties": {
-          "charge_type": {
-            "$ref": "#/components/schemas/PaymentChargeType"
-          },
-          "fees": {
-            "type": "integer",
-            "format": "int64",
-            "description": "Platform fees to be collected on the payment",
-            "example": 6540
-          },
-          "transfer_account_id": {
-            "type": "string",
-            "description": "Identifier for the reseller's account to send the funds to"
-          }
-        }
-      },
-      "PaymentChargeResponse": {
-        "type": "object",
-        "description": "Fee information to be charged on the payment being collected",
-        "required": [
-          "charge_type",
-          "application_fees",
-          "transfer_account_id"
-        ],
-        "properties": {
-          "charge_id": {
-            "type": "string",
-            "description": "Identifier for charge created for the payment",
-            "nullable": true
-          },
-          "charge_type": {
-            "$ref": "#/components/schemas/PaymentChargeType"
-          },
-          "application_fees": {
-            "type": "integer",
-            "format": "int64",
-            "description": "Platform fees collected on the payment",
-            "example": 6540
-          },
-          "transfer_account_id": {
-            "type": "string",
-            "description": "Identifier for the reseller's account where the funds were transferred"
-          }
-        }
-      },
       "PaymentChargeType": {
         "oneOf": [
           {
@@ -15171,6 +15313,35 @@
           }
         }
       },
+      "PaymentLinkBackgroundImageConfig": {
+        "type": "object",
+        "required": [
+          "url"
+        ],
+        "properties": {
+          "url": {
+            "type": "string",
+            "description": "URL of the image",
+            "example": "https://hyperswitch.io/favicon.ico"
+          },
+          "position": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ElementPosition"
+              }
+            ],
+            "nullable": true
+          },
+          "size": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ElementSize"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
       "PaymentLinkConfig": {
         "type": "object",
         "required": [
@@ -15231,6 +15402,27 @@
               "$ref": "#/components/schemas/PaymentLinkTransactionDetails"
             },
             "description": "Dynamic details related to merchant to be rendered in payment link",
+            "nullable": true
+          },
+          "background_image": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentLinkBackgroundImageConfig"
+              }
+            ],
+            "nullable": true
+          },
+          "details_layout": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentLinkDetailsLayout"
+              }
+            ],
+            "nullable": true
+          },
+          "branding_visibility": {
+            "type": "boolean",
+            "description": "Toggle for HyperSwitch branding visibility",
             "nullable": true
           }
         }
@@ -15301,8 +15493,31 @@
             },
             "description": "Dynamic details related to merchant to be rendered in payment link",
             "nullable": true
+          },
+          "background_image": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentLinkBackgroundImageConfig"
+              }
+            ],
+            "nullable": true
+          },
+          "details_layout": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentLinkDetailsLayout"
+              }
+            ],
+            "nullable": true
           }
         }
+      },
+      "PaymentLinkDetailsLayout": {
+        "type": "string",
+        "enum": [
+          "layout1",
+          "layout2"
+        ]
       },
       "PaymentLinkInitiateRequest": {
         "type": "object",
@@ -17023,10 +17238,10 @@
             ],
             "nullable": true
           },
-          "charges": {
+          "split_payments": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/PaymentChargeRequest"
+                "$ref": "#/components/schemas/SplitPaymentsRequest"
               }
             ],
             "nullable": true
@@ -17047,6 +17262,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/ScaExemptionType"
+              }
+            ],
+            "nullable": true
+          },
+          "ctp_service_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CtpServiceDetails"
               }
             ],
             "nullable": true
@@ -17401,10 +17624,10 @@
             ],
             "nullable": true
           },
-          "charges": {
+          "split_payments": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/PaymentChargeRequest"
+                "$ref": "#/components/schemas/SplitPaymentsRequest"
               }
             ],
             "nullable": true
@@ -17425,6 +17648,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/ScaExemptionType"
+              }
+            ],
+            "nullable": true
+          },
+          "ctp_service_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CtpServiceDetails"
               }
             ],
             "nullable": true
@@ -17935,10 +18166,10 @@
             "example": "2022-09-10T10:11:12Z",
             "nullable": true
           },
-          "charges": {
+          "split_payments": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/PaymentChargeResponse"
+                "$ref": "#/components/schemas/SplitPaymentsResponse"
               }
             ],
             "nullable": true
@@ -18603,10 +18834,10 @@
             ],
             "nullable": true
           },
-          "charges": {
+          "split_payments": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/PaymentChargeRequest"
+                "$ref": "#/components/schemas/SplitPaymentsRequest"
               }
             ],
             "nullable": true
@@ -18627,6 +18858,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/ScaExemptionType"
+              }
+            ],
+            "nullable": true
+          },
+          "ctp_service_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CtpServiceDetails"
               }
             ],
             "nullable": true
@@ -19163,10 +19402,10 @@
             "example": "2022-09-10T10:11:12Z",
             "nullable": true
           },
-          "charges": {
+          "split_payments": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/PaymentChargeResponse"
+                "$ref": "#/components/schemas/SplitPaymentsResponse"
               }
             ],
             "nullable": true
@@ -19644,10 +19883,10 @@
             ],
             "nullable": true
           },
-          "charges": {
+          "split_payments": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/PaymentChargeRequest"
+                "$ref": "#/components/schemas/SplitPaymentsRequest"
               }
             ],
             "nullable": true
@@ -19668,6 +19907,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/ScaExemptionType"
+              }
+            ],
+            "nullable": true
+          },
+          "ctp_service_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CtpServiceDetails"
               }
             ],
             "nullable": true
@@ -21628,6 +21875,15 @@
             "description": "Maximum number of auto retries allowed for a payment",
             "nullable": true,
             "minimum": 0
+          },
+          "is_click_to_pay_enabled": {
+            "type": "boolean",
+            "description": "Indicates if click to pay is enabled or not."
+          },
+          "authentication_product_ids": {
+            "type": "object",
+            "description": "Product authentication ids",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -21660,7 +21916,8 @@
           "redirect_to_merchant_with_http_post",
           "is_tax_connector_enabled",
           "is_network_tokenization_enabled",
-          "is_auto_retries_enabled"
+          "is_auto_retries_enabled",
+          "is_click_to_pay_enabled"
         ],
         "properties": {
           "merchant_id": {
@@ -21856,6 +22113,17 @@
             "type": "integer",
             "format": "int32",
             "description": "Maximum number of auto retries allowed for a payment",
+            "nullable": true
+          },
+          "is_click_to_pay_enabled": {
+            "type": "boolean",
+            "description": "Indicates if click to pay is enabled or not.",
+            "default": false,
+            "example": false
+          },
+          "authentication_product_ids": {
+            "type": "object",
+            "description": "Product authentication ids",
             "nullable": true
           }
         }
@@ -22247,10 +22515,10 @@
             ],
             "nullable": true
           },
-          "charges": {
+          "split_refunds": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/ChargeRefunds"
+                "$ref": "#/components/schemas/SplitRefund"
               }
             ],
             "nullable": true
@@ -22338,10 +22606,10 @@
             "description": "The merchant_connector_id of the processor through which this payment went through",
             "nullable": true
           },
-          "charges": {
+          "split_refunds": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/ChargeRefunds"
+                "$ref": "#/components/schemas/SplitRefund"
               }
             ],
             "nullable": true
@@ -23728,6 +23996,27 @@
             ]
           },
           {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ClickToPaySessionResponse"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "wallet_name"
+                ],
+                "properties": {
+                  "wallet_name": {
+                    "type": "string",
+                    "enum": [
+                      "click_to_pay"
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
             "type": "object",
             "required": [
               "wallet_name"
@@ -23796,6 +24085,60 @@
             }
           }
         ]
+      },
+      "SizeVariants": {
+        "type": "string",
+        "enum": [
+          "cover",
+          "contain"
+        ]
+      },
+      "SplitPaymentsRequest": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "stripe_split_payment"
+            ],
+            "properties": {
+              "stripe_split_payment": {
+                "$ref": "#/components/schemas/StripeSplitPaymentRequest"
+              }
+            }
+          }
+        ],
+        "description": "Fee information for Split Payments to be charged on the payment being collected"
+      },
+      "SplitPaymentsResponse": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "stripe_split_payment"
+            ],
+            "properties": {
+              "stripe_split_payment": {
+                "$ref": "#/components/schemas/StripeSplitPaymentsResponse"
+              }
+            }
+          }
+        ]
+      },
+      "SplitRefund": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "stripe_split_refund"
+            ],
+            "properties": {
+              "stripe_split_refund": {
+                "$ref": "#/components/schemas/StripeSplitRefundRequest"
+              }
+            }
+          }
+        ],
+        "description": "Charge specific fields for controlling the revert of funds from either platform or connected account. Check sub-fields for more details."
       },
       "StraightThroughAlgorithm": {
         "oneOf": [
@@ -23874,13 +24217,76 @@
           "destination"
         ]
       },
-      "SuccessBasedRoutingFeatures": {
-        "type": "string",
-        "enum": [
-          "metrics",
-          "dynamic_connector_selection",
-          "none"
-        ]
+      "StripeSplitPaymentRequest": {
+        "type": "object",
+        "description": "Fee information for Split Payments to be charged on the payment being collected for Stripe",
+        "required": [
+          "charge_type",
+          "application_fees",
+          "transfer_account_id"
+        ],
+        "properties": {
+          "charge_type": {
+            "$ref": "#/components/schemas/PaymentChargeType"
+          },
+          "application_fees": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Platform fees to be collected on the payment",
+            "example": 6540
+          },
+          "transfer_account_id": {
+            "type": "string",
+            "description": "Identifier for the reseller's account to send the funds to"
+          }
+        },
+        "additionalProperties": false
+      },
+      "StripeSplitPaymentsResponse": {
+        "type": "object",
+        "description": "Fee information to be charged on the payment being collected",
+        "required": [
+          "charge_type",
+          "application_fees",
+          "transfer_account_id"
+        ],
+        "properties": {
+          "charge_id": {
+            "type": "string",
+            "description": "Identifier for charge created for the payment",
+            "nullable": true
+          },
+          "charge_type": {
+            "$ref": "#/components/schemas/PaymentChargeType"
+          },
+          "application_fees": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Platform fees collected on the payment",
+            "example": 6540
+          },
+          "transfer_account_id": {
+            "type": "string",
+            "description": "Identifier for the reseller's account where the funds were transferred"
+          }
+        }
+      },
+      "StripeSplitRefundRequest": {
+        "type": "object",
+        "description": "Charge specific fields for controlling the revert of funds from either platform or connected account for Stripe. Check sub-fields for more details.",
+        "properties": {
+          "revert_platform_fee": {
+            "type": "boolean",
+            "description": "Toggle for reverting the application fee that was collected for the payment.\nIf set to false, the funds are pulled from the destination account.",
+            "nullable": true
+          },
+          "revert_transfer": {
+            "type": "boolean",
+            "description": "Toggle for reverting the transfer that was made during the charge.\nIf set to false, the funds are pulled from the main platform's account.",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
       },
       "SurchargeDetailsResponse": {
         "type": "object",
@@ -24098,6 +24504,28 @@
           }
         }
       },
+      "ToggleDynamicRoutingPath": {
+        "type": "object",
+        "required": [
+          "profile_id"
+        ],
+        "properties": {
+          "profile_id": {
+            "type": "string"
+          }
+        }
+      },
+      "ToggleDynamicRoutingQuery": {
+        "type": "object",
+        "required": [
+          "enable"
+        ],
+        "properties": {
+          "enable": {
+            "$ref": "#/components/schemas/DynamicRoutingFeatures"
+          }
+        }
+      },
       "ToggleKVRequest": {
         "type": "object",
         "required": [
@@ -24128,28 +24556,6 @@
             "type": "boolean",
             "description": "Status of KV for the specific merchant",
             "example": true
-          }
-        }
-      },
-      "ToggleSuccessBasedRoutingPath": {
-        "type": "object",
-        "required": [
-          "profile_id"
-        ],
-        "properties": {
-          "profile_id": {
-            "type": "string"
-          }
-        }
-      },
-      "ToggleSuccessBasedRoutingQuery": {
-        "type": "object",
-        "required": [
-          "enable"
-        ],
-        "properties": {
-          "enable": {
-            "$ref": "#/components/schemas/SuccessBasedRoutingFeatures"
           }
         }
       },

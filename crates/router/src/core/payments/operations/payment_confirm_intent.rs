@@ -71,7 +71,7 @@ type BoxedConfirmOperation<'b, F> =
 
 // TODO: change the macro to include changes for v2
 // TODO: PaymentData in the macro should be an input
-impl<F: Send + Clone> Operation<F, PaymentsConfirmIntentRequest> for &PaymentIntentConfirm {
+impl<F: Send + Clone + Sync> Operation<F, PaymentsConfirmIntentRequest> for &PaymentIntentConfirm {
     type Data = PaymentConfirmData<F>;
     fn to_validate_request(
         &self,
@@ -99,7 +99,7 @@ impl<F: Send + Clone> Operation<F, PaymentsConfirmIntentRequest> for &PaymentInt
     }
 }
 #[automatically_derived]
-impl<F: Send + Clone> Operation<F, PaymentsConfirmIntentRequest> for PaymentIntentConfirm {
+impl<F: Send + Clone + Sync> Operation<F, PaymentsConfirmIntentRequest> for PaymentIntentConfirm {
     type Data = PaymentConfirmData<F>;
     fn to_validate_request(
         &self,
@@ -125,7 +125,7 @@ impl<F: Send + Clone> Operation<F, PaymentsConfirmIntentRequest> for PaymentInte
     }
 }
 
-impl<F: Send + Clone> ValidateRequest<F, PaymentsConfirmIntentRequest, PaymentConfirmData<F>>
+impl<F: Send + Clone + Sync> ValidateRequest<F, PaymentsConfirmIntentRequest, PaymentConfirmData<F>>
     for PaymentIntentConfirm
 {
     #[instrument(skip_all)]
@@ -145,7 +145,7 @@ impl<F: Send + Clone> ValidateRequest<F, PaymentsConfirmIntentRequest, PaymentCo
 }
 
 #[async_trait]
-impl<F: Send + Clone> GetTracker<F, PaymentConfirmData<F>, PaymentsConfirmIntentRequest>
+impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, PaymentsConfirmIntentRequest>
     for PaymentIntentConfirm
 {
     #[instrument(skip_all)]
@@ -229,11 +229,28 @@ impl<F: Send + Clone> GetTracker<F, PaymentConfirmData<F>, PaymentsConfirmIntent
             .clone()
             .map(hyperswitch_domain_models::payment_method_data::PaymentMethodData::from);
 
+        let payment_address = hyperswitch_domain_models::payment_address::PaymentAddress::new(
+            payment_intent
+                .shipping_address
+                .clone()
+                .map(|address| address.into_inner()),
+            payment_intent
+                .billing_address
+                .clone()
+                .map(|address| address.into_inner()),
+            payment_attempt
+                .payment_method_billing_address
+                .clone()
+                .map(|address| address.into_inner()),
+            Some(true),
+        );
+
         let payment_data = PaymentConfirmData {
             flow: std::marker::PhantomData,
             payment_intent,
             payment_attempt,
             payment_method_data,
+            payment_address,
         };
 
         let get_trackers_response = operations::GetTrackerResponse { payment_data };
@@ -243,7 +260,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentConfirmData<F>, PaymentsConfirmIntent
 }
 
 #[async_trait]
-impl<F: Clone + Send> Domain<F, PaymentsConfirmIntentRequest, PaymentConfirmData<F>>
+impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConfirmData<F>>
     for PaymentIntentConfirm
 {
     async fn get_customer_details<'a>(
@@ -332,7 +349,7 @@ impl<F: Clone + Send> Domain<F, PaymentsConfirmIntentRequest, PaymentConfirmData
 }
 
 #[async_trait]
-impl<F: Clone> UpdateTracker<F, PaymentConfirmData<F>, PaymentsConfirmIntentRequest>
+impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, PaymentsConfirmIntentRequest>
     for PaymentIntentConfirm
 {
     #[instrument(skip_all)]
