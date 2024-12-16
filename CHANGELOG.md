@@ -4,6 +4,14 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.12.11.0-hotfix4
+
+### Bug Fixes
+
+- **user_roles:** Migrations for backfilling user_roles entity_id ([#6847](https://github.com/juspay/hyperswitch/pull/6847)) ([`aae4667`](https://github.com/juspay/hyperswitch/commit/aae4667564943ec8a1892d43372749151360b2ec))
+
+- - -
+
 ## 2024.12.11.0-hotfix3
 
 ### Features
