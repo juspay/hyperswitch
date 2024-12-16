@@ -2,9 +2,7 @@ use std::{borrow::Cow, str::FromStr};
 
 use api_models::{
     mandates::RecurringDetails,
-    payments::{
-        additional_info as payment_additional_types, PaymentChargeRequest, RequestSurchargeDetails,
-    },
+    payments::{additional_info as payment_additional_types, RequestSurchargeDetails},
 };
 use base64::Engine;
 use common_enums::ConnectorType;
@@ -3492,7 +3490,7 @@ mod tests {
                     .saturating_add(time::Duration::seconds(consts::DEFAULT_SESSION_EXPIRY)),
             ),
             request_external_three_ds_authentication: None,
-            charges: None,
+            split_payments: None,
             frm_metadata: None,
             customer_details: None,
             billing_details: None,
@@ -3562,7 +3560,7 @@ mod tests {
                 created_at.saturating_add(time::Duration::seconds(consts::DEFAULT_SESSION_EXPIRY)),
             ),
             request_external_three_ds_authentication: None,
-            charges: None,
+            split_payments: None,
             frm_metadata: None,
             customer_details: None,
             billing_details: None,
@@ -3630,7 +3628,7 @@ mod tests {
                     .saturating_add(time::Duration::seconds(consts::DEFAULT_SESSION_EXPIRY)),
             ),
             request_external_three_ds_authentication: None,
-            charges: None,
+            split_payments: None,
             frm_metadata: None,
             customer_details: None,
             billing_details: None,
@@ -3964,6 +3962,7 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
         additional_merchant_data: router_data.additional_merchant_data,
         header_payload: router_data.header_payload,
         connector_mandate_request_reference_id: router_data.connector_mandate_request_reference_id,
+        authentication_id: router_data.authentication_id,
         psd2_sca_exemption_type: router_data.psd2_sca_exemption_type,
     }
 }
@@ -4434,7 +4433,7 @@ pub async fn get_additional_payment_data(
                         api_models::payments::AdditionalPaymentData::Card(Box::new(
                             api_models::payments::AdditionalCardInfo {
                                 card_issuer: card_info.card_issuer,
-                                card_network: card_info.card_network,
+                                card_network: card_network.or(card_info.card_network),
                                 bank_code: card_info.bank_code,
                                 card_type: card_info.card_type,
                                 card_issuing_country: card_info.card_issuing_country,
@@ -4697,7 +4696,7 @@ pub async fn get_additional_payment_data(
                         api_models::payments::AdditionalPaymentData::Card(Box::new(
                             api_models::payments::AdditionalCardInfo {
                                 card_issuer: card_info.card_issuer,
-                                card_network: card_info.card_network,
+                                card_network: card_network.or(card_info.card_network),
                                 bank_code: card_info.bank_code,
                                 card_type: card_info.card_type,
                                 card_issuing_country: card_info.card_issuing_country,
@@ -6130,26 +6129,28 @@ pub async fn validate_merchant_connector_ids_in_connector_mandate_details(
 
 pub fn validate_platform_fees_for_marketplace(
     amount: api::Amount,
-    charges: &PaymentChargeRequest,
+    split_payments: Option<common_types::payments::SplitPaymentsRequest>,
 ) -> Result<(), errors::ApiErrorResponse> {
-    match amount {
-        api::Amount::Zero => {
-            if charges.fees.get_amount_as_i64() != 0 {
-                Err(errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "charges.fees",
-                })
-            } else {
-                Ok(())
+    if let Some(common_types::payments::SplitPaymentsRequest::StripeSplitPayment(
+        stripe_split_payment,
+    )) = split_payments
+    {
+        match amount {
+            api::Amount::Zero => {
+                if stripe_split_payment.application_fees.get_amount_as_i64() != 0 {
+                    return Err(errors::ApiErrorResponse::InvalidDataValue {
+                        field_name: "split_payments.stripe_split_payment.application_fees",
+                    });
+                }
             }
-        }
-        api::Amount::Value(amount) => {
-            if charges.fees.get_amount_as_i64() > amount.into() {
-                Err(errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "charges.fees",
-                })
-            } else {
-                Ok(())
+            api::Amount::Value(amount) => {
+                if stripe_split_payment.application_fees.get_amount_as_i64() > amount.into() {
+                    return Err(errors::ApiErrorResponse::InvalidDataValue {
+                        field_name: "split_payments.stripe_split_payment.application_fees",
+                    });
+                }
             }
         }
     }
+    Ok(())
 }

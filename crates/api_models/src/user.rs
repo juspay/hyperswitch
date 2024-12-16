@@ -150,6 +150,7 @@ pub struct GetUserDetailsResponse {
     pub recovery_codes_left: Option<usize>,
     pub profile_id: id_type::ProfileId,
     pub entity_type: EntityType,
+    pub theme_id: Option<String>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
@@ -351,8 +352,9 @@ pub struct SsoSignInRequest {
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
-pub struct AuthIdQueryParam {
+pub struct AuthIdAndThemeIdQueryParam {
     pub auth_id: Option<String>,
+    pub theme_id: Option<String>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]

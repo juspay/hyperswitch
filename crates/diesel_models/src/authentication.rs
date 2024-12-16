@@ -47,6 +47,7 @@ pub struct Authentication {
     pub ds_trans_id: Option<String>,
     pub directory_server_id: Option<String>,
     pub acquirer_country_code: Option<String>,
+    pub service_details: Option<serde_json::Value>,
 }
 
 impl Authentication {
@@ -94,6 +95,7 @@ pub struct AuthenticationNew {
     pub ds_trans_id: Option<String>,
     pub directory_server_id: Option<String>,
     pub acquirer_country_code: Option<String>,
+    pub service_details: Option<serde_json::Value>,
 }
 
 #[derive(Debug)]
@@ -152,6 +154,10 @@ pub enum AuthenticationUpdate {
     PostAuthorizationUpdate {
         authentication_lifecycle_status: common_enums::AuthenticationLifecycleStatus,
     },
+    AuthenticationStatusUpdate {
+        trans_status: common_enums::TransactionStatus,
+        authentication_status: common_enums::AuthenticationStatus,
+    },
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, AsChangeset, Serialize, Deserialize)]
@@ -186,6 +192,7 @@ pub struct AuthenticationUpdateInternal {
     pub ds_trans_id: Option<String>,
     pub directory_server_id: Option<String>,
     pub acquirer_country_code: Option<String>,
+    pub service_details: Option<serde_json::Value>,
 }
 
 impl Default for AuthenticationUpdateInternal {
@@ -219,6 +226,7 @@ impl Default for AuthenticationUpdateInternal {
             ds_trans_id: Default::default(),
             directory_server_id: Default::default(),
             acquirer_country_code: Default::default(),
+            service_details: Default::default(),
         }
     }
 }
@@ -254,6 +262,7 @@ impl AuthenticationUpdateInternal {
             ds_trans_id,
             directory_server_id,
             acquirer_country_code,
+            service_details,
         } = self;
         Authentication {
             connector_authentication_id: connector_authentication_id
@@ -288,6 +297,7 @@ impl AuthenticationUpdateInternal {
             ds_trans_id: ds_trans_id.or(source.ds_trans_id),
             directory_server_id: directory_server_id.or(source.directory_server_id),
             acquirer_country_code: acquirer_country_code.or(source.acquirer_country_code),
+            service_details: service_details.or(source.service_details),
             ..source
         }
     }
@@ -416,6 +426,14 @@ impl From<AuthenticationUpdate> for AuthenticationUpdateInternal {
                 acquirer_bin,
                 acquirer_merchant_id,
                 connector_metadata,
+                ..Default::default()
+            },
+            AuthenticationUpdate::AuthenticationStatusUpdate {
+                trans_status,
+                authentication_status,
+            } => Self {
+                trans_status: Some(trans_status),
+                authentication_status: Some(authentication_status),
                 ..Default::default()
             },
         }

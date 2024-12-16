@@ -404,7 +404,7 @@ pub trait ConnectorActions: Connector {
                 reason: None,
                 connector_refund_id: Some(refund_id),
                 browser_info: None,
-                charges: None,
+                split_refunds: None,
                 integrity_object: None,
                 refund_status: enums::RefundStatus::Pending,
             }),
@@ -549,6 +549,7 @@ pub trait ConnectorActions: Connector {
             header_payload: None,
             connector_mandate_request_reference_id: None,
             psd2_sca_exemption_type: None,
+            authentication_id: None,
         }
     }
 
@@ -966,7 +967,7 @@ impl Default for PaymentAuthorizeType {
             metadata: None,
             authentication_data: None,
             customer_acceptance: None,
-            charges: None,
+            split_payments: None,
             integrity_object: None,
             merchant_order_reference_id: None,
             additional_payment_method_data: None,
@@ -1053,7 +1054,7 @@ impl Default for PaymentRefundType {
             reason: Some("Customer returned product".to_string()),
             connector_refund_id: None,
             browser_info: None,
-            charges: None,
+            split_refunds: None,
             integrity_object: None,
             refund_status: enums::RefundStatus::Pending,
         };

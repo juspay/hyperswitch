@@ -92,7 +92,7 @@ pub struct PaymentIntent {
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
     pub session_expiry: Option<PrimitiveDateTime>,
     pub request_external_three_ds_authentication: Option<bool>,
-    pub charges: Option<pii::SecretSerdeValue>,
+    pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
     pub frm_metadata: Option<pii::SecretSerdeValue>,
     #[encrypt]
     pub customer_details: Option<Encryptable<Secret<Value>>>,
@@ -518,6 +518,19 @@ pub struct HeaderPayload {
     pub locale: Option<String>,
     pub x_app_id: Option<String>,
     pub x_redirect_uri: Option<String>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ClickToPayMetaData {
+    pub dpa_id: String,
+    pub dpa_name: String,
+    pub locale: String,
+    pub card_brands: Vec<String>,
+    pub acquirer_bin: String,
+    pub acquirer_merchant_id: String,
+    pub merchant_category_code: String,
+    pub merchant_country_code: String,
 }
 
 // TODO: uncomment fields as necessary
