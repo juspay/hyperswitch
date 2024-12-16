@@ -19,7 +19,10 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install wasm-pack
-	      uses: taiki-e/install-action@v2.41.10
+        uses: taiki-e/install-action@v2.41.10
+        with:
+          tool: wasm-pack
+          checksum: true
 
       - name: wasm build
         shell: bash
