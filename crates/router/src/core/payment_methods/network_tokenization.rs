@@ -436,6 +436,7 @@ pub async fn get_token_from_tokenization_service(
         card_type: None,
         card_issuing_country: None,
         bank_code: None,
+        eci: None,
     };
     Ok(network_token_data)
 }

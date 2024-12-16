@@ -3488,7 +3488,9 @@
         "enum": [
           "threedsecureio",
           "netcetera",
-          "gpayments"
+          "gpayments",
+          "ctp_mastercard",
+          "unified_authentication_service"
         ]
       },
       "AuthenticationStatus": {
@@ -6430,6 +6432,7 @@
           "checkout",
           "coinbase",
           "cryptopay",
+          "ctp_mastercard",
           "cybersource",
           "datatrans",
           "deutschebank",
