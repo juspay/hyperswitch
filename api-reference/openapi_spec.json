@@ -8677,50 +8677,50 @@
       "ClickToPaySessionResponse": {
         "type": "object",
         "required": [
-          "dpaId",
-          "dpaName",
+          "dpa_id",
+          "dpa_name",
           "locale",
-          "cardBrands",
-          "acquirerBin",
-          "acquirerMerchantId",
-          "merchantCategoryCode",
-          "merchantCountryCode",
-          "transactionAmount",
-          "transactionCurrencyCode"
+          "card_brands",
+          "acquirer_bin",
+          "acquirer_merchant_id",
+          "merchant_category_code",
+          "merchant_country_code",
+          "transaction_amount",
+          "transaction_currency_code"
         ],
         "properties": {
-          "dpaId": {
+          "dpa_id": {
             "type": "string"
           },
-          "dpaName": {
+          "dpa_name": {
             "type": "string"
           },
           "locale": {
             "type": "string"
           },
-          "cardBrands": {
+          "card_brands": {
             "type": "array",
             "items": {
               "type": "string"
             }
           },
-          "acquirerBin": {
+          "acquirer_bin": {
             "type": "string"
           },
-          "acquirerMerchantId": {
+          "acquirer_merchant_id": {
             "type": "string"
           },
-          "merchantCategoryCode": {
+          "merchant_category_code": {
             "type": "string"
           },
-          "merchantCountryCode": {
+          "merchant_country_code": {
             "type": "string"
           },
-          "transactionAmount": {
+          "transaction_amount": {
             "type": "string",
             "example": "38.02"
           },
-          "transactionCurrencyCode": {
+          "transaction_currency_code": {
             "$ref": "#/components/schemas/Currency"
           }
         }
