@@ -5330,7 +5330,8 @@ pub async fn get_card_details_with_locker_fallback(
         });
 
     Ok(if let Some(mut crd) = card_decrypted {
-        crd.scheme.clone_from(&pm.scheme);
+        let scheme = crd.card_network.clone().map(|cn| cn.to_string());
+        crd.scheme.clone_from(&scheme);
         Some(crd)
     } else {
         logger::debug!(
@@ -5359,7 +5360,8 @@ pub async fn get_card_details_without_locker_fallback(
         });
 
     Ok(if let Some(mut crd) = card_decrypted {
-        crd.scheme.clone_from(&pm.scheme);
+        let scheme = crd.card_network.clone().map(|cn| cn.to_string());
+        crd.scheme.clone_from(&scheme);
         crd
     } else {
         logger::debug!(
