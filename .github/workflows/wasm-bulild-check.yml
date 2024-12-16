@@ -18,8 +18,13 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable 2 weeks ago
+
       - name: Install wasm-pack
-        uses: taiki-e/install-action@v2.41.10
+        uses: taiki-e/install-action@v2
         with:
           tool: wasm-pack
           checksum: true
