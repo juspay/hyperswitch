@@ -52,7 +52,7 @@ use crate::{
     types::ResponseRouterData,
     utils::{
         self, PaymentsAuthorizeRequestData, PaymentsCompleteAuthorizeRequestData,
-        RefundsRequestData, RouterData as ConnectorsRouterData
+        RefundsRequestData, RouterData as ConnectorsRouterData,
     },
 };
 
@@ -320,38 +320,34 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         req: &PaymentsAuthorizeRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-
         let event_id = req.connector_request_reference_id.clone();
-            let tx_action = if req.request.is_auto_capture()? {
-                "authorization"
-            } else {
-                "preauthorization"
-            };
-        
+        let tx_action = if req.request.is_auto_capture()? {
+            "authorization"
+        } else {
+            "preauthorization"
+        };
+
         if req.is_three_ds() && req.request.is_card() {
             Ok(format!(
                 "{}/services/v2.1/headless3DSecure/event/{event_id}/{tx_action}/initialize",
-                    self.base_url(connectors)
+                self.base_url(connectors)
             ))
-        }
-        else if !req.is_three_ds() && req.request.is_card() {
+        } else if !req.is_three_ds() && req.request.is_card() {
             Err(errors::ConnectorError::NotSupported {
                 message: "No three ds for credit card transactions".to_owned(),
                 connector: "deutschebank",
             }
             .into())
-        }
-        else if req.request.connector_mandate_id().is_none() {
+        } else if req.request.connector_mandate_id().is_none() {
             Ok(format!(
                 "{}/services/v2.1/managedmandate",
                 self.base_url(connectors)
             ))
-        } 
-        else {
+        } else {
             Ok(format!(
                 "{}/services/v2.1/payment/event/{event_id}/directdebit/{tx_action}",
                 self.base_url(connectors)
-                ))    
+            ))
         }
     }
 
@@ -411,8 +407,8 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                 response,
                 data: data.clone(),
                 http_code: res.status_code,
-        })}
-        else if data.request.connector_mandate_id().is_none() {
+            })
+        } else if data.request.connector_mandate_id().is_none() {
             let response: deutschebank::DeutschebankMandatePostResponse = res
                 .response
                 .parse_struct("DeutschebankMandatePostResponse")
@@ -424,8 +420,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                 data: data.clone(),
                 http_code: res.status_code,
             })
-        } 
-        else {
+        } else {
             let response: deutschebank::DeutschebankPaymentsResponse = res
                 .response
                 .parse_struct("DeutschebankPaymentsAuthorizeResponse")
@@ -436,7 +431,8 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                 response,
                 data: data.clone(),
                 http_code: res.status_code,
-        })} 
+            })
+        }
     }
 
     fn get_error_response(
@@ -477,16 +473,15 @@ impl ConnectorIntegration<CompleteAuthorize, CompleteAuthorizeData, PaymentsResp
 
         if req.is_three_ds() {
             Ok(format!(
-               "{}/services/v2.1//headless3DSecure/event/{event_id}/final",
-               self.base_url(connectors)
+                "{}/services/v2.1//headless3DSecure/event/{event_id}/final",
+                self.base_url(connectors)
             ))
-        }
-        else {
+        } else {
             Ok(format!(
                 "{}/services/v2.1/payment/event/{event_id}/directdebit/{tx_action}",
                 self.base_url(connectors)
             ))
-        }  
+        }
     }
 
     fn get_request_body(

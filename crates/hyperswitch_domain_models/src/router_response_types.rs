@@ -317,13 +317,9 @@ impl From<RedirectForm> for diesel_models::payment_attempt::RedirectForm {
                 access_token,
                 step_up_url,
             },
-            RedirectForm::DeutschebankThreeDSChallengeFlow { 
-                acs_url, 
-                creq 
-            } => Self::DeutschebankThreeDSChallengeFlow { 
-                acs_url, 
-                creq 
-            },
+            RedirectForm::DeutschebankThreeDSChallengeFlow { acs_url, creq } => {
+                Self::DeutschebankThreeDSChallengeFlow { acs_url, creq }
+            }
             RedirectForm::Payme => Self::Payme,
             RedirectForm::Braintree {
                 client_token,
@@ -363,7 +359,6 @@ impl From<RedirectForm> for diesel_models::payment_attempt::RedirectForm {
                 form_fields,
                 collection_id,
             },
-            
         }
     }
 }
@@ -404,13 +399,9 @@ impl From<diesel_models::payment_attempt::RedirectForm> for RedirectForm {
                 access_token,
                 step_up_url,
             },
-            diesel_models::RedirectForm::DeutschebankThreeDSChallengeFlow { 
-                acs_url, 
-                creq 
-            } => Self::DeutschebankThreeDSChallengeFlow { 
-                acs_url, 
-                creq 
-            },
+            diesel_models::RedirectForm::DeutschebankThreeDSChallengeFlow { acs_url, creq } => {
+                Self::DeutschebankThreeDSChallengeFlow { acs_url, creq }
+            }
             diesel_models::payment_attempt::RedirectForm::Payme => Self::Payme,
             diesel_models::payment_attempt::RedirectForm::Braintree {
                 client_token,

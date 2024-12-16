@@ -1531,10 +1531,7 @@ pub fn build_redirection_form(
               </script>")))
             }}
         }
-        RedirectForm::DeutschebankThreeDSChallengeFlow { 
-            acs_url, 
-            creq 
-        } => {
+        RedirectForm::DeutschebankThreeDSChallengeFlow { acs_url, creq } => {
             maud::html! {
                 (maud::DOCTYPE)
                 html {
@@ -1993,7 +1990,6 @@ pub fn build_redirection_form(
                 }
             }
         },
-        
     }
 }
 
