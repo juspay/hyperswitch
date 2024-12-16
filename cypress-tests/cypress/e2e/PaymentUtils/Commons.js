@@ -708,6 +708,20 @@ export const connectorDetails = {
         setup_future_usage: "on_session",
       },
     }),
+    No3DSFailPayment: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {},
+      },
+    }),
     Capture: getCustomExchange({
       Request: {
         payment_method: "card",

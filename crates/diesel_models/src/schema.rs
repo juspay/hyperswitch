@@ -967,6 +967,7 @@ diesel::table! {
         tax_details -> Nullable<Jsonb>,
         skip_external_tax_calculation -> Nullable<Bool>,
         psd2_sca_exemption_type -> Nullable<ScaExemptionType>,
+        split_payments -> Nullable<Jsonb>,
     }
 }
 
@@ -1228,6 +1229,7 @@ diesel::table! {
         connector_refund_data -> Nullable<Varchar>,
         #[max_length = 512]
         connector_transaction_data -> Nullable<Varchar>,
+        split_refunds -> Nullable<Jsonb>,
     }
 }
 

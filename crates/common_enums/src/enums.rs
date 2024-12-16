@@ -3465,6 +3465,44 @@ pub enum ErrorCategory {
     ProcessorDeclineIncorrectData,
 }
 
+#[derive(
+    Clone,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+    Hash,
+)]
+pub enum PaymentChargeType {
+    #[serde(untagged)]
+    Stripe(StripeChargeType),
+}
+
+#[derive(
+    Clone,
+    Debug,
+    Default,
+    Hash,
+    Eq,
+    PartialEq,
+    ToSchema,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    strum::EnumString,
+)]
+#[serde(rename_all = "lowercase")]
+#[strum(serialize_all = "lowercase")]
+pub enum StripeChargeType {
+    #[default]
+    Direct,
+    Destination,
+}
+
 /// Connector Access Method
 #[derive(
     Clone,

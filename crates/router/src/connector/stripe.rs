@@ -8,6 +8,7 @@ use common_utils::{
 };
 use diesel_models::enums;
 use error_stack::ResultExt;
+use hyperswitch_domain_models::router_request_types::SplitRefundsRequest;
 use masking::PeekInterface;
 use router_env::{instrument, tracing};
 use stripe::auth_headers;
@@ -764,13 +765,20 @@ impl
         )];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
-        req.request.charges.as_ref().map(|charges| {
-            transformers::transform_headers_for_connect_platform(
-                charges.charge_type.clone(),
-                charges.transfer_account_id.clone(),
-                &mut header,
-            )
-        });
+
+        if let Some(split_payments) = &req.request.split_payments {
+            match split_payments {
+                common_types::payments::SplitPaymentsRequest::StripeSplitPayment(
+                    stripe_split_payment,
+                ) => {
+                    transformers::transform_headers_for_connect_platform(
+                        stripe_split_payment.charge_type.clone(),
+                        stripe_split_payment.transfer_account_id.clone(),
+                        &mut header,
+                    );
+                }
+            }
+        }
         Ok(header)
     }
 
@@ -935,20 +943,28 @@ impl
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
 
-        req.request
-            .charges
-            .as_ref()
-            .map(|charge| match &charge.charge_type {
-                api::enums::PaymentChargeType::Stripe(stripe_charge) => {
-                    if stripe_charge == &api::enums::StripeChargeType::Direct {
+        if let Some(split_payments) = &req.request.split_payments {
+            match split_payments {
+                common_types::payments::SplitPaymentsRequest::StripeSplitPayment(
+                    stripe_split_payment,
+                ) => {
+                    if stripe_split_payment.charge_type
+                        == api::enums::PaymentChargeType::Stripe(
+                            api::enums::StripeChargeType::Direct,
+                        )
+                    {
                         let mut customer_account_header = vec![(
                             headers::STRIPE_COMPATIBLE_CONNECT_ACCOUNT.to_string(),
-                            charge.transfer_account_id.clone().into_masked(),
+                            stripe_split_payment
+                                .transfer_account_id
+                                .clone()
+                                .into_masked(),
                         )];
                         header.append(&mut customer_account_header);
                     }
                 }
-            });
+            }
+        }
         Ok(header)
     }
 
@@ -1468,20 +1484,26 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
 
-        req.request
-            .charges
-            .as_ref()
-            .map(|charge| match &charge.charge_type {
-                api::enums::PaymentChargeType::Stripe(stripe_charge) => {
-                    if stripe_charge == &api::enums::StripeChargeType::Direct {
-                        let mut customer_account_header = vec![(
-                            headers::STRIPE_COMPATIBLE_CONNECT_ACCOUNT.to_string(),
-                            charge.transfer_account_id.clone().into_masked(),
-                        )];
-                        header.append(&mut customer_account_header);
+        if let Some(split_refunds) = req.request.split_refunds.as_ref() {
+            match split_refunds {
+                SplitRefundsRequest::StripeSplitRefund(ref stripe_split_refund) => {
+                    match &stripe_split_refund.charge_type {
+                        api::enums::PaymentChargeType::Stripe(stripe_charge) => {
+                            if stripe_charge == &api::enums::StripeChargeType::Direct {
+                                let mut customer_account_header = vec![(
+                                    headers::STRIPE_COMPATIBLE_CONNECT_ACCOUNT.to_string(),
+                                    stripe_split_refund
+                                        .transfer_account_id
+                                        .clone()
+                                        .into_masked(),
+                                )];
+                                header.append(&mut customer_account_header);
+                            }
+                        }
                     }
                 }
-            });
+            }
+        }
         Ok(header)
     }
 
@@ -1507,14 +1529,16 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
             req.request.minor_refund_amount,
             req.request.currency,
         )?;
-        let request_body = match req.request.charges.as_ref() {
+        let request_body = match req.request.split_refunds.as_ref() {
             None => RequestContent::FormUrlEncoded(Box::new(stripe::RefundRequest::try_from((
                 req,
                 refund_amount,
             ))?)),
-            Some(_) => RequestContent::FormUrlEncoded(Box::new(
-                stripe::ChargeRefundRequest::try_from(req)?,
-            )),
+            Some(split_refunds) => match split_refunds {
+                SplitRefundsRequest::StripeSplitRefund(_) => RequestContent::FormUrlEncoded(
+                    Box::new(stripe::ChargeRefundRequest::try_from(req)?),
+                ),
+            },
         };
         Ok(request_body)
     }
@@ -1628,13 +1652,18 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
         )];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
-        req.request.charges.as_ref().map(|charges| {
-            transformers::transform_headers_for_connect_platform(
-                charges.charge_type.clone(),
-                charges.transfer_account_id.clone(),
-                &mut header,
-            )
-        });
+
+        if let Some(split_refunds) = req.request.split_refunds.as_ref() {
+            match split_refunds {
+                SplitRefundsRequest::StripeSplitRefund(ref stripe_refund) => {
+                    transformers::transform_headers_for_connect_platform(
+                        stripe_refund.charge_type.clone(),
+                        stripe_refund.transfer_account_id.clone(),
+                        &mut header,
+                    );
+                }
+            }
+        }
         Ok(header)
     }
 

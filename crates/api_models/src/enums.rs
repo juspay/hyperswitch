@@ -401,50 +401,6 @@ pub fn convert_tax_connector(connector_name: &str) -> Option<TaxConnectors> {
     TaxConnectors::from_str(connector_name).ok()
 }
 
-#[derive(
-    Clone,
-    Debug,
-    Eq,
-    PartialEq,
-    serde::Deserialize,
-    serde::Serialize,
-    strum::Display,
-    strum::EnumString,
-    ToSchema,
-    Hash,
-)]
-pub enum PaymentChargeType {
-    #[serde(untagged)]
-    Stripe(StripeChargeType),
-}
-
-impl Default for PaymentChargeType {
-    fn default() -> Self {
-        Self::Stripe(StripeChargeType::default())
-    }
-}
-
-#[derive(
-    Clone,
-    Debug,
-    Default,
-    Hash,
-    Eq,
-    PartialEq,
-    ToSchema,
-    serde::Serialize,
-    serde::Deserialize,
-    strum::Display,
-    strum::EnumString,
-)]
-#[serde(rename_all = "lowercase")]
-#[strum(serialize_all = "lowercase")]
-pub enum StripeChargeType {
-    #[default]
-    Direct,
-    Destination,
-}
-
 #[cfg(feature = "frm")]
 pub fn convert_frm_connector(connector_name: &str) -> Option<FrmConnectors> {
     FrmConnectors::from_str(connector_name).ok()
