@@ -368,6 +368,7 @@ pub struct PaymentIntentNew {
     pub skip_external_tax_calculation: Option<bool>,
     pub psd2_sca_exemption_type: Option<storage_enums::ScaExemptionType>,
     pub platform_merchant_id: Option<common_utils::id_type::MerchantId>,
+    pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
 }
 
 #[cfg(feature = "v2")]
@@ -384,9 +385,6 @@ pub enum PaymentIntentUpdate {
         status: storage_enums::IntentStatus,
         updated_by: String,
     },
-=======
-    pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
->>>>>>> main
 }
 
 #[cfg(feature = "v1")]
