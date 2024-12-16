@@ -84,7 +84,7 @@ impl DynamicRoutingClientConfig {
                         client.clone(),
                         uri.clone(),
                     )),
-                    Some(ContractScoreCalculatorClient::with_origin(client, uri)),
+                    Some(ContractScoreCalculatorClient::with_origin(client.clone(), uri.clone())),
                     Some(EliminationAnalyserClient::with_origin(client, uri)),
                 )
             }
@@ -93,7 +93,7 @@ impl DynamicRoutingClientConfig {
         Ok(RoutingStrategy {
             success_rate_client,
             contract_based_client,
-            elimination_rate_client,
+            elimination_rate_client: elimination_based_client,
         })
     }
 }

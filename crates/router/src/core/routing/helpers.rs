@@ -19,7 +19,7 @@ use diesel_models::routing_algorithm;
 use error_stack::ResultExt;
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
 use external_services::grpc_client::dynamic_routing::{
-    contract_routing_client::ContractBasedDynamicRouting, SuccessBasedDynamicRouting,
+    contract_routing_client::ContractBasedDynamicRouting, success_rate_client::SuccessBasedDynamicRouting,
 };
 #[cfg(feature = "v1")]
 use hyperswitch_domain_models::api::ApplicationResponse;
@@ -1045,7 +1045,12 @@ pub async fn push_metrics_with_update_window_for_contract_based_routing(
             mca_id: final_label_info.mca_id.to_owned(),
         };
 
-        client
+
+        let payment_status_attribute =
+        get_desired_payment_status_for_success_routing_metrics(payment_attempt.status);
+
+        if payment_status_attribute == common_enums::AttemptStatus::Charged {
+            client
             .update_contracts(
                 tenant_business_profile_id.clone(),
                 vec![request_label_info],
@@ -1057,6 +1062,7 @@ pub async fn push_metrics_with_update_window_for_contract_based_routing(
             .attach_printable(
                 "unable to update success based routing window in dynamic routing service",
             )?;
+        }
 
         let contract_scores = client
             .calculate_contract_score(
@@ -1071,8 +1077,6 @@ pub async fn push_metrics_with_update_window_for_contract_based_routing(
                 "unable to calculate/fetch contract scores from dynamic routing service",
             )?;
 
-        // let payment_status_attribute =
-        //     get_desired_payment_status_for_success_routing_metrics(payment_attempt.status);
 
         let first_contract_based_connector = &contract_scores
             .labels_with_score
@@ -1092,9 +1096,8 @@ pub async fn push_metrics_with_update_window_for_contract_based_routing(
             .0, first_contract_based_connector.score, first_contract_based_connector.current_count );
 
         core_metrics::DYNAMIC_CONTRACT_BASED_ROUTING.add(
-            &metrics::CONTEXT,
             1,
-            &add_attributes([
+            router_env::metric_attributes!(
                 (
                     "tenant",
                     state.tenant.tenant_id.get_string_repr().to_owned(),
@@ -1156,8 +1159,7 @@ pub async fn push_metrics_with_update_window_for_contract_based_routing(
                 ),
                 ("payment_status", payment_attempt.status.to_string()),
                 // ("conclusive_classification", outcome.to_string()),
-            ]),
-        );
+        ));
         logger::debug!("successfully pushed contract_based_routing metrics");
 
         // let new_contract_config = routing_types::ContractBasedRoutingConfig {

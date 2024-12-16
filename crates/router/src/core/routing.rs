@@ -1576,9 +1576,8 @@ pub async fn contract_based_dynamic_routing_setup(
             let new_record = record.foreign_into();
 
             metrics::ROUTING_CREATE_SUCCESS_RESPONSE.add(
-                &metrics::CONTEXT,
                 1,
-                &add_attributes([("profile_id", profile_id.get_string_repr().to_string())]),
+                router_env::metric_attributes!(("profile_id", profile_id.get_string_repr().to_string())),
             );
             Ok(service_api::ApplicationResponse::Json(new_record))
         }
@@ -1603,9 +1602,8 @@ pub async fn contract_based_routing_update_configs(
     profile_id: common_utils::id_type::ProfileId,
 ) -> RouterResponse<routing_types::RoutingDictionaryRecord> {
     metrics::ROUTING_UPDATE_CONFIG_FOR_PROFILE.add(
-        &metrics::CONTEXT,
         1,
-        &add_attributes([("profile_id", profile_id.get_string_repr().to_owned())]),
+        router_env::metric_attributes!(("profile_id", profile_id.get_string_repr().to_owned())),
     );
     let db = state.store.as_ref();
 
@@ -1661,9 +1659,8 @@ pub async fn contract_based_routing_update_configs(
     let new_record = record.foreign_into();
 
     metrics::ROUTING_UPDATE_CONFIG_FOR_PROFILE_SUCCESS_RESPONSE.add(
-        &metrics::CONTEXT,
         1,
-        &add_attributes([("profile_id", profile_id.get_string_repr().to_owned())]),
+        router_env::metric_attributes!(("profile_id", profile_id.get_string_repr().to_owned())),
     );
 
     let prefix_of_dynamic_routing_keys = helpers::generate_tenant_business_profile_id(
