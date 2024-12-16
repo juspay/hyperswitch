@@ -694,7 +694,7 @@ prod_intent_recipient_email = "business@example.com" # Recipient email for prod 
 email_role_arn = ""        # The amazon resource name ( arn ) of the role which has permission to send emails
 sts_role_session_name = "" # An identifier for the assumed role session, used to uniquely identify a session.
 
-[theme_storage]
+[theme.storage]
 file_storage_backend = "file_system" # Theme storage backend to be used
 
 # Configuration for smtp, applicable when the active email client is SMTP
@@ -703,3 +703,10 @@ host = "mailhog" # SMTP host
 port = 1025 # SMTP port
 timeout = 10 # Timeout for SMTP connection in seconds
 connection = "plaintext" #currently plaintext and starttls are supported
+
+[theme.email_config]
+entity_name = "Hyperswitch"                      # Name of the entity to be showed in emails
+entity_logo_url = "https://example.com/logo.svg" # Logo URL of the entity to be used in emails
+foreground_color = "#000000"                     # Foreground color of email text
+primary_color = "#006DF9"                        # Primary color of email body
+background_color = "#FFFFFF"                     # Background color of email body
