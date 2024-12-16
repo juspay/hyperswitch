@@ -23,11 +23,11 @@ describe("Customer Create flow test", () => {
     }
   });
   it("create-payment-call-test", () => {
-    let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+    const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
       "PaymentIntent"
     ];
-    let req_data = data["Request"];
-    let res_data = data["Response"];
+    const req_data = data["Request"];
+    const res_data = data["Response"];
     cy.createPaymentIntentTest(
       fixtures.createPaymentBody,
       req_data,
@@ -40,10 +40,10 @@ describe("Customer Create flow test", () => {
       should_continue = utils.should_continue_further(res_data);
   });
   it("session-call-test", () => {
-    let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+    const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
       "SessionToken"
     ];
-    let res_data = data["Response"];
+    const res_data = data["Response"];
 
     cy.sessionTokenCall(fixtures.sessionTokenBody, res_data, globalState);
   });
