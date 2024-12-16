@@ -78,6 +78,7 @@ pub struct PaymentIntent {
     pub id: common_utils::id_type::GlobalPaymentId,
     pub request_extended_authorization: Option<RequestExtendedAuthorizationBool>,
     pub psd2_sca_exemption_type: Option<storage_enums::ScaExemptionType>,
+    pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
 }
 
 #[cfg(feature = "v1")]
@@ -144,6 +145,7 @@ pub struct PaymentIntent {
     pub skip_external_tax_calculation: Option<bool>,
     pub request_extended_authorization: Option<RequestExtendedAuthorizationBool>,
     pub psd2_sca_exemption_type: Option<storage_enums::ScaExemptionType>,
+    pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, diesel::AsExpression, PartialEq)]
@@ -369,6 +371,7 @@ pub struct PaymentIntentNew {
     pub skip_external_tax_calculation: Option<bool>,
     pub request_extended_authorization: Option<RequestExtendedAuthorizationBool>,
     pub psd2_sca_exemption_type: Option<storage_enums::ScaExemptionType>,
+    pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
 }
 
 #[cfg(feature = "v1")]

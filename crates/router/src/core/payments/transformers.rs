@@ -2,7 +2,7 @@ use std::{fmt::Debug, marker::PhantomData, str::FromStr};
 
 use api_models::payments::{
     Address, ConnectorMandateReferenceId, CustomerDetails, CustomerDetailsResponse, FrmMessage,
-    PaymentChargeRequest, PaymentChargeResponse, RequestSurchargeDetails,
+    RequestSurchargeDetails,
 };
 use common_enums::{Currency, RequestIncrementalAuthorization};
 use common_utils::{
@@ -20,7 +20,9 @@ use hyperswitch_domain_models::payments::{PaymentConfirmData, PaymentIntentData}
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::ApiModelToDieselModelConvertor;
 use hyperswitch_domain_models::{payments::payment_intent::CustomerData, router_request_types};
-use masking::{ExposeInterface, Maskable, PeekInterface, Secret};
+#[cfg(feature = "v2")]
+use masking::PeekInterface;
+use masking::{ExposeInterface, Maskable, Secret};
 use router_env::{instrument, tracing};
 
 use super::{flows::Feature, types::AuthenticationData, OperationSessionGetters, PaymentData};
@@ -284,7 +286,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         metadata: payment_data.payment_intent.metadata.expose_option(),
         authentication_data: None,
         customer_acceptance: None,
-        charges: None,
+        split_payments: None,
         merchant_order_reference_id: None,
         integrity_object: None,
         shipping_cost: payment_data.payment_intent.amount_details.shipping_cost,
@@ -436,7 +438,7 @@ pub async fn construct_router_data_for_psync<'a>(
         payment_method_type: Some(attempt.payment_method_subtype),
         currency: payment_intent.amount_details.currency,
         // TODO: Get the charges object from feature metadata
-        charges: None,
+        split_payments: None,
         payment_experience: None,
     };
 
@@ -1877,26 +1879,22 @@ where
             )
         });
 
-        let charges_response = match payment_intent.charges {
+        let split_payments_response = match payment_intent.split_payments {
             None => None,
-            Some(charges) => {
-                let payment_charges: PaymentChargeRequest = charges
-                    .peek()
-                    .clone()
-                    .parse_value("PaymentChargeRequest")
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable(format!(
-                        "Failed to parse PaymentChargeRequest for payment_intent {:?}",
-                        payment_intent.payment_id
-                    ))?;
-
-                Some(PaymentChargeResponse {
-                    charge_id: payment_attempt.charge_id.clone(),
-                    charge_type: payment_charges.charge_type,
-                    application_fees: payment_charges.fees,
-                    transfer_account_id: payment_charges.transfer_account_id,
-                })
-            }
+            Some(split_payments) => match split_payments {
+                common_types::payments::SplitPaymentsRequest::StripeSplitPayment(
+                    stripe_split_payment,
+                ) => Some(
+                    api_models::payments::SplitPaymentsResponse::StripeSplitPayment(
+                        api_models::payments::StripeSplitPaymentsResponse {
+                            charge_id: payment_attempt.charge_id.clone(),
+                            charge_type: stripe_split_payment.charge_type,
+                            application_fees: stripe_split_payment.application_fees,
+                            transfer_account_id: stripe_split_payment.transfer_account_id,
+                        },
+                    ),
+                ),
+            },
         };
 
         let mandate_data = payment_data.get_setup_mandate().map(|d| api::MandateData {
@@ -2077,7 +2075,7 @@ where
                 .get_payment_method_info()
                 .map(|info| info.status),
             updated: Some(payment_intent.modified_at),
-            charges: charges_response,
+            split_payments: split_payments_response,
             frm_metadata: payment_intent.frm_metadata,
             merchant_order_reference_id: payment_intent.merchant_order_reference_id,
             order_tax_amount,
@@ -2336,7 +2334,7 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             payment_method_id: None,
             payment_method_status: None,
             updated: None,
-            charges: None,
+            split_payments: None,
             frm_metadata: None,
             capture_before: pa.capture_before,
             extended_authorization_applied: pa.extended_authorization_applied,
@@ -2612,15 +2610,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             .as_ref()
             .map(|data| data.customer_id.clone());
 
-        let charges = match payment_data.payment_intent.charges {
-            Some(charges) => charges
-                .peek()
-                .clone()
-                .parse_value("PaymentCharges")
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to parse charges in to PaymentCharges")?,
-            None => None,
-        };
+        let split_payments = payment_data.payment_intent.split_payments.clone();
 
         let merchant_order_reference_id = payment_data
             .payment_intent
@@ -2670,7 +2660,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
                 .map(AuthenticationData::foreign_try_from)
                 .transpose()?,
             customer_acceptance: payment_data.customer_acceptance,
-            charges,
+            split_payments,
             merchant_order_reference_id,
             integrity_object: None,
             additional_payment_method_data,
@@ -2723,19 +2713,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSyncData
             },
             payment_method_type,
             currency: payment_data.currency,
-            charges: payment_data
-                .payment_intent
-                .charges
-                .as_ref()
-                .map(|charges| {
-                    charges
-                        .peek()
-                        .clone()
-                        .parse_value("PaymentCharges")
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Failed to parse charges in to PaymentCharges")
-                })
-                .transpose()?,
+            split_payments: payment_data.payment_intent.split_payments,
             payment_experience: payment_data.payment_attempt.payment_experience,
         })
     }

@@ -1339,6 +1339,7 @@ impl behaviour::Conversion for PaymentIntent {
             routing_algorithm_id,
             psd2_sca_exemption_type: None,
             request_extended_authorization: None,
+            split_payments: None,
         })
     }
     async fn convert_back(
@@ -1589,7 +1590,8 @@ impl behaviour::Conversion for PaymentIntent {
             fingerprint_id: self.fingerprint_id,
             session_expiry: self.session_expiry,
             request_external_three_ds_authentication: self.request_external_three_ds_authentication,
-            charges: self.charges,
+            charges: None,
+            split_payments: self.split_payments,
             frm_metadata: self.frm_metadata,
             customer_details: self.customer_details.map(Encryption::from),
             billing_details: self.billing_details.map(Encryption::from),
@@ -1678,7 +1680,7 @@ impl behaviour::Conversion for PaymentIntent {
                 session_expiry: storage_model.session_expiry,
                 request_external_three_ds_authentication: storage_model
                     .request_external_three_ds_authentication,
-                charges: storage_model.charges,
+                split_payments: storage_model.split_payments,
                 frm_metadata: storage_model.frm_metadata,
                 shipping_cost: storage_model.shipping_cost,
                 tax_details: storage_model.tax_details,
@@ -1742,7 +1744,8 @@ impl behaviour::Conversion for PaymentIntent {
             fingerprint_id: self.fingerprint_id,
             session_expiry: self.session_expiry,
             request_external_three_ds_authentication: self.request_external_three_ds_authentication,
-            charges: self.charges,
+            charges: None,
+            split_payments: self.split_payments,
             frm_metadata: self.frm_metadata,
             customer_details: self.customer_details.map(Encryption::from),
             billing_details: self.billing_details.map(Encryption::from),
