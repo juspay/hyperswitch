@@ -310,14 +310,14 @@ pub async fn connect_account(
                 subject: consts::user::EMAIL_SUBJECT_WELCOME_TO_COMMUNITY,
             };
 
-        let welcome_email_result = state
-            .email_client
-            .compose_and_send_email(
-                email_types::get_base_url(&state),
-                Box::new(welcome_to_community_email),
-                state.conf.proxy.https_url.as_ref(),
-            )
-            .await;
+            let welcome_email_result = state
+                .email_client
+                .compose_and_send_email(
+                    email_types::get_base_url(&state),
+                    Box::new(welcome_to_community_email),
+                    state.conf.proxy.https_url.as_ref(),
+                )
+                .await;
 
             logger::info!(?welcome_email_result);
         }
