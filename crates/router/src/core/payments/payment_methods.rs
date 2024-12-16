@@ -69,15 +69,6 @@ pub async fn list_payment_methods(
     ))
 }
 
-/// Holds the payment methods enabled for a connector along with the connector name
-/// This struct is a flattened representation of the payment methods enabled for a connector
-#[derive(Debug)]
-struct PaymentMethodsEnabledForConnector {
-    payment_methods_enabled: common_utils::types::RequestPaymentMethodTypes,
-    payment_method: common_enums::PaymentMethod,
-    connector: String,
-}
-
 /// Container for the inputs required for the required fields
 struct RequiredFieldsInput {}
 
@@ -98,12 +89,12 @@ impl FilteredPaymentMethodsEnabled {
     fn get_required_fields(
         self,
         _input: RequiredFieldsInput,
-    ) -> PaymentMethodsEnabledWithRequiredFieldsContainer {
+    ) -> PaymentMethodTypesEnabledWithRequiredFieldsContainer {
         let required_fields_info = self
             .payment_methods_enabled
             .into_iter()
             .map(
-                |payment_methods_enabled| PaymentMethodsEnabledWithRequiredFields {
+                |payment_methods_enabled| PaymentMethodTypesEnabledWithRequiredFieldsElement {
                     required_field: None,
                     payment_method_type: payment_methods_enabled.payment_method,
                     payment_method_subtype: payment_methods_enabled
@@ -113,14 +104,14 @@ impl FilteredPaymentMethodsEnabled {
             )
             .collect();
 
-        PaymentMethodsEnabledWithRequiredFieldsContainer {
+        PaymentMethodTypesEnabledWithRequiredFieldsContainer {
             payment_methods_enabled: required_fields_info,
         }
     }
 }
 
 /// Element container to hold the filtered payment methods with required fields
-struct PaymentMethodsEnabledWithRequiredFields {
+struct PaymentMethodTypesEnabledWithRequiredFieldsElement {
     required_field:
         Option<std::collections::HashMap<String, api_models::payment_methods::RequiredFieldInfo>>,
     payment_method_subtype: common_enums::PaymentMethodType,
@@ -128,12 +119,12 @@ struct PaymentMethodsEnabledWithRequiredFields {
 }
 
 /// Container to hold the filtered payment methods enabled with required fields
-struct PaymentMethodsEnabledWithRequiredFieldsContainer {
-    payment_methods_enabled: Vec<PaymentMethodsEnabledWithRequiredFields>,
+struct PaymentMethodTypesEnabledWithRequiredFieldsContainer {
+    payment_methods_enabled: Vec<PaymentMethodTypesEnabledWithRequiredFieldsElement>,
 }
 
 /// Element Container to hold the filtered payment methods enabled with required fields and surcharge
-struct PaymentMethodsEnabledWithRequiredFieldsAndSurcharge {
+struct PaymentMethodTypessEnabledWithRequiredFieldsAndSurcharge {
     required_field:
         Option<std::collections::HashMap<String, api_models::payment_methods::RequiredFieldInfo>>,
     payment_method_subtype: common_enums::PaymentMethodType,
@@ -143,7 +134,7 @@ struct PaymentMethodsEnabledWithRequiredFieldsAndSurcharge {
 
 /// Container to hold the filtered payment methods enabled with required fields and surcharge
 struct PaymentMethodsEnabledWithRequiredFieldsAndSurchargeContainer {
-    payment_methods_enabled: Vec<PaymentMethodsEnabledWithRequiredFieldsAndSurcharge>,
+    payment_methods_enabled: Vec<PaymentMethodTypessEnabledWithRequiredFieldsAndSurcharge>,
 }
 
 impl PaymentMethodsEnabledWithRequiredFieldsAndSurchargeContainer {
@@ -170,21 +161,21 @@ impl PaymentMethodsEnabledWithRequiredFieldsAndSurchargeContainer {
     }
 }
 
-impl PaymentMethodsEnabledWithRequiredFieldsContainer {
+impl PaymentMethodTypesEnabledWithRequiredFieldsContainer {
     fn perform_surcharge_calculation(
         self,
     ) -> PaymentMethodsEnabledWithRequiredFieldsAndSurchargeContainer {
         let details_with_surcharge = self
             .payment_methods_enabled
             .into_iter()
-            .map(
-                |payment_methods_enabled| PaymentMethodsEnabledWithRequiredFieldsAndSurcharge {
+            .map(|payment_methods_enabled| {
+                PaymentMethodTypessEnabledWithRequiredFieldsAndSurcharge {
                     payment_method_type: payment_methods_enabled.payment_method_type,
                     required_field: payment_methods_enabled.required_field,
                     payment_method_subtype: payment_methods_enabled.payment_method_subtype,
                     surcharge: None,
-                },
-            )
+                }
+            })
             .collect();
 
         PaymentMethodsEnabledWithRequiredFieldsAndSurchargeContainer {
