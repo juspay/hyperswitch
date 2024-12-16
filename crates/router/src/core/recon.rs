@@ -1,12 +1,14 @@
 use api_models::recon as recon_api;
 #[cfg(feature = "email")]
-use common_utils::ext_traits::AsyncExt;
+use common_utils::{ext_traits::AsyncExt, types::theme::ThemeLineage};
 use error_stack::ResultExt;
 #[cfg(feature = "email")]
 use masking::{ExposeInterface, PeekInterface, Secret};
 
 #[cfg(feature = "email")]
-use crate::{consts, services::email::types as email_types, types::domain};
+use crate::{
+    consts, services::email::types as email_types, types::domain, utils::user::theme as theme_utils,
+};
 use crate::{
     core::errors::{self, RouterResponse, UserErrors, UserResponse},
     services::{api as service_api, authentication},
@@ -35,6 +37,21 @@ pub async fn send_recon_request(
         let user_in_db = &auth_data.user;
         let merchant_id = auth_data.merchant_account.get_id().clone();
 
+        let theme = theme_utils::get_most_specific_theme_using_lineage(
+            &state.clone(),
+            ThemeLineage::Merchant {
+                tenant_id: state.tenant.tenant_id.clone(),
+                org_id: auth_data.merchant_account.get_org_id().clone(),
+                merchant_id: merchant_id.clone(),
+            },
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable(format!(
+            "Failed to fetch theme for merchant_id = {:?}",
+            merchant_id
+        ))?;
+
         let user_email = user_in_db.email.clone();
         let email_contents = email_types::ProFeatureRequest {
             feature_name: consts::RECON_FEATURE_TAG.to_string(),
@@ -55,6 +72,10 @@ pub async fn send_recon_request(
                 consts::EMAIL_SUBJECT_DASHBOARD_FEATURE_REQUEST,
                 user_email.expose().peek()
             ),
+            theme_id: theme.as_ref().map(|theme| theme.theme_id.clone()),
+            theme_config: theme
+                .map(|theme| theme.email_config())
+                .unwrap_or(state.conf.theme.email_config.clone()),
         };
         state
             .email_client
@@ -142,7 +163,7 @@ pub async fn recon_merchant_account_update(
     let updated_merchant_account = db
         .update_merchant(
             key_manager_state,
-            auth.merchant_account,
+            auth.merchant_account.clone(),
             updated_merchant_account,
             &auth.key_store,
         )
@@ -155,6 +176,22 @@ pub async fn recon_merchant_account_update(
     #[cfg(feature = "email")]
     {
         let user_email = &req.user_email.clone();
+
+        let theme = theme_utils::get_most_specific_theme_using_lineage(
+            &state.clone(),
+            ThemeLineage::Merchant {
+                tenant_id: state.tenant.tenant_id,
+                org_id: auth.merchant_account.get_org_id().clone(),
+                merchant_id: merchant_id.clone(),
+            },
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable(format!(
+            "Failed to fetch theme for merchant_id = {:?}",
+            merchant_id
+        ))?;
+
         let email_contents = email_types::ReconActivation {
             recipient_email: domain::UserEmail::from_pii_email(user_email.clone())
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -165,6 +202,10 @@ pub async fn recon_merchant_account_update(
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to form username")?,
             subject: consts::EMAIL_SUBJECT_APPROVAL_RECON_REQUEST,
+            theme_id: theme.as_ref().map(|theme| theme.theme_id.clone()),
+            theme_config: theme
+                .map(|theme| theme.email_config())
+                .unwrap_or(state.conf.theme.email_config.clone()),
         };
         if req.recon_status == enums::ReconStatus::Active {
             let _ = state

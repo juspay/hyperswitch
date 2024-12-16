@@ -1,6 +1,6 @@
 use api_models::user::dashboard_metadata::ProdIntent;
 use common_enums::EntityType;
-use common_utils::{errors::CustomResult, pii};
+use common_utils::{errors::CustomResult, pii, types::theme::EmailThemeConfig};
 use error_stack::ResultExt;
 use external_services::email::{EmailContents, EmailData, EmailError};
 use masking::{ExposeInterface, Secret};
@@ -212,13 +212,17 @@ pub fn get_link_with_token(
     token: impl std::fmt::Display,
     action: impl std::fmt::Display,
     auth_id: &Option<impl std::fmt::Display>,
+    theme_id: &Option<impl std::fmt::Display>,
 ) -> String {
-    let email_url = format!("{base_url}/user/{action}?token={token}");
+    let mut email_url = format!("{base_url}/user/{action}?token={token}");
     if let Some(auth_id) = auth_id {
-        format!("{email_url}&auth_id={auth_id}")
-    } else {
-        email_url
+        email_url = format!("{email_url}&auth_id={auth_id}");
     }
+    if let Some(theme_id) = theme_id {
+        email_url = format!("{email_url}&theme_id={theme_id}");
+    }
+
+    email_url
 }
 
 pub fn get_base_url(state: &SessionState) -> &str {
@@ -234,6 +238,8 @@ pub struct VerifyEmail {
     pub settings: std::sync::Arc<configs::Settings>,
     pub subject: &'static str,
     pub auth_id: Option<String>,
+    pub theme_id: Option<String>,
+    pub theme_config: EmailThemeConfig,
 }
 
 /// Currently only HTML is supported
@@ -249,7 +255,13 @@ impl EmailData for VerifyEmail {
         .await
         .change_context(EmailError::TokenGenerationFailure)?;
 
-        let verify_email_link = get_link_with_token(base_url, token, "verify_email", &self.auth_id);
+        let verify_email_link = get_link_with_token(
+            base_url,
+            token,
+            "verify_email",
+            &self.auth_id,
+            &self.theme_id,
+        );
 
         let body = html::get_html_body(EmailBody::Verify {
             link: verify_email_link,
@@ -269,6 +281,8 @@ pub struct ResetPassword {
     pub settings: std::sync::Arc<configs::Settings>,
     pub subject: &'static str,
     pub auth_id: Option<String>,
+    pub theme_id: Option<String>,
+    pub theme_config: EmailThemeConfig,
 }
 
 #[async_trait::async_trait]
@@ -283,8 +297,13 @@ impl EmailData for ResetPassword {
         .await
         .change_context(EmailError::TokenGenerationFailure)?;
 
-        let reset_password_link =
-            get_link_with_token(base_url, token, "set_password", &self.auth_id);
+        let reset_password_link = get_link_with_token(
+            base_url,
+            token,
+            "set_password",
+            &self.auth_id,
+            &self.theme_id,
+        );
 
         let body = html::get_html_body(EmailBody::Reset {
             link: reset_password_link,
@@ -305,6 +324,8 @@ pub struct MagicLink {
     pub settings: std::sync::Arc<configs::Settings>,
     pub subject: &'static str,
     pub auth_id: Option<String>,
+    pub theme_id: Option<String>,
+    pub theme_config: EmailThemeConfig,
 }
 
 #[async_trait::async_trait]
@@ -319,7 +340,13 @@ impl EmailData for MagicLink {
         .await
         .change_context(EmailError::TokenGenerationFailure)?;
 
-        let magic_link_login = get_link_with_token(base_url, token, "verify_email", &self.auth_id);
+        let magic_link_login = get_link_with_token(
+            base_url,
+            token,
+            "verify_email",
+            &self.auth_id,
+            &self.theme_id,
+        );
 
         let body = html::get_html_body(EmailBody::MagicLink {
             link: magic_link_login,
@@ -341,6 +368,8 @@ pub struct InviteUser {
     pub subject: &'static str,
     pub entity: Entity,
     pub auth_id: Option<String>,
+    pub theme_id: Option<String>,
+    pub theme_config: EmailThemeConfig,
 }
 
 #[async_trait::async_trait]
@@ -355,8 +384,13 @@ impl EmailData for InviteUser {
         .await
         .change_context(EmailError::TokenGenerationFailure)?;
 
-        let invite_user_link =
-            get_link_with_token(base_url, token, "accept_invite_from_email", &self.auth_id);
+        let invite_user_link = get_link_with_token(
+            base_url,
+            token,
+            "accept_invite_from_email",
+            &self.auth_id,
+            &self.theme_id,
+        );
         let body = html::get_html_body(EmailBody::AcceptInviteFromEmail {
             link: invite_user_link,
             user_name: self.user_name.clone().get_secret().expose(),
@@ -374,6 +408,8 @@ pub struct ReconActivation {
     pub recipient_email: domain::UserEmail,
     pub user_name: domain::UserName,
     pub subject: &'static str,
+    pub theme_id: Option<String>,
+    pub theme_config: EmailThemeConfig,
 }
 
 #[async_trait::async_trait]
@@ -400,10 +436,17 @@ pub struct BizEmailProd {
     pub business_website: String,
     pub settings: std::sync::Arc<configs::Settings>,
     pub subject: &'static str,
+    pub theme_id: Option<String>,
+    pub theme_config: EmailThemeConfig,
 }
 
 impl BizEmailProd {
-    pub fn new(state: &SessionState, data: ProdIntent) -> UserResult<Self> {
+    pub fn new(
+        state: &SessionState,
+        data: ProdIntent,
+        theme_id: Option<String>,
+        theme_config: EmailThemeConfig,
+    ) -> UserResult<Self> {
         Ok(Self {
             recipient_email: domain::UserEmail::from_pii_email(
                 state.conf.email.prod_intent_recipient_email.clone(),
@@ -418,6 +461,8 @@ impl BizEmailProd {
                 .unwrap_or(common_enums::CountryAlpha2::AD)
                 .to_string(),
             business_website: data.business_website.unwrap_or_default(),
+            theme_id,
+            theme_config,
         })
     }
 }
@@ -448,6 +493,8 @@ pub struct ProFeatureRequest {
     pub user_name: domain::UserName,
     pub user_email: domain::UserEmail,
     pub subject: String,
+    pub theme_id: Option<String>,
+    pub theme_config: EmailThemeConfig,
 }
 
 #[async_trait::async_trait]
@@ -476,6 +523,8 @@ pub struct ApiKeyExpiryReminder {
     pub expires_in: u8,
     pub api_key_name: String,
     pub prefix: String,
+    pub theme_id: Option<String>,
+    pub theme_config: EmailThemeConfig,
 }
 
 #[async_trait::async_trait]

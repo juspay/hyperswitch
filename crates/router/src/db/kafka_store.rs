@@ -3521,6 +3521,7 @@ impl RoleInterface for KafkaStore {
         self.diesel_store.find_role_by_role_id(role_id).await
     }
 
+    //TODO:Remove once find_by_role_id_in_lineage is stable
     async fn find_role_by_role_id_in_merchant_scope(
         &self,
         role_id: &str,
@@ -3532,13 +3533,24 @@ impl RoleInterface for KafkaStore {
             .await
     }
 
-    async fn find_role_by_role_id_in_org_scope(
+    async fn find_role_by_role_id_in_lineage(
+        &self,
+        role_id: &str,
+        merchant_id: &id_type::MerchantId,
+        org_id: &id_type::OrganizationId,
+    ) -> CustomResult<storage::Role, errors::StorageError> {
+        self.diesel_store
+            .find_role_by_role_id_in_lineage(role_id, merchant_id, org_id)
+            .await
+    }
+
+    async fn find_by_role_id_and_org_id(
         &self,
         role_id: &str,
         org_id: &id_type::OrganizationId,
     ) -> CustomResult<storage::Role, errors::StorageError> {
         self.diesel_store
-            .find_role_by_role_id_in_org_scope(role_id, org_id)
+            .find_by_role_id_and_org_id(role_id, org_id)
             .await
     }
 
@@ -3741,6 +3753,15 @@ impl ThemeInterface for KafkaStore {
         theme_id: String,
     ) -> CustomResult<storage::theme::Theme, errors::StorageError> {
         self.diesel_store.find_theme_by_theme_id(theme_id).await
+    }
+
+    async fn find_most_specific_theme_in_lineage(
+        &self,
+        lineage: ThemeLineage,
+    ) -> CustomResult<diesel_models::user::theme::Theme, errors::StorageError> {
+        self.diesel_store
+            .find_most_specific_theme_in_lineage(lineage)
+            .await
     }
 
     async fn find_theme_by_lineage(

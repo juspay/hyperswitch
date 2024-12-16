@@ -673,4 +673,52 @@ describe("Corner cases", () => {
       );
     });
   });
+  context("Card-NoThreeDS fail payment flow test", () => {
+    let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
+
+    before("seed global state", () => {
+      cy.task("getGlobalState").then((state) => {
+        globalState = new State(state);
+      });
+    });
+
+    after("flush global state", () => {
+      cy.task("setGlobalState", globalState.data);
+    });
+
+    beforeEach(function () {
+      if (!shouldContinue) {
+        this.skip();
+      }
+    });
+
+    it("create-payment-call-test", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["PaymentIntent"];
+
+      cy.createPaymentIntentTest(
+        fixtures.createPaymentBody,
+        data,
+        "no_three_ds",
+        "automatic",
+        globalState
+      );
+
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+    });
+
+    it("Confirm No 3DS", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["No3DSFailPayment"];
+
+      cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+    });
+
+    it("retrieve-payment-call-test", () => {
+      cy.retrievePaymentCallTest(globalState);
+    });
+  });
 });
