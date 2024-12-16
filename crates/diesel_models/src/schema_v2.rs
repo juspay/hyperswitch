@@ -223,6 +223,7 @@ diesel::table! {
         is_auto_retries_enabled -> Nullable<Bool>,
         max_auto_retries_enabled -> Nullable<Int2>,
         is_click_to_pay_enabled -> Bool,
+        authentication_product_ids -> Nullable<Jsonb>,
     }
 }
 
@@ -929,6 +930,7 @@ diesel::table! {
         #[max_length = 64]
         id -> Varchar,
         psd2_sca_exemption_type -> Nullable<ScaExemptionType>,
+        split_payments -> Nullable<Jsonb>,
     }
 }
 
@@ -1173,6 +1175,7 @@ diesel::table! {
         connector_refund_data -> Nullable<Varchar>,
         #[max_length = 512]
         connector_transaction_data -> Nullable<Varchar>,
+        split_refunds -> Nullable<Jsonb>,
     }
 }
 
