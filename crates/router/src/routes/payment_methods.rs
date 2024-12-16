@@ -141,7 +141,7 @@ pub async fn confirm_payment_method_intent_api(
     let pm_id = path.into_inner();
     let payload = json_payload.into_inner();
 
-    let auth = match auth::is_ephemeral_auth(req.headers()) {
+    let auth = match auth::is_ephemeral_or_publishible_auth(req.headers()) {
         Ok(auth) => auth,
         Err(e) => return api::log_and_return_error_response(e),
     };
@@ -190,7 +190,7 @@ pub async fn payment_method_update_api(
     let payment_method_id = path.into_inner();
     let payload = json_payload.into_inner();
 
-    let auth = match auth::is_ephemeral_auth(req.headers()) {
+    let auth = match auth::is_ephemeral_or_publishible_auth(req.headers()) {
         Ok(auth) => auth,
         Err(e) => return api::log_and_return_error_response(e),
     };

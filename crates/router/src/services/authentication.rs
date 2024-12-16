@@ -3099,6 +3099,20 @@ where
     }
 }
 
+pub fn is_ephemeral_or_publishible_auth<A: SessionStateInfo + Sync + Send>(
+    headers: &HeaderMap,
+) -> RouterResult<Box<dyn AuthenticateAndFetch<AuthenticationData, A>>> {
+    let api_key = get_api_key(headers)?;
+
+    if api_key.starts_with("epk") {
+        Ok(Box::new(EphemeralKeyAuth))
+    } else if api_key.starts_with("pk_") {
+        Ok(Box::new(HeaderAuth(PublishableKeyAuth)))
+    } else {
+        Ok(Box::new(HeaderAuth(ApiKeyAuth)))
+    }
+}
+
 pub fn is_ephemeral_auth<A: SessionStateInfo + Sync + Send>(
     headers: &HeaderMap,
 ) -> RouterResult<Box<dyn AuthenticateAndFetch<AuthenticationData, A>>> {
