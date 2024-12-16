@@ -1,0 +1,38 @@
+name: CI-push
+
+on:
+  push:
+    branches:
+      - main
+    # paths:
+    #   - ".github/workflows/**"
+    #   - "crates/**"
+    #   - "examples/**"
+    #   - "Cargo.lock"
+    #   - "Cargo.toml"
+
+  merge_group:
+    types:
+      - checks_requested
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  formatting:
+    name: Check formatting
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: nightly
+          components: rustfmt
+
+      - name: wasm build
+        shell: bash
+        run: make euclid-wasm
