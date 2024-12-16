@@ -121,12 +121,12 @@ Cypress.Commands.add("ListConnectorsFeatureMatrixCall", (globalState) => {
   }).then((response) => {
     logRequestId(response.headers["x-request-id"]);
 
-    expect(response.body).to.have.property("data").and.not.empty;
-    expect(response.body.data).to.be.an("array").and.not.empty;
-    response.body.data.forEach((item) => {
+    expect(response.body).to.have.property("connectors").and.not.empty;
+    expect(response.body.connectors).to.be.an("array").and.not.empty;
+    response.body.connectors.forEach((item) => {
       expect(item).to.have.property("description").and.not.empty;
-      expect(item).to.have.property("connector_type").and.not.empty;
-      expect(item).to.have.property("payment_method_types").and.not.empty;
+      expect(item).to.have.property("category").and.not.empty;
+      expect(item).to.have.property("supported_payment_methods").and.not.empty;
     });
   });
 });
