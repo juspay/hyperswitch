@@ -18208,6 +18208,19 @@
             "type": "string",
             "description": "Connector Identifier for the payment method",
             "nullable": true
+          },
+          "overcapture_applied": {
+            "type": "boolean",
+            "description": "Whether the payment is overcaptureable or not",
+            "nullable": true
+          },
+          "maximum_capturable_amount": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -19448,6 +19461,19 @@
           "connector_mandate_id": {
             "type": "string",
             "description": "Connector Identifier for the payment method",
+            "nullable": true
+          },
+          "overcapture_applied": {
+            "type": "boolean",
+            "description": "Whether the payment is overcaptureable or not",
+            "nullable": true
+          },
+          "maximum_capturable_amount": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
             "nullable": true
           }
         }
