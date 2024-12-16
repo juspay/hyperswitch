@@ -1326,6 +1326,15 @@ diesel::table! {
         entity_type -> Varchar,
         #[max_length = 64]
         theme_name -> Varchar,
+        #[max_length = 64]
+        email_primary_color -> Varchar,
+        #[max_length = 64]
+        email_foreground_color -> Varchar,
+        #[max_length = 64]
+        email_background_color -> Varchar,
+        #[max_length = 64]
+        email_entity_name -> Varchar,
+        email_entity_logo_url -> Text,
     }
 }
 

@@ -369,7 +369,7 @@ impl AppState {
             let email_client = Arc::new(create_email_client(&conf).await);
 
             let file_storage_client = conf.file_storage.get_file_storage_client().await;
-            let theme_storage_client = conf.theme_storage.get_file_storage_client().await;
+            let theme_storage_client = conf.theme.storage.get_file_storage_client().await;
 
             let grpc_client = conf.grpc_client.get_grpc_client_interface().await;
 
