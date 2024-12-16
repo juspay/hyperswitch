@@ -867,6 +867,8 @@ impl
 #[serde(rename_all = "UPPERCASE")]
 pub enum DeutschebankTransactionKind {
     Directdebit,
+    #[serde(rename = "CREDITCARD_3DS20")]
+    Creditcard3ds20,
 }
 
 #[derive(Debug, Serialize, PartialEq)]
@@ -882,7 +884,10 @@ impl TryFrom<&DeutschebankRouterData<&PaymentsCaptureRouterData>> for Deutscheba
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             changed_amount: item.amount,
-            kind: DeutschebankTransactionKind::Directdebit,
+            kind: match item.router_data.is_three_ds() {
+                true => DeutschebankTransactionKind::Creditcard3ds20,
+                false => DeutschebankTransactionKind::Directdebit,
+            },
         })
     }
 }
@@ -1003,9 +1008,12 @@ pub struct DeutschebankReversalRequest {
 
 impl TryFrom<&PaymentsCancelRouterData> for DeutschebankReversalRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(_item: &PaymentsCancelRouterData) -> Result<Self, Self::Error> {
+    fn try_from(item: &PaymentsCancelRouterData) -> Result<Self, Self::Error> {
         Ok(Self {
-            kind: DeutschebankTransactionKind::Directdebit,
+            kind: match item.is_three_ds() {
+                true => DeutschebankTransactionKind::Creditcard3ds20,
+                false => DeutschebankTransactionKind::Directdebit,
+            },
         })
     }
 }
@@ -1048,7 +1056,10 @@ impl<F> TryFrom<&DeutschebankRouterData<&RefundsRouterData<F>>> for Deutschebank
     fn try_from(item: &DeutschebankRouterData<&RefundsRouterData<F>>) -> Result<Self, Self::Error> {
         Ok(Self {
             changed_amount: item.amount.to_owned(),
-            kind: DeutschebankTransactionKind::Directdebit,
+            kind: match item.router_data.is_three_ds() {
+                true => DeutschebankTransactionKind::Creditcard3ds20,
+                false => DeutschebankTransactionKind::Directdebit,
+            }
         })
     }
 }
