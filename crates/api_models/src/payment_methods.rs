@@ -153,9 +153,6 @@ pub struct PaymentMethodIntentCreate {
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct PaymentMethodIntentConfirm {
-    /// For SDK based calls, client_secret would be required
-    pub client_secret: String,
-
     /// The unique identifier of the customer.
     #[schema(value_type = Option<String>, max_length = 64, min_length = 1, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
     pub customer_id: Option<id_type::CustomerId>,
@@ -201,9 +198,6 @@ pub struct PaymentMethodIntentConfirmInternal {
     #[schema(value_type = PaymentMethodType,example = "credit")]
     pub payment_method_subtype: api_enums::PaymentMethodType,
 
-    /// For SDK based calls, client_secret would be required
-    pub client_secret: String,
-
     /// The unique identifier of the customer.
     #[schema(value_type = Option<String>, max_length = 64, min_length = 1, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
     pub customer_id: Option<id_type::CustomerId>,
@@ -216,7 +210,6 @@ pub struct PaymentMethodIntentConfirmInternal {
 impl From<PaymentMethodIntentConfirmInternal> for PaymentMethodIntentConfirm {
     fn from(item: PaymentMethodIntentConfirmInternal) -> Self {
         Self {
-            client_secret: item.client_secret,
             payment_method_type: item.payment_method_type,
             payment_method_subtype: item.payment_method_subtype,
             customer_id: item.customer_id,
@@ -398,10 +391,6 @@ pub struct PaymentMethodUpdate {
 pub struct PaymentMethodUpdate {
     /// payment method data to be passed
     pub payment_method_data: PaymentMethodUpdateData,
-
-    /// This is a 15 minute expiry token which shall be used from the client to authenticate and perform sessions from the SDK
-    #[schema(max_length = 30, min_length = 30, example = "secret_k2uj3he2893eiu2d")]
-    pub client_secret: Option<String>,
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]

@@ -362,7 +362,7 @@ impl PaymentMethodUpdateInternal {
             client_secret: source.client_secret,
             payment_method_billing_address: source.payment_method_billing_address,
             updated_by: updated_by.or(source.updated_by),
-            locker_fingerprint_id: source.locker_fingerprint_id,
+            locker_fingerprint_id: locker_fingerprint_id.or(source.locker_fingerprint_id),
             payment_method_type_v2: payment_method_type_v2.or(source.payment_method_type_v2),
             payment_method_subtype: payment_method_subtype.or(source.payment_method_subtype),
             id: source.id,

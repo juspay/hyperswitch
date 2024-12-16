@@ -150,7 +150,6 @@ pub async fn confirm_payment_method_intent_api(
         id: pm_id.clone(),
         payment_method_type: payload.payment_method_type,
         payment_method_subtype: payload.payment_method_subtype,
-        client_secret: payload.client_secret.clone(),
         customer_id: payload.customer_id.to_owned(),
         payment_method_data: payload.payment_method_data.clone(),
     };
@@ -229,11 +228,6 @@ pub async fn payment_method_retrieve_api(
     })
     .into_inner();
 
-    let auth = match auth::is_ephemeral_auth(req.headers()) {
-        Ok(auth) => auth,
-        Err(e) => return api::log_and_return_error_response(e),
-    };
-
     Box::pin(api::server_wrap(
         flow,
         state,
@@ -242,7 +236,7 @@ pub async fn payment_method_retrieve_api(
         |state, auth: auth::AuthenticationData, pm, _| {
             retrieve_payment_method(state, pm, auth.key_store, auth.merchant_account)
         },
-        &*auth,
+        &auth::HeaderAuth(auth::ApiKeyAuth),
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -261,11 +255,6 @@ pub async fn payment_method_delete_api(
     })
     .into_inner();
 
-    let auth = match auth::is_ephemeral_auth(req.headers()) {
-        Ok(auth) => auth,
-        Err(e) => return api::log_and_return_error_response(e),
-    };
-
     Box::pin(api::server_wrap(
         flow,
         state,
@@ -274,7 +263,7 @@ pub async fn payment_method_delete_api(
         |state, auth: auth::AuthenticationData, pm, _| {
             delete_payment_method(state, pm, auth.key_store, auth.merchant_account)
         },
-        &*auth,
+        &auth::HeaderAuth(auth::ApiKeyAuth),
         api_locking::LockAction::NotApplicable,
     ))
     .await

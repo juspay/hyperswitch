@@ -2984,13 +2984,6 @@ impl ClientSecretFetch for PaymentMethodCreate {
     }
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-impl ClientSecretFetch for PaymentMethodIntentConfirm {
-    fn get_client_secret(&self) -> Option<&String> {
-        Some(&self.client_secret)
-    }
-}
-
 impl ClientSecretFetch for api_models::cards_info::CardsInfoRequest {
     fn get_client_secret(&self) -> Option<&String> {
         self.client_secret.as_ref()
@@ -3015,6 +3008,7 @@ impl ClientSecretFetch for api_models::pm_auth::ExchangeTokenCreateRequest {
     }
 }
 
+#[cfg(feature = "v1")]
 impl ClientSecretFetch for api_models::payment_methods::PaymentMethodUpdate {
     fn get_client_secret(&self) -> Option<&String> {
         self.client_secret.as_ref()
