@@ -1,4 +1,4 @@
-name: CI-push
+name: wasm-check
 
 on:
   push:
