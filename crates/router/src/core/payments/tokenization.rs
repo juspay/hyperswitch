@@ -1292,11 +1292,10 @@ pub fn update_connector_mandate_details_status(
                 payment_mandate_reference.entry(mca_id).and_modify(|pm| {
                     let update_rec = diesel_models::PaymentsMandateReferenceRecord {
                         connector_mandate_id: pm.connector_mandate_id.clone(),
-                        payment_method_type: pm.payment_method_type.clone(),
+                        payment_method_type: pm.payment_method_type,
                         original_payment_authorized_amount: pm.original_payment_authorized_amount,
                         original_payment_authorized_currency: pm
-                            .original_payment_authorized_currency
-                            .clone(),
+                            .original_payment_authorized_currency,
                         mandate_metadata: pm.mandate_metadata.clone(),
                         connector_mandate_status: Some(ConnectorMandateStatus::Inactive),
                         connector_mandate_request_reference_id: pm
