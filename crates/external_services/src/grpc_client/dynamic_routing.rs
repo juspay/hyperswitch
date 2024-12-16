@@ -84,7 +84,10 @@ impl DynamicRoutingClientConfig {
                         client.clone(),
                         uri.clone(),
                     )),
-                    Some(ContractScoreCalculatorClient::with_origin(client.clone(), uri.clone())),
+                    Some(ContractScoreCalculatorClient::with_origin(
+                        client.clone(),
+                        uri.clone(),
+                    )),
                     Some(EliminationAnalyserClient::with_origin(client, uri)),
                 )
             }

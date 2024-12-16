@@ -1577,7 +1577,10 @@ pub async fn contract_based_dynamic_routing_setup(
 
             metrics::ROUTING_CREATE_SUCCESS_RESPONSE.add(
                 1,
-                router_env::metric_attributes!(("profile_id", profile_id.get_string_repr().to_string())),
+                router_env::metric_attributes!((
+                    "profile_id",
+                    profile_id.get_string_repr().to_string()
+                )),
             );
             Ok(service_api::ApplicationResponse::Json(new_record))
         }
