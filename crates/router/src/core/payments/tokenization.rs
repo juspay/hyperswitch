@@ -83,6 +83,7 @@ pub async fn save_payment_method<FData>(
     payment_method_billing_address: Option<&hyperswitch_domain_models::address::Address>,
     business_profile: &domain::Profile,
     mut original_connector_mandate_reference_id: Option<ConnectorMandateReferenceId>,
+    merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
 ) -> RouterResult<SavePaymentMethodDataResponse>
 where
     FData: mandate::MandateBehaviour + Clone,
@@ -458,7 +459,34 @@ where
                                 resp.payment_method_id = payment_method_id;
 
                                 let existing_pm = match payment_method {
-                                    Ok(pm) => Ok(pm),
+                                    Ok(pm) => {
+                                        let connector_mandate_details = update_connector_mandate_details_status(
+                                            merchant_connector_id,
+                                            pm
+                                            .connector_mandate_details
+                                            .clone()
+                                            .map(|val| {
+                                                val.parse_value::<diesel_models::PaymentsMandateReference>(
+                                                    "PaymentsMandateReference",
+                                                )
+                                            })
+                                            .transpose()
+                                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                                            .attach_printable("Failed to deserialize to Payment Mandate Reference ")?
+                                        )?;
+                                        payment_methods::cards::update_payment_method_connector_mandate_details(
+                                            state,
+                                            key_store,
+                                            db,
+                                            pm.clone(),
+                                            connector_mandate_details,
+                                            merchant_account.storage_scheme,
+                                        )
+                                        .await
+                                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                                        .attach_printable("Failed to add payment method in db")?;
+                                        Ok(pm)
+                                    }
                                     Err(err) => {
                                         if err.current_context().is_db_not_found() {
                                             payment_methods::cards::create_payment_method(
@@ -1243,6 +1271,46 @@ pub fn update_connector_mandate_details(
             mandate_metadata,
             connector_mandate_request_reference_id,
         ),
+    };
+    let connector_mandate_details = mandate_reference
+        .map(|mand| mand.encode_to_value())
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to serialize customer acceptance to value")?;
+
+    Ok(connector_mandate_details)
+}
+
+#[cfg(feature = "v1")]
+pub fn update_connector_mandate_details_status(
+    merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
+    mandate_details: Option<diesel_models::PaymentsMandateReference>,
+) -> RouterResult<Option<serde_json::Value>> {
+    let mandate_reference = match mandate_details {
+        Some(mut payment_mandate_reference) => {
+            if let Some(mca_id) = merchant_connector_id {
+                payment_mandate_reference.entry(mca_id).and_modify(|pm| {
+                    let update_rec = diesel_models::PaymentsMandateReferenceRecord {
+                        connector_mandate_id: pm.connector_mandate_id.clone(),
+                        payment_method_type: pm.payment_method_type.clone(),
+                        original_payment_authorized_amount: pm.original_payment_authorized_amount,
+                        original_payment_authorized_currency: pm
+                            .original_payment_authorized_currency
+                            .clone(),
+                        mandate_metadata: pm.mandate_metadata.clone(),
+                        connector_mandate_status: Some(ConnectorMandateStatus::Inactive),
+                        connector_mandate_request_reference_id: pm
+                            .connector_mandate_request_reference_id
+                            .clone(),
+                    };
+                    *pm = update_rec
+                });
+                Some(payment_mandate_reference)
+            } else {
+                None
+            }
+        }
+        None => None,
     };
     let connector_mandate_details = mandate_reference
         .map(|mand| mand.encode_to_value())
