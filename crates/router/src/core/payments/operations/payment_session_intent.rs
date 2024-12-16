@@ -272,7 +272,7 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsSessionRequest, payments::Payment
     async fn perform_routing<'a>(
         &'a self,
         merchant_account: &domain::MerchantAccount,
-        _business_profile: &domain::Profile,
+        business_profile: &domain::Profile,
         state: &SessionState,
         payment_data: &mut payments::PaymentIntentData<F>,
         merchant_key_store: &domain::MerchantKeyStore,
@@ -326,6 +326,7 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsSessionRequest, payments::Payment
         let session_token_routing_result = payments::perform_session_token_routing(
             state.clone(),
             merchant_account,
+            business_profile,
             merchant_key_store,
             payment_data,
             session_connector_data,

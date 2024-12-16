@@ -872,6 +872,7 @@ pub async fn perform_eligibility_analysis_with_fallback(
 #[cfg(feature = "v2")]
 pub async fn perform_session_flow_routing(
     session_input: SessionFlowRoutingInput<'_>,
+    business_profile: &domain::Profile,
     transaction_type: &api_enums::TransactionType,
 ) -> RoutingResult<FxHashMap<api_enums::PaymentMethodType, Vec<routing_types::SessionRoutingChoice>>>
 {
@@ -880,17 +881,6 @@ pub async fn perform_session_flow_routing(
 
     #[cfg(feature = "v2")]
     let profile_id = session_input.payment_intent.profile_id.clone();
-
-    let business_profile = session_input
-        .state
-        .store
-        .find_business_profile_by_profile_id(
-            &session_input.state.into(),
-            session_input.key_store,
-            &profile_id,
-        )
-        .await
-        .change_context(errors::RoutingError::ProfileNotFound)?;
 
     let routing_algorithm =
         MerchantAccountRoutingAlgorithm::V1(business_profile.routing_algorithm_id.clone());
@@ -977,7 +967,7 @@ pub async fn perform_session_flow_routing(
         let routable_connector_choice_option = perform_session_routing_for_pm_type(
             &session_pm_input,
             transaction_type,
-            &business_profile,
+            business_profile,
         )
         .await?;
 
@@ -1013,6 +1003,7 @@ pub async fn perform_session_flow_routing(
 #[cfg(feature = "v1")]
 pub async fn perform_session_flow_routing(
     session_input: SessionFlowRoutingInput<'_>,
+    business_profile: &domain::Profile,
     transaction_type: &api_enums::TransactionType,
 ) -> RoutingResult<FxHashMap<api_enums::PaymentMethodType, Vec<routing_types::SessionRoutingChoice>>>
 {
@@ -1025,17 +1016,6 @@ pub async fn perform_session_flow_routing(
         .clone()
         .get_required_value("profile_id")
         .change_context(errors::RoutingError::ProfileIdMissing)?;
-
-    let business_profile = session_input
-        .state
-        .store
-        .find_business_profile_by_profile_id(
-            &session_input.state.into(),
-            session_input.key_store,
-            &profile_id,
-        )
-        .await
-        .change_context(errors::RoutingError::ProfileNotFound)?;
 
     let routing_algorithm: MerchantAccountRoutingAlgorithm = {
         business_profile

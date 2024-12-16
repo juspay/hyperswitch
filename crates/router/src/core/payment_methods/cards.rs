@@ -3343,29 +3343,16 @@ pub async fn list_payment_methods(
 
     let profile_id = payment_intent
         .as_ref()
-        .map(|payment_intent| {
-            payment_intent
-                .profile_id
-                .clone()
-                .get_required_value("profile_id")
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("profile_id is not set in payment_intent")
-        })
-        .transpose()?;
-    let business_profile = core_utils::validate_and_get_business_profile(
-        db,
-        key_manager_state,
-        &key_store,
-        profile_id.as_ref(),
-        merchant_account.get_id(),
-    )
-    .await?;
-
-    let profile_id = profile_id
-        .clone()
+        .and_then(|payment_intent| payment_intent.profile_id.as_ref())
         .get_required_value("profile_id")
         .change_context(errors::ApiErrorResponse::GenericNotFoundError {
             message: "Profile id not found".to_string(),
+        })?;
+    let business_profile = db
+        .find_business_profile_by_profile_id(key_manager_state, merchant_key_store, profile_id)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
+            id: profile_id.get_string_repr().to_owned(),
         })?;
 
     // filter out payment connectors based on profile_id
@@ -3563,10 +3550,14 @@ pub async fn list_payment_methods(
             payment_intent,
             chosen,
         };
-        let result = routing::perform_session_flow_routing(sfr, &enums::TransactionType::Payment)
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("error performing session flow routing")?;
+        let result = routing::perform_session_flow_routing(
+            sfr,
+            &business_profile,
+            &enums::TransactionType::Payment,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("error performing session flow routing")?;
 
         response.retain(|intermediate| {
             if !routing_enabled_pm_types.contains(&intermediate.payment_method_type)

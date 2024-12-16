@@ -4844,6 +4844,7 @@ where
                 let routing_output = perform_session_token_routing(
                     state.clone(),
                     merchant_account,
+                    business_profile,
                     key_store,
                     payment_data,
                     connectors,
@@ -5867,6 +5868,7 @@ pub fn should_add_task_to_process_tracker<F: Clone, D: OperationSessionGetters<F
 pub async fn perform_session_token_routing<F, D>(
     state: SessionState,
     merchant_account: &domain::MerchantAccount,
+    business_profile: &domain::Profile,
     key_store: &domain::MerchantKeyStore,
     payment_data: &D,
     connectors: Vec<api::SessionConnectorData>,
@@ -5955,10 +5957,14 @@ where
         payment_intent: payment_data.get_payment_intent(),
         chosen,
     };
-    let result = self_routing::perform_session_flow_routing(sfr, &enums::TransactionType::Payment)
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("error performing session flow routing")?;
+    let result = self_routing::perform_session_flow_routing(
+        sfr,
+        business_profile,
+        &enums::TransactionType::Payment,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("error performing session flow routing")?;
 
     let mut final_list: Vec<api::SessionConnectorData> = Vec::new();
 
@@ -5990,6 +5996,7 @@ pub struct SessionTokenRoutingResult {
 pub async fn perform_session_token_routing<F, D>(
     state: SessionState,
     merchant_account: &domain::MerchantAccount,
+    business_profile: &domain::Profile,
     key_store: &domain::MerchantKeyStore,
     payment_data: &D,
     connectors: Vec<api::SessionConnectorData>,
@@ -6023,10 +6030,14 @@ where
 
         chosen,
     };
-    let result = self_routing::perform_session_flow_routing(sfr, &enums::TransactionType::Payment)
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("error performing session flow routing")?;
+    let result = self_routing::perform_session_flow_routing(
+        sfr,
+        business_profile,
+        &enums::TransactionType::Payment,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("error performing session flow routing")?;
 
     let mut final_list: Vec<api::SessionConnectorData> = Vec::new();
 
