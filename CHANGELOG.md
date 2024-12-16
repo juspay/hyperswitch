@@ -4,6 +4,14 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.12.16.0-hotfix1
+
+### Refactors
+
+- **constraint_graph:** Revert handle for cases where setup_future_usage is null in payments ([#6845](https://github.com/juspay/hyperswitch/pull/6845)) ([`f2bad82`](https://github.com/juspay/hyperswitch/commit/f2bad82535ca2d7b7a6399a061eb5b214df9d413))
+
+- - -
+
 ## 2024.12.16.0
 
 ### Features
