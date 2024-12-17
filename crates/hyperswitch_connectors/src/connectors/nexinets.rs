@@ -167,7 +167,7 @@ impl ConnectorCommon for Nexinets {
 }
 
 impl ConnectorValidation for Nexinets {
-    fn validate_capture_method(
+    fn validate_connector_against_payment_request(
         &self,
         capture_method: Option<enums::CaptureMethod>,
         _payment_method: enums::PaymentMethod,

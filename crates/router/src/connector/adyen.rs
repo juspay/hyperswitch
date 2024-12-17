@@ -98,7 +98,7 @@ impl ConnectorCommon for Adyen {
 }
 
 impl ConnectorValidation for Adyen {
-    fn validate_capture_method(
+    fn validate_connector_against_payment_request(
         &self,
         capture_method: Option<storage_enums::CaptureMethod>,
         _payment_method: enums::PaymentMethod,

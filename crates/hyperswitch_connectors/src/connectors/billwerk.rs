@@ -154,7 +154,7 @@ impl ConnectorCommon for Billwerk {
 }
 
 impl ConnectorValidation for Billwerk {
-    fn validate_capture_method(
+    fn validate_connector_against_payment_request(
         &self,
         capture_method: Option<common_enums::CaptureMethod>,
         _payment_method: common_enums::PaymentMethod,

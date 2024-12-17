@@ -156,7 +156,7 @@ impl ConnectorCommon for Datatrans {
 
 impl ConnectorValidation for Datatrans {
     //TODO: implement functions when support enabled
-    fn validate_capture_method(
+    fn validate_connector_against_payment_request(
         &self,
         capture_method: Option<CaptureMethod>,
         _payment_method: PaymentMethod,

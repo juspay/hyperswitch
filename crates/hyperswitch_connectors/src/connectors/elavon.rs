@@ -582,7 +582,7 @@ impl webhooks::IncomingWebhook for Elavon {
 }
 
 impl ConnectorValidation for Elavon {
-    fn validate_capture_method(
+    fn validate_connector_against_payment_request(
         &self,
         capture_method: Option<CaptureMethod>,
         _payment_method: PaymentMethod,

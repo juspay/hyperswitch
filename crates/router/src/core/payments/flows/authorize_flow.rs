@@ -337,16 +337,11 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
             payments::CallConnectorAction::Trigger => {
                 connector
                     .connector
-                    .validate_capture_method(
+                    .validate_connector_against_payment_request(
                         self.request.capture_method,
                         self.payment_method,
                         self.request.payment_method_type,
                     )
-                    .to_payment_failed_response()?;
-
-                connector
-                    .connector
-                    .validate_payment_method(self.request.payment_method_type, self.payment_method)
                     .to_payment_failed_response()?;
 
                 if crate::connector::utils::PaymentsAuthorizeRequestData::is_customer_initiated_mandate_payment(

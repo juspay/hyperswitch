@@ -157,7 +157,7 @@ impl ConnectorCommon for Dlocal {
 }
 
 impl ConnectorValidation for Dlocal {
-    fn validate_capture_method(
+    fn validate_connector_against_payment_request(
         &self,
         capture_method: Option<enums::CaptureMethod>,
         _payment_method: enums::PaymentMethod,

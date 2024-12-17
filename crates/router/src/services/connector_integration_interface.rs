@@ -368,34 +368,23 @@ impl ConnectorRedirectResponse for ConnectorEnum {
 }
 
 impl ConnectorValidation for ConnectorEnum {
-    fn validate_payment_method(
-        &self,
-        payment_method_type: Option<common_enums::PaymentMethodType>,
-        payment_method: common_enums::PaymentMethod,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        match self {
-            Self::Old(connector) => {
-                connector.validate_payment_method(payment_method_type, payment_method)
-            }
-            Self::New(connector) => {
-                connector.validate_payment_method(payment_method_type, payment_method)
-            }
-        }
-    }
-
-    fn validate_capture_method(
+    fn validate_connector_against_payment_request(
         &self,
         capture_method: Option<common_enums::CaptureMethod>,
         payment_method: common_enums::PaymentMethod,
         pmt: Option<common_enums::PaymentMethodType>,
     ) -> CustomResult<(), errors::ConnectorError> {
         match self {
-            Self::Old(connector) => {
-                connector.validate_capture_method(capture_method, payment_method, pmt)
-            }
-            Self::New(connector) => {
-                connector.validate_capture_method(capture_method, payment_method, pmt)
-            }
+            Self::Old(connector) => connector.validate_connector_against_payment_request(
+                capture_method,
+                payment_method,
+                pmt,
+            ),
+            Self::New(connector) => connector.validate_connector_against_payment_request(
+                capture_method,
+                payment_method,
+                pmt,
+            ),
         }
     }
 

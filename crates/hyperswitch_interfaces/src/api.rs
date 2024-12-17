@@ -363,69 +363,44 @@ pub trait ConnectorVerifyWebhookSourceV2:
 
 /// trait ConnectorValidation
 pub trait ConnectorValidation: ConnectorCommon + ConnectorSpecifications {
-    /// fn validate_payment_method
-    fn validate_payment_method(
-        &self,
-        payment_method_type: Option<PaymentMethodType>,
-        payment_method: PaymentMethod,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        if let Some(supported_payment_methods) = self.get_supported_payment_methods() {
-            get_connector_payment_method_type_info(
-                supported_payment_methods,
-                payment_method,
-                payment_method_type,
-                self.id(),
-            )?;
-            Ok(())
-        } else {
-            Ok(())
-        }
-    }
-
-    /// fn validate_capture_method
-    fn validate_capture_method(
+    /// Validate, the payment request against the connector supported features
+    fn validate_connector_against_payment_request(
         &self,
         capture_method: Option<CaptureMethod>,
         payment_method: PaymentMethod,
         pmt: Option<PaymentMethodType>,
     ) -> CustomResult<(), errors::ConnectorError> {
         let capture_method = capture_method.unwrap_or_default();
-        if let Some(supported_payment_methods) = self.get_supported_payment_methods() {
-            let connector_payment_method_type_info = get_connector_payment_method_type_info(
-                supported_payment_methods,
-                payment_method,
-                pmt,
-                self.id(),
-            )?;
+        let default_capture_method =
+            vec![CaptureMethod::Automatic, CaptureMethod::SequentialAutomatic];
+        let is_feature_supported = match self.get_supported_payment_methods() {
+            Some(supported_payment_methods) => {
+                let connector_payment_method_type_info = get_connector_payment_method_type_info(
+                    supported_payment_methods,
+                    payment_method,
+                    pmt,
+                    self.id(),
+                )?;
 
-            if connector_payment_method_type_info
-                .map(|payment_method_type_info| {
-                    payment_method_type_info
-                        .supported_capture_methods
-                        .contains(&capture_method)
-                })
-                .unwrap_or(true)
-            // when payment method type is None
-            {
-                Ok(())
-            } else {
-                Err(errors::ConnectorError::NotSupported {
-                    message: capture_method.to_string(),
-                    connector: self.id(),
-                }
-                .into())
+                connector_payment_method_type_info
+                    .map(|payment_method_type_info| {
+                        payment_method_type_info
+                            .supported_capture_methods
+                            .contains(&capture_method)
+                    })
+                    .unwrap_or_else(|| default_capture_method.contains(&capture_method))
             }
+            None => default_capture_method.contains(&capture_method),
+        };
+
+        if is_feature_supported {
+            Ok(())
         } else {
-            match capture_method {
-                CaptureMethod::Automatic | CaptureMethod::SequentialAutomatic => Ok(()),
-                CaptureMethod::Manual
-                | CaptureMethod::ManualMultiple
-                | CaptureMethod::Scheduled => Err(errors::ConnectorError::NotSupported {
-                    message: capture_method.to_string(),
-                    connector: self.id(),
-                }
-                .into()),
+            Err(errors::ConnectorError::NotSupported {
+                message: capture_method.to_string(),
+                connector: self.id(),
             }
+            .into())
         }
     }
 

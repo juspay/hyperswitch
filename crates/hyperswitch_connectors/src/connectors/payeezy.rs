@@ -154,7 +154,7 @@ impl ConnectorCommon for Payeezy {
 }
 
 impl ConnectorValidation for Payeezy {
-    fn validate_capture_method(
+    fn validate_connector_against_payment_request(
         &self,
         capture_method: Option<CaptureMethod>,
         _payment_method: PaymentMethod,

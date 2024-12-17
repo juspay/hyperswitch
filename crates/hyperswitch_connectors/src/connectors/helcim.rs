@@ -173,7 +173,7 @@ impl ConnectorCommon for Helcim {
 }
 
 impl ConnectorValidation for Helcim {
-    fn validate_capture_method(
+    fn validate_connector_against_payment_request(
         &self,
         capture_method: Option<enums::CaptureMethod>,
         _payment_method: enums::PaymentMethod,
