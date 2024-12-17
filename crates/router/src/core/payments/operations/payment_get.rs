@@ -53,7 +53,7 @@ type BoxedConfirmOperation<'b, F> =
 
 // TODO: change the macro to include changes for v2
 // TODO: PaymentData in the macro should be an input
-impl<F: Send + Clone> Operation<F, PaymentsRetrieveRequest> for &PaymentGet {
+impl<F: Send + Clone + Sync> Operation<F, PaymentsRetrieveRequest> for &PaymentGet {
     type Data = PaymentStatusData<F>;
     fn to_validate_request(
         &self,
@@ -77,7 +77,7 @@ impl<F: Send + Clone> Operation<F, PaymentsRetrieveRequest> for &PaymentGet {
     }
 }
 #[automatically_derived]
-impl<F: Send + Clone> Operation<F, PaymentsRetrieveRequest> for PaymentGet {
+impl<F: Send + Clone + Sync> Operation<F, PaymentsRetrieveRequest> for PaymentGet {
     type Data = PaymentStatusData<F>;
     fn to_validate_request(
         &self,
@@ -101,7 +101,7 @@ impl<F: Send + Clone> Operation<F, PaymentsRetrieveRequest> for PaymentGet {
     }
 }
 
-impl<F: Send + Clone> ValidateRequest<F, PaymentsRetrieveRequest, PaymentStatusData<F>>
+impl<F: Send + Clone + Sync> ValidateRequest<F, PaymentsRetrieveRequest, PaymentStatusData<F>>
     for PaymentGet
 {
     #[instrument(skip_all)]
@@ -121,7 +121,9 @@ impl<F: Send + Clone> ValidateRequest<F, PaymentsRetrieveRequest, PaymentStatusD
 }
 
 #[async_trait]
-impl<F: Send + Clone> GetTracker<F, PaymentStatusData<F>, PaymentsRetrieveRequest> for PaymentGet {
+impl<F: Send + Clone + Sync> GetTracker<F, PaymentStatusData<F>, PaymentsRetrieveRequest>
+    for PaymentGet
+{
     #[instrument(skip_all)]
     async fn get_trackers<'a>(
         &'a self,
@@ -196,7 +198,9 @@ impl<F: Send + Clone> GetTracker<F, PaymentStatusData<F>, PaymentsRetrieveReques
 }
 
 #[async_trait]
-impl<F: Clone + Send> Domain<F, PaymentsRetrieveRequest, PaymentStatusData<F>> for PaymentGet {
+impl<F: Clone + Send + Sync> Domain<F, PaymentsRetrieveRequest, PaymentStatusData<F>>
+    for PaymentGet
+{
     async fn get_customer_details<'a>(
         &'a self,
         state: &SessionState,
@@ -211,7 +215,7 @@ impl<F: Clone + Send> Domain<F, PaymentsRetrieveRequest, PaymentStatusData<F>> f
                     .store
                     .find_customer_by_global_id(
                         &state.into(),
-                        id.get_string_repr(),
+                        &id,
                         &payment_data.payment_intent.merchant_id,
                         merchant_key_store,
                         storage_scheme,
@@ -284,7 +288,9 @@ impl<F: Clone + Send> Domain<F, PaymentsRetrieveRequest, PaymentStatusData<F>> f
 }
 
 #[async_trait]
-impl<F: Clone> UpdateTracker<F, PaymentStatusData<F>, PaymentsRetrieveRequest> for PaymentGet {
+impl<F: Clone + Sync> UpdateTracker<F, PaymentStatusData<F>, PaymentsRetrieveRequest>
+    for PaymentGet
+{
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,

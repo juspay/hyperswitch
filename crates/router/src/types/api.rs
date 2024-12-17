@@ -50,6 +50,7 @@ pub use hyperswitch_interfaces::api::{
     ConnectorMandateRevoke, ConnectorMandateRevokeV2, ConnectorVerifyWebhookSource,
     ConnectorVerifyWebhookSourceV2, CurrencyUnit,
 };
+use hyperswitch_interfaces::api::{UnifiedAuthenticationService, UnifiedAuthenticationServiceV2};
 
 #[cfg(feature = "frm")]
 pub use self::fraud_check::*;
@@ -106,6 +107,7 @@ pub trait Connector:
     + ConnectorMandateRevoke
     + ExternalAuthentication
     + TaxCalculation
+    + UnifiedAuthenticationService
 {
 }
 
@@ -124,7 +126,8 @@ impl<
             + FraudCheck
             + ConnectorMandateRevoke
             + ExternalAuthentication
-            + TaxCalculation,
+            + TaxCalculation
+            + UnifiedAuthenticationService,
     > Connector for T
 {
 }
@@ -144,6 +147,7 @@ pub trait ConnectorV2:
     + FraudCheckV2
     + ConnectorMandateRevokeV2
     + ExternalAuthenticationV2
+    + UnifiedAuthenticationServiceV2
 {
 }
 impl<
@@ -160,7 +164,8 @@ impl<
             + ConnectorVerifyWebhookSourceV2
             + FraudCheckV2
             + ConnectorMandateRevokeV2
-            + ExternalAuthenticationV2,
+            + ExternalAuthenticationV2
+            + UnifiedAuthenticationServiceV2,
     > ConnectorV2 for T
 {
 }
@@ -365,6 +370,9 @@ impl ConnectorData {
                 }
                 enums::Connector::Cryptopay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Cryptopay::new())))
+                }
+                enums::Connector::CtpMastercard => {
+                    Ok(ConnectorEnum::Old(Box::new(&connector::CtpMastercard)))
                 }
                 enums::Connector::Cybersource => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Cybersource::new())))

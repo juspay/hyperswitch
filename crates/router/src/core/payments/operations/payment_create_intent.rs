@@ -29,7 +29,7 @@ use crate::{
 #[derive(Debug, Clone, Copy)]
 pub struct PaymentIntentCreate;
 
-impl<F: Send + Clone> Operation<F, PaymentsCreateIntentRequest> for &PaymentIntentCreate {
+impl<F: Send + Clone + Sync> Operation<F, PaymentsCreateIntentRequest> for &PaymentIntentCreate {
     type Data = payments::PaymentIntentData<F>;
     fn to_validate_request(
         &self,
@@ -55,7 +55,7 @@ impl<F: Send + Clone> Operation<F, PaymentsCreateIntentRequest> for &PaymentInte
     }
 }
 
-impl<F: Send + Clone> Operation<F, PaymentsCreateIntentRequest> for PaymentIntentCreate {
+impl<F: Send + Clone + Sync> Operation<F, PaymentsCreateIntentRequest> for PaymentIntentCreate {
     type Data = payments::PaymentIntentData<F>;
     fn to_validate_request(
         &self,
@@ -85,7 +85,8 @@ type PaymentsCreateIntentOperation<'b, F> =
     BoxedOperation<'b, F, PaymentsCreateIntentRequest, payments::PaymentIntentData<F>>;
 
 #[async_trait]
-impl<F: Send + Clone> GetTracker<F, payments::PaymentIntentData<F>, PaymentsCreateIntentRequest>
+impl<F: Send + Clone + Sync>
+    GetTracker<F, payments::PaymentIntentData<F>, PaymentsCreateIntentRequest>
     for PaymentIntentCreate
 {
     #[instrument(skip_all)]
@@ -168,7 +169,7 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentIntentData<F>, PaymentsCrea
 }
 
 #[async_trait]
-impl<F: Clone> UpdateTracker<F, payments::PaymentIntentData<F>, PaymentsCreateIntentRequest>
+impl<F: Clone + Sync> UpdateTracker<F, payments::PaymentIntentData<F>, PaymentsCreateIntentRequest>
     for PaymentIntentCreate
 {
     #[instrument(skip_all)]
@@ -213,7 +214,7 @@ impl<F: Send + Clone>
 }
 
 #[async_trait]
-impl<F: Clone + Send> Domain<F, PaymentsCreateIntentRequest, payments::PaymentIntentData<F>>
+impl<F: Clone + Send + Sync> Domain<F, PaymentsCreateIntentRequest, payments::PaymentIntentData<F>>
     for PaymentIntentCreate
 {
     #[instrument(skip_all)]
@@ -236,7 +237,7 @@ impl<F: Clone + Send> Domain<F, PaymentsCreateIntentRequest, payments::PaymentIn
                 .store
                 .find_customer_by_global_id(
                     &state.into(),
-                    id.get_string_repr(),
+                    &id,
                     &payment_data.payment_intent.merchant_id,
                     merchant_key_store,
                     storage_scheme,

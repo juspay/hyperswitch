@@ -153,8 +153,13 @@ pub struct PaymentsCreateIntentRequest {
     pub shipping: Option<Address>,
 
     /// The identifier for the customer
-    #[schema(value_type = Option<String>, max_length = 64, min_length = 1, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
-    pub customer_id: Option<id_type::CustomerId>,
+    #[schema(
+        min_length = 32,
+        max_length = 64,
+        example = "12345_cus_01926c58bc6e77c09e809964e72af8c8",
+        value_type = String
+    )]
+    pub customer_id: Option<id_type::GlobalCustomerId>,
 
     /// Set to `present` to indicate that the customer is in your checkout flow during this payment, and therefore is able to authenticate. This parameter should be `absent` when merchant's doing merchant initiated payments and customer is not present while doing the payment.
     #[schema(example = "present", value_type = Option<PresenceOfCustomerDuringPayment>)]
@@ -442,8 +447,13 @@ pub struct PaymentsIntentResponse {
     pub shipping: Option<Address>,
 
     /// The identifier for the customer
-    #[schema(value_type = Option<String>, max_length = 64, min_length = 1, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
-    pub customer_id: Option<id_type::CustomerId>,
+    #[schema(
+        min_length = 32,
+        max_length = 64,
+        example = "12345_cus_01926c58bc6e77c09e809964e72af8c8",
+        value_type = String
+    )]
+    pub customer_id: Option<id_type::GlobalCustomerId>,
 
     /// Set to `present` to indicate that the customer is in your checkout flow during this payment, and therefore is able to authenticate. This parameter should be `absent` when merchant's doing merchant initiated payments and customer is not present while doing the payment.
     #[schema(example = "present", value_type = PresenceOfCustomerDuringPayment)]
@@ -995,7 +1005,8 @@ pub struct PaymentsRequest {
     pub recurring_details: Option<RecurringDetails>,
 
     /// Fee information to be charged on the payment being collected
-    pub charges: Option<PaymentChargeRequest>,
+    #[schema(value_type = Option<SplitPaymentsRequest>)]
+    pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
 
     /// Merchant's identifier for the payment/invoice. This will be sent to the connector
     /// if the connector provides support to accept multiple reference ids.
@@ -1013,6 +1024,22 @@ pub struct PaymentsRequest {
     /// Choose what kind of sca exemption is required for this payment
     #[schema(value_type = Option<ScaExemptionType>)]
     pub psd2_sca_exemption_type: Option<api_enums::ScaExemptionType>,
+
+    /// Service details for click to pay external authentication
+    #[schema(value_type = Option<CtpServiceDetails>)]
+    pub ctp_service_details: Option<CtpServiceDetails>,
+}
+
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct CtpServiceDetails {
+    /// merchant transaction id
+    pub merchant_transaction_id: Option<String>,
+    /// network transaction correlation id
+    pub correlation_id: Option<String>,
+    /// session transaction flow id
+    pub x_src_flow_id: Option<String>,
+    /// provider Eg: Visa, Mastercard
+    pub provider: Option<String>,
 }
 
 #[cfg(feature = "v1")]
@@ -1201,22 +1228,6 @@ mod payments_request_test {
             Some(vec!["customer_id and customer.id"])
         );
     }
-}
-
-/// Fee information to be charged on the payment being collected
-#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
-#[serde(rename_all = "snake_case")]
-pub struct PaymentChargeRequest {
-    /// Stripe's charge type
-    #[schema(value_type = PaymentChargeType, example = "direct")]
-    pub charge_type: api_enums::PaymentChargeType,
-
-    /// Platform fees to be collected on the payment
-    #[schema(value_type = i64, example = 6540)]
-    pub fees: MinorUnit,
-
-    /// Identifier for the reseller's account to send the funds to
-    pub transfer_account_id: String,
 }
 
 /// Details of surcharge applied on this payment, if applicable
@@ -4671,7 +4682,7 @@ pub struct PaymentsResponse {
     pub updated: Option<PrimitiveDateTime>,
 
     /// Fee information to be charged on the payment being collected
-    pub charges: Option<PaymentChargeResponse>,
+    pub split_payments: Option<SplitPaymentsResponse>,
 
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. FRM Metadata is useful for storing additional, structured information on an object related to FRM.
     #[schema(value_type = Option<Object>, example = r#"{ "fulfillment_method" : "deliver", "coverage_request" : "fraud" }"#)]
@@ -4919,8 +4930,8 @@ pub struct PaymentStartRedirectionParams {
 }
 
 /// Fee information to be charged on the payment being collected
-#[derive(Setter, Clone, Default, Debug, PartialEq, serde::Serialize, ToSchema)]
-pub struct PaymentChargeResponse {
+#[derive(Setter, Clone, Debug, PartialEq, serde::Serialize, ToSchema)]
+pub struct StripeSplitPaymentsResponse {
     /// Identifier for charge created for the payment
     pub charge_id: Option<String>,
 
@@ -4934,6 +4945,13 @@ pub struct PaymentChargeResponse {
 
     /// Identifier for the reseller's account where the funds were transferred
     pub transfer_account_id: String,
+}
+
+#[derive(Clone, Debug, PartialEq, serde::Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum SplitPaymentsResponse {
+    /// StripeSplitPaymentsResponse
+    StripeSplitPayment(StripeSplitPaymentsResponse),
 }
 
 /// Details of external authentication
@@ -5935,6 +5953,8 @@ pub enum SessionToken {
     OpenBanking(OpenBankingSessionToken),
     /// The session response structure for Paze
     Paze(Box<PazeSessionTokenResponse>),
+    /// The sessions response structure for ClickToPay
+    ClickToPay(Box<ClickToPaySessionResponse>),
     /// Whenever there is no session token response or an error in session response
     NoSessionTokenReceived,
 }
@@ -6840,6 +6860,9 @@ pub struct PaymentLinkDetails {
     pub show_card_form_by_default: bool,
     pub locale: Option<String>,
     pub transaction_details: Option<Vec<admin::PaymentLinkTransactionDetails>>,
+    pub background_image: Option<admin::PaymentLinkBackgroundImageConfig>,
+    pub details_layout: Option<api_enums::PaymentLinkDetailsLayout>,
+    pub branding_visibility: Option<bool>,
 }
 
 #[derive(Debug, serde::Serialize, Clone)]
@@ -6968,6 +6991,22 @@ pub enum PaymentLinkStatusWrap {
 pub struct ExtendedCardInfoResponse {
     // Encrypted customer payment method data
     pub payload: String,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
+pub struct ClickToPaySessionResponse {
+    pub dpa_id: String,
+    pub dpa_name: String,
+    pub locale: String,
+    pub card_brands: Vec<String>,
+    pub acquirer_bin: String,
+    pub acquirer_merchant_id: String,
+    pub merchant_category_code: String,
+    pub merchant_country_code: String,
+    #[schema(value_type = String, example = "38.02")]
+    pub transaction_amount: StringMajorUnit,
+    #[schema(value_type = Currency)]
+    pub transaction_currency_code: common_enums::Currency,
 }
 
 #[cfg(feature = "v1")]
