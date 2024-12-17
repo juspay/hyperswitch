@@ -42,18 +42,6 @@ function logRequestId(xRequestId) {
   }
 }
 
-Cypress.Commands.add("setMultipleConnectorsState", (connectorKeys) => {
-  const MULTIPLE_CONNECTORS = {
-    status: true,
-    count: connectorKeys.length,
-  };
-
-  cy.then(() => {
-    // Update global state directly
-    cy.task("setGlobalState", MULTIPLE_CONNECTORS);
-  });
-});
-
 Cypress.Commands.add(
   "merchantCreateCallTest",
   (merchantCreateBody, globalState) => {
@@ -424,7 +412,7 @@ Cypress.Commands.add(
     // it is best to use then() to handle the response within the same block of code
     cy.readFile(globalState.get("connectorAuthFilePath")).then(
       (jsonContent) => {
-        const authDetails = getValueByKey(
+        const { authDetails } = getValueByKey(
           JSON.stringify(jsonContent),
           connectorName
         );
@@ -491,11 +479,19 @@ Cypress.Commands.add(
     // it is best to use then() to handle the response within the same block of code
     cy.readFile(globalState.get("connectorAuthFilePath")).then(
       (jsonContent) => {
-        const authDetails = getValueByKey(
+        const { authDetails, stateUpdate } = getValueByKey(
           JSON.stringify(jsonContent),
           connector_id,
           extractIntegerAtEnd(profilePrefix)
         );
+
+        if (stateUpdate) {
+          // cy.task("setGlobalState", stateUpdate);
+          globalState.set(
+            "MULTIPLE_CONNECTORS",
+            stateUpdate.MULTIPLE_CONNECTORS
+          );
+        }
 
         createConnectorBody.connector_account_details =
           authDetails.connector_account_details;
@@ -558,7 +554,7 @@ Cypress.Commands.add(
     // it is best to use then() to handle the response within the same block of code
     cy.readFile(globalState.get("connectorAuthFilePath")).then(
       (jsonContent) => {
-        const authDetails = getValueByKey(
+        const { authDetails } = getValueByKey(
           JSON.stringify(jsonContent),
           `${connectorName}_payout`
         );

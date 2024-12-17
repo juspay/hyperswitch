@@ -63,8 +63,11 @@ export function getConnectorFlowDetails(connectorData, commonData, key) {
 }
 
 function mergeDetails(connectorId) {
-  const connectorData = getValueByKey(connectorDetails, connectorId);
-  const fallbackData = getValueByKey(connectorDetails, "commons");
+  const connectorData = getValueByKey(
+    connectorDetails,
+    connectorId
+  ).authDetails;
+  const fallbackData = getValueByKey(connectorDetails, "commons").authDetails;
   // Merge data, prioritizing connectorData and filling missing data from fallbackData
   const mergedDetails = mergeConnectorDetails(connectorData, fallbackData);
   return mergedDetails;
@@ -97,6 +100,15 @@ function mergeConnectorDetails(source, fallback) {
   return merged;
 }
 
+export function handleMultipleConnectors(keys) {
+  return {
+    MULTIPLE_CONNECTORS: {
+      status: true,
+      count: keys.length,
+    },
+  };
+}
+
 export function getValueByKey(jsonObject, key, keyNumber = 0) {
   const data =
     typeof jsonObject === "string" ? JSON.parse(jsonObject) : jsonObject;
@@ -115,15 +127,23 @@ export function getValueByKey(jsonObject, key, keyNumber = 0) {
             "connector_account_details"
           )
         ) {
-          // Set MULTIPLE_CONNECTORS state via command
-          cy.setMultipleConnectorsState(keys);
-          return currentItem;
+          // Return state update instead of setting directly
+          return {
+            authDetails: currentItem,
+            stateUpdate: handleMultipleConnectors(keys),
+          };
         }
       }
     }
-    return data[key];
+    return {
+      authDetails: data[key],
+      stateUpdate: null,
+    };
   }
-  return null;
+  return {
+    authDetails: null,
+    stateUpdate: null,
+  };
 }
 
 export const should_continue_further = (data) => {
