@@ -159,7 +159,7 @@ export const connectorDetails = {
             type: "invalid_request",
             message: "Payment method type not supported",
             code: "IR_19",
-            reason: "Partial Refund is not supported by placetopay"
+            reason: "Partial Refund is not supported by placetopay",
           },
         },
       },
