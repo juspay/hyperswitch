@@ -2013,7 +2013,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                         dynamic_routing_config_params_interpolator.clone(),
                     )
                     .await
-                    .map_err(|e| logger::error!(dynamic_routing_metrics_error=?e))
+                    .map_err(|e| logger::error!(success_based_routing_metrics_error=?e))
                     .ok();
 
                     routing_helpers::push_metrics_with_update_window_for_contract_based_routing(
@@ -2024,7 +2024,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                         dynamic_routing_config_params_interpolator,
                     )
                     .await
-                    .map_err(|e| logger::error!(dynamic_routing_metrics_error=?e))
+                    .map_err(|e| logger::error!(contract_based_routing_metrics_error=?e))
                     .ok();
                 }
                 .in_current_span(),

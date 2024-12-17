@@ -33,7 +33,7 @@ pub enum DynamicRoutingError {
     SuccessRateBasedRoutingFailure(String),
 
     /// Error from Dynamic Routing Server while performing contract based routing
-    #[error("Error from Dynamic Routing Server : {0}")]
+    #[error("Error from Dynamic Routing Server while performing contract based routing: {0}")]
     ContractBasedRoutingFailure(String),
     /// Error from Dynamic Routing Server while perfrming elimination
     #[error("Error from Dynamic Routing Server while perfrming elimination : {0}")]

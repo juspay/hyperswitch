@@ -513,10 +513,19 @@ pub struct RoutingLinkWrapper {
     pub algorithm_id: RoutingAlgorithmId,
 }
 
-#[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct DynamicAlgorithmWithTimestamp<T> {
     pub algorithm_id: Option<T>,
     pub timestamp: i64,
+}
+
+impl Default for DynamicAlgorithmWithTimestamp<common_utils::id_type::RoutingId> {
+    fn default() -> Self {
+        Self {
+            algorithm_id: None,
+            timestamp: common_utils::date_time::now_unix_timestamp(),
+        }
+    }
 }
 
 #[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize)]
@@ -739,10 +748,7 @@ impl DynamicRoutingAlgorithmRef {
             DynamicRoutingType::SuccessRateBasedRouting => {
                 if let Some(success_based_algo) = &self.success_based_algorithm {
                     self.success_based_algorithm = Some(SuccessBasedAlgorithm {
-                        algorithm_id_with_timestamp: DynamicAlgorithmWithTimestamp {
-                            algorithm_id: None,
-                            timestamp: common_utils::date_time::now_unix_timestamp(),
-                        },
+                        algorithm_id_with_timestamp: DynamicAlgorithmWithTimestamp::default(),
                         enabled_feature: success_based_algo.enabled_feature,
                     });
                 }
@@ -750,10 +756,7 @@ impl DynamicRoutingAlgorithmRef {
             DynamicRoutingType::EliminationRouting => {
                 if let Some(elimination_based_algo) = &self.elimination_routing_algorithm {
                     self.elimination_routing_algorithm = Some(EliminationRoutingAlgorithm {
-                        algorithm_id_with_timestamp: DynamicAlgorithmWithTimestamp {
-                            algorithm_id: None,
-                            timestamp: common_utils::date_time::now_unix_timestamp(),
-                        },
+                        algorithm_id_with_timestamp: DynamicAlgorithmWithTimestamp::default(),
                         enabled_feature: elimination_based_algo.enabled_feature,
                     });
                 }
@@ -761,10 +764,7 @@ impl DynamicRoutingAlgorithmRef {
             DynamicRoutingType::ContractBasedRouting => {
                 if let Some(contract_based_algo) = &self.contract_based_routing {
                     self.contract_based_routing = Some(ContractRoutingAlgorithm {
-                        algorithm_id_with_timestamp: DynamicAlgorithmWithTimestamp {
-                            algorithm_id: None,
-                            timestamp: common_utils::date_time::now_unix_timestamp(),
-                        },
+                        algorithm_id_with_timestamp: DynamicAlgorithmWithTimestamp::default(),
                         enabled_feature: contract_based_algo.enabled_feature,
                     });
                 }

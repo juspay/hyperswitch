@@ -1681,7 +1681,7 @@ pub async fn contract_based_routing_update_configs(
                 .invalidate_contracts(prefix_of_dynamic_routing_keys)
                 .await
                 .change_context(errors::ApiErrorResponse::GenericNotFoundError {
-                    message: "Failed to invalidate the routing keys".to_string(),
+                    message: "Failed to invalidate the contract based routing keys".to_string(),
                 })
         })
         .await

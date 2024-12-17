@@ -1003,12 +1003,12 @@ pub async fn push_metrics_with_update_window_for_contract_based_routing(
                     .algorithm_id
                     .ok_or(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable(
-                        "success_based_routing_algorithm_id not found in business_profile",
+                        "contract_based_routing_algorithm_id not found in business_profile",
                     )?,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("unable to retrieve success_rate based dynamic routing configs")?;
+            .attach_printable("unable to retrieve contract based dynamic routing configs")?;
 
         // check if this id is correct
         let tenant_business_profile_id = generate_tenant_business_profile_id(
@@ -1033,7 +1033,10 @@ pub async fn push_metrics_with_update_window_for_contract_based_routing(
             .ok_or(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("unable to get LabelInformation from ContractBasedRoutingConfig")?;
 
-        logger::debug!("final_label_info - {:?}", final_label_info);
+        logger::debug!(
+            "contract based routing: matched LabelInformation - {:?}",
+            final_label_info
+        );
 
         let request_label_info = routing_types::LabelInformation {
             label: format!(
@@ -1060,7 +1063,7 @@ pub async fn push_metrics_with_update_window_for_contract_based_routing(
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable(
-                    "unable to update success based routing window in dynamic routing service",
+                    "unable to update contract based routing window in dynamic routing service",
                 )?;
         }
 
