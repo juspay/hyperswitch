@@ -42,7 +42,10 @@ use crate::{
     routes::{app::ReqState, SessionState},
     services::{authentication as auth, authorization::roles, openidconnect, ApplicationResponse},
     types::{domain, transformers::ForeignInto},
-    utils::{self, user::two_factor_auth as tfa_utils},
+    utils::{
+        self,
+        user::{theme as theme_utils, two_factor_auth as tfa_utils},
+    },
 };
 
 pub mod dashboard_metadata;
@@ -55,6 +58,7 @@ pub async fn signup_with_merchant_id(
     state: SessionState,
     request: user_api::SignUpWithMerchantIdRequest,
     auth_id: Option<String>,
+    theme_id: Option<String>,
 ) -> UserResponse<user_api::SignUpWithMerchantIdResponse> {
     let new_user = domain::NewUser::try_from(request.clone())?;
     new_user
@@ -75,12 +79,18 @@ pub async fn signup_with_merchant_id(
         )
         .await?;
 
+    let theme = theme_utils::get_theme_using_optional_theme_id(&state, theme_id).await?;
+
     let email_contents = email_types::ResetPassword {
         recipient_email: user_from_db.get_email().try_into()?,
         user_name: domain::UserName::new(user_from_db.get_name())?,
         settings: state.conf.clone(),
         subject: consts::user::EMAIL_SUBJECT_RESET_PASSWORD,
         auth_id,
+        theme_id: theme.as_ref().map(|theme| theme.theme_id.clone()),
+        theme_config: theme
+            .map(|theme| theme.email_config())
+            .unwrap_or(state.conf.theme.email_config.clone()),
     };
 
     let send_email_result = state
@@ -104,14 +114,20 @@ pub async fn get_user_details(
 ) -> UserResponse<user_api::GetUserDetailsResponse> {
     let user = user_from_token.get_user_from_db(&state).await?;
     let verification_days_left = utils::user::get_verification_days_left(&state, &user)?;
-    let role_info = roles::RoleInfo::from_role_id_in_merchant_scope(
+    let role_info = roles::RoleInfo::from_role_id_and_org_id(
         &state,
         &user_from_token.role_id,
-        &user_from_token.merchant_id,
         &user_from_token.org_id,
     )
     .await
     .change_context(UserErrors::InternalServerError)?;
+
+    let theme = theme_utils::get_most_specific_theme_using_token_and_min_entity(
+        &state,
+        &user_from_token,
+        EntityType::Profile,
+    )
+    .await?;
 
     Ok(ApplicationResponse::Json(
         user_api::GetUserDetailsResponse {
@@ -126,6 +142,7 @@ pub async fn get_user_details(
             recovery_codes_left: user.get_recovery_codes().map(|codes| codes.len()),
             profile_id: user_from_token.profile_id,
             entity_type: role_info.get_entity_type(),
+            theme_id: theme.map(|theme| theme.theme_id),
         },
     ))
 }
@@ -195,6 +212,7 @@ pub async fn connect_account(
     state: SessionState,
     request: user_api::ConnectAccountRequest,
     auth_id: Option<String>,
+    theme_id: Option<String>,
 ) -> UserResponse<user_api::ConnectAccountResponse> {
     let find_user = state
         .global_store
@@ -204,12 +222,18 @@ pub async fn connect_account(
     if let Ok(found_user) = find_user {
         let user_from_db: domain::UserFromStorage = found_user.into();
 
+        let theme = theme_utils::get_theme_using_optional_theme_id(&state, theme_id).await?;
+
         let email_contents = email_types::MagicLink {
             recipient_email: domain::UserEmail::from_pii_email(user_from_db.get_email())?,
             settings: state.conf.clone(),
             user_name: domain::UserName::new(user_from_db.get_name())?,
             subject: consts::user::EMAIL_SUBJECT_MAGIC_LINK,
             auth_id,
+            theme_id: theme.as_ref().map(|theme| theme.theme_id.clone()),
+            theme_config: theme
+                .map(|theme| theme.email_config())
+                .unwrap_or(state.conf.theme.email_config.clone()),
         };
 
         let send_email_result = state
@@ -254,11 +278,17 @@ pub async fn connect_account(
             )
             .await?;
 
+        let theme = theme_utils::get_theme_using_optional_theme_id(&state, theme_id).await?;
+
         let magic_link_email = email_types::VerifyEmail {
             recipient_email: domain::UserEmail::from_pii_email(user_from_db.get_email())?,
             settings: state.conf.clone(),
             subject: consts::user::EMAIL_SUBJECT_SIGNUP,
             auth_id,
+            theme_id: theme.as_ref().map(|theme| theme.theme_id.clone()),
+            theme_config: theme
+                .map(|theme| theme.email_config())
+                .unwrap_or(state.conf.theme.email_config.clone()),
         };
 
         let magic_link_result = state
@@ -271,20 +301,22 @@ pub async fn connect_account(
 
         logger::info!(?magic_link_result);
 
-        let welcome_to_community_email = email_types::WelcomeToCommunity {
-            recipient_email: domain::UserEmail::from_pii_email(user_from_db.get_email())?,
-            subject: consts::user::EMAIL_SUBJECT_WELCOME_TO_COMMUNITY,
-        };
+        if state.tenant.tenant_id.get_string_repr() == common_utils::consts::DEFAULT_TENANT {
+            let welcome_to_community_email = email_types::WelcomeToCommunity {
+                recipient_email: domain::UserEmail::from_pii_email(user_from_db.get_email())?,
+                subject: consts::user::EMAIL_SUBJECT_WELCOME_TO_COMMUNITY,
+            };
 
-        let welcome_email_result = state
-            .email_client
-            .compose_and_send_email(
-                Box::new(welcome_to_community_email),
-                state.conf.proxy.https_url.as_ref(),
-            )
-            .await;
+            let welcome_email_result = state
+                .email_client
+                .compose_and_send_email(
+                    Box::new(welcome_to_community_email),
+                    state.conf.proxy.https_url.as_ref(),
+                )
+                .await;
 
-        logger::info!(?welcome_email_result);
+            logger::info!(?welcome_email_result);
+        }
 
         return Ok(ApplicationResponse::Json(
             user_api::ConnectAccountResponse {
@@ -372,6 +404,7 @@ pub async fn forgot_password(
     state: SessionState,
     request: user_api::ForgotPasswordRequest,
     auth_id: Option<String>,
+    theme_id: Option<String>,
 ) -> UserResponse<()> {
     let user_email = domain::UserEmail::from_pii_email(request.email)?;
 
@@ -388,12 +421,18 @@ pub async fn forgot_password(
         })
         .map(domain::UserFromStorage::from)?;
 
+    let theme = theme_utils::get_theme_using_optional_theme_id(&state, theme_id).await?;
+
     let email_contents = email_types::ResetPassword {
         recipient_email: domain::UserEmail::from_pii_email(user_from_db.get_email())?,
         settings: state.conf.clone(),
         user_name: domain::UserName::new(user_from_db.get_name())?,
         subject: consts::user::EMAIL_SUBJECT_RESET_PASSWORD,
         auth_id,
+        theme_id: theme.as_ref().map(|theme| theme.theme_id.clone()),
+        theme_config: theme
+            .map(|theme| theme.email_config())
+            .unwrap_or(state.conf.theme.email_config.clone()),
     };
 
     state
@@ -553,7 +592,7 @@ async fn handle_invitation(
         .into());
     }
 
-    let role_info = roles::RoleInfo::from_role_id_in_merchant_scope(
+    let role_info = roles::RoleInfo::from_role_id_in_lineage(
         state,
         &request.role_id,
         &user_from_token.merchant_id,
@@ -783,6 +822,13 @@ async fn handle_existing_user_invitation(
             },
         };
 
+        let theme = theme_utils::get_most_specific_theme_using_token_and_min_entity(
+            state,
+            user_from_token,
+            role_info.get_entity_type(),
+        )
+        .await?;
+
         let email_contents = email_types::InviteUser {
             recipient_email: invitee_email,
             user_name: domain::UserName::new(invitee_user_from_db.get_name())?,
@@ -790,6 +836,10 @@ async fn handle_existing_user_invitation(
             subject: consts::user::EMAIL_SUBJECT_INVITATION,
             entity,
             auth_id: auth_id.clone(),
+            theme_id: theme.as_ref().map(|theme| theme.theme_id.clone()),
+            theme_config: theme
+                .map(|theme| theme.email_config())
+                .unwrap_or(state.conf.theme.email_config.clone()),
         };
 
         is_email_sent = state
@@ -928,6 +978,13 @@ async fn handle_new_user_invitation(
             },
         };
 
+        let theme = theme_utils::get_most_specific_theme_using_token_and_min_entity(
+            state,
+            user_from_token,
+            role_info.get_entity_type(),
+        )
+        .await?;
+
         let email_contents = email_types::InviteUser {
             recipient_email: invitee_email,
             user_name: domain::UserName::new(new_user.get_name())?,
@@ -935,6 +992,10 @@ async fn handle_new_user_invitation(
             subject: consts::user::EMAIL_SUBJECT_INVITATION,
             entity,
             auth_id: auth_id.clone(),
+            theme_id: theme.as_ref().map(|theme| theme.theme_id.clone()),
+            theme_config: theme
+                .map(|theme| theme.email_config())
+                .unwrap_or(state.conf.theme.email_config.clone()),
         };
         let send_email_result = state
             .email_client
@@ -1056,6 +1117,21 @@ pub async fn resend_invite(
         .get_entity_id_and_type()
         .ok_or(UserErrors::InternalServerError)?;
 
+    let invitee_role_info = roles::RoleInfo::from_role_id_and_org_id(
+        &state,
+        &user_role.role_id,
+        &user_from_token.org_id,
+    )
+    .await
+    .change_context(UserErrors::InternalServerError)?;
+
+    let theme = theme_utils::get_most_specific_theme_using_token_and_min_entity(
+        &state,
+        &user_from_token,
+        invitee_role_info.get_entity_type(),
+    )
+    .await?;
+
     let email_contents = email_types::InviteUser {
         recipient_email: invitee_email,
         user_name: domain::UserName::new(user.get_name())?,
@@ -1066,6 +1142,10 @@ pub async fn resend_invite(
             entity_type,
         },
         auth_id: auth_id.clone(),
+        theme_id: theme.as_ref().map(|theme| theme.theme_id.clone()),
+        theme_config: theme
+            .map(|theme| theme.email_config())
+            .unwrap_or(state.conf.theme.email_config.clone()),
     };
 
     state
@@ -1371,10 +1451,9 @@ pub async fn list_user_roles_details(
         .await
         .to_not_found_response(UserErrors::InvalidRoleOperation)?;
 
-    let requestor_role_info = roles::RoleInfo::from_role_id_in_merchant_scope(
+    let requestor_role_info = roles::RoleInfo::from_role_id_and_org_id(
         &state,
         &user_from_token.role_id,
-        &user_from_token.merchant_id,
         &user_from_token.org_id,
     )
     .await
@@ -1526,7 +1605,7 @@ pub async fn list_user_roles_details(
             .collect::<HashSet<_>>()
             .into_iter()
             .map(|role_id| async {
-                let role_info = roles::RoleInfo::from_role_id_in_org_scope(
+                let role_info = roles::RoleInfo::from_role_id_and_org_id(
                     &state,
                     &role_id,
                     &user_from_token.org_id,
@@ -1668,6 +1747,7 @@ pub async fn send_verification_mail(
     state: SessionState,
     req: user_api::SendVerifyEmailRequest,
     auth_id: Option<String>,
+    theme_id: Option<String>,
 ) -> UserResponse<()> {
     let user_email = domain::UserEmail::try_from(req.email)?;
     let user = state
@@ -1686,11 +1766,17 @@ pub async fn send_verification_mail(
         return Err(UserErrors::UserAlreadyVerified.into());
     }
 
+    let theme = theme_utils::get_theme_using_optional_theme_id(&state, theme_id).await?;
+
     let email_contents = email_types::VerifyEmail {
         recipient_email: domain::UserEmail::from_pii_email(user.email)?,
         settings: state.conf.clone(),
         subject: consts::user::EMAIL_SUBJECT_SIGNUP,
         auth_id,
+        theme_id: theme.as_ref().map(|theme| theme.theme_id.clone()),
+        theme_config: theme
+            .map(|theme| theme.email_config())
+            .unwrap_or(state.conf.theme.email_config.clone()),
     };
 
     state
@@ -2533,10 +2619,9 @@ pub async fn list_orgs_for_user(
     state: SessionState,
     user_from_token: auth::UserFromToken,
 ) -> UserResponse<Vec<user_api::ListOrgsForUserResponse>> {
-    let role_info = roles::RoleInfo::from_role_id_in_merchant_scope(
+    let role_info = roles::RoleInfo::from_role_id_and_org_id(
         &state,
         &user_from_token.role_id,
-        &user_from_token.merchant_id,
         &user_from_token.org_id,
     )
     .await
@@ -2611,10 +2696,9 @@ pub async fn list_merchants_for_user_in_org(
     state: SessionState,
     user_from_token: auth::UserFromToken,
 ) -> UserResponse<Vec<user_api::ListMerchantsForUserInOrgResponse>> {
-    let role_info = roles::RoleInfo::from_role_id_in_merchant_scope(
+    let role_info = roles::RoleInfo::from_role_id_and_org_id(
         &state,
         &user_from_token.role_id,
-        &user_from_token.merchant_id,
         &user_from_token.org_id,
     )
     .await
@@ -2687,10 +2771,9 @@ pub async fn list_profiles_for_user_in_org_and_merchant_account(
     state: SessionState,
     user_from_token: auth::UserFromToken,
 ) -> UserResponse<Vec<user_api::ListProfilesForUserInOrgAndMerchantAccountResponse>> {
-    let role_info = roles::RoleInfo::from_role_id_in_merchant_scope(
+    let role_info = roles::RoleInfo::from_role_id_and_org_id(
         &state,
         &user_from_token.role_id,
-        &user_from_token.merchant_id,
         &user_from_token.org_id,
     )
     .await
@@ -2780,10 +2863,9 @@ pub async fn switch_org_for_user(
         .into());
     }
 
-    let role_info = roles::RoleInfo::from_role_id_in_merchant_scope(
+    let role_info = roles::RoleInfo::from_role_id_and_org_id(
         &state,
         &user_from_token.role_id,
-        &user_from_token.merchant_id,
         &user_from_token.org_id,
     )
     .await
@@ -2876,13 +2958,8 @@ pub async fn switch_org_for_user(
     )
     .await?;
 
-    utils::user_role::set_role_permissions_in_cache_by_role_id_merchant_id_org_id(
-        &state,
-        &role_id,
-        &merchant_id,
-        &request.org_id,
-    )
-    .await;
+    utils::user_role::set_role_info_in_cache_by_role_id_org_id(&state, &role_id, &request.org_id)
+        .await;
 
     let response = user_api::TokenResponse {
         token: token.clone(),
@@ -2905,10 +2982,9 @@ pub async fn switch_merchant_for_user_in_org(
     }
 
     let key_manager_state = &(&state).into();
-    let role_info = roles::RoleInfo::from_role_id_in_merchant_scope(
+    let role_info = roles::RoleInfo::from_role_id_and_org_id(
         &state,
         &user_from_token.role_id,
-        &user_from_token.merchant_id,
         &user_from_token.org_id,
     )
     .await
@@ -3065,13 +3141,7 @@ pub async fn switch_merchant_for_user_in_org(
     )
     .await?;
 
-    utils::user_role::set_role_permissions_in_cache_by_role_id_merchant_id_org_id(
-        &state,
-        &role_id,
-        &merchant_id,
-        &org_id,
-    )
-    .await;
+    utils::user_role::set_role_info_in_cache_by_role_id_org_id(&state, &role_id, &org_id).await;
 
     let response = user_api::TokenResponse {
         token: token.clone(),
@@ -3094,10 +3164,9 @@ pub async fn switch_profile_for_user_in_org_and_merchant(
     }
 
     let key_manager_state = &(&state).into();
-    let role_info = roles::RoleInfo::from_role_id_in_merchant_scope(
+    let role_info = roles::RoleInfo::from_role_id_and_org_id(
         &state,
         &user_from_token.role_id,
-        &user_from_token.merchant_id,
         &user_from_token.org_id,
     )
     .await
@@ -3175,10 +3244,9 @@ pub async fn switch_profile_for_user_in_org_and_merchant(
     )
     .await?;
 
-    utils::user_role::set_role_permissions_in_cache_by_role_id_merchant_id_org_id(
+    utils::user_role::set_role_info_in_cache_by_role_id_org_id(
         &state,
         &role_id,
-        &user_from_token.merchant_id,
         &user_from_token.org_id,
     )
     .await;

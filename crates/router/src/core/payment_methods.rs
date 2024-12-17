@@ -100,7 +100,6 @@ pub async fn retrieve_payment_method_core(
                 business_profile,
             )
             .await?;
-
             Ok((pm_opt.to_owned(), payment_token))
         }
         pm_opt @ Some(pm @ domain::PaymentMethodData::BankDebit(_)) => {
@@ -127,6 +126,7 @@ pub async fn retrieve_payment_method_core(
         pm @ Some(domain::PaymentMethodData::GiftCard(_)) => Ok((pm.to_owned(), None)),
         pm @ Some(domain::PaymentMethodData::OpenBanking(_)) => Ok((pm.to_owned(), None)),
         pm @ Some(domain::PaymentMethodData::MobilePayment(_)) => Ok((pm.to_owned(), None)),
+        pm @ Some(domain::PaymentMethodData::NetworkToken(_)) => Ok((pm.to_owned(), None)),
         pm_opt @ Some(pm @ domain::PaymentMethodData::BankTransfer(_)) => {
             let payment_token = payment_helpers::store_payment_method_data_in_vault(
                 state,
@@ -588,6 +588,7 @@ pub async fn retrieve_payment_method_with_token(
                 mandate_id,
                 payment_method_info,
                 business_profile,
+                payment_attempt.connector.clone(),
             )
             .await
             .map(|card| Some((card, enums::PaymentMethod::Card)))?
@@ -622,6 +623,7 @@ pub async fn retrieve_payment_method_with_token(
                 mandate_id,
                 payment_method_info,
                 business_profile,
+                payment_attempt.connector.clone(),
             )
             .await
             .map(|card| Some((card, enums::PaymentMethod::Card)))?

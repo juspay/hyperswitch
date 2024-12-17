@@ -69,9 +69,8 @@ impl Store {
         .await;
 
         metrics::REDIS_STREAM_READ_TIME.record(
-            &metrics::CONTEXT,
             execution_time,
-            &[metrics::KeyValue::new("stream", stream_name.to_owned())],
+            router_env::metric_attributes!(("stream", stream_name.to_owned())),
         );
 
         Ok(output?)
@@ -104,9 +103,8 @@ impl Store {
             .await;
 
         metrics::REDIS_STREAM_TRIM_TIME.record(
-            &metrics::CONTEXT,
             execution_time,
-            &[metrics::KeyValue::new("stream", stream_name.to_owned())],
+            router_env::metric_attributes!(("stream", stream_name.to_owned())),
         );
 
         // adding 1 because we are deleting the given id too

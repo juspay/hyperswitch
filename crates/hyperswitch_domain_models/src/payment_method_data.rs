@@ -82,6 +82,7 @@ pub struct Card {
     pub card_issuing_country: Option<String>,
     pub bank_code: Option<String>,
     pub nick_name: Option<Secret<String>>,
+    pub card_holder_name: Option<Secret<String>>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize, Default)]
@@ -95,6 +96,7 @@ pub struct CardDetailsForNetworkTransactionId {
     pub card_issuing_country: Option<String>,
     pub bank_code: Option<String>,
     pub nick_name: Option<Secret<String>>,
+    pub card_holder_name: Option<Secret<String>>,
 }
 
 impl CardDetailsForNetworkTransactionId {
@@ -136,6 +138,7 @@ impl From<mandates::NetworkTransactionIdAndCardDetails> for CardDetailsForNetwor
             card_issuing_country: card_details_for_nti.card_issuing_country,
             bank_code: card_details_for_nti.bank_code,
             nick_name: card_details_for_nti.nick_name,
+            card_holder_name: card_details_for_nti.card_holder_name,
         }
     }
 }
@@ -593,6 +596,7 @@ pub struct NetworkTokenData {
     pub card_issuing_country: Option<String>,
     pub bank_code: Option<String>,
     pub nick_name: Option<Secret<String>>,
+    pub eci: Option<String>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize)]
@@ -666,7 +670,7 @@ impl From<api_models::payments::Card> for Card {
             card_number,
             card_exp_month,
             card_exp_year,
-            card_holder_name: _,
+            card_holder_name,
             card_cvc,
             card_issuer,
             card_network,
@@ -687,6 +691,7 @@ impl From<api_models::payments::Card> for Card {
             card_issuing_country,
             bank_code,
             nick_name,
+            card_holder_name,
         }
     }
 }
@@ -1438,6 +1443,7 @@ pub struct TokenizedCardValue1 {
     pub nickname: Option<String>,
     pub card_last_four: Option<String>,
     pub card_token: Option<String>,
+    pub card_holder_name: Option<Secret<String>>,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]

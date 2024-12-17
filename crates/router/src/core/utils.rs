@@ -14,7 +14,7 @@ use common_utils::{
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
     merchant_connector_account::MerchantConnectorAccount, payment_address::PaymentAddress,
-    router_data::ErrorResponse, types::OrderDetailsWithAmount,
+    router_data::ErrorResponse, router_request_types, types::OrderDetailsWithAmount,
 };
 #[cfg(feature = "payouts")]
 use masking::{ExposeInterface, PeekInterface};
@@ -215,6 +215,7 @@ pub async fn construct_payout_router_data<'a, F>(
         additional_merchant_data: None,
         header_payload: None,
         connector_mandate_request_reference_id: None,
+        authentication_id: None,
         psd2_sca_exemption_type: None,
     };
 
@@ -234,7 +235,7 @@ pub async fn construct_refund_router_data<'a, F>(
     _payment_attempt: &storage::PaymentAttempt,
     _refund: &'a storage::Refund,
     _creds_identifier: Option<String>,
-    _charges: Option<types::ChargeRefunds>,
+    _split_refunds: Option<router_request_types::SplitRefundsRequest>,
 ) -> RouterResult<types::RefundsRouterData<F>> {
     todo!()
 }
@@ -252,7 +253,7 @@ pub async fn construct_refund_router_data<'a, F>(
     payment_attempt: &storage::PaymentAttempt,
     refund: &'a storage::Refund,
     creds_identifier: Option<String>,
-    charges: Option<types::ChargeRefunds>,
+    split_refunds: Option<router_request_types::SplitRefundsRequest>,
 ) -> RouterResult<types::RefundsRouterData<F>> {
     let profile_id = payment_intent
         .profile_id
@@ -361,7 +362,7 @@ pub async fn construct_refund_router_data<'a, F>(
             reason: refund.refund_reason.clone(),
             connector_refund_id: connector_refund_id.clone(),
             browser_info,
-            charges,
+            split_refunds,
             integrity_object: None,
             refund_status: refund.refund_status,
         },
@@ -396,6 +397,7 @@ pub async fn construct_refund_router_data<'a, F>(
         additional_merchant_data: None,
         header_payload: None,
         connector_mandate_request_reference_id: None,
+        authentication_id: None,
         psd2_sca_exemption_type: None,
     };
 
@@ -605,11 +607,7 @@ pub fn validate_dispute_stage_and_dispute_status(
     common_utils::fp_utils::when(
         !(dispute_stage_validation && dispute_status_validation),
         || {
-            super::metrics::INCOMING_DISPUTE_WEBHOOK_VALIDATION_FAILURE_METRIC.add(
-                &super::metrics::CONTEXT,
-                1,
-                &[],
-            );
+            super::metrics::INCOMING_DISPUTE_WEBHOOK_VALIDATION_FAILURE_METRIC.add(1, &[]);
             Err(errors::WebhooksFlowError::DisputeWebhookValidationFailed)?
         },
     )
@@ -708,6 +706,7 @@ pub async fn construct_accept_dispute_router_data<'a>(
         additional_merchant_data: None,
         header_payload: None,
         connector_mandate_request_reference_id: None,
+        authentication_id: None,
         psd2_sca_exemption_type: None,
     };
     Ok(router_data)
@@ -805,6 +804,7 @@ pub async fn construct_submit_evidence_router_data<'a>(
         additional_merchant_data: None,
         header_payload: None,
         connector_mandate_request_reference_id: None,
+        authentication_id: None,
         psd2_sca_exemption_type: None,
     };
     Ok(router_data)
@@ -908,6 +908,7 @@ pub async fn construct_upload_file_router_data<'a>(
         additional_merchant_data: None,
         header_payload: None,
         connector_mandate_request_reference_id: None,
+        authentication_id: None,
         psd2_sca_exemption_type: None,
     };
     Ok(router_data)
@@ -1031,6 +1032,7 @@ pub async fn construct_payments_dynamic_tax_calculation_router_data<'a, F: Clone
         additional_merchant_data: None,
         header_payload: None,
         connector_mandate_request_reference_id: None,
+        authentication_id: None,
         psd2_sca_exemption_type: None,
     };
     Ok(router_data)
@@ -1131,6 +1133,7 @@ pub async fn construct_defend_dispute_router_data<'a>(
         additional_merchant_data: None,
         header_payload: None,
         connector_mandate_request_reference_id: None,
+        authentication_id: None,
         psd2_sca_exemption_type: None,
     };
     Ok(router_data)
@@ -1225,6 +1228,7 @@ pub async fn construct_retrieve_file_router_data<'a>(
         additional_merchant_data: None,
         header_payload: None,
         connector_mandate_request_reference_id: None,
+        authentication_id: None,
         psd2_sca_exemption_type: None,
     };
     Ok(router_data)

@@ -429,16 +429,20 @@ fn construct_supported_connectors_for_update_mandate_node(
         }
     }
 
-    Ok(Some(
-        builder
-            .make_any_aggregator(
-                &agg_nodes,
-                Some("any node for card and non card pm"),
-                None::<()>,
-                Some(domain_id),
-            )
-            .map_err(KgraphError::GraphConstructionError)?,
-    ))
+    if !agg_nodes.is_empty() {
+        Ok(Some(
+            builder
+                .make_any_aggregator(
+                    &agg_nodes,
+                    Some("any node for card and non card pm"),
+                    None::<()>,
+                    Some(domain_id),
+                )
+                .map_err(KgraphError::GraphConstructionError)?,
+        ))
+    } else {
+        Ok(None)
+    }
 }
 
 fn construct_supported_connectors_for_mandate_node(

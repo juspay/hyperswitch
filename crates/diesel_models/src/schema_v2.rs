@@ -121,6 +121,7 @@ diesel::table! {
         directory_server_id -> Nullable<Varchar>,
         #[max_length = 64]
         acquirer_country_code -> Nullable<Varchar>,
+        service_details -> Nullable<Jsonb>,
     }
 }
 
@@ -222,6 +223,7 @@ diesel::table! {
         is_auto_retries_enabled -> Nullable<Bool>,
         max_auto_retries_enabled -> Nullable<Int2>,
         is_click_to_pay_enabled -> Bool,
+        authentication_product_ids -> Nullable<Jsonb>,
     }
 }
 
@@ -928,6 +930,7 @@ diesel::table! {
         #[max_length = 64]
         id -> Varchar,
         psd2_sca_exemption_type -> Nullable<ScaExemptionType>,
+        split_payments -> Nullable<Jsonb>,
     }
 }
 
@@ -1172,6 +1175,7 @@ diesel::table! {
         connector_refund_data -> Nullable<Varchar>,
         #[max_length = 512]
         connector_transaction_data -> Nullable<Varchar>,
+        split_refunds -> Nullable<Jsonb>,
     }
 }
 
@@ -1264,6 +1268,15 @@ diesel::table! {
         entity_type -> Varchar,
         #[max_length = 64]
         theme_name -> Varchar,
+        #[max_length = 64]
+        email_primary_color -> Varchar,
+        #[max_length = 64]
+        email_foreground_color -> Varchar,
+        #[max_length = 64]
+        email_background_color -> Varchar,
+        #[max_length = 64]
+        email_entity_name -> Varchar,
+        email_entity_logo_url -> Text,
     }
 }
 
