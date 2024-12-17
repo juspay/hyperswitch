@@ -44,6 +44,7 @@ pub struct PlacetopayPaymentsRequest {
     instrument: PlacetopayInstrument,
     ip_address: Secret<String, common_utils::pii::IpAddress>,
     user_agent: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     return_url: Option<String>,
 }
 
@@ -126,7 +127,13 @@ impl TryFrom<&PlacetopayRouterData<&types::PaymentsAuthorizeRouterData>>
                         .get_card_expiry_month_year_2_digit_with_delimiter("/".to_owned())?,
                     cvv: req_card.card_cvc.clone(),
                 };
-                let return_url = item.router_data.request.complete_authorize_url.clone();
+                let return_url = if item.router_data.auth_type == enums::AuthenticationType::ThreeDs
+                {
+                    item.router_data.request.complete_authorize_url.clone()
+                } else {
+                    None
+                };
+
                 Ok(Self {
                     ip_address,
                     user_agent,
