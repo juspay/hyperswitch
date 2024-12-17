@@ -470,6 +470,21 @@ pub struct PaypalRedirectionResponse {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct EpsRedirectionResponse {
+    name: Option<Secret<String>>,
+    country_code: Option<enums::CountryAlpha2>,
+    bic: Option<Secret<String>>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct IdealRedirectionResponse {
+    name: Option<Secret<String>>,
+    country_code: Option<enums::CountryAlpha2>,
+    bic: Option<Secret<String>>,
+    iban_last_chars: Option<Secret<String>>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct AttributeResponse {
     vault: PaypalVaultResponse,
 }
@@ -518,6 +533,8 @@ pub struct CardVaultResponse {
 pub enum PaymentSourceItemResponse {
     Card(CardVaultResponse),
     Paypal(PaypalRedirectionResponse),
+    Eps(EpsRedirectionResponse),
+    Ideal(IdealRedirectionResponse),
 }
 
 #[derive(Debug, Serialize)]
@@ -1825,6 +1842,8 @@ impl<F, T>
                             PaymentSourceItemResponse::Card(card) => {
                                 card.attributes.map(|attr| attr.vault.id)
                             }
+                            PaymentSourceItemResponse::Eps(_)
+                            | PaymentSourceItemResponse::Ideal(_) => None,
                         },
                         None => None,
                     },
