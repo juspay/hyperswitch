@@ -9,6 +9,7 @@ database_name = "clickhouse_db_name" # Clickhouse database name
 # Analytics configuration.
 [analytics]
 source = "sqlx" # The Analytics source/strategy to be used
+forex_enabled = false # Boolean to enable or disable forex conversion
 
 [analytics.sqlx]
 username = "db_user"      # Analytics DB Username
