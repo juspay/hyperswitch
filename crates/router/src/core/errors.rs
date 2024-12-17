@@ -340,6 +340,8 @@ pub enum RoutingError {
     ElimintaionClientInitializationError,
     #[error("Unable to analyze elimintaion routing config from dynamic routing service")]
     ElimintaionRoutingCalculationError,
+    #[error("Unable to retrieve elimination based routing config")]
+    EliminationRoutingConfigError,
     #[error("Unable to convert from '{from}' to '{to}'")]
     GenericConversionError { from: String, to: String },
     #[error("Invalid success based connector label received from dynamic routing service: '{0}'")]

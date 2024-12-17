@@ -1974,7 +1974,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
             let business_profile = business_profile.clone();
             let payment_attempt = payment_attempt.clone();
             let success_based_routing_config_params_interpolator =
-                routing_helpers::SuccessBasedRoutingConfigParamsInterpolator::new(
+                routing_helpers::DynamicRoutingConfigParamsInterpolator::new(
                     payment_attempt.payment_method,
                     payment_attempt.payment_method_type,
                     payment_attempt.authentication_type,

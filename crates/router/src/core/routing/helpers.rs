@@ -682,15 +682,15 @@ pub async fn fetch_elimintaion_routing_configs(
 /// Checked fetch of success based routing configs
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 #[instrument(skip_all)]
-pub async fn fetch_dynamic_routing_configs(
+pub async fn fetch_success_based_routing_config(
     state: &SessionState,
     business_profile: &domain::Profile,
-    dynamic_routing_id: id_type::RoutingId,
+    success_based_routing_id: id_type::RoutingId,
 ) -> RouterResult<routing_types::SuccessBasedRoutingConfig> {
     let key = format!(
         "{}_{}",
         business_profile.get_id().get_string_repr(),
-        dynamic_routing_id.get_string_repr()
+        success_based_routing_id.get_string_repr()
     );
 
     if let Some(config) =
@@ -702,21 +702,21 @@ pub async fn fetch_dynamic_routing_configs(
             .store
             .find_routing_algorithm_by_profile_id_algorithm_id(
                 business_profile.get_id(),
-                &dynamic_routing_id,
+                &success_based_routing_id,
             )
             .await
             .change_context(errors::ApiErrorResponse::ResourceIdNotFound)
             .attach_printable("unable to retrieve dynamic algorithm for profile from db")?;
 
-        let dynamic_config = dynamic_algorithm
+        let success_based_routing_config = dynamic_algorithm
             .algorithm_data
             .parse_value::<routing_types::SuccessBasedRoutingConfig>("SuccessBasedRoutingConfig")
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("unable to parse success_based_routing_config struct")?;
 
-        refresh_success_based_routing_cache(state, key.as_str(), dynamic_config.clone()).await;
+        refresh_success_based_routing_cache(state, key.as_str(), success_based_routing_config.clone()).await;
 
-        Ok(dynamic_config)
+        Ok(success_based_routing_config)
     }
 }
 
@@ -728,7 +728,7 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
     payment_attempt: &storage::PaymentAttempt,
     routable_connectors: Vec<routing_types::RoutableConnectorChoice>,
     business_profile: &domain::Profile,
-    success_based_routing_config_params_interpolator: SuccessBasedRoutingConfigParamsInterpolator,
+    success_based_routing_config_params_interpolator: DynamicRoutingConfigParamsInterpolator,
 ) -> RouterResult<()> {
     let success_based_dynamic_routing_algo_ref: routing_types::DynamicRoutingAlgorithmRef =
         business_profile
@@ -761,7 +761,7 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
             },
         )?;
 
-        let success_based_routing_configs = fetch_dynamic_routing_configs(
+        let success_based_routing_configs = fetch_success_based_routing_config(
             state,
             business_profile,
             success_based_algo_ref
@@ -1344,7 +1344,7 @@ pub async fn default_specific_dynamic_routing_setup(
     Ok(ApplicationResponse::Json(new_record))
 }
 
-pub struct SuccessBasedRoutingConfigParamsInterpolator {
+pub struct DynamicRoutingConfigParamsInterpolator {
     pub payment_method: Option<common_enums::PaymentMethod>,
     pub payment_method_type: Option<common_enums::PaymentMethodType>,
     pub authentication_type: Option<common_enums::AuthenticationType>,
@@ -1354,7 +1354,7 @@ pub struct SuccessBasedRoutingConfigParamsInterpolator {
     pub card_bin: Option<String>,
 }
 
-impl SuccessBasedRoutingConfigParamsInterpolator {
+impl DynamicRoutingConfigParamsInterpolator {
     pub fn new(
         payment_method: Option<common_enums::PaymentMethod>,
         payment_method_type: Option<common_enums::PaymentMethodType>,
