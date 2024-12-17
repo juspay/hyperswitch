@@ -386,17 +386,23 @@ where
                 mandate_type,
             )
             .await?;
-        operation
-            .to_domain()?
-            .call_unified_authentication_service_if_eligible(
-                state,
-                &mut payment_data,
-                &mut should_continue_transaction,
-                &connector_details,
-                &business_profile,
-                &key_store,
-            )
-            .await?;
+
+        if let Some(ref authentication_product_ids) = business_profile.authentication_product_ids {
+            operation
+                .to_domain()?
+                .call_unified_authentication_service_if_eligible(
+                    state,
+                    &mut payment_data,
+                    &mut should_continue_transaction,
+                    &connector_details,
+                    &business_profile,
+                    &key_store,
+                    authentication_product_ids,
+                )
+                .await?
+        } else {
+            tracing::info!("skipping unified authentication service call since no product authentication id's are present in business profile")
+        }
 
         operation
             .to_domain()?

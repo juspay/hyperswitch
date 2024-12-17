@@ -62,6 +62,12 @@ impl MerchantConnectorAccount {
     pub fn get_id(&self) -> id_type::MerchantConnectorAccountId {
         self.merchant_connector_id.clone()
     }
+    pub fn get_connector_account_details(&self) -> Value {
+        self.connector_account_details.peek().to_owned()
+    }
+    pub fn get_connector_wallets_details(&self) -> Option<Secret<Value>> {
+        self.connector_wallets_details.as_deref().cloned()
+    }
 }
 
 #[cfg(feature = "v2")]
