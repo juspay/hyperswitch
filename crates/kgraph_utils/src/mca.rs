@@ -16,6 +16,7 @@ use crate::{error::KgraphError, transformers::IntoDirValue, types as kgraph_type
 
 pub const DOMAIN_IDENTIFIER: &str = "payment_methods_enabled_for_merchantconnectoraccount";
 
+#[cfg(feature = "v1")]
 fn get_dir_value_payment_method(
     from: api_enums::PaymentMethodType,
 ) -> Result<dir::DirValue, KgraphError> {
@@ -153,6 +154,7 @@ fn get_dir_value_payment_method(
     }
 }
 
+#[cfg(feature = "v1")]
 fn compile_request_pm_types(
     builder: &mut cgraph::ConstraintGraphBuilder<dir::DirValue>,
     pm_types: RequestPaymentMethodTypes,
@@ -338,6 +340,7 @@ fn compile_request_pm_types(
         .map_err(KgraphError::GraphConstructionError)
 }
 
+#[cfg(feature = "v1")]
 fn compile_payment_method_enabled(
     builder: &mut cgraph::ConstraintGraphBuilder<dir::DirValue>,
     enabled: admin_api::PaymentMethodsEnabled,
@@ -405,6 +408,8 @@ macro_rules! collect_global_variants {
             .collect::<Vec<_>>()
     };
 }
+
+#[cfg(feature = "v1")]
 fn global_vec_pmt(
     enabled_pmt: Vec<dir::DirValue>,
     builder: &mut cgraph::ConstraintGraphBuilder<dir::DirValue>,
@@ -512,6 +517,7 @@ fn compile_graph_for_countries_and_currencies(
         .map_err(KgraphError::GraphConstructionError)
 }
 
+#[cfg(feature = "v1")]
 fn compile_config_graph(
     builder: &mut cgraph::ConstraintGraphBuilder<dir::DirValue>,
     config: &kgraph_types::CountryCurrencyFilter,
