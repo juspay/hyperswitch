@@ -7,14 +7,16 @@ use std::collections::HashMap;
 #[cfg(feature = "olap")]
 use api_models::admin::MerchantConnectorInfo;
 use common_utils::{
-    ext_traits::{AsyncExt, ValueExt},
+    ext_traits::AsyncExt,
     types::{ConnectorTransactionId, MinorUnit},
 };
 use diesel_models::process_tracker::business_status;
 use error_stack::{report, ResultExt};
-use hyperswitch_domain_models::router_data::ErrorResponse;
+use hyperswitch_domain_models::{
+    router_data::ErrorResponse,
+    router_request_types::{SplitRefundsRequest, StripeSplitRefund},
+};
 use hyperswitch_interfaces::integrity::{CheckIntegrity, FlowIntegrity, GetIntegrityObject};
-use masking::PeekInterface;
 use router_env::{instrument, tracing};
 use scheduler::{consumer::types::process_data, utils as process_tracker_utils};
 #[cfg(feature = "olap")]
@@ -24,7 +26,8 @@ use crate::{
     consts,
     core::{
         errors::{self, ConnectorErrorExt, RouterResponse, RouterResult, StorageErrorExt},
-        payments::{self, access_token, types::PaymentCharges},
+        payments::{self, access_token},
+        refunds::transformers::SplitRefundInput,
         utils as core_utils,
     },
     db, logger,
@@ -35,8 +38,7 @@ use crate::{
         api::{self, refunds},
         domain,
         storage::{self, enums},
-        transformers::{ForeignFrom, ForeignInto, ForeignTryFrom},
-        ChargeRefunds,
+        transformers::{ForeignFrom, ForeignInto},
     },
     utils::{self, OptionExt},
     workflows::payment_sync,
@@ -143,7 +145,7 @@ pub async fn trigger_refund_to_gateway(
     payment_attempt: &storage::PaymentAttempt,
     payment_intent: &storage::PaymentIntent,
     creds_identifier: Option<String>,
-    charges: Option<ChargeRefunds>,
+    split_refunds: Option<SplitRefundsRequest>,
 ) -> RouterResult<storage::Refund> {
     let routed_through = payment_attempt
         .connector
@@ -182,7 +184,7 @@ pub async fn trigger_refund_to_gateway(
         payment_attempt,
         refund,
         creds_identifier.clone(),
-        charges,
+        split_refunds,
     )
     .await?;
 
@@ -464,12 +466,16 @@ pub async fn refund_retrieve_core(
         .await
         .transpose()?;
 
-    let charges_req = payment_intent
-        .charges
+    let split_refunds_req: Option<SplitRefundsRequest> = payment_intent
+        .split_payments
         .clone()
-        .zip(refund.charges.clone())
-        .map(|(charges, refund_charges)| {
-            ForeignTryFrom::foreign_try_from((refund_charges, charges))
+        .zip(refund.split_refunds.clone())
+        .map(|(split_payments, split_refunds)| {
+            SplitRefundsRequest::try_from(SplitRefundInput {
+                refund_request: split_refunds,
+                payment_charges: split_payments,
+                charge_id: payment_attempt.charge_id.clone(),
+            })
         })
         .transpose()?;
 
@@ -482,7 +488,7 @@ pub async fn refund_retrieve_core(
             &payment_intent,
             &refund,
             creds_identifier,
-            charges_req,
+            split_refunds_req,
         ))
         .await
     } else {
@@ -519,7 +525,7 @@ pub async fn sync_refund_with_gateway(
     payment_intent: &storage::PaymentIntent,
     refund: &storage::Refund,
     creds_identifier: Option<String>,
-    charges: Option<ChargeRefunds>,
+    split_refunds: Option<SplitRefundsRequest>,
 ) -> RouterResult<storage::Refund> {
     let connector_id = refund.connector.to_string();
     let connector: api::ConnectorData = api::ConnectorData::get_connector_by_name(
@@ -545,7 +551,7 @@ pub async fn sync_refund_with_gateway(
         payment_attempt,
         refund,
         creds_identifier.clone(),
-        charges,
+        split_refunds,
     )
     .await?;
 
@@ -737,35 +743,28 @@ pub async fn validate_and_create_refund(
 ) -> RouterResult<refunds::RefundResponse> {
     let db = &*state.store;
 
-    // Validate charge_id and refund options
-    let charges = match (
-        payment_intent.charges.as_ref(),
-        payment_attempt.charge_id.as_ref(),
-    ) {
-        (Some(charges), Some(charge_id)) => {
-            let refund_charge_request = req.charges.clone().get_required_value("charges")?;
-            utils::when(*charge_id != refund_charge_request.charge_id, || {
-                Err(report!(errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "charges.charge_id"
+    let split_refunds = match payment_intent.split_payments.as_ref() {
+        Some(common_types::payments::SplitPaymentsRequest::StripeSplitPayment(stripe_payment)) => {
+            if let Some(charge_id) = payment_attempt.charge_id.clone() {
+                let refund_request = req
+                    .split_refunds
+                    .clone()
+                    .get_required_value("split_refunds")?;
+
+                let options = validator::validate_charge_refund(
+                    &refund_request,
+                    &stripe_payment.charge_type,
+                )?;
+
+                Some(SplitRefundsRequest::StripeSplitRefund(StripeSplitRefund {
+                    charge_id,
+                    charge_type: stripe_payment.charge_type.clone(),
+                    transfer_account_id: stripe_payment.transfer_account_id.clone(),
+                    options,
                 }))
-                .attach_printable("charge_id sent in request mismatches with original charge_id")
-            })?;
-            let payment_charges: PaymentCharges = charges
-                .peek()
-                .clone()
-                .parse_value("PaymentCharges")
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to parse charges in to PaymentCharges")?;
-            let options = validator::validate_charge_refund(
-                &refund_charge_request,
-                &payment_charges.charge_type,
-            )?;
-            Some(ChargeRefunds {
-                charge_id: charge_id.to_string(),
-                charge_type: payment_charges.charge_type,
-                transfer_account_id: payment_charges.transfer_account_id,
-                options,
-            })
+            } else {
+                None
+            }
         }
         _ => None,
     };
@@ -861,7 +860,8 @@ pub async fn validate_and_create_refund(
         refund_reason: req.reason,
         profile_id: payment_intent.profile_id.clone(),
         merchant_connector_id: payment_attempt.merchant_connector_id.clone(),
-        charges: req.charges,
+        charges: None,
+        split_refunds: req.split_refunds,
         connector_refund_id: None,
         sent_to_gateway: Default::default(),
         refund_arn: None,
@@ -885,7 +885,7 @@ pub async fn validate_and_create_refund(
                 payment_attempt,
                 payment_intent,
                 creds_identifier,
-                charges,
+                split_refunds,
             ))
             .await?
         }
@@ -1198,7 +1198,7 @@ impl ForeignFrom<storage::Refund> for api::RefundResponse {
             updated_at: Some(refund.modified_at),
             connector: refund.connector,
             merchant_connector_id: refund.merchant_connector_id,
-            charges: refund.charges,
+            split_refunds: refund.split_refunds,
         }
     }
 }
@@ -1216,7 +1216,7 @@ pub async fn schedule_refund_execution(
     payment_attempt: &storage::PaymentAttempt,
     payment_intent: &storage::PaymentIntent,
     creds_identifier: Option<String>,
-    charges: Option<ChargeRefunds>,
+    split_refunds: Option<SplitRefundsRequest>,
 ) -> RouterResult<storage::Refund> {
     // refunds::RefundResponse> {
     let db = &*state.store;
@@ -1253,7 +1253,7 @@ pub async fn schedule_refund_execution(
                                 payment_attempt,
                                 payment_intent,
                                 creds_identifier,
-                                charges,
+                                split_refunds,
                             ))
                             .await;
 
@@ -1462,37 +1462,32 @@ pub async fn trigger_refund_execute_workflow(
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
-            let charges = match (
-                payment_intent.charges.as_ref(),
-                payment_attempt.charge_id.as_ref(),
-            ) {
-                (Some(charges), Some(charge_id)) => {
-                    let refund_charge_request =
-                        refund.charges.clone().get_required_value("charges")?;
-                    utils::when(*charge_id != refund_charge_request.charge_id, || {
-                        Err(report!(errors::ApiErrorResponse::InvalidDataValue {
-                            field_name: "charges.charge_id"
-                        }))
-                        .attach_printable(
-                            "charge_id sent in request mismatches with original charge_id",
-                        )
-                    })?;
-                    let payment_charges: PaymentCharges = charges
-                        .peek()
+            let split_refunds = match payment_intent.split_payments.as_ref() {
+                Some(common_types::payments::SplitPaymentsRequest::StripeSplitPayment(
+                    stripe_payment,
+                )) => {
+                    let refund_request = refund
+                        .split_refunds
                         .clone()
-                        .parse_value("PaymentCharges")
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Failed to parse charges in to PaymentCharges")?;
+                        .get_required_value("split_refunds")?;
+
                     let options = validator::validate_charge_refund(
-                        &refund_charge_request,
-                        &payment_charges.charge_type,
+                        &refund_request,
+                        &stripe_payment.charge_type,
                     )?;
-                    Some(ChargeRefunds {
-                        charge_id: charge_id.to_string(),
-                        charge_type: payment_charges.charge_type,
-                        transfer_account_id: payment_charges.transfer_account_id,
+
+                    let charge_id = payment_attempt.charge_id.clone().ok_or_else(|| {
+                        report!(errors::ApiErrorResponse::InternalServerError).attach_printable(
+                "Transaction is invalid. Missing field \"charge_id\" in payment_attempt.",
+            )
+                    })?;
+
+                    Some(SplitRefundsRequest::StripeSplitRefund(StripeSplitRefund {
+                        charge_id,
+                        charge_type: stripe_payment.charge_type.clone(),
+                        transfer_account_id: stripe_payment.transfer_account_id.clone(),
                         options,
-                    })
+                    }))
                 }
                 _ => None,
             };
@@ -1506,7 +1501,7 @@ pub async fn trigger_refund_execute_workflow(
                 &payment_attempt,
                 &payment_intent,
                 None,
-                charges,
+                split_refunds,
             ))
             .await?;
             add_refund_sync_task(

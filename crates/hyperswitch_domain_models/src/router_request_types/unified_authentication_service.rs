@@ -2,12 +2,12 @@ use masking::Secret;
 
 #[derive(Clone, serde::Deserialize, Debug, serde::Serialize)]
 pub struct UasPreAuthenticationRequestData {
-    pub service_details: Option<ServiceDetails>,
+    pub service_details: Option<CtpServiceDetails>,
     pub transaction_details: Option<TransactionDetails>,
 }
 
 #[derive(Clone, serde::Deserialize, Debug, serde::Serialize)]
-pub struct ServiceDetails {
+pub struct CtpServiceDetails {
     pub service_session_ids: Option<ServiceSessionIds>,
 }
 
@@ -25,7 +25,7 @@ pub struct TransactionDetails {
 }
 
 #[derive(Clone, Debug)]
-pub struct UasPostAuthenticationRequestData;
+pub struct UasPostAuthenticationRequestData {}
 
 #[derive(Debug, Clone)]
 pub enum UasAuthenticationResponseData {
