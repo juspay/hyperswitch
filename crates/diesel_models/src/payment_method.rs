@@ -265,6 +265,7 @@ pub enum PaymentMethodUpdate {
 pub enum PaymentMethodUpdate {
     UpdatePaymentMethodDataAndLastUsed {
         payment_method_data: Option<Encryption>,
+        scheme: Option<String>,
         last_used_at: PrimitiveDateTime,
     },
     PaymentMethodDataUpdate {
@@ -728,6 +729,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
             PaymentMethodUpdate::UpdatePaymentMethodDataAndLastUsed {
                 payment_method_data,
                 last_used_at,
+                ..
             } => Self {
                 payment_method_data,
                 last_used_at: Some(last_used_at),
