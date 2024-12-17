@@ -1010,6 +1010,16 @@ export const connectorDetails = {
       Request: {
         setup_future_usage: "off_session",
       },
+      ResponseCustom: {
+        status: 400,
+        body: {
+          error: {
+            message:
+              "No eligible connector was found for the current payment method configuration",
+            type: "invalid_request",
+          },
+        },
+      },
     }),
     SaveCardConfirmManualCaptureOffSession: getCustomExchange({
       Request: {

@@ -153,7 +153,7 @@ describe("Connector Agnostic Tests", () => {
         cy.listCustomerPMByClientSecret(globalState);
       });
 
-      it("Confirm No 3DS MIT", () => {
+      it("Confirm No 3DS MIT (PMID)", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["MITAutoCapture"];
@@ -178,6 +178,53 @@ describe("Connector Agnostic Tests", () => {
           "automatic",
           globalState
         );
+      });
+
+      it("Create Payment Intent", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["PaymentIntentOffSession"];
+
+        cy.createPaymentIntentTest(
+          fixtures.createPaymentBody,
+          data,
+          "no_three_ds",
+          "automatic",
+          globalState
+        );
+
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
+      });
+
+      it("List Payment Method for Customer", () => {
+        cy.listCustomerPMByClientSecret(globalState);
+      });
+
+      it("Confirm No 3DS MIT (Token)", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["SaveCardConfirmAutoCaptureOffSession"];
+        const commonData = getConnectorDetails(globalState.get("commons"))[
+          "card_pm"
+        ]["SaveCardConfirmAutoCaptureOffSession"];
+
+        const newData = {
+          ...data,
+          Response: utils.getConnectorFlowDetails(
+            data,
+            commonData,
+            "ResponseCustom"
+          ),
+        };
+        cy.saveCardConfirmCallTest(
+          fixtures.saveCardConfirmBody,
+          newData,
+          globalState
+        );
+
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
     }
   );
@@ -301,7 +348,7 @@ describe("Connector Agnostic Tests", () => {
       cy.listCustomerPMByClientSecret(globalState);
     });
 
-    it("Confirm No 3DS MIT", () => {
+    it("Confirm No 3DS MIT (PMID)", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "card_pm"
       ]["MITAutoCapture"];
@@ -314,6 +361,40 @@ describe("Connector Agnostic Tests", () => {
         "automatic",
         globalState
       );
+    });
+
+    it("Create Payment Intent", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["PaymentIntentOffSession"];
+
+      cy.createPaymentIntentTest(
+        fixtures.createPaymentBody,
+        data,
+        "no_three_ds",
+        "automatic",
+        globalState
+      );
+
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+    });
+
+    it("List Payment Method for Customer", () => {
+      cy.listCustomerPMByClientSecret(globalState);
+    });
+
+    it("Confirm No 3DS MIT (Token)", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["SaveCardConfirmAutoCaptureOffSession"];
+
+      cy.saveCardConfirmCallTest(
+        fixtures.saveCardConfirmBody,
+        data,
+        globalState
+      );
+
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
   });
 });

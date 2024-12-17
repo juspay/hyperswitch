@@ -735,6 +735,12 @@ export const connectorDetails = {
       },
     },
     SaveCardConfirmAutoCaptureOffSession: {
+      Configs: {
+        CONNECTOR_CREDENTIAL: {
+          specName: ["connectorAgnostic"],
+          value: "connector_2",
+        },
+      },
       Request: {
         setup_future_usage: "off_session",
       },
