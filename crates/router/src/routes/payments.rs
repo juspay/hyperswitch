@@ -208,6 +208,7 @@ pub async fn payments_get_intent(
                 req,
                 global_payment_id.clone(),
                 header_payload.clone(),
+                auth.platform_merchant_account,
             )
         },
         &auth::HeaderAuth(auth::ApiKeyAuth),
