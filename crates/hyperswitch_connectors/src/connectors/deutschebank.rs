@@ -4,7 +4,7 @@ use std::time::SystemTime;
 
 use actix_web::http::header::Date;
 use base64::Engine;
-use common_enums::{enums, PaymentConnectorCategory};
+use common_enums::enums;
 use common_utils::{
     errors::CustomResult,
     ext_traits::BytesExt,
@@ -945,7 +945,7 @@ impl ConnectorSpecifications for Deutschebank {
             description:
                 "Deutsche Bank is a German multinational investment bank and financial services company "
                     .to_string(),
-            connector_type: PaymentConnectorCategory::BankAcquirer,
+            connector_type: enums::PaymentConnectorCategory::BankAcquirer,
         })
     }
 

@@ -3,7 +3,6 @@ pub mod transformers;
 use error_stack::{report, ResultExt};
 use masking::{ExposeInterface, Mask};
 
-use common_enums::enums::PaymentConnectorCategory;
 use common_utils::{
     errors::CustomResult,
     ext_traits::BytesExt,
@@ -11,7 +10,6 @@ use common_utils::{
     request::{Method, Request, RequestBuilder, RequestContent},
 };
 
-use api_models::webhooks::WebhookFlow;
 use hyperswitch_domain_models::{
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
@@ -560,7 +558,7 @@ impl ConnectorSpecifications for {{project-name | downcase | pascal_case}} {
             description:
                 "Connector About"
                     .to_string(),
-            connector_type: PaymentConnectorCategory::PaymentGateway,
+            connector_type: common_enums::enums::PaymentConnectorCategory::PaymentGateway,
         })
     }
 
@@ -569,7 +567,7 @@ impl ConnectorSpecifications for {{project-name | downcase | pascal_case}} {
         Some(supported_payment_methods)
     }
 
-    fn get_supported_webhook_flows(&self) -> Option<Vec<WebhookFlow>> {
+    fn get_supported_webhook_flows(&self) -> Option<Vec<common_enums::enums::EventClass>> {
         Some(Vec::new())
     }
 }

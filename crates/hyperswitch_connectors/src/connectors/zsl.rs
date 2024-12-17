@@ -3,7 +3,7 @@ pub mod transformers;
 use std::fmt::Debug;
 
 use api_models::webhooks::{IncomingWebhookEvent, ObjectReferenceId};
-use common_enums::{enums, PaymentConnectorCategory};
+use common_enums::enums;
 use common_utils::{
     errors::CustomResult,
     ext_traits::{BytesExt, ValueExt},
@@ -451,7 +451,7 @@ impl ConnectorSpecifications for Zsl {
             description:
                 "Zsl is a payment gateway operating in China, specializing in facilitating local bank transfers"
                     .to_string(),
-            connector_type: PaymentConnectorCategory::PaymentGateway,
+            connector_type: enums::PaymentConnectorCategory::PaymentGateway,
         })
     }
 
