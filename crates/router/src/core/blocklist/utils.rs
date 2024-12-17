@@ -3,7 +3,7 @@ use common_enums::MerchantDecision;
 use common_utils::errors::CustomResult;
 use diesel_models::configs;
 use error_stack::ResultExt;
-use masking::StrongSecret;
+use masking::{ExposeInterface, PeekInterface, Secret, StrongSecret};
 
 use super::{errors, transformers::generate_fingerprint, SessionState};
 use crate::{
@@ -13,7 +13,10 @@ use crate::{
         payments::PaymentData,
     },
     logger,
-    types::{domain, storage, transformers::ForeignInto},
+    types::{domain::{
+        self,
+        types::{self as domain_types, AsyncLift},
+    }, storage, transformers::ForeignInto},
     utils,
 };
 
@@ -204,33 +207,57 @@ pub async fn get_merchant_fingerprint_secret(
     state: &SessionState,
     merchant_id: &common_utils::id_type::MerchantId,
 ) -> RouterResult<String> {
-    let key = merchant_id.get_merchant_fingerprint_secret_key();
-    let config_fetch_result = state.store.find_config_by_key(&key).await;
+    let db = state.store.as_ref();
+    let key_manager_state = &(&*state).into();
+    let key_store = db
+        .get_merchant_key_store_by_merchant_id(
+            key_manager_state,
+            merchant_id,
+            &db.get_master_key().to_vec().into(),
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
-    match config_fetch_result {
-        Ok(config) => Ok(config.config),
+    let merchant_account = db
+        .find_merchant_account_by_merchant_id(key_manager_state, merchant_id, &key_store)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
-        Err(e) if e.current_context().is_db_not_found() => {
-            let new_fingerprint_secret =
+    let merchant_fingerprint_secret_key = merchant_account.clone().fingerprint_secret_key;
+
+    match merchant_fingerprint_secret_key {
+        Some(fingerprint_secret_key) => {
+            Ok(fingerprint_secret_key.get_inner().clone().expose())
+        },
+        None => {
+            let new_fingerprint =
                 utils::generate_id(consts::FINGERPRINT_SECRET_LENGTH, "fs");
-            let new_config = storage::ConfigNew {
-                key,
-                config: new_fingerprint_secret.clone(),
-            };
-
-            state
-                .store
-                .insert_config(new_config)
+            let fingerprint_secret = Some(Secret::new(new_fingerprint.clone()));
+            let _ = db.update_specific_fields_in_merchant(
+                key_manager_state, 
+                merchant_id, 
+                storage::MerchantAccountUpdate::FingerprintSecretKeyUpdate { 
+                    fingerprint_secret_key: AsyncLift::async_lift(fingerprint_secret, |inner| async {
+                                                    domain_types::crypto_operation(
+                                                        &key_manager_state,
+                                                        common_utils::type_name!(domain::MerchantAccount),
+                                                        domain::types::CryptoOperation::EncryptOptional(inner),
+                                                        common_utils::types::keymanager::Identifier::Merchant(key_store.merchant_id.clone()),
+                                                        key_store.key.clone().into_inner().peek(),
+                                                        )
+                                                    .await
+                                                    .and_then(|val| val.try_into_optionaloperation())
+                                                 })
+                                                .await
+                                                .unwrap()
+                }, 
+                &key_store)
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("unable to create new fingerprint secret for merchant")?;
+                .attach_printable("error updating the merchant account when creating payment connector")?;
 
-            Ok(new_fingerprint_secret)
+            Ok(new_fingerprint)
         }
-
-        Err(e) => Err(e)
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("error fetching merchant fingerprint secret"),
     }
 }
 
