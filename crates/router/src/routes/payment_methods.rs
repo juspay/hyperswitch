@@ -558,13 +558,13 @@ pub async fn list_customer_payment_method_for_payment(
 #[instrument(skip_all, fields(flow = ?Flow::CustomerPaymentMethodsList))]
 pub async fn list_customer_payment_method_api(
     state: web::Data<AppState>,
-    customer_id: web::Path<(id_type::CustomerId,)>,
+    customer_id: web::Path<id_type::GlobalCustomerId>,
     req: HttpRequest,
     query_payload: web::Query<payment_methods::PaymentMethodListRequest>,
 ) -> HttpResponse {
     let flow = Flow::CustomerPaymentMethodsList;
     let payload = query_payload.into_inner();
-    let customer_id = customer_id.into_inner().0.clone();
+    let customer_id = customer_id.into_inner();
 
     let ephemeral_or_api_auth = match auth::is_ephemeral_auth(req.headers()) {
         Ok(auth) => auth,

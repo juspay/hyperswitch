@@ -6,7 +6,7 @@ CREATE TABLE sdk_events_queue (
     `event_name` LowCardinality(Nullable(String)),
     `first_event` LowCardinality(Nullable(String)),
     `latency` Nullable(UInt32),
-    `timestamp` String,
+    `timestamp` DateTime64(3),
     `browser_name` LowCardinality(Nullable(String)),
     `browser_version` Nullable(String),
     `platform` LowCardinality(Nullable(String)),
@@ -115,7 +115,8 @@ CREATE TABLE sdk_events_audit (
     `remote_ip` Nullable(String),
     `log_type` LowCardinality(Nullable(String)),
     `event_name` LowCardinality(Nullable(String)),
-    `first_event` Bool DEFAULT 1,
+    `first_event` Bool,
+    `latency` Nullable(UInt32),
     `browser_name` LowCardinality(Nullable(String)),
     `browser_version` Nullable(String),
     `platform` LowCardinality(Nullable(String)),
@@ -125,10 +126,10 @@ CREATE TABLE sdk_events_audit (
     `value` Nullable(String),
     `component` LowCardinality(Nullable(String)),
     `payment_method` LowCardinality(Nullable(String)),
-    `payment_experience` LowCardinality(Nullable(String)) DEFAULT '',
-    `created_at` DateTime64(3) DEFAULT now64() CODEC(T64, LZ4),
-    `inserted_at`  DateTime DEFAULT now() CODEC(T64, LZ4), 
-    `latency` Nullable(UInt32) DEFAULT 0
+    `payment_experience` LowCardinality(Nullable(String)),
+    `created_at` DateTime DEFAULT now() CODEC(T64, LZ4),
+    `created_at_precise` DateTime64(3),
+    `inserted_at` DateTime DEFAULT now() CODEC(T64, LZ4)
 ) ENGINE = MergeTree PARTITION BY merchant_id
 ORDER BY
     (merchant_id, payment_id)
@@ -156,7 +157,7 @@ WHERE
     length(_error) > 0;
 
 CREATE MATERIALIZED VIEW sdk_events_audit_mv TO sdk_events_audit (
-    `payment_id` Nullable(String),
+    `payment_id` String,
     `merchant_id` String,
     `remote_ip` Nullable(String),
     `log_type` LowCardinality(Nullable(String)),

@@ -68,6 +68,7 @@ pub enum Connector {
     Checkout,
     Coinbase,
     Cryptopay,
+    CtpMastercard,
     Cybersource,
     Datatrans,
     Deutschebank,
@@ -123,6 +124,7 @@ pub enum Connector {
     //Thunes,
     Trustpay,
     Tsys,
+    // UnifiedAuthenticationService,
     Volt,
     Wellsfargo,
     // Wellsfargopayout,
@@ -260,6 +262,7 @@ impl Connector {
             // | Self::Thunes
             | Self::Trustpay
             | Self::Tsys
+            // | Self::UnifiedAuthenticationService
             | Self::Volt
             | Self::Wellsfargo
             // | Self::Wellsfargopayout
@@ -276,6 +279,7 @@ impl Connector {
             | Self::Threedsecureio
             | Self::Datatrans
             | Self::Netcetera
+            | Self::CtpMastercard
             | Self::Noon
             | Self::Stripe => false,
             Self::Checkout | Self::Nmi | Self::Cybersource => true,

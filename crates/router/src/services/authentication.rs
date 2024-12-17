@@ -606,7 +606,7 @@ where
         }
 
         let report_failure = || {
-            metrics::PARTIAL_AUTH_FAILURE.add(&metrics::CONTEXT, 1, &[]);
+            metrics::PARTIAL_AUTH_FAILURE.add(1, &[]);
         };
 
         let payload = ExtractedPayload::from_headers(request_headers)

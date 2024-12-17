@@ -70,7 +70,7 @@ pub struct PaymentMethod {
 #[derive(Clone, Debug, Identifiable, Queryable, Selectable, Serialize, Deserialize)]
 #[diesel(table_name = payment_methods, primary_key(id), check_for_backend(diesel::pg::Pg))]
 pub struct PaymentMethod {
-    pub customer_id: common_utils::id_type::CustomerId,
+    pub customer_id: common_utils::id_type::GlobalCustomerId,
     pub merchant_id: common_utils::id_type::MerchantId,
     pub created_at: PrimitiveDateTime,
     pub last_modified: PrimitiveDateTime,
@@ -158,7 +158,7 @@ pub struct PaymentMethodNew {
 #[derive(Clone, Debug, Insertable, router_derive::DebugAsDisplay, Serialize, Deserialize)]
 #[diesel(table_name = payment_methods)]
 pub struct PaymentMethodNew {
-    pub customer_id: common_utils::id_type::CustomerId,
+    pub customer_id: common_utils::id_type::GlobalCustomerId,
     pub merchant_id: common_utils::id_type::MerchantId,
     pub created_at: PrimitiveDateTime,
     pub last_modified: PrimitiveDateTime,

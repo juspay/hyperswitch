@@ -59,7 +59,7 @@ const payment_method_data_no3ds = {
     card_extended_bin: null,
     card_exp_month: "01",
     card_exp_year: "50",
-    card_holder_name: null,
+    card_holder_name: "joseph Doe",
     payment_checks: {
       avs_response: {
         code: "Y",
@@ -83,7 +83,7 @@ const payment_method_data_3ds = {
     card_extended_bin: null,
     card_exp_month: "01",
     card_exp_year: "50",
-    card_holder_name: null,
+    card_holder_name: "joseph Doe",
     payment_checks: null,
     authentication_data: null,
   },
@@ -143,6 +143,40 @@ export const connectorDetails = {
         body: {
           status: "requires_payment_method",
           setup_future_usage: "off_session",
+        },
+      },
+    },
+    PaymentIntentWithShippingCost: {
+      Request: {
+        currency: "USD",
+        shipping_cost: 50,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+          shipping_cost: 50,
+          amount: 6500,
+        },
+      },
+    },
+    PaymentConfirmWithShippingCost: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          shipping_cost: 50,
+          amount_received: 6550,
+          amount: 6500,
+          net_amount: 6550,
         },
       },
     },
