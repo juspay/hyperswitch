@@ -549,8 +549,15 @@ where
                                 let existing_pm_data = payment_methods::cards::get_card_details_without_locker_fallback(&existing_pm,state)
                                 .await?;
 
+                                // scheme should be updated in case of co-badged cards
+                                let card_scheme = card
+                                    .card_network
+                                    .clone()
+                                    .map(|card_network| card_network.to_string())
+                                    .or(existing_pm_data.scheme.clone());
+
                                 let updated_card = Some(CardDetailFromLocker {
-                                    scheme: existing_pm.scheme.clone(),
+                                    scheme: card_scheme.clone(),
                                     last4_digits: Some(card.card_number.get_last4()),
                                     issuer_country: card
                                         .card_issuing_country
@@ -596,6 +603,7 @@ where
                                     existing_pm,
                                     pm_data_encrypted.map(Into::into),
                                     merchant_account.storage_scheme,
+                                    card_scheme,
                                 )
                                 .await
                                 .change_context(errors::ApiErrorResponse::InternalServerError)

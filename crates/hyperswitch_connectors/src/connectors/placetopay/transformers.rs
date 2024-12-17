@@ -1,18 +1,25 @@
-use common_utils::{date_time, types::MinorUnit};
-use diesel_models::enums;
+use common_enums::{enums, Currency};
+use common_utils::{consts::BASE64_ENGINE, date_time, types::MinorUnit};
 use error_stack::ResultExt;
+use hyperswitch_domain_models::{
+    payment_method_data::PaymentMethodData,
+    router_data::{ConnectorAuthType, RouterData},
+    router_flow_types::refunds::{Execute, RSync},
+    router_request_types::ResponseId,
+    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    types,
+};
+use hyperswitch_interfaces::errors;
 use masking::{PeekInterface, Secret};
 use ring::digest;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{
-        self, BrowserInformationData, CardData, PaymentsAuthorizeRequestData,
-        PaymentsSyncRequestData, RouterData,
+    types::{RefundsResponseRouterData, ResponseRouterData},
+    utils::{
+        self, generate_random_bytes, BrowserInformationData, CardData as _,
+        PaymentsAuthorizeRequestData, PaymentsSyncRequestData, RouterData as _,
     },
-    consts,
-    core::errors,
-    types::{self, api, domain, storage::enums as storage_enums},
 };
 
 pub struct PlacetopayRouterData<T> {
@@ -72,7 +79,7 @@ pub struct PlacetopayPayment {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PlacetopayAmount {
-    currency: storage_enums::Currency,
+    currency: Currency,
     total: MinorUnit,
 }
 
@@ -110,7 +117,7 @@ impl TryFrom<&PlacetopayRouterData<&types::PaymentsAuthorizeRouterData>>
             },
         };
         match item.router_data.request.payment_method_data.clone() {
-            domain::PaymentMethodData::Card(req_card) => {
+            PaymentMethodData::Card(req_card) => {
                 let card = PlacetopayCard {
                     number: req_card.card_number.clone(),
                     expiration: req_card
@@ -128,24 +135,24 @@ impl TryFrom<&PlacetopayRouterData<&types::PaymentsAuthorizeRouterData>>
                     },
                 })
             }
-            domain::PaymentMethodData::Wallet(_)
-            | domain::PaymentMethodData::CardRedirect(_)
-            | domain::PaymentMethodData::PayLater(_)
-            | domain::PaymentMethodData::BankRedirect(_)
-            | domain::PaymentMethodData::BankDebit(_)
-            | domain::PaymentMethodData::BankTransfer(_)
-            | domain::PaymentMethodData::Crypto(_)
-            | domain::PaymentMethodData::MandatePayment
-            | domain::PaymentMethodData::Reward
-            | domain::PaymentMethodData::RealTimePayment(_)
-            | domain::PaymentMethodData::MobilePayment(_)
-            | domain::PaymentMethodData::Upi(_)
-            | domain::PaymentMethodData::Voucher(_)
-            | domain::PaymentMethodData::GiftCard(_)
-            | domain::PaymentMethodData::OpenBanking(_)
-            | domain::PaymentMethodData::CardToken(_)
-            | domain::PaymentMethodData::NetworkToken(_)
-            | domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+            PaymentMethodData::Wallet(_)
+            | PaymentMethodData::CardRedirect(_)
+            | PaymentMethodData::PayLater(_)
+            | PaymentMethodData::BankRedirect(_)
+            | PaymentMethodData::BankDebit(_)
+            | PaymentMethodData::BankTransfer(_)
+            | PaymentMethodData::Crypto(_)
+            | PaymentMethodData::MandatePayment
+            | PaymentMethodData::Reward
+            | PaymentMethodData::RealTimePayment(_)
+            | PaymentMethodData::MobilePayment(_)
+            | PaymentMethodData::Upi(_)
+            | PaymentMethodData::Voucher(_)
+            | PaymentMethodData::GiftCard(_)
+            | PaymentMethodData::OpenBanking(_)
+            | PaymentMethodData::CardToken(_)
+            | PaymentMethodData::NetworkToken(_)
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Placetopay"),
                 )
@@ -155,11 +162,11 @@ impl TryFrom<&PlacetopayRouterData<&types::PaymentsAuthorizeRouterData>>
     }
 }
 
-impl TryFrom<&types::ConnectorAuthType> for PlacetopayAuth {
+impl TryFrom<&ConnectorAuthType> for PlacetopayAuth {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
+    fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         let placetopay_auth = PlacetopayAuthType::try_from(auth_type)?;
-        let nonce_bytes = utils::generate_random_bytes(16);
+        let nonce_bytes = generate_random_bytes(16);
         let now = date_time::date_as_yyyymmddthhmmssmmmz()
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         let seed = format!("{}+00:00", now.split_at(now.len() - 5).0);
@@ -167,8 +174,8 @@ impl TryFrom<&types::ConnectorAuthType> for PlacetopayAuth {
         context.update(&nonce_bytes);
         context.update(seed.as_bytes());
         context.update(placetopay_auth.tran_key.peek().as_bytes());
-        let encoded_digest = base64::Engine::encode(&consts::BASE64_ENGINE, context.finish());
-        let nonce = Secret::new(base64::Engine::encode(&consts::BASE64_ENGINE, &nonce_bytes));
+        let encoded_digest = base64::Engine::encode(&BASE64_ENGINE, context.finish());
+        let nonce = Secret::new(base64::Engine::encode(&BASE64_ENGINE, &nonce_bytes));
         Ok(Self {
             login: placetopay_auth.login,
             tran_key: encoded_digest.into(),
@@ -178,11 +185,11 @@ impl TryFrom<&types::ConnectorAuthType> for PlacetopayAuth {
     }
 }
 
-impl TryFrom<&types::ConnectorAuthType> for PlacetopayAuthType {
+impl TryFrom<&ConnectorAuthType> for PlacetopayAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
 
-    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
-        if let types::ConnectorAuthType::BodyKey { api_key, key1 } = auth_type {
+    fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
+        if let ConnectorAuthType::BodyKey { api_key, key1 } = auth_type {
             Ok(Self {
                 login: api_key.to_owned(),
                 tran_key: key1.to_owned(),
@@ -244,24 +251,17 @@ pub struct PlacetopayPaymentsResponse {
     authorization: Option<String>,
 }
 
-impl<F, T>
-    TryFrom<
-        types::ResponseRouterData<F, PlacetopayPaymentsResponse, T, types::PaymentsResponseData>,
-    > for types::RouterData<F, T, types::PaymentsResponseData>
+impl<F, T> TryFrom<ResponseRouterData<F, PlacetopayPaymentsResponse, T, PaymentsResponseData>>
+    for RouterData<F, T, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<
-            F,
-            PlacetopayPaymentsResponse,
-            T,
-            types::PaymentsResponseData,
-        >,
+        item: ResponseRouterData<F, PlacetopayPaymentsResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.status.status),
-            response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(
+            response: Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(
                     item.response.internal_reference.to_string(),
                 ),
                 redirection_data: Box::new(None),
@@ -374,15 +374,15 @@ pub struct PlacetopayRefundResponse {
     internal_reference: u64,
 }
 
-impl TryFrom<types::RefundsResponseRouterData<api::Execute, PlacetopayRefundResponse>>
-    for types::RefundsRouterData<api::Execute>
+impl TryFrom<RefundsResponseRouterData<Execute, PlacetopayRefundResponse>>
+    for types::RefundsRouterData<Execute>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::RefundsResponseRouterData<api::Execute, PlacetopayRefundResponse>,
+        item: RefundsResponseRouterData<Execute, PlacetopayRefundResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            response: Ok(types::RefundsResponseData {
+            response: Ok(RefundsResponseData {
                 connector_refund_id: item.response.internal_reference.to_string(),
                 refund_status: enums::RefundStatus::from(item.response.status.status),
             }),
@@ -398,9 +398,9 @@ pub struct PlacetopayRsyncRequest {
     internal_reference: u64,
 }
 
-impl TryFrom<&types::RefundsRouterData<api::RSync>> for PlacetopayRsyncRequest {
+impl TryFrom<&types::RefundsRouterData<RSync>> for PlacetopayRsyncRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::RefundsRouterData<api::RSync>) -> Result<Self, Self::Error> {
+    fn try_from(item: &types::RefundsRouterData<RSync>) -> Result<Self, Self::Error> {
         let auth = PlacetopayAuth::try_from(&item.connector_auth_type)?;
         let internal_reference = item
             .request
@@ -414,15 +414,15 @@ impl TryFrom<&types::RefundsRouterData<api::RSync>> for PlacetopayRsyncRequest {
     }
 }
 
-impl TryFrom<types::RefundsResponseRouterData<api::RSync, PlacetopayRefundResponse>>
-    for types::RefundsRouterData<api::RSync>
+impl TryFrom<RefundsResponseRouterData<RSync, PlacetopayRefundResponse>>
+    for types::RefundsRouterData<RSync>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::RefundsResponseRouterData<api::RSync, PlacetopayRefundResponse>,
+        item: RefundsResponseRouterData<RSync, PlacetopayRefundResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            response: Ok(types::RefundsResponseData {
+            response: Ok(RefundsResponseData {
                 connector_refund_id: item.response.internal_reference.to_string(),
                 refund_status: enums::RefundStatus::from(item.response.status.status),
             }),
