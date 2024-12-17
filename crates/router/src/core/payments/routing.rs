@@ -25,9 +25,8 @@ use euclid::{
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use external_services::grpc_client::dynamic_routing::{
     elimination_rate_client::EliminationResponse,
-    success_rate_client::{
-    CalSuccessRateResponse, SuccessBasedDynamicRouting,
-}};
+    success_rate_client::{CalSuccessRateResponse, SuccessBasedDynamicRouting},
+};
 use hyperswitch_domain_models::address::Address;
 use kgraph_utils::{
     mca as mca_graph,
@@ -1474,37 +1473,54 @@ pub async fn perform_elimination_routing(
                 "unable to analyze/fetch elimintaion routing from dynamic routing service",
             )?;
 
-        println!(">>>>>>>>>>>>>>>>> Elim connectors {:?}", elimination_based_connectors);
-        //     let mut connectors = Vec::with_capacity(elimination_based_connectors.labels_with_score.len());
-        //     for label_with_score in elimination_based_connectors.labels_with_score {
-        //         let (connector, merchant_connector_id) = label_with_score.label
-        //             .split_once(':')
-        //             .ok_or(errors::RoutingError::InvalidSuccessBasedConnectorLabel(label_with_score.label.to_string()))
-        //             .attach_printable(
-        //                 "unable to split connector_name and mca_id from the label obtained by the dynamic routing service",
-        //             )?;
-        //         connectors.push(api_routing::RoutableConnectorChoice {
-        //             choice_kind: api_routing::RoutableChoiceKind::FullStruct,
-        //             connector: common_enums::RoutableConnectors::from_str(connector)
-        //                 .change_context(errors::RoutingError::GenericConversionError {
-        //                     from: "String".to_string(),
-        //                     to: "RoutableConnectors".to_string(),
-        //                 })
-        //                 .attach_printable("unable to convert String to RoutableConnectors")?,
-        //             merchant_connector_id: Some(
-        //                 common_utils::id_type::MerchantConnectorAccountId::wrap(
-        //                     merchant_connector_id.to_string(),
-        //                 )
-        //                 .change_context(errors::RoutingError::GenericConversionError {
-        //                     from: "String".to_string(),
-        //                     to: "MerchantConnectorAccountId".to_string(),
-        //                 })
-        //                 .attach_printable("unable to convert MerchantConnectorAccountId from string")?,
-        //             ),
-        //         });
-        //     }
-        //     logger::debug!(success_based_routing_connectors=?connectors);
-        Ok(routable_connectors)
+        println!(
+            ">>>>>>>>>>>>>>>>> Elim connectors {:?}",
+            elimination_based_connectors
+        );
+        let mut connectors =
+            Vec::with_capacity(elimination_based_connectors.labels_with_status.len());
+        let mut eliminated_connectors =
+            Vec::with_capacity(elimination_based_connectors.labels_with_status.len());
+        let mut non_eliminated_connectors =
+            Vec::with_capacity(elimination_based_connectors.labels_with_status.len());
+        for labels_with_status in elimination_based_connectors.labels_with_status {
+            let (connector, merchant_connector_id) = labels_with_status.label
+                .split_once(':')
+                .ok_or(errors::RoutingError::InvalidEliminationBasedConnectorLabel(labels_with_status.label.to_string()))
+                .attach_printable(
+                    "unable to split connector_name and mca_id from the label obtained by the elimination based dynamic routing service",
+                )?;
+
+            let routable_connector = api_routing::RoutableConnectorChoice {
+                choice_kind: api_routing::RoutableChoiceKind::FullStruct,
+                connector: common_enums::RoutableConnectors::from_str(connector)
+                    .change_context(errors::RoutingError::GenericConversionError {
+                        from: "String".to_string(),
+                        to: "RoutableConnectors".to_string(),
+                    })
+                    .attach_printable("unable to convert String to RoutableConnectors")?,
+                merchant_connector_id: Some(
+                    common_utils::id_type::MerchantConnectorAccountId::wrap(
+                        merchant_connector_id.to_string(),
+                    )
+                    .change_context(errors::RoutingError::GenericConversionError {
+                        from: "String".to_string(),
+                        to: "MerchantConnectorAccountId".to_string(),
+                    })
+                    .attach_printable("unable to convert MerchantConnectorAccountId from string")?,
+                ),
+            };
+
+            if labels_with_status.is_eliminated {
+                eliminated_connectors.push(routable_connector);
+            } else {
+                non_eliminated_connectors.push(routable_connector);
+            }
+            connectors.extend(non_eliminated_connectors.clone());
+            connectors.extend(eliminated_connectors.clone());
+        }
+        logger::debug!(elimination_based_routing_connectors=?connectors);
+        Ok(connecyors)
     } else {
         Ok(routable_connectors)
     }

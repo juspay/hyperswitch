@@ -714,7 +714,12 @@ pub async fn fetch_success_based_routing_config(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("unable to parse success_based_routing_config struct")?;
 
-        refresh_success_based_routing_cache(state, key.as_str(), success_based_routing_config.clone()).await;
+        refresh_success_based_routing_cache(
+            state,
+            key.as_str(),
+            success_based_routing_config.clone(),
+        )
+        .await;
 
         Ok(success_based_routing_config)
     }
@@ -1344,6 +1349,7 @@ pub async fn default_specific_dynamic_routing_setup(
     Ok(ApplicationResponse::Json(new_record))
 }
 
+#[derive(Clone, Debug)]
 pub struct DynamicRoutingConfigParamsInterpolator {
     pub payment_method: Option<common_enums::PaymentMethod>,
     pub payment_method_type: Option<common_enums::PaymentMethodType>,
