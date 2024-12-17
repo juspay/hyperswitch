@@ -128,7 +128,6 @@ pub trait StorageInterface:
     + authorization::AuthorizationInterface
     + user::sample_data::BatchSampleDataInterface
     + health_check::HealthCheckDbInterface
-    + role::RoleInterface
     + user_authentication_method::UserAuthenticationMethodInterface
     + authentication::AuthenticationInterface
     + generic_link::GenericLinkInterface
@@ -148,6 +147,7 @@ pub trait GlobalStorageInterface:
     + user_role::UserRoleInterface
     + user_key_store::UserKeyStoreInterface
     + user::theme::ThemeInterface
+    + role::RoleInterface
     + 'static
 {
 }
