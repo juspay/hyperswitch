@@ -18,7 +18,10 @@ use diesel_models::dynamic_routing_stats::DynamicRoutingStatsNew;
 use diesel_models::routing_algorithm;
 use error_stack::ResultExt;
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
-use external_services::grpc_client::dynamic_routing::success_rate_client::SuccessBasedDynamicRouting;
+use external_services::grpc_client::dynamic_routing::{
+    elimination_rate_client::{EliminationBasedRouting, EliminationResponse},
+    success_rate_client::SuccessBasedDynamicRouting,
+};
 #[cfg(feature = "v1")]
 use hyperswitch_domain_models::api::ApplicationResponse;
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
@@ -722,6 +725,113 @@ pub async fn fetch_success_based_routing_config(
         .await;
 
         Ok(success_based_routing_config)
+    }
+}
+
+/// update window for elimination based dynamic routing
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+#[instrument(skip_all)]
+pub async fn update_window_for_elimination_routing(
+    state: &SessionState,
+    payment_attempt: &storage::PaymentAttempt,
+    routable_connectors: Vec<routing_types::RoutableConnectorChoice>,
+    business_profile: &domain::Profile,
+    elimination_routing_configs_params_interpolator: DynamicRoutingConfigParamsInterpolator,
+) -> RouterResult<()> {
+    let elimination_based_dynamic_routing_ref: routing_types::DynamicRoutingAlgorithmRef =
+        business_profile
+            .dynamic_routing_algorithm
+            .clone()
+            .map(|val| val.parse_value("DynamicRoutingAlgorithmRef"))
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to deserialize DynamicRoutingAlgorithmRef from JSON")?
+            .unwrap_or_default();
+
+    let elimination_algo_ref = elimination_based_dynamic_routing_ref
+        .elimination_routing_algorithm
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("elimination_based_routing_algorithm not found in dynamic_routing_algorithm from business_profile table")?;
+
+    if elimination_algo_ref.enabled_feature != routing_types::DynamicRoutingFeatures::None {
+        let client = state
+            .grpc_client
+            .dynamic_routing
+            .elimination_rate_client
+            .as_ref()
+            .ok_or(errors::ApiErrorResponse::GenericNotFoundError {
+                message: "elimination_rate gRPC client not found".to_string(),
+            })?;
+
+        let elimination_routing_config = fetch_elimintaion_routing_configs(
+            state,
+            business_profile,
+            elimination_algo_ref
+                .algorithm_id_with_timestamp
+                .algorithm_id
+                .ok_or(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable(
+                    "success_based_routing_algorithm_id not found in business_profile",
+                )?,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("unable to retrieve success_rate based dynamic routing configs")?;
+
+        let elimination_routing_config_params = elimination_routing_configs_params_interpolator
+            .get_string_val(
+                elimination_routing_config
+                    .params
+                    .as_ref()
+                    .ok_or(errors::RoutingError::EliminationBasedRoutingParamsNotFoundError)
+                    .change_context(errors::ApiErrorResponse::InternalServerError)?,
+            );
+
+        let tenant_business_profile_id = generate_tenant_business_profile_id(
+            &state.tenant.redis_key_prefix,
+            business_profile.get_id().get_string_repr(),
+        );
+
+        let elimination_based_connectors: EliminationResponse = client
+            .perform_elimination_routing(
+                tenant_business_profile_id,
+                elimination_routing_config_params,
+                routable_connectors.clone(),
+                elimination_routing_config.elimination_analyser_config,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable(
+                "unable to analyze/fetch elimintaion routing from dynamic routing service",
+            )?;
+
+        // todo - call update window equivalent for elimination routing
+        // client
+        // .update_elimination_bucket(
+        //     tenant_business_profile_id,
+        //     success_based_routing_configs,
+        //     success_based_routing_config_params,
+        //     vec![routing_types::RoutableConnectorChoiceWithStatus::new(
+        //         routing_types::RoutableConnectorChoice {
+        //             choice_kind: api_models::routing::RoutableChoiceKind::FullStruct,
+        //             connector: common_enums::RoutableConnectors::from_str(
+        //                 payment_connector.as_str(),
+        //             )
+        //             .change_context(errors::ApiErrorResponse::InternalServerError)
+        //             .attach_printable("unable to infer routable_connector from connector")?,
+        //             merchant_connector_id: payment_attempt.merchant_connector_id.clone(),
+        //         },
+        //         payment_status_attribute == common_enums::AttemptStatus::Charged,
+        //     )],
+        // )
+        // .await
+        // .change_context(errors::ApiErrorResponse::InternalServerError)
+        // .attach_printable(
+        //     "unable to update success based routing window in dynamic routing service",
+        // )?;
+        Ok(())
+    } else {
+        Ok(())
     }
 }
 

@@ -340,6 +340,8 @@ pub enum RoutingError {
     ElimintaionClientInitializationError,
     #[error("Unable to analyze elimintaion routing config from dynamic routing service")]
     ElimintaionRoutingCalculationError,
+    #[error("Params not found in elimination based routing config")]
+    EliminationBasedRoutingParamsNotFoundError,
     #[error("Unable to retrieve elimination based routing config")]
     EliminationRoutingConfigError,
     #[error(

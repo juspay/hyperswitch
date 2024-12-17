@@ -24,7 +24,7 @@ use euclid::{
 };
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use external_services::grpc_client::dynamic_routing::{
-    elimination_rate_client::EliminationResponse, EliminationBasedRouting,
+    elimination_rate_client::{EliminationBasedRouting, EliminationResponse},
     success_rate_client::{CalSuccessRateResponse, SuccessBasedDynamicRouting},
 };
 use hyperswitch_domain_models::address::Address;
@@ -1450,7 +1450,7 @@ pub async fn perform_elimination_routing(
                 elimination_routing_config
                     .params
                     .as_ref()
-                    .ok_or(errors::RoutingError::SuccessBasedRoutingParamsNotFoundError)?,
+                    .ok_or(errors::RoutingError::EliminationBasedRoutingParamsNotFoundError)?,
             );
 
         let tenant_business_profile_id = routing::helpers::generate_tenant_business_profile_id(

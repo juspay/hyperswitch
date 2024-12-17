@@ -1969,11 +1969,15 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
 
     #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
     {
-        if business_profile.dynamic_routing_algorithm.is_some() {
+        if let Some(algo) = business_profile.dynamic_routing_algorithm.clone() {
+            let dynamic_routing_config: api_models::routing::DynamicRoutingAlgorithmRef = algo
+                .parse_value("DynamicRoutingAlgorithmRef")
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("unable to deserialize DynamicRoutingAlgorithmRef from JSON")?;
             let state = state.clone();
             let business_profile = business_profile.clone();
             let payment_attempt = payment_attempt.clone();
-            let success_based_routing_config_params_interpolator =
+            let dynamic_routing_config_params_interpolator =
                 routing_helpers::DynamicRoutingConfigParamsInterpolator::new(
                     payment_attempt.payment_method,
                     payment_attempt.payment_method_type,
@@ -2005,16 +2009,37 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                 );
             tokio::spawn(
                 async move {
-                    routing_helpers::push_metrics_with_update_window_for_success_based_routing(
-                        &state,
-                        &payment_attempt,
-                        routable_connectors,
-                        &business_profile,
-                        success_based_routing_config_params_interpolator,
-                    )
-                    .await
-                    .map_err(|e| logger::error!(dynamic_routing_metrics_error=?e))
-                    .ok();
+                    if dynamic_routing_config.success_based_algorithm.is_some_and(
+                        |success_based_algo| {
+                            success_based_algo
+                                .algorithm_id_with_timestamp
+                                .algorithm_id
+                                .is_some()
+                        },
+                    ) {
+                        routing_helpers::push_metrics_with_update_window_for_success_based_routing(
+                            &state,
+                            &payment_attempt,
+                            routable_connectors,
+                            &business_profile,
+                            dynamic_routing_config_params_interpolator,
+                        )
+                        .await
+                        .map_err(|e| logger::error!(dynamic_routing_metrics_error=?e))
+                        .ok();
+                    };
+                    if dynamic_routing_config
+                        .elimination_routing_algorithm
+                        .is_some_and(|elimination_algo| {
+                            elimination_algo
+                                .algorithm_id_with_timestamp
+                                .algorithm_id
+                                .is_some()
+                        })
+                    {
+                        // todo - call the update window function for elimination routing
+                        todo!();
+                    };
                 }
                 .in_current_span(),
             );
