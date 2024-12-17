@@ -715,6 +715,7 @@ diesel::table! {
         payment_link_config -> Nullable<Jsonb>,
         pm_collect_link_config -> Nullable<Jsonb>,
         version -> ApiVersion,
+        fingerprint_secret_key -> Nullable<Bytea>,
     }
 }
 

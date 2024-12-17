@@ -402,6 +402,7 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
                     payment_link_config: None,
                     pm_collect_link_config,
                     version: hyperswitch_domain_models::consts::API_VERSION,
+                    fingerprint_secret_key: None,
                 },
             )
         }
