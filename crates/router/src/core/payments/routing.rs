@@ -24,8 +24,9 @@ use euclid::{
 };
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use external_services::grpc_client::dynamic_routing::{
-    elimination_rate_client::EliminationResponse, EliminationBasedRouting,
+    elimination_rate_client::EliminationResponse,
     success_rate_client::{CalSuccessRateResponse, SuccessBasedDynamicRouting},
+    EliminationBasedRouting,
 };
 use hyperswitch_domain_models::address::Address;
 use kgraph_utils::{
