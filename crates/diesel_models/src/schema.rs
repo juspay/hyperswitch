@@ -734,6 +734,7 @@ diesel::table! {
         pm_collect_link_config -> Nullable<Jsonb>,
         version -> ApiVersion,
         is_platform_account -> Bool,
+        fingerprint_secret_key -> Nullable<Bytea>,
     }
 }
 

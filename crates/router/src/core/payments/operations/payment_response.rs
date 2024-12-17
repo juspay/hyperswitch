@@ -2035,10 +2035,10 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
             .map(|info| info.status = status)
     });
 
-    let blocked_cache_identifier = payment_data.blocked_cache_identifier.clone();
+    let payment_method_blocking_identifier = payment_data.payment_method_blocking_identifier.clone();
     let redis_expiry = state.conf.card_test_guard.redis_expiry;
     if payment_data.payment_attempt.status == enums::AttemptStatus::Failure {
-        let _ = services::card_testing_guard::increment_blocked_count_in_cache(state, &blocked_cache_identifier.unwrap(), redis_expiry).await;
+        let _ = services::card_testing_guard::increment_blocked_count_in_cache(state, &payment_method_blocking_identifier.unwrap(), redis_expiry).await;
     }
 
     match router_data.integrity_check {
