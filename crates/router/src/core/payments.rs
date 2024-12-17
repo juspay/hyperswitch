@@ -6057,7 +6057,7 @@ where
 
             if routing_choice.routing_type.is_dynamic_routing() {
                 let success_based_routing_config_params_interpolator =
-                    routing_helpers::SuccessBasedRoutingConfigParamsInterpolator::new(
+                    routing_helpers::DynamicRoutingConfigParamsInterpolator::new(
                         payment_data.get_payment_attempt().payment_method,
                         payment_data.get_payment_attempt().payment_method_type,
                         payment_data.get_payment_attempt().authentication_type,
@@ -6087,6 +6087,7 @@ where
                             .and_then(|card_isin| card_isin.as_str())
                             .map(|card_isin| card_isin.to_string()),
                     );
+                if dynamic_routing_config.success
                 routing::perform_success_based_routing(
                     state,
                     connectors.clone(),

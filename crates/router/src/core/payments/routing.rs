@@ -23,9 +23,11 @@ use euclid::{
     frontend::{ast, dir as euclid_dir},
 };
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-use external_services::grpc_client::dynamic_routing::success_rate_client::{
+use external_services::grpc_client::dynamic_routing::{
+    elimination_rate_client::EliminationResponse,
+    success_rate_client::{
     CalSuccessRateResponse, SuccessBasedDynamicRouting,
-};
+}};
 use hyperswitch_domain_models::address::Address;
 use kgraph_utils::{
     mca as mca_graph,
@@ -1270,7 +1272,7 @@ pub async fn perform_success_based_routing(
     state: &SessionState,
     routable_connectors: Vec<api_routing::RoutableConnectorChoice>,
     business_profile: &domain::Profile,
-    success_based_routing_config_params_interpolator: routing::helpers::SuccessBasedRoutingConfigParamsInterpolator,
+    success_based_routing_config_params_interpolator: routing::helpers::DynamicRoutingConfigParamsInterpolator,
 ) -> RoutingResult<Vec<api_routing::RoutableConnectorChoice>> {
     let success_based_dynamic_routing_algo_ref: api_routing::DynamicRoutingAlgorithmRef =
         business_profile
@@ -1307,7 +1309,7 @@ pub async fn perform_success_based_routing(
             .ok_or(errors::RoutingError::SuccessRateClientInitializationError)
             .attach_printable("success_rate gRPC client not found")?;
 
-        let success_based_routing_configs = routing::helpers::fetch_dynamic_routing_configs(
+        let success_based_routing_configs = routing::helpers::fetch_success_based_routing_config(
             state,
             business_profile,
             success_based_algo_ref
@@ -1391,13 +1393,10 @@ pub async fn perform_elimination_routing(
     state: &SessionState,
     routable_connectors: Vec<api_routing::RoutableConnectorChoice>,
     business_profile: &domain::Profile,
-    elimination_routing_configs_params_interpolator: routing::helpers::SuccessBasedRoutingConfigParamsInterpolator,
+    elimination_routing_configs_params_interpolator: routing::helpers::DynamicRoutingConfigParamsInterpolator,
 ) -> RoutingResult<Vec<api_routing::RoutableConnectorChoice>> {
-<<<<<<< HEAD
     use external_services::grpc_client::dynamic_routing::elimination_rate_client::EliminationBasedRouting;
 
-=======
->>>>>>> 3ff2e0041c75116393ea26b3841ec39887b718df
     let dynamic_routing_algo_ref: api_routing::DynamicRoutingAlgorithmRef = business_profile
         .dynamic_routing_algorithm
         .clone()
@@ -1432,7 +1431,7 @@ pub async fn perform_elimination_routing(
             .ok_or(errors::RoutingError::ElimintaionClientInitializationError)
             .attach_printable("elimintaion routing's gRPC client not found")?;
 
-        let elimination_routing_config = routing::helpers::fetch_dynamic_routing_configs(
+        let elimination_routing_config = routing::helpers::fetch_elimintaion_routing_configs(
             state,
             business_profile,
             elimination_algo_ref
@@ -1446,7 +1445,7 @@ pub async fn perform_elimination_routing(
                 )?,
         )
         .await
-        .change_context(errors::RoutingError::SuccessBasedRoutingConfigError)
+        .change_context(errors::RoutingError::EliminationRoutingConfigError)
         .attach_printable("unable to fetch elimination dynamic routing configs")?;
 
         let elimination_routing_config_params = elimination_routing_configs_params_interpolator
@@ -1462,12 +1461,12 @@ pub async fn perform_elimination_routing(
             business_profile.get_id().get_string_repr(),
         );
 
-        let elimination_based_connectors: CalSuccessRateResponse = client
+        let elimination_based_connectors: EliminationResponse = client
             .perform_elimination_routing(
                 tenant_business_profile_id,
                 elimination_routing_config_params,
-                routable_connectors,
-                elimination_routing_config,
+                routable_connectors.clone(),
+                elimination_routing_config.elimination_analyser_config,
             )
             .await
             .change_context(errors::RoutingError::ElimintaionRoutingCalculationError)
@@ -1475,6 +1474,7 @@ pub async fn perform_elimination_routing(
                 "unable to analyze/fetch elimintaion routing from dynamic routing service",
             )?;
 
+        println!(">>>>>>>>>>>>>>>>> Elim connectors {:?}", elimination_based_connectors);
         //     let mut connectors = Vec::with_capacity(elimination_based_connectors.labels_with_score.len());
         //     for label_with_score in elimination_based_connectors.labels_with_score {
         //         let (connector, merchant_connector_id) = label_with_score.label
