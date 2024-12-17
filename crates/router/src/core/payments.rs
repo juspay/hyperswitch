@@ -3452,7 +3452,7 @@ pub async fn get_session_token_for_click_to_pay(
         .attach_printable("failed to parse customer data from payment intent")?;
     optional_customer_details
         .as_ref()
-        .map(|details| validate_customer_details_for_click_to_pay(details))
+        .map(validate_customer_details_for_click_to_pay)
         .transpose()?;
 
     Ok(api_models::payments::SessionToken::ClickToPay(Box::new(
