@@ -88,13 +88,17 @@ where
             headers::CONTENT_TYPE.to_string(),
             self.get_content_type().to_string().into(),
         )];
-        let access_token = req
-            .access_token
-            .clone()
-            .ok_or(errors::ConnectorError::FailedToObtainAuthType)?;
         let auth_header = (
             headers::AUTHORIZATION.to_string(),
-            format!("Bearer {}", access_token.token.peek()).into_masked(),
+            format!(
+                "Bearer {}",
+                req.access_token
+                    .clone()
+                    .ok_or(errors::ConnectorError::FailedToObtainAuthType)?
+                    .token
+                    .peek()
+            )
+            .into_masked(),
         );
         let request_id = (
             headers::REQUEST_ID.to_string(),
@@ -241,12 +245,12 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> 
         _req: &RefreshTokenRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let access_token_url = connectors
+        Ok(connectors
             .jpmorgan
             .secondary_base_url
             .as_ref()
-            .ok_or(errors::ConnectorError::FailedToObtainIntegrationUrl)?;
-        Ok(access_token_url.to_string())
+            .ok_or(errors::ConnectorError::FailedToObtainIntegrationUrl)?
+            .to_string())
     }
 
     fn get_request_body(
@@ -263,7 +267,7 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> 
         req: &RefreshTokenRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
-        let req = Some(
+        Ok(Some(
             RequestBuilder::new()
                 .method(Method::Post)
                 .attach_default_headers()
@@ -271,8 +275,7 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> 
                 .url(&RefreshTokenType::get_url(self, req, connectors)?)
                 .set_body(RefreshTokenType::get_request_body(self, req, connectors)?)
                 .build(),
-        );
-        Ok(req)
+        ))
     }
 
     fn handle_response(
@@ -683,18 +686,19 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Jpmorga
         req: &RefundsRouterData<Execute>,
         connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
-        let request = RequestBuilder::new()
-            .method(Method::Post)
-            .url(&types::RefundExecuteType::get_url(self, req, connectors)?)
-            .attach_default_headers()
-            .headers(types::RefundExecuteType::get_headers(
-                self, req, connectors,
-            )?)
-            .set_body(types::RefundExecuteType::get_request_body(
-                self, req, connectors,
-            )?)
-            .build();
-        Ok(Some(request))
+        Ok(Some(
+            RequestBuilder::new()
+                .method(Method::Post)
+                .url(&types::RefundExecuteType::get_url(self, req, connectors)?)
+                .attach_default_headers()
+                .headers(types::RefundExecuteType::get_headers(
+                    self, req, connectors,
+                )?)
+                .set_body(types::RefundExecuteType::get_request_body(
+                    self, req, connectors,
+                )?)
+                .build(),
+        ))
     }
 
     fn handle_response(

@@ -151,8 +151,6 @@ impl TryFrom<&JpmorganRouterData<&PaymentsAuthorizeRouterData>> for JpmorganPaym
                 let capture_method =
                     map_capture_method(item.router_data.request.capture_method.unwrap_or_default());
 
-                let currency = item.router_data.request.currency;
-
                 let merchant_software = JpmorganMerchantSoftware {
                     company_name: String::from("JPMC"),
                     product_name: String::from("Hyperswitch"),
@@ -176,7 +174,7 @@ impl TryFrom<&JpmorganRouterData<&PaymentsAuthorizeRouterData>> for JpmorganPaym
 
                 Ok(Self {
                     capture_method: capture_method?,
-                    currency,
+                    currency: item.router_data.request.currency,
                     amount: item.amount,
                     merchant,
                     payment_method_type,
@@ -370,19 +368,17 @@ impl<F, T> TryFrom<ResponseRouterData<F, JpmorganPaymentsResponse, T, PaymentsRe
         };
         let status = attempt_status_from_transaction_state(transaction_state);
 
-        let connector_response_reference_id = Some(item.response.transaction_id.clone());
-
-        let resource_id = ResponseId::ConnectorTransactionId(item.response.transaction_id);
-
         Ok(Self {
             status,
             response: Ok(PaymentsResponseData::TransactionResponse {
-                resource_id,
+                resource_id: ResponseId::ConnectorTransactionId(
+                    item.response.transaction_id.clone(),
+                ),
                 redirection_data: Box::new(None),
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id,
+                connector_response_reference_id: Some(item.response.transaction_id.clone()),
                 incremental_authorization_allowed: None,
                 charge_id: None,
             }),
@@ -823,8 +819,6 @@ impl TryFrom<&JpmorganRouterData<&PaymentsCaptureRouterData>> for JpmorganCaptur
     ) -> Result<Self, Self::Error> {
         let capture_method =
             map_capture_method(item.router_data.request.capture_method.unwrap_or_default());
-        let currency = Some(item.router_data.request.currency);
-        let amount = item.amount;
         Ok(Self {
             capture_method: Some(capture_method?),
             merchant: None,
@@ -836,8 +830,8 @@ impl TryFrom<&JpmorganRouterData<&PaymentsCaptureRouterData>> for JpmorganCaptur
             account_on_file: None,
             original_transaction_id: None,
             is_amount_final: None,
-            amount,
-            currency,
+            amount: item.amount,
+            currency: Some(item.router_data.request.currency),
             merchant_order_number: None,
             risk: None,
             retail_addenda: None,
@@ -896,23 +890,18 @@ impl<F, T> TryFrom<ResponseRouterData<F, JpmorganCaptureResponse, T, PaymentsRes
     fn try_from(
         item: ResponseRouterData<F, JpmorganCaptureResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        let transaction_state = item.response.transaction_state;
-        let status = attempt_status_from_transaction_state(transaction_state);
-
-        let transaction_id = item.response.transaction_id.clone();
-        let connector_response_reference_id = Some(transaction_id.clone());
-
-        let resource_id = ResponseId::ConnectorTransactionId(transaction_id.clone());
-
+        let status = attempt_status_from_transaction_state(item.response.transaction_state);
         Ok(Self {
             status,
             response: Ok(PaymentsResponseData::TransactionResponse {
-                resource_id,
+                resource_id: ResponseId::ConnectorTransactionId(
+                    item.response.transaction_id.clone(),
+                ),
                 redirection_data: Box::new(None),
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id,
+                connector_response_reference_id: Some(item.response.transaction_id.clone()),
                 incremental_authorization_allowed: None,
                 charge_id: None,
             }),
@@ -949,23 +938,18 @@ impl<F, PaymentsSyncData>
     fn try_from(
         item: ResponseRouterData<F, JpmorganPSyncResponse, PaymentsSyncData, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        let transaction_state = item.response.transaction_state;
-        let status = attempt_status_from_transaction_state(transaction_state);
-
-        let transaction_id = item.response.transaction_id.clone();
-        let connector_response_reference_id = Some(transaction_id.clone());
-
-        let resource_id = ResponseId::ConnectorTransactionId(transaction_id.clone());
-
+        let status = attempt_status_from_transaction_state(item.response.transaction_state);
         Ok(Self {
             status,
             response: Ok(PaymentsResponseData::TransactionResponse {
-                resource_id,
+                resource_id: ResponseId::ConnectorTransactionId(
+                    item.response.transaction_id.clone(),
+                ),
                 redirection_data: Box::new(None),
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id,
+                connector_response_reference_id: Some(item.response.transaction_id.clone()),
                 incremental_authorization_allowed: None,
                 charge_id: None,
             }),
@@ -1067,18 +1051,16 @@ impl TryFrom<RefundsResponseRouterData<Execute, JpmorganRefundResponse>>
     fn try_from(
         item: RefundsResponseRouterData<Execute, JpmorganRefundResponse>,
     ) -> Result<Self, Self::Error> {
-        let refund_id = item
-            .response
-            .transaction_id
-            .clone()
-            .ok_or(errors::ConnectorError::ResponseHandlingFailed)?;
-
-        let transaction_state = item.response.transaction_state;
-        let refund_status = refund_status_from_transaction_state(transaction_state);
         Ok(Self {
             response: Ok(RefundsResponseData {
-                connector_refund_id: refund_id,
-                refund_status,
+                connector_refund_id: item
+                    .response
+                    .transaction_id
+                    .clone()
+                    .ok_or(errors::ConnectorError::ResponseHandlingFailed)?,
+                refund_status: refund_status_from_transaction_state(
+                    item.response.transaction_state,
+                ),
             }),
             ..item.data
         })
@@ -1104,13 +1086,12 @@ impl TryFrom<RefundsResponseRouterData<RSync, JpmorganRefundSyncResponse>>
     fn try_from(
         item: RefundsResponseRouterData<RSync, JpmorganRefundSyncResponse>,
     ) -> Result<Self, Self::Error> {
-        let refund_id = item.response.transaction_id.clone();
-        let transaction_state = item.response.transaction_state;
-        let refund_status = refund_status_from_transaction_state(transaction_state);
         Ok(Self {
             response: Ok(RefundsResponseData {
-                connector_refund_id: refund_id,
-                refund_status,
+                connector_refund_id: item.response.transaction_id.clone(),
+                refund_status: refund_status_from_transaction_state(
+                    item.response.transaction_state,
+                ),
             }),
             ..item.data
         })
@@ -1128,13 +1109,10 @@ pub struct JpmorganCancelRequest {
 impl TryFrom<JpmorganRouterData<&PaymentsCancelRouterData>> for JpmorganCancelRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: JpmorganRouterData<&PaymentsCancelRouterData>) -> Result<Self, Self::Error> {
-        let is_void = Some(true);
-        let amount = item.router_data.request.amount;
-        let reversal_reason = item.router_data.request.cancellation_reason.clone();
         Ok(Self {
-            amount,
-            is_void,
-            reversal_reason,
+            amount: item.router_data.request.amount,
+            is_void: Some(true),
+            reversal_reason: item.router_data.request.cancellation_reason.clone(),
         })
     }
 }
@@ -1182,22 +1160,17 @@ impl<F>
                 common_enums::AttemptStatus::Failure
             }
         };
-
-        let transaction_id = item.response.transaction_id.clone();
-
-        let resource_id = ResponseId::ConnectorTransactionId(transaction_id.clone());
-
-        let connector_response_reference_id = Some(transaction_id.clone());
-
         Ok(Self {
             status,
             response: Ok(PaymentsResponseData::TransactionResponse {
-                resource_id,
+                resource_id: ResponseId::ConnectorTransactionId(
+                    item.response.transaction_id.clone(),
+                ),
                 redirection_data: Box::new(None),
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id,
+                connector_response_reference_id: Some(item.response.transaction_id.clone()),
                 incremental_authorization_allowed: None,
                 charge_id: None,
             }),
