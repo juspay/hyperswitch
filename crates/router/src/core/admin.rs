@@ -4766,3 +4766,35 @@ async fn locker_recipient_create_call(
 
     Ok(store_resp.card_reference)
 }
+
+pub async fn enable_platform_account(
+    state: SessionState,
+    merchant_id: id_type::MerchantId,
+) -> RouterResponse<()> {
+    let db = state.store.as_ref();
+    let key_manager_state = &(&state).into();
+    let key_store = db
+        .get_merchant_key_store_by_merchant_id(
+            key_manager_state,
+            &merchant_id,
+            &db.get_master_key().to_vec().into(),
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
+
+    let merchant_account = db
+        .find_merchant_account_by_merchant_id(key_manager_state, &merchant_id, &key_store)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
+
+    db.update_merchant(
+        key_manager_state,
+        merchant_account,
+        storage::MerchantAccountUpdate::ToPlatformAccount,
+        &key_store,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Error while enabling platform merchant account")
+    .map(|_| services::ApplicationResponse::StatusOk)
+}

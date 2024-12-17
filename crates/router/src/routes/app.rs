@@ -1324,6 +1324,7 @@ impl MerchantAccount {
                     .route(web::post().to(admin::merchant_account_toggle_kv))
                     .route(web::get().to(admin::merchant_account_kv_status)),
             )
+            .service(web::resource("/{id}/platform").route(web::post().to(admin::merchant_account_enable_platform_account)))
             .service(
                 web::resource("/transfer")
                     .route(web::post().to(admin::merchant_account_transfer_keys)),
