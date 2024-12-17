@@ -240,6 +240,11 @@ jobs:
               sleep 10
             fi
           done
+        env:
+          APPLE_PAY_MERCHANT_CERTIFICATE: ${{ secrets.APPLE_PAY_MERCHANT_CERTIFICATE }}
+          APPLE_PAY_MERCHANT_CERTIFICATE_KEY: ${{ secrets.APPLE_PAY_MERCHANT_CERTIFICATE_KEY }}
+          APPLE_PAY_PAYMENT_PROCESSING_CERTIFICATE: ${{ secrets.APPLE_PAY_PAYMENT_PROCESSING_CERTIFICATE }}
+          APPLE_PAY_PAYMENT_PROCESSING_CERTIFICATE_KEY: ${{ secrets.APPLE_PAY_PAYMENT_PROCESSING_CERTIFICATE_KEY }}
 
       - name: Run Cypress tests
         if: ${{ env.RUN_TESTS == 'true' }}
