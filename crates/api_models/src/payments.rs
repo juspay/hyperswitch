@@ -6997,6 +6997,8 @@ pub struct ClickToPaySessionResponse {
     pub transaction_amount: StringMajorUnit,
     #[schema(value_type = Currency)]
     pub transaction_currency_code: common_enums::Currency,
+    pub phone_number: Secret<String>,
+    pub email: Email,
 }
 
 #[cfg(feature = "v1")]

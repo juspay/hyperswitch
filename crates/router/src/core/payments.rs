@@ -3399,7 +3399,7 @@ pub async fn get_session_token_for_click_to_pay(
     payment_intent: &hyperswitch_domain_models::payments::PaymentIntent,
 ) -> RouterResult<api_models::payments::SessionToken> {
     use common_utils::{id_type::MerchantConnectorAccountId, types::AmountConvertor};
-    use hyperswitch_domain_models::payments::ClickToPayMetaData;
+    use hyperswitch_domain_models::payments::{payment_intent::CustomerData, ClickToPayMetaData};
 
     use crate::consts::CLICK_TO_PAY;
 
@@ -3439,6 +3439,29 @@ pub async fn get_session_token_for_click_to_pay(
         .change_context(errors::ApiErrorResponse::PreconditionFailed {
             message: "Failed to convert amount to string major unit for clickToPay".to_string(),
         })?;
+
+    let optional_customer_details = payment_intent
+        .customer_details
+        .as_ref()
+        .map(|details| {
+            serde_json::from_value::<CustomerData>(details.clone().into_inner().expose())
+        })
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("failed to parse customer data from payment intent")?;
+
+    let customer_detals = optional_customer_details
+        .ok_or(errors::ApiErrorResponse::MissingRequiredField {field_name : "customer"})
+        .attach_printable("customer data not present in payment_intent.customer_details")?;
+
+    let phone_number = customer_detals
+        .phone
+        .ok_or(errors::ApiErrorResponse::MissingRequiredField {field_name: "phone_number"})
+        .attach_printable("phone number is not present in payment_intent.customer_details")?;
+    let email = customer_detals
+        .email
+        .ok_or(errors::ApiErrorResponse::MissingRequiredField {field_name: "email"})
+        .attach_printable("email number is not present in payment_intent.customer_details")?;
     Ok(api_models::payments::SessionToken::ClickToPay(Box::new(
         api_models::payments::ClickToPaySessionResponse {
             dpa_id: click_to_pay_metadata.dpa_id,
@@ -3451,6 +3474,8 @@ pub async fn get_session_token_for_click_to_pay(
             merchant_country_code: click_to_pay_metadata.merchant_country_code,
             transaction_amount,
             transaction_currency_code: transaction_currency,
+            phone_number,
+            email,
         },
     )))
 }
