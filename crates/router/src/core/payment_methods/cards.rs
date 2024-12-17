@@ -2796,9 +2796,11 @@ pub async fn update_payment_method_and_last_used(
     pm: domain::PaymentMethod,
     payment_method_update: Option<Encryption>,
     storage_scheme: MerchantStorageScheme,
+    card_scheme: Option<String>,
 ) -> errors::CustomResult<(), errors::VaultError> {
     let pm_update = payment_method::PaymentMethodUpdate::UpdatePaymentMethodDataAndLastUsed {
         payment_method_data: payment_method_update,
+        scheme: card_scheme,
         last_used_at: common_utils::date_time::now(),
     };
     db.update_payment_method(&(state.into()), key_store, pm, pm_update, storage_scheme)
@@ -5330,8 +5332,7 @@ pub async fn get_card_details_with_locker_fallback(
         });
 
     Ok(if let Some(mut crd) = card_decrypted {
-        let scheme = crd.card_network.clone().map(|cn| cn.to_string());
-        crd.scheme.clone_from(&scheme);
+        crd.scheme.clone_from(&pm.scheme);
         Some(crd)
     } else {
         logger::debug!(
@@ -5360,8 +5361,7 @@ pub async fn get_card_details_without_locker_fallback(
         });
 
     Ok(if let Some(mut crd) = card_decrypted {
-        let scheme = crd.card_network.clone().map(|cn| cn.to_string());
-        crd.scheme.clone_from(&scheme);
+        crd.scheme.clone_from(&pm.scheme);
         crd
     } else {
         logger::debug!(
