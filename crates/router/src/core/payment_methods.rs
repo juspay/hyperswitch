@@ -853,17 +853,16 @@ pub async fn create_payment_method(
     let customer_id = req.customer_id.to_owned();
     let key_manager_state = &(state).into();
 
-    db
-        .find_customer_by_global_id(
-            key_manager_state,
-            customer_id.get_string_repr(),
-            merchant_account.get_id(),
-            key_store,
-            merchant_account.storage_scheme,
-        )
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
-        .attach_printable("Customer not found for the payment method")?;
+    db.find_customer_by_global_id(
+        key_manager_state,
+        customer_id.get_string_repr(),
+        merchant_account.get_id(),
+        key_store,
+        merchant_account.storage_scheme,
+    )
+    .await
+    .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
+    .attach_printable("Customer not found for the payment method")?;
 
     let payment_method_billing_address: Option<Encryptable<Secret<serde_json::Value>>> = req
         .billing
@@ -973,17 +972,16 @@ pub async fn payment_method_intent_create(
     let customer_id = req.customer_id.to_owned();
     let key_manager_state = &(state).into();
 
-    db
-        .find_customer_by_global_id(
-            key_manager_state,
-            customer_id.get_string_repr(),
-            merchant_account.get_id(),
-            key_store,
-            merchant_account.storage_scheme,
-        )
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
-        .attach_printable("Customer not found for the payment method")?;
+    db.find_customer_by_global_id(
+        key_manager_state,
+        customer_id.get_string_repr(),
+        merchant_account.get_id(),
+        key_store,
+        merchant_account.storage_scheme,
+    )
+    .await
+    .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
+    .attach_printable("Customer not found for the payment method")?;
 
     let payment_method_billing_address: Option<Encryptable<Secret<serde_json::Value>>> = req
         .billing
