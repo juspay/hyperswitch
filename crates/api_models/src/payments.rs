@@ -6984,7 +6984,6 @@ pub struct ExtendedCardInfoResponse {
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
-#[serde(rename_all = "camelCase")]
 pub struct ClickToPaySessionResponse {
     pub dpa_id: String,
     pub dpa_name: String,

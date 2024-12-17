@@ -4,6 +4,55 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.12.17.0
+
+### Features
+
+- **connector:**
+  - [AIRWALLEX] Add refferer data to whitelist hyperswitch ([#6806](https://github.com/juspay/hyperswitch/pull/6806)) ([`ed276ec`](https://github.com/juspay/hyperswitch/commit/ed276ecc0017f7f98b6f8fa3841e6b8971f609f1))
+  - [Adyen ] Add fixes for AdyenPaymentRequest struct ([#6803](https://github.com/juspay/hyperswitch/pull/6803)) ([`c22be0c`](https://github.com/juspay/hyperswitch/commit/c22be0c9274350a531cd74b64eb6b311579dca79))
+- **core:** Add click to pay support in hyperswitch ([#6769](https://github.com/juspay/hyperswitch/pull/6769)) ([`165ead6`](https://github.com/juspay/hyperswitch/commit/165ead61084a48f268829c281e932b278f0a6730))
+- **payments:** Add audit events for PaymentStatus update ([#6520](https://github.com/juspay/hyperswitch/pull/6520)) ([`ae00a10`](https://github.com/juspay/hyperswitch/commit/ae00a103de5bd283695969270a421c7609a699e8))
+- **users:** Incorporate themes in user APIs ([#6772](https://github.com/juspay/hyperswitch/pull/6772)) ([`4b989fe`](https://github.com/juspay/hyperswitch/commit/4b989fe0fb7931479e127fecbaace42d989c0620))
+
+### Bug Fixes
+
+- **router:**
+  - Handle default case for card_network for co-badged cards ([#6825](https://github.com/juspay/hyperswitch/pull/6825)) ([`f95ee51`](https://github.com/juspay/hyperswitch/commit/f95ee51bb3b879762d493953b4b6e7c2e0359946))
+  - Change click_to_pay const to snake_case and remove camel_case serde rename for clicktopay metadata ([#6852](https://github.com/juspay/hyperswitch/pull/6852)) ([`3d4fd2f`](https://github.com/juspay/hyperswitch/commit/3d4fd2f719b38dcbb675de83c0ba384d1573df00))
+- **user_roles:** Migrations for backfilling user_roles entity_id ([#6837](https://github.com/juspay/hyperswitch/pull/6837)) ([`986de77`](https://github.com/juspay/hyperswitch/commit/986de77b4868e48d00161c9d30071d809360e9a6))
+
+### Refactors
+
+- **authz:** Make connector list accessible by operation groups ([#6792](https://github.com/juspay/hyperswitch/pull/6792)) ([`6081283`](https://github.com/juspay/hyperswitch/commit/6081283afc5ab5a6503c8f0f81181cd323b12297))
+
+### Miscellaneous Tasks
+
+- **deps:** Update scylla driver ([#6799](https://github.com/juspay/hyperswitch/pull/6799)) ([`71574a8`](https://github.com/juspay/hyperswitch/commit/71574a85e6aba6bc614e1d7f6775dcef4b481201))
+
+**Full Changelog:** [`2024.12.16.0...2024.12.17.0`](https://github.com/juspay/hyperswitch/compare/2024.12.16.0...2024.12.17.0)
+
+- - -
+
+## 2024.12.16.0
+
+### Features
+
+- **router:** Add `click_to_pay` block in payments sessions response if enabled ([#6829](https://github.com/juspay/hyperswitch/pull/6829)) ([`5aa8ea0`](https://github.com/juspay/hyperswitch/commit/5aa8ea03a8327b4eb12646f1bfe5522c6dfc0282))
+- **routing:** Build the gRPC interface for communicating with the external service to perform elimination routing ([#6672](https://github.com/juspay/hyperswitch/pull/6672)) ([`2a66f4a`](https://github.com/juspay/hyperswitch/commit/2a66f4a392a5175404816ba83736e3eeb3e2b53b))
+
+### Bug Fixes
+
+- **webhooks:** Mask custom outgoing webhook headers in profile response ([#6798](https://github.com/juspay/hyperswitch/pull/6798)) ([`09cf7a3`](https://github.com/juspay/hyperswitch/commit/09cf7a3ea9db3f760eb1c35ef3074dfedc8fc33f))
+
+### Refactors
+
+- **core:** Structure of split payments ([#6706](https://github.com/juspay/hyperswitch/pull/6706)) ([`5a85213`](https://github.com/juspay/hyperswitch/commit/5a85213e21702992bff1fc0b0345be2ea4f30981))
+
+**Full Changelog:** [`2024.12.13.0...2024.12.16.0`](https://github.com/juspay/hyperswitch/compare/2024.12.13.0...2024.12.16.0)
+
+- - -
+
 ## 2024.12.13.0
 
 ### Features
