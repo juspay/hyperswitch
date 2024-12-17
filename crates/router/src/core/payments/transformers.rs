@@ -2622,7 +2622,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             off_session: payment_data
                 .mandate_id
                 .as_ref()
-                .and_then(|_| payment_data.payment_intent.off_session),
+                .and(payment_data.payment_intent.off_session),
             setup_mandate_details: payment_data.setup_mandate.clone(),
             confirm: payment_data.payment_attempt.confirm,
             statement_descriptor_suffix: payment_data.payment_intent.statement_descriptor_suffix,
@@ -3228,7 +3228,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
             off_session: payment_data
                 .mandate_id
                 .as_ref()
-                .and_then(|_| payment_data.payment_intent.off_session),
+                .and(payment_data.payment_intent.off_session),
             mandate_id: payment_data.mandate_id.clone(),
             setup_mandate_details: payment_data.setup_mandate,
             customer_acceptance: payment_data.customer_acceptance,
@@ -3346,7 +3346,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
             off_session: payment_data
                 .mandate_id
                 .as_ref()
-                .and_then(|_| payment_data.payment_intent.off_session),
+                .and(payment_data.payment_intent.off_session),
             setup_mandate_details: payment_data.setup_mandate.clone(),
             confirm: payment_data.payment_attempt.confirm,
             statement_descriptor_suffix: payment_data.payment_intent.statement_descriptor_suffix,
