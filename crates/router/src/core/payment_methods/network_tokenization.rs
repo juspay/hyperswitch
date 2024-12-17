@@ -308,6 +308,7 @@ pub async fn make_card_network_tokenization_request(
     }
 }
 
+#[cfg(feature = "v1")]
 pub async fn get_network_token(
     state: &routes::SessionState,
     customer_id: id_type::CustomerId,
@@ -375,6 +376,7 @@ pub async fn get_network_token(
     Ok(token_response)
 }
 
+#[cfg(feature = "v1")]
 pub async fn get_token_from_tokenization_service(
     state: &routes::SessionState,
     network_token_requestor_ref_id: String,
@@ -441,6 +443,7 @@ pub async fn get_token_from_tokenization_service(
     Ok(network_token_data)
 }
 
+#[cfg(feature = "v1")]
 pub async fn do_status_check_for_network_token(
     state: &routes::SessionState,
     payment_method_info: &domain::PaymentMethod,

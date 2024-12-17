@@ -5850,6 +5850,7 @@ pub fn filter_network_tokenization_supported_connectors(
         .collect()
 }
 
+#[cfg(feature = "v1")]
 pub async fn decide_action_type(
     state: &SessionState,
     is_connector_agnostic_mit_enabled: Option<bool>,
