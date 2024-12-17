@@ -30,6 +30,9 @@ The single API to access payment ecosystems across 130+ countries</div>
   <a href="https://github.com/juspay/hyperswitch/blob/main/LICENSE">
     <img src="https://img.shields.io/badge/Made_in-Rust-orange" />
   </a>
+  <a href="https://gurubase.io/g/hyperswitch">
+    <img src="https://img.shields.io/badge/Gurubase-Ask%20Hyperswitch%20Guru-006BFF" />
+  </a>
 </p>
 <p align="center">
   <a href="https://www.linkedin.com/company/hyperswitch/">
