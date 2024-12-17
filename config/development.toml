@@ -719,6 +719,7 @@ authentication_analytics_topic = "hyperswitch-authentication-events"
 
 [analytics]
 source = "sqlx"
+forex_enabled = false
 
 [analytics.clickhouse]
 username = "default"
@@ -797,5 +798,12 @@ host = "localhost"
 port = 7000
 service = "dynamo"
 
-[theme_storage]
-file_storage_backend = "file_system"
+[theme.storage]
+file_storage_backend = "file_system" # Theme storage backend to be used
+
+[theme.email_config]
+entity_name = "Hyperswitch"                      # Name of the entity to be showed in emails
+entity_logo_url = "https://example.com/logo.svg" # Logo URL of the entity to be used in emails
+foreground_color = "#000000"                     # Foreground color of email text
+primary_color = "#006DF9"                        # Primary color of email body
+background_color = "#FFFFFF"                     # Background color of email body

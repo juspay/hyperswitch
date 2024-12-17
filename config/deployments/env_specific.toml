@@ -9,6 +9,7 @@ database_name = "clickhouse_db_name" # Clickhouse database name
 # Analytics configuration.
 [analytics]
 source = "sqlx" # The Analytics source/strategy to be used
+forex_enabled = false # Boolean to enable or disable forex conversion
 
 [analytics.sqlx]
 username = "db_user"      # Analytics DB Username
@@ -328,9 +329,16 @@ host = "localhost" # Client Host
 port = 7000        # Client Port
 service = "dynamo" # Service name
 
-[theme_storage]
+[theme.storage]
 file_storage_backend = "aws_s3" # Theme storage backend to be used
 
-[theme_storage.aws_s3]
+[theme.storage.aws_s3]
 region = "bucket_region" # AWS region where the S3 bucket for theme storage is located
 bucket_name = "bucket"   # AWS S3 bucket name for theme storage
+
+[theme.email_config]
+entity_name = "Hyperswitch"                      # Name of the entity to be showed in emails
+entity_logo_url = "https://example.com/logo.svg" # Logo URL of the entity to be used in emails
+foreground_color = "#000000"                     # Foreground color of email text
+primary_color = "#006DF9"                        # Primary color of email body
+background_color = "#FFFFFF"                     # Background color of email body
