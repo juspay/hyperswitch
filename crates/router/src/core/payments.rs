@@ -37,6 +37,7 @@ use error_stack::{report, ResultExt};
 use events::EventInfo;
 use futures::future::join_all;
 use helpers::{decrypt_paze_token, ApplePayData};
+use hyperswitch_domain_models::payments::payment_intent::CustomerData;
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::payments::{
     PaymentConfirmData, PaymentIntentData, PaymentStatusData,
@@ -3449,19 +3450,11 @@ pub async fn get_session_token_for_click_to_pay(
         .transpose()
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("failed to parse customer data from payment intent")?;
+    optional_customer_details
+        .as_ref()
+        .map(|details| validate_customer_details_for_click_to_pay(details))
+        .transpose()?;
 
-    let customer_detals = optional_customer_details
-        .ok_or(errors::ApiErrorResponse::MissingRequiredField {field_name : "customer"})
-        .attach_printable("customer data not present in payment_intent.customer_details")?;
-
-    let phone_number = customer_detals
-        .phone
-        .ok_or(errors::ApiErrorResponse::MissingRequiredField {field_name: "phone_number"})
-        .attach_printable("phone number is not present in payment_intent.customer_details")?;
-    let email = customer_detals
-        .email
-        .ok_or(errors::ApiErrorResponse::MissingRequiredField {field_name: "email"})
-        .attach_printable("email number is not present in payment_intent.customer_details")?;
     Ok(api_models::payments::SessionToken::ClickToPay(Box::new(
         api_models::payments::ClickToPaySessionResponse {
             dpa_id: click_to_pay_metadata.dpa_id,
@@ -3474,10 +3467,43 @@ pub async fn get_session_token_for_click_to_pay(
             merchant_country_code: click_to_pay_metadata.merchant_country_code,
             transaction_amount,
             transaction_currency_code: transaction_currency,
-            phone_number,
-            email,
+            phone_number: optional_customer_details
+                .as_ref()
+                .and_then(|details| details.phone.clone()),
+            email: optional_customer_details
+                .as_ref()
+                .and_then(|details| details.email.clone()),
+            phone_country_code: optional_customer_details
+                .and_then(|details| details.phone_country_code.clone()),
         },
     )))
+}
+
+fn validate_customer_details_for_click_to_pay(customer_details: &CustomerData) -> RouterResult<()> {
+    if customer_details.email.is_some() {
+        return Ok(());
+    }
+
+    match (
+        customer_details.phone.as_ref(),
+        customer_details.phone_country_code.as_ref(),
+    ) {
+        (Some(_), Some(_)) => Ok(()),
+        (None, None) => Err(errors::ApiErrorResponse::MissingRequiredFields {
+            field_names: vec!["phone", "phone_country_code"],
+        })
+        .attach_printable(
+            "phone number && phone_country_code is not present in payment_intent.customer_details",
+        ),
+        (None, Some(_)) => Err(errors::ApiErrorResponse::MissingRequiredField {
+            field_name: "phone",
+        })
+        .attach_printable("phone number is not present in payment_intent.customer_details"),
+        (Some(_), None) => Err(errors::ApiErrorResponse::MissingRequiredField {
+            field_name: "phone_country_code",
+        })
+        .attach_printable("phone_country_code is not present in payment_intent.customer_details"),
+    }
 }
 
 #[cfg(feature = "v1")]
