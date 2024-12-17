@@ -3451,16 +3451,22 @@ pub async fn get_session_token_for_click_to_pay(
         .attach_printable("failed to parse customer data from payment intent")?;
 
     let customer_detals = optional_customer_details
-        .ok_or(errors::ApiErrorResponse::MissingRequiredField {field_name : "customer"})
+        .ok_or(errors::ApiErrorResponse::MissingRequiredField {
+            field_name: "customer",
+        })
         .attach_printable("customer data not present in payment_intent.customer_details")?;
 
     let phone_number = customer_detals
         .phone
-        .ok_or(errors::ApiErrorResponse::MissingRequiredField {field_name: "phone_number"})
+        .ok_or(errors::ApiErrorResponse::MissingRequiredField {
+            field_name: "phone_number",
+        })
         .attach_printable("phone number is not present in payment_intent.customer_details")?;
     let email = customer_detals
         .email
-        .ok_or(errors::ApiErrorResponse::MissingRequiredField {field_name: "email"})
+        .ok_or(errors::ApiErrorResponse::MissingRequiredField {
+            field_name: "email",
+        })
         .attach_printable("email number is not present in payment_intent.customer_details")?;
     Ok(api_models::payments::SessionToken::ClickToPay(Box::new(
         api_models::payments::ClickToPaySessionResponse {
