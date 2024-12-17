@@ -343,7 +343,7 @@ where
         Ok((Box::new(self), None, None))
     }
 
-    /// Returns `Vec<SessionConnectorData>`
+    /// Returns `SessionConnectorDatas`
     /// Steps carried out in this function
     /// Get all the `merchant_connector_accounts` which are not disabled
     /// Filter out connectors which have `invoke_sdk_client` enabled in `payment_method_types`
@@ -441,8 +441,9 @@ where
                 connector_and_supporting_payment_method_type.extend(res);
             });
 
-        let mut session_connector_data =
-            Vec::with_capacity(connector_and_supporting_payment_method_type.len());
+        let mut session_connector_data = api::SessionConnectorDatas::with_capacity(
+            connector_and_supporting_payment_method_type.len(),
+        );
 
         for (merchant_connector_account, payment_method_type, payment_method) in
             connector_and_supporting_payment_method_type

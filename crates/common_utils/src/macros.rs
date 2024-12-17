@@ -385,6 +385,18 @@ macro_rules! create_list_wrapper {
             pub fn new(list: Vec<$type_name>) -> Self {
                 Self(list)
             }
+            pub fn push(&mut self, item: $type_name) {
+                self.0.push(item)
+            }
+            pub fn len(&self) -> usize {
+                self.0.len()
+            }
+            pub fn is_empty(&self) -> bool {
+                self.0.is_empty()
+            }
+            pub fn with_capacity(size: usize) -> Self {
+                Self(Vec::with_capacity(size))
+            }
             pub fn iter(&self) -> std::slice::Iter<'_, $type_name> {
                 self.0.iter()
             }

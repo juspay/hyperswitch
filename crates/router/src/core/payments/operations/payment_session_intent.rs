@@ -297,32 +297,33 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsSessionRequest, payments::Payment
         let connector_and_supporting_payment_method_type = filtered_connector_accounts
             .get_connector_and_supporting_payment_method_type_for_session_call();
 
-        let session_connector_data: Vec<_> = connector_and_supporting_payment_method_type
-            .into_iter()
-            .filter_map(
-                |(merchant_connector_account, payment_method_type, payment_method)| {
-                    let connector_type = api::GetToken::from(payment_method_type);
+        let session_connector_data: api::SessionConnectorDatas =
+            connector_and_supporting_payment_method_type
+                .into_iter()
+                .filter_map(
+                    |(merchant_connector_account, payment_method_type, payment_method)| {
+                        let connector_type = api::GetToken::from(payment_method_type);
 
-                    match api::ConnectorData::get_connector_by_name(
-                        &state.conf.connectors,
-                        &merchant_connector_account.connector_name.to_string(),
-                        connector_type,
-                        Some(merchant_connector_account.get_id()),
-                    ) {
-                        Ok(connector_data) => Some(api::SessionConnectorData::new(
-                            payment_method_type,
-                            connector_data,
-                            None,
-                            payment_method,
-                        )),
-                        Err(err) => {
-                            logger::error!(session_token_error=?err);
-                            None
+                        match api::ConnectorData::get_connector_by_name(
+                            &state.conf.connectors,
+                            &merchant_connector_account.connector_name.to_string(),
+                            connector_type,
+                            Some(merchant_connector_account.get_id()),
+                        ) {
+                            Ok(connector_data) => Some(api::SessionConnectorData::new(
+                                payment_method_type,
+                                connector_data,
+                                None,
+                                payment_method,
+                            )),
+                            Err(err) => {
+                                logger::error!(session_token_error=?err);
+                                None
+                            }
                         }
-                    }
-                },
-            )
-            .collect();
+                    },
+                )
+                .collect();
         let session_token_routing_result = payments::perform_session_token_routing(
             state.clone(),
             merchant_account,

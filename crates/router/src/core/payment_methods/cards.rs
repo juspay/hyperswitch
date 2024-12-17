@@ -3349,7 +3349,7 @@ pub async fn list_payment_methods(
             message: "Profile id not found".to_string(),
         })?;
     let business_profile = db
-        .find_business_profile_by_profile_id(key_manager_state, merchant_key_store, profile_id)
+        .find_business_profile_by_profile_id(key_manager_state, &key_store, profile_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
             id: profile_id.get_string_repr().to_owned(),
@@ -3358,7 +3358,7 @@ pub async fn list_payment_methods(
     // filter out payment connectors based on profile_id
     let filtered_mcas = all_mcas
         .clone()
-        .filter_based_on_profile_and_connector_type(&profile_id, ConnectorType::PaymentProcessor);
+        .filter_based_on_profile_and_connector_type(profile_id, ConnectorType::PaymentProcessor);
 
     logger::debug!(mca_before_filtering=?filtered_mcas);
 
@@ -3519,7 +3519,7 @@ pub async fn list_payment_methods(
 
         let routing_enabled_pm_types = &router_consts::ROUTING_ENABLED_PAYMENT_METHOD_TYPES;
 
-        let mut chosen = Vec::<api::SessionConnectorData>::new();
+        let mut chosen = api::SessionConnectorDatas::new(Vec::new());
         for intermediate in &response {
             if routing_enabled_pm_types.contains(&intermediate.payment_method_type)
                 || routing_enabled_pms.contains(&intermediate.payment_method)
@@ -3745,8 +3745,7 @@ pub async fn list_payment_methods(
     // Check for `use_billing_as_payment_method_billing` config under business_profile
     // If this is disabled, then the billing details in required fields will be empty and have to be collected by the customer
     let billing_address_for_calculating_required_fields = business_profile
-        .as_ref()
-        .and_then(|business_profile| business_profile.use_billing_as_payment_method_billing)
+        .use_billing_as_payment_method_billing
         .unwrap_or(true)
         .then_some(billing_address.as_ref())
         .flatten();
@@ -3820,7 +3819,7 @@ pub async fn list_payment_methods(
                                  required_fields_hs = should_collect_shipping_or_billing_details_from_wallet_connector(
                                     payment_method,
                                     element.payment_experience.as_ref(),
-                                    business_profile.as_ref(),
+                                    &business_profile,
                                     required_fields_hs.clone(),
                                 );
 
@@ -4153,61 +4152,47 @@ pub async fn list_payment_methods(
         .as_ref()
         .and_then(|intent| intent.request_external_three_ds_authentication)
         .unwrap_or(false);
-    let merchant_surcharge_configs =
-        if let Some((payment_attempt, payment_intent, business_profile)) = payment_attempt
-            .as_ref()
-            .zip(payment_intent)
-            .zip(business_profile.as_ref())
-            .map(|((pa, pi), bp)| (pa, pi, bp))
-        {
-            Box::pin(call_surcharge_decision_management(
-                state,
-                &merchant_account,
-                &key_store,
-                business_profile,
-                payment_attempt,
-                payment_intent,
-                billing_address,
-                &mut payment_method_responses,
-            ))
-            .await?
-        } else {
-            api_surcharge_decision_configs::MerchantSurchargeConfigs::default()
-        };
+    let merchant_surcharge_configs = if let Some((payment_attempt, payment_intent)) =
+        payment_attempt.as_ref().zip(payment_intent)
+    {
+        Box::pin(call_surcharge_decision_management(
+            state,
+            &merchant_account,
+            &key_store,
+            &business_profile,
+            payment_attempt,
+            payment_intent,
+            billing_address,
+            &mut payment_method_responses,
+        ))
+        .await?
+    } else {
+        api_surcharge_decision_configs::MerchantSurchargeConfigs::default()
+    };
 
-    let collect_shipping_details_from_wallets =
-        business_profile.as_ref().and_then(|business_profile| {
-            if business_profile
-                .always_collect_shipping_details_from_wallet_connector
-                .unwrap_or(false)
-            {
-                business_profile.always_collect_shipping_details_from_wallet_connector
-            } else {
-                business_profile.collect_shipping_details_from_wallet_connector
-            }
-        });
+    let collect_shipping_details_from_wallets = if business_profile
+        .always_collect_shipping_details_from_wallet_connector
+        .unwrap_or(false)
+    {
+        business_profile.always_collect_shipping_details_from_wallet_connector
+    } else {
+        business_profile.collect_shipping_details_from_wallet_connector
+    };
 
-    let collect_billing_details_from_wallets =
-        business_profile.as_ref().and_then(|business_profile| {
-            if business_profile
-                .always_collect_billing_details_from_wallet_connector
-                .unwrap_or(false)
-            {
-                business_profile.always_collect_billing_details_from_wallet_connector
-            } else {
-                business_profile.collect_billing_details_from_wallet_connector
-            }
-        });
+    let collect_billing_details_from_wallets = if business_profile
+        .always_collect_billing_details_from_wallet_connector
+        .unwrap_or(false)
+    {
+        business_profile.always_collect_billing_details_from_wallet_connector
+    } else {
+        business_profile.collect_billing_details_from_wallet_connector
+    };
 
-    let is_tax_connector_enabled = business_profile.as_ref().map_or(false, |business_profile| {
-        business_profile.get_is_tax_connector_enabled()
-    });
+    let is_tax_connector_enabled = business_profile.get_is_tax_connector_enabled();
 
     Ok(services::ApplicationResponse::Json(
         api::PaymentMethodListResponse {
-            redirect_url: business_profile
-                .as_ref()
-                .and_then(|business_profile| business_profile.return_url.clone()),
+            redirect_url: business_profile.return_url.clone(),
             merchant_name: merchant_account.merchant_name,
             payment_type,
             payment_methods: payment_method_responses,
@@ -4248,10 +4233,15 @@ pub async fn list_payment_methods(
     ))
 }
 
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "customer_v2"),
+    not(feature = "payment_methods_v2")
+))]
 fn should_collect_shipping_or_billing_details_from_wallet_connector(
     payment_method: api_enums::PaymentMethod,
     payment_experience_optional: Option<&api_enums::PaymentExperience>,
-    business_profile: Option<&Profile>,
+    business_profile: &Profile,
     mut required_fields_hs: HashMap<String, RequiredFieldInfo>,
 ) -> HashMap<String, RequiredFieldInfo> {
     match (payment_method, payment_experience_optional) {
@@ -4260,13 +4250,11 @@ fn should_collect_shipping_or_billing_details_from_wallet_connector(
             api_enums::PaymentMethod::PayLater,
             Some(api_enums::PaymentExperience::InvokeSdkClient),
         ) => {
-            let always_send_billing_details = business_profile.and_then(|business_profile| {
-                business_profile.always_collect_billing_details_from_wallet_connector
-            });
+            let always_send_billing_details =
+                business_profile.always_collect_billing_details_from_wallet_connector;
 
-            let always_send_shipping_details = business_profile.and_then(|business_profile| {
-                business_profile.always_collect_shipping_details_from_wallet_connector
-            });
+            let always_send_shipping_details =
+                business_profile.always_collect_shipping_details_from_wallet_connector;
 
             if always_send_billing_details == Some(true) {
                 let billing_details = get_billing_required_fields();

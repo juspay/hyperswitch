@@ -43,6 +43,21 @@ pub enum ConnectorEnum {
     New(api::BoxedConnectorV2),
 }
 
+impl std::fmt::Debug for ConnectorEnum {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Old(_) => f
+                .debug_tuple("Old")
+                .field(&std::any::type_name::<api::BoxedConnector>().to_string())
+                .finish(),
+            Self::New(_) => f
+                .debug_tuple("New")
+                .field(&std::any::type_name::<api::BoxedConnectorV2>().to_string())
+                .finish(),
+        }
+    }
+}
+
 #[derive(Clone)]
 pub enum ConnectorIntegrationEnum<'a, F, ResourceCommonData, Req, Resp> {
     Old(BoxedConnectorIntegration<'a, F, Req, Resp>),

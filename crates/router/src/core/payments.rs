@@ -1259,7 +1259,7 @@ pub async fn call_surcharge_decision_management_for_session_flow(
     payment_attempt: &storage::PaymentAttempt,
     payment_intent: &storage::PaymentIntent,
     billing_address: Option<hyperswitch_domain_models::address::Address>,
-    session_connector_data: &[api::SessionConnectorData],
+    session_connector_data: &api::SessionConnectorDatas,
 ) -> RouterResult<Option<api::SessionSurchargeDetails>> {
     if let Some(surcharge_amount) = payment_attempt.net_amount.get_surcharge_amount() {
         Ok(Some(api::SessionSurchargeDetails::PreDetermined(
@@ -3136,7 +3136,7 @@ pub async fn call_multiple_connectors_service<F, Op, Req, D>(
     state: &SessionState,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
-    connectors: Vec<api::SessionConnectorData>,
+    connectors: api::SessionConnectorDatas,
     _operation: &Op,
     mut payment_data: D,
     customer: &Option<domain::Customer>,
@@ -3249,7 +3249,7 @@ pub async fn call_multiple_connectors_service<F, Op, Req, D>(
     state: &SessionState,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
-    connectors: Vec<api::SessionConnectorData>,
+    connectors: api::SessionConnectorDatas,
     _operation: &Op,
     mut payment_data: D,
     customer: &Option<domain::Customer>,
@@ -5871,8 +5871,8 @@ pub async fn perform_session_token_routing<F, D>(
     business_profile: &domain::Profile,
     key_store: &domain::MerchantKeyStore,
     payment_data: &D,
-    connectors: Vec<api::SessionConnectorData>,
-) -> RouterResult<Vec<api::SessionConnectorData>>
+    connectors: api::SessionConnectorDatas,
+) -> RouterResult<api::SessionConnectorDatas>
 where
     F: Clone,
     D: OperationSessionGetters<F>,
@@ -5908,7 +5908,7 @@ where
     //         )
     //     }));
 
-    //     let mut final_list: Vec<api::SessionConnectorData> = Vec::new();
+    //     let mut final_list: api::SessionConnectorDatas = Vec::new();
     //     for (routed_pm_type, pre_routing_choice) in pre_routing_results.into_iter() {
     //         let routable_connector_list = match pre_routing_choice {
     //             storage::PreRoutingConnectorChoice::Single(routable_connector) => {
@@ -5932,18 +5932,7 @@ where
     //         return Ok(final_list);
     //     }
     // }
-
-    let routing_enabled_pmts = &consts::ROUTING_ENABLED_PAYMENT_METHOD_TYPES;
-    let routing_enabled_pms = &consts::ROUTING_ENABLED_PAYMENT_METHODS;
-
-    let chosen = connectors
-        .iter()
-        .filter(|connector_data| {
-            routing_enabled_pmts.contains(&connector_data.payment_method_sub_type)
-                || routing_enabled_pms.contains(&connector_data.payment_method_type)
-        })
-        .cloned()
-        .collect();
+    let chosen = connectors.apply_filter_for_session_routing();
     let sfr = SessionFlowRoutingInput {
         state: &state,
         country: payment_data
@@ -5966,29 +5955,13 @@ where
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("error performing session flow routing")?;
 
-    let mut final_list: Vec<api::SessionConnectorData> = Vec::new();
-
-    for connector_data in connectors {
-        if !routing_enabled_pmts.contains(&connector_data.payment_method_sub_type) {
-            final_list.push(connector_data);
-        } else if let Some(choice) = result.get(&connector_data.payment_method_sub_type) {
-            let routing_choice = choice
-                .first()
-                .ok_or(errors::ApiErrorResponse::InternalServerError)?;
-            if connector_data.connector.connector_name == routing_choice.connector.connector_name
-                && connector_data.connector.merchant_connector_id
-                    == routing_choice.connector.merchant_connector_id
-            {
-                final_list.push(connector_data);
-            }
-        }
-    }
+    let final_list = connectors.filter_and_validate_for_session_flow(&result)?;
 
     Ok(final_list)
 }
 
 pub struct SessionTokenRoutingResult {
-    pub final_result: Vec<api::SessionConnectorData>,
+    pub final_result: api::SessionConnectorDatas,
     pub routing_result:
         FxHashMap<common_enums::PaymentMethodType, Vec<api::routing::SessionRoutingChoice>>,
 }
@@ -5999,23 +5972,13 @@ pub async fn perform_session_token_routing<F, D>(
     business_profile: &domain::Profile,
     key_store: &domain::MerchantKeyStore,
     payment_data: &D,
-    connectors: Vec<api::SessionConnectorData>,
+    connectors: api::SessionConnectorDatas,
 ) -> RouterResult<SessionTokenRoutingResult>
 where
     F: Clone,
     D: OperationSessionGetters<F>,
 {
-    let routing_enabled_pmts = &consts::ROUTING_ENABLED_PAYMENT_METHOD_TYPES;
-    let routing_enabled_pms = &consts::ROUTING_ENABLED_PAYMENT_METHODS;
-
-    let chosen = connectors
-        .iter()
-        .filter(|connector_data| {
-            routing_enabled_pmts.contains(&connector_data.payment_method_sub_type)
-                || routing_enabled_pms.contains(&connector_data.payment_method_type)
-        })
-        .cloned()
-        .collect();
+    let chosen = connectors.apply_filter_for_session_routing();
     let sfr = SessionFlowRoutingInput {
         state: &state,
         country: payment_data
@@ -6039,23 +6002,7 @@ where
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("error performing session flow routing")?;
 
-    let mut final_list: Vec<api::SessionConnectorData> = Vec::new();
-
-    for connector_data in connectors {
-        if !routing_enabled_pmts.contains(&connector_data.payment_method_sub_type) {
-            final_list.push(connector_data);
-        } else if let Some(choice) = result.get(&connector_data.payment_method_sub_type) {
-            let routing_choice = choice
-                .first()
-                .ok_or(errors::ApiErrorResponse::InternalServerError)?;
-            if connector_data.connector.connector_name == routing_choice.connector.connector_name
-                && connector_data.connector.merchant_connector_id
-                    == routing_choice.connector.merchant_connector_id
-            {
-                final_list.push(connector_data);
-            }
-        }
-    }
+    let mut final_list = connectors.filter_and_validate_for_session_flow(&result)?;
     Ok(SessionTokenRoutingResult {
         final_result: final_list,
         routing_result: result,

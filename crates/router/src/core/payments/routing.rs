@@ -72,7 +72,7 @@ pub struct SessionFlowRoutingInput<'a> {
     pub merchant_account: &'a domain::MerchantAccount,
     pub payment_attempt: &'a oss_storage::PaymentAttempt,
     pub payment_intent: &'a oss_storage::PaymentIntent,
-    pub chosen: Vec<api::SessionConnectorData>,
+    pub chosen: api::SessionConnectorDatas,
 }
 
 #[cfg(feature = "v2")]
@@ -82,7 +82,7 @@ pub struct SessionFlowRoutingInput<'a> {
     pub key_store: &'a domain::MerchantKeyStore,
     pub merchant_account: &'a domain::MerchantAccount,
     pub payment_intent: &'a oss_storage::PaymentIntent,
-    pub chosen: Vec<api::SessionConnectorData>,
+    pub chosen: api::SessionConnectorDatas,
 }
 
 #[allow(dead_code)]
@@ -1115,7 +1115,7 @@ pub async fn perform_session_flow_routing(
         let routable_connector_choice_option = perform_session_routing_for_pm_type(
             &session_pm_input,
             transaction_type,
-            &business_profile,
+            business_profile,
         )
         .await?;
 
