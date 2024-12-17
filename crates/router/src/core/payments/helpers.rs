@@ -1506,7 +1506,7 @@ pub async fn validate_card_testing_attack(
 
     let fingerprint = fingerprint_result?.expose();
 
-    let cache_key = format!("{}{}", &fingerprint, ip);
+    let cache_key = format!("{}_{}", &fingerprint, ip);
 
     let unsuccessful_payment_threshold = state.conf.card_test_guard.unsuccessful_payment_threshold;
     let mut should_payment_be_blocked = false;

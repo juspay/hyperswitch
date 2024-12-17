@@ -823,7 +823,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             tax_data: None,
             session_id: None,
             service_details: request.ctp_service_details.clone(),
-            blocked_cache_identifier: None,
+            payment_method_blocking_identifier: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -848,12 +848,22 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         let _merchant_id = merchant_account.get_id();
 
         //TODO: Check if Card Testing Guard is enabled for this merchant
-        
-        let blocked_cache_identifier = helpers::validate_card_testing_attack(state, request, merchant_account).await?;
 
-        payment_data.blocked_cache_identifier = Some(blocked_cache_identifier);
+        let payment_method_data: Option<&api_models::payments::PaymentMethodData> =
+        request.payment_method_data
+            .as_ref()
+            .and_then(|request_payment_method_data| {
+                request_payment_method_data.payment_method_data.as_ref()
+            });
 
-        Ok(())
+        match payment_method_data {
+            Some(api_models::payments::PaymentMethodData::Card(_card)) => {
+                let payment_method_blocking_identifier = helpers::validate_card_testing_attack(state, request, merchant_account).await?;
+                payment_data.payment_method_blocking_identifier = Some(payment_method_blocking_identifier);
+                Ok(())
+            }
+            _ => Ok(())
+        }
     }
 }
 
