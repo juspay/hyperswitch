@@ -24,7 +24,7 @@ use euclid::{
 };
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use external_services::grpc_client::dynamic_routing::{
-    elimination_rate_client::EliminationResponse,
+    elimination_rate_client::EliminationResponse, EliminationBasedRouting,
     success_rate_client::{CalSuccessRateResponse, SuccessBasedDynamicRouting},
 };
 use hyperswitch_domain_models::address::Address;
@@ -1394,8 +1394,6 @@ pub async fn perform_elimination_routing(
     business_profile: &domain::Profile,
     elimination_routing_configs_params_interpolator: routing::helpers::DynamicRoutingConfigParamsInterpolator,
 ) -> RoutingResult<Vec<api_routing::RoutableConnectorChoice>> {
-    use external_services::grpc_client::dynamic_routing::elimination_rate_client::EliminationBasedRouting;
-
     let dynamic_routing_algo_ref: api_routing::DynamicRoutingAlgorithmRef = business_profile
         .dynamic_routing_algorithm
         .clone()
@@ -1472,11 +1470,6 @@ pub async fn perform_elimination_routing(
             .attach_printable(
                 "unable to analyze/fetch elimintaion routing from dynamic routing service",
             )?;
-
-        println!(
-            ">>>>>>>>>>>>>>>>> Elim connectors {:?}",
-            elimination_based_connectors
-        );
         let mut connectors =
             Vec::with_capacity(elimination_based_connectors.labels_with_status.len());
         let mut eliminated_connectors =
@@ -1519,8 +1512,9 @@ pub async fn perform_elimination_routing(
             connectors.extend(non_eliminated_connectors.clone());
             connectors.extend(eliminated_connectors.clone());
         }
+        logger::debug!(eliminated_connectors=?eliminated_connectors);
         logger::debug!(elimination_based_routing_connectors=?connectors);
-        Ok(connecyors)
+        Ok(connectors)
     } else {
         Ok(routable_connectors)
     }
