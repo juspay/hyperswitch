@@ -236,8 +236,11 @@ pub struct ConnectorConfig {
     pub xendit: Option<ConnectorTomlConfig>,
     pub square: Option<ConnectorTomlConfig>,
     pub stax: Option<ConnectorTomlConfig>,
+    #[cfg(feature = "dummy_connector")]
     pub dummy_connector: Option<ConnectorTomlConfig>,
+    #[cfg(feature = "dummy_connector")]
     pub stripe_test: Option<ConnectorTomlConfig>,
+    #[cfg(feature = "dummy_connector")]
     pub paypal_test: Option<ConnectorTomlConfig>,
     pub zen: Option<ConnectorTomlConfig>,
     pub zsl: Option<ConnectorTomlConfig>,
