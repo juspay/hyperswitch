@@ -203,9 +203,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
     // TODO: Take Globalid and convert to connector reference id
     let customer_id = customer
         .to_owned()
-        .map(|customer| customer.id.clone())
-        .map(std::borrow::Cow::Owned)
-        .map(common_utils::id_type::CustomerId::try_from)
+        .map(|customer| common_utils::id_type::CustomerId::try_from(customer.id.clone()))
         .transpose()
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable(
@@ -540,9 +538,7 @@ pub async fn construct_payment_router_data_for_sdk_session<'a>(
     // TODO: Take Globalid and convert to connector reference id
     let customer_id = customer
         .to_owned()
-        .map(|customer| customer.id.clone())
-        .map(std::borrow::Cow::Owned)
-        .map(common_utils::id_type::CustomerId::try_from)
+        .map(|customer| common_utils::id_type::CustomerId::try_from(customer.id.clone()))
         .transpose()
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable(
@@ -2589,6 +2585,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
                 None
             }
         });
+
         let amount = payment_data.payment_attempt.get_total_amount();
 
         let customer_name = additional_data

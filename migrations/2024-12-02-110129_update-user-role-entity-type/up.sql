@@ -1,4 +1,5 @@
 -- Your SQL goes here
+-- Incomplete migration, also run migrations/2024-12-13-080558_entity-id-backfill-for-user-roles
 UPDATE user_roles
 SET
     entity_type = CASE
