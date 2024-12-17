@@ -855,7 +855,7 @@ pub async fn create_payment_method(
 
     db.find_customer_by_global_id(
         key_manager_state,
-        customer_id.get_string_repr(),
+        &customer_id,
         merchant_account.get_id(),
         key_store,
         merchant_account.storage_scheme,
@@ -974,7 +974,7 @@ pub async fn payment_method_intent_create(
 
     db.find_customer_by_global_id(
         key_manager_state,
-        customer_id.get_string_repr(),
+        &customer_id,
         merchant_account.get_id(),
         key_store,
         merchant_account.storage_scheme,
@@ -1058,7 +1058,7 @@ pub async fn payment_method_intent_confirm(
 
     let customer_id = payment_method.customer_id.to_owned();
     db.find_customer_by_global_id(
-        &(state.into()),
+        key_manager_state,
         &customer_id,
         merchant_account.get_id(),
         key_store,
