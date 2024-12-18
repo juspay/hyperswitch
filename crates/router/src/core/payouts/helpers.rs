@@ -207,8 +207,8 @@ pub fn should_create_connector_transfer_method(
             .connector_mandate_details
             .clone()
             .map(|details| {
-                details.parse_value::<diesel_models::PaymentsMandateReference>(
-                    "connector_mandate_details",
+                details.parse_value::<diesel_models::CommonMandateReference>(
+                    "connector_common_mandate_details",
                 )
             })
             .transpose()
@@ -219,14 +219,18 @@ pub fn should_create_connector_transfer_method(
         if let Some(merchant_connector_id) = connector_data.merchant_connector_id.as_ref() {
             connector_mandate_details
                 .clone()
-                .and_then(|payments_mandate_reference| {
-                    payments_mandate_reference.get(merchant_connector_id).map(
-                        |payments_mandate_reference_record| {
-                            payments_mandate_reference_record
-                                .connector_mandate_id //here should be change
-                                .clone()
-                        },
-                    )
+                .and_then(|common_mandate_reference| {
+                    common_mandate_reference
+                        .payouts
+                        .clone()
+                        .and_then(|payouts_mandate_reference| {
+                            payouts_mandate_reference.get(merchant_connector_id).map(
+                                |payouts_mandate_reference_record| {
+                                    payouts_mandate_reference_record.transfer_method_id.clone()
+                                },
+                            )
+                        })
+                        .flatten()
                 })
         } else {
             None
