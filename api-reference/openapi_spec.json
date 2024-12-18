@@ -12700,7 +12700,7 @@
             "minimum": 0
           },
           "mca_id": {
-            "$ref": "#/components/schemas/common_utils.id_type.MerchantConnectorAccountId"
+            "type": "string"
           }
         }
       },

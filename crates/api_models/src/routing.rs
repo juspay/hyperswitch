@@ -974,6 +974,7 @@ pub struct LabelInformation {
     pub label: String,
     pub target_count: u64,
     pub target_time: u64,
+    #[schema(value_type = String)]
     pub mca_id: common_utils::id_type::MerchantConnectorAccountId,
 }
 
