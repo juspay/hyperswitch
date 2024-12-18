@@ -1214,6 +1214,7 @@ where
             id: payment_intent.id.clone(),
             status: payment_intent.status,
             amount,
+            customer_id: payment_intent.customer_id.clone(),
             connector,
             client_secret: payment_intent.client_secret.clone(),
             created: payment_intent.created_at,
@@ -1287,6 +1288,7 @@ where
             id: payment_intent.id.clone(),
             status: payment_intent.status,
             amount,
+            customer_id: payment_intent.customer_id.clone(),
             connector,
             billing: payment_address
                 .get_payment_billing()

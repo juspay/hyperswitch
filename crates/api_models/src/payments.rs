@@ -4793,6 +4793,15 @@ pub struct PaymentsConfirmIntentResponse {
     /// Amount related information for this payment and attempt
     pub amount: ConfirmIntentAmountDetailsResponse,
 
+    /// The identifier for the customer
+    #[schema(
+        min_length = 32,
+        max_length = 64,
+        example = "12345_cus_01926c58bc6e77c09e809964e72af8c8",
+        value_type = String
+    )]
+    pub customer_id: Option<id_type::GlobalCustomerId>,
+
     /// The connector used for the payment
     #[schema(example = "stripe")]
     pub connector: String,
@@ -4861,6 +4870,15 @@ pub struct PaymentsRetrieveResponse {
 
     /// Amount related information for this payment and attempt
     pub amount: ConfirmIntentAmountDetailsResponse,
+
+    /// The identifier for the customer
+    #[schema(
+        min_length = 32,
+        max_length = 64,
+        example = "12345_cus_01926c58bc6e77c09e809964e72af8c8",
+        value_type = String
+    )]
+    pub customer_id: Option<id_type::GlobalCustomerId>,
 
     /// The connector used for the payment
     #[schema(example = "stripe")]
