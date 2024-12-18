@@ -430,7 +430,6 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 pm_collect_link_config: None,
                 is_platform_account: None,
             },
-            // TODO: Change it to toggle
             MerchantAccountUpdate::ToPlatformAccount => Self {
                 modified_at: now,
                 merchant_name: None,

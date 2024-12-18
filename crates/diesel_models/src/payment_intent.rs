@@ -371,22 +371,6 @@ pub struct PaymentIntentNew {
     pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
 }
 
-#[cfg(feature = "v2")]
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum PaymentIntentUpdate {
-    /// Update the payment intent details on payment intent confirmation, before calling the connector
-    ConfirmIntent {
-        status: storage_enums::IntentStatus,
-        active_attempt_id: common_utils::id_type::GlobalAttemptId,
-        updated_by: String,
-    },
-    /// Update the payment intent details on payment intent confirmation, after calling the connector
-    ConfirmIntentPostUpdate {
-        status: storage_enums::IntentStatus,
-        updated_by: String,
-    },
-}
-
 #[cfg(feature = "v1")]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum PaymentIntentUpdate {
