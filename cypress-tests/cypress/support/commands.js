@@ -111,6 +111,26 @@ Cypress.Commands.add("merchantDeleteCall", (globalState) => {
   });
 });
 
+Cypress.Commands.add("ListConnectorsFeatureMatrixCall", (globalState) => {
+  cy.request({
+    method: "GET",
+    url: `${globalState.get("baseUrl")}/feature_matrix`,
+    headers: {
+      Accept: "application/json",
+    },
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    expect(response.body).to.have.property("connectors").and.not.empty;
+    expect(response.body.connectors).to.be.an("array").and.not.empty;
+    response.body.connectors.forEach((item) => {
+      expect(item).to.have.property("description").and.not.empty;
+      expect(item).to.have.property("category").and.not.empty;
+      expect(item).to.have.property("supported_payment_methods").and.not.empty;
+    });
+  });
+});
+
 Cypress.Commands.add("merchantListCall", (globalState) => {
   const organization_id = globalState.get("organizationId");
 

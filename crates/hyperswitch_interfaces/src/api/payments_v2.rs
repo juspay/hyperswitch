@@ -19,7 +19,9 @@ use hyperswitch_domain_models::{
     router_response_types::{PaymentsResponseData, TaxCalculationResponseData},
 };
 
-use crate::api::{ConnectorCommon, ConnectorIntegrationV2, ConnectorValidation};
+use crate::api::{
+    ConnectorCommon, ConnectorIntegrationV2, ConnectorSpecifications, ConnectorValidation,
+};
 
 /// trait PaymentAuthorizeV2
 pub trait PaymentAuthorizeV2:
@@ -182,6 +184,7 @@ pub trait PaymentsPostProcessingV2:
 /// trait PaymentV2
 pub trait PaymentV2:
     ConnectorCommon
+    + ConnectorSpecifications
     + ConnectorValidation
     + PaymentAuthorizeV2
     + PaymentAuthorizeSessionTokenV2

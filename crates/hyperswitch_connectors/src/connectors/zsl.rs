@@ -3,7 +3,7 @@ pub mod transformers;
 use std::fmt::Debug;
 
 use api_models::webhooks::{IncomingWebhookEvent, ObjectReferenceId};
-use common_enums::enums;
+use common_enums::{enums, PaymentConnectorCategory};
 use common_utils::{
     errors::CustomResult,
     ext_traits::{BytesExt, ValueExt},
@@ -23,7 +23,10 @@ use hyperswitch_domain_models::{
         PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
         RefundsData, SetupMandateRequestData,
     },
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    router_response_types::{
+        ConnectorInfo, PaymentsResponseData, RefundsResponseData, SupportedPaymentMethods,
+        SupportedPaymentMethodsExt,
+    },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
         PaymentsSessionRouterData, PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData,
@@ -31,7 +34,10 @@ use hyperswitch_domain_models::{
     },
 };
 use hyperswitch_interfaces::{
-    api::{self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorValidation},
+    api::{
+        self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorSpecifications,
+        ConnectorValidation,
+    },
     configs::Connectors,
     errors,
     events::connector_api_logs::ConnectorEvent,
@@ -44,7 +50,6 @@ use transformers::{self as zsl, get_status};
 use crate::{
     constants::headers,
     types::{RefreshTokenRouterData, ResponseRouterData},
-    utils::construct_not_supported_error_report,
 };
 
 #[derive(Debug, Clone)]
@@ -122,23 +127,6 @@ impl ConnectorCommon for Zsl {
 }
 
 impl ConnectorValidation for Zsl {
-    fn validate_capture_method(
-        &self,
-        capture_method: Option<enums::CaptureMethod>,
-        _pmt: Option<enums::PaymentMethodType>,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let capture_method = capture_method.unwrap_or_default();
-        match capture_method {
-            enums::CaptureMethod::Automatic | enums::CaptureMethod::SequentialAutomatic => Ok(()),
-            enums::CaptureMethod::Manual
-            | enums::CaptureMethod::ManualMultiple
-            | enums::CaptureMethod::Scheduled => Err(construct_not_supported_error_report(
-                capture_method,
-                self.id(),
-            )),
-        }
-    }
-
     fn is_webhook_source_verification_mandatory(&self) -> bool {
         true
     }
@@ -455,4 +443,34 @@ fn get_webhook_object_from_body(
         serde_urlencoded::from_bytes::<zsl::ZslWebhookResponse>(body)
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
     Ok(response)
+}
+
+impl ConnectorSpecifications for Zsl {
+    fn get_connector_about(&self) -> Option<ConnectorInfo> {
+        Some(ConnectorInfo {
+            description:
+                "Zsl is a payment gateway operating in China, specializing in facilitating local bank transfers"
+                    .to_string(),
+            connector_type: PaymentConnectorCategory::PaymentGateway,
+        })
+    }
+
+    fn get_supported_payment_methods(&self) -> Option<SupportedPaymentMethods> {
+        let zsl_default_capture_methods = vec![enums::CaptureMethod::Automatic];
+
+        let mut zsl_supported_payment_methods = SupportedPaymentMethods::new();
+        zsl_supported_payment_methods.add(
+            enums::PaymentMethod::BankTransfer,
+            enums::PaymentMethodType::LocalBankTransfer,
+            false,
+            false,
+            zsl_default_capture_methods.clone(),
+        );
+
+        Some(zsl_supported_payment_methods)
+    }
+
+    fn get_supported_webhook_flows(&self) -> Option<Vec<enums::EventClass>> {
+        Some(Vec::new())
+    }
 }
