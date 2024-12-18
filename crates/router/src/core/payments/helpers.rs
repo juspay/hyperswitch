@@ -3064,7 +3064,7 @@ pub async fn make_ephemeral_key(
         message: format!("`{}` header is invalid", headers::X_RESOURCE_TYPE),
     })?
     .get_required_value("ResourceType")
-    .attach_printable("Falied to convert ResourceType from string")?;
+    .attach_printable("Failed to convert ResourceType from string")?;
     let ek = ephemeral_key::EphemeralKeyTypeNew {
         id,
         customer_id: customer_id.to_owned(),
