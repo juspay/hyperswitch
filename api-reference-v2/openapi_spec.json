@@ -6280,6 +6280,20 @@
           },
           "transaction_currency_code": {
             "$ref": "#/components/schemas/Currency"
+          },
+          "phone_number": {
+            "type": "string",
+            "nullable": true
+          },
+          "email": {
+            "type": "string",
+            "example": "johntest@test.com",
+            "nullable": true,
+            "maxLength": 255
+          },
+          "phone_country_code": {
+            "type": "string",
+            "nullable": true
           }
         }
       },
