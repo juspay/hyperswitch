@@ -71,15 +71,3 @@ impl ApiEventMetric for crate::customers::CustomerUpdateRequestInternal {
         })
     }
 }
-
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
-impl ApiEventMetric for CustomerId {
-    fn get_api_event_type(&self) -> Option<ApiEventsType> {
-        Some(ApiEventsType::Customer {
-            id: self
-                .get_merchant_reference_id()
-                .get_string_repr()
-                .to_string(),
-        })
-    }
-}

@@ -1,25 +1,24 @@
 #[cfg(feature = "v2")]
-pub struct EphemeralKeyNew {
+pub struct EphemeralKeyTypeNew {
     pub id: String,
     pub merchant_id: common_utils::id_type::MerchantId,
-    pub customer_id: common_utils::id_type::CustomerId,
+    pub customer_id: common_utils::id_type::GlobalCustomerId,
     pub secret: String,
     pub resource_type: ResourceType,
 }
 
 #[cfg(feature = "v2")]
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
-pub struct EphemeralKey {
+pub struct EphemeralKeyType {
     pub id: String,
     pub merchant_id: common_utils::id_type::MerchantId,
-    pub customer_id: common_utils::id_type::CustomerId,
+    pub customer_id: common_utils::id_type::GlobalCustomerId,
     pub resource_type: ResourceType,
     pub created_at: i64,
     pub expires: i64,
     pub secret: String,
 }
 
-#[cfg(feature = "v1")]
 pub struct EphemeralKeyNew {
     pub id: String,
     pub merchant_id: common_utils::id_type::MerchantId,
@@ -27,7 +26,6 @@ pub struct EphemeralKeyNew {
     pub secret: String,
 }
 
-#[cfg(feature = "v1")]
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct EphemeralKey {
     pub id: String,
@@ -39,6 +37,13 @@ pub struct EphemeralKey {
 }
 
 impl common_utils::events::ApiEventMetric for EphemeralKey {
+    fn get_api_event_type(&self) -> Option<common_utils::events::ApiEventsType> {
+        Some(common_utils::events::ApiEventsType::Miscellaneous)
+    }
+}
+
+#[cfg(feature = "v2")]
+impl common_utils::events::ApiEventMetric for EphemeralKeyType {
     fn get_api_event_type(&self) -> Option<common_utils::events::ApiEventsType> {
         Some(common_utils::events::ApiEventsType::Miscellaneous)
     }

@@ -3047,10 +3047,10 @@ pub async fn make_ephemeral_key(
 #[cfg(feature = "v2")]
 pub async fn make_ephemeral_key(
     state: SessionState,
-    customer_id: id_type::CustomerId,
+    customer_id: id_type::GlobalCustomerId,
     merchant_id: id_type::MerchantId,
     headers: &actix_web::http::header::HeaderMap,
-) -> errors::RouterResponse<ephemeral_key::EphemeralKey> {
+) -> errors::RouterResponse<ephemeral_key::EphemeralKeyType> {
     let store = &state.store;
     let id = utils::generate_id(consts::ID_LENGTH, "eki");
     let secret = format!("epk_{}", &Uuid::new_v4().simple().to_string());
@@ -3060,10 +3060,12 @@ pub async fn make_ephemeral_key(
     )?
     .map(ephemeral_key::ResourceType::from_str)
     .transpose()
-    .change_context(errors::ApiErrorResponse::InternalServerError)?
+    .change_context(errors::ApiErrorResponse::InvalidRequestData {
+        message: format!("`{}` header is invalid", headers::X_RESOURCE_TYPE),
+    })?
     .get_required_value("ResourceType")
     .attach_printable("Falied to convert ResourceType from string")?;
-    let ek = ephemeral_key::EphemeralKeyNew {
+    let ek = ephemeral_key::EphemeralKeyTypeNew {
         id,
         customer_id: customer_id.to_owned(),
         merchant_id: merchant_id.to_owned(),
@@ -3081,14 +3083,14 @@ pub async fn make_ephemeral_key(
 #[cfg(feature = "v2")]
 pub async fn create_ephemeral_key(
     state: &SessionState,
-    customer_id: &id_type::CustomerId,
+    customer_id: &id_type::GlobalCustomerId,
     merchant_id: &id_type::MerchantId,
     resource_type: ephemeral_key::ResourceType,
-) -> RouterResult<ephemeral_key::EphemeralKey> {
+) -> RouterResult<ephemeral_key::EphemeralKeyType> {
     let store = &state.store;
     let id = utils::generate_id(consts::ID_LENGTH, "eki");
     let secret = format!("epk_{}", &Uuid::new_v4().simple().to_string());
-    let ek = ephemeral_key::EphemeralKeyNew {
+    let ek = ephemeral_key::EphemeralKeyTypeNew {
         id,
         customer_id: customer_id.to_owned(),
         merchant_id: merchant_id.to_owned(),
@@ -3103,10 +3105,25 @@ pub async fn create_ephemeral_key(
     Ok(ek)
 }
 
+#[cfg(feature = "v1")]
 pub async fn delete_ephemeral_key(
     state: SessionState,
     ek_id: String,
 ) -> errors::RouterResponse<ephemeral_key::EphemeralKey> {
+    let db = state.store.as_ref();
+    let ek = db
+        .delete_ephemeral_key(&ek_id)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to delete ephemeral key")?;
+    Ok(services::ApplicationResponse::Json(ek))
+}
+
+#[cfg(feature = "v2")]
+pub async fn delete_ephemeral_key(
+    state: SessionState,
+    ek_id: String,
+) -> errors::RouterResponse<ephemeral_key::EphemeralKeyType> {
     let db = state.store.as_ref();
     let ek = db
         .delete_ephemeral_key(&ek_id)

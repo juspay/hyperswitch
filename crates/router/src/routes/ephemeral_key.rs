@@ -39,7 +39,7 @@ pub async fn ephemeral_key_create(
 pub async fn ephemeral_key_create(
     state: web::Data<AppState>,
     req: HttpRequest,
-    json_payload: web::Json<customers::CustomerId>,
+    json_payload: web::Json<api_models::ephemeral_key::EphemeralKeyCreateRequest>,
 ) -> HttpResponse {
     let flow = Flow::EphemeralKeyCreate;
     let payload = json_payload.into_inner();
@@ -51,7 +51,7 @@ pub async fn ephemeral_key_create(
         |state, auth: auth::AuthenticationData, payload, _| {
             helpers::make_ephemeral_key(
                 state,
-                payload.get_merchant_reference_id().clone(),
+                payload.customer_id.to_owned(),
                 auth.merchant_account.get_id().to_owned(),
                 req.headers(),
             )

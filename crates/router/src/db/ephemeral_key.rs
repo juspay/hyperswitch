@@ -1,26 +1,54 @@
 use time::ext::NumericalDuration;
 
+#[cfg(feature = "v2")]
+use crate::types::storage::ephemeral_key::{EphemeralKeyType, EphemeralKeyTypeNew, ResourceType};
 use crate::{
     core::errors::{self, CustomResult},
     db::MockDb,
     types::storage::ephemeral_key::{EphemeralKey, EphemeralKeyNew},
 };
+#[cfg(feature = "v2")]
+use common_utils::id_type;
 
 #[async_trait::async_trait]
 pub trait EphemeralKeyInterface {
+    #[cfg(feature = "v1")]
     async fn create_ephemeral_key(
         &self,
         _ek: EphemeralKeyNew,
         _validity: i64,
     ) -> CustomResult<EphemeralKey, errors::StorageError>;
+
+    #[cfg(feature = "v2")]
+    async fn create_ephemeral_key(
+        &self,
+        _ek: EphemeralKeyTypeNew,
+        _validity: i64,
+    ) -> CustomResult<EphemeralKeyType, errors::StorageError>;
+
+    #[cfg(feature = "v1")]
     async fn get_ephemeral_key(
         &self,
         _key: &str,
     ) -> CustomResult<EphemeralKey, errors::StorageError>;
+
+    #[cfg(feature = "v2")]
+    async fn get_ephemeral_key(
+        &self,
+        _key: &str,
+    ) -> CustomResult<EphemeralKeyType, errors::StorageError>;
+
+    #[cfg(feature = "v1")]
     async fn delete_ephemeral_key(
         &self,
         _id: &str,
     ) -> CustomResult<EphemeralKey, errors::StorageError>;
+
+    #[cfg(feature = "v2")]
+    async fn delete_ephemeral_key(
+        &self,
+        _id: &str,
+    ) -> CustomResult<EphemeralKeyType, errors::StorageError>;
 }
 
 mod storage {
@@ -33,12 +61,16 @@ mod storage {
 
     use super::EphemeralKeyInterface;
     #[cfg(feature = "v2")]
-    use crate::types::storage::ephemeral_key::ResourceType;
+    use crate::types::storage::ephemeral_key::{
+        EphemeralKeyType, EphemeralKeyTypeNew, ResourceType,
+    };
     use crate::{
         core::errors::{self, CustomResult},
         services::Store,
         types::storage::ephemeral_key::{EphemeralKey, EphemeralKeyNew},
     };
+    #[cfg(feature = "v2")]
+    use common_utils::id_type;
 
     #[async_trait::async_trait]
     impl EphemeralKeyInterface for Store {
@@ -102,15 +134,15 @@ mod storage {
         #[instrument(skip_all)]
         async fn create_ephemeral_key(
             &self,
-            new: EphemeralKeyNew,
+            new: EphemeralKeyTypeNew,
             validity: i64,
-        ) -> CustomResult<EphemeralKey, errors::StorageError> {
+        ) -> CustomResult<EphemeralKeyType, errors::StorageError> {
             let secret_key = format!("epkey_{}", &new.secret);
             let id_key = format!("epkey_{}", &new.id);
 
             let created_at = date_time::now();
             let expires = created_at.saturating_add(validity.hours());
-            let created_ek = EphemeralKey {
+            let created_ek = EphemeralKeyType {
                 id: new.id,
                 created_at: created_at.assume_utc().unix_timestamp(),
                 expires: expires.assume_utc().unix_timestamp(),
@@ -154,6 +186,8 @@ mod storage {
                 Err(er) => Err(er).change_context(errors::StorageError::KVError),
             }
         }
+
+        #[cfg(feature = "v1")]
         #[instrument(skip_all)]
         async fn get_ephemeral_key(
             &self,
@@ -166,10 +200,47 @@ mod storage {
                 .await
                 .change_context(errors::StorageError::KVError)
         }
+
+        #[cfg(feature = "v2")]
+        #[instrument(skip_all)]
+        async fn get_ephemeral_key(
+            &self,
+            key: &str,
+        ) -> CustomResult<EphemeralKeyType, errors::StorageError> {
+            let key = format!("epkey_{key}");
+            self.get_redis_conn()
+                .map_err(Into::<errors::StorageError>::into)?
+                .get_hash_field_and_deserialize(&key, "ephkey", "EphemeralKey")
+                .await
+                .change_context(errors::StorageError::KVError)
+        }
+
+        #[cfg(feature = "v1")]
         async fn delete_ephemeral_key(
             &self,
             id: &str,
         ) -> CustomResult<EphemeralKey, errors::StorageError> {
+            let ek = self.get_ephemeral_key(id).await?;
+
+            self.get_redis_conn()
+                .map_err(Into::<errors::StorageError>::into)?
+                .delete_key(&format!("epkey_{}", &ek.id))
+                .await
+                .change_context(errors::StorageError::KVError)?;
+
+            self.get_redis_conn()
+                .map_err(Into::<errors::StorageError>::into)?
+                .delete_key(&format!("epkey_{}", &ek.secret))
+                .await
+                .change_context(errors::StorageError::KVError)?;
+            Ok(ek)
+        }
+
+        #[cfg(feature = "v2")]
+        async fn delete_ephemeral_key(
+            &self,
+            id: &str,
+        ) -> CustomResult<EphemeralKeyType, errors::StorageError> {
             let ek = self.get_ephemeral_key(id).await?;
 
             self.get_redis_conn()
@@ -215,25 +286,13 @@ impl EphemeralKeyInterface for MockDb {
     #[cfg(feature = "v2")]
     async fn create_ephemeral_key(
         &self,
-        ek: EphemeralKeyNew,
+        ek: EphemeralKeyTypeNew,
         validity: i64,
-    ) -> CustomResult<EphemeralKey, errors::StorageError> {
-        let mut ephemeral_keys = self.ephemeral_keys.lock().await;
-        let created_at = common_utils::date_time::now();
-        let expires = created_at.saturating_add(validity.hours());
-
-        let ephemeral_key = EphemeralKey {
-            id: ek.id,
-            merchant_id: ek.merchant_id,
-            customer_id: ek.customer_id,
-            created_at: created_at.assume_utc().unix_timestamp(),
-            expires: expires.assume_utc().unix_timestamp(),
-            secret: ek.secret,
-            resource_type: ek.resource_type,
-        };
-        ephemeral_keys.push(ephemeral_key.clone());
-        Ok(ephemeral_key)
+    ) -> CustomResult<EphemeralKeyType, errors::StorageError> {
+        todo!()
     }
+
+    #[cfg(feature = "v1")]
     async fn get_ephemeral_key(
         &self,
         key: &str,
@@ -251,6 +310,16 @@ impl EphemeralKeyInterface for MockDb {
             ),
         }
     }
+
+    #[cfg(feature = "v2")]
+    async fn get_ephemeral_key(
+        &self,
+        key: &str,
+    ) -> CustomResult<EphemeralKeyType, errors::StorageError> {
+        todo!()
+    }
+
+    #[cfg(feature = "v1")]
     async fn delete_ephemeral_key(
         &self,
         id: &str,
@@ -264,5 +333,13 @@ impl EphemeralKeyInterface for MockDb {
                 errors::StorageError::ValueNotFound("ephemeral key not found".to_string()).into(),
             );
         }
+    }
+
+    #[cfg(feature = "v2")]
+    async fn delete_ephemeral_key(
+        &self,
+        id: &str,
+    ) -> CustomResult<EphemeralKeyType, errors::StorageError> {
+        todo!()
     }
 }
