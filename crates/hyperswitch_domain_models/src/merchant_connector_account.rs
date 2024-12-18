@@ -140,7 +140,7 @@ impl MerchantConnectorAccount {
             .clone()
             .parse_value("ConnectorAuthType")
     }
-    
+
     pub fn get_connector_wallets_details(&self) -> Option<Secret<Value>> {
         self.connector_wallets_details.as_deref().cloned()
     }
