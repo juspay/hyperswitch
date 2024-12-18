@@ -3052,7 +3052,7 @@ pub async fn make_ephemeral_key(
     headers: &actix_web::http::header::HeaderMap,
 ) -> errors::RouterResponse<ephemeral_key::EphemeralKeyType> {
     let store = &state.store;
-    let id = utils::generate_id(consts::ID_LENGTH, "eki");
+    let id = id_type::EphemeralKeyId::generate_key_id("eki");
     let secret = format!("epk_{}", &Uuid::new_v4().simple().to_string());
     let resource_type = services::authentication::get_header_value_by_key(
         headers::X_RESOURCE_TYPE.to_string(),
@@ -3088,7 +3088,7 @@ pub async fn create_ephemeral_key(
     resource_type: ephemeral_key::ResourceType,
 ) -> RouterResult<ephemeral_key::EphemeralKeyType> {
     let store = &state.store;
-    let id = utils::generate_id(consts::ID_LENGTH, "eki");
+    let id = id_type::EphemeralKeyId::generate_key_id("eki");
     let secret = format!("epk_{}", &Uuid::new_v4().simple().to_string());
     let ek = ephemeral_key::EphemeralKeyTypeNew {
         id,

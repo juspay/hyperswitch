@@ -1,6 +1,6 @@
 #[cfg(feature = "v2")]
 pub struct EphemeralKeyTypeNew {
-    pub id: String,
+    pub id: common_utils::id_type::EphemeralKeyId,
     pub merchant_id: common_utils::id_type::MerchantId,
     pub customer_id: common_utils::id_type::GlobalCustomerId,
     pub secret: String,
@@ -10,12 +10,12 @@ pub struct EphemeralKeyTypeNew {
 #[cfg(feature = "v2")]
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct EphemeralKeyType {
-    pub id: String,
+    pub id: common_utils::id_type::EphemeralKeyId,
     pub merchant_id: common_utils::id_type::MerchantId,
     pub customer_id: common_utils::id_type::GlobalCustomerId,
     pub resource_type: ResourceType,
-    pub created_at: i64,
-    pub expires: i64,
+    pub created_at: time::PrimitiveDateTime,
+    pub expires: time::PrimitiveDateTime,
     pub secret: String,
 }
 
