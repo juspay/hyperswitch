@@ -16,7 +16,8 @@ pub struct FeatureMatrixRequest {
 
 #[derive(Debug, ToSchema, Serialize)]
 pub struct SupportedPaymentMethod {
-    pub payment_method: PaymentMethodType,
+    pub payment_method: PaymentMethod,
+    pub payment_method_type: PaymentMethodType,
     pub supports_mandate: bool,
     pub supports_refund: bool,
     pub supported_capture_methods: Vec<CaptureMethod>,
@@ -24,18 +25,13 @@ pub struct SupportedPaymentMethod {
     pub supported_currencies: Option<HashSet<Currency>>,
 }
 
-#[derive(Debug, ToSchema, Serialize)]
-pub struct SupportedPaymentMethodTypes {
-    pub payment_method_type: PaymentMethod,
-    pub payment_methods: Vec<SupportedPaymentMethod>,
-}
 
 #[derive(Debug, ToSchema, Serialize)]
 pub struct ConnectorFeatureMatrixResponse {
     pub name: String,
     pub description: Option<String>,
     pub category: Option<PaymentConnectorCategory>,
-    pub supported_payment_methods: Vec<SupportedPaymentMethodTypes>,
+    pub supported_payment_methods: Vec<SupportedPaymentMethod>,
     pub supported_webhook_flows: Option<Vec<EventClass>>,
 }
 
