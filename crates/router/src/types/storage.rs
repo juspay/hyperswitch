@@ -67,8 +67,7 @@ pub use self::{
     configs::*, customers::*, dashboard_metadata::*, dispute::*, dynamic_routing_stats::*,
     ephemeral_key::*, events::*, file::*, fraud_check::*, generic_link::*, gsm::*,
     locker_mock_up::*, mandate::*, merchant_account::*, merchant_connector_account::*,
-    merchant_key_store::*, payment_link::*, payment_method::*, process_tracker::*, refund::*,
-    reverse_lookup::*, role::*, routing_algorithm::*, unified_translations::*, user::*,
+    merchant_key_store::*, payment_link::*, payment_method::*, process_tracker::*, refund::*, reverse_lookup::*, role::*, routing_algorithm::*, unified_translations::*, user::*,
     user_authentication_method::*, user_role::*,
 };
 use crate::types::api::routing;
