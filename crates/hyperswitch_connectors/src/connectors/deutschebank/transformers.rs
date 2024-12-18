@@ -239,7 +239,7 @@ impl TryFrom<&DeutschebankRouterData<&PaymentsAuthorizeRouterData>>
                     PaymentMethodData::Card(ccard) => {
                         if !item.router_data.clone().is_three_ds() {
                             Err(errors::ConnectorError::NotSupported {
-                                message: "No three ds for credit card transactions".to_owned(),
+                                message: "Non-ThreeDs".to_owned(),
                                 connector: "deutschebank",
                             }
                             .into())
@@ -376,9 +376,13 @@ impl
             DeutschebankThreeDSInitializeResponseOutcome::Processed => {
                 match item.response.processed {
                     Some(processed) => Ok(Self {
-                        status: match item.data.request.is_auto_capture()? {
-                            true => common_enums::AttemptStatus::Charged,
-                            false => common_enums::AttemptStatus::Authorized,
+                        status: if is_response_success(&processed.rc) {
+                            match item.data.request.is_auto_capture()? {
+                                true => common_enums::AttemptStatus::Charged,
+                                false => common_enums::AttemptStatus::Authorized,
+                            }
+                        } else {
+                            common_enums::AttemptStatus::AuthenticationFailed
                         },
                         response: Ok(PaymentsResponseData::TransactionResponse {
                             resource_id: ResponseId::ConnectorTransactionId(
@@ -395,7 +399,7 @@ impl
                         ..item.data
                     }),
                     None => Err(errors::ConnectorError::UnexpectedResponseError(
-                        bytes::Bytes::from("processed".to_owned()),
+                        bytes::Bytes::from("missing processed".to_owned()),
                     )
                     .into()),
                 }
@@ -422,7 +426,7 @@ impl
                         ..item.data
                     }),
                     None => Err(errors::ConnectorError::UnexpectedResponseError(
-                        bytes::Bytes::from("challenge_required".to_owned()),
+                        bytes::Bytes::from("missing challenge_required".to_owned()),
                     )
                     .into()),
                 }
