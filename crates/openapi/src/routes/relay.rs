@@ -1,5 +1,5 @@
 /// Relay - Create
-/// 
+///
 /// Creates a relay request.
 #[utoipa::path(
     post,
@@ -16,7 +16,7 @@
                     "data": {
                         "amount": 6540,
                         "currency": "USD"
-                    }       
+                    }
                     })
                 )
             ))

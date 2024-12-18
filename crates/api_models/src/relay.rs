@@ -1,6 +1,7 @@
-use crate::enums;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
+
+use crate::enums;
 
 #[derive(Debug, ToSchema, Clone, Deserialize, Serialize)]
 pub struct RelayRequest {
@@ -18,8 +19,6 @@ pub struct RelayRequest {
     /// The data that is associated with the relay request
     pub data: Option<RelayData>,
 }
-
-
 
 #[derive(Debug, ToSchema, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
