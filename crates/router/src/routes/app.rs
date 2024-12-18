@@ -369,7 +369,7 @@ impl AppState {
             let email_client = Arc::new(create_email_client(&conf).await);
 
             let file_storage_client = conf.file_storage.get_file_storage_client().await;
-            let theme_storage_client = conf.theme_storage.get_file_storage_client().await;
+            let theme_storage_client = conf.theme.storage.get_file_storage_client().await;
 
             let grpc_client = conf.grpc_client.get_grpc_client_interface().await;
 
@@ -556,6 +556,10 @@ impl Payments {
                         .route(web::get().to(payments::payments_get_intent)),
                 )
                 .service(
+                    web::resource("/update-intent")
+                        .route(web::put().to(payments::payments_update_intent)),
+                )
+                .service(
                     web::resource("/create-external-sdk-tokens")
                         .route(web::post().to(payments::payments_connector_session)),
                 )
@@ -731,7 +735,7 @@ impl Routing {
             .app_data(web::Data::new(state.clone()))
             .service(
                 web::resource("").route(web::post().to(|state, req, payload| {
-                    routing::routing_create_config(state, req, payload, &TransactionType::Payment)
+                    routing::routing_create_config(state, req, payload, TransactionType::Payment)
                 })),
             )
             .service(
@@ -773,7 +777,7 @@ impl Routing {
                             state,
                             req,
                             payload,
-                            &TransactionType::Payment,
+                            TransactionType::Payment,
                         )
                     })),
             )
@@ -853,7 +857,7 @@ impl Routing {
                                 state,
                                 req,
                                 payload,
-                                &TransactionType::Payout,
+                                TransactionType::Payout,
                             )
                         })),
                 )
@@ -972,8 +976,8 @@ impl Customers {
                 .service(web::resource("").route(web::post().to(customers_create)))
                 .service(
                     web::resource("/{id}")
-                        .route(web::post().to(customers_update))
-                        .route(web::post().to(customers_retrieve))
+                        .route(web::put().to(customers_update))
+                        .route(web::get().to(customers_retrieve))
                         .route(web::delete().to(customers_delete)),
                 )
         }
@@ -1787,6 +1791,10 @@ impl Profile {
                             web::resource("/toggle")
                                 .route(web::post().to(routing::toggle_elimination_routing)),
                         ),
+                    )
+                    .service(
+                        web::resource("/set_volume_split")
+                            .route(web::post().to(routing::set_dynamic_routing_volume_split)),
                     ),
             );
         }
@@ -1886,6 +1894,10 @@ impl User {
             .service(
                 web::resource("/internal_signup").route(web::post().to(user::internal_user_signup)),
             )
+            .service(
+                web::resource("/tenant_signup").route(web::post().to(user::create_tenant_user)),
+            )
+            .service(web::resource("/create_org").route(web::post().to(user::user_org_create)))
             .service(
                 web::resource("/create_merchant")
                     .route(web::post().to(user::user_merchant_account_create)),

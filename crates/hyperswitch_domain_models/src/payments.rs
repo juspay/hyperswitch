@@ -17,6 +17,8 @@ use diesel_models::payment_intent::TaxDetails;
 #[cfg(feature = "v2")]
 use error_stack::ResultExt;
 use masking::Secret;
+#[cfg(feature = "v2")]
+use payment_intent::PaymentIntentUpdate;
 use router_derive::ToEncryption;
 use rustc_hash::FxHashMap;
 use serde_json::Value;
@@ -90,7 +92,7 @@ pub struct PaymentIntent {
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
     pub session_expiry: Option<PrimitiveDateTime>,
     pub request_external_three_ds_authentication: Option<bool>,
-    pub charges: Option<pii::SecretSerdeValue>,
+    pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
     pub frm_metadata: Option<pii::SecretSerdeValue>,
     #[encrypt]
     pub customer_details: Option<Encryptable<Secret<Value>>>,
@@ -156,44 +158,6 @@ impl PaymentIntent {
 }
 
 #[cfg(feature = "v2")]
-#[derive(Clone, Debug, PartialEq, Copy, serde::Serialize)]
-pub enum TaxCalculationOverride {
-    /// Skip calling the external tax provider
-    Skip,
-    /// Calculate tax by calling the external tax provider
-    Calculate,
-}
-
-#[cfg(feature = "v2")]
-#[derive(Clone, Debug, PartialEq, Copy, serde::Serialize)]
-pub enum SurchargeCalculationOverride {
-    /// Skip calculating surcharge
-    Skip,
-    /// Calculate surcharge
-    Calculate,
-}
-
-#[cfg(feature = "v2")]
-impl From<Option<bool>> for TaxCalculationOverride {
-    fn from(value: Option<bool>) -> Self {
-        match value {
-            Some(true) => Self::Calculate,
-            _ => Self::Skip,
-        }
-    }
-}
-
-#[cfg(feature = "v2")]
-impl From<Option<bool>> for SurchargeCalculationOverride {
-    fn from(value: Option<bool>) -> Self {
-        match value {
-            Some(true) => Self::Calculate,
-            _ => Self::Skip,
-        }
-    }
-}
-
-#[cfg(feature = "v2")]
 #[derive(Clone, Debug, PartialEq, serde::Serialize)]
 pub struct AmountDetails {
     /// The amount of the order in the lowest denomination of currency
@@ -205,9 +169,9 @@ pub struct AmountDetails {
     /// Tax details related to the order. This will be calculated by the external tax provider
     pub tax_details: Option<TaxDetails>,
     /// The action to whether calculate tax by calling external tax provider or not
-    pub skip_external_tax_calculation: TaxCalculationOverride,
+    pub skip_external_tax_calculation: common_enums::TaxCalculationOverride,
     /// The action to whether calculate surcharge or not
-    pub skip_surcharge_calculation: SurchargeCalculationOverride,
+    pub skip_surcharge_calculation: common_enums::SurchargeCalculationOverride,
     /// The surcharge amount to be added to the order, collected from the merchant
     pub surcharge_amount: Option<MinorUnit>,
     /// tax on surcharge amount
@@ -221,18 +185,12 @@ pub struct AmountDetails {
 impl AmountDetails {
     /// Get the action to whether calculate surcharge or not as a boolean value
     fn get_surcharge_action_as_bool(&self) -> bool {
-        match self.skip_surcharge_calculation {
-            SurchargeCalculationOverride::Skip => false,
-            SurchargeCalculationOverride::Calculate => true,
-        }
+        self.skip_surcharge_calculation.as_bool()
     }
 
     /// Get the action to whether calculate external tax or not as a boolean value
     fn get_external_tax_action_as_bool(&self) -> bool {
-        match self.skip_external_tax_calculation {
-            TaxCalculationOverride::Skip => false,
-            TaxCalculationOverride::Calculate => true,
-        }
+        self.skip_external_tax_calculation.as_bool()
     }
 
     /// Calculate the net amount for the order
@@ -250,20 +208,22 @@ impl AmountDetails {
         let net_amount = self.calculate_net_amount();
 
         let surcharge_amount = match self.skip_surcharge_calculation {
-            SurchargeCalculationOverride::Skip => self.surcharge_amount,
-            SurchargeCalculationOverride::Calculate => None,
+            common_enums::SurchargeCalculationOverride::Skip => self.surcharge_amount,
+            common_enums::SurchargeCalculationOverride::Calculate => None,
         };
 
         let tax_on_surcharge = match self.skip_surcharge_calculation {
-            SurchargeCalculationOverride::Skip => self.tax_on_surcharge,
-            SurchargeCalculationOverride::Calculate => None,
+            common_enums::SurchargeCalculationOverride::Skip => self.tax_on_surcharge,
+            common_enums::SurchargeCalculationOverride::Calculate => None,
         };
 
         let order_tax_amount = match self.skip_external_tax_calculation {
-            TaxCalculationOverride::Skip => self.tax_details.as_ref().and_then(|tax_details| {
-                tax_details.get_tax_amount(confirm_intent_request.payment_method_subtype)
-            }),
-            TaxCalculationOverride::Calculate => None,
+            common_enums::TaxCalculationOverride::Skip => {
+                self.tax_details.as_ref().and_then(|tax_details| {
+                    tax_details.get_tax_amount(confirm_intent_request.payment_method_subtype)
+                })
+            }
+            common_enums::TaxCalculationOverride::Calculate => None,
         };
 
         payment_attempt::AttemptAmountDetails::from(payment_attempt::AttemptAmountDetailsSetter {
@@ -276,6 +236,33 @@ impl AmountDetails {
             shipping_cost: self.shipping_cost,
             order_tax_amount,
         })
+    }
+
+    pub fn update_from_request(self, req: &api_models::payments::AmountDetailsUpdate) -> Self {
+        Self {
+            order_amount: req
+                .order_amount()
+                .unwrap_or(self.order_amount.into())
+                .into(),
+            currency: req.currency().unwrap_or(self.currency),
+            shipping_cost: req.shipping_cost().or(self.shipping_cost),
+            tax_details: req
+                .order_tax_amount()
+                .map(|order_tax_amount| TaxDetails {
+                    default: Some(diesel_models::DefaultTax { order_tax_amount }),
+                    payment_method_type: None,
+                })
+                .or(self.tax_details),
+            skip_external_tax_calculation: req
+                .skip_external_tax_calculation()
+                .unwrap_or(self.skip_external_tax_calculation),
+            skip_surcharge_calculation: req
+                .skip_surcharge_calculation()
+                .unwrap_or(self.skip_surcharge_calculation),
+            surcharge_amount: req.surcharge_amount().or(self.surcharge_amount),
+            tax_on_surcharge: req.tax_on_surcharge().or(self.tax_on_surcharge),
+            amount_captured: self.amount_captured,
+        }
     }
 }
 
@@ -294,7 +281,7 @@ pub struct PaymentIntent {
     /// The total amount captured for the order. This is the sum of all the captured amounts for the order.
     pub amount_captured: Option<MinorUnit>,
     /// The identifier for the customer. This is the identifier for the customer in the merchant's system.
-    pub customer_id: Option<id_type::CustomerId>,
+    pub customer_id: Option<id_type::GlobalCustomerId>,
     /// The description of the order. This will be passed to connectors which support description.
     pub description: Option<common_utils::types::Description>,
     /// The return url for the payment. This is the url to which the user will be redirected after the payment is completed.
@@ -531,6 +518,18 @@ pub struct HeaderPayload {
     pub locale: Option<String>,
     pub x_app_id: Option<String>,
     pub x_redirect_uri: Option<String>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ClickToPayMetaData {
+    pub dpa_id: String,
+    pub dpa_name: String,
+    pub locale: String,
+    pub card_brands: Vec<String>,
+    pub acquirer_bin: String,
+    pub acquirer_merchant_id: String,
+    pub merchant_category_code: String,
+    pub merchant_country_code: String,
 }
 
 // TODO: uncomment fields as necessary

@@ -8,6 +8,7 @@ use crate::user_role::UserStatus;
 pub mod dashboard_metadata;
 #[cfg(feature = "dummy_connector")]
 pub mod sample_data;
+#[cfg(feature = "control_center_theme")]
 pub mod theme;
 
 #[derive(serde::Deserialize, Debug, Clone, serde::Serialize)]
@@ -114,6 +115,21 @@ pub struct CreateInternalUserRequest {
     pub password: Secret<String>,
 }
 
+#[derive(serde::Deserialize, Debug, serde::Serialize)]
+pub struct CreateTenantUserRequest {
+    pub name: Secret<String>,
+    pub email: pii::Email,
+    pub password: Secret<String>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
+pub struct UserOrgMerchantCreateRequest {
+    pub organization_name: Secret<String>,
+    pub organization_details: Option<pii::SecretSerdeValue>,
+    pub metadata: Option<pii::SecretSerdeValue>,
+    pub merchant_name: Secret<String>,
+}
+
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct UserMerchantCreate {
     pub company_name: String,
@@ -134,6 +150,7 @@ pub struct GetUserDetailsResponse {
     pub recovery_codes_left: Option<usize>,
     pub profile_id: id_type::ProfileId,
     pub entity_type: EntityType,
+    pub theme_id: Option<String>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
@@ -329,8 +346,9 @@ pub struct SsoSignInRequest {
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
-pub struct AuthIdQueryParam {
+pub struct AuthIdAndThemeIdQueryParam {
     pub auth_id: Option<String>,
+    pub theme_id: Option<String>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]

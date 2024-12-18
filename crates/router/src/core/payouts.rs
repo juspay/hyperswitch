@@ -383,7 +383,7 @@ pub async fn payouts_confirm_core(
     let status = payout_attempt.status;
 
     helpers::validate_payout_status_against_not_allowed_statuses(
-        &status,
+        status,
         &[
             storage_enums::PayoutStatus::Cancelled,
             storage_enums::PayoutStatus::Success,
@@ -1269,11 +1269,11 @@ pub async fn create_recipient(
 
                         #[cfg(all(feature = "v2", feature = "customer_v2"))]
                         {
-                            let global_id = "temp_id".to_string();
+                            let customer_id = customer.get_id().clone();
                             payout_data.customer_details = Some(
                                 db.update_customer_by_global_id(
                                     &state.into(),
-                                    global_id,
+                                    &customer_id,
                                     customer,
                                     merchant_account.get_id(),
                                     updated_customer,

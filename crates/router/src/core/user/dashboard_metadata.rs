@@ -1,4 +1,6 @@
 use api_models::user::dashboard_metadata::{self as api, GetMultipleMetaDataPayload};
+#[cfg(feature = "email")]
+use common_enums::EntityType;
 use diesel_models::{
     enums::DashboardMetadata as DBEnum, user::dashboard_metadata::DashboardMetadata,
 };
@@ -8,8 +10,6 @@ use masking::ExposeInterface;
 #[cfg(feature = "email")]
 use router_env::logger;
 
-#[cfg(feature = "email")]
-use crate::services::email::types as email_types;
 use crate::{
     core::errors::{UserErrors, UserResponse, UserResult},
     routes::{app::ReqState, SessionState},
@@ -17,6 +17,8 @@ use crate::{
     types::domain::{self, user::dashboard_metadata as types, MerchantKeyStore},
     utils::user::dashboard_metadata as utils,
 };
+#[cfg(feature = "email")]
+use crate::{services::email::types as email_types, utils::user::theme as theme_utils};
 
 pub async fn set_metadata(
     state: SessionState,
@@ -46,11 +48,11 @@ pub async fn get_multiple_metadata(
     for key in metadata_keys {
         let data = metadata.iter().find(|ele| ele.data_key == key);
         let resp;
-        if data.is_none() && utils::is_backfill_required(&key) {
+        if data.is_none() && utils::is_backfill_required(key) {
             let backfill_data = backfill_metadata(&state, &user, &key).await?;
-            resp = into_response(backfill_data.as_ref(), &key)?;
+            resp = into_response(backfill_data.as_ref(), key)?;
         } else {
-            resp = into_response(data, &key)?;
+            resp = into_response(data, key)?;
         }
         response.push(resp);
     }
@@ -148,7 +150,7 @@ fn parse_get_request(data_enum: api::GetMetaDataRequest) -> DBEnum {
 
 fn into_response(
     data: Option<&DashboardMetadata>,
-    data_type: &DBEnum,
+    data_type: DBEnum,
 ) -> UserResult<api::GetMetaDataResponse> {
     match data_type {
         DBEnum::ProductionAgreement => Ok(api::GetMetaDataResponse::ProductionAgreement(
@@ -476,7 +478,21 @@ async fn insert_metadata(
                     .expose();
 
                 if utils::is_prod_email_required(&data, user_email) {
-                    let email_contents = email_types::BizEmailProd::new(state, data)?;
+                    let theme = theme_utils::get_most_specific_theme_using_token_and_min_entity(
+                        state,
+                        &user,
+                        EntityType::Merchant,
+                    )
+                    .await?;
+
+                    let email_contents = email_types::BizEmailProd::new(
+                        state,
+                        data,
+                        theme.as_ref().map(|theme| theme.theme_id.clone()),
+                        theme
+                            .map(|theme| theme.email_config())
+                            .unwrap_or(state.conf.theme.email_config.clone()),
+                    )?;
                     let send_email_result = state
                         .email_client
                         .compose_and_send_email(

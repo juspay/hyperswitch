@@ -118,6 +118,9 @@ pub async fn payments_create_intent(
             return api::log_and_return_error_response(err);
         }
     };
+    let global_payment_id =
+        common_utils::id_type::GlobalPaymentId::generate(&state.conf.cell_information.id);
+
     Box::pin(api::server_wrap(
         flow,
         state,
@@ -138,6 +141,7 @@ pub async fn payments_create_intent(
                 auth.key_store,
                 payments::operations::PaymentIntentCreate,
                 req,
+                global_payment_id.clone(),
                 header_payload.clone(),
             )
         },
@@ -178,6 +182,8 @@ pub async fn payments_get_intent(
         id: path.into_inner(),
     };
 
+    let global_payment_id = payload.id.clone();
+
     Box::pin(api::server_wrap(
         flow,
         state,
@@ -198,6 +204,62 @@ pub async fn payments_get_intent(
                 auth.key_store,
                 payments::operations::PaymentGetIntent,
                 req,
+                global_payment_id.clone(),
+                header_payload.clone(),
+            )
+        },
+        &auth::HeaderAuth(auth::ApiKeyAuth),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(feature = "v2")]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsUpdateIntent, payment_id))]
+pub async fn payments_update_intent(
+    state: web::Data<app::AppState>,
+    req: actix_web::HttpRequest,
+    json_payload: web::Json<payment_types::PaymentsUpdateIntentRequest>,
+    path: web::Path<common_utils::id_type::GlobalPaymentId>,
+) -> impl Responder {
+    use hyperswitch_domain_models::payments::PaymentIntentData;
+
+    let flow = Flow::PaymentsUpdateIntent;
+    let header_payload = match HeaderPayload::foreign_try_from(req.headers()) {
+        Ok(headers) => headers,
+        Err(err) => {
+            return api::log_and_return_error_response(err);
+        }
+    };
+
+    let internal_payload = internal_payload_types::PaymentsGenericRequestWithResourceId {
+        global_payment_id: path.into_inner(),
+        payload: json_payload.into_inner(),
+    };
+
+    let global_payment_id = internal_payload.global_payment_id.clone();
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        internal_payload,
+        |state, auth: auth::AuthenticationData, req, req_state| {
+            payments::payments_intent_core::<
+                api_types::PaymentUpdateIntent,
+                payment_types::PaymentsIntentResponse,
+                _,
+                _,
+                PaymentIntentData<api_types::PaymentUpdateIntent>,
+            >(
+                state,
+                req_state,
+                auth.merchant_account,
+                auth.profile,
+                auth.key_store,
+                payments::operations::PaymentUpdateIntent,
+                req.payload,
+                global_payment_id.clone(),
                 header_payload.clone(),
             )
         },

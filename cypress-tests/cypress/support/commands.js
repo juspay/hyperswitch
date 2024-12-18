@@ -384,21 +384,21 @@ Cypress.Commands.add(
   (
     connectorType,
     createConnectorBody,
-    payment_methods_enabled,
+    paymentMethodsEnabled,
     globalState,
     connectorName,
     connectorLabel,
-    profile_prefix = "profile",
-    mca_prefix = "merchantConnector"
+    profilePrefix = "profile",
+    mcaPrefix = "merchantConnector"
   ) => {
     const merchantId = globalState.get("merchantId");
-    const profile_id = globalState.get(`${profile_prefix}Id`);
+    const profileId = globalState.get(`${profilePrefix}Id`);
 
-    createConnectorBody.profile_id = profile_id;
+    createConnectorBody.profile_id = profileId;
     createConnectorBody.connector_type = connectorType;
     createConnectorBody.connector_name = connectorName;
     createConnectorBody.connector_label = connectorLabel;
-    createConnectorBody.payment_methods_enabled = payment_methods_enabled;
+    createConnectorBody.payment_methods_enabled = paymentMethodsEnabled;
     // readFile is used to read the contents of the file and it always returns a promise ([Object Object]) due to its asynchronous nature
     // it is best to use then() to handle the response within the same block of code
     cy.readFile(globalState.get("connectorAuthFilePath")).then(
@@ -425,7 +425,7 @@ Cypress.Commands.add(
           if (response.status === 200) {
             expect(connectorName).to.equal(response.body.connector_name);
             globalState.set(
-              `${mca_prefix}Id`,
+              `${mcaPrefix}Id`,
               response.body.merchant_connector_id
             );
           } else {
@@ -865,6 +865,64 @@ Cypress.Commands.add(
 );
 
 Cypress.Commands.add(
+  "paymentMethodListTestWithRequiredFields",
+  (data, globalState) => {
+    const apiKey = globalState.get("publishableKey");
+    const baseUrl = globalState.get("baseUrl");
+    const clientSecret = globalState.get("clientSecret");
+    const url = `${baseUrl}/account/payment_methods?client_secret=${clientSecret}`;
+
+    cy.request({
+      method: "GET",
+      url: url,
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        "api-key": apiKey,
+      },
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+      expect(response.headers["content-type"]).to.include("application/json");
+
+      if (response.status === 200) {
+        const responsePaymentMethods = response.body["payment_methods"];
+        const responseRequiredFields =
+          responsePaymentMethods[0]["payment_method_types"][0][
+            "required_fields"
+          ];
+
+        const expectedRequiredFields =
+          data["payment_methods"][0]["payment_method_types"][0][
+            "required_fields"
+          ];
+
+        Object.keys(expectedRequiredFields).forEach((key) => {
+          const expectedField = expectedRequiredFields[key];
+          const responseField = responseRequiredFields[key];
+
+          expect(responseField).to.exist;
+          expect(responseField.required_field).to.equal(
+            expectedField.required_field
+          );
+          expect(responseField.display_name).to.equal(
+            expectedField.display_name
+          );
+          expect(responseField.field_type).to.deep.equal(
+            expectedField.field_type
+          );
+          expect(responseField.value).to.equal(expectedField.value);
+        });
+      } else {
+        throw new Error(
+          `List payment methods failed with status code "${response.status}" and error message "${response.body.error.message}"`
+        );
+      }
+    });
+  }
+);
+
+Cypress.Commands.add(
   "paymentMethodListTestTwoConnectorsForOnePaymentMethodCredit",
   (resData, globalState) => {
     cy.request({
@@ -1021,9 +1079,17 @@ Cypress.Commands.add(
           createPaymentBody.setup_future_usage,
           "setup_future_usage"
         ).to.equal(response.body.setup_future_usage);
-        expect(createPaymentBody.amount, "amount_capturable").to.equal(
-          response.body.amount_capturable
-        );
+        // If 'shipping_cost' is not included in the request, the 'amount' in 'createPaymentBody' should match the 'amount_capturable' in the response.
+        if (typeof createPaymentBody?.shipping_cost === "undefined") {
+          expect(createPaymentBody.amount, "amount_capturable").to.equal(
+            response.body.amount_capturable
+          );
+        } else {
+          expect(
+            createPaymentBody.amount + createPaymentBody.shipping_cost,
+            "amount_capturable"
+          ).to.equal(response.body.amount_capturable);
+        }
         expect(response.body.amount_received, "amount_received").to.be.oneOf([
           0,
           null,

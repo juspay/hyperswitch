@@ -23,8 +23,8 @@ use euclid::{
     frontend::{ast, dir as euclid_dir},
 };
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-use external_services::grpc_client::dynamic_routing::{
-    success_rate::CalSuccessRateResponse, SuccessBasedDynamicRouting,
+use external_services::grpc_client::dynamic_routing::success_rate_client::{
+    CalSuccessRateResponse, SuccessBasedDynamicRouting,
 };
 use hyperswitch_domain_models::address::Address;
 use kgraph_utils::{
@@ -487,6 +487,36 @@ pub async fn refresh_routing_cache_v1(
         .await;
 
     Ok(arc_cached_algorithm)
+}
+
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+pub fn perform_dynamic_routing_volume_split(
+    splits: Vec<api_models::routing::RoutingVolumeSplit>,
+    rng_seed: Option<&str>,
+) -> RoutingResult<api_models::routing::RoutingVolumeSplit> {
+    let weights: Vec<u8> = splits.iter().map(|sp| sp.split).collect();
+    let weighted_index = distributions::WeightedIndex::new(weights)
+        .change_context(errors::RoutingError::VolumeSplitFailed)
+        .attach_printable("Error creating weighted distribution for volume split")?;
+
+    let idx = if let Some(seed) = rng_seed {
+        let mut hasher = hash_map::DefaultHasher::new();
+        seed.hash(&mut hasher);
+        let hash = hasher.finish();
+
+        let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(hash);
+        weighted_index.sample(&mut rng)
+    } else {
+        let mut rng = rand::thread_rng();
+        weighted_index.sample(&mut rng)
+    };
+
+    let routing_choice = *splits
+        .get(idx)
+        .ok_or(errors::RoutingError::VolumeSplitFailed)
+        .attach_printable("Volume split index lookup failed")?;
+
+    Ok(routing_choice)
 }
 
 pub fn perform_volume_split(

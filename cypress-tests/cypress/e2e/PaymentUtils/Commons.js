@@ -98,6 +98,49 @@ const multiUseMandateData = {
   },
 };
 
+export const cardRequiredField = {
+  "payment_method_data.card.card_number": {
+    required_field: "payment_method_data.card.card_number",
+    display_name: "card_number",
+    field_type: "user_card_number",
+    value: null,
+  },
+  "payment_method_data.card.card_exp_year": {
+    required_field: "payment_method_data.card.card_exp_year",
+    display_name: "card_exp_year",
+    field_type: "user_card_expiry_year",
+    value: null,
+  },
+  "payment_method_data.card.card_cvc": {
+    required_field: "payment_method_data.card.card_cvc",
+    display_name: "card_cvc",
+    field_type: "user_card_cvc",
+    value: null,
+  },
+  "payment_method_data.card.card_exp_month": {
+    required_field: "payment_method_data.card.card_exp_month",
+    display_name: "card_exp_month",
+    field_type: "user_card_expiry_month",
+    value: null,
+  },
+};
+
+export const fullNameRequiredField = {
+  "billing.address.last_name": {
+    required_field: "payment_method_data.billing.address.last_name",
+    display_name: "card_holder_name",
+    field_type: "user_full_name",
+    value: "Doe",
+  },
+  "billing.address.first_name": {
+    required_field: "payment_method_data.billing.address.first_name",
+    display_name: "card_holder_name",
+    field_type: "user_full_name",
+    value: "joseph",
+  },
+};
+
+export const billingRequiredField = {};
 /*
 `getDefaultExchange` contains the default Request and Response to be considered if none provided.
 `getCustomExchange` takes in 2 optional fields named as Request and Response.
@@ -597,6 +640,30 @@ export const connectorDetails = {
         },
       },
     }),
+    PaymentIntentWithShippingCost: getCustomExchange({
+      Request: {
+        currency: "USD",
+        shipping_cost: 50,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+          shipping_cost: 50,
+          amount: 6500,
+        },
+      },
+    }),
+    PaymentConfirmWithShippingCost: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+    }),
     "3DSManualCapture": getCustomExchange({
       Request: {
         payment_method: "card",
@@ -639,6 +706,20 @@ export const connectorDetails = {
         currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
+      },
+    }),
+    No3DSFailPayment: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {},
       },
     }),
     Capture: getCustomExchange({
@@ -1311,7 +1392,8 @@ export const connectorDetails = {
         body: {
           error: {
             type: "invalid_request",
-            message: "A payment token or payment method data is required",
+            message:
+              "A payment token or payment method data or ctp service details is required",
             code: "IR_06",
           },
         },
@@ -1383,6 +1465,96 @@ export const connectorDetails = {
         },
       },
     }),
+    PaymentWithoutBilling: {
+      Request: {
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+        authentication_type: "no_three_ds",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    },
+    PaymentWithBilling: {
+      Request: {
+        currency: "USD",
+        setup_future_usage: "on_session",
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "CA",
+            line3: "Harrison Street",
+            city: "San Fransico",
+            state: "CA",
+            zip: "94122",
+            country: "PL",
+            first_name: "joseph",
+            last_name: "Doe",
+          },
+          phone: {
+            number: "9111222333",
+            country_code: "+91",
+          },
+        },
+        email: "hyperswitch.example@gmail.com",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    },
+    PaymentWithFullName: {
+      Request: {
+        currency: "USD",
+        setup_future_usage: "on_session",
+        billing: {
+          address: {
+            first_name: "joseph",
+            last_name: "Doe",
+          },
+          phone: {
+            number: "9111222333",
+            country_code: "+91",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    },
+    PaymentWithBillingEmail: {
+      Request: {
+        currency: "USD",
+        setup_future_usage: "on_session",
+        email: "hyperswitch_sdk_demo_id1@gmail.com",
+        billing: {
+          address: {
+            first_name: "joseph",
+            last_name: "Doe",
+          },
+          phone: {
+            number: "9111222333",
+            country_code: "+91",
+          },
+          email: "hyperswitch.example@gmail.com",
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    },
   },
   upi_pm: {
     PaymentIntent: getCustomExchange({
@@ -1420,5 +1592,68 @@ export const connectorDetails = {
         },
       },
     }),
+  },
+  pm_list: {
+    PmListResponse: {
+      PmListNull: {
+        payment_methods: [],
+      },
+      pmListDynamicFieldWithoutBilling: {
+        payment_methods: [
+          {
+            payment_method: "card",
+            payment_method_types: [
+              {
+                payment_method_type: "credit",
+                card_networks: [],
+                required_fields: {},
+              },
+            ],
+          },
+        ],
+      },
+      pmListDynamicFieldWithBilling: {
+        payment_methods: [
+          {
+            payment_method: "card",
+            payment_method_types: [
+              {
+                payment_method_type: "credit",
+                card_networks: [],
+                required_fields: {},
+              },
+            ],
+          },
+        ],
+      },
+      pmListDynamicFieldWithNames: {
+        payment_methods: [
+          {
+            payment_method: "card",
+            payment_method_types: [
+              {
+                payment_method_type: "credit",
+                card_networks: [],
+                required_fields: {},
+              },
+            ],
+          },
+        ],
+      },
+      pmListDynamicFieldWithEmail: {
+        payment_methods: [
+          {
+            payment_method: "card",
+            payment_method_types: [
+              {
+                payment_method_type: "credit",
+                card_networks: [],
+                required_fields: {},
+              },
+            ],
+          },
+        ],
+      },
+    },
   },
 };

@@ -33,7 +33,7 @@ generate_permissions! {
         },
         Account: {
             scopes: [Read, Write],
-            entities: [Profile, Merchant, Organization]
+            entities: [Profile, Merchant, Organization, Tenant]
         },
         Connector: {
             scopes: [Read, Write],
@@ -98,7 +98,7 @@ generate_permissions! {
     ]
 }
 
-pub fn get_resource_name(resource: &Resource, entity_type: &EntityType) -> &'static str {
+pub fn get_resource_name(resource: Resource, entity_type: EntityType) -> &'static str {
     match (resource, entity_type) {
         (Resource::Payment, _) => "Payments",
         (Resource::Refund, _) => "Refunds",
@@ -125,10 +125,11 @@ pub fn get_resource_name(resource: &Resource, entity_type: &EntityType) -> &'sta
         (Resource::Account, EntityType::Profile) => "Business Profile Account",
         (Resource::Account, EntityType::Merchant) => "Merchant Account",
         (Resource::Account, EntityType::Organization) => "Organization Account",
+        (Resource::Account, EntityType::Tenant) => "Tenant Account",
     }
 }
 
-pub fn get_scope_name(scope: &PermissionScope) -> &'static str {
+pub fn get_scope_name(scope: PermissionScope) -> &'static str {
     match scope {
         PermissionScope::Read => "View",
         PermissionScope::Write => "View and Manage",

@@ -158,7 +158,9 @@ impl ConnectorValidation for Billwerk {
     ) -> CustomResult<(), errors::ConnectorError> {
         let capture_method = capture_method.unwrap_or_default();
         match capture_method {
-            common_enums::CaptureMethod::Automatic | common_enums::CaptureMethod::Manual => Ok(()),
+            common_enums::CaptureMethod::Automatic
+            | common_enums::CaptureMethod::Manual
+            | common_enums::CaptureMethod::SequentialAutomatic => Ok(()),
             common_enums::CaptureMethod::ManualMultiple
             | common_enums::CaptureMethod::Scheduled => Err(
                 construct_not_implemented_error_report(capture_method, self.id()),

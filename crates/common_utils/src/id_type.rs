@@ -1,10 +1,10 @@
 //! Common ID types
 //! The id type can be used to create specific id types with custom behaviour
 
-use std::{borrow::Cow, fmt::Debug};
-
 mod api_key;
 mod customer;
+#[cfg(feature = "v2")]
+mod global_id;
 mod merchant;
 mod merchant_connector_account;
 mod organization;
@@ -14,11 +14,8 @@ mod refunds;
 mod routing;
 mod tenant;
 
-#[cfg(feature = "v2")]
-mod global_id;
+use std::{borrow::Cow, fmt::Debug};
 
-pub use api_key::ApiKeyId;
-pub use customer::CustomerId;
 use diesel::{
     backend::Backend,
     deserialize::FromSql,
@@ -26,28 +23,33 @@ use diesel::{
     serialize::{Output, ToSql},
     sql_types,
 };
+use serde::{Deserialize, Serialize};
+use thiserror::Error;
+
 #[cfg(feature = "v2")]
-pub use global_id::{
+pub use self::global_id::{
+    customer::GlobalCustomerId,
     payment::{GlobalAttemptId, GlobalPaymentId},
     payment_methods::GlobalPaymentMethodId,
     refunds::GlobalRefundId,
     CellId,
 };
-pub use merchant::MerchantId;
-pub use merchant_connector_account::MerchantConnectorAccountId;
-pub use organization::OrganizationId;
-pub use payment::{PaymentId, PaymentReferenceId};
-pub use profile::ProfileId;
-pub use refunds::RefundReferenceId;
-pub use routing::RoutingId;
-use serde::{Deserialize, Serialize};
-pub use tenant::TenantId;
-use thiserror::Error;
-
+pub use self::{
+    api_key::ApiKeyId,
+    customer::CustomerId,
+    merchant::MerchantId,
+    merchant_connector_account::MerchantConnectorAccountId,
+    organization::OrganizationId,
+    payment::{PaymentId, PaymentReferenceId},
+    profile::ProfileId,
+    refunds::RefundReferenceId,
+    routing::RoutingId,
+    tenant::TenantId,
+};
 use crate::{fp_utils::when, generate_id_with_default_len};
 
 #[inline]
-fn is_valid_id_character(input_char: &char) -> bool {
+fn is_valid_id_character(input_char: char) -> bool {
     input_char.is_ascii_alphanumeric() || matches!(input_char, '_' | '-')
 }
 
@@ -57,7 +59,7 @@ fn get_invalid_input_character(input_string: Cow<'static, str>) -> Option<char> 
     input_string
         .trim()
         .chars()
-        .find(|char| !is_valid_id_character(char))
+        .find(|&char| !is_valid_id_character(char))
 }
 
 #[derive(Debug, PartialEq, Hash, Serialize, Clone, Eq)]
