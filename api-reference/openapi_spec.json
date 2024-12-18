@@ -8724,6 +8724,22 @@
           },
           "transaction_currency_code": {
             "$ref": "#/components/schemas/Currency"
+          },
+          "phone_number": {
+            "type": "string",
+            "nullable": true
+          },
+          "email": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Email"
+              }
+            ],
+            "nullable": true
+          },
+          "phone_country_code": {
+            "type": "string",
+            "nullable": true
           }
         }
       },

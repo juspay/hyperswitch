@@ -3401,6 +3401,7 @@ pub async fn get_session_token_for_click_to_pay(
 ) -> RouterResult<api_models::payments::SessionToken> {
     use common_utils::{id_type::MerchantConnectorAccountId, types::AmountConvertor};
     use hyperswitch_domain_models::payments::{payment_intent::CustomerData, ClickToPayMetaData};
+    use masking::ExposeOptionInterface;
 
     use crate::consts::CLICK_TO_PAY;
 
@@ -3469,7 +3470,7 @@ pub async fn get_session_token_for_click_to_pay(
             transaction_currency_code: transaction_currency,
             phone_number: optional_customer_details
                 .as_ref()
-                .and_then(|details| details.phone.clone()),
+                .and_then(|details| details.phone.clone().expose_option()),
             email: optional_customer_details
                 .as_ref()
                 .and_then(|details| details.email.clone()),
