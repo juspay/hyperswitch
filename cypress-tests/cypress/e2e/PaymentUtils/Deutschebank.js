@@ -27,9 +27,7 @@ export const connectorDetails = {
           card: successful3DSCardDetails,
         },
         currency: "USD",
-        customer_acceptance: {
-          acceptance_type: "online",
-        },
+        customer_acceptance: null,
         setup_future_usage: "on_session",
       },
       Response: {
@@ -47,9 +45,7 @@ export const connectorDetails = {
           card: successful3DSCardDetails,
         },
         currency: "USD",
-        customer_acceptance: {
-          acceptance_type: "online",
-        },
+        customer_acceptance: null,
         setup_future_usage: "on_session",
       },
       Response: {

@@ -4,7 +4,7 @@ use std::time::SystemTime;
 
 use actix_web::http::header::Date;
 use base64::Engine;
-use common_enums::enums;
+use common_enums::{enums, PaymentMethod};
 use common_utils::{
     errors::CustomResult,
     ext_traits::BytesExt,
@@ -124,7 +124,7 @@ impl ConnectorCommon for Deutschebank {
     }
 
     fn get_currency_unit(&self) -> api::CurrencyUnit {
-        api::CurrencyUnit::Base
+        api::CurrencyUnit::Minor
     }
 
     fn common_get_content_type(&self) -> &'static str {
@@ -471,7 +471,7 @@ impl ConnectorIntegration<CompleteAuthorize, CompleteAuthorizeData, PaymentsResp
             "preauthorization"
         };
 
-        if req.is_three_ds() {
+        if req.is_three_ds() && matches!(req.payment_method, PaymentMethod::Card) {
             Ok(format!(
                 "{}/services/v2.1//headless3DSecure/event/{event_id}/final",
                 self.base_url(connectors)
@@ -494,7 +494,6 @@ impl ConnectorIntegration<CompleteAuthorize, CompleteAuthorizeData, PaymentsResp
             req.request.minor_amount,
             req.request.currency,
         )?;
-
         let connector_router_data = deutschebank::DeutschebankRouterData::from((amount, req));
         let connector_req =
             deutschebank::DeutschebankCompleteAuthorizeRequest::try_from(&connector_router_data)?;
