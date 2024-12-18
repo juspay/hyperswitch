@@ -9,7 +9,6 @@ license.workspace = true
 [features]
 default = ["payouts", "dummy_connector"]
 production = []
-development = []
 sandbox = []
 dummy_connector = ["api_models/dummy_connector"]
 payouts = ["api_models/payouts"]
