@@ -60,7 +60,7 @@ pub struct CardNetworkTokenResponse {
 pub struct CardNetworkTokenResponsePayload {
     pub card_brand: api_enums::CardNetwork,
     pub card_fingerprint: Option<Secret<String>>,
-    pub card_reference: String,
+    pub card_reference: String,//
     pub correlation_id: String,
     pub customer_id: String,
     pub par: String,
@@ -79,21 +79,21 @@ pub struct GetCardToken {
 }
 #[derive(Debug, Deserialize)]
 pub struct AuthenticationDetails {
-    cryptogram: Secret<String>,
-    token: CardNumber, //network token
+    pub cryptogram: Secret<String>,
+    pub token: CardNumber, //network token
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TokenDetails {
-    exp_month: Secret<String>,
-    exp_year: Secret<String>,
+    pub exp_month: Secret<String>,
+    pub exp_year: Secret<String>,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct TokenResponse {
-    authentication_details: AuthenticationDetails,
-    network: api_enums::CardNetwork,
-    token_details: TokenDetails,
+    pub authentication_details: AuthenticationDetails,
+    pub network: api_enums::CardNetwork,
+    pub token_details: TokenDetails,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

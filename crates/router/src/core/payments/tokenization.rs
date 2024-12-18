@@ -13,6 +13,7 @@ use common_utils::{
     crypto::Encryptable,
     ext_traits::{AsyncExt, Encode, ValueExt},
     id_type, pii,
+    metrics::utils::record_operation_time,
 };
 use error_stack::{report, ResultExt};
 use masking::{ExposeInterface, Secret};
@@ -177,6 +178,7 @@ where
                 };
 
             let pm_id = if customer_acceptance.is_some() {
+                //
                 let payment_method_create_request =
                     payment_methods::get_payment_method_create_request(
                         Some(&save_payment_method_data.request.get_payment_method_data()),
@@ -763,6 +765,115 @@ where
     FData: mandate::MandateBehaviour + Clone,
 {
     todo!()
+}
+
+pub async fn pre_payment_tokenization (
+    state: &SessionState,
+    customer_id: Option<id_type::CustomerId>,
+    payment_method_data: Option<&domain::PaymentMethodData>,
+) -> RouterResult<(Option<network_tokenization::TokenResponse>, Option<String>)>
+{
+    let customer_id = customer_id.to_owned().get_required_value("customer_id")?;
+    match payment_method_data {
+        Some(domain::PaymentMethodData::Card(card)) => {
+            let network_tokenization_supported_card_networks = &state
+            .conf
+            .network_tokenization_supported_card_networks
+            .card_networks;
+
+            if card
+                .card_network
+                .as_ref()
+                .filter(|cn| network_tokenization_supported_card_networks.contains(cn))
+                .is_some()
+            {
+                match network_tokenization::make_card_network_tokenization_request(
+                    state,
+                    card,
+                    &customer_id,
+                )
+                .await
+                {
+                    Ok((_token_response, network_token_requestor_ref_id)) => {
+                        // Only proceed if the tokenization was successful
+                        // let _network_token_data = api::CardDetail {
+                        //     card_number: token_response.token.clone(),
+                        //     card_exp_month: token_response.token_expiry_month.clone(),
+                        //     card_exp_year: token_response.token_expiry_year.clone(),
+                        //     card_holder_name: None,
+                        //     nick_name: None,
+                        //     card_issuing_country: None,
+                        //     card_network: Some(token_response.card_brand.clone()),
+                        //     card_issuer: None,
+                        //     card_type: None,
+                        // };
+
+                        // let ntid_supported_connectors = &state
+                        // .conf
+                        // .network_transaction_id_supported_connectors
+                        // .connector_list;
+                        // //filered connectors list with ntid_supported_connectors
+                        // let filtered_ntid_supported_connectors =
+                        //     filter_ntid_supported_connectors(connectors.clone(), ntid_supported_connectors);
+            
+                        // //fetch connectors that support network tokenization flow
+                        // let network_tokenization_supported_connectors = &state
+                        //     .conf
+                        //     .network_tokenization_supported_connectors
+                        //     .connector_list;
+                        // //filered connectors list with ntid_supported_connectors and network_tokenization_supported_connectors
+                        // let filtered_nt_supported_connectors = filter_network_tokenization_supported_connectors(
+                        //     filtered_ntid_supported_connectors,
+                        //     network_tokenization_supported_connectors,
+                        // );
+
+                        let network_tokenization_service = &state.conf.network_tokenization_service;
+                        match (network_token_requestor_ref_id.clone(),network_tokenization_service) {
+                            (Some(token_ref),Some(network_tokenization_service))=>{
+                                let x = record_operation_time(
+                                async {
+                                    network_tokenization::get_network_token(
+                                        state,
+                                        customer_id,
+                                        token_ref,
+                                        network_tokenization_service.get_inner(),
+                                    )
+                                    .await
+                                    .inspect_err(
+                                        |e| logger::error!(error=?e, "Error while fetching token from tokenization service")
+                                    )
+                                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                                    .attach_printable("Fetch network token failed")
+                                },
+                                &metrics::FETCH_NETWORK_TOKEN_TIME,
+                                &metrics::CONTEXT,
+                                &[],
+                                )
+                                .await;
+                                match x {
+                                    Ok(token_response)=> Ok((Some(token_response), network_token_requestor_ref_id.clone())),
+                                    _ => Ok((None, None))
+                                }
+                                
+                            },
+                            _=>
+                                Ok((None, None))
+                            }
+                        
+
+                        
+                    }
+                    Err(err) => {
+                        logger::error!("Failed to tokenize card: {:?}", err);
+                        Ok((None, None)) //None will be returned in case of error when calling network tokenization service
+                    }
+                }
+            } else {
+                Ok((None, None)) //None will be returned in case of unsupported card network.
+            }
+        }
+        _ => Ok((None, None)), //network_token_resp is None in case of other payment methods
+    }
 }
 
 #[cfg(all(

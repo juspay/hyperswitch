@@ -370,5 +370,6 @@ pub async fn create_profile_from_merchant_account(
         is_auto_retries_enabled: request.is_auto_retries_enabled.unwrap_or_default(),
         max_auto_retries_enabled: request.max_auto_retries_enabled.map(i16::from),
         is_click_to_pay_enabled: request.is_click_to_pay_enabled,
+        is_tokenize_before_payment_enabled: request.is_network_tokenization_enabled,
     }))
 }

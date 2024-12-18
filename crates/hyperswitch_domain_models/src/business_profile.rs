@@ -59,6 +59,7 @@ pub struct Profile {
     pub is_auto_retries_enabled: bool,
     pub max_auto_retries_enabled: Option<i16>,
     pub is_click_to_pay_enabled: bool,
+    pub is_tokenize_before_payment_enabled: bool,
 }
 
 #[cfg(feature = "v1")]
@@ -100,6 +101,7 @@ pub struct ProfileSetter {
     pub is_auto_retries_enabled: bool,
     pub max_auto_retries_enabled: Option<i16>,
     pub is_click_to_pay_enabled: bool,
+    pub is_tokenize_before_payment_enabled: bool,
 }
 
 #[cfg(feature = "v1")]
@@ -148,6 +150,7 @@ impl From<ProfileSetter> for Profile {
             is_auto_retries_enabled: value.is_auto_retries_enabled,
             max_auto_retries_enabled: value.max_auto_retries_enabled,
             is_click_to_pay_enabled: value.is_click_to_pay_enabled,
+            is_tokenize_before_payment_enabled: value.is_tokenize_before_payment_enabled,
         }
     }
 }
@@ -198,6 +201,7 @@ pub struct ProfileGeneralUpdate {
     pub is_auto_retries_enabled: Option<bool>,
     pub max_auto_retries_enabled: Option<i16>,
     pub is_click_to_pay_enabled: Option<bool>,
+    pub is_tokenize_before_payment_enabled: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -261,6 +265,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     is_auto_retries_enabled,
                     max_auto_retries_enabled,
                     is_click_to_pay_enabled,
+                    is_tokenize_before_payment_enabled,
                 } = *update;
 
                 Self {
@@ -299,6 +304,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     is_auto_retries_enabled,
                     max_auto_retries_enabled,
                     is_click_to_pay_enabled,
+                    is_tokenize_before_payment_enabled,
                 }
             }
             ProfileUpdate::RoutingAlgorithmUpdate {
@@ -339,6 +345,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_auto_retries_enabled: None,
                 max_auto_retries_enabled: None,
                 is_click_to_pay_enabled: None,
+                is_tokenize_before_payment_enabled: None,
             },
             ProfileUpdate::DynamicRoutingAlgorithmUpdate {
                 dynamic_routing_algorithm,
@@ -377,6 +384,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_auto_retries_enabled: None,
                 max_auto_retries_enabled: None,
                 is_click_to_pay_enabled: None,
+                is_tokenize_before_payment_enabled: None,
             },
             ProfileUpdate::ExtendedCardInfoUpdate {
                 is_extended_card_info_enabled,
@@ -415,6 +423,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_auto_retries_enabled: None,
                 max_auto_retries_enabled: None,
                 is_click_to_pay_enabled: None,
+                is_tokenize_before_payment_enabled: None,
             },
             ProfileUpdate::ConnectorAgnosticMitUpdate {
                 is_connector_agnostic_mit_enabled,
@@ -453,6 +462,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_auto_retries_enabled: None,
                 max_auto_retries_enabled: None,
                 is_click_to_pay_enabled: None,
+                is_tokenize_before_payment_enabled: None,
             },
             ProfileUpdate::NetworkTokenizationUpdate {
                 is_network_tokenization_enabled,
@@ -491,6 +501,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_auto_retries_enabled: None,
                 max_auto_retries_enabled: None,
                 is_click_to_pay_enabled: None,
+                is_tokenize_before_payment_enabled: None,
             },
         }
     }
@@ -548,6 +559,7 @@ impl super::behaviour::Conversion for Profile {
             is_auto_retries_enabled: Some(self.is_auto_retries_enabled),
             max_auto_retries_enabled: self.max_auto_retries_enabled,
             is_click_to_pay_enabled: self.is_click_to_pay_enabled,
+            is_tokenize_before_payment_enabled: self.is_tokenize_before_payment_enabled,
         })
     }
 
@@ -617,6 +629,7 @@ impl super::behaviour::Conversion for Profile {
                 is_auto_retries_enabled: item.is_auto_retries_enabled.unwrap_or(false),
                 max_auto_retries_enabled: item.max_auto_retries_enabled,
                 is_click_to_pay_enabled: item.is_click_to_pay_enabled,
+                is_tokenize_before_payment_enabled: item.is_network_tokenization_enabled,
             })
         }
         .await
@@ -670,6 +683,7 @@ impl super::behaviour::Conversion for Profile {
             is_auto_retries_enabled: Some(self.is_auto_retries_enabled),
             max_auto_retries_enabled: self.max_auto_retries_enabled,
             is_click_to_pay_enabled: self.is_click_to_pay_enabled,
+            is_tokenize_before_payment_enabled: Some(self.is_tokenize_before_payment_enabled),
         })
     }
 }
@@ -715,6 +729,7 @@ pub struct Profile {
     pub version: common_enums::ApiVersion,
     pub is_network_tokenization_enabled: bool,
     pub is_click_to_pay_enabled: bool,
+    pub is_tokenize_before_payment_enabled: bool,
 }
 
 #[cfg(feature = "v2")]
@@ -756,6 +771,7 @@ pub struct ProfileSetter {
     pub is_tax_connector_enabled: bool,
     pub is_network_tokenization_enabled: bool,
     pub is_click_to_pay_enabled: bool,
+    pub is_tokenize_before_payment_enabled: bool,
 }
 
 #[cfg(feature = "v2")]
@@ -804,6 +820,7 @@ impl From<ProfileSetter> for Profile {
             version: consts::API_VERSION,
             is_network_tokenization_enabled: value.is_network_tokenization_enabled,
             is_click_to_pay_enabled: value.is_click_to_pay_enabled,
+            is_tokenize_before_payment_enabled: value.is_tokenize_before_payment_enabled,
         }
     }
 }
@@ -953,6 +970,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     is_auto_retries_enabled: None,
                     max_auto_retries_enabled: None,
                     is_click_to_pay_enabled,
+                    is_tokenize_before_payment_enabled: None,
                 }
             }
             ProfileUpdate::RoutingAlgorithmUpdate {
@@ -995,6 +1013,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_auto_retries_enabled: None,
                 max_auto_retries_enabled: None,
                 is_click_to_pay_enabled: None,
+                is_tokenize_before_payment_enabled: None,
             },
             ProfileUpdate::ExtendedCardInfoUpdate {
                 is_extended_card_info_enabled,
@@ -1035,6 +1054,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_auto_retries_enabled: None,
                 max_auto_retries_enabled: None,
                 is_click_to_pay_enabled: None,
+                is_tokenize_before_payment_enabled: None,
             },
             ProfileUpdate::ConnectorAgnosticMitUpdate {
                 is_connector_agnostic_mit_enabled,
@@ -1075,6 +1095,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_auto_retries_enabled: None,
                 max_auto_retries_enabled: None,
                 is_click_to_pay_enabled: None,
+                is_tokenize_before_payment_enabled: None,
             },
             ProfileUpdate::DefaultRoutingFallbackUpdate {
                 default_fallback_routing,
@@ -1115,6 +1136,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_auto_retries_enabled: None,
                 max_auto_retries_enabled: None,
                 is_click_to_pay_enabled: None,
+                is_tokenize_before_payment_enabled: None,
             },
             ProfileUpdate::NetworkTokenizationUpdate {
                 is_network_tokenization_enabled,
@@ -1155,6 +1177,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_auto_retries_enabled: None,
                 max_auto_retries_enabled: None,
                 is_click_to_pay_enabled: None,
+                is_tokenize_before_payment_enabled: None,
             },
             ProfileUpdate::CollectCvvDuringPaymentUpdate {
                 should_collect_cvv_during_payment,
@@ -1195,6 +1218,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_auto_retries_enabled: None,
                 max_auto_retries_enabled: None,
                 is_click_to_pay_enabled: None,
+                is_tokenize_before_payment_enabled: None,
             },
         }
     }
@@ -1255,6 +1279,7 @@ impl super::behaviour::Conversion for Profile {
             is_auto_retries_enabled: None,
             max_auto_retries_enabled: None,
             is_click_to_pay_enabled: self.is_click_to_pay_enabled,
+            is_tokenize_before_payment_enabled: self.is_tokenize_before_payment_enabled,
         })
     }
 
@@ -1324,6 +1349,7 @@ impl super::behaviour::Conversion for Profile {
                 version: item.version,
                 is_network_tokenization_enabled: item.is_network_tokenization_enabled,
                 is_click_to_pay_enabled: item.is_click_to_pay_enabled,
+                is_tokenize_before_payment_enabled: item.is_tokenize_before_payment_enabled,
             })
         }
         .await
@@ -1380,6 +1406,7 @@ impl super::behaviour::Conversion for Profile {
             is_auto_retries_enabled: None,
             max_auto_retries_enabled: None,
             is_click_to_pay_enabled: self.is_click_to_pay_enabled,
+            is_tokenize_before_payment_enabled: self.is_tokenize_before_payment_enabled,
         })
     }
 }
