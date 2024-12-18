@@ -3963,7 +3963,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/DynamicRoutingFeatures"
+                "$ref": "#/components/schemas/SuccessBasedRoutingConfig"
               }
             }
           },
@@ -4110,7 +4110,7 @@
           {
             "name": "enable",
             "in": "query",
-            "description": "Feature to enable for success based routing",
+            "description": "Feature to enable for elimination based routing",
             "required": true,
             "schema": {
               "$ref": "#/components/schemas/DynamicRoutingFeatures"
@@ -4130,6 +4130,174 @@
           },
           "400": {
             "description": "Request body is malformed"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Resource missing"
+          },
+          "422": {
+            "description": "Unprocessable request"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          },
+          {
+            "jwt_key": []
+          }
+        ]
+      }
+    },
+    "/account/:account_id/business_profile/:profile_id/dynamic_routing/contracts/toggle": {
+      "post": {
+        "tags": [
+          "Routing"
+        ],
+        "summary": "Routing - Toggle Contract routing for profile",
+        "description": "Create a Contract based dynamic routing algorithm",
+        "operationId": "Toggle contract routing algorithm",
+        "parameters": [
+          {
+            "name": "account_id",
+            "in": "path",
+            "description": "Merchant id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "profile_id",
+            "in": "path",
+            "description": "Profile id under which Dynamic routing needs to be toggled",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "enable",
+            "in": "query",
+            "description": "Feature to enable for contract based routing",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/DynamicRoutingFeatures"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ContractBasedRoutingConfig"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Routing Algorithm created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoutingDictionaryRecord"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request body is malformed"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Resource missing"
+          },
+          "422": {
+            "description": "Unprocessable request"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          },
+          {
+            "jwt_key": []
+          }
+        ]
+      }
+    },
+    "/account/{account_id}/business_profile/{profile_id}/dynamic_routing/contracts/config/{algorithm_id}": {
+      "patch": {
+        "tags": [
+          "Routing"
+        ],
+        "summary": "Routing - Update contract based dynamic routing config for profile",
+        "description": "Update contract based dynamic routing algorithm",
+        "operationId": "Update contract based dynamic routing configs",
+        "parameters": [
+          {
+            "name": "account_id",
+            "in": "path",
+            "description": "Merchant id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "profile_id",
+            "in": "path",
+            "description": "Profile id under which Dynamic routing needs to be toggled",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "algorithm_id",
+            "in": "path",
+            "description": "Contract based routing algorithm id which was last activated to update the config",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ContractBasedRoutingConfig"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Routing Algorithm updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoutingDictionaryRecord"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Update body is malformed"
           },
           "403": {
             "description": "Forbidden"
@@ -9159,6 +9327,54 @@
         },
         "additionalProperties": false
       },
+      "ContractBasedRoutingConfig": {
+        "type": "object",
+        "properties": {
+          "config": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ContractBasedRoutingConfigBody"
+              }
+            ],
+            "nullable": true
+          },
+          "label_info": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LabelInformation"
+            },
+            "nullable": true
+          }
+        }
+      },
+      "ContractBasedRoutingConfigBody": {
+        "type": "object",
+        "properties": {
+          "constants": {
+            "type": "array",
+            "items": {
+              "type": "number",
+              "format": "double"
+            },
+            "nullable": true
+          },
+          "time_scale": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ContractBasedTimeScale"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "ContractBasedTimeScale": {
+        "type": "string",
+        "enum": [
+          "day",
+          "month"
+        ]
+      },
       "CountryAlpha2": {
         "type": "string",
         "enum": [
@@ -12458,6 +12674,33 @@
           "session_id": {
             "type": "string",
             "description": "The identifier for the session"
+          }
+        }
+      },
+      "LabelInformation": {
+        "type": "object",
+        "required": [
+          "label",
+          "target_count",
+          "target_time",
+          "mca_id"
+        ],
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "target_count": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "target_time": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "mca_id": {
+            "$ref": "#/components/schemas/common_utils.id_type.MerchantConnectorAccountId"
           }
         }
       },

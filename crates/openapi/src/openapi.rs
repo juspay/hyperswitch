@@ -162,6 +162,8 @@ Never share your secret api keys. Keep them guarded and secure.
         routes::routing::success_based_routing_update_configs,
         routes::routing::toggle_success_based_routing,
         routes::routing::toggle_elimination_routing,
+        routes::routing::contract_based_routing_setup_config,
+        routes::routing::contract_based_routing_update_configs,
 
         // Routes for blocklist
         routes::blocklist::remove_entry_from_blocklist,
@@ -596,6 +598,10 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::routing::DynamicRoutingConfigParams,
         api_models::routing::CurrentBlockThreshold,
         api_models::routing::SuccessBasedRoutingConfigBody,
+        api_models::routing::ContractBasedRoutingConfig,
+        api_models::routing::ContractBasedRoutingConfigBody,
+        api_models::routing::LabelInformation,
+        api_models::routing::ContractBasedTimeScale,
         api_models::routing::LinkedRoutingConfigRetrieveResponse,
         api_models::routing::RoutingRetrieveResponse,
         api_models::routing::ProfileDefaultRoutingConfig,
