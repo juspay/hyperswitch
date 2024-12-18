@@ -48,7 +48,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::MerchantsAccountDelete
             | Flow::MerchantTransferKey
             | Flow::MerchantAccountList
-            | Flow::EnablePlatformAccount=> Self::MerchantAccount,
+            | Flow::EnablePlatformAccount => Self::MerchantAccount,
 
             Flow::OrganizationCreate | Flow::OrganizationRetrieve | Flow::OrganizationUpdate => {
                 Self::Organization

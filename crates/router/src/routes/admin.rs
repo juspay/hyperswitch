@@ -914,6 +914,7 @@ pub async fn merchant_account_transfer_keys(
 /// Merchant Account - Platform Account
 ///
 /// Enable platform account
+#[cfg(feature = "platform")]
 #[instrument(skip_all)]
 pub async fn merchant_account_enable_platform_account(
     state: web::Data<AppState>,
@@ -927,7 +928,7 @@ pub async fn merchant_account_enable_platform_account(
         state,
         &req,
         merchant_id,
-        |state, _, req, _|  enable_platform_account(state, req),
+        |state, _, req, _| enable_platform_account(state, req),
         &auth::AdminApiAuth,
         api_locking::LockAction::NotApplicable,
     ))

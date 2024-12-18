@@ -11,7 +11,9 @@ use api_models::payouts;
 use api_models::{payment_methods::PaymentMethodListRequest, payments};
 use async_trait::async_trait;
 use common_enums::TokenPurpose;
-use common_utils::{date_time, ext_traits::AsyncExt, id_type};
+#[cfg(feature = "platform")]
+use common_utils::ext_traits::AsyncExt;
+use common_utils::{date_time, id_type};
 use error_stack::{report, ResultExt};
 use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
 use masking::PeekInterface;
@@ -463,8 +465,16 @@ where
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
         // Get connected merchant account if API call is done by Platform merchant account on behalf of connected merchant account
-        let (merchant, platform_merchant_account) =
-            get_platform_merchant_account(state, request_headers, merchant).await?;
+        let (merchant, platform_merchant_account) = {
+            #[cfg(feature = "platform")]
+            {
+                get_platform_merchant_account(state, request_headers, merchant).await?
+            }
+            #[cfg(not(feature = "platform"))]
+            {
+                (merchant, None)
+            }
+        };
 
         let key_store = {
             if platform_merchant_account.is_some() {
@@ -573,8 +583,16 @@ where
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
         // Get connected merchant account if API call is done by Platform merchant account on behalf of connected merchant account
-        let (merchant, platform_merchant_account) =
-            get_platform_merchant_account(state, request_headers, merchant).await?;
+        let (merchant, platform_merchant_account) = {
+            #[cfg(feature = "platform")]
+            {
+                get_platform_merchant_account(state, request_headers, merchant).await?
+            }
+            #[cfg(not(feature = "platform"))]
+            {
+                (merchant, None)
+            }
+        };
 
         let auth = AuthenticationData {
             merchant_account: merchant,
@@ -741,6 +759,7 @@ where
 }
 
 #[cfg(all(feature = "partial-auth", feature = "v1"))]
+#[allow(unused)]
 async fn construct_authentication_data<A>(
     state: &A,
     merchant_id: &id_type::MerchantId,
@@ -771,8 +790,16 @@ where
         .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
     // Get connected merchant account if API call is done by Platform merchant account on behalf of connected merchant account
-    let (merchant, platform_merchant_account) =
-        get_platform_merchant_account(state, request_headers, merchant).await?;
+    let (merchant, platform_merchant_account) = {
+        #[cfg(feature = "platform")]
+        {
+            get_platform_merchant_account(state, request_headers, merchant).await?
+        }
+        #[cfg(not(feature = "platform"))]
+        {
+            (merchant, None)
+        }
+    };
 
     let auth = AuthenticationData {
         merchant_account: merchant,
@@ -1049,7 +1076,9 @@ where
         request_headers: &HeaderMap,
         state: &A,
     ) -> RouterResult<(AuthenticationData, AuthenticationType)> {
+        #[cfg(feature = "platform")]
         throw_error_if_platform_merchant_authentication_required(request_headers)?;
+
         AdminApiAuth
             .authenticate_and_fetch(request_headers, state)
             .await?;
@@ -1110,7 +1139,9 @@ where
         request_headers: &HeaderMap,
         state: &A,
     ) -> RouterResult<(AuthenticationDataWithoutProfile, AuthenticationType)> {
+        #[cfg(feature = "platform")]
         throw_error_if_platform_merchant_authentication_required(request_headers)?;
+
         AdminApiAuth
             .authenticate_and_fetch(request_headers, state)
             .await?;
@@ -1210,6 +1241,8 @@ impl<'a> HeaderMapStruct<'a> {
             })
     }
 
+    // Remove feature flag if required.
+    #[cfg(feature = "platform")]
     pub fn get_id_type_from_header_if_present<T>(&self, key: &str) -> RouterResult<Option<T>>
     where
         T: TryFrom<
@@ -1302,7 +1335,9 @@ where
         request_headers: &HeaderMap,
         state: &A,
     ) -> RouterResult<(AuthenticationData, AuthenticationType)> {
+        #[cfg(feature = "platform")]
         throw_error_if_platform_merchant_authentication_required(request_headers)?;
+
         AdminApiAuth
             .authenticate_and_fetch(request_headers, state)
             .await?;
@@ -1364,7 +1399,9 @@ where
         request_headers: &HeaderMap,
         state: &A,
     ) -> RouterResult<(AuthenticationDataWithoutProfile, AuthenticationType)> {
+        #[cfg(feature = "platform")]
         throw_error_if_platform_merchant_authentication_required(request_headers)?;
+
         AdminApiAuth
             .authenticate_and_fetch(request_headers, state)
             .await?;
@@ -1431,6 +1468,7 @@ pub struct MerchantIdAuth(pub id_type::MerchantId);
 
 #[cfg(feature = "v1")]
 #[async_trait]
+#[allow(unused)]
 impl<A> AuthenticateAndFetch<AuthenticationData, A> for MerchantIdAuth
 where
     A: SessionStateInfo + Sync,
@@ -1440,6 +1478,7 @@ where
         request_headers: &HeaderMap,
         state: &A,
     ) -> RouterResult<(AuthenticationData, AuthenticationType)> {
+        #[cfg(feature = "platform")]
         throw_error_if_platform_merchant_authentication_required(request_headers)?;
 
         let key_manager_state = &(&state.session_state()).into();
@@ -1485,7 +1524,9 @@ where
         request_headers: &HeaderMap,
         state: &A,
     ) -> RouterResult<(AuthenticationData, AuthenticationType)> {
+        #[cfg(feature = "platform")]
         throw_error_if_platform_merchant_authentication_required(request_headers)?;
+
         let key_manager_state = &(&state.session_state()).into();
         let profile_id =
             get_id_type_by_key_from_headers(headers::X_PROFILE_ID.to_string(), request_headers)?
@@ -1549,7 +1590,9 @@ where
         request_headers: &HeaderMap,
         state: &A,
     ) -> RouterResult<(AuthenticationData, AuthenticationType)> {
+        #[cfg(feature = "platform")]
         throw_error_if_platform_merchant_authentication_required(request_headers)?;
+
         let key_manager_state = &(&state.session_state()).into();
         let key_store = state
             .store()
@@ -1669,6 +1712,7 @@ where
         request_headers: &HeaderMap,
         state: &A,
     ) -> RouterResult<(AuthenticationData, AuthenticationType)> {
+        #[cfg(feature = "platform")]
         throw_error_if_platform_merchant_authentication_required(request_headers)?;
 
         let publishable_key =
@@ -3332,6 +3376,7 @@ where
     }
 }
 
+#[cfg(feature = "platform")]
 async fn get_connected_merchant_account<A>(
     state: &A,
     connected_merchant_id: id_type::MerchantId,
@@ -3367,6 +3412,7 @@ where
     Ok(connected_merchant_account)
 }
 
+#[cfg(feature = "platform")]
 async fn get_platform_merchant_account<A>(
     state: &A,
     request_headers: &HeaderMap,
@@ -3404,6 +3450,7 @@ where
     }
 }
 
+#[cfg(feature = "platform")]
 fn throw_error_if_platform_merchant_authentication_required(
     request_headers: &HeaderMap,
 ) -> RouterResult<()> {
