@@ -1285,7 +1285,7 @@ pub struct BrowserInformation {
     /// The os version of the client device
     pub os_version: Option<String>,
 
-    /// The browser type of the client device
+    /// The device model of the client
     pub device_model: Option<String>,
 }
 
