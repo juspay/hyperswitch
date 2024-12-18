@@ -3481,29 +3481,26 @@ pub async fn get_session_token_for_click_to_pay(
 }
 
 fn validate_customer_details_for_click_to_pay(customer_details: &CustomerData) -> RouterResult<()> {
-    if customer_details.email.is_some() {
-        return Ok(());
-    }
-
     match (
         customer_details.phone.as_ref(),
         customer_details.phone_country_code.as_ref(),
+        customer_details.email.as_ref()
     ) {
-        (Some(_), Some(_)) => Ok(()),
-        (None, None) => Err(errors::ApiErrorResponse::MissingRequiredFields {
-            field_names: vec!["phone", "phone_country_code"],
-        })
-        .attach_printable(
-            "phone number && phone_country_code is not present in payment_intent.customer_details",
-        ),
-        (None, Some(_)) => Err(errors::ApiErrorResponse::MissingRequiredField {
+        (None, None, Some(_)) => Ok(()),
+        (Some(_), Some(_), Some(_)) => Ok(()),
+        (Some(_), Some(_), None) => Ok(()),
+        (None, Some(_), None) => Err(errors::ApiErrorResponse::MissingRequiredField {
             field_name: "phone",
         })
         .attach_printable("phone number is not present in payment_intent.customer_details"),
-        (Some(_), None) => Err(errors::ApiErrorResponse::MissingRequiredField {
+        (Some(_), None, None) => Err(errors::ApiErrorResponse::MissingRequiredField {
             field_name: "phone_country_code",
         })
         .attach_printable("phone_country_code is not present in payment_intent.customer_details"),
+        (_, _, _) => Err(errors::ApiErrorResponse::MissingRequiredFields {
+            field_names: vec!["phone", "phone_country_code", "email"],
+        })
+        .attach_printable("either of phone, phone_country_code or email is not present in payment_intent.customer_details"),
     }
 }
 
