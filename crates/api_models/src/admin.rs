@@ -695,7 +695,7 @@ pub struct MerchantConnectorCreate {
 
     /// An object containing the details about the payment methods that need to be enabled under this merchant connector account
     #[schema(value_type = PaymentMethodsEnabled)]
-    pub payment_methods_enabled: Option<Vec<common_utils::types::PaymentMethodsEnabled>>,
+    pub payment_methods_enabled: Option<Vec<common_types::payment_methods::PaymentMethodsEnabled>>,
 
     /// Webhook details of this merchant connector
     #[schema(example = json!({
@@ -1031,7 +1031,7 @@ pub struct MerchantConnectorResponse {
 
     /// An object containing the details about the payment methods that need to be enabled under this merchant connector account
     #[schema(value_type = Vec<PaymentMethodsEnabled>)]
-    pub payment_methods_enabled: Option<Vec<common_utils::types::PaymentMethodsEnabled>>,
+    pub payment_methods_enabled: Option<Vec<common_types::payment_methods::PaymentMethodsEnabled>>,
 
     /// Webhook details of this merchant connector
     #[schema(example = json!({
@@ -1328,7 +1328,7 @@ pub struct MerchantConnectorListResponse {
 
     /// An object containing the details about the payment methods that need to be enabled under this merchant connector account
     #[schema(value_type = Vec<PaymentMethodsEnabled>)]
-    pub payment_methods_enabled: Option<Vec<common_utils::types::PaymentMethodsEnabled>>,
+    pub payment_methods_enabled: Option<Vec<common_types::payment_methods::PaymentMethodsEnabled>>,
 
     /// A boolean value to indicate if the connector is disabled. By default, its value is false.
     #[schema(default = false, example = false)]
@@ -1487,7 +1487,7 @@ pub struct MerchantConnectorUpdate {
 
     /// An object containing the details about the payment methods that need to be enabled under this merchant connector account
     #[schema(value_type = Option<Vec<PaymentMethodsEnabled>>)]
-    pub payment_methods_enabled: Option<Vec<common_utils::types::PaymentMethodsEnabled>>,
+    pub payment_methods_enabled: Option<Vec<common_types::payment_methods::PaymentMethodsEnabled>>,
 
     /// Webhook details of this merchant connector
     #[schema(example = json!({
