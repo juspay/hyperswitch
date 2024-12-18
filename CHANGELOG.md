@@ -4,6 +4,14 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.12.16.0-hotfix2
+
+### Bug Fixes
+
+- **payment_methods:** Card_network and card_scheme should be consistent ([#6867](https://github.com/juspay/hyperswitch/pull/6867)) ([`c40fdae`](https://github.com/juspay/hyperswitch/commit/c40fdae0f57895016821295975370835501d3710))
+
+- - -
+
 ## 2024.12.16.0-hotfix1
 
 ### Refactors
