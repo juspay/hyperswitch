@@ -3636,6 +3636,7 @@ impl ForeignFrom<api_models::admin::PaymentLinkConfigRequest>
                     background_image.clone(),
                 )
             }),
+            payment_button_text: config.payment_button_text,
         }
     }
 }
@@ -3698,6 +3699,7 @@ impl ForeignFrom<diesel_models::PaymentLinkConfigRequestForPayments>
                     background_image.clone(),
                 )
             }),
+            payment_button_text: config.payment_button_text,
         }
     }
 }
