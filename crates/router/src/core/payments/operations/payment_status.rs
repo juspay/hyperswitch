@@ -523,7 +523,7 @@ async fn get_tracker_for_sync<
         tax_data: None,
         session_id: None,
         service_details: None,
-        vault_operation:None, 
+        vault_operation: None,
     };
 
     let get_trackers_response = operations::GetTrackerResponse {

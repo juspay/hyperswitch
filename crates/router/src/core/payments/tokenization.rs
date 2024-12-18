@@ -12,7 +12,9 @@ use common_enums::{ConnectorMandateStatus, PaymentMethod};
 use common_utils::{
     crypto::Encryptable,
     ext_traits::{AsyncExt, Encode, ValueExt},
-    id_type, pii,
+    id_type,
+    metrics::utils::record_operation_time,
+    pii,
 };
 use error_stack::{report, ResultExt};
 use masking::{ExposeInterface, Secret};
@@ -806,6 +808,82 @@ where
     FData: mandate::MandateBehaviour + Clone,
 {
     todo!()
+}
+
+pub async fn pre_payment_tokenization(
+    state: &SessionState,
+    customer_id: Option<id_type::CustomerId>,
+    payment_method_data: Option<&domain::PaymentMethodData>,
+) -> RouterResult<(Option<network_tokenization::TokenResponse>, Option<String>)> {
+    let customer_id = customer_id.to_owned().get_required_value("customer_id")?;
+    match payment_method_data {
+        Some(domain::PaymentMethodData::Card(card)) => {
+            let network_tokenization_supported_card_networks = &state
+                .conf
+                .network_tokenization_supported_card_networks
+                .card_networks;
+
+            if card
+                .card_network
+                .as_ref()
+                .filter(|cn| network_tokenization_supported_card_networks.contains(cn))
+                .is_some()
+            {
+                match network_tokenization::make_card_network_tokenization_request(
+                    state,
+                    card,
+                    &customer_id,
+                )
+                .await
+                {
+                    Ok((_token_response, network_token_requestor_ref_id)) => {
+                        let network_tokenization_service = &state.conf.network_tokenization_service;
+                        match (
+                            network_token_requestor_ref_id.clone(),
+                            network_tokenization_service,
+                        ) {
+                            (Some(token_ref), Some(network_tokenization_service)) => {
+                                let network_token = record_operation_time(
+                                async {
+                                    network_tokenization::get_network_token(
+                                        state,
+                                        customer_id,
+                                        token_ref,
+                                        network_tokenization_service.get_inner(),
+                                    )
+                                    .await
+                                    .inspect_err(
+                                        |e| logger::error!(error=?e, "Error while fetching token from tokenization service")
+                                    )
+                                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                                    .attach_printable("Fetch network token failed")
+                                },
+                                &metrics::FETCH_NETWORK_TOKEN_TIME,
+                                &[],
+                                )
+                                .await;
+                                match network_token {
+                                    Ok(token_response) => Ok((
+                                        Some(token_response),
+                                        network_token_requestor_ref_id.clone(),
+                                    )),
+                                    _ => Ok((None, None)),
+                                }
+                            }
+                            _ => Ok((None, None)),
+                        }
+                    }
+                    Err(err) => {
+                        logger::error!("Failed to tokenize card: {:?}", err);
+                        Ok((None, None)) //None will be returned in case of error when calling network tokenization service
+                    }
+                }
+            } else {
+                Ok((None, None)) //None will be returned in case of unsupported card network.
+            }
+        }
+        _ => Ok((None, None)), //network_token_resp is None in case of other payment methods
+    }
 }
 
 #[cfg(all(

@@ -440,6 +440,15 @@ where
                 }
                 _ => (),
             };
+            let customer_acceptance = payment_data
+                .get_payment_attempt()
+                .customer_acceptance
+                .clone();
+            let customer_id = payment_data.get_payment_intent().customer_id.clone();
+            let payment_method_data = payment_data.get_payment_method_data();
+            let is_pre_tokenization_enabled = business_profile.is_network_tokenization_enabled
+                && business_profile.is_tokenize_before_payment_enabled
+                && customer_acceptance.is_some();
             payment_data = match connector_details {
                 ConnectorCallType::PreDetermined(connector) => {
                     #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
@@ -460,6 +469,62 @@ where
                     } else {
                         None
                     };
+                    let filtered_nt_supported_connectors =
+                        get_filtered_nt_supported_connectors(&state, [connector.clone()].to_vec());
+
+                    let is_nt_supported_connector_available =
+                        filtered_nt_supported_connectors.first().is_some();
+
+                    if is_pre_tokenization_enabled && is_nt_supported_connector_available {
+                        let pre_tokenization_response = tokenization::pre_payment_tokenization(
+                            state,
+                            customer_id,
+                            payment_method_data,
+                        )
+                        .await?;
+                        let pm_data = payment_data.get_payment_method_data();
+                        match pre_tokenization_response {
+                            (Some(token_response), Some(_token_ref)) => {
+                                let token_data = domain::NetworkTokenData {
+                                    token_number: token_response.authentication_details.token,
+                                    token_exp_month: token_response.token_details.exp_month,
+                                    token_exp_year: token_response.token_details.exp_year,
+                                    token_cryptogram: Some(
+                                        token_response.authentication_details.cryptogram,
+                                    ),
+                                    card_issuer: None,
+                                    card_network: Some(token_response.network),
+                                    card_type: None,
+                                    card_issuing_country: None,
+                                    bank_code: None,
+                                    nick_name: None,
+                                    eci: token_response.eci,
+                                };
+                                match pm_data {
+                                    Some(domain::PaymentMethodData::Card(card_data)) => {
+                                        let vault_data = VaultData {
+                                            card_data: card_data.clone(),
+                                            network_token_data: token_data.clone(),
+                                        };
+                                        payment_data.set_vault_operation(
+                                            PaymentMethodDataAction::VaultData(vault_data.clone()),
+                                        )
+                                    }
+                                    _ => (),
+                                }
+                                payment_data.set_payment_method_data(Some(
+                                    domain::PaymentMethodData::NetworkToken(token_data),
+                                ));
+                            }
+                            _ => match pm_data {
+                                Some(domain::PaymentMethodData::Card(card_data)) => payment_data
+                                    .set_vault_operation(PaymentMethodDataAction::SaveCardData(
+                                        card_data.clone(),
+                                    )),
+                                _ => (),
+                            },
+                        }
+                    }
                     let (router_data, mca) = call_connector_service(
                         state,
                         req_state.clone(),
@@ -545,9 +610,65 @@ where
                             .map_err(|e| logger::error!(routable_connector_error=?e))
                             .unwrap_or_default();
 
+                            let filtered_nt_supported_connectors =
+                            get_filtered_nt_supported_connectors(&state, connectors.clone());
+                    let is_nt_supported_connector_available =
+                        filtered_nt_supported_connectors.first().is_some();
+
                     let mut connectors = connectors.into_iter();
 
                     let connector_data = get_connector_data(&mut connectors)?;
+
+                    if is_pre_tokenization_enabled && is_nt_supported_connector_available {
+                        let pre_tokenization_response = tokenization::pre_payment_tokenization(
+                            state,
+                            customer_id,
+                            payment_method_data,
+                        )
+                        .await?;
+                        let pm_data = payment_data.get_payment_method_data();
+                        match pre_tokenization_response {
+                            (Some(token_response), Some(_token_ref)) => {
+                                let token_data = domain::NetworkTokenData {
+                                    token_number: token_response.authentication_details.token,
+                                    token_exp_month: token_response.token_details.exp_month,
+                                    token_exp_year: token_response.token_details.exp_year,
+                                    token_cryptogram: Some(
+                                        token_response.authentication_details.cryptogram,
+                                    ),
+                                    card_issuer: None,
+                                    card_network: Some(token_response.network),
+                                    card_type: None,
+                                    card_issuing_country: None,
+                                    bank_code: None,
+                                    nick_name: None,
+                                    eci: token_response.eci,
+                                };
+                                match pm_data {
+                                    Some(domain::PaymentMethodData::Card(card_data)) => {
+                                        let vault_data = VaultData {
+                                            card_data: card_data.clone(),
+                                            network_token_data: token_data.clone(),
+                                        };
+                                        payment_data.set_vault_operation(
+                                            PaymentMethodDataAction::VaultData(vault_data.clone()),
+                                        )
+                                    }
+                                    _ => (),
+                                }
+                                payment_data.set_payment_method_data(Some(
+                                    domain::PaymentMethodData::NetworkToken(token_data),
+                                ));
+                            }
+                            _ => match pm_data {
+                                Some(domain::PaymentMethodData::Card(card_data)) => payment_data
+                                    .set_vault_operation(PaymentMethodDataAction::SaveCardData(
+                                        card_data.clone(),
+                                    )),
+                                _ => (),
+                            },
+                        }
+                    }
 
                     let schedule_time = if should_add_task_to_process_tracker {
                         payment_sync::get_sync_process_schedule_time(
@@ -4436,8 +4557,10 @@ where
 }
 
 #[derive(Clone, serde::Serialize, Debug)]
-pub enum PaymentMethodDataAction{
-    VaultData(VaultData)
+pub enum PaymentMethodDataAction {
+    SaveCardData(hyperswitch_domain_models::payment_method_data::Card),
+    SaveNetworkTokenData(hyperswitch_domain_models::payment_method_data::NetworkTokenData),
+    VaultData(VaultData),
 }
 
 #[derive(Clone, serde::Serialize, Debug)]
@@ -5637,25 +5760,8 @@ where
                 .get_required_value("payment_method_info")?
                 .clone();
 
-            //fetch connectors that support ntid flow
-            let ntid_supported_connectors = &state
-                .conf
-                .network_transaction_id_supported_connectors
-                .connector_list;
-            //filered connectors list with ntid_supported_connectors
-            let filtered_ntid_supported_connectors =
-                filter_ntid_supported_connectors(connectors.clone(), ntid_supported_connectors);
-
-            //fetch connectors that support network tokenization flow
-            let network_tokenization_supported_connectors = &state
-                .conf
-                .network_tokenization_supported_connectors
-                .connector_list;
-            //filered connectors list with ntid_supported_connectors and network_tokenization_supported_connectors
-            let filtered_nt_supported_connectors = filter_network_tokenization_supported_connectors(
-                filtered_ntid_supported_connectors,
-                network_tokenization_supported_connectors,
-            );
+            let filtered_nt_supported_connectors =
+                get_filtered_nt_supported_connectors(&state, connectors.clone());
 
             let action_type = decide_action_type(
                 state,
@@ -5938,6 +6044,31 @@ pub fn filter_network_tokenization_supported_connectors(
         .into_iter()
         .filter(|data| network_tokenization_supported_connectors.contains(&data.connector_name))
         .collect()
+}
+
+pub fn get_filtered_nt_supported_connectors(
+    state: &SessionState,
+    connectors: Vec<api::ConnectorData>,
+) -> Vec<api::ConnectorData> {
+    //fetch connectors that support ntid flow
+    let ntid_supported_connectors = &state
+        .conf
+        .network_transaction_id_supported_connectors
+        .connector_list;
+    //filered connectors list with ntid_supported_connectors
+    let filtered_ntid_supported_connectors =
+        filter_ntid_supported_connectors(connectors.clone(), ntid_supported_connectors);
+
+    //fetch connectors that support network tokenization flow
+    let network_tokenization_supported_connectors = &state
+        .conf
+        .network_tokenization_supported_connectors
+        .connector_list;
+    //filered connectors list with ntid_supported_connectors and network_tokenization_supported_connectors
+    filter_network_tokenization_supported_connectors(
+        filtered_ntid_supported_connectors,
+        network_tokenization_supported_connectors,
+    )
 }
 
 #[cfg(feature = "v1")]
@@ -6967,6 +7098,7 @@ pub trait OperationSessionSetters<F> {
         straight_through_algorithm: serde_json::Value,
     );
     fn set_connector_in_payment_attempt(&mut self, connector: Option<String>);
+    fn set_vault_operation(&mut self, vault_operation: PaymentMethodDataAction);
 }
 
 #[cfg(feature = "v1")]
@@ -7215,6 +7347,10 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentData<F> {
     fn set_connector_in_payment_attempt(&mut self, connector: Option<String>) {
         self.payment_attempt.connector = connector;
     }
+
+    fn set_vault_operation(&mut self, vault_operation: PaymentMethodDataAction) {
+        self.vault_operation = Some(vault_operation);
+    }
 }
 
 #[cfg(feature = "v2")]
@@ -7426,6 +7562,10 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentIntentData<F> {
     }
 
     fn set_connector_in_payment_attempt(&mut self, _connector: Option<String>) {
+        todo!()
+    }
+
+    fn set_vault_operation(&mut self, vault_operation: PaymentMethodDataAction) {
         todo!()
     }
 }
@@ -7641,6 +7781,10 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentConfirmData<F> {
     fn set_connector_in_payment_attempt(&mut self, connector: Option<String>) {
         self.payment_attempt.connector = connector;
     }
+
+    fn set_vault_operation(&mut self, vault_operation: PaymentMethodDataAction) {
+        self.vault_operation = Some(vault_operation);
+    }
 }
 
 #[cfg(feature = "v2")]
@@ -7852,6 +7996,10 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentStatusData<F> {
     }
 
     fn set_connector_in_payment_attempt(&mut self, connector: Option<String>) {
+        todo!()
+    }
+
+    fn set_vault_operation(&mut self, vault_operation: PaymentMethodDataAction) {
         todo!()
     }
 }
