@@ -11,10 +11,7 @@ use std::{
 
 #[cfg(feature = "olap")]
 use api_models::payments as payment_enums;
-use api_models::{
-    self, enums as api_enums, payment_methods::PaymentsMandateReferenceRecord,
-    payouts::PayoutLinkResponse,
-};
+use api_models::{self, enums as api_enums, payouts::PayoutLinkResponse};
 #[cfg(feature = "payout_retry")]
 use common_enums::PayoutRetryType;
 use common_utils::{
@@ -27,6 +24,8 @@ use common_utils::{
 use diesel_models::{
     enums as storage_enums,
     generic_link::{GenericLinkNew, PayoutLink},
+    CommonMandateReference, PaymentsMandateReference, PaymentsMandateReferenceRecord,
+    PayoutsMandateReference, PayoutsMandateReferenceRecord,
 };
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use diesel_models::{
@@ -2109,56 +2108,23 @@ pub async fn create_recipient_disburse_account(
             ) {
                 let connector_mandate_details = HashMap::from([(
                     merchant_connector_id.clone(),
-                    PaymentsMandateReferenceRecord {
-                        connector_mandate_id: connector_payout_id.clone(),  // then what will connector_mandate_id be
-                        payment_method_type: Some(api_enums::PaymentMethodType::foreign_from(
-                            &payout_method_data.clone(),
-                        )),
-                        original_payment_authorized_amount: Some(
-                            payout_data.payouts.amount.get_amount_as_i64(),
-                        ),
-                        original_payment_authorized_currency: Some(
-                            payout_data.payouts.destination_currency,
-                        ),
-                        payment_instrument_id: Some(Secret::new(connector_payout_id.clone())),
+                    PayoutsMandateReferenceRecord {
+                        transfer_method_id: Some(connector_payout_id),
                     },
                 )]);
 
+                let common_connector_mandate = CommonMandateReference {
+                    payments: None, // doubt here, i think i need to fetch it here.
+                    payouts: Some(PayoutsMandateReference(connector_mandate_details)),
+                };
+
                 let connector_mandate_details_value =
-                    serde_json::to_value(connector_mandate_details).ok();
+                    serde_json::to_value(common_connector_mandate).ok();
 
                 if let Some(pm_method) = payout_data.payment_method.clone() {
                     let pm_update =
                         diesel_models::PaymentMethodUpdate::ConnectorMandateDetailsUpdate {
-                            #[cfg(all(
-                                any(feature = "v1", feature = "v2"),
-                                not(feature = "payment_methods_v2")
-                            ))]
                             connector_mandate_details: connector_mandate_details_value,
-
-                            #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-                            connector_mandate_details: Some(PaymentsMandateReference(
-                                HashMap::from([(
-                                    merchant_connector_id,
-                                    PaymentsMandateReferenceRecordV2 {
-                                        connector_mandate_id: connector_payout_id,
-                                        payment_method_subtype: Some(
-                                            api_enums::PaymentMethodType::foreign_from(
-                                                payout_method_data,
-                                            ),
-                                        ),
-                                        original_payment_authorized_amount: Some(
-                                            payout_data.payouts.amount.get_amount_as_i64(),
-                                        ),
-                                        original_payment_authorized_currency: Some(
-                                            payout_data.payouts.destination_currency,
-                                        ),
-                                        mandate_metadata: None,
-                                        connector_mandate_status: None,
-                                        connector_mandate_request_reference_id: None,
-                                    },
-                                )]),
-                            )),
                         };
 
                     payout_data.payment_method = Some(
