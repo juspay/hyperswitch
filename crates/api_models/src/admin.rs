@@ -1970,6 +1970,9 @@ pub struct ProfileCreate {
     /// Indicates if click to pay is enabled or not.
     #[serde(default)]
     pub is_click_to_pay_enabled: bool,
+
+    ///Indicates if clear pan retries is enabled or not.
+    pub is_clear_pan_retries_enabled: Option<bool>,
 }
 
 #[nutype::nutype(
@@ -2214,6 +2217,9 @@ pub struct ProfileResponse {
     /// Indicates if click to pay is enabled or not.
     #[schema(default = false, example = false)]
     pub is_click_to_pay_enabled: bool,
+
+    ///Indicates if clear pan retries is enabled or not.
+    pub is_clear_pan_retries_enabled: bool,
 }
 
 #[cfg(feature = "v2")]
@@ -2459,6 +2465,9 @@ pub struct ProfileUpdate {
     /// Indicates if click to pay is enabled or not.
     #[schema(default = false, example = false)]
     pub is_click_to_pay_enabled: Option<bool>,
+
+    ///Indicates if clear pan retries is enabled or not.
+    pub is_clear_pan_retries_enabled: Option<bool>,
 }
 
 #[cfg(feature = "v2")]

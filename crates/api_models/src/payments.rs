@@ -1459,6 +1459,13 @@ impl MandateIds {
             Some(MandateReferenceId::NetworkMandateId(_))
         )
     }
+
+    pub fn is_network_token_with_nti_flow(&self) -> bool {
+        matches!(
+            self.mandate_reference_id,
+            Some(MandateReferenceId::NetworkTokenWithNTI(_))
+        )
+    }
 }
 
 #[derive(Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone)]

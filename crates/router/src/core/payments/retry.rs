@@ -110,7 +110,7 @@ where
             true,
             frm_suggestion,
             business_profile,
-
+            false,
         )
         .await?;
     }
@@ -143,6 +143,18 @@ where
 
                     let connector = super::get_connector_data(&mut connectors)?;
 
+                    let clear_pan_possible = initial_gsm
+                        .clone()
+                        .map(|gsm| gsm.clear_pan_possible)
+                        .unwrap_or(false);
+
+                    let should_retry_with_pan = if clear_pan_possible && business_profile.is_clear_pan_retries_enabled{
+                        true
+                    } else {
+                        false
+                    };
+
+
                     router_data = do_retry(
                         &state.clone(),
                         req_state.clone(),
@@ -159,6 +171,7 @@ where
                         false,
                         frm_suggestion,
                         business_profile,
+                        should_retry_with_pan
                     )
                     .await?;
 
@@ -310,6 +323,7 @@ pub async fn do_retry<F, ApiRequest, FData, D>(
     is_step_up: bool,
     frm_suggestion: Option<storage_enums::FrmSuggestion>,
     business_profile: &domain::Profile,
+    should_retry_with_pan: bool,
 ) -> RouterResult<types::RouterData<F, FData, types::PaymentsResponseData>>
 where
     F: Clone + Send + Sync,
@@ -353,6 +367,7 @@ where
         frm_suggestion,
         business_profile,
         true,
+        should_retry_with_pan
     )
     .await?;
 

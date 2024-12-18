@@ -1902,6 +1902,114 @@ pub async fn retrieve_card_with_permanent_token(
     todo!()
 }
 
+pub enum VaultFetchAction{
+    FetchCardDetailsFromLocker,
+    FetchCardDetailsForNetworkTransactionFlowFromLocker,
+    FetchNetworkTokenDataFromTokenizationService,
+    FetchNetworkTokenDetailsFromLocker,
+}
+
+pub fn decide_vault_fetch_action(
+    is_network_tokenization_enabled: bool, 
+    mandate_id: Option<api_models::payments::MandateIds>,
+) -> VaultFetchAction{
+    //check for connectors as well if network tokenization is enabled
+
+    let is_network_transaction_id_flow = mandate_id.as_ref()
+            .map(|mandate_ids| mandate_ids.is_network_transaction_id_flow())
+            .unwrap_or(false);
+    let is_network_token_with_nti_flow = mandate_id
+            .map(|mandate_ids| mandate_ids.is_network_token_with_nti_flow())
+            .unwrap_or(false);
+    
+
+    if !is_network_tokenization_enabled{
+        if is_network_transaction_id_flow{
+            VaultFetchAction::FetchCardDetailsForNetworkTransactionFlowFromLocker
+        }
+        else{
+            VaultFetchAction::FetchCardDetailsFromLocker
+        }
+    }else{
+        if is_network_token_with_nti_flow{
+            VaultFetchAction::FetchNetworkTokenDetailsFromLocker
+        }else if is_network_transaction_id_flow{
+            VaultFetchAction::FetchCardDetailsForNetworkTransactionFlowFromLocker 
+        }else{
+            VaultFetchAction::FetchNetworkTokenDataFromTokenizationService
+        }
+
+    }
+
+}
+
+#[cfg(all(
+    any(feature = "v2", feature = "v1"),
+    not(feature = "payment_methods_v2")
+))]
+#[allow(clippy::too_many_arguments)]
+pub async fn retrieve_payment_method_data_with_permanent_token(
+    state: &SessionState,
+    locker_id: &str,
+    _payment_method_id: &str,
+    payment_intent: &PaymentIntent,
+    card_token_data: Option<&domain::CardToken>,
+    _merchant_key_store: &domain::MerchantKeyStore,
+    _storage_scheme: enums::MerchantStorageScheme,
+    mandate_id: Option<api_models::payments::MandateIds>,
+    payment_method_info: Option<domain::PaymentMethod>,
+    business_profile: &domain::Profile,
+    should_retry_with_pan: bool, 
+    vault_data: Option<&payments::VaultDataEnum>,
+) -> RouterResult<domain::PaymentMethodData>{
+    let customer_id = payment_intent
+        .customer_id
+        .as_ref()
+        .get_required_value("customer_id")
+        .change_context(errors::ApiErrorResponse::UnprocessableEntity {
+            message: "no customer id provided for the payment".to_string(),
+        })?;
+
+    let vault_fetch_action = decide_vault_fetch_action(business_profile.is_network_tokenization_enabled, mandate_id);
+
+    match vault_fetch_action{
+        VaultFetchAction::FetchCardDetailsFromLocker => {
+            let  card_result = vault_data.unwrap().get_card_vault_data().map(Ok).async_unwrap_or_else(|| async{
+                fetch_card_details_from_locker(
+                    state,
+                    customer_id,
+                    &payment_intent.merchant_id,
+                    locker_id,
+                    card_token_data,
+                )
+                .await
+        }).await?;
+
+            Ok(domain::PaymentMethodData::Card(card_result))
+            
+        },
+        VaultFetchAction::FetchCardDetailsForNetworkTransactionFlowFromLocker => {
+            fetch_card_details_for_network_transaction_flow_from_locker(
+                state,
+                customer_id,
+                &payment_intent.merchant_id,
+                locker_id,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("failed to fetch card information from the permanent locker")
+            
+        },
+        VaultFetchAction::FetchNetworkTokenDataFromTokenizationService => {
+            todo!()
+        },
+        VaultFetchAction::FetchNetworkTokenDetailsFromLocker => todo!(),
+    }
+    
+
+}
+
+
 #[cfg(all(
     any(feature = "v2", feature = "v1"),
     not(feature = "payment_methods_v2")
@@ -1918,6 +2026,8 @@ pub async fn retrieve_card_with_permanent_token(
     mandate_id: Option<api_models::payments::MandateIds>,
     payment_method_info: Option<domain::PaymentMethod>,
     business_profile: &domain::Profile,
+    should_retry_with_pan: bool, 
+    vault_data: Option<&payments::VaultDataEnum>,
 ) -> RouterResult<domain::PaymentMethodData> {
     let customer_id = payment_intent
         .customer_id
@@ -1933,7 +2043,7 @@ pub async fn retrieve_card_with_permanent_token(
             .unwrap_or(false);
 
         if is_network_transaction_id_flow {
-            let card_details_from_locker = cards::get_card_from_locker(
+            fetch_card_details_for_network_transaction_flow_from_locker(
                 state,
                 customer_id,
                 &payment_intent.merchant_id,
@@ -1941,35 +2051,7 @@ pub async fn retrieve_card_with_permanent_token(
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("failed to fetch card details from locker")?;
-
-            let card_network = card_details_from_locker
-                .card_brand
-                .map(|card_brand| enums::CardNetwork::from_str(&card_brand))
-                .transpose()
-                .map_err(|e| {
-                    logger::error!("Failed to parse card network {e:?}");
-                })
-                .ok()
-                .flatten();
-
-            let card_details_for_network_transaction_id = hyperswitch_domain_models::payment_method_data::CardDetailsForNetworkTransactionId {
-                            card_number: card_details_from_locker.card_number,
-                            card_exp_month: card_details_from_locker.card_exp_month,
-                            card_exp_year: card_details_from_locker.card_exp_year,
-                            card_issuer: None,
-                            card_network,
-                            card_type: None,
-                            card_issuing_country: None,
-                            bank_code: None,
-                            nick_name: card_details_from_locker.nick_name.map(masking::Secret::new),
-                        };
-
-            Ok(
-                domain::PaymentMethodData::CardDetailsForNetworkTransactionId(
-                    card_details_for_network_transaction_id,
-                ),
-            )
+            .attach_printable("failed to fetch card information from the permanent locker")
         } else {
             fetch_card_details_from_locker(
                 state,
@@ -2003,7 +2085,7 @@ pub async fn retrieve_card_with_permanent_token(
                         Err(err) => {
                             logger::info!("Failed to fetch network token data from tokenization service {err:?}");
                             logger::info!("Falling back to fetch card details from locker");
-                            fetch_card_details_from_locker(
+                            Ok(domain::PaymentMethodData::Card(fetch_card_details_from_locker(
                                 state,
                                 customer_id,
                                 &payment_intent.merchant_id,
@@ -2014,11 +2096,11 @@ pub async fn retrieve_card_with_permanent_token(
                             .change_context(errors::ApiErrorResponse::InternalServerError)
                             .attach_printable(
                                 "failed to fetch card information from the permanent locker",
-                            )
+                            )?))
                         }
                     }
                 } else {
-                    fetch_card_details_from_locker(
+                    Ok(domain::PaymentMethodData::Card(fetch_card_details_from_locker(
                         state,
                         customer_id,
                         &payment_intent.merchant_id,
@@ -2027,7 +2109,7 @@ pub async fn retrieve_card_with_permanent_token(
                     )
                     .await
                     .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("failed to fetch card information from the permanent locker")
+                    .attach_printable("failed to fetch card information from the permanent locker")?))
                 }
             }
             (Some(ref pm_data), Some(mandate_ids)) => {
@@ -2126,13 +2208,47 @@ pub async fn retrieve_card_with_permanent_token(
     }
 }
 
+#[cfg(all(
+    any(feature = "v2", feature = "v1"),
+    not(feature = "payment_methods_v2")
+))]
+#[allow(clippy::too_many_arguments)]
+pub async fn retrieve_card_with_permanent_token_for_external_authentication(
+    state: &SessionState,
+    locker_id: &str,
+    payment_intent: &PaymentIntent,
+    card_token_data: Option<&domain::CardToken>,
+    _merchant_key_store: &domain::MerchantKeyStore,
+    _storage_scheme: enums::MerchantStorageScheme,
+) -> RouterResult<domain::PaymentMethodData> {
+
+    let customer_id = payment_intent
+        .customer_id
+        .as_ref()
+        .get_required_value("customer_id")
+        .change_context(errors::ApiErrorResponse::UnprocessableEntity {
+            message: "no customer id provided for the payment".to_string(),
+        })?;
+        Ok(domain::PaymentMethodData::Card(fetch_card_details_from_locker(
+            state,
+            customer_id,
+            &payment_intent.merchant_id,
+            locker_id,
+            card_token_data,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("failed to fetch card information from the permanent locker")?))
+
+}
+
 pub async fn fetch_card_details_from_locker(
     state: &SessionState,
     customer_id: &id_type::CustomerId,
     merchant_id: &id_type::MerchantId,
     locker_id: &str,
     card_token_data: Option<&domain::CardToken>,
-) -> RouterResult<domain::PaymentMethodData> {
+) -> RouterResult<domain::Card> {
     let card = cards::get_card_from_locker(state, customer_id, merchant_id, locker_id)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -2177,7 +2293,53 @@ pub async fn fetch_card_details_from_locker(
         card_issuing_country: None,
         bank_code: None,
     };
-    Ok(domain::PaymentMethodData::Card(api_card.into()))
+    Ok(api_card.into())
+}
+
+
+pub async fn fetch_card_details_for_network_transaction_flow_from_locker(
+    state: &SessionState,
+    customer_id: &id_type::CustomerId,
+    merchant_id: &id_type::MerchantId,
+    locker_id: &str,
+) -> RouterResult<domain::PaymentMethodData> {
+    let card_details_from_locker = cards::get_card_from_locker(
+        state,
+        customer_id,
+        &merchant_id,
+        locker_id,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("failed to fetch card details from locker")?;
+
+    let card_network = card_details_from_locker
+        .card_brand
+        .map(|card_brand| enums::CardNetwork::from_str(&card_brand))
+        .transpose()
+        .map_err(|e| {
+            logger::error!("Failed to parse card network {e:?}");
+        })
+        .ok()
+        .flatten();
+
+    let card_details_for_network_transaction_id = hyperswitch_domain_models::payment_method_data::CardDetailsForNetworkTransactionId {
+                    card_number: card_details_from_locker.card_number,
+                    card_exp_month: card_details_from_locker.card_exp_month,
+                    card_exp_year: card_details_from_locker.card_exp_year,
+                    card_issuer: None,
+                    card_network,
+                    card_type: None,
+                    card_issuing_country: None,
+                    bank_code: None,
+                    nick_name: card_details_from_locker.nick_name.map(masking::Secret::new),
+                };
+
+    Ok(
+        domain::PaymentMethodData::CardDetailsForNetworkTransactionId(
+            card_details_for_network_transaction_id,
+        ),
+    )
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
@@ -2307,6 +2469,26 @@ pub async fn make_pm_data<'a, F: Clone, R, D>(
     todo!()
 }
 
+// fn my_function<F>(pd:  PaymentData<F>, profile: &domain::Profile) {
+//     let is_network_tokenization_enabled = profile.is_network_tokenization_enabled;
+//     let is_network_transaction_id_flow = pd
+//         .mandate_id
+//         .as_ref()
+//         .map(|mandate_ids| mandate_ids.is_network_transaction_id_flow())
+//         .unwrap_or(false);
+
+//     if is_network_tokenization_enabled && is_network_transaction_id_flow {
+//         get_network()
+//     } else {
+//         get_card()
+//     }
+    
+//     // pd.get_vault_operation().and_then(|data| match data {
+//     //     payments::PaymentMethodDataAction::SaveCard(_) => None,
+//     //     payments::PaymentMethodDataAction::VaultData(vd) => Some(vd),
+//     // }).or(get_card_from_locker);
+// }
+
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
     not(feature = "payment_methods_v2")
@@ -2319,11 +2501,19 @@ pub async fn make_pm_data<'a, F: Clone, R, D>(
     customer: &Option<domain::Customer>,
     storage_scheme: common_enums::enums::MerchantStorageScheme,
     business_profile: &domain::Profile,
+    should_retry_with_pan: bool,
 ) -> RouterResult<(
     BoxedOperation<'a, F, R, D>,
     Option<domain::PaymentMethodData>,
     Option<String>,
-)> {
+)>
+where
+    F: Clone,
+{
+    use crate::core::payments::OperationSessionGetters;
+
+    use super::OperationSessionSetters;
+
     let request = payment_data.payment_method_data.clone();
 
     let mut card_token_data = payment_data
@@ -2371,6 +2561,20 @@ pub async fn make_pm_data<'a, F: Clone, R, D>(
     // TODO: Handle case where payment method and token both are present in request properly.
     let (payment_method, pm_id) = match (&request, payment_data.token_data.as_ref()) {
         (_, Some(hyperswitch_token)) => {
+            let stalled_payment_method_data = payment_data.get_vault_operation();
+            // valut data : card data, token data(opt, opt)
+            // vault data : Card(card), Networktoken(NT), CARD and Network (token)
+            
+
+            let vd = stalled_payment_method_data
+                .and_then(|data| match data {
+                    payments::PaymentMethodDataAction::SaveCard(_) => None,
+                    payments::PaymentMethodDataAction::VaultDataVariant(vd) => Some(vd),
+
+                });
+
+            
+
             let pm_data = Box::pin(payment_methods::retrieve_payment_method_with_token(
                 state,
                 merchant_key_store,
@@ -2383,11 +2587,34 @@ pub async fn make_pm_data<'a, F: Clone, R, D>(
                 mandate_id,
                 payment_data.payment_method_info.clone(),
                 business_profile,
+                should_retry_with_pan,
+                vd,
             ))
             .await;
 
             let payment_method_details = pm_data.attach_printable("in 'make_pm_data'")?;
 
+            // if let Some(ref payment_method_data) = payment_method_details.payment_method_data {
+            //     match payment_method_data {
+            //         domain::PaymentMethodData::Card(card) => {
+            //             payment_data.set_vault_operation(
+            //                 payments::PaymentMethodDataAction::VaultData(payments::VaultData {
+            //                     card_data: Some(card.clone()),
+            //                     network_token_data: vd.network_token_data,
+            //                 }),
+            //             );
+            //         }
+            //         domain::PaymentMethodData::NetworkToken(nt_data) => {
+            //             payment_data.set_vault_operation(
+            //                 payments::PaymentMethodDataAction::VaultData(payments::VaultData {
+            //                     card_data: vd.card_data,
+            //                     network_token_data: Some(nt_data.clone()),
+            //                 }),
+            //             );
+            //         }
+            //         _ => {}
+            //     }
+            // };
             Ok::<_, error_stack::Report<errors::ApiErrorResponse>>(
                 if let Some(payment_method_data) = payment_method_details.payment_method_data {
                     payment_data.payment_attempt.payment_method =
@@ -5765,38 +5992,24 @@ pub async fn get_payment_method_details_from_payment_token(
             .await
         }
 
-        storage::PaymentTokenData::Permanent(card_token) => retrieve_card_with_permanent_token(
+        storage::PaymentTokenData::Permanent(card_token) => retrieve_card_with_permanent_token_for_external_authentication(
             state,
             &card_token.token,
-            card_token
-                .payment_method_id
-                .as_ref()
-                .unwrap_or(&card_token.token),
             payment_intent,
             None,
             key_store,
             storage_scheme,
-            None,
-            None,
-            business_profile,
         )
         .await
         .map(|card| Some((card, enums::PaymentMethod::Card))),
 
-        storage::PaymentTokenData::PermanentCard(card_token) => retrieve_card_with_permanent_token(
+        storage::PaymentTokenData::PermanentCard(card_token) => retrieve_card_with_permanent_token_for_external_authentication(
             state,
             &card_token.token,
-            card_token
-                .payment_method_id
-                .as_ref()
-                .unwrap_or(&card_token.token),
             payment_intent,
             None,
             key_store,
             storage_scheme,
-            None,
-            None,
-            business_profile,
         )
         .await
         .map(|card| Some((card, enums::PaymentMethod::Card))),

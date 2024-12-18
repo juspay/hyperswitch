@@ -3694,6 +3694,7 @@ impl ProfileCreateBridge for api::ProfileCreate {
             is_auto_retries_enabled: self.is_auto_retries_enabled.unwrap_or_default(),
             max_auto_retries_enabled: self.max_auto_retries_enabled.map(i16::from),
             is_click_to_pay_enabled: self.is_click_to_pay_enabled,
+            is_clear_pan_retries_enabled: self.is_clear_pan_retries_enabled.unwrap_or_default(),
         }))
     }
 
@@ -4052,6 +4053,7 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                 is_auto_retries_enabled: self.is_auto_retries_enabled,
                 max_auto_retries_enabled: self.max_auto_retries_enabled.map(i16::from),
                 is_click_to_pay_enabled: self.is_click_to_pay_enabled,
+                is_clear_pan_retries_enabled: self.is_clear_pan_retries_enabled,
             },
         )))
     }
