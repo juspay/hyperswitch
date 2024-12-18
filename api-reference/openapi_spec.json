@@ -8727,7 +8727,9 @@
           },
           "phone_number": {
             "type": "string",
-            "nullable": true
+            "example": "9123456789",
+            "nullable": true,
+            "maxLength": 255
           },
           "email": {
             "type": "string",
