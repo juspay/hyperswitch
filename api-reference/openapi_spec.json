@@ -22822,10 +22822,12 @@
         ],
         "properties": {
           "code": {
-            "type": "string"
+            "type": "string",
+            "description": "The error code"
           },
           "message": {
-            "type": "string"
+            "type": "string",
+            "description": "The error message"
           }
         }
       },
@@ -22908,10 +22910,12 @@
             "$ref": "#/components/schemas/RelayError"
           },
           "connector_resource_id": {
-            "type": "string"
+            "type": "string",
+            "description": "The identifier that is associated to a resource at the connector reference to which the relay request is being made"
           },
           "connector_id": {
-            "type": "string"
+            "type": "string",
+            "description": "Identifier of the connector ( merchant connector account ) which was chosen to make the payment"
           },
           "profile_id": {
             "type": "string",
