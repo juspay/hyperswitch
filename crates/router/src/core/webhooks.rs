@@ -4,13 +4,13 @@ mod incoming;
 mod incoming_v2;
 #[cfg(feature = "v1")]
 mod outgoing;
+#[cfg(feature = "v2")]
+mod outgoing_v2;
 pub mod types;
 pub mod utils;
 #[cfg(feature = "olap")]
 pub mod webhook_events;
 
-#[cfg(feature = "v2")]
-pub(crate) use self::incoming_v2::incoming_webhooks_wrapper;
 #[cfg(feature = "v1")]
 pub(crate) use self::{
     incoming::incoming_webhooks_wrapper,
@@ -18,6 +18,10 @@ pub(crate) use self::{
         create_event_and_trigger_outgoing_webhook, get_outgoing_webhook_request,
         trigger_webhook_and_raise_event,
     },
+};
+#[cfg(feature = "v2")]
+pub(crate) use self::{
+    incoming_v2::incoming_webhooks_wrapper, outgoing_v2::create_event_and_trigger_outgoing_webhook,
 };
 
 const MERCHANT_ID: &str = "merchant_id";
