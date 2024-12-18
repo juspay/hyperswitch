@@ -61,7 +61,7 @@ where
 {
     let mut retries = None;
 
-    metrics::AUTO_RETRY_ELIGIBLE_REQUEST_COUNT.add(&metrics::CONTEXT, 1, &[]);
+    metrics::AUTO_RETRY_ELIGIBLE_REQUEST_COUNT.add(1, &[]);
 
     let mut initial_gsm = get_gsm(state, &router_data).await?;
 
@@ -130,14 +130,14 @@ where
                             .await;
 
                     if retries.is_none() || retries == Some(0) {
-                        metrics::AUTO_RETRY_EXHAUSTED_COUNT.add(&metrics::CONTEXT, 1, &[]);
+                        metrics::AUTO_RETRY_EXHAUSTED_COUNT.add(1, &[]);
                         logger::info!("retries exhausted for auto_retry payment");
                         break;
                     }
 
                     if connectors.len() == 0 {
                         logger::info!("connectors exhausted for auto_retry payment");
-                        metrics::AUTO_RETRY_EXHAUSTED_COUNT.add(&metrics::CONTEXT, 1, &[]);
+                        metrics::AUTO_RETRY_EXHAUSTED_COUNT.add(1, &[]);
                         break;
                     }
 
@@ -289,7 +289,7 @@ pub fn get_gsm_decision(
             });
 
     if option_gsm_decision.is_some() {
-        metrics::AUTO_RETRY_GSM_MATCH_COUNT.add(&metrics::CONTEXT, 1, &[]);
+        metrics::AUTO_RETRY_GSM_MATCH_COUNT.add(1, &[]);
     }
     option_gsm_decision.unwrap_or_default()
 }
@@ -338,7 +338,7 @@ where
     types::RouterData<F, FData, types::PaymentsResponseData>: Feature<F, FData>,
     dyn api::Connector: services::api::ConnectorIntegration<F, FData, types::PaymentsResponseData>,
 {
-    metrics::AUTO_RETRY_PAYMENT_COUNT.add(&metrics::CONTEXT, 1, &[]);
+    metrics::AUTO_RETRY_PAYMENT_COUNT.add(1, &[]);
 
     modify_trackers(
         state,

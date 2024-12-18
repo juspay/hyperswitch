@@ -27,15 +27,22 @@ use hyperswitch_domain_models::{
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_data_v2::{
         flow_common_types::WebhookSourceVerifyData, AccessTokenFlowData, MandateRevokeFlowData,
+        UasFlowData,
     },
-    router_flow_types::{mandate_revoke::MandateRevoke, AccessTokenAuth, VerifyWebhookSource},
+    router_flow_types::{
+        mandate_revoke::MandateRevoke, AccessTokenAuth, PostAuthenticate, PreAuthenticate,
+        VerifyWebhookSource,
+    },
     router_request_types::{
+        unified_authentication_service::{
+            UasAuthenticationResponseData, UasPostAuthenticationRequestData,
+            UasPreAuthenticationRequestData,
+        },
         AccessTokenRequestData, MandateRevokeRequestData, VerifyWebhookSourceRequestData,
     },
     router_response_types::{MandateRevokeResponseData, VerifyWebhookSourceResponseData},
 };
 use masking::Maskable;
-use router_env::metrics::add_attributes;
 use serde_json::json;
 
 #[cfg(feature = "payouts")]
@@ -121,9 +128,8 @@ pub trait ConnectorIntegration<T, Req, Resp>:
         _connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         metrics::UNIMPLEMENTED_FLOW.add(
-            &metrics::CONTEXT,
             1,
-            &add_attributes([("connector", req.connector.clone())]),
+            router_env::metric_attributes!(("connector", req.connector.clone())),
         );
         Ok(None)
     }
@@ -334,6 +340,60 @@ pub trait ConnectorVerifyWebhookSourceV2:
     WebhookSourceVerifyData,
     VerifyWebhookSourceRequestData,
     VerifyWebhookSourceResponseData,
+>
+{
+}
+
+/// trait UnifiedAuthenticationService
+pub trait UnifiedAuthenticationService:
+    ConnectorCommon + UasPreAuthentication + UasPostAuthentication
+{
+}
+
+/// trait UasPreAuthentication
+pub trait UasPreAuthentication:
+    ConnectorIntegration<
+    PreAuthenticate,
+    UasPreAuthenticationRequestData,
+    UasAuthenticationResponseData,
+>
+{
+}
+
+/// trait UasPostAuthentication
+pub trait UasPostAuthentication:
+    ConnectorIntegration<
+    PostAuthenticate,
+    UasPostAuthenticationRequestData,
+    UasAuthenticationResponseData,
+>
+{
+}
+
+/// trait UnifiedAuthenticationServiceV2
+pub trait UnifiedAuthenticationServiceV2:
+    ConnectorCommon + UasPreAuthenticationV2 + UasPostAuthenticationV2
+{
+}
+
+///trait UasPreAuthenticationV2
+pub trait UasPreAuthenticationV2:
+    ConnectorIntegrationV2<
+    PreAuthenticate,
+    UasFlowData,
+    UasPreAuthenticationRequestData,
+    UasAuthenticationResponseData,
+>
+{
+}
+
+/// trait UasPostAuthenticationV2
+pub trait UasPostAuthenticationV2:
+    ConnectorIntegrationV2<
+    PostAuthenticate,
+    UasFlowData,
+    UasPostAuthenticationRequestData,
+    UasAuthenticationResponseData,
 >
 {
 }

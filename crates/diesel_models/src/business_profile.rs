@@ -58,6 +58,7 @@ pub struct Profile {
     pub is_auto_retries_enabled: Option<bool>,
     pub max_auto_retries_enabled: Option<i16>,
     pub is_click_to_pay_enabled: bool,
+    pub authentication_product_ids: Option<serde_json::Value>,
     pub is_clear_pan_retries_enabled: Option<bool>,
 }
 
@@ -103,6 +104,7 @@ pub struct ProfileNew {
     pub is_auto_retries_enabled: Option<bool>,
     pub max_auto_retries_enabled: Option<i16>,
     pub is_click_to_pay_enabled: bool,
+    pub authentication_product_ids: Option<serde_json::Value>,
     pub is_clear_pan_retries_enabled: Option<bool>,
 }
 
@@ -145,6 +147,7 @@ pub struct ProfileUpdateInternal {
     pub is_auto_retries_enabled: Option<bool>,
     pub max_auto_retries_enabled: Option<i16>,
     pub is_click_to_pay_enabled: Option<bool>,
+    pub authentication_product_ids: Option<serde_json::Value>,
     pub is_clear_pan_retries_enabled: Option<bool>,
 }
 
@@ -186,6 +189,7 @@ impl ProfileUpdateInternal {
             is_auto_retries_enabled,
             max_auto_retries_enabled,
             is_click_to_pay_enabled,
+            authentication_product_ids,
             is_clear_pan_retries_enabled,
         } = self;
         Profile {
@@ -248,6 +252,8 @@ impl ProfileUpdateInternal {
             max_auto_retries_enabled: max_auto_retries_enabled.or(source.max_auto_retries_enabled),
             is_click_to_pay_enabled: is_click_to_pay_enabled
                 .unwrap_or(source.is_click_to_pay_enabled),
+            authentication_product_ids: authentication_product_ids
+                .or(source.authentication_product_ids),
             is_clear_pan_retries_enabled: is_clear_pan_retries_enabled.or(source.is_clear_pan_retries_enabled),
         }
     }
@@ -304,6 +310,7 @@ pub struct Profile {
     pub is_auto_retries_enabled: Option<bool>,
     pub max_auto_retries_enabled: Option<i16>,
     pub is_click_to_pay_enabled: bool,
+    pub authentication_product_ids: Option<serde_json::Value>,
 }
 
 impl Profile {
@@ -363,6 +370,7 @@ pub struct ProfileNew {
     pub is_auto_retries_enabled: Option<bool>,
     pub max_auto_retries_enabled: Option<i16>,
     pub is_click_to_pay_enabled: bool,
+    pub authentication_product_ids: Option<serde_json::Value>,
 }
 
 #[cfg(feature = "v2")]
@@ -406,6 +414,7 @@ pub struct ProfileUpdateInternal {
     pub is_auto_retries_enabled: Option<bool>,
     pub max_auto_retries_enabled: Option<i16>,
     pub is_click_to_pay_enabled: Option<bool>,
+    pub authentication_product_ids: Option<serde_json::Value>,
 }
 
 #[cfg(feature = "v2")]
@@ -448,6 +457,7 @@ impl ProfileUpdateInternal {
             is_auto_retries_enabled,
             max_auto_retries_enabled,
             is_click_to_pay_enabled,
+            authentication_product_ids,
         } = self;
         Profile {
             id: source.id,
@@ -514,6 +524,8 @@ impl ProfileUpdateInternal {
             max_auto_retries_enabled: max_auto_retries_enabled.or(source.max_auto_retries_enabled),
             is_click_to_pay_enabled: is_click_to_pay_enabled
                 .unwrap_or(source.is_click_to_pay_enabled),
+            authentication_product_ids: authentication_product_ids
+                .or(source.authentication_product_ids),
         }
     }
 }
@@ -549,6 +561,7 @@ pub struct BusinessPaymentLinkConfig {
     pub default_config: Option<PaymentLinkConfigRequest>,
     pub business_specific_configs: Option<HashMap<String, PaymentLinkConfigRequest>>,
     pub allowed_domains: Option<HashSet<String>>,
+    pub branding_visibility: Option<bool>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
@@ -561,6 +574,15 @@ pub struct PaymentLinkConfigRequest {
     pub enabled_saved_payment_method: Option<bool>,
     pub hide_card_nickname_field: Option<bool>,
     pub show_card_form_by_default: Option<bool>,
+    pub background_image: Option<PaymentLinkBackgroundImageConfig>,
+    pub details_layout: Option<common_enums::PaymentLinkDetailsLayout>,
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq)]
+pub struct PaymentLinkBackgroundImageConfig {
+    pub url: common_utils::types::Url,
+    pub position: Option<common_enums::ElementPosition>,
+    pub size: Option<common_enums::ElementSize>,
 }
 
 common_utils::impl_to_sql_from_sql_json!(BusinessPaymentLinkConfig);

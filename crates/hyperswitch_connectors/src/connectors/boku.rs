@@ -38,7 +38,7 @@ use hyperswitch_interfaces::{
 };
 use masking::{ExposeInterface, Mask, PeekInterface, Secret, WithType};
 use ring::hmac;
-use router_env::{logger, metrics::add_attributes};
+use router_env::logger;
 use time::OffsetDateTime;
 use transformers as boku;
 
@@ -678,11 +678,8 @@ fn get_xml_deserialized(
     res: Response,
     event_builder: Option<&mut ConnectorEvent>,
 ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-    metrics::CONNECTOR_RESPONSE_DESERIALIZATION_FAILURE.add(
-        &metrics::CONTEXT,
-        1,
-        &add_attributes([("connector", "boku")]),
-    );
+    metrics::CONNECTOR_RESPONSE_DESERIALIZATION_FAILURE
+        .add(1, router_env::metric_attributes!(("connector", "boku")));
 
     let response_data = String::from_utf8(res.response.to_vec())
         .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;

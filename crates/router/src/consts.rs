@@ -54,10 +54,6 @@ pub(crate) const BASE64_ENGINE: base64::engine::GeneralPurpose = consts::BASE64_
 
 pub(crate) const API_KEY_LENGTH: usize = 64;
 
-// Apple Pay validation url
-pub(crate) const APPLEPAY_VALIDATION_URL: &str =
-    "https://apple-pay-gateway-cert.apple.com/paymentservices/startSession";
-
 // OID (Object Identifier) for the merchant ID field extension.
 pub(crate) const MERCHANT_ID_FIELD_EXTENSION_ID: &str = "1.2.840.113635.100.6.32";
 
@@ -211,3 +207,6 @@ pub const VAULT_GET_FINGERPRINT_FLOW_TYPE: &str = "get_fingerprint_vault";
 
 /// Max volume split for Dynamic routing
 pub const DYNAMIC_ROUTING_MAX_VOLUME: u8 = 100;
+
+/// Click To Pay
+pub const CLICK_TO_PAY: &str = "click_to_pay";

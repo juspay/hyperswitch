@@ -59,6 +59,7 @@ pub struct Profile {
     pub is_auto_retries_enabled: bool,
     pub max_auto_retries_enabled: Option<i16>,
     pub is_click_to_pay_enabled: bool,
+    pub authentication_product_ids: Option<serde_json::Value>,
     pub is_clear_pan_retries_enabled: bool, 
 }
 
@@ -101,6 +102,7 @@ pub struct ProfileSetter {
     pub is_auto_retries_enabled: bool,
     pub max_auto_retries_enabled: Option<i16>,
     pub is_click_to_pay_enabled: bool,
+    pub authentication_product_ids: Option<serde_json::Value>,
     pub is_clear_pan_retries_enabled: bool, 
 }
 
@@ -150,6 +152,7 @@ impl From<ProfileSetter> for Profile {
             is_auto_retries_enabled: value.is_auto_retries_enabled,
             max_auto_retries_enabled: value.max_auto_retries_enabled,
             is_click_to_pay_enabled: value.is_click_to_pay_enabled,
+            authentication_product_ids: value.authentication_product_ids,
             is_clear_pan_retries_enabled: value.is_clear_pan_retries_enabled,
         }
     }
@@ -201,6 +204,7 @@ pub struct ProfileGeneralUpdate {
     pub is_auto_retries_enabled: Option<bool>,
     pub max_auto_retries_enabled: Option<i16>,
     pub is_click_to_pay_enabled: Option<bool>,
+    pub authentication_product_ids: Option<serde_json::Value>,
     pub is_clear_pan_retries_enabled: Option<bool>, 
 }
 
@@ -265,6 +269,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     is_auto_retries_enabled,
                     max_auto_retries_enabled,
                     is_click_to_pay_enabled,
+                    authentication_product_ids,
                     is_clear_pan_retries_enabled,
                 } = *update;
 
@@ -304,6 +309,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     is_auto_retries_enabled,
                     max_auto_retries_enabled,
                     is_click_to_pay_enabled,
+                    authentication_product_ids,
                     is_clear_pan_retries_enabled,
                 }
             }
@@ -345,6 +351,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_auto_retries_enabled: None,
                 max_auto_retries_enabled: None,
                 is_click_to_pay_enabled: None,
+                authentication_product_ids: None,
                 is_clear_pan_retries_enabled: None,
             },
             ProfileUpdate::DynamicRoutingAlgorithmUpdate {
@@ -384,6 +391,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_auto_retries_enabled: None,
                 max_auto_retries_enabled: None,
                 is_click_to_pay_enabled: None,
+                authentication_product_ids: None,
                 is_clear_pan_retries_enabled: None,
             },
             ProfileUpdate::ExtendedCardInfoUpdate {
@@ -423,6 +431,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_auto_retries_enabled: None,
                 max_auto_retries_enabled: None,
                 is_click_to_pay_enabled: None,
+                authentication_product_ids: None,
                 is_clear_pan_retries_enabled: None,
             },
             ProfileUpdate::ConnectorAgnosticMitUpdate {
@@ -462,6 +471,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_auto_retries_enabled: None,
                 max_auto_retries_enabled: None,
                 is_click_to_pay_enabled: None,
+                authentication_product_ids: None,
                 is_clear_pan_retries_enabled: None,
             },
             ProfileUpdate::NetworkTokenizationUpdate {
@@ -501,6 +511,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_auto_retries_enabled: None,
                 max_auto_retries_enabled: None,
                 is_click_to_pay_enabled: None,
+                authentication_product_ids: None,
                 is_clear_pan_retries_enabled: None,
             },
         }
@@ -559,6 +570,7 @@ impl super::behaviour::Conversion for Profile {
             is_auto_retries_enabled: Some(self.is_auto_retries_enabled),
             max_auto_retries_enabled: self.max_auto_retries_enabled,
             is_click_to_pay_enabled: self.is_click_to_pay_enabled,
+            authentication_product_ids: self.authentication_product_ids,
             is_clear_pan_retries_enabled: Some(self.is_clear_pan_retries_enabled),
         })
     }
@@ -629,6 +641,7 @@ impl super::behaviour::Conversion for Profile {
                 is_auto_retries_enabled: item.is_auto_retries_enabled.unwrap_or(false),
                 max_auto_retries_enabled: item.max_auto_retries_enabled,
                 is_click_to_pay_enabled: item.is_click_to_pay_enabled,
+                authentication_product_ids: item.authentication_product_ids,
                 is_clear_pan_retries_enabled: item.is_clear_pan_retries_enabled.unwrap_or(false),
             })
         }
@@ -683,6 +696,7 @@ impl super::behaviour::Conversion for Profile {
             is_auto_retries_enabled: Some(self.is_auto_retries_enabled),
             max_auto_retries_enabled: self.max_auto_retries_enabled,
             is_click_to_pay_enabled: self.is_click_to_pay_enabled,
+            authentication_product_ids: self.authentication_product_ids,
             is_clear_pan_retries_enabled: Some(self.is_clear_pan_retries_enabled),
         })
     }
@@ -729,6 +743,7 @@ pub struct Profile {
     pub version: common_enums::ApiVersion,
     pub is_network_tokenization_enabled: bool,
     pub is_click_to_pay_enabled: bool,
+    pub authentication_product_ids: Option<serde_json::Value>,
 }
 
 #[cfg(feature = "v2")]
@@ -770,6 +785,7 @@ pub struct ProfileSetter {
     pub is_tax_connector_enabled: bool,
     pub is_network_tokenization_enabled: bool,
     pub is_click_to_pay_enabled: bool,
+    pub authentication_product_ids: Option<serde_json::Value>,
 }
 
 #[cfg(feature = "v2")]
@@ -818,6 +834,7 @@ impl From<ProfileSetter> for Profile {
             version: consts::API_VERSION,
             is_network_tokenization_enabled: value.is_network_tokenization_enabled,
             is_click_to_pay_enabled: value.is_click_to_pay_enabled,
+            authentication_product_ids: value.authentication_product_ids,
         }
     }
 }
@@ -869,6 +886,7 @@ pub struct ProfileGeneralUpdate {
     pub order_fulfillment_time_origin: Option<common_enums::OrderFulfillmentTimeOrigin>,
     pub is_network_tokenization_enabled: Option<bool>,
     pub is_click_to_pay_enabled: Option<bool>,
+    pub authentication_product_ids: Option<serde_json::Value>,
 }
 
 #[cfg(feature = "v2")]
@@ -928,6 +946,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     order_fulfillment_time_origin,
                     is_network_tokenization_enabled,
                     is_click_to_pay_enabled,
+                    authentication_product_ids,
                 } = *update;
                 Self {
                     profile_name,
@@ -966,7 +985,8 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     is_network_tokenization_enabled,
                     is_auto_retries_enabled: None,
                     max_auto_retries_enabled: None,
-                    is_click_to_pay_enabled,
+                    is_click_to_pay_enabled: None,
+                    authentication_product_ids,
                 }
             }
             ProfileUpdate::RoutingAlgorithmUpdate {
@@ -1009,6 +1029,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_auto_retries_enabled: None,
                 max_auto_retries_enabled: None,
                 is_click_to_pay_enabled: None,
+                authentication_product_ids: None,
             },
             ProfileUpdate::ExtendedCardInfoUpdate {
                 is_extended_card_info_enabled,
@@ -1049,6 +1070,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_auto_retries_enabled: None,
                 max_auto_retries_enabled: None,
                 is_click_to_pay_enabled: None,
+                authentication_product_ids: None,
             },
             ProfileUpdate::ConnectorAgnosticMitUpdate {
                 is_connector_agnostic_mit_enabled,
@@ -1089,6 +1111,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_auto_retries_enabled: None,
                 max_auto_retries_enabled: None,
                 is_click_to_pay_enabled: None,
+                authentication_product_ids: None,
             },
             ProfileUpdate::DefaultRoutingFallbackUpdate {
                 default_fallback_routing,
@@ -1129,6 +1152,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_auto_retries_enabled: None,
                 max_auto_retries_enabled: None,
                 is_click_to_pay_enabled: None,
+                authentication_product_ids: None,
             },
             ProfileUpdate::NetworkTokenizationUpdate {
                 is_network_tokenization_enabled,
@@ -1169,6 +1193,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_auto_retries_enabled: None,
                 max_auto_retries_enabled: None,
                 is_click_to_pay_enabled: None,
+                authentication_product_ids: None,
             },
             ProfileUpdate::CollectCvvDuringPaymentUpdate {
                 should_collect_cvv_during_payment,
@@ -1209,6 +1234,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_auto_retries_enabled: None,
                 max_auto_retries_enabled: None,
                 is_click_to_pay_enabled: None,
+                authentication_product_ids: None,
             },
         }
     }
@@ -1269,6 +1295,7 @@ impl super::behaviour::Conversion for Profile {
             is_auto_retries_enabled: None,
             max_auto_retries_enabled: None,
             is_click_to_pay_enabled: self.is_click_to_pay_enabled,
+            authentication_product_ids: self.authentication_product_ids,
         })
     }
 
@@ -1338,6 +1365,7 @@ impl super::behaviour::Conversion for Profile {
                 version: item.version,
                 is_network_tokenization_enabled: item.is_network_tokenization_enabled,
                 is_click_to_pay_enabled: item.is_click_to_pay_enabled,
+                authentication_product_ids: item.authentication_product_ids,
             })
         }
         .await
@@ -1394,6 +1422,7 @@ impl super::behaviour::Conversion for Profile {
             is_auto_retries_enabled: None,
             max_auto_retries_enabled: None,
             is_click_to_pay_enabled: self.is_click_to_pay_enabled,
+            authentication_product_ids: self.authentication_product_ids,
         })
     }
 }

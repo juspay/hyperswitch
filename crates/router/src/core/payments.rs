@@ -54,7 +54,7 @@ use masking::{ExposeInterface, PeekInterface, Secret};
 #[cfg(feature = "v2")]
 use operations::ValidateStatusForOperation;
 use redis_interface::errors::RedisError;
-use router_env::{instrument, metrics::add_attributes, tracing};
+use router_env::{instrument, tracing};
 #[cfg(feature = "olap")]
 use router_types::transformers::ForeignFrom;
 use scheduler::utils as pt_utils;
@@ -385,6 +385,17 @@ where
                 &business_profile,
                 &key_store,
                 mandate_type,
+            )
+            .await?;
+        operation
+            .to_domain()?
+            .call_unified_authentication_service_if_eligible(
+                state,
+                &mut payment_data,
+                &mut should_continue_transaction,
+                &connector_details,
+                &business_profile,
+                &key_store,
             )
             .await?;
 
@@ -1653,18 +1664,14 @@ pub trait PaymentRedirectFlow: Sync {
         req: PaymentsRedirectResponseData,
     ) -> RouterResponse<api::RedirectionResponse> {
         metrics::REDIRECTION_TRIGGERED.add(
-            &metrics::CONTEXT,
             1,
-            &add_attributes([
+            router_env::metric_attributes!(
                 (
                     "connector",
                     req.connector.to_owned().unwrap_or("null".to_string()),
                 ),
-                (
-                    "merchant_id",
-                    merchant_account.get_id().get_string_repr().to_owned(),
-                ),
-            ]),
+                ("merchant_id", merchant_account.get_id().clone()),
+            ),
         );
         let connector = req.connector.clone().get_required_value("connector")?;
 
@@ -1726,12 +1733,8 @@ pub trait PaymentRedirectFlow: Sync {
         request: PaymentsRedirectResponseData,
     ) -> RouterResponse<api::RedirectionResponse> {
         metrics::REDIRECTION_TRIGGERED.add(
-            &metrics::CONTEXT,
             1,
-            &add_attributes([(
-                "merchant_id",
-                merchant_account.get_id().get_string_repr().to_owned(),
-            )]),
+            router_env::metric_attributes!(("merchant_id", merchant_account.get_id().clone())),
         );
 
         let payment_flow_response = self
@@ -3370,12 +3373,92 @@ where
         }
     }
 
+    // If click_to_pay is enabled and authentication_product_ids is configured in profile, we need to attach click_to_pay block in the session response for invoking click_to_pay SDK
+    if business_profile.is_click_to_pay_enabled {
+        if let Some(value) = business_profile.authentication_product_ids.clone() {
+            let session_token = get_session_token_for_click_to_pay(
+                state,
+                merchant_account.get_id(),
+                key_store,
+                value,
+                payment_data.get_payment_intent(),
+            )
+            .await?;
+            payment_data.push_sessions_token(session_token);
+        }
+    }
+
     let call_connectors_end_time = Instant::now();
     let call_connectors_duration =
         call_connectors_end_time.saturating_duration_since(call_connectors_start_time);
     tracing::info!(duration = format!("Duration taken: {}", call_connectors_duration.as_millis()));
 
     Ok(payment_data)
+}
+
+#[cfg(feature = "v1")]
+pub async fn get_session_token_for_click_to_pay(
+    state: &SessionState,
+    merchant_id: &id_type::MerchantId,
+    key_store: &domain::MerchantKeyStore,
+    authentication_product_ids: serde_json::Value,
+    payment_intent: &hyperswitch_domain_models::payments::PaymentIntent,
+) -> RouterResult<api_models::payments::SessionToken> {
+    use common_utils::{id_type::MerchantConnectorAccountId, types::AmountConvertor};
+    use hyperswitch_domain_models::payments::ClickToPayMetaData;
+
+    use crate::consts::CLICK_TO_PAY;
+
+    let mca_ids: HashMap<String, MerchantConnectorAccountId> = authentication_product_ids
+        .parse_value("HashMap<String, MerchantConnectorAccountId>")
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Error while parsing authentication product ids")?;
+    let click_to_pay_mca_id = mca_ids
+        .get(CLICK_TO_PAY)
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Error while getting click_to_pay mca_id from business profile")?;
+    let key_manager_state = &(state).into();
+    let merchant_connector_account = state
+        .store
+        .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+            key_manager_state,
+            merchant_id,
+            click_to_pay_mca_id,
+            key_store,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+            id: click_to_pay_mca_id.get_string_repr().to_string(),
+        })?;
+    let click_to_pay_metadata: ClickToPayMetaData = merchant_connector_account
+        .metadata
+        .parse_value("ClickToPayMetaData")
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Error while parsing ClickToPayMetaData")?;
+    let transaction_currency = payment_intent
+        .currency
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("currency is not present in payment_data.payment_intent")?;
+    let required_amount_type = common_utils::types::StringMajorUnitForConnector;
+    let transaction_amount = required_amount_type
+        .convert(payment_intent.amount, transaction_currency)
+        .change_context(errors::ApiErrorResponse::PreconditionFailed {
+            message: "Failed to convert amount to string major unit for clickToPay".to_string(),
+        })?;
+    Ok(api_models::payments::SessionToken::ClickToPay(Box::new(
+        api_models::payments::ClickToPaySessionResponse {
+            dpa_id: click_to_pay_metadata.dpa_id,
+            dpa_name: click_to_pay_metadata.dpa_name,
+            locale: click_to_pay_metadata.locale,
+            card_brands: click_to_pay_metadata.card_brands,
+            acquirer_bin: click_to_pay_metadata.acquirer_bin,
+            acquirer_merchant_id: click_to_pay_metadata.acquirer_merchant_id,
+            merchant_category_code: click_to_pay_metadata.merchant_category_code,
+            merchant_country_code: click_to_pay_metadata.merchant_country_code,
+            transaction_amount,
+            transaction_currency_code: transaction_currency,
+        },
+    )))
 }
 
 #[cfg(feature = "v1")]
@@ -4280,6 +4363,7 @@ where
     pub poll_config: Option<router_types::PollConfig>,
     pub tax_data: Option<TaxData>,
     pub session_id: Option<String>,
+    pub service_details: Option<api_models::payments::CtpServiceDetails>,
     pub vault_operation: Option<PaymentMethodDataAction>,
 }
 
@@ -4385,7 +4469,7 @@ pub fn if_not_create_change_operation<'a, Op, F>(
     current: &'a Op,
 ) -> BoxedOperation<'a, F, api::PaymentsRequest, PaymentData<F>>
 where
-    F: Send + Clone,
+    F: Send + Clone + Sync,
     Op: Operation<F, api::PaymentsRequest, Data = PaymentData<F>> + Send + Sync,
     &'a Op: Operation<F, api::PaymentsRequest, Data = PaymentData<F>>,
     PaymentStatus: Operation<F, api::PaymentsRequest, Data = PaymentData<F>>,
@@ -4626,11 +4710,7 @@ pub async fn apply_filters_on_payments(
             ))
         },
         &metrics::PAYMENT_LIST_LATENCY,
-        &metrics::CONTEXT,
-        &[router_env::opentelemetry::KeyValue::new(
-            "merchant_id",
-            merchant.get_id().clone(),
-        )],
+        router_env::metric_attributes!(("merchant_id", merchant.get_id().clone())),
     )
     .await
 }
@@ -5820,6 +5900,7 @@ pub fn filter_network_tokenization_supported_connectors(
         .collect()
 }
 
+#[cfg(feature = "v1")]
 pub async fn decide_action_type(
     state: &SessionState,
     is_connector_agnostic_mit_enabled: Option<bool>,
