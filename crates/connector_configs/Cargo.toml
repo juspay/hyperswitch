@@ -11,7 +11,7 @@ default = ["payouts", "dummy_connector"]
 production = []
 development = []
 sandbox = []
-dummy_connector = ["api_models/dummy_connector", "development"]
+dummy_connector = ["api_models/dummy_connector"]
 payouts = ["api_models/payouts"]
 v1 = ["api_models/v1", "common_utils/v1"]
 
