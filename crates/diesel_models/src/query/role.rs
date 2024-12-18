@@ -93,8 +93,6 @@ impl Role {
         .await
     }
 
-  
-
     pub async fn find_role_by_role_name_in_lineage(
         conn: &PgPooledConn,
         role_name: &str,

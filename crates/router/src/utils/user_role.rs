@@ -7,7 +7,6 @@ use diesel_models::{
     role::ListRolesByEntityPayload,
     user_role::{UserRole, UserRoleUpdate},
 };
-
 use error_stack::{report, Report, ResultExt};
 use router_env::logger;
 use storage_impl::errors::StorageError;
