@@ -15409,8 +15409,7 @@
           "display_sdk_only",
           "enabled_saved_payment_method",
           "hide_card_nickname_field",
-          "show_card_form_by_default",
-          "payment_button_text"
+          "show_card_form_by_default"
         ],
         "properties": {
           "theme": {
@@ -15483,11 +15482,12 @@
             "description": "Toggle for HyperSwitch branding visibility",
             "nullable": true
           },
-          "payment_button_text":{
+          "payment_button_text": {
             "type": "string",
             "description": "Text for payment link's handle confirm button",
             "nullable": true
           }
+        }
       },
       "PaymentLinkConfigRequest": {
         "type": "object",
@@ -15572,7 +15572,7 @@
             ],
             "nullable": true
           },
-          "payment_button_text":{
+          "payment_button_text": {
             "type": "string",
             "description": "Text for payment link's handle confirm button",
             "nullable": true
