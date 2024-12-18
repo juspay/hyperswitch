@@ -179,7 +179,7 @@ impl DBOperation {
                 )),
                 #[cfg(all(feature = "v2", feature = "customer_v2"))]
                 Updateable::CustomerUpdate(cust) => DBResult::Customer(Box::new(
-                    Customer::update_by_id(conn, cust.orig.id.clone(), cust.update_data).await?,
+                    Customer::update_by_id(conn, cust.orig.id, cust.update_data).await?,
                 )),
             },
         })
