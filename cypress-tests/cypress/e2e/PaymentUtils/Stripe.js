@@ -747,9 +747,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          error_code: "No error code",
-          error_message:
-            "You cannot confirm with `off_session=true` when `setup_future_usage` is also set on the PaymentIntent. The customer needs to be on-session to perform the steps which may be required to set up the PaymentMethod for future usage. Please confirm this PaymentIntent with your customer on-session.",
+          status: "succeeded",
         },
       },
     },
@@ -760,9 +758,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          error_code: "No error code",
-          error_message:
-            "You cannot confirm with `off_session=true` when `setup_future_usage` is also set on the PaymentIntent. The customer needs to be on-session to perform the steps which may be required to set up the PaymentMethod for future usage. Please confirm this PaymentIntent with your customer on-session.",
+          status: "requires_capture",
         },
       },
     },
@@ -774,9 +770,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "failed",
-          error_message:
-            "You cannot confirm with `off_session=true` when `setup_future_usage` is also set on the PaymentIntent. The customer needs to be on-session to perform the steps which may be required to set up the PaymentMethod for future usage. Please confirm this PaymentIntent with your customer on-session.",
+          status: "succeeded",
         },
       },
     },
