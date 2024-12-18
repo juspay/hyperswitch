@@ -230,6 +230,7 @@ pub async fn update_role(
         role_id,
         &user_from_token.merchant_id,
         &user_from_token.org_id,
+        &user_from_token.profile_id,
     )
     .await
     .to_not_found_response(UserErrors::InvalidRoleOperation)?;

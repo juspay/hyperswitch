@@ -27,29 +27,12 @@ impl Role {
         .await
     }
 
-    // TODO: Remove once find_by_role_id_in_lineage is stable
-    pub async fn find_by_role_id_in_merchant_scope(
-        conn: &PgPooledConn,
-        role_id: &str,
-        merchant_id: &id_type::MerchantId,
-        org_id: &id_type::OrganizationId,
-    ) -> StorageResult<Self> {
-        generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
-            conn,
-            dsl::role_id.eq(role_id.to_owned()).and(
-                dsl::merchant_id.eq(merchant_id.to_owned()).or(dsl::org_id
-                    .eq(org_id.to_owned())
-                    .and(dsl::scope.eq(RoleScope::Organization))),
-            ),
-        )
-        .await
-    }
-
     pub async fn find_by_role_id_in_lineage(
         conn: &PgPooledConn,
         role_id: &str,
         merchant_id: &id_type::MerchantId,
         org_id: &id_type::OrganizationId,
+        profile_id: &id_type::ProfileId,
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
@@ -57,9 +40,14 @@ impl Role {
                 .eq(role_id.to_owned())
                 .and(dsl::org_id.eq(org_id.to_owned()))
                 .and(
-                    dsl::scope.eq(RoleScope::Organization).or(dsl::merchant_id
-                        .eq(merchant_id.to_owned())
-                        .and(dsl::scope.eq(RoleScope::Merchant))),
+                    dsl::scope
+                        .eq(RoleScope::Organization)
+                        .or(dsl::merchant_id
+                            .eq(merchant_id.to_owned())
+                            .and(dsl::scope.eq(RoleScope::Merchant)))
+                        .or(dsl::profile_id
+                            .eq(profile_id.to_owned())
+                            .and(dsl::scope.eq(RoleScope::Profile))),
                 ),
         )
         .await
@@ -105,27 +93,7 @@ impl Role {
         .await
     }
 
-    // TODO: Change as it will break
-    pub async fn list_roles(
-        conn: &PgPooledConn,
-        merchant_id: &id_type::MerchantId,
-        org_id: &id_type::OrganizationId,
-    ) -> StorageResult<Vec<Self>> {
-        let predicate = dsl::org_id.eq(org_id.to_owned()).and(
-            dsl::scope.eq(RoleScope::Organization).or(dsl::merchant_id
-                .eq(merchant_id.to_owned())
-                .and(dsl::scope.eq(RoleScope::Merchant))),
-        );
-
-        generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
-            conn,
-            predicate,
-            None,
-            None,
-            Some(dsl::last_modified_at.asc()),
-        )
-        .await
-    }
+  
 
     pub async fn find_role_by_role_name_in_lineage(
         conn: &PgPooledConn,
