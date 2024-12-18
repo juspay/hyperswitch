@@ -91,7 +91,7 @@ pub struct CustomerNew {
     pub default_billing_address: Option<Encryption>,
     pub default_shipping_address: Option<Encryption>,
     pub status: DeleteStatus,
-    pub id: String,
+    pub id: common_utils::id_type::GlobalCustomerId,
 }
 
 #[cfg(all(feature = "v2", feature = "customer_v2"))]
@@ -173,7 +173,7 @@ pub struct Customer {
     pub default_billing_address: Option<Encryption>,
     pub default_shipping_address: Option<Encryption>,
     pub status: DeleteStatus,
-    pub id: String,
+    pub id: common_utils::id_type::GlobalCustomerId,
 }
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]

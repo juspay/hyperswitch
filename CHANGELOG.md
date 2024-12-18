@@ -4,6 +4,35 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.12.18.0
+
+### Features
+
+- **analytics:** Analytics Request Validator and config driven forex feature ([#6733](https://github.com/juspay/hyperswitch/pull/6733)) ([`c883aa5`](https://github.com/juspay/hyperswitch/commit/c883aa59aae4ddbcf8c754052ed60b4514043d47))
+- **redis-interface:** Add redis interface command to set multiple the keys in redis and increment if the key already exists ([#6827](https://github.com/juspay/hyperswitch/pull/6827)) ([`94ad90f`](https://github.com/juspay/hyperswitch/commit/94ad90f9ed8b2d8a0e4715875f3fdccf2abec15d))
+
+### Bug Fixes
+
+- **connector:**
+  - 5xx error for Volt Payment Sync ([#6846](https://github.com/juspay/hyperswitch/pull/6846)) ([`588ce40`](https://github.com/juspay/hyperswitch/commit/588ce408b4b04bdd89f2594239e7efc9e0f66114))
+  - Add expiry year conversion for adyen mit transactions ([#6851](https://github.com/juspay/hyperswitch/pull/6851)) ([`c154a38`](https://github.com/juspay/hyperswitch/commit/c154a385597104fcdbed4aa859c52c97a240c39f))
+- **core:** Populate off_session based on payments request ([#6855](https://github.com/juspay/hyperswitch/pull/6855)) ([`107098c`](https://github.com/juspay/hyperswitch/commit/107098cda45440f9d80c6305b7b6e5cd3de9ca0d))
+- **payment_methods:** Card_network and card_scheme should be consistent ([#6849](https://github.com/juspay/hyperswitch/pull/6849)) ([`5c4de8a`](https://github.com/juspay/hyperswitch/commit/5c4de8a5133c9a835d8c706c9b71bdfc8140568d))
+
+### Refactors
+
+- **constraint_graph:** Handle PML for cases where setup_future_usage is not passed in payments ([#6810](https://github.com/juspay/hyperswitch/pull/6810)) ([`e8bfd0e`](https://github.com/juspay/hyperswitch/commit/e8bfd0e2270300fff3f051143f34ebb782da5366))
+- **customers_v2:** Address panics and some bugs in customers v2 endpoints ([#6836](https://github.com/juspay/hyperswitch/pull/6836)) ([`dfbfce4`](https://github.com/juspay/hyperswitch/commit/dfbfce4e4247166e43f1a805e65331b21eab4e09))
+
+### Miscellaneous Tasks
+
+- **analytics:** SDK table schema changes ([#6579](https://github.com/juspay/hyperswitch/pull/6579)) ([`a056dc7`](https://github.com/juspay/hyperswitch/commit/a056dc72db23200c473e8aa2ec8ce5579fa4f6c6))
+- **wasm:** Add wasm changes for ctp_mastercard connector ([#6838](https://github.com/juspay/hyperswitch/pull/6838)) ([`b301d09`](https://github.com/juspay/hyperswitch/commit/b301d09213a8c1c68d711a3b34227d13e61e52f9))
+
+**Full Changelog:** [`2024.12.17.0...2024.12.18.0`](https://github.com/juspay/hyperswitch/compare/2024.12.17.0...2024.12.18.0)
+
+- - -
+
 ## 2024.12.17.0
 
 ### Features
