@@ -84,6 +84,10 @@ Never share your secret api keys. Keep them guarded and secure.
         routes::payments::payments_complete_authorize,
         routes::payments::payments_post_session_tokens,
 
+        // Routes for relay
+        routes::relay,
+        routes::relay_retrieve,
+
         // Routes for refunds
         routes::refunds::refunds_create,
         routes::refunds::refunds_retrieve,
@@ -513,6 +517,13 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payment_methods::PaymentMethodCollectLinkResponse,
         api_models::refunds::RefundListRequest,
         api_models::refunds::RefundListResponse,
+        api_models::relay::RelayRequest,
+        api_models::relay::RelayType,
+        api_models::relay::RelayData,
+        api_models::relay::RelayRefundRequest,
+        api_models::relay::RelayResponse,
+        api_models::relay::RelayStatus,
+        api_models::relay::RelayError,
         api_models::payments::AmountFilter,
         api_models::mandates::MandateRevokedResponse,
         api_models::mandates::MandateResponse,

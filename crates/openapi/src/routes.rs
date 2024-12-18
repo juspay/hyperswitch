@@ -5,6 +5,7 @@ pub mod blocklist;
 pub mod customers;
 pub mod disputes;
 pub mod gsm;
+pub mod relay;
 pub mod mandates;
 pub mod merchant_account;
 pub mod merchant_connector_account;
@@ -21,5 +22,5 @@ pub mod webhook_events;
 
 pub use self::{
     customers::*, mandates::*, merchant_account::*, merchant_connector_account::*, organization::*,
-    payment_method::*, payments::*, poll::*, refunds::*, routing::*, webhook_events::*,
+    payment_method::*, payments::*, poll::*, refunds::*, routing::*, webhook_events::*, relay::*,
 };
