@@ -4,6 +4,14 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.12.11.0-hotfix5
+
+### Bug Fixes
+
+- **core:** Populate off_session based on payments request ([#6874](https://github.com/juspay/hyperswitch/pull/6874)) ([`4f67c6e`](https://github.com/juspay/hyperswitch/commit/4f67c6e802505846aa172cfdd43b71842d9c30d6))
+
+- - -
+
 ## 2024.12.11.0-hotfix4
 
 ### Bug Fixes
