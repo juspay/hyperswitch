@@ -7,7 +7,6 @@ use api_models::{
     payments,
 };
 use serde::Deserialize;
-#[cfg(any(feature = "sandbox", feature = "development", feature = "production"))]
 use toml;
 
 use crate::common_config::{CardProvider, InputData, Provider, ZenApplePay};
@@ -236,11 +235,8 @@ pub struct ConnectorConfig {
     pub xendit: Option<ConnectorTomlConfig>,
     pub square: Option<ConnectorTomlConfig>,
     pub stax: Option<ConnectorTomlConfig>,
-    #[cfg(feature = "dummy_connector")]
     pub dummy_connector: Option<ConnectorTomlConfig>,
-    #[cfg(feature = "dummy_connector")]
     pub stripe_test: Option<ConnectorTomlConfig>,
-    #[cfg(feature = "dummy_connector")]
     pub paypal_test: Option<ConnectorTomlConfig>,
     pub zen: Option<ConnectorTomlConfig>,
     pub zsl: Option<ConnectorTomlConfig>,
@@ -249,28 +245,14 @@ pub struct ConnectorConfig {
 
 impl ConnectorConfig {
     fn new() -> Result<Self, String> {
-        #[cfg(all(
-            feature = "production",
-            not(any(feature = "sandbox", feature = "development"))
-        ))]
-        let config = toml::from_str::<Self>(include_str!("../toml/production.toml"));
-        #[cfg(all(
-            feature = "sandbox",
-            not(any(feature = "production", feature = "development"))
-        ))]
-        let config = toml::from_str::<Self>(include_str!("../toml/sandbox.toml"));
-        #[cfg(all(
-            feature = "development",
-            not(any(feature = "sandbox", feature = "production"))
-        ))]
-        let config = toml::from_str::<Self>(include_str!("../toml/development.toml"));
-
-        #[cfg(not(any(feature = "sandbox", feature = "development", feature = "production")))]
-        return Err(String::from(
-            "Atleast one features has to be enabled for connectorconfig",
-        ));
-
-        #[cfg(any(feature = "sandbox", feature = "development", feature = "production"))]
+        let config_str = if cfg!(feature = "production") {
+            include_str!("../toml/production.toml")
+        } else if cfg!(feature = "sandbox") {
+            include_str!("../toml/sandbox.toml")
+        } else {
+            include_str!("../toml/development.toml")
+        };
+        let config = toml::from_str::<Self>(config_str);
         match config {
             Ok(data) => Ok(data),
             Err(err) => Err(err.to_string()),

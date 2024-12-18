@@ -7,11 +7,11 @@ rust-version.workspace = true
 license.workspace = true
 
 [features]
-default = ["payouts","dummy_connector"]
+default = ["payouts", "dummy_connector"]
 production = []
 development = []
 sandbox = []
-dummy_connector = ["api_models/dummy_connector"]
+dummy_connector = ["api_models/dummy_connector", "development"]
 payouts = ["api_models/payouts"]
 v1 = ["api_models/v1", "common_utils/v1"]
 
