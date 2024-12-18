@@ -30,7 +30,29 @@ pub struct EphemeralKeyCreateRequest {
     pub customer_id: id_type::GlobalCustomerId,
 }
 
+#[cfg(feature = "v2")]
+/// ephemeral_key for the customer_id mentioned
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone, Eq, PartialEq, ToSchema)]
+pub struct EphemeralKeyResponse {
+    /// customer_id to which this ephemeral key belongs to
+    #[schema(value_type = String, max_length = 64, min_length = 32, example = "12345_cus_01926c58bc6e77c09e809964e72af8c8")]
+    pub customer_id: id_type::GlobalCustomerId,
+    /// time at which this ephemeral key was created
+    pub created_at: time::PrimitiveDateTime,
+    /// time at which this ephemeral key would expire
+    pub expires: time::PrimitiveDateTime,
+    /// ephemeral key
+    pub secret: String,
+}
+
 impl common_utils::events::ApiEventMetric for EphemeralKeyCreateRequest {
+    fn get_api_event_type(&self) -> Option<common_utils::events::ApiEventsType> {
+        Some(common_utils::events::ApiEventsType::Miscellaneous)
+    }
+}
+
+#[cfg(feature = "v2")]
+impl common_utils::events::ApiEventMetric for EphemeralKeyResponse {
     fn get_api_event_type(&self) -> Option<common_utils::events::ApiEventsType> {
         Some(common_utils::events::ApiEventsType::Miscellaneous)
     }

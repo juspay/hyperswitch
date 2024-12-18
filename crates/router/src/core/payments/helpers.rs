@@ -1,5 +1,7 @@
 use std::{borrow::Cow, str::FromStr};
 
+#[cfg(feature = "v2")]
+use api_models::ephemeral_key::EphemeralKeyResponse;
 use api_models::{
     mandates::RecurringDetails,
     payments::{additional_info as payment_additional_types, RequestSurchargeDetails},
@@ -3050,7 +3052,7 @@ pub async fn make_ephemeral_key(
     customer_id: id_type::GlobalCustomerId,
     merchant_id: id_type::MerchantId,
     headers: &actix_web::http::header::HeaderMap,
-) -> errors::RouterResponse<ephemeral_key::EphemeralKeyType> {
+) -> errors::RouterResponse<EphemeralKeyResponse> {
     let store = &state.store;
     let id = id_type::EphemeralKeyId::generate_key_id("eki");
     let secret = format!("epk_{}", &Uuid::new_v4().simple().to_string());
@@ -3077,7 +3079,8 @@ pub async fn make_ephemeral_key(
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to create ephemeral key")?;
-    Ok(services::ApplicationResponse::Json(ek))
+    let response = EphemeralKeyResponse::foreign_from(ek);
+    Ok(services::ApplicationResponse::Json(response))
 }
 
 #[cfg(feature = "v2")]
@@ -3123,14 +3126,15 @@ pub async fn delete_ephemeral_key(
 pub async fn delete_ephemeral_key(
     state: SessionState,
     ek_id: String,
-) -> errors::RouterResponse<ephemeral_key::EphemeralKeyType> {
+) -> errors::RouterResponse<EphemeralKeyResponse> {
     let db = state.store.as_ref();
     let ek = db
         .delete_ephemeral_key(&ek_id)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to delete ephemeral key")?;
-    Ok(services::ApplicationResponse::Json(ek))
+    let response = EphemeralKeyResponse::foreign_from(ek);
+    Ok(services::ApplicationResponse::Json(response))
 }
 
 pub fn make_pg_redirect_response(

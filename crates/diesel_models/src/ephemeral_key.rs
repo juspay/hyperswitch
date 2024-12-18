@@ -42,13 +42,6 @@ impl common_utils::events::ApiEventMetric for EphemeralKey {
     }
 }
 
-#[cfg(feature = "v2")]
-impl common_utils::events::ApiEventMetric for EphemeralKeyType {
-    fn get_api_event_type(&self) -> Option<common_utils::events::ApiEventsType> {
-        Some(common_utils::events::ApiEventsType::Miscellaneous)
-    }
-}
-
 #[derive(
     Clone,
     Copy,
