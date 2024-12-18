@@ -7906,7 +7906,7 @@
           },
           "device_model": {
             "type": "string",
-            "description": "The browser type of the client device",
+            "description": "The device model of the client",
             "nullable": true
           }
         }
