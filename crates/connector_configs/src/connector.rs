@@ -114,6 +114,11 @@ pub struct ConfigMetadata {
     pub source_balance_account: Option<InputData>,
     pub brand_id: Option<InputData>,
     pub destination_account_number: Option<InputData>,
+    pub dpa_id: Option<String>,
+    pub dpa_name: Option<String>,
+    pub locale: Option<String>,
+    pub card_brands: Option<Vec<String>>,
+    pub merchant_category_code: Option<String>,
 }
 
 #[serde_with::skip_serializing_none]

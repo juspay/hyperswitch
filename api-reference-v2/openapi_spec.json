@@ -1712,7 +1712,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/CustomerRequest"
+                "$ref": "#/components/schemas/CustomerUpdateRequest"
               },
               "examples": {
                 "Update name and email of a customer": {
@@ -7269,13 +7269,20 @@
       "CustomerDeleteResponse": {
         "type": "object",
         "required": [
+          "id",
           "merchant_reference_id",
           "customer_deleted",
           "address_deleted",
-          "payment_methods_deleted",
-          "id"
+          "payment_methods_deleted"
         ],
         "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique identifier for the customer",
+            "example": "12345_cus_01926c58bc6e77c09e809964e72af8c8",
+            "maxLength": 64,
+            "minLength": 32
+          },
           "merchant_reference_id": {
             "type": "string",
             "description": "The identifier for the customer object",
@@ -7296,10 +7303,6 @@
             "type": "boolean",
             "description": "Whether payment methods deleted or not",
             "example": false
-          },
-          "id": {
-            "type": "string",
-            "description": "Global id"
           }
         }
       },
@@ -7415,9 +7418,9 @@
           "customer_id": {
             "type": "string",
             "description": "The unique identifier of the customer.",
-            "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
+            "example": "12345_cus_01926c58bc6e77c09e809964e72af8c8",
             "maxLength": 64,
-            "minLength": 1
+            "minLength": 32
           },
           "payment_method_type": {
             "$ref": "#/components/schemas/PaymentMethod"
@@ -7582,16 +7585,24 @@
             "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500\ncharacters long. Metadata is useful for storing additional, structured information on an\nobject.",
             "nullable": true
           }
-        }
+        },
+        "additionalProperties": false
       },
       "CustomerResponse": {
         "type": "object",
         "required": [
+          "id",
           "merchant_reference_id",
-          "created_at",
-          "id"
+          "created_at"
         ],
         "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique identifier for the customer",
+            "example": "12345_cus_01926c58bc6e77c09e809964e72af8c8",
+            "maxLength": 64,
+            "minLength": 32
+          },
           "merchant_reference_id": {
             "type": "string",
             "description": "The identifier for the customer object",
@@ -7667,12 +7678,86 @@
             "example": "pm_djh2837dwduh890123",
             "nullable": true,
             "maxLength": 64
-          },
-          "id": {
-            "type": "string",
-            "description": "Global id"
           }
         }
+      },
+      "CustomerUpdateRequest": {
+        "type": "object",
+        "required": [
+          "name",
+          "email"
+        ],
+        "properties": {
+          "merchant_reference_id": {
+            "type": "string",
+            "description": "The merchant identifier for the customer object.",
+            "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
+            "nullable": true,
+            "maxLength": 64,
+            "minLength": 1
+          },
+          "name": {
+            "type": "string",
+            "description": "The customer's name",
+            "example": "Jon Test",
+            "maxLength": 255
+          },
+          "email": {
+            "type": "string",
+            "description": "The customer's email address",
+            "example": "JonTest@test.com",
+            "maxLength": 255
+          },
+          "phone": {
+            "type": "string",
+            "description": "The customer's phone number",
+            "example": "9123456789",
+            "nullable": true,
+            "maxLength": 255
+          },
+          "description": {
+            "type": "string",
+            "description": "An arbitrary string that you can attach to a customer object.",
+            "example": "First Customer",
+            "nullable": true,
+            "maxLength": 255
+          },
+          "phone_country_code": {
+            "type": "string",
+            "description": "The country code for the customer phone number",
+            "example": "+65",
+            "nullable": true,
+            "maxLength": 255
+          },
+          "default_billing_address": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AddressDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "default_shipping_address": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AddressDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "metadata": {
+            "type": "object",
+            "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500\ncharacters long. Metadata is useful for storing additional, structured information on an\nobject.",
+            "nullable": true
+          },
+          "default_payment_method_id": {
+            "type": "string",
+            "description": "The unique identifier of the payment method",
+            "example": "card_rGK4Vi5iSW70MY7J2mIg",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
       },
       "DecoupledAuthenticationType": {
         "type": "string",
@@ -13138,9 +13223,9 @@
           "customer_id": {
             "type": "string",
             "description": "The unique identifier of the customer.",
-            "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
+            "example": "12345_cus_01926c58bc6e77c09e809964e72af8c8",
             "maxLength": 64,
-            "minLength": 1
+            "minLength": 32
           },
           "payment_method_data": {
             "$ref": "#/components/schemas/PaymentMethodCreateData"
@@ -13679,9 +13764,9 @@
           "customer_id": {
             "type": "string",
             "description": "The unique identifier of the customer.",
-            "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
+            "example": "12345_cus_01926c58bc6e77c09e809964e72af8c8",
             "maxLength": 64,
-            "minLength": 1
+            "minLength": 32
           }
         },
         "additionalProperties": false
@@ -13870,6 +13955,7 @@
         "type": "object",
         "required": [
           "merchant_id",
+          "customer_id",
           "payment_method_id",
           "payment_method_type",
           "recurring_enabled"
@@ -13883,10 +13969,9 @@
           "customer_id": {
             "type": "string",
             "description": "The unique identifier of the customer.",
-            "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
-            "nullable": true,
+            "example": "12345_cus_01926c58bc6e77c09e809964e72af8c8",
             "maxLength": 64,
-            "minLength": 1
+            "minLength": 32
           },
           "payment_method_id": {
             "type": "string",
@@ -14452,7 +14537,8 @@
       "PaymentsCreateIntentRequest": {
         "type": "object",
         "required": [
-          "amount_details"
+          "amount_details",
+          "customer_id"
         ],
         "properties": {
           "amount_details": {
@@ -14507,10 +14593,9 @@
           "customer_id": {
             "type": "string",
             "description": "The identifier for the customer",
-            "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
-            "nullable": true,
+            "example": "12345_cus_01926c58bc6e77c09e809964e72af8c8",
             "maxLength": 64,
-            "minLength": 1
+            "minLength": 32
           },
           "customer_present": {
             "allOf": [
@@ -15344,6 +15429,7 @@
           "profile_id",
           "capture_method",
           "authentication_type",
+          "customer_id",
           "customer_present",
           "setup_future_usage",
           "apply_mit_exemption",
@@ -15415,10 +15501,9 @@
           "customer_id": {
             "type": "string",
             "description": "The identifier for the customer",
-            "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
-            "nullable": true,
+            "example": "12345_cus_01926c58bc6e77c09e809964e72af8c8",
             "maxLength": 64,
-            "minLength": 1
+            "minLength": 32
           },
           "customer_present": {
             "$ref": "#/components/schemas/PresenceOfCustomerDuringPayment"
