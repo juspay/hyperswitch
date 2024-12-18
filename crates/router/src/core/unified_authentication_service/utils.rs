@@ -110,7 +110,6 @@ pub fn construct_uas_router_data<F: Clone, Req, Res>(
     merchant_connector_account: &MerchantConnectorAccount,
     authentication_id: Option<String>,
 ) -> RouterResult<RouterData<F, Req, Res>> {
-    let test_mode: Option<bool> = merchant_connector_account.test_mode;
     let auth_type: ConnectorAuthType = merchant_connector_account
         .get_connector_account_details()
         .parse_value("ConnectorAuthType")
@@ -152,7 +151,7 @@ pub fn construct_uas_router_data<F: Clone, Req, Res>(
         payout_method_data: None,
         #[cfg(feature = "payouts")]
         quote_id: None,
-        test_mode,
+        test_mode: None,
         connector_http_status_code: None,
         external_latency: None,
         apple_pay_flow: None,
