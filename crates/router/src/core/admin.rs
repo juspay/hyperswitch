@@ -3701,6 +3701,7 @@ impl ProfileCreateBridge for api::ProfileCreate {
             max_auto_retries_enabled: self.max_auto_retries_enabled.map(i16::from),
             is_click_to_pay_enabled: self.is_click_to_pay_enabled,
             authentication_product_ids,
+            always_request_overcapture: self.always_request_overcapture,
         }))
     }
 
@@ -3817,6 +3818,7 @@ impl ProfileCreateBridge for api::ProfileCreate {
             is_network_tokenization_enabled: self.is_network_tokenization_enabled,
             is_click_to_pay_enabled: self.is_click_to_pay_enabled,
             authentication_product_ids,
+            always_request_overcapture: self.always_request_overcapture,
         }))
     }
 }
@@ -4075,6 +4077,7 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                 max_auto_retries_enabled: self.max_auto_retries_enabled.map(i16::from),
                 is_click_to_pay_enabled: self.is_click_to_pay_enabled,
                 authentication_product_ids,
+                always_request_overcapture: self.always_request_overcapture,
             },
         )))
     }
@@ -4180,6 +4183,7 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                 is_network_tokenization_enabled: self.is_network_tokenization_enabled,
                 is_click_to_pay_enabled: self.is_click_to_pay_enabled,
                 authentication_product_ids,
+                always_request_overcapture: self.always_request_overcapture,
             },
         )))
     }

@@ -550,6 +550,7 @@ pub trait ConnectorActions: Connector {
             connector_mandate_request_reference_id: None,
             psd2_sca_exemption_type: None,
             authentication_id: None,
+            request_overcapture: None,
         }
     }
 
@@ -1123,6 +1124,8 @@ pub fn get_connector_metadata(
             connector_response_reference_id: _,
             incremental_authorization_allowed: _,
             charge_id: _,
+            overcapture_applied: _,
+            maximum_capturable_amount: _,
         }) => connector_metadata,
         _ => None,
     }

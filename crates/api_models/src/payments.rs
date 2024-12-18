@@ -232,6 +232,10 @@ pub struct PaymentsCreateIntentRequest {
     #[schema(value_type = Option<External3dsAuthenticationRequest>)]
     pub request_external_three_ds_authentication:
         Option<common_enums::External3dsAuthenticationRequest>,
+
+    /// Whether to perform overcapture (if applicable)
+    #[schema(value_type = Option<OverCaptureRequest>)]
+    pub request_overcapture: Option<common_enums::OverCaptureRequest>,
 }
 
 #[cfg(feature = "v2")]
@@ -393,6 +397,10 @@ pub struct PaymentsUpdateIntentRequest {
     #[schema(value_type = Option<External3dsAuthenticationRequest>)]
     pub request_external_three_ds_authentication:
         Option<common_enums::External3dsAuthenticationRequest>,
+
+    /// Whether to perform overcapture (if applicable)
+    #[schema(value_type = Option<OverCaptureRequest>)]
+    pub request_overcapture: Option<common_enums::OverCaptureRequest>,
 }
 
 #[derive(Debug, serde::Serialize, Clone, ToSchema)]
@@ -526,6 +534,10 @@ pub struct PaymentsIntentResponse {
     /// Whether to perform external authentication (if applicable)
     #[schema(value_type = External3dsAuthenticationRequest)]
     pub request_external_three_ds_authentication: common_enums::External3dsAuthenticationRequest,
+
+    /// Whether to perform overcapture (if applicable)
+    #[schema(value_type = OverCaptureRequest)]
+    pub request_overcapture: common_enums::OverCaptureRequest,
 }
 
 #[cfg(feature = "v2")]
@@ -1028,6 +1040,9 @@ pub struct PaymentsRequest {
     /// Service details for click to pay external authentication
     #[schema(value_type = Option<CtpServiceDetails>)]
     pub ctp_service_details: Option<CtpServiceDetails>,
+
+    /// Whether to request overcapture on this payment
+    pub request_overcapture: Option<bool>,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -4702,6 +4717,12 @@ pub struct PaymentsResponse {
 
     /// Connector Identifier for the payment method
     pub connector_mandate_id: Option<String>,
+
+    /// Whether the payment is overcaptureable or not
+    pub overcapture_applied: Option<bool>,
+
+    /// Maximum capturable amount
+    pub maximum_capturable_amount: Option<MinorUnit>,
 }
 
 // Serialize is implemented because, this will be serialized in the api events.

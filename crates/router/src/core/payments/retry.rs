@@ -421,6 +421,8 @@ where
             connector_metadata,
             redirection_data,
             charge_id,
+            overcapture_applied,
+            maximum_capturable_amount,
             ..
         }) => {
             let encoded_data = payment_data.get_payment_attempt().encoded_data.clone();
@@ -467,6 +469,8 @@ where
                 payment_method_data: additional_payment_method_data,
                 charge_id,
                 connector_mandate_detail: None,
+                overcapture_applied,
+                maximum_capturable_amount,
             };
 
             #[cfg(feature = "v1")]
@@ -654,6 +658,9 @@ pub fn make_new_payment_attempt(
         charge_id: Default::default(),
         customer_acceptance: Default::default(),
         connector_mandate_detail: Default::default(),
+        request_overcapture: old_payment_attempt.request_overcapture,
+        overcapture_applied: Default::default(),
+        maximum_capturable_amount: Default::default(),
     }
 }
 

@@ -700,6 +700,8 @@ impl<F, T> TryFrom<ResponseRouterData<F, PayboxCaptureResponse, T, PaymentsRespo
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
                     charge_id: None,
+                    overcapture_applied: None,
+                    maximum_capturable_amount: None,
                 }),
                 amount_captured: None,
                 ..item.data
@@ -759,6 +761,8 @@ impl<F> TryFrom<ResponseRouterData<F, PayboxResponse, PaymentsAuthorizeData, Pay
                             connector_response_reference_id: None,
                             incremental_authorization_allowed: None,
                             charge_id: None,
+                            overcapture_applied: None,
+                            maximum_capturable_amount: None,
                         }),
                         ..item.data
                     }),
@@ -788,6 +792,8 @@ impl<F> TryFrom<ResponseRouterData<F, PayboxResponse, PaymentsAuthorizeData, Pay
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
                     charge_id: None,
+                    overcapture_applied: None,
+                    maximum_capturable_amount: None,
                 }),
                 ..item.data
             }),
@@ -831,6 +837,8 @@ impl<F, T> TryFrom<ResponseRouterData<F, PayboxSyncResponse, T, PaymentsResponse
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
                     charge_id: None,
+                    overcapture_applied: None,
+                    maximum_capturable_amount: None,
                 }),
                 ..item.data
             }),
@@ -1019,6 +1027,8 @@ impl<F>
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
                     charge_id: None,
+                    overcapture_applied: None,
+                    maximum_capturable_amount: None,
                 }),
                 ..item.data
             }),

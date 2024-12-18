@@ -171,6 +171,7 @@ where
         connector_mandate_request_reference_id,
         authentication_id: None,
         psd2_sca_exemption_type: None,
+        request_overcapture: None,
     };
     Ok(router_data)
 }
@@ -717,6 +718,8 @@ where
         connector_response_reference_id: None,
         incremental_authorization_allowed: None,
         charge_id: None,
+        overcapture_applied: None,
+        maximum_capturable_amount: None,
     });
 
     let additional_data = PaymentAdditionalData {
@@ -851,6 +854,7 @@ where
         connector_mandate_request_reference_id,
         authentication_id: None,
         psd2_sca_exemption_type: payment_data.payment_intent.psd2_sca_exemption_type,
+        request_overcapture: payment_data.payment_attempt.request_overcapture,
     };
 
     Ok(router_data)
@@ -1139,6 +1143,7 @@ where
                 request_external_three_ds_authentication: payment_intent
                     .request_external_three_ds_authentication
                     .clone(),
+                request_overcapture: payment_intent.request_overcapture.clone(),
             },
             vec![],
         )))
@@ -2077,6 +2082,8 @@ where
             order_tax_amount,
             connector_mandate_id,
             shipping_cost: payment_intent.shipping_cost,
+            overcapture_applied: payment_attempt.overcapture_applied,
+            maximum_capturable_amount: payment_attempt.maximum_capturable_amount,
         };
 
         services::ApplicationResponse::JsonWithHeaders((payments_response, headers))
@@ -2333,6 +2340,8 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             order_tax_amount: None,
             connector_mandate_id:None,
             shipping_cost: None,
+            overcapture_applied: pa.overcapture_applied,
+            maximum_capturable_amount: pa.maximum_capturable_amount,
         }
     }
 }
