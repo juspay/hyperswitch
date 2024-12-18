@@ -166,7 +166,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsPostSess
             tax_data: None,
             session_id: None,
             service_details: None,
-            vault_operation: None, 
+            vault_operation: None,
         };
         let get_trackers_response = operations::GetTrackerResponse {
             operation: Box::new(self),
