@@ -1,15 +1,15 @@
 //! Common types to be used in payment methods
 
-use diesel::{sql_types::Jsonb, AsExpression, FromSqlRow, Queryable};
-use serde::{Deserialize, Serialize};
-use utoipa::ToSchema;
-
 use diesel::{
     backend::Backend,
     deserialize,
     deserialize::FromSql,
     serialize::{Output, ToSql},
+    sql_types::Jsonb,
+    AsExpression, FromSqlRow, Queryable,
 };
+use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 
 #[cfg(feature = "v2")]
 /// Details of all the payment methods enabled for the connector for the given merchant account
