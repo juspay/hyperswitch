@@ -1,3 +1,5 @@
+#[cfg(feature = "v2")]
+use common_utils::id_type;
 use time::ext::NumericalDuration;
 
 #[cfg(feature = "v2")]
@@ -7,8 +9,6 @@ use crate::{
     db::MockDb,
     types::storage::ephemeral_key::{EphemeralKey, EphemeralKeyNew},
 };
-#[cfg(feature = "v2")]
-use common_utils::id_type;
 
 #[async_trait::async_trait]
 pub trait EphemeralKeyInterface {
@@ -53,6 +53,8 @@ pub trait EphemeralKeyInterface {
 
 mod storage {
     use common_utils::date_time;
+    #[cfg(feature = "v2")]
+    use common_utils::id_type;
     use error_stack::ResultExt;
     use redis_interface::HsetnxReply;
     use router_env::{instrument, tracing};
@@ -69,8 +71,6 @@ mod storage {
         services::Store,
         types::storage::ephemeral_key::{EphemeralKey, EphemeralKeyNew},
     };
-    #[cfg(feature = "v2")]
-    use common_utils::id_type;
 
     #[async_trait::async_trait]
     impl EphemeralKeyInterface for Store {
