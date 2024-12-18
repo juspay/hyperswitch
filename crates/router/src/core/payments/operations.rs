@@ -304,7 +304,7 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
         _connector_call_type: &ConnectorCallType,
         _merchant_account: &domain::Profile,
         _key_store: &domain::MerchantKeyStore,
-        _authentication_product_ids: &serde_json::Value,
+        _authentication_product_ids: &common_types::payments::MerchantConnectorAccountMap,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
         Ok(())
     }

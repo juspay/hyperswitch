@@ -1,7 +1,6 @@
 use std::marker::PhantomData;
 
 use common_enums::enums::PaymentMethod;
-use common_utils::ext_traits::ValueExt;
 use diesel_models::authentication::{Authentication, AuthenticationUpdate};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
@@ -112,7 +111,6 @@ pub fn construct_uas_router_data<F: Clone, Req, Res>(
 ) -> RouterResult<RouterData<F, Req, Res>> {
     let auth_type: ConnectorAuthType = merchant_connector_account
         .get_connector_account_details()
-        .parse_value("ConnectorAuthType")
         .change_context(ApiErrorResponse::InternalServerError)?;
     Ok(RouterData {
         flow: PhantomData,
