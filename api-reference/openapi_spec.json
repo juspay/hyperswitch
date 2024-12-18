@@ -8688,7 +8688,8 @@
           "merchant_category_code",
           "merchant_country_code",
           "transaction_amount",
-          "transaction_currency_code"
+          "transaction_currency_code",
+          "email"
         ],
         "properties": {
           "dpa_id": {
@@ -8730,12 +8731,7 @@
             "nullable": true
           },
           "email": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/Email"
-              }
-            ],
-            "nullable": true
+            "$ref": "#/components/schemas/Email"
           },
           "phone_country_code": {
             "type": "string",
