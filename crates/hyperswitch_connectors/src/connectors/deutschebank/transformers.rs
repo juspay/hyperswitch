@@ -366,37 +366,64 @@ impl
             PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            status: if item.response.outcome
-                == DeutschebankThreeDSInitializeResponseOutcome::Processed
-            {
-                match item.data.request.is_auto_capture()? {
+        match item.response.outcome {
+            DeutschebankThreeDSInitializeResponseOutcome::Processed => Ok(Self {
+                status: match item.data.request.is_auto_capture()? {
                     true => common_enums::AttemptStatus::Charged,
                     false => common_enums::AttemptStatus::Authorized,
-                }
-            } else {
-                common_enums::AttemptStatus::AuthenticationPending
-            },
-            response: Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::NoResponseId,
-                redirection_data: match item.response.challenge_required {
-                    Some(challenge) => {
-                        Box::new(Some(RedirectForm::DeutschebankThreeDSChallengeFlow {
-                            acs_url: challenge.clone().acs_url.clone(),
-                            creq: challenge.clone().creq.clone(),
-                        }))
-                    }
-                    None => Box::new(None),
                 },
-                mandate_reference: Box::new(None),
-                connector_metadata: None,
-                network_txn_id: None,
-                connector_response_reference_id: None,
-                incremental_authorization_allowed: None,
-                charge_id: None,
+                response: Ok(PaymentsResponseData::TransactionResponse {
+                    resource_id: ResponseId::NoResponseId,
+                    redirection_data: Box::new(None),
+                    mandate_reference: Box::new(None),
+                    connector_metadata: None,
+                    network_txn_id: None,
+                    connector_response_reference_id: None,
+                    incremental_authorization_allowed: None,
+                    charge_id: None,
+                }),
+                ..item.data
             }),
-            ..item.data
-        })
+            DeutschebankThreeDSInitializeResponseOutcome::ChallengeRequired => {
+                match item.response.challenge_required {
+                    Some(challenge) => Ok(Self {
+                        status: common_enums::AttemptStatus::AuthenticationPending,
+                        response: Ok(PaymentsResponseData::TransactionResponse {
+                            resource_id: ResponseId::NoResponseId,
+                            redirection_data: Box::new(Some(
+                                RedirectForm::DeutschebankThreeDSChallengeFlow {
+                                    acs_url: challenge.acs_url,
+                                    creq: challenge.creq,
+                                },
+                            )),
+                            mandate_reference: Box::new(None),
+                            connector_metadata: None,
+                            network_txn_id: None,
+                            connector_response_reference_id: None,
+                            incremental_authorization_allowed: None,
+                            charge_id: None,
+                        }),
+                        ..item.data
+                    }),
+                    None => Err(errors::ConnectorError::MissingRequiredField {
+                        field_name: "challenge_required",
+                    }
+                    .into()),
+                }
+            }
+            DeutschebankThreeDSInitializeResponseOutcome::MethodRequired => Ok(Self {
+                status: common_enums::AttemptStatus::Failure,
+                response: Err(ErrorResponse {
+                    code: "500".to_owned(),
+                    message: "Method_Required Flow not supported".to_owned(),
+                    reason: None,
+                    status_code: 500,
+                    attempt_status: None,
+                    connector_transaction_id: None,
+                }),
+                ..item.data
+            }),
+        }
     }
 }
 
