@@ -485,6 +485,9 @@ pub struct BrowserInformation {
     pub ip_address: Option<std::net::IpAddr>,
     pub accept_header: Option<String>,
     pub user_agent: Option<String>,
+    pub os_type: Option<String>,
+    pub os_version: Option<String>,
+    pub device_model: Option<String>,
 }
 
 #[derive(Debug, Clone, Default, Serialize)]
