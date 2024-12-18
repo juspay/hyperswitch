@@ -1,3 +1,5 @@
+use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
+
 use super::generics;
 use crate::{
     errors,
@@ -5,7 +7,6 @@ use crate::{
     schema::relay::dsl,
     PgPooledConn, StorageResult,
 };
-use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
 
 impl RelayNew {
     pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<Relay> {
@@ -37,10 +38,7 @@ impl Relay {
         }
     }
 
-    pub async fn find_by_id(
-        conn: &PgPooledConn,
-        id: &str,
-    ) -> StorageResult<Self> {
+    pub async fn find_by_id(conn: &PgPooledConn, id: &str) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
             dsl::id.eq(id.to_owned()),
