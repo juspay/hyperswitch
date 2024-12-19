@@ -1969,7 +1969,9 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
 
     #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
     {
-        if payment_intent.status.is_in_terminal_state() && business_profile.dynamic_routing_algorithm.is_some() {
+        if payment_intent.status.is_in_terminal_state()
+            && business_profile.dynamic_routing_algorithm.is_some()
+        {
             let state = state.clone();
             let business_profile = business_profile.clone();
             let payment_attempt = payment_attempt.clone();
