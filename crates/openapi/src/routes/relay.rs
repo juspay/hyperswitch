@@ -10,8 +10,8 @@
                 "Create a relay request" = (
                     value = json!({
                     "connector_resource_id": "7256228702616471803954",
-                    "connector_id": "cu_123456",
-                    "profile_id": "pro_123456",
+                    "connector_id": "mca_5apGeP94tMts6rg3U3kR",
+                    "profile_id": "pro_abcdefghijklmnopqrstuvwxyz",
                     "type": "refund",
                     "data": {
                         "amount": 6540,
@@ -22,7 +22,7 @@
             ))
     ),
     responses(
-        (status = 200, description = "Relay request", body = CustomerResponse),
+        (status = 200, description = "Relay request", body = RelayResponse),
         (status = 400, description = "Invalid data")
 
     ),

@@ -3,15 +3,18 @@ use utoipa::ToSchema;
 
 use crate::enums;
 
+pub use common_utils::types::MinorUnit;
+
 #[derive(Debug, ToSchema, Clone, Deserialize, Serialize)]
 pub struct RelayRequest {
     /// The identifier that is associated to a resource at the connector reference to which the relay request is being made
+    #[schema(example = "7256228702616471803954")]
     pub connector_resource_id: String,
-    /// Identifier of the connector ( merchant connector account ) which was chosen to make the payment
-    #[schema(value_type = String)]
+    /// Identifier of the connector ( merchant connector account ) to which relay request is being made
+    #[schema(example = "mca_5apGeP94tMts6rg3U3kR", value_type = String)]
     pub connector_id: common_utils::id_type::MerchantConnectorAccountId,
     /// The business profile that is associated with this payment request
-    #[schema(value_type = String)]
+    #[schema(example = "pro_abcdefghijklmnopqrstuvwxyz", value_type = String)]
     pub profile_id: common_utils::id_type::ProfileId,
     /// The type of relay request
     #[serde(rename = "type")]
@@ -37,30 +40,33 @@ pub enum RelayData {
 #[derive(Debug, ToSchema, Clone, Deserialize, Serialize)]
 pub struct RelayRefundRequest {
     /// The amount that is being refunded
-    pub amount: i64,
+    #[schema(value_type = i64 , example = 6540)]
+    pub amount: MinorUnit,
     /// The currency in which the amount is being refunded
     #[schema(value_type = Currency)]
     pub currency: enums::Currency,
     /// The reason for the refund
+    #[schema(max_length = 255, example = "Customer returned the product")]
     pub reason: Option<String>,
 }
 
 #[derive(Debug, ToSchema, Clone, Deserialize, Serialize)]
 pub struct RelayResponse {
     /// The unique identifier for the Relay
-    #[schema(value_type = String)]
+    #[schema(example = "relay_mbabizu24mvu3mela5njyhpit4", value_type = String)]
     pub id: common_utils::id_type::RelayId,
     /// The status of the relay request
     pub status: RelayStatus,
     /// The error details if the relay request failed
-    pub error: RelayError,
+    pub error: Option<RelayError>,
     /// The identifier that is associated to a resource at the connector reference to which the relay request is being made
+    #[schema(example = "7256228702616471803954")]
     pub connector_resource_id: String,
     /// Identifier of the connector ( merchant connector account ) which was chosen to make the payment
-    #[schema(value_type = String)]
+    #[schema(example = "mca_5apGeP94tMts6rg3U3kR", value_type = String)]
     pub connector_id: common_utils::id_type::MerchantConnectorAccountId,
     /// The business profile that is associated with this relay request.
-    #[schema(value_type = String)]
+    #[schema(example = "pro_abcdefghijklmnopqrstuvwxyz", value_type = String)]
     pub profile_id: common_utils::id_type::ProfileId,
     /// The type of relay request
     #[serde(rename = "type")]
@@ -70,6 +76,7 @@ pub struct RelayResponse {
 }
 
 #[derive(Debug, ToSchema, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
 pub enum RelayStatus {
     /// The relay request is successful
     Success,

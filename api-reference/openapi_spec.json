@@ -967,13 +967,13 @@
               "examples": {
                 "Create a relay request": {
                   "value": {
-                    "connector_id": "cu_123456",
+                    "connector_id": "mca_5apGeP94tMts6rg3U3kR",
                     "connector_resource_id": "7256228702616471803954",
                     "data": {
                       "amount": 6540,
                       "currency": "USD"
                     },
-                    "profile_id": "pro_123456",
+                    "profile_id": "pro_abcdefghijklmnopqrstuvwxyz",
                     "type": "refund"
                   }
                 }
@@ -988,7 +988,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/CustomerResponse"
+                  "$ref": "#/components/schemas/RelayResponse"
                 }
               }
             }
@@ -22841,7 +22841,8 @@
           "amount": {
             "type": "integer",
             "format": "int64",
-            "description": "The amount that is being refunded"
+            "description": "The amount that is being refunded",
+            "example": 6540
           },
           "currency": {
             "$ref": "#/components/schemas/Currency"
@@ -22849,7 +22850,9 @@
           "reason": {
             "type": "string",
             "description": "The reason for the refund",
-            "nullable": true
+            "example": "Customer returned the product",
+            "nullable": true,
+            "maxLength": 255
           }
         }
       },
@@ -22864,15 +22867,18 @@
         "properties": {
           "connector_resource_id": {
             "type": "string",
-            "description": "The identifier that is associated to a resource at the connector reference to which the relay request is being made"
+            "description": "The identifier that is associated to a resource at the connector reference to which the relay request is being made",
+            "example": "7256228702616471803954"
           },
           "connector_id": {
             "type": "string",
-            "description": "Identifier of the connector ( merchant connector account ) which was chosen to make the payment"
+            "description": "Identifier of the connector ( merchant connector account ) to which relay request is being made",
+            "example": "mca_5apGeP94tMts6rg3U3kR"
           },
           "profile_id": {
             "type": "string",
-            "description": "The business profile that is associated with this payment request"
+            "description": "The business profile that is associated with this payment request",
+            "example": "pro_abcdefghijklmnopqrstuvwxyz"
           },
           "type": {
             "$ref": "#/components/schemas/RelayType"
@@ -22892,7 +22898,6 @@
         "required": [
           "id",
           "status",
-          "error",
           "connector_resource_id",
           "connector_id",
           "profile_id",
@@ -22901,25 +22906,34 @@
         "properties": {
           "id": {
             "type": "string",
-            "description": "The unique identifier for the Relay"
+            "description": "The unique identifier for the Relay",
+            "example": "relay_mbabizu24mvu3mela5njyhpit4"
           },
           "status": {
             "$ref": "#/components/schemas/RelayStatus"
           },
           "error": {
-            "$ref": "#/components/schemas/RelayError"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RelayError"
+              }
+            ],
+            "nullable": true
           },
           "connector_resource_id": {
             "type": "string",
-            "description": "The identifier that is associated to a resource at the connector reference to which the relay request is being made"
+            "description": "The identifier that is associated to a resource at the connector reference to which the relay request is being made",
+            "example": "7256228702616471803954"
           },
           "connector_id": {
             "type": "string",
-            "description": "Identifier of the connector ( merchant connector account ) which was chosen to make the payment"
+            "description": "Identifier of the connector ( merchant connector account ) which was chosen to make the payment",
+            "example": "mca_5apGeP94tMts6rg3U3kR"
           },
           "profile_id": {
             "type": "string",
-            "description": "The business profile that is associated with this relay request."
+            "description": "The business profile that is associated with this relay request.",
+            "example": "pro_abcdefghijklmnopqrstuvwxyz"
           },
           "type": {
             "$ref": "#/components/schemas/RelayType"
@@ -22937,9 +22951,9 @@
       "RelayStatus": {
         "type": "string",
         "enum": [
-          "Success",
-          "Processing",
-          "Failure"
+          "success",
+          "processing",
+          "failure"
         ]
       },
       "RelayType": {
