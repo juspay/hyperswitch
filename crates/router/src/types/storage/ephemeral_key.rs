@@ -12,6 +12,7 @@ impl ForeignFrom<EphemeralKeyType> for api_models::ephemeral_key::EphemeralKeyRe
             created_at: from.created_at,
             expires: from.expires,
             secret: from.secret,
+            id: from.id,
         }
     }
 }

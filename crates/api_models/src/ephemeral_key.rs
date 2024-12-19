@@ -36,6 +36,9 @@ pub struct EphemeralKeyCreateRequest {
 /// ephemeral_key for the customer_id mentioned
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone, Eq, PartialEq, ToSchema)]
 pub struct EphemeralKeyResponse {
+    /// Ephemeral key id
+    #[schema(value_type = String, max_length = 32, min_length = 1)]
+    pub id: id_type::EphemeralKeyId,
     /// customer_id to which this ephemeral key belongs to
     #[schema(value_type = String, max_length = 64, min_length = 32, example = "12345_cus_01926c58bc6e77c09e809964e72af8c8")]
     pub customer_id: id_type::GlobalCustomerId,

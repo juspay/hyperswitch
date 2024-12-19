@@ -225,11 +225,10 @@ mod storage {
             id: &str,
         ) -> CustomResult<EphemeralKey, errors::StorageError> {
             let ek = self.get_ephemeral_key(id).await?;
-            let redis_id_key = ek.id.generate_redis_key();
 
             self.get_redis_conn()
                 .map_err(Into::<errors::StorageError>::into)?
-                .delete_key(&redis_id_key)
+                .delete_key(&format!("epkey_{}", &ek.id))
                 .await
                 .change_context(errors::StorageError::KVError)?;
 
@@ -247,12 +246,12 @@ mod storage {
             id: &str,
         ) -> CustomResult<EphemeralKeyType, errors::StorageError> {
             let ek = self.get_ephemeral_key(id).await?;
-            let key_id = format!("epkey_{}", &ek.id.get_string_repr());
+            let redis_id_key = ek.id.generate_redis_key();
             let secret_key = format!("epkey_{}", &ek.secret.peek());
 
             self.get_redis_conn()
                 .map_err(Into::<errors::StorageError>::into)?
-                .delete_key(&key_id)
+                .delete_key(&redis_id_key)
                 .await
                 .map_err(|err| match err.current_context() {
                     RedisError::NotFound => {

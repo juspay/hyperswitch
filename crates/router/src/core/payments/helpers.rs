@@ -3054,9 +3054,22 @@ pub async fn make_ephemeral_key(
 pub async fn make_ephemeral_key(
     state: SessionState,
     customer_id: id_type::GlobalCustomerId,
-    merchant_id: id_type::MerchantId,
+    merchant_account: domain::MerchantAccount,
+    key_store: domain::MerchantKeyStore,
     headers: &actix_web::http::header::HeaderMap,
 ) -> errors::RouterResponse<EphemeralKeyResponse> {
+    let db = &state.store;
+    let key_manager_state = &((&state).into());
+    db.find_customer_by_global_id(
+        &key_manager_state,
+        &customer_id,
+        merchant_account.get_id(),
+        &key_store,
+        merchant_account.storage_scheme,
+    )
+    .await
+    .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
+
     let resource_type = services::authentication::get_header_value_by_key(
         headers::X_RESOURCE_TYPE.to_string(),
         headers,
@@ -3069,10 +3082,15 @@ pub async fn make_ephemeral_key(
     .get_required_value("ResourceType")
     .attach_printable("Failed to convert ResourceType from string")?;
 
-    let ek = create_ephemeral_key(&state, &customer_id, &merchant_id, resource_type)
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Unable to create ephemeral key")?;
+    let ek = create_ephemeral_key(
+        &state,
+        &customer_id,
+        merchant_account.get_id(),
+        resource_type,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Unable to create ephemeral key")?;
 
     let response = EphemeralKeyResponse::foreign_from(ek);
     Ok(services::ApplicationResponse::Json(response))
