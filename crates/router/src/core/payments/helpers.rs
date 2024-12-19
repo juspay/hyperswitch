@@ -22,8 +22,6 @@ use common_utils::{
     },
 };
 use diesel_models::enums;
-#[cfg(feature = "v2")]
-use redis_interface::errors::RedisError;
 // TODO : Evaluate all the helper functions ()
 use error_stack::{report, ResultExt};
 use futures::future::Either;
@@ -46,6 +44,8 @@ use openssl::{
     pkey::PKey,
     symm::{decrypt_aead, Cipher},
 };
+#[cfg(feature = "v2")]
+use redis_interface::errors::RedisError;
 use router_env::{instrument, logger, tracing};
 use uuid::Uuid;
 use x509_parser::parse_x509_certificate;

@@ -1,8 +1,8 @@
 use common_utils::id_type;
-use serde;
-use utoipa::ToSchema;
 #[cfg(feature = "v2")]
 use masking::Secret;
+use serde;
+use utoipa::ToSchema;
 
 #[cfg(feature = "v1")]
 /// Information required to create an ephemeral key.
