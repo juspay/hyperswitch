@@ -3441,19 +3441,14 @@ pub async fn get_session_token_for_click_to_pay(
             message: "Failed to convert amount to string major unit for clickToPay".to_string(),
         })?;
 
-    let optional_customer_details = payment_intent
+    let customer_details: &CustomerData = &payment_intent
         .customer_details
-        .as_ref()
-        .map(|details| {
-            serde_json::from_value::<CustomerData>(details.clone().into_inner().expose())
-        })
-        .transpose()
+        .clone()
+        .parse_value("CustomerData")
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("failed to parse customer data from payment intent")?;
-    optional_customer_details
-        .as_ref()
-        .map(validate_customer_details_for_click_to_pay)
-        .transpose()?;
+        .attach_printable("Error while parsing customer data from payment intent")?;
+
+    validate_customer_details_for_click_to_pay(customer_details)?;
 
     Ok(api_models::payments::SessionToken::ClickToPay(Box::new(
         api_models::payments::ClickToPaySessionResponse {
@@ -3467,14 +3462,9 @@ pub async fn get_session_token_for_click_to_pay(
             merchant_country_code: click_to_pay_metadata.merchant_country_code,
             transaction_amount,
             transaction_currency_code: transaction_currency,
-            phone_number: optional_customer_details
-                .as_ref()
-                .and_then(|details| details.phone.clone()),
-            email: optional_customer_details
-                .as_ref()
-                .and_then(|details| details.email.clone()),
-            phone_country_code: optional_customer_details
-                .and_then(|details| details.phone_country_code.clone()),
+            phone_number: customer_details.phone.clone(),
+            email: customer_details.email.clone(),
+            phone_country_code: customer_details.phone_country_code.clone(),
         },
     )))
 }
@@ -3488,6 +3478,7 @@ fn validate_customer_details_for_click_to_pay(customer_details: &CustomerData) -
         (None, None, Some(_)) => Ok(()),
         (Some(_), Some(_), Some(_)) => Ok(()),
         (Some(_), Some(_), None) => Ok(()),
+        (Some(_), None, Some(_)) => Ok(()),
         (None, Some(_), None) => Err(errors::ApiErrorResponse::MissingRequiredField {
             field_name: "phone",
         })
