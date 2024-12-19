@@ -10,13 +10,6 @@ pub struct EphemeralKeyTypeNew {
 }
 
 #[cfg(feature = "v2")]
-impl EphemeralKeyTypeNew {
-    pub fn generate_secret_key(&self) -> String {
-        format!("epkey_{}", self.secret.peek())
-    }
-}
-
-#[cfg(feature = "v2")]
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct EphemeralKeyType {
     pub id: common_utils::id_type::EphemeralKeyId,

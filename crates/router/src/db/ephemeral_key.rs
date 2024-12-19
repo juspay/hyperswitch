@@ -141,11 +141,6 @@ mod storage {
             new: EphemeralKeyTypeNew,
             validity: i64,
         ) -> CustomResult<EphemeralKeyType, errors::StorageError> {
-            let secret_key = new.generate_secret_key();
-            let id_key = new.id.generate_redis_key();
-
-            let created_at = date_time::now();
-            let expires = created_at.saturating_add(validity.hours());
             let created_ek = EphemeralKeyType {
                 id: new.id,
                 created_at,
@@ -155,6 +150,11 @@ mod storage {
                 secret: new.secret,
                 resource_type: new.resource_type,
             };
+            let secret_key = created_ek.generate_secret_key();
+            let id_key = new.id.generate_redis_key();
+
+            let created_at = date_time::now();
+            let expires = created_at.saturating_add(validity.hours());
 
             match self
                 .get_redis_conn()
