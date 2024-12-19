@@ -8,6 +8,7 @@ use common_utils::{
     ext_traits::BytesExt,
     request::{Method, Request, RequestBuilder, RequestContent},
 };
+use lazy_static::lazy_static;
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
@@ -24,7 +25,7 @@ use hyperswitch_domain_models::{
     },
     router_response_types::{
         ConnectorInfo, PaymentsResponseData, RefundsResponseData, SupportedPaymentMethods,
-        SupportedPaymentMethodsExt,
+        SupportedPaymentMethodsExt, PaymentMethodDetails,
     },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
@@ -816,43 +817,56 @@ impl webhooks::IncomingWebhook for Bambora {
     }
 }
 
-impl ConnectorSpecifications for Bambora {
-    fn get_connector_about(&self) -> Option<ConnectorInfo> {
-        Some(ConnectorInfo {
-            description:
-                "Bambora is a leading online payment provider in Canada and United States."
-                    .to_string(),
-            connector_type: enums::PaymentConnectorCategory::PaymentGateway,
-        })
-    }
-
-    fn get_supported_payment_methods(&self) -> Option<SupportedPaymentMethods> {
-        let bambora_default_capture_methods = vec![
+lazy_static! {
+    static ref BAMBORA_SUPPORTED_PAYMENT_METHODS: SupportedPaymentMethods = {
+        let default_capture_methods = vec![
             enums::CaptureMethod::Automatic,
             enums::CaptureMethod::Manual,
             enums::CaptureMethod::SequentialAutomatic,
         ];
 
         let mut bambora_supported_payment_methods = SupportedPaymentMethods::new();
+        
         bambora_supported_payment_methods.add(
             enums::PaymentMethod::Card,
             enums::PaymentMethodType::Credit,
-            false,
-            true,
-            bambora_default_capture_methods.clone(),
+            PaymentMethodDetails {
+                mandates: common_enums::FeatureStatus::NotSupported,
+                refunds: common_enums::FeatureStatus::Supported,
+                supported_capture_methods: default_capture_methods.clone(),
+            },
         );
         bambora_supported_payment_methods.add(
             enums::PaymentMethod::Card,
             enums::PaymentMethodType::Debit,
-            false,
-            true,
-            bambora_default_capture_methods.clone(),
+            PaymentMethodDetails {
+                mandates: common_enums::FeatureStatus::NotSupported,
+                refunds: common_enums::FeatureStatus::Supported,
+                supported_capture_methods: default_capture_methods.clone(),
+            },
         );
 
-        Some(bambora_supported_payment_methods)
+        bambora_supported_payment_methods
+    };
+    static ref BAMBORA_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+        description: "Bambora is a leading online payment provider in Canada and United States.".to_string(),
+        connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+    };
+
+    static ref BAMBORA_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> = Vec::new();
+
+}
+
+impl ConnectorSpecifications for Bambora {
+    fn get_connector_about(&self) -> Option<&'static ConnectorInfo>  {
+        Some(&*BAMBORA_CONNECTOR_INFO)
     }
 
-    fn get_supported_webhook_flows(&self) -> Option<Vec<enums::EventClass>> {
-        Some(Vec::new())
+    fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
+        Some(&*BAMBORA_SUPPORTED_PAYMENT_METHODS)
+    }
+
+    fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
+        Some(&*BAMBORA_SUPPORTED_WEBHOOK_FLOWS)
     }
 }

@@ -9,6 +9,7 @@ use common_utils::{
     ext_traits::{BytesExt, ValueExt},
     request::{Method, Request, RequestBuilder, RequestContent},
 };
+use lazy_static::lazy_static;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     api::ApplicationResponse,
@@ -25,7 +26,7 @@ use hyperswitch_domain_models::{
     },
     router_response_types::{
         ConnectorInfo, PaymentsResponseData, RefundsResponseData, SupportedPaymentMethods,
-        SupportedPaymentMethodsExt,
+        SupportedPaymentMethodsExt, PaymentMethodDetails,
     },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
@@ -445,32 +446,48 @@ fn get_webhook_object_from_body(
     Ok(response)
 }
 
-impl ConnectorSpecifications for Zsl {
-    fn get_connector_about(&self) -> Option<ConnectorInfo> {
-        Some(ConnectorInfo {
-            description:
-                "Zsl is a payment gateway operating in China, specializing in facilitating local bank transfers"
-                    .to_string(),
-            connector_type: enums::PaymentConnectorCategory::PaymentGateway,
-        })
-    }
 
-    fn get_supported_payment_methods(&self) -> Option<SupportedPaymentMethods> {
-        let zsl_default_capture_methods = vec![enums::CaptureMethod::Automatic];
+lazy_static! {
+    static ref ZSL_SUPPORTED_PAYMENT_METHODS: SupportedPaymentMethods = {
+        let supported_capture_methods = vec![enums::CaptureMethod::Automatic];
 
         let mut zsl_supported_payment_methods = SupportedPaymentMethods::new();
+
+        
         zsl_supported_payment_methods.add(
             enums::PaymentMethod::BankTransfer,
             enums::PaymentMethodType::LocalBankTransfer,
-            false,
-            false,
-            zsl_default_capture_methods.clone(),
+            PaymentMethodDetails{
+                mandates: common_enums::FeatureStatus::NotSupported,
+                refunds: common_enums::FeatureStatus::NotSupported,
+                supported_capture_methods,
+            },
         );
 
-        Some(zsl_supported_payment_methods)
+        zsl_supported_payment_methods
+    };
+
+    static ref ZSL_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+        description:
+            "Zsl is a payment gateway operating in China, specializing in facilitating local bank transfers"
+                .to_string(),
+        connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+    };
+
+    static ref ZSL_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> = Vec::new();
+
+}
+
+impl ConnectorSpecifications for Zsl {
+    fn get_connector_about(&self) -> Option<&'static ConnectorInfo>  {
+        Some(&*ZSL_CONNECTOR_INFO)
     }
 
-    fn get_supported_webhook_flows(&self) -> Option<Vec<enums::EventClass>> {
-        Some(Vec::new())
+    fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
+      Some(&*ZSL_SUPPORTED_PAYMENT_METHODS)
+    }
+
+    fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
+        Some(&*ZSL_SUPPORTED_WEBHOOK_FLOWS)
     }
 }

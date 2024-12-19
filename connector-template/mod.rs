@@ -25,7 +25,7 @@ use hyperswitch_domain_models::{
         PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData,
         PaymentsSyncData, RefundsData, SetupMandateRequestData,
     },
-    router_response_types::{ConnectorInfo, PaymentsResponseData, RefundsResponseData, SupportedPaymentMethods},
+    router_response_types::{PaymentsResponseData, RefundsResponseData},
     types::{
         PaymentsAuthorizeRouterData,
         PaymentsCaptureRouterData, PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData,
@@ -552,23 +552,5 @@ impl webhooks::IncomingWebhook for {{project-name | downcase | pascal_case}} {
     }
 }
 
-impl ConnectorSpecifications for {{project-name | downcase | pascal_case}} {
-    fn get_connector_about(&self) -> Option<ConnectorInfo> {
-        Some(ConnectorInfo {
-            description:
-                "Connector About"
-                    .to_string(),
-            connector_type: common_enums::enums::PaymentConnectorCategory::PaymentGateway,
-        })
-    }
-
-    fn get_supported_payment_methods(&self) -> Option<SupportedPaymentMethods> {
-        let mut supported_payment_methods  = SupportedPaymentMethods::new();
-        Some(supported_payment_methods)
-    }
-
-    fn get_supported_webhook_flows(&self) -> Option<Vec<common_enums::enums::EventClass>> {
-        Some(Vec::new())
-    }
-}
-
+impl ConnectorSpecifications for {{project-name | downcase | pascal_case}} {}
+   

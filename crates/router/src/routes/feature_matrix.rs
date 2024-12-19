@@ -91,11 +91,12 @@ fn build_connector_feature_details(
             }).collect::<Vec<feature_matrix::SupportedPaymentMethod>>();
 
         let connector_about = connector.get_connector_about();
+        let supported_webhook_flows =  connector.get_supported_webhook_flows().map(|webhook_flows| webhook_flows.to_vec());
         feature_matrix::ConnectorFeatureMatrixResponse {
             name: connector_name,
-            description: connector_about.as_ref().map(|about| about.description.clone()),
-            category: connector_about.as_ref().map(|about| about.connector_type.clone()),
-            supported_webhook_flows: connector.get_supported_webhook_flows(),
+            description: connector_about.map(|about| about.description.clone()),
+            category: connector_about.map(|about| about.connector_type.clone()),
+            supported_webhook_flows,
             supported_payment_methods,
         }
     })
@@ -104,8 +105,8 @@ fn build_connector_feature_details(
 fn build_payment_method_wise_feature_details(
     state: &app::SessionState,
     connector_name: &str,
-    payment_method: enums::PaymentMethod,
-    supported_payment_method_types: PaymentMethodTypeMetadata,
+    payment_method: &enums::PaymentMethod,
+    supported_payment_method_types: &PaymentMethodTypeMetadata,
 ) -> Vec<feature_matrix::SupportedPaymentMethod> {
     supported_payment_method_types
         .into_iter()
@@ -119,7 +120,7 @@ fn build_payment_method_wise_feature_details(
                     .and_then(|selected_connector| {
                         selected_connector.0.get(
                             &settings::PaymentMethodFilterKey::PaymentMethodType(
-                                payment_method_type,
+                                *payment_method_type,
                             ),
                         )
                     });
@@ -131,11 +132,11 @@ fn build_payment_method_wise_feature_details(
                 payment_method_type_config.and_then(|config| config.currency.clone());
 
             feature_matrix::SupportedPaymentMethod {
-                payment_method,
-                payment_method_type,
-                supports_mandate: feature_metadata.supports_mandate,
-                supports_refund: feature_metadata.supports_refund,
-                supported_capture_methods: feature_metadata.supported_capture_methods,
+                payment_method: *payment_method,
+                payment_method_type: *payment_method_type,
+                mandates: feature_metadata.mandates,
+                refunds: feature_metadata.refunds,
+                supported_capture_methods: feature_metadata.supported_capture_methods.clone(),
                 supported_countries,
                 supported_currencies,
             }

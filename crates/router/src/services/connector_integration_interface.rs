@@ -1,4 +1,3 @@
-use common_enums::EventClass;
 use common_utils::{crypto, errors::CustomResult, request::Request};
 use hyperswitch_domain_models::{
     router_data::RouterData,
@@ -431,7 +430,7 @@ impl ConnectorValidation for ConnectorEnum {
 }
 
 impl ConnectorSpecifications for ConnectorEnum {
-    fn get_supported_payment_methods(&self) -> Option<SupportedPaymentMethods> {
+    fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
         match self {
             Self::Old(connector) => connector.get_supported_payment_methods(),
             Self::New(connector) => connector.get_supported_payment_methods(),
@@ -439,7 +438,7 @@ impl ConnectorSpecifications for ConnectorEnum {
     }
 
     /// Supported webhooks flows
-    fn get_supported_webhook_flows(&self) -> Option<Vec<EventClass>> {
+    fn get_supported_webhook_flows(&self) -> Option<&'static [common_enums::EventClass]> {
         match self {
             Self::Old(connector) => connector.get_supported_webhook_flows(),
             Self::New(connector) => connector.get_supported_webhook_flows(),
@@ -447,7 +446,7 @@ impl ConnectorSpecifications for ConnectorEnum {
     }
 
     /// Details related to connector
-    fn get_connector_about(&self) -> Option<ConnectorInfo> {
+    fn get_connector_about(&self) -> Option<&'static ConnectorInfo>  {
         match self {
             Self::Old(connector) => connector.get_connector_about(),
             Self::New(connector) => connector.get_connector_about(),

@@ -2,7 +2,6 @@ pub mod disputes;
 pub mod fraud_check;
 use std::collections::HashMap;
 
-use common_enums::{CaptureMethod, PaymentConnectorCategory, PaymentMethod, PaymentMethodType};
 use common_utils::{request::Method, types as common_types, types::MinorUnit};
 pub use disputes::{AcceptDisputeResponse, DefendDisputeResponse, SubmitEvidenceResponse};
 
@@ -517,18 +516,18 @@ pub struct CompleteAuthorizeRedirectResponse {
 #[derive(Debug, Clone)]
 pub struct PaymentMethodDetails {
     /// Indicates whether mandates are supported by this payment method.
-    pub supports_mandate: bool,
+    pub mandates: common_enums::FeatureStatus,
     /// Indicates whether refund is supported by this payment method.
-    pub supports_refund: bool,
+    pub refunds: common_enums::FeatureStatus,
     /// List of supported capture methods
-    pub supported_capture_methods: Vec<CaptureMethod>,
+    pub supported_capture_methods: Vec<common_enums::CaptureMethod>,
 }
 
 /// list of payment method types and metadata related to them
-pub type PaymentMethodTypeMetadata = HashMap<PaymentMethodType, PaymentMethodDetails>;
+pub type PaymentMethodTypeMetadata = HashMap<common_enums::PaymentMethodType, PaymentMethodDetails>;
 
 /// list of payment methods, payment method types and metadata related to them
-pub type SupportedPaymentMethods = HashMap<PaymentMethod, PaymentMethodTypeMetadata>;
+pub type SupportedPaymentMethods = HashMap<common_enums::PaymentMethod, PaymentMethodTypeMetadata>;
 
 #[derive(Debug, Clone)]
 pub struct ConnectorInfo {
@@ -536,44 +535,31 @@ pub struct ConnectorInfo {
     pub description: String,
 
     /// Connector Type
-    pub connector_type: PaymentConnectorCategory,
+    pub connector_type: common_enums::PaymentConnectorCategory,
 }
 
 pub trait SupportedPaymentMethodsExt {
     fn add(
         &mut self,
-        payment_method: PaymentMethod,
-        payment_method_type: PaymentMethodType,
-        supports_mandate: bool,
-        supports_refund: bool,
-        supported_capture_methods: Vec<CaptureMethod>,
+        payment_method: common_enums::PaymentMethod,
+        payment_method_type: common_enums::PaymentMethodType,
+        payment_method_details: PaymentMethodDetails,
     );
 }
 
 impl SupportedPaymentMethodsExt for SupportedPaymentMethods {
     fn add(
         &mut self,
-        payment_method: PaymentMethod,
-        payment_method_type: PaymentMethodType,
-        supports_mandate: bool,
-        supports_refund: bool,
-        supported_capture_methods: Vec<CaptureMethod>,
+        payment_method: common_enums::PaymentMethod,
+        payment_method_type: common_enums::PaymentMethodType,
+        payment_method_details: PaymentMethodDetails,
     ) {
         if let Some(payment_method_data) = self.get_mut(&payment_method) {
             payment_method_data.insert(
                 payment_method_type,
-                PaymentMethodDetails {
-                    supports_mandate,
-                    supports_refund,
-                    supported_capture_methods,
-                },
+                payment_method_details,
             );
         } else {
-            let payment_method_details = PaymentMethodDetails {
-                supports_mandate,
-                supports_refund,
-                supported_capture_methods,
-            };
 
             let mut payment_method_type_metadata = PaymentMethodTypeMetadata::new();
             payment_method_type_metadata.insert(payment_method_type, payment_method_details);

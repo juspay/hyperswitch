@@ -282,17 +282,17 @@ pub trait ConnectorCommon {
 /// The trait that provides specifications about the connector
 pub trait ConnectorSpecifications {
     /// Details related to payment method supported by the connector
-    fn get_supported_payment_methods(&self) -> Option<SupportedPaymentMethods> {
+    fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
         None
     }
 
     /// Supported webhooks flows
-    fn get_supported_webhook_flows(&self) -> Option<Vec<EventClass>> {
+    fn get_supported_webhook_flows(&self) ->  Option<&'static [EventClass]> {
         None
     }
 
-    /// Details related to connector
-    fn get_connector_about(&self) -> Option<ConnectorInfo> {
+    /// About the connector
+    fn get_connector_about(&self) -> Option<&'static ConnectorInfo>  {
         None
     }
 }
@@ -463,7 +463,7 @@ pub trait ConnectorRedirectResponse {
 pub trait Payouts {}
 
 fn get_connector_payment_method_type_info(
-    supported_payment_method: SupportedPaymentMethods,
+    supported_payment_method: &SupportedPaymentMethods,
     payment_method: PaymentMethod,
     payment_method_type: Option<PaymentMethodType>,
     connector: &'static str,
