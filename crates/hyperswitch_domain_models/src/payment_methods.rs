@@ -74,7 +74,7 @@ pub struct PaymentMethod {
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 #[derive(Clone, Debug)]
 pub struct PaymentMethod {
-    pub customer_id: common_utils::id_type::CustomerId,
+    pub customer_id: common_utils::id_type::GlobalCustomerId,
     pub merchant_id: common_utils::id_type::MerchantId,
     pub created_at: PrimitiveDateTime,
     pub last_modified: PrimitiveDateTime,

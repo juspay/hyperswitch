@@ -63,8 +63,23 @@ impl Mandate {
 
     //Fix this function once V2 mandate is schema is being built
     #[cfg(all(feature = "v2", feature = "customer_v2"))]
-    pub async fn find_by_global_id(_conn: &PgPooledConn, _id: &str) -> StorageResult<Vec<Self>> {
-        todo!()
+    pub async fn find_by_global_customer_id(
+        conn: &PgPooledConn,
+        customer_id: &common_utils::id_type::GlobalCustomerId,
+    ) -> StorageResult<Vec<Self>> {
+        generics::generic_filter::<
+            <Self as HasTable>::Table,
+            _,
+            <<Self as HasTable>::Table as Table>::PrimaryKey,
+            _,
+        >(
+            conn,
+            dsl::customer_id.eq(customer_id.to_owned()),
+            None,
+            None,
+            None,
+        )
+        .await
     }
 
     pub async fn update_by_merchant_id_mandate_id(

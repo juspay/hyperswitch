@@ -58,12 +58,14 @@ use router_env::{instrument, tracing};
 use serde_json::json;
 use strum::IntoEnumIterator;
 
-use super::{
-    migration::RecordMigrationStatusBuilder,
-    surcharge_decision_configs::{
-        perform_surcharge_decision_management_for_payment_method_list,
-        perform_surcharge_decision_management_for_saved_cards,
-    },
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
+use super::migration;
+use super::surcharge_decision_configs::{
+    perform_surcharge_decision_management_for_payment_method_list,
+    perform_surcharge_decision_management_for_saved_cards,
 };
 #[cfg(all(
     any(feature = "v2", feature = "v1"),
@@ -81,9 +83,7 @@ use crate::{
     consts as router_consts,
     core::{
         errors::{self, StorageErrorExt},
-        payment_methods::{
-            migration, network_tokenization, transformers as payment_methods, vault,
-        },
+        payment_methods::{network_tokenization, transformers as payment_methods, vault},
         payments::{
             helpers,
             routing::{self, SessionFlowRoutingInput},
@@ -412,7 +412,7 @@ pub async fn migrate_payment_method(
 
     let should_require_connector_mandate_details = req.network_token.is_none();
 
-    let mut migration_status = RecordMigrationStatusBuilder::new();
+    let mut migration_status = migration::RecordMigrationStatusBuilder::new();
 
     let resp = match card_number_validation_result {
         Ok(card_number) => {
@@ -509,6 +509,10 @@ pub async fn migrate_payment_method(
     todo!()
 }
 
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
 pub async fn populate_bin_details_for_masked_card(
     card_details: &api_models::payment_methods::MigrateCardDetail,
     db: &dyn db::StorageInterface,
@@ -717,7 +721,7 @@ pub async fn skip_locker_call_and_migrate_payment_method(
     merchant_account: &domain::MerchantAccount,
     card: api_models::payment_methods::CardDetailFromLocker,
     should_require_connector_mandate_details: bool,
-    migration_status: &mut RecordMigrationStatusBuilder,
+    migration_status: &mut migration::RecordMigrationStatusBuilder,
 ) -> errors::RouterResponse<api::PaymentMethodResponse> {
     let db = &*state.store;
     let customer_id = req.customer_id.clone().get_required_value("customer_id")?;
@@ -1108,7 +1112,7 @@ pub async fn get_client_secret_or_add_payment_method_for_migration(
     req: api::PaymentMethodCreate,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
-    migration_status: &mut RecordMigrationStatusBuilder,
+    migration_status: &mut migration::RecordMigrationStatusBuilder,
 ) -> errors::RouterResponse<api::PaymentMethodResponse> {
     let merchant_id = merchant_account.get_id();
     let customer_id = req.customer_id.clone().get_required_value("customer_id")?;
@@ -1706,7 +1710,7 @@ pub async fn save_migration_payment_method(
     req: api::PaymentMethodCreate,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
-    migration_status: &mut RecordMigrationStatusBuilder,
+    migration_status: &mut migration::RecordMigrationStatusBuilder,
 ) -> errors::RouterResponse<api::PaymentMethodResponse> {
     req.validate()?;
     let db = &*state.store;
@@ -2534,7 +2538,7 @@ pub async fn delete_card_from_locker(
 #[cfg(all(feature = "v2", feature = "customer_v2"))]
 pub async fn delete_card_by_locker_id(
     state: &routes::SessionState,
-    id: &str,
+    id: &id_type::GlobalCustomerId,
     merchant_id: &id_type::MerchantId,
 ) -> errors::RouterResult<payment_methods::DeleteCardResp> {
     todo!()
@@ -2797,9 +2801,11 @@ pub async fn update_payment_method_and_last_used(
     pm: domain::PaymentMethod,
     payment_method_update: Option<Encryption>,
     storage_scheme: MerchantStorageScheme,
+    card_scheme: Option<String>,
 ) -> errors::CustomResult<(), errors::VaultError> {
     let pm_update = payment_method::PaymentMethodUpdate::UpdatePaymentMethodDataAndLastUsed {
         payment_method_data: payment_method_update,
+        scheme: card_scheme,
         last_used_at: common_utils::date_time::now(),
     };
     db.update_payment_method(&(state.into()), key_store, pm, pm_update, storage_scheme)
@@ -4558,7 +4564,7 @@ pub async fn filter_payment_methods(
                                     .map(|future_usage| {
                                         future_usage == common_enums::FutureUsage::OnSession
                                     })
-                                    .unwrap_or(false)
+                                    .unwrap_or(true)
                         })
                         .and_then(|res| {
                             res.then(|| {
