@@ -119,7 +119,7 @@ pub async fn payments_create_intent(
         }
     };
     let global_payment_id =
-        common_utils::id_type::GlobalPaymentId::generate(&state.conf.cell_information.id.clone());
+        common_utils::id_type::GlobalPaymentId::generate(&state.conf.cell_information.id);
 
     Box::pin(api::server_wrap(
         flow,

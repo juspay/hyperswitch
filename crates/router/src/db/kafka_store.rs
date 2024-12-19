@@ -449,7 +449,7 @@ impl CustomerInterface for KafkaStore {
     async fn update_customer_by_global_id(
         &self,
         state: &KeyManagerState,
-        id: String,
+        id: &id_type::GlobalCustomerId,
         customer: domain::Customer,
         merchant_id: &id_type::MerchantId,
         customer_update: storage::CustomerUpdate,
@@ -525,7 +525,7 @@ impl CustomerInterface for KafkaStore {
     async fn find_customer_by_global_id(
         &self,
         state: &KeyManagerState,
-        id: &str,
+        id: &id_type::GlobalCustomerId,
         merchant_id: &id_type::MerchantId,
         key_store: &domain::MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
@@ -862,11 +862,13 @@ impl MandateInterface for KafkaStore {
     }
 
     #[cfg(all(feature = "v2", feature = "customer_v2"))]
-    async fn find_mandate_by_global_id(
+    async fn find_mandate_by_global_customer_id(
         &self,
-        id: &str,
+        id: &id_type::GlobalCustomerId,
     ) -> CustomResult<Vec<storage::Mandate>, errors::StorageError> {
-        self.diesel_store.find_mandate_by_global_id(id).await
+        self.diesel_store
+            .find_mandate_by_global_customer_id(id)
+            .await
     }
 
     async fn find_mandate_by_merchant_id_customer_id(
@@ -1909,18 +1911,22 @@ impl PaymentMethodInterface for KafkaStore {
     }
 
     #[cfg(all(feature = "v2", feature = "customer_v2"))]
-    async fn find_payment_method_list_by_global_id(
+    async fn find_payment_method_list_by_global_customer_id(
         &self,
         state: &KeyManagerState,
         key_store: &domain::MerchantKeyStore,
-        id: &str,
+        id: &id_type::GlobalCustomerId,
         limit: Option<i64>,
-    ) -> CustomResult<Vec<storage::PaymentMethod>, errors::StorageError> {
+    ) -> CustomResult<Vec<domain::PaymentMethod>, errors::StorageError> {
         self.diesel_store
-            .find_payment_method_list_by_global_id(state, key_store, id, limit)
+            .find_payment_method_list_by_global_customer_id(state, key_store, id, limit)
             .await
     }
 
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "payment_methods_v2")
+    ))]
     async fn find_payment_method_by_customer_id_merchant_id_status(
         &self,
         state: &KeyManagerState,
@@ -1933,6 +1939,30 @@ impl PaymentMethodInterface for KafkaStore {
     ) -> CustomResult<Vec<domain::PaymentMethod>, errors::StorageError> {
         self.diesel_store
             .find_payment_method_by_customer_id_merchant_id_status(
+                state,
+                key_store,
+                customer_id,
+                merchant_id,
+                status,
+                limit,
+                storage_scheme,
+            )
+            .await
+    }
+
+    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    async fn find_payment_method_by_global_customer_id_merchant_id_status(
+        &self,
+        state: &KeyManagerState,
+        key_store: &domain::MerchantKeyStore,
+        customer_id: &id_type::GlobalCustomerId,
+        merchant_id: &id_type::MerchantId,
+        status: common_enums::PaymentMethodStatus,
+        limit: Option<i64>,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<Vec<domain::PaymentMethod>, errors::StorageError> {
+        self.diesel_store
+            .find_payment_method_by_global_customer_id_merchant_id_status(
                 state,
                 key_store,
                 customer_id,
@@ -3753,6 +3783,15 @@ impl ThemeInterface for KafkaStore {
         theme_id: String,
     ) -> CustomResult<storage::theme::Theme, errors::StorageError> {
         self.diesel_store.find_theme_by_theme_id(theme_id).await
+    }
+
+    async fn find_most_specific_theme_in_lineage(
+        &self,
+        lineage: ThemeLineage,
+    ) -> CustomResult<diesel_models::user::theme::Theme, errors::StorageError> {
+        self.diesel_store
+            .find_most_specific_theme_in_lineage(lineage)
+            .await
     }
 
     async fn find_theme_by_lineage(

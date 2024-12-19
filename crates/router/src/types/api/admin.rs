@@ -4,12 +4,12 @@ use std::collections::HashMap;
 pub use api_models::admin;
 pub use api_models::{
     admin::{
-        MerchantAccountCreate, MerchantAccountDeleteResponse, MerchantAccountResponse,
-        MerchantAccountUpdate, MerchantConnectorCreate, MerchantConnectorDeleteResponse,
-        MerchantConnectorDetails, MerchantConnectorDetailsWrap, MerchantConnectorId,
-        MerchantConnectorResponse, MerchantDetails, MerchantId, PaymentMethodsEnabled,
-        ProfileCreate, ProfileResponse, ProfileUpdate, ToggleAllKVRequest, ToggleAllKVResponse,
-        ToggleKVRequest, ToggleKVResponse, WebhookDetails,
+        MaskedHeaders, MerchantAccountCreate, MerchantAccountDeleteResponse,
+        MerchantAccountResponse, MerchantAccountUpdate, MerchantConnectorCreate,
+        MerchantConnectorDeleteResponse, MerchantConnectorDetails, MerchantConnectorDetailsWrap,
+        MerchantConnectorId, MerchantConnectorResponse, MerchantDetails, MerchantId,
+        PaymentMethodsEnabled, ProfileCreate, ProfileResponse, ProfileUpdate, ToggleAllKVRequest,
+        ToggleAllKVResponse, ToggleKVRequest, ToggleKVResponse, WebhookDetails,
     },
     organization::{
         OrganizationCreateRequest, OrganizationId, OrganizationResponse, OrganizationUpdateRequest,
@@ -131,6 +131,8 @@ impl ForeignTryFrom<domain::Profile> for ProfileResponse {
                     )
             })
             .transpose()?;
+        let masked_outgoing_webhook_custom_http_headers =
+            outgoing_webhook_custom_http_headers.map(MaskedHeaders::from_headers);
 
         Ok(Self {
             merchant_id: item.merchant_id,
@@ -168,7 +170,7 @@ impl ForeignTryFrom<domain::Profile> for ProfileResponse {
             always_collect_shipping_details_from_wallet_connector: item
                 .always_collect_shipping_details_from_wallet_connector,
             is_connector_agnostic_mit_enabled: item.is_connector_agnostic_mit_enabled,
-            outgoing_webhook_custom_http_headers,
+            outgoing_webhook_custom_http_headers: masked_outgoing_webhook_custom_http_headers,
             tax_connector_id: item.tax_connector_id,
             is_tax_connector_enabled: item.is_tax_connector_enabled,
             is_network_tokenization_enabled: item.is_network_tokenization_enabled,
@@ -204,6 +206,8 @@ impl ForeignTryFrom<domain::Profile> for ProfileResponse {
             .map(admin::OrderFulfillmentTime::try_new)
             .transpose()
             .change_context(errors::ParsingError::IntegerOverflow)?;
+        let masked_outgoing_webhook_custom_http_headers =
+            outgoing_webhook_custom_http_headers.map(MaskedHeaders::from_headers);
 
         Ok(Self {
             merchant_id: item.merchant_id,
@@ -236,7 +240,7 @@ impl ForeignTryFrom<domain::Profile> for ProfileResponse {
             always_collect_billing_details_from_wallet_connector: item
                 .always_collect_billing_details_from_wallet_connector,
             is_connector_agnostic_mit_enabled: item.is_connector_agnostic_mit_enabled,
-            outgoing_webhook_custom_http_headers,
+            outgoing_webhook_custom_http_headers: masked_outgoing_webhook_custom_http_headers,
             order_fulfillment_time,
             order_fulfillment_time_origin: item.order_fulfillment_time_origin,
             should_collect_cvv_during_payment: item.should_collect_cvv_during_payment,
