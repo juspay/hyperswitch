@@ -1428,6 +1428,15 @@ impl PaymentCreate {
 
         let skip_external_tax_calculation = request.skip_external_tax_calculation;
 
+        let tax_details = request
+            .order_tax_amount
+            .map(|tax_amount| diesel_models::TaxDetails {
+                default: Some(diesel_models::DefaultTax {
+                    order_tax_amount: tax_amount,
+                }),
+                payment_method_type: None,
+            });
+
         Ok(storage::PaymentIntent {
             payment_id: payment_id.to_owned(),
             merchant_id: merchant_account.get_id().to_owned(),
@@ -1482,7 +1491,7 @@ impl PaymentCreate {
             is_payment_processor_token_flow,
             organization_id: merchant_account.organization_id.clone(),
             shipping_cost: request.shipping_cost,
-            tax_details: None,
+            tax_details,
             skip_external_tax_calculation,
             psd2_sca_exemption_type: request.psd2_sca_exemption_type,
         })
