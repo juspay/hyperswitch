@@ -405,7 +405,6 @@ default_imp_for_complete_authorize!(
     connectors::Nexinets,
     connectors::Payeezy,
     connectors::Payu,
-    connectors::Placetopay,
     connectors::Rapyd,
     connectors::Razorpay,
     connectors::Redsys,
