@@ -10,7 +10,7 @@ export const setApiKey = (requestBody, apiKey) => {
   requestBody["connector_account_details"]["api_key"] = apiKey;
 };
 
-export const generateRandomString = (prefix = "cypress_merchant_GHAction_") => {
+export const generateRandomString = (prefix = "cyMerchant") => {
   const uuidPart = "xxxxxxxx";
 
   const randomString = uuidPart.replace(/[xy]/g, function (c) {
@@ -19,7 +19,7 @@ export const generateRandomString = (prefix = "cypress_merchant_GHAction_") => {
     return v.toString(16);
   });
 
-  return prefix + randomString;
+  return `${prefix}_${randomString}`;
 };
 
 export const setMerchantId = (merchantCreateBody, merchantId) => {
