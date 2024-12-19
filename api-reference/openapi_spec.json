@@ -15652,6 +15652,11 @@
             "type": "boolean",
             "description": "Toggle for HyperSwitch branding visibility",
             "nullable": true
+          },
+          "payment_button_text": {
+            "type": "string",
+            "description": "Text for payment link's handle confirm button",
+            "nullable": true
           }
         }
       },
@@ -15736,6 +15741,11 @@
                 "$ref": "#/components/schemas/PaymentLinkDetailsLayout"
               }
             ],
+            "nullable": true
+          },
+          "payment_button_text": {
+            "type": "string",
+            "description": "Text for payment link's handle confirm button",
             "nullable": true
           }
         }

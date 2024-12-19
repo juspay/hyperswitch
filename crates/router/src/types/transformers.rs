@@ -1967,6 +1967,7 @@ impl ForeignFrom<api_models::admin::PaymentLinkConfigRequest>
             background_image: item
                 .background_image
                 .map(|background_image| background_image.foreign_into()),
+            payment_button_text: item.payment_button_text,
         }
     }
 }
@@ -1989,6 +1990,7 @@ impl ForeignFrom<diesel_models::business_profile::PaymentLinkConfigRequest>
             background_image: item
                 .background_image
                 .map(|background_image| background_image.foreign_into()),
+            payment_button_text: item.payment_button_text,
         }
     }
 }
