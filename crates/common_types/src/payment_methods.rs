@@ -1,17 +1,11 @@
 //! Common types to be used in payment methods
 
 use diesel::{
-    backend::Backend,
-    deserialize,
-    deserialize::FromSql,
-    serialize::{Output, ToSql},
-    sql_types::Jsonb,
-    AsExpression, FromSqlRow, Queryable,
+    backend::Backend, deserialize, deserialize::FromSql, sql_types::Jsonb, AsExpression, Queryable,
 };
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-#[cfg(feature = "v2")]
 /// Details of all the payment methods enabled for the connector for the given merchant account
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, AsExpression)]
 #[serde(deny_unknown_fields)]
@@ -117,7 +111,6 @@ pub enum AcceptedCurrencies {
     AllAccepted,
 }
 
-#[cfg(feature = "v2")]
 impl<DB> Queryable<Jsonb, DB> for PaymentMethodsEnabled
 where
     DB: Backend,
@@ -130,5 +123,4 @@ where
     }
 }
 
-#[cfg(feature = "v2")]
 common_utils::impl_to_sql_from_sql_json!(PaymentMethodsEnabled);
