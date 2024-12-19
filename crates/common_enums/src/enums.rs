@@ -2743,6 +2743,8 @@ pub enum TransactionType {
     Debug,
     Eq,
     PartialEq,
+    Ord,
+    PartialOrd,
     serde::Deserialize,
     serde::Serialize,
     strum::Display,
@@ -2752,8 +2754,19 @@ pub enum TransactionType {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum RoleScope {
-    Merchant,
-    Organization,
+    Organization = 2,
+    Merchant = 1,
+    Profile = 0,
+}
+
+impl From<RoleScope> for EntityType {
+    fn from(role_scope: RoleScope) -> Self {
+        match role_scope {
+            RoleScope::Organization => Self::Organization,
+            RoleScope::Merchant => Self::Merchant,
+            RoleScope::Profile => Self::Profile,
+        }
+    }
 }
 
 /// Indicates the transaction status

@@ -121,13 +121,14 @@ impl RoleInfo {
         role_id: &str,
         merchant_id: &id_type::MerchantId,
         org_id: &id_type::OrganizationId,
+        profile_id: &id_type::ProfileId,
     ) -> CustomResult<Self, errors::StorageError> {
         if let Some(role) = predefined_roles::PREDEFINED_ROLES.get(role_id) {
             Ok(role.clone())
         } else {
             state
                 .store
-                .find_role_by_role_id_in_lineage(role_id, merchant_id, org_id)
+                .find_role_by_role_id_in_lineage(role_id, merchant_id, org_id, profile_id)
                 .await
                 .map(Self::from)
         }
