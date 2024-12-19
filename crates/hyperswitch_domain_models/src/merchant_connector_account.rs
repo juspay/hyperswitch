@@ -73,7 +73,7 @@ pub struct MerchantConnectorAccount {
     #[encrypt]
     pub connector_account_details: Encryptable<Secret<Value>>,
     pub disabled: Option<bool>,
-    pub payment_methods_enabled: Option<Vec<common_utils::types::PaymentMethodsEnabled>>,
+    pub payment_methods_enabled: Option<Vec<common_types::payment_methods::PaymentMethodsEnabled>>,
     pub connector_type: enums::ConnectorType,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub frm_configs: Option<Vec<pii::SecretSerdeValue>>,
@@ -124,7 +124,7 @@ impl MerchantConnectorAccount {
 /// This struct is a flattened representation of the payment methods enabled for a connector
 #[derive(Debug)]
 pub struct PaymentMethodsEnabledForConnector {
-    pub payment_methods_enabled: common_utils::types::RequestPaymentMethodTypes,
+    pub payment_methods_enabled: common_types::payment_methods::RequestPaymentMethodTypes,
     pub payment_method: common_enums::PaymentMethod,
     pub connector: String,
 }
@@ -214,7 +214,7 @@ pub enum MerchantConnectorAccountUpdate {
         connector_type: Option<enums::ConnectorType>,
         connector_account_details: Box<Option<Encryptable<pii::SecretSerdeValue>>>,
         disabled: Option<bool>,
-        payment_methods_enabled: Option<Vec<common_utils::types::PaymentMethodsEnabled>>,
+        payment_methods_enabled: Option<Vec<common_types::payment_methods::PaymentMethodsEnabled>>,
         metadata: Option<pii::SecretSerdeValue>,
         frm_configs: Option<Vec<pii::SecretSerdeValue>>,
         connector_webhook_details: Option<pii::SecretSerdeValue>,
