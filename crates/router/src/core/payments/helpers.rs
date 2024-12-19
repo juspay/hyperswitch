@@ -2071,40 +2071,42 @@ pub async fn retrieve_payment_method_data_with_permanent_token(
                         Err(err) => {
                             logger::info!("Failed to fetch network token data from tokenization service {err:?}");
                             logger::info!("Falling back to fetch card details from locker");
-                            Ok(domain::PaymentMethodData::Card(vault_data
-                                .and_then(|vd| vd.get_card_vault_data())
-                                .map(Ok)
-                                .async_unwrap_or_else(|| async {
-                                    fetch_card_details_from_locker(
-                                        state,
-                                        customer_id,
-                                        &payment_intent.merchant_id,
-                                        locker_id,
-                                        card_token_data,
-                                    )
-                                    .await
-                                })
-                                .await?
+                            Ok(domain::PaymentMethodData::Card(
+                                vault_data
+                                    .and_then(|vd| vd.get_card_vault_data())
+                                    .map(Ok)
+                                    .async_unwrap_or_else(|| async {
+                                        fetch_card_details_from_locker(
+                                            state,
+                                            customer_id,
+                                            &payment_intent.merchant_id,
+                                            locker_id,
+                                            card_token_data,
+                                        )
+                                        .await
+                                    })
+                                    .await?,
                             ))
                         }
                     }
                 } else {
                     logger::info!("Either the connector is not in the NT supported list or token requestor reference ID is absent");
                     logger::info!("Falling back to fetch card details from locker");
-                    Ok(domain::PaymentMethodData::Card(vault_data
-                        .and_then(|vd| vd.get_card_vault_data())
-                        .map(Ok)
-                        .async_unwrap_or_else(|| async {
-                            fetch_card_details_from_locker(
-                                state,
-                                customer_id,
-                                &payment_intent.merchant_id,
-                                locker_id,
-                                card_token_data,
-                            )
-                            .await
-                        })
-                        .await?
+                    Ok(domain::PaymentMethodData::Card(
+                        vault_data
+                            .and_then(|vd| vd.get_card_vault_data())
+                            .map(Ok)
+                            .async_unwrap_or_else(|| async {
+                                fetch_card_details_from_locker(
+                                    state,
+                                    customer_id,
+                                    &payment_intent.merchant_id,
+                                    locker_id,
+                                    card_token_data,
+                                )
+                                .await
+                            })
+                            .await?,
                     ))
                 }
             }
@@ -2472,9 +2474,8 @@ pub async fn make_pm_data<'a, F: Clone, R, D>(
 where
     F: Clone,
 {
-    use crate::core::payments::OperationSessionGetters;
-
     use super::OperationSessionSetters;
+    use crate::core::payments::OperationSessionGetters;
 
     let request = payment_data.payment_method_data.clone();
 

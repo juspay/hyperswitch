@@ -254,7 +254,8 @@ impl ProfileUpdateInternal {
                 .unwrap_or(source.is_click_to_pay_enabled),
             authentication_product_ids: authentication_product_ids
                 .or(source.authentication_product_ids),
-            is_clear_pan_retries_enabled: is_clear_pan_retries_enabled.or(source.is_clear_pan_retries_enabled),
+            is_clear_pan_retries_enabled: is_clear_pan_retries_enabled
+                .or(source.is_clear_pan_retries_enabled),
         }
     }
 }

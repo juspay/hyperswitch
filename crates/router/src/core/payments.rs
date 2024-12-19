@@ -577,7 +577,7 @@ where
                         None,
                         &business_profile,
                         false,
-                        false, 
+                        false,
                     )
                     .await?;
 
@@ -2471,7 +2471,7 @@ where
         key_store,
         customer,
         business_profile,
-        should_retry_with_pan
+        should_retry_with_pan,
     )
     .await?;
     *payment_data = pd;
@@ -4123,7 +4123,7 @@ pub async fn get_connector_tokenization_action_when_confirm_true<F, Req, D>(
     merchant_key_store: &domain::MerchantKeyStore,
     customer: &Option<domain::Customer>,
     business_profile: &domain::Profile,
-    should_retry_with_pan: bool, 
+    should_retry_with_pan: bool,
 ) -> RouterResult<(D, TokenizationAction)>
 where
     F: Send + Clone,
@@ -4368,18 +4368,17 @@ where
 }
 
 #[derive(Clone, serde::Serialize, Debug)]
-pub enum PaymentMethodDataAction{
+pub enum PaymentMethodDataAction {
     SaveCard(hyperswitch_domain_models::payment_method_data::Card),
-    VaultDataVariant(VaultDataEnum)
+    VaultDataVariant(VaultDataEnum),
 }
 
 #[derive(Clone, serde::Serialize, Debug)]
-pub enum VaultDataEnum{
+pub enum VaultDataEnum {
     CardVaultData(hyperswitch_domain_models::payment_method_data::Card),
     NetworkTokenVaultData(hyperswitch_domain_models::payment_method_data::NetworkTokenData),
-    CardAndNetworkToken(VaultData)
+    CardAndNetworkToken(VaultData),
 }
-
 
 #[derive(Default, Clone, serde::Serialize, Debug)]
 pub struct VaultData {
@@ -4387,24 +4386,31 @@ pub struct VaultData {
     pub network_token_data: hyperswitch_domain_models::payment_method_data::NetworkTokenData,
 }
 
-impl VaultDataEnum{
-    pub fn get_card_vault_data(&self) -> Option<hyperswitch_domain_models::payment_method_data::Card>{
-        match self{
+impl VaultDataEnum {
+    pub fn get_card_vault_data(
+        &self,
+    ) -> Option<hyperswitch_domain_models::payment_method_data::Card> {
+        match self {
             VaultDataEnum::CardVaultData(card_data) => Some(card_data.clone()),
-            VaultDataEnum::NetworkTokenVaultData(_network_token_data) => None, 
-            VaultDataEnum::CardAndNetworkToken(vault_data) => Some(vault_data.card_data.clone())
+            VaultDataEnum::NetworkTokenVaultData(_network_token_data) => None,
+            VaultDataEnum::CardAndNetworkToken(vault_data) => Some(vault_data.card_data.clone()),
         }
     }
 
-    pub fn get_network_token_data(&self) -> Option<hyperswitch_domain_models::payment_method_data::NetworkTokenData>{
-        match self{
+    pub fn get_network_token_data(
+        &self,
+    ) -> Option<hyperswitch_domain_models::payment_method_data::NetworkTokenData> {
+        match self {
             VaultDataEnum::CardVaultData(_card_data) => None,
-            VaultDataEnum::NetworkTokenVaultData(network_token_data) => Some(network_token_data.clone()),
-            VaultDataEnum::CardAndNetworkToken(vault_data) => Some(vault_data.network_token_data.clone())
+            VaultDataEnum::NetworkTokenVaultData(network_token_data) => {
+                Some(network_token_data.clone())
+            }
+            VaultDataEnum::CardAndNetworkToken(vault_data) => {
+                Some(vault_data.network_token_data.clone())
+            }
         }
     }
 }
-
 
 #[derive(Clone, serde::Serialize, Debug)]
 pub struct TaxData {
@@ -6513,7 +6519,6 @@ pub async fn payment_external_authentication(
         &payment_intent,
         &key_store,
         storage_scheme,
-
     )
     .await?
     .ok_or(errors::ApiErrorResponse::InternalServerError)
@@ -7052,7 +7057,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentData<F> {
         self.payment_attempt.capture_method
     }
 
-    fn get_vault_operation(&self) -> Option<&PaymentMethodDataAction>{
+    fn get_vault_operation(&self) -> Option<&PaymentMethodDataAction> {
         self.vault_operation.as_ref()
     }
 

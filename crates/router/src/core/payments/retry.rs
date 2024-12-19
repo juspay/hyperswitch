@@ -148,12 +148,12 @@ where
                         .map(|gsm| gsm.clear_pan_possible)
                         .unwrap_or(false);
 
-                    let should_retry_with_pan = if clear_pan_possible && business_profile.is_clear_pan_retries_enabled{
-                        true
-                    } else {
-                        false
-                    };
-
+                    let should_retry_with_pan =
+                        if clear_pan_possible && business_profile.is_clear_pan_retries_enabled {
+                            true
+                        } else {
+                            false
+                        };
 
                     router_data = do_retry(
                         &state.clone(),
@@ -171,7 +171,7 @@ where
                         false,
                         frm_suggestion,
                         business_profile,
-                        should_retry_with_pan
+                        should_retry_with_pan,
                     )
                     .await?;
 
@@ -367,7 +367,7 @@ where
         frm_suggestion,
         business_profile,
         true,
-        should_retry_with_pan
+        should_retry_with_pan,
     )
     .await?;
 

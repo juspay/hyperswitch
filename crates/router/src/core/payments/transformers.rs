@@ -2578,7 +2578,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
         } else {
             None
         };
-        let payment_method_data = payment_data.payment_method_data.or_else(|| { //
+        let payment_method_data = payment_data.payment_method_data.or_else(|| {
+            //
             if payment_data.mandate_id.is_some() {
                 Some(domain::PaymentMethodData::MandatePayment)
             } else {

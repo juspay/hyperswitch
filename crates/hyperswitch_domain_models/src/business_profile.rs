@@ -60,7 +60,7 @@ pub struct Profile {
     pub max_auto_retries_enabled: Option<i16>,
     pub is_click_to_pay_enabled: bool,
     pub authentication_product_ids: Option<serde_json::Value>,
-    pub is_clear_pan_retries_enabled: bool, 
+    pub is_clear_pan_retries_enabled: bool,
 }
 
 #[cfg(feature = "v1")]
@@ -103,7 +103,7 @@ pub struct ProfileSetter {
     pub max_auto_retries_enabled: Option<i16>,
     pub is_click_to_pay_enabled: bool,
     pub authentication_product_ids: Option<serde_json::Value>,
-    pub is_clear_pan_retries_enabled: bool, 
+    pub is_clear_pan_retries_enabled: bool,
 }
 
 #[cfg(feature = "v1")]
@@ -205,7 +205,7 @@ pub struct ProfileGeneralUpdate {
     pub max_auto_retries_enabled: Option<i16>,
     pub is_click_to_pay_enabled: Option<bool>,
     pub authentication_product_ids: Option<serde_json::Value>,
-    pub is_clear_pan_retries_enabled: Option<bool>, 
+    pub is_clear_pan_retries_enabled: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
