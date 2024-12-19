@@ -88,6 +88,8 @@ pub enum Flow {
     ConfigKeyCreate,
     /// ConfigKey fetch flow.
     ConfigKeyFetch,
+    /// Enable platform account flow.
+    EnablePlatformAccount,
     /// ConfigKey Update flow.
     ConfigKeyUpdate,
     /// ConfigKey Delete flow.

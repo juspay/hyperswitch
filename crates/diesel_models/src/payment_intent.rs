@@ -74,6 +74,7 @@ pub struct PaymentIntent {
     pub id: common_utils::id_type::GlobalPaymentId,
     pub psd2_sca_exemption_type: Option<storage_enums::ScaExemptionType>,
     pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
+    pub platform_merchant_id: Option<common_utils::id_type::MerchantId>,
 }
 
 #[cfg(feature = "v1")]
@@ -140,6 +141,7 @@ pub struct PaymentIntent {
     pub skip_external_tax_calculation: Option<bool>,
     pub psd2_sca_exemption_type: Option<storage_enums::ScaExemptionType>,
     pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
+    pub platform_merchant_id: Option<common_utils::id_type::MerchantId>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, diesel::AsExpression, PartialEq)]
@@ -300,6 +302,7 @@ pub struct PaymentIntentNew {
     pub enable_payment_link: Option<bool>,
     pub apply_mit_exemption: Option<bool>,
     pub id: common_utils::id_type::GlobalPaymentId,
+    pub platform_merchant_id: Option<common_utils::id_type::MerchantId>,
 }
 
 #[cfg(feature = "v1")]
@@ -366,6 +369,7 @@ pub struct PaymentIntentNew {
     pub tax_details: Option<TaxDetails>,
     pub skip_external_tax_calculation: Option<bool>,
     pub psd2_sca_exemption_type: Option<storage_enums::ScaExemptionType>,
+    pub platform_merchant_id: Option<common_utils::id_type::MerchantId>,
     pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
 }
 

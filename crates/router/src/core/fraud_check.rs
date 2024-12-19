@@ -588,6 +588,7 @@ pub async fn post_payment_frm_core<'a, F, D>(
     customer: &Option<domain::Customer>,
     key_store: domain::MerchantKeyStore,
     should_continue_capture: &mut bool,
+    platform_merchant_account: Option<&domain::MerchantAccount>,
 ) -> RouterResult<Option<FrmData>>
 where
     F: Send + Clone,
@@ -647,6 +648,7 @@ where
                         payment_data,
                         customer,
                         should_continue_capture,
+                        platform_merchant_account,
                     )
                     .await?;
                 logger::debug!("frm_post_tasks_data: {:?}", frm_data);
