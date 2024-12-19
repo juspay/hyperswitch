@@ -245,12 +245,14 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> 
         _req: &RefreshTokenRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(connectors
-            .jpmorgan
-            .secondary_base_url
-            .as_ref()
-            .ok_or(errors::ConnectorError::FailedToObtainIntegrationUrl)?
-            .to_string())
+        Ok(format!(
+            "{}/am/oauth2/alpha/access_token",
+            connectors
+                .jpmorgan
+                .secondary_base_url
+                .as_ref()
+                .ok_or(errors::ConnectorError::FailedToObtainIntegrationUrl)?
+        ))
     }
 
     fn get_request_body(
