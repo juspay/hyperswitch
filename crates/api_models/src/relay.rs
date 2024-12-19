@@ -1,9 +1,8 @@
+pub use common_utils::types::MinorUnit;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
 use crate::enums;
-
-pub use common_utils::types::MinorUnit;
 
 #[derive(Debug, ToSchema, Clone, Deserialize, Serialize)]
 pub struct RelayRequest {
