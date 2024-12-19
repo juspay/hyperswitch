@@ -226,7 +226,7 @@ impl AmountDetails {
             common_enums::TaxCalculationOverride::Calculate => None,
         };
 
-        payment_attempt::AttemptAmountDetails {
+        payment_attempt::AttemptAmountDetails::from(payment_attempt::AttemptAmountDetailsSetter {
             net_amount,
             amount_to_capture: None,
             surcharge_amount,
@@ -235,7 +235,7 @@ impl AmountDetails {
             amount_capturable: MinorUnit::zero(),
             shipping_cost: self.shipping_cost,
             order_tax_amount,
-        }
+        })
     }
 
     pub fn update_from_request(self, req: &api_models::payments::AmountDetailsUpdate) -> Self {
@@ -597,6 +597,17 @@ where
     /// Should the payment status be synced with connector
     /// This will depend on the payment status and the force sync flag in the request
     pub should_sync_with_connector: bool,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Clone)]
+pub struct PaymentCaptureData<F>
+where
+    F: Clone,
+{
+    pub flow: PhantomData<F>,
+    pub payment_intent: PaymentIntent,
+    pub payment_attempt: PaymentAttempt,
 }
 
 #[cfg(feature = "v2")]

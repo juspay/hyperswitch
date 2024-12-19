@@ -42,6 +42,9 @@ pub mod payment_update_intent;
 #[cfg(feature = "v2")]
 pub mod payment_get;
 
+#[cfg(feature = "v2")]
+pub mod payment_capture_v2;
+
 use api_models::enums::FrmSuggestion;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use api_models::routing::RoutableConnectorChoice;
@@ -439,7 +442,7 @@ pub trait PostUpdateTracker<F, D, R: Send>: Send {
     where
         F: 'b + Send + Sync,
         types::RouterData<F, R, PaymentsResponseData>:
-            hyperswitch_domain_models::router_data::TrackerPostUpdateObjects<F, R>;
+            hyperswitch_domain_models::router_data::TrackerPostUpdateObjects<F, R, D>;
 
     async fn save_pm_and_mandate<'b>(
         &self,
