@@ -978,6 +978,13 @@ pub struct LabelInformation {
     pub mca_id: common_utils::id_type::MerchantConnectorAccountId,
 }
 
+impl LabelInformation {
+    pub fn update(&mut self, new: Self) {
+        self.target_count = new.target_count;
+        self.target_time = new.target_time;
+    }
+}
+
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ContractBasedTimeScale {
@@ -1003,7 +1010,17 @@ impl ContractBasedRoutingConfig {
             self.config.as_mut().map(|config| config.update(new_config));
         }
         if let Some(new_label_info) = new.label_info {
-            self.label_info = Some(new_label_info)
+            new_label_info.iter().for_each(|new_label_info| {
+                if let Some(existing_label_infos) = &mut self.label_info {
+                    for existing_label_info in existing_label_infos {
+                        if &existing_label_info.mca_id == &new_label_info.mca_id {
+                            existing_label_info.update(new_label_info.clone());
+                        }
+                    }
+                } else {
+                    self.label_info = Some(vec![new_label_info.clone()]);
+                }
+            });
         }
     }
 }

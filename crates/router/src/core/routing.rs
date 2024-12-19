@@ -448,6 +448,7 @@ pub async fn link_routing_config(
                     )?
                     .unwrap_or_default();
 
+            // Need to add contract based routing here
             utils::when(
                 matches!(
                     dynamic_routing_ref.success_based_algorithm,
