@@ -161,7 +161,7 @@ Never share your secret api keys. Keep them guarded and secure.
         common_types::payments::StripeSplitPaymentRequest,
         common_types::refunds::StripeSplitRefundRequest,
         common_utils::types::ChargeRefunds,
-        common_utils::types::PaymentMethodsEnabled,
+        common_types::payment_methods::PaymentMethodsEnabled,
         common_types::refunds::SplitRefund,
         api_models::payments::SplitPaymentsResponse,
         api_models::payments::StripeSplitPaymentsResponse,
