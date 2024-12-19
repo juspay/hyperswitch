@@ -148,7 +148,7 @@ pub async fn construct_payout_router_data<'a, F>(
             _ => None,
         };
 
-    let connector_mandate_id =
+    let connector_transfer_method_id =
         payout_helpers::should_create_connector_transfer_method(&*payout_data, connector_data)?;
 
     let router_data = types::RouterData {
@@ -192,7 +192,7 @@ pub async fn construct_payout_router_data<'a, F>(
                     phone: c.phone.map(Encryptable::into_inner),
                     phone_country_code: c.phone_country_code,
                 }),
-            connector_transfer_method_id: connector_mandate_id,
+            connector_transfer_method_id: connector_transfer_method_id,
         },
         response: Ok(types::PayoutsResponseData::default()),
         access_token: None,
