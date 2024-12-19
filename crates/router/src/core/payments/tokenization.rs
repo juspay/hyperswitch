@@ -1176,7 +1176,7 @@ pub fn add_connector_mandate_details_in_payment_method(
     connector_mandate_id: Option<String>,
     mandate_metadata: Option<Secret<serde_json::Value>>,
     connector_mandate_request_reference_id: Option<String>,
-) -> Option<diesel_models::PaymentsMandateReference> {
+) -> Option<diesel_models::CommonMandateReference> {
     let mut mandate_details = HashMap::new();
 
     if let Some((mca_id, connector_mandate_id)) =
@@ -1194,7 +1194,11 @@ pub fn add_connector_mandate_details_in_payment_method(
                 connector_mandate_request_reference_id,
             },
         );
-        Some(diesel_models::PaymentsMandateReference(mandate_details))
+        // Some(diesel_models::PaymentsMandateReference(mandate_details))
+        Some(diesel_models::CommonMandateReference {
+            payments: Some(diesel_models::PaymentsMandateReference(mandate_details)),
+            payouts: None,
+        })
     } else {
         None
     }
@@ -1203,7 +1207,7 @@ pub fn add_connector_mandate_details_in_payment_method(
 #[allow(clippy::too_many_arguments)]
 #[cfg(feature = "v1")]
 pub fn update_connector_mandate_details(
-    mandate_details: Option<diesel_models::PaymentsMandateReference>,
+    mandate_details: Option<diesel_models::CommonMandateReference>,
     payment_method_type: Option<storage_enums::PaymentMethodType>,
     authorized_amount: Option<i64>,
     authorized_currency: Option<storage_enums::Currency>,
@@ -1213,7 +1217,7 @@ pub fn update_connector_mandate_details(
     connector_mandate_request_reference_id: Option<String>,
 ) -> RouterResult<Option<serde_json::Value>> {
     let mandate_reference = match mandate_details {
-        Some(mut payment_mandate_reference) => {
+        Some(mut common_mandate_reference) => {
             if let Some((mca_id, connector_mandate_id)) =
                 merchant_connector_id.clone().zip(connector_mandate_id)
             {
@@ -1228,19 +1232,34 @@ pub fn update_connector_mandate_details(
                         .clone(),
                 };
 
-                payment_mandate_reference
-                    .entry(mca_id)
-                    .and_modify(|pm| *pm = updated_record)
-                    .or_insert(diesel_models::PaymentsMandateReferenceRecord {
-                        connector_mandate_id,
-                        payment_method_type,
-                        original_payment_authorized_amount: authorized_amount,
-                        original_payment_authorized_currency: authorized_currency,
-                        mandate_metadata: mandate_metadata.clone(),
-                        connector_mandate_status: Some(ConnectorMandateStatus::Active),
-                        connector_mandate_request_reference_id,
-                    });
-                Some(payment_mandate_reference)
+                if let Some(payments_mandate_reference) = common_mandate_reference.payments.as_mut()
+                {
+                    payments_mandate_reference
+                        .entry(mca_id)
+                        .and_modify(|pm| *pm = updated_record)
+                        .or_insert(diesel_models::PaymentsMandateReferenceRecord {
+                            connector_mandate_id,
+                            payment_method_type,
+                            original_payment_authorized_amount: authorized_amount,
+                            original_payment_authorized_currency: authorized_currency,
+                            mandate_metadata: mandate_metadata.clone(),
+                            connector_mandate_status: Some(ConnectorMandateStatus::Active),
+                            connector_mandate_request_reference_id,
+                        });
+                }
+                // common_mandate_reference
+                //     .entry(mca_id)
+                //     .and_modify(|pm| *pm = updated_record)
+                //     .or_insert(diesel_models::PaymentsMandateReferenceRecord {
+                //         connector_mandate_id,
+                //         payment_method_type,
+                //         original_payment_authorized_amount: authorized_amount,
+                //         original_payment_authorized_currency: authorized_currency,
+                //         mandate_metadata: mandate_metadata.clone(),
+                //         connector_mandate_status: Some(ConnectorMandateStatus::Active),
+                //         connector_mandate_request_reference_id,
+                //     });
+                Some(common_mandate_reference)
             } else {
                 None
             }
