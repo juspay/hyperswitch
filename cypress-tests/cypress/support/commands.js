@@ -1351,8 +1351,8 @@ Cypress.Commands.add(
           .to.not.be.null;
 
         if (typeof resData.body?.error_message === "undefined") {
-          expect(response.body.error_message, "error_message").to.exist;
-          expect(response.body.error_code, "error_code").to.exist;
+          expect(response.body.error_code, "error_code").to.be.null;
+          expect(response.body.error_message, "error_message").to.be.null;
         }
 
         if (response.body.capture_method === "automatic") {
@@ -1856,8 +1856,8 @@ Cypress.Commands.add(
         expect(response.body.payment_token, "payment_token").to.not.be.null;
 
         if (typeof resData.body?.error_message === "undefined") {
-          expect(response.body.error_message, "error_message").to.exist;
-          expect(response.body.error_code, "error_code").to.exist;
+          expect(response.body.error_code, "error_code").to.be.null;
+          expect(response.body.error_message, "error_message").to.be.null;
         }
 
         if (response.body.capture_method === "automatic") {
