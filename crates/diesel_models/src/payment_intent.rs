@@ -21,7 +21,7 @@ pub struct PaymentIntent {
     pub amount: MinorUnit,
     pub currency: storage_enums::Currency,
     pub amount_captured: Option<MinorUnit>,
-    pub customer_id: Option<common_utils::id_type::CustomerId>,
+    pub customer_id: Option<common_utils::id_type::GlobalCustomerId>,
     pub description: Option<common_utils::types::Description>,
     pub return_url: Option<common_utils::types::Url>,
     pub metadata: Option<pii::SecretSerdeValue>,
@@ -167,6 +167,8 @@ pub struct PaymentLinkConfigRequestForPayments {
     pub background_image: Option<PaymentLinkBackgroundImageConfig>,
     /// Custom layout for details section
     pub details_layout: Option<common_enums::PaymentLinkDetailsLayout>,
+    /// Text for payment link's handle confirm button
+    pub payment_button_text: Option<String>,
 }
 
 common_utils::impl_to_sql_from_sql_json!(PaymentLinkConfigRequestForPayments);
@@ -251,7 +253,7 @@ pub struct PaymentIntentNew {
     pub amount: MinorUnit,
     pub currency: storage_enums::Currency,
     pub amount_captured: Option<MinorUnit>,
-    pub customer_id: Option<common_utils::id_type::CustomerId>,
+    pub customer_id: Option<common_utils::id_type::GlobalCustomerId>,
     pub description: Option<common_utils::types::Description>,
     pub return_url: Option<common_utils::types::Url>,
     pub metadata: Option<pii::SecretSerdeValue>,

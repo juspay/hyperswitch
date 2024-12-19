@@ -1,7 +1,6 @@
 use scylla::{
-    cql_to_rust::FromCqlVal,
     deserialize::DeserializeValue,
-    frame::response::result::{ColumnType, CqlValue},
+    frame::response::result::ColumnType,
     serialize::{
         value::SerializeValue,
         writers::{CellWriter, WrittenCellProof},
@@ -17,34 +16,25 @@ where
 {
     fn serialize<'b>(
         &self,
-        typ: &ColumnType,
+        typ: &ColumnType<'_>,
         writer: CellWriter<'b>,
     ) -> Result<WrittenCellProof<'b>, SerializationError> {
         self.peek().serialize(typ, writer)
     }
 }
 
-impl<'frame, T> DeserializeValue<'frame> for StrongSecret<T>
+impl<'frame, 'metadata, T> DeserializeValue<'frame, 'metadata> for StrongSecret<T>
 where
-    T: DeserializeValue<'frame> + zeroize::Zeroize + Clone,
+    T: DeserializeValue<'frame, 'metadata> + zeroize::Zeroize + Clone,
 {
-    fn type_check(typ: &ColumnType) -> Result<(), scylla::deserialize::TypeCheckError> {
+    fn type_check(typ: &ColumnType<'_>) -> Result<(), scylla::deserialize::TypeCheckError> {
         T::type_check(typ)
     }
 
     fn deserialize(
-        typ: &'frame ColumnType,
+        typ: &'metadata ColumnType<'metadata>,
         v: Option<scylla::deserialize::FrameSlice<'frame>>,
     ) -> Result<Self, scylla::deserialize::DeserializationError> {
         Ok(Self::new(T::deserialize(typ, v)?))
-    }
-}
-
-impl<T> FromCqlVal<CqlValue> for StrongSecret<T>
-where
-    T: FromCqlVal<CqlValue> + zeroize::Zeroize + Clone,
-{
-    fn from_cql(cql_val: CqlValue) -> Result<Self, scylla::cql_to_rust::FromCqlValError> {
-        Ok(Self::new(T::from_cql(cql_val)?))
     }
 }

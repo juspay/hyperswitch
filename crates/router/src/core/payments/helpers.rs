@@ -2088,6 +2088,7 @@ pub async fn retrieve_card_with_permanent_token(
                                     card_type: None,
                                     card_issuing_country: None,
                                     bank_code: None,
+                                    eci: None,
                                 };
                                 Ok(domain::PaymentMethodData::NetworkToken(network_token_data))
                             } else {
@@ -2446,6 +2447,7 @@ pub async fn make_pm_data<'a, F: Clone, R, D>(
     Ok((operation, payment_method, pm_id))
 }
 
+#[cfg(feature = "v1")]
 pub async fn store_in_vault_and_generate_ppmt(
     state: &SessionState,
     payment_method_data: &domain::PaymentMethodData,
@@ -2648,13 +2650,15 @@ pub(crate) fn validate_payment_method_fields_present(
         req.payment_method.is_some()
             && payment_method_data.is_none()
             && req.payment_token.is_none()
-            && req.recurring_details.is_none(),
+            && req.recurring_details.is_none()
+            && req.ctp_service_details.is_none(),
         || {
             Err(errors::ApiErrorResponse::MissingRequiredField {
                 field_name: "payment_method_data",
             })
         },
     )?;
+
     utils::when(
         req.payment_method.is_some() && req.payment_method_type.is_some(),
         || {
@@ -3313,6 +3317,7 @@ pub(crate) fn validate_pm_or_token_given(
     payment_method_type: &Option<api_enums::PaymentMethodType>,
     mandate_type: &Option<api::MandateTransactionType>,
     token: &Option<String>,
+    ctp_service_details: &Option<api_models::payments::CtpServiceDetails>,
 ) -> Result<(), errors::ApiErrorResponse> {
     utils::when(
         !matches!(
@@ -3322,10 +3327,13 @@ pub(crate) fn validate_pm_or_token_given(
             mandate_type,
             Some(api::MandateTransactionType::RecurringMandateTransaction)
         ) && token.is_none()
-            && (payment_method_data.is_none() || payment_method.is_none()),
+            && (payment_method_data.is_none() || payment_method.is_none())
+            && ctp_service_details.is_none(),
         || {
             Err(errors::ApiErrorResponse::InvalidRequestData {
-                message: "A payment token or payment method data is required".to_string(),
+                message:
+                    "A payment token or payment method data or ctp service details is required"
+                        .to_string(),
             })
         },
     )
@@ -4433,7 +4441,7 @@ pub async fn get_additional_payment_data(
                         api_models::payments::AdditionalPaymentData::Card(Box::new(
                             api_models::payments::AdditionalCardInfo {
                                 card_issuer: card_info.card_issuer,
-                                card_network: card_network.or(card_info.card_network),
+                                card_network: card_network.clone().or(card_info.card_network),
                                 bank_code: card_info.bank_code,
                                 card_type: card_info.card_type,
                                 card_issuing_country: card_info.card_issuing_country,
@@ -4453,7 +4461,7 @@ pub async fn get_additional_payment_data(
                     api_models::payments::AdditionalPaymentData::Card(Box::new(
                         api_models::payments::AdditionalCardInfo {
                             card_issuer: None,
-                            card_network: None,
+                            card_network,
                             bank_code: None,
                             card_type: None,
                             card_issuing_country: None,
@@ -4696,7 +4704,7 @@ pub async fn get_additional_payment_data(
                         api_models::payments::AdditionalPaymentData::Card(Box::new(
                             api_models::payments::AdditionalCardInfo {
                                 card_issuer: card_info.card_issuer,
-                                card_network: card_network.or(card_info.card_network),
+                                card_network: card_network.clone().or(card_info.card_network),
                                 bank_code: card_info.bank_code,
                                 card_type: card_info.card_type,
                                 card_issuing_country: card_info.card_issuing_country,
@@ -4716,7 +4724,7 @@ pub async fn get_additional_payment_data(
                     api_models::payments::AdditionalPaymentData::Card(Box::new(
                         api_models::payments::AdditionalCardInfo {
                             card_issuer: None,
-                            card_network: None,
+                            card_network,
                             bank_code: None,
                             card_type: None,
                             card_issuing_country: None,

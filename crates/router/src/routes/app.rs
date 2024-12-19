@@ -371,7 +371,7 @@ impl AppState {
             let email_client = Arc::new(create_email_client(&conf).await);
 
             let file_storage_client = conf.file_storage.get_file_storage_client().await;
-            let theme_storage_client = conf.theme_storage.get_file_storage_client().await;
+            let theme_storage_client = conf.theme.storage.get_file_storage_client().await;
 
             let grpc_client = conf.grpc_client.get_grpc_client_interface().await;
 
@@ -975,8 +975,8 @@ impl Customers {
                 .service(web::resource("").route(web::post().to(customers_create)))
                 .service(
                     web::resource("/{id}")
-                        .route(web::post().to(customers_update))
-                        .route(web::post().to(customers_retrieve))
+                        .route(web::put().to(customers_update))
+                        .route(web::get().to(customers_retrieve))
                         .route(web::delete().to(customers_delete)),
                 )
         }

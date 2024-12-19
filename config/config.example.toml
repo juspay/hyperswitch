@@ -665,6 +665,7 @@ pm_auth_key = "Some_pm_auth_key"
 # Analytics configuration.
 [analytics]
 source = "sqlx" # The Analytics source/strategy to be used
+forex_enabled = false # Enable or disable forex conversion for analytics
 
 [analytics.clickhouse]
 username = ""      # Clickhouse username
@@ -762,8 +763,15 @@ sdk_eligible_payment_methods = "card"
 enabled = false
 global_tenant = { schema = "public", redis_key_prefix = "", clickhouse_database = "default"}
 
-[multitenancy.tenants]
-public = { base_url = "http://localhost:8080", schema = "public", redis_key_prefix = "", clickhouse_database = "default" } # schema -> Postgres db schema, redis_key_prefix -> redis key distinguisher, base_url -> url of the tenant
+[multitenancy.tenants.public]
+base_url = "http://localhost:8080"               # URL of the tenant
+schema = "public"                                # Postgres db schema
+redis_key_prefix = ""                            # Redis key distinguisher
+clickhouse_database = "default"                  # Clickhouse database
+
+[multitenancy.tenants.public.user]
+control_center_url =  "http://localhost:9000"    # Control center URL
+
 
 [user_auth_methods]
 encryption_key = "" # Encryption key used for encrypting data in user_authentication_methods table
@@ -801,5 +809,12 @@ host = "localhost" # Client Host
 port = 7000        # Client Port
 service = "dynamo" # Service name
 
-[theme_storage]
+[theme.storage]
 file_storage_backend = "file_system" # Theme storage backend to be used
+
+[theme.email_config]
+entity_name = "Hyperswitch"                      # Name of the entity to be showed in emails
+entity_logo_url = "https://example.com/logo.svg" # Logo URL of the entity to be used in emails
+foreground_color = "#000000"                     # Foreground color of email text
+primary_color = "#006DF9"                        # Primary color of email body
+background_color = "#FFFFFF"                     # Background color of email body
