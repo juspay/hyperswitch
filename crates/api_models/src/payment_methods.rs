@@ -1257,10 +1257,11 @@ pub struct ResponsePaymentMethodTypes {
 pub struct ResponsePaymentMethodTypes {
     /// The payment method type enabled
     #[schema(example = "klarna", value_type = PaymentMethodType)]
-    pub payment_method_subtype: api_enums::PaymentMethodType,
+    pub payment_method_type: common_enums::PaymentMethod,
 
-    /// The list of payment experiences enabled, if applicable for a payment method type
-    pub payment_experience: Option<Vec<PaymentExperienceTypes>>,
+    /// The payment method subtype enabled
+    #[schema(example = "klarna", value_type = PaymentMethodType)]
+    pub payment_method_subtype: common_enums::PaymentMethodType,
 
     /// The list of card networks enabled, if applicable for a payment method type
     pub card_networks: Option<Vec<CardNetworkTypes>>,
@@ -1268,20 +1269,12 @@ pub struct ResponsePaymentMethodTypes {
     /// The list of banks enabled, if applicable for a payment method type
     pub bank_names: Option<Vec<BankCodeResponse>>,
 
-    /// The Bank debit payment method information, if applicable for a payment method type.
-    pub bank_debits: Option<BankDebitTypes>,
-
-    /// The Bank transfer payment method information, if applicable for a payment method type.
-    pub bank_transfers: Option<BankTransferTypes>,
-
     /// Required fields for the payment_method_type.
+    /// This is the union of all the required fields for the payment method type enabled in all the connectors.
     pub required_fields: Option<HashMap<String, RequiredFieldInfo>>,
 
     /// surcharge details for this payment method type if exists
     pub surcharge_details: Option<SurchargeDetailsResponse>,
-
-    /// auth service connector label for this payment method type, if exists
-    pub pm_auth_connector: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, ToSchema)]
