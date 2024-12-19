@@ -1150,7 +1150,7 @@ pub async fn create_payment_method_in_db(
         api::payment_methods::PaymentMethodsData,
     >,
     key_store: &domain::MerchantKeyStore,
-    connector_mandate_details: Option<diesel_models::PaymentsMandateReference>,
+    connector_mandate_details: Option<diesel_models::CommonMandateReference>,
     status: Option<enums::PaymentMethodStatus>,
     network_transaction_id: Option<String>,
     storage_scheme: enums::MerchantStorageScheme,
