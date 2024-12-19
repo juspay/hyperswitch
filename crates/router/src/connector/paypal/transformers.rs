@@ -597,7 +597,6 @@ impl<F, T>
         };
         Ok(Self {
             status,
-            return_url: None,
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(info_response.id.clone()),
                 redirection_data: Box::new(None),
