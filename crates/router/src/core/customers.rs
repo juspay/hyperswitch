@@ -568,7 +568,7 @@ pub async fn delete_customer(
 ) -> errors::CustomerResponse<customers::CustomerDeleteResponse> {
     let db = &*state.store;
     let key_manager_state = &(&state).into();
-    id.fetch_domain_model_and_update_and_generate_delete_customer_response(
+    id.redact_customer_details_and_generate_response(
         db,
         &key_store,
         &merchant_account,
@@ -585,7 +585,7 @@ pub async fn delete_customer(
 ))]
 #[async_trait::async_trait]
 impl CustomerDeleteBridge for id_type::GlobalCustomerId {
-    async fn fetch_domain_model_and_update_and_generate_delete_customer_response<'a>(
+    async fn redact_customer_details_and_generate_response<'a>(
         &'a self,
         db: &'a dyn StorageInterface,
         key_store: &'a domain::MerchantKeyStore,
@@ -717,7 +717,7 @@ impl CustomerDeleteBridge for id_type::GlobalCustomerId {
 
 #[async_trait::async_trait]
 trait CustomerDeleteBridge {
-    async fn fetch_domain_model_and_update_and_generate_delete_customer_response<'a>(
+    async fn redact_customer_details_and_generate_response<'a>(
         &'a self,
         db: &'a dyn StorageInterface,
         key_store: &'a domain::MerchantKeyStore,
@@ -742,7 +742,7 @@ pub async fn delete_customer(
     let db = &*state.store;
     let key_manager_state = &(&state).into();
     customer_id
-        .fetch_domain_model_and_update_and_generate_delete_customer_response(
+        .redact_customer_details_and_generate_response(
             db,
             &key_store,
             &merchant_account,
@@ -759,7 +759,7 @@ pub async fn delete_customer(
 ))]
 #[async_trait::async_trait]
 impl CustomerDeleteBridge for id_type::CustomerId {
-    async fn fetch_domain_model_and_update_and_generate_delete_customer_response<'a>(
+    async fn redact_customer_details_and_generate_response<'a>(
         &'a self,
         db: &'a dyn StorageInterface,
         key_store: &'a domain::MerchantKeyStore,
