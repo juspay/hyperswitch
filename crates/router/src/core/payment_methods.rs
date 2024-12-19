@@ -24,7 +24,7 @@ use api_models::payment_methods;
 #[cfg(feature = "payouts")]
 pub use api_models::{enums::PayoutConnectors, payouts as payout_types};
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
-use common_utils::ext_traits::{Encode, OptionExt};
+use common_utils::ext_traits::Encode;
 use common_utils::{consts::DEFAULT_LOCALE, id_type};
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use common_utils::{
@@ -580,7 +580,7 @@ pub async fn retrieve_payment_method_with_token(
         }
 
         storage::PaymentTokenData::Permanent(card_token) => {
-                payment_helpers::retrieve_card_with_permanent_token(
+                payment_helpers::retrieve_payment_method_data_with_permanent_token(
                     state,
                     card_token.locker_id.as_ref().unwrap_or(&card_token.token),
                     card_token
@@ -594,7 +594,7 @@ pub async fn retrieve_payment_method_with_token(
                     mandate_id,
                     payment_method_info,
                     business_profile,
-                payment_attempt.connector.clone(),
+                    payment_attempt.connector.clone(),
                     should_retry_with_pan,
                     vault_data, 
                 )
@@ -617,7 +617,7 @@ pub async fn retrieve_payment_method_with_token(
         }
 
         storage::PaymentTokenData::PermanentCard(card_token) => {
-            payment_helpers::retrieve_card_with_permanent_token(
+            payment_helpers::retrieve_payment_method_data_with_permanent_token(
                 state,
                 card_token.locker_id.as_ref().unwrap_or(&card_token.token),
                 card_token
