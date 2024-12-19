@@ -3441,14 +3441,19 @@ pub async fn get_session_token_for_click_to_pay(
             message: "Failed to convert amount to string major unit for clickToPay".to_string(),
         })?;
 
-    let customer_details: &CustomerData = &payment_intent
+    let optional_customer_details: Option<CustomerData> = payment_intent
         .customer_details
         .clone()
-        .parse_value("CustomerData")
+        .map(|details| details.parse_value("CustomerData"))
+        .transpose()
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Error while parsing customer data from payment intent")?;
+    let customer_details =
+        optional_customer_details.ok_or(errors::ApiErrorResponse::MissingRequiredField {
+            field_name: "customer_details",
+        })?;
 
-    validate_customer_details_for_click_to_pay(customer_details)?;
+    validate_customer_details_for_click_to_pay(&customer_details)?;
 
     Ok(api_models::payments::SessionToken::ClickToPay(Box::new(
         api_models::payments::ClickToPaySessionResponse {
