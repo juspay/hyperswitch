@@ -1,5 +1,5 @@
 import { defineConfig } from "cypress";
-import mochawesome from "cypress-mochawesome-reporter/plugin.js";
+import "cypress-mochawesome-reporter/plugin.js";
 
 let globalState;
 
@@ -10,9 +10,7 @@ const reportName = process.env.REPORT_NAME || `${connectorId}_report`;
 
 export default defineConfig({
   e2e: {
-    setupNodeEvents(on, config) {
-      mochawesome(on);
-
+    setupNodeEvents(on) {
       on("task", {
         setGlobalState: (val) => {
           return (globalState = val || {});
@@ -28,8 +26,6 @@ export default defineConfig({
           return null;
         },
       });
-
-      return config;
     },
     experimentalRunAllSpecs: true,
 
@@ -47,5 +43,6 @@ export default defineConfig({
   chromeWebSecurity: false,
   defaultCommandTimeout: 10000,
   pageLoadTimeout: 20000,
+
   screenshotsFolder: screenshotsFolderName,
 });
