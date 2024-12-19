@@ -931,9 +931,9 @@ diesel::table! {
         #[max_length = 64]
         id -> Varchar,
         psd2_sca_exemption_type -> Nullable<ScaExemptionType>,
+        split_payments -> Nullable<Jsonb>,
         #[max_length = 64]
         platform_merchant_id -> Nullable<Varchar>,
-        split_payments -> Nullable<Jsonb>,
     }
 }
 
