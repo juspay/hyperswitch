@@ -445,10 +445,7 @@ jobs:
           CYPRESS_BASEURL: "http://localhost:8080"
           ROUTER__SERVER__WORKERS: 4
         shell: bash -leuo pipefail {0}
-        run: |
-          scripts/execute_cypress.sh
-
-          kill "${{ env.PID }}"
+        run: kill "${{ env.PID }}"
 
       - name: Upload Cypress test results
         if: env.RUN_TESTS == 'true' && failure()
