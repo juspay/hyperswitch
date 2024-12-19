@@ -386,17 +386,23 @@ where
                 mandate_type,
             )
             .await?;
-        operation
-            .to_domain()?
-            .call_unified_authentication_service_if_eligible(
-                state,
-                &mut payment_data,
-                &mut should_continue_transaction,
-                &connector_details,
-                &business_profile,
-                &key_store,
-            )
-            .await?;
+
+        if let Some(ref authentication_product_ids) = business_profile.authentication_product_ids {
+            operation
+                .to_domain()?
+                .call_unified_authentication_service_if_eligible(
+                    state,
+                    &mut payment_data,
+                    &mut should_continue_transaction,
+                    &connector_details,
+                    &business_profile,
+                    &key_store,
+                    authentication_product_ids,
+                )
+                .await?
+        } else {
+            tracing::info!("skipping unified authentication service call since no product authentication id's are present in business profile")
+        }
 
         operation
             .to_domain()?
@@ -3395,19 +3401,16 @@ pub async fn get_session_token_for_click_to_pay(
     state: &SessionState,
     merchant_id: &id_type::MerchantId,
     key_store: &domain::MerchantKeyStore,
-    authentication_product_ids: serde_json::Value,
+    authentication_product_ids: common_types::payments::MerchantConnectorAccountMap,
     payment_intent: &hyperswitch_domain_models::payments::PaymentIntent,
 ) -> RouterResult<api_models::payments::SessionToken> {
-    use common_utils::{id_type::MerchantConnectorAccountId, types::AmountConvertor};
+    use common_utils::types::AmountConvertor;
     use hyperswitch_domain_models::payments::ClickToPayMetaData;
 
     use crate::consts::CLICK_TO_PAY;
 
-    let mca_ids: HashMap<String, MerchantConnectorAccountId> = authentication_product_ids
-        .parse_value("HashMap<String, MerchantConnectorAccountId>")
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Error while parsing authentication product ids")?;
-    let click_to_pay_mca_id = mca_ids
+    let click_to_pay_mca_id = authentication_product_ids
+        .inner()
         .get(CLICK_TO_PAY)
         .ok_or(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Error while getting click_to_pay mca_id from business profile")?;

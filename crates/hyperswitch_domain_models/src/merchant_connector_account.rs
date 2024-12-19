@@ -62,6 +62,22 @@ impl MerchantConnectorAccount {
     pub fn get_id(&self) -> id_type::MerchantConnectorAccountId {
         self.merchant_connector_id.clone()
     }
+    pub fn get_connector_account_details(
+        &self,
+    ) -> error_stack::Result<
+        crate::router_data::ConnectorAuthType,
+        common_utils::errors::ParsingError,
+    > {
+        use common_utils::ext_traits::ValueExt;
+
+        self.connector_account_details
+            .get_inner()
+            .clone()
+            .parse_value("ConnectorAuthType")
+    }
+    pub fn get_connector_wallets_details(&self) -> Option<Secret<Value>> {
+        self.connector_wallets_details.as_deref().cloned()
+    }
 }
 
 #[cfg(feature = "v2")]
@@ -133,6 +149,10 @@ impl MerchantConnectorAccount {
             .get_inner()
             .clone()
             .parse_value("ConnectorAuthType")
+    }
+
+    pub fn get_connector_wallets_details(&self) -> Option<Secret<Value>> {
+        self.connector_wallets_details.as_deref().cloned()
     }
 }
 

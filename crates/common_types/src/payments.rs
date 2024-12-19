@@ -1,5 +1,7 @@
 //! Payment related types
 
+use std::collections::HashMap;
+
 use common_enums::enums;
 use common_utils::{impl_to_sql_from_sql_json, types::MinorUnit};
 use diesel::{sql_types::Jsonb, AsExpression, FromSqlRow};
@@ -38,3 +40,21 @@ pub struct StripeSplitPaymentRequest {
     pub transfer_account_id: String,
 }
 impl_to_sql_from_sql_json!(StripeSplitPaymentRequest);
+
+#[derive(
+    Serialize, Deserialize, Debug, Clone, PartialEq, Eq, FromSqlRow, AsExpression, ToSchema,
+)]
+#[diesel(sql_type = Jsonb)]
+#[serde(deny_unknown_fields)]
+/// Hashmap to store mca_id's with product names
+pub struct MerchantConnectorAccountMap(
+    HashMap<String, common_utils::id_type::MerchantConnectorAccountId>,
+);
+impl_to_sql_from_sql_json!(MerchantConnectorAccountMap);
+
+impl MerchantConnectorAccountMap {
+    /// get inner hashmap
+    pub fn inner(&self) -> &HashMap<String, common_utils::id_type::MerchantConnectorAccountId> {
+        &self.0
+    }
+}
