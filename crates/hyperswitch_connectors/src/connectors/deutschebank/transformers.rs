@@ -708,22 +708,15 @@ impl TryFrom<&DeutschebankRouterData<&PaymentsCompleteAuthorizeRouterData>>
         item: &DeutschebankRouterData<&PaymentsCompleteAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
         if matches!(item.router_data.payment_method, PaymentMethod::Card) {
-            let redirect_response = item.router_data.request.redirect_response.clone().ok_or(
-                errors::ConnectorError::MissingRequiredField {
-                    field_name: "redirect_response",
-                },
-            )?;
-
-            let response_payload = redirect_response
-                .payload
-                .clone()
-                .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "payload",
-                })?
+            let redirect_response_payload = item
+                .router_data
+                .request
+                .get_redirect_response_payload()?
                 .expose();
 
-            let deserialized: HashMap<String, String> = serde_json::from_value(response_payload)
-                .map_err(|_| errors::ConnectorError::ResponseDeserializationFailed)?;
+            let deserialized: HashMap<String, String> =
+                serde_json::from_value(redirect_response_payload)
+                    .map_err(|_| errors::ConnectorError::ResponseDeserializationFailed)?;
 
             let cres = deserialized
                 .get("cres")
