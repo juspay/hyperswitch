@@ -719,6 +719,7 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
                 success_based_routing_configs.clone(),
                 success_based_routing_config_params.clone(),
                 routable_connectors.clone(),
+                state.get_grpc_headers(),
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -854,6 +855,7 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
                     },
                     payment_status_attribute == common_enums::AttemptStatus::Charged,
                 )],
+                state.get_grpc_headers(),
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
