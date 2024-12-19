@@ -7,13 +7,13 @@ pub use common_utils::types::MinorUnit;
 
 #[derive(Debug, ToSchema, Clone, Deserialize, Serialize)]
 pub struct RelayRequest {
-    /// The identifier that is associated to a resource at the connector reference to which the relay request is being made
+    /// The identifier that is associated to a resource at the connector to which the relay request is being made
     #[schema(example = "7256228702616471803954")]
     pub connector_resource_id: String,
     /// Identifier of the connector ( merchant connector account ) to which relay request is being made
     #[schema(example = "mca_5apGeP94tMts6rg3U3kR", value_type = String)]
     pub connector_id: common_utils::id_type::MerchantConnectorAccountId,
-    /// The business profile that is associated with this payment request
+    /// The business profile that is associated with this relay request
     #[schema(example = "pro_abcdefghijklmnopqrstuvwxyz", value_type = String)]
     pub profile_id: common_utils::id_type::ProfileId,
     /// The type of relay request
@@ -57,15 +57,18 @@ pub struct RelayResponse {
     pub id: common_utils::id_type::RelayId,
     /// The status of the relay request
     pub status: RelayStatus,
+    /// The reference identifier provided by the connector for the relay request
+    #[schema(example = "pi_3MKEivSFNglxLpam0ZaL98q9")]
+    pub connector_reference_id: Option<String>,
     /// The error details if the relay request failed
     pub error: Option<RelayError>,
-    /// The identifier that is associated to a resource at the connector reference to which the relay request is being made
+    /// The identifier that is associated to a resource at the connector to which the relay request is being made
     #[schema(example = "7256228702616471803954")]
     pub connector_resource_id: String,
     /// Identifier of the connector ( merchant connector account ) to which relay request is being made
     #[schema(example = "mca_5apGeP94tMts6rg3U3kR", value_type = String)]
     pub connector_id: common_utils::id_type::MerchantConnectorAccountId,
-    /// The business profile that is associated with this relay request.
+    /// The business profile that is associated with this relay request
     #[schema(example = "pro_abcdefghijklmnopqrstuvwxyz", value_type = String)]
     pub profile_id: common_utils::id_type::ProfileId,
     /// The type of relay request

@@ -23054,7 +23054,7 @@
         "properties": {
           "connector_resource_id": {
             "type": "string",
-            "description": "The identifier that is associated to a resource at the connector reference to which the relay request is being made",
+            "description": "The identifier that is associated to a resource at the connector to which the relay request is being made",
             "example": "7256228702616471803954"
           },
           "connector_id": {
@@ -23064,7 +23064,7 @@
           },
           "profile_id": {
             "type": "string",
-            "description": "The business profile that is associated with this payment request",
+            "description": "The business profile that is associated with this relay request",
             "example": "pro_abcdefghijklmnopqrstuvwxyz"
           },
           "type": {
@@ -23099,6 +23099,12 @@
           "status": {
             "$ref": "#/components/schemas/RelayStatus"
           },
+          "connector_reference_id": {
+            "type": "string",
+            "description": "The reference identifier provided by the connector for the relay request",
+            "example": "pi_3MKEivSFNglxLpam0ZaL98q9",
+            "nullable": true
+          },
           "error": {
             "allOf": [
               {
@@ -23109,17 +23115,17 @@
           },
           "connector_resource_id": {
             "type": "string",
-            "description": "The identifier that is associated to a resource at the connector reference to which the relay request is being made",
+            "description": "The identifier that is associated to a resource at the connector to which the relay request is being made",
             "example": "7256228702616471803954"
           },
           "connector_id": {
             "type": "string",
-            "description": "Identifier of the connector ( merchant connector account ) which was chosen to make the payment",
+            "description": "Identifier of the connector ( merchant connector account ) to which relay request is being made",
             "example": "mca_5apGeP94tMts6rg3U3kR"
           },
           "profile_id": {
             "type": "string",
-            "description": "The business profile that is associated with this relay request.",
+            "description": "The business profile that is associated with this relay request",
             "example": "pro_abcdefghijklmnopqrstuvwxyz"
           },
           "type": {
