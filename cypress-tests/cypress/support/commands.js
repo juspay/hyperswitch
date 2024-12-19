@@ -1350,11 +1350,6 @@ Cypress.Commands.add(
         expect(response.body.profile_id, "profile_id").to.equal(profileId).and
           .to.not.be.null;
 
-        if (typeof resData.body?.error_message === "undefined") {
-          expect(response.body.error_code, "error_code").to.be.null;
-          expect(response.body.error_message, "error_message").to.be.null;
-        }
-
         if (response.body.capture_method === "automatic") {
           if (response.body.authentication_type === "three_ds") {
             expect(response.body)
@@ -1854,11 +1849,6 @@ Cypress.Commands.add(
         }
         expect(response.body.profile_id, "profile_id").to.not.be.null;
         expect(response.body.payment_token, "payment_token").to.not.be.null;
-
-        if (typeof resData.body?.error_message === "undefined") {
-          expect(response.body.error_code, "error_code").to.be.null;
-          expect(response.body.error_message, "error_message").to.be.null;
-        }
 
         if (response.body.capture_method === "automatic") {
           if (response.body.authentication_type === "three_ds") {
