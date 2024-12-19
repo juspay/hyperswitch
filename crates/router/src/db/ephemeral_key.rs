@@ -142,7 +142,7 @@ mod storage {
             validity: i64,
         ) -> CustomResult<EphemeralKeyType, errors::StorageError> {
             let secret_key = format!("epkey_{}", &new.secret.peek());
-            let id_key = format!("epkey_{}", new.id.get_string_repr());
+            let id_key = new.id.generate_redis_key();
 
             let created_at = date_time::now();
             let expires = created_at.saturating_add(validity.hours());
@@ -225,10 +225,11 @@ mod storage {
             id: &str,
         ) -> CustomResult<EphemeralKey, errors::StorageError> {
             let ek = self.get_ephemeral_key(id).await?;
+            let redis_id_key = ek.id.generate_redis_key();
 
             self.get_redis_conn()
                 .map_err(Into::<errors::StorageError>::into)?
-                .delete_key(&format!("epkey_{}", &ek.id))
+                .delete_key(&redis_id_key)
                 .await
                 .change_context(errors::StorageError::KVError)?;
 
