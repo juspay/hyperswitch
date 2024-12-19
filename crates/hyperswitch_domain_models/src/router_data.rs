@@ -567,7 +567,7 @@ impl
         &self,
         _payment_data: &payments::PaymentConfirmData<router_flow_types::Authorize>,
     ) -> common_enums::AttemptStatus {
-        // For this step, consider whatever status was given by the connector moudle
+        // For this step, consider whatever status was given by the connector module
         // We do not need to check for amount captured or amount capturable here because we are authorizing the whole amount
         self.status
     }
