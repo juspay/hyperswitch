@@ -1338,6 +1338,7 @@ impl behaviour::Conversion for PaymentIntent {
             payment_link_config,
             routing_algorithm_id,
             psd2_sca_exemption_type: None,
+            request_extended_authorization: None,
             split_payments: None,
         })
     }
@@ -1601,6 +1602,7 @@ impl behaviour::Conversion for PaymentIntent {
             shipping_cost: self.shipping_cost,
             tax_details: self.tax_details,
             skip_external_tax_calculation: self.skip_external_tax_calculation,
+            request_extended_authorization: self.request_extended_authorization,
             psd2_sca_exemption_type: self.psd2_sca_exemption_type,
         })
     }
@@ -1689,6 +1691,7 @@ impl behaviour::Conversion for PaymentIntent {
                 is_payment_processor_token_flow: storage_model.is_payment_processor_token_flow,
                 organization_id: storage_model.organization_id,
                 skip_external_tax_calculation: storage_model.skip_external_tax_calculation,
+                request_extended_authorization: storage_model.request_extended_authorization,
                 psd2_sca_exemption_type: storage_model.psd2_sca_exemption_type,
             })
         }
@@ -1753,6 +1756,7 @@ impl behaviour::Conversion for PaymentIntent {
             shipping_cost: self.shipping_cost,
             tax_details: self.tax_details,
             skip_external_tax_calculation: self.skip_external_tax_calculation,
+            request_extended_authorization: self.request_extended_authorization,
             psd2_sca_exemption_type: self.psd2_sca_exemption_type,
         })
     }
