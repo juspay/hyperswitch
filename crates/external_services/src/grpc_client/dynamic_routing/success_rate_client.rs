@@ -21,9 +21,8 @@ pub use success_rate::{
 pub mod success_rate {
     tonic::include_proto!("success_rate");
 }
-use crate::grpc_client::GrpcHeaders;
-
 use super::{Client, DynamicRoutingError, DynamicRoutingResult};
+use crate::grpc_client::GrpcHeaders;
 /// The trait Success Based Dynamic Routing would have the functions required to support the calculation and updation window
 #[async_trait::async_trait]
 pub trait SuccessBasedDynamicRouting: dyn_clone::DynClone + Send + Sync {

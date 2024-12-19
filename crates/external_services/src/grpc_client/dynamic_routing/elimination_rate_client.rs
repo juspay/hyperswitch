@@ -21,9 +21,8 @@ pub mod elimination_rate {
     tonic::include_proto!("elimination");
 }
 
-use crate::grpc_client::GrpcHeaders;
-
 use super::{Client, DynamicRoutingError, DynamicRoutingResult};
+use crate::grpc_client::GrpcHeaders;
 
 /// The trait Elimination Based Routing would have the functions required to support performance, calculation and invalidation bucket
 #[async_trait::async_trait]
