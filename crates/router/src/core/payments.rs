@@ -3444,10 +3444,7 @@ pub async fn get_session_token_for_click_to_pay(
     let customer_details_value = payment_intent
         .customer_details
         .clone()
-        .get_required_value("customer_details")
-        .change_context(errors::ApiErrorResponse::MissingRequiredField {
-            field_name: "customer_details",
-        })?;
+        .get_required_value("customer_details")?;
 
     let customer_details: CustomerData = customer_details_value
         .parse_value("CustomerData")
