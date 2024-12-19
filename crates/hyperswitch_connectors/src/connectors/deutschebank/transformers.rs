@@ -167,7 +167,7 @@ pub struct DeutschebankThreeDSInitializeRequestCreditCardExpiry {
 #[serde(rename_all = "snake_case")]
 pub struct DeutschebankThreeDSInitializeRequestAmountTotal {
     amount: MinorUnit,
-    currency: String,
+    currency: api_models::enums::Currency,
 }
 
 #[derive(Debug, Serialize)]
@@ -245,11 +245,6 @@ impl TryFrom<&DeutschebankRouterData<&PaymentsAuthorizeRouterData>>
                             .into())
                         } else {
                             let billing_address = item.router_data.get_billing_address()?;
-                            let cardholder = ccard.clone().card_holder_name.ok_or_else(|| {
-                                errors::ConnectorError::MissingRequiredField {
-                                    field_name: "card_holder_name",
-                                }
-                            })?;
                             Ok(Self::CreditCard(Box::new(DeutschebankThreeDSInitializeRequest {
                                     means_of_payment: DeutschebankThreeDSInitializeRequestMeansOfPayment {
                                         credit_card: DeutschebankThreeDSInitializeRequestCreditCard {
@@ -259,11 +254,11 @@ impl TryFrom<&DeutschebankRouterData<&PaymentsAuthorizeRouterData>>
                                                 month: ccard.card_exp_month,
                                             },
                                             code: ccard.card_cvc,
-                                            cardholder,
+                                            cardholder: item.router_data.get_billing_full_name()?,
                                         }},
                                     amount_total: DeutschebankThreeDSInitializeRequestAmountTotal {
                                         amount: item.amount,
-                                        currency: item.router_data.request.currency.clone().to_string(),
+                                        currency: item.router_data.request.currency,
                                     },
                                     tds_20_data: DeutschebankThreeDSInitializeRequestTds20Data {
                                         communication_data: DeutschebankThreeDSInitializeRequestCommunicationData {
@@ -398,10 +393,15 @@ impl
                         }),
                         ..item.data
                     }),
-                    None => Err(errors::ConnectorError::UnexpectedResponseError(
-                        bytes::Bytes::from("missing processed".to_owned()),
-                    )
-                    .into()),
+                    None => {
+                        let response_string = format!("{:?}", item.response);
+                        Err(
+                            errors::ConnectorError::UnexpectedResponseError(bytes::Bytes::from(
+                                response_string,
+                            ))
+                            .into(),
+                        )
+                    }
                 }
             }
             DeutschebankThreeDSInitializeResponseOutcome::ChallengeRequired => {
@@ -425,16 +425,21 @@ impl
                         }),
                         ..item.data
                     }),
-                    None => Err(errors::ConnectorError::UnexpectedResponseError(
-                        bytes::Bytes::from("missing challenge_required".to_owned()),
-                    )
-                    .into()),
+                    None => {
+                        let response_string = format!("{:?}", item.response);
+                        Err(
+                            errors::ConnectorError::UnexpectedResponseError(bytes::Bytes::from(
+                                response_string,
+                            ))
+                            .into(),
+                        )
+                    }
                 }
             }
             DeutschebankThreeDSInitializeResponseOutcome::MethodRequired => Ok(Self {
                 status: common_enums::AttemptStatus::Failure,
                 response: Err(ErrorResponse {
-                    code: "500".to_owned(),
+                    code: item.http_code.to_string(),
                     message: "Method_Required Flow not supported".to_owned(),
                     reason: Some("Method_Required Flow is not currently supported".to_owned()),
                     status_code: 500,
@@ -714,14 +719,11 @@ impl TryFrom<&DeutschebankRouterData<&PaymentsCompleteAuthorizeRouterData>>
                 .get_redirect_response_payload()?
                 .expose();
 
-            let deserialized: HashMap<String, String> =
-                serde_json::from_value(redirect_response_payload)
-                    .map_err(|_| errors::ConnectorError::ResponseDeserializationFailed)?;
-
-            let cres = deserialized
+            let cres = redirect_response_payload
                 .get("cres")
-                .ok_or(errors::ConnectorError::MissingRequiredField { field_name: "cres" })?
-                .to_owned();
+                .and_then(|v| v.as_str())
+                .map(String::from)
+                .ok_or(errors::ConnectorError::MissingRequiredField { field_name: "cres" })?;
 
             Ok(Self::DeutschebankThreeDSCompleteAuthorizeRequest(
                 DeutschebankThreeDSCompleteAuthorizeRequest { cres },
@@ -932,7 +934,9 @@ impl TryFrom<&DeutschebankRouterData<&PaymentsCaptureRouterData>> for Deutscheba
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             changed_amount: item.amount,
-            kind: match item.router_data.is_three_ds() {
+            kind: match item.router_data.is_three_ds()
+                && matches!(item.router_data.payment_method, PaymentMethod::Card)
+            {
                 true => DeutschebankTransactionKind::Creditcard3ds20,
                 false => DeutschebankTransactionKind::Directdebit,
             },
@@ -1058,7 +1062,7 @@ impl TryFrom<&PaymentsCancelRouterData> for DeutschebankReversalRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &PaymentsCancelRouterData) -> Result<Self, Self::Error> {
         Ok(Self {
-            kind: match item.is_three_ds() {
+            kind: match item.is_three_ds() && matches!(item.payment_method, PaymentMethod::Card) {
                 true => DeutschebankTransactionKind::Creditcard3ds20,
                 false => DeutschebankTransactionKind::Directdebit,
             },
@@ -1104,7 +1108,9 @@ impl<F> TryFrom<&DeutschebankRouterData<&RefundsRouterData<F>>> for Deutschebank
     fn try_from(item: &DeutschebankRouterData<&RefundsRouterData<F>>) -> Result<Self, Self::Error> {
         Ok(Self {
             changed_amount: item.amount.to_owned(),
-            kind: match item.router_data.is_three_ds() {
+            kind: match item.router_data.is_three_ds()
+                && matches!(item.router_data.payment_method, PaymentMethod::Card)
+            {
                 true => DeutschebankTransactionKind::Creditcard3ds20,
                 false => DeutschebankTransactionKind::Directdebit,
             },
