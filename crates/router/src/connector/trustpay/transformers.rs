@@ -350,7 +350,7 @@ fn get_bank_redirection_request_data(
     auth: TrustpayAuthType,
 ) -> Result<TrustpayPaymentsRequest, error_stack::Report<errors::ConnectorError>> {
     let pm = TrustpayPaymentMethod::try_from(bank_redirection_data)?;
-    let return_url = item.request.get_return_url()?;
+    let return_url = item.request.get_router_return_url()?;
     let payment_request =
         TrustpayPaymentsRequest::BankRedirectPaymentRequest(Box::new(PaymentRequestBankRedirect {
             payment_method: pm.clone(),
@@ -410,7 +410,7 @@ impl TryFrom<&TrustpayRouterData<&types::PaymentsAuthorizeRouterData>> for Trust
                 params,
                 amount,
                 ccard,
-                item.router_data.request.get_return_url()?,
+                item.router_data.request.get_router_return_url()?,
             )?),
             domain::PaymentMethodData::BankRedirect(ref bank_redirection_data) => {
                 get_bank_redirection_request_data(

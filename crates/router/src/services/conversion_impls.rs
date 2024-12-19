@@ -41,7 +41,6 @@ fn get_default_router_data<F, Req, Resp>(
         payment_method: common_enums::PaymentMethod::default(),
         connector_auth_type: router_data::ConnectorAuthType::default(),
         description: None,
-        return_url: None,
         address: PaymentAddress::default(),
         auth_type: common_enums::AuthenticationType::default(),
         connector_meta_data: None,
@@ -131,7 +130,6 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for PaymentF
             status: old_router_data.status,
             payment_method: old_router_data.payment_method,
             description: old_router_data.description.clone(),
-            return_url: old_router_data.return_url.clone(),
             address: old_router_data.address.clone(),
             auth_type: old_router_data.auth_type,
             connector_meta_data: old_router_data.connector_meta_data.clone(),
@@ -177,7 +175,6 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for PaymentF
             status,
             payment_method,
             description,
-            return_url,
             address,
             auth_type,
             connector_meta_data,
@@ -209,7 +206,6 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for PaymentF
         router_data.status = status;
         router_data.payment_method = payment_method;
         router_data.description = description;
-        router_data.return_url = return_url;
         router_data.address = address;
         router_data.auth_type = auth_type;
         router_data.connector_meta_data = connector_meta_data;
@@ -248,7 +244,6 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for RefundFl
             attempt_id: old_router_data.attempt_id.clone(),
             status: old_router_data.status,
             payment_method: old_router_data.payment_method,
-            return_url: old_router_data.return_url.clone(),
             connector_meta_data: old_router_data.connector_meta_data.clone(),
             amount_captured: old_router_data.amount_captured,
             minor_amount_captured: old_router_data.minor_amount_captured,
@@ -281,7 +276,6 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for RefundFl
             attempt_id,
             status,
             payment_method,
-            return_url,
             connector_meta_data,
             amount_captured,
             minor_amount_captured,
@@ -296,7 +290,6 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for RefundFl
         router_data.attempt_id = attempt_id;
         router_data.status = status;
         router_data.payment_method = payment_method;
-        router_data.return_url = return_url;
         router_data.connector_meta_data = connector_meta_data;
         router_data.amount_captured = amount_captured;
         router_data.minor_amount_captured = minor_amount_captured;
@@ -318,7 +311,6 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for Disputes
             payment_id: old_router_data.payment_id.clone(),
             attempt_id: old_router_data.attempt_id.clone(),
             payment_method: old_router_data.payment_method,
-            return_url: old_router_data.return_url.clone(),
             connector_meta_data: old_router_data.connector_meta_data.clone(),
             amount_captured: old_router_data.amount_captured,
             minor_amount_captured: old_router_data.minor_amount_captured,
@@ -349,7 +341,6 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for Disputes
             payment_id,
             attempt_id,
             payment_method,
-            return_url,
             connector_meta_data,
             amount_captured,
             minor_amount_captured,
@@ -365,7 +356,6 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for Disputes
         router_data.payment_id = payment_id;
         router_data.attempt_id = attempt_id;
         router_data.payment_method = payment_method;
-        router_data.return_url = return_url;
         router_data.connector_meta_data = connector_meta_data;
         router_data.amount_captured = amount_captured;
         router_data.minor_amount_captured = minor_amount_captured;
@@ -389,7 +379,6 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for FrmFlowD
             attempt_id: old_router_data.attempt_id.clone(),
             payment_method: old_router_data.payment_method,
             connector_request_reference_id: old_router_data.connector_request_reference_id.clone(),
-            return_url: old_router_data.return_url.clone(),
             auth_type: old_router_data.auth_type,
             connector_wallets_details: old_router_data.connector_wallets_details.clone(),
             connector_meta_data: old_router_data.connector_meta_data.clone(),
@@ -417,7 +406,6 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for FrmFlowD
             attempt_id,
             payment_method,
             connector_request_reference_id,
-            return_url,
             auth_type,
             connector_wallets_details,
             connector_meta_data,
@@ -432,7 +420,6 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for FrmFlowD
         router_data.attempt_id = attempt_id;
         router_data.payment_method = payment_method;
         router_data.connector_request_reference_id = connector_request_reference_id;
-        router_data.return_url = return_url;
         router_data.auth_type = auth_type;
         router_data.connector_wallets_details = connector_wallets_details;
         router_data.connector_meta_data = connector_meta_data;
@@ -454,7 +441,6 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for FilesFlo
             merchant_id: old_router_data.merchant_id.clone(),
             payment_id: old_router_data.payment_id.clone(),
             attempt_id: old_router_data.attempt_id.clone(),
-            return_url: old_router_data.return_url.clone(),
             connector_meta_data: old_router_data.connector_meta_data.clone(),
             connector_request_reference_id: old_router_data.connector_request_reference_id.clone(),
         };
@@ -477,7 +463,6 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for FilesFlo
             merchant_id,
             payment_id,
             attempt_id,
-            return_url,
             connector_meta_data,
             connector_request_reference_id,
         } = new_router_data.resource_common_data;
@@ -486,7 +471,6 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for FilesFlo
         router_data.merchant_id = merchant_id;
         router_data.payment_id = payment_id;
         router_data.attempt_id = attempt_id;
-        router_data.return_url = return_url;
         router_data.connector_meta_data = connector_meta_data;
         router_data.connector_request_reference_id = connector_request_reference_id;
 
@@ -596,7 +580,6 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for PayoutFl
             merchant_id: old_router_data.merchant_id.clone(),
             customer_id: old_router_data.customer_id.clone(),
             connector_customer: old_router_data.connector_customer.clone(),
-            return_url: old_router_data.return_url.clone(),
             address: old_router_data.address.clone(),
             connector_meta_data: old_router_data.connector_meta_data.clone(),
             connector_wallets_details: old_router_data.connector_wallets_details.clone(),
@@ -623,7 +606,6 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for PayoutFl
             merchant_id,
             customer_id,
             connector_customer,
-            return_url,
             address,
             connector_meta_data,
             connector_wallets_details,
@@ -636,7 +618,6 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for PayoutFl
         router_data.merchant_id = merchant_id;
         router_data.customer_id = customer_id;
         router_data.connector_customer = connector_customer;
-        router_data.return_url = return_url;
         router_data.address = address;
         router_data.connector_meta_data = connector_meta_data;
         router_data.connector_wallets_details = connector_wallets_details;

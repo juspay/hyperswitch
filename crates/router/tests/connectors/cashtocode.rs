@@ -93,7 +93,6 @@ impl CashtocodeTest {
                 None,
                 None,
             )),
-            return_url: Some("https://google.com".to_owned()),
             ..Default::default()
         })
     }
