@@ -4,6 +4,20 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.12.19.0
+
+### Refactors
+
+- **dynamic_routing:** Update the authentication for update config to include JWT type ([#6785](https://github.com/juspay/hyperswitch/pull/6785)) ([`db51ec4`](https://github.com/juspay/hyperswitch/commit/db51ec43bc629dc20ceaa2bb57ede888d2d2fc2c))
+
+### Miscellaneous Tasks
+
+- **env:** Remove unified_authentication_service base_url from integ, sandbox and production toml ([#6865](https://github.com/juspay/hyperswitch/pull/6865)) ([`03c71ea`](https://github.com/juspay/hyperswitch/commit/03c71ea366041af060b385dc9d88d4b9eda4abea))
+
+**Full Changelog:** [`2024.12.18.0...2024.12.19.0`](https://github.com/juspay/hyperswitch/compare/2024.12.18.0...2024.12.19.0)
+
+- - -
+
 ## 2024.12.18.0
 
 ### Features

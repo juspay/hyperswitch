@@ -62,7 +62,7 @@ pub struct RelayResponse {
     /// The identifier that is associated to a resource at the connector reference to which the relay request is being made
     #[schema(example = "7256228702616471803954")]
     pub connector_resource_id: String,
-    /// Identifier of the connector ( merchant connector account ) which was chosen to make the payment
+    /// Identifier of the connector ( merchant connector account ) to which relay request is being made
     #[schema(example = "mca_5apGeP94tMts6rg3U3kR", value_type = String)]
     pub connector_id: common_utils::id_type::MerchantConnectorAccountId,
     /// The business profile that is associated with this relay request.
