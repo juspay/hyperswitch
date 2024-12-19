@@ -1305,6 +1305,21 @@ pub enum IntentStatus {
 
 impl IntentStatus {
     /// Indicates whether the syncing with the connector should be allowed or not
+    pub fn is_in_terminal_state(self) -> bool {
+        match self {
+            Self::Succeeded
+            | Self::Failed 
+            | Self::PartiallyCaptured => true,
+            Self::Cancelled
+            | Self::Processing
+            | Self::RequiresCustomerAction
+            | Self::RequiresMerchantAction
+            | Self::RequiresPaymentMethod
+            | Self::RequiresConfirmation
+            | Self::RequiresCapture
+            | Self::PartiallyCapturedAndCapturable => false,
+        }
+    }
     pub fn should_force_sync_with_connector(self) -> bool {
         match self {
             // Confirm has not happened yet
