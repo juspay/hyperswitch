@@ -25,6 +25,7 @@ import { connectorDetails as stripeConnectorDetails } from "./Stripe.js";
 import { connectorDetails as trustpayConnectorDetails } from "./Trustpay.js";
 import { connectorDetails as wellsfargoConnectorDetails } from "./WellsFargo.js";
 import { connectorDetails as worldpayConnectorDetails } from "./WorldPay.js";
+import { connectorDetails as deutschebankConnectorDetails } from "./Deutschebank.js";
 
 const connectorDetails = {
   adyen: adyenConnectorDetails,
@@ -33,6 +34,7 @@ const connectorDetails = {
   checkout: checkoutConnectorDetails,
   commons: CommonConnectorDetails,
   cybersource: cybersourceConnectorDetails,
+  deutschebank: deutschebankConnectorDetails,
   fiservemea: fiservemeaConnectorDetails,
   iatapay: iatapayConnectorDetails,
   itaubank: itaubankConnectorDetails,
