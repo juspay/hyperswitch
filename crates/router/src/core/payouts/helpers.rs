@@ -198,48 +198,35 @@ pub fn should_create_connector_transfer_method(
     payout_data: &PayoutData,
     connector_data: &api::ConnectorData,
 ) -> RouterResult<Option<String>> {
-    let connector_mandate_id = if let Some(pm) = &payout_data.payment_method {
+    let connector_transfer_method_id = if let Some(pm) = &payout_data.payment_method {
         #[cfg(all(
             any(feature = "v1", feature = "v2"),
             not(feature = "payment_methods_v2")
         ))]
-        let connector_mandate_details = pm
-            .connector_mandate_details
-            .clone()
-            .map(|details| {
-                details.parse_value::<diesel_models::CommonMandateReference>(
-                    "connector_common_mandate_details",
-                )
-            })
-            .transpose()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("unable to deserialize connector mandate details")?;
-        #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-        let connector_mandate_details = pm.connector_mandate_details.clone();
+        let common_mandate_reference = storage::PaymentMethod::get_common_mandate_reference(
+            pm.connector_mandate_details.clone(),
+        )
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("unable to deserialize connector mandate details")?;
+
         if let Some(merchant_connector_id) = connector_data.merchant_connector_id.as_ref() {
-            connector_mandate_details
-                .clone()
-                .and_then(|common_mandate_reference| {
-                    common_mandate_reference
-                        .payouts
-                        .clone()
-                        .and_then(|payouts_mandate_reference| {
-                            payouts_mandate_reference.get(merchant_connector_id).map(
-                                |payouts_mandate_reference_record| {
-                                    payouts_mandate_reference_record.transfer_method_id.clone()
-                                },
-                            )
-                        })
-                        .flatten()
+            common_mandate_reference
+                .payouts
+                .and_then(|payouts_mandate_reference| {
+                    payouts_mandate_reference.get(merchant_connector_id).map(
+                        |payouts_mandate_reference_record| {
+                            payouts_mandate_reference_record.transfer_method_id.clone()
+                        },
+                    )
                 })
+                .flatten()
         } else {
             None
         }
     } else {
         None
     };
-
-    Ok(connector_mandate_id)
+    Ok(connector_transfer_method_id)
 }
 
 #[cfg(all(

@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use common_enums::MerchantStorageScheme;
-use common_utils::{encryption::Encryption, pii};
+use common_utils::{encryption::Encryption, errors::ParsingError, pii};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
@@ -103,6 +103,29 @@ impl PaymentMethod {
     ))]
     pub fn get_id(&self) -> &String {
         &self.payment_method_id
+    }
+
+    pub fn get_common_mandate_reference(
+        connector_mandate_details: Option<serde_json::Value>,
+    ) -> Result<CommonMandateReference, ParsingError> {
+        if let Some(value) = connector_mandate_details {
+            match serde_json::from_value::<CommonMandateReference>(value.clone()) {
+                Ok(common_mandate_reference) => Ok(common_mandate_reference),
+                Err(_) => match serde_json::from_value::<PaymentsMandateReference>(value.clone()) {
+                    Ok(payment_mandate_reference) => Ok(CommonMandateReference {
+                        payments: Some(payment_mandate_reference),
+                        payouts: None,
+                    }),
+                    Err(_) => Err(ParsingError::StructParseFailure(
+                        "Faild to deserialize PaymentMethod",
+                    ))?,
+                },
+            }
+        } else {
+            Err(ParsingError::StructParseFailure(
+                "Faild to deserialize PaymentMethod",
+            ))?
+        }
     }
 
     pub fn deserialize<'de, D>(deserializer: D) -> Result<Option<PaymentMethod>, D::Error>
