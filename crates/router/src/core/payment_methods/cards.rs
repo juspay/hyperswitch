@@ -2826,7 +2826,7 @@ pub async fn update_payment_method_connector_mandate_details(
     key_store: &domain::MerchantKeyStore,
     db: &dyn db::StorageInterface,
     pm: domain::PaymentMethod,
-    connector_mandate_details: Option<diesel_models::PaymentsMandateReference>,
+    connector_mandate_details: Option<diesel_models::CommonMandateReference>,
     storage_scheme: MerchantStorageScheme,
 ) -> errors::CustomResult<(), errors::VaultError> {
     let pm_update = payment_method::PaymentMethodUpdate::ConnectorMandateDetailsUpdate {
@@ -4948,9 +4948,7 @@ pub async fn list_customer_payment_method(
             .connector_mandate_details
             .clone()
             .map(|val| {
-                val.parse_value::<diesel_models::PaymentsMandateReference>(
-                    "PaymentsMandateReference",
-                )
+                val.parse_value::<diesel_models::CommonMandateReference>("CommonMandateReference")
             })
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -5227,7 +5225,7 @@ pub async fn get_mca_status(
     profile_id: Option<id_type::ProfileId>,
     merchant_id: &id_type::MerchantId,
     is_connector_agnostic_mit_enabled: bool,
-    connector_mandate_details: Option<payment_method::PaymentsMandateReference>,
+    connector_mandate_details: Option<payment_method::CommonMandateReference>,
     network_transaction_id: Option<&String>,
 ) -> errors::RouterResult<bool> {
     if is_connector_agnostic_mit_enabled && network_transaction_id.is_some() {
@@ -5265,7 +5263,7 @@ pub async fn get_mca_status(
     profile_id: Option<id_type::ProfileId>,
     merchant_id: &id_type::MerchantId,
     is_connector_agnostic_mit_enabled: bool,
-    connector_mandate_details: Option<&payment_method::PaymentsMandateReference>,
+    connector_mandate_details: Option<&payment_method::CommonMandateReference>,
     network_transaction_id: Option<&String>,
     merchant_connector_accounts: &domain::MerchantConnectorAccounts,
 ) -> bool {

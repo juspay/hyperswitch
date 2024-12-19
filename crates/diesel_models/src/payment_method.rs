@@ -78,7 +78,7 @@ pub struct PaymentMethod {
     pub payment_method_data: Option<Encryption>,
     pub locker_id: Option<String>,
     pub last_used_at: PrimitiveDateTime,
-    pub connector_mandate_details: Option<PaymentsMandateReference>,
+    pub connector_mandate_details: Option<CommonMandateReference>,
     pub customer_acceptance: Option<pii::SecretSerdeValue>,
     pub status: storage_enums::PaymentMethodStatus,
     pub network_transaction_id: Option<String>,
@@ -128,6 +128,7 @@ impl PaymentMethod {
         }
     }
 
+    /*
     pub fn deserialize<'de, D>(deserializer: D) -> Result<Option<PaymentMethod>, D::Error>
     where
         D: Deserializer<'de>,
@@ -296,6 +297,7 @@ impl PaymentMethod {
             Err(de::Error::custom("Faild to deserialize PaymentMethod"))?
         }
     }
+    */
 
     #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
     pub fn get_id(&self) -> &common_utils::id_type::GlobalPaymentMethodId {
@@ -360,7 +362,7 @@ pub struct PaymentMethodNew {
     pub payment_method_data: Option<Encryption>,
     pub locker_id: Option<String>,
     pub last_used_at: PrimitiveDateTime,
-    pub connector_mandate_details: Option<PaymentsMandateReference>,
+    pub connector_mandate_details: Option<CommonMandateReference>,
     pub customer_acceptance: Option<pii::SecretSerdeValue>,
     pub status: storage_enums::PaymentMethodStatus,
     pub network_transaction_id: Option<String>,
@@ -489,7 +491,7 @@ pub enum PaymentMethodUpdate {
         locker_fingerprint_id: Option<String>,
     },
     ConnectorMandateDetailsUpdate {
-        connector_mandate_details: Option<PaymentsMandateReference>,
+        connector_mandate_details: Option<CommonMandateReference>,
     },
 }
 
@@ -514,7 +516,7 @@ pub struct PaymentMethodUpdateInternal {
     status: Option<storage_enums::PaymentMethodStatus>,
     locker_id: Option<String>,
     payment_method_type_v2: Option<storage_enums::PaymentMethod>,
-    connector_mandate_details: Option<PaymentsMandateReference>,
+    connector_mandate_details: Option<CommonMandateReference>,
     updated_by: Option<String>,
     payment_method_subtype: Option<storage_enums::PaymentMethodType>,
     last_modified: PrimitiveDateTime,

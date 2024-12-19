@@ -2022,8 +2022,8 @@ async fn update_connector_mandate_details(
                         .connector_mandate_details
                         .clone()
                         .map(|val| {
-                            val.parse_value::<diesel_models::PaymentsMandateReference>(
-                                "PaymentsMandateReference",
+                            val.parse_value::<diesel_models::CommonMandateReference>(
+                                "CommonMandateReference",
                             )
                         })
                         .transpose()
@@ -2037,8 +2037,10 @@ async fn update_connector_mandate_details(
 
                     if mandate_details
                         .as_ref()
-                        .map(|details: &diesel_models::PaymentsMandateReference| {
-                            !details.0.contains_key(&merchant_connector_account_id)
+                        .map(|details: &diesel_models::CommonMandateReference| {
+                            !details.payments.as_ref().map_or(false, |payments| {
+                                payments.0.contains_key(&merchant_connector_account_id)
+                            })
                         })
                         .unwrap_or(true)
                     {
@@ -2124,7 +2126,7 @@ async fn update_connector_mandate_details(
 fn insert_mandate_details(
     payment_attempt: &PaymentAttempt,
     webhook_mandate_details: &hyperswitch_domain_models::router_flow_types::ConnectorMandateDetails,
-    payment_method_mandate_details: Option<diesel_models::PaymentsMandateReference>,
+    payment_method_mandate_details: Option<diesel_models::CommonMandateReference>,
 ) -> CustomResult<Option<serde_json::Value>, errors::ApiErrorResponse> {
     let (mandate_metadata, connector_mandate_request_reference_id) = payment_attempt
         .connector_mandate_detail
