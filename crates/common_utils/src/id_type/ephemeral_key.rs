@@ -26,6 +26,6 @@ crate::impl_default_id_type!(EphemeralKeyId, "key");
 impl EphemeralKeyId {
     /// Generate a key for redis
     pub fn generate_redis_key(&self) -> String {
-        format!("epkey_{}", &self.get_string_repr())
+        format!("epkey_{}", self.get_string_repr())
     }
 }

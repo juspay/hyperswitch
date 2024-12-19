@@ -3061,7 +3061,7 @@ pub async fn make_ephemeral_key(
     let db = &state.store;
     let key_manager_state = &((&state).into());
     db.find_customer_by_global_id(
-        &key_manager_state,
+        key_manager_state,
         &customer_id,
         merchant_account.get_id(),
         &key_store,

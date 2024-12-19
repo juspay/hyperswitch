@@ -1,5 +1,5 @@
 #[cfg(feature = "v2")]
-use masking::Secret;
+use masking::{PeekInterface, Secret};
 #[cfg(feature = "v2")]
 pub struct EphemeralKeyTypeNew {
     pub id: common_utils::id_type::EphemeralKeyId,
@@ -7,6 +7,13 @@ pub struct EphemeralKeyTypeNew {
     pub customer_id: common_utils::id_type::GlobalCustomerId,
     pub secret: Secret<String>,
     pub resource_type: ResourceType,
+}
+
+#[cfg(feature = "v2")]
+impl EphemeralKeyTypeNew {
+    pub fn generate_secret_key(&self) -> String {
+        format!("epkey_{}", &self.secret.peek())
+    }
 }
 
 #[cfg(feature = "v2")]
@@ -19,6 +26,13 @@ pub struct EphemeralKeyType {
     pub created_at: time::PrimitiveDateTime,
     pub expires: time::PrimitiveDateTime,
     pub secret: Secret<String>,
+}
+
+#[cfg(feature = "v2")]
+impl EphemeralKeyType {
+    pub fn generate_secret_key(&self) -> String {
+        format!("epkey_{}", &self.secret.peek())
+    }
 }
 
 pub struct EphemeralKeyNew {
