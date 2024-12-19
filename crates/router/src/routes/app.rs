@@ -12,7 +12,10 @@ use common_utils::id_type;
 use external_services::email::{
     no_email::NoEmailClient, ses::AwsSes, smtp::SmtpServer, EmailClientConfigs, EmailService,
 };
-use external_services::{file_storage::FileStorageInterface, grpc_client::GrpcClients};
+use external_services::{
+    file_storage::FileStorageInterface,
+    grpc_client::{GrpcClients, GrpcHeaders},
+};
 use hyperswitch_interfaces::{
     encryption_interface::EncryptionManagementInterface,
     secrets_interface::secret_state::{RawSecret, SecuredSecret},
@@ -121,6 +124,12 @@ impl SessionState {
     pub fn get_req_state(&self) -> ReqState {
         ReqState {
             event_context: events::EventContext::new(self.event_handler.clone()),
+        }
+    }
+    pub fn get_grpc_headers(&self) -> GrpcHeaders {
+        GrpcHeaders {
+            tenant_id: self.tenant.tenant_id.get_string_repr().to_string(),
+            request_id: self.request_id.map(|req_id| (*req_id).to_string()),
         }
     }
 }

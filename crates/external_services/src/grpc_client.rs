@@ -76,3 +76,12 @@ impl GrpcClientSettings {
         })
     }
 }
+
+/// Contains grpc headers
+#[derive(Debug)]
+pub struct GrpcHeaders {
+    /// Tenant id
+    pub tenant_id: String,
+    /// Request id
+    pub request_id: Option<String>,
+}

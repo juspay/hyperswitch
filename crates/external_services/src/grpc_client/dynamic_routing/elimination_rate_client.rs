@@ -9,6 +9,7 @@ pub use elimination_rate::{
     LabelWithBucketName, UpdateEliminationBucketRequest, UpdateEliminationBucketResponse,
 };
 use error_stack::ResultExt;
+use router_env::logger;
 #[allow(
     missing_docs,
     unused_qualifications,
@@ -19,6 +20,8 @@ use error_stack::ResultExt;
 pub mod elimination_rate {
     tonic::include_proto!("elimination");
 }
+
+use crate::grpc_client::GrpcHeaders;
 
 use super::{Client, DynamicRoutingError, DynamicRoutingResult};
 
@@ -32,6 +35,7 @@ pub trait EliminationBasedRouting: dyn_clone::DynClone + Send + Sync {
         params: String,
         labels: Vec<RoutableConnectorChoice>,
         configs: Option<EliminationConfig>,
+        headers: GrpcHeaders,
     ) -> DynamicRoutingResult<EliminationResponse>;
     /// To update the bucket size and ttl for list of connectors with its respective bucket name
     async fn update_elimination_bucket_config(
@@ -40,11 +44,13 @@ pub trait EliminationBasedRouting: dyn_clone::DynClone + Send + Sync {
         params: String,
         report: Vec<RoutableConnectorChoiceWithBucketName>,
         config: Option<EliminationConfig>,
+        headers: GrpcHeaders,
     ) -> DynamicRoutingResult<UpdateEliminationBucketResponse>;
     /// To invalidate the previous id's bucket
     async fn invalidate_elimination_bucket(
         &self,
         id: String,
+        headers: GrpcHeaders,
     ) -> DynamicRoutingResult<InvalidateBucketResponse>;
 }
 
@@ -56,6 +62,7 @@ impl EliminationBasedRouting for EliminationAnalyserClient<Client> {
         params: String,
         label_input: Vec<RoutableConnectorChoice>,
         configs: Option<EliminationConfig>,
+        headers: GrpcHeaders,
     ) -> DynamicRoutingResult<EliminationResponse> {
         let labels = label_input
             .into_iter()
@@ -64,11 +71,28 @@ impl EliminationBasedRouting for EliminationAnalyserClient<Client> {
 
         let config = configs.map(ForeignTryFrom::foreign_try_from).transpose()?;
 
-        let request = tonic::Request::new(EliminationRequest {
+        let mut request = tonic::Request::new(EliminationRequest {
             id,
             params,
             labels,
             config,
+        });
+
+        headers
+            .tenant_id
+            .parse()
+            .map(|tenant_id| request.metadata_mut().append("x-tenant-id", tenant_id))
+            .inspect_err(|err| logger::warn!(header_parse_error=?err,"invalid x-tenant-id received in perform_elimination_routing"))
+            .ok();
+
+        headers.request_id.map(|request_id| {
+            request_id
+                .parse()
+                .map(|request_id| request.metadata_mut().append("x-request-id", request_id))
+                .inspect_err(|err| {
+                    logger::warn!(header_parse_error=?err,"invalid x-request-id received in perform_elimination_routing")
+                })
+                .ok();
         });
 
         let response = self
@@ -89,6 +113,7 @@ impl EliminationBasedRouting for EliminationAnalyserClient<Client> {
         params: String,
         report: Vec<RoutableConnectorChoiceWithBucketName>,
         configs: Option<EliminationConfig>,
+        headers: GrpcHeaders,
     ) -> DynamicRoutingResult<UpdateEliminationBucketResponse> {
         let config = configs.map(ForeignTryFrom::foreign_try_from).transpose()?;
 
@@ -102,11 +127,28 @@ impl EliminationBasedRouting for EliminationAnalyserClient<Client> {
             })
             .collect::<Vec<_>>();
 
-        let request = tonic::Request::new(UpdateEliminationBucketRequest {
+        let mut request = tonic::Request::new(UpdateEliminationBucketRequest {
             id,
             params,
             labels_with_bucket_name,
             config,
+        });
+
+        headers
+            .tenant_id
+            .parse()
+            .map(|tenant_id| request.metadata_mut().append("x-tenant-id", tenant_id))
+            .inspect_err(|err| logger::warn!(header_parse_error=?err,"invalid x-tenant-id received in update_elimination_bucket_config"))
+            .ok();
+
+        headers.request_id.map(|request_id| {
+            request_id
+                .parse()
+                .map(|request_id| request.metadata_mut().append("x-request-id", request_id))
+                .inspect_err(|err| {
+                    logger::warn!(header_parse_error=?err,"invalid x-request-id received in update_elimination_bucket_config")
+                })
+                .ok();
         });
 
         let response = self
@@ -122,8 +164,26 @@ impl EliminationBasedRouting for EliminationAnalyserClient<Client> {
     async fn invalidate_elimination_bucket(
         &self,
         id: String,
+        headers: GrpcHeaders,
     ) -> DynamicRoutingResult<InvalidateBucketResponse> {
-        let request = tonic::Request::new(InvalidateBucketRequest { id });
+        let mut request = tonic::Request::new(InvalidateBucketRequest { id });
+
+        headers
+            .tenant_id
+            .parse()
+            .map(|tenant_id| request.metadata_mut().append("x-tenant-id", tenant_id))
+            .inspect_err(|err| logger::warn!(header_parse_error=?err,"invalid x-tenant-id received in invalidate_elimination_bucket"))
+            .ok();
+
+        headers.request_id.map(|request_id| {
+            request_id
+                .parse()
+                .map(|request_id| request.metadata_mut().append("x-request-id", request_id))
+                .inspect_err(|err| {
+                    logger::warn!(header_parse_error=?err,"invalid x-request-id received in invalidate_elimination_bucket")
+                })
+                .ok();
+        });
 
         let response = self
             .clone()

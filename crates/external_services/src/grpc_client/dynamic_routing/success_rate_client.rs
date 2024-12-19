@@ -4,6 +4,7 @@ use api_models::routing::{
 };
 use common_utils::{ext_traits::OptionExt, transformers::ForeignTryFrom};
 use error_stack::ResultExt;
+use router_env::logger;
 pub use success_rate::{
     success_rate_calculator_client::SuccessRateCalculatorClient, CalSuccessRateConfig,
     CalSuccessRateRequest, CalSuccessRateResponse,
@@ -20,6 +21,8 @@ pub use success_rate::{
 pub mod success_rate {
     tonic::include_proto!("success_rate");
 }
+use crate::grpc_client::GrpcHeaders;
+
 use super::{Client, DynamicRoutingError, DynamicRoutingResult};
 /// The trait Success Based Dynamic Routing would have the functions required to support the calculation and updation window
 #[async_trait::async_trait]
@@ -31,6 +34,7 @@ pub trait SuccessBasedDynamicRouting: dyn_clone::DynClone + Send + Sync {
         success_rate_based_config: SuccessBasedRoutingConfig,
         params: String,
         label_input: Vec<RoutableConnectorChoice>,
+        headers: GrpcHeaders,
     ) -> DynamicRoutingResult<CalSuccessRateResponse>;
     /// To update the success rate with the given label
     async fn update_success_rate(
@@ -39,11 +43,13 @@ pub trait SuccessBasedDynamicRouting: dyn_clone::DynClone + Send + Sync {
         success_rate_based_config: SuccessBasedRoutingConfig,
         params: String,
         response: Vec<RoutableConnectorChoiceWithStatus>,
+        headers: GrpcHeaders,
     ) -> DynamicRoutingResult<UpdateSuccessRateWindowResponse>;
     /// To invalidates the success rate routing keys
     async fn invalidate_success_rate_routing_keys(
         &self,
         id: String,
+        headers: GrpcHeaders,
     ) -> DynamicRoutingResult<InvalidateWindowsResponse>;
 }
 
@@ -55,6 +61,7 @@ impl SuccessBasedDynamicRouting for SuccessRateCalculatorClient<Client> {
         success_rate_based_config: SuccessBasedRoutingConfig,
         params: String,
         label_input: Vec<RoutableConnectorChoice>,
+        headers: GrpcHeaders,
     ) -> DynamicRoutingResult<CalSuccessRateResponse> {
         let labels = label_input
             .into_iter()
@@ -66,11 +73,28 @@ impl SuccessBasedDynamicRouting for SuccessRateCalculatorClient<Client> {
             .map(ForeignTryFrom::foreign_try_from)
             .transpose()?;
 
-        let request = tonic::Request::new(CalSuccessRateRequest {
+        let mut request = tonic::Request::new(CalSuccessRateRequest {
             id,
             params,
             labels,
             config,
+        });
+
+        headers
+            .tenant_id
+            .parse()
+            .map(|tenant_id| request.metadata_mut().append("x-tenant-id", tenant_id))
+            .inspect_err(|err| logger::warn!(header_parse_error=?err,"invalid x-tenant-id received in calculate_success_rate"))
+            .ok();
+
+        headers.request_id.map(|request_id| {
+            request_id
+                .parse()
+                .map(|request_id| request.metadata_mut().append("x-request-id", request_id))
+                .inspect_err(|err| {
+                    logger::warn!(header_parse_error=?err,"invalid x-request-id received in calculate_success_rate")
+                })
+                .ok();
         });
 
         let response = self
@@ -91,6 +115,7 @@ impl SuccessBasedDynamicRouting for SuccessRateCalculatorClient<Client> {
         success_rate_based_config: SuccessBasedRoutingConfig,
         params: String,
         label_input: Vec<RoutableConnectorChoiceWithStatus>,
+        headers: GrpcHeaders,
     ) -> DynamicRoutingResult<UpdateSuccessRateWindowResponse> {
         let config = success_rate_based_config
             .config
@@ -105,11 +130,28 @@ impl SuccessBasedDynamicRouting for SuccessRateCalculatorClient<Client> {
             })
             .collect();
 
-        let request = tonic::Request::new(UpdateSuccessRateWindowRequest {
+        let mut request = tonic::Request::new(UpdateSuccessRateWindowRequest {
             id,
             params,
             labels_with_status,
             config,
+        });
+
+        headers
+            .tenant_id
+            .parse()
+            .map(|tenant_id| request.metadata_mut().append("x-tenant-id", tenant_id))
+            .inspect_err(|err| logger::warn!(header_parse_error=?err,"invalid x-tenant-id received in update_success_rate"))
+            .ok();
+
+        headers.request_id.map(|request_id| {
+            request_id
+                .parse()
+                .map(|request_id| request.metadata_mut().append("x-request-id", request_id))
+                .inspect_err(|err| {
+                    logger::warn!(header_parse_error=?err,"invalid x-request-id received in update_success_rate")
+                })
+                .ok();
         });
 
         let response = self
@@ -126,8 +168,26 @@ impl SuccessBasedDynamicRouting for SuccessRateCalculatorClient<Client> {
     async fn invalidate_success_rate_routing_keys(
         &self,
         id: String,
+        headers: GrpcHeaders,
     ) -> DynamicRoutingResult<InvalidateWindowsResponse> {
-        let request = tonic::Request::new(InvalidateWindowsRequest { id });
+        let mut request = tonic::Request::new(InvalidateWindowsRequest { id });
+
+        headers
+            .tenant_id
+            .parse()
+            .map(|tenant_id| request.metadata_mut().append("x-tenant-id", tenant_id))
+            .inspect_err(|err| logger::warn!(header_parse_error=?err,"invalid x-tenant-id received in invalidate_success_rate_routing_keys"))
+            .ok();
+
+        headers.request_id.map(|request_id| {
+            request_id
+                .parse()
+                .map(|request_id| request.metadata_mut().append("x-request-id", request_id))
+                .inspect_err(|err| {
+                    logger::warn!(header_parse_error=?err,"invalid x-request-id received in invalidate_success_rate_routing_keys")
+                })
+                .ok();
+        });
 
         let response = self
             .clone()
