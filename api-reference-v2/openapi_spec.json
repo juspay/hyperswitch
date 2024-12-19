@@ -6691,7 +6691,7 @@
           "supported_payment_methods": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/SupportedPaymentMethodTypes"
+              "$ref": "#/components/schemas/SupportedPaymentMethod"
             }
           },
           "supported_webhook_flows": {
@@ -20709,19 +20709,23 @@
         "type": "object",
         "required": [
           "payment_method",
-          "supports_mandate",
-          "supports_refund",
+          "payment_method_type",
+          "mandates",
+          "refunds",
           "supported_capture_methods"
         ],
         "properties": {
           "payment_method": {
+            "$ref": "#/components/schemas/PaymentMethod"
+          },
+          "payment_method_type": {
             "$ref": "#/components/schemas/PaymentMethodType"
           },
-          "supports_mandate": {
-            "type": "boolean"
+          "mandates": {
+            "$ref": "#/components/schemas/FeatureStatus"
           },
-          "supports_refund": {
-            "type": "boolean"
+          "refunds": {
+            "$ref": "#/components/schemas/FeatureStatus"
           },
           "supported_capture_methods": {
             "type": "array",
@@ -20744,24 +20748,6 @@
             },
             "uniqueItems": true,
             "nullable": true
-          }
-        }
-      },
-      "SupportedPaymentMethodTypes": {
-        "type": "object",
-        "required": [
-          "payment_method_type",
-          "payment_methods"
-        ],
-        "properties": {
-          "payment_method_type": {
-            "$ref": "#/components/schemas/PaymentMethod"
-          },
-          "payment_methods": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/SupportedPaymentMethod"
-            }
           }
         }
       },

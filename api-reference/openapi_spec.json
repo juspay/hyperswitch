@@ -9211,7 +9211,7 @@
           "supported_payment_methods": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/SupportedPaymentMethodTypes"
+              "$ref": "#/components/schemas/SupportedPaymentMethod"
             }
           },
           "supported_webhook_flows": {
@@ -24806,6 +24806,102 @@
           }
         },
         "additionalProperties": false
+      },
+      "SuccessBasedRoutingConfig": {
+        "type": "object",
+        "properties": {
+          "params": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DynamicRoutingConfigParams"
+            },
+            "nullable": true
+          },
+          "config": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SuccessBasedRoutingConfigBody"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "SuccessBasedRoutingConfigBody": {
+        "type": "object",
+        "properties": {
+          "min_aggregates_size": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true,
+            "minimum": 0
+          },
+          "default_success_rate": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "max_aggregates_size": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true,
+            "minimum": 0
+          },
+          "current_block_threshold": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CurrentBlockThreshold"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "SupportedPaymentMethod": {
+        "type": "object",
+        "required": [
+          "payment_method",
+          "payment_method_type",
+          "mandates",
+          "refunds",
+          "supported_capture_methods"
+        ],
+        "properties": {
+          "payment_method": {
+            "$ref": "#/components/schemas/PaymentMethod"
+          },
+          "payment_method_type": {
+            "$ref": "#/components/schemas/PaymentMethodType"
+          },
+          "mandates": {
+            "$ref": "#/components/schemas/FeatureStatus"
+          },
+          "refunds": {
+            "$ref": "#/components/schemas/FeatureStatus"
+          },
+          "supported_capture_methods": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CaptureMethod"
+            }
+          },
+          "supported_countries": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CountryAlpha2"
+            },
+            "uniqueItems": true,
+            "nullable": true
+          },
+          "supported_currencies": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Currency"
+            },
+            "uniqueItems": true,
+            "nullable": true
+          }
+        }
       },
       "SurchargeDetailsResponse": {
         "type": "object",
