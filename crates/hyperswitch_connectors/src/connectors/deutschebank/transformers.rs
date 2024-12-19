@@ -23,7 +23,7 @@ use hyperswitch_domain_models::{
         PaymentsCompleteAuthorizeRouterData, RefundsRouterData,
     },
 };
-use hyperswitch_interfaces::errors;
+use hyperswitch_interfaces::{consts, errors};
 use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
@@ -439,10 +439,10 @@ impl
             DeutschebankThreeDSInitializeResponseOutcome::MethodRequired => Ok(Self {
                 status: common_enums::AttemptStatus::Failure,
                 response: Err(ErrorResponse {
-                    code: item.http_code.to_string(),
-                    message: "Method_Required Flow not supported".to_owned(),
-                    reason: Some("Method_Required Flow is not currently supported".to_owned()),
-                    status_code: 500,
+                    code: consts::NO_ERROR_CODE.to_owned(),
+                    message: "METHOD_REQUIRED Flow not supported for deutschebank 3ds payments".to_owned(),
+                    reason: Some("METHOD_REQUIRED Flow is not currently supported for deutschebank 3ds payments".to_owned()),
+                    status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: None,
                 }),
@@ -932,15 +932,24 @@ impl TryFrom<&DeutschebankRouterData<&PaymentsCaptureRouterData>> for Deutscheba
     fn try_from(
         item: &DeutschebankRouterData<&PaymentsCaptureRouterData>,
     ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            changed_amount: item.amount,
-            kind: match item.router_data.is_three_ds()
-                && matches!(item.router_data.payment_method, PaymentMethod::Card)
-            {
-                true => DeutschebankTransactionKind::Creditcard3ds20,
-                false => DeutschebankTransactionKind::Directdebit,
-            },
-        })
+        if matches!(item.router_data.payment_method, PaymentMethod::BankDebit) {
+            Ok(Self {
+                changed_amount: item.amount,
+                kind: DeutschebankTransactionKind::Directdebit,
+            })
+        } else if item.router_data.is_three_ds()
+            && matches!(item.router_data.payment_method, PaymentMethod::Card)
+        {
+            Ok(Self {
+                changed_amount: item.amount,
+                kind: DeutschebankTransactionKind::Creditcard3ds20,
+            })
+        } else {
+            Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("deutschebank"),
+            )
+            .into())
+        }
     }
 }
 
@@ -1061,12 +1070,20 @@ pub struct DeutschebankReversalRequest {
 impl TryFrom<&PaymentsCancelRouterData> for DeutschebankReversalRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &PaymentsCancelRouterData) -> Result<Self, Self::Error> {
-        Ok(Self {
-            kind: match item.is_three_ds() && matches!(item.payment_method, PaymentMethod::Card) {
-                true => DeutschebankTransactionKind::Creditcard3ds20,
-                false => DeutschebankTransactionKind::Directdebit,
-            },
-        })
+        if matches!(item.payment_method, PaymentMethod::BankDebit) {
+            Ok(Self {
+                kind: DeutschebankTransactionKind::Directdebit,
+            })
+        } else if item.is_three_ds() && matches!(item.payment_method, PaymentMethod::Card) {
+            Ok(Self {
+                kind: DeutschebankTransactionKind::Creditcard3ds20,
+            })
+        } else {
+            Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("deutschebank"),
+            )
+            .into())
+        }
     }
 }
 
@@ -1106,15 +1123,24 @@ pub struct DeutschebankRefundRequest {
 impl<F> TryFrom<&DeutschebankRouterData<&RefundsRouterData<F>>> for DeutschebankRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &DeutschebankRouterData<&RefundsRouterData<F>>) -> Result<Self, Self::Error> {
-        Ok(Self {
-            changed_amount: item.amount.to_owned(),
-            kind: match item.router_data.is_three_ds()
-                && matches!(item.router_data.payment_method, PaymentMethod::Card)
-            {
-                true => DeutschebankTransactionKind::Creditcard3ds20,
-                false => DeutschebankTransactionKind::Directdebit,
-            },
-        })
+        if matches!(item.router_data.payment_method, PaymentMethod::BankDebit) {
+            Ok(Self {
+                changed_amount: item.amount,
+                kind: DeutschebankTransactionKind::Directdebit,
+            })
+        } else if item.router_data.is_three_ds()
+            && matches!(item.router_data.payment_method, PaymentMethod::Card)
+        {
+            Ok(Self {
+                changed_amount: item.amount,
+                kind: DeutschebankTransactionKind::Creditcard3ds20,
+            })
+        } else {
+            Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("deutschebank"),
+            )
+            .into())
+        }
     }
 }
 

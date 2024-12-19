@@ -984,15 +984,6 @@ impl Default for settings::RequiredFields {
                                                 }
                                             ),
                                             (
-                                                "payment_method_data.card.card_holder_name".to_string(),
-                                                RequiredFieldInfo {
-                                                    required_field: "payment_method_data.card.card_holder_name".to_string(),
-                                                    display_name: "card_holder_name".to_string(),
-                                                    field_type: enums::FieldType::UserBillingName,
-                                                    value: None,
-                                                }
-                                            ),
-                                            (
                                                 "email".to_string(),
                                                 RequiredFieldInfo {
                                                     required_field: "email".to_string(),
@@ -4309,15 +4300,6 @@ impl Default for settings::RequiredFields {
                                                     required_field: "payment_method_data.card.card_cvc".to_string(),
                                                     display_name: "card_cvc".to_string(),
                                                     field_type: enums::FieldType::UserCardCvc,
-                                                    value: None,
-                                                }
-                                            ),
-                                            (
-                                                "payment_method_data.card.card_holder_name".to_string(),
-                                                RequiredFieldInfo {
-                                                    required_field: "payment_method_data.card.card_holder_name".to_string(),
-                                                    display_name: "card_holder_name".to_string(),
-                                                    field_type: enums::FieldType::UserBillingName,
                                                     value: None,
                                                 }
                                             ),
