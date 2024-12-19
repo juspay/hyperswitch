@@ -9,7 +9,6 @@ pub use elimination_rate::{
     LabelWithBucketName, UpdateEliminationBucketRequest, UpdateEliminationBucketResponse,
 };
 use error_stack::ResultExt;
-use router_env::logger;
 #[allow(
     missing_docs,
     unused_qualifications,
@@ -77,22 +76,7 @@ impl EliminationBasedRouting for EliminationAnalyserClient<Client> {
             config,
         });
 
-        headers
-            .tenant_id
-            .parse()
-            .map(|tenant_id| request.metadata_mut().append("x-tenant-id", tenant_id))
-            .inspect_err(|err| logger::warn!(header_parse_error=?err,"invalid x-tenant-id received in perform_elimination_routing"))
-            .ok();
-
-        headers.request_id.map(|request_id| {
-            request_id
-                .parse()
-                .map(|request_id| request.metadata_mut().append("x-request-id", request_id))
-                .inspect_err(|err| {
-                    logger::warn!(header_parse_error=?err,"invalid x-request-id received in perform_elimination_routing")
-                })
-                .ok();
-        });
+        headers.add_headers_to_grpc_request(&mut request);
 
         let response = self
             .clone()
@@ -133,22 +117,7 @@ impl EliminationBasedRouting for EliminationAnalyserClient<Client> {
             config,
         });
 
-        headers
-            .tenant_id
-            .parse()
-            .map(|tenant_id| request.metadata_mut().append("x-tenant-id", tenant_id))
-            .inspect_err(|err| logger::warn!(header_parse_error=?err,"invalid x-tenant-id received in update_elimination_bucket_config"))
-            .ok();
-
-        headers.request_id.map(|request_id| {
-            request_id
-                .parse()
-                .map(|request_id| request.metadata_mut().append("x-request-id", request_id))
-                .inspect_err(|err| {
-                    logger::warn!(header_parse_error=?err,"invalid x-request-id received in update_elimination_bucket_config")
-                })
-                .ok();
-        });
+        headers.add_headers_to_grpc_request(&mut request);
 
         let response = self
             .clone()
@@ -167,22 +136,7 @@ impl EliminationBasedRouting for EliminationAnalyserClient<Client> {
     ) -> DynamicRoutingResult<InvalidateBucketResponse> {
         let mut request = tonic::Request::new(InvalidateBucketRequest { id });
 
-        headers
-            .tenant_id
-            .parse()
-            .map(|tenant_id| request.metadata_mut().append("x-tenant-id", tenant_id))
-            .inspect_err(|err| logger::warn!(header_parse_error=?err,"invalid x-tenant-id received in invalidate_elimination_bucket"))
-            .ok();
-
-        headers.request_id.map(|request_id| {
-            request_id
-                .parse()
-                .map(|request_id| request.metadata_mut().append("x-request-id", request_id))
-                .inspect_err(|err| {
-                    logger::warn!(header_parse_error=?err,"invalid x-request-id received in invalidate_elimination_bucket")
-                })
-                .ok();
-        });
+        headers.add_headers_to_grpc_request(&mut request);
 
         let response = self
             .clone()

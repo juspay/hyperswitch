@@ -16,6 +16,8 @@ use http_body_util::combinators::UnsyncBoxBody;
 use hyper::body::Bytes;
 #[cfg(feature = "dynamic_routing")]
 use hyper_util::client::legacy::connect::HttpConnector;
+#[cfg(feature = "dynamic_routing")]
+use router_env::logger;
 use serde;
 #[cfg(feature = "dynamic_routing")]
 use tonic::Status;
@@ -84,4 +86,26 @@ pub struct GrpcHeaders {
     pub tenant_id: String,
     /// Request id
     pub request_id: Option<String>,
+}
+
+impl GrpcHeaders {
+    /// Method to add necessary headers to the tonic Request
+    pub fn add_headers_to_grpc_request<T>(&self, request: &mut tonic::Request<T>) {
+        self
+            .tenant_id
+            .parse()
+            .map(|tenant_id| request.metadata_mut().append("x-tenant-id", tenant_id))
+            .inspect_err(|err| logger::warn!(header_parse_error=?err,"invalid x-tenant-id received in update_elimination_bucket_config"))
+            .ok();
+
+        self.request_id.as_ref().map(|request_id| {
+            request_id
+                .parse()
+                .map(|request_id| request.metadata_mut().append("x-request-id", request_id))
+                .inspect_err(|err| {
+                    logger::warn!(header_parse_error=?err,"invalid x-request-id received in update_elimination_bucket_config")
+                })
+                .ok();
+        });
+    }
 }
