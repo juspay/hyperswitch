@@ -4,9 +4,11 @@ use crate::{errors, generate_id_with_default_len, generate_time_ordered_id_witho
 
 crate::global_id_type!(
     GlobalPaymentId,
-    "A global id that can be used to identify a payment
-    The format will be `<cell_id>_<entity_prefix>_<time_ordered_id>`
-    example - cell1_pay_uu1a2b3c4d5e6f7g8h9i0j1k2l3m4n5o6p"
+    "A global id that can be used to identify a payment.
+
+The format will be `<cell_id>_<entity_prefix>_<time_ordered_id>`.
+
+Example: `cell1_pay_uu1a2b3c4d5e6f7g8h9i0j1k2l3m4n5o6p`"
 );
 
 // Database related implementations so that this field can be used directly in the database tables

@@ -2266,7 +2266,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/CustomerRequest"
+                "$ref": "#/components/schemas/CustomerUpdateRequest"
               },
               "examples": {
                 "Update name and email of a customer": {
@@ -3922,7 +3922,91 @@
         ]
       }
     },
-    "/account/:account_id/business_profile/:profile_id/dynamic_routing/success_based/toggle": {
+    "/account/{account_id}/business_profile/{profile_id}/dynamic_routing/success_based/config/{algorithm_id}": {
+      "patch": {
+        "tags": [
+          "Routing"
+        ],
+        "summary": "Routing - Update success based dynamic routing config for profile",
+        "description": "Update success based dynamic routing algorithm",
+        "operationId": "Update success based dynamic routing configs",
+        "parameters": [
+          {
+            "name": "account_id",
+            "in": "path",
+            "description": "Merchant id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "profile_id",
+            "in": "path",
+            "description": "Profile id under which Dynamic routing needs to be toggled",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "algorithm_id",
+            "in": "path",
+            "description": "Success based routing algorithm id which was last activated to update the config",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DynamicRoutingFeatures"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Routing Algorithm updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoutingDictionaryRecord"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Update body is malformed"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Resource missing"
+          },
+          "422": {
+            "description": "Unprocessable request"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          },
+          {
+            "jwt_key": []
+          }
+        ]
+      }
+    },
+    "/account/{account_id}/business_profile/{profile_id}/dynamic_routing/success_based/toggle": {
       "post": {
         "tags": [
           "Routing"
@@ -3930,6 +4014,80 @@
         "summary": "Routing - Toggle success based dynamic routing for profile",
         "description": "Create a success based dynamic routing algorithm",
         "operationId": "Toggle success based dynamic routing algorithm",
+        "parameters": [
+          {
+            "name": "account_id",
+            "in": "path",
+            "description": "Merchant id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "profile_id",
+            "in": "path",
+            "description": "Profile id under which Dynamic routing needs to be toggled",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "enable",
+            "in": "query",
+            "description": "Feature to enable for success based routing",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/DynamicRoutingFeatures"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Routing Algorithm created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoutingDictionaryRecord"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request body is malformed"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Resource missing"
+          },
+          "422": {
+            "description": "Unprocessable request"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          },
+          {
+            "jwt_key": []
+          }
+        ]
+      }
+    },
+    "/account/{account_id}/business_profile/{profile_id}/dynamic_routing/elimination/toggle": {
+      "post": {
+        "tags": [
+          "Routing"
+        ],
+        "summary": "Routing - Toggle elimination routing for profile",
+        "description": "Create a elimination based dynamic routing algorithm",
+        "operationId": "Toggle elimination routing algorithm",
         "parameters": [
           {
             "name": "account_id",
@@ -5925,7 +6083,9 @@
         "enum": [
           "threedsecureio",
           "netcetera",
-          "gpayments"
+          "gpayments",
+          "ctp_mastercard",
+          "unified_authentication_service"
         ]
       },
       "AuthenticationStatus": {
@@ -8677,50 +8837,50 @@
       "ClickToPaySessionResponse": {
         "type": "object",
         "required": [
-          "dpaId",
-          "dpaName",
+          "dpa_id",
+          "dpa_name",
           "locale",
-          "cardBrands",
-          "acquirerBin",
-          "acquirerMerchantId",
-          "merchantCategoryCode",
-          "merchantCountryCode",
-          "transactionAmount",
-          "transactionCurrencyCode"
+          "card_brands",
+          "acquirer_bin",
+          "acquirer_merchant_id",
+          "merchant_category_code",
+          "merchant_country_code",
+          "transaction_amount",
+          "transaction_currency_code"
         ],
         "properties": {
-          "dpaId": {
+          "dpa_id": {
             "type": "string"
           },
-          "dpaName": {
+          "dpa_name": {
             "type": "string"
           },
           "locale": {
             "type": "string"
           },
-          "cardBrands": {
+          "card_brands": {
             "type": "array",
             "items": {
               "type": "string"
             }
           },
-          "acquirerBin": {
+          "acquirer_bin": {
             "type": "string"
           },
-          "acquirerMerchantId": {
+          "acquirer_merchant_id": {
             "type": "string"
           },
-          "merchantCategoryCode": {
+          "merchant_category_code": {
             "type": "string"
           },
-          "merchantCountryCode": {
+          "merchant_country_code": {
             "type": "string"
           },
-          "transactionAmount": {
+          "transaction_amount": {
             "type": "string",
             "example": "38.02"
           },
-          "transactionCurrencyCode": {
+          "transaction_currency_code": {
             "$ref": "#/components/schemas/Currency"
           }
         }
@@ -8792,6 +8952,7 @@
           "checkout",
           "coinbase",
           "cryptopay",
+          "ctp_mastercard",
           "cybersource",
           "datatrans",
           "deutschebank",
@@ -9548,6 +9709,23 @@
           "ZWL"
         ]
       },
+      "CurrentBlockThreshold": {
+        "type": "object",
+        "properties": {
+          "duration_in_mins": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true,
+            "minimum": 0
+          },
+          "max_total_count": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true,
+            "minimum": 0
+          }
+        }
+      },
       "CustomerAcceptance": {
         "type": "object",
         "description": "This \"CustomerAcceptance\" object is passed during Payments-Confirm request, it enlists the type, time, and mode of acceptance properties related to an acceptance done by the customer. The customer_acceptance sub object is usually passed by the SDK or client.",
@@ -10033,6 +10211,60 @@
           }
         }
       },
+      "CustomerUpdateRequest": {
+        "type": "object",
+        "description": "The identifier for the customer object. If not provided the customer ID will be autogenerated.",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "The customer's name",
+            "example": "Jon Test",
+            "nullable": true,
+            "maxLength": 255
+          },
+          "email": {
+            "type": "string",
+            "description": "The customer's email address",
+            "example": "JonTest@test.com",
+            "nullable": true,
+            "maxLength": 255
+          },
+          "phone": {
+            "type": "string",
+            "description": "The customer's phone number",
+            "example": "9123456789",
+            "nullable": true,
+            "maxLength": 255
+          },
+          "description": {
+            "type": "string",
+            "description": "An arbitrary string that you can attach to a customer object.",
+            "example": "First Customer",
+            "nullable": true,
+            "maxLength": 255
+          },
+          "phone_country_code": {
+            "type": "string",
+            "description": "The country code for the customer phone number",
+            "example": "+65",
+            "nullable": true,
+            "maxLength": 255
+          },
+          "address": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AddressDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "metadata": {
+            "type": "object",
+            "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500\ncharacters long. Metadata is useful for storing additional, structured information on an\nobject.",
+            "nullable": true
+          }
+        }
+      },
       "DecoupledAuthenticationType": {
         "type": "string",
         "enum": [
@@ -10315,6 +10547,18 @@
             "nullable": true
           }
         }
+      },
+      "DynamicRoutingConfigParams": {
+        "type": "string",
+        "enum": [
+          "PaymentMethod",
+          "PaymentMethodType",
+          "AuthenticationType",
+          "Currency",
+          "Country",
+          "CardNetwork",
+          "CardBin"
+        ]
       },
       "DynamicRoutingFeatures": {
         "type": "string",
@@ -14488,70 +14732,6 @@
           }
         }
       },
-      "OrderDetails": {
-        "type": "object",
-        "required": [
-          "product_name",
-          "quantity"
-        ],
-        "properties": {
-          "product_name": {
-            "type": "string",
-            "description": "Name of the product that is being purchased",
-            "example": "shirt",
-            "maxLength": 255
-          },
-          "quantity": {
-            "type": "integer",
-            "format": "int32",
-            "description": "The quantity of the product to be purchased",
-            "example": 1,
-            "minimum": 0
-          },
-          "requires_shipping": {
-            "type": "boolean",
-            "nullable": true
-          },
-          "product_img_link": {
-            "type": "string",
-            "description": "The image URL of the product",
-            "nullable": true
-          },
-          "product_id": {
-            "type": "string",
-            "description": "ID of the product that is being purchased",
-            "nullable": true
-          },
-          "category": {
-            "type": "string",
-            "description": "Category of the product that is being purchased",
-            "nullable": true
-          },
-          "sub_category": {
-            "type": "string",
-            "description": "Sub category of the product that is being purchased",
-            "nullable": true
-          },
-          "brand": {
-            "type": "string",
-            "description": "Brand of the product that is being purchased",
-            "nullable": true
-          },
-          "product_type": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/ProductType"
-              }
-            ],
-            "nullable": true
-          },
-          "product_tax_code": {
-            "type": "string",
-            "description": "The tax code for the product",
-            "nullable": true
-          }
-        }
-      },
       "OrderDetailsWithAmount": {
         "type": "object",
         "required": [
@@ -14574,7 +14754,21 @@
             "minimum": 0
           },
           "amount": {
-            "$ref": "#/components/schemas/MinorUnit"
+            "type": "integer",
+            "format": "int64",
+            "description": "the amount per quantity of product"
+          },
+          "tax_rate": {
+            "type": "number",
+            "format": "double",
+            "description": "tax rate applicable to the product",
+            "nullable": true
+          },
+          "total_tax_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "total tax amount applicable to the product",
+            "nullable": true
           },
           "requires_shipping": {
             "type": "boolean",
@@ -14983,6 +15177,17 @@
           {
             "type": "object",
             "required": [
+              "klarna_checkout"
+            ],
+            "properties": {
+              "klarna_checkout": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
               "affirm_redirect"
             ],
             "properties": {
@@ -15112,6 +15317,13 @@
             "format": "int64",
             "description": "The payment attempt amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,",
             "example": 6540
+          },
+          "order_tax_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The payment attempt tax_amount.",
+            "example": 6540,
+            "nullable": true
           },
           "currency": {
             "allOf": [
@@ -16911,6 +17123,13 @@
             "nullable": true,
             "minimum": 0
           },
+          "order_tax_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Total tax amount applicable to the order",
+            "example": 6540,
+            "nullable": true
+          },
           "currency": {
             "allOf": [
               {
@@ -17288,6 +17507,13 @@
             "format": "int64",
             "description": "The payment amount. Amount for the payment in the lowest denomination of the currency, (i.e) in cents for USD denomination, in yen for JPY denomination etc. E.g., Pass 100 to charge $1.00 and 1 for 1¥ since ¥ is a zero-decimal currency. Read more about [the Decimal and Non-Decimal Currencies](https://github.com/juspay/hyperswitch/wiki/Decimal-and-Non%E2%80%90Decimal-Currencies)",
             "minimum": 0
+          },
+          "order_tax_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Total tax amount applicable to the order",
+            "example": 6540,
+            "nullable": true
           },
           "currency": {
             "$ref": "#/components/schemas/Currency"
@@ -18414,6 +18640,13 @@
             "example": 6540,
             "nullable": true,
             "minimum": 0
+          },
+          "order_tax_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Total tax amount applicable to the order",
+            "example": 6540,
+            "nullable": true
           },
           "currency": {
             "allOf": [
@@ -19560,6 +19793,13 @@
             "example": 6540,
             "nullable": true,
             "minimum": 0
+          },
+          "order_tax_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Total tax amount applicable to the order",
+            "example": 6540,
+            "nullable": true
           },
           "currency": {
             "allOf": [
@@ -24287,6 +24527,56 @@
           }
         },
         "additionalProperties": false
+      },
+      "SuccessBasedRoutingConfig": {
+        "type": "object",
+        "properties": {
+          "params": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DynamicRoutingConfigParams"
+            },
+            "nullable": true
+          },
+          "config": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SuccessBasedRoutingConfigBody"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "SuccessBasedRoutingConfigBody": {
+        "type": "object",
+        "properties": {
+          "min_aggregates_size": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true,
+            "minimum": 0
+          },
+          "default_success_rate": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "max_aggregates_size": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true,
+            "minimum": 0
+          },
+          "current_block_threshold": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CurrentBlockThreshold"
+              }
+            ],
+            "nullable": true
+          }
+        }
       },
       "SurchargeDetailsResponse": {
         "type": "object",

@@ -277,7 +277,7 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
                     .store
                     .find_customer_by_global_id(
                         &state.into(),
-                        id.get_string_repr(),
+                        &id,
                         &payment_data.payment_intent.merchant_id,
                         merchant_key_store,
                         storage_scheme,

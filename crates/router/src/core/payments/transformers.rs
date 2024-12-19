@@ -203,9 +203,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
     // TODO: Take Globalid and convert to connector reference id
     let customer_id = customer
         .to_owned()
-        .map(|customer| customer.id.clone())
-        .map(std::borrow::Cow::Owned)
-        .map(common_utils::id_type::CustomerId::try_from)
+        .map(|customer| common_utils::id_type::CustomerId::try_from(customer.id.clone()))
         .transpose()
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable(
@@ -261,6 +259,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
             .net_amount
             .get_amount_as_i64(),
         minor_amount: payment_data.payment_attempt.amount_details.net_amount,
+        order_tax_amount: None,
         currency: payment_data.payment_intent.amount_details.currency,
         browser_info: None,
         email: None,
@@ -540,9 +539,7 @@ pub async fn construct_payment_router_data_for_sdk_session<'a>(
     // TODO: Take Globalid and convert to connector reference id
     let customer_id = customer
         .to_owned()
-        .map(|customer| customer.id.clone())
-        .map(std::borrow::Cow::Owned)
-        .map(common_utils::id_type::CustomerId::try_from)
+        .map(|customer| common_utils::id_type::CustomerId::try_from(customer.id.clone()))
         .transpose()
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable(
@@ -2431,25 +2428,6 @@ pub fn mobile_payment_next_steps_check(
     Ok(mobile_payment_next_step)
 }
 
-pub fn change_order_details_to_new_type(
-    order_amount: MinorUnit,
-    order_details: api_models::payments::OrderDetails,
-) -> Option<Vec<api_models::payments::OrderDetailsWithAmount>> {
-    Some(vec![api_models::payments::OrderDetailsWithAmount {
-        product_name: order_details.product_name,
-        quantity: order_details.quantity,
-        amount: order_amount,
-        product_img_link: order_details.product_img_link,
-        requires_shipping: order_details.requires_shipping,
-        product_id: order_details.product_id,
-        category: order_details.category,
-        sub_category: order_details.sub_category,
-        brand: order_details.brand,
-        product_type: order_details.product_type,
-        product_tax_code: order_details.product_tax_code,
-    }])
-}
-
 impl ForeignFrom<api_models::payments::QrCodeInformation> for api_models::payments::NextActionData {
     fn foreign_from(qr_info: api_models::payments::QrCodeInformation) -> Self {
         match qr_info {
@@ -2589,6 +2567,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
                 None
             }
         });
+
         let amount = payment_data.payment_attempt.get_total_amount();
 
         let customer_name = additional_data
@@ -2618,13 +2597,20 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             payment_method_data: (payment_method_data.get_required_value("payment_method_data")?),
             setup_future_usage: payment_data.payment_intent.setup_future_usage,
             mandate_id: payment_data.mandate_id.clone(),
-            off_session: payment_data.mandate_id.as_ref().map(|_| true),
+            off_session: payment_data
+                .mandate_id
+                .as_ref()
+                .and(payment_data.payment_intent.off_session),
             setup_mandate_details: payment_data.setup_mandate.clone(),
             confirm: payment_data.payment_attempt.confirm,
             statement_descriptor_suffix: payment_data.payment_intent.statement_descriptor_suffix,
             statement_descriptor: payment_data.payment_intent.statement_descriptor_name,
             capture_method: payment_data.payment_attempt.capture_method,
             amount: amount.get_amount_as_i64(),
+            order_tax_amount: payment_data
+                .payment_attempt
+                .net_amount
+                .get_order_tax_amount(),
             minor_amount: amount,
             currency: payment_data.currency,
             browser_info,
@@ -2961,7 +2947,6 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SdkPaymentsSessi
 #[cfg(feature = "v1")]
 impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SdkPaymentsSessionUpdateData {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
-
     fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
         let payment_data = additional_data.payment_data;
         let order_tax_amount = payment_data
@@ -3221,7 +3206,10 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
                 .get_required_value("payment_method_data")?),
             statement_descriptor_suffix: payment_data.payment_intent.statement_descriptor_suffix,
             setup_future_usage: payment_data.payment_intent.setup_future_usage,
-            off_session: payment_data.mandate_id.as_ref().map(|_| true),
+            off_session: payment_data
+                .mandate_id
+                .as_ref()
+                .and(payment_data.payment_intent.off_session),
             mandate_id: payment_data.mandate_id.clone(),
             setup_mandate_details: payment_data.setup_mandate,
             customer_acceptance: payment_data.customer_acceptance,
@@ -3336,7 +3324,10 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
         Ok(Self {
             setup_future_usage: payment_data.payment_intent.setup_future_usage,
             mandate_id: payment_data.mandate_id.clone(),
-            off_session: payment_data.mandate_id.as_ref().map(|_| true),
+            off_session: payment_data
+                .mandate_id
+                .as_ref()
+                .and(payment_data.payment_intent.off_session),
             setup_mandate_details: payment_data.setup_mandate.clone(),
             confirm: payment_data.payment_attempt.confirm,
             statement_descriptor_suffix: payment_data.payment_intent.statement_descriptor_suffix,
