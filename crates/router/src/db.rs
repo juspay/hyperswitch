@@ -30,6 +30,7 @@ pub mod organization;
 pub mod payment_link;
 pub mod payment_method;
 pub mod refund;
+pub mod relay;
 pub mod reverse_lookup;
 pub mod role;
 pub mod routing_algorithm;
