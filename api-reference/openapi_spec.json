@@ -23114,7 +23114,7 @@
           },
           "connector_id": {
             "type": "string",
-            "description": "Identifier of the connector ( merchant connector account ) which was chosen to make the payment",
+            "description": "Identifier of the connector ( merchant connector account ) to which relay request is being made",
             "example": "mca_5apGeP94tMts6rg3U3kR"
           },
           "profile_id": {
