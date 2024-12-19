@@ -91,7 +91,7 @@ where
 #[instrument(skip_all, fields(payment_id, merchant_id))]
 pub async fn payments_session_operation_core<F, Req, Op, FData, D>(
     state: &SessionState,
-    _req_state: ReqState,
+    req_state: ReqState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     profile: domain::Profile,
@@ -165,6 +165,20 @@ where
         api::ConnectorCallType::Retryable(_connectors) => todo!(),
         api::ConnectorCallType::Skip => todo!(),
         api::ConnectorCallType::SessionMultiple(connectors) => {
+            operation
+                .to_update_tracker()?
+                .update_trackers(
+                    state,
+                    req_state,
+                    payment_data.clone(),
+                    customer.clone(),
+                    merchant_account.storage_scheme,
+                    None,
+                    &key_store,
+                    None,
+                    header_payload.clone(),
+                )
+                .await?;
             // todo: call surcharge manager for session token call.
             Box::pin(call_multiple_connectors_service(
                 state,
