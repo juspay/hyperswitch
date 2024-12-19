@@ -386,8 +386,6 @@ pub enum PaymentAttemptUpdate {
         fingerprint_id: Option<String>,
         payment_method_billing_address_id: Option<String>,
         updated_by: String,
-        overcapture_applied: Option<bool>,
-        maximum_capturable_amount: Option<MinorUnit>,
     },
     UpdateTrackers {
         payment_token: Option<String>,
@@ -437,8 +435,6 @@ pub enum PaymentAttemptUpdate {
         shipping_cost: Option<MinorUnit>,
         order_tax_amount: Option<MinorUnit>,
         connector_mandate_detail: Option<ConnectorMandateReferenceId>,
-        overcapture_applied: Option<bool>,
-        maximum_capturable_amount: Option<MinorUnit>,
     },
     VoidUpdate {
         status: storage_enums::AttemptStatus,
@@ -2119,8 +2115,6 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 fingerprint_id,
                 updated_by,
                 payment_method_billing_address_id,
-                overcapture_applied,
-                maximum_capturable_amount,
             } => Self {
                 amount: Some(amount),
                 currency: Some(currency),
@@ -2175,8 +2169,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 connector_transaction_data: None,
                 connector_mandate_detail: None,
                 request_overcapture: None,
-                overcapture_applied,
-                maximum_capturable_amount,
+                overcapture_applied: None,
+                maximum_capturable_amount: None,
             },
             PaymentAttemptUpdate::AuthenticationTypeUpdate {
                 authentication_type,
@@ -2271,8 +2265,6 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 shipping_cost,
                 order_tax_amount,
                 connector_mandate_detail,
-                overcapture_applied,
-                maximum_capturable_amount,
             } => Self {
                 amount: Some(amount),
                 currency: Some(currency),
@@ -2326,8 +2318,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 connector_transaction_data: None,
                 connector_mandate_detail,
                 request_overcapture: None,
-                overcapture_applied,
-                maximum_capturable_amount,
+                overcapture_applied: None,
+                maximum_capturable_amount: None,
             },
             PaymentAttemptUpdate::VoidUpdate {
                 status,

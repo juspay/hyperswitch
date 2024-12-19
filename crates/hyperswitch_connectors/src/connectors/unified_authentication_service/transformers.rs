@@ -150,6 +150,8 @@ impl<F, T>
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 charge_id: None,
+                maximum_capturable_amount: None,
+                overcapture_applied: None,
             }),
             ..item.data
         })

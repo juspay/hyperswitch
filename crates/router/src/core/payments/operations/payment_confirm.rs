@@ -1485,8 +1485,6 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                         connector_mandate_detail: payment_data
                             .payment_attempt
                             .connector_mandate_detail,
-                        maximum_capturable_amount: None,
-                        overcapture_applied: None,
                     },
                     storage_scheme,
                 )

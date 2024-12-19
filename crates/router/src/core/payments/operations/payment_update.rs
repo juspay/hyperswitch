@@ -826,8 +826,6 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                             surcharge_amount,
                             tax_amount,
                         ),
-                    maximum_capturable_amount: None,
-                    overcapture_applied: None,
                 },
                 storage_scheme,
             )

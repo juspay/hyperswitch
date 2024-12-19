@@ -784,8 +784,6 @@ pub enum PaymentAttemptUpdate {
         fingerprint_id: Option<String>,
         payment_method_billing_address_id: Option<String>,
         updated_by: String,
-        overcapture_applied: Option<bool>,
-        maximum_capturable_amount: Option<MinorUnit>,
     },
     UpdateTrackers {
         payment_token: Option<String>,
@@ -831,8 +829,6 @@ pub enum PaymentAttemptUpdate {
         client_version: Option<String>,
         customer_acceptance: Option<pii::SecretSerdeValue>,
         connector_mandate_detail: Option<ConnectorMandateReferenceId>,
-        overcapture_applied: Option<bool>,
-        maximum_capturable_amount: Option<MinorUnit>,
     },
     RejectUpdate {
         status: storage_enums::AttemptStatus,
@@ -987,8 +983,6 @@ impl PaymentAttemptUpdate {
                 fingerprint_id,
                 payment_method_billing_address_id,
                 updated_by,
-                overcapture_applied,
-                maximum_capturable_amount,
             } => DieselPaymentAttemptUpdate::Update {
                 amount: net_amount.get_order_amount(),
                 currency,
@@ -1007,8 +1001,6 @@ impl PaymentAttemptUpdate {
                 fingerprint_id,
                 payment_method_billing_address_id,
                 updated_by,
-                overcapture_applied,
-                maximum_capturable_amount,
             },
             Self::UpdateTrackers {
                 payment_token,
@@ -1091,8 +1083,6 @@ impl PaymentAttemptUpdate {
                 client_version,
                 customer_acceptance,
                 connector_mandate_detail,
-                overcapture_applied,
-                maximum_capturable_amount,
             } => DieselPaymentAttemptUpdate::ConfirmUpdate {
                 amount: net_amount.get_order_amount(),
                 currency,
@@ -1127,8 +1117,6 @@ impl PaymentAttemptUpdate {
                 shipping_cost: net_amount.get_shipping_cost(),
                 order_tax_amount: net_amount.get_order_tax_amount(),
                 connector_mandate_detail,
-                overcapture_applied,
-                maximum_capturable_amount,
             },
             Self::VoidUpdate {
                 status,
