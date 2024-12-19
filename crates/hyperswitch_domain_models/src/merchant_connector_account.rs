@@ -563,15 +563,6 @@ common_utils::create_list_wrapper!(
     MerchantConnectorAccounts,
     MerchantConnectorAccount,
     impl_functions: {
-        pub fn into_inner(self) -> Vec<MerchantConnectorAccount> {
-            self.0
-        }
-        pub fn retain<F>(&mut self, f: F)
-        where
-            F: FnMut(&MerchantConnectorAccount) -> bool
-        {
-            self.0.retain(f)
-        }
         fn filter_and_map<'a, T>(
             &'a self,
             filter: impl Fn(&'a MerchantConnectorAccount) -> bool,

@@ -1789,10 +1789,9 @@ impl<'a> PMAuthConfigValidation<'a> {
             .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
                 id: self.merchant_id.get_string_repr().to_owned(),
             })?;
-
         for conn_choice in config.enabled_payment_methods {
             let pm_auth_mca = all_mcas
-                .clone()
+                .iter()
                 .find(|mca| mca.get_id() == conn_choice.mca_id)
                 .ok_or(errors::ApiErrorResponse::GenericNotFoundError {
                     message: "payment method auth connector account not found".to_string(),

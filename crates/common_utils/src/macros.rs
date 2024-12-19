@@ -385,27 +385,27 @@ macro_rules! create_list_wrapper {
             pub fn new(list: Vec<$type_name>) -> Self {
                 Self(list)
             }
-            pub fn push(&mut self, item: $type_name) {
-                self.0.push(item)
-            }
-            pub fn len(&self) -> usize {
-                self.0.len()
-            }
-            pub fn is_empty(&self) -> bool {
-                self.0.is_empty()
-            }
             pub fn with_capacity(size: usize) -> Self {
                 Self(Vec::with_capacity(size))
             }
-            pub fn iter(&self) -> std::slice::Iter<'_, $type_name> {
-                self.0.iter()
-            }
             $($function_def)*
         }
-        impl Iterator for $wrapper_name {
+        impl std::ops::Deref for $wrapper_name {
+            type Target = Vec<$type_name>;
+            fn deref(&self) -> &<Self as std::ops::Deref>::Target {
+                &self.0
+            }
+        }
+        impl std::ops::DerefMut for $wrapper_name {
+            fn deref_mut(&mut self) -> &mut Self::Target {
+                &mut self.0
+            }
+        }
+        impl IntoIterator for $wrapper_name {
             type Item = $type_name;
-            fn next(&mut self) -> Option<Self::Item> {
-                self.0.pop()
+            type IntoIter = std::vec::IntoIter<$type_name>;
+            fn into_iter(self) -> Self::IntoIter {
+                self.0.into_iter()
             }
         }
 
