@@ -256,7 +256,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
             .amount_details
             .get_net_amount()
             .get_amount_as_i64(),
-        minor_amount: payment_data.payment_attempt.amount_details.get_net_amount(),s
+        minor_amount: payment_data.payment_attempt.amount_details.get_net_amount(),
         order_tax_amount: None,
         currency: payment_data.payment_intent.amount_details.currency,
         browser_info: None,
