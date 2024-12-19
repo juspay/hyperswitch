@@ -141,7 +141,11 @@ mod storage {
             new: EphemeralKeyTypeNew,
             validity: i64,
         ) -> CustomResult<EphemeralKeyType, errors::StorageError> {
-            let created_ek = EphemeralKeyType {
+            let created_at = date_time::now();
+            let expires = created_at.saturating_add(validity.hours());
+            let id_key = new.id.generate_redis_key();
+
+            let created_ephemeral_key = EphemeralKeyType {
                 id: new.id,
                 created_at,
                 expires,
@@ -150,17 +154,16 @@ mod storage {
                 secret: new.secret,
                 resource_type: new.resource_type,
             };
-            let secret_key = created_ek.generate_secret_key();
-            let id_key = new.id.generate_redis_key();
-
-            let created_at = date_time::now();
-            let expires = created_at.saturating_add(validity.hours());
+            let secret_key = created_ephemeral_key.generate_secret_key();
 
             match self
                 .get_redis_conn()
                 .map_err(Into::<errors::StorageError>::into)?
                 .serialize_and_set_multiple_hash_field_if_not_exist(
-                    &[(&secret_key, &created_ek), (&id_key, &created_ek)],
+                    &[
+                        (&secret_key, &created_ephemeral_key),
+                        (&id_key, &created_ephemeral_key),
+                    ],
                     "ephkey",
                     None,
                 )
@@ -185,7 +188,7 @@ mod storage {
                         .set_expire_at(&id_key, expire_at)
                         .await
                         .change_context(errors::StorageError::KVError)?;
-                    Ok(created_ek)
+                    Ok(created_ephemeral_key)
                 }
                 Err(er) => Err(er).change_context(errors::StorageError::KVError),
             }
@@ -245,9 +248,9 @@ mod storage {
             &self,
             id: &str,
         ) -> CustomResult<EphemeralKeyType, errors::StorageError> {
-            let ek = self.get_ephemeral_key(id).await?;
-            let redis_id_key = ek.id.generate_redis_key();
-            let secret_key = ek.generate_secret_key();
+            let ephemeral_key = self.get_ephemeral_key(id).await?;
+            let redis_id_key = ephemeral_key.id.generate_redis_key();
+            let secret_key = ephemeral_key.generate_secret_key();
 
             self.get_redis_conn()
                 .map_err(Into::<errors::StorageError>::into)?
@@ -270,7 +273,7 @@ mod storage {
                     }
                     _ => err.change_context(errors::StorageError::KVError),
                 })?;
-            Ok(ek)
+            Ok(ephemeral_key)
         }
     }
 }

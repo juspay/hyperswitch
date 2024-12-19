@@ -3082,7 +3082,7 @@ pub async fn make_ephemeral_key(
     .get_required_value("ResourceType")
     .attach_printable("Failed to convert ResourceType from string")?;
 
-    let ek = create_ephemeral_key(
+    let ephemeral_key = create_ephemeral_key(
         &state,
         &customer_id,
         merchant_account.get_id(),
@@ -3092,7 +3092,7 @@ pub async fn make_ephemeral_key(
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Unable to create ephemeral key")?;
 
-    let response = EphemeralKeyResponse::foreign_from(ek);
+    let response = EphemeralKeyResponse::foreign_from(ephemeral_key);
     Ok(services::ApplicationResponse::Json(response))
 }
 
@@ -3103,22 +3103,24 @@ pub async fn create_ephemeral_key(
     merchant_id: &id_type::MerchantId,
     resource_type: ephemeral_key::ResourceType,
 ) -> RouterResult<ephemeral_key::EphemeralKeyType> {
+    use common_utils::generate_time_ordered_id;
+
     let store = &state.store;
     let id = id_type::EphemeralKeyId::generate();
-    let secret = masking::Secret::new(format!("epk_{}", &Uuid::now_v7().simple().to_string()));
-    let ek = ephemeral_key::EphemeralKeyTypeNew {
+    let secret = masking::Secret::new(generate_time_ordered_id("epk"));
+    let ephemeral_key = ephemeral_key::EphemeralKeyTypeNew {
         id,
         customer_id: customer_id.to_owned(),
         merchant_id: merchant_id.to_owned(),
         secret,
         resource_type,
     };
-    let ek = store
-        .create_ephemeral_key(ek, state.conf.eph_key.validity)
+    let ephemeral_key = store
+        .create_ephemeral_key(ephemeral_key, state.conf.eph_key.validity)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to create ephemeral key")?;
-    Ok(ek)
+    Ok(ephemeral_key)
 }
 
 #[cfg(feature = "v1")]
@@ -3138,11 +3140,11 @@ pub async fn delete_ephemeral_key(
 #[cfg(feature = "v2")]
 pub async fn delete_ephemeral_key(
     state: SessionState,
-    ek_id: String,
+    ephemeral_key_id: String,
 ) -> errors::RouterResponse<EphemeralKeyResponse> {
     let db = state.store.as_ref();
-    let ek = db
-        .delete_ephemeral_key(&ek_id)
+    let ephemeral_key = db
+        .delete_ephemeral_key(&ephemeral_key_id)
         .await
         .map_err(|err| match err.current_context() {
             errors::StorageError::ValueNotFound(_) => {
@@ -3154,7 +3156,7 @@ pub async fn delete_ephemeral_key(
         })
         .attach_printable("Unable to delete ephemeral key")?;
 
-    let response = EphemeralKeyResponse::foreign_from(ek);
+    let response = EphemeralKeyResponse::foreign_from(ephemeral_key);
     Ok(services::ApplicationResponse::Json(response))
 }
 
