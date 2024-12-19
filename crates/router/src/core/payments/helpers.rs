@@ -2601,15 +2601,23 @@ pub(crate) fn validate_status_with_capture_method(
 pub(crate) fn validate_amount_to_capture(
     amount: i64,
     amount_to_capture: Option<i64>,
+    is_overcapture_applied: Option<bool>,
+    maximum_capturable_amount: Option<i64>,
 ) -> RouterResult<()> {
-    utils::when(
-        amount_to_capture.is_some() && (Some(amount) < amount_to_capture),
-        || {
-            Err(report!(errors::ApiErrorResponse::InvalidRequestData {
-                message: "amount_to_capture is greater than amount".to_string()
-            }))
-        },
-    )
+    if let Some(amount_to_capture) = amount_to_capture {
+        utils::when(
+            (amount < amount_to_capture)
+                || !(is_overcapture_applied == Some(true)
+                    && maximum_capturable_amount >= Some(amount_to_capture)),
+            || {
+                Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+                    message: "amount_to_capture is greater than amount".to_string()
+                }))
+            },
+        )
+    } else {
+        Ok(())
+    }
 }
 
 #[cfg(feature = "v1")]
