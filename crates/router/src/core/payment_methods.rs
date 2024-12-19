@@ -1209,7 +1209,7 @@ pub async fn create_payment_method_for_intent(
     key_store: &domain::MerchantKeyStore,
     storage_scheme: enums::MerchantStorageScheme,
     payment_method_billing_address: crypto::OptionalEncryptableValue,
-) -> errors::CustomResult<(domain::PaymentMethod, String), errors::ApiErrorResponse> {
+) -> errors::CustomResult<(domain::PaymentMethod, Secret<String>), errors::ApiErrorResponse> {
     let db = &*state.store;
     let ephemeral_key = payment_helpers::create_ephemeral_key(
         state,
@@ -1324,8 +1324,8 @@ pub async fn vault_payment_method(
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to find payment method by fingerprint_id")
-        .ok()
-        .is_some(),
+        .inspect_err(|e| logger::error!("Vault Fingerprint_id error: {:?}", e))
+        .is_ok(),
         || {
             Err(report!(errors::ApiErrorResponse::DuplicatePaymentMethod)
                 .attach_printable("Cannot vault duplicate payment method"))

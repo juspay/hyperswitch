@@ -551,7 +551,7 @@ pub fn generate_pm_vaulting_req_from_update_request(
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 pub fn generate_payment_method_response(
     pm: &domain::PaymentMethod,
-    ephemeral_key: Option<String>,
+    ephemeral_key: Option<Secret<String>>,
 ) -> errors::RouterResult<api::PaymentMethodResponse> {
     let pmd = pm
         .payment_method_data

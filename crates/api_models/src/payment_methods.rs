@@ -815,7 +815,7 @@ pub struct PaymentMethodResponse {
     pub last_used_at: Option<time::PrimitiveDateTime>,
 
     /// For Client based calls
-    pub ephemeral_key: Option<String>,
+    pub ephemeral_key: Option<masking::Secret<String>>,
 
     pub payment_method_data: Option<PaymentMethodResponseData>,
 }

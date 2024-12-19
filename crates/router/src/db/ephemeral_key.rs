@@ -56,6 +56,10 @@ mod storage {
     #[cfg(feature = "v2")]
     use common_utils::id_type;
     use error_stack::ResultExt;
+    #[cfg(feature = "v2")]
+    use masking::PeekInterface;
+    #[cfg(feature = "v2")]
+    use redis_interface::errors::RedisError;
     use redis_interface::HsetnxReply;
     use router_env::{instrument, tracing};
     use storage_impl::redis::kv_store::RedisConnInterface;
@@ -137,7 +141,7 @@ mod storage {
             new: EphemeralKeyTypeNew,
             validity: i64,
         ) -> CustomResult<EphemeralKeyType, errors::StorageError> {
-            let secret_key = format!("epkey_{}", &new.secret);
+            let secret_key = format!("epkey_{}", &new.secret.peek());
             let id_key = format!("epkey_{}", new.id.get_string_repr());
 
             let created_at = date_time::now();
@@ -210,7 +214,7 @@ mod storage {
             let key = format!("epkey_{key}");
             self.get_redis_conn()
                 .map_err(Into::<errors::StorageError>::into)?
-                .get_hash_field_and_deserialize(&key, "ephkey", "EphemeralKey")
+                .get_hash_field_and_deserialize(&key, "ephkey", "EphemeralKeyType")
                 .await
                 .change_context(errors::StorageError::KVError)
         }
@@ -242,18 +246,30 @@ mod storage {
             id: &str,
         ) -> CustomResult<EphemeralKeyType, errors::StorageError> {
             let ek = self.get_ephemeral_key(id).await?;
+            let key_id = format!("epkey_{}", &ek.id.get_string_repr());
+            let secret_key = format!("epkey_{}", &ek.secret.peek());
 
             self.get_redis_conn()
                 .map_err(Into::<errors::StorageError>::into)?
-                .delete_key(&format!("epkey_{}", &ek.id.get_string_repr()))
+                .delete_key(&key_id)
                 .await
-                .change_context(errors::StorageError::KVError)?;
+                .map_err(|err| match err.current_context() {
+                    RedisError::NotFound => {
+                        err.change_context(errors::StorageError::ValueNotFound(key_id))
+                    }
+                    _ => err.change_context(errors::StorageError::KVError),
+                })?;
 
             self.get_redis_conn()
                 .map_err(Into::<errors::StorageError>::into)?
-                .delete_key(&format!("epkey_{}", &ek.secret))
+                .delete_key(&secret_key)
                 .await
-                .change_context(errors::StorageError::KVError)?;
+                .map_err(|err| match err.current_context() {
+                    RedisError::NotFound => {
+                        err.change_context(errors::StorageError::ValueNotFound(secret_key))
+                    }
+                    _ => err.change_context(errors::StorageError::KVError),
+                })?;
             Ok(ek)
         }
     }

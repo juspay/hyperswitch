@@ -1,9 +1,11 @@
 #[cfg(feature = "v2")]
+use masking::Secret;
+#[cfg(feature = "v2")]
 pub struct EphemeralKeyTypeNew {
     pub id: common_utils::id_type::EphemeralKeyId,
     pub merchant_id: common_utils::id_type::MerchantId,
     pub customer_id: common_utils::id_type::GlobalCustomerId,
-    pub secret: String,
+    pub secret: Secret<String>,
     pub resource_type: ResourceType,
 }
 
@@ -16,7 +18,7 @@ pub struct EphemeralKeyType {
     pub resource_type: ResourceType,
     pub created_at: time::PrimitiveDateTime,
     pub expires: time::PrimitiveDateTime,
-    pub secret: String,
+    pub secret: Secret<String>,
 }
 
 pub struct EphemeralKeyNew {

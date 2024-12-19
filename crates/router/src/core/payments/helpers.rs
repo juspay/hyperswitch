@@ -8,6 +8,8 @@ use api_models::{
 };
 use base64::Engine;
 use common_enums::ConnectorType;
+#[cfg(feature = "v2")]
+use common_utils::id_type::GenerateId;
 use common_utils::{
     crypto::Encryptable,
     ext_traits::{AsyncExt, ByteSliceExt, Encode, ValueExt},
@@ -20,6 +22,8 @@ use common_utils::{
     },
 };
 use diesel_models::enums;
+#[cfg(feature = "v2")]
+use redis_interface::errors::RedisError;
 // TODO : Evaluate all the helper functions ()
 use error_stack::{report, ResultExt};
 use futures::future::Either;
@@ -3053,9 +3057,6 @@ pub async fn make_ephemeral_key(
     merchant_id: id_type::MerchantId,
     headers: &actix_web::http::header::HeaderMap,
 ) -> errors::RouterResponse<EphemeralKeyResponse> {
-    let store = &state.store;
-    let id = id_type::EphemeralKeyId::generate_key_id("eki");
-    let secret = format!("epk_{}", &Uuid::new_v4().simple().to_string());
     let resource_type = services::authentication::get_header_value_by_key(
         headers::X_RESOURCE_TYPE.to_string(),
         headers,
@@ -3067,18 +3068,12 @@ pub async fn make_ephemeral_key(
     })?
     .get_required_value("ResourceType")
     .attach_printable("Failed to convert ResourceType from string")?;
-    let ek = ephemeral_key::EphemeralKeyTypeNew {
-        id,
-        customer_id: customer_id.to_owned(),
-        merchant_id: merchant_id.to_owned(),
-        secret,
-        resource_type,
-    };
-    let ek = store
-        .create_ephemeral_key(ek, state.conf.eph_key.validity)
+
+    let ek = create_ephemeral_key(&state, &customer_id, &merchant_id, resource_type)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to create ephemeral key")?;
+
     let response = EphemeralKeyResponse::foreign_from(ek);
     Ok(services::ApplicationResponse::Json(response))
 }
@@ -3091,8 +3086,8 @@ pub async fn create_ephemeral_key(
     resource_type: ephemeral_key::ResourceType,
 ) -> RouterResult<ephemeral_key::EphemeralKeyType> {
     let store = &state.store;
-    let id = id_type::EphemeralKeyId::generate_key_id("eki");
-    let secret = format!("epk_{}", &Uuid::new_v4().simple().to_string());
+    let id = id_type::EphemeralKeyId::generate();
+    let secret = masking::Secret::new(format!("epk_{}", &Uuid::now_v7().simple().to_string()));
     let ek = ephemeral_key::EphemeralKeyTypeNew {
         id,
         customer_id: customer_id.to_owned(),
@@ -3131,8 +3126,16 @@ pub async fn delete_ephemeral_key(
     let ek = db
         .delete_ephemeral_key(&ek_id)
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .map_err(|err| match err.current_context() {
+            errors::StorageError::ValueNotFound(_) => {
+                err.change_context(errors::ApiErrorResponse::GenericNotFoundError {
+                    message: "Ephemeral Key not found".to_string(),
+                })
+            }
+            _ => err.change_context(errors::ApiErrorResponse::InternalServerError),
+        })
         .attach_printable("Unable to delete ephemeral key")?;
+
     let response = EphemeralKeyResponse::foreign_from(ek);
     Ok(services::ApplicationResponse::Json(response))
 }

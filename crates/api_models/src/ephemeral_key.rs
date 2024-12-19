@@ -1,6 +1,8 @@
 use common_utils::id_type;
 use serde;
 use utoipa::ToSchema;
+#[cfg(feature = "v2")]
+use masking::Secret;
 
 #[cfg(feature = "v1")]
 /// Information required to create an ephemeral key.
@@ -41,8 +43,9 @@ pub struct EphemeralKeyResponse {
     pub created_at: time::PrimitiveDateTime,
     /// time at which this ephemeral key would expire
     pub expires: time::PrimitiveDateTime,
+    #[schema(value_type=String)]
     /// ephemeral key
-    pub secret: String,
+    pub secret: Secret<String>,
 }
 
 impl common_utils::events::ApiEventMetric for EphemeralKeyCreateRequest {
