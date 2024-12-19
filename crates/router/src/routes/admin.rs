@@ -914,7 +914,6 @@ pub async fn merchant_account_transfer_keys(
 /// Merchant Account - Platform Account
 ///
 /// Enable platform account
-#[cfg(feature = "platform")]
 #[instrument(skip_all)]
 pub async fn merchant_account_enable_platform_account(
     state: web::Data<AppState>,

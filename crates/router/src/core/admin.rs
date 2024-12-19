@@ -4767,7 +4767,6 @@ async fn locker_recipient_create_call(
     Ok(store_resp.card_reference)
 }
 
-#[cfg(feature = "platform")]
 pub async fn enable_platform_account(
     state: SessionState,
     merchant_id: id_type::MerchantId,

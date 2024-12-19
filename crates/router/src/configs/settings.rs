@@ -129,6 +129,12 @@ pub struct Settings<S: SecretState> {
     pub network_tokenization_service: Option<SecretStateContainer<NetworkTokenizationService, S>>,
     pub network_tokenization_supported_connectors: NetworkTokenizationSupportedConnectors,
     pub theme: ThemeSettings,
+    pub platform: Platform,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct Platform {
+    pub enabled: bool,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
