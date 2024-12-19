@@ -85,7 +85,7 @@ pub struct PaymentMethod {
         OptionalEncryptableJsonType<api_models::payment_methods::PaymentMethodsData>,
     pub locker_id: Option<VaultId>,
     pub last_used_at: PrimitiveDateTime,
-    pub connector_mandate_details: Option<diesel_models::PaymentsMandateReference>,
+    pub connector_mandate_details: Option<diesel_models::CommonMandateReference>,
     pub customer_acceptance: Option<pii::SecretSerdeValue>,
     pub status: storage_enums::PaymentMethodStatus,
     pub network_transaction_id: Option<String>,
