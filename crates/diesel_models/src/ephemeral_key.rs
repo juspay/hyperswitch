@@ -12,7 +12,7 @@ pub struct EphemeralKeyTypeNew {
 #[cfg(feature = "v2")]
 impl EphemeralKeyTypeNew {
     pub fn generate_secret_key(&self) -> String {
-        format!("epkey_{}", &self.secret.peek())
+        format!("epkey_{}", self.secret.peek())
     }
 }
 
@@ -31,7 +31,7 @@ pub struct EphemeralKeyType {
 #[cfg(feature = "v2")]
 impl EphemeralKeyType {
     pub fn generate_secret_key(&self) -> String {
-        format!("epkey_{}", &self.secret.peek())
+        format!("epkey_{}", self.secret.peek())
     }
 }
 
