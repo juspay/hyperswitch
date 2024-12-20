@@ -39,8 +39,6 @@ use error_stack::{report, ResultExt};
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use hyperswitch_domain_models::api::{GenericLinks, GenericLinksData};
 use hyperswitch_domain_models::payments::{payment_attempt::PaymentAttempt, PaymentIntent};
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-use masking::ExposeInterface;
 use masking::{ExposeInterface, PeekInterface, Secret};
 use router_env::{instrument, logger, tracing};
 use time::Duration;
@@ -53,7 +51,7 @@ use super::{
 use crate::{
     configs::settings,
     core::{payment_methods::transformers as pm_transforms, utils as core_utils},
-    headers, logger,
+    headers,
     routes::payment_methods as pm_routes,
     services::encryption,
     types::{
@@ -687,7 +685,16 @@ pub(crate) async fn get_payment_method_create_request(
                         card_number: card.card_number.clone(),
                         card_exp_month: card.card_exp_month.clone(),
                         card_exp_year: card.card_exp_year.clone(),
-                        card_holder_name: billing_name,
+                        card_holder_name: billing_name.and_then(|name| {
+                            NameType::try_from(name.expose())
+                                .map_err(|err| {
+                                    logger::error!(
+                                        "Failed to convert billing name to NameType: {}",
+                                        err
+                                    );
+                                })
+                                .ok()
+                        }),
                         nick_name: card.nick_name.clone(),
                         card_issuing_country: card
                             .card_issuing_country

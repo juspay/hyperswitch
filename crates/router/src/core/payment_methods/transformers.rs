@@ -830,7 +830,7 @@ pub fn get_card_detail(
         expiry_year: Some(response.card_exp_year),
         card_fingerprint: None,
         card_holder_name: response.name_on_card,
-        nick_name: response.nick_name.map(Secret::new),
+        nick_name: response.nick_name,
         card_isin: None,
         card_issuer: None,
         card_network: None,

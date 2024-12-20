@@ -503,11 +503,11 @@ pub struct CardDetail {
 
     /// Card Holder Name
     #[schema(value_type = String,example = "John Doe")]
-    pub card_holder_name: Option<masking::Secret<String>>,
+    pub card_holder_name: Option<NameType>,
 
     /// Card Holder's Nick Name
     #[schema(value_type = Option<String>,example = "John Doe")]
-    pub nick_name: Option<masking::Secret<String>>,
+    pub nick_name: Option<NameType>,
 
     /// Card Issuing Country
     #[schema(value_type = CountryAlpha2)]
@@ -671,7 +671,7 @@ pub struct CardDetailUpdate {
 
     /// Card Holder's Nick Name
     #[schema(value_type = Option<String>,example = "John Doe")]
-    pub nick_name: Option<masking::Secret<String>>,
+    pub nick_name: Option<NameType>,
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
@@ -685,10 +685,7 @@ impl CardDetailUpdate {
                 .card_holder_name
                 .clone()
                 .or(card_data_from_locker.name_on_card),
-            nick_name: self
-                .nick_name
-                .clone()
-                .or(card_data_from_locker.nick_name.map(masking::Secret::new)),
+            nick_name: self.nick_name.clone().or(card_data_from_locker.nick_name),
             card_issuing_country: None,
             card_network: None,
             card_issuer: None,
@@ -971,7 +968,7 @@ pub struct CardDetailFromLocker {
     pub card_fingerprint: Option<masking::Secret<String>>,
 
     #[schema(value_type=Option<String>)]
-    pub nick_name: Option<masking::Secret<String>>,
+    pub nick_name: Option<NameType>,
 
     #[schema(value_type = Option<CardNetwork>)]
     pub card_network: Option<api_enums::CardNetwork>,
