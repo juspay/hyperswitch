@@ -80,8 +80,8 @@ impl PaymentInfo {
                 None,
                 Some(types::api::Address {
                     address: Some(types::api::AddressDetails {
-                        first_name: Some(Secret::new("John".to_string())),
-                        last_name: Some(Secret::new("Doe".to_string())),
+                        first_name: cards::NameType::try_from("John".to_string()).ok(),
+                        last_name: cards::NameType::try_from("Doe".to_string()).ok(),
                         ..Default::default()
                     }),
                     phone: None,
@@ -926,7 +926,7 @@ impl Default for CCardType {
             card_type: None,
             card_issuing_country: None,
             bank_code: None,
-            nick_name: Some(Secret::new("nick_name".into())),
+            nick_name: cards::NameType::try_from("nick_name".to_string()).ok(),
         })
     }
 }

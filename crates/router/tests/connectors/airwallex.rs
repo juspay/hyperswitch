@@ -57,8 +57,8 @@ fn get_default_payment_info() -> Option<utils::PaymentInfo> {
             None,
             Some(Address {
                 address: Some(AddressDetails {
-                    first_name: Some(Secret::new("John".to_string())),
-                    last_name: Some(Secret::new("Doe".to_string())),
+                    first_name: cards::NameType::try_from("John".to_string()).ok(),
+                    last_name: cards::NameType::try_from("Doe".to_string()).ok(),
                     ..Default::default()
                 }),
                 phone: None,
@@ -81,7 +81,7 @@ fn payment_method_details() -> Option<types::PaymentsAuthorizeData> {
             card_type: None,
             card_issuing_country: None,
             bank_code: None,
-            nick_name: Some(Secret::new("nick_name".into())),
+            nick_name: cards::NameType::try_from("nick_name".to_string()).ok(),
         }),
         capture_method: Some(diesel_models::enums::CaptureMethod::Manual),
         router_return_url: Some("https://google.com".to_string()),

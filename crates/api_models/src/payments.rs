@@ -6938,7 +6938,6 @@ mod payments_response_api_contract {
 mod billing_from_payment_method_data {
     #![allow(clippy::unwrap_used)]
     use common_enums::CountryAlpha2;
-    use masking::ExposeOptionInterface;
 
     use super::*;
 

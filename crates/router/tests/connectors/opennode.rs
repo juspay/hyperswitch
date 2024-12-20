@@ -42,8 +42,8 @@ fn get_default_payment_info() -> Option<utils::PaymentInfo> {
             None,
             Some(api::Address {
                 address: Some(api::AddressDetails {
-                    first_name: Some(Secret::new("first".to_string())),
-                    last_name: Some(Secret::new("last".to_string())),
+                    first_name: cards::NameType::try_from("first".to_string()).ok(),
+                    last_name: cards::NameType::try_from("last".to_string()).ok(),
                     line1: Some(Secret::new("line1".to_string())),
                     line2: Some(Secret::new("line2".to_string())),
                     city: Some("city".to_string()),

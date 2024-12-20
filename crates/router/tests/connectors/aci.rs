@@ -50,7 +50,7 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
                 card_type: None,
                 card_issuing_country: None,
                 bank_code: None,
-                nick_name: Some(Secret::new("nick_name".into())),
+                nick_name: cards::NameType::try_from("nick_name".to_string()).ok(),
             }),
             confirm: true,
             statement_descriptor_suffix: None,
@@ -87,8 +87,8 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
             None,
             Some(Address {
                 address: Some(AddressDetails {
-                    first_name: Some(Secret::new("John".to_string())),
-                    last_name: Some(Secret::new("Doe".to_string())),
+                    first_name: cards::NameType::try_from("John".to_string()).ok(),
+                    last_name: cards::NameType::try_from("Doe".to_string()).ok(),
                     ..Default::default()
                 }),
                 phone: Some(PhoneDetails {
@@ -295,7 +295,7 @@ async fn payments_create_failure() {
                 card_type: None,
                 card_issuing_country: None,
                 bank_code: None,
-                nick_name: Some(Secret::new("nick_name".into())),
+                nick_name: cards::NameType::try_from("nick_name".to_string()).ok(),
             });
 
         let response = services::api::execute_connector_processing_step(

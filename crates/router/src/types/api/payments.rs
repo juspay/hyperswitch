@@ -131,7 +131,7 @@ mod payments_test {
             bank_code: None,
             card_issuing_country: None,
             card_type: None,
-            nick_name: cards::NameType::try_from("nick_name".into()).ok(),
+            nick_name: cards::NameType::try_from("nick_name".to_string()).ok(),
         }
     }
 

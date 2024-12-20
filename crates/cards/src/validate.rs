@@ -401,26 +401,25 @@ mod tests {
         assert_eq!(error_msg, "card number invalid".to_string());
     }
 
-    // #[test]
-    // fn test_card_holder_name() {
+    #[test]
+    fn test_card_holder_name() {
+        let valid_name = "Sakil Mostak".to_string();
+        // no panic
+        let card_holder_name = NameType::try_from("Sakil Mostak".to_string()).unwrap();
 
-    //     let valid_name = LengthString::<256, 1>::try_from("Sakil O'Neil".to_string().into()).unwrap();
-    //     // no panic
-    //     let card_holder_name = NameType::try_from("Sakil O'Neil".to_string()).unwrap();
+        // will panic on unwrap
+        let invalid_card_holder_name = NameType::try_from("$@k!l M*$t@k".to_string());
 
-    //     // will panic on unwrap
-    //     let invalid_card_holder_name = NameType::try_from("$@k!l M*$t@k".to_string());
+        assert_eq!(*card_holder_name.peek().to_string(), valid_name);
+        assert!(invalid_card_holder_name.is_err());
 
-    //     assert_eq!(*card_holder_name.peek(), valid_name);
-    //     assert!(invalid_card_holder_name.is_err());
+        let serialized = serde_json::to_string(&card_holder_name).unwrap();
+        assert_eq!(&serialized, "\"Sakil Mostak\"");
 
-    //     let serialized = serde_json::to_string(&card_holder_name).unwrap();
-    //     assert_eq!(&serialized, "\"Sakil O'Neil\"");
+        let derialized = serde_json::from_str::<NameType>(&serialized).unwrap();
+        assert_eq!(derialized.peek().to_string(), valid_name);
 
-    //     let derialized = serde_json::from_str::<NameType>(&serialized).unwrap();
-    //     assert_eq!(*derialized.peek(), valid_name);
-
-    //     let invalid_deserialization = serde_json::from_str::<NameType>("$@k!l M*$t@k");
-    //     assert!(invalid_deserialization.is_err());
-    // }
+        let invalid_deserialization = serde_json::from_str::<NameType>("$@k!l M*$t@k");
+        assert!(invalid_deserialization.is_err());
+    }
 }
