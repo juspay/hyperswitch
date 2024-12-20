@@ -1276,6 +1276,7 @@ pub struct ResponsePaymentMethodTypes {
     pub payment_method_subtype: common_enums::PaymentMethodType,
 
     /// payment method subtype specific information
+    #[serde(flatten)]
     pub extra_information: Option<PaymentMethodSubtypeSpecificData>,
 
     /// Required fields for the payment_method_type.
