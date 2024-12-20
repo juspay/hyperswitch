@@ -11,7 +11,6 @@ use common_utils::{
     types::{SemanticVersion, StringMajorUnit},
 };
 use error_stack::ResultExt;
-#[cfg(feature = "payouts")]
 use hyperswitch_domain_models::{
     address::{AddressDetails, PhoneDetails},
     payment_method_data::{
