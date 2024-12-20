@@ -758,7 +758,7 @@ pub(crate) enum ForceSync {
 /// List the payment methods eligible for a payment. This endpoint also returns the saved payment methods for the customer when the customer_id is passed when creating the payment
 #[utoipa::path(
     get,
-    path = "/v2/payments/{id}/payment_methods",
+    path = "/v2/payments/{id}/payment-methods",
     params(
         ("id" = String, Path, description = "The global payment id"),
     ),
