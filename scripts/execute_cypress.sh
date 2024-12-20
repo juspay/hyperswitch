@@ -116,6 +116,7 @@ function run_tests() {
     failed_connectors=($(< "${tmp_file}"))
     print_color "red" "One or more connectors failed to run:"
     printf '%s\n' "${failed_connectors[@]}"
+    exit 1
   else
     print_color "green" "Cypress tests execution successful!"
   fi
