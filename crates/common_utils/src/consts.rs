@@ -146,3 +146,9 @@ pub const CONNECTOR_TRANSACTION_ID_HASH_BYTES: usize = 25;
 /// Apple Pay validation url
 pub const APPLEPAY_VALIDATION_URL: &str =
     "https://apple-pay-gateway-cert.apple.com/paymentservices/startSession";
+
+/// Error message for Authentication Error from the connector
+pub const CONNECTOR_UNAUTHORIZED_ERROR: &str = "Authentication Error from the connector";
+
+/// Error message when Refund request has been voided.
+pub const REFUND_VOIDED: &str = "Refund request has been voided.";
