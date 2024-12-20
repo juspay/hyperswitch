@@ -8737,6 +8737,14 @@
           }
         }
       },
+      "FeatureStatus": {
+        "type": "string",
+        "description": "The status of the feature",
+        "enum": [
+          "not_supported",
+          "supported"
+        ]
+      },
       "FieldType": {
         "oneOf": [
           {
