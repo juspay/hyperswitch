@@ -850,9 +850,9 @@ pub async fn skip_locker_call_and_migrate_payment_method(
             .clone()
             .and_then(|val| if val == json!({}) { None } else { Some(true) })
             .or_else(|| {
-                req.connector_mandate_details
-                    .clone()
-                    .and_then(|val| (!val.0.is_empty()).then_some(false))
+                req.connector_mandate_details.clone().and_then(|val| {
+                    (!val.payments.unwrap_or_default().0.is_empty()).then_some(false)
+                })
             }),
     );
 
