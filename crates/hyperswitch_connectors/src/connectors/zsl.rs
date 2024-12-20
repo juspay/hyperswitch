@@ -451,8 +451,6 @@ lazy_static! {
         let supported_capture_methods = vec![enums::CaptureMethod::Automatic];
 
         let mut zsl_supported_payment_methods = SupportedPaymentMethods::new();
-
-        
         zsl_supported_payment_methods.add(
             enums::PaymentMethod::BankTransfer,
             enums::PaymentMethodType::LocalBankTransfer,
