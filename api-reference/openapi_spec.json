@@ -950,6 +950,123 @@
         ]
       }
     },
+    "/relay": {
+      "post": {
+        "tags": [
+          "Relay"
+        ],
+        "summary": "Relay - Create",
+        "description": "Creates a relay request.",
+        "operationId": "Relay Request",
+        "parameters": [
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile ID for authentication",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Idempotency-Key",
+            "in": "header",
+            "description": "Idempotency Key for relay request",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RelayRequest"
+              },
+              "examples": {
+                "Create a relay request": {
+                  "value": {
+                    "connector_id": "mca_5apGeP94tMts6rg3U3kR",
+                    "connector_resource_id": "7256228702616471803954",
+                    "data": {
+                      "amount": 6540,
+                      "currency": "USD"
+                    },
+                    "type": "refund"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Relay request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RelayResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid data"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
+    "/relay/{relay_id}": {
+      "get": {
+        "tags": [
+          "Relay"
+        ],
+        "summary": "Relay - Retrieve",
+        "description": "Retrieves a relay details.",
+        "operationId": "Retrieve a Relay details",
+        "parameters": [
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile ID for authentication",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Relay Retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RelayResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Relay details was not found"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          },
+          {
+            "ephemeral_key": []
+          }
+        ]
+      }
+    },
     "/refunds": {
       "post": {
         "tags": [
@@ -22708,6 +22825,161 @@
           }
         },
         "additionalProperties": false
+      },
+      "RelayData": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/RelayRefundRequest"
+          }
+        ]
+      },
+      "RelayError": {
+        "type": "object",
+        "required": [
+          "code",
+          "message"
+        ],
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "The error code"
+          },
+          "message": {
+            "type": "string",
+            "description": "The error message"
+          }
+        }
+      },
+      "RelayRefundRequest": {
+        "type": "object",
+        "required": [
+          "amount",
+          "currency"
+        ],
+        "properties": {
+          "amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The amount that is being refunded",
+            "example": 6540
+          },
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
+          },
+          "reason": {
+            "type": "string",
+            "description": "The reason for the refund",
+            "example": "Customer returned the product",
+            "nullable": true,
+            "maxLength": 255
+          }
+        }
+      },
+      "RelayRequest": {
+        "type": "object",
+        "required": [
+          "connector_resource_id",
+          "connector_id",
+          "type"
+        ],
+        "properties": {
+          "connector_resource_id": {
+            "type": "string",
+            "description": "The identifier that is associated to a resource at the connector to which the relay request is being made",
+            "example": "7256228702616471803954"
+          },
+          "connector_id": {
+            "type": "string",
+            "description": "Identifier of the connector ( merchant connector account ) to which relay request is being made",
+            "example": "mca_5apGeP94tMts6rg3U3kR"
+          },
+          "type": {
+            "$ref": "#/components/schemas/RelayType"
+          },
+          "data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RelayData"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "RelayResponse": {
+        "type": "object",
+        "required": [
+          "id",
+          "status",
+          "connector_resource_id",
+          "connector_id",
+          "profile_id",
+          "type"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The unique identifier for the Relay",
+            "example": "relay_mbabizu24mvu3mela5njyhpit4"
+          },
+          "status": {
+            "$ref": "#/components/schemas/RelayStatus"
+          },
+          "connector_reference_id": {
+            "type": "string",
+            "description": "The reference identifier provided by the connector for the relay request",
+            "example": "pi_3MKEivSFNglxLpam0ZaL98q9",
+            "nullable": true
+          },
+          "error": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RelayError"
+              }
+            ],
+            "nullable": true
+          },
+          "connector_resource_id": {
+            "type": "string",
+            "description": "The identifier that is associated to a resource at the connector to which the relay request is being made",
+            "example": "7256228702616471803954"
+          },
+          "connector_id": {
+            "type": "string",
+            "description": "Identifier of the connector ( merchant connector account ) to which relay request is being made",
+            "example": "mca_5apGeP94tMts6rg3U3kR"
+          },
+          "profile_id": {
+            "type": "string",
+            "description": "The business profile that is associated with this relay request",
+            "example": "pro_abcdefghijklmnopqrstuvwxyz"
+          },
+          "type": {
+            "$ref": "#/components/schemas/RelayType"
+          },
+          "data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RelayData"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "RelayStatus": {
+        "type": "string",
+        "enum": [
+          "success",
+          "processing",
+          "failure"
+        ]
+      },
+      "RelayType": {
+        "type": "string",
+        "enum": [
+          "refund"
+        ]
       },
       "RequestPaymentMethodTypes": {
         "type": "object",

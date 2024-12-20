@@ -11,6 +11,7 @@ mod organization;
 mod payment;
 mod profile;
 mod refunds;
+mod relay;
 mod routing;
 mod tenant;
 
@@ -43,6 +44,7 @@ pub use self::{
     payment::{PaymentId, PaymentReferenceId},
     profile::ProfileId,
     refunds::RefundReferenceId,
+    relay::RelayId,
     routing::RoutingId,
     tenant::TenantId,
 };
