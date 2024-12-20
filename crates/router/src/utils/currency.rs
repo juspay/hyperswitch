@@ -11,6 +11,7 @@ use router_env::{instrument, tracing};
 use rust_decimal::Decimal;
 use strum::IntoEnumIterator;
 use tokio::{sync::RwLock, time::sleep};
+use tracing_futures::Instrument;
 
 use crate::{
     logger,
@@ -221,6 +222,22 @@ async fn handler_local_no_data(
 }
 
 async fn successive_fetch_and_save_forex(
+    state: &SessionState,
+    stale_redis_data: Option<FxExchangeRatesCacheEntry>,
+) -> CustomResult<FxExchangeRatesCacheEntry, ForexCacheError> {
+    // spawn a new thread and do the api fetch and write operations on redis.
+    let stale_forex_data = stale_redis_data.clone();
+    let state = state.clone();
+    tokio::spawn(
+        async move {
+            acquire_redis_lock_and_fetch_data(&state, stale_redis_data).await;
+        }
+        .in_current_span(),
+    );
+    stale_forex_data.ok_or(ForexCacheError::EntryNotFound.into())
+}
+
+async fn acquire_redis_lock_and_fetch_data(
     state: &SessionState,
     stale_redis_data: Option<FxExchangeRatesCacheEntry>,
 ) -> CustomResult<FxExchangeRatesCacheEntry, ForexCacheError> {
@@ -481,11 +498,8 @@ async fn acquire_redis_lock(state: &SessionState) -> CustomResult<bool, ForexCac
             REDIX_FOREX_CACHE_KEY,
             "",
             Some(
-                i64::try_from(
-                    forex_api.local_fetch_retry_count * forex_api.local_fetch_retry_delay
-                        + forex_api.api_timeout,
-                )
-                .change_context(ForexCacheError::ConversionError)?,
+                i64::try_from(forex_api.local_fetch_retry_delay)
+                    .change_context(ForexCacheError::ConversionError)?,
             ),
         )
         .await
