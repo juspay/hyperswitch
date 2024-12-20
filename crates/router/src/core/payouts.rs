@@ -24,7 +24,7 @@ use common_utils::{
 use diesel_models::{
     enums as storage_enums,
     generic_link::{GenericLinkNew, PayoutLink},
-    CommonMandateReference, PaymentsMandateReference, PaymentsMandateReferenceRecord,
+    CommonMandateReference, PaymentsMandateReferenceRecord,
     PayoutsMandateReference, PayoutsMandateReferenceRecord,
 };
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
@@ -2109,12 +2109,19 @@ pub async fn create_recipient_disburse_account(
                 };
 
                 let connector_mandate_details_value =
-                    serde_json::to_value(common_connector_mandate).ok();
+                    serde_json::to_value(common_connector_mandate.clone()).ok();
 
                 if let Some(pm_method) = payout_data.payment_method.clone() {
                     let pm_update =
                         diesel_models::PaymentMethodUpdate::ConnectorMandateDetailsUpdate {
+                            #[cfg(all(
+                                any(feature = "v1", feature = "v2"),
+                                not(feature = "payment_methods_v2")
+                            ))]
                             connector_mandate_details: connector_mandate_details_value,
+
+                            #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+                            connector_mandate_details: Some(common_connector_mandate),
                         };
 
                     payout_data.payment_method = Some(

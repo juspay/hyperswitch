@@ -192,7 +192,7 @@ pub async fn construct_payout_router_data<'a, F>(
                     phone: c.phone.map(Encryptable::into_inner),
                     phone_country_code: c.phone_country_code,
                 }),
-            connector_transfer_method_id: connector_transfer_method_id,
+            connector_transfer_method_id,
         },
         response: Ok(types::PayoutsResponseData::default()),
         access_token: None,
