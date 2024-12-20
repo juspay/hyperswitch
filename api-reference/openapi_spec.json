@@ -17372,7 +17372,7 @@
           "amount_to_capture": {
             "type": "integer",
             "format": "int64",
-            "description": "The Amount to be captured/ debited from the user's payment method.",
+            "description": "The Amount to be captured/ debited from the user's payment method. If not passed the full amount will be captured.",
             "example": 6540
           },
           "refund_uncaptured_amount": {
