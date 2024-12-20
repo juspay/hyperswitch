@@ -52,6 +52,9 @@ pub async fn generate_feature_matrix(
             .into_iter()
             .filter_map(|connector_name| {
                 api_types::ConnectorData::convert_connector(&connector_name.to_string())
+                    .inspect_err(|_| {
+                        router_env::logger::warn!("Failed to fetch {:?} details", connector_name)
+                    })
                     .ok()
                     .and_then(|connector| {
                         build_connector_feature_details(
@@ -79,12 +82,12 @@ fn build_connector_feature_details(
     let connector_integration_features = connector.get_supported_payment_methods();
     connector_integration_features.map(|connector_integration_feature_data| {
         let supported_payment_methods = connector_integration_feature_data
-            .into_iter()
+            .iter()
             .flat_map(|(payment_method, supported_payment_method_types)| {
                 build_payment_method_wise_feature_details(
                     state,
                     &connector_name,
-                    payment_method,
+                    *payment_method,
                     supported_payment_method_types,
                 )
             })
@@ -97,7 +100,7 @@ fn build_connector_feature_details(
         feature_matrix::ConnectorFeatureMatrixResponse {
             name: connector_name,
             description: connector_about.map(|about| about.description.clone()),
-            category: connector_about.map(|about| about.connector_type.clone()),
+            category: connector_about.map(|about| about.connector_type),
             supported_webhook_flows,
             supported_payment_methods,
         }
@@ -107,11 +110,11 @@ fn build_connector_feature_details(
 fn build_payment_method_wise_feature_details(
     state: &app::SessionState,
     connector_name: &str,
-    payment_method: &enums::PaymentMethod,
+    payment_method: enums::PaymentMethod,
     supported_payment_method_types: &PaymentMethodTypeMetadata,
 ) -> Vec<feature_matrix::SupportedPaymentMethod> {
     supported_payment_method_types
-        .into_iter()
+        .iter()
         .map(|(payment_method_type, feature_metadata)| {
             let payment_method_type_config =
                 state
@@ -134,7 +137,7 @@ fn build_payment_method_wise_feature_details(
                 payment_method_type_config.and_then(|config| config.currency.clone());
 
             feature_matrix::SupportedPaymentMethod {
-                payment_method: *payment_method,
+                payment_method,
                 payment_method_type: *payment_method_type,
                 mandates: feature_metadata.mandates,
                 refunds: feature_metadata.refunds,

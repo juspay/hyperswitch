@@ -433,8 +433,9 @@ pub trait ConnectorValidation: ConnectorCommon + ConnectorSpecifications {
         pmt: Option<PaymentMethodType>,
     ) -> CustomResult<(), errors::ConnectorError> {
         let capture_method = capture_method.unwrap_or_default();
-        let default_capture_method =
-            vec![CaptureMethod::Automatic, CaptureMethod::SequentialAutomatic];
+        let is_default_capture_method =
+            [CaptureMethod::Automatic, CaptureMethod::SequentialAutomatic]
+                .contains(&capture_method);
         let is_feature_supported = match self.get_supported_payment_methods() {
             Some(supported_payment_methods) => {
                 let connector_payment_method_type_info = get_connector_payment_method_type_info(
@@ -450,9 +451,9 @@ pub trait ConnectorValidation: ConnectorCommon + ConnectorSpecifications {
                             .supported_capture_methods
                             .contains(&capture_method)
                     })
-                    .unwrap_or_else(|| default_capture_method.contains(&capture_method))
+                    .unwrap_or_else(|| is_default_capture_method)
             }
-            None => default_capture_method.contains(&capture_method),
+            None => is_default_capture_method,
         };
 
         if is_feature_supported {
