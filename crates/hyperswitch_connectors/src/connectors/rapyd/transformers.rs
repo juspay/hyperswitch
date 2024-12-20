@@ -162,7 +162,7 @@ impl TryFrom<&RapydRouterData<&types::PaymentsAuthorizeRouterData>> for RapydPay
         .change_context(errors::ConnectorError::NotImplemented(
             "payment_method".to_owned(),
         ))?;
-        let return_url = item.router_data.request.get_return_url()?;
+        let return_url = item.router_data.request.get_router_return_url()?;
         Ok(Self {
             amount: item.amount,
             currency: item.router_data.request.currency,

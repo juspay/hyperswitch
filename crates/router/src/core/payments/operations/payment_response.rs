@@ -1902,7 +1902,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
             status: api_models::enums::IntentStatus::foreign_from(
                 payment_data.payment_attempt.status,
             ),
-            return_url: router_data.return_url.clone(),
+            return_url: None,
             amount_captured,
             updated_by: storage_scheme.to_string(),
             fingerprint_id: payment_data.payment_attempt.fingerprint_id.clone(),
