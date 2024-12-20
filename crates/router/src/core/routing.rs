@@ -448,7 +448,6 @@ pub async fn link_routing_config(
                     )?
                     .unwrap_or_default();
 
-            // Need to add contract based routing here
             utils::when(
                 matches!(
                     dynamic_routing_ref.success_based_algorithm,
@@ -470,6 +469,16 @@ pub async fn link_routing_config(
                         },
                         enabled_feature: _
                     }) if id == &algorithm_id
+                ) || matches!(
+                    dynamic_routing_ref.contract_based_routing,
+                    Some(routing::ContractRoutingAlgorithm {
+                        algorithm_id_with_timestamp:
+                        routing_types::DynamicAlgorithmWithTimestamp {
+                            algorithm_id: Some(ref id),
+                            timestamp: _
+                        },
+                        enabled_feature: _
+                    }) if id == &algorithm_id
                 ),
                 || {
                     Err(errors::ApiErrorResponse::PreconditionFailed {
@@ -478,7 +487,12 @@ pub async fn link_routing_config(
                 },
             )?;
 
-            dynamic_routing_ref.update_algorithm_id(
+            println!("algo is - {:?}", routing_algorithm.algorithm_data.clone());
+
+            // These checks would be Expensive
+            // A better way to do this would be to have some typed information in the algorithm_data
+            if &routing_algorithm.name == helpers::SUCCESS_BASED_DYNAMIC_ROUTING_ALGORITHM {
+                dynamic_routing_ref.update_algorithm_id(
                 algorithm_id,
                 dynamic_routing_ref
                     .success_based_algorithm
@@ -490,6 +504,35 @@ pub async fn link_routing_config(
                     .enabled_feature,
                 routing_types::DynamicRoutingType::SuccessRateBasedRouting,
             );
+            } else if &routing_algorithm.name
+                == helpers::ELIMINATION_BASED_DYNAMIC_ROUTING_ALGORITHM
+            {
+                dynamic_routing_ref.update_algorithm_id(
+                algorithm_id,
+                dynamic_routing_ref
+                    .elimination_routing_algorithm
+                    .clone()
+                    .ok_or(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable(
+                        "missing elimination_routing_algorithm in dynamic_algorithm_ref from business_profile table",
+                    )?
+                    .enabled_feature,
+                routing_types::DynamicRoutingType::EliminationRouting,
+            );
+            } else if &routing_algorithm.name == helpers::CONTRACT_BASED_DYNAMIC_ROUTING_ALGORITHM {
+                dynamic_routing_ref.update_algorithm_id(
+                algorithm_id,
+                dynamic_routing_ref
+                    .contract_based_routing
+                    .clone()
+                    .ok_or(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable(
+                        "missing contract_based_routing in dynamic_algorithm_ref from business_profile table",
+                    )?
+                    .enabled_feature,
+                routing_types::DynamicRoutingType::ContractBasedRouting,
+            );
+            }
 
             helpers::update_business_profile_active_dynamic_algorithm_ref(
                 db,
