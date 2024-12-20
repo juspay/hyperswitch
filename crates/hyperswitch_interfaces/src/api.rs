@@ -295,12 +295,12 @@ pub trait ConnectorSpecifications {
     }
 
     /// Supported webhooks flows
-    fn get_supported_webhook_flows(&self) ->  Option<&'static [EventClass]> {
+    fn get_supported_webhook_flows(&self) -> Option<&'static [EventClass]> {
         None
     }
 
     /// About the connector
-    fn get_connector_about(&self) -> Option<&'static ConnectorInfo>  {
+    fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
         None
     }
 }

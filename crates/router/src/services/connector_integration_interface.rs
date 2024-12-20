@@ -446,7 +446,7 @@ impl ConnectorSpecifications for ConnectorEnum {
     }
 
     /// Details related to connector
-    fn get_connector_about(&self) -> Option<&'static ConnectorInfo>  {
+    fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
         match self {
             Self::Old(connector) => connector.get_connector_about(),
             Self::New(connector) => connector.get_connector_about(),

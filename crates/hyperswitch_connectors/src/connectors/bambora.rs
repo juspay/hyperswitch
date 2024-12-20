@@ -8,7 +8,6 @@ use common_utils::{
     ext_traits::BytesExt,
     request::{Method, Request, RequestBuilder, RequestContent},
 };
-use lazy_static::lazy_static;
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
@@ -24,8 +23,8 @@ use hyperswitch_domain_models::{
         PaymentsSyncData, RefundsData, SetupMandateRequestData,
     },
     router_response_types::{
-        ConnectorInfo, PaymentsResponseData, RefundsResponseData, SupportedPaymentMethods,
-        SupportedPaymentMethodsExt, PaymentMethodDetails,
+        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
+        SupportedPaymentMethods, SupportedPaymentMethodsExt,
     },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
@@ -47,6 +46,7 @@ use hyperswitch_interfaces::{
     },
     webhooks,
 };
+use lazy_static::lazy_static;
 use masking::Mask;
 use transformers as bambora;
 
@@ -826,7 +826,7 @@ lazy_static! {
         ];
 
         let mut bambora_supported_payment_methods = SupportedPaymentMethods::new();
-        
+
         bambora_supported_payment_methods.add(
             enums::PaymentMethod::Card,
             enums::PaymentMethodType::Credit,
@@ -849,16 +849,15 @@ lazy_static! {
         bambora_supported_payment_methods
     };
     static ref BAMBORA_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
-        description: "Bambora is a leading online payment provider in Canada and United States.".to_string(),
+        description: "Bambora is a leading online payment provider in Canada and United States."
+            .to_string(),
         connector_type: enums::PaymentConnectorCategory::PaymentGateway,
     };
-
     static ref BAMBORA_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> = Vec::new();
-
 }
 
 impl ConnectorSpecifications for Bambora {
-    fn get_connector_about(&self) -> Option<&'static ConnectorInfo>  {
+    fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
         Some(&*BAMBORA_CONNECTOR_INFO)
     }
 

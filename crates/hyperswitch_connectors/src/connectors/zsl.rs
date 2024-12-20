@@ -9,7 +9,6 @@ use common_utils::{
     ext_traits::{BytesExt, ValueExt},
     request::{Method, Request, RequestBuilder, RequestContent},
 };
-use lazy_static::lazy_static;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     api::ApplicationResponse,
@@ -25,8 +24,8 @@ use hyperswitch_domain_models::{
         RefundsData, SetupMandateRequestData,
     },
     router_response_types::{
-        ConnectorInfo, PaymentsResponseData, RefundsResponseData, SupportedPaymentMethods,
-        SupportedPaymentMethodsExt, PaymentMethodDetails,
+        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
+        SupportedPaymentMethods, SupportedPaymentMethodsExt,
     },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
@@ -45,6 +44,7 @@ use hyperswitch_interfaces::{
     types::{self, Response},
     webhooks::{IncomingWebhook, IncomingWebhookFlowError, IncomingWebhookRequestDetails},
 };
+use lazy_static::lazy_static;
 use masking::{ExposeInterface, Secret};
 use transformers::{self as zsl, get_status};
 
@@ -446,7 +446,6 @@ fn get_webhook_object_from_body(
     Ok(response)
 }
 
-
 lazy_static! {
     static ref ZSL_SUPPORTED_PAYMENT_METHODS: SupportedPaymentMethods = {
         let supported_capture_methods = vec![enums::CaptureMethod::Automatic];
@@ -479,12 +478,12 @@ lazy_static! {
 }
 
 impl ConnectorSpecifications for Zsl {
-    fn get_connector_about(&self) -> Option<&'static ConnectorInfo>  {
+    fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
         Some(&*ZSL_CONNECTOR_INFO)
     }
 
     fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
-      Some(&*ZSL_SUPPORTED_PAYMENT_METHODS)
+        Some(&*ZSL_SUPPORTED_PAYMENT_METHODS)
     }
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {

@@ -555,12 +555,8 @@ impl SupportedPaymentMethodsExt for SupportedPaymentMethods {
         payment_method_details: PaymentMethodDetails,
     ) {
         if let Some(payment_method_data) = self.get_mut(&payment_method) {
-            payment_method_data.insert(
-                payment_method_type,
-                payment_method_details,
-            );
+            payment_method_data.insert(payment_method_type, payment_method_details);
         } else {
-
             let mut payment_method_type_metadata = PaymentMethodTypeMetadata::new();
             payment_method_type_metadata.insert(payment_method_type, payment_method_details);
 

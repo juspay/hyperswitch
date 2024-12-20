@@ -78,8 +78,7 @@ fn build_connector_feature_details(
 ) -> Option<feature_matrix::ConnectorFeatureMatrixResponse> {
     let connector_integration_features = connector.get_supported_payment_methods();
     connector_integration_features.map(|connector_integration_feature_data| {
-        let supported_payment_methods =
-        connector_integration_feature_data
+        let supported_payment_methods = connector_integration_feature_data
             .into_iter()
             .flat_map(|(payment_method, supported_payment_method_types)| {
                 build_payment_method_wise_feature_details(
@@ -88,10 +87,13 @@ fn build_connector_feature_details(
                     payment_method,
                     supported_payment_method_types,
                 )
-            }).collect::<Vec<feature_matrix::SupportedPaymentMethod>>();
+            })
+            .collect::<Vec<feature_matrix::SupportedPaymentMethod>>();
 
         let connector_about = connector.get_connector_about();
-        let supported_webhook_flows =  connector.get_supported_webhook_flows().map(|webhook_flows| webhook_flows.to_vec());
+        let supported_webhook_flows = connector
+            .get_supported_webhook_flows()
+            .map(|webhook_flows| webhook_flows.to_vec());
         feature_matrix::ConnectorFeatureMatrixResponse {
             name: connector_name,
             description: connector_about.map(|about| about.description.clone()),
