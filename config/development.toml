@@ -614,16 +614,16 @@ connectors_with_delayed_session_response = "trustpay,payme"
 connectors_with_webhook_source_verification_call = "paypal"
 
 [mandates.supported_payment_methods]
-bank_debit.ach = { connector_list = "gocardless,adyen,stripe" }                 # Mandate supported payment method type and connector for bank_debit
-bank_debit.becs = { connector_list = "gocardless,stripe,adyen" }                      # Mandate supported payment method type and connector for bank_debit
-bank_debit.bacs = { connector_list = "stripe,gocardless" }                           # Mandate supported payment method type and connector for bank_debit
-bank_debit.sepa = { connector_list = "gocardless,adyen,stripe,deutschebank" }                # Mandate supported payment method type and connector for bank_debit
-card.credit.connector_list = "stripe,adyen,authorizedotnet,cybersource,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,braintree,nuvei,payme,wellsfargo,bamboraapac,elavon,fiuu,nexixpay,novalnet,paybox,paypal"     # Mandate supported payment method type and connector for card
-card.debit.connector_list = "stripe,adyen,authorizedotnet,cybersource,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,braintree,nuvei,payme,wellsfargo,bamboraapac,elavon,fiuu,nexixpay,novalnet,paybox,paypal"      # Mandate supported payment method type and connector for card
-pay_later.klarna.connector_list = "adyen"                       # Mandate supported payment method type and connector for pay_later
-wallet.apple_pay.connector_list = "stripe,adyen,cybersource,noon,bankofamerica,nexinets,novalnet"         # Mandate supported payment method type and connector for wallets
-wallet.google_pay.connector_list = "stripe,adyen,cybersource,bankofamerica,noon,globalpay,multisafepay,novalnet"             # Mandate supported payment method type and connector for wallets
-wallet.paypal.connector_list = "adyen,globalpay,nexinets,novalnet,paypal"                          # Mandate supported payment method type and connector for wallets
+bank_debit.ach = { connector_list = "gocardless,adyen,stripe" }                 
+bank_debit.becs = { connector_list = "gocardless,stripe,adyen" }                      
+bank_debit.bacs = { connector_list = "stripe,gocardless" }                           
+bank_debit.sepa = { connector_list = "gocardless,adyen,stripe,deutschebank" }                
+card.credit.connector_list = "stripe,adyen,authorizedotnet,cybersource,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,braintree,nuvei,payme,wellsfargo,bamboraapac,elavon,fiuu,nexixpay,novalnet,paybox,paypal"     
+card.debit.connector_list = "stripe,adyen,authorizedotnet,cybersource,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,braintree,nuvei,payme,wellsfargo,bamboraapac,elavon,fiuu,nexixpay,novalnet,paybox,paypal"      
+pay_later.klarna.connector_list = "adyen"                       
+wallet.apple_pay.connector_list = "stripe,adyen,cybersource,noon,bankofamerica,nexinets,novalnet"        
+wallet.google_pay.connector_list = "stripe,adyen,cybersource,bankofamerica,noon,globalpay,multisafepay,novalnet"            
+wallet.paypal.connector_list = "adyen,globalpay,nexinets,novalnet,paypal"                         
 wallet.momo.connector_list = "adyen"
 wallet.kakao_pay.connector_list = "adyen"
 wallet.go_pay.connector_list = "adyen"
@@ -632,9 +632,9 @@ wallet.dana.connector_list = "adyen"
 wallet.twint.connector_list = "adyen"
 wallet.vipps.connector_list = "adyen"
 
-bank_redirect.ideal.connector_list = "stripe,adyen,globalpay,multisafepay,nexinets"   # Mandate supported payment method type and connector for bank_redirect
-bank_redirect.sofort.connector_list = "stripe,adyen,globalpay"  # Mandate supported payment method type and connector for bank_redirect
-bank_redirect.giropay.connector_list = "adyen,globalpay,multisafepay,nexinets"        # Mandate supported payment method type and connector for bank_redirect
+bank_redirect.ideal.connector_list = "stripe,adyen,globalpay,multisafepay,nexinets"   
+bank_redirect.sofort.connector_list = "stripe,adyen,globalpay"  
+bank_redirect.giropay.connector_list = "adyen,globalpay,multisafepay,nexinets"        
 bank_redirect.bancontact_card.connector_list="adyen,stripe"
 bank_redirect.trustly.connector_list="adyen"
 bank_redirect.open_banking_uk.connector_list="adyen"
