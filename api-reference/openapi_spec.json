@@ -8325,6 +8325,21 @@
             "type": "string",
             "description": "User-agent of the browser",
             "nullable": true
+          },
+          "os_type": {
+            "type": "string",
+            "description": "The os type of the client device",
+            "nullable": true
+          },
+          "os_version": {
+            "type": "string",
+            "description": "The os version of the client device",
+            "nullable": true
+          },
+          "device_model": {
+            "type": "string",
+            "description": "The device model of the client",
+            "nullable": true
           }
         }
       },
