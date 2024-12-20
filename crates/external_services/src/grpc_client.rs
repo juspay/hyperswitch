@@ -7,6 +7,8 @@ pub mod health_check_client;
 use std::{fmt::Debug, sync::Arc};
 
 #[cfg(feature = "dynamic_routing")]
+use common_utils::consts;
+#[cfg(feature = "dynamic_routing")]
 use dynamic_routing::{DynamicRoutingClientConfig, RoutingStrategy};
 #[cfg(feature = "dynamic_routing")]
 use health_check_client::HealthCheckClient;
@@ -89,22 +91,33 @@ pub struct GrpcHeaders {
 }
 
 impl GrpcHeaders {
+    #[cfg(feature = "dynamic_routing")]
     /// Method to add necessary headers to the tonic Request
+    #[track_caller]
     pub fn add_headers_to_grpc_request<T>(&self, request: &mut tonic::Request<T>) {
-        self
-            .tenant_id
+        self.tenant_id
             .parse()
-            .map(|tenant_id| request.metadata_mut().append("x-tenant-id", tenant_id))
-            .inspect_err(|err| logger::warn!(header_parse_error=?err,"invalid x-tenant-id received in update_elimination_bucket_config"))
+            .map(|tenant_id| {
+                request
+                    .metadata_mut()
+                    .append(consts::TENANT_HEADER, tenant_id)
+            })
+            .inspect_err(
+                |err| logger::warn!(header_parse_error=?err,"invalid {} received",consts::TENANT_HEADER),
+            )
             .ok();
 
         self.request_id.as_ref().map(|request_id| {
             request_id
                 .parse()
-                .map(|request_id| request.metadata_mut().append("x-request-id", request_id))
-                .inspect_err(|err| {
-                    logger::warn!(header_parse_error=?err,"invalid x-request-id received in update_elimination_bucket_config")
+                .map(|request_id| {
+                    request
+                        .metadata_mut()
+                        .append(consts::X_REQUEST_ID, request_id)
                 })
+                .inspect_err(
+                    |err| logger::warn!(header_parse_error=?err,"invalid {} received",consts::X_REQUEST_ID),
+                )
                 .ok();
         });
     }
