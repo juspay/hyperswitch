@@ -2090,7 +2090,7 @@
         ]
       }
     },
-    "/v2/payments/{id}/payment_methods": {
+    "/v2/payments/{id}/payment-methods": {
       "get": {
         "tags": [
           "Payments"
