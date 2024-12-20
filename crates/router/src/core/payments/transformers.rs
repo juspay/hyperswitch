@@ -2597,10 +2597,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             payment_method_data: (payment_method_data.get_required_value("payment_method_data")?),
             setup_future_usage: payment_data.payment_intent.setup_future_usage,
             mandate_id: payment_data.mandate_id.clone(),
-            off_session: payment_data
-                .mandate_id
-                .as_ref()
-                .and(payment_data.payment_intent.off_session),
+            off_session: payment_data.mandate_id.as_ref().map(|_| true),
             setup_mandate_details: payment_data.setup_mandate.clone(),
             confirm: payment_data.payment_attempt.confirm,
             statement_descriptor_suffix: payment_data.payment_intent.statement_descriptor_suffix,
@@ -3206,10 +3203,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
                 .get_required_value("payment_method_data")?),
             statement_descriptor_suffix: payment_data.payment_intent.statement_descriptor_suffix,
             setup_future_usage: payment_data.payment_intent.setup_future_usage,
-            off_session: payment_data
-                .mandate_id
-                .as_ref()
-                .and(payment_data.payment_intent.off_session),
+            off_session: payment_data.mandate_id.as_ref().map(|_| true),
             mandate_id: payment_data.mandate_id.clone(),
             setup_mandate_details: payment_data.setup_mandate,
             customer_acceptance: payment_data.customer_acceptance,
@@ -3324,10 +3318,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
         Ok(Self {
             setup_future_usage: payment_data.payment_intent.setup_future_usage,
             mandate_id: payment_data.mandate_id.clone(),
-            off_session: payment_data
-                .mandate_id
-                .as_ref()
-                .and(payment_data.payment_intent.off_session),
+            off_session: payment_data.mandate_id.as_ref().map(|_| true),
             setup_mandate_details: payment_data.setup_mandate.clone(),
             confirm: payment_data.payment_attempt.confirm,
             statement_descriptor_suffix: payment_data.payment_intent.statement_descriptor_suffix,
