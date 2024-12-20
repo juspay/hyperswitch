@@ -18878,19 +18878,8 @@
         }
       },
       "ResponsePaymentMethodTypes": {
-        "type": "object",
-        "required": [
-          "payment_method_type",
-          "payment_method_subtype"
-        ],
-        "properties": {
-          "payment_method_type": {
-            "$ref": "#/components/schemas/PaymentMethodType"
-          },
-          "payment_method_subtype": {
-            "$ref": "#/components/schemas/PaymentMethodType"
-          },
-          "extra_information": {
+        "allOf": [
+          {
             "allOf": [
               {
                 "$ref": "#/components/schemas/PaymentMethodSubtypeSpecificData"
@@ -18898,23 +18887,38 @@
             ],
             "nullable": true
           },
-          "required_fields": {
+          {
             "type": "object",
-            "description": "Required fields for the payment_method_type.\nThis is the union of all the required fields for the payment method type enabled in all the connectors.",
-            "additionalProperties": {
-              "$ref": "#/components/schemas/RequiredFieldInfo"
-            },
-            "nullable": true
-          },
-          "surcharge_details": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/SurchargeDetailsResponse"
-              }
+            "required": [
+              "payment_method_type",
+              "payment_method_subtype"
             ],
-            "nullable": true
+            "properties": {
+              "payment_method_type": {
+                "$ref": "#/components/schemas/PaymentMethodType"
+              },
+              "payment_method_subtype": {
+                "$ref": "#/components/schemas/PaymentMethodType"
+              },
+              "required_fields": {
+                "type": "object",
+                "description": "Required fields for the payment_method_type.\nThis is the union of all the required fields for the payment method type enabled in all the connectors.",
+                "additionalProperties": {
+                  "$ref": "#/components/schemas/RequiredFieldInfo"
+                },
+                "nullable": true
+              },
+              "surcharge_details": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/SurchargeDetailsResponse"
+                  }
+                ],
+                "nullable": true
+              }
+            }
           }
-        }
+        ]
       },
       "ResponsePaymentMethodsEnabled": {
         "type": "object",
