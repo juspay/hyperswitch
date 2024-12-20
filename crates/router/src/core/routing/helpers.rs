@@ -761,6 +761,7 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
             amount: payment_attempt.get_total_amount(),
             success_based_routing_connector: first_success_based_connector.to_string(),
             payment_connector: payment_connector.to_string(),
+            payment_method_type: payment_attempt.payment_method_type,
             currency: payment_attempt.currency,
             payment_method: payment_attempt.payment_method,
             capture_method: payment_attempt.capture_method,
