@@ -98,6 +98,35 @@ const multiUseMandateData = {
   },
 };
 
+const billingAddress = {
+  address: {
+    line1: "1467",
+    line2: "Harrison Street",
+    line3: "Harrison Street",
+    city: "San Fransico",
+    state: "California",
+    zip: "94122",
+    country: "BR",
+    first_name: "john",
+    last_name: "doe",
+  },
+};
+
+const browserInfo = {
+  user_agent:
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.110 Safari/537.36",
+  accept_header:
+    "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
+  language: "nl-NL",
+  color_depth: 24,
+  screen_height: 723,
+  screen_width: 1536,
+  time_zone: 0,
+  java_enabled: true,
+  java_script_enabled: true,
+  ip_address: "127.0.0.1",
+};
+
 export const cardRequiredField = {
   "payment_method_data.card.card_number": {
     required_field: "payment_method_data.card.card_number",
@@ -1325,6 +1354,43 @@ export const connectorDetails = {
               "Json deserialize error: unknown variant `this_supposed_to_be_a_card`, expected one of `card`, `card_redirect`, `pay_later`, `wallet`, `bank_redirect`, `bank_transfer`, `crypto`, `bank_debit`, `reward`, `real_time_payment`, `upi`, `voucher`, `gift_card`, `open_banking`, `mobile_payment`",
             code: "IR_06",
           },
+        },
+      },
+    },
+    IncorrectCardType: {
+      Request: {
+        payment_method: "card",
+        payment_method_type: "debit",
+        setup_future_usage: "off_session",
+        confirm: true,
+        browser_info: browserInfo,
+        billing: billingAddress,
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          payment_method_type: "credit",
+        },
+      },
+    },
+    EmptyCardType: {
+      Request: {
+        payment_method: "card",
+        setup_future_usage: "off_session",
+        confirm: true,
+        browser_info: browserInfo,
+        billing: billingAddress,
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          payment_method_type: "credit",
         },
       },
     },
