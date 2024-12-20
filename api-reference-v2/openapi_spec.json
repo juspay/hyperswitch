@@ -14671,6 +14671,7 @@
           "id",
           "status",
           "amount",
+          "customer_id",
           "connector",
           "client_secret",
           "created",
@@ -14691,6 +14692,13 @@
           },
           "amount": {
             "$ref": "#/components/schemas/ConfirmIntentAmountDetailsResponse"
+          },
+          "customer_id": {
+            "type": "string",
+            "description": "The identifier for the customer",
+            "example": "12345_cus_01926c58bc6e77c09e809964e72af8c8",
+            "maxLength": 64,
+            "minLength": 32
           },
           "connector": {
             "type": "string",
@@ -16416,6 +16424,7 @@
           "id",
           "status",
           "amount",
+          "customer_id",
           "client_secret",
           "created"
         ],
@@ -16432,6 +16441,13 @@
           },
           "amount": {
             "$ref": "#/components/schemas/ConfirmIntentAmountDetailsResponse"
+          },
+          "customer_id": {
+            "type": "string",
+            "description": "The identifier for the customer",
+            "example": "12345_cus_01926c58bc6e77c09e809964e72af8c8",
+            "maxLength": 64,
+            "minLength": 32
           },
           "connector": {
             "type": "string",
