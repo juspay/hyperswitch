@@ -37,6 +37,7 @@ use error_stack::{report, ResultExt};
 use events::EventInfo;
 use futures::future::join_all;
 use helpers::{decrypt_paze_token, ApplePayData};
+use hyperswitch_domain_models::payments::payment_intent::CustomerData;
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::payments::{
     PaymentConfirmData, PaymentIntentData, PaymentStatusData,
@@ -1780,6 +1781,7 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
                     json_payload: Some(req.json_payload.unwrap_or(serde_json::json!({})).into()),
                 }),
                 search_tags: None,
+                apple_pay_recurring_details: None,
             }),
             ..Default::default()
         };
@@ -2241,6 +2243,7 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
                         ),
                     }),
                     search_tags: None,
+                    apple_pay_recurring_details: None,
                 }),
                 ..Default::default()
             };
@@ -3399,7 +3402,7 @@ pub async fn get_session_token_for_click_to_pay(
     payment_intent: &hyperswitch_domain_models::payments::PaymentIntent,
 ) -> RouterResult<api_models::payments::SessionToken> {
     use common_utils::{id_type::MerchantConnectorAccountId, types::AmountConvertor};
-    use hyperswitch_domain_models::payments::ClickToPayMetaData;
+    use hyperswitch_domain_models::payments::{payment_intent::CustomerData, ClickToPayMetaData};
 
     use crate::consts::CLICK_TO_PAY;
 
@@ -3439,6 +3442,19 @@ pub async fn get_session_token_for_click_to_pay(
         .change_context(errors::ApiErrorResponse::PreconditionFailed {
             message: "Failed to convert amount to string major unit for clickToPay".to_string(),
         })?;
+
+    let customer_details_value = payment_intent
+        .customer_details
+        .clone()
+        .get_required_value("customer_details")?;
+
+    let customer_details: CustomerData = customer_details_value
+        .parse_value("CustomerData")
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Error while parsing customer data from payment intent")?;
+
+    validate_customer_details_for_click_to_pay(&customer_details)?;
+
     Ok(api_models::payments::SessionToken::ClickToPay(Box::new(
         api_models::payments::ClickToPaySessionResponse {
             dpa_id: click_to_pay_metadata.dpa_id,
@@ -3451,8 +3467,36 @@ pub async fn get_session_token_for_click_to_pay(
             merchant_country_code: click_to_pay_metadata.merchant_country_code,
             transaction_amount,
             transaction_currency_code: transaction_currency,
+            phone_number: customer_details.phone.clone(),
+            email: customer_details.email.clone(),
+            phone_country_code: customer_details.phone_country_code.clone(),
         },
     )))
+}
+
+fn validate_customer_details_for_click_to_pay(customer_details: &CustomerData) -> RouterResult<()> {
+    match (
+        customer_details.phone.as_ref(),
+        customer_details.phone_country_code.as_ref(),
+        customer_details.email.as_ref()
+    ) {
+        (None, None, Some(_)) => Ok(()),
+        (Some(_), Some(_), Some(_)) => Ok(()),
+        (Some(_), Some(_), None) => Ok(()),
+        (Some(_), None, Some(_)) => Ok(()),
+        (None, Some(_), None) => Err(errors::ApiErrorResponse::MissingRequiredField {
+            field_name: "phone",
+        })
+        .attach_printable("phone number is not present in payment_intent.customer_details"),
+        (Some(_), None, None) => Err(errors::ApiErrorResponse::MissingRequiredField {
+            field_name: "phone_country_code",
+        })
+        .attach_printable("phone_country_code is not present in payment_intent.customer_details"),
+        (_, _, _) => Err(errors::ApiErrorResponse::MissingRequiredFields {
+            field_names: vec!["phone", "phone_country_code", "email"],
+        })
+        .attach_printable("either of phone, phone_country_code or email is not present in payment_intent.customer_details"),
+    }
 }
 
 #[cfg(feature = "v1")]

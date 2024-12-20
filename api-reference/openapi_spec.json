@@ -5883,11 +5883,168 @@
               }
             ],
             "nullable": true
+          },
+          "recurring_payment_request": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ApplePayRecurringPaymentRequest"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "ApplePayPaymentTiming": {
+        "type": "string",
+        "enum": [
+          "immediate",
+          "recurring"
+        ]
+      },
+      "ApplePayRecurringDetails": {
+        "type": "object",
+        "required": [
+          "payment_description",
+          "regular_billing",
+          "management_url"
+        ],
+        "properties": {
+          "payment_description": {
+            "type": "string",
+            "description": "A description of the recurring payment that Apple Pay displays to the user in the payment sheet"
+          },
+          "regular_billing": {
+            "$ref": "#/components/schemas/ApplePayRegularBillingDetails"
+          },
+          "billing_agreement": {
+            "type": "string",
+            "description": "A localized billing agreement that the payment sheet displays to the user before the user authorizes the payment",
+            "nullable": true
+          },
+          "management_url": {
+            "type": "string",
+            "description": "A URL to a web page where the user can update or delete the payment method for the recurring payment",
+            "example": "https://hyperswitch.io"
+          }
+        }
+      },
+      "ApplePayRecurringPaymentRequest": {
+        "type": "object",
+        "required": [
+          "payment_description",
+          "regular_billing",
+          "management_url"
+        ],
+        "properties": {
+          "payment_description": {
+            "type": "string",
+            "description": "A description of the recurring payment that Apple Pay displays to the user in the payment sheet"
+          },
+          "regular_billing": {
+            "$ref": "#/components/schemas/ApplePayRegularBillingRequest"
+          },
+          "billing_agreement": {
+            "type": "string",
+            "description": "A localized billing agreement that the payment sheet displays to the user before the user authorizes the payment",
+            "nullable": true
+          },
+          "management_url": {
+            "type": "string",
+            "description": "A URL to a web page where the user can update or delete the payment method for the recurring payment",
+            "example": "https://hyperswitch.io"
           }
         }
       },
       "ApplePayRedirectData": {
         "type": "object"
+      },
+      "ApplePayRegularBillingDetails": {
+        "type": "object",
+        "required": [
+          "label"
+        ],
+        "properties": {
+          "label": {
+            "type": "string",
+            "description": "The label that Apple Pay displays to the user in the payment sheet with the recurring details"
+          },
+          "recurring_payment_start_date": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The date of the first payment",
+            "example": "2023-09-10T23:59:59Z",
+            "nullable": true
+          },
+          "recurring_payment_end_date": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The date of the final payment",
+            "example": "2023-09-10T23:59:59Z",
+            "nullable": true
+          },
+          "recurring_payment_interval_unit": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RecurringPaymentIntervalUnit"
+              }
+            ],
+            "nullable": true
+          },
+          "recurring_payment_interval_count": {
+            "type": "integer",
+            "format": "int32",
+            "description": "The number of interval units that make up the total payment interval",
+            "nullable": true
+          }
+        }
+      },
+      "ApplePayRegularBillingRequest": {
+        "type": "object",
+        "required": [
+          "amount",
+          "label",
+          "payment_timing"
+        ],
+        "properties": {
+          "amount": {
+            "type": "string",
+            "description": "The amount of the recurring payment",
+            "example": "38.02"
+          },
+          "label": {
+            "type": "string",
+            "description": "The label that Apple Pay displays to the user in the payment sheet with the recurring details"
+          },
+          "payment_timing": {
+            "$ref": "#/components/schemas/ApplePayPaymentTiming"
+          },
+          "recurring_payment_start_date": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The date of the first payment",
+            "nullable": true
+          },
+          "recurring_payment_end_date": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The date of the final payment",
+            "nullable": true
+          },
+          "recurring_payment_interval_unit": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RecurringPaymentIntervalUnit"
+              }
+            ],
+            "nullable": true
+          },
+          "recurring_payment_interval_count": {
+            "type": "integer",
+            "format": "int32",
+            "description": "The number of interval units that make up the total payment interval",
+            "nullable": true
+          }
+        }
       },
       "ApplePaySessionResponse": {
         "oneOf": [
@@ -8882,6 +9039,22 @@
           },
           "transaction_currency_code": {
             "$ref": "#/components/schemas/Currency"
+          },
+          "phone_number": {
+            "type": "string",
+            "example": "9123456789",
+            "nullable": true,
+            "maxLength": 255
+          },
+          "email": {
+            "type": "string",
+            "example": "johntest@test.com",
+            "nullable": true,
+            "maxLength": 255
+          },
+          "phone_country_code": {
+            "type": "string",
+            "nullable": true
           }
         }
       },
@@ -10981,6 +11154,14 @@
               "type": "string"
             },
             "description": "Additional tags to be used for global search",
+            "nullable": true
+          },
+          "apple_pay_recurring_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ApplePayRecurringDetails"
+              }
+            ],
             "nullable": true
           }
         }
@@ -14732,70 +14913,6 @@
           }
         }
       },
-      "OrderDetails": {
-        "type": "object",
-        "required": [
-          "product_name",
-          "quantity"
-        ],
-        "properties": {
-          "product_name": {
-            "type": "string",
-            "description": "Name of the product that is being purchased",
-            "example": "shirt",
-            "maxLength": 255
-          },
-          "quantity": {
-            "type": "integer",
-            "format": "int32",
-            "description": "The quantity of the product to be purchased",
-            "example": 1,
-            "minimum": 0
-          },
-          "requires_shipping": {
-            "type": "boolean",
-            "nullable": true
-          },
-          "product_img_link": {
-            "type": "string",
-            "description": "The image URL of the product",
-            "nullable": true
-          },
-          "product_id": {
-            "type": "string",
-            "description": "ID of the product that is being purchased",
-            "nullable": true
-          },
-          "category": {
-            "type": "string",
-            "description": "Category of the product that is being purchased",
-            "nullable": true
-          },
-          "sub_category": {
-            "type": "string",
-            "description": "Sub category of the product that is being purchased",
-            "nullable": true
-          },
-          "brand": {
-            "type": "string",
-            "description": "Brand of the product that is being purchased",
-            "nullable": true
-          },
-          "product_type": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/ProductType"
-              }
-            ],
-            "nullable": true
-          },
-          "product_tax_code": {
-            "type": "string",
-            "description": "The tax code for the product",
-            "nullable": true
-          }
-        }
-      },
       "OrderDetailsWithAmount": {
         "type": "object",
         "required": [
@@ -14818,7 +14935,21 @@
             "minimum": 0
           },
           "amount": {
-            "$ref": "#/components/schemas/MinorUnit"
+            "type": "integer",
+            "format": "int64",
+            "description": "the amount per quantity of product"
+          },
+          "tax_rate": {
+            "type": "number",
+            "format": "double",
+            "description": "tax rate applicable to the product",
+            "nullable": true
+          },
+          "total_tax_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "total tax amount applicable to the product",
+            "nullable": true
           },
           "requires_shipping": {
             "type": "boolean",
@@ -15227,6 +15358,17 @@
           {
             "type": "object",
             "required": [
+              "klarna_checkout"
+            ],
+            "properties": {
+              "klarna_checkout": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
               "affirm_redirect"
             ],
             "properties": {
@@ -15356,6 +15498,13 @@
             "format": "int64",
             "description": "The payment attempt amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,",
             "example": 6540
+          },
+          "order_tax_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The payment attempt tax_amount.",
+            "example": 6540,
+            "nullable": true
           },
           "currency": {
             "allOf": [
@@ -15668,6 +15817,11 @@
             "type": "boolean",
             "description": "Toggle for HyperSwitch branding visibility",
             "nullable": true
+          },
+          "payment_button_text": {
+            "type": "string",
+            "description": "Text for payment link's handle confirm button",
+            "nullable": true
           }
         }
       },
@@ -15752,6 +15906,11 @@
                 "$ref": "#/components/schemas/PaymentLinkDetailsLayout"
               }
             ],
+            "nullable": true
+          },
+          "payment_button_text": {
+            "type": "string",
+            "description": "Text for payment link's handle confirm button",
             "nullable": true
           }
         }
@@ -17155,6 +17314,13 @@
             "nullable": true,
             "minimum": 0
           },
+          "order_tax_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Total tax amount applicable to the order",
+            "example": 6540,
+            "nullable": true
+          },
           "currency": {
             "allOf": [
               {
@@ -17532,6 +17698,13 @@
             "format": "int64",
             "description": "The payment amount. Amount for the payment in the lowest denomination of the currency, (i.e) in cents for USD denomination, in yen for JPY denomination etc. E.g., Pass 100 to charge $1.00 and 1 for 1¥ since ¥ is a zero-decimal currency. Read more about [the Decimal and Non-Decimal Currencies](https://github.com/juspay/hyperswitch/wiki/Decimal-and-Non%E2%80%90Decimal-Currencies)",
             "minimum": 0
+          },
+          "order_tax_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Total tax amount applicable to the order",
+            "example": 6540,
+            "nullable": true
           },
           "currency": {
             "$ref": "#/components/schemas/Currency"
@@ -18658,6 +18831,13 @@
             "example": 6540,
             "nullable": true,
             "minimum": 0
+          },
+          "order_tax_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Total tax amount applicable to the order",
+            "example": 6540,
+            "nullable": true
           },
           "currency": {
             "allOf": [
@@ -19804,6 +19984,13 @@
             "example": 6540,
             "nullable": true,
             "minimum": 0
+          },
+          "order_tax_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Total tax amount applicable to the order",
+            "example": 6540,
+            "nullable": true
           },
           "currency": {
             "allOf": [
@@ -22569,6 +22756,16 @@
         "discriminator": {
           "propertyName": "type"
         }
+      },
+      "RecurringPaymentIntervalUnit": {
+        "type": "string",
+        "enum": [
+          "year",
+          "month",
+          "day",
+          "hour",
+          "minute"
+        ]
       },
       "RedirectResponse": {
         "type": "object",

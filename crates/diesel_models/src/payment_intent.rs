@@ -167,6 +167,8 @@ pub struct PaymentLinkConfigRequestForPayments {
     pub background_image: Option<PaymentLinkBackgroundImageConfig>,
     /// Custom layout for details section
     pub details_layout: Option<common_enums::PaymentLinkDetailsLayout>,
+    /// Text for payment link's handle confirm button
+    pub payment_button_text: Option<String>,
 }
 
 common_utils::impl_to_sql_from_sql_json!(PaymentLinkConfigRequestForPayments);
