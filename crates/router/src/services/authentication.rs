@@ -11,7 +11,7 @@ use api_models::payouts;
 use api_models::{payment_methods::PaymentMethodListRequest, payments};
 use async_trait::async_trait;
 use common_enums::TokenPurpose;
-use common_utils::{date_time, ext_traits::AsyncExt, id_type};
+use common_utils::{date_time, id_type};
 use error_stack::{report, ResultExt};
 use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
 use masking::PeekInterface;
@@ -3437,7 +3437,28 @@ async fn get_platform_merchant_account<A>(
 where
     A: SessionStateInfo + Sync,
 {
-    let connected_merchant_account = HeaderMapStruct::new(request_headers)
+    let connected_merchant_id =
+        get_and_validate_connected_merchant_id(request_headers, &merchant_account)?;
+
+    match connected_merchant_id {
+        Some(merchant_id) => {
+            let connected_merchant_account = get_connected_merchant_account(
+                state,
+                merchant_id,
+                merchant_account.organization_id.clone(),
+            )
+            .await?;
+            Ok((connected_merchant_account, Some(merchant_account)))
+        }
+        None => Ok((merchant_account, None)),
+    }
+}
+
+fn get_and_validate_connected_merchant_id(
+    request_headers: &HeaderMap,
+    merchant_account: &domain::MerchantAccount,
+) -> RouterResult<Option<id_type::MerchantId>> {
+    HeaderMapStruct::new(request_headers)
         .get_id_type_from_header_if_present::<id_type::MerchantId>(
             headers::X_CONNECTED_MERCHANT_ID,
         )?
@@ -3448,22 +3469,7 @@ where
                 .ok_or(errors::ApiErrorResponse::InvalidPlatformOperation)
         })
         .transpose()
-        .attach_printable("Non platform_merchant_account using X_CONNECTED_MERCHANT_ID header")?
-        .async_map(|merchant_id| {
-            get_connected_merchant_account(
-                state,
-                merchant_id,
-                merchant_account.organization_id.clone(),
-            )
-        })
-        .await
-        .transpose()?;
-
-    if let Some(connected_merchant_account) = connected_merchant_account {
-        Ok((connected_merchant_account, Some(merchant_account)))
-    } else {
-        Ok((merchant_account, None))
-    }
+        .attach_printable("Non platform_merchant_account using X_CONNECTED_MERCHANT_ID header")
 }
 
 fn throw_error_if_platform_merchant_authentication_required(
