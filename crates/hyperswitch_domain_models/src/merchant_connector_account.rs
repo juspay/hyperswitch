@@ -1,12 +1,11 @@
 #[cfg(feature = "v2")]
 use api_models::admin;
-#[cfg(feature = "v2")]
-use common_utils::ext_traits::ValueExt;
 use common_utils::{
     crypto::Encryptable,
     date_time,
     encryption::Encryption,
     errors::{CustomResult, ValidationError},
+    ext_traits::ValueExt,
     id_type, pii, type_name,
     types::keymanager::{Identifier, KeyManagerState, ToEncryptable},
 };
@@ -21,9 +20,10 @@ use serde_json::Value;
 use super::behaviour;
 #[cfg(feature = "v2")]
 use crate::errors::api_error_response::ApiErrorResponse;
-#[cfg(feature = "v2")]
-use crate::router_data;
-use crate::type_encryption::{crypto_operation, CryptoOperation};
+use crate::{
+    router_data,
+    type_encryption::{crypto_operation, CryptoOperation},
+};
 
 #[cfg(feature = "v1")]
 #[derive(Clone, Debug, router_derive::ToEncryption)]
@@ -64,12 +64,8 @@ impl MerchantConnectorAccount {
     }
     pub fn get_connector_account_details(
         &self,
-    ) -> error_stack::Result<
-        crate::router_data::ConnectorAuthType,
-        common_utils::errors::ParsingError,
-    > {
-        use common_utils::ext_traits::ValueExt;
-
+    ) -> error_stack::Result<router_data::ConnectorAuthType, common_utils::errors::ParsingError>
+    {
         self.connector_account_details
             .get_inner()
             .clone()

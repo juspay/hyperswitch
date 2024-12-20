@@ -5,6 +5,7 @@ pub mod customers;
 pub mod flows;
 pub mod helpers;
 pub mod operations;
+
 #[cfg(feature = "retry")]
 pub mod retry;
 pub mod routing;
@@ -30,14 +31,14 @@ pub use common_enums::enums::CallConnectorAction;
 use common_utils::{
     ext_traits::{AsyncExt, StringExt},
     id_type, pii,
-    types::{MinorUnit, Surcharge},
+    types::{AmountConvertor, MinorUnit, Surcharge},
 };
 use diesel_models::{ephemeral_key, fraud_check::FraudCheck};
 use error_stack::{report, ResultExt};
 use events::EventInfo;
 use futures::future::join_all;
 use helpers::{decrypt_paze_token, ApplePayData};
-use hyperswitch_domain_models::payments::payment_intent::CustomerData;
+use hyperswitch_domain_models::payments::{payment_intent::CustomerData, ClickToPayMetaData};
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::payments::{
     PaymentConfirmData, PaymentIntentData, PaymentStatusData,
@@ -388,7 +389,26 @@ where
             )
             .await?;
 
-        if let Some(ref authentication_product_ids) = business_profile.authentication_product_ids {
+        let merchants_eligible_for_authentication_service = state
+            .store
+            .as_ref()
+            .find_config_by_key(crate::consts::AUTHENTICATION_SERVICE_ELIGIBLE_CONFIG)
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::ConfigNotFound)?;
+        let auth_eligible_array: Vec<String> =
+            serde_json::from_str(&merchants_eligible_for_authentication_service.config)
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("unable to parse authentication service config")?;
+        let merchant_id = merchant_account.get_id();
+
+        if auth_eligible_array.contains(&merchant_id.get_string_repr().to_owned()) {
+            let authentication_product_ids = business_profile
+                .authentication_product_ids
+                .clone()
+                .ok_or(errors::ApiErrorResponse::PreconditionFailed {
+                    message: "authentication_product_ids is not configured in business profile"
+                        .to_string(),
+                })?;
             operation
                 .to_domain()?
                 .call_unified_authentication_service_if_eligible(
@@ -398,12 +418,14 @@ where
                     &connector_details,
                     &business_profile,
                     &key_store,
-                    authentication_product_ids,
+                    &authentication_product_ids,
                 )
-                .await?
+                .await?;
         } else {
-            tracing::info!("skipping unified authentication service call since no product authentication id's are present in business profile")
-        }
+            logger::info!(
+                "skipping authentication service call since the merchant is not eligible."
+            )
+        };
 
         operation
             .to_domain()?
@@ -3404,17 +3426,12 @@ pub async fn get_session_token_for_click_to_pay(
     state: &SessionState,
     merchant_id: &id_type::MerchantId,
     key_store: &domain::MerchantKeyStore,
-    authentication_product_ids: common_types::payments::MerchantConnectorAccountMap,
+    authentication_product_ids: common_types::payments::AuthenticationConnectorAccountMap,
     payment_intent: &hyperswitch_domain_models::payments::PaymentIntent,
 ) -> RouterResult<api_models::payments::SessionToken> {
-    use common_utils::types::AmountConvertor;
-    use hyperswitch_domain_models::payments::{payment_intent::CustomerData, ClickToPayMetaData};
-
-    use crate::consts::CLICK_TO_PAY;
-
     let click_to_pay_mca_id = authentication_product_ids
         .inner()
-        .get(CLICK_TO_PAY)
+        .get(&common_enums::AuthenticationProduct::ClickToPay)
         .ok_or(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Error while getting click_to_pay mca_id from business profile")?;
     let key_manager_state = &(state).into();
@@ -3442,8 +3459,8 @@ pub async fn get_session_token_for_click_to_pay(
     let required_amount_type = common_utils::types::StringMajorUnitForConnector;
     let transaction_amount = required_amount_type
         .convert(payment_intent.amount, transaction_currency)
-        .change_context(errors::ApiErrorResponse::PreconditionFailed {
-            message: "Failed to convert amount to string major unit for clickToPay".to_string(),
+        .change_context(errors::ApiErrorResponse::AmountConversionFailed {
+            amount_type: "string major unit",
         })?;
 
     let customer_details_value = payment_intent

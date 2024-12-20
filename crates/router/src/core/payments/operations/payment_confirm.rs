@@ -1045,7 +1045,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         _connector_call_type: &ConnectorCallType,
         business_profile: &domain::Profile,
         key_store: &domain::MerchantKeyStore,
-        authentication_product_ids: &common_types::payments::MerchantConnectorAccountMap,
+        authentication_product_ids: &common_types::payments::AuthenticationConnectorAccountMap,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
         if let Some(payment_method) = payment_data.payment_attempt.payment_method {
             if payment_method == storage_enums::PaymentMethod::Card
@@ -1053,7 +1053,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
             {
                 let click_to_pay_mca_id = authentication_product_ids
                     .inner()
-                    .get(consts::CLICK_TO_PAY)
+                    .get(&common_enums::enums::AuthenticationProduct::ClickToPay)
                     .ok_or(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable(
                         "Error while getting click_to_pay mca_id from business profile",
@@ -1161,7 +1161,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                 .await?;
             }
         }
-        tracing::debug!("skipping unified authentication service call since payment conditions {:?}, {:?} are not satisfied", payment_data.payment_attempt.payment_method, business_profile.is_click_to_pay_enabled);
+        logger::info!("skipping unified authentication service call since payment conditions {:?}, {:?} are not satisfied", payment_data.payment_attempt.payment_method, business_profile.is_click_to_pay_enabled);
         Ok(())
     }
 
