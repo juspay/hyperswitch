@@ -1231,6 +1231,7 @@ pub fn get_apple_pay_session<F, T>(
                         merchant_identifier: None,
                         required_billing_contact_fields: None,
                         required_shipping_contact_fields: None,
+                        recurring_payment_request: None,
                     }),
                     connector: "trustpay".to_string(),
                     delayed_session_token: true,

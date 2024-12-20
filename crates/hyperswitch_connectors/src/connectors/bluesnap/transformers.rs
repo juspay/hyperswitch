@@ -555,6 +555,7 @@ impl
                         merchant_identifier: Some(session_token_data.merchant_identifier),
                         required_billing_contact_fields: None,
                         required_shipping_contact_fields: None,
+                        recurring_payment_request: None,
                     }),
                     connector: "bluesnap".to_string(),
                     delayed_session_token: false,

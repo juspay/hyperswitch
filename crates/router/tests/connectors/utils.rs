@@ -937,6 +937,7 @@ impl Default for PaymentAuthorizeType {
             payment_method_data: types::domain::PaymentMethodData::Card(CCardType::default().0),
             amount: 100,
             minor_amount: MinorUnit::new(100),
+            order_tax_amount: Some(MinorUnit::zero()),
             currency: enums::Currency::USD,
             confirm: true,
             statement_descriptor_suffix: None,
