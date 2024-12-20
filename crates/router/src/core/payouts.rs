@@ -24,8 +24,7 @@ use common_utils::{
 use diesel_models::{
     enums as storage_enums,
     generic_link::{GenericLinkNew, PayoutLink},
-    CommonMandateReference, PaymentsMandateReferenceRecord,
-    PayoutsMandateReference, PayoutsMandateReferenceRecord,
+    CommonMandateReference, PayoutsMandateReference, PayoutsMandateReferenceRecord,
 };
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use diesel_models::{

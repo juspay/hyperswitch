@@ -3,7 +3,7 @@ use common_utils::{
     crypto::Encryptable,
     encryption::Encryption,
     errors::CustomResult,
-    ext_traits::{AsyncExt, StringExt, ValueExt},
+    ext_traits::{AsyncExt, StringExt},
     fp_utils, id_type, payout_method_utils as payout_additional, pii, type_name,
     types::{
         keymanager::{Identifier, KeyManagerState},
@@ -209,7 +209,8 @@ pub fn should_create_connector_transfer_method(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("unable to deserialize connector mandate details")?;
 
-        
+        #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+        let common_mandate_reference = pm.connector_mandate_details.clone().unwrap_or_default();
 
         if let Some(merchant_connector_id) = connector_data.merchant_connector_id.as_ref() {
             common_mandate_reference

@@ -243,7 +243,7 @@ pub struct PaymentMethodMigrate {
     pub billing: Option<payments::Address>,
 
     /// The connector mandate details of the payment method
-    pub connector_mandate_details: Option<PaymentsMandateReference>,
+    pub connector_mandate_details: Option<CommonMandateReference>,
 
     // The CIT (customer initiated transaction) transaction id associated with the payment method
     pub network_transaction_id: Option<String>,
@@ -267,10 +267,20 @@ pub struct PaymentMethodMigrateResponse {
     pub network_transaction_id_migrated: Option<bool>,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PaymentsMandateReference(
     pub HashMap<id_type::MerchantConnectorAccountId, PaymentsMandateReferenceRecord>,
 );
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct PayoutsMandateReference(
+    pub HashMap<id_type::MerchantConnectorAccountId, PayoutsMandateReferenceRecord>,
+);
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct PayoutsMandateReferenceRecord {
+    pub transfer_method_id: Option<String>,
+}
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PaymentsMandateReferenceRecord {
@@ -278,6 +288,95 @@ pub struct PaymentsMandateReferenceRecord {
     pub payment_method_type: Option<common_enums::PaymentMethodType>,
     pub original_payment_authorized_amount: Option<i64>,
     pub original_payment_authorized_currency: Option<common_enums::Currency>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct CommonMandateReference {
+    pub payments: Option<PaymentsMandateReference>,
+    pub payouts: Option<PayoutsMandateReference>,
+}
+
+impl<'de> serde::Deserialize<'de> for PaymentMethodMigrate {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        #[derive(Debug, serde::Deserialize)]
+        struct InnerPaymentMethodMigrate {
+            pub merchant_id: id_type::MerchantId,
+            pub payment_method: Option<api_enums::PaymentMethod>,
+            pub payment_method_type: Option<api_enums::PaymentMethodType>,
+            pub payment_method_issuer: Option<String>,
+            pub payment_method_issuer_code: Option<api_enums::PaymentMethodIssuerCode>,
+            pub card: Option<MigrateCardDetail>,
+            pub network_token: Option<MigrateNetworkTokenDetail>,
+            pub metadata: Option<pii::SecretSerdeValue>,
+            pub customer_id: Option<id_type::CustomerId>,
+            pub card_network: Option<String>,
+            pub bank_transfer: Option<payouts::Bank>,
+            pub wallet: Option<payouts::Wallet>,
+            pub payment_method_data: Option<PaymentMethodCreateData>,
+            pub billing: Option<payments::Address>,
+            pub connector_mandate_details: Option<serde_json::Value>,
+            pub network_transaction_id: Option<String>,
+        }
+
+        let inner = InnerPaymentMethodMigrate::deserialize(deserializer)?;
+
+        let connector_mandate_details =
+            if let Some(connector_mandate_value) = inner.connector_mandate_details {
+                if let Ok(common_mandate) = serde_json::from_value::<CommonMandateReference>(
+                    connector_mandate_value.clone(),
+                ) {
+                    Some(common_mandate)
+                } else if let Ok(payment_mandate_record) =
+                    serde_json::from_value::<PaymentsMandateReference>(connector_mandate_value)
+                {
+                    Some(CommonMandateReference {
+                        payments: Some(payment_mandate_record),
+                        payouts: None,
+                    })
+                } else {
+                    return Err(de::Error::custom("Faild to deserialize PaymentMethod_V2"));
+                }
+            } else {
+                None
+            };
+
+        Ok(Self {
+            merchant_id: inner.merchant_id,
+            payment_method: inner.payment_method,
+            payment_method_type: inner.payment_method_type,
+            payment_method_issuer: inner.payment_method_issuer,
+            payment_method_issuer_code: inner.payment_method_issuer_code,
+            card: inner.card,
+            network_token: inner.network_token,
+            metadata: inner.metadata,
+            customer_id: inner.customer_id,
+            card_network: inner.card_network,
+            bank_transfer: inner.bank_transfer,
+            wallet: inner.wallet,
+            payment_method_data: inner.payment_method_data,
+            billing: inner.billing,
+            connector_mandate_details,
+            network_transaction_id: inner.network_transaction_id,
+        })
+    }
+}
+
+pub fn convert_to_payments_reference(
+    common_mandate: Option<CommonMandateReference>,
+) -> Option<PaymentsMandateReference> {
+    common_mandate.and_then(|cm| cm.payments)
+}
+
+pub fn convert_to_common_reference(
+    payments_reference: Option<PaymentsMandateReference>,
+) -> Option<CommonMandateReference> {
+    payments_reference.map(|payments| CommonMandateReference {
+        payments: Some(payments),
+        payouts: None,
+    })
 }
 
 #[cfg(all(
@@ -313,7 +412,9 @@ impl PaymentMethodCreate {
             payment_method_issuer_code: payment_method_migrate.payment_method_issuer_code,
             metadata: payment_method_migrate.metadata.clone(),
             payment_method_data: payment_method_migrate.payment_method_data.clone(),
-            connector_mandate_details: payment_method_migrate.connector_mandate_details.clone(),
+            connector_mandate_details: convert_to_payments_reference(
+                payment_method_migrate.connector_mandate_details.clone(),
+            ),
             client_secret: None,
             billing: payment_method_migrate.billing.clone(),
             card: card_details,
@@ -2328,7 +2429,7 @@ impl
                 }),
                 email: record.email,
             }),
-            connector_mandate_details,
+            connector_mandate_details: convert_to_common_reference(connector_mandate_details),
             metadata: None,
             payment_method_issuer_code: None,
             card_network: None,
