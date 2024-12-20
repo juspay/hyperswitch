@@ -793,5 +793,4 @@ pub(crate) enum ForceSync {
     operation_id = "Retrieve Payment methods for a Payment",
     security(("publishable_key" = []))
 )]
-#[cfg(feature = "v2")]
 pub fn list_payment_methods() {}
