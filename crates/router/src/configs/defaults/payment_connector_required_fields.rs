@@ -8524,7 +8524,7 @@ impl Default for settings::RequiredFields {
                                     enums::Connector::Bankofamerica,
                                     RequiredFieldFinal {
                                         mandate: HashMap::new(),
-                                        non_mandate: HashMap::new()
+                                        non_mandate: HashMap::new(),
                                         common:  HashMap::from(
                                             [
                                                 (
