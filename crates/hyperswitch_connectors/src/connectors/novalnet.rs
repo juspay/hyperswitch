@@ -34,7 +34,7 @@ use hyperswitch_domain_models::{
 use hyperswitch_interfaces::{
     api::{
         self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorRedirectResponse,
-        ConnectorValidation,
+        ConnectorSpecifications, ConnectorValidation,
     },
     configs::Connectors,
     disputes, errors,
@@ -158,9 +158,10 @@ impl ConnectorCommon for Novalnet {
 }
 
 impl ConnectorValidation for Novalnet {
-    fn validate_capture_method(
+    fn validate_connector_against_payment_request(
         &self,
         capture_method: Option<enums::CaptureMethod>,
+        _payment_method: enums::PaymentMethod,
         _pmt: Option<enums::PaymentMethodType>,
     ) -> CustomResult<(), errors::ConnectorError> {
         let capture_method = capture_method.unwrap_or_default();
@@ -920,3 +921,5 @@ impl webhooks::IncomingWebhook for Novalnet {
         })
     }
 }
+
+impl ConnectorSpecifications for Novalnet {}

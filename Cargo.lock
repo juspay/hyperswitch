@@ -4003,6 +4003,7 @@ dependencies = [
  "hyperswitch_domain_models",
  "hyperswitch_interfaces",
  "image",
+ "lazy_static",
  "masking",
  "mime",
  "once_cell",

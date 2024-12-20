@@ -22,7 +22,7 @@ use super::utils::{self as connector_utils, FrmTransactionRouterDataRequest};
 use crate::{
     configs::settings,
     core::errors::{self, CustomResult},
-    services::{self, ConnectorIntegration, ConnectorValidation},
+    services::{self, ConnectorIntegration, ConnectorSpecifications, ConnectorValidation},
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
@@ -677,3 +677,5 @@ impl api::IncomingWebhook for Riskified {
         Ok(Box::new(resource))
     }
 }
+
+impl ConnectorSpecifications for Riskified {}

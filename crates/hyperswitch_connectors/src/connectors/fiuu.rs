@@ -2,7 +2,7 @@ pub mod transformers;
 
 use std::collections::{HashMap, HashSet};
 
-use common_enums::{CaptureMethod, PaymentMethodType};
+use common_enums::{CaptureMethod, PaymentMethod, PaymentMethodType};
 use common_utils::{
     crypto::{self, GenerateDigest},
     errors::{self as common_errors, CustomResult},
@@ -31,7 +31,10 @@ use hyperswitch_domain_models::{
     },
 };
 use hyperswitch_interfaces::{
-    api::{self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorValidation},
+    api::{
+        self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorSpecifications,
+        ConnectorValidation,
+    },
     configs::Connectors,
     errors,
     events::connector_api_logs::ConnectorEvent,
@@ -202,9 +205,10 @@ pub fn build_form_from_struct<T: Serialize>(data: T) -> Result<Form, common_erro
 }
 
 impl ConnectorValidation for Fiuu {
-    fn validate_capture_method(
+    fn validate_connector_against_payment_request(
         &self,
         capture_method: Option<CaptureMethod>,
+        _payment_method: PaymentMethod,
         _pmt: Option<PaymentMethodType>,
     ) -> CustomResult<(), errors::ConnectorError> {
         let capture_method = capture_method.unwrap_or_default();
@@ -925,3 +929,5 @@ impl webhooks::IncomingWebhook for Fiuu {
         Ok(mandate_reference)
     }
 }
+
+impl ConnectorSpecifications for Fiuu {}

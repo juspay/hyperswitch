@@ -511,3 +511,56 @@ pub struct CompleteAuthorizeRedirectResponse {
     pub params: Option<masking::Secret<String>>,
     pub payload: Option<common_utils::pii::SecretSerdeValue>,
 }
+
+/// Represents details of a payment method.
+#[derive(Debug, Clone)]
+pub struct PaymentMethodDetails {
+    /// Indicates whether mandates are supported by this payment method.
+    pub mandates: common_enums::FeatureStatus,
+    /// Indicates whether refund is supported by this payment method.
+    pub refunds: common_enums::FeatureStatus,
+    /// List of supported capture methods
+    pub supported_capture_methods: Vec<common_enums::CaptureMethod>,
+}
+
+/// list of payment method types and metadata related to them
+pub type PaymentMethodTypeMetadata = HashMap<common_enums::PaymentMethodType, PaymentMethodDetails>;
+
+/// list of payment methods, payment method types and metadata related to them
+pub type SupportedPaymentMethods = HashMap<common_enums::PaymentMethod, PaymentMethodTypeMetadata>;
+
+#[derive(Debug, Clone)]
+pub struct ConnectorInfo {
+    /// Description of the connector.
+    pub description: String,
+
+    /// Connector Type
+    pub connector_type: common_enums::PaymentConnectorCategory,
+}
+
+pub trait SupportedPaymentMethodsExt {
+    fn add(
+        &mut self,
+        payment_method: common_enums::PaymentMethod,
+        payment_method_type: common_enums::PaymentMethodType,
+        payment_method_details: PaymentMethodDetails,
+    );
+}
+
+impl SupportedPaymentMethodsExt for SupportedPaymentMethods {
+    fn add(
+        &mut self,
+        payment_method: common_enums::PaymentMethod,
+        payment_method_type: common_enums::PaymentMethodType,
+        payment_method_details: PaymentMethodDetails,
+    ) {
+        if let Some(payment_method_data) = self.get_mut(&payment_method) {
+            payment_method_data.insert(payment_method_type, payment_method_details);
+        } else {
+            let mut payment_method_type_metadata = PaymentMethodTypeMetadata::new();
+            payment_method_type_metadata.insert(payment_method_type, payment_method_details);
+
+            self.insert(payment_method, payment_method_type_metadata);
+        }
+    }
+}

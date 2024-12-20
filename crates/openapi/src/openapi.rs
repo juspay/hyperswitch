@@ -306,6 +306,8 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::enums::PaymentLinkDetailsLayout,
         api_models::enums::PaymentMethodStatus,
         api_models::enums::UIWidgetFormLayout,
+        api_models::enums::PaymentConnectorCategory,
+        api_models::enums::FeatureStatus,
         api_models::admin::MerchantConnectorCreate,
         api_models::admin::AdditionalMerchantData,
         api_models::admin::ConnectorWalletDetails,
@@ -688,7 +690,11 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::DisplayAmountOnSdk,
         api_models::payments::PaymentsPostSessionTokensRequest,
         api_models::payments::PaymentsPostSessionTokensResponse,
-        api_models::payments::CtpServiceDetails
+        api_models::payments::CtpServiceDetails,
+        api_models::feature_matrix::FeatureMatrixListResponse,
+        api_models::feature_matrix::FeatureMatrixRequest,
+        api_models::feature_matrix::ConnectorFeatureMatrixResponse,
+        api_models::feature_matrix::SupportedPaymentMethod,
     )),
     modifiers(&SecurityAddon)
 )]
