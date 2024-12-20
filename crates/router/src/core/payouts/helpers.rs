@@ -209,6 +209,8 @@ pub fn should_create_connector_transfer_method(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("unable to deserialize connector mandate details")?;
 
+        
+
         if let Some(merchant_connector_id) = connector_data.merchant_connector_id.as_ref() {
             common_mandate_reference
                 .payouts
