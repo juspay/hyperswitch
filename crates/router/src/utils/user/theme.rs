@@ -190,7 +190,7 @@ pub async fn get_most_specific_theme_using_lineage(
     lineage: ThemeLineage,
 ) -> UserResult<Option<Theme>> {
     match state
-        .global_store
+        .store
         .find_most_specific_theme_in_lineage(lineage)
         .await
     {
@@ -210,7 +210,7 @@ pub async fn get_theme_using_optional_theme_id(
     theme_id: Option<String>,
 ) -> UserResult<Option<Theme>> {
     match theme_id
-        .async_map(|theme_id| state.global_store.find_theme_by_theme_id(theme_id))
+        .async_map(|theme_id| state.store.find_theme_by_theme_id(theme_id))
         .await
         .transpose()
     {

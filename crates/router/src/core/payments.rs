@@ -1803,6 +1803,7 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
                     json_payload: Some(req.json_payload.unwrap_or(serde_json::json!({})).into()),
                 }),
                 search_tags: None,
+                apple_pay_recurring_details: None,
             }),
             ..Default::default()
         };
@@ -2270,6 +2271,7 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
                         ),
                     }),
                     search_tags: None,
+                    apple_pay_recurring_details: None,
                 }),
                 ..Default::default()
             };
