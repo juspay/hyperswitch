@@ -114,12 +114,18 @@ pub struct ConfigMetadata {
     pub source_balance_account: Option<InputData>,
     pub brand_id: Option<InputData>,
     pub destination_account_number: Option<InputData>,
+    pub dpa_id: Option<String>,
+    pub dpa_name: Option<String>,
+    pub locale: Option<String>,
+    pub card_brands: Option<Vec<String>>,
+    pub merchant_category_code: Option<String>,
 }
 
 #[serde_with::skip_serializing_none]
 #[derive(Debug, Deserialize, serde::Serialize, Clone)]
 pub struct ConnectorWalletDetailsConfig {
     pub samsung_pay: Option<Vec<InputData>>,
+    pub paze: Option<Vec<InputData>>,
 }
 
 #[serde_with::skip_serializing_none]
@@ -241,6 +247,8 @@ pub struct ConnectorConfig {
     pub zen: Option<ConnectorTomlConfig>,
     pub zsl: Option<ConnectorTomlConfig>,
     pub taxjar: Option<ConnectorTomlConfig>,
+    pub ctp_mastercard: Option<ConnectorTomlConfig>,
+    pub unified_authentication_service: Option<ConnectorTomlConfig>,
 }
 
 impl ConnectorConfig {
@@ -295,6 +303,10 @@ impl ConnectorConfig {
             AuthenticationConnectors::Threedsecureio => Ok(connector_data.threedsecureio),
             AuthenticationConnectors::Netcetera => Ok(connector_data.netcetera),
             AuthenticationConnectors::Gpayments => Ok(connector_data.gpayments),
+            AuthenticationConnectors::CtpMastercard => Ok(connector_data.ctp_mastercard),
+            AuthenticationConnectors::UnifiedAuthenticationService => {
+                Ok(connector_data.unified_authentication_service)
+            }
         }
     }
 
@@ -411,6 +423,7 @@ impl ConnectorConfig {
             #[cfg(feature = "dummy_connector")]
             Connector::DummyConnector7 => Ok(connector_data.paypal_test),
             Connector::Netcetera => Ok(connector_data.netcetera),
+            Connector::CtpMastercard => Ok(connector_data.ctp_mastercard),
         }
     }
 }

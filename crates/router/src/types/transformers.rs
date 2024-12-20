@@ -228,6 +228,11 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Checkout => Self::Checkout,
             api_enums::Connector::Coinbase => Self::Coinbase,
             api_enums::Connector::Cryptopay => Self::Cryptopay,
+            api_enums::Connector::CtpMastercard => {
+                Err(common_utils::errors::ValidationError::InvalidValue {
+                    message: "ctp mastercard is not a routable connector".to_string(),
+                })?
+            }
             api_enums::Connector::Cybersource => Self::Cybersource,
             api_enums::Connector::Datatrans => Self::Datatrans,
             api_enums::Connector::Deutschebank => Self::Deutschebank,
@@ -299,6 +304,9 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             // api_enums::Connector::Thunes => Self::Thunes,
             api_enums::Connector::Trustpay => Self::Trustpay,
             api_enums::Connector::Tsys => Self::Tsys,
+            // api_enums::Connector::UnifiedAuthenticationService => {
+            //     Self::UnifiedAuthenticationService
+            // }
             api_enums::Connector::Volt => Self::Volt,
             api_enums::Connector::Wellsfargo => Self::Wellsfargo,
             // api_enums::Connector::Wellsfargopayout => Self::Wellsfargopayout,
@@ -709,7 +717,7 @@ impl ForeignFrom<&api_types::ConfigUpdate> for storage::ConfigUpdate {
     }
 }
 
-impl From<&domain::Address> for api_types::Address {
+impl From<&domain::Address> for hyperswitch_domain_models::address::Address {
     fn from(address: &domain::Address) -> Self {
         // If all the fields of address are none, then pass the address as None
         let address_details = if address.city.is_none()
@@ -724,7 +732,7 @@ impl From<&domain::Address> for api_types::Address {
         {
             None
         } else {
-            Some(api_types::AddressDetails {
+            Some(hyperswitch_domain_models::address::AddressDetails {
                 city: address.city.clone(),
                 country: address.country,
                 line1: address.line1.clone().map(Encryptable::into_inner),
@@ -741,7 +749,7 @@ impl From<&domain::Address> for api_types::Address {
         let phone_details = if address.phone_number.is_none() && address.country_code.is_none() {
             None
         } else {
-            Some(api_types::PhoneDetails {
+            Some(hyperswitch_domain_models::address::PhoneDetails {
                 number: address.phone_number.clone().map(Encryptable::into_inner),
                 country_code: address.country_code.clone(),
             })
@@ -1231,6 +1239,7 @@ impl ForeignFrom<storage::PaymentAttempt> for payments::PaymentAttemptResponse {
             attempt_id: payment_attempt.attempt_id,
             status: payment_attempt.status,
             amount: payment_attempt.net_amount.get_order_amount(),
+            order_tax_amount: payment_attempt.net_amount.get_order_tax_amount(),
             currency: payment_attempt.currency,
             connector: payment_attempt.connector,
             error_message: payment_attempt.error_reason,
@@ -1553,7 +1562,9 @@ impl
                 field_name: "customer_details",
             })?;
 
-        let mut billing_address = billing.map(api_types::Address::from);
+        let mut billing_address = billing
+            .map(hyperswitch_domain_models::address::Address::from)
+            .map(api_types::Address::from);
 
         // This change is to fix a merchant integration
         // If billing.email is not passed by the merchant, and if the customer email is present, then use the `customer.email` as the billing email
@@ -1582,7 +1593,9 @@ impl
 
         Ok(Self {
             currency: payment_attempt.map(|pa| pa.currency.unwrap_or_default()),
-            shipping: shipping.map(api_types::Address::from),
+            shipping: shipping
+                .map(hyperswitch_domain_models::address::Address::from)
+                .map(api_types::Address::from),
             billing: billing_address,
             amount: payment_attempt
                 .map(|pa| api_types::Amount::from(pa.net_amount.get_order_amount())),
@@ -1686,6 +1699,7 @@ impl ForeignFrom<gsm_api_types::GsmCreateRequest> for storage::GatewayStatusMapp
             step_up_possible: value.step_up_possible,
             unified_code: value.unified_code,
             unified_message: value.unified_message,
+            error_category: value.error_category,
         }
     }
 }
@@ -1704,6 +1718,7 @@ impl ForeignFrom<storage::GatewayStatusMap> for gsm_api_types::GsmResponse {
             step_up_possible: value.step_up_possible,
             unified_code: value.unified_code,
             unified_message: value.unified_message,
+            error_category: value.error_category,
         }
     }
 }
@@ -1912,6 +1927,7 @@ impl ForeignFrom<api_models::admin::BusinessPaymentLinkConfig>
                     .collect()
             }),
             allowed_domains: item.allowed_domains,
+            branding_visibility: item.branding_visibility,
         }
     }
 }
@@ -1929,6 +1945,7 @@ impl ForeignFrom<diesel_models::business_profile::BusinessPaymentLinkConfig>
                     .collect()
             }),
             allowed_domains: item.allowed_domains,
+            branding_visibility: item.branding_visibility,
         }
     }
 }
@@ -1946,6 +1963,11 @@ impl ForeignFrom<api_models::admin::PaymentLinkConfigRequest>
             enabled_saved_payment_method: item.enabled_saved_payment_method,
             hide_card_nickname_field: item.hide_card_nickname_field,
             show_card_form_by_default: item.show_card_form_by_default,
+            details_layout: item.details_layout,
+            background_image: item
+                .background_image
+                .map(|background_image| background_image.foreign_into()),
+            payment_button_text: item.payment_button_text,
         }
     }
 }
@@ -1964,6 +1986,37 @@ impl ForeignFrom<diesel_models::business_profile::PaymentLinkConfigRequest>
             hide_card_nickname_field: item.hide_card_nickname_field,
             show_card_form_by_default: item.show_card_form_by_default,
             transaction_details: None,
+            details_layout: item.details_layout,
+            background_image: item
+                .background_image
+                .map(|background_image| background_image.foreign_into()),
+            payment_button_text: item.payment_button_text,
+        }
+    }
+}
+
+impl ForeignFrom<diesel_models::business_profile::PaymentLinkBackgroundImageConfig>
+    for api_models::admin::PaymentLinkBackgroundImageConfig
+{
+    fn foreign_from(
+        item: diesel_models::business_profile::PaymentLinkBackgroundImageConfig,
+    ) -> Self {
+        Self {
+            url: item.url,
+            position: item.position,
+            size: item.size,
+        }
+    }
+}
+
+impl ForeignFrom<api_models::admin::PaymentLinkBackgroundImageConfig>
+    for diesel_models::business_profile::PaymentLinkBackgroundImageConfig
+{
+    fn foreign_from(item: api_models::admin::PaymentLinkBackgroundImageConfig) -> Self {
+        Self {
+            url: item.url,
+            position: item.position,
+            size: item.size,
         }
     }
 }

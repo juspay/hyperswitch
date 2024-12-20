@@ -136,7 +136,8 @@ impl ConnectorValidation for Globalpay {
         match capture_method {
             enums::CaptureMethod::Automatic
             | enums::CaptureMethod::Manual
-            | enums::CaptureMethod::ManualMultiple => Ok(()),
+            | enums::CaptureMethod::ManualMultiple
+            | enums::CaptureMethod::SequentialAutomatic => Ok(()),
             enums::CaptureMethod::Scheduled => Err(
                 connector_utils::construct_not_implemented_error_report(capture_method, self.id()),
             ),

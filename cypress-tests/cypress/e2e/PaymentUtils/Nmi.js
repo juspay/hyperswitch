@@ -38,6 +38,38 @@ export const connectorDetails = {
         },
       },
     },
+    PaymentIntentWithShippingCost: {
+      Request: {
+        currency: "USD",
+        shipping_cost: 50,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+          shipping_cost: 50,
+          amount: 6500,
+        },
+      },
+    },
+    PaymentConfirmWithShippingCost: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
+          shipping_cost: 50,
+          amount: 6500,
+        },
+      },
+    },
     "3DSManualCapture": {
       Request: {
         payment_method: "card",
@@ -307,6 +339,10 @@ export const connectorDetails = {
       },
     },
     PaymentMethodIdMandate3DSAutoCapture: {
+      Configs: {
+        // Skipping redirection here for mandate 3ds auto capture as it requires changes from the core
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -317,8 +353,6 @@ export const connectorDetails = {
         customer_acceptance: customerAcceptance,
       },
       Response: {
-        // Skipping redirection here for mandate 3ds auto capture as it requires changes from the core
-        trigger_skip: true,
         status: 200,
         body: {
           status: "requires_customer_action",
@@ -326,6 +360,9 @@ export const connectorDetails = {
       },
     },
     PaymentMethodIdMandate3DSManualCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
@@ -335,8 +372,6 @@ export const connectorDetails = {
         customer_acceptance: customerAcceptance,
       },
       Response: {
-        trigger_skip: true,
-
         status: 200,
         body: {
           status: "requires_customer_action",

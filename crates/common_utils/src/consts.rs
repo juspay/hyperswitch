@@ -119,6 +119,8 @@ pub const MAX_ALLOWED_MERCHANT_NAME_LENGTH: usize = 64;
 /// Default locale
 pub const DEFAULT_LOCALE: &str = "en";
 
+/// Role ID for Tenant Admin
+pub const ROLE_ID_TENANT_ADMIN: &str = "tenant_admin";
 /// Role ID for Org Admin
 pub const ROLE_ID_ORGANIZATION_ADMIN: &str = "org_admin";
 /// Role ID for Internal View Only
@@ -140,3 +142,7 @@ pub const PUBLISHABLE_KEY_LENGTH: u16 = 39;
 /// The number of bytes allocated for the hashed connector transaction ID.
 /// Total number of characters equals CONNECTOR_TRANSACTION_ID_HASH_BYTES times 2.
 pub const CONNECTOR_TRANSACTION_ID_HASH_BYTES: usize = 25;
+
+/// Apple Pay validation url
+pub const APPLEPAY_VALIDATION_URL: &str =
+    "https://apple-pay-gateway-cert.apple.com/paymentservices/startSession";

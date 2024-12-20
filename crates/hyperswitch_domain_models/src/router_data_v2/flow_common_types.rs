@@ -149,3 +149,9 @@ pub struct FilesFlowData {
     pub connector_meta_data: Option<pii::SecretSerdeValue>,
     pub connector_request_reference_id: String,
 }
+
+#[derive(Debug, Clone)]
+pub struct UasFlowData {
+    pub authenticate_by: String,
+    pub source_authentication_id: String,
+}

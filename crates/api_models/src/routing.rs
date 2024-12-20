@@ -522,6 +522,7 @@ pub struct DynamicAlgorithmWithTimestamp<T> {
 #[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize)]
 pub struct DynamicRoutingAlgorithmRef {
     pub success_based_algorithm: Option<SuccessBasedAlgorithm>,
+    pub dynamic_routing_volume_split: Option<u8>,
     pub elimination_routing_algorithm: Option<EliminationRoutingAlgorithm>,
 }
 
@@ -554,32 +555,6 @@ impl DynamicRoutingAlgoAccessor for EliminationRoutingAlgorithm {
     }
 }
 
-impl EliminationRoutingAlgorithm {
-    pub fn new(
-        algorithm_id_with_timestamp: DynamicAlgorithmWithTimestamp<
-            common_utils::id_type::RoutingId,
-        >,
-    ) -> Self {
-        Self {
-            algorithm_id_with_timestamp,
-            enabled_feature: DynamicRoutingFeatures::None,
-        }
-    }
-}
-
-impl SuccessBasedAlgorithm {
-    pub fn new(
-        algorithm_id_with_timestamp: DynamicAlgorithmWithTimestamp<
-            common_utils::id_type::RoutingId,
-        >,
-    ) -> Self {
-        Self {
-            algorithm_id_with_timestamp,
-            enabled_feature: DynamicRoutingFeatures::None,
-        }
-    }
-}
-
 impl DynamicRoutingAlgorithmRef {
     pub fn update(&mut self, new: Self) {
         if let Some(elimination_routing_algorithm) = new.elimination_routing_algorithm {
@@ -608,8 +583,63 @@ impl DynamicRoutingAlgorithmRef {
             }
         }
     }
+
+    pub fn update_volume_split(&mut self, volume: Option<u8>) {
+        self.dynamic_routing_volume_split = volume
+    }
 }
 
+impl EliminationRoutingAlgorithm {
+    pub fn new(
+        algorithm_id_with_timestamp: DynamicAlgorithmWithTimestamp<
+            common_utils::id_type::RoutingId,
+        >,
+    ) -> Self {
+        Self {
+            algorithm_id_with_timestamp,
+            enabled_feature: DynamicRoutingFeatures::None,
+        }
+    }
+}
+
+impl SuccessBasedAlgorithm {
+    pub fn new(
+        algorithm_id_with_timestamp: DynamicAlgorithmWithTimestamp<
+            common_utils::id_type::RoutingId,
+        >,
+    ) -> Self {
+        Self {
+            algorithm_id_with_timestamp,
+            enabled_feature: DynamicRoutingFeatures::None,
+        }
+    }
+}
+
+#[derive(Debug, Default, Clone, Copy, serde::Serialize, serde::Deserialize)]
+pub struct RoutingVolumeSplit {
+    pub routing_type: RoutingType,
+    pub split: u8,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct RoutingVolumeSplitWrapper {
+    pub routing_info: RoutingVolumeSplit,
+    pub profile_id: common_utils::id_type::ProfileId,
+}
+
+#[derive(Debug, Default, Clone, Copy, serde::Serialize, serde::Deserialize, Eq, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum RoutingType {
+    #[default]
+    Static,
+    Dynamic,
+}
+
+impl RoutingType {
+    pub fn is_dynamic_routing(self) -> bool {
+        self == Self::Dynamic
+    }
+}
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct SuccessBasedAlgorithm {
     pub algorithm_id_with_timestamp:
@@ -673,6 +703,11 @@ pub struct ToggleDynamicRoutingQuery {
     pub enable: DynamicRoutingFeatures,
 }
 
+#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct DynamicRoutingVolumeSplitQuery {
+    pub split: u8,
+}
+
 #[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum DynamicRoutingFeatures {
@@ -705,14 +740,13 @@ pub struct ToggleDynamicRoutingPath {
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, ToSchema)]
 pub struct EliminationRoutingConfig {
     pub params: Option<Vec<DynamicRoutingConfigParams>>,
-    // pub labels: Option<Vec<String>>,
     pub elimination_analyser_config: Option<EliminationAnalyserConfig>,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, ToSchema)]
 pub struct EliminationAnalyserConfig {
-    pub bucket_size: Option<u32>,
-    pub bucket_ttl_in_mins: Option<f64>,
+    pub bucket_size: Option<u64>,
+    pub bucket_leak_interval_in_secs: Option<u64>,
 }
 
 impl Default for EliminationRoutingConfig {
@@ -721,7 +755,7 @@ impl Default for EliminationRoutingConfig {
             params: Some(vec![DynamicRoutingConfigParams::PaymentMethod]),
             elimination_analyser_config: Some(EliminationAnalyserConfig {
                 bucket_size: Some(5),
-                bucket_ttl_in_mins: Some(2.0),
+                bucket_leak_interval_in_secs: Some(2),
             }),
         }
     }
@@ -822,6 +856,21 @@ impl CurrentBlockThreshold {
     pub fn update(&mut self, new: Self) {
         if let Some(max_total_count) = new.max_total_count {
             self.max_total_count = Some(max_total_count)
+        }
+    }
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
+pub struct RoutableConnectorChoiceWithBucketName {
+    pub routable_connector_choice: RoutableConnectorChoice,
+    pub bucket_name: String,
+}
+
+impl RoutableConnectorChoiceWithBucketName {
+    pub fn new(routable_connector_choice: RoutableConnectorChoice, bucket_name: String) -> Self {
+        Self {
+            routable_connector_choice,
+            bucket_name,
         }
     }
 }
