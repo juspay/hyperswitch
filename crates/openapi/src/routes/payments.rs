@@ -691,6 +691,18 @@ pub fn payments_update_intent() {}
 #[utoipa::path(
   post,
   path = "/v2/payments/{id}/confirm-intent",
+  params (("id" = String, Path, description = "The unique identifier for the Payment Intent"),
+      (
+        "X-Profile-Id" = String, Header,
+        description = "Profile ID associated to the payment intent",
+        example = json!({"X-Profile-Id": "pro_abcdefghijklmnop"})
+      ),
+      (
+        "X-Client-Secret" = String, Header,
+        description = "Client Secret Associated with the payment intent",
+        example = json!({"X-Client-Secret": "12345_pay_0193e41106e07e518940f8b51b9c8121_secret_0193e41107027a928d61d292e6a5dba9"})
+      ),
+    ),
   request_body(
       content = PaymentsConfirmIntentRequest,
       examples(
@@ -761,6 +773,16 @@ pub(crate) enum ForceSync {
     path = "/v2/payments/{id}/payment-methods",
     params(
         ("id" = String, Path, description = "The global payment id"),
+        (
+          "X-Profile-Id" = String, Header,
+          description = "Profile ID associated to the payment intent",
+          example = json!({"X-Profile-Id": "pro_abcdefghijklmnop"})
+        ),
+        (
+          "X-Client-Secret" = String, Header,
+          description = "Client Secret Associated with the payment intent",
+          example = json!({"X-Client-Secret": "12345_pay_0193e41106e07e518940f8b51b9c8121_secret_0193e41107027a928d61d292e6a5dba9"})
+        ),
     ),
     responses(
         (status = 200, description = "Get the payment methods", body = PaymentMethodListResponseForPayments),
