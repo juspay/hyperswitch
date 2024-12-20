@@ -69,6 +69,7 @@ pub struct PaymentMethod {
     pub network_token_requestor_reference_id: Option<String>,
     pub network_token_locker_id: Option<String>,
     pub network_token_payment_method_data: OptionalEncryptableValue,
+    pub transaction_flow: Option<storage_enums::PaymentDirection>,
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
@@ -84,7 +85,7 @@ pub struct PaymentMethod {
         OptionalEncryptableJsonType<api_models::payment_methods::PaymentMethodsData>,
     pub locker_id: Option<VaultId>,
     pub last_used_at: PrimitiveDateTime,
-    pub connector_mandate_details: Option<diesel_models::PaymentsMandateReference>,
+    pub connector_mandate_details: Option<diesel_models::CommonMandateReference>,
     pub customer_acceptance: Option<pii::SecretSerdeValue>,
     pub status: storage_enums::PaymentMethodStatus,
     pub network_transaction_id: Option<String>,
@@ -97,6 +98,7 @@ pub struct PaymentMethod {
     pub network_token_requestor_reference_id: Option<String>,
     pub network_token_locker_id: Option<String>,
     pub network_token_payment_method_data: OptionalEncryptableValue,
+    pub transaction_flow: Option<storage_enums::PaymentDirection>,
 }
 
 impl PaymentMethod {
@@ -188,6 +190,7 @@ impl super::behaviour::Conversion for PaymentMethod {
             network_token_payment_method_data: self
                 .network_token_payment_method_data
                 .map(|val| val.into()),
+            transaction_flow: self.transaction_flow,
         })
     }
 
@@ -275,6 +278,7 @@ impl super::behaviour::Conversion for PaymentMethod {
                         .and_then(|val| val.try_into_optionaloperation())
                     })
                     .await?,
+                transaction_flow: item.transaction_flow,
             })
         }
         .await
@@ -323,6 +327,7 @@ impl super::behaviour::Conversion for PaymentMethod {
             network_token_payment_method_data: self
                 .network_token_payment_method_data
                 .map(|val| val.into()),
+            transaction_flow: self.transaction_flow,
         })
     }
 }
@@ -360,6 +365,7 @@ impl super::behaviour::Conversion for PaymentMethod {
             network_token_payment_method_data: self
                 .network_token_payment_method_data
                 .map(|val| val.into()),
+            transaction_flow: self.transaction_flow,
         })
     }
 
@@ -435,6 +441,7 @@ impl super::behaviour::Conversion for PaymentMethod {
                         .and_then(|val| val.try_into_optionaloperation())
                     })
                     .await?,
+                transaction_flow: item.transaction_flow,
             })
         }
         .await
@@ -471,6 +478,7 @@ impl super::behaviour::Conversion for PaymentMethod {
             network_token_payment_method_data: self
                 .network_token_payment_method_data
                 .map(|val| val.into()),
+            transaction_flow: self.transaction_flow,
         })
     }
 }
