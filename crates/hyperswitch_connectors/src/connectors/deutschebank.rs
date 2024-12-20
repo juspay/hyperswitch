@@ -4,7 +4,7 @@ use std::time::SystemTime;
 
 use actix_web::http::header::Date;
 use base64::Engine;
-use common_enums::enums;
+use common_enums::{enums, PaymentMethod};
 use common_utils::{
     errors::CustomResult,
     ext_traits::BytesExt,
@@ -52,7 +52,7 @@ use crate::{
     types::ResponseRouterData,
     utils::{
         self, PaymentsAuthorizeRequestData, PaymentsCompleteAuthorizeRequestData,
-        RefundsRequestData,
+        RefundsRequestData, RouterData as ConnectorRouterData,
     },
 };
 
@@ -124,7 +124,7 @@ impl ConnectorCommon for Deutschebank {
     }
 
     fn get_currency_unit(&self) -> api::CurrencyUnit {
-        api::CurrencyUnit::Base
+        api::CurrencyUnit::Minor
     }
 
     fn common_get_content_type(&self) -> &'static str {
@@ -320,18 +320,30 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         req: &PaymentsAuthorizeRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        if req.request.connector_mandate_id().is_none() {
+        let event_id = req.connector_request_reference_id.clone();
+        let tx_action = if req.request.is_auto_capture()? {
+            "authorization"
+        } else {
+            "preauthorization"
+        };
+
+        if req.is_three_ds() && req.request.is_card() {
+            Ok(format!(
+                "{}/services/v2.1/headless3DSecure/event/{event_id}/{tx_action}/initialize",
+                self.base_url(connectors)
+            ))
+        } else if !req.is_three_ds() && req.request.is_card() {
+            Err(errors::ConnectorError::NotSupported {
+                message: "Non-ThreeDs".to_owned(),
+                connector: "deutschebank",
+            }
+            .into())
+        } else if req.request.connector_mandate_id().is_none() {
             Ok(format!(
                 "{}/services/v2.1/managedmandate",
                 self.base_url(connectors)
             ))
         } else {
-            let event_id = req.connector_request_reference_id.clone();
-            let tx_action = if req.request.is_auto_capture()? {
-                "authorization"
-            } else {
-                "preauthorization"
-            };
             Ok(format!(
                 "{}/services/v2.1/payment/event/{event_id}/directdebit/{tx_action}",
                 self.base_url(connectors)
@@ -384,7 +396,19 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        if data.request.connector_mandate_id().is_none() {
+        if data.is_three_ds() && data.request.is_card() {
+            let response: deutschebank::DeutschebankThreeDSInitializeResponse = res
+                .response
+                .parse_struct("DeutschebankPaymentsAuthorizeResponse")
+                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+            event_builder.map(|i| i.set_response_body(&response));
+            router_env::logger::info!(connector_response=?response);
+            RouterData::try_from(ResponseRouterData {
+                response,
+                data: data.clone(),
+                http_code: res.status_code,
+            })
+        } else if data.request.connector_mandate_id().is_none() {
             let response: deutschebank::DeutschebankMandatePostResponse = res
                 .response
                 .parse_struct("DeutschebankMandatePostResponse")
@@ -446,10 +470,18 @@ impl ConnectorIntegration<CompleteAuthorize, CompleteAuthorizeData, PaymentsResp
         } else {
             "preauthorization"
         };
-        Ok(format!(
-            "{}/services/v2.1/payment/event/{event_id}/directdebit/{tx_action}",
-            self.base_url(connectors)
-        ))
+
+        if req.is_three_ds() && matches!(req.payment_method, PaymentMethod::Card) {
+            Ok(format!(
+                "{}/services/v2.1//headless3DSecure/event/{event_id}/final",
+                self.base_url(connectors)
+            ))
+        } else {
+            Ok(format!(
+                "{}/services/v2.1/payment/event/{event_id}/directdebit/{tx_action}",
+                self.base_url(connectors)
+            ))
+        }
     }
 
     fn get_request_body(
@@ -462,10 +494,9 @@ impl ConnectorIntegration<CompleteAuthorize, CompleteAuthorizeData, PaymentsResp
             req.request.minor_amount,
             req.request.currency,
         )?;
-
         let connector_router_data = deutschebank::DeutschebankRouterData::from((amount, req));
         let connector_req =
-            deutschebank::DeutschebankDirectDebitRequest::try_from(&connector_router_data)?;
+            deutschebank::DeutschebankCompleteAuthorizeRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
