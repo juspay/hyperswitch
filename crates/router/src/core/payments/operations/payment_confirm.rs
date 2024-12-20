@@ -1052,12 +1052,10 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                 && business_profile.is_click_to_pay_enabled
             {
                 let click_to_pay_mca_id = authentication_product_ids
-                    .inner()
-                    .get(&common_enums::enums::AuthenticationProduct::ClickToPay)
-                    .ok_or(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable(
-                        "Error while getting click_to_pay mca_id from business profile",
-                    )?;
+                    .get_click_to_pay_connector_account_id()
+                    .change_context(errors::ApiErrorResponse::MissingRequiredField {
+                        field_name: "authentication_product_ids",
+                    })?;
 
                 let key_manager_state = &(state).into();
                 let merchant_id = &business_profile.merchant_id;
@@ -1067,7 +1065,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
                         key_manager_state,
                         merchant_id,
-                        click_to_pay_mca_id,
+                        &click_to_pay_mca_id,
                         key_store,
                     )
                     .await

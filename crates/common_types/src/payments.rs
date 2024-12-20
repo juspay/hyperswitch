@@ -3,7 +3,7 @@
 use std::collections::HashMap;
 
 use common_enums::enums;
-use common_utils::{impl_to_sql_from_sql_json, types::MinorUnit};
+use common_utils::{errors, impl_to_sql_from_sql_json, types::MinorUnit};
 use diesel::{sql_types::Jsonb, AsExpression, FromSqlRow};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -59,5 +59,16 @@ impl AuthenticationConnectorAccountMap {
     ) -> &HashMap<enums::AuthenticationProduct, common_utils::id_type::MerchantConnectorAccountId>
     {
         &self.0
+    }
+    /// fn to get click to pay connector_account_id
+    pub fn get_click_to_pay_connector_account_id(
+        &self,
+    ) -> Result<common_utils::id_type::MerchantConnectorAccountId, errors::ValidationError> {
+        self.inner()
+            .get(&enums::AuthenticationProduct::ClickToPay)
+            .ok_or(errors::ValidationError::MissingRequiredField {
+                field_name: "authentication_product_id".to_string(),
+            })
+            .cloned()
     }
 }

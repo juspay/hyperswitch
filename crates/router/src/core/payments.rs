@@ -376,19 +376,9 @@ where
             should_continue_capture,
         );
 
-        let merchants_eligible_for_authentication_service = state
-            .store
-            .as_ref()
-            .find_config_by_key(crate::consts::AUTHENTICATION_SERVICE_ELIGIBLE_CONFIG)
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::ConfigNotFound)?;
-        let auth_eligible_array: Vec<String> =
-            serde_json::from_str(&merchants_eligible_for_authentication_service.config)
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("unable to parse authentication service config")?;
-        let merchant_id = merchant_account.get_id();
-
-        if auth_eligible_array.contains(&merchant_id.get_string_repr().to_owned()) {
+        if helpers::is_merchant_eligible_authenthention_service(merchant_account.get_id(), state)
+            .await?
+        {
             let authentication_product_ids = business_profile
                 .authentication_product_ids
                 .clone()
@@ -3430,17 +3420,17 @@ pub async fn get_session_token_for_click_to_pay(
     payment_intent: &hyperswitch_domain_models::payments::PaymentIntent,
 ) -> RouterResult<api_models::payments::SessionToken> {
     let click_to_pay_mca_id = authentication_product_ids
-        .inner()
-        .get(&common_enums::AuthenticationProduct::ClickToPay)
-        .ok_or(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Error while getting click_to_pay mca_id from business profile")?;
+        .get_click_to_pay_connector_account_id()
+        .change_context(errors::ApiErrorResponse::MissingRequiredField {
+            field_name: "authentication_product_ids",
+        })?;
     let key_manager_state = &(state).into();
     let merchant_connector_account = state
         .store
         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
             key_manager_state,
             merchant_id,
-            click_to_pay_mca_id,
+            &click_to_pay_mca_id,
             key_store,
         )
         .await

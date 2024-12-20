@@ -9,7 +9,8 @@ use common_enums::ConnectorType;
 use common_utils::{
     crypto::Encryptable,
     ext_traits::{AsyncExt, ByteSliceExt, Encode, ValueExt},
-    fp_utils, generate_id, id_type,
+    fp_utils, generate_id,
+    id_type::{self},
     new_type::{MaskedIban, MaskedSortCode},
     pii, type_name,
     types::{
@@ -6161,4 +6162,23 @@ pub fn validate_platform_fees_for_marketplace(
         }
     }
     Ok(())
+}
+
+pub async fn is_merchant_eligible_authenthention_service(
+    merchant_id: &id_type::MerchantId,
+    state: &SessionState,
+) -> RouterResult<bool> {
+    let merchants_eligible_for_authentication_service = state
+        .store
+        .as_ref()
+        .find_config_by_key(consts::AUTHENTICATION_SERVICE_ELIGIBLE_CONFIG)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::ConfigNotFound)?;
+
+    let auth_eligible_array: Vec<String> =
+        serde_json::from_str(&merchants_eligible_for_authentication_service.config)
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("unable to parse authentication service config")?;
+
+    Ok(auth_eligible_array.contains(&merchant_id.get_string_repr().to_owned()))
 }
