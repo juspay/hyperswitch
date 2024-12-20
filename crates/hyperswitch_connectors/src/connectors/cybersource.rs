@@ -2,14 +2,12 @@ pub mod transformers;
 
 use base64::Engine;
 use common_enums::enums;
-use common_utils::types::{
-    AmountConvertor, MinorUnit, StringMajorUnit, StringMajorUnitForConnector,
-};
 use common_utils::{
     consts,
     errors::CustomResult,
     ext_traits::BytesExt,
     request::{Method, Request, RequestBuilder, RequestContent},
+    types::{AmountConvertor, MinorUnit, StringMajorUnit, StringMajorUnitForConnector},
 };
 use error_stack::{report, Report, ResultExt};
 use hyperswitch_domain_models::{

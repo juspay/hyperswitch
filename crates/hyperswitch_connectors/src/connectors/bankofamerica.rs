@@ -1,10 +1,7 @@
 pub mod transformers;
 
-use crate::{
-    constants::headers,
-    types::ResponseRouterData,
-    utils::{self, PaymentMethodDataType, RefundsRequestData},
-};
+use std::fmt::Debug;
+
 use base64::Engine;
 use common_enums::enums;
 use common_utils::{
@@ -14,7 +11,6 @@ use common_utils::{
     request::{Method, Request, RequestBuilder, RequestContent},
 };
 use error_stack::{report, ResultExt};
-use hyperswitch_domain_models::types::RefundsRouterData;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     router_data::{AccessToken, ErrorResponse, RouterData},
@@ -31,7 +27,7 @@ use hyperswitch_domain_models::{
     router_response_types::{PaymentsResponseData, RefundsResponseData},
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
-        PaymentsSyncRouterData, RefundSyncRouterData, SetupMandateRouterData,
+        PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData, SetupMandateRouterData,
     },
 };
 use hyperswitch_interfaces::{
@@ -47,10 +43,15 @@ use hyperswitch_interfaces::{
 };
 use masking::{ExposeInterface, Mask, Maskable, PeekInterface};
 use ring::{digest, hmac};
-use std::fmt::Debug;
 use time::OffsetDateTime;
 use transformers as bankofamerica;
 use url::Url;
+
+use crate::{
+    constants::headers,
+    types::ResponseRouterData,
+    utils::{self, PaymentMethodDataType, RefundsRequestData},
+};
 
 pub const V_C_MERCHANT_ID: &str = "v-c-merchant-id";
 
