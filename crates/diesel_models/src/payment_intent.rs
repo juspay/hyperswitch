@@ -515,6 +515,7 @@ pub struct PaymentIntentUpdateFields {
 pub struct PaymentIntentUpdateInternal {
     pub status: Option<storage_enums::IntentStatus>,
     pub active_attempt_id: Option<common_utils::id_type::GlobalAttemptId>,
+    pub prerouting_algorithm: Option<serde_json::Value>,
     pub modified_at: PrimitiveDateTime,
     pub amount: Option<MinorUnit>,
     pub currency: Option<storage_enums::Currency>,
