@@ -112,9 +112,12 @@ Cypress.Commands.add("merchantDeleteCall", (globalState) => {
 });
 
 Cypress.Commands.add("ListConnectorsFeatureMatrixCall", (globalState) => {
+  const baseUrl = globalState.get("baseUrl");
+  const url = `${baseUrl}/feature_matrix`;
+
   cy.request({
     method: "GET",
-    url: `${globalState.get("baseUrl")}/feature_matrix`,
+    url: url,
     headers: {
       Accept: "application/json",
     },
