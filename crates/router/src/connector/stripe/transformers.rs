@@ -1708,7 +1708,6 @@ impl TryFrom<(&types::PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntent
             payment_method,
             billing_address,
             payment_method_types,
-            off_session,
             setup_future_usage,
         ) = {
             match item
@@ -1724,7 +1723,6 @@ impl TryFrom<(&types::PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntent
                     connector_mandate_ids.get_connector_mandate_id(),
                     StripeBillingAddress::default(),
                     get_payment_method_type_for_saved_payment_method_payment(item)?,
-                    Some(true),
                     None,
                 ),
                 Some(api_models::payments::MandateReferenceId::NetworkMandateId(
@@ -1791,7 +1789,6 @@ impl TryFrom<(&types::PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntent
                         None,
                         StripeBillingAddress::default(),
                         None,
-                        Some(true),
                         None,
                     )
                 }
@@ -1817,7 +1814,6 @@ impl TryFrom<(&types::PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntent
                         None,
                         billing_address,
                         payment_method_type,
-                        item.request.off_session,
                         item.request.setup_future_usage,
                     )
                 }
@@ -1981,7 +1977,7 @@ impl TryFrom<(&types::PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntent
             payment_method,
             customer,
             setup_mandate_details,
-            off_session,
+            off_session: item.request.off_session,
             setup_future_usage,
             payment_method_types,
             expand: Some(ExpandableObjects::LatestCharge),
