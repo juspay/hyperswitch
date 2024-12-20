@@ -143,10 +143,6 @@ macro_rules! impl_to_sql_from_sql_json {
     };
 }
 
-
-
-
-
 mod id_type {
     /// Defines an ID type.
     #[macro_export]
