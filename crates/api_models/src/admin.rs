@@ -2660,6 +2660,8 @@ pub struct PaymentLinkConfigRequest {
     /// Custom layout for details section
     #[schema(value_type = Option<PaymentLinkDetailsLayout>, example = "layout1")]
     pub details_layout: Option<api_enums::PaymentLinkDetailsLayout>,
+    /// Text for payment link's handle confirm button
+    pub payment_button_text: Option<String>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
@@ -2729,6 +2731,8 @@ pub struct PaymentLinkConfig {
     pub details_layout: Option<api_enums::PaymentLinkDetailsLayout>,
     /// Toggle for HyperSwitch branding visibility
     pub branding_visibility: Option<bool>,
+    /// Text for payment link's handle confirm button
+    pub payment_button_text: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]

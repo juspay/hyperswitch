@@ -429,6 +429,8 @@ diesel::table! {
         payment_status -> AttemptStatus,
         conclusive_classification -> SuccessBasedRoutingConclusiveState,
         created_at -> Timestamp,
+        #[max_length = 64]
+        payment_method_type -> Nullable<Varchar>,
     }
 }
 
