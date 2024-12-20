@@ -90,15 +90,21 @@ pub struct GrpcHeaders {
     pub request_id: Option<String>,
 }
 
-impl GrpcHeaders {
-    #[cfg(feature = "dynamic_routing")]
-    /// Method to add necessary headers to the tonic Request
+#[cfg(feature = "dynamic_routing")]
+/// Trait to add necessary headers to the tonic Request
+pub(crate) trait AddHeaders {
+    /// Add necessary header fields to the tonic Request
+    fn add_headers_to_grpc_request(&mut self, headers: GrpcHeaders);
+}
+
+#[cfg(feature = "dynamic_routing")]
+impl<T> AddHeaders for tonic::Request<T> {
     #[track_caller]
-    pub fn add_headers_to_grpc_request<T>(&self, request: &mut tonic::Request<T>) {
-        self.tenant_id
+    fn add_headers_to_grpc_request(&mut self, headers: GrpcHeaders) {
+        headers.tenant_id
             .parse()
             .map(|tenant_id| {
-                request
+                self
                     .metadata_mut()
                     .append(consts::TENANT_HEADER, tenant_id)
             })
@@ -107,11 +113,11 @@ impl GrpcHeaders {
             )
             .ok();
 
-        self.request_id.as_ref().map(|request_id| {
+        headers.request_id.map(|request_id| {
             request_id
                 .parse()
                 .map(|request_id| {
-                    request
+                    self
                         .metadata_mut()
                         .append(consts::X_REQUEST_ID, request_id)
                 })

@@ -21,7 +21,7 @@ pub mod elimination_rate {
 }
 
 use super::{Client, DynamicRoutingError, DynamicRoutingResult};
-use crate::grpc_client::GrpcHeaders;
+use crate::grpc_client::{AddHeaders, GrpcHeaders};
 
 /// The trait Elimination Based Routing would have the functions required to support performance, calculation and invalidation bucket
 #[async_trait::async_trait]
@@ -76,7 +76,7 @@ impl EliminationBasedRouting for EliminationAnalyserClient<Client> {
             config,
         });
 
-        headers.add_headers_to_grpc_request(&mut request);
+        request.add_headers_to_grpc_request(headers);
 
         let response = self
             .clone()
@@ -117,7 +117,7 @@ impl EliminationBasedRouting for EliminationAnalyserClient<Client> {
             config,
         });
 
-        headers.add_headers_to_grpc_request(&mut request);
+        request.add_headers_to_grpc_request(headers);
 
         let response = self
             .clone()
@@ -136,7 +136,7 @@ impl EliminationBasedRouting for EliminationAnalyserClient<Client> {
     ) -> DynamicRoutingResult<InvalidateBucketResponse> {
         let mut request = tonic::Request::new(InvalidateBucketRequest { id });
 
-        headers.add_headers_to_grpc_request(&mut request);
+        request.add_headers_to_grpc_request(headers);
 
         let response = self
             .clone()

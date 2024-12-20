@@ -21,7 +21,7 @@ pub mod success_rate {
     tonic::include_proto!("success_rate");
 }
 use super::{Client, DynamicRoutingError, DynamicRoutingResult};
-use crate::grpc_client::GrpcHeaders;
+use crate::grpc_client::{AddHeaders, GrpcHeaders};
 /// The trait Success Based Dynamic Routing would have the functions required to support the calculation and updation window
 #[async_trait::async_trait]
 pub trait SuccessBasedDynamicRouting: dyn_clone::DynClone + Send + Sync {
@@ -78,7 +78,7 @@ impl SuccessBasedDynamicRouting for SuccessRateCalculatorClient<Client> {
             config,
         });
 
-        headers.add_headers_to_grpc_request(&mut request);
+        request.add_headers_to_grpc_request(headers);
 
         let response = self
             .clone()
@@ -120,7 +120,7 @@ impl SuccessBasedDynamicRouting for SuccessRateCalculatorClient<Client> {
             config,
         });
 
-        headers.add_headers_to_grpc_request(&mut request);
+        request.add_headers_to_grpc_request(headers);
 
         let response = self
             .clone()
@@ -140,7 +140,7 @@ impl SuccessBasedDynamicRouting for SuccessRateCalculatorClient<Client> {
     ) -> DynamicRoutingResult<InvalidateWindowsResponse> {
         let mut request = tonic::Request::new(InvalidateWindowsRequest { id });
 
-        headers.add_headers_to_grpc_request(&mut request);
+        request.add_headers_to_grpc_request(headers);
 
         let response = self
             .clone()
