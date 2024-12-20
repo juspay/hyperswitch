@@ -958,6 +958,26 @@
         "summary": "Relay - Create",
         "description": "Creates a relay request.",
         "operationId": "Relay Request",
+        "parameters": [
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile ID for authentication",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Idempotency-Key",
+            "in": "header",
+            "description": "Idempotency Key for relay request",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -1014,9 +1034,9 @@
         "operationId": "Retrieve a Relay details",
         "parameters": [
           {
-            "name": "id",
-            "in": "path",
-            "description": "The unique identifier for the Relay",
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile ID for authentication",
             "required": true,
             "schema": {
               "type": "string"
@@ -23048,7 +23068,6 @@
         "required": [
           "connector_resource_id",
           "connector_id",
-          "profile_id",
           "type"
         ],
         "properties": {
@@ -23061,11 +23080,6 @@
             "type": "string",
             "description": "Identifier of the connector ( merchant connector account ) to which relay request is being made",
             "example": "mca_5apGeP94tMts6rg3U3kR"
-          },
-          "profile_id": {
-            "type": "string",
-            "description": "The business profile that is associated with this relay request",
-            "example": "pro_abcdefghijklmnopqrstuvwxyz"
           },
           "type": {
             "$ref": "#/components/schemas/RelayType"

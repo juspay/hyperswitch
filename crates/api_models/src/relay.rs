@@ -12,9 +12,6 @@ pub struct RelayRequest {
     /// Identifier of the connector ( merchant connector account ) to which relay request is being made
     #[schema(example = "mca_5apGeP94tMts6rg3U3kR", value_type = String)]
     pub connector_id: common_utils::id_type::MerchantConnectorAccountId,
-    /// The business profile that is associated with this relay request
-    #[schema(example = "pro_abcdefghijklmnopqrstuvwxyz", value_type = String)]
-    pub profile_id: common_utils::id_type::ProfileId,
     /// The type of relay request
     #[serde(rename = "type")]
     pub relay_type: RelayType,
