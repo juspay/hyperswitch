@@ -10,6 +10,13 @@ use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use masking::{ExposeInterface, Secret};
 use serde::{de, Deserialize, Deserializer, Serialize};
 use time::PrimitiveDateTime;
+use error_stack::report;
+// use diesel::{
+//     backend::Backend,
+//     deserialize,
+//     deserialize::FromSql,
+//     // serialize::{Output, ToSql},
+// };
 
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
@@ -128,33 +135,18 @@ impl PaymentMethod {
         }
     }
 
-    /*
-    pub fn deserialize<'de, D>(deserializer: D) -> Result<Option<PaymentMethod>, D::Error>
+
+    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<Option<Self>, D::Error>
     where
         D: Deserializer<'de>,
     {
         #[derive(serde::Deserialize, Debug)]
         pub struct __InnerPaymentMethodData {
-            pub customer_id: common_utils::id_type::CustomerId,
+            pub customer_id: common_utils::id_type::GlobalCustomerId,
             pub merchant_id: common_utils::id_type::MerchantId,
-            pub payment_method_id: String,
-            pub accepted_currency: Option<Vec<storage_enums::Currency>>,
-            pub scheme: Option<String>,
-            pub token: Option<String>,
-            pub cardholder_name: Option<Secret<String>>,
-            pub issuer_name: Option<String>,
-            pub issuer_country: Option<String>,
-            pub payer_country: Option<Vec<String>>,
-            pub is_stored: Option<bool>,
-            pub swift_code: Option<String>,
-            pub direct_debit_token: Option<String>,
             pub created_at: PrimitiveDateTime,
             pub last_modified: PrimitiveDateTime,
-            pub payment_method: Option<storage_enums::PaymentMethod>,
-            pub payment_method_type: Option<storage_enums::PaymentMethodType>,
-            pub payment_method_issuer: Option<String>,
-            pub payment_method_issuer_code: Option<storage_enums::PaymentMethodIssuerCode>,
-            pub metadata: Option<pii::SecretSerdeValue>,
             pub payment_method_data: Option<Encryption>,
             pub locker_id: Option<String>,
             pub last_used_at: PrimitiveDateTime,
@@ -165,6 +157,10 @@ impl PaymentMethod {
             pub client_secret: Option<String>,
             pub payment_method_billing_address: Option<Encryption>,
             pub updated_by: Option<String>,
+            pub locker_fingerprint_id: Option<String>,
+            pub payment_method_type_v2: Option<storage_enums::PaymentMethod>,
+            pub payment_method_subtype: Option<storage_enums::PaymentMethodType>,
+            pub id: common_utils::id_type::GlobalPaymentMethodId,
             pub version: common_enums::ApiVersion,
             pub network_token_requestor_reference_id: Option<String>,
             pub network_token_locker_id: Option<String>,
@@ -179,52 +175,37 @@ impl PaymentMethod {
                 connector_mandate_details.clone(),
             ) {
                 Ok(common_mandate_reference) => {
-                    let common_mandate_reference_value = serde_json::to_value(
-                        common_mandate_reference,
-                    )
-                    .map_err(|serde_json_error| de::Error::custom(serde_json_error.to_string()))?;
+                    // let common_mandate_reference_value = serde_json::to_value(
+                    //     common_mandate_reference,
+                    // )
+                    // .map_err(|serde_json_error| de::Error::custom(serde_json_error.to_string()))?;
 
-                    deserialize_to_inner.connector_mandate_details =
-                        Some(common_mandate_reference_value);
+                    // deserialize_to_inner.connector_mandate_details =
+                        // Some(common_mandate_reference);
 
-                    Ok(Some(PaymentMethod {
+                    Ok(Some(Self {
                         customer_id: deserialize_to_inner.customer_id,
                         merchant_id: deserialize_to_inner.merchant_id,
-                        payment_method_id: deserialize_to_inner.payment_method_id,
-                        accepted_currency: deserialize_to_inner.accepted_currency,
-                        scheme: deserialize_to_inner.scheme,
-                        token: deserialize_to_inner.token,
-                        cardholder_name: deserialize_to_inner.cardholder_name,
-                        issuer_name: deserialize_to_inner.issuer_name,
-                        issuer_country: deserialize_to_inner.issuer_country,
-                        payer_country: deserialize_to_inner.payer_country,
-                        is_stored: deserialize_to_inner.is_stored,
-                        swift_code: deserialize_to_inner.swift_code,
-                        direct_debit_token: deserialize_to_inner.direct_debit_token,
                         created_at: deserialize_to_inner.created_at,
                         last_modified: deserialize_to_inner.last_modified,
-                        payment_method: deserialize_to_inner.payment_method,
-                        payment_method_type: deserialize_to_inner.payment_method_type,
-                        payment_method_issuer: deserialize_to_inner.payment_method_issuer,
-                        payment_method_issuer_code: deserialize_to_inner.payment_method_issuer_code,
-                        metadata: deserialize_to_inner.metadata,
                         payment_method_data: deserialize_to_inner.payment_method_data,
                         locker_id: deserialize_to_inner.locker_id,
                         last_used_at: deserialize_to_inner.last_used_at,
-                        connector_mandate_details: deserialize_to_inner.connector_mandate_details, // can we reuse this code?
+                        connector_mandate_details: Some(common_mandate_reference),
                         customer_acceptance: deserialize_to_inner.customer_acceptance,
                         status: deserialize_to_inner.status,
                         network_transaction_id: deserialize_to_inner.network_transaction_id,
                         client_secret: deserialize_to_inner.client_secret,
-                        payment_method_billing_address: deserialize_to_inner
-                            .payment_method_billing_address,
+                        payment_method_billing_address: deserialize_to_inner.payment_method_billing_address,
                         updated_by: deserialize_to_inner.updated_by,
+                        locker_fingerprint_id: deserialize_to_inner.locker_fingerprint_id,
+                        payment_method_type_v2: deserialize_to_inner.payment_method_type_v2,
+                        payment_method_subtype: deserialize_to_inner.payment_method_subtype,
+                        id: deserialize_to_inner.id,
                         version: deserialize_to_inner.version,
-                        network_token_requestor_reference_id: deserialize_to_inner
-                            .network_token_requestor_reference_id,
+                        network_token_requestor_reference_id: deserialize_to_inner.network_token_requestor_reference_id,
                         network_token_locker_id: deserialize_to_inner.network_token_locker_id,
-                        network_token_payment_method_data: deserialize_to_inner
-                            .network_token_payment_method_data,
+                        network_token_payment_method_data: deserialize_to_inner.network_token_payment_method_data,
                         transaction_flow: deserialize_to_inner.transaction_flow,
                     }))
                 }
@@ -233,71 +214,49 @@ impl PaymentMethod {
                         connector_mandate_details,
                     ) {
                         Ok(payment_mandate_reference) => {
-                            let common_mandate_reference_value =
-                                serde_json::to_value(CommonMandateReference {
-                                    payments: Some(payment_mandate_reference),
-                                    payouts: None,
-                                })
-                                .map_err(|serde_json_error| {
-                                    de::Error::custom(serde_json_error.to_string())
-                                })?;
+                            let common_mandate_reference = CommonMandateReference {
+                                payments: Some(payment_mandate_reference),
+                                payouts: None,
+                            };
+                                
+                            // deserialize_to_inner.connector_mandate_details =
+                                // Some(common_mandate_reference);
 
-                            deserialize_to_inner.connector_mandate_details =
-                                Some(common_mandate_reference_value);
-
-                            Ok(Some(PaymentMethod {
+                            Ok(Some(Self {
                                 customer_id: deserialize_to_inner.customer_id,
                                 merchant_id: deserialize_to_inner.merchant_id,
-                                payment_method_id: deserialize_to_inner.payment_method_id,
-                                accepted_currency: deserialize_to_inner.accepted_currency,
-                                scheme: deserialize_to_inner.scheme,
-                                token: deserialize_to_inner.token,
-                                cardholder_name: deserialize_to_inner.cardholder_name,
-                                issuer_name: deserialize_to_inner.issuer_name,
-                                issuer_country: deserialize_to_inner.issuer_country,
-                                payer_country: deserialize_to_inner.payer_country,
-                                is_stored: deserialize_to_inner.is_stored,
-                                swift_code: deserialize_to_inner.swift_code,
-                                direct_debit_token: deserialize_to_inner.direct_debit_token,
                                 created_at: deserialize_to_inner.created_at,
                                 last_modified: deserialize_to_inner.last_modified,
-                                payment_method: deserialize_to_inner.payment_method,
-                                payment_method_type: deserialize_to_inner.payment_method_type,
-                                payment_method_issuer: deserialize_to_inner.payment_method_issuer,
-                                payment_method_issuer_code: deserialize_to_inner
-                                    .payment_method_issuer_code,
-                                metadata: deserialize_to_inner.metadata,
                                 payment_method_data: deserialize_to_inner.payment_method_data,
                                 locker_id: deserialize_to_inner.locker_id,
                                 last_used_at: deserialize_to_inner.last_used_at,
-                                connector_mandate_details: deserialize_to_inner
-                                    .connector_mandate_details,
+                                connector_mandate_details: Some(common_mandate_reference),
                                 customer_acceptance: deserialize_to_inner.customer_acceptance,
                                 status: deserialize_to_inner.status,
                                 network_transaction_id: deserialize_to_inner.network_transaction_id,
                                 client_secret: deserialize_to_inner.client_secret,
-                                payment_method_billing_address: deserialize_to_inner
-                                    .payment_method_billing_address,
+                                payment_method_billing_address: deserialize_to_inner.payment_method_billing_address,
                                 updated_by: deserialize_to_inner.updated_by,
+                                locker_fingerprint_id: deserialize_to_inner.locker_fingerprint_id,
+                                payment_method_type_v2: deserialize_to_inner.payment_method_type_v2,
+                                payment_method_subtype: deserialize_to_inner.payment_method_subtype,
+                                id: deserialize_to_inner.id,
                                 version: deserialize_to_inner.version,
-                                network_token_requestor_reference_id: deserialize_to_inner
-                                    .network_token_requestor_reference_id,
-                                network_token_locker_id: deserialize_to_inner
-                                    .network_token_locker_id,
-                                network_token_payment_method_data: deserialize_to_inner
-                                    .network_token_payment_method_data,
+                                network_token_requestor_reference_id: deserialize_to_inner.network_token_requestor_reference_id,
+                                network_token_locker_id: deserialize_to_inner.network_token_locker_id,
+                                network_token_payment_method_data: deserialize_to_inner.network_token_payment_method_data,
                                 transaction_flow: deserialize_to_inner.transaction_flow,
                             }))
                         }
-                        Err(_) => Err(de::Error::custom("Faild to deserialize PaymentMethod"))?,
+                        Err(_) => Err(de::Error::custom("Faild to deserialize PaymentMethod_V2"))?,
                     }
                 }
             }
         } else {
-            Err(de::Error::custom("Faild to deserialize PaymentMethod"))?
+            Err(de::Error::custom("Faild to deserialize PaymentMethod_V2"))?
         }
     }
-    */
+    //*/
 
     #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
     pub fn get_id(&self) -> &common_utils::id_type::GlobalPaymentMethodId {
@@ -1213,7 +1172,58 @@ impl std::ops::DerefMut for PayoutsMandateReference {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, diesel::AsExpression)]
 #[diesel(sql_type = diesel::sql_types::Jsonb)]
+// #[derive(Debug, Clone, Serialize, Deserialize, diesel::AsExpression, diesel::FromSqlRow)]
+// #[diesel(sql_type = Nullable<diesel::sql_types::Jsonb>)]
 pub struct CommonMandateReference {
     pub payments: Option<PaymentsMandateReference>,
     pub payouts: Option<PayoutsMandateReference>,
+}
+
+// common_utils::impl_to_sql_from_sql_json!(CommonMandateReference);
+
+impl diesel::serialize::ToSql<diesel::sql_types::Jsonb, diesel::pg::Pg> for CommonMandateReference {
+    fn to_sql<'b>(
+        &'b self,
+        out: &mut diesel::serialize::Output<'b, '_, diesel::pg::Pg>,
+    ) -> diesel::serialize::Result {
+        let value = serde_json::to_value(self)?;
+        <serde_json::Value as diesel::serialize::ToSql<
+            diesel::sql_types::Jsonb,
+            diesel::pg::Pg,
+        >>::to_sql(&value, &mut out.reborrow())
+    }
+}
+
+impl<DB: diesel::backend::Backend> diesel::deserialize::FromSql<diesel::sql_types::Jsonb, DB> for CommonMandateReference
+where
+    serde_json::Value: diesel::deserialize::FromSql<diesel::sql_types::Jsonb, DB>,
+{
+    fn from_sql(bytes: DB::RawValue<'_>) -> diesel::deserialize::Result<Self> {
+        // Deserialize into a generic serde_json::Value first
+        let value = <serde_json::Value as diesel::deserialize::FromSql<diesel::sql_types::Jsonb, DB>>::from_sql(bytes)?;
+
+        // Try to directly deserialize into CommonMandateReference
+        if let Ok(common_reference) = serde_json::from_value::<Self>(value.clone()) {
+            return Ok(common_reference);
+        }
+
+        // If that fails, try deserializing into PaymentsMandateReference
+        if let Ok(payment_reference) = serde_json::from_value::<PaymentsMandateReference>(value) {
+            // Convert PaymentsMandateReference to CommonMandateReference
+            return Ok(Self::from(payment_reference));
+        }
+
+        // If neither succeeds, return an error
+        Err(report!(ParsingError::StructParseFailure("CommonMandateReference"))
+            .attach_printable("Failed to parse JSON into CommonMandateReference or PaymentsMandateReference"))?
+    }
+}
+
+impl From<PaymentsMandateReference> for CommonMandateReference {
+    fn from(payment_reference: PaymentsMandateReference) -> Self {
+        Self{
+            payments: Some(payment_reference),
+            payouts: None,
+        }
+    }
 }
