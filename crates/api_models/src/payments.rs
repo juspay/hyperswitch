@@ -6472,8 +6472,8 @@ pub struct PaymentMethodListResponseForPayments {
 
     /// The list of payment methods that are saved by the given customer
     /// This field is only returned if the customer_id is provided in the request
-    #[schema(value_type = Vec<CustomerPaymentMethod>)]
-    pub customer_payment_methods: Vec<payment_methods::CustomerPaymentMethod>,
+    #[schema(value_type = Option<Vec<CustomerPaymentMethod>>)]
+    pub customer_payment_methods: Option<Vec<payment_methods::CustomerPaymentMethod>>,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]

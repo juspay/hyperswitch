@@ -1254,6 +1254,18 @@ pub struct ResponsePaymentMethodTypes {
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 #[derive(Debug, Clone, serde::Serialize, ToSchema, PartialEq)]
+#[serde(untagged)] // Untagged used for serialization only
+pub enum PaymentMethodSubtypeSpecificData {
+    Card {
+        card_networks: Vec<CardNetworkTypes>,
+    },
+    Bank {
+        bank_names: Vec<BankCodeResponse>,
+    },
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[derive(Debug, Clone, serde::Serialize, ToSchema, PartialEq)]
 pub struct ResponsePaymentMethodTypes {
     /// The payment method type enabled
     #[schema(example = "klarna", value_type = PaymentMethodType)]
@@ -1263,11 +1275,8 @@ pub struct ResponsePaymentMethodTypes {
     #[schema(example = "klarna", value_type = PaymentMethodType)]
     pub payment_method_subtype: common_enums::PaymentMethodType,
 
-    /// The list of card networks enabled, if applicable for a payment method type
-    pub card_networks: Option<Vec<CardNetworkTypes>>,
-
-    /// The list of banks enabled, if applicable for a payment method type
-    pub bank_names: Option<Vec<BankCodeResponse>>,
+    /// payment method subtype specific information
+    pub extra_information: Option<PaymentMethodSubtypeSpecificData>,
 
     /// Required fields for the payment_method_type.
     /// This is the union of all the required fields for the payment method type enabled in all the connectors.

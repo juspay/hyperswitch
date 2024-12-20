@@ -13947,6 +13947,38 @@
           "awaiting_data"
         ]
       },
+      "PaymentMethodSubtypeSpecificData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "card_networks"
+            ],
+            "properties": {
+              "card_networks": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/CardNetworkTypes"
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "bank_names"
+            ],
+            "properties": {
+              "bank_names": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/BankCodeResponse"
+                }
+              }
+            }
+          }
+        ]
+      },
       "PaymentMethodType": {
         "type": "string",
         "description": "Indicates the sub type of payment method. Eg: 'google_pay' & 'apple_pay' for wallets.",
@@ -18858,20 +18890,12 @@
           "payment_method_subtype": {
             "$ref": "#/components/schemas/PaymentMethodType"
           },
-          "card_networks": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/CardNetworkTypes"
-            },
-            "description": "The list of card networks enabled, if applicable for a payment method type",
-            "nullable": true
-          },
-          "bank_names": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/BankCodeResponse"
-            },
-            "description": "The list of banks enabled, if applicable for a payment method type",
+          "extra_information": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodSubtypeSpecificData"
+              }
+            ],
             "nullable": true
           },
           "required_fields": {

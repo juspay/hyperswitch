@@ -142,15 +142,14 @@ impl RequiredFieldsAndSurchargeForEnabledPaymentMethodTypes {
                     payment_method_subtype: payment_methods_enabled.payment_method_subtype,
                     required_fields: payment_methods_enabled.required_field,
                     surcharge_details: payment_methods_enabled.surcharge,
-                    card_networks: None,
-                    bank_names: None,
+                    extra_information: None,
                 }
             })
             .collect();
 
         api_models::payments::PaymentMethodListResponseForPayments {
             payment_methods_enabled: response_payment_methods,
-            customer_payment_methods: Vec::new(),
+            customer_payment_methods: None,
         }
     }
 }
