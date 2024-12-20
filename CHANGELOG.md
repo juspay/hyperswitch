@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.12.18.0-hotfix1
+
+### Bug Fixes
+
+- **connector:**
+  - Update mandate PMT configs for Mandate Supported Connectors ([#6910](https://github.com/juspay/hyperswitch/pull/6910)) ([`c3d0dcf`](https://github.com/juspay/hyperswitch/commit/c3d0dcfdd7dc19457761c338107462492fd5d743))
+  - [STRIPE] fix stripe mandate ([#6909](https://github.com/juspay/hyperswitch/pull/6909)) ([`f31e448`](https://github.com/juspay/hyperswitch/commit/f31e448f8d4d8071235b1637c3717dd74c49ccb8))
+
+- - -
+
 ## 2024.12.18.0
 
 ### Features
