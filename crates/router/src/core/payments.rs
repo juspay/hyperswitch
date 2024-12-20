@@ -376,19 +376,6 @@ where
             should_continue_capture,
         );
 
-        operation
-            .to_domain()?
-            .call_external_three_ds_authentication_if_eligible(
-                state,
-                &mut payment_data,
-                &mut should_continue_transaction,
-                &connector_details,
-                &business_profile,
-                &key_store,
-                mandate_type,
-            )
-            .await?;
-
         let merchants_eligible_for_authentication_service = state
             .store
             .as_ref()
@@ -424,7 +411,20 @@ where
         } else {
             logger::info!(
                 "skipping authentication service call since the merchant is not eligible."
-            )
+            );
+
+            operation
+                .to_domain()?
+                .call_external_three_ds_authentication_if_eligible(
+                    state,
+                    &mut payment_data,
+                    &mut should_continue_transaction,
+                    &connector_details,
+                    &business_profile,
+                    &key_store,
+                    mandate_type,
+                )
+                .await?;
         };
 
         operation
