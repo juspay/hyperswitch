@@ -54,3 +54,5 @@ pub mod verify_connector;
 pub mod webhooks;
 
 pub mod unified_authentication_service;
+
+pub mod relay;

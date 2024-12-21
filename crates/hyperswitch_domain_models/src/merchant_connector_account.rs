@@ -7,6 +7,7 @@ use common_utils::{
     date_time,
     encryption::Encryption,
     errors::{CustomResult, ValidationError},
+    ext_traits::ValueExt,
     id_type, pii, type_name,
     types::keymanager::{Identifier, KeyManagerState, ToEncryptable},
 };
@@ -23,7 +24,10 @@ use super::behaviour;
 use crate::errors::api_error_response::ApiErrorResponse;
 #[cfg(feature = "v2")]
 use crate::router_data;
-use crate::type_encryption::{crypto_operation, CryptoOperation};
+use crate::{
+    router_data,
+    type_encryption::{crypto_operation, CryptoOperation},
+};
 
 #[cfg(feature = "v1")]
 #[derive(Clone, Debug, router_derive::ToEncryption)]
@@ -61,6 +65,16 @@ pub struct MerchantConnectorAccount {
 impl MerchantConnectorAccount {
     pub fn get_id(&self) -> id_type::MerchantConnectorAccountId {
         self.merchant_connector_id.clone()
+    }
+
+    pub fn get_connector_account_details(
+        &self,
+    ) -> error_stack::Result<router_data::ConnectorAuthType, common_utils::errors::ParsingError>
+    {
+        self.connector_account_details
+            .get_inner()
+            .clone()
+            .parse_value("ConnectorAuthType")
     }
 }
 
