@@ -1964,7 +1964,8 @@ pub fn determine_standard_vault_action(
                     .map(|conn| network_tokenization_supported_connectors.contains(&conn))
                     .unwrap_or(false)
                 {
-                    VaultFetchAction::FetchNetworkTokenDataFromTokenizationService //return nt ref
+                    VaultFetchAction::FetchNetworkTokenDataFromTokenizationService
+                //return nt ref
                 } else {
                     VaultFetchAction::FetchCardDetailsFromLocker
                 }
@@ -2017,7 +2018,8 @@ pub async fn retrieve_payment_method_data_with_permanent_token(
         })
         .transpose()?;
 
-    let vault_fetch_action = decide_vault_fetch_action( //change var name
+    let vault_fetch_action = decide_vault_fetch_action(
+        //change var name
         business_profile.is_network_tokenization_enabled,
         mandate_id,
         connector_variant,
@@ -2608,7 +2610,7 @@ where
                                 }),
                             )),
                             (payments::VaultDataEnum::CardAndNetworkToken(_), _) => None, //change the set logic if none do not update
-                            
+
                             _ => Some(payments::PaymentMethodDataAction::VaultDataVariant(
                                 vault_enum.clone(),
                             )),
