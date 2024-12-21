@@ -37,6 +37,8 @@ pub const FINGERPRINT_SECRET_LENGTH: usize = 64;
 
 pub const DEFAULT_LIST_API_LIMIT: u16 = 10;
 
+pub const X_PROFILE_ID: &str = "X-Profile-Id";
+
 // String literals
 pub(crate) const UNSUPPORTED_ERROR_MESSAGE: &str = "Unsupported response type";
 pub(crate) const LOW_BALANCE_ERROR_MESSAGE: &str = "Insufficient balance in the payment method";

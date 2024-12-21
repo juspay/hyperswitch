@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use actix_web::http::header::HeaderMap;
 #[cfg(all(
     any(feature = "v2", feature = "v1"),
@@ -538,6 +540,15 @@ where
             .change_context(errors::ApiErrorResponse::Unauthorized)
             .attach_printable("Failed to fetch merchant key store for the merchant id")?;
 
+        let profile_id =
+            get_header_value_by_key(consts::X_PROFILE_ID.to_string(), request_headers)?
+                .map(id_type::ProfileId::from_str)
+                .transpose()
+                .change_context(errors::ValidationError::IncorrectValueProvided {
+                    field_name: "X-Profile-Id",
+                })
+                .change_context(errors::ApiErrorResponse::Unauthorized)?;
+
         let merchant = state
             .store()
             .find_merchant_account_by_merchant_id(
@@ -551,7 +562,7 @@ where
         let auth = AuthenticationData {
             merchant_account: merchant,
             key_store,
-            profile_id: None,
+            profile_id,
         };
         Ok((
             auth.clone(),
@@ -3109,7 +3120,7 @@ pub fn get_header_value_by_key(key: String, headers: &HeaderMap) -> RouterResult
         })
         .transpose()
 }
-pub fn get_id_type_by_key_from_headers<T: std::str::FromStr>(
+pub fn get_id_type_by_key_from_headers<T: FromStr>(
     key: String,
     headers: &HeaderMap,
 ) -> RouterResult<Option<T>> {

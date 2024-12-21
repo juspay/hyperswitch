@@ -16,7 +16,7 @@ use time::PrimitiveDateTime;
 )]
 #[diesel(table_name = relay)]
 pub struct Relay {
-    pub id: String,
+    pub id: common_utils::id_type::RelayId,
     pub connector_resource_id: String,
     pub connector_id: common_utils::id_type::MerchantConnectorAccountId,
     pub profile_id: common_utils::id_type::ProfileId,
@@ -47,7 +47,7 @@ pub struct Relay {
 )]
 #[diesel(table_name = relay)]
 pub struct RelayNew {
-    pub id: String,
+    pub id: common_utils::id_type::RelayId,
     pub connector_resource_id: String,
     pub connector_id: common_utils::id_type::MerchantConnectorAccountId,
     pub profile_id: common_utils::id_type::ProfileId,
@@ -85,19 +85,6 @@ pub struct RelayUpdateInternal {
     pub error_code: Option<String>,
     pub error_reason: Option<String>,
     pub modified_at: PrimitiveDateTime,
-}
-
-impl RelayUpdateInternal {
-    pub fn create_relay(self, source: Relay) -> Relay {
-        Relay {
-            status: self.status.unwrap_or_default(),
-            modified_at: self.modified_at,
-            connector_reference_id: self.connector_reference_id,
-            error_code: self.error_code,
-            error_reason: self.error_reason,
-            ..source
-        }
-    }
 }
 
 impl From<RelayUpdate> for RelayUpdateInternal {

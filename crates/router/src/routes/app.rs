@@ -582,6 +582,17 @@ impl Payments {
     }
 }
 
+pub struct Relay;
+
+#[cfg(feature = "oltp")]
+impl Relay {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/relay")
+            .app_data(web::Data::new(state))
+            .service(web::resource("").route(web::post().to(super::relay::relay)))
+    }
+}
+
 #[cfg(feature = "v1")]
 impl Payments {
     pub fn server(state: AppState) -> Scope {

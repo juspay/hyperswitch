@@ -1,5 +1,5 @@
 -- Your SQL goes here
-CREATE TYPE "RelayStatus" AS ENUM ('created', 'pending', 'failed', 'succeeded');
+CREATE TYPE "RelayStatus" AS ENUM ('created', 'pending', 'failure', 'success');
 
 CREATE TYPE "RelayType" AS ENUM ('refund');
 

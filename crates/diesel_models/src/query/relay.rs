@@ -1,7 +1,7 @@
 use super::generics;
 use crate::{
     errors,
-    relay::{Relay, RelayNew, RelayUpdate, RelayUpdateInternal},
+    relay::{Relay, RelayNew, RelayUpdateInternal},
     schema::relay::dsl,
     PgPooledConn, StorageResult,
 };
@@ -14,7 +14,11 @@ impl RelayNew {
 }
 
 impl Relay {
-    pub async fn update(self, conn: &PgPooledConn, relay: RelayUpdate) -> StorageResult<Self> {
+    pub async fn update(
+        self,
+        conn: &PgPooledConn,
+        relay: RelayUpdateInternal,
+    ) -> StorageResult<Self> {
         match generics::generic_update_with_unique_predicate_get_result::<
             <Self as HasTable>::Table,
             _,
@@ -25,7 +29,7 @@ impl Relay {
             dsl::id
                 .eq(self.id.to_owned())
                 .and(dsl::merchant_id.eq(self.merchant_id.to_owned())),
-            RelayUpdateInternal::from(relay),
+            relay,
         )
         .await
         {
@@ -35,16 +39,5 @@ impl Relay {
             },
             result => result,
         }
-    }
-
-    pub async fn find_by_id(
-        conn: &PgPooledConn,
-        id: &str,
-    ) -> StorageResult<Self> {
-        generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
-            conn,
-            dsl::id.eq(id.to_owned()),
-        )
-        .await
     }
 }
