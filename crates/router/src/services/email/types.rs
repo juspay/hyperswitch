@@ -225,6 +225,14 @@ pub fn get_link_with_token(
     email_url
 }
 
+pub fn get_base_url(state: &SessionState) -> &str {
+    if !state.conf.multitenancy.enabled {
+        &state.conf.user.base_url
+    } else {
+        &state.tenant.user.control_center_url
+    }
+}
+
 pub struct VerifyEmail {
     pub recipient_email: domain::UserEmail,
     pub settings: std::sync::Arc<configs::Settings>,
@@ -237,7 +245,7 @@ pub struct VerifyEmail {
 /// Currently only HTML is supported
 #[async_trait::async_trait]
 impl EmailData for VerifyEmail {
-    async fn get_email_data(&self) -> CustomResult<EmailContents, EmailError> {
+    async fn get_email_data(&self, base_url: &str) -> CustomResult<EmailContents, EmailError> {
         let token = EmailToken::new_token(
             self.recipient_email.clone(),
             None,
@@ -248,7 +256,7 @@ impl EmailData for VerifyEmail {
         .change_context(EmailError::TokenGenerationFailure)?;
 
         let verify_email_link = get_link_with_token(
-            &self.settings.user.base_url,
+            base_url,
             token,
             "verify_email",
             &self.auth_id,
@@ -279,7 +287,7 @@ pub struct ResetPassword {
 
 #[async_trait::async_trait]
 impl EmailData for ResetPassword {
-    async fn get_email_data(&self) -> CustomResult<EmailContents, EmailError> {
+    async fn get_email_data(&self, base_url: &str) -> CustomResult<EmailContents, EmailError> {
         let token = EmailToken::new_token(
             self.recipient_email.clone(),
             None,
@@ -290,7 +298,7 @@ impl EmailData for ResetPassword {
         .change_context(EmailError::TokenGenerationFailure)?;
 
         let reset_password_link = get_link_with_token(
-            &self.settings.user.base_url,
+            base_url,
             token,
             "set_password",
             &self.auth_id,
@@ -322,7 +330,7 @@ pub struct MagicLink {
 
 #[async_trait::async_trait]
 impl EmailData for MagicLink {
-    async fn get_email_data(&self) -> CustomResult<EmailContents, EmailError> {
+    async fn get_email_data(&self, base_url: &str) -> CustomResult<EmailContents, EmailError> {
         let token = EmailToken::new_token(
             self.recipient_email.clone(),
             None,
@@ -333,7 +341,7 @@ impl EmailData for MagicLink {
         .change_context(EmailError::TokenGenerationFailure)?;
 
         let magic_link_login = get_link_with_token(
-            &self.settings.user.base_url,
+            base_url,
             token,
             "verify_email",
             &self.auth_id,
@@ -366,7 +374,7 @@ pub struct InviteUser {
 
 #[async_trait::async_trait]
 impl EmailData for InviteUser {
-    async fn get_email_data(&self) -> CustomResult<EmailContents, EmailError> {
+    async fn get_email_data(&self, base_url: &str) -> CustomResult<EmailContents, EmailError> {
         let token = EmailToken::new_token(
             self.recipient_email.clone(),
             Some(self.entity.clone()),
@@ -377,7 +385,7 @@ impl EmailData for InviteUser {
         .change_context(EmailError::TokenGenerationFailure)?;
 
         let invite_user_link = get_link_with_token(
-            &self.settings.user.base_url,
+            base_url,
             token,
             "accept_invite_from_email",
             &self.auth_id,
@@ -406,7 +414,7 @@ pub struct ReconActivation {
 
 #[async_trait::async_trait]
 impl EmailData for ReconActivation {
-    async fn get_email_data(&self) -> CustomResult<EmailContents, EmailError> {
+    async fn get_email_data(&self, _base_url: &str) -> CustomResult<EmailContents, EmailError> {
         let body = html::get_html_body(EmailBody::ReconActivation {
             user_name: self.user_name.clone().get_secret().expose(),
         });
@@ -461,7 +469,7 @@ impl BizEmailProd {
 
 #[async_trait::async_trait]
 impl EmailData for BizEmailProd {
-    async fn get_email_data(&self) -> CustomResult<EmailContents, EmailError> {
+    async fn get_email_data(&self, _base_url: &str) -> CustomResult<EmailContents, EmailError> {
         let body = html::get_html_body(EmailBody::BizEmailProd {
             user_name: self.user_name.clone().expose(),
             poc_email: self.poc_email.clone().expose(),
@@ -491,7 +499,7 @@ pub struct ProFeatureRequest {
 
 #[async_trait::async_trait]
 impl EmailData for ProFeatureRequest {
-    async fn get_email_data(&self) -> CustomResult<EmailContents, EmailError> {
+    async fn get_email_data(&self, _base_url: &str) -> CustomResult<EmailContents, EmailError> {
         let recipient = self.recipient_email.clone().into_inner();
 
         let body = html::get_html_body(EmailBody::ProFeatureRequest {
@@ -521,7 +529,7 @@ pub struct ApiKeyExpiryReminder {
 
 #[async_trait::async_trait]
 impl EmailData for ApiKeyExpiryReminder {
-    async fn get_email_data(&self) -> CustomResult<EmailContents, EmailError> {
+    async fn get_email_data(&self, _base_url: &str) -> CustomResult<EmailContents, EmailError> {
         let recipient = self.recipient_email.clone().into_inner();
 
         let body = html::get_html_body(EmailBody::ApiKeyExpiryReminder {
@@ -545,7 +553,7 @@ pub struct WelcomeToCommunity {
 
 #[async_trait::async_trait]
 impl EmailData for WelcomeToCommunity {
-    async fn get_email_data(&self) -> CustomResult<EmailContents, EmailError> {
+    async fn get_email_data(&self, _base_url: &str) -> CustomResult<EmailContents, EmailError> {
         let body = html::get_html_body(EmailBody::WelcomeToCommunity);
 
         Ok(EmailContents {

@@ -4,27 +4,29 @@
 #[utoipa::path(
     post,
     path = "/relay",
-    request_body  (
+    request_body(
         content = RelayRequest,
-        examples  ((
-                "Create a relay request" = (
-                    value = json!({
+        examples((
+            "Create a relay request" = (
+                value = json!({
                     "connector_resource_id": "7256228702616471803954",
-                    "connector_id": "cu_123456",
-                    "profile_id": "pro_123456",
+                    "connector_id": "mca_5apGeP94tMts6rg3U3kR",
                     "type": "refund",
                     "data": {
                         "amount": 6540,
                         "currency": "USD"
                     }
-                    })
-                )
-            ))
+                })
+            )
+        ))
     ),
     responses(
-        (status = 200, description = "Relay request", body = CustomerResponse),
+        (status = 200, description = "Relay request", body = RelayResponse),
         (status = 400, description = "Invalid data")
-
+    ),
+    params(
+        ("X-Profile-Id" = String, Header, description = "Profile ID for authentication"),
+        ("X-Idempotency-Key" = String, Header, description = "Idempotency Key for relay request")
     ),
     tag = "Relay",
     operation_id = "Relay Request",
@@ -43,6 +45,9 @@ pub async fn relay() {}
     responses(
         (status = 200, description = "Relay Retrieved", body = RelayResponse),
         (status = 404, description = "Relay details was not found")
+    ),
+    params(
+        ("X-Profile-Id" = String, Header, description = "Profile ID for authentication")
     ),
     tag = "Relay",
     operation_id = "Retrieve a Relay details",
