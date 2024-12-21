@@ -2519,3 +2519,51 @@ pub async fn payments_capture(
     ))
     .await
 }
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsList))]
+pub async fn list_payment_methods(
+    state: web::Data<app::AppState>,
+    req: actix_web::HttpRequest,
+    path: web::Path<common_utils::id_type::GlobalPaymentId>,
+    query_payload: web::Query<api_models::payments::PaymentMethodsListRequest>,
+) -> impl Responder {
+    let flow = Flow::PaymentMethodsList;
+    let payload = query_payload.into_inner();
+    let global_payment_id = path.into_inner();
+
+    tracing::Span::current().record("payment_id", global_payment_id.get_string_repr());
+
+    let internal_payload = internal_payload_types::PaymentsGenericRequestWithResourceId {
+        global_payment_id,
+        payload,
+    };
+
+    let header_payload = match HeaderPayload::foreign_try_from(req.headers()) {
+        Ok(headers) => headers,
+        Err(err) => {
+            return api::log_and_return_error_response(err);
+        }
+    };
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        internal_payload,
+        |state, auth, req, _| {
+            payments::payment_methods::list_payment_methods(
+                state,
+                auth.merchant_account,
+                auth.profile,
+                auth.key_store,
+                req.global_payment_id,
+                req.payload,
+                &header_payload,
+            )
+        },
+        &auth::PublishableKeyAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
