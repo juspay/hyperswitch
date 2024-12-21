@@ -1,7 +1,8 @@
-use crate::{enums as storage_enums, schema::relay};
 use common_utils::pii;
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use time::PrimitiveDateTime;
+
+use crate::{enums as storage_enums, schema::relay};
 
 #[derive(
     Clone,

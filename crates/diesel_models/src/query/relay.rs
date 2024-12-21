@@ -1,3 +1,5 @@
+use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
+
 use super::generics;
 use crate::{
     errors,
@@ -5,7 +7,6 @@ use crate::{
     schema::relay::dsl,
     PgPooledConn, StorageResult,
 };
-use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
 
 impl RelayNew {
     pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<Relay> {
