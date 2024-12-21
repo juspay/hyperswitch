@@ -3510,6 +3510,7 @@ mod tests {
             tax_details: None,
             skip_external_tax_calculation: None,
             psd2_sca_exemption_type: None,
+            platform_merchant_id: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_ok());
@@ -3580,6 +3581,7 @@ mod tests {
             tax_details: None,
             skip_external_tax_calculation: None,
             psd2_sca_exemption_type: None,
+            platform_merchant_id: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent,).is_err())
@@ -3648,6 +3650,7 @@ mod tests {
             tax_details: None,
             skip_external_tax_calculation: None,
             psd2_sca_exemption_type: None,
+            platform_merchant_id: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_err())

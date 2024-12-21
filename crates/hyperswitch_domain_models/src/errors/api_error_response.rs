@@ -298,6 +298,10 @@ pub enum ApiErrorResponse {
         field_names: String,
         connector_transaction_id: Option<String>,
     },
+    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_42", message = "API does not support platform account operation")]
+    PlatformAccountAuthNotSupported,
+    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_43", message = "Invalid platform account operation")]
+    InvalidPlatformOperation,
 }
 
 #[derive(Clone)]
@@ -667,6 +671,12 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
                     ..Default::default()
                 })
             )),
+            Self::PlatformAccountAuthNotSupported => {
+                AER::BadRequest(ApiError::new("IR", 42, "API does not support platform operation", None))
+            }
+            Self::InvalidPlatformOperation => {
+                AER::Unauthorized(ApiError::new("IR", 43, "Invalid platform account operation", None))
+            }
         }
     }
 }
