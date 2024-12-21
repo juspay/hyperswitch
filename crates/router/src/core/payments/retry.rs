@@ -98,7 +98,7 @@ where
         router_data = do_retry(
             &state.clone(),
             req_state.clone(),
-            original_connector_data,
+            original_connector_data.clone(),
             operation,
             customer,
             merchant_account,
@@ -110,11 +110,13 @@ where
             true,
             frm_suggestion,
             business_profile,
+            false,
         )
         .await?;
     }
     // Step up is not applicable so proceed with auto retries flow
     else {
+        let original_connector_data = original_connector_data.clone();
         loop {
             // Use initial_gsm for first time alone
             let gsm = match initial_gsm.as_ref() {
@@ -140,7 +142,22 @@ where
                         break;
                     }
 
-                    let connector = super::get_connector_data(&mut connectors)?;
+                    let is_network_token = matches!(
+                        payment_data.get_payment_method_data(),
+                        Some(domain::PaymentMethodData::NetworkToken(_))
+                    );
+                    let should_retry_with_pan = is_network_token
+                        && initial_gsm
+                            .as_ref()
+                            .map(|gsm| gsm.clear_pan_possible)
+                            .unwrap_or(false)
+                        && business_profile.is_clear_pan_retries_enabled;
+
+                    let connector = if should_retry_with_pan {
+                        original_connector_data.clone()
+                    } else {
+                        super::get_connector_data(&mut connectors)?
+                    };
 
                     router_data = do_retry(
                         &state.clone(),
@@ -158,6 +175,7 @@ where
                         false,
                         frm_suggestion,
                         business_profile,
+                        should_retry_with_pan,
                     )
                     .await?;
 
@@ -309,6 +327,7 @@ pub async fn do_retry<F, ApiRequest, FData, D>(
     is_step_up: bool,
     frm_suggestion: Option<storage_enums::FrmSuggestion>,
     business_profile: &domain::Profile,
+    should_retry_with_pan: bool,
 ) -> RouterResult<types::RouterData<F, FData, types::PaymentsResponseData>>
 where
     F: Clone + Send + Sync,
@@ -352,6 +371,7 @@ where
         frm_suggestion,
         business_profile,
         true,
+        should_retry_with_pan,
     )
     .await?;
 

@@ -203,6 +203,7 @@ where
                 None,
                 &profile,
                 false,
+                false,
             )
             .await?;
 
@@ -474,6 +475,7 @@ where
                         None,
                         &business_profile,
                         false,
+                        false,
                     )
                     .await?;
 
@@ -575,6 +577,7 @@ where
                         #[cfg(not(feature = "frm"))]
                         None,
                         &business_profile,
+                        false,
                         false,
                     )
                     .await?;
@@ -2419,6 +2422,7 @@ pub async fn call_connector_service<F, RouterDReq, ApiRequest, D>(
     frm_suggestion: Option<storage_enums::FrmSuggestion>,
     business_profile: &domain::Profile,
     is_retry_payment: bool,
+    should_retry_with_pan: bool,
 ) -> RouterResult<(
     RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
     helpers::MerchantConnectorAccountType,
@@ -2471,6 +2475,7 @@ where
         key_store,
         customer,
         business_profile,
+        should_retry_with_pan,
     )
     .await?;
     *payment_data = pd;
@@ -2671,6 +2676,7 @@ pub async fn call_connector_service<F, RouterDReq, ApiRequest, D>(
     frm_suggestion: Option<storage_enums::FrmSuggestion>,
     business_profile: &domain::Profile,
     is_retry_payment: bool,
+    should_retry_with_pan: bool,
 ) -> RouterResult<RouterData<F, RouterDReq, router_types::PaymentsResponseData>>
 where
     F: Send + Clone + Sync,
@@ -4162,6 +4168,7 @@ pub async fn get_connector_tokenization_action_when_confirm_true<F, Req, D>(
     merchant_key_store: &domain::MerchantKeyStore,
     customer: &Option<domain::Customer>,
     business_profile: &domain::Profile,
+    should_retry_with_pan: bool,
 ) -> RouterResult<(D, TokenizationAction)>
 where
     F: Send + Clone,
@@ -4232,6 +4239,7 @@ where
                             merchant_key_store,
                             customer,
                             business_profile,
+                            should_retry_with_pan,
                         )
                         .await?;
                     payment_data.set_payment_method_data(payment_method_data);
@@ -4251,6 +4259,7 @@ where
                             merchant_key_store,
                             customer,
                             business_profile,
+                            should_retry_with_pan,
                         )
                         .await?;
 
@@ -4334,6 +4343,7 @@ where
                     merchant_key_store,
                     customer,
                     business_profile,
+                    false,
                 )
                 .await?;
             payment_data.set_payment_method_data(payment_method_data);
@@ -4399,6 +4409,52 @@ where
     pub tax_data: Option<TaxData>,
     pub session_id: Option<String>,
     pub service_details: Option<api_models::payments::CtpServiceDetails>,
+    pub vault_operation: Option<PaymentMethodDataAction>,
+}
+
+#[derive(Clone, serde::Serialize, Debug)]
+pub enum PaymentMethodDataAction {
+    SaveCard(hyperswitch_domain_models::payment_method_data::Card),
+    VaultDataVariant(VaultDataEnum),
+}
+
+#[derive(Clone, serde::Serialize, Debug)]
+pub enum VaultDataEnum {
+    CardVaultData(hyperswitch_domain_models::payment_method_data::Card),
+    NetworkTokenVaultData(hyperswitch_domain_models::payment_method_data::NetworkTokenData),
+    CardAndNetworkToken(VaultData),
+}
+
+#[derive(Default, Clone, serde::Serialize, Debug)]
+pub struct VaultData {
+    pub card_data: hyperswitch_domain_models::payment_method_data::Card,
+    pub network_token_data: hyperswitch_domain_models::payment_method_data::NetworkTokenData,
+}
+
+impl VaultDataEnum {
+    pub fn get_card_vault_data(
+        &self,
+    ) -> Option<hyperswitch_domain_models::payment_method_data::Card> {
+        match self {
+            VaultDataEnum::CardVaultData(card_data) => Some(card_data.clone()),
+            VaultDataEnum::NetworkTokenVaultData(_network_token_data) => None,
+            VaultDataEnum::CardAndNetworkToken(vault_data) => Some(vault_data.card_data.clone()),
+        }
+    }
+
+    pub fn get_network_token_data(
+        &self,
+    ) -> Option<hyperswitch_domain_models::payment_method_data::NetworkTokenData> {
+        match self {
+            VaultDataEnum::CardVaultData(_card_data) => None,
+            VaultDataEnum::NetworkTokenVaultData(network_token_data) => {
+                Some(network_token_data.clone())
+            }
+            VaultDataEnum::CardAndNetworkToken(vault_data) => {
+                Some(vault_data.network_token_data.clone())
+            }
+        }
+    }
 }
 
 #[derive(Clone, serde::Serialize, Debug)]
@@ -6508,7 +6564,6 @@ pub async fn payment_external_authentication(
         &payment_intent,
         &key_store,
         storage_scheme,
-        &business_profile,
     )
     .await?
     .ok_or(errors::ApiErrorResponse::InternalServerError)
@@ -6868,6 +6923,7 @@ pub trait OperationSessionGetters<F> {
     fn get_mandate_connector(&self) -> Option<&MandateConnectorDetails>;
     fn get_force_sync(&self) -> Option<bool>;
     fn get_capture_method(&self) -> Option<enums::CaptureMethod>;
+    fn get_vault_operation(&self) -> Option<&PaymentMethodDataAction>;
 
     #[cfg(feature = "v2")]
     fn get_optional_payment_attempt(&self) -> Option<&storage::PaymentAttempt>;
@@ -6913,6 +6969,7 @@ pub trait OperationSessionSetters<F> {
         straight_through_algorithm: serde_json::Value,
     );
     fn set_connector_in_payment_attempt(&mut self, connector: Option<String>);
+    fn set_vault_operation(&mut self, vault_operation: PaymentMethodDataAction);
 }
 
 #[cfg(feature = "v1")]
@@ -7045,6 +7102,10 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentData<F> {
         self.payment_attempt.capture_method
     }
 
+    fn get_vault_operation(&self) -> Option<&PaymentMethodDataAction> {
+        self.vault_operation.as_ref()
+    }
+
     // #[cfg(feature = "v2")]
     // fn get_capture_method(&self) -> Option<enums::CaptureMethod> {
     //     Some(self.payment_intent.capture_method)
@@ -7160,6 +7221,10 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentData<F> {
 
     fn set_connector_in_payment_attempt(&mut self, connector: Option<String>) {
         self.payment_attempt.connector = connector;
+    }
+
+    fn set_vault_operation(&mut self, vault_operation: PaymentMethodDataAction) {
+        self.vault_operation = Some(vault_operation);
     }
 }
 

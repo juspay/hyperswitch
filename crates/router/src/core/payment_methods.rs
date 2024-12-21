@@ -70,7 +70,7 @@ use crate::{
     consts,
     core::{
         errors::{self, RouterResult},
-        payments::helpers as payment_helpers,
+        payments::{self, helpers as payment_helpers},
     },
     routes::{app::StorageInterface, SessionState},
     services,
@@ -535,6 +535,8 @@ pub async fn retrieve_payment_method_with_token(
     mandate_id: Option<api_models::payments::MandateIds>,
     payment_method_info: Option<domain::PaymentMethod>,
     business_profile: &domain::Profile,
+    should_retry_with_pan: bool,
+    vault_data: Option<&payments::VaultDataEnum>,
 ) -> RouterResult<storage::PaymentMethodDataWithId> {
     let token = match token_data {
         storage::PaymentTokenData::TemporaryGeneric(generic_token) => {
@@ -578,7 +580,7 @@ pub async fn retrieve_payment_method_with_token(
         }
 
         storage::PaymentTokenData::Permanent(card_token) => {
-            payment_helpers::retrieve_card_with_permanent_token(
+            payment_helpers::retrieve_payment_method_data_with_permanent_token(
                 state,
                 card_token.locker_id.as_ref().unwrap_or(&card_token.token),
                 card_token
@@ -593,6 +595,8 @@ pub async fn retrieve_payment_method_with_token(
                 payment_method_info,
                 business_profile,
                 payment_attempt.connector.clone(),
+                should_retry_with_pan,
+                vault_data,
             )
             .await
             .map(|card| Some((card, enums::PaymentMethod::Card)))?
@@ -613,7 +617,7 @@ pub async fn retrieve_payment_method_with_token(
         }
 
         storage::PaymentTokenData::PermanentCard(card_token) => {
-            payment_helpers::retrieve_card_with_permanent_token(
+            payment_helpers::retrieve_payment_method_data_with_permanent_token(
                 state,
                 card_token.locker_id.as_ref().unwrap_or(&card_token.token),
                 card_token
@@ -628,6 +632,8 @@ pub async fn retrieve_payment_method_with_token(
                 payment_method_info,
                 business_profile,
                 payment_attempt.connector.clone(),
+                should_retry_with_pan,
+                vault_data,
             )
             .await
             .map(|card| Some((card, enums::PaymentMethod::Card)))?
