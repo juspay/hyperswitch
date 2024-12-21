@@ -98,7 +98,7 @@ where
         router_data = do_retry(
             &state.clone(),
             req_state.clone(),
-            original_connector_data,
+            original_connector_data.clone(),
             operation,
             customer,
             merchant_account,
@@ -116,6 +116,7 @@ where
     }
     // Step up is not applicable so proceed with auto retries flow
     else {
+        let original_connector_data = original_connector_data.clone();
         loop {
             // Use initial_gsm for first time alone
             let gsm = match initial_gsm.as_ref() {
@@ -141,19 +142,18 @@ where
                         break;
                     }
 
-                    let connector = super::get_connector_data(&mut connectors)?;
-
-                    let clear_pan_possible = initial_gsm
-                        .clone()
+                    let is_network_token = matches!(payment_data.get_payment_method_data(), Some(domain::PaymentMethodData::NetworkToken(_)));
+                    let should_retry_with_pan = is_network_token && initial_gsm
+                        .as_ref()
                         .map(|gsm| gsm.clear_pan_possible)
-                        .unwrap_or(false);
+                        .unwrap_or(false)
+                        && business_profile.is_clear_pan_retries_enabled;
 
-                    let should_retry_with_pan =
-                        if clear_pan_possible && business_profile.is_clear_pan_retries_enabled {
-                            true
-                        } else {
-                            false
-                        };
+                    let connector = if should_retry_with_pan {
+                        original_connector_data.clone()
+                    } else {
+                        super::get_connector_data(&mut connectors)?
+                    };
 
                     router_data = do_retry(
                         &state.clone(),

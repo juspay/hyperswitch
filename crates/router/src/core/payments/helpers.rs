@@ -1959,11 +1959,12 @@ pub fn determine_standard_vault_action(
                 }
             },
             None => {
+                //save card flow
                 if connector
                     .map(|conn| network_tokenization_supported_connectors.contains(&conn))
                     .unwrap_or(false)
                 {
-                    VaultFetchAction::FetchNetworkTokenDataFromTokenizationService
+                    VaultFetchAction::FetchNetworkTokenDataFromTokenizationService //return nt ref
                 } else {
                     VaultFetchAction::FetchCardDetailsFromLocker
                 }
@@ -1986,7 +1987,7 @@ pub async fn retrieve_payment_method_data_with_permanent_token(
     _merchant_key_store: &domain::MerchantKeyStore,
     _storage_scheme: enums::MerchantStorageScheme,
     mandate_id: Option<api_models::payments::MandateIds>,
-    payment_method_info: Option<domain::PaymentMethod>,
+    payment_method_info: Option<domain::PaymentMethod>, //make it mandatory
     business_profile: &domain::Profile,
     connector: Option<String>,
     should_retry_with_pan: bool,
@@ -2016,7 +2017,7 @@ pub async fn retrieve_payment_method_data_with_permanent_token(
         })
         .transpose()?;
 
-    let vault_fetch_action = decide_vault_fetch_action(
+    let vault_fetch_action = decide_vault_fetch_action( //change var name
         business_profile.is_network_tokenization_enabled,
         mandate_id,
         connector_variant,
@@ -2090,8 +2091,7 @@ pub async fn retrieve_payment_method_data_with_permanent_token(
                         }
                     }
                 } else {
-                    logger::info!("Either the connector is not in the NT supported list or token requestor reference ID is absent");
-                    logger::info!("Falling back to fetch card details from locker");
+                    logger::info!("Falling back to fetch card details from locker"); //re write the error message
                     Ok(domain::PaymentMethodData::Card(
                         vault_data
                             .and_then(|vd| vd.get_card_vault_data())
@@ -2524,9 +2524,7 @@ where
     // TODO: Handle case where payment method and token both are present in request properly.
     let (payment_method, pm_id) = match (&request, payment_data.token_data.as_ref()) {
         (_, Some(hyperswitch_token)) => {
-            let stalled_payment_method_data = payment_data.get_vault_operation();
-            // valut data : card data, token data(opt, opt)
-            // vault data : Card(card), Networktoken(NT), CARD and Network (token)
+            let stalled_payment_method_data = payment_data.get_vault_operation(); //change the variable name
 
             let vd = stalled_payment_method_data.and_then(|data| match data {
                 payments::PaymentMethodDataAction::SaveCard(_) => None,
@@ -2609,7 +2607,8 @@ where
                                     network_token_data: nt_data.clone(),
                                 }),
                             )),
-                            (payments::VaultDataEnum::CardAndNetworkToken(_), _) => None,
+                            (payments::VaultDataEnum::CardAndNetworkToken(_), _) => None, //change the set logic if none do not update
+                            
                             _ => Some(payments::PaymentMethodDataAction::VaultDataVariant(
                                 vault_enum.clone(),
                             )),
