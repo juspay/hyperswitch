@@ -1,10 +1,9 @@
-use crate::core::api_locking;
 use actix_web::{web, Responder};
-use router_env::{ instrument, tracing,  Flow};
+use router_env::{instrument, tracing, Flow};
 
 use crate::{
     self as app,
-    core::relay,
+    core::{api_locking, relay},
     services::{api, authentication as auth},
 };
 

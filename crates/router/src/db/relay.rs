@@ -1,9 +1,3 @@
-use crate::{
-    connection,
-    core::errors::{self, CustomResult},
-    db::kafka_store::KafkaStore,
-    services::Store,
-};
 use common_utils::types::keymanager::KeyManagerState;
 use diesel_models;
 use error_stack::{report, ResultExt};
@@ -11,6 +5,12 @@ use hyperswitch_domain_models::behaviour::{Conversion, ReverseConversion};
 use storage_impl::MockDb;
 
 use super::domain;
+use crate::{
+    connection,
+    core::errors::{self, CustomResult},
+    db::kafka_store::KafkaStore,
+    services::Store,
+};
 
 #[async_trait::async_trait]
 pub trait RelayInterface {

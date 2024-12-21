@@ -3,7 +3,13 @@ use api_models::admin;
 #[cfg(feature = "v2")]
 use common_utils::ext_traits::ValueExt;
 use common_utils::{
-    crypto::Encryptable, date_time, encryption::Encryption, errors::{CustomResult, ValidationError}, ext_traits::ValueExt, id_type, pii, type_name, types::keymanager::{Identifier, KeyManagerState, ToEncryptable}
+    crypto::Encryptable,
+    date_time,
+    encryption::Encryption,
+    errors::{CustomResult, ValidationError},
+    ext_traits::ValueExt,
+    id_type, pii, type_name,
+    types::keymanager::{Identifier, KeyManagerState, ToEncryptable},
 };
 use diesel_models::{enums, merchant_connector_account::MerchantConnectorAccountUpdateInternal};
 use error_stack::ResultExt;
@@ -18,7 +24,10 @@ use super::behaviour;
 use crate::errors::api_error_response::ApiErrorResponse;
 #[cfg(feature = "v2")]
 use crate::router_data;
-use crate::{router_data, type_encryption::{crypto_operation, CryptoOperation}};
+use crate::{
+    router_data,
+    type_encryption::{crypto_operation, CryptoOperation},
+};
 
 #[cfg(feature = "v1")]
 #[derive(Clone, Debug, router_derive::ToEncryption)]

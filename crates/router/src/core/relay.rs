@@ -1,16 +1,5 @@
 use std::str::FromStr;
 
-use crate::{
-    core::payments,
-    routes::SessionState,
-    services,
-    types::{
-        api::{self},
-        domain,
-        transformers::ForeignFrom,
-    },
-};
-
 use api_models::relay as relay_models;
 use common_utils::{
     self,
@@ -21,6 +10,16 @@ use error_stack::ResultExt;
 use hyperswitch_domain_models::types;
 
 use super::errors::{self, ConnectorErrorExt, RouterResponse, RouterResult, StorageErrorExt};
+use crate::{
+    core::payments,
+    routes::SessionState,
+    services,
+    types::{
+        api::{self},
+        domain,
+        transformers::ForeignFrom,
+    },
+};
 
 const IRRELEVANT_PAYMENT_INTENT_ID: &str = "irrelevant_payment_intent_id";
 
