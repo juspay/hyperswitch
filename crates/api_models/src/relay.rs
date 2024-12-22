@@ -21,7 +21,7 @@ pub struct RelayRequest {
 }
 
 #[derive(Debug, ToSchema, Clone, Deserialize, Serialize)]
-#[serde(rename_all = "snake_case", untagged)]
+#[serde(rename_all = "snake_case")]
 pub enum RelayData {
     /// The data that is associated with a refund relay request
     Refund(RelayRefundRequest),

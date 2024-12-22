@@ -174,7 +174,7 @@ pub fn validate_relay_refund_request(
 pub fn validate_relay_refund_data(
     refund_data: &relay_models::RelayRefundRequest,
 ) -> RouterResult<()> {
-    if refund_data.amount.get_amount_as_i64().is_positive() {
+    if refund_data.amount.get_amount_as_i64() <= 0 {
         Err(errors::ApiErrorResponse::PreconditionFailed {
             message: "Amount should be greater than 0".to_string(),
         })?

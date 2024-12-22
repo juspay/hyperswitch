@@ -23213,7 +23213,15 @@
       "RelayData": {
         "oneOf": [
           {
-            "$ref": "#/components/schemas/RelayRefundRequest"
+            "type": "object",
+            "required": [
+              "refund"
+            ],
+            "properties": {
+              "refund": {
+                "$ref": "#/components/schemas/RelayRefundRequest"
+              }
+            }
           }
         ]
       },
