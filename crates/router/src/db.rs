@@ -30,6 +30,7 @@ pub mod organization;
 pub mod payment_link;
 pub mod payment_method;
 pub mod refund;
+pub mod relay;
 pub mod reverse_lookup;
 pub mod role;
 pub mod routing_algorithm;
@@ -132,6 +133,8 @@ pub trait StorageInterface:
     + user_authentication_method::UserAuthenticationMethodInterface
     + authentication::AuthenticationInterface
     + generic_link::GenericLinkInterface
+    + relay::RelayInterface
+    + user::theme::ThemeInterface
     + 'static
 {
     fn get_scheduler_db(&self) -> Box<dyn scheduler::SchedulerInterface>;
