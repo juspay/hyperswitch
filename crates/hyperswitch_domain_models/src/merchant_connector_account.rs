@@ -1,7 +1,5 @@
 #[cfg(feature = "v2")]
 use api_models::admin;
-#[cfg(feature = "v2")]
-use common_utils::ext_traits::ValueExt;
 use common_utils::{
     crypto::Encryptable,
     date_time,
@@ -22,8 +20,6 @@ use serde_json::Value;
 use super::behaviour;
 #[cfg(feature = "v2")]
 use crate::errors::api_error_response::ApiErrorResponse;
-#[cfg(feature = "v2")]
-use crate::router_data;
 use crate::{
     router_data,
     type_encryption::{crypto_operation, CryptoOperation},

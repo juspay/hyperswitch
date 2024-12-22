@@ -26,7 +26,7 @@ pub struct Relay {
     pub status: storage_enums::RelayStatus,
     pub connector_reference_id: Option<String>,
     pub error_code: Option<String>,
-    pub error_reason: Option<String>,
+    pub error_message: Option<String>,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: PrimitiveDateTime,
     #[serde(with = "common_utils::custom_serde::iso8601")]
@@ -57,7 +57,7 @@ pub struct RelayNew {
     pub status: storage_enums::RelayStatus,
     pub connector_reference_id: Option<String>,
     pub error_code: Option<String>,
-    pub error_reason: Option<String>,
+    pub error_message: Option<String>,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: PrimitiveDateTime,
     #[serde(with = "common_utils::custom_serde::iso8601")]
@@ -65,51 +65,12 @@ pub struct RelayNew {
     pub response_data: Option<pii::SecretSerdeValue>,
 }
 
-// #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-// pub enum RelayUpdate {
-//     ErrorUpdate {
-//         error_code: String,
-//         error_reason: String,
-//     },
-//     StatusUpdate {
-//         connector_reference_id: Option<String>,
-//         status: storage_enums::RelayStatus,
-//     },
-// }
-
 #[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay)]
 #[table_name = "relay"]
 pub struct RelayUpdateInternal {
     pub connector_reference_id: Option<String>,
     pub status: Option<storage_enums::RelayStatus>,
     pub error_code: Option<String>,
-    pub error_reason: Option<String>,
+    pub error_message: Option<String>,
     pub modified_at: PrimitiveDateTime,
 }
-
-// impl From<RelayUpdate> for RelayUpdateInternal {
-//     fn from(value: RelayUpdate) -> Self {
-//         match value {
-//             RelayUpdate::ErrorUpdate {
-//                 error_code,
-//                 error_reason,
-//             } => Self {
-//                 error_code: Some(error_code),
-//                 error_reason: Some(error_reason),
-//                 connector_reference_id: None,
-//                 status: None,
-//                 modified_at: common_utils::date_time::now(),
-//             },
-//             RelayUpdate::StatusUpdate {
-//                 connector_reference_id,
-//                 status,
-//             } => Self {
-//                 connector_reference_id,
-//                 status: Some(status),
-//                 error_code: None,
-//                 error_reason: None,
-//                 modified_at: common_utils::date_time::now(),
-//             },
-//         }
-//     }
-// }

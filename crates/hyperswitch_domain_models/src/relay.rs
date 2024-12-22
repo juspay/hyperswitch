@@ -23,7 +23,7 @@ pub struct Relay {
     pub status: enums::RelayStatus,
     pub connector_reference_id: Option<String>,
     pub error_code: Option<String>,
-    pub error_reason: Option<String>,
+    pub error_message: Option<String>,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: PrimitiveDateTime,
     #[serde(with = "common_utils::custom_serde::iso8601")]
@@ -35,7 +35,7 @@ impl From<Relay> for api_models::relay::RelayResponse {
     fn from(value: Relay) -> Self {
         let error = value
             .error_code
-            .zip(value.error_reason)
+            .zip(value.error_message)
             .map(
                 |(error_code, error_message)| api_models::relay::RelayError {
                     code: error_code,
@@ -60,7 +60,7 @@ impl From<Relay> for api_models::relay::RelayResponse {
             connector_id: value.connector_id,
             profile_id: value.profile_id,
             relay_type: value.relay_type,
-            data: data,
+            data,
             connector_reference_id: value.connector_reference_id,
         }
     }
@@ -83,7 +83,7 @@ pub struct RelayRefundData {
 pub enum RelayUpdate {
     ErrorUpdate {
         error_code: String,
-        error_reason: String,
+        error_message: String,
         status: enums::RelayStatus,
     },
     StatusUpdate {
@@ -92,33 +92,16 @@ pub enum RelayUpdate {
     },
 }
 
-// impl From<Result<Response, ErrorResponse>> for RelayUpdate {
-//     fn from(value: Result<Response, ErrorResponse>) -> Self {
-//         match value.response {
-//         Err(error) => hyperswitch_domain_models::relay::RelayUpdate::ErrorUpdate {
-//             error_code: error.code,
-//             error_reason: error.message,
-//             status: common_enums::RelayStatus::Failure,
-//         },
-//         Ok(response) => hyperswitch_domain_models::relay::RelayUpdate::StatusUpdate {
-//             connector_reference_id: Some(response.connector_refund_id),
-//             status: common_enums::RelayStatus::from(response.refund_status),
-//         },
-//     }
-//     }
-// }
-
-
 impl From<RelayUpdate> for RelayUpdateInternal {
     fn from(value: RelayUpdate) -> Self {
         match value {
             RelayUpdate::ErrorUpdate {
                 error_code,
-                error_reason,
+                error_message,
                 status,
             } => Self {
                 error_code: Some(error_code),
-                error_reason: Some(error_reason),
+                error_message: Some(error_message),
                 connector_reference_id: None,
                 status: Some(status),
                 modified_at: common_utils::date_time::now(),
@@ -130,7 +113,7 @@ impl From<RelayUpdate> for RelayUpdateInternal {
                 connector_reference_id,
                 status: Some(status),
                 error_code: None,
-                error_reason: None,
+                error_message: None,
                 modified_at: common_utils::date_time::now(),
             },
         }
@@ -162,7 +145,7 @@ impl super::behaviour::Conversion for Relay {
             status: self.status,
             connector_reference_id: self.connector_reference_id,
             error_code: self.error_code,
-            error_reason: self.error_reason,
+            error_message: self.error_message,
             created_at: self.created_at,
             modified_at: self.modified_at,
             response_data: self.response_data,
@@ -195,7 +178,7 @@ impl super::behaviour::Conversion for Relay {
             status: item.status,
             connector_reference_id: item.connector_reference_id,
             error_code: item.error_code,
-            error_reason: item.error_reason,
+            error_message: item.error_message,
             created_at: item.created_at,
             modified_at: item.modified_at,
             response_data: item.response_data,
@@ -222,7 +205,7 @@ impl super::behaviour::Conversion for Relay {
             status: self.status,
             connector_reference_id: self.connector_reference_id,
             error_code: self.error_code,
-            error_reason: self.error_reason,
+            error_message: self.error_message,
             created_at: self.created_at,
             modified_at: self.modified_at,
             response_data: self.response_data,

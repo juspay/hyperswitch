@@ -121,6 +121,6 @@ impl RelayInterface for KafkaStore {
         _current_state: hyperswitch_domain_models::relay::Relay,
         _relay_update: hyperswitch_domain_models::relay::RelayUpdate,
     ) -> CustomResult<hyperswitch_domain_models::relay::Relay, errors::StorageError> {
-        Err(errors::StorageError::MockDbError)?
+        Err(errors::StorageError::KafkaError)?
     }
 }

@@ -136,7 +136,7 @@ pub async fn relay_refund(
     let relay_response = match router_data_res.response {
         Err(error) => hyperswitch_domain_models::relay::RelayUpdate::ErrorUpdate {
             error_code: error.code,
-            error_reason: error.message,
+            error_message: error.message,
             status: common_enums::RelayStatus::Failure,
         },
         Ok(response) => hyperswitch_domain_models::relay::RelayUpdate::StatusUpdate {
@@ -199,7 +199,7 @@ pub fn get_relay_domain_model(
         status: common_enums::RelayStatus::Created,
         connector_reference_id: None,
         error_code: None,
-        error_reason: None,
+        error_message: None,
         created_at: common_utils::date_time::now(),
         modified_at: common_utils::date_time::now(),
         response_data: None,

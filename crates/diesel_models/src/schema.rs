@@ -1257,7 +1257,7 @@ diesel::table! {
         connector_reference_id -> Nullable<Varchar>,
         #[max_length = 64]
         error_code -> Nullable<Varchar>,
-        error_reason -> Nullable<Text>,
+        error_message -> Nullable<Text>,
         created_at -> Timestamp,
         modified_at -> Timestamp,
         response_data -> Nullable<Jsonb>,
