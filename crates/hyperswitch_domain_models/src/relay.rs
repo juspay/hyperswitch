@@ -108,7 +108,6 @@ pub enum RelayUpdate {
 //     }
 // }
 
-
 impl From<RelayUpdate> for RelayUpdateInternal {
     fn from(value: RelayUpdate) -> Self {
         match value {

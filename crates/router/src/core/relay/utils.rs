@@ -1,5 +1,8 @@
+use std::str::FromStr;
+
 use common_utils::{ext_traits::OptionExt, id_type};
 use error_stack::ResultExt;
+use hyperswitch_domain_models::{router_data::ErrorResponse, types};
 
 use crate::{
     core::payments,
@@ -9,9 +12,6 @@ use crate::{
     },
     routes::SessionState,
 };
-use std::str::FromStr;
-
-use hyperswitch_domain_models::{router_data::ErrorResponse, types};
 
 const IRRELEVANT_PAYMENT_INTENT_ID: &str = "irrelevant_payment_intent_id";
 
