@@ -25,7 +25,10 @@ pub async fn relay(
             relay::relay(
                 state,
                 auth.merchant_account,
+                #[cfg(feature = "v1")]
                 auth.profile_id,
+                #[cfg(feature = "v2")]
+                Some(auth.profile.get_id().clone()),
                 auth.key_store,
                 req,
             )

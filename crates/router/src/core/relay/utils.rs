@@ -117,7 +117,7 @@ pub async fn construct_relay_refund_router_data<'a, F>(
         payout_method_data: None,
         #[cfg(feature = "payouts")]
         quote_id: None,
-        test_mode: connector_account.test_mode,
+        test_mode: connector_account.get_connector_test_mode(),
         payment_method_balance: None,
         connector_api_version,
         connector_http_status_code: None,

@@ -1,9 +1,5 @@
 use api_models::relay as relay_models;
-use common_utils::{
-    self,
-    ext_traits::OptionExt,
-    id_type::{self, GenerateId},
-};
+use common_utils::{self, ext_traits::OptionExt, id_type};
 use error_stack::ResultExt;
 
 use super::errors::{self, ConnectorErrorExt, RouterResponse, RouterResult, StorageErrorExt};
@@ -14,7 +10,6 @@ use crate::{
     types::{
         api::{self},
         domain,
-        transformers::ForeignFrom,
     },
 };
 
@@ -30,6 +25,7 @@ pub async fn relay(
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
     let merchant_id = merchant_account.get_id();
+    let connector_id = &req.connector_id;
 
     let profile_id_from_auth_layer = profile_id_optional
         .get_required_value("ProfileId")
@@ -49,42 +45,11 @@ pub async fn relay(
             id: profile_id_from_auth_layer.get_string_repr().to_owned(),
         })?;
 
-    let relay_response = match req.relay_type {
-        common_enums::RelayType::Refund => {
-            Box::pin(relay_refund(
-                state,
-                merchant_account,
-                profile,
-                key_store,
-                &req,
-            ))
-            .await?
-        }
-    };
-    Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
-        relay_response,
-    ))
-}
-
-pub async fn relay_refund(
-    state: SessionState,
-    merchant_account: domain::MerchantAccount,
-    profile: domain::Profile,
-    key_store: domain::MerchantKeyStore,
-    req: &relay_models::RelayRequest,
-) -> RouterResult<relay_models::RelayResponse> {
-    validate_relay_refund_request(req).attach_printable("Invalid relay refund request")?;
-
-    let db = state.store.as_ref();
-    let key_manager_state = &(&state).into();
-    let connector_id = &req.connector_id;
-
-    let merchant_id = merchant_account.get_id();
-
+    #[cfg(feature = "v1")]
     let connector_account = db
         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
             key_manager_state,
-            merchant_account.get_id(),
+            merchant_id,
             connector_id,
             &key_store,
         )
@@ -92,6 +57,59 @@ pub async fn relay_refund(
         .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
             id: connector_id.get_string_repr().to_string(),
         })?;
+
+    #[cfg(feature = "v2")]
+    let connector_account = db
+        .find_merchant_connector_account_by_id(key_manager_state, connector_id, &key_store)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+            id: connector_id.get_string_repr().to_string(),
+        })?;
+
+    validate_relay_refund_request(&req).attach_printable("Invalid relay refund request")?;
+
+    let relay_domain =
+        hyperswitch_domain_models::relay::Relay::new(&req, merchant_id, profile.get_id());
+
+    let relay_record = db
+        .insert_relay(key_manager_state, &key_store, relay_domain)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to insert a relay record in db")?;
+
+    let relay_response = match req.relay_type {
+        common_enums::RelayType::Refund => {
+            Box::pin(relay_refund(
+                &state,
+                merchant_account,
+                connector_account,
+                &relay_record,
+            ))
+            .await?
+        }
+    };
+
+    let relay_update_record = db
+        .update_relay(key_manager_state, &key_store, relay_record, relay_response)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+    let response = relay_models::RelayResponse::from(relay_update_record);
+
+    Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
+        response,
+    ))
+}
+
+pub async fn relay_refund(
+    state: &SessionState,
+    merchant_account: domain::MerchantAccount,
+    connector_account: domain::MerchantConnectorAccount,
+    relay_record: &hyperswitch_domain_models::relay::Relay,
+) -> RouterResult<hyperswitch_domain_models::relay::RelayUpdate> {
+    let connector_id = &relay_record.connector_id;
+
+    let merchant_id = merchant_account.get_id();
 
     let connector_data = api::ConnectorData::get_connector_by_name(
         &state.conf.connectors,
@@ -106,25 +124,17 @@ pub async fn relay_refund(
         hyperswitch_domain_models::router_response_types::RefundsResponseData,
     > = connector_data.connector.get_connector_integration();
 
-    let relay_domain = get_relay_domain_model(req, merchant_account.get_id(), profile.get_id());
-
-    let relay_record = db
-        .insert_relay(key_manager_state, &key_store, relay_domain)
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to insert a relay record in db")?;
-
     let router_data = utils::construct_relay_refund_router_data(
-        &state,
+        state,
         &connector_account.connector_name,
         merchant_id,
         &connector_account,
-        &relay_record,
+        relay_record,
     )
     .await?;
 
     let router_data_res = services::execute_connector_processing_step(
-        &state,
+        state,
         connector_integration,
         &router_data,
         payments::CallConnectorAction::Trigger,
@@ -133,26 +143,10 @@ pub async fn relay_refund(
     .await
     .to_refund_failed_response()?;
 
-    let relay_response = match router_data_res.response {
-        Err(error) => hyperswitch_domain_models::relay::RelayUpdate::ErrorUpdate {
-            error_code: error.code,
-            error_message: error.message,
-            status: common_enums::RelayStatus::Failure,
-        },
-        Ok(response) => hyperswitch_domain_models::relay::RelayUpdate::StatusUpdate {
-            connector_reference_id: Some(response.connector_refund_id),
-            status: common_enums::RelayStatus::from(response.refund_status),
-        },
-    };
+    let relay_response =
+        hyperswitch_domain_models::relay::RelayUpdate::from(router_data_res.response);
 
-    let relay_update = db
-        .update_relay(key_manager_state, &key_store, relay_record, relay_response)
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
-
-    let response = relay_models::RelayResponse::from(relay_update);
-
-    Ok(response)
+    Ok(relay_response)
 }
 
 // validate relay request
@@ -180,42 +174,4 @@ pub fn validate_relay_refund_data(
         })?
     }
     Ok(())
-}
-
-pub fn get_relay_domain_model(
-    relay_request: &relay_models::RelayRequest,
-    merchant_id: &id_type::MerchantId,
-    profile_id: &id_type::ProfileId,
-) -> hyperswitch_domain_models::relay::Relay {
-    let relay_id = id_type::RelayId::generate();
-    hyperswitch_domain_models::relay::Relay {
-        id: relay_id.clone(),
-        connector_resource_id: relay_request.connector_resource_id.clone(),
-        connector_id: relay_request.connector_id.clone(),
-        profile_id: profile_id.clone(),
-        merchant_id: merchant_id.clone(),
-        relay_type: common_enums::RelayType::Refund,
-        request_data: relay_request.data.clone().map(ForeignFrom::foreign_from),
-        status: common_enums::RelayStatus::Created,
-        connector_reference_id: None,
-        error_code: None,
-        error_message: None,
-        created_at: common_utils::date_time::now(),
-        modified_at: common_utils::date_time::now(),
-        response_data: None,
-    }
-}
-
-impl ForeignFrom<relay_models::RelayData> for hyperswitch_domain_models::relay::RelayData {
-    fn foreign_from(relay: relay_models::RelayData) -> Self {
-        match relay {
-            relay_models::RelayData::Refund(relay_refund_request) => {
-                Self::Refund(hyperswitch_domain_models::relay::RelayRefundData {
-                    amount: relay_refund_request.amount,
-                    currency: relay_refund_request.currency,
-                    reason: relay_refund_request.reason,
-                })
-            }
-        }
-    }
 }

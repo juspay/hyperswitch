@@ -107,20 +107,29 @@ impl RelayInterface for MockDb {
 impl RelayInterface for KafkaStore {
     async fn insert_relay(
         &self,
-        _key_manager_state: &KeyManagerState,
-        _merchant_key_store: &domain::MerchantKeyStore,
-        _new: hyperswitch_domain_models::relay::Relay,
+        key_manager_state: &KeyManagerState,
+        merchant_key_store: &domain::MerchantKeyStore,
+        new: hyperswitch_domain_models::relay::Relay,
     ) -> CustomResult<hyperswitch_domain_models::relay::Relay, errors::StorageError> {
-        Err(errors::StorageError::MockDbError)?
+        self.diesel_store
+            .insert_relay(key_manager_state, merchant_key_store, new)
+            .await
     }
 
     async fn update_relay(
         &self,
-        _key_manager_state: &KeyManagerState,
-        _merchant_key_store: &domain::MerchantKeyStore,
-        _current_state: hyperswitch_domain_models::relay::Relay,
-        _relay_update: hyperswitch_domain_models::relay::RelayUpdate,
+        key_manager_state: &KeyManagerState,
+        merchant_key_store: &domain::MerchantKeyStore,
+        current_state: hyperswitch_domain_models::relay::Relay,
+        relay_update: hyperswitch_domain_models::relay::RelayUpdate,
     ) -> CustomResult<hyperswitch_domain_models::relay::Relay, errors::StorageError> {
-        Err(errors::StorageError::KafkaError)?
+        self.diesel_store
+            .update_relay(
+                key_manager_state,
+                merchant_key_store,
+                current_state,
+                relay_update,
+            )
+            .await
     }
 }

@@ -72,6 +72,9 @@ impl MerchantConnectorAccount {
             .clone()
             .parse_value("ConnectorAuthType")
     }
+    pub fn get_connector_test_mode(&self) -> Option<bool> {
+        self.test_mode
+    }
 }
 
 #[cfg(feature = "v2")]
@@ -143,6 +146,9 @@ impl MerchantConnectorAccount {
             .get_inner()
             .clone()
             .parse_value("ConnectorAuthType")
+    }
+    pub fn get_connector_test_mode(&self) -> Option<bool> {
+        todo!()
     }
 }
 

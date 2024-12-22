@@ -2,7 +2,8 @@ use common_enums::enums;
 use common_utils::{
     self,
     errors::{CustomResult, ValidationError},
-    id_type, pii,
+    id_type::{self, GenerateId},
+    pii,
     types::{keymanager, MinorUnit},
 };
 use diesel_models::relay::RelayUpdateInternal;
@@ -10,6 +11,8 @@ use error_stack::ResultExt;
 use masking::{ExposeInterface, Secret};
 use serde::{self, Deserialize, Serialize};
 use time::PrimitiveDateTime;
+
+use crate::{router_data::ErrorResponse, router_response_types};
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Relay {
@@ -29,6 +32,64 @@ pub struct Relay {
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub modified_at: PrimitiveDateTime,
     pub response_data: Option<pii::SecretSerdeValue>,
+}
+
+impl Relay {
+    pub fn new(
+        relay_request: &api_models::relay::RelayRequest,
+        merchant_id: &id_type::MerchantId,
+        profile_id: &id_type::ProfileId,
+    ) -> Self {
+        let relay_id = id_type::RelayId::generate();
+        Self {
+            id: relay_id.clone(),
+            connector_resource_id: relay_request.connector_resource_id.clone(),
+            connector_id: relay_request.connector_id.clone(),
+            profile_id: profile_id.clone(),
+            merchant_id: merchant_id.clone(),
+            relay_type: common_enums::RelayType::Refund,
+            request_data: relay_request.data.clone().map(From::from),
+            status: common_enums::RelayStatus::Created,
+            connector_reference_id: None,
+            error_code: None,
+            error_message: None,
+            created_at: common_utils::date_time::now(),
+            modified_at: common_utils::date_time::now(),
+            response_data: None,
+        }
+    }
+}
+
+impl From<api_models::relay::RelayData> for RelayData {
+    fn from(relay: api_models::relay::RelayData) -> Self {
+        match relay {
+            api_models::relay::RelayData::Refund(relay_refund_request) => {
+                Self::Refund(RelayRefundData {
+                    amount: relay_refund_request.amount,
+                    currency: relay_refund_request.currency,
+                    reason: relay_refund_request.reason,
+                })
+            }
+        }
+    }
+}
+
+impl RelayUpdate {
+    pub fn from(
+        response: Result<router_response_types::RefundsResponseData, ErrorResponse>,
+    ) -> Self {
+        match response {
+            Err(error) => Self::ErrorUpdate {
+                error_code: error.code,
+                error_message: error.message,
+                status: common_enums::RelayStatus::Failure,
+            },
+            Ok(response) => Self::StatusUpdate {
+                connector_reference_id: Some(response.connector_refund_id),
+                status: common_enums::RelayStatus::from(response.refund_status),
+            },
+        }
+    }
 }
 
 impl From<Relay> for api_models::relay::RelayResponse {
