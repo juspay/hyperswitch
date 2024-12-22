@@ -3593,7 +3593,7 @@ pub struct GpayTokenizationData {
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct AmazonPayWalletData {
-    pub charge_permission_id: String
+    pub checkout_session_id: String,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
