@@ -8,7 +8,7 @@ use crate::{
 };
 
 #[instrument(skip_all, fields(flow = ?Flow::Relay))]
-#[cfg(all(feature = "olap", feature = "v1"))]
+#[cfg(all(feature = "oltp", feature = "v1"))]
 pub async fn relay(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,

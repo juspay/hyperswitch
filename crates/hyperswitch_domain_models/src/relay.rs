@@ -44,11 +44,13 @@ impl From<Relay> for api_models::relay::RelayResponse {
             );
 
         let data = value.request_data.map(|relay_data| match relay_data {
-            RelayData::Refund(relay_refund_request) => api_models::relay::RelayRefundRequest {
-                amount: relay_refund_request.amount,
-                currency: relay_refund_request.currency,
-                reason: relay_refund_request.reason,
-            },
+            RelayData::Refund(relay_refund_request) => {
+                api_models::relay::RelayData::Refund(api_models::relay::RelayRefundRequest {
+                    amount: relay_refund_request.amount,
+                    currency: relay_refund_request.currency,
+                    reason: relay_refund_request.reason,
+                })
+            }
         });
         Self {
             id: value.id,
@@ -58,7 +60,7 @@ impl From<Relay> for api_models::relay::RelayResponse {
             connector_id: value.connector_id,
             profile_id: value.profile_id,
             relay_type: value.relay_type,
-            data: data.map(api_models::relay::RelayData::Refund),
+            data: data,
             connector_reference_id: value.connector_reference_id,
         }
     }
@@ -67,11 +69,11 @@ impl From<Relay> for api_models::relay::RelayResponse {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case", untagged)]
 pub enum RelayData {
-    Refund(RelayRefundRequest),
+    Refund(RelayRefundData),
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct RelayRefundRequest {
+pub struct RelayRefundData {
     pub amount: MinorUnit,
     pub currency: enums::Currency,
     pub reason: Option<String>,
@@ -89,6 +91,23 @@ pub enum RelayUpdate {
         status: common_enums::RelayStatus,
     },
 }
+
+// impl From<Result<Response, ErrorResponse>> for RelayUpdate {
+//     fn from(value: Result<Response, ErrorResponse>) -> Self {
+//         match value.response {
+//         Err(error) => hyperswitch_domain_models::relay::RelayUpdate::ErrorUpdate {
+//             error_code: error.code,
+//             error_reason: error.message,
+//             status: common_enums::RelayStatus::Failure,
+//         },
+//         Ok(response) => hyperswitch_domain_models::relay::RelayUpdate::StatusUpdate {
+//             connector_reference_id: Some(response.connector_refund_id),
+//             status: common_enums::RelayStatus::from(response.refund_status),
+//         },
+//     }
+//     }
+// }
+
 
 impl From<RelayUpdate> for RelayUpdateInternal {
     fn from(value: RelayUpdate) -> Self {

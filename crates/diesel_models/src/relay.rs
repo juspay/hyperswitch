@@ -1,8 +1,7 @@
+use crate::{enums as storage_enums, schema::relay};
 use common_utils::pii;
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use time::PrimitiveDateTime;
-
-use crate::{enums as storage_enums, schema::relay};
 
 #[derive(
     Clone,
@@ -66,17 +65,17 @@ pub struct RelayNew {
     pub response_data: Option<pii::SecretSerdeValue>,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub enum RelayUpdate {
-    ErrorUpdate {
-        error_code: String,
-        error_reason: String,
-    },
-    StatusUpdate {
-        connector_reference_id: Option<String>,
-        status: storage_enums::RelayStatus,
-    },
-}
+// #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+// pub enum RelayUpdate {
+//     ErrorUpdate {
+//         error_code: String,
+//         error_reason: String,
+//     },
+//     StatusUpdate {
+//         connector_reference_id: Option<String>,
+//         status: storage_enums::RelayStatus,
+//     },
+// }
 
 #[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay)]
 #[table_name = "relay"]
@@ -88,29 +87,29 @@ pub struct RelayUpdateInternal {
     pub modified_at: PrimitiveDateTime,
 }
 
-impl From<RelayUpdate> for RelayUpdateInternal {
-    fn from(value: RelayUpdate) -> Self {
-        match value {
-            RelayUpdate::ErrorUpdate {
-                error_code,
-                error_reason,
-            } => Self {
-                error_code: Some(error_code),
-                error_reason: Some(error_reason),
-                connector_reference_id: None,
-                status: None,
-                modified_at: common_utils::date_time::now(),
-            },
-            RelayUpdate::StatusUpdate {
-                connector_reference_id,
-                status,
-            } => Self {
-                connector_reference_id,
-                status: Some(status),
-                error_code: None,
-                error_reason: None,
-                modified_at: common_utils::date_time::now(),
-            },
-        }
-    }
-}
+// impl From<RelayUpdate> for RelayUpdateInternal {
+//     fn from(value: RelayUpdate) -> Self {
+//         match value {
+//             RelayUpdate::ErrorUpdate {
+//                 error_code,
+//                 error_reason,
+//             } => Self {
+//                 error_code: Some(error_code),
+//                 error_reason: Some(error_reason),
+//                 connector_reference_id: None,
+//                 status: None,
+//                 modified_at: common_utils::date_time::now(),
+//             },
+//             RelayUpdate::StatusUpdate {
+//                 connector_reference_id,
+//                 status,
+//             } => Self {
+//                 connector_reference_id,
+//                 status: Some(status),
+//                 error_code: None,
+//                 error_reason: None,
+//                 modified_at: common_utils::date_time::now(),
+//             },
+//         }
+//     }
+// }

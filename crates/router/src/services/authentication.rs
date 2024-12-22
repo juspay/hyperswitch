@@ -541,7 +541,7 @@ where
             .attach_printable("Failed to fetch merchant key store for the merchant id")?;
 
         let profile_id =
-            get_header_value_by_key(consts::X_PROFILE_ID.to_string(), request_headers)?
+            get_header_value_by_key(headers::X_PROFILE_ID.to_string(), request_headers)?
                 .map(id_type::ProfileId::from_str)
                 .transpose()
                 .change_context(errors::ValidationError::IncorrectValueProvided {

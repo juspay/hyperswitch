@@ -1,4 +1,4 @@
-use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
+use diesel::{associations::HasTable, ExpressionMethods};
 
 use super::generics;
 use crate::{
@@ -25,13 +25,7 @@ impl Relay {
             _,
             _,
             _,
-        >(
-            conn,
-            dsl::id
-                .eq(self.id.to_owned())
-                .and(dsl::merchant_id.eq(self.merchant_id.to_owned())),
-            relay,
-        )
+        >(conn, dsl::id.eq(self.id.to_owned()), relay)
         .await
         {
             Err(error) => match error.current_context() {

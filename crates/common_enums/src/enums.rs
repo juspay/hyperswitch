@@ -3422,10 +3422,9 @@ impl From<ConnectorType> for TransactionType {
 impl From<RefundStatus> for RelayStatus {
     fn from(refund_status: RefundStatus) -> Self {
         match refund_status {
-            RefundStatus::Failure => Self::Failure,
+            RefundStatus::Failure | RefundStatus::TransactionFailure => Self::Failure,
             RefundStatus::ManualReview | RefundStatus::Pending => Self::Pending,
             RefundStatus::Success => Self::Success,
-            RefundStatus::TransactionFailure => Self::Failure,
         }
     }
 }
