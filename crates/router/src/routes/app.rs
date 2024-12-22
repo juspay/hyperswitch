@@ -27,11 +27,7 @@ use self::settings::Tenant;
 use super::currency;
 #[cfg(feature = "dummy_connector")]
 use super::dummy_connector::*;
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "customer_v2"),
-    feature = "oltp"
-))]
+#[cfg(all(any(feature = "v1", feature = "v2"), feature = "oltp"))]
 use super::ephemeral_key::*;
 #[cfg(any(feature = "olap", feature = "oltp"))]
 use super::payment_methods::*;
@@ -1155,8 +1151,11 @@ impl PaymentMethods {
                 web::resource("/{id}/update-saved-payment-method")
                     .route(web::patch().to(payment_method_update_api)),
             )
-            .service(web::resource("/{id}").route(web::get().to(payment_method_retrieve_api)))
-            .service(web::resource("/{id}").route(web::delete().to(payment_method_delete_api)));
+            .service(
+                web::resource("/{id}")
+                    .route(web::get().to(payment_method_retrieve_api))
+                    .route(web::delete().to(payment_method_delete_api)),
+            );
 
         route
     }
@@ -1424,6 +1423,16 @@ pub struct EphemeralKey;
 impl EphemeralKey {
     pub fn server(config: AppState) -> Scope {
         web::scope("/ephemeral_keys")
+            .app_data(web::Data::new(config))
+            .service(web::resource("").route(web::post().to(ephemeral_key_create)))
+            .service(web::resource("/{id}").route(web::delete().to(ephemeral_key_delete)))
+    }
+}
+
+#[cfg(feature = "v2")]
+impl EphemeralKey {
+    pub fn server(config: AppState) -> Scope {
+        web::scope("/v2/ephemeral-keys")
             .app_data(web::Data::new(config))
             .service(web::resource("").route(web::post().to(ephemeral_key_create)))
             .service(web::resource("/{id}").route(web::delete().to(ephemeral_key_delete)))
