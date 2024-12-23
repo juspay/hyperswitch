@@ -1493,6 +1493,7 @@ pub async fn perform_contract_based_routing(
                 contract_based_routing_configs,
                 "".to_string(),
                 routable_connectors,
+                state.get_grpc_headers(),
             )
             .await
             .change_context(errors::RoutingError::ContractScoreCalculationError)

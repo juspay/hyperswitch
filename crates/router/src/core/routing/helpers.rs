@@ -1062,6 +1062,7 @@ pub async fn push_metrics_with_update_window_for_contract_based_routing(
                     vec![request_label_info],
                     "".to_string(),
                     vec![],
+                    state.get_grpc_headers(),
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1076,6 +1077,7 @@ pub async fn push_metrics_with_update_window_for_contract_based_routing(
                 contract_based_routing_config.clone(),
                 "".to_string(),
                 routable_connectors.clone(),
+                state.get_grpc_headers(),
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)

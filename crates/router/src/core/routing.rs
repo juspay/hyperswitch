@@ -1725,7 +1725,7 @@ pub async fn contract_based_routing_update_configs(
         .clone()
         .async_map(|ct_client| async move {
             ct_client
-                .invalidate_contracts(prefix_of_dynamic_routing_keys)
+                .invalidate_contracts(prefix_of_dynamic_routing_keys, state.get_grpc_headers())
                 .await
                 .change_context(errors::ApiErrorResponse::GenericNotFoundError {
                     message: "Failed to invalidate the contract based routing keys".to_string(),

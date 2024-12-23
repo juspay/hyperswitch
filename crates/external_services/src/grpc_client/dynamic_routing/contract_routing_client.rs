@@ -1,3 +1,4 @@
+use crate::grpc_client::{AddHeaders, GrpcHeaders};
 use api_models::routing::{
     ContractBasedRoutingConfig, ContractBasedRoutingConfigBody, ContractBasedTimeScale,
     LabelInformation, RoutableConnectorChoice, RoutableConnectorChoiceWithStatus,
@@ -34,6 +35,7 @@ pub trait ContractBasedDynamicRouting: dyn_clone::DynClone + Send + Sync {
         config: ContractBasedRoutingConfig,
         params: String,
         label_input: Vec<RoutableConnectorChoice>,
+        headers: GrpcHeaders,
     ) -> DynamicRoutingResult<CalContractScoreResponse>;
     /// To update the contract scores with the given labels
     async fn update_contracts(
@@ -42,11 +44,13 @@ pub trait ContractBasedDynamicRouting: dyn_clone::DynClone + Send + Sync {
         label_info: Vec<LabelInformation>,
         params: String,
         response: Vec<RoutableConnectorChoiceWithStatus>,
+        headers: GrpcHeaders,
     ) -> DynamicRoutingResult<UpdateContractResponse>;
     /// To invalidates the contract scores against the id
     async fn invalidate_contracts(
         &self,
         id: String,
+        headers: GrpcHeaders,
     ) -> DynamicRoutingResult<InvalidateContractResponse>;
 }
 
@@ -58,6 +62,7 @@ impl ContractBasedDynamicRouting for ContractScoreCalculatorClient<Client> {
         config: ContractBasedRoutingConfig,
         params: String,
         label_input: Vec<RoutableConnectorChoice>,
+        headers: GrpcHeaders,
     ) -> DynamicRoutingResult<CalContractScoreResponse> {
         let labels = label_input
             .into_iter()
@@ -69,12 +74,14 @@ impl ContractBasedDynamicRouting for ContractScoreCalculatorClient<Client> {
             .map(ForeignTryFrom::foreign_try_from)
             .transpose()?;
 
-        let request = tonic::Request::new(CalContractScoreRequest {
+        let mut request = tonic::Request::new(CalContractScoreRequest {
             id,
             params,
             labels,
             config,
         });
+
+        request.add_headers_to_grpc_request(headers);
 
         let response = self
             .clone()
@@ -94,17 +101,20 @@ impl ContractBasedDynamicRouting for ContractScoreCalculatorClient<Client> {
         label_info: Vec<LabelInformation>,
         params: String,
         _response: Vec<RoutableConnectorChoiceWithStatus>,
+        headers: GrpcHeaders,
     ) -> DynamicRoutingResult<UpdateContractResponse> {
         let labels_information = label_info
             .into_iter()
             .map(ProtoLabelInfo::foreign_from)
             .collect::<Vec<_>>();
 
-        let request = tonic::Request::new(UpdateContractRequest {
+        let mut request = tonic::Request::new(UpdateContractRequest {
             id,
             params,
             labels_information,
         });
+
+        request.add_headers_to_grpc_request(headers);
 
         let response = self
             .clone()
@@ -120,8 +130,11 @@ impl ContractBasedDynamicRouting for ContractScoreCalculatorClient<Client> {
     async fn invalidate_contracts(
         &self,
         id: String,
+        headers: GrpcHeaders,
     ) -> DynamicRoutingResult<InvalidateContractResponse> {
-        let request = tonic::Request::new(InvalidateContractRequest { id });
+        let mut request = tonic::Request::new(InvalidateContractRequest { id });
+
+        request.add_headers_to_grpc_request(headers);
 
         let response = self
             .clone()
