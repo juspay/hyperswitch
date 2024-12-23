@@ -38,6 +38,13 @@ function logRequestId(xRequestId) {
   }
 }
 
+function validateErrorMessage(response, resData) {
+  if (resData.body.status !== "failed") {
+    expect(response.body.error_message).to.be.null;
+    expect(response.body.error_code).to.be.null;
+  }
+}
+
 Cypress.Commands.add(
   "merchantCreateCallTest",
   (merchantCreateBody, globalState) => {
@@ -1114,10 +1121,7 @@ Cypress.Commands.add(
         expect(response.body.connector_mandate_id, "connector_mandate_id").to.be
           .null;
 
-        if (resData.body.status !== "failed") {
-          expect(response.body.error_message).to.be.null;
-          expect(response.body.error_code).to.be.null;
-        }
+        validateErrorMessage(response, resData);
       } else {
         defaultErrorHandler(response, resData);
       }
@@ -1324,10 +1328,7 @@ Cypress.Commands.add(
         expect(response.body.profile_id, "profile_id").to.equal(profileId).and
           .to.not.be.null;
 
-        if (resData.body.status !== "failed") {
-          expect(response.body.error_message).to.be.null;
-          expect(response.body.error_code).to.be.null;
-        }
+        validateErrorMessage(response, resData);
 
         if (response.body.capture_method === "automatic") {
           if (response.body.authentication_type === "three_ds") {
@@ -1430,10 +1431,7 @@ Cypress.Commands.add(
         globalState.set("paymentMethodType", confirmBody.payment_method_type);
 
         if (response.status === 200) {
-          if (resData.body.status !== "failed") {
-            expect(response.body.error_message).to.be.null;
-            expect(response.body.error_code).to.be.null;
-          }
+          validateErrorMessage(response, resData);
 
           switch (response.body.authentication_type) {
             case "three_ds":
@@ -1539,10 +1537,7 @@ Cypress.Commands.add(
       if (response.status === 200) {
         globalState.set("paymentID", paymentIntentID);
 
-        if (resData.body.status !== "failed") {
-          expect(response.body.error_message).to.be.null;
-          expect(response.body.error_code).to.be.null;
-        }
+        validateErrorMessage(response, resData);
 
         if (
           response.body.capture_method === "automatic" ||
@@ -1726,10 +1721,7 @@ Cypress.Commands.add(
         expect(response.body.profile_id, "profile_id").to.not.be.null;
         expect(response.body).to.have.property("status");
 
-        if (resData.body.status !== "failed") {
-          expect(response.body.error_message).to.be.null;
-          expect(response.body.error_code).to.be.null;
-        }
+        validateErrorMessage(response, resData);
 
         if (response.body.capture_method === "automatic") {
           if (response.body.authentication_type === "three_ds") {
@@ -1852,10 +1844,7 @@ Cypress.Commands.add(
         expect(response.body.profile_id, "profile_id").to.not.be.null;
         expect(response.body.payment_token, "payment_token").to.not.be.null;
 
-        if (resData.body.status !== "failed") {
-          expect(response.body.error_message).to.be.null;
-          expect(response.body.error_code).to.be.null;
-        }
+        validateErrorMessage(response, resData);
 
         if (response.body.capture_method === "automatic") {
           if (response.body.authentication_type === "three_ds") {
