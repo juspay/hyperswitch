@@ -3541,7 +3541,9 @@ impl ErrorCategory {
     pub fn should_perform_elimination_routing(self) -> bool {
         match self {
             Self::ProcessorDowntime | Self::ProcessorDeclineUnauthorized => true,
-            Self::IssueWithPaymentMethod | Self::ProcessorDeclineIncorrectData | Self::FrmDecline => false,
+            Self::IssueWithPaymentMethod
+            | Self::ProcessorDeclineIncorrectData
+            | Self::FrmDecline => false,
         }
     }
 }
