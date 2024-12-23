@@ -446,7 +446,10 @@ jobs:
 
       - name: Process coverage report
         if: env.RUN_TESTS == 'true' && failure()
-        run: grcov . -s . -t lcov --output-path ${{ env.CODECOV_FILE }} --branch --binary-path ./target/debug
+        run: |
+          grcov . -s . -t lcov --output-path ${{ env.CODECOV_FILE }} --branch --binary-path ./target/debug
+
+          rm ${{ env.LLVM_PROFILE_FILE }}
 
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v5
