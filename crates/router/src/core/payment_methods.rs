@@ -24,7 +24,7 @@ use api_models::payment_methods;
 #[cfg(feature = "payouts")]
 pub use api_models::{enums::PayoutConnectors, payouts as payout_types};
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
-use common_utils::ext_traits::Encode;
+use common_utils::ext_traits::{Encode, OptionExt,};
 use common_utils::{consts::DEFAULT_LOCALE, id_type};
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use common_utils::{
@@ -536,7 +536,7 @@ pub async fn retrieve_payment_method_with_token(
     payment_method_info: Option<domain::PaymentMethod>,
     business_profile: &domain::Profile,
     should_retry_with_pan: bool,
-    vault_data: Option<&payments::VaultDataEnum>,
+    vault_data: Option<&payments::VaultData>,
 ) -> RouterResult<storage::PaymentMethodDataWithId> {
     let token = match token_data {
         storage::PaymentTokenData::TemporaryGeneric(generic_token) => {
@@ -592,7 +592,7 @@ pub async fn retrieve_payment_method_with_token(
                 merchant_key_store,
                 storage_scheme,
                 mandate_id,
-                payment_method_info,
+                payment_method_info.get_required_value("PaymentMethod").change_context(errors::ApiErrorResponse::InternalServerError).attach_printable("PaymentMethod not found")?,
                 business_profile,
                 payment_attempt.connector.clone(),
                 should_retry_with_pan,
@@ -629,7 +629,7 @@ pub async fn retrieve_payment_method_with_token(
                 merchant_key_store,
                 storage_scheme,
                 mandate_id,
-                payment_method_info,
+                payment_method_info.get_required_value("PaymentMethod").change_context(errors::ApiErrorResponse::InternalServerError).attach_printable("PaymentMethod not found")?,
                 business_profile,
                 payment_attempt.connector.clone(),
                 should_retry_with_pan,

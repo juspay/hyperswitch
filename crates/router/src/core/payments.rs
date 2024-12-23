@@ -202,7 +202,6 @@ where
                 None,
                 &profile,
                 false,
-                false,
             )
             .await?;
 
@@ -4369,31 +4368,30 @@ where
 
 #[derive(Clone, serde::Serialize, Debug)]
 pub enum PaymentMethodDataAction {
-    SaveCard(hyperswitch_domain_models::payment_method_data::Card),
-    VaultDataVariant(VaultDataEnum),
+    ExistingVaultData(VaultData),
 }
 
 #[derive(Clone, serde::Serialize, Debug)]
-pub enum VaultDataEnum {
+pub enum VaultData {
     CardVaultData(hyperswitch_domain_models::payment_method_data::Card),
     NetworkTokenVaultData(hyperswitch_domain_models::payment_method_data::NetworkTokenData),
-    CardAndNetworkToken(VaultData),
+    CardAndNetworkToken(Box<CardAndNetworkTokenData>),
 }
 
 #[derive(Default, Clone, serde::Serialize, Debug)]
-pub struct VaultData {
+pub struct CardAndNetworkTokenData {
     pub card_data: hyperswitch_domain_models::payment_method_data::Card,
     pub network_token_data: hyperswitch_domain_models::payment_method_data::NetworkTokenData,
 }
 
-impl VaultDataEnum {
+impl VaultData {
     pub fn get_card_vault_data(
         &self,
     ) -> Option<hyperswitch_domain_models::payment_method_data::Card> {
         match self {
-            VaultDataEnum::CardVaultData(card_data) => Some(card_data.clone()),
-            VaultDataEnum::NetworkTokenVaultData(_network_token_data) => None,
-            VaultDataEnum::CardAndNetworkToken(vault_data) => Some(vault_data.card_data.clone()),
+            Self::CardVaultData(card_data) => Some(card_data.clone()),
+            Self::NetworkTokenVaultData(_network_token_data) => None,
+            Self::CardAndNetworkToken(vault_data) => Some(vault_data.card_data.clone()),
         }
     }
 
@@ -4401,11 +4399,11 @@ impl VaultDataEnum {
         &self,
     ) -> Option<hyperswitch_domain_models::payment_method_data::NetworkTokenData> {
         match self {
-            VaultDataEnum::CardVaultData(_card_data) => None,
-            VaultDataEnum::NetworkTokenVaultData(network_token_data) => {
+            Self::CardVaultData(_card_data) => None,
+            Self::NetworkTokenVaultData(network_token_data) => {
                 Some(network_token_data.clone())
             }
-            VaultDataEnum::CardAndNetworkToken(vault_data) => {
+            Self::CardAndNetworkToken(vault_data) => {
                 Some(vault_data.network_token_data.clone())
             }
         }
