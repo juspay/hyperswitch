@@ -768,7 +768,8 @@ pub async fn update_window_for_elimination_routing(
             business_profile,
             elimination_algo_ref
                 .algorithm_id_with_timestamp
-                .algorithm_id.clone()
+                .algorithm_id
+                .clone()
                 .ok_or(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable(
                     "elimination_routing_algorithm_id not found in business_profile",
@@ -814,28 +815,28 @@ pub async fn update_window_for_elimination_routing(
             );
 
         client
-        .update_elimination_bucket_config(
-            tenant_business_profile_id,
-            elimination_routing_config_params,
-            vec![routing_types::RoutableConnectorChoiceWithBucketName::new(
-                routing_types::RoutableConnectorChoice {
-                    choice_kind: api_models::routing::RoutableChoiceKind::FullStruct,
-                    connector: common_enums::RoutableConnectors::from_str(
-                        payment_connector.as_str(),
-                    )
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("unable to infer routable_connector from connector")?,
-                    merchant_connector_id: payment_attempt.merchant_connector_id.clone(),
-                },
-                gsm_error_category.to_string(),
-            )],
-            elimination_routing_config.elimination_analyser_config,
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable(
-            "unable to update success based routing window in dynamic routing service",
-        )?;
+            .update_elimination_bucket_config(
+                tenant_business_profile_id,
+                elimination_routing_config_params,
+                vec![routing_types::RoutableConnectorChoiceWithBucketName::new(
+                    routing_types::RoutableConnectorChoice {
+                        choice_kind: api_models::routing::RoutableChoiceKind::FullStruct,
+                        connector: common_enums::RoutableConnectors::from_str(
+                            payment_connector.as_str(),
+                        )
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("unable to infer routable_connector from connector")?,
+                        merchant_connector_id: payment_attempt.merchant_connector_id.clone(),
+                    },
+                    gsm_error_category.to_string(),
+                )],
+                elimination_routing_config.elimination_analyser_config,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable(
+                "unable to update success based routing window in dynamic routing service",
+            )?;
         Ok(())
     } else {
         Ok(())
