@@ -3214,6 +3214,7 @@ pub enum ApiVersion {
     serde::Serialize,
     strum::Display,
     strum::EnumString,
+    strum::EnumIter,
     ToSchema,
     Hash,
 )]

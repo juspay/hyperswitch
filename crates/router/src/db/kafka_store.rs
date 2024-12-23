@@ -3560,16 +3560,6 @@ impl RoleInterface for KafkaStore {
         self.diesel_store.delete_role_by_role_id(role_id).await
     }
 
-    async fn find_role_by_role_name_in_lineage(
-        &self,
-        role_name: &str,
-        entity_type: storage::ListRolesByEntityPayload,
-    ) -> CustomResult<storage::Role, errors::StorageError> {
-        self.diesel_store
-            .find_role_by_role_name_in_lineage(role_name, entity_type)
-            .await
-    }
-
     //TODO: Remove once generic_list_roles_by_entity_type is stable
     async fn list_roles_for_org_by_parameters(
         &self,

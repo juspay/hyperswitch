@@ -72,26 +72,9 @@ pub async fn validate_role_name(
         ),
     };
 
-    let is_present_in_lineage = match state
+    let is_present_in_custom_role = match state
         .store
-        .find_role_by_role_name_in_lineage(
-            role_name.clone().get_role_name().as_str(),
-            entity_type_for_role.clone(),
-        )
-        .await
-    {
-        Ok(_) => true,
-        Err(e) => {
-            if e.current_context().is_db_not_found() {
-                false
-            } else {
-                return Err(UserErrors::InternalServerError.into());
-            }
-        }
-    };
-    let is_present_below_me = match state
-        .store
-        .generic_list_roles_by_entity_type(entity_type_for_role, true, None)
+        .generic_list_roles_by_entity_type(entity_type_for_role, false, None)
         .await
     {
         Ok(roles_list) => roles_list
@@ -106,7 +89,7 @@ pub async fn validate_role_name(
         }
     };
 
-    if is_present_in_predefined_roles || is_present_in_lineage || is_present_below_me {
+    if is_present_in_predefined_roles || is_present_in_custom_role {
         return Err(UserErrors::RoleNameAlreadyExists.into());
     }
 

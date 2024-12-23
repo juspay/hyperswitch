@@ -50,12 +50,6 @@ pub trait RoleInterface {
         role_id: &str,
     ) -> CustomResult<storage::Role, errors::StorageError>;
 
-    async fn find_role_by_role_name_in_lineage(
-        &self,
-        role_name: &str,
-        entity_type: storage::ListRolesByEntityPayload,
-    ) -> CustomResult<storage::Role, errors::StorageError>;
-
     //TODO: Remove once generic_list_roles_by_entity_type is stable
     async fn list_roles_for_org_by_parameters(
         &self,
@@ -142,18 +136,6 @@ impl RoleInterface for Store {
     ) -> CustomResult<storage::Role, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
         storage::Role::delete_by_role_id(&conn, role_id)
-            .await
-            .map_err(|error| report!(errors::StorageError::from(error)))
-    }
-
-    #[instrument(skip_all)]
-    async fn find_role_by_role_name_in_lineage(
-        &self,
-        role_name: &str,
-        entity_type: storage::ListRolesByEntityPayload,
-    ) -> CustomResult<storage::Role, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
-        storage::Role::find_role_by_role_name_in_lineage(&conn, role_name, entity_type)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
@@ -348,64 +330,6 @@ impl RoleInterface for MockDb {
             )))?;
 
         Ok(roles.remove(role_index))
-    }
-
-    async fn find_role_by_role_name_in_lineage(
-        &self,
-        role_name: &str,
-        entity_type: storage::ListRolesByEntityPayload,
-    ) -> CustomResult<storage::Role, errors::StorageError> {
-        let roles = self.roles.lock().await;
-
-        let roles_list = roles
-            .iter()
-            .find(|role| {
-                let org_id = entity_type.get_organization_id();
-                let merchant_id = entity_type.get_merchant_id();
-                let profile_id = entity_type.get_profile_id();
-
-                let condition = org_id
-                    .as_ref()
-                    .map(|org_id| {
-                        *org_id == role.org_id
-                            && role.entity_type == EntityType::Organization
-                            && role.scope == RoleScope::Organization
-                    })
-                    .unwrap_or(true)
-                    || merchant_id
-                        .as_ref()
-                        .map(|merchant_id| {
-                            let entity_in_vec = [EntityType::Merchant, EntityType::Organization];
-                            *merchant_id == role.merchant_id
-                                && role.scope == RoleScope::Merchant
-                                && entity_in_vec.contains(&role.entity_type)
-                        })
-                        .unwrap_or(true)
-                    || profile_id
-                        .as_ref()
-                        .zip(role.profile_id.as_ref())
-                        .map(|(profile_id, role_profile_id)| {
-                            let entity_in_vec = [
-                                EntityType::Profile,
-                                EntityType::Merchant,
-                                EntityType::Organization,
-                            ];
-                            profile_id == role_profile_id
-                                && role.scope == RoleScope::Profile
-                                && entity_in_vec.contains(&role.entity_type)
-                        })
-                        .unwrap_or(true);
-
-                role.role_name == role_name && condition
-            })
-            .cloned();
-
-        roles_list.ok_or(
-            errors::StorageError::ValueNotFound(
-                "No role available with role_name={role_name} in org_id = {org_id:?}".to_string(),
-            )
-            .into(),
-        )
     }
 
     //TODO: Remove once generic_list_roles_by_entity_type is stable
