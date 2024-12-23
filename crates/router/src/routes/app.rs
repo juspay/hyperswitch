@@ -590,6 +590,7 @@ impl Relay {
         web::scope("/relay")
             .app_data(web::Data::new(state))
             .service(web::resource("").route(web::post().to(relay::relay)))
+            .service(web::resource("/{relay_id}").route(web::get().to(relay::relay_retrieve)))
     }
 }
 
