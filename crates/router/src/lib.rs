@@ -90,6 +90,8 @@ pub mod headers {
     pub const X_REDIRECT_URI: &str = "x-redirect-uri";
     pub const X_TENANT_ID: &str = "x-tenant-id";
     pub const X_CLIENT_SECRET: &str = "X-Client-Secret";
+    pub const X_CONNECTED_MERCHANT_ID: &str = "x-connected-merchant-id";
+    pub const X_RESOURCE_TYPE: &str = "X-Resource-Type";
 }
 
 pub mod pii {
@@ -140,7 +142,8 @@ pub fn mk_app(
             .service(routes::Customers::server(state.clone()))
             .service(routes::Configs::server(state.clone()))
             .service(routes::MerchantConnectorAccount::server(state.clone()))
-            .service(routes::Webhooks::server(state.clone()));
+            .service(routes::Webhooks::server(state.clone()))
+            .service(routes::Relay::server(state.clone()));
 
         #[cfg(feature = "oltp")]
         {
@@ -155,15 +158,17 @@ pub fn mk_app(
         }
     }
 
+    #[cfg(all(feature = "oltp", any(feature = "v1", feature = "v2"),))]
+    {
+        server_app = server_app.service(routes::EphemeralKey::server(state.clone()))
+    }
     #[cfg(all(
         feature = "oltp",
         any(feature = "v1", feature = "v2"),
         not(feature = "customer_v2")
     ))]
     {
-        server_app = server_app
-            .service(routes::EphemeralKey::server(state.clone()))
-            .service(routes::Poll::server(state.clone()))
+        server_app = server_app.service(routes::Poll::server(state.clone()))
     }
 
     #[cfg(feature = "olap")]
