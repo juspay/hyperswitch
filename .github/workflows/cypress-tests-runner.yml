@@ -430,7 +430,10 @@ jobs:
           CYPRESS_BASEURL: "http://localhost:8080"
           ROUTER__SERVER__WORKERS: 4
         shell: bash -leuo pipefail {0}
-        run: kill "${{ env.PID }}"
+        run: |
+          scripts/execute_cypress_v2.sh
+
+          kill "${{ env.PID }}"
 
       - name: Upload Cypress test results
         if: env.RUN_TESTS == 'true' && failure()
@@ -442,12 +445,12 @@ jobs:
           retention-days: 1
 
       - name: Process coverage report
-        if: env.RUN_TESTS == 'true' && success()
+        if: env.RUN_TESTS == 'true'
         run: grcov . -s . -t lcov --output-path ${{ env.CODECOV_FILE }} --branch --binary-path ./target/debug
 
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v5
-        if: env.RUN_TESTS == 'true' && success()
+        if: env.RUN_TESTS == 'true'
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ${{ env.CODECOV_FILE }}
