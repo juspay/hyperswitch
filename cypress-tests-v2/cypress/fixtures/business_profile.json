@@ -27,7 +27,8 @@
       "payment_created_enabled": true,
       "payment_succeeded_enabled": true,
       "payment_failed_enabled": true
-    }
+    },
+    "is_click_to_pay_enabled": false
   },
   "bp_update": {
     "profile_name": "Hyperswitch",
