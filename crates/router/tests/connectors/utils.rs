@@ -1013,6 +1013,9 @@ impl Default for BrowserInfoType {
             java_enabled: Some(true),
             java_script_enabled: Some(true),
             ip_address: Some("127.0.0.1".parse().unwrap()),
+            device_model: Some("Apple IPHONE 7".to_string()),
+            os_type: Some("IOS or ANDROID".to_string()),
+            os_version: Some("IOS 14.5".to_string()),
         };
         Self(data)
     }
