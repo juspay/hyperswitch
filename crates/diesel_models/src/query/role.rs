@@ -208,12 +208,7 @@ impl Role {
         .await
         {
             Ok(value) => Ok(value),
-            Err(err) => match err {
-                DieselError::NotFound => {
-                    Err(report!(err)).change_context(errors::DatabaseError::NotFound)
-                }
-                _ => Err(report!(err)).change_context(errors::DatabaseError::Others),
-            },
+            Err(err) => Err(report!(err)).change_context(errors::DatabaseError::Others),
         }
     }
 }

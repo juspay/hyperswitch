@@ -2736,8 +2736,6 @@ pub enum TransactionType {
     Debug,
     Eq,
     PartialEq,
-    Ord,
-    PartialOrd,
     serde::Deserialize,
     serde::Serialize,
     strum::Display,
@@ -2747,9 +2745,9 @@ pub enum TransactionType {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum RoleScope {
-    Organization = 2,
-    Merchant = 1,
-    Profile = 0,
+    Organization,
+    Merchant,
+    Profile,
 }
 
 impl From<RoleScope> for EntityType {

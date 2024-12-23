@@ -115,16 +115,25 @@ pub async fn create_role(
     )
     .await?;
 
-    let profile_id =
-        matches!(role_entity_type, EntityType::Profile).then_some(user_from_token.profile_id);
+    let (org_id, merchant_id, profile_id) = match role_entity_type {
+        EntityType::Organization | EntityType::Tenant => {
+            (user_from_token.org_id, user_from_token.merchant_id, None)
+        }
+        EntityType::Merchant => (user_from_token.org_id, user_from_token.merchant_id, None),
+        EntityType::Profile => (
+            user_from_token.org_id,
+            user_from_token.merchant_id,
+            Some(user_from_token.profile_id),
+        ),
+    };
 
     let role = state
         .store
         .insert_role(RoleNew {
             role_id: generate_id_with_default_len("role"),
             role_name: role_name.get_role_name(),
-            merchant_id: user_from_token.merchant_id,
-            org_id: user_from_token.org_id,
+            merchant_id,
+            org_id,
             groups: req.groups,
             scope: req.role_scope,
             entity_type: role_entity_type,
