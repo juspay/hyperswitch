@@ -1304,12 +1304,13 @@ pub enum IntentStatus {
 }
 
 impl IntentStatus {
-    /// Indicates whether the syncing with the connector should be allowed or not
     pub fn is_in_terminal_state(self) -> bool {
         match self {
-            Self::Succeeded | Self::Failed | Self::PartiallyCaptured => true,
-            Self::Cancelled
-            | Self::Processing
+            Self::Succeeded |
+            Self::Failed |
+            Self::Cancelled |
+            Self::PartiallyCaptured => true,
+            Self::Processing
             | Self::RequiresCustomerAction
             | Self::RequiresMerchantAction
             | Self::RequiresPaymentMethod
