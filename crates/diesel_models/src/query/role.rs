@@ -19,7 +19,7 @@ impl RoleNew {
 }
 
 impl Role {
-    fn get_enitity_list(
+    fn get_entity_list(
         current_entity: EntityType,
         is_lineage_data_required: bool,
     ) -> Vec<EntityType> {
@@ -163,7 +163,7 @@ impl Role {
         match payload {
             ListRolesByEntityPayload::Organization(org_id) => {
                 let entity_in_vec =
-                    Self::get_enitity_list(EntityType::Organization, is_lineage_data_required);
+                    Self::get_entity_list(EntityType::Organization, is_lineage_data_required);
                 query = query
                     .filter(dsl::org_id.eq(org_id))
                     .filter(dsl::entity_type.eq_any(entity_in_vec))
@@ -171,7 +171,7 @@ impl Role {
 
             ListRolesByEntityPayload::Merchant(org_id, merchant_id) => {
                 let entity_in_vec =
-                    Self::get_enitity_list(EntityType::Merchant, is_lineage_data_required);
+                    Self::get_entity_list(EntityType::Merchant, is_lineage_data_required);
                 query = query
                     .filter(dsl::org_id.eq(org_id))
                     .filter(
@@ -184,7 +184,7 @@ impl Role {
 
             ListRolesByEntityPayload::Profile(org_id, merchant_id, profile_id) => {
                 let entity_in_vec =
-                    Self::get_enitity_list(EntityType::Profile, is_lineage_data_required);
+                    Self::get_entity_list(EntityType::Profile, is_lineage_data_required);
                 query = query
                     .filter(dsl::org_id.eq(org_id))
                     .filter(
