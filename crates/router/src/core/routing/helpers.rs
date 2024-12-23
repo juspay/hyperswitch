@@ -619,7 +619,7 @@ pub async fn get_cached_elimination_routing_config_for_profile<'a>(
         .await
 }
 
-/// Refreshes the cached success_based routing configs specific to tenant and profile
+/// Refreshes the cached elimination routing configs specific to tenant and profile
 #[cfg(feature = "v1")]
 pub async fn refresh_elimination_routing_cache(
     state: &SessionState,
@@ -639,7 +639,7 @@ pub async fn refresh_elimination_routing_cache(
     config
 }
 
-/// Checked fetch of success based routing configs
+/// Checked fetch of elimination based routing configs
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 #[instrument(skip_all)]
 pub async fn fetch_elimintaion_routing_configs(
@@ -771,12 +771,12 @@ pub async fn update_window_for_elimination_routing(
                 .algorithm_id.clone()
                 .ok_or(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable(
-                    "success_based_routing_algorithm_id not found in business_profile",
+                    "elimination_routing_algorithm_id not found in business_profile",
                 )?,
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("unable to retrieve success_rate based dynamic routing configs")?;
+        .attach_printable("unable to retrieve elimination based dynamic routing configs")?;
 
         let payment_connector = &payment_attempt.connector.clone().ok_or(
             errors::ApiErrorResponse::GenericNotFoundError {
