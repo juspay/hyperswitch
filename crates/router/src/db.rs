@@ -134,7 +134,6 @@ pub trait StorageInterface:
     + authentication::AuthenticationInterface
     + generic_link::GenericLinkInterface
     + relay::RelayInterface
-    + user::theme::ThemeInterface
     + 'static
 {
     fn get_scheduler_db(&self) -> Box<dyn scheduler::SchedulerInterface>;
