@@ -1,6 +1,6 @@
 use api_models::relay as relay_models;
 use common_enums::RelayStatus;
-use common_utils::{self, ext_traits::OptionExt, id_type};
+use common_utils::{self, id_type};
 use error_stack::ResultExt;
 
 use super::errors::{self, ConnectorErrorExt, RouterResponse, RouterResult, StorageErrorExt};
@@ -12,6 +12,7 @@ use crate::{
         api::{self},
         domain,
     },
+    utils::OptionExt,
 };
 
 pub mod utils;
@@ -28,11 +29,7 @@ pub async fn relay(
     let merchant_id = merchant_account.get_id();
     let connector_id = &req.connector_id;
 
-    let profile_id_from_auth_layer = profile_id_optional
-        .get_required_value("ProfileId")
-        .change_context(errors::ApiErrorResponse::MissingRequiredField {
-            field_name: "profile id",
-        })?;
+    let profile_id_from_auth_layer = profile_id_optional.get_required_value("ProfileId")?;
 
     let profile = db
         .find_business_profile_by_merchant_id_profile_id(
@@ -189,11 +186,7 @@ pub async fn relay_retrieve(
     let merchant_id = merchant_account.get_id();
     let relay_id = &req.id;
 
-    let profile_id_from_auth_layer = profile_id_optional
-        .get_required_value("ProfileId")
-        .change_context(errors::ApiErrorResponse::MissingRequiredField {
-            field_name: "profile id",
-        })?;
+    let profile_id_from_auth_layer = profile_id_optional.get_required_value("ProfileId")?;
 
     db.find_business_profile_by_merchant_id_profile_id(
         key_manager_state,
@@ -207,7 +200,7 @@ pub async fn relay_retrieve(
     })?;
 
     let relay_record_result = db
-        .find_relay_by_id_merchant_id(key_manager_state, &key_store, merchant_id, relay_id)
+        .find_relay_by_id_merchant_id(key_manager_state, &key_store, relay_id)
         .await;
 
     let relay_record = match relay_record_result {
@@ -283,7 +276,7 @@ fn should_call_connector_for_relay_refund_status(
     force_sync: bool,
 ) -> bool {
     // This allows refund sync at connector level if force_sync is enabled, or
-    // checks if the refund has failed
+    // check if the refund is in terminal state
     !matches!(relay.status, RelayStatus::Failure | RelayStatus::Success) && force_sync
 }
 

@@ -1,4 +1,4 @@
-use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
+use diesel::{associations::HasTable, ExpressionMethods};
 
 use super::generics;
 use crate::{
@@ -38,14 +38,11 @@ impl Relay {
 
     pub async fn find_by_id_merchant_id(
         conn: &PgPooledConn,
-        merchant_id: &common_utils::id_type::MerchantId,
         id: &common_utils::id_type::RelayId,
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
-            dsl::merchant_id
-                .eq(merchant_id.to_owned())
-                .and(dsl::id.eq(id.to_owned())),
+            dsl::id.eq(id.to_owned()),
         )
         .await
     }

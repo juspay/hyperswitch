@@ -33,7 +33,6 @@ pub trait RelayInterface {
         &self,
         key_manager_state: &KeyManagerState,
         merchant_key_store: &domain::MerchantKeyStore,
-        merchant_id: &common_utils::id_type::MerchantId,
         relay_id: &common_utils::id_type::RelayId,
     ) -> CustomResult<hyperswitch_domain_models::relay::Relay, errors::StorageError>;
 }
@@ -92,11 +91,10 @@ impl RelayInterface for Store {
         &self,
         key_manager_state: &KeyManagerState,
         merchant_key_store: &domain::MerchantKeyStore,
-        merchant_id: &common_utils::id_type::MerchantId,
         relay_id: &common_utils::id_type::RelayId,
     ) -> CustomResult<hyperswitch_domain_models::relay::Relay, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
-        diesel_models::relay::Relay::find_by_id_merchant_id(&conn, merchant_id, relay_id)
+        diesel_models::relay::Relay::find_by_id_merchant_id(&conn, relay_id)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))?
             .convert(
@@ -134,7 +132,6 @@ impl RelayInterface for MockDb {
         &self,
         _key_manager_state: &KeyManagerState,
         _merchant_key_store: &domain::MerchantKeyStore,
-        _merchant_id: &common_utils::id_type::MerchantId,
         _relay_id: &common_utils::id_type::RelayId,
     ) -> CustomResult<hyperswitch_domain_models::relay::Relay, errors::StorageError> {
         Err(errors::StorageError::MockDbError)?
@@ -175,16 +172,10 @@ impl RelayInterface for KafkaStore {
         &self,
         key_manager_state: &KeyManagerState,
         merchant_key_store: &domain::MerchantKeyStore,
-        merchant_id: &common_utils::id_type::MerchantId,
         relay_id: &common_utils::id_type::RelayId,
     ) -> CustomResult<hyperswitch_domain_models::relay::Relay, errors::StorageError> {
         self.diesel_store
-            .find_relay_by_id_merchant_id(
-                key_manager_state,
-                merchant_key_store,
-                merchant_id,
-                relay_id,
-            )
+            .find_relay_by_id_merchant_id(key_manager_state, merchant_key_store, relay_id)
             .await
     }
 }

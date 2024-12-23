@@ -39,7 +39,7 @@ pub async fn relay(
     .await
 }
 
-#[instrument(skip_all, fields(flow = ?Flow::Relay))]
+#[instrument(skip_all, fields(flow = ?Flow::RelayRetrieve))]
 #[cfg(feature = "oltp")]
 pub async fn relay_retrieve(
     state: web::Data<app::AppState>,
