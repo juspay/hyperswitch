@@ -5613,6 +5613,21 @@
             "type": "string",
             "description": "User-agent of the browser",
             "nullable": true
+          },
+          "os_type": {
+            "type": "string",
+            "description": "The os type of the client device",
+            "nullable": true
+          },
+          "os_version": {
+            "type": "string",
+            "description": "The os version of the client device",
+            "nullable": true
+          },
+          "device_model": {
+            "type": "string",
+            "description": "The device model of the client",
+            "nullable": true
           }
         }
       },
@@ -6495,88 +6510,6 @@
           "greater_than_equal"
         ]
       },
-      "ConfirmIntentAmountDetailsResponse": {
-        "type": "object",
-        "required": [
-          "currency",
-          "external_tax_calculation",
-          "surcharge_calculation",
-          "net_amount",
-          "amount_capturable"
-        ],
-        "properties": {
-          "order_amount": {
-            "type": "integer",
-            "format": "int64",
-            "description": "The payment amount. Amount for the payment in the lowest denomination of the currency, (i.e) in cents for USD denomination, in yen for JPY denomination etc. E.g., Pass 100 to charge $1.00 and 1 for 1¥ since ¥ is a zero-decimal currency. Read more about [the Decimal and Non-Decimal Currencies](https://github.com/juspay/hyperswitch/wiki/Decimal-and-Non%E2%80%90Decimal-Currencies)",
-            "example": 6540,
-            "minimum": 0
-          },
-          "currency": {
-            "$ref": "#/components/schemas/Currency"
-          },
-          "shipping_cost": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/MinorUnit"
-              }
-            ],
-            "nullable": true
-          },
-          "order_tax_amount": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/MinorUnit"
-              }
-            ],
-            "nullable": true
-          },
-          "external_tax_calculation": {
-            "$ref": "#/components/schemas/TaxCalculationOverride"
-          },
-          "surcharge_calculation": {
-            "$ref": "#/components/schemas/SurchargeCalculationOverride"
-          },
-          "surcharge_amount": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/MinorUnit"
-              }
-            ],
-            "nullable": true
-          },
-          "tax_on_surcharge": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/MinorUnit"
-              }
-            ],
-            "nullable": true
-          },
-          "net_amount": {
-            "$ref": "#/components/schemas/MinorUnit"
-          },
-          "amount_to_capture": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/MinorUnit"
-              }
-            ],
-            "nullable": true
-          },
-          "amount_capturable": {
-            "$ref": "#/components/schemas/MinorUnit"
-          },
-          "amount_captured": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/MinorUnit"
-              }
-            ],
-            "nullable": true
-          }
-        }
-      },
       "Connector": {
         "type": "string",
         "description": "A connector is an integration to fulfill payments",
@@ -6624,6 +6557,7 @@
           "helcim",
           "iatapay",
           "itaubank",
+          "jpmorgan",
           "klarna",
           "mifinity",
           "mollie",
@@ -12682,6 +12616,88 @@
           }
         }
       },
+      "PaymentAmountDetailsResponse": {
+        "type": "object",
+        "required": [
+          "currency",
+          "external_tax_calculation",
+          "surcharge_calculation",
+          "net_amount",
+          "amount_capturable"
+        ],
+        "properties": {
+          "order_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The payment amount. Amount for the payment in the lowest denomination of the currency, (i.e) in cents for USD denomination, in yen for JPY denomination etc. E.g., Pass 100 to charge $1.00 and 1 for 1¥ since ¥ is a zero-decimal currency. Read more about [the Decimal and Non-Decimal Currencies](https://github.com/juspay/hyperswitch/wiki/Decimal-and-Non%E2%80%90Decimal-Currencies)",
+            "example": 6540,
+            "minimum": 0
+          },
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
+          },
+          "shipping_cost": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
+          },
+          "order_tax_amount": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
+          },
+          "external_tax_calculation": {
+            "$ref": "#/components/schemas/TaxCalculationOverride"
+          },
+          "surcharge_calculation": {
+            "$ref": "#/components/schemas/SurchargeCalculationOverride"
+          },
+          "surcharge_amount": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
+          },
+          "tax_on_surcharge": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
+          },
+          "net_amount": {
+            "$ref": "#/components/schemas/MinorUnit"
+          },
+          "amount_to_capture": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
+          },
+          "amount_capturable": {
+            "$ref": "#/components/schemas/MinorUnit"
+          },
+          "amount_captured": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
       "PaymentAttemptResponse": {
         "type": "object",
         "required": [
@@ -13941,16 +13957,11 @@
       "PaymentMethodIntentConfirm": {
         "type": "object",
         "required": [
-          "client_secret",
           "payment_method_data",
           "payment_method_type",
           "payment_method_subtype"
         ],
         "properties": {
-          "client_secret": {
-            "type": "string",
-            "description": "For SDK based calls, client_secret would be required"
-          },
           "customer_id": {
             "type": "string",
             "description": "The unique identifier of the customer.",
@@ -14236,7 +14247,7 @@
             "example": "2024-02-24T11:04:09.922Z",
             "nullable": true
           },
-          "client_secret": {
+          "ephemeral_key": {
             "type": "string",
             "description": "For Client based calls",
             "nullable": true
@@ -14385,14 +14396,6 @@
         "properties": {
           "payment_method_data": {
             "$ref": "#/components/schemas/PaymentMethodUpdateData"
-          },
-          "client_secret": {
-            "type": "string",
-            "description": "This is a 15 minute expiry token which shall be used from the client to authenticate and perform sessions from the SDK",
-            "example": "secret_k2uj3he2893eiu2d",
-            "nullable": true,
-            "maxLength": 30,
-            "minLength": 30
           }
         },
         "additionalProperties": false
@@ -14553,42 +14556,12 @@
       },
       "PaymentsCaptureRequest": {
         "type": "object",
-        "required": [
-          "amount_to_capture"
-        ],
         "properties": {
-          "merchant_id": {
-            "type": "string",
-            "description": "The unique identifier for the merchant",
-            "nullable": true
-          },
           "amount_to_capture": {
             "type": "integer",
             "format": "int64",
-            "description": "The Amount to be captured/ debited from the user's payment method.",
-            "example": 6540
-          },
-          "refund_uncaptured_amount": {
-            "type": "boolean",
-            "description": "Decider to refund the uncaptured amount",
-            "nullable": true
-          },
-          "statement_descriptor_suffix": {
-            "type": "string",
-            "description": "Provides information about a card payment that customers see on their statements.",
-            "nullable": true
-          },
-          "statement_descriptor_prefix": {
-            "type": "string",
-            "description": "Concatenated with the statement descriptor suffix that’s set on the account to form the complete statement descriptor.",
-            "nullable": true
-          },
-          "merchant_connector_details": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/MerchantConnectorDetailsWrap"
-              }
-            ],
+            "description": "The Amount to be captured/ debited from the user's payment method. If not passed the full amount will be captured.",
+            "example": 6540,
             "nullable": true
           }
         }
@@ -14691,7 +14664,7 @@
             "$ref": "#/components/schemas/IntentStatus"
           },
           "amount": {
-            "$ref": "#/components/schemas/ConfirmIntentAmountDetailsResponse"
+            "$ref": "#/components/schemas/PaymentAmountDetailsResponse"
           },
           "customer_id": {
             "type": "string",
@@ -16440,7 +16413,7 @@
             "$ref": "#/components/schemas/IntentStatus"
           },
           "amount": {
-            "$ref": "#/components/schemas/ConfirmIntentAmountDetailsResponse"
+            "$ref": "#/components/schemas/PaymentAmountDetailsResponse"
           },
           "customer_id": {
             "type": "string",
@@ -19537,6 +19510,7 @@
           "helcim",
           "iatapay",
           "itaubank",
+          "jpmorgan",
           "klarna",
           "mifinity",
           "mollie",

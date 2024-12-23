@@ -531,6 +531,8 @@ pub enum Flow {
     PaymentStartRedirection,
     /// Volume split on the routing type
     VolumeSplitOnRoutingType,
+    /// Relay flow
+    Relay,
 }
 
 /// Trait for providing generic behaviour to flow metric
