@@ -43,6 +43,12 @@ pub fn default_payouts_list_limit() -> u32 {
     10
 }
 
+/// Error message for Authentication Error from the connector
+pub const CONNECTOR_UNAUTHORIZED_ERROR: &str = "Authentication Error from the connector";
+
+/// Error message when Refund request has been voided.
+pub const REFUND_VOIDED: &str = "Refund request has been voided.";
+
 /// surcharge percentage maximum precision length
 pub const SURCHARGE_PERCENTAGE_PRECISION_LENGTH: u8 = 2;
 

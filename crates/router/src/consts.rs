@@ -41,7 +41,6 @@ pub const DEFAULT_LIST_API_LIMIT: u16 = 10;
 pub(crate) const UNSUPPORTED_ERROR_MESSAGE: &str = "Unsupported response type";
 pub(crate) const LOW_BALANCE_ERROR_MESSAGE: &str = "Insufficient balance in the payment method";
 pub(crate) const CONNECTOR_UNAUTHORIZED_ERROR: &str = "Authentication Error from the connector";
-pub(crate) const REFUND_VOIDED: &str = "Refund request has been voided.";
 
 pub(crate) const CANNOT_CONTINUE_AUTH: &str =
     "Cannot continue with Authorization due to failed Liability Shift.";
