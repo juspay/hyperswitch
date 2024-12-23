@@ -695,31 +695,18 @@ where
         request_headers: &HeaderMap,
         state: &A,
     ) -> RouterResult<(AuthenticationData, AuthenticationType)> {
-        let (auth_data, auth_type): (AuthenticationData, AuthenticationType) = self
-            .0
-            .authenticate_and_fetch(request_headers, state)
-            .await?;
+        let enable_partial_auth = state.conf().api_keys.get_inner().enable_partial_auth;
 
-        let profile_id = HeaderMapStruct::new(request_headers)
-            .get_id_type_from_header::<id_type::ProfileId>(headers::X_PROFILE_ID)?;
-
-        let key_manager_state = &(&state.session_state()).into();
-        let profile = state
-            .store()
-            .find_business_profile_by_profile_id(
-                key_manager_state,
-                &auth_data.key_store,
-                &profile_id,
-            )
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
-
-        let auth_data_v2 = AuthenticationData {
-            merchant_account: auth_data.merchant_account,
-            key_store: auth_data.key_store,
-            profile,
-        };
-        Ok((auth_data_v2, auth_type))
+        match enable_partial_auth {
+            true => self.0.authenticate_and_fetch(request_headers, state).await,
+            false => {
+                let auth = self
+                    .0
+                    .authenticate_and_fetch(request_headers, state)
+                    .await?;
+                Ok(auth)
+            }
+        }
     }
 }
 
