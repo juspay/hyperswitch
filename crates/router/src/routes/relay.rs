@@ -41,7 +41,7 @@ pub async fn relay(
 
 #[instrument(skip_all, fields(flow = ?Flow::Relay))]
 #[cfg(feature = "oltp")]
-pub async fn relay_retireve(
+pub async fn relay_retrieve(
     state: web::Data<app::AppState>,
     path: web::Path<common_utils::id_type::RelayId>,
     req: actix_web::HttpRequest,

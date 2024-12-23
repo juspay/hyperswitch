@@ -240,10 +240,14 @@ pub async fn relay_retrieve(
 
     #[cfg(feature = "v2")]
     let connector_account = db
-        .find_merchant_connector_account_by_id(key_manager_state, connector_id, &key_store)
+        .find_merchant_connector_account_by_id(
+            key_manager_state,
+            &relay_record.connector_id,
+            &key_store,
+        )
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-            id: connector_id.get_string_repr().to_string(),
+            id: relay_record.connector_id.get_string_repr().to_string(),
         })?;
 
     let relay_response = match relay_record.relay_type {
@@ -257,13 +261,10 @@ pub async fn relay_retrieve(
                 )
                 .await?;
 
-                let relay_update_record = db
-                    .update_relay(key_manager_state, &key_store, relay_record, relay_response)
+                db.update_relay(key_manager_state, &key_store, relay_record, relay_response)
                     .await
                     .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed to update the relay record")?;
-
-                relay_update_record
+                    .attach_printable("Failed to update the relay record")?
             } else {
                 relay_record
             }
