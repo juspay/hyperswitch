@@ -445,12 +445,12 @@ jobs:
           retention-days: 1
 
       - name: Process coverage report
-        if: env.RUN_TESTS == 'true'
+        if: env.RUN_TESTS == 'true' && failure()
         run: grcov . -s . -t lcov --output-path ${{ env.CODECOV_FILE }} --branch --binary-path ./target/debug
 
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v5
-        if: env.RUN_TESTS == 'true'
+        if: env.RUN_TESTS == 'true' && failure()
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ${{ env.CODECOV_FILE }}
