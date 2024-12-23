@@ -267,7 +267,6 @@ impl FlowIntegrity for CaptureIntegrityObject {
             .capture_amount
             .zip(req_integrity_object.capture_amount)
             .map(|(res_amount, req_amount)| {
-                println!("$$$$ res_amount: {}, req_amount: {}", res_amount, req_amount);
                 if res_amount != req_amount {
                     mismatched_fields.push(format_mismatch(
                         "capture_amount",
