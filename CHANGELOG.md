@@ -4,6 +4,18 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.12.18.0-hotfix2
+
+### Features
+
+- **router:** Add /retrieve api for relay ([#6924](https://github.com/juspay/hyperswitch/pull/6924)) ([`1be28d3`](https://github.com/juspay/hyperswitch/commit/1be28d3adc6dd554446bf99a9997af5c10942cd5))
+
+### Bug Fixes
+
+- **connector:** [Cybersource] fix the required fields for wallet mandate payments ([#6921](https://github.com/juspay/hyperswitch/pull/6921)) ([`1ebd494`](https://github.com/juspay/hyperswitch/commit/1ebd494ca4c9d4d0afcf7601a5cf945b715d4fe2))
+
+- - -
+
 ## 2024.12.18.0-hotfix1
 
 ### Bug Fixes
