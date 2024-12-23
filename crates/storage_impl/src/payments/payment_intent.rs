@@ -9,9 +9,7 @@ use common_utils::{
     types::keymanager::KeyManagerState,
 };
 #[cfg(feature = "olap")]
-use diesel::{
-    associations::HasTable, BoolExpressionMethods, ExpressionMethods, JoinOnDsl, QueryDsl,
-};
+use diesel::{associations::HasTable, ExpressionMethods, JoinOnDsl, QueryDsl};
 #[cfg(feature = "v1")]
 use diesel_models::payment_intent::PaymentIntentUpdate as DieselPaymentIntentUpdate;
 #[cfg(feature = "olap")]
