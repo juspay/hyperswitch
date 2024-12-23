@@ -86,7 +86,7 @@ pub async fn create_role(
     }
 
     let role = state
-        .store
+        .global_store
         .insert_role(RoleNew {
             role_id: generate_id_with_default_len("role"),
             role_name: role_name.get_role_name(),
@@ -220,7 +220,7 @@ pub async fn update_role(
     }
 
     let updated_role = state
-        .store
+        .global_store
         .update_role_by_role_id(
             role_id,
             RoleUpdate::UpdateDetails {
@@ -271,7 +271,7 @@ pub async fn list_roles_with_info(
     let custom_roles =
         match utils::user_role::get_min_entity(user_role_entity, request.entity_type)? {
             EntityType::Tenant | EntityType::Organization => state
-                .store
+                .global_store
                 .list_roles_for_org_by_parameters(
                     &user_from_token.org_id,
                     None,
@@ -282,7 +282,7 @@ pub async fn list_roles_with_info(
                 .change_context(UserErrors::InternalServerError)
                 .attach_printable("Failed to get roles")?,
             EntityType::Merchant => state
-                .store
+                .global_store
                 .list_roles_for_org_by_parameters(
                     &user_from_token.org_id,
                     Some(&user_from_token.merchant_id),
@@ -344,7 +344,7 @@ pub async fn list_roles_at_entity_level(
 
     let custom_roles = match req.entity_type {
         EntityType::Tenant | EntityType::Organization => state
-            .store
+            .global_store
             .list_roles_for_org_by_parameters(
                 &user_from_token.org_id,
                 None,
@@ -356,7 +356,7 @@ pub async fn list_roles_at_entity_level(
             .attach_printable("Failed to get roles")?,
 
         EntityType::Merchant => state
-            .store
+            .global_store
             .list_roles_for_org_by_parameters(
                 &user_from_token.org_id,
                 Some(&user_from_token.merchant_id),

@@ -30,6 +30,10 @@ pub struct OrderDetailsWithAmount {
     pub product_type: Option<common_enums::ProductType>,
     /// The tax code for the product
     pub product_tax_code: Option<String>,
+    /// tax rate applicable to the product
+    pub tax_rate: Option<f64>,
+    /// total tax amount applicable to the product
+    pub total_tax_amount: Option<MinorUnit>,
 }
 
 impl masking::SerializableSecret for OrderDetailsWithAmount {}
@@ -44,8 +48,55 @@ pub struct FeatureMetadata {
     // TODO: Convert this to hashedstrings to avoid PII sensitive data
     /// Additional tags to be used for global search
     pub search_tags: Option<Vec<HashedString<WithType>>>,
+    /// Recurring payment details required for apple pay Merchant Token
+    pub apple_pay_recurring_details: Option<ApplePayRecurringDetails>,
 }
-impl masking::SerializableSecret for FeatureMetadata {}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]
+#[diesel(sql_type = Json)]
+pub struct ApplePayRecurringDetails {
+    /// A description of the recurring payment that Apple Pay displays to the user in the payment sheet
+    pub payment_description: String,
+    /// The regular billing cycle for the recurring payment, including start and end dates, an interval, and an interval count
+    pub regular_billing: ApplePayRegularBillingDetails,
+    /// A localized billing agreement that the payment sheet displays to the user before the user authorizes the payment
+    pub billing_agreement: Option<String>,
+    /// A URL to a web page where the user can update or delete the payment method for the recurring payment
+    pub management_url: common_utils::types::Url,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]
+#[diesel(sql_type = Json)]
+pub struct ApplePayRegularBillingDetails {
+    /// The label that Apple Pay displays to the user in the payment sheet with the recurring details
+    pub label: String,
+    /// The date of the first payment
+    #[serde(with = "common_utils::custom_serde::iso8601::option")]
+    pub recurring_payment_start_date: Option<time::PrimitiveDateTime>,
+    /// The date of the final payment
+    #[serde(with = "common_utils::custom_serde::iso8601::option")]
+    pub recurring_payment_end_date: Option<time::PrimitiveDateTime>,
+    /// The amount of time — in calendar units, such as day, month, or year — that represents a fraction of the total payment interval
+    pub recurring_payment_interval_unit: Option<RecurringPaymentIntervalUnit>,
+    /// The number of interval units that make up the total payment interval
+    pub recurring_payment_interval_count: Option<i32>,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]
+#[diesel(sql_type = Json)]
+#[serde(rename_all = "snake_case")]
+pub enum RecurringPaymentIntervalUnit {
+    Year,
+    Month,
+    Day,
+    Hour,
+    Minute,
+}
+
+common_utils::impl_to_sql_from_sql_json!(ApplePayRecurringDetails);
+common_utils::impl_to_sql_from_sql_json!(ApplePayRegularBillingDetails);
+common_utils::impl_to_sql_from_sql_json!(RecurringPaymentIntervalUnit);
+
 common_utils::impl_to_sql_from_sql_json!(FeatureMetadata);
 
 #[derive(Default, Debug, Eq, PartialEq, Deserialize, Serialize, Clone)]
