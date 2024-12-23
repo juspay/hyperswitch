@@ -398,6 +398,9 @@ impl TryFrom<&TrustpayRouterData<&types::PaymentsAuthorizeRouterData>> for Trust
             accept_header: Some(browser_info.accept_header.unwrap_or("*".to_string())),
             user_agent: browser_info.user_agent,
             ip_address: browser_info.ip_address,
+            os_type: None,
+            os_version: None,
+            device_model: None,
         };
         let params = get_mandatory_fields(item.router_data)?;
         let amount = item.amount.to_owned();

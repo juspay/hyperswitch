@@ -5713,6 +5713,21 @@
             "type": "string",
             "description": "User-agent of the browser",
             "nullable": true
+          },
+          "os_type": {
+            "type": "string",
+            "description": "The os type of the client device",
+            "nullable": true
+          },
+          "os_version": {
+            "type": "string",
+            "description": "The os version of the client device",
+            "nullable": true
+          },
+          "device_model": {
+            "type": "string",
+            "description": "The device model of the client",
+            "nullable": true
           }
         }
       },
@@ -6642,6 +6657,7 @@
           "helcim",
           "iatapay",
           "itaubank",
+          "jpmorgan",
           "klarna",
           "mifinity",
           "mollie",
@@ -13807,16 +13823,11 @@
       "PaymentMethodIntentConfirm": {
         "type": "object",
         "required": [
-          "client_secret",
           "payment_method_data",
           "payment_method_type",
           "payment_method_subtype"
         ],
         "properties": {
-          "client_secret": {
-            "type": "string",
-            "description": "For SDK based calls, client_secret would be required"
-          },
           "customer_id": {
             "type": "string",
             "description": "The unique identifier of the customer.",
@@ -14125,7 +14136,7 @@
             "example": "2024-02-24T11:04:09.922Z",
             "nullable": true
           },
-          "client_secret": {
+          "ephemeral_key": {
             "type": "string",
             "description": "For Client based calls",
             "nullable": true
@@ -14306,14 +14317,6 @@
         "properties": {
           "payment_method_data": {
             "$ref": "#/components/schemas/PaymentMethodUpdateData"
-          },
-          "client_secret": {
-            "type": "string",
-            "description": "This is a 15 minute expiry token which shall be used from the client to authenticate and perform sessions from the SDK",
-            "example": "secret_k2uj3he2893eiu2d",
-            "nullable": true,
-            "maxLength": 30,
-            "minLength": 30
           }
         },
         "additionalProperties": false
@@ -19395,6 +19398,7 @@
           "helcim",
           "iatapay",
           "itaubank",
+          "jpmorgan",
           "klarna",
           "mifinity",
           "mollie",

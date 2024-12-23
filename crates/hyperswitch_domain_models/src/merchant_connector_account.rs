@@ -1,12 +1,11 @@
 #[cfg(feature = "v2")]
 use api_models::admin;
-#[cfg(feature = "v2")]
-use common_utils::ext_traits::ValueExt;
 use common_utils::{
     crypto::Encryptable,
     date_time,
     encryption::Encryption,
     errors::{CustomResult, ValidationError},
+    ext_traits::ValueExt,
     id_type, pii, type_name,
     types::keymanager::{Identifier, KeyManagerState, ToEncryptable},
 };
@@ -21,9 +20,10 @@ use serde_json::Value;
 use super::behaviour;
 #[cfg(feature = "v2")]
 use crate::errors::api_error_response::ApiErrorResponse;
-#[cfg(feature = "v2")]
-use crate::router_data;
-use crate::type_encryption::{crypto_operation, CryptoOperation};
+use crate::{
+    router_data,
+    type_encryption::{crypto_operation, CryptoOperation},
+};
 
 #[cfg(feature = "v1")]
 #[derive(Clone, Debug, router_derive::ToEncryption)]
@@ -61,6 +61,19 @@ pub struct MerchantConnectorAccount {
 impl MerchantConnectorAccount {
     pub fn get_id(&self) -> id_type::MerchantConnectorAccountId {
         self.merchant_connector_id.clone()
+    }
+
+    pub fn get_connector_account_details(
+        &self,
+    ) -> error_stack::Result<router_data::ConnectorAuthType, common_utils::errors::ParsingError>
+    {
+        self.connector_account_details
+            .get_inner()
+            .clone()
+            .parse_value("ConnectorAuthType")
+    }
+    pub fn get_connector_test_mode(&self) -> Option<bool> {
+        self.test_mode
     }
 }
 
@@ -116,6 +129,71 @@ impl MerchantConnectorAccount {
             .get_inner()
             .clone()
             .parse_value("ConnectorAuthType")
+    }
+    pub fn get_connector_test_mode(&self) -> Option<bool> {
+        todo!()
+    }
+}
+
+#[cfg(feature = "v2")]
+/// Holds the payment methods enabled for a connector along with the connector name
+/// This struct is a flattened representation of the payment methods enabled for a connector
+#[derive(Debug)]
+pub struct PaymentMethodsEnabledForConnector {
+    pub payment_methods_enabled: common_types::payment_methods::RequestPaymentMethodTypes,
+    pub payment_method: common_enums::PaymentMethod,
+    pub connector: String,
+}
+
+#[cfg(feature = "v2")]
+/// Holds the payment methods enabled for a connector
+pub struct FlattenedPaymentMethodsEnabled {
+    pub payment_methods_enabled: Vec<PaymentMethodsEnabledForConnector>,
+}
+
+#[cfg(feature = "v2")]
+impl FlattenedPaymentMethodsEnabled {
+    /// This functions flattens the payment methods enabled from the connector accounts
+    /// Retains the connector name and payment method in every flattened element
+    pub fn from_payment_connectors_list(payment_connectors: Vec<MerchantConnectorAccount>) -> Self {
+        let payment_methods_enabled_flattened_with_connector = payment_connectors
+            .into_iter()
+            .map(|connector| {
+                (
+                    connector.payment_methods_enabled.unwrap_or_default(),
+                    connector.connector_name,
+                )
+            })
+            .flat_map(|(payment_method_enabled, connector_name)| {
+                payment_method_enabled
+                    .into_iter()
+                    .flat_map(move |payment_method| {
+                        let request_payment_methods_enabled =
+                            payment_method.payment_method_subtypes.unwrap_or_default();
+                        let length = request_payment_methods_enabled.len();
+                        request_payment_methods_enabled.into_iter().zip(
+                            std::iter::repeat((
+                                connector_name.clone(),
+                                payment_method.payment_method_type,
+                            ))
+                            .take(length),
+                        )
+                    })
+            })
+            .map(
+                |(request_payment_methods, (connector_name, payment_method))| {
+                    PaymentMethodsEnabledForConnector {
+                        payment_methods_enabled: request_payment_methods,
+                        connector: connector_name.clone(),
+                        payment_method,
+                    }
+                },
+            )
+            .collect();
+
+        Self {
+            payment_methods_enabled: payment_methods_enabled_flattened_with_connector,
+        }
     }
 }
 
