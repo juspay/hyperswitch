@@ -161,9 +161,9 @@ function main() {
 
   # Ensure script runs from 'cypress-tests' directory
   if [[ "$(basename "$PWD")" != "cypress-tests-v2" ]]; then
-    print_color "yellow" "Changing directory to 'cypress-tests'..."
+    print_color "yellow" "Changing directory to 'cypress-tests-v2'..."
     cd cypress-tests-v2 || {
-      print_color "red" "ERROR: Directory 'cypress-tests' not found!"
+      print_color "red" "ERROR: Directory 'cypress-tests-v2' not found!"
       exit 1
     }
   fi
