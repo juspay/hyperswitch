@@ -775,7 +775,6 @@ where
 }
 
 #[cfg(all(feature = "partial-auth", feature = "v1"))]
-#[allow(unused)]
 async fn construct_authentication_data<A>(
     state: &A,
     merchant_id: &id_type::MerchantId,
@@ -1269,7 +1268,6 @@ impl<'a> HeaderMapStruct<'a> {
             })
     }
 
-    // Remove feature flag if required.
     pub fn get_id_type_from_header_if_present<T>(&self, key: &str) -> RouterResult<Option<T>>
     where
         T: TryFrom<
@@ -1537,7 +1535,6 @@ pub struct MerchantIdAuth(pub id_type::MerchantId);
 
 #[cfg(feature = "v1")]
 #[async_trait]
-#[allow(unused)]
 impl<A> AuthenticateAndFetch<AuthenticationData, A> for MerchantIdAuth
 where
     A: SessionStateInfo + Sync,

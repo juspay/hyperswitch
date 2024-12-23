@@ -279,7 +279,10 @@ pub enum ApiErrorResponse {
         message = "Cookies are not found in the request"
     )]
     CookieNotFound,
-
+    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_43", message = "API does not support platform account operation")]
+    PlatformAccountAuthNotSupported,
+    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_44", message = "Invalid platform account operation")]
+    InvalidPlatformOperation,
     #[error(error_type = ErrorType::InvalidRequestError, code = "WE_01", message = "Failed to authenticate the webhook")]
     WebhookAuthenticationFailed,
     #[error(error_type = ErrorType::InvalidRequestError, code = "WE_02", message = "Bad request received in webhook")]
@@ -298,10 +301,6 @@ pub enum ApiErrorResponse {
         field_names: String,
         connector_transaction_id: Option<String>,
     },
-    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_42", message = "API does not support platform account operation")]
-    PlatformAccountAuthNotSupported,
-    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_43", message = "Invalid platform account operation")]
-    InvalidPlatformOperation,
 }
 
 #[derive(Clone)]
@@ -672,10 +671,10 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
                 })
             )),
             Self::PlatformAccountAuthNotSupported => {
-                AER::BadRequest(ApiError::new("IR", 42, "API does not support platform operation", None))
+                AER::BadRequest(ApiError::new("IR", 43, "API does not support platform operation", None))
             }
             Self::InvalidPlatformOperation => {
-                AER::Unauthorized(ApiError::new("IR", 43, "Invalid platform account operation", None))
+                AER::Unauthorized(ApiError::new("IR", 44, "Invalid platform account operation", None))
             }
         }
     }
