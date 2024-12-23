@@ -470,7 +470,7 @@ impl Capturable for PaymentsSyncData {
         payment_data
             .payment_attempt
             .amount_details
-            .amount_to_capture
+            .get_amount_to_capture()
             .or_else(|| Some(payment_data.payment_attempt.get_total_amount()))
             .map(|amt| amt.get_amount_as_i64())
     }

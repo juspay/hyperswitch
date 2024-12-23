@@ -621,7 +621,7 @@ pub struct AmountDetailsResponse {
 
 #[cfg(feature = "v2")]
 #[derive(Clone, Debug, PartialEq, serde::Serialize, ToSchema)]
-pub struct ConfirmIntentAmountDetailsResponse {
+pub struct PaymentAmountDetailsResponse {
     /// The payment amount. Amount for the payment in the lowest denomination of the currency, (i.e) in cents for USD denomination, in yen for JPY denomination etc. E.g., Pass 100 to charge $1.00 and 1 for 1¥ since ¥ is a zero-decimal currency. Read more about [the Decimal and Non-Decimal Currencies](https://github.com/juspay/hyperswitch/wiki/Decimal-and-Non%E2%80%90Decimal-Currencies)
     #[schema(value_type = u64, example = 6540)]
     #[serde(default, deserialize_with = "amount::deserialize")]
@@ -1282,6 +1282,15 @@ pub struct BrowserInformation {
 
     /// User-agent of the browser
     pub user_agent: Option<String>,
+
+    /// The os type of the client device
+    pub os_type: Option<String>,
+
+    /// The os version of the client device
+    pub os_version: Option<String>,
+
+    /// The device model of the client
+    pub device_model: Option<String>,
 }
 
 impl RequestSurchargeDetails {
@@ -4077,6 +4086,7 @@ pub struct PhoneDetails {
     pub country_code: Option<String>,
 }
 
+#[cfg(feature = "v1")]
 #[derive(Debug, Clone, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct PaymentsCaptureRequest {
     /// The unique identifier for the payment
@@ -4085,7 +4095,7 @@ pub struct PaymentsCaptureRequest {
     /// The unique identifier for the merchant
     #[schema(value_type = Option<String>)]
     pub merchant_id: Option<id_type::MerchantId>,
-    /// The Amount to be captured/ debited from the user's payment method.
+    /// The Amount to be captured/ debited from the user's payment method. If not passed the full amount will be captured.
     #[schema(value_type = i64, example = 6540)]
     pub amount_to_capture: Option<MinorUnit>,
     /// Decider to refund the uncaptured amount
@@ -4097,6 +4107,28 @@ pub struct PaymentsCaptureRequest {
     /// Merchant connector details used to make payments.
     #[schema(value_type = Option<MerchantConnectorDetailsWrap>, deprecated)]
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, Clone, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct PaymentsCaptureRequest {
+    /// The Amount to be captured/ debited from the user's payment method. If not passed the full amount will be captured.
+    #[schema(value_type = Option<i64>, example = 6540)]
+    pub amount_to_capture: Option<MinorUnit>,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, Clone, serde::Serialize, ToSchema)]
+pub struct PaymentsCaptureResponse {
+    /// The unique identifier for the payment
+    pub id: id_type::GlobalPaymentId,
+
+    /// Status of the payment
+    #[schema(value_type = IntentStatus, example = "succeeded")]
+    pub status: common_enums::IntentStatus,
+
+    /// Amount details related to the payment
+    pub amount: PaymentAmountDetailsResponse,
 }
 
 #[derive(Default, Clone, Debug, Eq, PartialEq, serde::Serialize)]
@@ -4801,7 +4833,7 @@ pub struct PaymentsConfirmIntentResponse {
     pub status: api_enums::IntentStatus,
 
     /// Amount related information for this payment and attempt
-    pub amount: ConfirmIntentAmountDetailsResponse,
+    pub amount: PaymentAmountDetailsResponse,
 
     /// The identifier for the customer
     #[schema(
@@ -4879,7 +4911,7 @@ pub struct PaymentsRetrieveResponse {
     pub status: api_enums::IntentStatus,
 
     /// Amount related information for this payment and attempt
-    pub amount: ConfirmIntentAmountDetailsResponse,
+    pub amount: PaymentAmountDetailsResponse,
 
     /// The identifier for the customer
     #[schema(

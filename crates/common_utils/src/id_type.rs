@@ -3,6 +3,7 @@
 
 mod api_key;
 mod customer;
+mod ephemeral_key;
 #[cfg(feature = "v2")]
 mod global_id;
 mod merchant;
@@ -11,6 +12,7 @@ mod organization;
 mod payment;
 mod profile;
 mod refunds;
+mod relay;
 mod routing;
 mod tenant;
 
@@ -37,12 +39,14 @@ pub use self::global_id::{
 pub use self::{
     api_key::ApiKeyId,
     customer::CustomerId,
+    ephemeral_key::EphemeralKeyId,
     merchant::MerchantId,
     merchant_connector_account::MerchantConnectorAccountId,
     organization::OrganizationId,
     payment::{PaymentId, PaymentReferenceId},
     profile::ProfileId,
     refunds::RefundReferenceId,
+    relay::RelayId,
     routing::RoutingId,
     tenant::TenantId,
 };
