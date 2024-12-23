@@ -1683,11 +1683,11 @@ key2="Certificate Key"
 
 [jpmorgan]
 [[jpmorgan.credit]]
-  payment_method_type = "American Express"
+  payment_method_type = "AmericanExpress"
 [[jpmorgan.credit]]
   payment_method_type = "ChaseNet"
 [[jpmorgan.credit]]
-  payment_method_type = "Diners Club"
+  payment_method_type = "DinersClub"
 [[jpmorgan.credit]]
   payment_method_type = "Discover"
 [[jpmorgan.credit]]
@@ -1701,11 +1701,11 @@ key2="Certificate Key"
 [[jpmorgan.credit]]
   payment_method_type = "Visa"
   [[jpmorgan.debit]]
-  payment_method_type = "American Express"
+  payment_method_type = "AmericanExpress"
 [[jpmorgan.debit]]
   payment_method_type = "ChaseNet"
 [[jpmorgan.debit]]
-  payment_method_type = "Diners Club"
+  payment_method_type = "DinersClub"
 [[jpmorgan.debit]]
   payment_method_type = "Discover"
 [[jpmorgan.debit]]
@@ -1719,7 +1719,8 @@ key2="Certificate Key"
 [[jpmorgan.debit]]
   payment_method_type = "Visa"
 [jpmorgan.connector_auth.BodyKey]
-api_key="Access Token"
+api_key="Client ID"
+key1="Client Secret"
 
 [klarna]
 [[klarna.pay_later]]
