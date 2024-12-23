@@ -1401,6 +1401,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 itaubank::transformers::ItaubankAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            api_enums::Connector::Jpmorgan => {
+                jpmorgan::transformers::JpmorganAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Klarna => {
                 klarna::transformers::KlarnaAuthType::try_from(self.auth_type)?;
                 klarna::transformers::KlarnaConnectorMetadataObject::try_from(
@@ -1698,36 +1702,11 @@ impl ConnectorStatusAndDisabledValidation<'_> {
             }
             (Some(disabled), _) => Some(*disabled),
             (None, common_enums::ConnectorStatus::Inactive) => Some(true),
-            (None, _) => None,
+            // Enable the connector if nothing is passed in the request
+            (None, _) => Some(false),
         };
 
         Ok((*connector_status, disabled))
-    }
-}
-
-struct PaymentMethodsEnabled<'a> {
-    payment_methods_enabled: &'a Option<Vec<api_models::admin::PaymentMethodsEnabled>>,
-}
-
-impl PaymentMethodsEnabled<'_> {
-    fn get_payment_methods_enabled(&self) -> RouterResult<Option<Vec<pii::SecretSerdeValue>>> {
-        let mut vec = Vec::new();
-        let payment_methods_enabled = match self.payment_methods_enabled.clone() {
-            Some(val) => {
-                for pm in val.into_iter() {
-                    let pm_value = pm
-                        .encode_to_value()
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable(
-                            "Failed while encoding to serde_json::Value, PaymentMethod",
-                        )?;
-                    vec.push(Secret::new(pm_value))
-                }
-                Some(vec)
-            }
-            None => None,
-        };
-        Ok(payment_methods_enabled)
     }
 }
 
@@ -2114,12 +2093,9 @@ impl MerchantConnectorAccountUpdateBridge for api_models::admin::MerchantConnect
         key_manager_state: &KeyManagerState,
         merchant_account: &domain::MerchantAccount,
     ) -> RouterResult<domain::MerchantConnectorAccountUpdate> {
-        let payment_methods_enabled = PaymentMethodsEnabled {
-            payment_methods_enabled: &self.payment_methods_enabled,
-        };
-        let payment_methods_enabled = payment_methods_enabled.get_payment_methods_enabled()?;
-
         let frm_configs = self.get_frm_config_as_secret();
+
+        let payment_methods_enabled = self.payment_methods_enabled;
 
         let auth = types::ConnectorAuthType::from_secret_value(
             self.connector_account_details
@@ -2454,11 +2430,8 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
     ) -> RouterResult<domain::MerchantConnectorAccount> {
         // If connector label is not passed in the request, generate one
         let connector_label = self.get_connector_label(business_profile.profile_name.clone());
-        let payment_methods_enabled = PaymentMethodsEnabled {
-            payment_methods_enabled: &self.payment_methods_enabled,
-        };
-        let payment_methods_enabled = payment_methods_enabled.get_payment_methods_enabled()?;
         let frm_configs = self.get_frm_config_as_secret();
+        let payment_methods_enabled = self.payment_methods_enabled;
         // Validate Merchant api details and return error if not in correct format
         let auth = types::ConnectorAuthType::from_option_secret_value(
             self.connector_account_details.clone(),
@@ -2482,6 +2455,7 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
         };
         let (connector_status, disabled) =
             connector_status_and_disabled_validation.validate_status_and_disabled()?;
+
         let identifier = km_types::Identifier::Merchant(business_profile.merchant_id.clone());
         let merchant_recipient_data = if let Some(data) = &self.additional_merchant_data {
             Some(
@@ -2599,6 +2573,34 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
         })?;
 
         Ok(business_profile)
+    }
+}
+
+#[cfg(feature = "v1")]
+struct PaymentMethodsEnabled<'a> {
+    payment_methods_enabled: &'a Option<Vec<api_models::admin::PaymentMethodsEnabled>>,
+}
+
+#[cfg(feature = "v1")]
+impl PaymentMethodsEnabled<'_> {
+    fn get_payment_methods_enabled(&self) -> RouterResult<Option<Vec<pii::SecretSerdeValue>>> {
+        let mut vec = Vec::new();
+        let payment_methods_enabled = match self.payment_methods_enabled.clone() {
+            Some(val) => {
+                for pm in val.into_iter() {
+                    let pm_value = pm
+                        .encode_to_value()
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable(
+                            "Failed while encoding to serde_json::Value, PaymentMethod",
+                        )?;
+                    vec.push(Secret::new(pm_value))
+                }
+                Some(vec)
+            }
+            None => None,
+        };
+        Ok(payment_methods_enabled)
     }
 }
 

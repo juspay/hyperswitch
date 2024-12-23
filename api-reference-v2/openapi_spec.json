@@ -674,57 +674,6 @@
         ]
       }
     },
-    "/v2/payments/{payment_id}/create-external-sdk-tokens": {
-      "post": {
-        "tags": [
-          "Payments"
-        ],
-        "summary": "Payments - Session token",
-        "description": "Creates a session object or a session token for wallets like Apple Pay, Google Pay, etc. These tokens are used by Hyperswitch's SDK to initiate these wallets' SDK.",
-        "operationId": "Create Session tokens for a Payment",
-        "parameters": [
-          {
-            "name": "payment_id",
-            "in": "path",
-            "description": "The identifier for payment",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/PaymentsSessionRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Payment session object created or session token was retrieved from wallets",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PaymentsSessionResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Missing mandatory fields"
-          }
-        },
-        "security": [
-          {
-            "publishable_key": []
-          }
-        ]
-      }
-    },
     "/v2/profiles": {
       "post": {
         "tags": [
@@ -1992,6 +1941,41 @@
         "summary": "Payments - Confirm Intent",
         "description": "**Confirms a payment intent object with the payment method data**\n\n.",
         "operationId": "Confirm Payment Intent",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The unique identifier for the Payment Intent",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile ID associated to the payment intent",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": {
+              "X-Profile-Id": "pro_abcdefghijklmnop"
+            }
+          },
+          {
+            "name": "X-Client-Secret",
+            "in": "header",
+            "description": "Client Secret Associated with the payment intent",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": {
+              "X-Client-Secret": "12345_pay_0193e41106e07e518940f8b51b9c8121_secret_0193e41107027a928d61d292e6a5dba9"
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -2035,7 +2019,7 @@
         },
         "security": [
           {
-            "publisable_key": []
+            "publishable_key": []
           }
         ]
       }
@@ -2086,6 +2070,122 @@
         "security": [
           {
             "api_key": []
+          }
+        ]
+      }
+    },
+    "/v2/payments/{payment_id}/create-external-sdk-tokens": {
+      "post": {
+        "tags": [
+          "Payments"
+        ],
+        "summary": "Payments - Session token",
+        "description": "Creates a session object or a session token for wallets like Apple Pay, Google Pay, etc. These tokens are used by Hyperswitch's SDK to initiate these wallets' SDK.",
+        "operationId": "Create Session tokens for a Payment",
+        "parameters": [
+          {
+            "name": "payment_id",
+            "in": "path",
+            "description": "The identifier for payment",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PaymentsSessionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Payment session object created or session token was retrieved from wallets",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentsSessionResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing mandatory fields"
+          }
+        },
+        "security": [
+          {
+            "publishable_key": []
+          }
+        ]
+      }
+    },
+    "/v2/payments/{id}/payment-methods": {
+      "get": {
+        "tags": [
+          "Payments"
+        ],
+        "summary": "Payments - Payment Methods List",
+        "description": "List the payment methods eligible for a payment. This endpoint also returns the saved payment methods for the customer when the customer_id is passed when creating the payment",
+        "operationId": "Retrieve Payment methods for a Payment",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The global payment id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile ID associated to the payment intent",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": {
+              "X-Profile-Id": "pro_abcdefghijklmnop"
+            }
+          },
+          {
+            "name": "X-Client-Secret",
+            "in": "header",
+            "description": "Client Secret Associated with the payment intent",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": {
+              "X-Client-Secret": "12345_pay_0193e41106e07e518940f8b51b9c8121_secret_0193e41107027a928d61d292e6a5dba9"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Get the payment methods",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentMethodListResponseForPayments"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No payment found with the given id"
+          }
+        },
+        "security": [
+          {
+            "publishable_key": []
           }
         ]
       }
@@ -3288,11 +3388,168 @@
               }
             ],
             "nullable": true
+          },
+          "recurring_payment_request": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ApplePayRecurringPaymentRequest"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "ApplePayPaymentTiming": {
+        "type": "string",
+        "enum": [
+          "immediate",
+          "recurring"
+        ]
+      },
+      "ApplePayRecurringDetails": {
+        "type": "object",
+        "required": [
+          "payment_description",
+          "regular_billing",
+          "management_url"
+        ],
+        "properties": {
+          "payment_description": {
+            "type": "string",
+            "description": "A description of the recurring payment that Apple Pay displays to the user in the payment sheet"
+          },
+          "regular_billing": {
+            "$ref": "#/components/schemas/ApplePayRegularBillingDetails"
+          },
+          "billing_agreement": {
+            "type": "string",
+            "description": "A localized billing agreement that the payment sheet displays to the user before the user authorizes the payment",
+            "nullable": true
+          },
+          "management_url": {
+            "type": "string",
+            "description": "A URL to a web page where the user can update or delete the payment method for the recurring payment",
+            "example": "https://hyperswitch.io"
+          }
+        }
+      },
+      "ApplePayRecurringPaymentRequest": {
+        "type": "object",
+        "required": [
+          "payment_description",
+          "regular_billing",
+          "management_url"
+        ],
+        "properties": {
+          "payment_description": {
+            "type": "string",
+            "description": "A description of the recurring payment that Apple Pay displays to the user in the payment sheet"
+          },
+          "regular_billing": {
+            "$ref": "#/components/schemas/ApplePayRegularBillingRequest"
+          },
+          "billing_agreement": {
+            "type": "string",
+            "description": "A localized billing agreement that the payment sheet displays to the user before the user authorizes the payment",
+            "nullable": true
+          },
+          "management_url": {
+            "type": "string",
+            "description": "A URL to a web page where the user can update or delete the payment method for the recurring payment",
+            "example": "https://hyperswitch.io"
           }
         }
       },
       "ApplePayRedirectData": {
         "type": "object"
+      },
+      "ApplePayRegularBillingDetails": {
+        "type": "object",
+        "required": [
+          "label"
+        ],
+        "properties": {
+          "label": {
+            "type": "string",
+            "description": "The label that Apple Pay displays to the user in the payment sheet with the recurring details"
+          },
+          "recurring_payment_start_date": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The date of the first payment",
+            "example": "2023-09-10T23:59:59Z",
+            "nullable": true
+          },
+          "recurring_payment_end_date": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The date of the final payment",
+            "example": "2023-09-10T23:59:59Z",
+            "nullable": true
+          },
+          "recurring_payment_interval_unit": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RecurringPaymentIntervalUnit"
+              }
+            ],
+            "nullable": true
+          },
+          "recurring_payment_interval_count": {
+            "type": "integer",
+            "format": "int32",
+            "description": "The number of interval units that make up the total payment interval",
+            "nullable": true
+          }
+        }
+      },
+      "ApplePayRegularBillingRequest": {
+        "type": "object",
+        "required": [
+          "amount",
+          "label",
+          "payment_timing"
+        ],
+        "properties": {
+          "amount": {
+            "type": "string",
+            "description": "The amount of the recurring payment",
+            "example": "38.02"
+          },
+          "label": {
+            "type": "string",
+            "description": "The label that Apple Pay displays to the user in the payment sheet with the recurring details"
+          },
+          "payment_timing": {
+            "$ref": "#/components/schemas/ApplePayPaymentTiming"
+          },
+          "recurring_payment_start_date": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The date of the first payment",
+            "nullable": true
+          },
+          "recurring_payment_end_date": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The date of the final payment",
+            "nullable": true
+          },
+          "recurring_payment_interval_unit": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RecurringPaymentIntervalUnit"
+              }
+            ],
+            "nullable": true
+          },
+          "recurring_payment_interval_count": {
+            "type": "integer",
+            "format": "int32",
+            "description": "The number of interval units that make up the total payment interval",
+            "nullable": true
+          }
+        }
       },
       "ApplePaySessionResponse": {
         "oneOf": [
@@ -5456,6 +5713,21 @@
             "type": "string",
             "description": "User-agent of the browser",
             "nullable": true
+          },
+          "os_type": {
+            "type": "string",
+            "description": "The os type of the client device",
+            "nullable": true
+          },
+          "os_version": {
+            "type": "string",
+            "description": "The os version of the client device",
+            "nullable": true
+          },
+          "device_model": {
+            "type": "string",
+            "description": "The device model of the client",
+            "nullable": true
           }
         }
       },
@@ -6280,6 +6552,22 @@
           },
           "transaction_currency_code": {
             "$ref": "#/components/schemas/Currency"
+          },
+          "phone_number": {
+            "type": "string",
+            "example": "9123456789",
+            "nullable": true,
+            "maxLength": 255
+          },
+          "email": {
+            "type": "string",
+            "example": "johntest@test.com",
+            "nullable": true,
+            "maxLength": 255
+          },
+          "phone_country_code": {
+            "type": "string",
+            "nullable": true
           }
         }
       },
@@ -6321,88 +6609,6 @@
           "greater_than",
           "greater_than_equal"
         ]
-      },
-      "ConfirmIntentAmountDetailsResponse": {
-        "type": "object",
-        "required": [
-          "currency",
-          "external_tax_calculation",
-          "surcharge_calculation",
-          "net_amount",
-          "amount_capturable"
-        ],
-        "properties": {
-          "order_amount": {
-            "type": "integer",
-            "format": "int64",
-            "description": "The payment amount. Amount for the payment in the lowest denomination of the currency, (i.e) in cents for USD denomination, in yen for JPY denomination etc. E.g., Pass 100 to charge $1.00 and 1 for 1¥ since ¥ is a zero-decimal currency. Read more about [the Decimal and Non-Decimal Currencies](https://github.com/juspay/hyperswitch/wiki/Decimal-and-Non%E2%80%90Decimal-Currencies)",
-            "example": 6540,
-            "minimum": 0
-          },
-          "currency": {
-            "$ref": "#/components/schemas/Currency"
-          },
-          "shipping_cost": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/MinorUnit"
-              }
-            ],
-            "nullable": true
-          },
-          "order_tax_amount": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/MinorUnit"
-              }
-            ],
-            "nullable": true
-          },
-          "external_tax_calculation": {
-            "$ref": "#/components/schemas/TaxCalculationOverride"
-          },
-          "surcharge_calculation": {
-            "$ref": "#/components/schemas/SurchargeCalculationOverride"
-          },
-          "surcharge_amount": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/MinorUnit"
-              }
-            ],
-            "nullable": true
-          },
-          "tax_on_surcharge": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/MinorUnit"
-              }
-            ],
-            "nullable": true
-          },
-          "net_amount": {
-            "$ref": "#/components/schemas/MinorUnit"
-          },
-          "amount_to_capture": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/MinorUnit"
-              }
-            ],
-            "nullable": true
-          },
-          "amount_capturable": {
-            "$ref": "#/components/schemas/MinorUnit"
-          },
-          "amount_captured": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/MinorUnit"
-              }
-            ],
-            "nullable": true
-          }
-        }
       },
       "Connector": {
         "type": "string",
@@ -6451,6 +6657,7 @@
           "helcim",
           "iatapay",
           "itaubank",
+          "jpmorgan",
           "klarna",
           "mifinity",
           "mollie",
@@ -8484,6 +8691,14 @@
             },
             "description": "Additional tags to be used for global search",
             "nullable": true
+          },
+          "apple_pay_recurring_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ApplePayRecurringDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -10484,7 +10699,8 @@
         "required": [
           "connector_type",
           "connector_name",
-          "profile_id"
+          "profile_id",
+          "payment_methods_enabled"
         ],
         "properties": {
           "connector_type": {
@@ -10513,48 +10729,7 @@
             "nullable": true
           },
           "payment_methods_enabled": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/PaymentMethodsEnabled"
-            },
-            "description": "An object containing the details about the payment methods that need to be enabled under this merchant connector account",
-            "example": [
-              {
-                "accepted_countries": {
-                  "list": [
-                    "FR",
-                    "DE",
-                    "IN"
-                  ],
-                  "type": "disable_only"
-                },
-                "accepted_currencies": {
-                  "list": [
-                    "USD",
-                    "EUR"
-                  ],
-                  "type": "enable_only"
-                },
-                "installment_payment_enabled": true,
-                "maximum_amount": 68607706,
-                "minimum_amount": 1,
-                "payment_method": "wallet",
-                "payment_method_issuers": [
-                  "labore magna ipsum",
-                  "aute"
-                ],
-                "payment_method_types": [
-                  "upi_collect",
-                  "upi_intent"
-                ],
-                "payment_schemes": [
-                  "Discover",
-                  "Discover"
-                ],
-                "recurring_enabled": true
-              }
-            ],
-            "nullable": true
+            "$ref": "#/components/schemas/PaymentMethodsEnabled"
           },
           "connector_webhook_details": {
             "allOf": [
@@ -10697,6 +10872,7 @@
           "connector_name",
           "id",
           "profile_id",
+          "payment_methods_enabled",
           "status"
         ],
         "properties": {
@@ -10727,44 +10903,7 @@
             "items": {
               "$ref": "#/components/schemas/PaymentMethodsEnabled"
             },
-            "description": "An object containing the details about the payment methods that need to be enabled under this merchant connector account",
-            "example": [
-              {
-                "accepted_countries": {
-                  "list": [
-                    "FR",
-                    "DE",
-                    "IN"
-                  ],
-                  "type": "disable_only"
-                },
-                "accepted_currencies": {
-                  "list": [
-                    "USD",
-                    "EUR"
-                  ],
-                  "type": "enable_only"
-                },
-                "installment_payment_enabled": true,
-                "maximum_amount": 68607706,
-                "minimum_amount": 1,
-                "payment_method": "wallet",
-                "payment_method_issuers": [
-                  "labore magna ipsum",
-                  "aute"
-                ],
-                "payment_method_types": [
-                  "upi_collect",
-                  "upi_intent"
-                ],
-                "payment_schemes": [
-                  "Discover",
-                  "Discover"
-                ],
-                "recurring_enabled": true
-              }
-            ],
-            "nullable": true
+            "description": "An object containing the details about the payment methods that need to be enabled under this merchant connector account"
           },
           "disabled": {
             "type": "boolean",
@@ -10808,6 +10947,7 @@
           "connector_name",
           "id",
           "profile_id",
+          "payment_methods_enabled",
           "status"
         ],
         "properties": {
@@ -10846,44 +10986,7 @@
             "items": {
               "$ref": "#/components/schemas/PaymentMethodsEnabled"
             },
-            "description": "An object containing the details about the payment methods that need to be enabled under this merchant connector account",
-            "example": [
-              {
-                "accepted_countries": {
-                  "list": [
-                    "FR",
-                    "DE",
-                    "IN"
-                  ],
-                  "type": "disable_only"
-                },
-                "accepted_currencies": {
-                  "list": [
-                    "USD",
-                    "EUR"
-                  ],
-                  "type": "enable_only"
-                },
-                "installment_payment_enabled": true,
-                "maximum_amount": 68607706,
-                "minimum_amount": 1,
-                "payment_method": "wallet",
-                "payment_method_issuers": [
-                  "labore magna ipsum",
-                  "aute"
-                ],
-                "payment_method_types": [
-                  "upi_collect",
-                  "upi_intent"
-                ],
-                "payment_schemes": [
-                  "Discover",
-                  "Discover"
-                ],
-                "recurring_enabled": true
-              }
-            ],
-            "nullable": true
+            "description": "An object containing the details about the payment methods that need to be enabled under this merchant connector account"
           },
           "connector_webhook_details": {
             "allOf": [
@@ -10981,42 +11084,6 @@
               "$ref": "#/components/schemas/PaymentMethodsEnabled"
             },
             "description": "An object containing the details about the payment methods that need to be enabled under this merchant connector account",
-            "example": [
-              {
-                "accepted_countries": {
-                  "list": [
-                    "FR",
-                    "DE",
-                    "IN"
-                  ],
-                  "type": "disable_only"
-                },
-                "accepted_currencies": {
-                  "list": [
-                    "USD",
-                    "EUR"
-                  ],
-                  "type": "enable_only"
-                },
-                "installment_payment_enabled": true,
-                "maximum_amount": 68607706,
-                "minimum_amount": 1,
-                "payment_method": "wallet",
-                "payment_method_issuers": [
-                  "labore magna ipsum",
-                  "aute"
-                ],
-                "payment_method_types": [
-                  "upi_collect",
-                  "upi_intent"
-                ],
-                "payment_schemes": [
-                  "Discover",
-                  "Discover"
-                ],
-                "recurring_enabled": true
-              }
-            ],
             "nullable": true
           },
           "connector_webhook_details": {
@@ -11854,70 +11921,6 @@
           }
         }
       },
-      "OrderDetails": {
-        "type": "object",
-        "required": [
-          "product_name",
-          "quantity"
-        ],
-        "properties": {
-          "product_name": {
-            "type": "string",
-            "description": "Name of the product that is being purchased",
-            "example": "shirt",
-            "maxLength": 255
-          },
-          "quantity": {
-            "type": "integer",
-            "format": "int32",
-            "description": "The quantity of the product to be purchased",
-            "example": 1,
-            "minimum": 0
-          },
-          "requires_shipping": {
-            "type": "boolean",
-            "nullable": true
-          },
-          "product_img_link": {
-            "type": "string",
-            "description": "The image URL of the product",
-            "nullable": true
-          },
-          "product_id": {
-            "type": "string",
-            "description": "ID of the product that is being purchased",
-            "nullable": true
-          },
-          "category": {
-            "type": "string",
-            "description": "Category of the product that is being purchased",
-            "nullable": true
-          },
-          "sub_category": {
-            "type": "string",
-            "description": "Sub category of the product that is being purchased",
-            "nullable": true
-          },
-          "brand": {
-            "type": "string",
-            "description": "Brand of the product that is being purchased",
-            "nullable": true
-          },
-          "product_type": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/ProductType"
-              }
-            ],
-            "nullable": true
-          },
-          "product_tax_code": {
-            "type": "string",
-            "description": "The tax code for the product",
-            "nullable": true
-          }
-        }
-      },
       "OrderDetailsWithAmount": {
         "type": "object",
         "required": [
@@ -11940,7 +11943,21 @@
             "minimum": 0
           },
           "amount": {
-            "$ref": "#/components/schemas/MinorUnit"
+            "type": "integer",
+            "format": "int64",
+            "description": "the amount per quantity of product"
+          },
+          "tax_rate": {
+            "type": "number",
+            "format": "double",
+            "description": "tax rate applicable to the product",
+            "nullable": true
+          },
+          "total_tax_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "total tax amount applicable to the product",
+            "nullable": true
           },
           "requires_shipping": {
             "type": "boolean",
@@ -12356,6 +12373,17 @@
           {
             "type": "object",
             "required": [
+              "klarna_checkout"
+            ],
+            "properties": {
+              "klarna_checkout": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
               "affirm_redirect"
             ],
             "properties": {
@@ -12463,6 +12491,88 @@
           }
         }
       },
+      "PaymentAmountDetailsResponse": {
+        "type": "object",
+        "required": [
+          "currency",
+          "external_tax_calculation",
+          "surcharge_calculation",
+          "net_amount",
+          "amount_capturable"
+        ],
+        "properties": {
+          "order_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The payment amount. Amount for the payment in the lowest denomination of the currency, (i.e) in cents for USD denomination, in yen for JPY denomination etc. E.g., Pass 100 to charge $1.00 and 1 for 1¥ since ¥ is a zero-decimal currency. Read more about [the Decimal and Non-Decimal Currencies](https://github.com/juspay/hyperswitch/wiki/Decimal-and-Non%E2%80%90Decimal-Currencies)",
+            "example": 6540,
+            "minimum": 0
+          },
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
+          },
+          "shipping_cost": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
+          },
+          "order_tax_amount": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
+          },
+          "external_tax_calculation": {
+            "$ref": "#/components/schemas/TaxCalculationOverride"
+          },
+          "surcharge_calculation": {
+            "$ref": "#/components/schemas/SurchargeCalculationOverride"
+          },
+          "surcharge_amount": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
+          },
+          "tax_on_surcharge": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
+          },
+          "net_amount": {
+            "$ref": "#/components/schemas/MinorUnit"
+          },
+          "amount_to_capture": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
+          },
+          "amount_capturable": {
+            "$ref": "#/components/schemas/MinorUnit"
+          },
+          "amount_captured": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
       "PaymentAttemptResponse": {
         "type": "object",
         "required": [
@@ -12485,6 +12595,13 @@
             "format": "int64",
             "description": "The payment attempt amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,",
             "example": 6540
+          },
+          "order_tax_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The payment attempt tax_amount.",
+            "example": 6540,
+            "nullable": true
           },
           "currency": {
             "allOf": [
@@ -12797,6 +12914,11 @@
             "type": "boolean",
             "description": "Toggle for HyperSwitch branding visibility",
             "nullable": true
+          },
+          "payment_button_text": {
+            "type": "string",
+            "description": "Text for payment link's handle confirm button",
+            "nullable": true
           }
         }
       },
@@ -12881,6 +13003,11 @@
                 "$ref": "#/components/schemas/PaymentLinkDetailsLayout"
               }
             ],
+            "nullable": true
+          },
+          "payment_button_text": {
+            "type": "string",
+            "description": "Text for payment link's handle confirm button",
             "nullable": true
           }
         }
@@ -13696,16 +13823,11 @@
       "PaymentMethodIntentConfirm": {
         "type": "object",
         "required": [
-          "client_secret",
           "payment_method_data",
           "payment_method_type",
           "payment_method_subtype"
         ],
         "properties": {
-          "client_secret": {
-            "type": "string",
-            "description": "For SDK based calls, client_secret would be required"
-          },
           "customer_id": {
             "type": "string",
             "description": "The unique identifier of the customer.",
@@ -13935,6 +14057,29 @@
           }
         }
       },
+      "PaymentMethodListResponseForPayments": {
+        "type": "object",
+        "required": [
+          "payment_methods_enabled"
+        ],
+        "properties": {
+          "payment_methods_enabled": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ResponsePaymentMethodTypes"
+            },
+            "description": "The list of payment methods that are enabled for the business profile"
+          },
+          "customer_payment_methods": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CustomerPaymentMethod"
+            },
+            "description": "The list of payment methods that are saved by the given customer\nThis field is only returned if the customer_id is provided in the request",
+            "nullable": true
+          }
+        }
+      },
       "PaymentMethodResponse": {
         "type": "object",
         "required": [
@@ -13991,7 +14136,7 @@
             "example": "2024-02-24T11:04:09.922Z",
             "nullable": true
           },
-          "client_secret": {
+          "ephemeral_key": {
             "type": "string",
             "description": "For Client based calls",
             "nullable": true
@@ -14029,6 +14174,38 @@
           "inactive",
           "processing",
           "awaiting_data"
+        ]
+      },
+      "PaymentMethodSubtypeSpecificData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "card_networks"
+            ],
+            "properties": {
+              "card_networks": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/CardNetworkTypes"
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "bank_names"
+            ],
+            "properties": {
+              "bank_names": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/BankCodeResponse"
+                }
+              }
+            }
+          }
         ]
       },
       "PaymentMethodType": {
@@ -14140,14 +14317,6 @@
         "properties": {
           "payment_method_data": {
             "$ref": "#/components/schemas/PaymentMethodUpdateData"
-          },
-          "client_secret": {
-            "type": "string",
-            "description": "This is a 15 minute expiry token which shall be used from the client to authenticate and perform sessions from the SDK",
-            "example": "secret_k2uj3he2893eiu2d",
-            "nullable": true,
-            "maxLength": 30,
-            "minLength": 30
           }
         },
         "additionalProperties": false
@@ -14171,21 +14340,18 @@
         "type": "object",
         "description": "Details of all the payment methods enabled for the connector for the given merchant account",
         "required": [
-          "payment_method"
+          "payment_method_type"
         ],
         "properties": {
-          "payment_method": {
+          "payment_method_type": {
             "$ref": "#/components/schemas/PaymentMethod"
           },
-          "payment_method_types": {
+          "payment_method_subtypes": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/RequestPaymentMethodTypes"
             },
-            "description": "Subtype of payment method",
-            "example": [
-              "credit"
-            ],
+            "description": "Payment method configuration, this includes all the filters associated with the payment method",
             "nullable": true
           }
         },
@@ -14308,42 +14474,12 @@
       },
       "PaymentsCaptureRequest": {
         "type": "object",
-        "required": [
-          "amount_to_capture"
-        ],
         "properties": {
-          "merchant_id": {
-            "type": "string",
-            "description": "The unique identifier for the merchant",
-            "nullable": true
-          },
           "amount_to_capture": {
             "type": "integer",
             "format": "int64",
-            "description": "The Amount to be captured/ debited from the user's payment method.",
-            "example": 6540
-          },
-          "refund_uncaptured_amount": {
-            "type": "boolean",
-            "description": "Decider to refund the uncaptured amount",
-            "nullable": true
-          },
-          "statement_descriptor_suffix": {
-            "type": "string",
-            "description": "Provides information about a card payment that customers see on their statements.",
-            "nullable": true
-          },
-          "statement_descriptor_prefix": {
-            "type": "string",
-            "description": "Concatenated with the statement descriptor suffix that’s set on the account to form the complete statement descriptor.",
-            "nullable": true
-          },
-          "merchant_connector_details": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/MerchantConnectorDetailsWrap"
-              }
-            ],
+            "description": "The Amount to be captured/ debited from the user's payment method. If not passed the full amount will be captured.",
+            "example": 6540,
             "nullable": true
           }
         }
@@ -14426,6 +14562,7 @@
           "id",
           "status",
           "amount",
+          "customer_id",
           "connector",
           "client_secret",
           "created",
@@ -14445,7 +14582,14 @@
             "$ref": "#/components/schemas/IntentStatus"
           },
           "amount": {
-            "$ref": "#/components/schemas/ConfirmIntentAmountDetailsResponse"
+            "$ref": "#/components/schemas/PaymentAmountDetailsResponse"
+          },
+          "customer_id": {
+            "type": "string",
+            "description": "The identifier for the customer",
+            "example": "12345_cus_01926c58bc6e77c09e809964e72af8c8",
+            "maxLength": 64,
+            "minLength": 32
           },
           "connector": {
             "type": "string",
@@ -16171,6 +16315,7 @@
           "id",
           "status",
           "amount",
+          "customer_id",
           "client_secret",
           "created"
         ],
@@ -16186,7 +16331,14 @@
             "$ref": "#/components/schemas/IntentStatus"
           },
           "amount": {
-            "$ref": "#/components/schemas/ConfirmIntentAmountDetailsResponse"
+            "$ref": "#/components/schemas/PaymentAmountDetailsResponse"
+          },
+          "customer_id": {
+            "type": "string",
+            "description": "The identifier for the customer",
+            "example": "12345_cus_01926c58bc6e77c09e809964e72af8c8",
+            "maxLength": 64,
+            "minLength": 32
           },
           "connector": {
             "type": "string",
@@ -17816,8 +17968,7 @@
       "ProfileCreate": {
         "type": "object",
         "required": [
-          "profile_name",
-          "is_click_to_pay_enabled"
+          "profile_name"
         ],
         "properties": {
           "profile_name": {
@@ -18411,6 +18562,16 @@
           "propertyName": "type"
         }
       },
+      "RecurringPaymentIntervalUnit": {
+        "type": "string",
+        "enum": [
+          "year",
+          "month",
+          "day",
+          "hour",
+          "minute"
+        ]
+      },
       "RedirectResponse": {
         "type": "object",
         "properties": {
@@ -18934,76 +19095,47 @@
         }
       },
       "ResponsePaymentMethodTypes": {
-        "type": "object",
-        "required": [
-          "payment_method_subtype"
-        ],
-        "properties": {
-          "payment_method_subtype": {
-            "$ref": "#/components/schemas/PaymentMethodType"
-          },
-          "payment_experience": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/PaymentExperienceTypes"
-            },
-            "description": "The list of payment experiences enabled, if applicable for a payment method type",
-            "nullable": true
-          },
-          "card_networks": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/CardNetworkTypes"
-            },
-            "description": "The list of card networks enabled, if applicable for a payment method type",
-            "nullable": true
-          },
-          "bank_names": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/BankCodeResponse"
-            },
-            "description": "The list of banks enabled, if applicable for a payment method type",
-            "nullable": true
-          },
-          "bank_debits": {
+        "allOf": [
+          {
             "allOf": [
               {
-                "$ref": "#/components/schemas/BankDebitTypes"
+                "$ref": "#/components/schemas/PaymentMethodSubtypeSpecificData"
               }
             ],
             "nullable": true
           },
-          "bank_transfers": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/BankTransferTypes"
-              }
-            ],
-            "nullable": true
-          },
-          "required_fields": {
+          {
             "type": "object",
-            "description": "Required fields for the payment_method_type.",
-            "additionalProperties": {
-              "$ref": "#/components/schemas/RequiredFieldInfo"
-            },
-            "nullable": true
-          },
-          "surcharge_details": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/SurchargeDetailsResponse"
-              }
+            "required": [
+              "payment_method_type",
+              "payment_method_subtype"
             ],
-            "nullable": true
-          },
-          "pm_auth_connector": {
-            "type": "string",
-            "description": "auth service connector label for this payment method type, if exists",
-            "nullable": true
+            "properties": {
+              "payment_method_type": {
+                "$ref": "#/components/schemas/PaymentMethodType"
+              },
+              "payment_method_subtype": {
+                "$ref": "#/components/schemas/PaymentMethodType"
+              },
+              "required_fields": {
+                "type": "object",
+                "description": "Required fields for the payment_method_type.\nThis is the union of all the required fields for the payment method type enabled in all the connectors.",
+                "additionalProperties": {
+                  "$ref": "#/components/schemas/RequiredFieldInfo"
+                },
+                "nullable": true
+              },
+              "surcharge_details": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/SurchargeDetailsResponse"
+                  }
+                ],
+                "nullable": true
+              }
+            }
           }
-        }
+        ]
       },
       "ResponsePaymentMethodsEnabled": {
         "type": "object",
@@ -19266,6 +19398,7 @@
           "helcim",
           "iatapay",
           "itaubank",
+          "jpmorgan",
           "klarna",
           "mifinity",
           "mollie",

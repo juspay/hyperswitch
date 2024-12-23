@@ -102,6 +102,9 @@ pub enum ApiEventsType {
         poll_id: String,
     },
     Analytics,
+    EphemeralKey {
+        key_id: id_type::EphemeralKeyId,
+    },
 }
 
 impl ApiEventMetric for serde_json::Value {}

@@ -12,7 +12,10 @@ use common_utils::id_type;
 use external_services::email::{
     no_email::NoEmailClient, ses::AwsSes, smtp::SmtpServer, EmailClientConfigs, EmailService,
 };
-use external_services::{file_storage::FileStorageInterface, grpc_client::GrpcClients};
+use external_services::{
+    file_storage::FileStorageInterface,
+    grpc_client::{GrpcClients, GrpcHeaders},
+};
 use hyperswitch_interfaces::{
     encryption_interface::EncryptionManagementInterface,
     secrets_interface::secret_state::{RawSecret, SecuredSecret},
@@ -27,11 +30,7 @@ use self::settings::Tenant;
 use super::currency;
 #[cfg(feature = "dummy_connector")]
 use super::dummy_connector::*;
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "customer_v2"),
-    feature = "oltp"
-))]
+#[cfg(all(any(feature = "v1", feature = "v2"), feature = "oltp"))]
 use super::ephemeral_key::*;
 #[cfg(any(feature = "olap", feature = "oltp"))]
 use super::payment_methods::*;
@@ -55,7 +54,7 @@ use super::verification::{apple_pay_merchant_registration, retrieve_apple_pay_ve
 use super::webhooks::*;
 use super::{
     admin, api_keys, cache::*, connector_onboarding, disputes, files, gsm, health::*, profiles,
-    user, user_role,
+    relay, user, user_role,
 };
 #[cfg(feature = "v1")]
 use super::{apple_pay_certificates_migration, blocklist, payment_link, webhook_events};
@@ -121,6 +120,12 @@ impl SessionState {
     pub fn get_req_state(&self) -> ReqState {
         ReqState {
             event_context: events::EventContext::new(self.event_handler.clone()),
+        }
+    }
+    pub fn get_grpc_headers(&self) -> GrpcHeaders {
+        GrpcHeaders {
+            tenant_id: self.tenant.tenant_id.get_string_repr().to_string(),
+            request_id: self.request_id.map(|req_id| (*req_id).to_string()),
         }
     }
 }
@@ -569,16 +574,30 @@ impl Payments {
                         .route(web::get().to(payments::payments_start_redirection)),
                 )
                 .service(
-                    web::resource("/saved-payment-methods")
-                        .route(web::get().to(list_customer_payment_method_for_payment)),
+                    web::resource("/payment-methods")
+                        .route(web::get().to(payments::list_payment_methods)),
                 )
                 .service(
                     web::resource("/finish-redirection/{publishable_key}/{profile_id}")
                         .route(web::get().to(payments::payments_finish_redirection)),
+                )
+                .service(
+                    web::resource("/capture").route(web::post().to(payments::payments_capture)),
                 ),
         );
 
         route
+    }
+}
+
+pub struct Relay;
+
+#[cfg(feature = "oltp")]
+impl Relay {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/relay")
+            .app_data(web::Data::new(state))
+            .service(web::resource("").route(web::post().to(relay::relay)))
     }
 }
 
@@ -1141,8 +1160,11 @@ impl PaymentMethods {
                 web::resource("/{id}/update-saved-payment-method")
                     .route(web::patch().to(payment_method_update_api)),
             )
-            .service(web::resource("/{id}").route(web::get().to(payment_method_retrieve_api)))
-            .service(web::resource("/{id}").route(web::delete().to(payment_method_delete_api)));
+            .service(
+                web::resource("/{id}")
+                    .route(web::get().to(payment_method_retrieve_api))
+                    .route(web::delete().to(payment_method_delete_api)),
+            );
 
         route
     }
@@ -1410,6 +1432,16 @@ pub struct EphemeralKey;
 impl EphemeralKey {
     pub fn server(config: AppState) -> Scope {
         web::scope("/ephemeral_keys")
+            .app_data(web::Data::new(config))
+            .service(web::resource("").route(web::post().to(ephemeral_key_create)))
+            .service(web::resource("/{id}").route(web::delete().to(ephemeral_key_delete)))
+    }
+}
+
+#[cfg(feature = "v2")]
+impl EphemeralKey {
+    pub fn server(config: AppState) -> Scope {
+        web::scope("/v2/ephemeral-keys")
             .app_data(web::Data::new(config))
             .service(web::resource("").route(web::post().to(ephemeral_key_create)))
             .service(web::resource("/{id}").route(web::delete().to(ephemeral_key_delete)))
