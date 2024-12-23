@@ -485,14 +485,6 @@ pub async fn construct_payment_router_data_for_capture<'a>(
             .as_ref()
             .map(|description| description.get_string_repr())
             .map(ToOwned::to_owned),
-        // TODO: evaluate why we need to send merchant's return url here
-        // This should be the return url of application, since application takes care of the redirection
-        return_url: payment_data
-            .payment_intent
-            .return_url
-            .as_ref()
-            .map(|description| description.get_string_repr())
-            .map(ToOwned::to_owned),
         // TODO: Create unified address
         address: hyperswitch_domain_models::payment_address::PaymentAddress::default(),
         auth_type: payment_data.payment_attempt.authentication_type,
