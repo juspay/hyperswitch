@@ -975,8 +975,11 @@ where
 
     crate::logger::debug!("unified address details {:?}", unified_address);
 
-    let request_overcapture = payment_data.payment_attempt.overcapture_details.as_ref()
-    .and_then(|ovecapture_data|ovecapture_data.request_overcapture);
+    let request_overcapture = payment_data
+        .payment_attempt
+        .overcapture_details
+        .as_ref()
+        .and_then(|ovecapture_data| ovecapture_data.request_overcapture);
 
     router_data = types::RouterData {
         flow: PhantomData,
@@ -2217,10 +2220,16 @@ where
                 })
         });
 
-        let (overcapture_applied, maximum_capturable_amount) = payment_attempt.overcapture_details
-        .as_ref()
-    .map(|overcapture_data| (overcapture_data.overcapture_applied.clone(), overcapture_data.maximum_capturable_amount.clone()))
-    .unwrap_or((None, None));
+        let (overcapture_applied, maximum_capturable_amount) = payment_attempt
+            .overcapture_details
+            .as_ref()
+            .map(|overcapture_data| {
+                (
+                    overcapture_data.overcapture_applied.clone(),
+                    overcapture_data.maximum_capturable_amount.clone(),
+                )
+            })
+            .unwrap_or((None, None));
 
         let connector_transaction_id = payment_attempt
             .get_connector_payment_id()
@@ -2592,12 +2601,8 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             order_tax_amount: None,
             connector_mandate_id:None,
             shipping_cost: None,
-            overcapture_applied: pa.overcapture_details.as_ref().and_then(|overcapture_data| 
-                overcapture_data.overcapture_applied.clone()
-            ),
-            maximum_capturable_amount: pa.overcapture_details.as_ref().and_then(|overcapture_data| 
-                overcapture_data.maximum_capturable_amount.clone()
-            ),
+            overcapture_applied: pa.overcapture_details.as_ref().and_then(|overcapture_data| overcapture_data.overcapture_applied.clone()),
+            maximum_capturable_amount: pa.overcapture_details.as_ref().and_then(|overcapture_data| overcapture_data.maximum_capturable_amount.clone()),
         }
     }
 }

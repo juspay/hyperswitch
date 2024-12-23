@@ -443,24 +443,23 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 id: profile_id.get_string_repr().to_owned(),
             })?;
 
-            match (payment_attempt.overcapture_details.clone(), request.request_overcapture) {
-                (Some(mut overcapture_data), Some(request_overcapture)) => {
-                        overcapture_data.request_overcapture = Some(request_overcapture);
-
-                },
-                (None, Some(request_overcapture)) => {
-                    payment_attempt.overcapture_details = Some(
-                        common_utils::types::OvercaptureData {
-                            request_overcapture: Some(request_overcapture),
-                            overcapture_applied: None,
-                            maximum_capturable_amount: None,
-                            overcaptured_amount: None,
-                        }
-                    );
-                },
-                _ => ()
-            };
-            
+        match (
+            payment_attempt.overcapture_details.clone(),
+            request.request_overcapture,
+        ) {
+            (Some(mut overcapture_data), Some(request_overcapture)) => {
+                overcapture_data.request_overcapture = Some(request_overcapture);
+            }
+            (None, Some(request_overcapture)) => {
+                payment_attempt.overcapture_details = Some(common_utils::types::OvercaptureData {
+                    request_overcapture: Some(request_overcapture),
+                    overcapture_applied: None,
+                    maximum_capturable_amount: None,
+                    overcaptured_amount: None,
+                });
+            }
+            _ => (),
+        };
 
         let surcharge_details = request.surcharge_details.map(|request_surcharge_details| {
             payments::types::SurchargeDetails::from((&request_surcharge_details, &payment_attempt))
@@ -843,7 +842,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                             tax_amount,
                             None,
                         ),
-                        overcapture_details,
+                    overcapture_details,
                 },
                 storage_scheme,
             )

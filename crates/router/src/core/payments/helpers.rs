@@ -2611,14 +2611,23 @@ pub(crate) fn validate_amount_to_capture(
     amount_to_capture: Option<i64>,
     overcapture_details: Option<&common_utils::types::OvercaptureData>,
 ) -> RouterResult<()> {
-    let (is_overcapture_applied, maximum_capturable_amount) = overcapture_details.map(|overcapture_data|
-        (overcapture_data.overcapture_applied, overcapture_data.maximum_capturable_amount.map(|maximum_capturable_amount| maximum_capturable_amount.get_amount_as_i64()))
-    ).unwrap_or((None, None));
+    let (is_overcapture_applied, maximum_capturable_amount) = overcapture_details
+        .map(|overcapture_data| {
+            (
+                overcapture_data.overcapture_applied,
+                overcapture_data
+                    .maximum_capturable_amount
+                    .map(|maximum_capturable_amount| maximum_capturable_amount.get_amount_as_i64()),
+            )
+        })
+        .unwrap_or((None, None));
 
-    if let Some(true) = amount_to_capture.map(|req_amount_to_capture|(amount < req_amount_to_capture)) {
+    if let Some(true) =
+        amount_to_capture.map(|req_amount_to_capture| (amount < req_amount_to_capture))
+    {
         utils::when(
             !(is_overcapture_applied == Some(true)
-                    && maximum_capturable_amount >= amount_to_capture),
+                && maximum_capturable_amount >= amount_to_capture),
             || {
                 Err(report!(errors::ApiErrorResponse::InvalidRequestData {
                     message: "amount_to_capture is greater than amount".to_string()

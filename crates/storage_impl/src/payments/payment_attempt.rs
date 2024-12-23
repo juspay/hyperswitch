@@ -1520,8 +1520,10 @@ impl DataModelExt for PaymentAttempt {
         let connector_transaction_id = storage_model
             .get_optional_connector_transaction_id()
             .cloned();
-        let overcaptured_amount = storage_model.overcapture_details.as_ref()
-            .and_then(|overcapture_data|overcapture_data.overcaptured_amount.clone());
+        let overcaptured_amount = storage_model
+            .overcapture_details
+            .as_ref()
+            .and_then(|overcapture_data| overcapture_data.overcaptured_amount.clone());
         Self {
             net_amount: hyperswitch_domain_models::payments::payment_attempt::NetAmount::new(
                 storage_model.amount,
@@ -1681,9 +1683,10 @@ impl DataModelExt for PaymentAttemptNew {
     }
 
     fn from_storage_model(storage_model: Self::StorageModel) -> Self {
-        let overcapture_amount = storage_model.overcapture_details.as_ref().and_then(
-            |overcapture_data| overcapture_data.overcaptured_amount.clone()
-        );
+        let overcapture_amount = storage_model
+            .overcapture_details
+            .as_ref()
+            .and_then(|overcapture_data| overcapture_data.overcaptured_amount.clone());
 
         Self {
             net_amount: hyperswitch_domain_models::payments::payment_attempt::NetAmount::new(

@@ -280,7 +280,7 @@ pub struct PaymentAttemptNew {
     pub payment_method_subtype: storage_enums::PaymentMethodType,
     pub id: id_type::GlobalAttemptId,
     pub connector_mandate_detail: Option<ConnectorMandateReferenceId>,
-    pub overcapture_details:  Option<common_utils::types::OvercaptureData>,
+    pub overcapture_details: Option<common_utils::types::OvercaptureData>,
 }
 
 #[cfg(feature = "v1")]
@@ -888,8 +888,10 @@ impl PaymentAttemptUpdateInternal {
                     .overcapture_details
                     .as_ref()
                     .and_then(|data| data.overcaptured_amount)
-                    .or(source.overcapture_details.as_ref()
-                    .and_then(|data| data.overcaptured_amount))
+                    .or(source
+                        .overcapture_details
+                        .as_ref()
+                        .and_then(|data| data.overcaptured_amount))
                     .unwrap_or(MinorUnit::new(0)),
         );
         update_internal.card_network = update_internal
@@ -2682,7 +2684,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     shipping_cost: None,
                     order_tax_amount: None,
                     connector_mandate_detail,
-                    overcapture_details
+                    overcapture_details,
                 }
             }
             PaymentAttemptUpdate::ErrorUpdate {

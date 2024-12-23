@@ -403,22 +403,22 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
 
         payment_attempt.capture_method = request.capture_method.or(payment_attempt.capture_method);
 
-        match (payment_attempt.overcapture_details.clone(), request.request_overcapture) {
+        match (
+            payment_attempt.overcapture_details.clone(),
+            request.request_overcapture,
+        ) {
             (Some(mut overcapture_data), Some(request_overcapture)) => {
-                    overcapture_data.request_overcapture = Some(request_overcapture);
-
-            },
+                overcapture_data.request_overcapture = Some(request_overcapture);
+            }
             (None, Some(request_overcapture)) => {
-                payment_attempt.overcapture_details = Some(
-                    common_utils::types::OvercaptureData {
-                        request_overcapture: Some(request_overcapture),
-                        overcapture_applied: None,
-                        maximum_capturable_amount: None,
-                        overcaptured_amount: None,
-                    }
-                );
-            },
-            _ => ()
+                payment_attempt.overcapture_details = Some(common_utils::types::OvercaptureData {
+                    request_overcapture: Some(request_overcapture),
+                    overcapture_applied: None,
+                    maximum_capturable_amount: None,
+                    overcaptured_amount: None,
+                });
+            }
+            _ => (),
         };
 
         payment_attempt.customer_acceptance = request

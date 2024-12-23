@@ -244,7 +244,7 @@ pub struct StripePayLaterData {
 #[derive(Debug, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum StripeOvercaptureRequest {
-    IfAvailable
+    IfAvailable,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -1169,7 +1169,11 @@ fn create_stripe_payment_method(
                 enums::AuthenticationType::NoThreeDs => Auth3ds::Automatic,
             };
             Ok((
-                StripePaymentMethodData::try_from((card_details, payment_method_auth_type, is_overcapture_requested))?,
+                StripePaymentMethodData::try_from((
+                    card_details,
+                    payment_method_auth_type,
+                    is_overcapture_requested,
+                ))?,
                 Some(StripePaymentMethodType::Card),
                 billing_address,
             ))
@@ -1390,7 +1394,11 @@ fn get_stripe_card_network(card_network: common_enums::CardNetwork) -> Option<St
 impl TryFrom<(&domain::Card, Auth3ds, Option<bool>)> for StripePaymentMethodData {
     type Error = errors::ConnectorError;
     fn try_from(
-        (card, payment_method_auth_type, is_overcapture_requested): (&domain::Card, Auth3ds, Option<bool>),
+        (card, payment_method_auth_type, is_overcapture_requested): (
+            &domain::Card,
+            Auth3ds,
+            Option<bool>,
+        ),
     ) -> Result<Self, Self::Error> {
         Ok(Self::Card(StripeCardData {
             payment_method_data_type: StripePaymentMethodType::Card,
@@ -1403,10 +1411,10 @@ impl TryFrom<(&domain::Card, Auth3ds, Option<bool>)> for StripePaymentMethodData
                 .card_network
                 .clone()
                 .and_then(get_stripe_card_network),
-                payment_method_data_card_request_overcapture: match is_overcapture_requested {
-                    Some(true) => Some(StripeOvercaptureRequest::IfAvailable),
-                    _ => None
-                }
+            payment_method_data_card_request_overcapture: match is_overcapture_requested {
+                Some(true) => Some(StripeOvercaptureRequest::IfAvailable),
+                _ => None,
+            },
         }))
     }
 }
@@ -2282,16 +2290,14 @@ pub struct StripeAdditionalCardDetails {
     checks: Option<Value>,
     three_d_secure: Option<Value>,
     network_transaction_id: Option<String>,
-    overcapture: Option<StripeOvercaptureResponse>
+    overcapture: Option<StripeOvercaptureResponse>,
 }
-
 
 #[derive(Deserialize, Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct StripeOvercaptureResponse {
     status: Option<StripeOvercaptureStatus>,
     maximum_amount_capturable: Option<MinorUnit>,
 }
-
 
 #[derive(Deserialize, Clone, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -2524,7 +2530,8 @@ impl<F, T>
             _ => None,
         };
 
-        let (overcapture_applied, maximum_capturable_amount) = extract_overcapture_response(item.response.latest_charge.as_ref());
+        let (overcapture_applied, maximum_capturable_amount) =
+            extract_overcapture_response(item.response.latest_charge.as_ref());
 
         let connector_metadata =
             get_connector_metadata(item.response.next_action.as_ref(), item.response.amount)?;
@@ -2749,7 +2756,8 @@ impl<F, T>
                 _ => None,
             };
 
-            let (overcapture_applied, maximum_capturable_amount) = extract_overcapture_response(item.response.latest_charge.as_ref());
+            let (overcapture_applied, maximum_capturable_amount) =
+                extract_overcapture_response(item.response.latest_charge.as_ref());
 
             let charge_id = item
                 .response
@@ -4136,7 +4144,7 @@ fn get_transaction_metadata(
 }
 
 fn extract_overcapture_response(
-    latest_charge: Option<&StripeChargeEnum>
+    latest_charge: Option<&StripeChargeEnum>,
 ) -> (Option<bool>, Option<MinorUnit>) {
     match latest_charge {
         Some(StripeChargeEnum::ChargeObject(charge_object)) => charge_object
@@ -4144,12 +4152,17 @@ fn extract_overcapture_response(
             .as_ref()
             .and_then(|payment_method_details| match payment_method_details {
                 StripePaymentMethodDetailsResponse::Card { card } => {
-                    let overcapture_applied = card.overcapture.as_ref().and_then(|overcapture| match overcapture.status.clone() {
-                        Some(StripeOvercaptureStatus::Available) => Some(true),
-                        Some(StripeOvercaptureStatus::Unavailable) => Some(false),
-                        None => None,
+                    let overcapture_applied = card.overcapture.as_ref().and_then(|overcapture| {
+                        match overcapture.status.clone() {
+                            Some(StripeOvercaptureStatus::Available) => Some(true),
+                            Some(StripeOvercaptureStatus::Unavailable) => Some(false),
+                            None => None,
+                        }
                     });
-                    let maximum_capturable_amount = card.overcapture.as_ref().and_then(|overcapture| overcapture.maximum_amount_capturable);
+                    let maximum_capturable_amount = card
+                        .overcapture
+                        .as_ref()
+                        .and_then(|overcapture| overcapture.maximum_amount_capturable);
                     Some((overcapture_applied, maximum_capturable_amount))
                 }
                 _ => None,

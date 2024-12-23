@@ -869,9 +869,22 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCaptureData>
         F: 'b + Send,
     {
         let net_amount = payment_data.payment_attempt.net_amount.get_total_amount();
-        let overcapture_applied =  payment_data.payment_attempt.overcapture_details.as_ref().and_then(|overcapture_data|overcapture_data.overcapture_applied.clone());
-        core_utils::get_overcaptured_amount(overcapture_applied,  router_data.amount_captured.map(MinorUnit::new), net_amount)
-        .map(|overcaptured_amount| payment_data.payment_attempt.net_amount.set_overcaptured_amount(overcaptured_amount));
+        let overcapture_applied = payment_data
+            .payment_attempt
+            .overcapture_details
+            .as_ref()
+            .and_then(|overcapture_data| overcapture_data.overcapture_applied.clone());
+        core_utils::get_overcaptured_amount(
+            overcapture_applied,
+            router_data.amount_captured.map(MinorUnit::new),
+            net_amount,
+        )
+        .map(|overcaptured_amount| {
+            payment_data
+                .payment_attempt
+                .net_amount
+                .set_overcaptured_amount(overcaptured_amount)
+        });
 
         payment_data = Box::pin(payment_response_update_tracker(
             db,
@@ -1574,15 +1587,21 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                 None
                             };
 
-                            let overcapture_details = match payment_data.payment_attempt.overcapture_details.clone() {
-                                Some(mut overcapture_details) => {
-                                    overcapture_details.overcapture_applied = overcapture_applied;
-                                    overcapture_details.maximum_capturable_amount = maximum_capturable_amount;
-                                    overcapture_details.overcaptured_amount = payment_data.payment_attempt.net_amount.get_overcaptured_amount();
-                                    Some(overcapture_details)
-                                }
-                                None => None,
-                            };
+                            let overcapture_details =
+                                match payment_data.payment_attempt.overcapture_details.clone() {
+                                    Some(mut overcapture_details) => {
+                                        overcapture_details.overcapture_applied =
+                                            overcapture_applied;
+                                        overcapture_details.maximum_capturable_amount =
+                                            maximum_capturable_amount;
+                                        overcapture_details.overcaptured_amount = payment_data
+                                            .payment_attempt
+                                            .net_amount
+                                            .get_overcaptured_amount();
+                                        Some(overcapture_details)
+                                    }
+                                    None => None,
+                                };
 
                             // incase of success, update error code and error message
                             let error_status =
@@ -1757,7 +1776,6 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                     }),
                                 ),
                             };
-
 
                             (capture_updates, payment_attempt_update)
                         }
@@ -2582,4 +2600,3 @@ fn get_total_amount_captured<F: Clone, T: types::Capturable>(
         }
     }
 }
-

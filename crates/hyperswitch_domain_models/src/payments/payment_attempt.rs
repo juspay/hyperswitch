@@ -594,7 +594,7 @@ pub struct PaymentAttempt {
     pub profile_id: id_type::ProfileId,
     pub organization_id: id_type::OrganizationId,
     pub connector_mandate_detail: Option<ConnectorMandateReferenceId>,
-    pub overcapture_details: Option<common_utils::types::OvercaptureData>
+    pub overcapture_details: Option<common_utils::types::OvercaptureData>,
 }
 
 #[cfg(feature = "v1")]
@@ -745,9 +745,8 @@ impl NetAmount {
                         payment_attempt.net_amount.get_tax_on_surcharge()
                     })
                 });
-            let overcaptured_amount = payment_attempt.and_then(|payment_attempt| {
-                payment_attempt.net_amount.get_overcaptured_amount()
-            });
+            let overcaptured_amount = payment_attempt
+                .and_then(|payment_attempt| payment_attempt.net_amount.get_overcaptured_amount());
 
             Self {
                 order_amount,
@@ -1219,7 +1218,7 @@ impl PaymentAttemptUpdate {
                 shipping_cost: net_amount.get_shipping_cost(),
                 order_tax_amount: net_amount.get_order_tax_amount(),
                 connector_mandate_detail,
-                overcapture_details
+                overcapture_details,
             },
             Self::VoidUpdate {
                 status,
@@ -1602,7 +1601,10 @@ impl behaviour::Conversion for PaymentAttempt {
             let connector_transaction_id = storage_model
                 .get_optional_connector_transaction_id()
                 .cloned();
-            let overcaptured_amount = storage_model.overcapture_details.as_ref().and_then(|overcapture_data|overcapture_data.overcaptured_amount.clone());
+            let overcaptured_amount = storage_model
+                .overcapture_details
+                .as_ref()
+                .and_then(|overcapture_data| overcapture_data.overcaptured_amount.clone());
             Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(Self {
                 payment_id: storage_model.payment_id,
                 merchant_id: storage_model.merchant_id,

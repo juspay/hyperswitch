@@ -1143,8 +1143,8 @@ impl PaymentCreate {
 
         let overcapture_details = Some(common_utils::types::OvercaptureData {
             request_overcapture: request
-            .request_overcapture
-            .or(Some(business_profile.always_request_overcapture)),
+                .request_overcapture
+                .or(Some(business_profile.always_request_overcapture)),
             overcapture_applied: None,
             maximum_capturable_amount: None,
             overcaptured_amount: None,
