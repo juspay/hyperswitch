@@ -1337,8 +1337,7 @@ impl MerchantAccount {
 #[cfg(all(feature = "olap", feature = "v1"))]
 impl MerchantAccount {
     pub fn server(state: AppState) -> Scope {
-        web::scope("/accounts")
-            .app_data(web::Data::new(state))
+        let mut routes = web::scope("/accounts")
             .service(web::resource("").route(web::post().to(admin::merchant_account_create)))
             .service(web::resource("/list").route(web::get().to(admin::merchant_account_list)))
             .service(
@@ -1358,7 +1357,14 @@ impl MerchantAccount {
                     .route(web::get().to(admin::retrieve_merchant_account))
                     .route(web::post().to(admin::update_merchant_account))
                     .route(web::delete().to(admin::delete_merchant_account)),
+            );
+        if state.conf.platform.enabled {
+            routes = routes.service(
+                web::resource("/{id}/platform")
+                    .route(web::post().to(admin::merchant_account_enable_platform_account)),
             )
+        }
+        routes.app_data(web::Data::new(state))
     }
 }
 

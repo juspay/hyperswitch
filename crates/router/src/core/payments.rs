@@ -245,6 +245,7 @@ pub async fn payments_operation_core<F, Req, Op, FData, D>(
     auth_flow: services::AuthFlow,
     eligible_connectors: Option<Vec<common_enums::RoutableConnectors>>,
     header_payload: HeaderPayload,
+    platform_merchant_account: Option<domain::MerchantAccount>,
 ) -> RouterResult<(D, Req, Option<domain::Customer>, Option<u16>, Option<u128>)>
 where
     F: Send + Clone + Sync,
@@ -289,6 +290,7 @@ where
             &key_store,
             auth_flow,
             &header_payload,
+            platform_merchant_account.as_ref(),
         )
         .await?;
     core_utils::validate_profile_id_from_auth_layer(
@@ -719,6 +721,7 @@ where
                     &customer,
                     key_store.clone(),
                     &mut should_continue_capture,
+                    platform_merchant_account.as_ref(),
                 ))
                 .await?;
             }
@@ -826,8 +829,8 @@ pub async fn proxy_for_payments_operation_core<F, Req, Op, FData, D>(
     req: Req,
     call_connector_action: CallConnectorAction,
     auth_flow: services::AuthFlow,
-
     header_payload: HeaderPayload,
+    platform_merchant_account: Option<domain::MerchantAccount>,
 ) -> RouterResult<(D, Req, Option<domain::Customer>, Option<u16>, Option<u128>)>
 where
     F: Send + Clone + Sync,
@@ -872,6 +875,7 @@ where
             &key_store,
             auth_flow,
             &header_payload,
+            platform_merchant_account.as_ref(),
         )
         .await?;
 
@@ -1024,6 +1028,7 @@ pub async fn payments_intent_operation_core<F, Req, Op, D>(
     req: Req,
     payment_id: id_type::GlobalPaymentId,
     header_payload: HeaderPayload,
+    platform_merchant_account: Option<domain::MerchantAccount>,
 ) -> RouterResult<(D, Req, Option<domain::Customer>)>
 where
     F: Send + Clone + Sync,
@@ -1051,6 +1056,7 @@ where
             &profile,
             &key_store,
             &header_payload,
+            platform_merchant_account.as_ref(),
         )
         .await?;
 
@@ -1342,6 +1348,7 @@ pub async fn payments_core<F, Res, Req, Op, FData, D>(
     call_connector_action: CallConnectorAction,
     eligible_connectors: Option<Vec<enums::Connector>>,
     header_payload: HeaderPayload,
+    platform_merchant_account: Option<domain::MerchantAccount>,
 ) -> RouterResponse<Res>
 where
     F: Send + Clone + Sync,
@@ -1380,6 +1387,7 @@ where
             auth_flow,
             eligible_routable_connectors,
             header_payload.clone(),
+            platform_merchant_account,
         )
         .await?;
 
@@ -1409,6 +1417,7 @@ pub async fn proxy_for_payments_core<F, Res, Req, Op, FData, D>(
     auth_flow: services::AuthFlow,
     call_connector_action: CallConnectorAction,
     header_payload: HeaderPayload,
+    platform_merchant_account: Option<domain::MerchantAccount>,
 ) -> RouterResponse<Res>
 where
     F: Send + Clone + Sync,
@@ -1440,6 +1449,7 @@ where
             call_connector_action,
             auth_flow,
             header_payload.clone(),
+            platform_merchant_account,
         )
         .await?;
 
@@ -1468,6 +1478,7 @@ pub async fn payments_intent_core<F, Res, Req, Op, D>(
     req: Req,
     payment_id: id_type::GlobalPaymentId,
     header_payload: HeaderPayload,
+    platform_merchant_account: Option<domain::MerchantAccount>,
 ) -> RouterResponse<Res>
 where
     F: Send + Clone + Sync,
@@ -1486,6 +1497,7 @@ where
         req,
         payment_id,
         header_payload.clone(),
+        platform_merchant_account,
     )
     .await?;
 
@@ -1559,6 +1571,7 @@ where
             &profile,
             &key_store,
             &header_payload,
+            None,
         )
         .await?;
 
@@ -1627,9 +1640,11 @@ pub trait PaymentRedirectFlow: Sync {
         connector_action: CallConnectorAction,
         connector: String,
         payment_id: id_type::PaymentId,
+        platform_merchant_account: Option<domain::MerchantAccount>,
     ) -> RouterResult<Self::PaymentFlowResponse>;
 
     #[cfg(feature = "v2")]
+    #[allow(clippy::too_many_arguments)]
     async fn call_payment_flow(
         &self,
         state: &SessionState,
@@ -1638,6 +1653,7 @@ pub trait PaymentRedirectFlow: Sync {
         merchant_key_store: domain::MerchantKeyStore,
         profile: domain::Profile,
         req: PaymentsRedirectResponseData,
+        platform_merchant_account: Option<domain::MerchantAccount>,
     ) -> RouterResult<Self::PaymentFlowResponse>;
 
     fn get_payment_action(&self) -> services::PaymentAction;
@@ -1664,6 +1680,7 @@ pub trait PaymentRedirectFlow: Sync {
         merchant_account: domain::MerchantAccount,
         key_store: domain::MerchantKeyStore,
         req: PaymentsRedirectResponseData,
+        platform_merchant_account: Option<domain::MerchantAccount>,
     ) -> RouterResponse<api::RedirectionResponse> {
         metrics::REDIRECTION_TRIGGERED.add(
             1,
@@ -1718,6 +1735,7 @@ pub trait PaymentRedirectFlow: Sync {
                 flow_type,
                 connector.clone(),
                 resource_id.clone(),
+                platform_merchant_account,
             )
             .await?;
 
@@ -1725,6 +1743,7 @@ pub trait PaymentRedirectFlow: Sync {
     }
 
     #[cfg(feature = "v2")]
+    #[allow(clippy::too_many_arguments)]
     async fn handle_payments_redirect_response(
         &self,
         state: SessionState,
@@ -1733,6 +1752,7 @@ pub trait PaymentRedirectFlow: Sync {
         key_store: domain::MerchantKeyStore,
         profile: domain::Profile,
         request: PaymentsRedirectResponseData,
+        platform_merchant_account: Option<domain::MerchantAccount>,
     ) -> RouterResponse<api::RedirectionResponse> {
         metrics::REDIRECTION_TRIGGERED.add(
             1,
@@ -1747,6 +1767,7 @@ pub trait PaymentRedirectFlow: Sync {
                 key_store,
                 profile,
                 request,
+                platform_merchant_account,
             )
             .await?;
 
@@ -1773,6 +1794,7 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
         connector_action: CallConnectorAction,
         _connector: String,
         _payment_id: id_type::PaymentId,
+        platform_merchant_account: Option<domain::MerchantAccount>,
     ) -> RouterResult<Self::PaymentFlowResponse> {
         let key_manager_state = &state.into();
 
@@ -1808,6 +1830,7 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
             connector_action,
             None,
             HeaderPayload::default(),
+            platform_merchant_account,
         ))
         .await?;
         let payments_response = match response {
@@ -1913,6 +1936,7 @@ impl PaymentRedirectFlow for PaymentRedirectSync {
         connector_action: CallConnectorAction,
         _connector: String,
         _payment_id: id_type::PaymentId,
+        platform_merchant_account: Option<domain::MerchantAccount>,
     ) -> RouterResult<Self::PaymentFlowResponse> {
         let key_manager_state = &state.into();
 
@@ -1945,6 +1969,7 @@ impl PaymentRedirectFlow for PaymentRedirectSync {
                 connector_action,
                 None,
                 HeaderPayload::default(),
+                platform_merchant_account,
             ),
         )
         .await?;
@@ -2034,6 +2059,7 @@ impl PaymentRedirectFlow for PaymentRedirectSync {
         merchant_key_store: domain::MerchantKeyStore,
         profile: domain::Profile,
         req: PaymentsRedirectResponseData,
+        platform_merchant_account: Option<domain::MerchantAccount>,
     ) -> RouterResult<Self::PaymentFlowResponse> {
         let payment_id = req.payment_id.clone();
 
@@ -2060,6 +2086,7 @@ impl PaymentRedirectFlow for PaymentRedirectSync {
                 &profile,
                 &merchant_key_store,
                 &HeaderPayload::default(),
+                platform_merchant_account.as_ref(),
             )
             .await?;
 
@@ -2171,6 +2198,7 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
         connector_action: CallConnectorAction,
         connector: String,
         payment_id: id_type::PaymentId,
+        platform_merchant_account: Option<domain::MerchantAccount>,
     ) -> RouterResult<Self::PaymentFlowResponse> {
         let merchant_id = merchant_account.get_id().clone();
         let key_manager_state = &state.into();
@@ -2270,6 +2298,7 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
                 connector_action,
                 None,
                 HeaderPayload::with_source(enums::PaymentSource::ExternalAuthenticator),
+                platform_merchant_account,
             ))
             .await?
         } else {
@@ -2302,6 +2331,7 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
                     connector_action,
                     None,
                     HeaderPayload::default(),
+                    platform_merchant_account,
                 ),
             )
             .await?
