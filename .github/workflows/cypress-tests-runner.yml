@@ -394,7 +394,7 @@ jobs:
         if: ${{ env.RUN_TESTS == 'true' }}
         env:
           RUSTFLAGS: "-Cinstrument-coverage"
-        run: cargo build --package router --bin router --no-default-features --features=customer_v2,payment_methods_v2,v2 --jobs 3
+        run: just build_v2
 
       - name: Delete compile-time profraw files
         if: ${{ env.RUN_TESTS == 'true' }}
