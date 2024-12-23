@@ -457,9 +457,9 @@ pub fn get_overcaptured_amount(
     net_amount: MinorUnit,
 ) -> Option<MinorUnit> {
     match overcapture_applied.zip(amount_captured) {
-        Some((true, orginal_amount_captured)) => {
-            if net_amount < orginal_amount_captured {
-                Some(orginal_amount_captured - net_amount)
+        Some((true, amount_captured_minor_unit)) => {
+            if net_amount < amount_captured_minor_unit {
+                Some(amount_captured_minor_unit - net_amount)
             } else {
                 None
             }
