@@ -13,7 +13,10 @@ use common_utils::{
 };
 use error_stack::{report, Report, ResultExt};
 #[cfg(feature = "payouts")]
-use hyperswitch_domain_models::{router_flow_types::payouts::PoFulfill, types::PayoutsRouterData};
+use hyperswitch_domain_models::{
+    router_flow_types::payouts::PoFulfill,
+    types::{PayoutsData, PayoutsRouterData},
+};
 #[cfg(feature = "payouts")]
 use hyperswitch_interfaces::types::PayoutFulfillType;
 
@@ -34,7 +37,7 @@ use hyperswitch_domain_models::{
         AccessTokenRequestData, CompleteAuthorizeData, MandateRevokeRequestData,
         PaymentMethodTokenizationData, PaymentsAuthorizeData, PaymentsCancelData,
         PaymentsCaptureData, PaymentsIncrementalAuthorizationData, PaymentsPreProcessingData,
-        PaymentsSessionData, PaymentsSyncData, PayoutsData, RefundsData, SetupMandateRequestData,
+        PaymentsSessionData, PaymentsSyncData, RefundsData, SetupMandateRequestData,
     },
     router_response_types::{
         MandateRevokeResponseData, PaymentsResponseData, PayoutsResponseData, RefundsResponseData,

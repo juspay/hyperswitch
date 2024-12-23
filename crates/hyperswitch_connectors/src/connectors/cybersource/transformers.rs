@@ -14,6 +14,8 @@ use error_stack::ResultExt;
 #[cfg(feature = "payouts")]
 use hyperswitch_domain_models::{
     address::{AddressDetails, PhoneDetails},
+    router_flow_types::PoFulfill,
+    router_response_types::PayoutsResponseData,
     types::PayoutsRouterData,
 };
 use hyperswitch_domain_models::{
@@ -28,15 +30,14 @@ use hyperswitch_domain_models::{
     router_flow_types::{
         payments::Authorize,
         refunds::{Execute, RSync},
-        PoFulfill, SetupMandate,
+        SetupMandate,
     },
     router_request_types::{
         CompleteAuthorizeData, PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData,
         PaymentsPreProcessingData, PaymentsSyncData, ResponseId, SetupMandateRequestData,
     },
     router_response_types::{
-        MandateReference, PaymentsResponseData, PayoutsResponseData, RedirectForm,
-        RefundsResponseData,
+        MandateReference, PaymentsResponseData, RedirectForm, RefundsResponseData,
     },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
