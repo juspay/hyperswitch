@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use api_models::payments::{Address, AddressDetails};
+use hyperswitch_domain_models::address::{Address, AddressDetails};
 use masking::{PeekInterface, Secret};
 use router::types::{self, domain, storage::enums, AccessToken};
 
@@ -82,6 +82,7 @@ fn payment_method_details() -> Option<types::PaymentsAuthorizeData> {
             card_issuing_country: None,
             bank_code: None,
             nick_name: cards::NameType::try_from("nick_name".to_string()).ok(),
+            card_holder_name: cards::NameType::try_from("card holder name".to_string()).ok(),
         }),
         capture_method: Some(diesel_models::enums::CaptureMethod::Manual),
         router_return_url: Some("https://google.com".to_string()),

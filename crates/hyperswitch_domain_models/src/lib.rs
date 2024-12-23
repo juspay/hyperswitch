@@ -32,10 +32,16 @@ pub trait PayoutAttemptInterface {}
 pub trait PayoutsInterface {}
 
 use api_models::payments::{
+    ApplePayRecurringDetails as ApiApplePayRecurringDetails,
+    ApplePayRegularBillingDetails as ApiApplePayRegularBillingDetails,
     FeatureMetadata as ApiFeatureMetadata, OrderDetailsWithAmount as ApiOrderDetailsWithAmount,
+    RecurringPaymentIntervalUnit as ApiRecurringPaymentIntervalUnit,
     RedirectResponse as ApiRedirectResponse,
 };
-use diesel_models::types::{FeatureMetadata, OrderDetailsWithAmount, RedirectResponse};
+use diesel_models::types::{
+    ApplePayRecurringDetails, ApplePayRegularBillingDetails, FeatureMetadata,
+    OrderDetailsWithAmount, RecurringPaymentIntervalUnit, RedirectResponse,
+};
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize)]
 pub enum RemoteStorageObject<T: ForeignIDRef> {
@@ -75,10 +81,13 @@ impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
         let ApiFeatureMetadata {
             redirect_response,
             search_tags,
+            apple_pay_recurring_details,
         } = from;
         Self {
             redirect_response: redirect_response.map(RedirectResponse::convert_from),
             search_tags,
+            apple_pay_recurring_details: apple_pay_recurring_details
+                .map(ApplePayRecurringDetails::convert_from),
         }
     }
 
@@ -86,11 +95,14 @@ impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
         let Self {
             redirect_response,
             search_tags,
+            apple_pay_recurring_details,
         } = self;
         ApiFeatureMetadata {
             redirect_response: redirect_response
                 .map(|redirect_response| redirect_response.convert_back()),
             search_tags,
+            apple_pay_recurring_details: apple_pay_recurring_details
+                .map(|value| value.convert_back()),
         }
     }
 }
@@ -119,6 +131,77 @@ impl ApiModelToDieselModelConvertor<ApiRedirectResponse> for RedirectResponse {
     }
 }
 
+impl ApiModelToDieselModelConvertor<ApiRecurringPaymentIntervalUnit>
+    for RecurringPaymentIntervalUnit
+{
+    fn convert_from(from: ApiRecurringPaymentIntervalUnit) -> Self {
+        match from {
+            ApiRecurringPaymentIntervalUnit::Year => Self::Year,
+            ApiRecurringPaymentIntervalUnit::Month => Self::Month,
+            ApiRecurringPaymentIntervalUnit::Day => Self::Day,
+            ApiRecurringPaymentIntervalUnit::Hour => Self::Hour,
+            ApiRecurringPaymentIntervalUnit::Minute => Self::Minute,
+        }
+    }
+    fn convert_back(self) -> ApiRecurringPaymentIntervalUnit {
+        match self {
+            Self::Year => ApiRecurringPaymentIntervalUnit::Year,
+            Self::Month => ApiRecurringPaymentIntervalUnit::Month,
+            Self::Day => ApiRecurringPaymentIntervalUnit::Day,
+            Self::Hour => ApiRecurringPaymentIntervalUnit::Hour,
+            Self::Minute => ApiRecurringPaymentIntervalUnit::Minute,
+        }
+    }
+}
+
+impl ApiModelToDieselModelConvertor<ApiApplePayRegularBillingDetails>
+    for ApplePayRegularBillingDetails
+{
+    fn convert_from(from: ApiApplePayRegularBillingDetails) -> Self {
+        Self {
+            label: from.label,
+            recurring_payment_start_date: from.recurring_payment_start_date,
+            recurring_payment_end_date: from.recurring_payment_end_date,
+            recurring_payment_interval_unit: from
+                .recurring_payment_interval_unit
+                .map(RecurringPaymentIntervalUnit::convert_from),
+            recurring_payment_interval_count: from.recurring_payment_interval_count,
+        }
+    }
+
+    fn convert_back(self) -> ApiApplePayRegularBillingDetails {
+        ApiApplePayRegularBillingDetails {
+            label: self.label,
+            recurring_payment_start_date: self.recurring_payment_start_date,
+            recurring_payment_end_date: self.recurring_payment_end_date,
+            recurring_payment_interval_unit: self
+                .recurring_payment_interval_unit
+                .map(|value| value.convert_back()),
+            recurring_payment_interval_count: self.recurring_payment_interval_count,
+        }
+    }
+}
+
+impl ApiModelToDieselModelConvertor<ApiApplePayRecurringDetails> for ApplePayRecurringDetails {
+    fn convert_from(from: ApiApplePayRecurringDetails) -> Self {
+        Self {
+            payment_description: from.payment_description,
+            regular_billing: ApplePayRegularBillingDetails::convert_from(from.regular_billing),
+            billing_agreement: from.billing_agreement,
+            management_url: from.management_url,
+        }
+    }
+
+    fn convert_back(self) -> ApiApplePayRecurringDetails {
+        ApiApplePayRecurringDetails {
+            payment_description: self.payment_description,
+            regular_billing: self.regular_billing.convert_back(),
+            billing_agreement: self.billing_agreement,
+            management_url: self.management_url,
+        }
+    }
+}
+
 impl ApiModelToDieselModelConvertor<ApiOrderDetailsWithAmount> for OrderDetailsWithAmount {
     fn convert_from(from: ApiOrderDetailsWithAmount) -> Self {
         let ApiOrderDetailsWithAmount {
@@ -133,6 +216,8 @@ impl ApiModelToDieselModelConvertor<ApiOrderDetailsWithAmount> for OrderDetailsW
             brand,
             product_type,
             product_tax_code,
+            tax_rate,
+            total_tax_amount,
         } = from;
         Self {
             product_name,
@@ -146,6 +231,8 @@ impl ApiModelToDieselModelConvertor<ApiOrderDetailsWithAmount> for OrderDetailsW
             brand,
             product_type,
             product_tax_code,
+            tax_rate,
+            total_tax_amount,
         }
     }
 
@@ -162,6 +249,8 @@ impl ApiModelToDieselModelConvertor<ApiOrderDetailsWithAmount> for OrderDetailsW
             brand,
             product_type,
             product_tax_code,
+            tax_rate,
+            total_tax_amount,
         } = self;
         ApiOrderDetailsWithAmount {
             product_name,
@@ -175,6 +264,8 @@ impl ApiModelToDieselModelConvertor<ApiOrderDetailsWithAmount> for OrderDetailsW
             brand,
             product_type,
             product_tax_code,
+            tax_rate,
+            total_tax_amount,
         }
     }
 }
@@ -193,6 +284,7 @@ impl ApiModelToDieselModelConvertor<api_models::admin::PaymentLinkConfigRequest>
             enabled_saved_payment_method: item.enabled_saved_payment_method,
             hide_card_nickname_field: item.hide_card_nickname_field,
             show_card_form_by_default: item.show_card_form_by_default,
+            details_layout: item.details_layout,
             transaction_details: item.transaction_details.map(|transaction_details| {
                 transaction_details
                     .into_iter()
@@ -203,6 +295,12 @@ impl ApiModelToDieselModelConvertor<api_models::admin::PaymentLinkConfigRequest>
                     })
                     .collect()
             }),
+            background_image: item.background_image.map(|background_image| {
+                diesel_models::business_profile::PaymentLinkBackgroundImageConfig::convert_from(
+                    background_image,
+                )
+            }),
+            payment_button_text: item.payment_button_text,
         }
     }
     fn convert_back(self) -> api_models::admin::PaymentLinkConfigRequest {
@@ -216,6 +314,9 @@ impl ApiModelToDieselModelConvertor<api_models::admin::PaymentLinkConfigRequest>
             hide_card_nickname_field,
             show_card_form_by_default,
             transaction_details,
+            background_image,
+            details_layout,
+            payment_button_text,
         } = self;
         api_models::admin::PaymentLinkConfigRequest {
             theme,
@@ -226,12 +327,16 @@ impl ApiModelToDieselModelConvertor<api_models::admin::PaymentLinkConfigRequest>
             enabled_saved_payment_method,
             hide_card_nickname_field,
             show_card_form_by_default,
+            details_layout,
             transaction_details: transaction_details.map(|transaction_details| {
                 transaction_details
                     .into_iter()
                     .map(|transaction_detail| transaction_detail.convert_back())
                     .collect()
             }),
+            background_image: background_image
+                .map(|background_image| background_image.convert_back()),
+            payment_button_text,
         }
     }
 }
@@ -260,6 +365,31 @@ impl ApiModelToDieselModelConvertor<api_models::admin::PaymentLinkTransactionDet
             value,
             ui_configuration: ui_configuration
                 .map(|ui_configuration| ui_configuration.convert_back()),
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
+impl ApiModelToDieselModelConvertor<api_models::admin::PaymentLinkBackgroundImageConfig>
+    for diesel_models::business_profile::PaymentLinkBackgroundImageConfig
+{
+    fn convert_from(from: api_models::admin::PaymentLinkBackgroundImageConfig) -> Self {
+        Self {
+            url: from.url,
+            position: from.position,
+            size: from.size,
+        }
+    }
+    fn convert_back(self) -> api_models::admin::PaymentLinkBackgroundImageConfig {
+        let Self {
+            url,
+            position,
+            size,
+        } = self;
+        api_models::admin::PaymentLinkBackgroundImageConfig {
+            url,
+            position,
+            size,
         }
     }
 }
@@ -302,36 +432,12 @@ impl From<api_models::payments::AmountDetails> for payments::AmountDetails {
                     payment_method_type: None,
                 }
             }),
-            skip_external_tax_calculation: payments::TaxCalculationOverride::from(
-                amount_details.skip_external_tax_calculation(),
-            ),
-            skip_surcharge_calculation: payments::SurchargeCalculationOverride::from(
-                amount_details.skip_surcharge_calculation(),
-            ),
+            skip_external_tax_calculation: amount_details.skip_external_tax_calculation(),
+            skip_surcharge_calculation: amount_details.skip_surcharge_calculation(),
             surcharge_amount: amount_details.surcharge_amount(),
             tax_on_surcharge: amount_details.tax_on_surcharge(),
             // We will not receive this in the request. This will be populated after calling the connector / processor
             amount_captured: None,
-        }
-    }
-}
-
-#[cfg(feature = "v2")]
-impl From<common_enums::SurchargeCalculationOverride> for payments::SurchargeCalculationOverride {
-    fn from(surcharge_calculation_override: common_enums::SurchargeCalculationOverride) -> Self {
-        match surcharge_calculation_override {
-            common_enums::SurchargeCalculationOverride::Calculate => Self::Calculate,
-            common_enums::SurchargeCalculationOverride::Skip => Self::Skip,
-        }
-    }
-}
-
-#[cfg(feature = "v2")]
-impl From<common_enums::TaxCalculationOverride> for payments::TaxCalculationOverride {
-    fn from(tax_calculation_override: common_enums::TaxCalculationOverride) -> Self {
-        match tax_calculation_override {
-            common_enums::TaxCalculationOverride::Calculate => Self::Calculate,
-            common_enums::TaxCalculationOverride::Skip => Self::Skip,
         }
     }
 }

@@ -7,7 +7,7 @@ use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
     any(feature = "v1", feature = "v2"),
     not(feature = "payment_methods_v2")
 ))]
-use masking::Secret;
+use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
@@ -70,7 +70,7 @@ pub struct PaymentMethod {
 #[derive(Clone, Debug, Identifiable, Queryable, Selectable, Serialize, Deserialize)]
 #[diesel(table_name = payment_methods, primary_key(id), check_for_backend(diesel::pg::Pg))]
 pub struct PaymentMethod {
-    pub customer_id: common_utils::id_type::CustomerId,
+    pub customer_id: common_utils::id_type::GlobalCustomerId,
     pub merchant_id: common_utils::id_type::MerchantId,
     pub created_at: PrimitiveDateTime,
     pub last_modified: PrimitiveDateTime,
@@ -158,7 +158,7 @@ pub struct PaymentMethodNew {
 #[derive(Clone, Debug, Insertable, router_derive::DebugAsDisplay, Serialize, Deserialize)]
 #[diesel(table_name = payment_methods)]
 pub struct PaymentMethodNew {
-    pub customer_id: common_utils::id_type::CustomerId,
+    pub customer_id: common_utils::id_type::GlobalCustomerId,
     pub merchant_id: common_utils::id_type::MerchantId,
     pub created_at: PrimitiveDateTime,
     pub last_modified: PrimitiveDateTime,
@@ -219,6 +219,7 @@ pub enum PaymentMethodUpdate {
     },
     UpdatePaymentMethodDataAndLastUsed {
         payment_method_data: Option<Encryption>,
+        scheme: Option<String>,
         last_used_at: PrimitiveDateTime,
     },
     PaymentMethodDataUpdate {
@@ -253,6 +254,10 @@ pub enum PaymentMethodUpdate {
         network_token_locker_id: Option<String>,
         network_token_payment_method_data: Option<Encryption>,
     },
+    ConnectorNetworkTransactionIdAndMandateDetailsUpdate {
+        connector_mandate_details: Option<pii::SecretSerdeValue>,
+        network_transaction_id: Option<Secret<String>>,
+    },
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
@@ -260,6 +265,7 @@ pub enum PaymentMethodUpdate {
 pub enum PaymentMethodUpdate {
     UpdatePaymentMethodDataAndLastUsed {
         payment_method_data: Option<Encryption>,
+        scheme: Option<String>,
         last_used_at: PrimitiveDateTime,
     },
     PaymentMethodDataUpdate {
@@ -391,6 +397,7 @@ pub struct PaymentMethodUpdateInternal {
     last_modified: PrimitiveDateTime,
     network_token_locker_id: Option<String>,
     network_token_payment_method_data: Option<Encryption>,
+    scheme: Option<String>,
 }
 
 #[cfg(all(
@@ -415,6 +422,7 @@ impl PaymentMethodUpdateInternal {
             last_modified,
             network_token_locker_id,
             network_token_payment_method_data,
+            scheme,
         } = self;
 
         PaymentMethod {
@@ -422,7 +430,7 @@ impl PaymentMethodUpdateInternal {
             merchant_id: source.merchant_id,
             payment_method_id: source.payment_method_id,
             accepted_currency: source.accepted_currency,
-            scheme: source.scheme,
+            scheme: scheme.or(source.scheme),
             token: source.token,
             cardholder_name: source.cardholder_name,
             issuer_name: source.issuer_name,
@@ -485,6 +493,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 last_modified: common_utils::date_time::now(),
                 network_token_locker_id: None,
                 network_token_payment_method_data: None,
+                scheme: None,
             },
             PaymentMethodUpdate::PaymentMethodDataUpdate {
                 payment_method_data,
@@ -504,6 +513,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 last_modified: common_utils::date_time::now(),
                 network_token_locker_id: None,
                 network_token_payment_method_data: None,
+                scheme: None,
             },
             PaymentMethodUpdate::LastUsedUpdate { last_used_at } => Self {
                 metadata: None,
@@ -521,9 +531,11 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 last_modified: common_utils::date_time::now(),
                 network_token_locker_id: None,
                 network_token_payment_method_data: None,
+                scheme: None,
             },
             PaymentMethodUpdate::UpdatePaymentMethodDataAndLastUsed {
                 payment_method_data,
+                scheme,
                 last_used_at,
             } => Self {
                 metadata: None,
@@ -541,6 +553,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 last_modified: common_utils::date_time::now(),
                 network_token_locker_id: None,
                 network_token_payment_method_data: None,
+                scheme,
             },
             PaymentMethodUpdate::NetworkTransactionIdAndStatusUpdate {
                 network_transaction_id,
@@ -561,6 +574,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 last_modified: common_utils::date_time::now(),
                 network_token_locker_id: None,
                 network_token_payment_method_data: None,
+                scheme: None,
             },
             PaymentMethodUpdate::StatusUpdate { status } => Self {
                 metadata: None,
@@ -578,6 +592,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 last_modified: common_utils::date_time::now(),
                 network_token_locker_id: None,
                 network_token_payment_method_data: None,
+                scheme: None,
             },
             PaymentMethodUpdate::AdditionalDataUpdate {
                 payment_method_data,
@@ -605,6 +620,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 last_modified: common_utils::date_time::now(),
                 network_token_locker_id,
                 network_token_payment_method_data,
+                scheme: None,
             },
             PaymentMethodUpdate::ConnectorMandateDetailsUpdate {
                 connector_mandate_details,
@@ -624,6 +640,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 last_modified: common_utils::date_time::now(),
                 network_token_locker_id: None,
                 network_token_payment_method_data: None,
+                scheme: None,
             },
             PaymentMethodUpdate::NetworkTokenDataUpdate {
                 network_token_requestor_reference_id,
@@ -645,6 +662,29 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 network_token_requestor_reference_id,
                 network_token_locker_id,
                 network_token_payment_method_data,
+                scheme: None,
+            },
+            PaymentMethodUpdate::ConnectorNetworkTransactionIdAndMandateDetailsUpdate {
+                connector_mandate_details,
+                network_transaction_id,
+            } => Self {
+                connector_mandate_details: connector_mandate_details
+                    .map(|mandate_details| mandate_details.expose()),
+                network_transaction_id: network_transaction_id.map(|txn_id| txn_id.expose()),
+                last_modified: common_utils::date_time::now(),
+                status: None,
+                metadata: None,
+                payment_method_data: None,
+                last_used_at: None,
+                locker_id: None,
+                payment_method: None,
+                updated_by: None,
+                payment_method_issuer: None,
+                payment_method_type: None,
+                network_token_requestor_reference_id: None,
+                network_token_locker_id: None,
+                network_token_payment_method_data: None,
+                scheme: None,
             },
         }
     }
@@ -689,6 +729,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
             PaymentMethodUpdate::UpdatePaymentMethodDataAndLastUsed {
                 payment_method_data,
                 last_used_at,
+                ..
             } => Self {
                 payment_method_data,
                 last_used_at: Some(last_used_at),

@@ -10,7 +10,7 @@ use common_utils::{
 };
 use error_stack::{report, ResultExt};
 use masking::PeekInterface;
-use router_env::{instrument, metrics::add_attributes, tracing};
+use router_env::{instrument, tracing};
 use scheduler::{types::process_data, utils as process_tracker_utils};
 
 #[cfg(feature = "payouts")]
@@ -67,6 +67,7 @@ impl Vaultable for domain::Card {
             nickname: self.nick_name.as_ref().map(|name| name.peek().to_string()),
             card_last_four: None,
             card_token: None,
+            card_holder_name: self.card_holder_name.clone(),
         };
 
         value1
@@ -122,6 +123,7 @@ impl Vaultable for domain::Card {
             nick_name: value1
                 .nickname
                 .and_then(|name| NameType::try_from(name).ok()),
+            card_holder_name: value1.card_holder_name,
         };
 
         let supp_data = SupplementaryVaultData {
@@ -932,7 +934,7 @@ impl Vault {
         )
         .await?;
         add_delete_tokenized_data_task(&*state.store, &lookup_key, pm).await?;
-        metrics::TOKENIZED_DATA_COUNT.add(&metrics::CONTEXT, 1, &[]);
+        metrics::TOKENIZED_DATA_COUNT.add(1, &[]);
         Ok(lookup_key)
     }
 
@@ -984,7 +986,7 @@ impl Vault {
         )
         .await?;
         // add_delete_tokenized_data_task(&*state.store, &lookup_key, pm).await?;
-        // scheduler_metrics::TOKENIZED_DATA_COUNT.add(&metrics::CONTEXT, 1, &[]);
+        // scheduler_metrics::TOKENIZED_DATA_COUNT.add(1, &[]);
         Ok(lookup_key)
     }
 
@@ -1020,7 +1022,7 @@ pub async fn create_tokenize(
 ) -> RouterResult<String> {
     let redis_key = get_redis_locker_key(lookup_key.as_str());
     let func = || async {
-        metrics::CREATED_TOKENIZED_CARD.add(&metrics::CONTEXT, 1, &[]);
+        metrics::CREATED_TOKENIZED_CARD.add(1, &[]);
 
         let payload_to_be_encrypted = api::TokenizePayloadRequest {
             value1: value1.clone(),
@@ -1053,7 +1055,7 @@ pub async fn create_tokenize(
             .await
             .map(|_| lookup_key.clone())
             .inspect_err(|error| {
-                metrics::TEMP_LOCKER_FAILURES.add(&metrics::CONTEXT, 1, &[]);
+                metrics::TEMP_LOCKER_FAILURES.add(1, &[]);
                 logger::error!(?error, "Failed to store tokenized data in Redis");
             })
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1084,7 +1086,7 @@ pub async fn get_tokenized_data(
 ) -> RouterResult<api::TokenizePayloadRequest> {
     let redis_key = get_redis_locker_key(lookup_key);
     let func = || async {
-        metrics::GET_TOKENIZED_CARD.add(&metrics::CONTEXT, 1, &[]);
+        metrics::GET_TOKENIZED_CARD.add(1, &[]);
 
         let redis_conn = state
             .store
@@ -1115,7 +1117,7 @@ pub async fn get_tokenized_data(
                 Ok(get_response)
             }
             Err(err) => {
-                metrics::TEMP_LOCKER_FAILURES.add(&metrics::CONTEXT, 1, &[]);
+                metrics::TEMP_LOCKER_FAILURES.add(1, &[]);
                 Err(err).change_context(errors::ApiErrorResponse::UnprocessableEntity {
                     message: "Token is invalid or expired".into(),
                 })
@@ -1145,7 +1147,7 @@ pub async fn delete_tokenized_data(
 ) -> RouterResult<()> {
     let redis_key = get_redis_locker_key(lookup_key);
     let func = || async {
-        metrics::DELETED_TOKENIZED_CARD.add(&metrics::CONTEXT, 1, &[]);
+        metrics::DELETED_TOKENIZED_CARD.add(1, &[]);
 
         let redis_conn = state
             .store
@@ -1162,7 +1164,7 @@ pub async fn delete_tokenized_data(
                     .attach_printable("Token invalid or expired")
             }
             Err(err) => {
-                metrics::TEMP_LOCKER_FAILURES.add(&metrics::CONTEXT, 1, &[]);
+                metrics::TEMP_LOCKER_FAILURES.add(1, &[]);
                 Err(errors::ApiErrorResponse::InternalServerError).attach_printable_lazy(|| {
                     format!("Failed to delete from redis locker: {err:?}")
                 })
@@ -1384,7 +1386,7 @@ pub async fn add_delete_tokenized_data_task(
         lookup_key: lookup_key.to_owned(),
         pm,
     };
-    let schedule_time = get_delete_tokenize_schedule_time(db, &pm, 0)
+    let schedule_time = get_delete_tokenize_schedule_time(db, pm, 0)
         .await
         .ok_or(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to obtain initial process tracker schedule time")?;
@@ -1439,9 +1441,8 @@ pub async fn start_tokenize_data_workflow(
         }
         Err(err) => {
             logger::error!("Err: Deleting Card From Locker : {:?}", err);
-            retry_delete_tokenize(db, &delete_tokenize_data.pm, tokenize_tracker.to_owned())
-                .await?;
-            metrics::RETRIED_DELETE_DATA_COUNT.add(&metrics::CONTEXT, 1, &[]);
+            retry_delete_tokenize(db, delete_tokenize_data.pm, tokenize_tracker.to_owned()).await?;
+            metrics::RETRIED_DELETE_DATA_COUNT.add(1, &[]);
         }
     }
     Ok(())
@@ -1449,7 +1450,7 @@ pub async fn start_tokenize_data_workflow(
 
 pub async fn get_delete_tokenize_schedule_time(
     db: &dyn db::StorageInterface,
-    pm: &enums::PaymentMethod,
+    pm: enums::PaymentMethod,
     retry_count: i32,
 ) -> Option<time::PrimitiveDateTime> {
     let redis_mapping = db::get_and_deserialize_key(
@@ -1472,7 +1473,7 @@ pub async fn get_delete_tokenize_schedule_time(
 
 pub async fn retry_delete_tokenize(
     db: &dyn db::StorageInterface,
-    pm: &enums::PaymentMethod,
+    pm: enums::PaymentMethod,
     pt: storage::ProcessTracker,
 ) -> Result<(), errors::ProcessTrackerError> {
     let schedule_time = get_delete_tokenize_schedule_time(db, pm, pt.retry_count).await;
@@ -1485,9 +1486,8 @@ pub async fn retry_delete_tokenize(
                 .await
                 .map_err(Into::into);
             metrics::TASKS_RESET_COUNT.add(
-                &metrics::CONTEXT,
                 1,
-                &add_attributes([("flow", "DeleteTokenizeData")]),
+                router_env::metric_attributes!(("flow", "DeleteTokenizeData")),
             );
             retry_schedule
         }

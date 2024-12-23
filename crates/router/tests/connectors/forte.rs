@@ -2,6 +2,7 @@ use std::{str::FromStr, time::Duration};
 
 use cards::CardNumber;
 use common_utils::types::MinorUnit;
+use hyperswitch_domain_models::address::{Address, AddressDetails, PhoneDetails};
 use masking::Secret;
 use router::types::{self, api, domain, storage::enums};
 
@@ -54,8 +55,8 @@ fn get_default_payment_info() -> Option<utils::PaymentInfo> {
     Some(utils::PaymentInfo {
         address: Some(types::PaymentAddress::new(
             None,
-            Some(api::Address {
-                address: Some(api::AddressDetails {
+            Some(Address {
+                address: Some(AddressDetails {
                     first_name: cards::NameType::try_from("first".to_string()).ok(),
                     last_name: cards::NameType::try_from("last".to_string()).ok(),
                     line1: Some(Secret::new("line1".to_string())),
@@ -65,7 +66,7 @@ fn get_default_payment_info() -> Option<utils::PaymentInfo> {
                     country: Some(api_models::enums::CountryAlpha2::IN),
                     ..Default::default()
                 }),
-                phone: Some(api::PhoneDetails {
+                phone: Some(PhoneDetails {
                     number: Some(Secret::new("9123456789".to_string())),
                     country_code: Some("+91".to_string()),
                 }),

@@ -206,7 +206,7 @@ pub struct ThreeDSRequestorAuthenticationInformation {
 /// card to a wallet.
 ///
 /// This field is optional. The accepted values are:
-///    
+///
 ///  - 01 -> No preference
 ///  - 02 -> No challenge requested
 ///  - 03 -> Challenge requested: 3DS Requestor Preference
@@ -684,15 +684,15 @@ pub struct Cardholder {
 
 impl
     TryFrom<(
-        api_models::payments::Address,
-        Option<api_models::payments::Address>,
+        hyperswitch_domain_models::address::Address,
+        Option<hyperswitch_domain_models::address::Address>,
     )> for Cardholder
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         (billing_address, shipping_address): (
-            api_models::payments::Address,
-            Option<api_models::payments::Address>,
+            hyperswitch_domain_models::address::Address,
+            Option<hyperswitch_domain_models::address::Address>,
         ),
     ) -> Result<Self, Self::Error> {
         Ok(Self {
@@ -797,9 +797,11 @@ pub struct PhoneNumber {
     subscriber: Option<masking::Secret<String>>,
 }
 
-impl TryFrom<api_models::payments::PhoneDetails> for PhoneNumber {
+impl TryFrom<hyperswitch_domain_models::address::PhoneDetails> for PhoneNumber {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(value: api_models::payments::PhoneDetails) -> Result<Self, Self::Error> {
+    fn try_from(
+        value: hyperswitch_domain_models::address::PhoneDetails,
+    ) -> Result<Self, Self::Error> {
         Ok(Self {
             country_code: Some(value.extract_country_code()?),
             subscriber: value.number,

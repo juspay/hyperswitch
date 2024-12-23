@@ -159,26 +159,38 @@ force_cookies = false
 enabled = false
 
 [mandates.supported_payment_methods]
-bank_debit.ach = { connector_list = "gocardless,adyen" }                    # Mandate supported payment method type and connector for bank_debit
-bank_debit.becs = { connector_list = "gocardless" }                         # Mandate supported payment method type and connector for bank_debit
-bank_debit.bacs = { connector_list = "adyen" }                              # Mandate supported payment method type and connector for bank_debit
-bank_debit.sepa = { connector_list = "gocardless,adyen" }                   # Mandate supported payment method type and connector for bank_debit
-card.credit.connector_list = "stripe,adyen,authorizedotnet,cybersource,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,braintree"     # Mandate supported payment method type and connector for card
-card.debit.connector_list = "stripe,adyen,authorizedotnet,cybersource,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,braintree"      # Mandate supported payment method type and connector for card
-pay_later.klarna.connector_list = "adyen"                       # Mandate supported payment method type and connector for pay_later
-wallet.apple_pay.connector_list = "stripe,adyen,cybersource,noon,bankofamerica"         # Mandate supported payment method type and connector for wallets
-wallet.google_pay.connector_list = "stripe,adyen,cybersource,bankofamerica"             # Mandate supported payment method type and connector for wallets
-wallet.paypal.connector_list = "adyen"                          # Mandate supported payment method type and connector for wallets
-bank_redirect.ideal.connector_list = "stripe,adyen,globalpay,multisafepay"   # Mandate supported payment method type and connector for bank_redirect
-bank_redirect.sofort.connector_list = "stripe,adyen,globalpay"  # Mandate supported payment method type and connector for bank_redirect
-bank_redirect.giropay.connector_list = "adyen,globalpay,multisafepay"        # Mandate supported payment method type and connector for bank_redirect
+bank_debit.ach = { connector_list = "gocardless,adyen,stripe" }                 
+bank_debit.becs = { connector_list = "gocardless,stripe,adyen" }                      
+bank_debit.bacs = { connector_list = "stripe,gocardless" }                           
+bank_debit.sepa = { connector_list = "gocardless,adyen,stripe,deutschebank" }                
+card.credit.connector_list = "stripe,adyen,authorizedotnet,cybersource,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,braintree,nuvei,payme,wellsfargo,bamboraapac,elavon,fiuu,nexixpay,novalnet,paybox,paypal"     
+card.debit.connector_list = "stripe,adyen,authorizedotnet,cybersource,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,braintree,nuvei,payme,wellsfargo,bamboraapac,elavon,fiuu,nexixpay,novalnet,paybox,paypal"      
+pay_later.klarna.connector_list = "adyen"                       
+wallet.apple_pay.connector_list = "stripe,adyen,cybersource,noon,bankofamerica,nexinets,novalnet"        
+wallet.google_pay.connector_list = "stripe,adyen,cybersource,bankofamerica,noon,globalpay,multisafepay,novalnet"            
+wallet.paypal.connector_list = "adyen,globalpay,nexinets,novalnet,paypal"                         
+wallet.momo.connector_list = "adyen"
+wallet.kakao_pay.connector_list = "adyen"
+wallet.go_pay.connector_list = "adyen"
+wallet.gcash.connector_list = "adyen"
+wallet.dana.connector_list = "adyen"
+wallet.twint.connector_list = "adyen"
+wallet.vipps.connector_list = "adyen"
+
+bank_redirect.ideal.connector_list = "stripe,adyen,globalpay,multisafepay,nexinets"   
+bank_redirect.sofort.connector_list = "stripe,adyen,globalpay"  
+bank_redirect.giropay.connector_list = "adyen,globalpay,multisafepay,nexinets"        
+bank_redirect.bancontact_card.connector_list="adyen,stripe"
+bank_redirect.trustly.connector_list="adyen"
+bank_redirect.open_banking_uk.connector_list="adyen"
+bank_redirect.eps.connector_list="globalpay,nexinets"
 
 [mandates.update_mandate_supported]
 card.credit = { connector_list = "cybersource" }            # Update Mandate supported payment method type and connector for card 
 card.debit = { connector_list = "cybersource" }             # Update Mandate supported payment method type and connector for card 
 
 [network_transaction_id_supported_connectors]
-connector_list = "stripe,adyen,cybersource"
+connector_list = "adyen"
 
 [payouts]
 payout_eligibility = true            # Defaults the eligibility of a payout method to true in case connector does not provide checks for payout eligibility

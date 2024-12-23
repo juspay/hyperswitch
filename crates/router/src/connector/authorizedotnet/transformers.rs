@@ -468,7 +468,9 @@ impl TryFrom<enums::CaptureMethod> for AuthorizationType {
     fn try_from(capture_method: enums::CaptureMethod) -> Result<Self, Self::Error> {
         match capture_method {
             enums::CaptureMethod::Manual => Ok(Self::Pre),
-            enums::CaptureMethod::Automatic => Ok(Self::Final),
+            enums::CaptureMethod::SequentialAutomatic | enums::CaptureMethod::Automatic => {
+                Ok(Self::Final)
+            }
             enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => Err(
                 utils::construct_not_supported_error_report(capture_method, "authorizedotnet"),
             )?,
@@ -1579,7 +1581,9 @@ impl TryFrom<Option<enums::CaptureMethod>> for TransactionType {
     fn try_from(capture_method: Option<enums::CaptureMethod>) -> Result<Self, Self::Error> {
         match capture_method {
             Some(enums::CaptureMethod::Manual) => Ok(Self::Authorization),
-            Some(enums::CaptureMethod::Automatic) | None => Ok(Self::Payment),
+            Some(enums::CaptureMethod::SequentialAutomatic)
+            | Some(enums::CaptureMethod::Automatic)
+            | None => Ok(Self::Payment),
             Some(enums::CaptureMethod::ManualMultiple) => {
                 Err(utils::construct_not_supported_error_report(
                     enums::CaptureMethod::ManualMultiple,
@@ -1834,7 +1838,9 @@ impl TryFrom<&AuthorizedotnetRouterData<&types::PaymentsCompleteAuthorizeRouterD
                 .payer_id;
         let transaction_type = match item.router_data.request.capture_method {
             Some(enums::CaptureMethod::Manual) => Ok(TransactionType::ContinueAuthorization),
-            Some(enums::CaptureMethod::Automatic) | None => Ok(TransactionType::ContinueCapture),
+            Some(enums::CaptureMethod::SequentialAutomatic)
+            | Some(enums::CaptureMethod::Automatic)
+            | None => Ok(TransactionType::ContinueCapture),
             Some(enums::CaptureMethod::ManualMultiple) => {
                 Err(errors::ConnectorError::NotSupported {
                     message: enums::CaptureMethod::ManualMultiple.to_string(),

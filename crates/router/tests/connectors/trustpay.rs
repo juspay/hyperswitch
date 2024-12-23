@@ -1,5 +1,6 @@
 use std::str::FromStr;
 
+use hyperswitch_domain_models::address::{Address, AddressDetails};
 use masking::Secret;
 use router::types::{self, api, domain, storage::enums, BrowserInformation};
 
@@ -69,8 +70,8 @@ fn get_default_payment_info() -> Option<utils::PaymentInfo> {
     Some(utils::PaymentInfo {
         address: Some(types::PaymentAddress::new(
             None,
-            Some(api::Address {
-                address: Some(api::AddressDetails {
+            Some(Address {
+                address: Some(AddressDetails {
                     first_name: cards::NameType::try_from("first".to_string()).ok(),
                     last_name: cards::NameType::try_from("last".to_string()).ok(),
                     line1: Some(Secret::new("line1".to_string())),

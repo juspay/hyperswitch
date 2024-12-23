@@ -28,8 +28,8 @@ pub fn construct_authentication_router_data(
     authentication_connector: String,
     payment_method_data: domain::PaymentMethodData,
     payment_method: PaymentMethod,
-    billing_address: payments::Address,
-    shipping_address: Option<payments::Address>,
+    billing_address: hyperswitch_domain_models::address::Address,
+    shipping_address: Option<hyperswitch_domain_models::address::Address>,
     browser_details: Option<types::BrowserInformation>,
     amount: Option<common_utils::types::MinorUnit>,
     currency: Option<common_enums::Currency>,
@@ -190,6 +190,7 @@ pub fn construct_router_data<F: Clone, Req, Res>(
         additional_merchant_data: None,
         header_payload: None,
         connector_mandate_request_reference_id: None,
+        authentication_id: None,
         psd2_sca_exemption_type,
     })
 }

@@ -14,7 +14,7 @@ use common_utils::{
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
     merchant_connector_account::MerchantConnectorAccount, payment_address::PaymentAddress,
-    router_data::ErrorResponse, types::OrderDetailsWithAmount,
+    router_data::ErrorResponse, router_request_types, types::OrderDetailsWithAmount,
 };
 #[cfg(feature = "payouts")]
 use masking::{ExposeInterface, PeekInterface};
@@ -132,7 +132,7 @@ pub async fn construct_payout_router_data<'a, F>(
         }
     });
 
-    let address = PaymentAddress::new(None, billing_address, None, None);
+    let address = PaymentAddress::new(None, billing_address.map(From::from), None, None);
 
     let test_mode: Option<bool> = merchant_connector_account.is_test_mode_on();
     let payouts = &payout_data.payouts;
@@ -239,6 +239,7 @@ pub async fn construct_payout_router_data<'a, F>(
         additional_merchant_data: None,
         header_payload: None,
         connector_mandate_request_reference_id: None,
+        authentication_id: None,
         psd2_sca_exemption_type: None,
     };
 
@@ -258,7 +259,7 @@ pub async fn construct_refund_router_data<'a, F>(
     _payment_attempt: &storage::PaymentAttempt,
     _refund: &'a storage::Refund,
     _creds_identifier: Option<String>,
-    _charges: Option<types::ChargeRefunds>,
+    _split_refunds: Option<router_request_types::SplitRefundsRequest>,
 ) -> RouterResult<types::RefundsRouterData<F>> {
     todo!()
 }
@@ -276,7 +277,7 @@ pub async fn construct_refund_router_data<'a, F>(
     payment_attempt: &storage::PaymentAttempt,
     refund: &'a storage::Refund,
     creds_identifier: Option<String>,
-    charges: Option<types::ChargeRefunds>,
+    split_refunds: Option<router_request_types::SplitRefundsRequest>,
 ) -> RouterResult<types::RefundsRouterData<F>> {
     let profile_id = payment_intent
         .profile_id
@@ -385,7 +386,7 @@ pub async fn construct_refund_router_data<'a, F>(
             reason: refund.refund_reason.clone(),
             connector_refund_id: connector_refund_id.clone(),
             browser_info,
-            charges,
+            split_refunds,
             integrity_object: None,
             refund_status: refund.refund_status,
         },
@@ -420,6 +421,7 @@ pub async fn construct_refund_router_data<'a, F>(
         additional_merchant_data: None,
         header_payload: None,
         connector_mandate_request_reference_id: None,
+        authentication_id: None,
         psd2_sca_exemption_type: None,
     };
 
@@ -577,8 +579,8 @@ mod tests {
 
 // Dispute Stage can move linearly from PreDispute -> Dispute -> PreArbitration
 pub fn validate_dispute_stage(
-    prev_dispute_stage: &DisputeStage,
-    dispute_stage: &DisputeStage,
+    prev_dispute_stage: DisputeStage,
+    dispute_stage: DisputeStage,
 ) -> bool {
     match prev_dispute_stage {
         DisputeStage::PreDispute => true,
@@ -620,7 +622,7 @@ pub fn validate_dispute_stage_and_dispute_status(
     dispute_stage: DisputeStage,
     dispute_status: DisputeStatus,
 ) -> CustomResult<(), errors::WebhooksFlowError> {
-    let dispute_stage_validation = validate_dispute_stage(&prev_dispute_stage, &dispute_stage);
+    let dispute_stage_validation = validate_dispute_stage(prev_dispute_stage, dispute_stage);
     let dispute_status_validation = if dispute_stage == prev_dispute_stage {
         validate_dispute_status(prev_dispute_status, dispute_status)
     } else {
@@ -629,11 +631,7 @@ pub fn validate_dispute_stage_and_dispute_status(
     common_utils::fp_utils::when(
         !(dispute_stage_validation && dispute_status_validation),
         || {
-            super::metrics::INCOMING_DISPUTE_WEBHOOK_VALIDATION_FAILURE_METRIC.add(
-                &super::metrics::CONTEXT,
-                1,
-                &[],
-            );
+            super::metrics::INCOMING_DISPUTE_WEBHOOK_VALIDATION_FAILURE_METRIC.add(1, &[]);
             Err(errors::WebhooksFlowError::DisputeWebhookValidationFailed)?
         },
     )
@@ -732,6 +730,7 @@ pub async fn construct_accept_dispute_router_data<'a>(
         additional_merchant_data: None,
         header_payload: None,
         connector_mandate_request_reference_id: None,
+        authentication_id: None,
         psd2_sca_exemption_type: None,
     };
     Ok(router_data)
@@ -829,6 +828,7 @@ pub async fn construct_submit_evidence_router_data<'a>(
         additional_merchant_data: None,
         header_payload: None,
         connector_mandate_request_reference_id: None,
+        authentication_id: None,
         psd2_sca_exemption_type: None,
     };
     Ok(router_data)
@@ -932,6 +932,7 @@ pub async fn construct_upload_file_router_data<'a>(
         additional_merchant_data: None,
         header_payload: None,
         connector_mandate_request_reference_id: None,
+        authentication_id: None,
         psd2_sca_exemption_type: None,
     };
     Ok(router_data)
@@ -1055,6 +1056,7 @@ pub async fn construct_payments_dynamic_tax_calculation_router_data<'a, F: Clone
         additional_merchant_data: None,
         header_payload: None,
         connector_mandate_request_reference_id: None,
+        authentication_id: None,
         psd2_sca_exemption_type: None,
     };
     Ok(router_data)
@@ -1155,6 +1157,7 @@ pub async fn construct_defend_dispute_router_data<'a>(
         additional_merchant_data: None,
         header_payload: None,
         connector_mandate_request_reference_id: None,
+        authentication_id: None,
         psd2_sca_exemption_type: None,
     };
     Ok(router_data)
@@ -1249,6 +1252,7 @@ pub async fn construct_retrieve_file_router_data<'a>(
         additional_merchant_data: None,
         header_payload: None,
         connector_mandate_request_reference_id: None,
+        authentication_id: None,
         psd2_sca_exemption_type: None,
     };
     Ok(router_data)
@@ -1528,7 +1532,10 @@ pub fn get_request_incremental_authorization_value(
     Some(request_incremental_authorization
         .map(|request_incremental_authorization| {
             if request_incremental_authorization {
-                if capture_method == Some(common_enums::CaptureMethod::Automatic) {
+                if matches!(
+                    capture_method,
+                    Some(common_enums::CaptureMethod::Automatic) | Some(common_enums::CaptureMethod::SequentialAutomatic)
+                ) {
                     Err(errors::ApiErrorResponse::NotSupported { message: "incremental authorization is not supported when capture_method is automatic".to_owned() })?
                 }
                 Ok(RequestIncrementalAuthorization::True)

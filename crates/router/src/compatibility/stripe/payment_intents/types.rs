@@ -324,9 +324,10 @@ impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
             let billing = pmd.billing_details.clone().map(payments::Address::from);
             let payment_method_data = match pmd.payment_method_details.as_ref() {
                 Some(spmd) => Some(payments::PaymentMethodData::from(spmd.to_owned())),
-                None => {
-                    get_pmd_based_on_payment_method_type(item.payment_method_types, billing.clone())
-                }
+                None => get_pmd_based_on_payment_method_type(
+                    item.payment_method_types,
+                    billing.clone().map(From::from),
+                ),
             };
 
             payments::PaymentMethodDataRequest {
@@ -914,7 +915,7 @@ pub struct StripePaymentRetrieveBody {
 //To handle payment types that have empty payment method data
 fn get_pmd_based_on_payment_method_type(
     payment_method_type: Option<api_enums::PaymentMethodType>,
-    billing_details: Option<payments::Address>,
+    billing_details: Option<hyperswitch_domain_models::address::Address>,
 ) -> Option<payments::PaymentMethodData> {
     match payment_method_type {
         Some(api_enums::PaymentMethodType::UpiIntent) => Some(payments::PaymentMethodData::Upi(

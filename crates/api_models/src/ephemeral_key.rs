@@ -2,6 +2,25 @@ use common_utils::id_type;
 use serde;
 use utoipa::ToSchema;
 
+/// Information required to create an ephemeral key.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct EphemeralKeyCreateRequest {
+    /// Customer ID for which an ephemeral key must be created
+    #[schema(
+        min_length = 1,
+        max_length = 64,
+        value_type = String,
+        example = "cus_y3oqhf46pyzuxjbcn2giaqnb44"
+    )]
+    pub customer_id: id_type::CustomerId,
+}
+
+impl common_utils::events::ApiEventMetric for EphemeralKeyCreateRequest {
+    fn get_api_event_type(&self) -> Option<common_utils::events::ApiEventsType> {
+        Some(common_utils::events::ApiEventsType::Miscellaneous)
+    }
+}
+
 /// ephemeral_key for the customer_id mentioned
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone, Eq, PartialEq, ToSchema)]
 pub struct EphemeralKeyCreateResponse {

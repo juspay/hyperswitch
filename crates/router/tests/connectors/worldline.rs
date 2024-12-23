@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use api_models::payments::{Address, AddressDetails};
+use hyperswitch_domain_models::address::{Address, AddressDetails};
 use masking::Secret;
 use router::{
     connector::Worldline,
@@ -83,6 +83,7 @@ impl WorldlineTest {
                 card_issuing_country: None,
                 bank_code: None,
                 nick_name: cards::NameType::try_from("nick_name".to_string()).ok(),
+                card_holder_name: cards::NameType::try_from("card holder name".to_string()).ok(),
             }),
             confirm: true,
             statement_descriptor_suffix: None,

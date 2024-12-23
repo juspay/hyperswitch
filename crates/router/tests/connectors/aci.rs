@@ -2,8 +2,8 @@
 
 use std::{borrow::Cow, marker::PhantomData, str::FromStr, sync::Arc};
 
-use api_models::payments::{Address, AddressDetails, PhoneDetails};
 use common_utils::id_type;
+use hyperswitch_domain_models::address::{Address, AddressDetails, PhoneDetails};
 use masking::Secret;
 use router::{
     configs::settings::Settings,
@@ -51,6 +51,7 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
                 card_issuing_country: None,
                 bank_code: None,
                 nick_name: cards::NameType::try_from("nick_name".to_string()).ok(),
+                card_holder_name: cards::NameType::try_from("card holder name".to_string()).ok(),
             }),
             confirm: true,
             statement_descriptor_suffix: None,
@@ -129,6 +130,7 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
         additional_merchant_data: None,
         header_payload: None,
         connector_mandate_request_reference_id: None,
+        authentication_id: None,
         psd2_sca_exemption_type: None,
     }
 }
@@ -200,6 +202,7 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
         additional_merchant_data: None,
         header_payload: None,
         connector_mandate_request_reference_id: None,
+        authentication_id: None,
         psd2_sca_exemption_type: None,
     }
 }
@@ -296,6 +299,7 @@ async fn payments_create_failure() {
                 card_issuing_country: None,
                 bank_code: None,
                 nick_name: cards::NameType::try_from("nick_name".to_string()).ok(),
+                card_holder_name: cards::NameType::try_from("card holder name".to_string()).ok(),
             });
 
         let response = services::api::execute_connector_processing_step(
