@@ -141,8 +141,8 @@ pub async fn confirm_payment_method_intent_api(
     let pm_id = path.into_inner();
     let payload = json_payload.into_inner();
 
-    let (auth, _) = match auth::check_client_secret_and_get_auth(req.headers(), &payload) {
-        Ok((auth, _auth_flow)) => (auth, _auth_flow),
+    let auth = match auth::is_ephemeral_or_publishible_auth(req.headers()) {
+        Ok(auth) => auth,
         Err(e) => return api::log_and_return_error_response(e),
     };
 
@@ -150,7 +150,6 @@ pub async fn confirm_payment_method_intent_api(
         id: pm_id.clone(),
         payment_method_type: payload.payment_method_type,
         payment_method_subtype: payload.payment_method_subtype,
-        client_secret: payload.client_secret.clone(),
         customer_id: payload.customer_id.to_owned(),
         payment_method_data: payload.payment_method_data.clone(),
     };
@@ -191,6 +190,11 @@ pub async fn payment_method_update_api(
     let payment_method_id = path.into_inner();
     let payload = json_payload.into_inner();
 
+    let auth = match auth::is_ephemeral_or_publishible_auth(req.headers()) {
+        Ok(auth) => auth,
+        Err(e) => return api::log_and_return_error_response(e),
+    };
+
     Box::pin(api::server_wrap(
         flow,
         state,
@@ -205,7 +209,7 @@ pub async fn payment_method_update_api(
                 auth.key_store,
             )
         },
-        &auth::HeaderAuth(auth::ApiKeyAuth),
+        &*auth,
         api_locking::LockAction::NotApplicable,
     ))
     .await

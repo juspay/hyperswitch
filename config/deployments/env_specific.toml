@@ -305,8 +305,14 @@ region = "kms_region" # The AWS region used by the KMS SDK for decrypting data.
 enabled = false
 global_tenant = { schema = "public", redis_key_prefix = "", clickhouse_database = "default"}
 
-[multitenancy.tenants]
-public = { base_url = "http://localhost:8080", schema = "public", redis_key_prefix = "", clickhouse_database = "default" }
+[multitenancy.tenants.public]
+base_url = "http://localhost:8080" 
+schema = "public"     
+redis_key_prefix = ""
+clickhouse_database = "default"
+
+[multitenancy.tenants.public.user]
+control_center_url =  "http://localhost:9000"
 
 [user_auth_methods]
 encryption_key = "user_auth_table_encryption_key" # Encryption key used for encrypting data in user_authentication_methods table
@@ -342,3 +348,6 @@ entity_logo_url = "https://example.com/logo.svg" # Logo URL of the entity to be 
 foreground_color = "#000000"                     # Foreground color of email text
 primary_color = "#006DF9"                        # Primary color of email body
 background_color = "#FFFFFF"                     # Background color of email body
+
+[connectors.unified_authentication_service] #Unified Authentication Service Configuration
+base_url = "http://localhost:8000" #base url to call unified authentication service

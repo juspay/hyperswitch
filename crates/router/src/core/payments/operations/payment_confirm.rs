@@ -1514,6 +1514,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                                 surcharge_amount,
                                 tax_amount,
                             ),
+
                         connector_mandate_detail: payment_data
                             .payment_attempt
                             .connector_mandate_detail,

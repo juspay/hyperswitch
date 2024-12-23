@@ -1344,6 +1344,7 @@ pub async fn perform_success_based_routing(
                 success_based_routing_configs,
                 success_based_routing_config_params,
                 routable_connectors,
+                state.get_grpc_headers(),
             )
             .await
             .change_context(errors::RoutingError::SuccessRateCalculationError)

@@ -919,6 +919,7 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
                 success_based_routing_configs.clone(),
                 success_based_routing_config_params.clone(),
                 routable_connectors.clone(),
+                state.get_grpc_headers(),
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -961,6 +962,7 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
             amount: payment_attempt.get_total_amount(),
             success_based_routing_connector: first_success_based_connector.to_string(),
             payment_connector: payment_connector.to_string(),
+            payment_method_type: payment_attempt.payment_method_type,
             currency: payment_attempt.currency,
             payment_method: payment_attempt.payment_method,
             capture_method: payment_attempt.capture_method,
@@ -1054,6 +1056,7 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
                     },
                     payment_status_attribute == common_enums::AttemptStatus::Charged,
                 )],
+                state.get_grpc_headers(),
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)

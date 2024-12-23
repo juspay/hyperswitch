@@ -1759,6 +1759,9 @@ pub trait BrowserInformationData {
     fn get_java_enabled(&self) -> Result<bool, Error>;
     fn get_java_script_enabled(&self) -> Result<bool, Error>;
     fn get_ip_address(&self) -> Result<Secret<String, IpAddress>, Error>;
+    fn get_os_type(&self) -> Result<String, Error>;
+    fn get_os_version(&self) -> Result<String, Error>;
+    fn get_device_model(&self) -> Result<String, Error>;
 }
 
 impl BrowserInformationData for BrowserInformation {
@@ -1806,6 +1809,21 @@ impl BrowserInformationData for BrowserInformation {
     fn get_java_script_enabled(&self) -> Result<bool, Error> {
         self.java_script_enabled
             .ok_or_else(missing_field_err("browser_info.java_script_enabled"))
+    }
+    fn get_os_type(&self) -> Result<String, Error> {
+        self.os_type
+            .clone()
+            .ok_or_else(missing_field_err("browser_info.os_type"))
+    }
+    fn get_os_version(&self) -> Result<String, Error> {
+        self.os_version
+            .clone()
+            .ok_or_else(missing_field_err("browser_info.os_version"))
+    }
+    fn get_device_model(&self) -> Result<String, Error> {
+        self.device_model
+            .clone()
+            .ok_or_else(missing_field_err("browser_info.device_model"))
     }
 }
 
@@ -2092,6 +2110,7 @@ pub enum PaymentMethodDataType {
     SwishQr,
     KlarnaRedirect,
     KlarnaSdk,
+    KlarnaCheckout,
     AffirmRedirect,
     AfterpayClearpayRedirect,
     PayBrightRedirect,
@@ -2216,6 +2235,7 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
             PaymentMethodData::PayLater(pay_later_data) => match pay_later_data {
                 payment_method_data::PayLaterData::KlarnaRedirect { .. } => Self::KlarnaRedirect,
                 payment_method_data::PayLaterData::KlarnaSdk { .. } => Self::KlarnaSdk,
+                payment_method_data::PayLaterData::KlarnaCheckout {} => Self::KlarnaCheckout,
                 payment_method_data::PayLaterData::AffirmRedirect {} => Self::AffirmRedirect,
                 payment_method_data::PayLaterData::AfterpayClearpayRedirect { .. } => {
                     Self::AfterpayClearpayRedirect
