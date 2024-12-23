@@ -38,3 +38,39 @@ pub async fn relay(
     ))
     .await
 }
+
+#[instrument(skip_all, fields(flow = ?Flow::Relay))]
+#[cfg(feature = "oltp")]
+pub async fn relay_retireve(
+    state: web::Data<app::AppState>,
+    path: web::Path<common_utils::id_type::RelayId>,
+    req: actix_web::HttpRequest,
+    query_params: web::Query<api_models::relay::RelayRetrieveBody>,
+) -> impl Responder {
+    let flow = Flow::Relay;
+    let relay_retrieve_request = api_models::relay::RelayRetrieveRequest {
+        force_sync: query_params.force_sync,
+        id: path.into_inner(),
+    };
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        relay_retrieve_request,
+        |state, auth: auth::AuthenticationData, req, _| {
+            relay::relay_retrieve(
+                state,
+                auth.merchant_account,
+                #[cfg(feature = "v1")]
+                auth.profile_id,
+                #[cfg(feature = "v2")]
+                Some(auth.profile.get_id().clone()),
+                auth.key_store,
+                req,
+            )
+        },
+        &auth::HeaderAuth(auth::ApiKeyAuth),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
