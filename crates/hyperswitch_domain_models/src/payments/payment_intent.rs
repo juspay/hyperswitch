@@ -204,7 +204,6 @@ pub enum PaymentIntentUpdate {
     ResponseUpdate {
         status: common_enums::IntentStatus,
         amount_captured: Option<MinorUnit>,
-        return_url: Option<String>,
         updated_by: String,
         fingerprint_id: Option<String>,
         incremental_authorization_allowed: Option<bool>,
@@ -636,7 +635,6 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 amount_captured,
                 fingerprint_id,
                 // customer_id,
-                return_url,
                 updated_by,
                 incremental_authorization_allowed,
             } => Self {
@@ -646,7 +644,6 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 amount_captured,
                 fingerprint_id,
                 // customer_id,
-                return_url,
                 modified_at: Some(common_utils::date_time::now()),
                 updated_by,
                 incremental_authorization_allowed,
@@ -769,14 +766,12 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
                 status,
                 amount_captured,
                 fingerprint_id,
-                return_url,
                 updated_by,
                 incremental_authorization_allowed,
             } => Self::ResponseUpdate {
                 status,
                 amount_captured,
                 fingerprint_id,
-                return_url,
                 updated_by,
                 incremental_authorization_allowed,
             },
