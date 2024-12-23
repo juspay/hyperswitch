@@ -6275,14 +6275,26 @@ pub async fn is_merchant_eligible_authenthention_service(
     let merchants_eligible_for_authentication_service = state
         .store
         .as_ref()
-        .find_config_by_key(consts::AUTHENTICATION_SERVICE_ELIGIBLE_CONFIG)
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::ConfigNotFound)?;
+        .find_config_by_key_unwrap_or(
+            consts::AUTHENTICATION_SERVICE_ELIGIBLE_CONFIG,
+            Some("[]".to_string()),
+        )
+        .await;
 
-    let auth_eligible_array: Vec<String> =
-        serde_json::from_str(&merchants_eligible_for_authentication_service.config)
+    let auth_eligible_array: Vec<String> = match merchants_eligible_for_authentication_service {
+        Ok(config) => serde_json::from_str(&config.config)
             .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("unable to parse authentication service config")?;
+            .attach_printable("unable to parse authentication service config")?,
+        Err(err) => {
+            if !err.current_context().is_db_not_found() {
+                logger::error!(
+                    "Error fetching authentication service enabled merchant config {:?}",
+                    err
+                );
+            }
+            Vec::new()
+        }
+    };
 
     Ok(auth_eligible_array.contains(&merchant_id.get_string_repr().to_owned()))
 }

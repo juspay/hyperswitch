@@ -53,21 +53,14 @@ pub struct AuthenticationConnectorAccountMap(
 impl_to_sql_from_sql_json!(AuthenticationConnectorAccountMap);
 
 impl AuthenticationConnectorAccountMap {
-    /// get inner hashmap
-    pub fn inner(
-        &self,
-    ) -> &HashMap<enums::AuthenticationProduct, common_utils::id_type::MerchantConnectorAccountId>
-    {
-        &self.0
-    }
     /// fn to get click to pay connector_account_id
     pub fn get_click_to_pay_connector_account_id(
         &self,
     ) -> Result<common_utils::id_type::MerchantConnectorAccountId, errors::ValidationError> {
-        self.inner()
+        self.0
             .get(&enums::AuthenticationProduct::ClickToPay)
             .ok_or(errors::ValidationError::MissingRequiredField {
-                field_name: "authentication_product_id".to_string(),
+                field_name: "authentication_product_id.click_to_pay".to_string(),
             })
             .cloned()
     }

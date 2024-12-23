@@ -1045,8 +1045,15 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         _connector_call_type: &ConnectorCallType,
         business_profile: &domain::Profile,
         key_store: &domain::MerchantKeyStore,
-        authentication_product_ids: &common_types::payments::AuthenticationConnectorAccountMap,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
+        let authentication_product_ids = business_profile
+            .authentication_product_ids
+            .clone()
+            .ok_or(errors::ApiErrorResponse::PreconditionFailed {
+                message: "authentication_product_ids is not configured in business profile"
+                    .to_string(),
+            })?;
+
         if let Some(payment_method) = payment_data.payment_attempt.payment_method {
             if payment_method == storage_enums::PaymentMethod::Card
                 && business_profile.is_click_to_pay_enabled

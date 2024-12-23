@@ -379,13 +379,6 @@ where
         if helpers::is_merchant_eligible_authenthention_service(merchant_account.get_id(), state)
             .await?
         {
-            let authentication_product_ids = business_profile
-                .authentication_product_ids
-                .clone()
-                .ok_or(errors::ApiErrorResponse::PreconditionFailed {
-                    message: "authentication_product_ids is not configured in business profile"
-                        .to_string(),
-                })?;
             operation
                 .to_domain()?
                 .call_unified_authentication_service_if_eligible(
@@ -395,7 +388,6 @@ where
                     &connector_details,
                     &business_profile,
                     &key_store,
-                    &authentication_product_ids,
                 )
                 .await?;
         } else {
