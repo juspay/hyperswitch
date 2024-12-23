@@ -4478,12 +4478,8 @@ impl VaultData {
     ) -> Option<hyperswitch_domain_models::payment_method_data::NetworkTokenData> {
         match self {
             Self::CardVaultData(_card_data) => None,
-            Self::NetworkTokenVaultData(network_token_data) => {
-                Some(network_token_data.clone())
-            }
-            Self::CardAndNetworkToken(vault_data) => {
-                Some(vault_data.network_token_data.clone())
-            }
+            Self::NetworkTokenVaultData(network_token_data) => Some(network_token_data.clone()),
+            Self::CardAndNetworkToken(vault_data) => Some(vault_data.network_token_data.clone()),
         }
     }
 }

@@ -2449,7 +2449,7 @@ pub async fn make_pm_data<'a, F: Clone, R, D>(
     BoxedOperation<'a, F, R, D>,
     Option<domain::PaymentMethodData>,
     Option<String>,
-)>{
+)> {
     use super::OperationSessionSetters;
     use crate::core::payments::OperationSessionGetters;
 
@@ -2546,27 +2546,27 @@ pub async fn make_pm_data<'a, F: Clone, R, D>(
                                 payments::VaultData::CardVaultData(card),
                                 domain::PaymentMethodData::NetworkToken(nt_data),
                             ) => Some(payments::PaymentMethodDataAction::ExistingVaultData(
-                                payments::VaultData::CardAndNetworkToken(
-                                    Box::new(payments::CardAndNetworkTokenData {
+                                payments::VaultData::CardAndNetworkToken(Box::new(
+                                    payments::CardAndNetworkTokenData {
                                         card_data: card.clone(),
                                         network_token_data: nt_data.clone(),
-                                    })
-                                ),
+                                    },
+                                )),
                             )),
                             (
                                 payments::VaultData::NetworkTokenVaultData(nt_data),
                                 domain::PaymentMethodData::Card(card),
                             ) => Some(payments::PaymentMethodDataAction::ExistingVaultData(
-                                payments::VaultData::CardAndNetworkToken(
-                                    Box::new(payments::CardAndNetworkTokenData {
+                                payments::VaultData::CardAndNetworkToken(Box::new(
+                                    payments::CardAndNetworkTokenData {
                                         card_data: card.clone(),
                                         network_token_data: nt_data.clone(),
-                                    })
-                                ),
+                                    },
+                                )),
                             )),
                             _ => Some(payments::PaymentMethodDataAction::ExistingVaultData(
                                 vault_data.clone(),
-                            ))
+                            )),
                         },
                         _ => None,
                     };
