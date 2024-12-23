@@ -3471,15 +3471,10 @@ pub enum ErrorCategory {
 }
 
 impl ErrorCategory {
-    pub fn should_perform_elimination_routing(
-        self,
-    ) -> bool {
+    pub fn should_perform_elimination_routing(self) -> bool {
         match self {
-            Self::FrmDecline |
-            Self::ProcessorDowntime |
-            Self::ProcessorDeclineUnauthorized => true,
-            Self::IssueWithPaymentMethod |
-            Self::ProcessorDeclineIncorrectData => false,
+            Self::FrmDecline | Self::ProcessorDowntime | Self::ProcessorDeclineUnauthorized => true,
+            Self::IssueWithPaymentMethod | Self::ProcessorDeclineIncorrectData => false,
         }
     }
 }
