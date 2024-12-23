@@ -511,45 +511,6 @@ pub async fn list_customer_payment_method_api(
     .await
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-#[instrument(skip_all, fields(flow = ?Flow::CustomerPaymentMethodsList))]
-pub async fn list_customer_payment_method_for_payment(
-    state: web::Data<AppState>,
-    payment_id: web::Path<(String,)>,
-    req: HttpRequest,
-    query_payload: web::Query<payment_methods::PaymentMethodListRequest>,
-) -> HttpResponse {
-    let flow = Flow::CustomerPaymentMethodsList;
-    let payload = query_payload.into_inner();
-    let _payment_id = payment_id.into_inner().0.clone();
-
-    let (auth, _) = match auth::check_client_secret_and_get_auth(req.headers(), &payload) {
-        Ok((auth, _auth_flow)) => (auth, _auth_flow),
-        Err(e) => return api::log_and_return_error_response(e),
-    };
-
-    Box::pin(api::server_wrap(
-        flow,
-        state,
-        &req,
-        payload,
-        |state, auth: auth::AuthenticationData, req, _| {
-            list_customer_payment_method_util(
-                state,
-                auth.merchant_account,
-                auth.profile,
-                auth.key_store,
-                Some(req),
-                None,
-                true,
-            )
-        },
-        &*auth,
-        api_locking::LockAction::NotApplicable,
-    ))
-    .await
-}
-
 #[cfg(all(
     feature = "v2",
     feature = "payment_methods_v2",

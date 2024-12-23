@@ -20,6 +20,9 @@ use std::{
     collections::HashSet, fmt::Debug, marker::PhantomData, ops::Deref, time::Instant, vec::IntoIter,
 };
 
+#[cfg(feature = "v2")]
+pub mod payment_methods;
+
 #[cfg(feature = "olap")]
 use api_models::admin::MerchantConnectorInfo;
 use api_models::{
