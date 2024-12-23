@@ -29,7 +29,10 @@ pub mod payment_intent;
 
 use common_enums as storage_enums;
 #[cfg(feature = "v2")]
-use diesel_models::types::{FeatureMetadata, OrderDetailsWithAmount};
+use diesel_models::{
+    ephemeral_key,
+    types::{FeatureMetadata, OrderDetailsWithAmount},
+};
 
 use self::payment_attempt::PaymentAttempt;
 #[cfg(feature = "v1")]

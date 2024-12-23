@@ -37,6 +37,7 @@ pub enum ApiIdentifier {
     Recon,
     Poll,
     ApplePayCertificatesMigration,
+    Relay,
 }
 
 impl From<Flow> for ApiIdentifier {
@@ -165,6 +166,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::RefundsFilters
             | Flow::RefundsAggregate
             | Flow::RefundsManualUpdate => Self::Refunds,
+            Flow::Relay => Self::Relay,
 
             Flow::FrmFulfillment
             | Flow::IncomingWebhookReceive
