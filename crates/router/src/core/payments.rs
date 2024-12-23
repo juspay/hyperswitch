@@ -605,8 +605,8 @@ where
                             .map_err(|e| logger::error!(routable_connector_error=?e))
                             .unwrap_or_default();
 
-                            let filtered_nt_supported_connectors =
-                            get_filtered_nt_supported_connectors(&state, connectors.clone());
+                    let filtered_nt_supported_connectors =
+                        get_filtered_nt_supported_connectors(&state, connectors.clone());
                     let is_nt_supported_connector_available =
                         filtered_nt_supported_connectors.first().is_some();
 
