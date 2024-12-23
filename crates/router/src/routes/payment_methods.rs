@@ -180,6 +180,19 @@ pub async fn confirm_payment_method_intent_api(
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsList))]
+pub async fn list_payment_methods(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<id_type::GlobalPaymentMethodId>,
+) -> HttpResponse {
+    let flow = Flow::PaymentMethodsList;
+    let pm_id = path.into_inner();
+
+    todo!()
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsUpdate))]
 pub async fn payment_method_update_api(
     state: web::Data<AppState>,
