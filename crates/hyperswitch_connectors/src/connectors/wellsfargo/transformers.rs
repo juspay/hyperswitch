@@ -1,17 +1,5 @@
 use api_models::payments;
 use base64::Engine;
-use masking::{ExposeInterface, PeekInterface, Secret};
-use serde_json::Value;
-
-use crate::{
-    types::{RefundsResponseRouterData, ResponseRouterData},
-    unimplemented_payment_method,
-    utils::{
-        self, AddressDetailsData, ApplePayDecrypt, CardData, PaymentsAuthorizeRequestData,
-        PaymentsSetupMandateRequestData, PaymentsSyncRequestData, RecurringMandateData,
-        RouterData as OtherRouterData,
-    },
-};
 use common_enums::{enums, FutureUsage};
 use common_utils::{
     consts, pii,
@@ -41,7 +29,19 @@ use hyperswitch_domain_models::{
     },
 };
 use hyperswitch_interfaces::{api, errors};
+use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
+
+use crate::{
+    types::{RefundsResponseRouterData, ResponseRouterData},
+    unimplemented_payment_method,
+    utils::{
+        self, AddressDetailsData, ApplePayDecrypt, CardData, PaymentsAuthorizeRequestData,
+        PaymentsSetupMandateRequestData, PaymentsSyncRequestData, RecurringMandateData,
+        RouterData as OtherRouterData,
+    },
+};
 
 #[derive(Debug, Serialize)]
 pub struct WellsfargoRouterData<T> {

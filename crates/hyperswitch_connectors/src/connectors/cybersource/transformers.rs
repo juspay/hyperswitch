@@ -1,7 +1,6 @@
 use api_models::payments;
 #[cfg(feature = "payouts")]
 use api_models::payouts::PayoutMethodData;
-
 use base64::Engine;
 use common_enums::{enums, FutureUsage};
 use common_utils::{
@@ -45,7 +44,6 @@ use hyperswitch_domain_models::{
         PaymentsPreProcessingRouterData, RefundsRouterData, SetupMandateRouterData,
     },
 };
-
 use hyperswitch_interfaces::{api, errors};
 use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
@@ -53,11 +51,9 @@ use serde_json::Value;
 use utils::ForeignTryFrom;
 
 #[cfg(feature = "payouts")]
-use crate::utils::PayoutsData;
-
-#[cfg(feature = "payouts")]
 use crate::types::PayoutsResponseRouterData;
-
+#[cfg(feature = "payouts")]
+use crate::utils::PayoutsData;
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
     unimplemented_payment_method,

@@ -1,20 +1,6 @@
-use crate::{
-    types::{RefundsResponseRouterData, ResponseRouterData},
-    unimplemented_payment_method,
-    utils::{
-        self, AddressDetailsData, ApplePayDecrypt, CardData, PaymentsAuthorizeRequestData,
-        PaymentsSetupMandateRequestData, PaymentsSyncRequestData, RecurringMandateData,
-        RouterData as OtherRouterData,
-    },
-};
 use base64::Engine;
 use common_enums::{enums, FutureUsage};
-use common_utils::consts;
-use common_utils::pii;
-use masking::{ExposeInterface, PeekInterface, Secret};
-use serde::{Deserialize, Serialize};
-use serde_json::Value;
-
+use common_utils::{consts, pii};
 use hyperswitch_domain_models::{
     payment_method_data::{ApplePayWalletData, GooglePayWalletData, PaymentMethodData, WalletData},
     router_data::{
@@ -33,6 +19,19 @@ use hyperswitch_domain_models::{
     },
 };
 use hyperswitch_interfaces::{api, errors};
+use masking::{ExposeInterface, PeekInterface, Secret};
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
+
+use crate::{
+    types::{RefundsResponseRouterData, ResponseRouterData},
+    unimplemented_payment_method,
+    utils::{
+        self, AddressDetailsData, ApplePayDecrypt, CardData, PaymentsAuthorizeRequestData,
+        PaymentsSetupMandateRequestData, PaymentsSyncRequestData, RecurringMandateData,
+        RouterData as OtherRouterData,
+    },
+};
 pub struct BankOfAmericaAuthType {
     pub(super) api_key: Secret<String>,
     pub(super) merchant_account: Secret<String>,

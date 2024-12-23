@@ -257,8 +257,9 @@ default_imp_for_new_connector_integration_payment!(
     connectors::UnifiedAuthenticationService,
     connectors::Worldline,
     connectors::Volt,
-connectors::Worldpay,
-connectors::Wellsfargo,    connectors::Xendit,
+    connectors::Worldpay,
+    connectors::Wellsfargo,
+    connectors::Xendit,
     connectors::Zen,
     connectors::Zsl
 );
@@ -403,8 +404,9 @@ default_imp_for_new_connector_integration_connector_access_token!(
     connectors::UnifiedAuthenticationService,
     connectors::Worldline,
     connectors::Volt,
-connectors::Worldpay,
-connectors::Wellsfargo,    connectors::Xendit,
+    connectors::Worldpay,
+    connectors::Wellsfargo,
+    connectors::Xendit,
     connectors::Zen,
     connectors::Zsl
 );
@@ -478,8 +480,9 @@ default_imp_for_new_connector_integration_accept_dispute!(
     connectors::UnifiedAuthenticationService,
     connectors::Worldline,
     connectors::Volt,
-connectors::Worldpay,
-connectors::Wellsfargo,    connectors::Xendit,
+    connectors::Worldpay,
+    connectors::Wellsfargo,
+    connectors::Xendit,
     connectors::Zen,
     connectors::Zsl
 );
@@ -552,8 +555,9 @@ default_imp_for_new_connector_integration_submit_evidence!(
     connectors::UnifiedAuthenticationService,
     connectors::Worldline,
     connectors::Volt,
-connectors::Worldpay,
-connectors::Wellsfargo,    connectors::Xendit,
+    connectors::Worldpay,
+    connectors::Wellsfargo,
+    connectors::Xendit,
     connectors::Zen,
     connectors::Zsl
 );
@@ -627,8 +631,9 @@ default_imp_for_new_connector_integration_defend_dispute!(
     connectors::UnifiedAuthenticationService,
     connectors::Worldline,
     connectors::Volt,
-connectors::Worldpay,
-connectors::Wellsfargo,    connectors::Xendit,
+    connectors::Worldpay,
+    connectors::Wellsfargo,
+    connectors::Xendit,
     connectors::Zen,
     connectors::Zsl
 );
@@ -712,8 +717,9 @@ default_imp_for_new_connector_integration_file_upload!(
     connectors::UnifiedAuthenticationService,
     connectors::Worldline,
     connectors::Volt,
-connectors::Worldpay,
-connectors::Wellsfargo,    connectors::Xendit,
+    connectors::Worldpay,
+    connectors::Wellsfargo,
+    connectors::Xendit,
     connectors::Zen,
     connectors::Zsl
 );
@@ -789,8 +795,9 @@ default_imp_for_new_connector_integration_payouts_create!(
     connectors::UnifiedAuthenticationService,
     connectors::Worldline,
     connectors::Volt,
-connectors::Worldpay,
-connectors::Wellsfargo,    connectors::Xendit,
+    connectors::Worldpay,
+    connectors::Wellsfargo,
+    connectors::Xendit,
     connectors::Zen,
     connectors::Zsl
 );
@@ -866,8 +873,9 @@ default_imp_for_new_connector_integration_payouts_eligibility!(
     connectors::UnifiedAuthenticationService,
     connectors::Worldline,
     connectors::Volt,
-connectors::Worldpay,
-connectors::Wellsfargo,    connectors::Xendit,
+    connectors::Worldpay,
+    connectors::Wellsfargo,
+    connectors::Xendit,
     connectors::Zen,
     connectors::Zsl
 );
@@ -943,8 +951,9 @@ default_imp_for_new_connector_integration_payouts_fulfill!(
     connectors::UnifiedAuthenticationService,
     connectors::Worldline,
     connectors::Volt,
-connectors::Worldpay,
-connectors::Wellsfargo,    connectors::Xendit,
+    connectors::Worldpay,
+    connectors::Wellsfargo,
+    connectors::Xendit,
     connectors::Zen,
     connectors::Zsl
 );
@@ -1020,8 +1029,9 @@ default_imp_for_new_connector_integration_payouts_cancel!(
     connectors::UnifiedAuthenticationService,
     connectors::Worldline,
     connectors::Volt,
-connectors::Worldpay,
-connectors::Wellsfargo,    connectors::Xendit,
+    connectors::Worldpay,
+    connectors::Wellsfargo,
+    connectors::Xendit,
     connectors::Zen,
     connectors::Zsl
 );
@@ -1097,8 +1107,9 @@ default_imp_for_new_connector_integration_payouts_quote!(
     connectors::UnifiedAuthenticationService,
     connectors::Worldline,
     connectors::Volt,
-connectors::Worldpay,
-connectors::Wellsfargo,    connectors::Xendit,
+    connectors::Worldpay,
+    connectors::Wellsfargo,
+    connectors::Xendit,
     connectors::Zen,
     connectors::Zsl
 );
@@ -1174,8 +1185,9 @@ default_imp_for_new_connector_integration_payouts_recipient!(
     connectors::UnifiedAuthenticationService,
     connectors::Worldline,
     connectors::Volt,
-connectors::Worldpay,
-connectors::Wellsfargo,    connectors::Xendit,
+    connectors::Worldpay,
+    connectors::Wellsfargo,
+    connectors::Xendit,
     connectors::Zen,
     connectors::Zsl
 );
@@ -1251,8 +1263,9 @@ default_imp_for_new_connector_integration_payouts_sync!(
     connectors::UnifiedAuthenticationService,
     connectors::Worldline,
     connectors::Volt,
-connectors::Worldpay,
-connectors::Wellsfargo,    connectors::Xendit,
+    connectors::Worldpay,
+    connectors::Wellsfargo,
+    connectors::Xendit,
     connectors::Zen,
     connectors::Zsl
 );
@@ -1328,8 +1341,9 @@ default_imp_for_new_connector_integration_payouts_recipient_account!(
     connectors::UnifiedAuthenticationService,
     connectors::Worldline,
     connectors::Volt,
-connectors::Worldpay,
-connectors::Wellsfargo,    connectors::Xendit,
+    connectors::Worldpay,
+    connectors::Wellsfargo,
+    connectors::Xendit,
     connectors::Zen,
     connectors::Zsl
 );
@@ -1403,8 +1417,9 @@ default_imp_for_new_connector_integration_webhook_source_verification!(
     connectors::UnifiedAuthenticationService,
     connectors::Worldline,
     connectors::Volt,
-connectors::Worldpay,
-connectors::Wellsfargo,    connectors::Xendit,
+    connectors::Worldpay,
+    connectors::Wellsfargo,
+    connectors::Xendit,
     connectors::Zen,
     connectors::Zsl
 );
@@ -1480,8 +1495,9 @@ default_imp_for_new_connector_integration_frm_sale!(
     connectors::UnifiedAuthenticationService,
     connectors::Worldline,
     connectors::Volt,
-connectors::Worldpay,
-connectors::Wellsfargo,    connectors::Xendit,
+    connectors::Worldpay,
+    connectors::Wellsfargo,
+    connectors::Xendit,
     connectors::Zen,
     connectors::Zsl
 );
@@ -1557,8 +1573,9 @@ default_imp_for_new_connector_integration_frm_checkout!(
     connectors::UnifiedAuthenticationService,
     connectors::Worldline,
     connectors::Volt,
-connectors::Worldpay,
-connectors::Wellsfargo,    connectors::Xendit,
+    connectors::Worldpay,
+    connectors::Wellsfargo,
+    connectors::Xendit,
     connectors::Zen,
     connectors::Zsl
 );
@@ -1634,8 +1651,9 @@ default_imp_for_new_connector_integration_frm_transaction!(
     connectors::UnifiedAuthenticationService,
     connectors::Worldline,
     connectors::Volt,
-connectors::Worldpay,
-connectors::Wellsfargo,    connectors::Xendit,
+    connectors::Worldpay,
+    connectors::Wellsfargo,
+    connectors::Xendit,
     connectors::Zen,
     connectors::Zsl
 );
@@ -1711,8 +1729,9 @@ default_imp_for_new_connector_integration_frm_fulfillment!(
     connectors::UnifiedAuthenticationService,
     connectors::Worldline,
     connectors::Volt,
-connectors::Worldpay,
-connectors::Wellsfargo,    connectors::Xendit,
+    connectors::Worldpay,
+    connectors::Wellsfargo,
+    connectors::Xendit,
     connectors::Zen,
     connectors::Zsl
 );
@@ -1788,8 +1807,9 @@ default_imp_for_new_connector_integration_frm_record_return!(
     connectors::UnifiedAuthenticationService,
     connectors::Worldline,
     connectors::Volt,
-connectors::Worldpay,
-connectors::Wellsfargo,    connectors::Xendit,
+    connectors::Worldpay,
+    connectors::Wellsfargo,
+    connectors::Xendit,
     connectors::Zen,
     connectors::Zsl
 );
@@ -1862,8 +1882,9 @@ default_imp_for_new_connector_integration_revoking_mandates!(
     connectors::UnifiedAuthenticationService,
     connectors::Worldline,
     connectors::Volt,
-connectors::Worldpay,
-connectors::Wellsfargo,    connectors::Xendit,
+    connectors::Worldpay,
+    connectors::Wellsfargo,
+    connectors::Xendit,
     connectors::Zen,
     connectors::Zsl
 );

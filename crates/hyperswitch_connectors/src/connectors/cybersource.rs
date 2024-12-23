@@ -2,24 +2,14 @@ pub mod transformers;
 
 use base64::Engine;
 use common_enums::enums;
-use common_utils::types::{
-    AmountConvertor, MinorUnit, StringMajorUnit, StringMajorUnitForConnector,
-};
 use common_utils::{
     consts,
     errors::CustomResult,
     ext_traits::BytesExt,
     request::{Method, Request, RequestBuilder, RequestContent},
+    types::{AmountConvertor, MinorUnit, StringMajorUnit, StringMajorUnitForConnector},
 };
 use error_stack::{report, Report, ResultExt};
-#[cfg(feature = "payouts")]
-use hyperswitch_domain_models::{
-    router_flow_types::payouts::PoFulfill,
-    types::{PayoutsData, PayoutsRouterData},
-};
-#[cfg(feature = "payouts")]
-use hyperswitch_interfaces::types::PayoutFulfillType;
-
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     router_data::{AccessToken, ErrorResponse, RouterData},
@@ -50,6 +40,13 @@ use hyperswitch_domain_models::{
         SetupMandateRouterData,
     },
 };
+#[cfg(feature = "payouts")]
+use hyperswitch_domain_models::{
+    router_flow_types::payouts::PoFulfill,
+    types::{PayoutsData, PayoutsRouterData},
+};
+#[cfg(feature = "payouts")]
+use hyperswitch_interfaces::types::PayoutFulfillType;
 use hyperswitch_interfaces::{
     api::{
         self,

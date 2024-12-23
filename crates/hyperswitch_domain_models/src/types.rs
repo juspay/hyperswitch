@@ -25,7 +25,6 @@ use crate::{
         TaxCalculationResponseData,
     },
 };
-
 #[cfg(feature = "payouts")]
 pub use crate::{router_request_types::PayoutsData, router_response_types::PayoutsResponseData};
 
