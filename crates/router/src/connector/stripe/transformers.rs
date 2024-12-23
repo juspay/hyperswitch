@@ -2287,7 +2287,7 @@ pub struct StripeOvercaptureResponse {
 #[serde(rename_all = "snake_case")]
 pub enum StripeOvercaptureStatus {
     Available,
-    UnAvailable,
+    Unavailable,
 }
 
 #[derive(Deserialize, Clone, Debug, PartialEq, Eq, Serialize)]
@@ -2501,7 +2501,20 @@ impl<F, T>
 
         //Note: we might have to call retrieve_setup_intent to get the network_transaction_id in case its not sent in PaymentIntentResponse
         // Or we identify the mandate txns before hand and always call SetupIntent in case of mandate payment call
-        let (network_txn_id, overcapture_applied, maximum_capturable_amount) = extract_charge_details(item.response.latest_charge.as_ref());
+        let network_txn_id = match item.response.latest_charge.as_ref() {
+            Some(StripeChargeEnum::ChargeObject(charge_object)) => charge_object
+                .payment_method_details
+                .as_ref()
+                .and_then(|payment_method_details| match payment_method_details {
+                    StripePaymentMethodDetailsResponse::Card { card } => {
+                        card.network_transaction_id.clone()
+                    }
+                    _ => None,
+                }),
+            _ => None,
+        };
+
+        let (overcapture_applied, maximum_capturable_amount) = extract_overcapture_response(item.response.latest_charge.as_ref());
 
         let connector_metadata =
             get_connector_metadata(item.response.next_action.as_ref(), item.response.amount)?;
@@ -2725,6 +2738,9 @@ impl<F, T>
                     }),
                 _ => None,
             };
+
+            let (overcapture_applied, maximum_capturable_amount) = extract_overcapture_response(item.response.latest_charge.as_ref());
+
             let charge_id = item
                 .response
                 .latest_charge
@@ -2742,8 +2758,8 @@ impl<F, T>
                 connector_response_reference_id: Some(item.response.id.clone()),
                 incremental_authorization_allowed: None,
                 charge_id,
-                overcapture_applied: None,
-                maximum_capturable_amount: None,
+                overcapture_applied,
+                maximum_capturable_amount,
             })
         };
 
@@ -4109,9 +4125,9 @@ fn get_transaction_metadata(
     meta_data
 }
 
-fn extract_charge_details(
+fn extract_overcapture_response(
     latest_charge: Option<&StripeChargeEnum>
-) -> (Option<String>, Option<bool>, Option<MinorUnit>) {
+) -> (Option<bool>, Option<MinorUnit>) {
     match latest_charge {
         Some(StripeChargeEnum::ChargeObject(charge_object)) => charge_object
             .payment_method_details
@@ -4120,16 +4136,16 @@ fn extract_charge_details(
                 StripePaymentMethodDetailsResponse::Card { card } => {
                     let overcapture_applied = card.overcapture.as_ref().and_then(|overcapture| match overcapture.status.clone() {
                         Some(StripeOvercaptureStatus::Available) => Some(true),
-                        Some(StripeOvercaptureStatus::UnAvailable) => Some(false),
-                        None => None
+                        Some(StripeOvercaptureStatus::Unavailable) => Some(false),
+                        None => None,
                     });
                     let maximum_capturable_amount = card.overcapture.as_ref().and_then(|overcapture| overcapture.maximum_amount_capturable);
-                    Some((card.network_transaction_id.clone(), overcapture_applied, maximum_capturable_amount))
+                    Some((overcapture_applied, maximum_capturable_amount))
                 }
                 _ => None,
             })
-            .unwrap_or((None, None, None)),
-        _ => (None, None, None),
+            .unwrap_or((None, None)),
+        _ => (None, None),
     }
 }
 
