@@ -142,11 +142,15 @@ where
                         break;
                     }
 
-                    let is_network_token = matches!(payment_data.get_payment_method_data(), Some(domain::PaymentMethodData::NetworkToken(_)));
-                    let should_retry_with_pan = is_network_token && initial_gsm
-                        .as_ref()
-                        .map(|gsm| gsm.clear_pan_possible)
-                        .unwrap_or(false)
+                    let is_network_token = matches!(
+                        payment_data.get_payment_method_data(),
+                        Some(domain::PaymentMethodData::NetworkToken(_))
+                    );
+                    let should_retry_with_pan = is_network_token
+                        && initial_gsm
+                            .as_ref()
+                            .map(|gsm| gsm.clear_pan_possible)
+                            .unwrap_or(false)
                         && business_profile.is_clear_pan_retries_enabled;
 
                     let connector = if should_retry_with_pan {
