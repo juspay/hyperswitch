@@ -1481,8 +1481,7 @@ key2="Certificate Key"
 [[jpmorgan.debit]]
   payment_method_type = "Visa"
 [jpmorgan.connector_auth.BodyKey]
-api_key="Client ID"
-key1="Client Secret"
+api_key="Access Token"
 
 [klarna]
 [[klarna.pay_later]]
