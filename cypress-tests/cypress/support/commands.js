@@ -1619,10 +1619,7 @@ Cypress.Commands.add(
       logRequestId(response.headers["x-request-id"]);
       expect(response.headers["content-type"]).to.include("application/json");
       if (response.status === 200) {
-        if (resData.body.status !== "failed") {
-          expect(response.body.error_message).to.be.null;
-          expect(response.body.error_code).to.be.null;
-        }
+        validateErrorMessage(response, resData);
 
         if (
           response.body.capture_method === "automatic" ||
