@@ -114,6 +114,11 @@ pub struct ConfigMetadata {
     pub source_balance_account: Option<InputData>,
     pub brand_id: Option<InputData>,
     pub destination_account_number: Option<InputData>,
+    pub dpa_id: Option<String>,
+    pub dpa_name: Option<String>,
+    pub locale: Option<String>,
+    pub card_brands: Option<Vec<String>>,
+    pub merchant_category_code: Option<String>,
 }
 
 #[serde_with::skip_serializing_none]
@@ -193,6 +198,7 @@ pub struct ConnectorConfig {
     pub gpayments: Option<ConnectorTomlConfig>,
     pub helcim: Option<ConnectorTomlConfig>,
     // pub inespay: Option<ConnectorTomlConfig>,
+    pub jpmorgan: Option<ConnectorTomlConfig>,
     pub klarna: Option<ConnectorTomlConfig>,
     pub mifinity: Option<ConnectorTomlConfig>,
     pub mollie: Option<ConnectorTomlConfig>,
@@ -242,6 +248,8 @@ pub struct ConnectorConfig {
     pub zen: Option<ConnectorTomlConfig>,
     pub zsl: Option<ConnectorTomlConfig>,
     pub taxjar: Option<ConnectorTomlConfig>,
+    pub ctp_mastercard: Option<ConnectorTomlConfig>,
+    pub unified_authentication_service: Option<ConnectorTomlConfig>,
 }
 
 impl ConnectorConfig {
@@ -296,6 +304,10 @@ impl ConnectorConfig {
             AuthenticationConnectors::Threedsecureio => Ok(connector_data.threedsecureio),
             AuthenticationConnectors::Netcetera => Ok(connector_data.netcetera),
             AuthenticationConnectors::Gpayments => Ok(connector_data.gpayments),
+            AuthenticationConnectors::CtpMastercard => Ok(connector_data.ctp_mastercard),
+            AuthenticationConnectors::UnifiedAuthenticationService => {
+                Ok(connector_data.unified_authentication_service)
+            }
         }
     }
 
@@ -359,6 +371,7 @@ impl ConnectorConfig {
             Connector::Gpayments => Ok(connector_data.gpayments),
             Connector::Helcim => Ok(connector_data.helcim),
             // Connector::Inespay => Ok(connector_data.inespay),
+            Connector::Jpmorgan => Ok(connector_data.jpmorgan),
             Connector::Klarna => Ok(connector_data.klarna),
             Connector::Mifinity => Ok(connector_data.mifinity),
             Connector::Mollie => Ok(connector_data.mollie),
@@ -412,6 +425,7 @@ impl ConnectorConfig {
             #[cfg(feature = "dummy_connector")]
             Connector::DummyConnector7 => Ok(connector_data.paypal_test),
             Connector::Netcetera => Ok(connector_data.netcetera),
+            Connector::CtpMastercard => Ok(connector_data.ctp_mastercard),
         }
     }
 }

@@ -12,7 +12,7 @@ use common_utils::ext_traits::AsyncExt;
 use diesel_models::routing_algorithm::RoutingAlgorithm;
 use error_stack::ResultExt;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-use external_services::grpc_client::dynamic_routing::SuccessBasedDynamicRouting;
+use external_services::grpc_client::dynamic_routing::success_rate_client::SuccessBasedDynamicRouting;
 use hyperswitch_domain_models::{mandates, payment_address};
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use router_env::logger;
@@ -1408,7 +1408,10 @@ pub async fn success_based_routing_update_configs(
         .as_ref()
         .async_map(|sr_client| async {
             sr_client
-                .invalidate_success_rate_routing_keys(prefix_of_dynamic_routing_keys)
+                .invalidate_success_rate_routing_keys(
+                    prefix_of_dynamic_routing_keys,
+                    state.get_grpc_headers(),
+                )
                 .await
                 .change_context(errors::ApiErrorResponse::GenericNotFoundError {
                     message: "Failed to invalidate the routing keys".to_string(),

@@ -29,7 +29,10 @@ pub mod payment_intent;
 
 use common_enums as storage_enums;
 #[cfg(feature = "v2")]
-use diesel_models::types::{FeatureMetadata, OrderDetailsWithAmount};
+use diesel_models::{
+    ephemeral_key,
+    types::{FeatureMetadata, OrderDetailsWithAmount},
+};
 
 use self::payment_attempt::PaymentAttempt;
 #[cfg(feature = "v1")]
@@ -92,7 +95,7 @@ pub struct PaymentIntent {
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
     pub session_expiry: Option<PrimitiveDateTime>,
     pub request_external_three_ds_authentication: Option<bool>,
-    pub charges: Option<pii::SecretSerdeValue>,
+    pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
     pub frm_metadata: Option<pii::SecretSerdeValue>,
     #[encrypt]
     pub customer_details: Option<Encryptable<Secret<Value>>>,
@@ -226,7 +229,7 @@ impl AmountDetails {
             common_enums::TaxCalculationOverride::Calculate => None,
         };
 
-        payment_attempt::AttemptAmountDetails {
+        payment_attempt::AttemptAmountDetails::from(payment_attempt::AttemptAmountDetailsSetter {
             net_amount,
             amount_to_capture: None,
             surcharge_amount,
@@ -235,7 +238,7 @@ impl AmountDetails {
             amount_capturable: MinorUnit::zero(),
             shipping_cost: self.shipping_cost,
             order_tax_amount,
-        }
+        })
     }
 
     pub fn update_from_request(self, req: &api_models::payments::AmountDetailsUpdate) -> Self {
@@ -281,7 +284,7 @@ pub struct PaymentIntent {
     /// The total amount captured for the order. This is the sum of all the captured amounts for the order.
     pub amount_captured: Option<MinorUnit>,
     /// The identifier for the customer. This is the identifier for the customer in the merchant's system.
-    pub customer_id: Option<id_type::CustomerId>,
+    pub customer_id: Option<id_type::GlobalCustomerId>,
     /// The description of the order. This will be passed to connectors which support description.
     pub description: Option<common_utils::types::Description>,
     /// The return url for the payment. This is the url to which the user will be redirected after the payment is completed.
@@ -520,6 +523,18 @@ pub struct HeaderPayload {
     pub x_redirect_uri: Option<String>,
 }
 
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ClickToPayMetaData {
+    pub dpa_id: String,
+    pub dpa_name: String,
+    pub locale: String,
+    pub card_brands: Vec<String>,
+    pub acquirer_bin: String,
+    pub acquirer_merchant_id: String,
+    pub merchant_category_code: String,
+    pub merchant_country_code: String,
+}
+
 // TODO: uncomment fields as necessary
 #[cfg(feature = "v2")]
 #[derive(Default, Debug, Clone)]
@@ -585,6 +600,17 @@ where
     /// Should the payment status be synced with connector
     /// This will depend on the payment status and the force sync flag in the request
     pub should_sync_with_connector: bool,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Clone)]
+pub struct PaymentCaptureData<F>
+where
+    F: Clone,
+{
+    pub flow: PhantomData<F>,
+    pub payment_intent: PaymentIntent,
+    pub payment_attempt: PaymentAttempt,
 }
 
 #[cfg(feature = "v2")]

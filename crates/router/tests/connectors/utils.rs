@@ -404,7 +404,7 @@ pub trait ConnectorActions: Connector {
                 reason: None,
                 connector_refund_id: Some(refund_id),
                 browser_info: None,
-                charges: None,
+                split_refunds: None,
                 integrity_object: None,
                 refund_status: enums::RefundStatus::Pending,
             }),
@@ -549,6 +549,7 @@ pub trait ConnectorActions: Connector {
             header_payload: None,
             connector_mandate_request_reference_id: None,
             psd2_sca_exemption_type: None,
+            authentication_id: None,
         }
     }
 
@@ -938,6 +939,7 @@ impl Default for PaymentAuthorizeType {
             payment_method_data: types::domain::PaymentMethodData::Card(CCardType::default().0),
             amount: 100,
             minor_amount: MinorUnit::new(100),
+            order_tax_amount: Some(MinorUnit::zero()),
             currency: enums::Currency::USD,
             confirm: true,
             statement_descriptor_suffix: None,
@@ -966,7 +968,7 @@ impl Default for PaymentAuthorizeType {
             metadata: None,
             authentication_data: None,
             customer_acceptance: None,
-            charges: None,
+            split_payments: None,
             integrity_object: None,
             merchant_order_reference_id: None,
             additional_payment_method_data: None,
@@ -1011,6 +1013,9 @@ impl Default for BrowserInfoType {
             java_enabled: Some(true),
             java_script_enabled: Some(true),
             ip_address: Some("127.0.0.1".parse().unwrap()),
+            device_model: Some("Apple IPHONE 7".to_string()),
+            os_type: Some("IOS or ANDROID".to_string()),
+            os_version: Some("IOS 14.5".to_string()),
         };
         Self(data)
     }
@@ -1053,7 +1058,7 @@ impl Default for PaymentRefundType {
             reason: Some("Customer returned product".to_string()),
             connector_refund_id: None,
             browser_info: None,
-            charges: None,
+            split_refunds: None,
             integrity_object: None,
             refund_status: enums::RefundStatus::Pending,
         };

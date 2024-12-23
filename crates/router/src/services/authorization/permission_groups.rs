@@ -61,8 +61,12 @@ impl PermissionGroupExt for PermissionGroup {
 
     fn accessible_groups(&self) -> Vec<Self> {
         match self {
-            Self::OperationsView => vec![Self::OperationsView],
-            Self::OperationsManage => vec![Self::OperationsView, Self::OperationsManage],
+            Self::OperationsView => vec![Self::OperationsView, Self::ConnectorsView],
+            Self::OperationsManage => vec![
+                Self::OperationsView,
+                Self::OperationsManage,
+                Self::ConnectorsView,
+            ],
 
             Self::ConnectorsView => vec![Self::ConnectorsView],
             Self::ConnectorsManage => vec![Self::ConnectorsView, Self::ConnectorsManage],

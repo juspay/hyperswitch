@@ -42,6 +42,9 @@ pub mod payment_update_intent;
 #[cfg(feature = "v2")]
 pub mod payment_get;
 
+#[cfg(feature = "v2")]
+pub mod payment_capture_v2;
+
 use api_models::enums::FrmSuggestion;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use api_models::routing::RoutableConnectorChoice;
@@ -295,6 +298,18 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
         Ok(())
     }
 
+    async fn call_unified_authentication_service_if_eligible<'a>(
+        &'a self,
+        _state: &SessionState,
+        _payment_data: &mut D,
+        _should_continue_confirm_transaction: &mut bool,
+        _connector_call_type: &ConnectorCallType,
+        _merchant_account: &domain::Profile,
+        _key_store: &domain::MerchantKeyStore,
+    ) -> CustomResult<(), errors::ApiErrorResponse> {
+        Ok(())
+    }
+
     #[allow(clippy::too_many_arguments)]
     async fn payments_dynamic_tax_calculation<'a>(
         &'a self,
@@ -427,7 +442,7 @@ pub trait PostUpdateTracker<F, D, R: Send>: Send {
     where
         F: 'b + Send + Sync,
         types::RouterData<F, R, PaymentsResponseData>:
-            hyperswitch_domain_models::router_data::TrackerPostUpdateObjects<F, R>;
+            hyperswitch_domain_models::router_data::TrackerPostUpdateObjects<F, R, D>;
 
     async fn save_pm_and_mandate<'b>(
         &self,

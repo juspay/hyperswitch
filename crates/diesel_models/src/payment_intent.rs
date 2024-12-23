@@ -4,13 +4,13 @@ use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
-use crate::enums as storage_enums;
 #[cfg(feature = "v1")]
 use crate::schema::payment_intent;
 #[cfg(feature = "v2")]
 use crate::schema_v2::payment_intent;
 #[cfg(feature = "v2")]
 use crate::types::{FeatureMetadata, OrderDetailsWithAmount};
+use crate::{business_profile::PaymentLinkBackgroundImageConfig, enums as storage_enums};
 
 #[cfg(feature = "v2")]
 #[derive(Clone, Debug, PartialEq, Identifiable, Queryable, Serialize, Deserialize, Selectable)]
@@ -21,7 +21,7 @@ pub struct PaymentIntent {
     pub amount: MinorUnit,
     pub currency: storage_enums::Currency,
     pub amount_captured: Option<MinorUnit>,
-    pub customer_id: Option<common_utils::id_type::CustomerId>,
+    pub customer_id: Option<common_utils::id_type::GlobalCustomerId>,
     pub description: Option<common_utils::types::Description>,
     pub return_url: Option<common_utils::types::Url>,
     pub metadata: Option<pii::SecretSerdeValue>,
@@ -73,6 +73,7 @@ pub struct PaymentIntent {
     pub payment_link_config: Option<PaymentLinkConfigRequestForPayments>,
     pub id: common_utils::id_type::GlobalPaymentId,
     pub psd2_sca_exemption_type: Option<storage_enums::ScaExemptionType>,
+    pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
 }
 
 #[cfg(feature = "v1")]
@@ -138,6 +139,7 @@ pub struct PaymentIntent {
     pub tax_details: Option<TaxDetails>,
     pub skip_external_tax_calculation: Option<bool>,
     pub psd2_sca_exemption_type: Option<storage_enums::ScaExemptionType>,
+    pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, diesel::AsExpression, PartialEq)]
@@ -161,6 +163,12 @@ pub struct PaymentLinkConfigRequestForPayments {
     pub show_card_form_by_default: Option<bool>,
     /// Dynamic details related to merchant to be rendered in payment link
     pub transaction_details: Option<Vec<PaymentLinkTransactionDetails>>,
+    /// Configurations for the background image for details section
+    pub background_image: Option<PaymentLinkBackgroundImageConfig>,
+    /// Custom layout for details section
+    pub details_layout: Option<common_enums::PaymentLinkDetailsLayout>,
+    /// Text for payment link's handle confirm button
+    pub payment_button_text: Option<String>,
 }
 
 common_utils::impl_to_sql_from_sql_json!(PaymentLinkConfigRequestForPayments);
@@ -245,7 +253,7 @@ pub struct PaymentIntentNew {
     pub amount: MinorUnit,
     pub currency: storage_enums::Currency,
     pub amount_captured: Option<MinorUnit>,
-    pub customer_id: Option<common_utils::id_type::CustomerId>,
+    pub customer_id: Option<common_utils::id_type::GlobalCustomerId>,
     pub description: Option<common_utils::types::Description>,
     pub return_url: Option<common_utils::types::Url>,
     pub metadata: Option<pii::SecretSerdeValue>,
@@ -358,6 +366,24 @@ pub struct PaymentIntentNew {
     pub tax_details: Option<TaxDetails>,
     pub skip_external_tax_calculation: Option<bool>,
     pub psd2_sca_exemption_type: Option<storage_enums::ScaExemptionType>,
+    pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum PaymentIntentUpdate {
+    /// Update the payment intent details on payment intent confirmation, before calling the connector
+    ConfirmIntent {
+        status: storage_enums::IntentStatus,
+        active_attempt_id: common_utils::id_type::GlobalAttemptId,
+        updated_by: String,
+    },
+    /// Update the payment intent details on payment intent confirmation, after calling the connector
+    ConfirmIntentPostUpdate {
+        status: storage_enums::IntentStatus,
+        amount_captured: Option<MinorUnit>,
+        updated_by: String,
+    },
 }
 
 #[cfg(feature = "v1")]
@@ -505,8 +531,9 @@ pub struct PaymentIntentUpdateFields {
 #[diesel(table_name = payment_intent)]
 pub struct PaymentIntentUpdateInternal {
     pub status: Option<storage_enums::IntentStatus>,
-    pub active_attempt_id: Option<common_utils::id_type::GlobalAttemptId>,
+    pub amount_captured: Option<MinorUnit>,
     pub modified_at: PrimitiveDateTime,
+    pub active_attempt_id: Option<common_utils::id_type::GlobalAttemptId>,
     pub amount: Option<MinorUnit>,
     pub currency: Option<storage_enums::Currency>,
     pub shipping_cost: Option<MinorUnit>,

@@ -6,6 +6,8 @@ use common_utils::{
     id_type,
     types::{keymanager::KeyManagerState, theme::ThemeLineage},
 };
+#[cfg(feature = "v2")]
+use diesel_models::ephemeral_key::{EphemeralKeyType, EphemeralKeyTypeNew};
 use diesel_models::{
     enums,
     enums::ProcessTrackerStatus,
@@ -449,7 +451,7 @@ impl CustomerInterface for KafkaStore {
     async fn update_customer_by_global_id(
         &self,
         state: &KeyManagerState,
-        id: String,
+        id: &id_type::GlobalCustomerId,
         customer: domain::Customer,
         merchant_id: &id_type::MerchantId,
         customer_update: storage::CustomerUpdate,
@@ -525,7 +527,7 @@ impl CustomerInterface for KafkaStore {
     async fn find_customer_by_global_id(
         &self,
         state: &KeyManagerState,
-        id: &str,
+        id: &id_type::GlobalCustomerId,
         merchant_id: &id_type::MerchantId,
         key_store: &domain::MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
@@ -646,6 +648,7 @@ impl DisputeInterface for KafkaStore {
 
 #[async_trait::async_trait]
 impl EphemeralKeyInterface for KafkaStore {
+    #[cfg(feature = "v1")]
     async fn create_ephemeral_key(
         &self,
         ek: EphemeralKeyNew,
@@ -653,16 +656,45 @@ impl EphemeralKeyInterface for KafkaStore {
     ) -> CustomResult<EphemeralKey, errors::StorageError> {
         self.diesel_store.create_ephemeral_key(ek, validity).await
     }
+
+    #[cfg(feature = "v2")]
+    async fn create_ephemeral_key(
+        &self,
+        ek: EphemeralKeyTypeNew,
+        validity: i64,
+    ) -> CustomResult<EphemeralKeyType, errors::StorageError> {
+        self.diesel_store.create_ephemeral_key(ek, validity).await
+    }
+
+    #[cfg(feature = "v1")]
     async fn get_ephemeral_key(
         &self,
         key: &str,
     ) -> CustomResult<EphemeralKey, errors::StorageError> {
         self.diesel_store.get_ephemeral_key(key).await
     }
+
+    #[cfg(feature = "v2")]
+    async fn get_ephemeral_key(
+        &self,
+        key: &str,
+    ) -> CustomResult<EphemeralKeyType, errors::StorageError> {
+        self.diesel_store.get_ephemeral_key(key).await
+    }
+
+    #[cfg(feature = "v1")]
     async fn delete_ephemeral_key(
         &self,
         id: &str,
     ) -> CustomResult<EphemeralKey, errors::StorageError> {
+        self.diesel_store.delete_ephemeral_key(id).await
+    }
+
+    #[cfg(feature = "v2")]
+    async fn delete_ephemeral_key(
+        &self,
+        id: &str,
+    ) -> CustomResult<EphemeralKeyType, errors::StorageError> {
         self.diesel_store.delete_ephemeral_key(id).await
     }
 }
@@ -862,11 +894,13 @@ impl MandateInterface for KafkaStore {
     }
 
     #[cfg(all(feature = "v2", feature = "customer_v2"))]
-    async fn find_mandate_by_global_id(
+    async fn find_mandate_by_global_customer_id(
         &self,
-        id: &str,
+        id: &id_type::GlobalCustomerId,
     ) -> CustomResult<Vec<storage::Mandate>, errors::StorageError> {
-        self.diesel_store.find_mandate_by_global_id(id).await
+        self.diesel_store
+            .find_mandate_by_global_customer_id(id)
+            .await
     }
 
     async fn find_mandate_by_merchant_id_customer_id(
@@ -1192,6 +1226,23 @@ impl MerchantConnectorAccountInterface for KafkaStore {
                 key_store,
             )
             .await
+    }
+
+    #[cfg(all(feature = "oltp", feature = "v2"))]
+    async fn list_enabled_connector_accounts_by_profile_id(
+        &self,
+        state: &KeyManagerState,
+        profile_id: &id_type::ProfileId,
+        key_store: &domain::MerchantKeyStore,
+        connector_type: common_enums::ConnectorType,
+    ) -> CustomResult<Vec<domain::MerchantConnectorAccount>, errors::StorageError> {
+        self.list_enabled_connector_accounts_by_profile_id(
+            state,
+            profile_id,
+            key_store,
+            connector_type,
+        )
+        .await
     }
 
     async fn insert_merchant_connector_account(
@@ -1909,18 +1960,22 @@ impl PaymentMethodInterface for KafkaStore {
     }
 
     #[cfg(all(feature = "v2", feature = "customer_v2"))]
-    async fn find_payment_method_list_by_global_id(
+    async fn find_payment_method_list_by_global_customer_id(
         &self,
         state: &KeyManagerState,
         key_store: &domain::MerchantKeyStore,
-        id: &str,
+        id: &id_type::GlobalCustomerId,
         limit: Option<i64>,
-    ) -> CustomResult<Vec<storage::PaymentMethod>, errors::StorageError> {
+    ) -> CustomResult<Vec<domain::PaymentMethod>, errors::StorageError> {
         self.diesel_store
-            .find_payment_method_list_by_global_id(state, key_store, id, limit)
+            .find_payment_method_list_by_global_customer_id(state, key_store, id, limit)
             .await
     }
 
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "payment_methods_v2")
+    ))]
     async fn find_payment_method_by_customer_id_merchant_id_status(
         &self,
         state: &KeyManagerState,
@@ -1933,6 +1988,30 @@ impl PaymentMethodInterface for KafkaStore {
     ) -> CustomResult<Vec<domain::PaymentMethod>, errors::StorageError> {
         self.diesel_store
             .find_payment_method_by_customer_id_merchant_id_status(
+                state,
+                key_store,
+                customer_id,
+                merchant_id,
+                status,
+                limit,
+                storage_scheme,
+            )
+            .await
+    }
+
+    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    async fn find_payment_method_by_global_customer_id_merchant_id_status(
+        &self,
+        state: &KeyManagerState,
+        key_store: &domain::MerchantKeyStore,
+        customer_id: &id_type::GlobalCustomerId,
+        merchant_id: &id_type::MerchantId,
+        status: common_enums::PaymentMethodStatus,
+        limit: Option<i64>,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<Vec<domain::PaymentMethod>, errors::StorageError> {
+        self.diesel_store
+            .find_payment_method_by_global_customer_id_merchant_id_status(
                 state,
                 key_store,
                 customer_id,
@@ -3745,6 +3824,15 @@ impl ThemeInterface for KafkaStore {
         theme_id: String,
     ) -> CustomResult<storage::theme::Theme, errors::StorageError> {
         self.diesel_store.find_theme_by_theme_id(theme_id).await
+    }
+
+    async fn find_most_specific_theme_in_lineage(
+        &self,
+        lineage: ThemeLineage,
+    ) -> CustomResult<diesel_models::user::theme::Theme, errors::StorageError> {
+        self.diesel_store
+            .find_most_specific_theme_in_lineage(lineage)
+            .await
     }
 
     async fn find_theme_by_lineage(
