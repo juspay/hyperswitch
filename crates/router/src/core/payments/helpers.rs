@@ -2601,14 +2601,16 @@ pub(crate) fn validate_status_with_capture_method(
 pub(crate) fn validate_amount_to_capture(
     amount: i64,
     amount_to_capture: Option<i64>,
-    is_overcapture_applied: Option<bool>,
-    maximum_capturable_amount: Option<i64>,
+    overcapture_details: Option<&common_utils::types::OvercaptureData>,
 ) -> RouterResult<()> {
-    if let Some(amount_to_capture) = amount_to_capture {
+    let (is_overcapture_applied, maximum_capturable_amount) = overcapture_details.map(|overcapture_data|
+        (overcapture_data.overcapture_applied, overcapture_data.maximum_capturable_amount.map(|maximum_capturable_amount| maximum_capturable_amount.get_amount_as_i64()))
+    ).unwrap_or((None, None));
+
+    if let Some(true) = amount_to_capture.map(|req_amount_to_capture|(amount < req_amount_to_capture)) {
         utils::when(
-            (amount < amount_to_capture)
-                || !(is_overcapture_applied == Some(true)
-                    && maximum_capturable_amount >= Some(amount_to_capture)),
+            !(is_overcapture_applied == Some(true)
+                    && maximum_capturable_amount >= amount_to_capture),
             || {
                 Err(report!(errors::ApiErrorResponse::InvalidRequestData {
                     message: "amount_to_capture is greater than amount".to_string()
@@ -3510,6 +3512,7 @@ mod tests {
             tax_details: None,
             skip_external_tax_calculation: None,
             psd2_sca_exemption_type: None,
+            request_overcapture: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_ok());
@@ -3649,6 +3652,7 @@ mod tests {
             tax_details: None,
             skip_external_tax_calculation: None,
             psd2_sca_exemption_type: None,
+            request_overcapture: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_err())
@@ -4182,9 +4186,7 @@ impl AttemptType {
             organization_id: old_payment_attempt.organization_id,
             profile_id: old_payment_attempt.profile_id,
             connector_mandate_detail: None,
-            request_overcapture: old_payment_attempt.request_overcapture,
-            overcapture_applied: None,
-            maximum_capturable_amount: None,
+            overcapture_details: old_payment_attempt.overcapture_details,
         }
     }
 

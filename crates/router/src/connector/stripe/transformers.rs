@@ -232,11 +232,19 @@ pub struct StripeCardData {
     pub payment_method_auth_type: Option<Auth3ds>,
     #[serde(rename = "payment_method_options[card][network]")]
     pub payment_method_data_card_preferred_network: Option<StripeCardNetwork>,
+    #[serde(rename = "payment_method_options[card][request_overcapture]")]
+    pub payment_method_data_card_request_overcapture: Option<StripeOvercaptureRequest>,
 }
 #[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct StripePayLaterData {
     #[serde(rename = "payment_method_data[type]")]
     pub payment_method_data_type: StripePaymentMethodType,
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum StripeOvercaptureRequest {
+    IfAvailable
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -1144,6 +1152,7 @@ fn create_stripe_payment_method(
     payment_method_token: Option<types::PaymentMethodToken>,
     is_customer_initiated_mandate_payment: Option<bool>,
     billing_address: StripeBillingAddress,
+    is_overcapture_requested: Option<bool>,
 ) -> Result<
     (
         StripePaymentMethodData,
@@ -1159,7 +1168,7 @@ fn create_stripe_payment_method(
                 enums::AuthenticationType::NoThreeDs => Auth3ds::Automatic,
             };
             Ok((
-                StripePaymentMethodData::try_from((card_details, payment_method_auth_type))?,
+                StripePaymentMethodData::try_from((card_details, payment_method_auth_type, is_overcapture_requested))?,
                 Some(StripePaymentMethodType::Card),
                 billing_address,
             ))
@@ -1377,10 +1386,10 @@ fn get_stripe_card_network(card_network: common_enums::CardNetwork) -> Option<St
     }
 }
 
-impl TryFrom<(&domain::Card, Auth3ds)> for StripePaymentMethodData {
+impl TryFrom<(&domain::Card, Auth3ds, Option<bool>)> for StripePaymentMethodData {
     type Error = errors::ConnectorError;
     fn try_from(
-        (card, payment_method_auth_type): (&domain::Card, Auth3ds),
+        (card, payment_method_auth_type, is_overcapture_requested): (&domain::Card, Auth3ds, Option<bool>),
     ) -> Result<Self, Self::Error> {
         Ok(Self::Card(StripeCardData {
             payment_method_data_type: StripePaymentMethodType::Card,
@@ -1393,6 +1402,10 @@ impl TryFrom<(&domain::Card, Auth3ds)> for StripePaymentMethodData {
                 .card_network
                 .clone()
                 .and_then(get_stripe_card_network),
+                payment_method_data_card_request_overcapture: match is_overcapture_requested {
+                    Some(true) => Some(StripeOvercaptureRequest::IfAvailable),
+                    _ => None
+                }
         }))
     }
 }
@@ -1750,6 +1763,7 @@ impl TryFrom<(&types::PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntent
                                     .card_network
                                     .clone()
                                     .and_then(get_stripe_card_network),
+                            payment_method_data_card_request_overcapture: None,
                         }),
                         domain::payments::PaymentMethodData::CardRedirect(_)
                         | domain::payments::PaymentMethodData::Wallet(_)
@@ -1792,7 +1806,8 @@ impl TryFrom<(&types::PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntent
                             Some(connector_util::PaymentsAuthorizeRequestData::is_customer_initiated_mandate_payment(
                                 &item.request,
                             )),
-                            billing_address
+                            billing_address,
+                            item.request_overcapture,
                         )?;
 
                     validate_shipping_address_against_payment_method(
@@ -2062,6 +2077,7 @@ impl TryFrom<&types::TokenizationRouterData> for TokenRequest {
             item.payment_method_token.clone(),
             None,
             StripeBillingAddress::default(),
+            item.request_overcapture,
         )?;
         Ok(Self {
             token_data: payment_data.0,
@@ -2256,6 +2272,22 @@ pub struct StripeAdditionalCardDetails {
     checks: Option<Value>,
     three_d_secure: Option<Value>,
     network_transaction_id: Option<String>,
+    overcapture: Option<StripeOvercaptureResponse>
+}
+
+
+#[derive(Deserialize, Clone, Debug, PartialEq, Eq, Serialize)]
+pub struct StripeOvercaptureResponse {
+    status: Option<StripeOvercaptureStatus>,
+    maximum_amount_capturable: Option<MinorUnit>,
+}
+
+
+#[derive(Deserialize, Clone, Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum StripeOvercaptureStatus {
+    Available,
+    UnAvailable,
 }
 
 #[derive(Deserialize, Clone, Debug, PartialEq, Eq, Serialize)]
@@ -2469,18 +2501,7 @@ impl<F, T>
 
         //Note: we might have to call retrieve_setup_intent to get the network_transaction_id in case its not sent in PaymentIntentResponse
         // Or we identify the mandate txns before hand and always call SetupIntent in case of mandate payment call
-        let network_txn_id = match item.response.latest_charge.as_ref() {
-            Some(StripeChargeEnum::ChargeObject(charge_object)) => charge_object
-                .payment_method_details
-                .as_ref()
-                .and_then(|payment_method_details| match payment_method_details {
-                    StripePaymentMethodDetailsResponse::Card { card } => {
-                        card.network_transaction_id.clone()
-                    }
-                    _ => None,
-                }),
-            _ => None,
-        };
+        let (network_txn_id, overcapture_applied, maximum_capturable_amount) = extract_charge_details(item.response.latest_charge.as_ref());
 
         let connector_metadata =
             get_connector_metadata(item.response.next_action.as_ref(), item.response.amount)?;
@@ -2511,8 +2532,8 @@ impl<F, T>
                 connector_response_reference_id: Some(item.response.id),
                 incremental_authorization_allowed: None,
                 charge_id,
-                overcapture_applied: None,
-                maximum_capturable_amount: None,
+                overcapture_applied,
+                maximum_capturable_amount,
             })
         };
 
@@ -3790,7 +3811,7 @@ impl
                     enums::AuthenticationType::ThreeDs => Auth3ds::Any,
                     enums::AuthenticationType::NoThreeDs => Auth3ds::Automatic,
                 };
-                Ok(Self::try_from((ccard, payment_method_auth_type))?)
+                Ok(Self::try_from((ccard, payment_method_auth_type, None))?)
             }
             domain::PaymentMethodData::PayLater(_) => Ok(Self::PayLater(StripePayLaterData {
                 payment_method_data_type: pm_type,
@@ -4086,6 +4107,30 @@ fn get_transaction_metadata(
         meta_data.extend(request_hash_map)
     };
     meta_data
+}
+
+fn extract_charge_details(
+    latest_charge: Option<&StripeChargeEnum>
+) -> (Option<String>, Option<bool>, Option<MinorUnit>) {
+    match latest_charge {
+        Some(StripeChargeEnum::ChargeObject(charge_object)) => charge_object
+            .payment_method_details
+            .as_ref()
+            .and_then(|payment_method_details| match payment_method_details {
+                StripePaymentMethodDetailsResponse::Card { card } => {
+                    let overcapture_applied = card.overcapture.as_ref().and_then(|overcapture| match overcapture.status.clone() {
+                        Some(StripeOvercaptureStatus::Available) => Some(true),
+                        Some(StripeOvercaptureStatus::UnAvailable) => Some(false),
+                        None => None
+                    });
+                    let maximum_capturable_amount = card.overcapture.as_ref().and_then(|overcapture| overcapture.maximum_amount_capturable);
+                    Some((card.network_transaction_id.clone(), overcapture_applied, maximum_capturable_amount))
+                }
+                _ => None,
+            })
+            .unwrap_or((None, None, None)),
+        _ => (None, None, None),
+    }
 }
 
 impl ForeignTryFrom<(&Option<ErrorDetails>, u16, String)> for types::PaymentsResponseData {

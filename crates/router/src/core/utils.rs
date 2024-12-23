@@ -451,6 +451,23 @@ pub fn validate_uuid(uuid: String, key: &str) -> Result<String, errors::ApiError
     }
 }
 
+pub fn get_overcaptured_amount(
+    overcapture_applied: Option<bool>,
+    amount_captured: Option<MinorUnit>,
+    net_amount: MinorUnit,
+) -> Option<MinorUnit> {
+    match overcapture_applied.zip(amount_captured) {
+    Some((true, orginal_amount_captured)) => {
+        if net_amount < orginal_amount_captured{
+            Some(orginal_amount_captured - net_amount)
+        } else {
+            None
+        }
+    },
+    _ => None
+}
+}
+
 #[cfg(test)]
 mod tests {
     #![allow(clippy::expect_used)]

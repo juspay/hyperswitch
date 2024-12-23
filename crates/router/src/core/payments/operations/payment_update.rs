@@ -442,9 +442,24 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 id: profile_id.get_string_repr().to_owned(),
             })?;
 
-        payment_attempt.request_overcapture = request
-            .request_overcapture
-            .or(Some(business_profile.always_request_overcapture));
+            match (payment_attempt.overcapture_details.clone(), request.request_overcapture) {
+                (Some(mut overcapture_data), Some(request_overcapture)) => {
+                        overcapture_data.request_overcapture = Some(request_overcapture);
+
+                },
+                (None, Some(request_overcapture)) => {
+                    payment_attempt.overcapture_details = Some(
+                        common_utils::types::OvercaptureData {
+                            request_overcapture: Some(request_overcapture),
+                            overcapture_applied: None,
+                            maximum_capturable_amount: None,
+                            overcaptured_amount: None,
+                        }
+                    );
+                },
+                _ => ()
+            };
+            
 
         let surcharge_details = request.surcharge_details.map(|request_surcharge_details| {
             payments::types::SurchargeDetails::from((&request_surcharge_details, &payment_attempt))
@@ -785,6 +800,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
         let payment_experience = payment_data.payment_attempt.payment_experience;
         let amount_to_capture = payment_data.payment_attempt.amount_to_capture;
         let capture_method = payment_data.payment_attempt.capture_method;
+        let overcapture_details = payment_data.payment_attempt.overcapture_details.clone();
         let payment_method_billing_address_id = payment_data
             .payment_attempt
             .payment_method_billing_address_id
@@ -803,7 +819,6 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
             .update_payment_attempt_with_attempt_id(
                 payment_data.payment_attempt,
                 storage::PaymentAttemptUpdate::Update {
-                    //should we remove todooo
                     currency: payment_data.currency,
                     status: get_attempt_status(),
                     authentication_type: None,
@@ -825,7 +840,9 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                             None,
                             surcharge_amount,
                             tax_amount,
+                            None,
                         ),
+                        overcapture_details,
                 },
                 storage_scheme,
             )

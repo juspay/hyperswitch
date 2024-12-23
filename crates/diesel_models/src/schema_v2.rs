@@ -857,9 +857,7 @@ diesel::table! {
         shipping_cost -> Nullable<Int8>,
         order_tax_amount -> Nullable<Int8>,
         connector_mandate_detail -> Nullable<Jsonb>,
-        request_overcapture -> Nullable<Bool>,
-        overcapture_applied -> Nullable<Bool>,
-        maximum_capturable_amount -> Nullable<Int8>,
+        overcapture_details -> Nullable<Jsonb>,
     }
 }
 

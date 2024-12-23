@@ -203,9 +203,7 @@ pub struct PaymentAttemptBatchNew {
     pub order_tax_amount: Option<MinorUnit>,
     pub connector_transaction_data: Option<String>,
     pub connector_mandate_detail: Option<ConnectorMandateReferenceId>,
-    pub request_overcapture: Option<bool>,
-    pub overcapture_applied: Option<bool>,
-    pub maximum_capturable_amount: Option<MinorUnit>,
+    pub overcapture_details: Option<common_utils::types::OvercaptureData>,
 }
 
 #[cfg(feature = "v1")]
@@ -285,9 +283,7 @@ impl PaymentAttemptBatchNew {
             shipping_cost: self.shipping_cost,
             order_tax_amount: self.order_tax_amount,
             connector_mandate_detail: self.connector_mandate_detail,
-            request_overcapture: self.request_overcapture,
-            overcapture_applied: self.overcapture_applied,
-            maximum_capturable_amount: self.maximum_capturable_amount,
+            overcapture_details: self.overcapture_details,
         }
     }
 }

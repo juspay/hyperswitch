@@ -361,9 +361,7 @@ pub async fn generate_sample_data(
             order_tax_amount: None,
             connector_transaction_data,
             connector_mandate_detail: None,
-            request_overcapture: None,
-            overcapture_applied: None,
-            maximum_capturable_amount: None,
+            overcapture_details: None,
         };
 
         let refund = if refunds_count < number_of_refunds && !is_failed_payment {

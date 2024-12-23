@@ -1403,6 +1403,35 @@ pub struct BrowserInformation {
 
 #[cfg(feature = "v2")]
 crate::impl_to_sql_from_sql_json!(BrowserInformation);
+
+/// Overcapture Data
+#[derive(
+    ToSchema,
+    Debug,
+    Clone,
+    serde::Deserialize,
+    serde::Serialize,
+    Eq,
+    PartialEq,
+    diesel::AsExpression,
+)]
+#[diesel(sql_type = Jsonb)]
+pub struct OvercaptureData {
+    /// Whether overcapture is requested
+    pub request_overcapture: Option<bool>,
+
+    /// Whether overcapture is applied
+    pub overcapture_applied: Option<bool>,
+
+    /// Maximum capturable amount
+    pub maximum_capturable_amount: Option<MinorUnit>,
+
+    /// Overcaptured amount
+    pub overcaptured_amount: Option<MinorUnit>,
+}
+
+crate::impl_to_sql_from_sql_json!(OvercaptureData);
+
 /// Domain type for connector_transaction_id
 /// Maximum length for connector's transaction_id can be 128 characters in HS DB.
 /// In case connector's use an identifier whose length exceeds 128 characters,

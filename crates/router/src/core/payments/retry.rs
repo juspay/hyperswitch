@@ -16,6 +16,7 @@ use crate::{
             flows::{ConstructFlowSpecificData, Feature},
             operations,
         },
+        utils::get_overcaptured_amount,
     },
     db::StorageInterface,
     routes::{
@@ -393,6 +394,7 @@ where
     FData: Send,
     D: payments::OperationSessionGetters<F> + payments::OperationSessionSetters<F> + Send + Sync,
 {
+
     let new_attempt_count = payment_data.get_payment_intent().attempt_count + 1;
     let new_payment_attempt = make_new_payment_attempt(
         connector,
@@ -434,6 +436,16 @@ where
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Could not parse the connector response")?;
 
+            let overcapture_details = match payment_data.get_payment_attempt().overcapture_details.clone() {
+                Some(mut overcapture_details) => {
+                    overcapture_details.overcapture_applied = overcapture_applied;
+                    overcapture_details.maximum_capturable_amount = maximum_capturable_amount;
+                    overcapture_details.overcaptured_amount = get_overcaptured_amount(overcapture_applied,  router_data.amount_captured.map(MinorUnit::new), payment_data.get_payment_attempt().net_amount.get_total_amount());
+                    Some(overcapture_details)
+                }
+                None => None,
+            };
+
             let payment_attempt_update = storage::PaymentAttemptUpdate::ResponseUpdate {
                 status: router_data.status,
                 connector: None,
@@ -469,8 +481,7 @@ where
                 payment_method_data: additional_payment_method_data,
                 charge_id,
                 connector_mandate_detail: None,
-                overcapture_applied,
-                maximum_capturable_amount,
+                overcapture_details,
             };
 
             #[cfg(feature = "v1")]
@@ -658,9 +669,7 @@ pub fn make_new_payment_attempt(
         charge_id: Default::default(),
         customer_acceptance: Default::default(),
         connector_mandate_detail: Default::default(),
-        request_overcapture: old_payment_attempt.request_overcapture,
-        overcapture_applied: Default::default(),
-        maximum_capturable_amount: Default::default(),
+        overcapture_details: old_payment_attempt.overcapture_details,
     }
 }
 
