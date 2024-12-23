@@ -950,6 +950,123 @@
         ]
       }
     },
+    "/relay": {
+      "post": {
+        "tags": [
+          "Relay"
+        ],
+        "summary": "Relay - Create",
+        "description": "Creates a relay request.",
+        "operationId": "Relay Request",
+        "parameters": [
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile ID for authentication",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Idempotency-Key",
+            "in": "header",
+            "description": "Idempotency Key for relay request",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RelayRequest"
+              },
+              "examples": {
+                "Create a relay request": {
+                  "value": {
+                    "connector_id": "mca_5apGeP94tMts6rg3U3kR",
+                    "connector_resource_id": "7256228702616471803954",
+                    "data": {
+                      "amount": 6540,
+                      "currency": "USD"
+                    },
+                    "type": "refund"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Relay request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RelayResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid data"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
+    "/relay/{relay_id}": {
+      "get": {
+        "tags": [
+          "Relay"
+        ],
+        "summary": "Relay - Retrieve",
+        "description": "Retrieves a relay details.",
+        "operationId": "Retrieve a Relay details",
+        "parameters": [
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile ID for authentication",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Relay Retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RelayResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Relay details was not found"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          },
+          {
+            "ephemeral_key": []
+          }
+        ]
+      }
+    },
     "/refunds": {
       "post": {
         "tags": [
@@ -2266,7 +2383,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/CustomerRequest"
+                "$ref": "#/components/schemas/CustomerUpdateRequest"
               },
               "examples": {
                 "Update name and email of a customer": {
@@ -3922,7 +4039,91 @@
         ]
       }
     },
-    "/account/:account_id/business_profile/:profile_id/dynamic_routing/success_based/toggle": {
+    "/account/{account_id}/business_profile/{profile_id}/dynamic_routing/success_based/config/{algorithm_id}": {
+      "patch": {
+        "tags": [
+          "Routing"
+        ],
+        "summary": "Routing - Update success based dynamic routing config for profile",
+        "description": "Update success based dynamic routing algorithm",
+        "operationId": "Update success based dynamic routing configs",
+        "parameters": [
+          {
+            "name": "account_id",
+            "in": "path",
+            "description": "Merchant id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "profile_id",
+            "in": "path",
+            "description": "Profile id under which Dynamic routing needs to be toggled",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "algorithm_id",
+            "in": "path",
+            "description": "Success based routing algorithm id which was last activated to update the config",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DynamicRoutingFeatures"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Routing Algorithm updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoutingDictionaryRecord"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Update body is malformed"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Resource missing"
+          },
+          "422": {
+            "description": "Unprocessable request"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          },
+          {
+            "jwt_key": []
+          }
+        ]
+      }
+    },
+    "/account/{account_id}/business_profile/{profile_id}/dynamic_routing/success_based/toggle": {
       "post": {
         "tags": [
           "Routing"
@@ -3930,6 +4131,80 @@
         "summary": "Routing - Toggle success based dynamic routing for profile",
         "description": "Create a success based dynamic routing algorithm",
         "operationId": "Toggle success based dynamic routing algorithm",
+        "parameters": [
+          {
+            "name": "account_id",
+            "in": "path",
+            "description": "Merchant id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "profile_id",
+            "in": "path",
+            "description": "Profile id under which Dynamic routing needs to be toggled",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "enable",
+            "in": "query",
+            "description": "Feature to enable for success based routing",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/DynamicRoutingFeatures"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Routing Algorithm created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoutingDictionaryRecord"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request body is malformed"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Resource missing"
+          },
+          "422": {
+            "description": "Unprocessable request"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          },
+          {
+            "jwt_key": []
+          }
+        ]
+      }
+    },
+    "/account/{account_id}/business_profile/{profile_id}/dynamic_routing/elimination/toggle": {
+      "post": {
+        "tags": [
+          "Routing"
+        ],
+        "summary": "Routing - Toggle elimination routing for profile",
+        "description": "Create a elimination based dynamic routing algorithm",
+        "operationId": "Toggle elimination routing algorithm",
         "parameters": [
           {
             "name": "account_id",
@@ -5725,11 +6000,168 @@
               }
             ],
             "nullable": true
+          },
+          "recurring_payment_request": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ApplePayRecurringPaymentRequest"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "ApplePayPaymentTiming": {
+        "type": "string",
+        "enum": [
+          "immediate",
+          "recurring"
+        ]
+      },
+      "ApplePayRecurringDetails": {
+        "type": "object",
+        "required": [
+          "payment_description",
+          "regular_billing",
+          "management_url"
+        ],
+        "properties": {
+          "payment_description": {
+            "type": "string",
+            "description": "A description of the recurring payment that Apple Pay displays to the user in the payment sheet"
+          },
+          "regular_billing": {
+            "$ref": "#/components/schemas/ApplePayRegularBillingDetails"
+          },
+          "billing_agreement": {
+            "type": "string",
+            "description": "A localized billing agreement that the payment sheet displays to the user before the user authorizes the payment",
+            "nullable": true
+          },
+          "management_url": {
+            "type": "string",
+            "description": "A URL to a web page where the user can update or delete the payment method for the recurring payment",
+            "example": "https://hyperswitch.io"
+          }
+        }
+      },
+      "ApplePayRecurringPaymentRequest": {
+        "type": "object",
+        "required": [
+          "payment_description",
+          "regular_billing",
+          "management_url"
+        ],
+        "properties": {
+          "payment_description": {
+            "type": "string",
+            "description": "A description of the recurring payment that Apple Pay displays to the user in the payment sheet"
+          },
+          "regular_billing": {
+            "$ref": "#/components/schemas/ApplePayRegularBillingRequest"
+          },
+          "billing_agreement": {
+            "type": "string",
+            "description": "A localized billing agreement that the payment sheet displays to the user before the user authorizes the payment",
+            "nullable": true
+          },
+          "management_url": {
+            "type": "string",
+            "description": "A URL to a web page where the user can update or delete the payment method for the recurring payment",
+            "example": "https://hyperswitch.io"
           }
         }
       },
       "ApplePayRedirectData": {
         "type": "object"
+      },
+      "ApplePayRegularBillingDetails": {
+        "type": "object",
+        "required": [
+          "label"
+        ],
+        "properties": {
+          "label": {
+            "type": "string",
+            "description": "The label that Apple Pay displays to the user in the payment sheet with the recurring details"
+          },
+          "recurring_payment_start_date": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The date of the first payment",
+            "example": "2023-09-10T23:59:59Z",
+            "nullable": true
+          },
+          "recurring_payment_end_date": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The date of the final payment",
+            "example": "2023-09-10T23:59:59Z",
+            "nullable": true
+          },
+          "recurring_payment_interval_unit": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RecurringPaymentIntervalUnit"
+              }
+            ],
+            "nullable": true
+          },
+          "recurring_payment_interval_count": {
+            "type": "integer",
+            "format": "int32",
+            "description": "The number of interval units that make up the total payment interval",
+            "nullable": true
+          }
+        }
+      },
+      "ApplePayRegularBillingRequest": {
+        "type": "object",
+        "required": [
+          "amount",
+          "label",
+          "payment_timing"
+        ],
+        "properties": {
+          "amount": {
+            "type": "string",
+            "description": "The amount of the recurring payment",
+            "example": "38.02"
+          },
+          "label": {
+            "type": "string",
+            "description": "The label that Apple Pay displays to the user in the payment sheet with the recurring details"
+          },
+          "payment_timing": {
+            "$ref": "#/components/schemas/ApplePayPaymentTiming"
+          },
+          "recurring_payment_start_date": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The date of the first payment",
+            "nullable": true
+          },
+          "recurring_payment_end_date": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The date of the final payment",
+            "nullable": true
+          },
+          "recurring_payment_interval_unit": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RecurringPaymentIntervalUnit"
+              }
+            ],
+            "nullable": true
+          },
+          "recurring_payment_interval_count": {
+            "type": "integer",
+            "format": "int32",
+            "description": "The number of interval units that make up the total payment interval",
+            "nullable": true
+          }
+        }
       },
       "ApplePaySessionResponse": {
         "oneOf": [
@@ -5925,7 +6357,9 @@
         "enum": [
           "threedsecureio",
           "netcetera",
-          "gpayments"
+          "gpayments",
+          "ctp_mastercard",
+          "unified_authentication_service"
         ]
       },
       "AuthenticationStatus": {
@@ -7891,6 +8325,21 @@
             "type": "string",
             "description": "User-agent of the browser",
             "nullable": true
+          },
+          "os_type": {
+            "type": "string",
+            "description": "The os type of the client device",
+            "nullable": true
+          },
+          "os_version": {
+            "type": "string",
+            "description": "The os version of the client device",
+            "nullable": true
+          },
+          "device_model": {
+            "type": "string",
+            "description": "The device model of the client",
+            "nullable": true
           }
         }
       },
@@ -8677,51 +9126,67 @@
       "ClickToPaySessionResponse": {
         "type": "object",
         "required": [
-          "dpaId",
-          "dpaName",
+          "dpa_id",
+          "dpa_name",
           "locale",
-          "cardBrands",
-          "acquirerBin",
-          "acquirerMerchantId",
-          "merchantCategoryCode",
-          "merchantCountryCode",
-          "transactionAmount",
-          "transactionCurrencyCode"
+          "card_brands",
+          "acquirer_bin",
+          "acquirer_merchant_id",
+          "merchant_category_code",
+          "merchant_country_code",
+          "transaction_amount",
+          "transaction_currency_code"
         ],
         "properties": {
-          "dpaId": {
+          "dpa_id": {
             "type": "string"
           },
-          "dpaName": {
+          "dpa_name": {
             "type": "string"
           },
           "locale": {
             "type": "string"
           },
-          "cardBrands": {
+          "card_brands": {
             "type": "array",
             "items": {
               "type": "string"
             }
           },
-          "acquirerBin": {
+          "acquirer_bin": {
             "type": "string"
           },
-          "acquirerMerchantId": {
+          "acquirer_merchant_id": {
             "type": "string"
           },
-          "merchantCategoryCode": {
+          "merchant_category_code": {
             "type": "string"
           },
-          "merchantCountryCode": {
+          "merchant_country_code": {
             "type": "string"
           },
-          "transactionAmount": {
+          "transaction_amount": {
             "type": "string",
             "example": "38.02"
           },
-          "transactionCurrencyCode": {
+          "transaction_currency_code": {
             "$ref": "#/components/schemas/Currency"
+          },
+          "phone_number": {
+            "type": "string",
+            "example": "9123456789",
+            "nullable": true,
+            "maxLength": 255
+          },
+          "email": {
+            "type": "string",
+            "example": "johntest@test.com",
+            "nullable": true,
+            "maxLength": 255
+          },
+          "phone_country_code": {
+            "type": "string",
+            "nullable": true
           }
         }
       },
@@ -8792,6 +9257,7 @@
           "checkout",
           "coinbase",
           "cryptopay",
+          "ctp_mastercard",
           "cybersource",
           "datatrans",
           "deutschebank",
@@ -8810,6 +9276,7 @@
           "helcim",
           "iatapay",
           "itaubank",
+          "jpmorgan",
           "klarna",
           "mifinity",
           "mollie",
@@ -9548,6 +10015,23 @@
           "ZWL"
         ]
       },
+      "CurrentBlockThreshold": {
+        "type": "object",
+        "properties": {
+          "duration_in_mins": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true,
+            "minimum": 0
+          },
+          "max_total_count": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true,
+            "minimum": 0
+          }
+        }
+      },
       "CustomerAcceptance": {
         "type": "object",
         "description": "This \"CustomerAcceptance\" object is passed during Payments-Confirm request, it enlists the type, time, and mode of acceptance properties related to an acceptance done by the customer. The customer_acceptance sub object is usually passed by the SDK or client.",
@@ -10033,6 +10517,60 @@
           }
         }
       },
+      "CustomerUpdateRequest": {
+        "type": "object",
+        "description": "The identifier for the customer object. If not provided the customer ID will be autogenerated.",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "The customer's name",
+            "example": "Jon Test",
+            "nullable": true,
+            "maxLength": 255
+          },
+          "email": {
+            "type": "string",
+            "description": "The customer's email address",
+            "example": "JonTest@test.com",
+            "nullable": true,
+            "maxLength": 255
+          },
+          "phone": {
+            "type": "string",
+            "description": "The customer's phone number",
+            "example": "9123456789",
+            "nullable": true,
+            "maxLength": 255
+          },
+          "description": {
+            "type": "string",
+            "description": "An arbitrary string that you can attach to a customer object.",
+            "example": "First Customer",
+            "nullable": true,
+            "maxLength": 255
+          },
+          "phone_country_code": {
+            "type": "string",
+            "description": "The country code for the customer phone number",
+            "example": "+65",
+            "nullable": true,
+            "maxLength": 255
+          },
+          "address": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AddressDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "metadata": {
+            "type": "object",
+            "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500\ncharacters long. Metadata is useful for storing additional, structured information on an\nobject.",
+            "nullable": true
+          }
+        }
+      },
       "DecoupledAuthenticationType": {
         "type": "string",
         "enum": [
@@ -10315,6 +10853,18 @@
             "nullable": true
           }
         }
+      },
+      "DynamicRoutingConfigParams": {
+        "type": "string",
+        "enum": [
+          "PaymentMethod",
+          "PaymentMethodType",
+          "AuthenticationType",
+          "Currency",
+          "Country",
+          "CardNetwork",
+          "CardBin"
+        ]
       },
       "DynamicRoutingFeatures": {
         "type": "string",
@@ -10737,6 +11287,14 @@
               "type": "string"
             },
             "description": "Additional tags to be used for global search",
+            "nullable": true
+          },
+          "apple_pay_recurring_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ApplePayRecurringDetails"
+              }
+            ],
             "nullable": true
           }
         }
@@ -14488,70 +15046,6 @@
           }
         }
       },
-      "OrderDetails": {
-        "type": "object",
-        "required": [
-          "product_name",
-          "quantity"
-        ],
-        "properties": {
-          "product_name": {
-            "type": "string",
-            "description": "Name of the product that is being purchased",
-            "example": "shirt",
-            "maxLength": 255
-          },
-          "quantity": {
-            "type": "integer",
-            "format": "int32",
-            "description": "The quantity of the product to be purchased",
-            "example": 1,
-            "minimum": 0
-          },
-          "requires_shipping": {
-            "type": "boolean",
-            "nullable": true
-          },
-          "product_img_link": {
-            "type": "string",
-            "description": "The image URL of the product",
-            "nullable": true
-          },
-          "product_id": {
-            "type": "string",
-            "description": "ID of the product that is being purchased",
-            "nullable": true
-          },
-          "category": {
-            "type": "string",
-            "description": "Category of the product that is being purchased",
-            "nullable": true
-          },
-          "sub_category": {
-            "type": "string",
-            "description": "Sub category of the product that is being purchased",
-            "nullable": true
-          },
-          "brand": {
-            "type": "string",
-            "description": "Brand of the product that is being purchased",
-            "nullable": true
-          },
-          "product_type": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/ProductType"
-              }
-            ],
-            "nullable": true
-          },
-          "product_tax_code": {
-            "type": "string",
-            "description": "The tax code for the product",
-            "nullable": true
-          }
-        }
-      },
       "OrderDetailsWithAmount": {
         "type": "object",
         "required": [
@@ -14574,7 +15068,21 @@
             "minimum": 0
           },
           "amount": {
-            "$ref": "#/components/schemas/MinorUnit"
+            "type": "integer",
+            "format": "int64",
+            "description": "the amount per quantity of product"
+          },
+          "tax_rate": {
+            "type": "number",
+            "format": "double",
+            "description": "tax rate applicable to the product",
+            "nullable": true
+          },
+          "total_tax_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "total tax amount applicable to the product",
+            "nullable": true
           },
           "requires_shipping": {
             "type": "boolean",
@@ -14983,6 +15491,17 @@
           {
             "type": "object",
             "required": [
+              "klarna_checkout"
+            ],
+            "properties": {
+              "klarna_checkout": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
               "affirm_redirect"
             ],
             "properties": {
@@ -15112,6 +15631,13 @@
             "format": "int64",
             "description": "The payment attempt amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,",
             "example": 6540
+          },
+          "order_tax_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The payment attempt tax_amount.",
+            "example": 6540,
+            "nullable": true
           },
           "currency": {
             "allOf": [
@@ -15424,6 +15950,11 @@
             "type": "boolean",
             "description": "Toggle for HyperSwitch branding visibility",
             "nullable": true
+          },
+          "payment_button_text": {
+            "type": "string",
+            "description": "Text for payment link's handle confirm button",
+            "nullable": true
           }
         }
       },
@@ -15508,6 +16039,11 @@
                 "$ref": "#/components/schemas/PaymentLinkDetailsLayout"
               }
             ],
+            "nullable": true
+          },
+          "payment_button_text": {
+            "type": "string",
+            "description": "Text for payment link's handle confirm button",
             "nullable": true
           }
         }
@@ -16852,7 +17388,7 @@
           "amount_to_capture": {
             "type": "integer",
             "format": "int64",
-            "description": "The Amount to be captured/ debited from the user's payment method.",
+            "description": "The Amount to be captured/ debited from the user's payment method. If not passed the full amount will be captured.",
             "example": 6540
           },
           "refund_uncaptured_amount": {
@@ -16910,6 +17446,13 @@
             "example": 6540,
             "nullable": true,
             "minimum": 0
+          },
+          "order_tax_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Total tax amount applicable to the order",
+            "example": 6540,
+            "nullable": true
           },
           "currency": {
             "allOf": [
@@ -17293,6 +17836,13 @@
             "format": "int64",
             "description": "The payment amount. Amount for the payment in the lowest denomination of the currency, (i.e) in cents for USD denomination, in yen for JPY denomination etc. E.g., Pass 100 to charge $1.00 and 1 for 1¥ since ¥ is a zero-decimal currency. Read more about [the Decimal and Non-Decimal Currencies](https://github.com/juspay/hyperswitch/wiki/Decimal-and-Non%E2%80%90Decimal-Currencies)",
             "minimum": 0
+          },
+          "order_tax_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Total tax amount applicable to the order",
+            "example": 6540,
+            "nullable": true
           },
           "currency": {
             "$ref": "#/components/schemas/Currency"
@@ -18437,6 +18987,13 @@
             "example": 6540,
             "nullable": true,
             "minimum": 0
+          },
+          "order_tax_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Total tax amount applicable to the order",
+            "example": 6540,
+            "nullable": true
           },
           "currency": {
             "allOf": [
@@ -19601,6 +20158,13 @@
             "example": 6540,
             "nullable": true,
             "minimum": 0
+          },
+          "order_tax_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Total tax amount applicable to the order",
+            "example": 6540,
+            "nullable": true
           },
           "currency": {
             "allOf": [
@@ -22383,6 +22947,16 @@
           "propertyName": "type"
         }
       },
+      "RecurringPaymentIntervalUnit": {
+        "type": "string",
+        "enum": [
+          "year",
+          "month",
+          "day",
+          "hour",
+          "minute"
+        ]
+      },
       "RedirectResponse": {
         "type": "object",
         "properties": {
@@ -22708,6 +23282,170 @@
           }
         },
         "additionalProperties": false
+      },
+      "RelayData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "refund"
+            ],
+            "properties": {
+              "refund": {
+                "$ref": "#/components/schemas/RelayRefundRequest"
+              }
+            }
+          }
+        ]
+      },
+      "RelayError": {
+        "type": "object",
+        "required": [
+          "code",
+          "message"
+        ],
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "The error code"
+          },
+          "message": {
+            "type": "string",
+            "description": "The error message"
+          }
+        }
+      },
+      "RelayRefundRequest": {
+        "type": "object",
+        "required": [
+          "amount",
+          "currency"
+        ],
+        "properties": {
+          "amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The amount that is being refunded",
+            "example": 6540
+          },
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
+          },
+          "reason": {
+            "type": "string",
+            "description": "The reason for the refund",
+            "example": "Customer returned the product",
+            "nullable": true,
+            "maxLength": 255
+          }
+        }
+      },
+      "RelayRequest": {
+        "type": "object",
+        "required": [
+          "connector_resource_id",
+          "connector_id",
+          "type"
+        ],
+        "properties": {
+          "connector_resource_id": {
+            "type": "string",
+            "description": "The identifier that is associated to a resource at the connector reference to which the relay request is being made",
+            "example": "7256228702616471803954"
+          },
+          "connector_id": {
+            "type": "string",
+            "description": "Identifier of the connector ( merchant connector account ) which was chosen to make the payment",
+            "example": "mca_5apGeP94tMts6rg3U3kR"
+          },
+          "type": {
+            "$ref": "#/components/schemas/RelayType"
+          },
+          "data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RelayData"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "RelayResponse": {
+        "type": "object",
+        "required": [
+          "id",
+          "status",
+          "connector_resource_id",
+          "connector_id",
+          "profile_id",
+          "type"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The unique identifier for the Relay",
+            "example": "relay_mbabizu24mvu3mela5njyhpit4"
+          },
+          "status": {
+            "$ref": "#/components/schemas/RelayStatus"
+          },
+          "connector_resource_id": {
+            "type": "string",
+            "description": "The identifier that is associated to a resource at the connector reference to which the relay request is being made",
+            "example": "pi_3MKEivSFNglxLpam0ZaL98q9"
+          },
+          "error": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RelayError"
+              }
+            ],
+            "nullable": true
+          },
+          "connector_reference_id": {
+            "type": "string",
+            "description": "The identifier that is associated to a resource at the connector to which the relay request is being made",
+            "example": "re_3QY4TnEOqOywnAIx1Mm1p7GQ",
+            "nullable": true
+          },
+          "connector_id": {
+            "type": "string",
+            "description": "Identifier of the connector ( merchant connector account ) which was chosen to make the payment",
+            "example": "mca_5apGeP94tMts6rg3U3kR"
+          },
+          "profile_id": {
+            "type": "string",
+            "description": "The business profile that is associated with this relay request.",
+            "example": "pro_abcdefghijklmnopqrstuvwxyz"
+          },
+          "type": {
+            "$ref": "#/components/schemas/RelayType"
+          },
+          "data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RelayData"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "RelayStatus": {
+        "type": "string",
+        "enum": [
+          "created",
+          "pending",
+          "success",
+          "failure"
+        ]
+      },
+      "RelayType": {
+        "type": "string",
+        "enum": [
+          "refund"
+        ]
       },
       "RequestPaymentMethodTypes": {
         "type": "object",
@@ -23162,6 +23900,7 @@
           "helcim",
           "iatapay",
           "itaubank",
+          "jpmorgan",
           "klarna",
           "mifinity",
           "mollie",
@@ -24344,6 +25083,56 @@
           }
         },
         "additionalProperties": false
+      },
+      "SuccessBasedRoutingConfig": {
+        "type": "object",
+        "properties": {
+          "params": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DynamicRoutingConfigParams"
+            },
+            "nullable": true
+          },
+          "config": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SuccessBasedRoutingConfigBody"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "SuccessBasedRoutingConfigBody": {
+        "type": "object",
+        "properties": {
+          "min_aggregates_size": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true,
+            "minimum": 0
+          },
+          "default_success_rate": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "max_aggregates_size": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true,
+            "minimum": 0
+          },
+          "current_block_threshold": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CurrentBlockThreshold"
+              }
+            ],
+            "nullable": true
+          }
+        }
       },
       "SurchargeDetailsResponse": {
         "type": "object",

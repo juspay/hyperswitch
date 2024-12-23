@@ -121,8 +121,13 @@ pub struct PaymentMethodCreate {
     pub metadata: Option<pii::SecretSerdeValue>,
 
     /// The unique identifier of the customer.
-    #[schema(value_type = String, max_length = 64, min_length = 1, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
-    pub customer_id: id_type::CustomerId,
+    #[schema(
+        min_length = 32,
+        max_length = 64,
+        example = "12345_cus_01926c58bc6e77c09e809964e72af8c8",
+        value_type = String
+    )]
+    pub customer_id: id_type::GlobalCustomerId,
 
     /// Payment method data to be passed
     pub payment_method_data: PaymentMethodCreateData,
@@ -145,17 +150,19 @@ pub struct PaymentMethodIntentCreate {
     pub billing: Option<payments::Address>,
 
     /// The unique identifier of the customer.
-    #[schema(value_type = String, max_length = 64, min_length = 1, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
-    pub customer_id: id_type::CustomerId,
+    #[schema(
+        min_length = 32,
+        max_length = 64,
+        example = "12345_cus_01926c58bc6e77c09e809964e72af8c8",
+        value_type = String
+    )]
+    pub customer_id: id_type::GlobalCustomerId,
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct PaymentMethodIntentConfirm {
-    /// For SDK based calls, client_secret would be required
-    pub client_secret: String,
-
     /// The unique identifier of the customer.
     #[schema(value_type = Option<String>, max_length = 64, min_length = 1, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
     pub customer_id: Option<id_type::CustomerId>,
@@ -201,9 +208,6 @@ pub struct PaymentMethodIntentConfirmInternal {
     #[schema(value_type = PaymentMethodType,example = "credit")]
     pub payment_method_subtype: api_enums::PaymentMethodType,
 
-    /// For SDK based calls, client_secret would be required
-    pub client_secret: String,
-
     /// The unique identifier of the customer.
     #[schema(value_type = Option<String>, max_length = 64, min_length = 1, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
     pub customer_id: Option<id_type::CustomerId>,
@@ -216,7 +220,6 @@ pub struct PaymentMethodIntentConfirmInternal {
 impl From<PaymentMethodIntentConfirmInternal> for PaymentMethodIntentConfirm {
     fn from(item: PaymentMethodIntentConfirmInternal) -> Self {
         Self {
-            client_secret: item.client_secret,
             payment_method_type: item.payment_method_type,
             payment_method_subtype: item.payment_method_subtype,
             customer_id: item.customer_id,
@@ -398,10 +401,6 @@ pub struct PaymentMethodUpdate {
 pub struct PaymentMethodUpdate {
     /// payment method data to be passed
     pub payment_method_data: PaymentMethodUpdateData,
-
-    /// This is a 15 minute expiry token which shall be used from the client to authenticate and perform sessions from the SDK
-    #[schema(max_length = 30, min_length = 30, example = "secret_k2uj3he2893eiu2d")]
-    pub client_secret: Option<String>,
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
@@ -782,8 +781,13 @@ pub struct PaymentMethodResponse {
     pub merchant_id: id_type::MerchantId,
 
     /// The unique identifier of the customer.
-    #[schema(value_type = Option<String>, max_length = 64, min_length = 1, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
-    pub customer_id: id_type::CustomerId,
+    #[schema(
+        min_length = 32,
+        max_length = 64,
+        example = "12345_cus_01926c58bc6e77c09e809964e72af8c8",
+        value_type = String
+    )]
+    pub customer_id: id_type::GlobalCustomerId,
 
     /// The unique identifier of the Payment method
     #[schema(example = "card_rGK4Vi5iSW70MY7J2mIg")]
@@ -811,7 +815,8 @@ pub struct PaymentMethodResponse {
     pub last_used_at: Option<time::PrimitiveDateTime>,
 
     /// For Client based calls
-    pub client_secret: Option<String>,
+    #[schema(value_type=Option<String>)]
+    pub ephemeral_key: Option<masking::Secret<String>>,
 
     pub payment_method_data: Option<PaymentMethodResponseData>,
 }
@@ -1780,8 +1785,13 @@ pub struct CustomerPaymentMethod {
     pub payment_method_id: String,
 
     /// The unique identifier of the customer.
-    #[schema(value_type = String, max_length = 64, min_length = 1, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
-    pub customer_id: id_type::CustomerId,
+    #[schema(
+        min_length = 32,
+        max_length = 64,
+        example = "12345_cus_01926c58bc6e77c09e809964e72af8c8",
+        value_type = String
+    )]
+    pub customer_id: id_type::GlobalCustomerId,
 
     /// The type of payment method use for the payment.
     #[schema(value_type = PaymentMethod,example = "card")]
@@ -2232,36 +2242,6 @@ impl From<PaymentMethodMigrationResponseType> for PaymentMethodMigrationResponse
                 payment_method: res.payment_method_response.payment_method,
                 payment_method_type: res.payment_method_response.payment_method_type,
                 customer_id: res.payment_method_response.customer_id,
-                migration_status: MigrationStatus::Success,
-                migration_error: None,
-                card_number_masked: Some(record.card_number_masked),
-                line_number: record.line_number,
-                card_migrated: res.card_migrated,
-                network_token_migrated: res.network_token_migrated,
-                connector_mandate_details_migrated: res.connector_mandate_details_migrated,
-                network_transaction_id_migrated: res.network_transaction_id_migrated,
-            },
-            Err(e) => Self {
-                customer_id: Some(record.customer_id),
-                migration_status: MigrationStatus::Failed,
-                migration_error: Some(e),
-                card_number_masked: Some(record.card_number_masked),
-                line_number: record.line_number,
-                ..Self::default()
-            },
-        }
-    }
-}
-
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-impl From<PaymentMethodMigrationResponseType> for PaymentMethodMigrationResponse {
-    fn from((response, record): PaymentMethodMigrationResponseType) -> Self {
-        match response {
-            Ok(res) => Self {
-                payment_method_id: Some(res.payment_method_response.payment_method_id),
-                payment_method: res.payment_method_response.payment_method_type,
-                payment_method_type: res.payment_method_response.payment_method_subtype,
-                customer_id: Some(res.payment_method_response.customer_id),
                 migration_status: MigrationStatus::Success,
                 migration_error: None,
                 card_number_masked: Some(record.card_number_masked),

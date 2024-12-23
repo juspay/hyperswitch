@@ -418,6 +418,8 @@ diesel::table! {
         payment_status -> AttemptStatus,
         conclusive_classification -> SuccessBasedRoutingConclusiveState,
         created_at -> Timestamp,
+        #[max_length = 64]
+        payment_method_type -> Nullable<Varchar>,
     }
 }
 
@@ -1240,6 +1242,35 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
+    relay (id) {
+        #[max_length = 64]
+        id -> Varchar,
+        #[max_length = 128]
+        connector_resource_id -> Varchar,
+        #[max_length = 64]
+        connector_id -> Varchar,
+        #[max_length = 64]
+        profile_id -> Varchar,
+        #[max_length = 64]
+        merchant_id -> Varchar,
+        relay_type -> RelayType,
+        request_data -> Nullable<Jsonb>,
+        status -> RelayStatus,
+        #[max_length = 128]
+        connector_reference_id -> Nullable<Varchar>,
+        #[max_length = 64]
+        error_code -> Nullable<Varchar>,
+        error_message -> Nullable<Text>,
+        created_at -> Timestamp,
+        modified_at -> Timestamp,
+        response_data -> Nullable<Jsonb>,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::enums::diesel_exports::*;
+
     reverse_lookup (lookup_id) {
         #[max_length = 128]
         lookup_id -> Varchar,
@@ -1324,6 +1355,15 @@ diesel::table! {
         entity_type -> Varchar,
         #[max_length = 64]
         theme_name -> Varchar,
+        #[max_length = 64]
+        email_primary_color -> Varchar,
+        #[max_length = 64]
+        email_foreground_color -> Varchar,
+        #[max_length = 64]
+        email_background_color -> Varchar,
+        #[max_length = 64]
+        email_entity_name -> Varchar,
+        email_entity_logo_url -> Text,
     }
 }
 
@@ -1471,6 +1511,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     payouts,
     process_tracker,
     refund,
+    relay,
     reverse_lookup,
     roles,
     routing_algorithm,

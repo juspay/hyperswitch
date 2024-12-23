@@ -228,6 +228,11 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Checkout => Self::Checkout,
             api_enums::Connector::Coinbase => Self::Coinbase,
             api_enums::Connector::Cryptopay => Self::Cryptopay,
+            api_enums::Connector::CtpMastercard => {
+                Err(common_utils::errors::ValidationError::InvalidValue {
+                    message: "ctp mastercard is not a routable connector".to_string(),
+                })?
+            }
             api_enums::Connector::Cybersource => Self::Cybersource,
             api_enums::Connector::Datatrans => Self::Datatrans,
             api_enums::Connector::Deutschebank => Self::Deutschebank,
@@ -251,7 +256,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Iatapay => Self::Iatapay,
             // api_enums::Connector::Inespay => Self::Inespay,
             api_enums::Connector::Itaubank => Self::Itaubank,
-            //api_enums::Connector::Jpmorgan => Self::Jpmorgan,
+            api_enums::Connector::Jpmorgan => Self::Jpmorgan,
             api_enums::Connector::Klarna => Self::Klarna,
             api_enums::Connector::Mifinity => Self::Mifinity,
             api_enums::Connector::Mollie => Self::Mollie,
@@ -1234,6 +1239,7 @@ impl ForeignFrom<storage::PaymentAttempt> for payments::PaymentAttemptResponse {
             attempt_id: payment_attempt.attempt_id,
             status: payment_attempt.status,
             amount: payment_attempt.net_amount.get_order_amount(),
+            order_tax_amount: payment_attempt.net_amount.get_order_tax_amount(),
             currency: payment_attempt.currency,
             connector: payment_attempt.connector,
             error_message: payment_attempt.error_reason,
@@ -1961,6 +1967,7 @@ impl ForeignFrom<api_models::admin::PaymentLinkConfigRequest>
             background_image: item
                 .background_image
                 .map(|background_image| background_image.foreign_into()),
+            payment_button_text: item.payment_button_text,
         }
     }
 }
@@ -1983,6 +1990,7 @@ impl ForeignFrom<diesel_models::business_profile::PaymentLinkConfigRequest>
             background_image: item
                 .background_image
                 .map(|background_image| background_image.foreign_into()),
+            payment_button_text: item.payment_button_text,
         }
     }
 }

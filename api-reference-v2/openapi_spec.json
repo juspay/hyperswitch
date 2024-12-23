@@ -1712,7 +1712,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/CustomerRequest"
+                "$ref": "#/components/schemas/CustomerUpdateRequest"
               },
               "examples": {
                 "Update name and email of a customer": {
@@ -3288,11 +3288,168 @@
               }
             ],
             "nullable": true
+          },
+          "recurring_payment_request": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ApplePayRecurringPaymentRequest"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "ApplePayPaymentTiming": {
+        "type": "string",
+        "enum": [
+          "immediate",
+          "recurring"
+        ]
+      },
+      "ApplePayRecurringDetails": {
+        "type": "object",
+        "required": [
+          "payment_description",
+          "regular_billing",
+          "management_url"
+        ],
+        "properties": {
+          "payment_description": {
+            "type": "string",
+            "description": "A description of the recurring payment that Apple Pay displays to the user in the payment sheet"
+          },
+          "regular_billing": {
+            "$ref": "#/components/schemas/ApplePayRegularBillingDetails"
+          },
+          "billing_agreement": {
+            "type": "string",
+            "description": "A localized billing agreement that the payment sheet displays to the user before the user authorizes the payment",
+            "nullable": true
+          },
+          "management_url": {
+            "type": "string",
+            "description": "A URL to a web page where the user can update or delete the payment method for the recurring payment",
+            "example": "https://hyperswitch.io"
+          }
+        }
+      },
+      "ApplePayRecurringPaymentRequest": {
+        "type": "object",
+        "required": [
+          "payment_description",
+          "regular_billing",
+          "management_url"
+        ],
+        "properties": {
+          "payment_description": {
+            "type": "string",
+            "description": "A description of the recurring payment that Apple Pay displays to the user in the payment sheet"
+          },
+          "regular_billing": {
+            "$ref": "#/components/schemas/ApplePayRegularBillingRequest"
+          },
+          "billing_agreement": {
+            "type": "string",
+            "description": "A localized billing agreement that the payment sheet displays to the user before the user authorizes the payment",
+            "nullable": true
+          },
+          "management_url": {
+            "type": "string",
+            "description": "A URL to a web page where the user can update or delete the payment method for the recurring payment",
+            "example": "https://hyperswitch.io"
           }
         }
       },
       "ApplePayRedirectData": {
         "type": "object"
+      },
+      "ApplePayRegularBillingDetails": {
+        "type": "object",
+        "required": [
+          "label"
+        ],
+        "properties": {
+          "label": {
+            "type": "string",
+            "description": "The label that Apple Pay displays to the user in the payment sheet with the recurring details"
+          },
+          "recurring_payment_start_date": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The date of the first payment",
+            "example": "2023-09-10T23:59:59Z",
+            "nullable": true
+          },
+          "recurring_payment_end_date": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The date of the final payment",
+            "example": "2023-09-10T23:59:59Z",
+            "nullable": true
+          },
+          "recurring_payment_interval_unit": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RecurringPaymentIntervalUnit"
+              }
+            ],
+            "nullable": true
+          },
+          "recurring_payment_interval_count": {
+            "type": "integer",
+            "format": "int32",
+            "description": "The number of interval units that make up the total payment interval",
+            "nullable": true
+          }
+        }
+      },
+      "ApplePayRegularBillingRequest": {
+        "type": "object",
+        "required": [
+          "amount",
+          "label",
+          "payment_timing"
+        ],
+        "properties": {
+          "amount": {
+            "type": "string",
+            "description": "The amount of the recurring payment",
+            "example": "38.02"
+          },
+          "label": {
+            "type": "string",
+            "description": "The label that Apple Pay displays to the user in the payment sheet with the recurring details"
+          },
+          "payment_timing": {
+            "$ref": "#/components/schemas/ApplePayPaymentTiming"
+          },
+          "recurring_payment_start_date": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The date of the first payment",
+            "nullable": true
+          },
+          "recurring_payment_end_date": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The date of the final payment",
+            "nullable": true
+          },
+          "recurring_payment_interval_unit": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RecurringPaymentIntervalUnit"
+              }
+            ],
+            "nullable": true
+          },
+          "recurring_payment_interval_count": {
+            "type": "integer",
+            "format": "int32",
+            "description": "The number of interval units that make up the total payment interval",
+            "nullable": true
+          }
+        }
       },
       "ApplePaySessionResponse": {
         "oneOf": [
@@ -3488,7 +3645,9 @@
         "enum": [
           "threedsecureio",
           "netcetera",
-          "gpayments"
+          "gpayments",
+          "ctp_mastercard",
+          "unified_authentication_service"
         ]
       },
       "AuthenticationStatus": {
@@ -5454,6 +5613,21 @@
             "type": "string",
             "description": "User-agent of the browser",
             "nullable": true
+          },
+          "os_type": {
+            "type": "string",
+            "description": "The os type of the client device",
+            "nullable": true
+          },
+          "os_version": {
+            "type": "string",
+            "description": "The os version of the client device",
+            "nullable": true
+          },
+          "device_model": {
+            "type": "string",
+            "description": "The device model of the client",
+            "nullable": true
           }
         }
       },
@@ -6233,51 +6407,67 @@
       "ClickToPaySessionResponse": {
         "type": "object",
         "required": [
-          "dpaId",
-          "dpaName",
+          "dpa_id",
+          "dpa_name",
           "locale",
-          "cardBrands",
-          "acquirerBin",
-          "acquirerMerchantId",
-          "merchantCategoryCode",
-          "merchantCountryCode",
-          "transactionAmount",
-          "transactionCurrencyCode"
+          "card_brands",
+          "acquirer_bin",
+          "acquirer_merchant_id",
+          "merchant_category_code",
+          "merchant_country_code",
+          "transaction_amount",
+          "transaction_currency_code"
         ],
         "properties": {
-          "dpaId": {
+          "dpa_id": {
             "type": "string"
           },
-          "dpaName": {
+          "dpa_name": {
             "type": "string"
           },
           "locale": {
             "type": "string"
           },
-          "cardBrands": {
+          "card_brands": {
             "type": "array",
             "items": {
               "type": "string"
             }
           },
-          "acquirerBin": {
+          "acquirer_bin": {
             "type": "string"
           },
-          "acquirerMerchantId": {
+          "acquirer_merchant_id": {
             "type": "string"
           },
-          "merchantCategoryCode": {
+          "merchant_category_code": {
             "type": "string"
           },
-          "merchantCountryCode": {
+          "merchant_country_code": {
             "type": "string"
           },
-          "transactionAmount": {
+          "transaction_amount": {
             "type": "string",
             "example": "38.02"
           },
-          "transactionCurrencyCode": {
+          "transaction_currency_code": {
             "$ref": "#/components/schemas/Currency"
+          },
+          "phone_number": {
+            "type": "string",
+            "example": "9123456789",
+            "nullable": true,
+            "maxLength": 255
+          },
+          "email": {
+            "type": "string",
+            "example": "johntest@test.com",
+            "nullable": true,
+            "maxLength": 255
+          },
+          "phone_country_code": {
+            "type": "string",
+            "nullable": true
           }
         }
       },
@@ -6320,88 +6510,6 @@
           "greater_than_equal"
         ]
       },
-      "ConfirmIntentAmountDetailsResponse": {
-        "type": "object",
-        "required": [
-          "currency",
-          "external_tax_calculation",
-          "surcharge_calculation",
-          "net_amount",
-          "amount_capturable"
-        ],
-        "properties": {
-          "order_amount": {
-            "type": "integer",
-            "format": "int64",
-            "description": "The payment amount. Amount for the payment in the lowest denomination of the currency, (i.e) in cents for USD denomination, in yen for JPY denomination etc. E.g., Pass 100 to charge $1.00 and 1 for 1¥ since ¥ is a zero-decimal currency. Read more about [the Decimal and Non-Decimal Currencies](https://github.com/juspay/hyperswitch/wiki/Decimal-and-Non%E2%80%90Decimal-Currencies)",
-            "example": 6540,
-            "minimum": 0
-          },
-          "currency": {
-            "$ref": "#/components/schemas/Currency"
-          },
-          "shipping_cost": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/MinorUnit"
-              }
-            ],
-            "nullable": true
-          },
-          "order_tax_amount": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/MinorUnit"
-              }
-            ],
-            "nullable": true
-          },
-          "external_tax_calculation": {
-            "$ref": "#/components/schemas/TaxCalculationOverride"
-          },
-          "surcharge_calculation": {
-            "$ref": "#/components/schemas/SurchargeCalculationOverride"
-          },
-          "surcharge_amount": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/MinorUnit"
-              }
-            ],
-            "nullable": true
-          },
-          "tax_on_surcharge": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/MinorUnit"
-              }
-            ],
-            "nullable": true
-          },
-          "net_amount": {
-            "$ref": "#/components/schemas/MinorUnit"
-          },
-          "amount_to_capture": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/MinorUnit"
-              }
-            ],
-            "nullable": true
-          },
-          "amount_capturable": {
-            "$ref": "#/components/schemas/MinorUnit"
-          },
-          "amount_captured": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/MinorUnit"
-              }
-            ],
-            "nullable": true
-          }
-        }
-      },
       "Connector": {
         "type": "string",
         "description": "A connector is an integration to fulfill payments",
@@ -6430,6 +6538,7 @@
           "checkout",
           "coinbase",
           "cryptopay",
+          "ctp_mastercard",
           "cybersource",
           "datatrans",
           "deutschebank",
@@ -6448,6 +6557,7 @@
           "helcim",
           "iatapay",
           "itaubank",
+          "jpmorgan",
           "klarna",
           "mifinity",
           "mollie",
@@ -7250,13 +7360,20 @@
       "CustomerDeleteResponse": {
         "type": "object",
         "required": [
+          "id",
           "merchant_reference_id",
           "customer_deleted",
           "address_deleted",
-          "payment_methods_deleted",
-          "id"
+          "payment_methods_deleted"
         ],
         "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique identifier for the customer",
+            "example": "12345_cus_01926c58bc6e77c09e809964e72af8c8",
+            "maxLength": 64,
+            "minLength": 32
+          },
           "merchant_reference_id": {
             "type": "string",
             "description": "The identifier for the customer object",
@@ -7277,10 +7394,6 @@
             "type": "boolean",
             "description": "Whether payment methods deleted or not",
             "example": false
-          },
-          "id": {
-            "type": "string",
-            "description": "Global id"
           }
         }
       },
@@ -7396,9 +7509,9 @@
           "customer_id": {
             "type": "string",
             "description": "The unique identifier of the customer.",
-            "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
+            "example": "12345_cus_01926c58bc6e77c09e809964e72af8c8",
             "maxLength": 64,
-            "minLength": 1
+            "minLength": 32
           },
           "payment_method_type": {
             "$ref": "#/components/schemas/PaymentMethod"
@@ -7563,16 +7676,24 @@
             "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500\ncharacters long. Metadata is useful for storing additional, structured information on an\nobject.",
             "nullable": true
           }
-        }
+        },
+        "additionalProperties": false
       },
       "CustomerResponse": {
         "type": "object",
         "required": [
+          "id",
           "merchant_reference_id",
-          "created_at",
-          "id"
+          "created_at"
         ],
         "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique identifier for the customer",
+            "example": "12345_cus_01926c58bc6e77c09e809964e72af8c8",
+            "maxLength": 64,
+            "minLength": 32
+          },
           "merchant_reference_id": {
             "type": "string",
             "description": "The identifier for the customer object",
@@ -7648,12 +7769,86 @@
             "example": "pm_djh2837dwduh890123",
             "nullable": true,
             "maxLength": 64
-          },
-          "id": {
-            "type": "string",
-            "description": "Global id"
           }
         }
+      },
+      "CustomerUpdateRequest": {
+        "type": "object",
+        "required": [
+          "name",
+          "email"
+        ],
+        "properties": {
+          "merchant_reference_id": {
+            "type": "string",
+            "description": "The merchant identifier for the customer object.",
+            "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
+            "nullable": true,
+            "maxLength": 64,
+            "minLength": 1
+          },
+          "name": {
+            "type": "string",
+            "description": "The customer's name",
+            "example": "Jon Test",
+            "maxLength": 255
+          },
+          "email": {
+            "type": "string",
+            "description": "The customer's email address",
+            "example": "JonTest@test.com",
+            "maxLength": 255
+          },
+          "phone": {
+            "type": "string",
+            "description": "The customer's phone number",
+            "example": "9123456789",
+            "nullable": true,
+            "maxLength": 255
+          },
+          "description": {
+            "type": "string",
+            "description": "An arbitrary string that you can attach to a customer object.",
+            "example": "First Customer",
+            "nullable": true,
+            "maxLength": 255
+          },
+          "phone_country_code": {
+            "type": "string",
+            "description": "The country code for the customer phone number",
+            "example": "+65",
+            "nullable": true,
+            "maxLength": 255
+          },
+          "default_billing_address": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AddressDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "default_shipping_address": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AddressDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "metadata": {
+            "type": "object",
+            "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500\ncharacters long. Metadata is useful for storing additional, structured information on an\nobject.",
+            "nullable": true
+          },
+          "default_payment_method_id": {
+            "type": "string",
+            "description": "The unique identifier of the payment method",
+            "example": "card_rGK4Vi5iSW70MY7J2mIg",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
       },
       "DecoupledAuthenticationType": {
         "type": "string",
@@ -8395,6 +8590,14 @@
               "type": "string"
             },
             "description": "Additional tags to be used for global search",
+            "nullable": true
+          },
+          "apple_pay_recurring_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ApplePayRecurringDetails"
+              }
+            ],
             "nullable": true
           }
         }
@@ -11766,70 +11969,6 @@
           }
         }
       },
-      "OrderDetails": {
-        "type": "object",
-        "required": [
-          "product_name",
-          "quantity"
-        ],
-        "properties": {
-          "product_name": {
-            "type": "string",
-            "description": "Name of the product that is being purchased",
-            "example": "shirt",
-            "maxLength": 255
-          },
-          "quantity": {
-            "type": "integer",
-            "format": "int32",
-            "description": "The quantity of the product to be purchased",
-            "example": 1,
-            "minimum": 0
-          },
-          "requires_shipping": {
-            "type": "boolean",
-            "nullable": true
-          },
-          "product_img_link": {
-            "type": "string",
-            "description": "The image URL of the product",
-            "nullable": true
-          },
-          "product_id": {
-            "type": "string",
-            "description": "ID of the product that is being purchased",
-            "nullable": true
-          },
-          "category": {
-            "type": "string",
-            "description": "Category of the product that is being purchased",
-            "nullable": true
-          },
-          "sub_category": {
-            "type": "string",
-            "description": "Sub category of the product that is being purchased",
-            "nullable": true
-          },
-          "brand": {
-            "type": "string",
-            "description": "Brand of the product that is being purchased",
-            "nullable": true
-          },
-          "product_type": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/ProductType"
-              }
-            ],
-            "nullable": true
-          },
-          "product_tax_code": {
-            "type": "string",
-            "description": "The tax code for the product",
-            "nullable": true
-          }
-        }
-      },
       "OrderDetailsWithAmount": {
         "type": "object",
         "required": [
@@ -11852,7 +11991,21 @@
             "minimum": 0
           },
           "amount": {
-            "$ref": "#/components/schemas/MinorUnit"
+            "type": "integer",
+            "format": "int64",
+            "description": "the amount per quantity of product"
+          },
+          "tax_rate": {
+            "type": "number",
+            "format": "double",
+            "description": "tax rate applicable to the product",
+            "nullable": true
+          },
+          "total_tax_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "total tax amount applicable to the product",
+            "nullable": true
           },
           "requires_shipping": {
             "type": "boolean",
@@ -12276,6 +12429,17 @@
           {
             "type": "object",
             "required": [
+              "klarna_checkout"
+            ],
+            "properties": {
+              "klarna_checkout": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
               "affirm_redirect"
             ],
             "properties": {
@@ -12383,6 +12547,88 @@
           }
         }
       },
+      "PaymentAmountDetailsResponse": {
+        "type": "object",
+        "required": [
+          "currency",
+          "external_tax_calculation",
+          "surcharge_calculation",
+          "net_amount",
+          "amount_capturable"
+        ],
+        "properties": {
+          "order_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The payment amount. Amount for the payment in the lowest denomination of the currency, (i.e) in cents for USD denomination, in yen for JPY denomination etc. E.g., Pass 100 to charge $1.00 and 1 for 1¥ since ¥ is a zero-decimal currency. Read more about [the Decimal and Non-Decimal Currencies](https://github.com/juspay/hyperswitch/wiki/Decimal-and-Non%E2%80%90Decimal-Currencies)",
+            "example": 6540,
+            "minimum": 0
+          },
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
+          },
+          "shipping_cost": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
+          },
+          "order_tax_amount": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
+          },
+          "external_tax_calculation": {
+            "$ref": "#/components/schemas/TaxCalculationOverride"
+          },
+          "surcharge_calculation": {
+            "$ref": "#/components/schemas/SurchargeCalculationOverride"
+          },
+          "surcharge_amount": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
+          },
+          "tax_on_surcharge": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
+          },
+          "net_amount": {
+            "$ref": "#/components/schemas/MinorUnit"
+          },
+          "amount_to_capture": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
+          },
+          "amount_capturable": {
+            "$ref": "#/components/schemas/MinorUnit"
+          },
+          "amount_captured": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
       "PaymentAttemptResponse": {
         "type": "object",
         "required": [
@@ -12405,6 +12651,13 @@
             "format": "int64",
             "description": "The payment attempt amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,",
             "example": 6540
+          },
+          "order_tax_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The payment attempt tax_amount.",
+            "example": 6540,
+            "nullable": true
           },
           "currency": {
             "allOf": [
@@ -12717,6 +12970,11 @@
             "type": "boolean",
             "description": "Toggle for HyperSwitch branding visibility",
             "nullable": true
+          },
+          "payment_button_text": {
+            "type": "string",
+            "description": "Text for payment link's handle confirm button",
+            "nullable": true
           }
         }
       },
@@ -12801,6 +13059,11 @@
                 "$ref": "#/components/schemas/PaymentLinkDetailsLayout"
               }
             ],
+            "nullable": true
+          },
+          "payment_button_text": {
+            "type": "string",
+            "description": "Text for payment link's handle confirm button",
             "nullable": true
           }
         }
@@ -13127,9 +13390,9 @@
           "customer_id": {
             "type": "string",
             "description": "The unique identifier of the customer.",
-            "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
+            "example": "12345_cus_01926c58bc6e77c09e809964e72af8c8",
             "maxLength": 64,
-            "minLength": 1
+            "minLength": 32
           },
           "payment_method_data": {
             "$ref": "#/components/schemas/PaymentMethodCreateData"
@@ -13616,16 +13879,11 @@
       "PaymentMethodIntentConfirm": {
         "type": "object",
         "required": [
-          "client_secret",
           "payment_method_data",
           "payment_method_type",
           "payment_method_subtype"
         ],
         "properties": {
-          "client_secret": {
-            "type": "string",
-            "description": "For SDK based calls, client_secret would be required"
-          },
           "customer_id": {
             "type": "string",
             "description": "The unique identifier of the customer.",
@@ -13668,9 +13926,9 @@
           "customer_id": {
             "type": "string",
             "description": "The unique identifier of the customer.",
-            "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
+            "example": "12345_cus_01926c58bc6e77c09e809964e72af8c8",
             "maxLength": 64,
-            "minLength": 1
+            "minLength": 32
           }
         },
         "additionalProperties": false
@@ -13859,6 +14117,7 @@
         "type": "object",
         "required": [
           "merchant_id",
+          "customer_id",
           "payment_method_id",
           "payment_method_type",
           "recurring_enabled"
@@ -13872,10 +14131,9 @@
           "customer_id": {
             "type": "string",
             "description": "The unique identifier of the customer.",
-            "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
-            "nullable": true,
+            "example": "12345_cus_01926c58bc6e77c09e809964e72af8c8",
             "maxLength": 64,
-            "minLength": 1
+            "minLength": 32
           },
           "payment_method_id": {
             "type": "string",
@@ -13911,7 +14169,7 @@
             "example": "2024-02-24T11:04:09.922Z",
             "nullable": true
           },
-          "client_secret": {
+          "ephemeral_key": {
             "type": "string",
             "description": "For Client based calls",
             "nullable": true
@@ -14060,14 +14318,6 @@
         "properties": {
           "payment_method_data": {
             "$ref": "#/components/schemas/PaymentMethodUpdateData"
-          },
-          "client_secret": {
-            "type": "string",
-            "description": "This is a 15 minute expiry token which shall be used from the client to authenticate and perform sessions from the SDK",
-            "example": "secret_k2uj3he2893eiu2d",
-            "nullable": true,
-            "maxLength": 30,
-            "minLength": 30
           }
         },
         "additionalProperties": false
@@ -14228,42 +14478,12 @@
       },
       "PaymentsCaptureRequest": {
         "type": "object",
-        "required": [
-          "amount_to_capture"
-        ],
         "properties": {
-          "merchant_id": {
-            "type": "string",
-            "description": "The unique identifier for the merchant",
-            "nullable": true
-          },
           "amount_to_capture": {
             "type": "integer",
             "format": "int64",
-            "description": "The Amount to be captured/ debited from the user's payment method.",
-            "example": 6540
-          },
-          "refund_uncaptured_amount": {
-            "type": "boolean",
-            "description": "Decider to refund the uncaptured amount",
-            "nullable": true
-          },
-          "statement_descriptor_suffix": {
-            "type": "string",
-            "description": "Provides information about a card payment that customers see on their statements.",
-            "nullable": true
-          },
-          "statement_descriptor_prefix": {
-            "type": "string",
-            "description": "Concatenated with the statement descriptor suffix that’s set on the account to form the complete statement descriptor.",
-            "nullable": true
-          },
-          "merchant_connector_details": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/MerchantConnectorDetailsWrap"
-              }
-            ],
+            "description": "The Amount to be captured/ debited from the user's payment method. If not passed the full amount will be captured.",
+            "example": 6540,
             "nullable": true
           }
         }
@@ -14346,6 +14566,7 @@
           "id",
           "status",
           "amount",
+          "customer_id",
           "connector",
           "client_secret",
           "created",
@@ -14365,7 +14586,14 @@
             "$ref": "#/components/schemas/IntentStatus"
           },
           "amount": {
-            "$ref": "#/components/schemas/ConfirmIntentAmountDetailsResponse"
+            "$ref": "#/components/schemas/PaymentAmountDetailsResponse"
+          },
+          "customer_id": {
+            "type": "string",
+            "description": "The identifier for the customer",
+            "example": "12345_cus_01926c58bc6e77c09e809964e72af8c8",
+            "maxLength": 64,
+            "minLength": 32
           },
           "connector": {
             "type": "string",
@@ -14441,7 +14669,8 @@
       "PaymentsCreateIntentRequest": {
         "type": "object",
         "required": [
-          "amount_details"
+          "amount_details",
+          "customer_id"
         ],
         "properties": {
           "amount_details": {
@@ -14496,10 +14725,9 @@
           "customer_id": {
             "type": "string",
             "description": "The identifier for the customer",
-            "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
-            "nullable": true,
+            "example": "12345_cus_01926c58bc6e77c09e809964e72af8c8",
             "maxLength": 64,
-            "minLength": 1
+            "minLength": 32
           },
           "customer_present": {
             "allOf": [
@@ -15354,6 +15582,7 @@
           "profile_id",
           "capture_method",
           "authentication_type",
+          "customer_id",
           "customer_present",
           "setup_future_usage",
           "apply_mit_exemption",
@@ -15426,10 +15655,9 @@
           "customer_id": {
             "type": "string",
             "description": "The identifier for the customer",
-            "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
-            "nullable": true,
+            "example": "12345_cus_01926c58bc6e77c09e809964e72af8c8",
             "maxLength": 64,
-            "minLength": 1
+            "minLength": 32
           },
           "customer_present": {
             "$ref": "#/components/schemas/PresenceOfCustomerDuringPayment"
@@ -16129,6 +16357,7 @@
           "id",
           "status",
           "amount",
+          "customer_id",
           "client_secret",
           "created"
         ],
@@ -16144,7 +16373,14 @@
             "$ref": "#/components/schemas/IntentStatus"
           },
           "amount": {
-            "$ref": "#/components/schemas/ConfirmIntentAmountDetailsResponse"
+            "$ref": "#/components/schemas/PaymentAmountDetailsResponse"
+          },
+          "customer_id": {
+            "type": "string",
+            "description": "The identifier for the customer",
+            "example": "12345_cus_01926c58bc6e77c09e809964e72af8c8",
+            "maxLength": 64,
+            "minLength": 32
           },
           "connector": {
             "type": "string",
@@ -18391,6 +18627,16 @@
           "propertyName": "type"
         }
       },
+      "RecurringPaymentIntervalUnit": {
+        "type": "string",
+        "enum": [
+          "year",
+          "month",
+          "day",
+          "hour",
+          "minute"
+        ]
+      },
       "RedirectResponse": {
         "type": "object",
         "properties": {
@@ -19246,6 +19492,7 @@
           "helcim",
           "iatapay",
           "itaubank",
+          "jpmorgan",
           "klarna",
           "mifinity",
           "mollie",

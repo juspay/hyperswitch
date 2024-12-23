@@ -1000,6 +1000,7 @@ impl TryFrom<&domain::payments::PayLaterData> for StripePaymentMethodType {
             }
 
             domain::PayLaterData::KlarnaSdk { .. }
+            | domain::PayLaterData::KlarnaCheckout {}
             | domain::PayLaterData::PayBrightRedirect {}
             | domain::PayLaterData::WalleyRedirect {}
             | domain::PayLaterData::AlmaRedirect {}
@@ -1715,7 +1716,13 @@ impl TryFrom<(&types::PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntent
         };
         let mut payment_method_options = None;
 
-        let (mut payment_data, payment_method, billing_address, payment_method_types) = {
+        let (
+            mut payment_data,
+            payment_method,
+            billing_address,
+            payment_method_types,
+            setup_future_usage,
+        ) = {
             match item
                 .request
                 .mandate_id
@@ -1729,6 +1736,7 @@ impl TryFrom<(&types::PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntent
                     connector_mandate_ids.get_connector_mandate_id(),
                     StripeBillingAddress::default(),
                     get_payment_method_type_for_saved_payment_method_payment(item)?,
+                    None,
                 ),
                 Some(api_models::payments::MandateReferenceId::NetworkMandateId(
                     network_transaction_id,
@@ -1795,9 +1803,10 @@ impl TryFrom<(&types::PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntent
                         None,
                         StripeBillingAddress::default(),
                         None,
+                        None,
                     )
                 }
-                _ => {
+                Some(api_models::payments::MandateReferenceId::NetworkTokenWithNTI(_)) | None => {
                     let (payment_method_data, payment_method_type, billing_address) =
                         create_stripe_payment_method(
                             &item.request.payment_method_data,
@@ -1820,6 +1829,7 @@ impl TryFrom<(&types::PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntent
                         None,
                         billing_address,
                         payment_method_type,
+                        item.request.setup_future_usage,
                     )
                 }
             }
@@ -1983,7 +1993,7 @@ impl TryFrom<(&types::PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntent
             customer,
             setup_mandate_details,
             off_session: item.request.off_session,
-            setup_future_usage: item.request.setup_future_usage,
+            setup_future_usage,
             payment_method_types,
             expand: Some(ExpandableObjects::LatestCharge),
             browser_info,

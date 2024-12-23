@@ -1,6 +1,7 @@
-pub mod payment;
-pub mod payment_methods;
-pub mod refunds;
+pub(super) mod customer;
+pub(super) mod payment;
+pub(super) mod payment_methods;
+pub(super) mod refunds;
 
 use diesel::{backend::Backend, deserialize::FromSql, serialize::ToSql, sql_types};
 use error_stack::ResultExt;

@@ -1,2 +1,2 @@
 -- This file should undo anything in `up.sql`
-SELECT 1;
+UPDATE user_roles SET entity_type = NULL WHERE version = 'v1';

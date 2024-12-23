@@ -476,7 +476,7 @@ impl Capturable for PaymentsSyncData {
         payment_data
             .payment_attempt
             .amount_details
-            .amount_to_capture
+            .get_amount_to_capture()
             .or_else(|| Some(payment_data.payment_attempt.get_total_amount()))
             .map(|amt| amt.get_amount_as_i64())
     }
@@ -880,6 +880,7 @@ impl ForeignFrom<&SetupMandateRouterData> for PaymentsAuthorizeData {
             email: data.request.email.clone(),
             customer_name: data.request.customer_name.clone(),
             amount: 0,
+            order_tax_amount: Some(MinorUnit::zero()),
             minor_amount: MinorUnit::new(0),
             statement_descriptor: None,
             capture_method: None,

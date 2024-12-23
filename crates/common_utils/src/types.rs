@@ -1399,6 +1399,15 @@ pub struct BrowserInformation {
 
     /// User-agent of the browser
     pub user_agent: Option<String>,
+
+    /// The os type of the client device
+    pub os_type: Option<String>,
+
+    /// The os version of the client device
+    pub os_version: Option<String>,
+
+    /// The device model of the client
+    pub device_model: Option<String>,
 }
 
 #[cfg(feature = "v2")]

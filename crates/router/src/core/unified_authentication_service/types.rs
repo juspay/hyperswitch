@@ -41,7 +41,7 @@ pub trait UnifiedAuthenticationService<F: Clone + Sync> {
         _merchant_connector_account: &MerchantConnectorAccountType,
         _connector_name: &str,
         _payment_method: common_enums::PaymentMethod,
-    ) -> RouterResult<Option<hyperswitch_domain_models::payment_method_data::NetworkTokenData>>;
+    ) -> RouterResult<hyperswitch_domain_models::types::UasPostAuthenticationRouterData>;
 
     fn confirmation(
         _state: &SessionState,

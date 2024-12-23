@@ -1741,6 +1741,53 @@ pub enum RefundStatus {
     strum::EnumIter,
     serde::Serialize,
     serde::Deserialize,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+pub enum RelayStatus {
+    Created,
+    #[default]
+    Pending,
+    Success,
+    Failure,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    strum::Display,
+    strum::EnumString,
+    strum::EnumIter,
+    serde::Serialize,
+    serde::Deserialize,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+pub enum RelayType {
+    Refund,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    Hash,
+    PartialEq,
+    strum::Display,
+    strum::EnumString,
+    strum::EnumIter,
+    serde::Serialize,
+    serde::Deserialize,
 )]
 #[router_derive::diesel_enum(storage_type = "db_enum")]
 #[strum(serialize_all = "snake_case")]
@@ -2591,12 +2638,17 @@ pub enum AuthenticationConnectors {
     Threedsecureio,
     Netcetera,
     Gpayments,
+    CtpMastercard,
+    UnifiedAuthenticationService,
 }
 
 impl AuthenticationConnectors {
     pub fn is_separate_version_call_required(self) -> bool {
         match self {
-            Self::Threedsecureio | Self::Netcetera => false,
+            Self::Threedsecureio
+            | Self::Netcetera
+            | Self::CtpMastercard
+            | Self::UnifiedAuthenticationService => false,
             Self::Gpayments => true,
         }
     }
@@ -3373,6 +3425,26 @@ impl From<ConnectorType> for TransactionType {
             #[cfg(feature = "payouts")]
             ConnectorType::PayoutProcessor => Self::Payout,
             _ => Self::Payment,
+        }
+    }
+}
+
+impl From<RefundStatus> for RelayStatus {
+    fn from(refund_status: RefundStatus) -> Self {
+        match refund_status {
+            RefundStatus::Failure | RefundStatus::TransactionFailure => Self::Failure,
+            RefundStatus::ManualReview | RefundStatus::Pending => Self::Pending,
+            RefundStatus::Success => Self::Success,
+        }
+    }
+}
+
+impl From<RelayStatus> for RefundStatus {
+    fn from(relay_status: RelayStatus) -> Self {
+        match relay_status {
+            RelayStatus::Failure => Self::Failure,
+            RelayStatus::Pending | RelayStatus::Created => Self::Pending,
+            RelayStatus::Success => Self::Success,
         }
     }
 }

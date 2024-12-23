@@ -6,7 +6,7 @@ use std::{
 #[cfg(feature = "olap")]
 use analytics::{opensearch::OpenSearchConfig, ReportConfig};
 use api_models::{enums, payment_methods::RequiredFieldInfo};
-use common_utils::{ext_traits::ConfigExt, id_type};
+use common_utils::{ext_traits::ConfigExt, id_type, types::theme::EmailThemeConfig};
 use config::{Environment, File};
 use error_stack::ResultExt;
 #[cfg(feature = "email")]
@@ -128,7 +128,7 @@ pub struct Settings<S: SecretState> {
     pub network_tokenization_supported_card_networks: NetworkTokenizationSupportedCardNetworks,
     pub network_tokenization_service: Option<SecretStateContainer<NetworkTokenizationService, S>>,
     pub network_tokenization_supported_connectors: NetworkTokenizationSupportedConnectors,
-    pub theme_storage: FileStorageConfig,
+    pub theme: ThemeSettings,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -169,6 +169,12 @@ pub struct Tenant {
     pub schema: String,
     pub redis_key_prefix: String,
     pub clickhouse_database: String,
+    pub user: TenantUserConfig,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct TenantUserConfig {
+    pub control_center_url: String,
 }
 
 impl storage_impl::config::TenantConfig for Tenant {
@@ -887,7 +893,8 @@ impl Settings<SecuredSecret> {
             .validate()
             .map_err(|err| ApplicationError::InvalidConfigurationValueError(err.into()))?;
 
-        self.theme_storage
+        self.theme
+            .storage
             .validate()
             .map_err(|err| ApplicationError::InvalidConfigurationValueError(err.to_string()))?;
 
@@ -990,6 +997,12 @@ impl Default for CellInformation {
             id_type::CellId::from_string("defid").expect("Failed to create a default for Cell Id");
         Self { id: cell_id }
     }
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct ThemeSettings {
+    pub storage: FileStorageConfig,
+    pub email_config: EmailThemeConfig,
 }
 
 fn deserialize_hashmap_inner<K, V>(
@@ -1123,6 +1136,7 @@ impl<'de> Deserialize<'de> for TenantConfig {
             schema: String,
             redis_key_prefix: String,
             clickhouse_database: String,
+            user: TenantUserConfig,
         }
 
         let hashmap = <HashMap<id_type::TenantId, Inner>>::deserialize(deserializer)?;
@@ -1139,6 +1153,7 @@ impl<'de> Deserialize<'de> for TenantConfig {
                             schema: value.schema,
                             redis_key_prefix: value.redis_key_prefix,
                             clickhouse_database: value.clickhouse_database,
+                            user: value.user,
                         },
                     )
                 })
