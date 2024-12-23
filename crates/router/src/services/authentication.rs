@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use actix_web::http::header::HeaderMap;
 #[cfg(all(
     any(feature = "v2", feature = "v1"),
@@ -11,7 +13,11 @@ use api_models::payouts;
 use api_models::{payment_methods::PaymentMethodListRequest, payments};
 use async_trait::async_trait;
 use common_enums::TokenPurpose;
+#[cfg(feature = "v2")]
+use common_utils::fp_utils;
 use common_utils::{date_time, id_type};
+#[cfg(feature = "v2")]
+use diesel_models::ephemeral_key;
 use error_stack::{report, ResultExt};
 use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
 use masking::PeekInterface;
@@ -538,6 +544,15 @@ where
             .change_context(errors::ApiErrorResponse::Unauthorized)
             .attach_printable("Failed to fetch merchant key store for the merchant id")?;
 
+        let profile_id =
+            get_header_value_by_key(headers::X_PROFILE_ID.to_string(), request_headers)?
+                .map(id_type::ProfileId::from_str)
+                .transpose()
+                .change_context(errors::ValidationError::IncorrectValueProvided {
+                    field_name: "X-Profile-Id",
+                })
+                .change_context(errors::ApiErrorResponse::Unauthorized)?;
+
         let merchant = state
             .store()
             .find_merchant_account_by_merchant_id(
@@ -551,7 +566,7 @@ where
         let auth = AuthenticationData {
             merchant_account: merchant,
             key_store,
-            profile_id: None,
+            profile_id,
         };
         Ok((
             auth.clone(),
@@ -1329,6 +1344,7 @@ where
 #[derive(Debug)]
 pub struct EphemeralKeyAuth;
 
+#[cfg(feature = "v1")]
 #[async_trait]
 impl<A> AuthenticateAndFetch<AuthenticationData, A> for EphemeralKeyAuth
 where
@@ -1346,6 +1362,45 @@ where
             .get_ephemeral_key(api_key)
             .await
             .change_context(errors::ApiErrorResponse::Unauthorized)?;
+
+        MerchantIdAuth(ephemeral_key.merchant_id)
+            .authenticate_and_fetch(request_headers, state)
+            .await
+    }
+}
+
+#[cfg(feature = "v2")]
+#[async_trait]
+impl<A> AuthenticateAndFetch<AuthenticationData, A> for EphemeralKeyAuth
+where
+    A: SessionStateInfo + Sync,
+{
+    async fn authenticate_and_fetch(
+        &self,
+        request_headers: &HeaderMap,
+        state: &A,
+    ) -> RouterResult<(AuthenticationData, AuthenticationType)> {
+        let api_key =
+            get_api_key(request_headers).change_context(errors::ApiErrorResponse::Unauthorized)?;
+        let ephemeral_key = state
+            .store()
+            .get_ephemeral_key(api_key)
+            .await
+            .change_context(errors::ApiErrorResponse::Unauthorized)?;
+
+        let resource_type = HeaderMapStruct::new(request_headers)
+            .get_mandatory_header_value_by_key(headers::X_RESOURCE_TYPE)
+            .and_then(|val| {
+                ephemeral_key::ResourceType::from_str(val).change_context(
+                    errors::ApiErrorResponse::InvalidRequestData {
+                        message: format!("`{}` header is invalid", headers::X_RESOURCE_TYPE),
+                    },
+                )
+            })?;
+
+        fp_utils::when(resource_type != ephemeral_key.resource_type, || {
+            Err(errors::ApiErrorResponse::Unauthorized)
+        })?;
 
         MerchantIdAuth(ephemeral_key.merchant_id)
             .authenticate_and_fetch(request_headers, state)
@@ -2938,13 +2993,6 @@ impl ClientSecretFetch for PaymentMethodCreate {
     }
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-impl ClientSecretFetch for PaymentMethodIntentConfirm {
-    fn get_client_secret(&self) -> Option<&String> {
-        Some(&self.client_secret)
-    }
-}
-
 impl ClientSecretFetch for api_models::cards_info::CardsInfoRequest {
     fn get_client_secret(&self) -> Option<&String> {
         self.client_secret.as_ref()
@@ -2969,6 +3017,7 @@ impl ClientSecretFetch for api_models::pm_auth::ExchangeTokenCreateRequest {
     }
 }
 
+#[cfg(feature = "v1")]
 impl ClientSecretFetch for api_models::payment_methods::PaymentMethodUpdate {
     fn get_client_secret(&self) -> Option<&String> {
         self.client_secret.as_ref()
@@ -3059,6 +3108,20 @@ where
     }
 }
 
+pub fn is_ephemeral_or_publishible_auth<A: SessionStateInfo + Sync + Send>(
+    headers: &HeaderMap,
+) -> RouterResult<Box<dyn AuthenticateAndFetch<AuthenticationData, A>>> {
+    let api_key = get_api_key(headers)?;
+
+    if api_key.starts_with("epk") {
+        Ok(Box::new(EphemeralKeyAuth))
+    } else if api_key.starts_with("pk_") {
+        Ok(Box::new(HeaderAuth(PublishableKeyAuth)))
+    } else {
+        Ok(Box::new(HeaderAuth(ApiKeyAuth)))
+    }
+}
+
 pub fn is_ephemeral_auth<A: SessionStateInfo + Sync + Send>(
     headers: &HeaderMap,
 ) -> RouterResult<Box<dyn AuthenticateAndFetch<AuthenticationData, A>>> {
@@ -3109,7 +3172,7 @@ pub fn get_header_value_by_key(key: String, headers: &HeaderMap) -> RouterResult
         })
         .transpose()
 }
-pub fn get_id_type_by_key_from_headers<T: std::str::FromStr>(
+pub fn get_id_type_by_key_from_headers<T: FromStr>(
     key: String,
     headers: &HeaderMap,
 ) -> RouterResult<Option<T>> {

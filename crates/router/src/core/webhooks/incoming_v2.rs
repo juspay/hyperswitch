@@ -20,7 +20,10 @@ use crate::{
         api_locking,
         errors::{self, ConnectorErrorExt, CustomResult, RouterResponse, StorageErrorExt},
         metrics,
-        payments::{self, transformers::ToResponse},
+        payments::{
+            self,
+            transformers::{GenerateResponse, ToResponse},
+        },
         webhooks::utils::construct_webhook_router_data,
     },
     db::StorageInterface,
@@ -433,12 +436,8 @@ async fn payments_incoming_webhook_flow(
                 ))
                 .await?;
 
-            let response = api_models::payments::PaymentsRetrieveResponse::generate_response(
-                payment_data,
-                customer,
-                &state.base_url,
-                payments::operations::PaymentGet,
-                &state.conf.connector_request_reference_id_config,
+            let response = payment_data.generate_response(
+                &state,
                 connector_http_status_code,
                 external_latency,
                 None,

@@ -14,6 +14,7 @@ env:
   CARGO_INCREMENTAL: 0
   CARGO_NET_RETRY: 10
   PAYMENTS_CONNECTORS: "cybersource stripe"
+  PAYOUTS_CONNECTORS: "adyenplatform wise"
   RUST_BACKTRACE: short
   RUSTUP_MAX_RETRIES: 10
   RUN_TESTS: ${{ ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)) || (github.event_name == 'merge_group')}}
@@ -127,7 +128,7 @@ jobs:
           CONNECTOR_AUTH_PASSPHRASE: ${{ secrets.CONNECTOR_AUTH_PASSPHRASE }}
           CONNECTOR_CREDS_S3_BUCKET_URI: ${{ secrets.CONNECTOR_CREDS_S3_BUCKET_URI}}
           DESTINATION_FILE_NAME: "creds.json.gpg"
-          S3_SOURCE_FILE_NAME: "6f8289a9-6da0-433b-8a24-18d4d7257b7f.json.gpg"
+          S3_SOURCE_FILE_NAME: "aa328308-b34e-41b7-a590-4fe45cfe7991.json.gpg"
         shell: bash
         run: |
           mkdir -p ".github/secrets" ".github/test"
