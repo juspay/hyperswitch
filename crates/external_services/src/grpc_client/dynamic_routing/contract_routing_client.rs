@@ -1,4 +1,3 @@
-use crate::grpc_client::{AddHeaders, GrpcHeaders};
 use api_models::routing::{
     ContractBasedRoutingConfig, ContractBasedRoutingConfigBody, ContractBasedTimeScale,
     LabelInformation, RoutableConnectorChoice, RoutableConnectorChoiceWithStatus,
@@ -14,6 +13,8 @@ pub use contract_routing::{
     UpdateContractRequest, UpdateContractResponse,
 };
 use error_stack::ResultExt;
+
+use crate::grpc_client::{AddHeaders, GrpcHeaders};
 #[allow(
     missing_docs,
     unused_qualifications,
