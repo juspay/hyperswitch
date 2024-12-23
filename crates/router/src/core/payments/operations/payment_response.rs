@@ -1311,7 +1311,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
             .as_mut()
             .map(|info| info.status = status)
     });
-    let (capture_update, mut payment_attempt_update) = match router_data.response.clone() {
+    let (capture_update, mut payment_attempt_update, gsm_error_category) = match router_data.response.clone() {
         Err(err) => {
             let auth_update = if Some(router_data.auth_type)
                 != payment_data.payment_attempt.authentication_type
@@ -1320,7 +1320,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
             } else {
                 None
             };
-            let (capture_update, attempt_update) = match payment_data.multiple_capture_data {
+            let (capture_update, attempt_update, gsm_error_category) = match payment_data.multiple_capture_data {
                 Some(multiple_capture_data) => {
                     let capture_update = storage::CaptureUpdate::ErrorUpdate {
                         status: match err.status_code {
@@ -1343,6 +1343,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                 updated_by: storage_scheme.to_string(),
                             }
                         }),
+                        None,
                     )
                 }
                 None => {
@@ -1359,7 +1360,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
 
                     let gsm_unified_code =
                         option_gsm.as_ref().and_then(|gsm| gsm.unified_code.clone());
-                    let gsm_unified_message = option_gsm.and_then(|gsm| gsm.unified_message);
+                    let gsm_unified_message = option_gsm.clone().and_then(|gsm| gsm.unified_message);
 
                     let (unified_code, unified_message) = if let Some((code, message)) =
                         gsm_unified_code.as_ref().zip(gsm_unified_message.as_ref())
@@ -1431,10 +1432,11 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                             payment_method_data: additional_payment_method_data,
                             authentication_type: auth_update,
                         }),
+                        option_gsm.and_then(|option_gsm| option_gsm.error_category)
                     )
                 }
             };
-            (capture_update, attempt_update)
+            (capture_update, attempt_update, gsm_error_category)
         }
 
         Ok(payments_response) => {
@@ -1468,6 +1470,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                             payment_method_data: None,
                             authentication_type: auth_update,
                         }),
+                        None,
                     )
                 }
                 Ok(()) => {
@@ -1523,7 +1526,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                     updated_by: storage_scheme.to_string(),
                                 };
 
-                            (None, Some(payment_attempt_update))
+                            (None, Some(payment_attempt_update), None)
                         }
                         types::PaymentsResponseData::TransactionResponse {
                             resource_id,
@@ -1737,7 +1740,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                 ),
                             };
 
-                            (capture_updates, payment_attempt_update)
+                            (capture_updates, payment_attempt_update, None)
                         }
                         types::PaymentsResponseData::TransactionUnresolvedResponse {
                             resource_id,
@@ -1765,22 +1768,23 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                     connector_response_reference_id,
                                     updated_by: storage_scheme.to_string(),
                                 }),
+                                None
                             )
                         }
-                        types::PaymentsResponseData::SessionResponse { .. } => (None, None),
-                        types::PaymentsResponseData::SessionTokenResponse { .. } => (None, None),
-                        types::PaymentsResponseData::TokenizationResponse { .. } => (None, None),
+                        types::PaymentsResponseData::SessionResponse { .. } => (None, None, None),
+                        types::PaymentsResponseData::SessionTokenResponse { .. } => (None, None, None),
+                        types::PaymentsResponseData::TokenizationResponse { .. } => (None, None, None),
                         types::PaymentsResponseData::ConnectorCustomerResponse { .. } => {
-                            (None, None)
+                            (None, None, None)
                         }
                         types::PaymentsResponseData::ThreeDSEnrollmentResponse { .. } => {
-                            (None, None)
+                            (None, None, None)
                         }
-                        types::PaymentsResponseData::PostProcessingResponse { .. } => (None, None),
+                        types::PaymentsResponseData::PostProcessingResponse { .. } => (None, None, None),
                         types::PaymentsResponseData::IncrementalAuthorizationResponse {
                             ..
-                        } => (None, None),
-                        types::PaymentsResponseData::SessionUpdateResponse { .. } => (None, None),
+                        } => (None, None, None),
+                        types::PaymentsResponseData::SessionUpdateResponse { .. } => (None, None, None),
                         types::PaymentsResponseData::MultipleCaptureResponse {
                             capture_sync_response_list,
                         } => match payment_data.multiple_capture_data {
@@ -1789,9 +1793,9 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                     &multiple_capture_data,
                                     capture_sync_response_list,
                                 )?;
-                                (Some((multiple_capture_data, capture_update_list)), None)
+                                (Some((multiple_capture_data, capture_update_list)), None, None)
                             }
-                            None => (None, None),
+                            None => (None, None, None),
                         },
                     }
                 }
@@ -2020,25 +2024,35 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                         routing_helpers::push_metrics_with_update_window_for_success_based_routing(
                             &state,
                             &payment_attempt,
-                            routable_connectors,
+                            routable_connectors.clone(),
                             &business_profile,
-                            dynamic_routing_config_params_interpolator,
+                            dynamic_routing_config_params_interpolator.clone(),
                         )
                         .await
                         .map_err(|e| logger::error!(dynamic_routing_metrics_error=?e))
                         .ok();
                     };
-                    if dynamic_routing_config
-                        .elimination_routing_algorithm
-                        .is_some_and(|elimination_algo| {
-                            elimination_algo
-                                .algorithm_id_with_timestamp
-                                .algorithm_id
-                                .is_some()
-                        })
-                    {
-                        // todo - call the update window function for elimination routing
-                        todo!();
+                    if let Some(gsm_error_category) = gsm_error_category {
+                        if dynamic_routing_config
+                            .elimination_routing_algorithm
+                            .is_some_and(|elimination_algo| {
+                                elimination_algo
+                                    .algorithm_id_with_timestamp
+                                    .algorithm_id
+                                    .is_some()
+                            }) && gsm_error_category.should_perform_elimination_routing()
+                        {
+                            routing_helpers::update_window_for_elimination_routing(
+                                &state,
+                                &payment_attempt,
+                                &business_profile,
+                                dynamic_routing_config_params_interpolator,
+                                gsm_error_category,
+                            )
+                            .await
+                            .map_err(|e| logger::error!(dynamic_routing_metrics_error=?e))
+                            .ok();
+                        };
                     };
                 }
                 .in_current_span(),
