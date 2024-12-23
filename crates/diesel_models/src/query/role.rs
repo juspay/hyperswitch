@@ -155,13 +155,12 @@ impl Role {
 
     pub async fn generic_list_roles_by_entity_type(
         conn: &PgPooledConn,
-        entity_type: ListRolesByEntityPayload,
+        payload: ListRolesByEntityPayload,
         is_lineage_data_required: bool,
-        limit: Option<u32>,
     ) -> StorageResult<Vec<Self>> {
         let mut query = <Self as HasTable>::table().into_boxed();
 
-        match entity_type {
+        match payload {
             ListRolesByEntityPayload::Organization(org_id) => {
                 let entity_in_vec =
                     Self::get_enitity_list(EntityType::Organization, is_lineage_data_required);
@@ -199,10 +198,6 @@ impl Role {
                     .filter(dsl::entity_type.eq_any(entity_in_vec))
             }
         };
-
-        if let Some(limit) = limit {
-            query = query.limit(limit.into());
-        }
 
         router_env::logger::debug!(query = %debug_query::<Pg,_>(&query).to_string());
 

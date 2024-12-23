@@ -87,20 +87,18 @@ pub async fn create_role(
 
     let requestor_entity_from_role_scope = EntityType::from(req.role_scope);
 
-    if user_entity_type < role_entity_type {
-        return Err(report!(UserErrors::InvalidRoleOperation)).attach_printable(format!(
-            "{} is trying to create {} ",
-            user_entity_type, role_entity_type
-        ));
-    } else if user_entity_type < requestor_entity_from_role_scope {
-        return Err(report!(UserErrors::InvalidRoleOperation)).attach_printable(format!(
-            "{} is trying to create role of scope {} ",
-            user_entity_type, requestor_entity_from_role_scope
-        ));
-    } else if requestor_entity_from_role_scope < role_entity_type {
+    if requestor_entity_from_role_scope < role_entity_type {
         return Err(report!(UserErrors::InvalidRoleOperation)).attach_printable(format!(
             "User is trying to create role of type {} and scope {}",
             requestor_entity_from_role_scope, role_entity_type
+        ));
+    }
+    let max_from_scope_and_entity = cmp::max(requestor_entity_from_role_scope, role_entity_type);
+
+    if user_entity_type < max_from_scope_and_entity {
+        return Err(report!(UserErrors::InvalidRoleOperation)).attach_printable(format!(
+            "{} is trying to create of scope {} and of type {}",
+            user_entity_type, requestor_entity_from_role_scope, role_entity_type
         ));
     }
 
@@ -237,16 +235,24 @@ pub async fn update_role(
 
     let user_role_info = user_from_token.get_role_info_from_db(&state).await?;
 
-    let max_from_scope_and_entity = cmp::max(
-        user_role_info.get_entity_type(),
-        EntityType::from(role_info.get_scope()),
-    );
+    let requested_entity_from_role_scope = EntityType::from(role_info.get_scope());
+    let requested_role_entity_type = role_info.get_entity_type();
+
+    if requested_entity_from_role_scope < requested_role_entity_type {
+        return Err(report!(UserErrors::InvalidRoleOperation)).attach_printable(format!(
+            "User is trying to create role of type {} and scope {}",
+            requested_entity_from_role_scope, requested_role_entity_type
+        ));
+    }
+    let max_from_scope_and_entity =
+        cmp::max(requested_entity_from_role_scope, requested_role_entity_type);
 
     if user_role_info.get_entity_type() < max_from_scope_and_entity {
         return Err(report!(UserErrors::InvalidRoleOperation)).attach_printable(format!(
-            "{} is trying to update {} ",
+            "{} is trying to create of scope {} and of type {}",
             user_role_info.get_entity_type(),
-            role_info.get_entity_type()
+            requested_entity_from_role_scope,
+            requested_role_entity_type
         ));
     }
 
@@ -316,14 +322,14 @@ pub async fn list_roles_with_info(
         .collect::<Vec<_>>();
 
     let user_role_entity = user_role_info.get_entity_type();
+    let is_lineage_data_required = request.entity_type.is_none();
     let custom_roles =
         match utils::user_role::get_min_entity(user_role_entity, request.entity_type)? {
             EntityType::Tenant | EntityType::Organization => state
                 .store
                 .generic_list_roles_by_entity_type(
                     ListRolesByEntityPayload::Organization(user_from_token.org_id),
-                    request.entity_type.is_none(),
-                    None,
+                    is_lineage_data_required,
                 )
                 .await
                 .change_context(UserErrors::InternalServerError)
@@ -335,8 +341,7 @@ pub async fn list_roles_with_info(
                         user_from_token.org_id,
                         user_from_token.merchant_id,
                     ),
-                    request.entity_type.is_none(),
-                    None,
+                    is_lineage_data_required,
                 )
                 .await
                 .change_context(UserErrors::InternalServerError)
@@ -350,8 +355,7 @@ pub async fn list_roles_with_info(
                         user_from_token.merchant_id,
                         user_from_token.profile_id,
                     ),
-                    request.entity_type.is_none(),
-                    None,
+                    is_lineage_data_required,
                 )
                 .await
                 .change_context(UserErrors::InternalServerError)
@@ -404,13 +408,13 @@ pub async fn list_roles_at_entity_level(
         .map(|(_, role_info)| role_info.clone())
         .collect::<Vec<_>>();
 
+    let is_lineage_data_required = false;
     let custom_roles = match req.entity_type {
         EntityType::Tenant | EntityType::Organization => state
             .store
             .generic_list_roles_by_entity_type(
                 ListRolesByEntityPayload::Organization(user_from_token.org_id),
-                false,
-                None,
+                is_lineage_data_required,
             )
             .await
             .change_context(UserErrors::InternalServerError)
@@ -423,8 +427,7 @@ pub async fn list_roles_at_entity_level(
                     user_from_token.org_id,
                     user_from_token.merchant_id,
                 ),
-                false,
-                None,
+                is_lineage_data_required,
             )
             .await
             .change_context(UserErrors::InternalServerError)
@@ -438,8 +441,7 @@ pub async fn list_roles_at_entity_level(
                     user_from_token.merchant_id,
                     user_from_token.profile_id,
                 ),
-                false,
-                None,
+                is_lineage_data_required,
             )
             .await
             .change_context(UserErrors::InternalServerError)

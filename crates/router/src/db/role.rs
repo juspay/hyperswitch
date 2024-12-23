@@ -61,9 +61,8 @@ pub trait RoleInterface {
 
     async fn generic_list_roles_by_entity_type(
         &self,
-        entity_type: storage::ListRolesByEntityPayload,
+        payload: storage::ListRolesByEntityPayload,
         is_lineage_data_required: bool,
-        limit: Option<u32>,
     ) -> CustomResult<Vec<storage::Role>, errors::StorageError>;
 }
 
@@ -164,19 +163,13 @@ impl RoleInterface for Store {
     #[instrument(skip_all)]
     async fn generic_list_roles_by_entity_type(
         &self,
-        entity_type: storage::ListRolesByEntityPayload,
+        payload: storage::ListRolesByEntityPayload,
         is_lineage_data_required: bool,
-        limit: Option<u32>,
     ) -> CustomResult<Vec<storage::Role>, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
-        storage::Role::generic_list_roles_by_entity_type(
-            &conn,
-            entity_type,
-            is_lineage_data_required,
-            limit,
-        )
-        .await
-        .map_err(|error| report!(errors::StorageError::from(error)))
+        storage::Role::generic_list_roles_by_entity_type(&conn, payload, is_lineage_data_required)
+            .await
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 }
 
@@ -363,15 +356,13 @@ impl RoleInterface for MockDb {
     #[instrument(skip_all)]
     async fn generic_list_roles_by_entity_type(
         &self,
-        entity_type: storage::ListRolesByEntityPayload,
+        payload: storage::ListRolesByEntityPayload,
         is_lineage_data_required: bool,
-        limit: Option<u32>,
     ) -> CustomResult<Vec<storage::Role>, errors::StorageError> {
         let roles = self.roles.lock().await;
-        let limit_usize = limit.unwrap_or(u32::MAX).try_into().unwrap_or(usize::MAX);
         let roles_list: Vec<_> = roles
             .iter()
-            .filter(|role| match &entity_type {
+            .filter(|role| match &payload {
                 storage::ListRolesByEntityPayload::Organization(org_id) => {
                     let entity_in_vec = if is_lineage_data_required {
                         vec![
@@ -432,7 +423,6 @@ impl RoleInterface for MockDb {
                         && entity_in_vec.contains(&role.entity_type)
                 }
             })
-            .take(limit_usize)
             .cloned()
             .collect();
 
