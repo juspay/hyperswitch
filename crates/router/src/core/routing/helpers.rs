@@ -1483,7 +1483,7 @@ pub async fn enable_dynamic_routing_algorithm(
             .await
         }
         routing_types::DynamicRoutingType::ContractBasedRouting => {
-            return Err((errors::ApiErrorResponse::InvalidRequestData {
+            Err((errors::ApiErrorResponse::InvalidRequestData {
                 message: "Contract routing cannot be set as default".to_string(),
             })
             .into())
@@ -1543,9 +1543,8 @@ where
         }
         .into());
     };
-    *algo_type_enabled_features = feature_to_enable.clone();
-    dynamic_routing_algo_ref
-        .update_specific_ref(dynamic_routing_type.clone(), feature_to_enable.clone());
+    *algo_type_enabled_features = feature_to_enable;
+    dynamic_routing_algo_ref.update_specific_ref(dynamic_routing_type, feature_to_enable);
     update_business_profile_active_dynamic_algorithm_ref(
         db,
         &state.into(),

@@ -34,8 +34,6 @@ use super::{
         OperationSessionGetters,
     },
 };
-#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-use crate::core::routing::helpers::DynamicRoutingCache;
 #[cfg(feature = "v1")]
 use crate::utils::ValueExt;
 #[cfg(feature = "v2")]
@@ -487,11 +485,7 @@ pub async fn link_routing_config(
                 },
             )?;
 
-            println!("algo is - {:?}", routing_algorithm.algorithm_data.clone());
-
-            // These checks would be Expensive
-            // A better way to do this would be to have some typed information in the algorithm_data
-            if &routing_algorithm.name == helpers::SUCCESS_BASED_DYNAMIC_ROUTING_ALGORITHM {
+            if routing_algorithm.name == helpers::SUCCESS_BASED_DYNAMIC_ROUTING_ALGORITHM {
                 dynamic_routing_ref.update_algorithm_id(
                 algorithm_id,
                 dynamic_routing_ref
@@ -504,8 +498,7 @@ pub async fn link_routing_config(
                     .enabled_feature,
                 routing_types::DynamicRoutingType::SuccessRateBasedRouting,
             );
-            } else if &routing_algorithm.name
-                == helpers::ELIMINATION_BASED_DYNAMIC_ROUTING_ALGORITHM
+            } else if routing_algorithm.name == helpers::ELIMINATION_BASED_DYNAMIC_ROUTING_ALGORITHM
             {
                 dynamic_routing_ref.update_algorithm_id(
                 algorithm_id,
@@ -519,7 +512,7 @@ pub async fn link_routing_config(
                     .enabled_feature,
                 routing_types::DynamicRoutingType::EliminationRouting,
             );
-            } else if &routing_algorithm.name == helpers::CONTRACT_BASED_DYNAMIC_ROUTING_ALGORITHM {
+            } else if routing_algorithm.name == helpers::CONTRACT_BASED_DYNAMIC_ROUTING_ALGORITHM {
                 dynamic_routing_ref.update_algorithm_id(
                 algorithm_id,
                 dynamic_routing_ref
@@ -1514,7 +1507,7 @@ pub async fn contract_based_dynamic_routing_setup(
                     id: info.mca_id.get_string_repr().to_owned(),
                 })?;
 
-            utils::when(&mca.connector_name != &info.label, || {
+            utils::when(mca.connector_name != info.label, || {
                 Err(errors::ApiErrorResponse::InvalidRequestData {
                     message: "Incorrect mca configuration received".to_string(),
                 })
@@ -1538,7 +1531,7 @@ pub async fn contract_based_dynamic_routing_setup(
     utils::when(
         dynamic_routing_algo_ref
             .as_mut()
-            .map(|algo| {
+            .and_then(|algo| {
                 algo.contract_based_routing.as_mut().map(|contract_algo| {
                     *contract_algo.get_enabled_features() == feature_to_enable
                         && contract_algo
@@ -1548,7 +1541,6 @@ pub async fn contract_based_dynamic_routing_setup(
                             .is_some()
                 })
             })
-            .flatten()
             .unwrap_or(false),
         || {
             Err(errors::ApiErrorResponse::PreconditionFailed {
@@ -1598,13 +1590,12 @@ pub async fn contract_based_dynamic_routing_setup(
             },
             enabled_feature: feature_to_enable,
         };
-        let dynamic_routing_algo_ref = routing_types::DynamicRoutingAlgorithmRef {
+        routing_types::DynamicRoutingAlgorithmRef {
             success_based_algorithm: None,
             elimination_routing_algorithm: None,
             dynamic_routing_volume_split: None,
             contract_based_routing: Some(contract_algo),
-        };
-        dynamic_routing_algo_ref
+        }
     };
 
     match feature_to_enable {
