@@ -969,11 +969,7 @@ Cypress.Commands.add(
 Cypress.Commands.add(
   "sessionTokenCall",
   (sessionTokenBody, data, globalState) => {
-    const {
-      Configs: configs = {},
-      Request: reqData,
-      Response: resData,
-    } = data || {};
+    const { Response: resData } = data || {};
 
     sessionTokenBody.payment_id = globalState.get("paymentID");
     sessionTokenBody.client_secret = globalState.get("clientSecret");
@@ -994,8 +990,6 @@ Cypress.Commands.add(
       logRequestId(response.headers["x-request-id"]);
 
       if (response.status === 200) {
-        console.log("Actual Response:", response.body.session_token);
-
         const expectedTokens = resData.body.session_token;
         const actualTokens = response.body.session_token;
 
@@ -1017,7 +1011,7 @@ Cypress.Commands.add(
           );
         });
       } else {
-        defaultErrorHandler(response, res_data);
+        defaultErrorHandler(response, resData);
       }
     });
   }

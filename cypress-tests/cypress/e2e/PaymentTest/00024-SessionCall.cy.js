@@ -15,10 +15,10 @@ describe("Customer Create flow test", () => {
     cy.task("setGlobalState", globalState.data);
   });
 
-  let should_continue = true; // variable that will be used to skip tests if a previous test fails
+  const shouldContinue = true; // variable that will be used to skip tests if a previous test fails
 
   beforeEach(function () {
-    if (!should_continue) {
+    if (!shouldContinue) {
       this.skip();
     }
   });
