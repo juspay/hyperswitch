@@ -235,6 +235,13 @@
       ]
     },
     {
+      "group": "Relay",
+      "pages": [
+        "api-reference/relay/relay",
+        "api-reference/relay/relay--retrieve"
+      ]
+    },
+    {
       "group": "Schemas",
       "pages": ["api-reference/schemas/outgoing--webhook"]
     }

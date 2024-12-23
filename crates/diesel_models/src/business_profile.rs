@@ -577,6 +577,7 @@ pub struct PaymentLinkConfigRequest {
     pub show_card_form_by_default: Option<bool>,
     pub background_image: Option<PaymentLinkBackgroundImageConfig>,
     pub details_layout: Option<common_enums::PaymentLinkDetailsLayout>,
+    pub payment_button_text: Option<String>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq)]
