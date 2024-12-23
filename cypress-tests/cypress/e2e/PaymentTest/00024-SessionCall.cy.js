@@ -23,28 +23,28 @@ describe("Customer Create flow test", () => {
     }
   });
   it("create-payment-call-test", () => {
+    let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
+
     const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
       "PaymentIntent"
     ];
-    const req_data = data["Request"];
-    const res_data = data["Response"];
+
     cy.createPaymentIntentTest(
       fixtures.createPaymentBody,
-      req_data,
-      res_data,
+      data,
       "no_three_ds",
       "automatic",
       globalState
     );
-    if (should_continue)
-      should_continue = utils.should_continue_further(res_data);
+
+    if (shouldContinue) shouldContinue = utils.should_continue_further(data);
   });
+
   it("session-call-test", () => {
     const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
       "SessionToken"
     ];
-    const res_data = data["Response"];
 
-    cy.sessionTokenCall(fixtures.sessionTokenBody, res_data, globalState);
+    cy.sessionTokenCall(fixtures.sessionTokenBody, data, globalState);
   });
 });

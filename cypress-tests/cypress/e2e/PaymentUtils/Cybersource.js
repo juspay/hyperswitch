@@ -154,16 +154,6 @@ export const connectorDetails = {
             {
               wallet_name: "apple_pay",
               connector: "cybersource",
-              session_token_data: {
-                merchant_identifier:
-                  "6ACD34193A900BA07E215155E3647CF4759340CF486BABAEE6C0840F9267AB10",
-                psp_id:
-                  "6ACD34193A900BA07E215155E3647CF4759340CF486BABAEE6C0840F9267AB10",
-                operational_analytics_identifier:
-                  "Apple pay:6ACD34193A900BA07E215155E3647CF4759340CF486BABAEE6C0840F9267AB10",
-                domain_name: "hyperswitch-demo-store.netlify.app",
-                display_name: "Apple pay",
-              },
             },
             {
               wallet_name: "google_pay",

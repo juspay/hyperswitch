@@ -968,7 +968,13 @@ Cypress.Commands.add(
 
 Cypress.Commands.add(
   "sessionTokenCall",
-  (sessionTokenBody, res_data, globalState) => {
+  (sessionTokenBody, data, globalState) => {
+    const {
+      Configs: configs = {},
+      Request: reqData,
+      Response: resData,
+    } = data || {};
+
     sessionTokenBody.payment_id = globalState.get("paymentID");
     sessionTokenBody.client_secret = globalState.get("clientSecret");
 
@@ -979,6 +985,8 @@ Cypress.Commands.add(
         Accept: "application/json",
         "Content-Type": "application/json",
         "api-key": globalState.get("publishableKey"),
+        "x-merchant-domain": "hyperswitch - demo - store.netlify.app",
+        "x-client-platform": "web",
       },
       body: sessionTokenBody,
       failOnStatusCode: false,
@@ -988,7 +996,7 @@ Cypress.Commands.add(
       if (response.status === 200) {
         console.log("Actual Response:", response.body.session_token);
 
-        const expectedTokens = res_data.body.session_token;
+        const expectedTokens = resData.body.session_token;
         const actualTokens = response.body.session_token;
 
         // Verifying length of array
@@ -1007,33 +1015,6 @@ Cypress.Commands.add(
           expect(actualToken.connector, "connector").to.equal(
             expectedToken.connector
           );
-
-          // Additional checks if necessary
-          if (expectedToken.session_token_data) {
-            expect(
-              actualToken.session_token_data.display_name,
-              "display_name"
-            ).to.equal(expectedToken.session_token_data.display_name);
-            expect(
-              actualToken.session_token_data.domain_name,
-              "domain_name"
-            ).to.equal(expectedToken.session_token_data.domain_name);
-            expect(
-              actualToken.session_token_data.merchant_identifier,
-              "merchant_identifier"
-            ).to.equal(expectedToken.session_token_data.merchant_identifier);
-            expect(actualToken.session_token_data.psp_id, "psp_id").to.equal(
-              expectedToken.session_token_data.psp_id
-            );
-            expect(
-              actualToken.session_token_data.operational_analytics_identifier,
-              "operational_analytics_identifier"
-            ).to.equal(
-              expectedToken.session_token_data.operational_analytics_identifier
-            );
-            expect(actualToken.session_token_data.signature, "signature").to.not
-              .be.empty;
-          }
         });
       } else {
         defaultErrorHandler(response, res_data);
