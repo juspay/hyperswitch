@@ -200,7 +200,7 @@ pub async fn relay_retrieve(
     })?;
 
     let relay_record_result = db
-        .find_relay_by_id_merchant_id(key_manager_state, &key_store, relay_id)
+        .find_relay_by_id(key_manager_state, &key_store, relay_id)
         .await;
 
     let relay_record = match relay_record_result {

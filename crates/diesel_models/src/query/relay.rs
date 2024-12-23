@@ -36,7 +36,7 @@ impl Relay {
         }
     }
 
-    pub async fn find_by_id_merchant_id(
+    pub async fn find_by_id(
         conn: &PgPooledConn,
         id: &common_utils::id_type::RelayId,
     ) -> StorageResult<Self> {

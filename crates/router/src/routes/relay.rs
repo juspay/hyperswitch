@@ -47,7 +47,7 @@ pub async fn relay_retrieve(
     req: actix_web::HttpRequest,
     query_params: web::Query<api_models::relay::RelayRetrieveBody>,
 ) -> impl Responder {
-    let flow = Flow::Relay;
+    let flow = Flow::RelayRetrieve;
     let relay_retrieve_request = api_models::relay::RelayRetrieveRequest {
         force_sync: query_params.force_sync,
         id: path.into_inner(),
