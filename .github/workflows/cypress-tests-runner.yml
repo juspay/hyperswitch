@@ -20,6 +20,7 @@ env:
   RUN_TESTS: ${{ ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)) || (github.event_name == 'merge_group')}}
   DEBUG: cypress:cli
   RUST_MIN_STACK: 10485760
+  CODECOV_FILE: "lcov.info"
 
 jobs:
   formatter:
@@ -168,13 +169,6 @@ jobs:
         uses: taiki-e/install-action@v2.41.10
         with:
           tool: sccache
-          checksum: true
-
-      - name: Install cargo-nextest
-        if: ${{ env.RUN_TESTS == 'true' }}
-        uses: taiki-e/install-action@v2.41.10
-        with:
-          tool: cargo-nextest
           checksum: true
 
       - name: Install Diesel CLI
@@ -342,20 +336,13 @@ jobs:
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable 2 weeks ago
-          components: clippy
+          components: clippy llvm-tools-preview
 
       - name: Install sccache
         if: ${{ env.RUN_TESTS == 'true' }}
         uses: taiki-e/install-action@v2.41.10
         with:
           tool: sccache
-          checksum: true
-
-      - name: Install cargo-nextest
-        if: ${{ env.RUN_TESTS == 'true' }}
-        uses: taiki-e/install-action@v2.41.10
-        with:
-          tool: cargo-nextest
           checksum: true
 
       - name: Install Diesel CLI
@@ -366,20 +353,18 @@ jobs:
           features: postgres
           args: --no-default-features
 
+      - name: Install grcov
+        if: ${{ env.RUN_TESTS == 'true' }}
+        uses: baptiste0928/cargo-install@v3.1.1
+        with:
+          crate: grcov
+
       - name: Install Just
         if: ${{ env.RUN_TESTS == 'true' }}
         uses: taiki-e/install-action@v2.41.10
         with:
           tool: just
           checksum: true
-
-      - name: Install LLVM-profdata
-        if: ${{ env.RUN_TESTS == 'true' }}
-        run: rustup component add llvm-tools-preview
-
-      - name: Install grcov
-        if: ${{ env.RUN_TESTS == 'true' }}
-        run: cargo install grcov
 
       - name: Install Node.js
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -413,13 +398,12 @@ jobs:
 
       - name: Delete compile-time profraw files
         if: ${{ env.RUN_TESTS == 'true' }}
-        continue-on-error: true
-        run: rm *.profraw
+        run: rm -f *.profraw
 
       - name: Setup Local Server
         if: ${{ env.RUN_TESTS == 'true' }}
         env:
-          LLVM_PROFILE_FILE: "vyapti.profraw"
+          LLVM_PROFILE_FILE: "coverage.profraw"
         run: |
           # Start the server in the background
           target/debug/router &
@@ -459,11 +443,11 @@ jobs:
 
       - name: Process coverage report
         if: env.RUN_TESTS == 'true' && success()
-        run: grcov . -s . -t lcov --output-path "lcov.info" --branch --binary-path ./target/debug
+        run: grcov . -s . -t lcov --output-path ${{ env.CODECOV_FILE }} --branch --binary-path ./target/debug
 
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v5
         if: env.RUN_TESTS == 'true' && success()
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          files: "lcov.info"
+          files: ${{ env.CODECOV_FILE }}
