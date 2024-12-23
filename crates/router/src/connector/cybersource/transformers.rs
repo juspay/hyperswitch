@@ -95,35 +95,31 @@ impl TryFrom<&types::SetupMandateRouterData> for CybersourceZeroMandateRequest {
         let connector_merchant_config =
             CybersourceConnectorMetadataObject::try_from(&item.connector_meta_data)?;
 
-        let (action_list, action_token_types, authorization_options) = match item.request.setup_future_usage {
-            Some(FutureUsage::OffSession) => {
-                let off_session_authorization_options = CybersourceAuthorizationOptions {
-                    initiator: Some(CybersourcePaymentInitiator {
-                        initiator_type: Some(CybersourcePaymentInitiatorTypes::Customer),
-                        credential_stored_on_file: Some(true),
-                        stored_credential_used: None,
-                    }),
-                    merchant_intitiated_transaction: None,
-                    ignore_avs_result: connector_merchant_config.disable_avs,
-                    ignore_cv_result: connector_merchant_config.disable_cvn,
-                };
-                
-                (
-                Some(vec![CybersourceActionsList::TokenCreate]),
-                Some(vec![
-                    CybersourceActionsTokenType::PaymentInstrument,
-                    CybersourceActionsTokenType::Customer,
-                ]),
-                Some(off_session_authorization_options),
-            )},
-            Some(FutureUsage::OnSession)| None => {
-                (
-                None,
-                None,
-                None,
-            )},
-                
-        };
+        let (action_list, action_token_types, authorization_options) =
+            match item.request.setup_future_usage {
+                Some(FutureUsage::OffSession) => {
+                    let off_session_authorization_options = CybersourceAuthorizationOptions {
+                        initiator: Some(CybersourcePaymentInitiator {
+                            initiator_type: Some(CybersourcePaymentInitiatorTypes::Customer),
+                            credential_stored_on_file: Some(true),
+                            stored_credential_used: None,
+                        }),
+                        merchant_intitiated_transaction: None,
+                        ignore_avs_result: connector_merchant_config.disable_avs,
+                        ignore_cv_result: connector_merchant_config.disable_cvn,
+                    };
+
+                    (
+                        Some(vec![CybersourceActionsList::TokenCreate]),
+                        Some(vec![
+                            CybersourceActionsTokenType::PaymentInstrument,
+                            CybersourceActionsTokenType::Customer,
+                        ]),
+                        Some(off_session_authorization_options),
+                    )
+                }
+                Some(FutureUsage::OnSession) | None => (None, None, None),
+            };
 
         let client_reference_information = ClientReferenceInformation {
             code: Some(item.connector_request_reference_id.clone()),
