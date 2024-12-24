@@ -215,8 +215,8 @@ diesel::table! {
         is_auto_retries_enabled -> Nullable<Bool>,
         max_auto_retries_enabled -> Nullable<Int2>,
         is_click_to_pay_enabled -> Bool,
-        always_request_overcapture -> Bool,
         authentication_product_ids -> Nullable<Jsonb>,
+        always_request_overcapture -> Bool,
     }
 }
 
@@ -973,9 +973,9 @@ diesel::table! {
         skip_external_tax_calculation -> Nullable<Bool>,
         psd2_sca_exemption_type -> Nullable<ScaExemptionType>,
         split_payments -> Nullable<Jsonb>,
-        request_overcapture -> Nullable<Bool>,
         #[max_length = 64]
         platform_merchant_id -> Nullable<Varchar>,
+        request_overcapture -> Nullable<Bool>,
     }
 }
 

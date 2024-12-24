@@ -59,7 +59,6 @@ pub struct Profile {
     pub max_auto_retries_enabled: Option<i16>,
     pub is_click_to_pay_enabled: bool,
     pub authentication_product_ids: Option<serde_json::Value>,
-    pub always_request_overcapture: bool,
 }
 
 #[cfg(feature = "v1")]
