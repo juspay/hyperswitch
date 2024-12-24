@@ -20,7 +20,6 @@ env:
   RUN_TESTS: ${{ ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)) || (github.event_name == 'merge_group')}}
   DEBUG: cypress:cli
   RUST_MIN_STACK: 10485760
-  LLVM_PROFILE_FILE: "coverage.profraw"
   CODECOV_FILE: "lcov.info"
 
 jobs:
@@ -336,7 +335,7 @@ jobs:
         if: ${{ env.RUN_TESTS == 'true' }}
         uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: stable 2 weeks ago
+          toolchain: nightly
           components: clippy llvm-tools-preview
 
       - name: Install sccache
@@ -394,15 +393,14 @@ jobs:
       - name: Build project
         if: ${{ env.RUN_TESTS == 'true' }}
         env:
-          RUSTFLAGS: "-Cinstrument-coverage"
+          RUSTFLAGS: "-Cinstrument-coverage -Zcoverage-options=branch"
+          LLVM_PROFILE_FILE: "${{ github.workspace }}/coverage.profraw"
         run: just build_v2 --jobs 3
-
-      - name: Delete compile-time profraw files
-        if: ${{ env.RUN_TESTS == 'true' }}
-        run: rm -f **/*.profraw
 
       - name: Setup Local Server
         if: ${{ env.RUN_TESTS == 'true' }}
+        env:
+          LLVM_PROFILE_FILE: "${{ github.workspace }}/coverage.profraw"
         run: |
           # Start the server in the background
           target/debug/router &
@@ -446,10 +444,8 @@ jobs:
 
       - name: Process coverage report
         if: env.RUN_TESTS == 'true'
-        run: |
-          grcov . -s . -t lcov --output-path ${{ env.CODECOV_FILE }} --branch --binary-path ./target/debug
-
-          rm -f ${{ env.LLVM_PROFILE_FILE }}
+        # Explore using llvm-cov in future for better integration with codecov
+        run: grcov . --source-dir . --output-type lcov --output-path ${{ env.CODECOV_FILE }} --branch --binary-path ./target/debug --ignore "*cargo*" --ignore "target/*" --ignore "/*"
 
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v5
