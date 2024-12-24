@@ -353,6 +353,8 @@ pub enum Flow {
     DecisionManagerRetrieveConfig,
     /// Manual payment fulfillment acknowledgement
     FrmFulfillment,
+    /// Get connectors feature matrix
+    FeatureMatrix,
     /// Change password flow
     ChangePassword,
     /// Signout flow
