@@ -564,6 +564,7 @@ pub fn perform_volume_split(
     Ok(splits.into_iter().map(|sp| sp.connector).collect())
 }
 
+#[cfg(feature = "v1")]
 pub async fn get_merchant_cgraph<'a>(
     state: &SessionState,
     key_store: &domain::MerchantKeyStore,
@@ -610,6 +611,7 @@ pub async fn get_merchant_cgraph<'a>(
     Ok(cgraph)
 }
 
+#[cfg(feature = "v1")]
 pub async fn refresh_cgraph_cache<'a>(
     state: &SessionState,
     key_store: &domain::MerchantKeyStore,
@@ -702,6 +704,21 @@ pub async fn refresh_cgraph_cache<'a>(
     Ok(cgraph)
 }
 
+#[cfg(feature = "v2")]
+#[allow(clippy::too_many_arguments)]
+pub async fn perform_cgraph_filtering(
+    state: &SessionState,
+    key_store: &domain::MerchantKeyStore,
+    chosen: Vec<routing_types::RoutableConnectorChoice>,
+    backend_input: dsl_inputs::BackendInput,
+    eligible_connectors: Option<&Vec<api_enums::RoutableConnectors>>,
+    profile_id: &common_utils::id_type::ProfileId,
+    transaction_type: &api_enums::TransactionType,
+) -> RoutingResult<Vec<routing_types::RoutableConnectorChoice>> {
+    todo!()
+}
+
+#[cfg(feature = "v1")]
 #[allow(clippy::too_many_arguments)]
 pub async fn perform_cgraph_filtering(
     state: &SessionState,
@@ -1229,7 +1246,6 @@ async fn perform_session_routing_for_pm_type(
     }
 }
 
-#[cfg(feature = "v2")]
 async fn perform_session_routing_for_pm_type(
     session_pm_input: &SessionRoutingPmTypeInput<'_>,
     transaction_type: &api_enums::TransactionType,
@@ -1300,7 +1316,6 @@ async fn perform_session_routing_for_pm_type(
         Ok(Some(final_selection))
     }
 }
-
 #[cfg(feature = "v2")]
 pub fn make_dsl_input_for_surcharge(
     _payment_attempt: &oss_storage::PaymentAttempt,
@@ -1446,6 +1461,7 @@ pub async fn perform_success_based_routing(
                 success_based_routing_configs,
                 success_based_routing_config_params,
                 routable_connectors,
+                state.get_grpc_headers(),
             )
             .await
             .change_context(errors::RoutingError::SuccessRateCalculationError)
