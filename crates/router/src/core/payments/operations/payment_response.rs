@@ -2060,6 +2060,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                             })
                             && gsm_error_category.should_perform_elimination_routing()
                         {
+                            logger::info!("Performing update window for elimination routing");
                             routing_helpers::update_window_for_elimination_routing(
                                 &state,
                                 &payment_attempt,

@@ -1465,6 +1465,7 @@ pub async fn perform_elimination_routing(
                 elimination_routing_config_params,
                 routable_connectors.clone(),
                 elimination_routing_config.elimination_analyser_config,
+                state.get_grpc_headers(),
             )
             .await
             .change_context(errors::RoutingError::ElimintaionRoutingCalculationError)

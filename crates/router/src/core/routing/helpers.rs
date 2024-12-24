@@ -831,6 +831,7 @@ pub async fn update_window_for_elimination_routing(
                     gsm_error_category.to_string(),
                 )],
                 elimination_routing_config.elimination_analyser_config,
+                state.get_grpc_headers(),
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
