@@ -123,6 +123,7 @@ pub async fn update_user_role(
         &req.role_id,
         &user_from_token.merchant_id,
         &user_from_token.org_id,
+        &user_from_token.profile_id,
     )
     .await
     .to_not_found_response(UserErrors::InvalidRoleId)?;
@@ -527,6 +528,7 @@ pub async fn delete_user_role(
             &role_to_be_deleted.role_id,
             &user_from_token.merchant_id,
             &user_from_token.org_id,
+            &user_from_token.profile_id,
         )
         .await
         .change_context(UserErrors::InternalServerError)?;
@@ -597,6 +599,7 @@ pub async fn delete_user_role(
             &role_to_be_deleted.role_id,
             &user_from_token.merchant_id,
             &user_from_token.org_id,
+            &user_from_token.profile_id,
         )
         .await
         .change_context(UserErrors::InternalServerError)?;
