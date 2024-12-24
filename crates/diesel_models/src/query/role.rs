@@ -30,7 +30,7 @@ impl Role {
                     .filter(|variant| *variant <= current_entity)
                     .collect()
             })
-            .unwrap_or_else(|| vec![current_entity])
+            .unwrap_or(vec![current_entity])
     }
 
     pub async fn find_by_role_id(conn: &PgPooledConn, role_id: &str) -> StorageResult<Self> {

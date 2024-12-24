@@ -86,27 +86,3 @@ pub enum ListRolesByEntityPayload {
     Merchant(id_type::OrganizationId, id_type::MerchantId),
     Organization(id_type::OrganizationId),
 }
-
-impl ListRolesByEntityPayload {
-    pub fn get_organization_id(&self) -> Option<id_type::OrganizationId> {
-        match self {
-            Self::Organization(org_id)
-            | Self::Merchant(org_id, _)
-            | Self::Profile(org_id, _, _) => Some(org_id.to_owned()),
-        }
-    }
-    pub fn get_merchant_id(&self) -> Option<id_type::MerchantId> {
-        match self {
-            Self::Organization(_) => None,
-            Self::Merchant(_, merchant_id) | Self::Profile(_, merchant_id, _) => {
-                Some(merchant_id.to_owned())
-            }
-        }
-    }
-    pub fn get_profile_id(&self) -> Option<id_type::ProfileId> {
-        match self {
-            Self::Organization(_) | Self::Merchant(_, _) => None,
-            Self::Profile(_, _, profile_id) => Some(profile_id.to_owned()),
-        }
-    }
-}

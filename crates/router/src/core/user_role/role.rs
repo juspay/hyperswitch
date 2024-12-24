@@ -90,7 +90,7 @@ pub async fn create_role(
     if requestor_entity_from_role_scope < role_entity_type {
         return Err(report!(UserErrors::InvalidRoleOperation)).attach_printable(format!(
             "User is trying to create role of type {} and scope {}",
-            requestor_entity_from_role_scope, role_entity_type
+            role_entity_type, requestor_entity_from_role_scope
         ));
     }
     let max_from_scope_and_entity = cmp::max(requestor_entity_from_role_scope, role_entity_type);
@@ -246,19 +246,12 @@ pub async fn update_role(
 
     let requested_entity_from_role_scope = EntityType::from(role_info.get_scope());
     let requested_role_entity_type = role_info.get_entity_type();
-
-    if requested_entity_from_role_scope < requested_role_entity_type {
-        return Err(report!(UserErrors::InvalidRoleOperation)).attach_printable(format!(
-            "User is trying to create role of type {} and scope {}",
-            requested_entity_from_role_scope, requested_role_entity_type
-        ));
-    }
     let max_from_scope_and_entity =
         cmp::max(requested_entity_from_role_scope, requested_role_entity_type);
 
     if user_role_info.get_entity_type() < max_from_scope_and_entity {
         return Err(report!(UserErrors::InvalidRoleOperation)).attach_printable(format!(
-            "{} is trying to create of scope {} and of type {}",
+            "{} is trying to update of scope {} and of type {}",
             user_role_info.get_entity_type(),
             requested_entity_from_role_scope,
             requested_role_entity_type
