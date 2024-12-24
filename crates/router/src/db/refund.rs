@@ -2,7 +2,7 @@
 use std::collections::{HashMap, HashSet};
 
 #[cfg(feature = "olap")]
-use common_utils::types::MinorUnit;
+use common_utils::types::{ConnectorTransactionIdTrait, MinorUnit};
 use diesel_models::{errors::DatabaseError, refund::RefundUpdateInternal};
 use hyperswitch_domain_models::refunds;
 
@@ -298,7 +298,9 @@ mod storage {
 
 #[cfg(feature = "kv_store")]
 mod storage {
-    use common_utils::{ext_traits::Encode, fallback_reverse_lookup_not_found};
+    use common_utils::{
+        ext_traits::Encode, fallback_reverse_lookup_not_found, types::ConnectorTransactionIdTrait,
+    };
     use error_stack::{report, ResultExt};
     use hyperswitch_domain_models::refunds;
     use redis_interface::HsetnxReply;
@@ -359,11 +361,11 @@ mod storage {
                     };
                     Box::pin(db_utils::try_redis_get_else_try_database_get(
                         async {
-                            kv_wrapper(
+                            Box::pin(kv_wrapper(
                                 self,
                                 KvOperation::<storage_types::Refund>::HGet(&lookup.sk_id),
                                 key,
-                            )
+                            ))
                             .await?
                             .try_into_hget()
                         },
@@ -431,7 +433,10 @@ mod storage {
                         updated_by: new.updated_by.clone(),
                         merchant_connector_id: new.merchant_connector_id.clone(),
                         charges: new.charges.clone(),
+                        split_refunds: new.split_refunds.clone(),
                         organization_id: new.organization_id.clone(),
+                        connector_refund_data: new.connector_refund_data.clone(),
+                        connector_transaction_data: new.connector_transaction_data.clone(),
                     };
 
                     let field = format!(
@@ -441,7 +446,7 @@ mod storage {
 
                     let redis_entry = kv::TypedSql {
                         op: kv::DBOperation::Insert {
-                            insertable: kv::Insertable::Refund(new),
+                            insertable: Box::new(kv::Insertable::Refund(new)),
                         },
                     };
 
@@ -470,7 +475,8 @@ mod storage {
                             updated_by: storage_scheme.to_string(),
                         },
                     ];
-                    if let Some(connector_refund_id) = created_refund.to_owned().connector_refund_id
+                    if let Some(connector_refund_id) =
+                        created_refund.to_owned().get_optional_connector_refund_id()
                     {
                         reverse_lookups.push(storage_types::ReverseLookupNew {
                             sk_id: field.clone(),
@@ -491,7 +497,7 @@ mod storage {
 
                     futures::future::try_join_all(rev_look).await?;
 
-                    match kv_wrapper::<storage_types::Refund, _, _>(
+                    match Box::pin(kv_wrapper::<storage_types::Refund, _, _>(
                         self,
                         KvOperation::<storage_types::Refund>::HSetNx(
                             &field,
@@ -499,7 +505,7 @@ mod storage {
                             redis_entry,
                         ),
                         key,
-                    )
+                    ))
                     .await
                     .map_err(|err| err.to_redis_failed_response(&key_str))?
                     .try_into_hsetnx()
@@ -560,11 +566,11 @@ mod storage {
 
                     Box::pin(db_utils::try_redis_get_else_try_database_get(
                         async {
-                            kv_wrapper(
+                            Box::pin(kv_wrapper(
                                 self,
                                 KvOperation::<storage_types::Refund>::Scan(&pattern),
                                 key,
-                            )
+                            ))
                             .await?
                             .try_into_scan()
                         },
@@ -612,21 +618,23 @@ mod storage {
 
                     let redis_entry = kv::TypedSql {
                         op: kv::DBOperation::Update {
-                            updatable: kv::Updateable::RefundUpdate(kv::RefundUpdateMems {
-                                orig: this,
-                                update_data: refund,
-                            }),
+                            updatable: Box::new(kv::Updateable::RefundUpdate(
+                                kv::RefundUpdateMems {
+                                    orig: this,
+                                    update_data: refund,
+                                },
+                            )),
                         },
                     };
 
-                    kv_wrapper::<(), _, _>(
+                    Box::pin(kv_wrapper::<(), _, _>(
                         self,
                         KvOperation::Hset::<storage_types::Refund>(
                             (&field, redis_value),
                             redis_entry,
                         ),
                         key,
-                    )
+                    ))
                     .await
                     .map_err(|err| err.to_redis_failed_response(&key_str))?
                     .try_into_hset()
@@ -672,11 +680,11 @@ mod storage {
                     };
                     Box::pin(db_utils::try_redis_get_else_try_database_get(
                         async {
-                            kv_wrapper(
+                            Box::pin(kv_wrapper(
                                 self,
                                 KvOperation::<storage_types::Refund>::HGet(&lookup.sk_id),
                                 key,
-                            )
+                            ))
                             .await?
                             .try_into_hget()
                         },
@@ -730,11 +738,11 @@ mod storage {
                     };
                     Box::pin(db_utils::try_redis_get_else_try_database_get(
                         async {
-                            kv_wrapper(
+                            Box::pin(kv_wrapper(
                                 self,
                                 KvOperation::<storage_types::Refund>::HGet(&lookup.sk_id),
                                 key,
-                            )
+                            ))
                             .await?
                             .try_into_hget()
                         },
@@ -777,11 +785,11 @@ mod storage {
                     };
                     Box::pin(db_utils::try_redis_get_else_try_database_get(
                         async {
-                            kv_wrapper(
+                            Box::pin(kv_wrapper(
                                 self,
                                 KvOperation::<storage_types::Refund>::Scan("pa_*_ref_*"),
                                 key,
-                            )
+                            ))
                             .await?
                             .try_into_scan()
                         },
@@ -920,7 +928,10 @@ impl RefundInterface for MockDb {
             updated_by: new.updated_by,
             merchant_connector_id: new.merchant_connector_id,
             charges: new.charges,
+            split_refunds: new.split_refunds,
             organization_id: new.organization_id,
+            connector_refund_data: new.connector_refund_data,
+            connector_transaction_data: new.connector_transaction_data,
         };
         refunds.push(refund.clone());
         Ok(refund)
@@ -937,7 +948,7 @@ impl RefundInterface for MockDb {
             .iter()
             .take_while(|refund| {
                 refund.merchant_id == *merchant_id
-                    && refund.connector_transaction_id == connector_transaction_id
+                    && refund.get_connector_transaction_id() == connector_transaction_id
             })
             .cloned()
             .collect::<Vec<_>>())
@@ -995,7 +1006,10 @@ impl RefundInterface for MockDb {
             .iter()
             .find(|refund| {
                 refund.merchant_id == *merchant_id
-                    && refund.connector_refund_id == Some(connector_refund_id.to_string())
+                    && refund
+                        .get_optional_connector_refund_id()
+                        .map(|refund_id| refund_id.as_str())
+                        == Some(connector_refund_id)
                     && refund.connector == connector
             })
             .cloned()

@@ -3,14 +3,14 @@ use error_stack::report;
 use masking::Secret;
 use router_env::{instrument, tracing};
 
-use super::MockDb;
+use super::{domain, MockDb};
 use crate::{
     connection,
     core::errors::{self, CustomResult},
-    pii,
     services::Store,
 };
 pub mod sample_data;
+pub mod theme;
 
 #[async_trait::async_trait]
 pub trait UserInterface {
@@ -21,7 +21,7 @@ pub trait UserInterface {
 
     async fn find_user_by_email(
         &self,
-        user_email: &pii::Email,
+        user_email: &domain::UserEmail,
     ) -> CustomResult<storage::User, errors::StorageError>;
 
     async fn find_user_by_id(
@@ -37,7 +37,7 @@ pub trait UserInterface {
 
     async fn update_user_by_email(
         &self,
-        user_email: &pii::Email,
+        user_email: &domain::UserEmail,
         user: storage::UserUpdate,
     ) -> CustomResult<storage::User, errors::StorageError>;
 
@@ -69,10 +69,10 @@ impl UserInterface for Store {
     #[instrument(skip_all)]
     async fn find_user_by_email(
         &self,
-        user_email: &pii::Email,
+        user_email: &domain::UserEmail,
     ) -> CustomResult<storage::User, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
-        storage::User::find_by_user_email(&conn, user_email)
+        let conn = connection::pg_connection_read(self).await?;
+        storage::User::find_by_user_email(&conn, user_email.get_inner())
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
@@ -82,7 +82,7 @@ impl UserInterface for Store {
         &self,
         user_id: &str,
     ) -> CustomResult<storage::User, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = connection::pg_connection_read(self).await?;
         storage::User::find_by_user_id(&conn, user_id)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
@@ -103,11 +103,11 @@ impl UserInterface for Store {
     #[instrument(skip_all)]
     async fn update_user_by_email(
         &self,
-        user_email: &pii::Email,
+        user_email: &domain::UserEmail,
         user: storage::UserUpdate,
     ) -> CustomResult<storage::User, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        storage::User::update_by_user_email(&conn, user_email, user)
+        storage::User::update_by_user_email(&conn, user_email.get_inner(), user)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
@@ -127,7 +127,7 @@ impl UserInterface for Store {
         &self,
         user_ids: Vec<String>,
     ) -> CustomResult<Vec<storage::User>, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = connection::pg_connection_read(self).await?;
         storage::User::find_users_by_user_ids(&conn, user_ids)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
@@ -170,12 +170,12 @@ impl UserInterface for MockDb {
 
     async fn find_user_by_email(
         &self,
-        user_email: &pii::Email,
+        user_email: &domain::UserEmail,
     ) -> CustomResult<storage::User, errors::StorageError> {
         let users = self.users.lock().await;
         users
             .iter()
-            .find(|user| user.email.eq(user_email))
+            .find(|user| user.email.eq(user_email.get_inner()))
             .cloned()
             .ok_or(
                 errors::StorageError::ValueNotFound(format!(
@@ -252,13 +252,13 @@ impl UserInterface for MockDb {
 
     async fn update_user_by_email(
         &self,
-        user_email: &pii::Email,
+        user_email: &domain::UserEmail,
         update_user: storage::UserUpdate,
     ) -> CustomResult<storage::User, errors::StorageError> {
         let mut users = self.users.lock().await;
         users
             .iter_mut()
-            .find(|user| user.email.eq(user_email))
+            .find(|user| user.email.eq(user_email.get_inner()))
             .map(|user| {
                 *user = match &update_user {
                     storage::UserUpdate::VerifyUser => storage::User {

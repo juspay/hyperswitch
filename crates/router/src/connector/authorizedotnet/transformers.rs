@@ -339,6 +339,7 @@ impl TryFrom<&types::SetupMandateRouterData> for CreateCustomerProfileRequest {
             | domain::PaymentMethodData::MandatePayment
             | domain::PaymentMethodData::Reward
             | domain::PaymentMethodData::RealTimePayment(_)
+            | domain::PaymentMethodData::MobilePayment(_)
             | domain::PaymentMethodData::Upi(_)
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::GiftCard(_)
@@ -388,20 +389,20 @@ impl<F, T>
                 status: enums::AttemptStatus::Charged,
                 response: Ok(types::PaymentsResponseData::TransactionResponse {
                     resource_id: types::ResponseId::NoResponseId,
-                    redirection_data: None,
-                    mandate_reference: item.response.customer_profile_id.map(
+                    redirection_data: Box::new(None),
+                    mandate_reference: Box::new(item.response.customer_profile_id.map(
                         |customer_profile_id| types::MandateReference {
-                            connector_mandate_id: item
-                                .response
-                                .customer_payment_profile_id_list
-                                .first()
-                                .map(|payment_profile_id| {
-                                    format!("{customer_profile_id}-{payment_profile_id}")
-                                }),
+                            connector_mandate_id:
+                                item.response.customer_payment_profile_id_list.first().map(
+                                    |payment_profile_id| {
+                                        format!("{customer_profile_id}-{payment_profile_id}")
+                                    },
+                                ),
                             payment_method_id: None,
                             mandate_metadata: None,
+                            connector_mandate_request_reference_id: None,
                         },
-                    ),
+                    )),
                     connector_metadata: None,
                     network_txn_id: None,
                     connector_response_reference_id: None,
@@ -467,7 +468,9 @@ impl TryFrom<enums::CaptureMethod> for AuthorizationType {
     fn try_from(capture_method: enums::CaptureMethod) -> Result<Self, Self::Error> {
         match capture_method {
             enums::CaptureMethod::Manual => Ok(Self::Pre),
-            enums::CaptureMethod::Automatic => Ok(Self::Final),
+            enums::CaptureMethod::SequentialAutomatic | enums::CaptureMethod::Automatic => {
+                Ok(Self::Final)
+            }
             enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => Err(
                 utils::construct_not_supported_error_report(capture_method, "authorizedotnet"),
             )?,
@@ -526,6 +529,7 @@ impl TryFrom<&AuthorizedotnetRouterData<&types::PaymentsAuthorizeRouterData>>
                     | domain::PaymentMethodData::MandatePayment
                     | domain::PaymentMethodData::Reward
                     | domain::PaymentMethodData::RealTimePayment(_)
+                    | domain::PaymentMethodData::MobilePayment(_)
                     | domain::PaymentMethodData::Upi(_)
                     | domain::PaymentMethodData::Voucher(_)
                     | domain::PaymentMethodData::GiftCard(_)
@@ -587,6 +591,7 @@ impl
                 | domain::PaymentMethodData::MandatePayment
                 | domain::PaymentMethodData::Reward
                 | domain::PaymentMethodData::RealTimePayment(_)
+                | domain::PaymentMethodData::MobilePayment(_)
                 | domain::PaymentMethodData::Upi(_)
                 | domain::PaymentMethodData::Voucher(_)
                 | domain::PaymentMethodData::GiftCard(_)
@@ -648,7 +653,7 @@ impl
         ),
     ) -> Result<Self, Self::Error> {
         let mandate_id = connector_mandate_id
-            .connector_mandate_id
+            .get_connector_mandate_id()
             .ok_or(errors::ConnectorError::MissingConnectorMandateID)?;
         Ok(Self {
             transaction_type: TransactionType::try_from(item.router_data.request.capture_method)?,
@@ -1114,6 +1119,7 @@ impl<F, T>
                         ),
                         payment_method_id: None,
                         mandate_metadata: None,
+                        connector_mandate_request_reference_id: None,
                     }
                 });
 
@@ -1125,8 +1131,8 @@ impl<F, T>
                             resource_id: types::ResponseId::ConnectorTransactionId(
                                 transaction_response.transaction_id.clone(),
                             ),
-                            redirection_data,
-                            mandate_reference,
+                            redirection_data: Box::new(redirection_data),
+                            mandate_reference: Box::new(mandate_reference),
                             connector_metadata: metadata,
                             network_txn_id: transaction_response
                                 .network_trans_id
@@ -1198,8 +1204,8 @@ impl<F, T>
                             resource_id: types::ResponseId::ConnectorTransactionId(
                                 transaction_response.transaction_id.clone(),
                             ),
-                            redirection_data: None,
-                            mandate_reference: None,
+                            redirection_data: Box::new(None),
+                            mandate_reference: Box::new(None),
                             connector_metadata: metadata,
                             network_txn_id: transaction_response
                                 .network_trans_id
@@ -1528,8 +1534,8 @@ impl<F, Req>
                         resource_id: types::ResponseId::ConnectorTransactionId(
                             transaction.transaction_id.clone(),
                         ),
-                        redirection_data: None,
-                        mandate_reference: None,
+                        redirection_data: Box::new(None),
+                        mandate_reference: Box::new(None),
                         connector_metadata: None,
                         network_txn_id: None,
                         connector_response_reference_id: Some(transaction.transaction_id.clone()),
@@ -1575,7 +1581,9 @@ impl TryFrom<Option<enums::CaptureMethod>> for TransactionType {
     fn try_from(capture_method: Option<enums::CaptureMethod>) -> Result<Self, Self::Error> {
         match capture_method {
             Some(enums::CaptureMethod::Manual) => Ok(Self::Authorization),
-            Some(enums::CaptureMethod::Automatic) | None => Ok(Self::Payment),
+            Some(enums::CaptureMethod::SequentialAutomatic)
+            | Some(enums::CaptureMethod::Automatic)
+            | None => Ok(Self::Payment),
             Some(enums::CaptureMethod::ManualMultiple) => {
                 Err(utils::construct_not_supported_error_report(
                     enums::CaptureMethod::ManualMultiple,
@@ -1830,7 +1838,9 @@ impl TryFrom<&AuthorizedotnetRouterData<&types::PaymentsCompleteAuthorizeRouterD
                 .payer_id;
         let transaction_type = match item.router_data.request.capture_method {
             Some(enums::CaptureMethod::Manual) => Ok(TransactionType::ContinueAuthorization),
-            Some(enums::CaptureMethod::Automatic) | None => Ok(TransactionType::ContinueCapture),
+            Some(enums::CaptureMethod::SequentialAutomatic)
+            | Some(enums::CaptureMethod::Automatic)
+            | None => Ok(TransactionType::ContinueCapture),
             Some(enums::CaptureMethod::ManualMultiple) => {
                 Err(errors::ConnectorError::NotSupported {
                     message: enums::CaptureMethod::ManualMultiple.to_string(),

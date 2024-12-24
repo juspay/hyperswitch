@@ -1,4 +1,7 @@
-use common_utils::{id_type, types::MinorUnit};
+use common_utils::{
+    id_type,
+    types::{ConnectorTransactionIdTrait, MinorUnit},
+};
 use diesel_models::{enums as storage_enums, refund::Refund};
 use time::OffsetDateTime;
 
@@ -21,9 +24,9 @@ pub struct KafkaRefundEvent<'a> {
     pub sent_to_gateway: &'a bool,
     pub refund_error_message: Option<&'a String>,
     pub refund_arn: Option<&'a String>,
-    #[serde(default, with = "time::serde::timestamp::milliseconds")]
+    #[serde(default, with = "time::serde::timestamp::nanoseconds")]
     pub created_at: OffsetDateTime,
-    #[serde(default, with = "time::serde::timestamp::milliseconds")]
+    #[serde(default, with = "time::serde::timestamp::nanoseconds")]
     pub modified_at: OffsetDateTime,
     pub description: Option<&'a String>,
     pub attempt_id: &'a String,
@@ -40,9 +43,9 @@ impl<'a> KafkaRefundEvent<'a> {
             refund_id: &refund.refund_id,
             payment_id: &refund.payment_id,
             merchant_id: &refund.merchant_id,
-            connector_transaction_id: &refund.connector_transaction_id,
+            connector_transaction_id: refund.get_connector_transaction_id(),
             connector: &refund.connector,
-            connector_refund_id: refund.connector_refund_id.as_ref(),
+            connector_refund_id: refund.get_optional_connector_refund_id(),
             external_reference_id: refund.external_reference_id.as_ref(),
             refund_type: &refund.refund_type,
             total_amount: &refund.total_amount,
@@ -64,7 +67,7 @@ impl<'a> KafkaRefundEvent<'a> {
     }
 }
 
-impl<'a> super::KafkaMessage for KafkaRefundEvent<'a> {
+impl super::KafkaMessage for KafkaRefundEvent<'_> {
     fn key(&self) -> String {
         format!(
             "{}_{}_{}_{}",

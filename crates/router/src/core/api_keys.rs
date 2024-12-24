@@ -3,7 +3,7 @@ use common_utils::date_time;
 use diesel_models::{api_keys::ApiKey, enums as storage_enums};
 use error_stack::{report, ResultExt};
 use masking::{PeekInterface, StrongSecret};
-use router_env::{instrument, metrics::add_attributes, tracing};
+use router_env::{instrument, tracing};
 
 use crate::{
     configs::settings,
@@ -13,7 +13,6 @@ use crate::{
     routes::{metrics, SessionState},
     services::{authentication, ApplicationResponse},
     types::{api, storage, transformers::ForeignInto},
-    utils,
 };
 
 #[cfg(feature = "email")]
@@ -63,9 +62,9 @@ impl PlaintextApiKey {
         Self(format!("{env}_{key}").into())
     }
 
-    pub fn new_key_id() -> String {
+    pub fn new_key_id() -> common_utils::id_type::ApiKeyId {
         let env = router_env::env::prefix_for_env();
-        utils::generate_id(consts::ID_LENGTH, env)
+        common_utils::id_type::ApiKeyId::generate_key_id(env)
     }
 
     pub fn prefix(&self) -> String {
@@ -161,9 +160,8 @@ pub async fn create_api_key(
     );
 
     metrics::API_KEY_CREATED.add(
-        &metrics::CONTEXT,
         1,
-        &add_attributes([("merchant", merchant_id.get_string_repr().to_owned())]),
+        router_env::metric_attributes!(("merchant", merchant_id.clone())),
     );
 
     // Add process to process_tracker for email reminder, only if expiry is set to future date
@@ -223,7 +221,7 @@ pub async fn add_api_key_expiry_task(
         expiry_reminder_days: expiry_reminder_days.clone(),
     };
 
-    let process_tracker_id = generate_task_id_for_api_key_expiry_workflow(api_key.key_id.as_str());
+    let process_tracker_id = generate_task_id_for_api_key_expiry_workflow(&api_key.key_id);
     let process_tracker_entry = storage::ProcessTrackerNew::new(
         process_tracker_id,
         API_KEY_EXPIRY_NAME,
@@ -241,15 +239,11 @@ pub async fn add_api_key_expiry_task(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable_lazy(|| {
             format!(
-                "Failed while inserting API key expiry reminder to process_tracker: api_key_id: {}",
+                "Failed while inserting API key expiry reminder to process_tracker: {:?}",
                 api_key.key_id
             )
         })?;
-    metrics::TASKS_ADDED_COUNT.add(
-        &metrics::CONTEXT,
-        1,
-        &add_attributes([("flow", "ApiKeyExpiry")]),
-    );
+    metrics::TASKS_ADDED_COUNT.add(1, router_env::metric_attributes!(("flow", "ApiKeyExpiry")));
 
     Ok(())
 }
@@ -258,11 +252,11 @@ pub async fn add_api_key_expiry_task(
 pub async fn retrieve_api_key(
     state: SessionState,
     merchant_id: common_utils::id_type::MerchantId,
-    key_id: &str,
+    key_id: common_utils::id_type::ApiKeyId,
 ) -> RouterResponse<api::RetrieveApiKeyResponse> {
     let store = state.store.as_ref();
     let api_key = store
-        .find_api_key_by_merchant_id_key_id_optional(&merchant_id, key_id)
+        .find_api_key_by_merchant_id_key_id_optional(&merchant_id, &key_id)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError) // If retrieve failed
         .attach_printable("Failed to retrieve API key")?
@@ -388,7 +382,7 @@ pub async fn update_api_key_expiry_task(
         }
     }
 
-    let task_id = generate_task_id_for_api_key_expiry_workflow(api_key.key_id.as_str());
+    let task_id = generate_task_id_for_api_key_expiry_workflow(&api_key.key_id);
 
     let task_ids = vec![task_id.clone()];
 
@@ -430,7 +424,7 @@ pub async fn update_api_key_expiry_task(
 pub async fn revoke_api_key(
     state: SessionState,
     merchant_id: &common_utils::id_type::MerchantId,
-    key_id: &str,
+    key_id: &common_utils::id_type::ApiKeyId,
 ) -> RouterResponse<api::RevokeApiKeyResponse> {
     let store = state.store.as_ref();
 
@@ -457,7 +451,7 @@ pub async fn revoke_api_key(
         );
     }
 
-    metrics::API_KEY_REVOKED.add(&metrics::CONTEXT, 1, &[]);
+    metrics::API_KEY_REVOKED.add(1, &[]);
 
     #[cfg(feature = "email")]
     {
@@ -496,7 +490,7 @@ pub async fn revoke_api_key(
 #[instrument(skip_all)]
 pub async fn revoke_api_key_expiry_task(
     store: &dyn crate::db::StorageInterface,
-    key_id: &str,
+    key_id: &common_utils::id_type::ApiKeyId,
 ) -> Result<(), errors::ProcessTrackerError> {
     let task_id = generate_task_id_for_api_key_expiry_workflow(key_id);
     let task_ids = vec![task_id];
@@ -535,8 +529,13 @@ pub async fn list_api_keys(
 }
 
 #[cfg(feature = "email")]
-fn generate_task_id_for_api_key_expiry_workflow(key_id: &str) -> String {
-    format!("{API_KEY_EXPIRY_RUNNER}_{API_KEY_EXPIRY_NAME}_{key_id}")
+fn generate_task_id_for_api_key_expiry_workflow(
+    key_id: &common_utils::id_type::ApiKeyId,
+) -> String {
+    format!(
+        "{API_KEY_EXPIRY_RUNNER}_{API_KEY_EXPIRY_NAME}_{}",
+        key_id.get_string_repr()
+    )
 }
 
 impl From<&str> for PlaintextApiKey {

@@ -1,3 +1,4 @@
+use common_utils::ext_traits::StringExt;
 use diesel_models::enums as storage_enums;
 use masking::Secret;
 use time::OffsetDateTime;
@@ -9,7 +10,7 @@ use crate::types::storage::dispute::Dispute;
 pub struct KafkaDisputeEvent<'a> {
     pub dispute_id: &'a String,
     pub dispute_amount: i64,
-    pub currency: &'a String,
+    pub currency: storage_enums::Currency,
     pub dispute_stage: &'a storage_enums::DisputeStage,
     pub dispute_status: &'a storage_enums::DisputeStatus,
     pub payment_id: &'a common_utils::id_type::PaymentId,
@@ -19,15 +20,15 @@ pub struct KafkaDisputeEvent<'a> {
     pub connector_dispute_id: &'a String,
     pub connector_reason: Option<&'a String>,
     pub connector_reason_code: Option<&'a String>,
-    #[serde(default, with = "time::serde::timestamp::milliseconds::option")]
+    #[serde(default, with = "time::serde::timestamp::nanoseconds::option")]
     pub challenge_required_by: Option<OffsetDateTime>,
-    #[serde(default, with = "time::serde::timestamp::milliseconds::option")]
+    #[serde(default, with = "time::serde::timestamp::nanoseconds::option")]
     pub connector_created_at: Option<OffsetDateTime>,
-    #[serde(default, with = "time::serde::timestamp::milliseconds::option")]
+    #[serde(default, with = "time::serde::timestamp::nanoseconds::option")]
     pub connector_updated_at: Option<OffsetDateTime>,
-    #[serde(default, with = "time::serde::timestamp::milliseconds")]
+    #[serde(default, with = "time::serde::timestamp::nanoseconds")]
     pub created_at: OffsetDateTime,
-    #[serde(default, with = "time::serde::timestamp::milliseconds")]
+    #[serde(default, with = "time::serde::timestamp::nanoseconds")]
     pub modified_at: OffsetDateTime,
     pub connector: &'a String,
     pub evidence: &'a Secret<serde_json::Value>,
@@ -41,7 +42,13 @@ impl<'a> KafkaDisputeEvent<'a> {
         Self {
             dispute_id: &dispute.dispute_id,
             dispute_amount: dispute.amount.parse::<i64>().unwrap_or_default(),
-            currency: &dispute.currency,
+            currency: dispute.dispute_currency.unwrap_or(
+                dispute
+                    .currency
+                    .to_uppercase()
+                    .parse_enum("Currency")
+                    .unwrap_or_default(),
+            ),
             dispute_stage: &dispute.dispute_stage,
             dispute_status: &dispute.dispute_status,
             payment_id: &dispute.payment_id,
@@ -65,7 +72,7 @@ impl<'a> KafkaDisputeEvent<'a> {
     }
 }
 
-impl<'a> super::KafkaMessage for KafkaDisputeEvent<'a> {
+impl super::KafkaMessage for KafkaDisputeEvent<'_> {
     fn key(&self) -> String {
         format!(
             "{}_{}_{}",

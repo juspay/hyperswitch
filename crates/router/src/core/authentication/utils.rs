@@ -17,6 +17,7 @@ use crate::{
     utils::OptionExt,
 };
 
+#[cfg(feature = "v1")]
 pub fn get_connector_data_if_separate_authn_supported(
     connector_call_type: &api::ConnectorCallType,
 ) -> Option<api::ConnectorData> {
@@ -218,6 +219,7 @@ pub async fn create_new_authentication(
         ds_trans_id: None,
         directory_server_id: None,
         acquirer_country_code: None,
+        service_details: None,
     };
     state
         .store

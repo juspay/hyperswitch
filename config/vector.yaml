@@ -1,5 +1,16 @@
 acknowledgements:
   enabled: true
+enrichment_tables:
+  sdk_map:
+    type: file
+    file:
+      path: /etc/vector/config/sdk_map.csv
+      encoding:
+        type: csv
+    schema:
+      publishable_key: string
+      merchant_id: string
+
 
 api:
   enabled: true
@@ -15,6 +26,15 @@ sources:
       - hyperswitch-payment-intent-events
       - hyperswitch-refund-events
       - hyperswitch-dispute-events
+    decoding:
+      codec: json
+
+  sessionized_kafka_tx_events:
+    type: kafka
+    bootstrap_servers: kafka0:29092
+    group_id: sessionizer
+    topics:
+      - ^sessionizer
     decoding:
       codec: json
 
@@ -35,10 +55,19 @@ sources:
     encoding: json
 
 transforms:
+  events_create_ts:
+    inputs:
+    - kafka_tx_events
+    source: |-
+      .timestamp = from_unix_timestamp(.created_at, unit: "seconds") ?? now()
+      ."@timestamp" = from_unix_timestamp(.created_at, unit: "seconds") ?? now()
+    type: remap
+
   plus_1_events:
     type: filter
     inputs:
-      - kafka_tx_events
+      - events_create_ts
+      - sessionized_events_create_ts
     condition: ".sign_flag == 1"
 
   hs_server_logs:
@@ -54,13 +83,13 @@ transforms:
     source: |-
       .message = parse_json!(.message)
 
-  events:
+  sessionized_events_create_ts:
     type: remap
     inputs:
-      - plus_1_events
+    - sessionized_kafka_tx_events
     source: |-
-      .timestamp = from_unix_timestamp!(.created_at, unit: "seconds")
-      ."@timestamp" = from_unix_timestamp(.created_at, unit: "seconds") ?? now()
+      .timestamp = from_unix_timestamp(.created_at, unit: "milliseconds") ?? now()
+      ."@timestamp" = from_unix_timestamp(.created_at, unit: "milliseconds") ?? now()
 
   sdk_transformed:
     type: throttle
@@ -69,12 +98,27 @@ transforms:
     key_field: "{{ .payment_id }}{{ .merchant_id }}"
     threshold: 1000
     window_secs: 60
+  
+  amend_sdk_logs:
+    type: remap
+    inputs:
+      - sdk_transformed
+    source: |
+      .before_transform = now()
+
+      merchant_id = .merchant_id
+      row = get_enrichment_table_record!("sdk_map", { "publishable_key" : merchant_id }, case_sensitive: true) 
+      .merchant_id = row.merchant_id
+
+      .after_transform = now()
+
+  
 
 sinks:
   opensearch_events_1:
     type: elasticsearch
     inputs:
-      - events
+      - plus_1_events
     endpoints:
       - "https://opensearch:9200"
     id_key: message_key
@@ -92,13 +136,16 @@ sinks:
         - offset
         - partition
         - topic
+        - clickhouse_database
+        - last_synced
+        - sign_flag
     bulk:
       index: "vector-{{ .topic }}"
 
   opensearch_events_2:
     type: elasticsearch
     inputs:
-      - events
+      - plus_1_events
     endpoints:
       - "https://opensearch:9200"
     id_key: message_key
@@ -116,9 +163,39 @@ sinks:
         - offset
         - partition
         - topic
+        - clickhouse_database
+        - last_synced
+        - sign_flag
     bulk:
       # Add a date suffixed index for better grouping
       index: "vector-{{ .topic }}-%Y-%m-%d"
+
+  opensearch_events_3:
+    type: elasticsearch
+    inputs:
+      - plus_1_events
+    endpoints:
+      - "https://opensearch:9200"
+    id_key: message_key
+    api_version: v7
+    tls:
+      verify_certificate: false
+      verify_hostname: false
+    auth:
+      strategy: basic
+      user: admin
+      password: 0penS3arc#
+    encoding:
+      except_fields:
+        - message_key
+        - offset
+        - partition
+        - topic
+        - clickhouse_database
+        - last_synced
+        - sign_flag
+    bulk:
+      index: "{{ .topic }}"
 
   opensearch_logs:
     type: elasticsearch
@@ -143,6 +220,7 @@ sinks:
     type: loki
     inputs:
       - kafka_tx_events
+      - sessionized_kafka_tx_events
     endpoint: http://loki:3100
     labels:
       source: vector
@@ -178,7 +256,7 @@ sinks:
         - "path"
         - "source_type"
     inputs:
-      - "sdk_transformed"
+      - "amend_sdk_logs"
     bootstrap_servers: kafka0:29092
     topic: hyper-sdk-logs
     key_field: ".merchant_id"

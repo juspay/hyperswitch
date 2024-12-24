@@ -78,7 +78,6 @@ pub async fn construct_fulfillment_router_data<'a>(
         payment_method,
         connector_auth_type: auth_type,
         description: None,
-        return_url: payment_intent.return_url.clone(),
         address: PaymentAddress::default(),
         auth_type: payment_attempt.authentication_type.unwrap_or_default(),
         connector_meta_data: merchant_connector_account.get_metadata(),
@@ -127,6 +126,9 @@ pub async fn construct_fulfillment_router_data<'a>(
         integrity_check: Ok(()),
         additional_merchant_data: None,
         header_payload: None,
+        connector_mandate_request_reference_id: None,
+        authentication_id: None,
+        psd2_sca_exemption_type: None,
     };
     Ok(router_data)
 }

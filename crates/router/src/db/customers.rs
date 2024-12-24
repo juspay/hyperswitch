@@ -129,7 +129,7 @@ where
     async fn update_customer_by_global_id(
         &self,
         state: &KeyManagerState,
-        id: String,
+        id: &id_type::GlobalCustomerId,
         customer: customer::Customer,
         merchant_id: &id_type::MerchantId,
         customer_update: storage_types::CustomerUpdate,
@@ -141,7 +141,7 @@ where
     async fn find_customer_by_global_id(
         &self,
         state: &KeyManagerState,
-        id: &str,
+        id: &id_type::GlobalCustomerId,
         merchant_id: &id_type::MerchantId,
         key_store: &domain::MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
@@ -219,11 +219,11 @@ mod storage {
                     Box::pin(db_utils::try_redis_get_else_try_database_get(
                         // check for ValueNotFound
                         async {
-                            kv_wrapper(
+                            Box::pin(kv_wrapper(
                                 self,
                                 KvOperation::<diesel_models::Customer>::HGet(&field),
                                 key,
-                            )
+                            ))
                             .await?
                             .try_into_hget()
                             .map(Some)
@@ -293,11 +293,11 @@ mod storage {
                     Box::pin(db_utils::try_redis_get_else_try_database_get(
                         // check for ValueNotFound
                         async {
-                            kv_wrapper(
+                            Box::pin(kv_wrapper(
                                 self,
                                 KvOperation::<diesel_models::Customer>::HGet(&field),
                                 key,
-                            )
+                            ))
                             .await?
                             .try_into_hget()
                             .map(Some)
@@ -446,21 +446,23 @@ mod storage {
 
                     let redis_entry = kv::TypedSql {
                         op: kv::DBOperation::Update {
-                            updatable: kv::Updateable::CustomerUpdate(kv::CustomerUpdateMems {
-                                orig: customer,
-                                update_data: customer_update.into(),
-                            }),
+                            updatable: Box::new(kv::Updateable::CustomerUpdate(
+                                kv::CustomerUpdateMems {
+                                    orig: customer,
+                                    update_data: customer_update.into(),
+                                },
+                            )),
                         },
                     };
 
-                    kv_wrapper::<(), _, _>(
+                    Box::pin(kv_wrapper::<(), _, _>(
                         self,
                         KvOperation::Hset::<diesel_models::Customer>(
                             (&field, redis_value),
                             redis_entry,
                         ),
                         key,
-                    )
+                    ))
                     .await
                     .change_context(errors::StorageError::KVError)?
                     .try_into_hset()
@@ -538,7 +540,6 @@ mod storage {
                 )
                 .await
                 .change_context(errors::StorageError::DecryptionError)?;
-            //.await
 
             match result.name {
                 Some(ref name) if name.peek() == REDACTED => {
@@ -584,11 +585,11 @@ mod storage {
                     let field = format!("cust_{}", customer_id.get_string_repr());
                     Box::pin(db_utils::try_redis_get_else_try_database_get(
                         async {
-                            kv_wrapper(
+                            Box::pin(kv_wrapper(
                                 self,
                                 KvOperation::<diesel_models::Customer>::HGet(&field),
                                 key,
-                            )
+                            ))
                             .await?
                             .try_into_hget()
                         },
@@ -606,7 +607,6 @@ mod storage {
                 )
                 .await
                 .change_context(errors::StorageError::DecryptionError)?;
-            //.await
 
             match result.name {
                 Some(ref name) if name.peek() == REDACTED => {
@@ -684,12 +684,14 @@ mod storage {
                         .map_err(|error| report!(errors::StorageError::from(error)))
                 }
                 MerchantStorageScheme::RedisKv => {
-                    let key = PartitionKey::GlobalId { id: &id };
-                    let field = format!("cust_{}", id);
+                    let key = PartitionKey::GlobalId {
+                        id: id.get_string_repr(),
+                    };
+                    let field = format!("cust_{}", id.get_string_repr());
 
                     let redis_entry = kv::TypedSql {
                         op: kv::DBOperation::Insert {
-                            insertable: kv::Insertable::Customer(new_customer.clone()),
+                            insertable: Box::new(kv::Insertable::Customer(new_customer.clone())),
                         },
                     };
                     let storage_customer = new_customer.into();
@@ -710,7 +712,7 @@ mod storage {
                         Ok(redis_interface::HsetnxReply::KeyNotSet) => {
                             Err(report!(errors::StorageError::DuplicateValue {
                                 entity: "customer",
-                                key: Some(id.to_string()),
+                                key: Some(id.get_string_repr().to_owned()),
                             }))
                         }
                         Ok(redis_interface::HsetnxReply::KeySet) => Ok(storage_customer),
@@ -768,12 +770,12 @@ mod storage {
 
                     let redis_entry = kv::TypedSql {
                         op: kv::DBOperation::Insert {
-                            insertable: kv::Insertable::Customer(new_customer.clone()),
+                            insertable: Box::new(kv::Insertable::Customer(new_customer.clone())),
                         },
                     };
                     let storage_customer = new_customer.into();
 
-                    match kv_wrapper::<diesel_models::Customer, _, _>(
+                    match Box::pin(kv_wrapper::<diesel_models::Customer, _, _>(
                         self,
                         KvOperation::HSetNx::<diesel_models::Customer>(
                             &field,
@@ -781,7 +783,7 @@ mod storage {
                             redis_entry,
                         ),
                         key,
-                    )
+                    ))
                     .await
                     .change_context(errors::StorageError::KVError)?
                     .try_into_hsetnx()
@@ -830,7 +832,7 @@ mod storage {
         async fn find_customer_by_global_id(
             &self,
             state: &KeyManagerState,
-            id: &str,
+            id: &id_type::GlobalCustomerId,
             _merchant_id: &id_type::MerchantId,
             key_store: &domain::MerchantKeyStore,
             storage_scheme: MerchantStorageScheme,
@@ -850,8 +852,10 @@ mod storage {
             let customer = match storage_scheme {
                 MerchantStorageScheme::PostgresOnly => database_call().await,
                 MerchantStorageScheme::RedisKv => {
-                    let key = PartitionKey::GlobalId { id };
-                    let field = format!("cust_{}", id);
+                    let key = PartitionKey::GlobalId {
+                        id: id.get_string_repr(),
+                    };
+                    let field = format!("cust_{}", id.get_string_repr());
                     Box::pin(db_utils::try_redis_get_else_try_database_get(
                         async {
                             kv_wrapper(
@@ -876,13 +880,11 @@ mod storage {
                 )
                 .await
                 .change_context(errors::StorageError::DecryptionError)?;
-            //.await
 
-            match result.name {
-                Some(ref name) if name.peek() == REDACTED => {
-                    Err(errors::StorageError::CustomerRedacted)?
-                }
-                _ => Ok(result),
+            if result.status == common_enums::DeleteStatus::Redacted {
+                Err(report!(errors::StorageError::CustomerRedacted))
+            } else {
+                Ok(result)
             }
         }
 
@@ -891,7 +893,7 @@ mod storage {
         async fn update_customer_by_global_id(
             &self,
             state: &KeyManagerState,
-            id: String,
+            id: &id_type::GlobalCustomerId,
             customer: customer::Customer,
             _merchant_id: &id_type::MerchantId,
             customer_update: storage_types::CustomerUpdate,
@@ -911,8 +913,10 @@ mod storage {
                 .await
                 .map_err(|error| report!(errors::StorageError::from(error)))
             };
-            let key = PartitionKey::GlobalId { id: &id };
-            let field = format!("cust_{}", id);
+            let key = PartitionKey::GlobalId {
+                id: id.get_string_repr(),
+            };
+            let field = format!("cust_{}", id.get_string_repr());
             let storage_scheme = Box::pin(decide_storage_scheme::<_, diesel_models::Customer>(
                 self,
                 storage_scheme,
@@ -931,10 +935,12 @@ mod storage {
 
                     let redis_entry = kv::TypedSql {
                         op: kv::DBOperation::Update {
-                            updatable: kv::Updateable::CustomerUpdate(kv::CustomerUpdateMems {
-                                orig: customer,
-                                update_data: customer_update.into(),
-                            }),
+                            updatable: Box::new(kv::Updateable::CustomerUpdate(
+                                kv::CustomerUpdateMems {
+                                    orig: customer,
+                                    update_data: customer_update.into(),
+                                },
+                            )),
                         },
                     };
 
@@ -1280,7 +1286,7 @@ mod storage {
         async fn update_customer_by_global_id(
             &self,
             state: &KeyManagerState,
-            id: String,
+            id: &id_type::GlobalCustomerId,
             customer: customer::Customer,
             merchant_id: &id_type::MerchantId,
             customer_update: storage_types::CustomerUpdate,
@@ -1304,7 +1310,7 @@ mod storage {
         async fn find_customer_by_global_id(
             &self,
             state: &KeyManagerState,
-            id: &str,
+            id: &id_type::GlobalCustomerId,
             merchant_id: &id_type::MerchantId,
             key_store: &domain::MerchantKeyStore,
             _storage_scheme: MerchantStorageScheme,
@@ -1522,7 +1528,7 @@ impl CustomerInterface for MockDb {
     async fn update_customer_by_global_id(
         &self,
         _state: &KeyManagerState,
-        _id: String,
+        _id: &id_type::GlobalCustomerId,
         _customer: customer::Customer,
         _merchant_id: &id_type::MerchantId,
         _customer_update: storage_types::CustomerUpdate,
@@ -1537,7 +1543,7 @@ impl CustomerInterface for MockDb {
     async fn find_customer_by_global_id(
         &self,
         _state: &KeyManagerState,
-        _id: &str,
+        _id: &id_type::GlobalCustomerId,
         _merchant_id: &id_type::MerchantId,
         _key_store: &domain::MerchantKeyStore,
         _storage_scheme: MerchantStorageScheme,

@@ -18,12 +18,12 @@ pub mod routes {
         search::{
             GetGlobalSearchRequest, GetSearchRequest, GetSearchRequestWithIndex, SearchIndex,
         },
-        GenerateReportRequest, GetActivePaymentsMetricRequest, GetApiEventFiltersRequest,
-        GetApiEventMetricRequest, GetAuthEventMetricRequest, GetDisputeMetricRequest,
-        GetFrmFilterRequest, GetFrmMetricRequest, GetPaymentFiltersRequest,
-        GetPaymentIntentFiltersRequest, GetPaymentIntentMetricRequest, GetPaymentMetricRequest,
-        GetRefundFilterRequest, GetRefundMetricRequest, GetSdkEventFiltersRequest,
-        GetSdkEventMetricRequest, ReportRequest,
+        AnalyticsRequest, GenerateReportRequest, GetActivePaymentsMetricRequest,
+        GetApiEventFiltersRequest, GetApiEventMetricRequest, GetAuthEventMetricRequest,
+        GetDisputeMetricRequest, GetFrmFilterRequest, GetFrmMetricRequest,
+        GetPaymentFiltersRequest, GetPaymentIntentFiltersRequest, GetPaymentIntentMetricRequest,
+        GetPaymentMetricRequest, GetRefundFilterRequest, GetRefundMetricRequest,
+        GetSdkEventFiltersRequest, GetSdkEventMetricRequest, ReportRequest,
     };
     use common_enums::EntityType;
     use common_utils::types::TimeRange;
@@ -31,6 +31,7 @@ pub mod routes {
     use futures::{stream::FuturesUnordered, StreamExt};
 
     use crate::{
+        analytics_validator::request_validator,
         consts::opensearch::SEARCH_INDEXES,
         core::{api_locking, errors::user::UserErrors, verification::utils},
         db::{user::UserInterface, user_role::ListUserRolesByUserIdPayload},
@@ -47,6 +48,11 @@ pub mod routes {
     pub struct Analytics;
 
     impl Analytics {
+        #[cfg(feature = "v2")]
+        pub fn server(state: AppState) -> Scope {
+            web::scope("/analytics").app_data(web::Data::new(state))
+        }
+        #[cfg(feature = "v1")]
         pub fn server(state: AppState) -> Scope {
             web::scope("/analytics")
                 .app_data(web::Data::new(state))
@@ -397,13 +403,21 @@ pub mod routes {
                     org_id: org_id.clone(),
                     merchant_ids: vec![merchant_id.clone()],
                 };
-                analytics::payments::get_metrics(&state.pool, &auth, req)
+                let validator_response = request_validator(
+                    AnalyticsRequest {
+                        payment_attempt: Some(req.clone()),
+                        ..Default::default()
+                    },
+                    &state,
+                )
+                .await?;
+                let ex_rates = validator_response;
+                analytics::payments::get_metrics(&state.pool, &ex_rates, &auth, req)
                     .await
                     .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
-                permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Merchant,
+                permission: Permission::MerchantAnalyticsRead,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -436,19 +450,29 @@ pub mod routes {
                 let auth: AuthInfo = AuthInfo::OrgLevel {
                     org_id: org_id.clone(),
                 };
-                analytics::payments::get_metrics(&state.pool, &auth, req)
+
+                let validator_response = request_validator(
+                    AnalyticsRequest {
+                        payment_attempt: Some(req.clone()),
+                        ..Default::default()
+                    },
+                    &state,
+                )
+                .await?;
+                let ex_rates = validator_response;
+                analytics::payments::get_metrics(&state.pool, &ex_rates, &auth, req)
                     .await
                     .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
-                permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Organization,
+                permission: Permission::OrganizationAnalyticsRead,
             },
             api_locking::LockAction::NotApplicable,
         ))
         .await
     }
 
+    #[cfg(feature = "v1")]
     /// # Panics
     ///
     /// Panics if `json_payload` array does not contain one `GetPaymentMetricRequest` element.
@@ -482,13 +506,22 @@ pub mod routes {
                     merchant_id: merchant_id.clone(),
                     profile_ids: vec![profile_id.clone()],
                 };
-                analytics::payments::get_metrics(&state.pool, &auth, req)
+
+                let validator_response = request_validator(
+                    AnalyticsRequest {
+                        payment_attempt: Some(req.clone()),
+                        ..Default::default()
+                    },
+                    &state,
+                )
+                .await?;
+                let ex_rates = validator_response;
+                analytics::payments::get_metrics(&state.pool, &ex_rates, &auth, req)
                     .await
                     .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
-                permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Profile,
+                permission: Permission::ProfileAnalyticsRead,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -523,13 +556,22 @@ pub mod routes {
                     org_id: org_id.clone(),
                     merchant_ids: vec![merchant_id.clone()],
                 };
-                analytics::payment_intents::get_metrics(&state.pool, &auth, req)
+
+                let validator_response = request_validator(
+                    AnalyticsRequest {
+                        payment_intent: Some(req.clone()),
+                        ..Default::default()
+                    },
+                    &state,
+                )
+                .await?;
+                let ex_rates = validator_response;
+                analytics::payment_intents::get_metrics(&state.pool, &ex_rates, &auth, req)
                     .await
                     .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
-                permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Merchant,
+                permission: Permission::MerchantAnalyticsRead,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -562,19 +604,29 @@ pub mod routes {
                 let auth: AuthInfo = AuthInfo::OrgLevel {
                     org_id: org_id.clone(),
                 };
-                analytics::payment_intents::get_metrics(&state.pool, &auth, req)
+
+                let validator_response = request_validator(
+                    AnalyticsRequest {
+                        payment_intent: Some(req.clone()),
+                        ..Default::default()
+                    },
+                    &state,
+                )
+                .await?;
+                let ex_rates = validator_response;
+                analytics::payment_intents::get_metrics(&state.pool, &ex_rates, &auth, req)
                     .await
                     .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
-                permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Organization,
+                permission: Permission::OrganizationAnalyticsRead,
             },
             api_locking::LockAction::NotApplicable,
         ))
         .await
     }
 
+    #[cfg(feature = "v1")]
     /// # Panics
     ///
     /// Panics if `json_payload` array does not contain one `GetPaymentIntentMetricRequest` element.
@@ -608,13 +660,22 @@ pub mod routes {
                     merchant_id: merchant_id.clone(),
                     profile_ids: vec![profile_id.clone()],
                 };
-                analytics::payment_intents::get_metrics(&state.pool, &auth, req)
+
+                let validator_response = request_validator(
+                    AnalyticsRequest {
+                        payment_intent: Some(req.clone()),
+                        ..Default::default()
+                    },
+                    &state,
+                )
+                .await?;
+                let ex_rates = validator_response;
+                analytics::payment_intents::get_metrics(&state.pool, &ex_rates, &auth, req)
                     .await
                     .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
-                permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Profile,
+                permission: Permission::ProfileAnalyticsRead,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -649,13 +710,22 @@ pub mod routes {
                     org_id: org_id.clone(),
                     merchant_ids: vec![merchant_id.clone()],
                 };
-                analytics::refunds::get_metrics(&state.pool, &auth, req)
+
+                let validator_response = request_validator(
+                    AnalyticsRequest {
+                        refund: Some(req.clone()),
+                        ..Default::default()
+                    },
+                    &state,
+                )
+                .await?;
+                let ex_rates = validator_response;
+                analytics::refunds::get_metrics(&state.pool, &ex_rates, &auth, req)
                     .await
                     .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
-                permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Merchant,
+                permission: Permission::MerchantAnalyticsRead,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -688,19 +758,29 @@ pub mod routes {
                 let auth: AuthInfo = AuthInfo::OrgLevel {
                     org_id: org_id.clone(),
                 };
-                analytics::refunds::get_metrics(&state.pool, &auth, req)
+
+                let validator_response = request_validator(
+                    AnalyticsRequest {
+                        refund: Some(req.clone()),
+                        ..Default::default()
+                    },
+                    &state,
+                )
+                .await?;
+                let ex_rates = validator_response;
+                analytics::refunds::get_metrics(&state.pool, &ex_rates, &auth, req)
                     .await
                     .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
-                permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Organization,
+                permission: Permission::OrganizationAnalyticsRead,
             },
             api_locking::LockAction::NotApplicable,
         ))
         .await
     }
 
+    #[cfg(feature = "v1")]
     /// # Panics
     ///
     /// Panics if `json_payload` array does not contain one `GetRefundMetricRequest` element.
@@ -734,13 +814,22 @@ pub mod routes {
                     merchant_id: merchant_id.clone(),
                     profile_ids: vec![profile_id.clone()],
                 };
-                analytics::refunds::get_metrics(&state.pool, &auth, req)
+
+                let validator_response = request_validator(
+                    AnalyticsRequest {
+                        refund: Some(req.clone()),
+                        ..Default::default()
+                    },
+                    &state,
+                )
+                .await?;
+                let ex_rates = validator_response;
+                analytics::refunds::get_metrics(&state.pool, &ex_rates, &auth, req)
                     .await
                     .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
-                permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Profile,
+                permission: Permission::ProfileAnalyticsRead,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -774,14 +863,14 @@ pub mod routes {
                     .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
-                permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Merchant,
+                permission: Permission::MerchantAnalyticsRead,
             },
             api_locking::LockAction::NotApplicable,
         ))
         .await
     }
 
+    #[cfg(feature = "v1")]
     /// # Panics
     ///
     /// Panics if `json_payload` array does not contain one `GetSdkEventMetricRequest` element.
@@ -813,14 +902,14 @@ pub mod routes {
                 .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
-                permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Merchant,
+                permission: Permission::MerchantAnalyticsRead,
             },
             api_locking::LockAction::NotApplicable,
         ))
         .await
     }
 
+    #[cfg(feature = "v1")]
     /// # Panics
     ///
     /// Panics if `json_payload` array does not contain one `GetActivePaymentsMetricRequest` element.
@@ -853,14 +942,14 @@ pub mod routes {
                 .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
-                permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Merchant,
+                permission: Permission::MerchantAnalyticsRead,
             },
             api_locking::LockAction::NotApplicable,
         ))
         .await
     }
 
+    #[cfg(feature = "v1")]
     /// # Panics
     ///
     /// Panics if `json_payload` array does not contain one `GetAuthEventMetricRequest` element.
@@ -893,8 +982,7 @@ pub mod routes {
                 .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
-                permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Merchant,
+                permission: Permission::MerchantAnalyticsRead,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -924,8 +1012,7 @@ pub mod routes {
                     .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
-                permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Merchant,
+                permission: Permission::MerchantAnalyticsRead,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -953,14 +1040,14 @@ pub mod routes {
                     .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
-                permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Organization,
+                permission: Permission::OrganizationAnalyticsRead,
             },
             api_locking::LockAction::NotApplicable,
         ))
         .await
     }
 
+    #[cfg(feature = "v1")]
     pub async fn get_profile_payment_filters(
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,
@@ -989,8 +1076,7 @@ pub mod routes {
                     .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
-                permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Profile,
+                permission: Permission::ProfileAnalyticsRead,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -1018,8 +1104,7 @@ pub mod routes {
                 .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
-                permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Merchant,
+                permission: Permission::MerchantAnalyticsRead,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -1049,8 +1134,7 @@ pub mod routes {
                     .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
-                permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Merchant,
+                permission: Permission::MerchantAnalyticsRead,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -1078,14 +1162,14 @@ pub mod routes {
                     .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
-                permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Organization,
+                permission: Permission::OrganizationAnalyticsRead,
             },
             api_locking::LockAction::NotApplicable,
         ))
         .await
     }
 
+    #[cfg(feature = "v1")]
     pub async fn get_profile_refund_filters(
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,
@@ -1114,8 +1198,7 @@ pub mod routes {
                     .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
-                permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Profile,
+                permission: Permission::ProfileAnalyticsRead,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -1139,14 +1222,14 @@ pub mod routes {
                     .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
-                permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Merchant,
+                permission: Permission::MerchantAnalyticsRead,
             },
             api_locking::LockAction::NotApplicable,
         ))
         .await
     }
 
+    #[cfg(feature = "v1")]
     pub async fn get_sdk_event_filters(
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,
@@ -1168,8 +1251,7 @@ pub mod routes {
                 .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
-                permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Merchant,
+                permission: Permission::MerchantAnalyticsRead,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -1201,8 +1283,7 @@ pub mod routes {
                     .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
-                permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Profile,
+                permission: Permission::ProfileAnalyticsRead,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -1235,14 +1316,14 @@ pub mod routes {
                     .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
-                permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Profile,
+                permission: Permission::ProfileAnalyticsRead,
             },
             api_locking::LockAction::NotApplicable,
         ))
         .await
     }
 
+    #[cfg(feature = "v1")]
     pub async fn get_profile_sdk_events(
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,
@@ -1267,14 +1348,14 @@ pub mod routes {
                     .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
-                permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Profile,
+                permission: Permission::ProfileAnalyticsRead,
             },
             api_locking::LockAction::NotApplicable,
         ))
         .await
     }
 
+    #[cfg(feature = "v1")]
     pub async fn generate_merchant_refund_report(
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,
@@ -1318,14 +1399,14 @@ pub mod routes {
                 .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
-                permission: Permission::GenerateReport,
-                minimum_entity_level: EntityType::Merchant,
+                permission: Permission::MerchantReportRead,
             },
             api_locking::LockAction::NotApplicable,
         ))
         .await
     }
 
+    #[cfg(feature = "v1")]
     pub async fn generate_org_refund_report(
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,
@@ -1367,14 +1448,14 @@ pub mod routes {
                 .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
-                permission: Permission::GenerateReport,
-                minimum_entity_level: EntityType::Organization,
+                permission: Permission::OrganizationReportRead,
             },
             api_locking::LockAction::NotApplicable,
         ))
         .await
     }
 
+    #[cfg(feature = "v1")]
     pub async fn generate_profile_refund_report(
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,
@@ -1423,14 +1504,13 @@ pub mod routes {
                 .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
-                permission: Permission::GenerateReport,
-                minimum_entity_level: EntityType::Profile,
+                permission: Permission::ProfileReportRead,
             },
             api_locking::LockAction::NotApplicable,
         ))
         .await
     }
-
+    #[cfg(feature = "v1")]
     pub async fn generate_merchant_dispute_report(
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,
@@ -1474,14 +1554,13 @@ pub mod routes {
                 .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
-                permission: Permission::GenerateReport,
-                minimum_entity_level: EntityType::Merchant,
+                permission: Permission::MerchantReportRead,
             },
             api_locking::LockAction::NotApplicable,
         ))
         .await
     }
-
+    #[cfg(feature = "v1")]
     pub async fn generate_org_dispute_report(
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,
@@ -1523,14 +1602,14 @@ pub mod routes {
                 .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
-                permission: Permission::GenerateReport,
-                minimum_entity_level: EntityType::Organization,
+                permission: Permission::OrganizationReportRead,
             },
             api_locking::LockAction::NotApplicable,
         ))
         .await
     }
 
+    #[cfg(feature = "v1")]
     pub async fn generate_profile_dispute_report(
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,
@@ -1579,14 +1658,14 @@ pub mod routes {
                 .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
-                permission: Permission::GenerateReport,
-                minimum_entity_level: EntityType::Profile,
+                permission: Permission::ProfileReportRead,
             },
             api_locking::LockAction::NotApplicable,
         ))
         .await
     }
 
+    #[cfg(feature = "v1")]
     pub async fn generate_merchant_payment_report(
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,
@@ -1630,14 +1709,13 @@ pub mod routes {
                 .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
-                permission: Permission::GenerateReport,
-                minimum_entity_level: EntityType::Merchant,
+                permission: Permission::MerchantReportRead,
             },
             api_locking::LockAction::NotApplicable,
         ))
         .await
     }
-
+    #[cfg(feature = "v1")]
     pub async fn generate_org_payment_report(
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,
@@ -1679,14 +1757,14 @@ pub mod routes {
                 .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
-                permission: Permission::GenerateReport,
-                minimum_entity_level: EntityType::Organization,
+                permission: Permission::OrganizationReportRead,
             },
             api_locking::LockAction::NotApplicable,
         ))
         .await
     }
 
+    #[cfg(feature = "v1")]
     pub async fn generate_profile_payment_report(
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,
@@ -1734,8 +1812,7 @@ pub mod routes {
                 .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
-                permission: Permission::GenerateReport,
-                minimum_entity_level: EntityType::Profile,
+                permission: Permission::ProfileReportRead,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -1773,8 +1850,7 @@ pub mod routes {
                 .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
-                permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Merchant,
+                permission: Permission::MerchantAnalyticsRead,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -1798,8 +1874,7 @@ pub mod routes {
                     .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
-                permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Profile,
+                permission: Permission::MerchantAnalyticsRead,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -1830,8 +1905,7 @@ pub mod routes {
                     .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
-                permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Profile,
+                permission: Permission::ProfileAnalyticsRead,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -1851,23 +1925,19 @@ pub mod routes {
             json_payload.into_inner(),
             |state, auth: UserFromToken, req, _| async move {
                 let role_id = auth.role_id;
-                let role_info = RoleInfo::from_role_id_in_merchant_scope(
-                    &state,
-                    &role_id,
-                    &auth.merchant_id,
-                    &auth.org_id,
-                )
-                .await
-                .change_context(UserErrors::InternalServerError)
-                .change_context(OpenSearchError::UnknownError)?;
+                let role_info = RoleInfo::from_role_id_and_org_id(&state, &role_id, &auth.org_id)
+                    .await
+                    .change_context(UserErrors::InternalServerError)
+                    .change_context(OpenSearchError::UnknownError)?;
                 let permission_groups = role_info.get_permission_groups();
                 if !permission_groups.contains(&common_enums::PermissionGroup::OperationsView) {
                     return Err(OpenSearchError::AccessForbiddenError)?;
                 }
                 let user_roles: HashSet<UserRole> = state
-                    .store
+                    .global_store
                     .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
                         user_id: &auth.user_id,
+                        tenant_id: auth.tenant_id.as_ref().unwrap_or(&state.tenant.tenant_id),
                         org_id: Some(&auth.org_id),
                         merchant_id: None,
                         profile_id: None,
@@ -1890,7 +1960,7 @@ pub mod routes {
                         let role_id = user_role.role_id.clone();
                         let org_id = user_role.org_id.clone().unwrap_or_default();
                         async move {
-                            RoleInfo::from_role_id_in_org_scope(&state, &role_id, &org_id)
+                            RoleInfo::from_role_id_and_org_id(&state, &role_id, &org_id)
                                 .await
                                 .change_context(UserErrors::InternalServerError)
                                 .change_context(OpenSearchError::UnknownError)
@@ -1934,6 +2004,9 @@ pub mod routes {
                                 EntityType::Organization => Some(AuthInfo::OrgLevel {
                                     org_id: user_role.org_id.clone()?,
                                 }),
+                                EntityType::Tenant => Some(AuthInfo::OrgLevel {
+                                    org_id: auth.org_id.clone(),
+                                }),
                             })
                     })
                     .collect();
@@ -1948,8 +2021,7 @@ pub mod routes {
                 .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
-                permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Profile,
+                permission: Permission::ProfileAnalyticsRead,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -1975,23 +2047,19 @@ pub mod routes {
             indexed_req,
             |state, auth: UserFromToken, req, _| async move {
                 let role_id = auth.role_id;
-                let role_info = RoleInfo::from_role_id_in_merchant_scope(
-                    &state,
-                    &role_id,
-                    &auth.merchant_id,
-                    &auth.org_id,
-                )
-                .await
-                .change_context(UserErrors::InternalServerError)
-                .change_context(OpenSearchError::UnknownError)?;
+                let role_info = RoleInfo::from_role_id_and_org_id(&state, &role_id, &auth.org_id)
+                    .await
+                    .change_context(UserErrors::InternalServerError)
+                    .change_context(OpenSearchError::UnknownError)?;
                 let permission_groups = role_info.get_permission_groups();
                 if !permission_groups.contains(&common_enums::PermissionGroup::OperationsView) {
                     return Err(OpenSearchError::AccessForbiddenError)?;
                 }
                 let user_roles: HashSet<UserRole> = state
-                    .store
+                    .global_store
                     .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
                         user_id: &auth.user_id,
+                        tenant_id: auth.tenant_id.as_ref().unwrap_or(&state.tenant.tenant_id),
                         org_id: Some(&auth.org_id),
                         merchant_id: None,
                         profile_id: None,
@@ -2013,7 +2081,7 @@ pub mod routes {
                         let role_id = user_role.role_id.clone();
                         let org_id = user_role.org_id.clone().unwrap_or_default();
                         async move {
-                            RoleInfo::from_role_id_in_org_scope(&state, &role_id, &org_id)
+                            RoleInfo::from_role_id_and_org_id(&state, &role_id, &org_id)
                                 .await
                                 .change_context(UserErrors::InternalServerError)
                                 .change_context(OpenSearchError::UnknownError)
@@ -2057,6 +2125,9 @@ pub mod routes {
                                 EntityType::Organization => Some(AuthInfo::OrgLevel {
                                     org_id: user_role.org_id.clone()?,
                                 }),
+                                EntityType::Tenant => Some(AuthInfo::OrgLevel {
+                                    org_id: auth.org_id.clone(),
+                                }),
                             })
                     })
                     .collect();
@@ -2065,8 +2136,7 @@ pub mod routes {
                     .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
-                permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Profile,
+                permission: Permission::ProfileAnalyticsRead,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -2096,14 +2166,14 @@ pub mod routes {
                     .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
-                permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Merchant,
+                permission: Permission::MerchantAnalyticsRead,
             },
             api_locking::LockAction::NotApplicable,
         ))
         .await
     }
 
+    #[cfg(feature = "v1")]
     pub async fn get_profile_dispute_filters(
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,
@@ -2132,8 +2202,7 @@ pub mod routes {
                     .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
-                permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Profile,
+                permission: Permission::ProfileAnalyticsRead,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -2161,8 +2230,7 @@ pub mod routes {
                     .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
-                permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Organization,
+                permission: Permission::OrganizationAnalyticsRead,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -2202,14 +2270,14 @@ pub mod routes {
                     .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
-                permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Merchant,
+                permission: Permission::MerchantAnalyticsRead,
             },
             api_locking::LockAction::NotApplicable,
         ))
         .await
     }
 
+    #[cfg(feature = "v1")]
     /// # Panics
     ///
     /// Panics if `json_payload` array does not contain one `GetDisputeMetricRequest` element.
@@ -2248,8 +2316,7 @@ pub mod routes {
                     .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
-                permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Profile,
+                permission: Permission::ProfileAnalyticsRead,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -2287,8 +2354,7 @@ pub mod routes {
                     .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
-                permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Organization,
+                permission: Permission::OrganizationAnalyticsRead,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -2319,8 +2385,7 @@ pub mod routes {
                     .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
-                permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Merchant,
+                permission: Permission::MerchantAnalyticsRead,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -2349,14 +2414,14 @@ pub mod routes {
                     .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
-                permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Organization,
+                permission: Permission::OrganizationAnalyticsRead,
             },
             api_locking::LockAction::NotApplicable,
         ))
         .await
     }
 
+    #[cfg(feature = "v1")]
     pub async fn get_profile_sankey(
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,
@@ -2386,8 +2451,7 @@ pub mod routes {
                     .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
-                permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Profile,
+                permission: Permission::ProfileAnalyticsRead,
             },
             api_locking::LockAction::NotApplicable,
         ))

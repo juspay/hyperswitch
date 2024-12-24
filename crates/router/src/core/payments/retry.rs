@@ -61,7 +61,7 @@ where
 {
     let mut retries = None;
 
-    metrics::AUTO_RETRY_ELIGIBLE_REQUEST_COUNT.add(&metrics::CONTEXT, 1, &[]);
+    metrics::AUTO_RETRY_ELIGIBLE_REQUEST_COUNT.add(1, &[]);
 
     let mut initial_gsm = get_gsm(state, &router_data).await?;
 
@@ -70,10 +70,19 @@ where
         .clone()
         .map(|gsm| gsm.step_up_possible)
         .unwrap_or(false);
+
+    #[cfg(feature = "v1")]
     let is_no_three_ds_payment = matches!(
         payment_data.get_payment_attempt().authentication_type,
         Some(storage_enums::AuthenticationType::NoThreeDs)
     );
+
+    #[cfg(feature = "v2")]
+    let is_no_three_ds_payment = matches!(
+        payment_data.get_payment_attempt().authentication_type,
+        storage_enums::AuthenticationType::NoThreeDs
+    );
+
     let should_step_up = if step_up_possible && is_no_three_ds_payment {
         is_step_up_enabled_for_merchant_connector(
             state,
@@ -120,14 +129,14 @@ where
                             .await;
 
                     if retries.is_none() || retries == Some(0) {
-                        metrics::AUTO_RETRY_EXHAUSTED_COUNT.add(&metrics::CONTEXT, 1, &[]);
+                        metrics::AUTO_RETRY_EXHAUSTED_COUNT.add(1, &[]);
                         logger::info!("retries exhausted for auto_retry payment");
                         break;
                     }
 
                     if connectors.len() == 0 {
                         logger::info!("connectors exhausted for auto_retry payment");
-                        metrics::AUTO_RETRY_EXHAUSTED_COUNT.add(&metrics::CONTEXT, 1, &[]);
+                        metrics::AUTO_RETRY_EXHAUSTED_COUNT.add(1, &[]);
                         break;
                     }
 
@@ -266,7 +275,7 @@ pub fn get_gsm_decision(
             });
 
     if option_gsm_decision.is_some() {
-        metrics::AUTO_RETRY_GSM_MATCH_COUNT.add(&metrics::CONTEXT, 1, &[]);
+        metrics::AUTO_RETRY_GSM_MATCH_COUNT.add(1, &[]);
     }
     option_gsm_decision.unwrap_or_default()
 }
@@ -282,6 +291,7 @@ fn get_flow_name<F>() -> RouterResult<String> {
         .to_string())
 }
 
+#[cfg(feature = "v1")]
 #[allow(clippy::too_many_arguments)]
 #[instrument(skip_all)]
 pub async fn do_retry<F, ApiRequest, FData, D>(
@@ -313,7 +323,7 @@ where
     types::RouterData<F, FData, types::PaymentsResponseData>: Feature<F, FData>,
     dyn api::Connector: services::api::ConnectorIntegration<F, FData, types::PaymentsResponseData>,
 {
-    metrics::AUTO_RETRY_PAYMENT_COUNT.add(&metrics::CONTEXT, 1, &[]);
+    metrics::AUTO_RETRY_PAYMENT_COUNT.add(1, &[]);
 
     modify_trackers(
         state,
@@ -338,7 +348,7 @@ where
         payments::CallConnectorAction::Trigger,
         validate_result,
         schedule_time,
-        api::HeaderPayload::default(),
+        hyperswitch_domain_models::payments::HeaderPayload::default(),
         frm_suggestion,
         business_profile,
         true,
@@ -415,7 +425,7 @@ where
         }) => {
             let encoded_data = payment_data.get_payment_attempt().encoded_data.clone();
 
-            let authentication_data = redirection_data
+            let authentication_data = (*redirection_data)
                 .as_ref()
                 .map(Encode::encode_to_value)
                 .transpose()
@@ -456,6 +466,7 @@ where
                 unified_message: None,
                 payment_method_data: additional_payment_method_data,
                 charge_id,
+                connector_mandate_detail: None,
             };
 
             #[cfg(feature = "v1")]
@@ -642,6 +653,7 @@ pub fn make_new_payment_attempt(
         fingerprint_id: Default::default(),
         charge_id: Default::default(),
         customer_acceptance: Default::default(),
+        connector_mandate_detail: Default::default(),
     }
 }
 

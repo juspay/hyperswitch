@@ -67,13 +67,11 @@ pub struct GenericVariableInput<T> {
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-
 pub struct BraintreeApiErrorResponse {
     pub api_error_response: ApiErrorResponse,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-
 pub struct ErrorsObject {
     pub errors: Vec<ErrorObject>,
 
@@ -82,7 +80,6 @@ pub struct ErrorsObject {
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-
 pub struct TransactionError {
     pub errors: Vec<ErrorObject>,
     pub credit_card: Option<CreditCardError>,
@@ -122,7 +119,6 @@ pub struct BraintreeErrorResponse {
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 #[serde(untagged)]
-
 pub enum ErrorResponses {
     BraintreeApiErrorResponse(Box<BraintreeApiErrorResponse>),
     BraintreeErrorResponse(Box<BraintreeErrorResponse>),
@@ -305,6 +301,7 @@ impl TryFrom<&BraintreeRouterData<&types::PaymentsAuthorizeRouterData>>
             | domain::PaymentMethodData::Crypto(_)
             | domain::PaymentMethodData::Reward
             | domain::PaymentMethodData::RealTimePayment(_)
+            | domain::PaymentMethodData::MobilePayment(_)
             | domain::PaymentMethodData::Upi(_)
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::GiftCard(_)
@@ -341,6 +338,7 @@ impl TryFrom<&BraintreeRouterData<&types::PaymentsCompleteAuthorizeRouterData>>
             | api_models::enums::PaymentMethod::BankDebit
             | api_models::enums::PaymentMethod::Reward
             | api_models::enums::PaymentMethod::RealTimePayment
+            | api_models::enums::PaymentMethod::MobilePayment
             | api_models::enums::PaymentMethod::Upi
             | api_models::enums::PaymentMethod::OpenBanking
             | api_models::enums::PaymentMethod::Voucher
@@ -439,14 +437,15 @@ impl<F>
                 } else {
                     Ok(types::PaymentsResponseData::TransactionResponse {
                         resource_id: types::ResponseId::ConnectorTransactionId(transaction_data.id),
-                        redirection_data: None,
-                        mandate_reference: transaction_data.payment_method.as_ref().map(|pm| {
-                            MandateReference {
+                        redirection_data: Box::new(None),
+                        mandate_reference: Box::new(transaction_data.payment_method.as_ref().map(
+                            |pm| MandateReference {
                                 connector_mandate_id: Some(pm.id.clone().expose()),
                                 payment_method_id: None,
                                 mandate_metadata: None,
-                            }
-                        }),
+                                connector_mandate_request_reference_id: None,
+                            },
+                        )),
                         connector_metadata: None,
                         network_txn_id: None,
                         connector_response_reference_id: None,
@@ -464,12 +463,12 @@ impl<F>
                 status: enums::AttemptStatus::AuthenticationPending,
                 response: Ok(types::PaymentsResponseData::TransactionResponse {
                     resource_id: types::ResponseId::NoResponseId,
-                    redirection_data: Some(get_braintree_redirect_form(
+                    redirection_data: Box::new(Some(get_braintree_redirect_form(
                         *client_token_data,
                         item.data.get_payment_method_token()?,
                         item.data.request.payment_method_data.clone(),
-                    )?),
-                    mandate_reference: None,
+                    )?)),
+                    mandate_reference: Box::new(None),
                     connector_metadata: None,
                     network_txn_id: None,
                     connector_response_reference_id: None,
@@ -614,14 +613,15 @@ impl<F>
                 } else {
                     Ok(types::PaymentsResponseData::TransactionResponse {
                         resource_id: types::ResponseId::ConnectorTransactionId(transaction_data.id),
-                        redirection_data: None,
-                        mandate_reference: transaction_data.payment_method.as_ref().map(|pm| {
-                            MandateReference {
+                        redirection_data: Box::new(None),
+                        mandate_reference: Box::new(transaction_data.payment_method.as_ref().map(
+                            |pm| MandateReference {
                                 connector_mandate_id: Some(pm.id.clone().expose()),
                                 payment_method_id: None,
                                 mandate_metadata: None,
-                            }
-                        }),
+                                connector_mandate_request_reference_id: None,
+                            },
+                        )),
                         connector_metadata: None,
                         network_txn_id: None,
                         connector_response_reference_id: None,
@@ -639,12 +639,12 @@ impl<F>
                 status: enums::AttemptStatus::AuthenticationPending,
                 response: Ok(types::PaymentsResponseData::TransactionResponse {
                     resource_id: types::ResponseId::NoResponseId,
-                    redirection_data: Some(get_braintree_redirect_form(
+                    redirection_data: Box::new(Some(get_braintree_redirect_form(
                         *client_token_data,
                         item.data.get_payment_method_token()?,
                         item.data.request.payment_method_data.clone(),
-                    )?),
-                    mandate_reference: None,
+                    )?)),
+                    mandate_reference: Box::new(None),
                     connector_metadata: None,
                     network_txn_id: None,
                     connector_response_reference_id: None,
@@ -696,14 +696,15 @@ impl<F>
                 } else {
                     Ok(types::PaymentsResponseData::TransactionResponse {
                         resource_id: types::ResponseId::ConnectorTransactionId(transaction_data.id),
-                        redirection_data: None,
-                        mandate_reference: transaction_data.payment_method.as_ref().map(|pm| {
-                            MandateReference {
+                        redirection_data: Box::new(None),
+                        mandate_reference: Box::new(transaction_data.payment_method.as_ref().map(
+                            |pm| MandateReference {
                                 connector_mandate_id: Some(pm.id.clone().expose()),
                                 payment_method_id: None,
                                 mandate_metadata: None,
-                            }
-                        }),
+                                connector_mandate_request_reference_id: None,
+                            },
+                        )),
                         connector_metadata: None,
                         network_txn_id: None,
                         connector_response_reference_id: None,
@@ -760,14 +761,15 @@ impl<F>
                 } else {
                     Ok(types::PaymentsResponseData::TransactionResponse {
                         resource_id: types::ResponseId::ConnectorTransactionId(transaction_data.id),
-                        redirection_data: None,
-                        mandate_reference: transaction_data.payment_method.as_ref().map(|pm| {
-                            MandateReference {
+                        redirection_data: Box::new(None),
+                        mandate_reference: Box::new(transaction_data.payment_method.as_ref().map(
+                            |pm| MandateReference {
                                 connector_mandate_id: Some(pm.id.clone().expose()),
                                 payment_method_id: None,
                                 mandate_metadata: None,
-                            }
-                        }),
+                                connector_mandate_request_reference_id: None,
+                            },
+                        )),
                         connector_metadata: None,
                         network_txn_id: None,
                         connector_response_reference_id: None,
@@ -901,7 +903,6 @@ pub struct BraintreeRefundResponseData {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
-
 pub struct RefundResponse {
     pub data: BraintreeRefundResponseData,
 }
@@ -1101,6 +1102,7 @@ impl TryFrom<&types::TokenizationRouterData> for BraintreeTokenRequest {
             | domain::PaymentMethodData::OpenBanking(_)
             | domain::PaymentMethodData::Reward
             | domain::PaymentMethodData::RealTimePayment(_)
+            | domain::PaymentMethodData::MobilePayment(_)
             | domain::PaymentMethodData::Upi(_)
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::GiftCard(_)
@@ -1274,8 +1276,8 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<BraintreeCaptureResponse>>
                 } else {
                     Ok(types::PaymentsResponseData::TransactionResponse {
                         resource_id: types::ResponseId::ConnectorTransactionId(transaction_data.id),
-                        redirection_data: None,
-                        mandate_reference: None,
+                        redirection_data: Box::new(None),
+                        mandate_reference: Box::new(None),
                         connector_metadata: None,
                         network_txn_id: None,
                         connector_response_reference_id: None,
@@ -1384,8 +1386,8 @@ impl<F, T>
                 } else {
                     Ok(types::PaymentsResponseData::TransactionResponse {
                         resource_id: types::ResponseId::NoResponseId,
-                        redirection_data: None,
-                        mandate_reference: None,
+                        redirection_data: Box::new(None),
+                        mandate_reference: Box::new(None),
                         connector_metadata: None,
                         network_txn_id: None,
                         connector_response_reference_id: None,
@@ -1489,8 +1491,8 @@ impl<F, T>
                         resource_id: types::ResponseId::ConnectorTransactionId(
                             edge_data.node.id.clone(),
                         ),
-                        redirection_data: None,
-                        mandate_reference: None,
+                        redirection_data: Box::new(None),
+                        mandate_reference: Box::new(None),
                         connector_metadata: None,
                         network_txn_id: None,
                         connector_response_reference_id: None,
@@ -1713,6 +1715,7 @@ fn get_braintree_redirect_form(
             | domain::PaymentMethodData::OpenBanking(_)
             | domain::PaymentMethodData::Reward
             | domain::PaymentMethodData::RealTimePayment(_)
+            | domain::PaymentMethodData::MobilePayment(_)
             | domain::PaymentMethodData::Upi(_)
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::GiftCard(_)
@@ -1758,7 +1761,7 @@ pub struct BraintreeDisputeData {
     pub amount_won: Option<String>,
     pub case_number: Option<String>,
     pub chargeback_protection_level: Option<String>,
-    pub currency_iso_code: String,
+    pub currency_iso_code: enums::Currency,
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub created_at: Option<PrimitiveDateTime>,
     pub evidence: Option<DisputeEvidence>,

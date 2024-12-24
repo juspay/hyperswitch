@@ -51,6 +51,7 @@ pub struct MerchantAccount {
     pub payment_link_config: Option<serde_json::Value>,
     pub pm_collect_link_config: Option<serde_json::Value>,
     pub version: common_enums::ApiVersion,
+    pub is_platform_account: bool,
 }
 
 #[cfg(feature = "v1")]
@@ -83,6 +84,7 @@ pub struct MerchantAccountSetter {
     pub payment_link_config: Option<serde_json::Value>,
     pub pm_collect_link_config: Option<serde_json::Value>,
     pub version: common_enums::ApiVersion,
+    pub is_platform_account: bool,
 }
 
 #[cfg(feature = "v1")]
@@ -117,6 +119,7 @@ impl From<MerchantAccountSetter> for MerchantAccount {
             payment_link_config: item.payment_link_config,
             pm_collect_link_config: item.pm_collect_link_config,
             version: item.version,
+            is_platform_account: item.is_platform_account,
         }
     }
 }
@@ -148,6 +151,7 @@ pub struct MerchantAccount {
     pub recon_status: storage_enums::ReconStatus,
     pub version: common_enums::ApiVersion,
     pub id: common_utils::id_type::MerchantId,
+    pub is_platform_account: bool,
 }
 
 #[cfg(feature = "v2")]
@@ -165,6 +169,7 @@ impl From<MerchantAccountSetter> for MerchantAccount {
             organization_id: item.organization_id,
             recon_status: item.recon_status,
             version: item.version,
+            is_platform_account: item.is_platform_account,
         }
     }
 }
@@ -182,6 +187,7 @@ pub struct MerchantAccountSetter {
     pub organization_id: common_utils::id_type::OrganizationId,
     pub recon_status: storage_enums::ReconStatus,
     pub version: common_enums::ApiVersion,
+    pub is_platform_account: bool,
 }
 
 impl MerchantAccount {
@@ -228,6 +234,7 @@ pub struct MerchantAccountNew {
     pub payment_link_config: Option<serde_json::Value>,
     pub pm_collect_link_config: Option<serde_json::Value>,
     pub version: common_enums::ApiVersion,
+    pub is_platform_account: bool,
 }
 
 #[cfg(feature = "v2")]
@@ -244,6 +251,7 @@ pub struct MerchantAccountNew {
     pub recon_status: storage_enums::ReconStatus,
     pub id: common_utils::id_type::MerchantId,
     pub version: common_enums::ApiVersion,
+    pub is_platform_account: bool,
 }
 
 #[cfg(feature = "v2")]
@@ -258,6 +266,39 @@ pub struct MerchantAccountUpdateInternal {
     pub modified_at: time::PrimitiveDateTime,
     pub organization_id: Option<common_utils::id_type::OrganizationId>,
     pub recon_status: Option<storage_enums::ReconStatus>,
+    pub is_platform_account: Option<bool>,
+}
+
+#[cfg(feature = "v2")]
+impl MerchantAccountUpdateInternal {
+    pub fn apply_changeset(self, source: MerchantAccount) -> MerchantAccount {
+        let Self {
+            merchant_name,
+            merchant_details,
+            publishable_key,
+            storage_scheme,
+            metadata,
+            modified_at,
+            organization_id,
+            recon_status,
+            is_platform_account,
+        } = self;
+
+        MerchantAccount {
+            merchant_name: merchant_name.or(source.merchant_name),
+            merchant_details: merchant_details.or(source.merchant_details),
+            publishable_key: publishable_key.or(source.publishable_key),
+            storage_scheme: storage_scheme.unwrap_or(source.storage_scheme),
+            metadata: metadata.or(source.metadata),
+            created_at: source.created_at,
+            modified_at,
+            organization_id: organization_id.unwrap_or(source.organization_id),
+            recon_status: recon_status.unwrap_or(source.recon_status),
+            version: source.version,
+            id: source.id,
+            is_platform_account: is_platform_account.unwrap_or(source.is_platform_account),
+        }
+    }
 }
 
 #[cfg(feature = "v1")]
@@ -289,4 +330,75 @@ pub struct MerchantAccountUpdateInternal {
     pub recon_status: Option<storage_enums::ReconStatus>,
     pub payment_link_config: Option<serde_json::Value>,
     pub pm_collect_link_config: Option<serde_json::Value>,
+    pub is_platform_account: Option<bool>,
+}
+
+#[cfg(feature = "v1")]
+impl MerchantAccountUpdateInternal {
+    pub fn apply_changeset(self, source: MerchantAccount) -> MerchantAccount {
+        let Self {
+            merchant_name,
+            merchant_details,
+            return_url,
+            webhook_details,
+            sub_merchants_enabled,
+            parent_merchant_id,
+            enable_payment_response_hash,
+            payment_response_hash_key,
+            redirect_to_merchant_with_http_post,
+            publishable_key,
+            storage_scheme,
+            locker_id,
+            metadata,
+            routing_algorithm,
+            primary_business_details,
+            modified_at,
+            intent_fulfillment_time,
+            frm_routing_algorithm,
+            payout_routing_algorithm,
+            organization_id,
+            is_recon_enabled,
+            default_profile,
+            recon_status,
+            payment_link_config,
+            pm_collect_link_config,
+            is_platform_account,
+        } = self;
+
+        MerchantAccount {
+            merchant_id: source.merchant_id,
+            return_url: return_url.or(source.return_url),
+            enable_payment_response_hash: enable_payment_response_hash
+                .unwrap_or(source.enable_payment_response_hash),
+            payment_response_hash_key: payment_response_hash_key
+                .or(source.payment_response_hash_key),
+            redirect_to_merchant_with_http_post: redirect_to_merchant_with_http_post
+                .unwrap_or(source.redirect_to_merchant_with_http_post),
+            merchant_name: merchant_name.or(source.merchant_name),
+            merchant_details: merchant_details.or(source.merchant_details),
+            webhook_details: webhook_details.or(source.webhook_details),
+            sub_merchants_enabled: sub_merchants_enabled.or(source.sub_merchants_enabled),
+            parent_merchant_id: parent_merchant_id.or(source.parent_merchant_id),
+            publishable_key: publishable_key.or(source.publishable_key),
+            storage_scheme: storage_scheme.unwrap_or(source.storage_scheme),
+            locker_id: locker_id.or(source.locker_id),
+            metadata: metadata.or(source.metadata),
+            routing_algorithm: routing_algorithm.or(source.routing_algorithm),
+            primary_business_details: primary_business_details
+                .unwrap_or(source.primary_business_details),
+            intent_fulfillment_time: intent_fulfillment_time.or(source.intent_fulfillment_time),
+            created_at: source.created_at,
+            modified_at,
+            frm_routing_algorithm: frm_routing_algorithm.or(source.frm_routing_algorithm),
+            payout_routing_algorithm: payout_routing_algorithm.or(source.payout_routing_algorithm),
+            organization_id: organization_id.unwrap_or(source.organization_id),
+            is_recon_enabled: is_recon_enabled.unwrap_or(source.is_recon_enabled),
+            default_profile: default_profile.unwrap_or(source.default_profile),
+            recon_status: recon_status.unwrap_or(source.recon_status),
+            payment_link_config: payment_link_config.or(source.payment_link_config),
+            pm_collect_link_config: pm_collect_link_config.or(source.pm_collect_link_config),
+            version: source.version,
+            is_platform_account: is_platform_account.unwrap_or(source.is_platform_account),
+        }
+    }
 }

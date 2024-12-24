@@ -127,20 +127,10 @@ impl VaultingDataInterface for PaymentMethodVaultingData {
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-pub struct PaymentMethodClientSecret;
-
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-impl PaymentMethodClientSecret {
-    pub fn generate(payment_method_id: &common_utils::id_type::GlobalPaymentMethodId) -> String {
-        todo!()
-    }
-}
-
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 pub struct SavedPMLPaymentsInfo {
     pub payment_intent: storage::PaymentIntent,
-    pub business_profile: Option<domain::Profile>,
-    pub requires_cvv: bool,
+    pub profile: domain::Profile,
+    pub collect_cvv_during_payment: bool,
     pub off_session_payment_flag: bool,
     pub is_connector_agnostic_mit_enabled: bool,
 }
@@ -155,7 +145,7 @@ pub struct VaultRetrieveRequest {
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct VaultRetrieveResponse {
-    pub data: Secret<String>,
+    pub data: PaymentMethodVaultingData,
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]

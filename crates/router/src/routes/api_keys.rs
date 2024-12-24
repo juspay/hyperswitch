@@ -1,5 +1,4 @@
 use actix_web::{web, HttpRequest, Responder};
-use common_enums::EntityType;
 use router_env::{instrument, tracing, Flow};
 
 use super::app::AppState;
@@ -33,8 +32,7 @@ pub async fn api_key_create(
             &auth::AdminApiAuthWithMerchantIdFromRoute(merchant_id.clone()),
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id: merchant_id.clone(),
-                required_permission: Permission::ApiKeyWrite,
-                minimum_entity_level: EntityType::Merchant,
+                required_permission: Permission::MerchantApiKeyWrite,
             },
             req.headers(),
         ),
@@ -58,14 +56,13 @@ pub async fn api_key_create(
         state,
         &req,
         payload,
-        |state, auth_data, payload, _| async {
-            api_keys::create_api_key(state, payload, auth_data.key_store).await
+        |state, auth::AuthenticationDataWithoutProfile { key_store, .. }, payload, _| async {
+            api_keys::create_api_key(state, payload, key_store).await
         },
         auth::auth_type(
             &auth::AdminApiAuthWithMerchantIdFromHeader,
             &auth::JWTAuthMerchantFromHeader {
-                required_permission: Permission::ApiKeyWrite,
-                minimum_entity_level: EntityType::Merchant,
+                required_permission: Permission::MerchantApiKeyWrite,
             },
             req.headers(),
         ),
@@ -79,7 +76,7 @@ pub async fn api_key_create(
 pub async fn api_key_retrieve(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<String>,
+    path: web::Path<common_utils::id_type::ApiKeyId>,
 ) -> impl Responder {
     let flow = Flow::ApiKeyRetrieve;
     let key_id = path.into_inner();
@@ -89,18 +86,22 @@ pub async fn api_key_retrieve(
         state,
         &req,
         &key_id,
-        |state, auth_data, key_id, _| {
+        |state,
+         auth::AuthenticationDataWithoutProfile {
+             merchant_account, ..
+         },
+         key_id,
+         _| {
             api_keys::retrieve_api_key(
                 state,
-                auth_data.merchant_account.get_id().to_owned(),
-                key_id,
+                merchant_account.get_id().to_owned(),
+                key_id.to_owned(),
             )
         },
         auth::auth_type(
             &auth::AdminApiAuthWithMerchantIdFromHeader,
             &auth::JWTAuthMerchantFromHeader {
-                required_permission: Permission::ApiKeyRead,
-                minimum_entity_level: EntityType::Merchant,
+                required_permission: Permission::MerchantApiKeyRead,
             },
             req.headers(),
         ),
@@ -114,7 +115,10 @@ pub async fn api_key_retrieve(
 pub async fn api_key_retrieve(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<(common_utils::id_type::MerchantId, String)>,
+    path: web::Path<(
+        common_utils::id_type::MerchantId,
+        common_utils::id_type::ApiKeyId,
+    )>,
 ) -> impl Responder {
     let flow = Flow::ApiKeyRetrieve;
     let (merchant_id, key_id) = path.into_inner();
@@ -123,14 +127,13 @@ pub async fn api_key_retrieve(
         flow,
         state,
         &req,
-        (merchant_id.clone(), &key_id),
+        (merchant_id.clone(), key_id.clone()),
         |state, _, (merchant_id, key_id), _| api_keys::retrieve_api_key(state, merchant_id, key_id),
         auth::auth_type(
             &auth::AdminApiAuth,
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id: merchant_id.clone(),
-                required_permission: Permission::ApiKeyRead,
-                minimum_entity_level: EntityType::Merchant,
+                required_permission: Permission::MerchantApiKeyRead,
             },
             req.headers(),
         ),
@@ -144,7 +147,10 @@ pub async fn api_key_retrieve(
 pub async fn api_key_update(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<(common_utils::id_type::MerchantId, String)>,
+    path: web::Path<(
+        common_utils::id_type::MerchantId,
+        common_utils::id_type::ApiKeyId,
+    )>,
     json_payload: web::Json<api_types::UpdateApiKeyRequest>,
 ) -> impl Responder {
     let flow = Flow::ApiKeyUpdate;
@@ -163,8 +169,7 @@ pub async fn api_key_update(
             &auth::AdminApiAuth,
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
-                required_permission: Permission::ApiKeyWrite,
-                minimum_entity_level: EntityType::Merchant,
+                required_permission: Permission::MerchantApiKeyWrite,
             },
             req.headers(),
         ),
@@ -177,7 +182,7 @@ pub async fn api_key_update(
 pub async fn api_key_update(
     state: web::Data<AppState>,
     req: HttpRequest,
-    key_id: web::Path<String>,
+    key_id: web::Path<common_utils::id_type::ApiKeyId>,
     json_payload: web::Json<api_types::UpdateApiKeyRequest>,
 ) -> impl Responder {
     let flow = Flow::ApiKeyUpdate;
@@ -190,15 +195,19 @@ pub async fn api_key_update(
         state,
         &req,
         payload,
-        |state, authentication_data, mut payload, _| {
-            payload.merchant_id = authentication_data.merchant_account.get_id().to_owned();
+        |state,
+         auth::AuthenticationDataWithoutProfile {
+             merchant_account, ..
+         },
+         mut payload,
+         _| {
+            payload.merchant_id = merchant_account.get_id().to_owned();
             api_keys::update_api_key(state, payload)
         },
         auth::auth_type(
             &auth::AdminApiAuthWithMerchantIdFromHeader,
             &auth::JWTAuthMerchantFromHeader {
-                required_permission: Permission::ApiKeyRead,
-                minimum_entity_level: EntityType::Merchant,
+                required_permission: Permission::MerchantApiKeyRead,
             },
             req.headers(),
         ),
@@ -212,7 +221,10 @@ pub async fn api_key_update(
 pub async fn api_key_revoke(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<(common_utils::id_type::MerchantId, String)>,
+    path: web::Path<(
+        common_utils::id_type::MerchantId,
+        common_utils::id_type::ApiKeyId,
+    )>,
 ) -> impl Responder {
     let flow = Flow::ApiKeyRevoke;
     let (merchant_id, key_id) = path.into_inner();
@@ -227,8 +239,7 @@ pub async fn api_key_revoke(
             &auth::AdminApiAuth,
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id: merchant_id.clone(),
-                required_permission: Permission::ApiKeyWrite,
-                minimum_entity_level: EntityType::Merchant,
+                required_permission: Permission::MerchantApiKeyWrite,
             },
             req.headers(),
         ),
@@ -242,7 +253,10 @@ pub async fn api_key_revoke(
 pub async fn api_key_revoke(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<(common_utils::id_type::MerchantId, String)>,
+    path: web::Path<(
+        common_utils::id_type::MerchantId,
+        common_utils::id_type::ApiKeyId,
+    )>,
 ) -> impl Responder {
     let flow = Flow::ApiKeyRevoke;
     let (merchant_id, key_id) = path.into_inner();
@@ -257,8 +271,7 @@ pub async fn api_key_revoke(
             &auth::AdminApiAuth,
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id: merchant_id.clone(),
-                required_permission: Permission::ApiKeyWrite,
-                minimum_entity_level: EntityType::Merchant,
+                required_permission: Permission::MerchantApiKeyWrite,
             },
             req.headers(),
         ),
@@ -293,8 +306,7 @@ pub async fn api_key_list(
             &auth::AdminApiAuth,
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
-                required_permission: Permission::ApiKeyRead,
-                minimum_entity_level: EntityType::Merchant,
+                required_permission: Permission::MerchantApiKeyRead,
             },
             req.headers(),
         ),
@@ -317,15 +329,19 @@ pub async fn api_key_list(
         state,
         &req,
         payload,
-        |state, authentication_data, payload, _| async move {
-            let merchant_id = authentication_data.merchant_account.get_id().to_owned();
+        |state,
+         auth::AuthenticationDataWithoutProfile {
+             merchant_account, ..
+         },
+         payload,
+         _| async move {
+            let merchant_id = merchant_account.get_id().to_owned();
             api_keys::list_api_keys(state, merchant_id, payload.limit, payload.skip).await
         },
         auth::auth_type(
             &auth::AdminApiAuthWithMerchantIdFromHeader,
             &auth::JWTAuthMerchantFromHeader {
-                required_permission: Permission::ApiKeyRead,
-                minimum_entity_level: EntityType::Merchant,
+                required_permission: Permission::MerchantApiKeyRead,
             },
             req.headers(),
         ),

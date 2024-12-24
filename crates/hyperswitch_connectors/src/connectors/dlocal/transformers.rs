@@ -1,4 +1,3 @@
-use api_models::payments::AddressDetails;
 use common_enums::enums;
 use common_utils::{pii::Email, request::Method};
 use error_stack::ResultExt;
@@ -107,6 +106,7 @@ impl TryFrom<&DlocalRouterData<&types::PaymentsAuthorizeRouterData>> for DlocalP
                 let should_capture = matches!(
                     item.router_data.request.capture_method,
                     Some(enums::CaptureMethod::Automatic)
+                        | Some(enums::CaptureMethod::SequentialAutomatic)
                 );
                 let payment_request = Self {
                     amount: item.amount,
@@ -166,6 +166,7 @@ impl TryFrom<&DlocalRouterData<&types::PaymentsAuthorizeRouterData>> for DlocalP
             | PaymentMethodData::MandatePayment
             | PaymentMethodData::Reward
             | PaymentMethodData::RealTimePayment(_)
+            | PaymentMethodData::MobilePayment(_)
             | PaymentMethodData::Upi(_)
             | PaymentMethodData::Voucher(_)
             | PaymentMethodData::GiftCard(_)
@@ -181,7 +182,9 @@ impl TryFrom<&DlocalRouterData<&types::PaymentsAuthorizeRouterData>> for DlocalP
     }
 }
 
-fn get_payer_name(address: &AddressDetails) -> Option<Secret<String>> {
+fn get_payer_name(
+    address: &hyperswitch_domain_models::address::AddressDetails,
+) -> Option<Secret<String>> {
     let first_name = address
         .first_name
         .clone()
@@ -326,8 +329,8 @@ impl<F, T> TryFrom<ResponseRouterData<F, DlocalPaymentsResponse, T, PaymentsResp
 
         let response = PaymentsResponseData::TransactionResponse {
             resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
-            redirection_data,
-            mandate_reference: None,
+            redirection_data: Box::new(redirection_data),
+            mandate_reference: Box::new(None),
             connector_metadata: None,
             network_txn_id: None,
             connector_response_reference_id: item.response.order_id.clone(),
@@ -360,8 +363,8 @@ impl<F, T> TryFrom<ResponseRouterData<F, DlocalPaymentsSyncResponse, T, Payments
             status: enums::AttemptStatus::from(item.response.status),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
-                redirection_data: None,
-                mandate_reference: None,
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: item.response.order_id.clone(),
@@ -391,8 +394,8 @@ impl<F, T> TryFrom<ResponseRouterData<F, DlocalPaymentsCaptureResponse, T, Payme
             status: enums::AttemptStatus::from(item.response.status),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
-                redirection_data: None,
-                mandate_reference: None,
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: item.response.order_id.clone(),
@@ -420,8 +423,8 @@ impl<F, T> TryFrom<ResponseRouterData<F, DlocalPaymentsCancelResponse, T, Paymen
             status: enums::AttemptStatus::from(item.response.status),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.order_id.clone()),
-                redirection_data: None,
-                mandate_reference: None,
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.order_id.clone()),

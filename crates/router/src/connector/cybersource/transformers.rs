@@ -1,17 +1,16 @@
 use api_models::payments;
 #[cfg(feature = "payouts")]
-use api_models::{
-    payments::{AddressDetails, PhoneDetails},
-    payouts::PayoutMethodData,
-};
+use api_models::payouts::PayoutMethodData;
 use base64::Engine;
 use common_enums::FutureUsage;
 use common_utils::{
     ext_traits::{OptionExt, ValueExt},
     pii,
-    types::SemanticVersion,
+    types::{SemanticVersion, StringMajorUnit},
 };
 use error_stack::ResultExt;
+#[cfg(feature = "payouts")]
+use hyperswitch_domain_models::address::{AddressDetails, PhoneDetails};
 use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -41,21 +40,16 @@ use crate::{
 
 #[derive(Debug, Serialize)]
 pub struct CybersourceRouterData<T> {
-    pub amount: String,
+    pub amount: StringMajorUnit,
     pub router_data: T,
 }
 
-impl<T> TryFrom<(&api::CurrencyUnit, enums::Currency, i64, T)> for CybersourceRouterData<T> {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        (currency_unit, currency, amount, item): (&api::CurrencyUnit, enums::Currency, i64, T),
-    ) -> Result<Self, Self::Error> {
-        // This conversion function is used at different places in the file, if updating this, keep a check for those
-        let amount = utils::get_amount_as_string(currency_unit, amount, currency)?;
-        Ok(Self {
+impl<T> From<(StringMajorUnit, T)> for CybersourceRouterData<T> {
+    fn from((amount, router_data): (StringMajorUnit, T)) -> Self {
+        Self {
             amount,
-            router_data: item,
-        })
+            router_data,
+        }
     }
 }
 
@@ -93,7 +87,7 @@ impl TryFrom<&types::SetupMandateRouterData> for CybersourceZeroMandateRequest {
 
         let order_information = OrderInformationWithBill {
             amount_details: Amount {
-                total_amount: "0".to_string(),
+                total_amount: StringMajorUnit::zero(),
                 currency: item.request.currency,
             },
             bill_to: Some(bill_to),
@@ -245,6 +239,7 @@ impl TryFrom<&types::SetupMandateRouterData> for CybersourceZeroMandateRequest {
             | domain::PaymentMethodData::MandatePayment
             | domain::PaymentMethodData::Reward
             | domain::PaymentMethodData::RealTimePayment(_)
+            | domain::PaymentMethodData::MobilePayment(_)
             | domain::PaymentMethodData::Upi(_)
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::GiftCard(_)
@@ -525,14 +520,14 @@ pub struct OrderInformation {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Amount {
-    total_amount: String,
+    total_amount: StringMajorUnit,
     currency: api_models::enums::Currency,
 }
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AdditionalAmount {
-    additional_amount: String,
+    additional_amount: StringMajorUnit,
     currency: String,
 }
 
@@ -618,8 +613,8 @@ impl
                 PaymentSolution::ApplePay | PaymentSolution::SamsungPay => network
                     .as_ref()
                     .map(|card_network| match card_network.to_lowercase().as_str() {
-                        "amex" => "aesk",
-                        "discover" => "dipb",
+                        "amex" => "internet",
+                        "discover" => "internet",
                         "mastercard" => "spa",
                         "visa" => "internet",
                         _ => "internet",
@@ -1101,7 +1096,7 @@ impl
 // }
 
 fn build_bill_to(
-    address_details: Option<&payments::Address>,
+    address_details: Option<&hyperswitch_domain_models::address::Address>,
     email: pii::Email,
 ) -> Result<BillTo, error_stack::Report<errors::ConnectorError>> {
     let default_address = BillTo {
@@ -1117,12 +1112,16 @@ fn build_bill_to(
     Ok(address_details
         .and_then(|addr| {
             addr.address.as_ref().map(|addr| BillTo {
-                first_name: addr.first_name.clone(),
-                last_name: addr.last_name.clone(),
-                address1: addr.line1.clone(),
-                locality: addr.city.clone(),
-                administrative_area: addr.to_state_code_as_optional().ok().flatten(),
-                postal_code: addr.zip.clone(),
+                first_name: addr.first_name.remove_new_line(),
+                last_name: addr.last_name.remove_new_line(),
+                address1: addr.line1.remove_new_line(),
+                locality: addr.city.remove_new_line(),
+                administrative_area: addr
+                    .to_state_code_as_optional()
+                    .ok()
+                    .flatten()
+                    .remove_new_line(),
+                postal_code: addr.zip.remove_new_line(),
                 country: addr.country,
                 email,
             })
@@ -1966,6 +1965,7 @@ impl TryFrom<&CybersourceRouterData<&types::PaymentsAuthorizeRouterData>>
                     | domain::PaymentMethodData::Crypto(_)
                     | domain::PaymentMethodData::Reward
                     | domain::PaymentMethodData::RealTimePayment(_)
+                    | domain::PaymentMethodData::MobilePayment(_)
                     | domain::PaymentMethodData::Upi(_)
                     | domain::PaymentMethodData::Voucher(_)
                     | domain::PaymentMethodData::GiftCard(_)
@@ -2077,6 +2077,7 @@ impl TryFrom<&CybersourceRouterData<&types::PaymentsAuthorizeRouterData>>
             | domain::PaymentMethodData::MandatePayment
             | domain::PaymentMethodData::Reward
             | domain::PaymentMethodData::RealTimePayment(_)
+            | domain::PaymentMethodData::MobilePayment(_)
             | domain::PaymentMethodData::Upi(_)
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::GiftCard(_)
@@ -2555,12 +2556,13 @@ fn get_payment_response(
                             .map(|payment_instrument| payment_instrument.id.expose()),
                         payment_method_id: None,
                         mandate_metadata: None,
+                        connector_mandate_request_reference_id: None,
                     });
 
             Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(info_response.id.clone()),
-                redirection_data: None,
-                mandate_reference,
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(mandate_reference),
                 connector_metadata: None,
                 network_txn_id: info_response.processor_information.as_ref().and_then(
                     |processor_information| processor_information.network_transaction_id.clone(),
@@ -2647,18 +2649,20 @@ impl<F>
                 status: enums::AttemptStatus::AuthenticationPending,
                 response: Ok(types::PaymentsResponseData::TransactionResponse {
                     resource_id: types::ResponseId::NoResponseId,
-                    redirection_data: Some(services::RedirectForm::CybersourceAuthSetup {
-                        access_token: info_response
-                            .consumer_authentication_information
-                            .access_token,
-                        ddc_url: info_response
-                            .consumer_authentication_information
-                            .device_data_collection_url,
-                        reference_id: info_response
-                            .consumer_authentication_information
-                            .reference_id,
-                    }),
-                    mandate_reference: None,
+                    redirection_data: Box::new(Some(
+                        services::RedirectForm::CybersourceAuthSetup {
+                            access_token: info_response
+                                .consumer_authentication_information
+                                .access_token,
+                            ddc_url: info_response
+                                .consumer_authentication_information
+                                .device_data_collection_url,
+                            reference_id: info_response
+                                .consumer_authentication_information
+                                .reference_id,
+                        },
+                    )),
+                    mandate_reference: Box::new(None),
                     connector_metadata: None,
                     network_txn_id: None,
                     connector_response_reference_id: Some(
@@ -2801,6 +2805,7 @@ impl TryFrom<&CybersourceRouterData<&types::PaymentsPreProcessingRouterData>>
             | domain::PaymentMethodData::MandatePayment
             | domain::PaymentMethodData::Reward
             | domain::PaymentMethodData::RealTimePayment(_)
+            | domain::PaymentMethodData::MobilePayment(_)
             | domain::PaymentMethodData::Upi(_)
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::GiftCard(_)
@@ -2916,6 +2921,7 @@ impl TryFrom<&CybersourceRouterData<&types::PaymentsCompleteAuthorizeRouterData>
             | domain::PaymentMethodData::MandatePayment
             | domain::PaymentMethodData::Reward
             | domain::PaymentMethodData::RealTimePayment(_)
+            | domain::PaymentMethodData::MobilePayment(_)
             | domain::PaymentMethodData::Upi(_)
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::GiftCard(_)
@@ -3066,8 +3072,8 @@ impl<F>
                         status,
                         response: Ok(types::PaymentsResponseData::TransactionResponse {
                             resource_id: types::ResponseId::NoResponseId,
-                            redirection_data,
-                            mandate_reference: None,
+                            redirection_data: Box::new(redirection_data),
+                            mandate_reference: Box::new(None),
                             connector_metadata: Some(serde_json::json!({
                                 "three_ds_data": three_ds_data
                             })),
@@ -3281,6 +3287,7 @@ impl
                         .map(|payment_instrument| payment_instrument.id.expose()),
                     payment_method_id: None,
                     mandate_metadata: None,
+                    connector_mandate_request_reference_id: None,
                 });
         let mut mandate_status = enums::AttemptStatus::foreign_from((
             item.response
@@ -3311,8 +3318,8 @@ impl
                     resource_id: types::ResponseId::ConnectorTransactionId(
                         item.response.id.clone(),
                     ),
-                    redirection_data: None,
-                    mandate_reference,
+                    redirection_data: Box::new(None),
+                    mandate_reference: Box::new(mandate_reference),
                     connector_metadata: None,
                     network_txn_id: item.response.processor_information.as_ref().and_then(
                         |processor_information| {
@@ -3449,8 +3456,8 @@ impl<F>
                             resource_id: types::ResponseId::ConnectorTransactionId(
                                 item.response.id.clone(),
                             ),
-                            redirection_data: None,
-                            mandate_reference: None,
+                            redirection_data: Box::new(None),
+                            mandate_reference: Box::new(None),
                             connector_metadata: None,
                             network_txn_id: None,
                             connector_response_reference_id: item
@@ -3471,8 +3478,8 @@ impl<F>
                     resource_id: types::ResponseId::ConnectorTransactionId(
                         item.response.id.clone(),
                     ),
-                    redirection_data: None,
-                    mandate_reference: None,
+                    redirection_data: Box::new(None),
+                    mandate_reference: Box::new(None),
                     connector_metadata: None,
                     network_txn_id: None,
                     connector_response_reference_id: Some(item.response.id),
@@ -4048,5 +4055,24 @@ fn get_cybersource_card_type(card_network: common_enums::CardNetwork) -> Option<
         //"042" is the type code for Masetro Cards(International). For Maestro Cards(UK-Domestic) the mapping should be "024"
         common_enums::CardNetwork::Maestro => Some("042"),
         common_enums::CardNetwork::Interac | common_enums::CardNetwork::RuPay => None,
+    }
+}
+
+pub trait RemoveNewLine {
+    fn remove_new_line(&self) -> Self;
+}
+
+impl RemoveNewLine for Option<Secret<String>> {
+    fn remove_new_line(&self) -> Self {
+        self.clone().map(|masked_value| {
+            let new_string = masked_value.expose().replace("\n", " ");
+            Secret::new(new_string)
+        })
+    }
+}
+
+impl RemoveNewLine for Option<String> {
+    fn remove_new_line(&self) -> Self {
+        self.clone().map(|value| value.replace("\n", " "))
     }
 }

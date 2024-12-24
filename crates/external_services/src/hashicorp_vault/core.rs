@@ -103,7 +103,6 @@ impl HashiCorpVault {
     /// # Parameters
     ///
     /// - `config`: A reference to a `HashiCorpVaultConfig` containing the configuration details.
-    ///
     pub fn new(config: &HashiCorpVaultConfig) -> error_stack::Result<Self, HashiCorpError> {
         VaultClient::new(
             VaultClientSettingsBuilder::default()
@@ -129,7 +128,6 @@ impl HashiCorpVault {
     ///
     /// - `En`: The engine type that implements the `Engine` trait.
     /// - `I`: The type that can be constructed from the retrieved encoded data.
-    ///
     pub async fn fetch<En, I>(&self, data: String) -> error_stack::Result<I, HashiCorpError>
     where
         for<'a> En: Engine<

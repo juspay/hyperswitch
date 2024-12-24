@@ -104,6 +104,7 @@ impl IntoDirValue for api_enums::PaymentMethod {
             Self::GiftCard => Ok(dirval!(PaymentMethod = GiftCard)),
             Self::CardRedirect => Ok(dirval!(PaymentMethod = CardRedirect)),
             Self::OpenBanking => Ok(dirval!(PaymentMethod = OpenBanking)),
+            Self::MobilePayment => Ok(dirval!(PaymentMethod = MobilePayment)),
         }
     }
 }
@@ -158,6 +159,7 @@ impl IntoDirValue for (api_enums::PaymentMethodType, api_enums::PaymentMethod) {
                 | api_enums::PaymentMethod::Reward
                 | api_enums::PaymentMethod::RealTimePayment
                 | api_enums::PaymentMethod::Upi
+                | api_enums::PaymentMethod::MobilePayment
                 | api_enums::PaymentMethod::Voucher
                 | api_enums::PaymentMethod::OpenBanking
                 | api_enums::PaymentMethod::GiftCard => Err(KgraphError::ContextConstructionError(
@@ -176,6 +178,7 @@ impl IntoDirValue for (api_enums::PaymentMethodType, api_enums::PaymentMethod) {
                 | api_enums::PaymentMethod::Reward
                 | api_enums::PaymentMethod::RealTimePayment
                 | api_enums::PaymentMethod::Upi
+                | api_enums::PaymentMethod::MobilePayment
                 | api_enums::PaymentMethod::Voucher
                 | api_enums::PaymentMethod::OpenBanking
                 | api_enums::PaymentMethod::GiftCard => Err(KgraphError::ContextConstructionError(
@@ -195,6 +198,7 @@ impl IntoDirValue for (api_enums::PaymentMethodType, api_enums::PaymentMethod) {
                 | api_enums::PaymentMethod::Reward
                 | api_enums::PaymentMethod::RealTimePayment
                 | api_enums::PaymentMethod::Upi
+                | api_enums::PaymentMethod::MobilePayment
                 | api_enums::PaymentMethod::Voucher
                 | api_enums::PaymentMethod::OpenBanking
                 | api_enums::PaymentMethod::GiftCard => Err(KgraphError::ContextConstructionError(
@@ -308,6 +312,9 @@ impl IntoDirValue for (api_enums::PaymentMethodType, api_enums::PaymentMethod) {
                 Ok(dirval!(OpenBankingType = OpenBankingPIS))
             }
             api_enums::PaymentMethodType::Paze => Ok(dirval!(WalletType = Paze)),
+            api_enums::PaymentMethodType::DirectCarrierBilling => {
+                Ok(dirval!(MobilePaymentType = DirectCarrierBilling))
+            }
         }
     }
 }
@@ -334,6 +341,7 @@ impl IntoDirValue for api_enums::Currency {
     fn into_dir_value(self) -> Result<dir::DirValue, KgraphError> {
         match self {
             Self::AED => Ok(dirval!(PaymentCurrency = AED)),
+            Self::AFN => Ok(dirval!(PaymentCurrency = AFN)),
             Self::ALL => Ok(dirval!(PaymentCurrency = ALL)),
             Self::AMD => Ok(dirval!(PaymentCurrency = AMD)),
             Self::ANG => Ok(dirval!(PaymentCurrency = ANG)),
@@ -353,10 +361,12 @@ impl IntoDirValue for api_enums::Currency {
             Self::BOB => Ok(dirval!(PaymentCurrency = BOB)),
             Self::BRL => Ok(dirval!(PaymentCurrency = BRL)),
             Self::BSD => Ok(dirval!(PaymentCurrency = BSD)),
+            Self::BTN => Ok(dirval!(PaymentCurrency = BTN)),
             Self::BWP => Ok(dirval!(PaymentCurrency = BWP)),
             Self::BYN => Ok(dirval!(PaymentCurrency = BYN)),
             Self::BZD => Ok(dirval!(PaymentCurrency = BZD)),
             Self::CAD => Ok(dirval!(PaymentCurrency = CAD)),
+            Self::CDF => Ok(dirval!(PaymentCurrency = CDF)),
             Self::CHF => Ok(dirval!(PaymentCurrency = CHF)),
             Self::CLP => Ok(dirval!(PaymentCurrency = CLP)),
             Self::CNY => Ok(dirval!(PaymentCurrency = CNY)),
@@ -370,6 +380,7 @@ impl IntoDirValue for api_enums::Currency {
             Self::DOP => Ok(dirval!(PaymentCurrency = DOP)),
             Self::DZD => Ok(dirval!(PaymentCurrency = DZD)),
             Self::EGP => Ok(dirval!(PaymentCurrency = EGP)),
+            Self::ERN => Ok(dirval!(PaymentCurrency = ERN)),
             Self::ETB => Ok(dirval!(PaymentCurrency = ETB)),
             Self::EUR => Ok(dirval!(PaymentCurrency = EUR)),
             Self::FJD => Ok(dirval!(PaymentCurrency = FJD)),
@@ -391,6 +402,8 @@ impl IntoDirValue for api_enums::Currency {
             Self::ILS => Ok(dirval!(PaymentCurrency = ILS)),
             Self::INR => Ok(dirval!(PaymentCurrency = INR)),
             Self::IQD => Ok(dirval!(PaymentCurrency = IQD)),
+            Self::IRR => Ok(dirval!(PaymentCurrency = IRR)),
+            Self::ISK => Ok(dirval!(PaymentCurrency = ISK)),
             Self::JMD => Ok(dirval!(PaymentCurrency = JMD)),
             Self::JOD => Ok(dirval!(PaymentCurrency = JOD)),
             Self::JPY => Ok(dirval!(PaymentCurrency = JPY)),
@@ -398,6 +411,7 @@ impl IntoDirValue for api_enums::Currency {
             Self::KGS => Ok(dirval!(PaymentCurrency = KGS)),
             Self::KHR => Ok(dirval!(PaymentCurrency = KHR)),
             Self::KMF => Ok(dirval!(PaymentCurrency = KMF)),
+            Self::KPW => Ok(dirval!(PaymentCurrency = KPW)),
             Self::KRW => Ok(dirval!(PaymentCurrency = KRW)),
             Self::KWD => Ok(dirval!(PaymentCurrency = KWD)),
             Self::KYD => Ok(dirval!(PaymentCurrency = KYD)),
@@ -444,6 +458,7 @@ impl IntoDirValue for api_enums::Currency {
             Self::SAR => Ok(dirval!(PaymentCurrency = SAR)),
             Self::SBD => Ok(dirval!(PaymentCurrency = SBD)),
             Self::SCR => Ok(dirval!(PaymentCurrency = SCR)),
+            Self::SDG => Ok(dirval!(PaymentCurrency = SDG)),
             Self::SEK => Ok(dirval!(PaymentCurrency = SEK)),
             Self::SGD => Ok(dirval!(PaymentCurrency = SGD)),
             Self::SHP => Ok(dirval!(PaymentCurrency = SHP)),
@@ -454,8 +469,11 @@ impl IntoDirValue for api_enums::Currency {
             Self::SSP => Ok(dirval!(PaymentCurrency = SSP)),
             Self::STN => Ok(dirval!(PaymentCurrency = STN)),
             Self::SVC => Ok(dirval!(PaymentCurrency = SVC)),
+            Self::SYP => Ok(dirval!(PaymentCurrency = SYP)),
             Self::SZL => Ok(dirval!(PaymentCurrency = SZL)),
             Self::THB => Ok(dirval!(PaymentCurrency = THB)),
+            Self::TJS => Ok(dirval!(PaymentCurrency = TJS)),
+            Self::TMT => Ok(dirval!(PaymentCurrency = TMT)),
             Self::TND => Ok(dirval!(PaymentCurrency = TND)),
             Self::TOP => Ok(dirval!(PaymentCurrency = TOP)),
             Self::TRY => Ok(dirval!(PaymentCurrency = TRY)),
@@ -478,6 +496,7 @@ impl IntoDirValue for api_enums::Currency {
             Self::YER => Ok(dirval!(PaymentCurrency = YER)),
             Self::ZAR => Ok(dirval!(PaymentCurrency = ZAR)),
             Self::ZMW => Ok(dirval!(PaymentCurrency = ZMW)),
+            Self::ZWL => Ok(dirval!(PaymentCurrency = ZWL)),
         }
     }
 }

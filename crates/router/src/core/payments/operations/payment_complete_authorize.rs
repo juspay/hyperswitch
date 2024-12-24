@@ -16,6 +16,7 @@ use crate::{
             PaymentData,
         },
     },
+    events::audit_events::{AuditEvent, AuditEventType},
     routes::{app::ReqState, SessionState},
     services,
     types::{
@@ -34,7 +35,9 @@ type CompleteAuthorizeOperation<'b, F> =
     BoxedOperation<'b, F, api::PaymentsRequest, PaymentData<F>>;
 
 #[async_trait]
-impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for CompleteAuthorize {
+impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
+    for CompleteAuthorize
+{
     #[instrument(skip_all)]
     async fn get_trackers<'a>(
         &'a self,
@@ -44,7 +47,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
         _auth_flow: services::AuthFlow,
-        _header_payload: &api::HeaderPayload,
+        _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
+        _platform_merchant_account: Option<&domain::MerchantAccount>,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest, PaymentData<F>>>
     {
         let db = &*state.store;
@@ -75,7 +79,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
         helpers::authenticate_client_secret(request.client_secret.as_ref(), &payment_intent)?;
 
         helpers::validate_payment_status_against_not_allowed_statuses(
-            &payment_intent.status,
+            payment_intent.status,
             &[
                 storage_enums::IntentStatus::Failed,
                 storage_enums::IntentStatus::Succeeded,
@@ -168,6 +172,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
                     &request.payment_method_type,
                     &mandate_type,
                     &token,
+                    &request.ctp_service_details,
                 )?;
             }
         }
@@ -344,6 +349,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
             recurring_details,
             poll_config: None,
             tax_data: None,
+            session_id: None,
+            service_details: None,
         };
 
         let customer_details = Some(CustomerDetails {
@@ -367,7 +374,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
 }
 
 #[async_trait]
-impl<F: Clone + Send> Domain<F, api::PaymentsRequest, PaymentData<F>> for CompleteAuthorize {
+impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for CompleteAuthorize {
     #[instrument(skip_all)]
     async fn get_or_create_customer_details<'a>(
         &'a self,
@@ -456,19 +463,19 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest, PaymentData<F>> for Comple
 }
 
 #[async_trait]
-impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for CompleteAuthorize {
+impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for CompleteAuthorize {
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,
         state: &'b SessionState,
-        _req_state: ReqState,
+        req_state: ReqState,
         mut payment_data: PaymentData<F>,
         _customer: Option<domain::Customer>,
         storage_scheme: storage_enums::MerchantStorageScheme,
         _updated_customer: Option<storage::CustomerUpdate>,
         key_store: &domain::MerchantKeyStore,
         _frm_suggestion: Option<FrmSuggestion>,
-        _header_payload: api::HeaderPayload,
+        _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<(CompleteAuthorizeOperation<'b, F>, PaymentData<F>)>
     where
         F: 'b + Send,
@@ -491,12 +498,18 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Comple
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
+        req_state
+            .event_context
+            .event(AuditEvent::new(AuditEventType::PaymentCompleteAuthorize))
+            .with(payment_data.to_event())
+            .emit();
+
         payment_data.payment_intent = updated_payment_intent;
         Ok((Box::new(self), payment_data))
     }
 }
 
-impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest, PaymentData<F>>
+impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentData<F>>
     for CompleteAuthorize
 {
     #[instrument(skip_all)]

@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use diesel_models::{self as store};
+use diesel_models as store;
 use error_stack::ResultExt;
 use futures::lock::Mutex;
 use hyperswitch_domain_models::{
@@ -60,6 +60,7 @@ pub struct MockDb {
     pub user_key_store: Arc<Mutex<Vec<store::user_key_store::UserKeyStore>>>,
     pub user_authentication_methods:
         Arc<Mutex<Vec<store::user_authentication_method::UserAuthenticationMethod>>>,
+    pub themes: Arc<Mutex<Vec<store::user::theme::Theme>>>,
 }
 
 impl MockDb {
@@ -105,6 +106,7 @@ impl MockDb {
             roles: Default::default(),
             user_key_store: Default::default(),
             user_authentication_methods: Default::default(),
+            themes: Default::default(),
         })
     }
 }

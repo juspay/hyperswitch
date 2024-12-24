@@ -1,5 +1,8 @@
 [default]
 check-filename = true
+extend-ignore-identifiers-re = [
+    "UE_[0-9]{3,4}", # Unified error codes
+]
 
 [default.extend-identifiers]
 ABD = "ABD"  # Aberdeenshire, UK ISO 3166-2 code
@@ -16,6 +19,7 @@ HypoNoeLbFurNiederosterreichUWien = "HypoNoeLbFurNiederosterreichUWien"
 hypo_noe_lb_fur_niederosterreich_u_wien = "hypo_noe_lb_fur_niederosterreich_u_wien"
 IOT = "IOT" # British Indian Ocean Territory country code
 klick = "klick" # Swedish word for clicks
+FPR = "FPR" # Fraud Prevention Rules
 LSO = "LSO" # Lesotho country code
 NAM = "NAM"  # Namibia country code
 ND = "ND"  # North Dakota state code
@@ -38,8 +42,7 @@ ws2ipdef = "ws2ipdef" # WinSock Extension
 ws2tcpip = "ws2tcpip" # WinSock Extension
 ZAR = "ZAR"  # South African Rand currency code
 JOD = "JOD" # Jordan currency code
-UE_000 = "UE_000" #default unified error code
-
+Payed = "Payed" # Paid status for digital virgo
 
 [default.extend-words]
 aci = "aci" # Name of a connector

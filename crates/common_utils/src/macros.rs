@@ -172,6 +172,27 @@ mod id_type {
         };
     }
 
+    /// Defines a Global Id type
+    #[cfg(feature = "v2")]
+    #[macro_export]
+    macro_rules! global_id_type {
+        ($type:ident, $doc:literal) => {
+            #[doc = $doc]
+            #[derive(
+                Debug,
+                Clone,
+                Hash,
+                PartialEq,
+                Eq,
+                serde::Serialize,
+                serde::Deserialize,
+                diesel::expression::AsExpression,
+            )]
+            #[diesel(sql_type = diesel::sql_types::Text)]
+            pub struct $type($crate::id_type::global_id::GlobalId);
+        };
+    }
+
     /// Implements common methods on the specified ID type.
     #[macro_export]
     macro_rules! impl_id_type_methods {
@@ -292,6 +313,40 @@ mod id_type {
         };
     }
 
+    #[cfg(feature = "v2")]
+    /// Implements the `ToSql` and `FromSql` traits on the specified Global ID type.
+    #[macro_export]
+    macro_rules! impl_to_sql_from_sql_global_id_type {
+        ($type:ty, $diesel_type:ty) => {
+            impl<DB> diesel::serialize::ToSql<$diesel_type, DB> for $type
+            where
+                DB: diesel::backend::Backend,
+                $crate::id_type::global_id::GlobalId: diesel::serialize::ToSql<$diesel_type, DB>,
+            {
+                fn to_sql<'b>(
+                    &'b self,
+                    out: &mut diesel::serialize::Output<'b, '_, DB>,
+                ) -> diesel::serialize::Result {
+                    self.0.to_sql(out)
+                }
+            }
+
+            impl<DB> diesel::deserialize::FromSql<$diesel_type, DB> for $type
+            where
+                DB: diesel::backend::Backend,
+                $crate::id_type::global_id::GlobalId:
+                    diesel::deserialize::FromSql<$diesel_type, DB>,
+            {
+                fn from_sql(value: DB::RawValue<'_>) -> diesel::deserialize::Result<Self> {
+                    $crate::id_type::global_id::GlobalId::from_sql(value).map(Self)
+                }
+            }
+        };
+        ($type:ty) => {
+            $crate::impl_to_sql_from_sql_global_id_type!($type, diesel::sql_types::Text);
+        };
+    }
+
     /// Implements the `Queryable` trait on the specified ID type.
     #[macro_export]
     macro_rules! impl_queryable_id_type {
@@ -312,6 +367,41 @@ mod id_type {
             $crate::impl_queryable_id_type!($type, diesel::sql_types::Text);
         };
     }
+}
+
+/// Create new generic list wrapper
+#[macro_export]
+macro_rules! create_list_wrapper {
+    (
+        $wrapper_name:ident,
+        $type_name: ty,
+        impl_functions: {
+            $($function_def: tt)*
+        }
+    ) => {
+        pub struct $wrapper_name(Vec<$type_name>);
+        impl $wrapper_name {
+            pub fn new(list: Vec<$type_name>) -> Self {
+                Self(list)
+            }
+            pub fn iter(&self) -> std::slice::Iter<'_, $type_name> {
+                self.0.iter()
+            }
+            $($function_def)*
+        }
+        impl Iterator for $wrapper_name {
+            type Item = $type_name;
+            fn next(&mut self) -> Option<Self::Item> {
+                self.0.pop()
+            }
+        }
+
+        impl FromIterator<$type_name> for $wrapper_name {
+            fn from_iter<T: IntoIterator<Item = $type_name>>(iter: T) -> Self {
+                Self(iter.into_iter().collect())
+            }
+        }
+    };
 }
 
 /// Get the type name for a type

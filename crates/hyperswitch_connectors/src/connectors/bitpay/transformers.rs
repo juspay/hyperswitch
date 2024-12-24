@@ -159,8 +159,8 @@ impl<F, T> TryFrom<ResponseRouterData<F, BitpayPaymentsResponse, T, PaymentsResp
             status: enums::AttemptStatus::from(attempt_status),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: connector_id,
-                redirection_data,
-                mandate_reference: None,
+                redirection_data: Box::new(redirection_data),
+                mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: item
@@ -267,7 +267,7 @@ fn get_crypto_specific_payment_data(
 ) -> Result<BitpayPaymentsRequest, error_stack::Report<errors::ConnectorError>> {
     let price = item.amount;
     let currency = item.router_data.request.currency.to_string();
-    let redirect_url = item.router_data.request.get_return_url()?;
+    let redirect_url = item.router_data.request.get_router_return_url()?;
     let notification_url = item.router_data.request.get_webhook_url()?;
     let transaction_speed = TransactionSpeed::Medium;
     let auth_type = item.router_data.connector_auth_type.clone();

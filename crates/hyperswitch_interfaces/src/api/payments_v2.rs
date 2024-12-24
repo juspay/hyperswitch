@@ -5,20 +5,23 @@ use hyperswitch_domain_models::{
     router_flow_types::payments::{
         Approve, Authorize, AuthorizeSessionToken, CalculateTax, Capture, CompleteAuthorize,
         CreateConnectorCustomer, IncrementalAuthorization, PSync, PaymentMethodToken,
-        PostProcessing, PreProcessing, Reject, SdkSessionUpdate, Session, SetupMandate, Void,
+        PostProcessing, PostSessionTokens, PreProcessing, Reject, SdkSessionUpdate, Session,
+        SetupMandate, Void,
     },
     router_request_types::{
         AuthorizeSessionTokenData, CompleteAuthorizeData, ConnectorCustomerData,
         PaymentMethodTokenizationData, PaymentsApproveData, PaymentsAuthorizeData,
         PaymentsCancelData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
-        PaymentsPostProcessingData, PaymentsPreProcessingData, PaymentsRejectData,
-        PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData,
+        PaymentsPostProcessingData, PaymentsPostSessionTokensData, PaymentsPreProcessingData,
+        PaymentsRejectData, PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData,
         SdkPaymentsSessionUpdateData, SetupMandateRequestData,
     },
     router_response_types::{PaymentsResponseData, TaxCalculationResponseData},
 };
 
-use crate::api::{ConnectorCommon, ConnectorIntegrationV2, ConnectorValidation};
+use crate::api::{
+    ConnectorCommon, ConnectorIntegrationV2, ConnectorSpecifications, ConnectorValidation,
+};
 
 /// trait PaymentAuthorizeV2
 pub trait PaymentAuthorizeV2:
@@ -112,6 +115,17 @@ pub trait PaymentSessionUpdateV2:
 {
 }
 
+///trait PaymentPostSessionTokensV2
+pub trait PaymentPostSessionTokensV2:
+    ConnectorIntegrationV2<
+    PostSessionTokens,
+    PaymentFlowData,
+    PaymentsPostSessionTokensData,
+    PaymentsResponseData,
+>
+{
+}
+
 /// trait PaymentsCompleteAuthorizeV2
 pub trait PaymentsCompleteAuthorizeV2:
     ConnectorIntegrationV2<
@@ -170,6 +184,7 @@ pub trait PaymentsPostProcessingV2:
 /// trait PaymentV2
 pub trait PaymentV2:
     ConnectorCommon
+    + ConnectorSpecifications
     + ConnectorValidation
     + PaymentAuthorizeV2
     + PaymentAuthorizeSessionTokenV2
@@ -188,5 +203,6 @@ pub trait PaymentV2:
     + PaymentIncrementalAuthorizationV2
     + TaxCalculationV2
     + PaymentSessionUpdateV2
+    + PaymentPostSessionTokensV2
 {
 }

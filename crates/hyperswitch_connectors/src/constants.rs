@@ -1,6 +1,8 @@
 /// Header Constants
 pub(crate) mod headers {
+    pub(crate) const ACCEPT: &str = "Accept";
     pub(crate) const API_KEY: &str = "API-KEY";
+    pub(crate) const APIKEY: &str = "apikey";
     pub(crate) const API_TOKEN: &str = "Api-Token";
     pub(crate) const AUTHORIZATION: &str = "Authorization";
     pub(crate) const CONTENT_TYPE: &str = "Content-Type";
@@ -8,7 +10,10 @@ pub(crate) mod headers {
     pub(crate) const IDEMPOTENCY_KEY: &str = "Idempotency-Key";
     pub(crate) const MESSAGE_SIGNATURE: &str = "Message-Signature";
     pub(crate) const MERCHANT_ID: &str = "Merchant-ID";
+    pub(crate) const REQUEST_ID: &str = "request-id";
+    pub(crate) const NONCE: &str = "nonce";
     pub(crate) const TIMESTAMP: &str = "Timestamp";
+    pub(crate) const TOKEN: &str = "token";
     pub(crate) const X_ACCEPT_VERSION: &str = "X-Accept-Version";
     pub(crate) const X_CC_API_KEY: &str = "X-CC-Api-Key";
     pub(crate) const X_CC_VERSION: &str = "X-CC-Version";
@@ -21,4 +26,9 @@ pub(crate) mod headers {
     pub(crate) const X_VERSION: &str = "X-Version";
     pub(crate) const X_API_KEY: &str = "X-Api-Key";
     pub(crate) const CORRELATION_ID: &str = "Correlation-Id";
+    pub(crate) const WP_API_VERSION: &str = "WP-Api-Version";
+    pub(crate) const SOURCE: &str = "Source";
 }
+
+/// Unsupported response type error message
+pub const UNSUPPORTED_ERROR_MESSAGE: &str = "Unsupported response type";

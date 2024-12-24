@@ -7,6 +7,7 @@ use crate::{
     services::{api, authentication as auth},
 };
 
+#[cfg(feature = "v1")]
 pub async fn retrieve_forex(state: web::Data<AppState>, req: HttpRequest) -> HttpResponse {
     let flow = Flow::RetrieveForexFlow;
     Box::pin(api::server_wrap(
@@ -25,6 +26,7 @@ pub async fn retrieve_forex(state: web::Data<AppState>, req: HttpRequest) -> Htt
     .await
 }
 
+#[cfg(feature = "v1")]
 pub async fn convert_forex(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -39,7 +41,7 @@ pub async fn convert_forex(
         state.clone(),
         &req,
         (),
-        |state, _, _, _| {
+        |state, _: auth::AuthenticationData, _, _| {
             currency::convert_forex(
                 state,
                 amount.get_amount_as_i64(),

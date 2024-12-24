@@ -174,9 +174,9 @@ pub async fn profile_create() {}
 /// Update the *profile*
 #[utoipa::path(
     put,
-    path = "/v2/profiles/{profile_id}",
+    path = "/v2/profiles/{id}",
     params(
-        ("profile_id" = String, Path, description = "The unique identifier for the profile"),
+        ("id" = String, Path, description = "The unique identifier for the profile"),
         (
             "X-Merchant-Id" = String, Header,
             description = "Merchant ID of the profile.",
@@ -210,7 +210,7 @@ pub async fn profile_update() {}
 /// Activates a routing algorithm under a profile
 #[utoipa::path(
     patch,
-    path = "/v2/profiles/{profile_id}/activate_routing_algorithm",
+    path = "/v2/profiles/{id}/activate-routing-algorithm",
     request_body ( content = RoutingAlgorithmId,
       examples(  (
             "Activate a routing algorithm" = (
@@ -220,7 +220,7 @@ pub async fn profile_update() {}
             )
             ))),
     params(
-        ("profile_id" = String, Path, description = "The unique identifier for the profile"),
+        ("id" = String, Path, description = "The unique identifier for the profile"),
     ),
     responses(
         (status = 200, description = "Routing Algorithm is activated", body = RoutingDictionaryRecord),
@@ -240,9 +240,9 @@ pub async fn routing_link_config() {}
 /// Deactivates a routing algorithm under a profile
 #[utoipa::path(
     patch,
-    path = "/v2/profiles/{profile_id}/deactivate_routing_algorithm",
+    path = "/v2/profiles/{id}/deactivate-routing-algorithm",
     params(
-        ("profile_id" = String, Path, description = "The unique identifier for the profile"),
+        ("id" = String, Path, description = "The unique identifier for the profile"),
     ),
     responses(
         (status = 200, description = "Successfully deactivated routing config", body = RoutingDictionaryRecord),
@@ -263,10 +263,10 @@ pub async fn routing_unlink_config() {}
 /// Update the default fallback routing algorithm for the profile
 #[utoipa::path(
     patch,
-    path = "/v2/profiles/{profile_id}/fallback_routing",
+    path = "/v2/profiles/{id}/fallback-routing",
     request_body = Vec<RoutableConnectorChoice>,
     params(
-        ("profile_id" = String, Path, description = "The unique identifier for the profile"),
+        ("id" = String, Path, description = "The unique identifier for the profile"),
     ),
     responses(
         (status = 200, description = "Successfully updated the default fallback routing algorithm", body = Vec<RoutableConnectorChoice>),
@@ -286,9 +286,9 @@ pub async fn routing_update_default_config() {}
 /// Retrieve existing *profile*
 #[utoipa::path(
     get,
-    path = "/v2/profiles/{profile_id}",
+    path = "/v2/profiles/{id}",
     params(
-        ("profile_id" = String, Path, description = "The unique identifier for the profile"),
+        ("id" = String, Path, description = "The unique identifier for the profile"),
         (
             "X-Merchant-Id" = String, Header,
             description = "Merchant ID of the profile.",
@@ -307,13 +307,13 @@ pub async fn profile_retrieve() {}
 
 #[cfg(feature = "v2")]
 /// Profile - Retrieve Active Routing Algorithm
-///
+///_
 /// Retrieve active routing algorithm under the profile
 #[utoipa::path(
     get,
-    path = "/v2/profiles/{profile_id}/routing_algorithm",
+    path = "/v2/profiles/{id}/routing-algorithm",
     params(
-        ("profile_id" = String, Path, description = "The unique identifier for the profile"),
+        ("id" = String, Path, description = "The unique identifier for the profile"),
         ("limit" = Option<u16>, Query, description = "The number of records of the algorithms to be returned"),
         ("offset" = Option<u8>, Query, description = "The record offset of the algorithm from which to start gathering the results")),
     responses(
@@ -334,9 +334,9 @@ pub async fn routing_retrieve_linked_config() {}
 /// Retrieve the default fallback routing algorithm for the profile
 #[utoipa::path(
     get,
-    path = "/v2/profiles/{profile_id}/fallback_routing",
+    path = "/v2/profiles/{id}/fallback-routing",
     params(
-        ("profile_id" = String, Path, description = "The unique identifier for the profile"),
+        ("id" = String, Path, description = "The unique identifier for the profile"),
     ),
     responses(
         (status = 200, description = "Successfully retrieved default fallback routing algorithm", body = Vec<RoutableConnectorChoice>),
@@ -348,14 +348,14 @@ pub async fn routing_retrieve_linked_config() {}
 )]
 pub async fn routing_retrieve_default_config() {}
 
-/// Merchant Connector - List
+/// Profile - Connector Accounts List
 ///
-/// List Merchant Connector Details for the business profile
+/// List Connector Accounts for the profile
 #[utoipa::path(
     get,
-    path = "/v2/profiles/{profile_id}/connector_accounts",
+    path = "/v2/profiles/{id}/connector-accounts",
     params(
-        ("profile_id" = String, Path, description = "The unique identifier for the business profile"),
+        ("id" = String, Path, description = "The unique identifier for the business profile"),
         (
             "X-Merchant-Id" = String, Header,
             description = "Merchant ID of the profile.",

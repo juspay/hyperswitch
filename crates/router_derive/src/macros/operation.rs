@@ -5,7 +5,7 @@ use quote::{quote, ToTokens};
 use strum::IntoEnumIterator;
 use syn::{self, parse::Parse, DeriveInput};
 
-use crate::macros::helpers::{self};
+use crate::macros::helpers;
 
 #[derive(Debug, Clone, Copy, strum::EnumString, strum::EnumIter, strum::Display)]
 #[strum(serialize_all = "snake_case")]
@@ -31,6 +31,8 @@ pub enum Derives {
     IncrementalAuthorizationData,
     SdkSessionUpdate,
     SdkSessionUpdateData,
+    PostSessionTokens,
+    PostSessionTokensData,
 }
 
 impl Derives {
@@ -42,7 +44,7 @@ impl Derives {
         let req_type = Conversion::get_req_type(self);
         quote! {
             #[automatically_derived]
-            impl<F:Send+Clone> Operation<F,#req_type> for #struct_name {
+            impl<F:Send+Clone+Sync> Operation<F,#req_type> for #struct_name {
                 type Data = PaymentData<F>;
                 #(#fns)*
             }
@@ -57,7 +59,7 @@ impl Derives {
         let req_type = Conversion::get_req_type(self);
         quote! {
             #[automatically_derived]
-            impl<F:Send+Clone> Operation<F,#req_type> for &#struct_name {
+            impl<F:Send+Clone+Sync> Operation<F,#req_type> for &#struct_name {
                 type Data = PaymentData<F>;
                 #(#ref_fns)*
             }
@@ -112,6 +114,12 @@ impl Conversion {
             }
             Derives::SdkSessionUpdateData => {
                 syn::Ident::new("SdkPaymentsSessionUpdateData", Span::call_site())
+            }
+            Derives::PostSessionTokens => {
+                syn::Ident::new("PaymentsPostSessionTokensRequest", Span::call_site())
+            }
+            Derives::PostSessionTokensData => {
+                syn::Ident::new("PaymentsPostSessionTokensData", Span::call_site())
             }
         }
     }
@@ -434,6 +442,7 @@ pub fn operation_derive_inner(input: DeriveInput) -> syn::Result<proc_macro::Tok
                     CompleteAuthorizeData,
                     PaymentsIncrementalAuthorizationData,
                     SdkPaymentsSessionUpdateData,
+                    PaymentsPostSessionTokensData,
 
                     api::{
                         PaymentsCaptureRequest,
@@ -447,6 +456,7 @@ pub fn operation_derive_inner(input: DeriveInput) -> syn::Result<proc_macro::Tok
                         VerifyRequest,
                         PaymentsDynamicTaxCalculationRequest,
                         PaymentsIncrementalAuthorizationRequest,
+                        PaymentsPostSessionTokensRequest
                     }
                 };
                 #trait_derive

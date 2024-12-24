@@ -49,7 +49,7 @@ pub async fn refund_create(
         state.into_inner(),
         &req,
         create_refund_req,
-        |state, auth, req, _| {
+        |state, auth: auth::AuthenticationData, req, _| {
             refunds::refund_create_core(state, auth.merchant_account, None, auth.key_store, req)
         },
         &auth::HeaderAuth(auth::ApiKeyAuth),
@@ -93,7 +93,7 @@ pub async fn refund_retrieve_with_gateway_creds(
         state.into_inner(),
         &req,
         refund_request,
-        |state, auth, refund_request, _| {
+        |state, auth: auth::AuthenticationData, refund_request, _| {
             refunds::refund_response_wrapper(
                 state,
                 auth.merchant_account,
@@ -136,7 +136,7 @@ pub async fn refund_retrieve(
         state.into_inner(),
         &req,
         refund_request,
-        |state, auth, refund_request, _| {
+        |state, auth: auth::AuthenticationData, refund_request, _| {
             refunds::refund_response_wrapper(
                 state,
                 auth.merchant_account,
@@ -177,7 +177,9 @@ pub async fn refund_update(
         state.into_inner(),
         &req,
         create_refund_update_req,
-        |state, auth, req, _| refunds::refund_update_core(state, auth.merchant_account, req),
+        |state, auth: auth::AuthenticationData, req, _| {
+            refunds::refund_update_core(state, auth.merchant_account, req)
+        },
         &auth::HeaderAuth(auth::ApiKeyAuth),
         api_locking::LockAction::NotApplicable,
     ))

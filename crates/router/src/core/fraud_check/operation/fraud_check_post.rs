@@ -1,9 +1,8 @@
-use api_models::payments::HeaderPayload;
 use async_trait::async_trait;
 use common_enums::{CaptureMethod, FrmSuggestion};
 use common_utils::ext_traits::Encode;
 use hyperswitch_domain_models::payments::{
-    payment_attempt::PaymentAttemptUpdate, payment_intent::PaymentIntentUpdate,
+    payment_attempt::PaymentAttemptUpdate, payment_intent::PaymentIntentUpdate, HeaderPayload,
 };
 use router_env::{instrument, logger, tracing};
 
@@ -227,6 +226,7 @@ where
         _payment_data: &mut D,
         _customer: &Option<domain::Customer>,
         _should_continue_capture: &mut bool,
+        _platform_merchant_account: Option<&domain::MerchantAccount>,
     ) -> RouterResult<Option<FrmData>> {
         todo!()
     }
@@ -245,6 +245,7 @@ where
         payment_data: &mut D,
         customer: &Option<domain::Customer>,
         _should_continue_capture: &mut bool,
+        platform_merchant_account: Option<&domain::MerchantAccount>,
     ) -> RouterResult<Option<FrmData>> {
         if matches!(frm_data.fraud_check.frm_status, FraudCheckStatus::Fraud)
             && matches!(
@@ -278,6 +279,7 @@ where
                 payments::CallConnectorAction::Trigger,
                 None,
                 HeaderPayload::default(),
+                platform_merchant_account.cloned(),
             ))
             .await?;
             logger::debug!("payment_id : {:?} has been cancelled since it has been found fraudulent by configured frm connector",payment_data.get_payment_attempt().payment_id);
@@ -304,7 +306,7 @@ where
         } else if matches!(frm_data.fraud_check.frm_status, FraudCheckStatus::Legit)
             && matches!(
                 frm_data.fraud_check.payment_capture_method,
-                Some(CaptureMethod::Automatic)
+                Some(CaptureMethod::Automatic) | Some(CaptureMethod::SequentialAutomatic)
             )
         {
             let capture_request = api_models::payments::PaymentsCaptureRequest {
@@ -335,6 +337,7 @@ where
                 payments::CallConnectorAction::Trigger,
                 None,
                 HeaderPayload::default(),
+                platform_merchant_account.cloned(),
             ))
             .await?;
             logger::debug!("payment_id : {:?} has been captured since it has been found legit by configured frm connector",payment_data.get_payment_attempt().payment_id);

@@ -20,7 +20,6 @@ pub struct PlaidLinkTokenRequest {
 }
 
 #[derive(Debug, Serialize, Eq, PartialEq)]
-
 pub struct User {
     pub client_user_id: id_type::CustomerId,
 }
@@ -45,28 +44,20 @@ impl TryFrom<&types::LinkTokenRouterData> for PlaidLinkTokenRequest {
                 )?,
             },
             android_package_name: match item.request.client_platform {
-                api_models::enums::ClientPlatform::Android => {
-                    Some(item.request.android_package_name.clone().ok_or(
-                        errors::ConnectorError::MissingRequiredField {
-                            field_name: "android_package_name",
-                        },
-                    )?)
+                Some(api_models::enums::ClientPlatform::Android) => {
+                    item.request.android_package_name.clone()
                 }
-                api_models::enums::ClientPlatform::Ios
-                | api_models::enums::ClientPlatform::Web
-                | api_models::enums::ClientPlatform::Unknown => None,
+                Some(api_models::enums::ClientPlatform::Ios)
+                | Some(api_models::enums::ClientPlatform::Web)
+                | Some(api_models::enums::ClientPlatform::Unknown)
+                | None => None,
             },
             redirect_uri: match item.request.client_platform {
-                api_models::enums::ClientPlatform::Ios => {
-                    Some(item.request.redirect_uri.clone().ok_or(
-                        errors::ConnectorError::MissingRequiredField {
-                            field_name: "redirect_uri",
-                        },
-                    )?)
-                }
-                api_models::enums::ClientPlatform::Android
-                | api_models::enums::ClientPlatform::Web
-                | api_models::enums::ClientPlatform::Unknown => None,
+                Some(api_models::enums::ClientPlatform::Ios) => item.request.redirect_uri.clone(),
+                Some(api_models::enums::ClientPlatform::Android)
+                | Some(api_models::enums::ClientPlatform::Web)
+                | Some(api_models::enums::ClientPlatform::Unknown)
+                | None => None,
             },
         })
     }
@@ -102,7 +93,6 @@ pub struct PlaidExchangeTokenRequest {
 }
 
 #[derive(Debug, Deserialize, Eq, PartialEq)]
-
 pub struct PlaidExchangeTokenResponse {
     pub access_token: String,
 }
@@ -244,7 +234,6 @@ pub struct PlaidBankAccountCredentialsRequest {
 }
 
 #[derive(Debug, Deserialize, PartialEq)]
-
 pub struct PlaidBankAccountCredentialsResponse {
     pub accounts: Vec<PlaidBankAccountCredentialsAccounts>,
     pub numbers: PlaidBankAccountCredentialsNumbers,
@@ -259,7 +248,6 @@ pub struct BankAccountCredentialsOptions {
 }
 
 #[derive(Debug, Deserialize, PartialEq)]
-
 pub struct PlaidBankAccountCredentialsAccounts {
     pub account_id: String,
     pub name: String,

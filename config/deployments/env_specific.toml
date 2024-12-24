@@ -9,6 +9,7 @@ database_name = "clickhouse_db_name" # Clickhouse database name
 # Analytics configuration.
 [analytics]
 source = "sqlx" # The Analytics source/strategy to be used
+forex_enabled = false # Boolean to enable or disable forex conversion
 
 [analytics.sqlx]
 username = "db_user"      # Analytics DB Username
@@ -252,6 +253,10 @@ payment_attempts = "hyperswitch-payment-attempt-events"
 payment_intents = "hyperswitch-payment-intent-events"
 refunds = "hyperswitch-refund-events"
 disputes = "hyperswitch-dispute-events"
+sessionizer_payment_attempts = "sessionizer-payment-attempt-events"
+sessionizer_payment_intents = "sessionizer-payment-intent-events"
+sessionizer_refunds = "sessionizer-refund-events"
+sessionizer_disputes = "sessionizer-dispute-events"
 
 # Configuration for the Key Manager Service
 [key_manager]
@@ -300,8 +305,14 @@ region = "kms_region" # The AWS region used by the KMS SDK for decrypting data.
 enabled = false
 global_tenant = { schema = "public", redis_key_prefix = "", clickhouse_database = "default"}
 
-[multitenancy.tenants]
-public = { name = "hyperswitch", base_url = "http://localhost:8080", schema = "public", redis_key_prefix = "", clickhouse_database = "default" }
+[multitenancy.tenants.public]
+base_url = "http://localhost:8080" 
+schema = "public"     
+redis_key_prefix = ""
+clickhouse_database = "default"
+
+[multitenancy.tenants.public.user]
+control_center_url =  "http://localhost:9000"
 
 [user_auth_methods]
 encryption_key = "user_auth_table_encryption_key" # Encryption key used for encrypting data in user_authentication_methods table
@@ -322,3 +333,21 @@ check_token_status_url= ""    # base url to check token status from token servic
 [grpc_client.dynamic_routing_client] # Dynamic Routing Client Configuration
 host = "localhost" # Client Host
 port = 7000        # Client Port
+service = "dynamo" # Service name
+
+[theme.storage]
+file_storage_backend = "aws_s3" # Theme storage backend to be used
+
+[theme.storage.aws_s3]
+region = "bucket_region" # AWS region where the S3 bucket for theme storage is located
+bucket_name = "bucket"   # AWS S3 bucket name for theme storage
+
+[theme.email_config]
+entity_name = "Hyperswitch"                      # Name of the entity to be showed in emails
+entity_logo_url = "https://example.com/logo.svg" # Logo URL of the entity to be used in emails
+foreground_color = "#000000"                     # Foreground color of email text
+primary_color = "#006DF9"                        # Primary color of email body
+background_color = "#FFFFFF"                     # Background color of email body
+
+[connectors.unified_authentication_service] #Unified Authentication Service Configuration
+base_url = "http://localhost:8000" #base url to call unified authentication service
