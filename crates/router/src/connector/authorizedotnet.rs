@@ -19,7 +19,7 @@ use crate::{
     },
     events::connector_api_logs::ConnectorEvent,
     headers,
-    services::{self, request, ConnectorIntegration, ConnectorValidation},
+    services::{self, request, ConnectorIntegration, ConnectorSpecifications, ConnectorValidation},
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt, PaymentsCompleteAuthorize},
@@ -66,9 +66,10 @@ impl ConnectorCommon for Authorizedotnet {
 }
 
 impl ConnectorValidation for Authorizedotnet {
-    fn validate_capture_method(
+    fn validate_connector_against_payment_request(
         &self,
         capture_method: Option<enums::CaptureMethod>,
+        _payment_method: enums::PaymentMethod,
         _pmt: Option<enums::PaymentMethodType>,
     ) -> CustomResult<(), errors::ConnectorError> {
         let capture_method = capture_method.unwrap_or_default();
@@ -1057,3 +1058,5 @@ impl services::ConnectorRedirectResponse for Authorizedotnet {
         }
     }
 }
+
+impl ConnectorSpecifications for Authorizedotnet {}
