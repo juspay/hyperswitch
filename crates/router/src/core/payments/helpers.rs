@@ -1,5 +1,6 @@
 use std::{borrow::Cow, str::FromStr};
 
+use actix_web::http::header::HeaderMap;
 #[cfg(feature = "v2")]
 use api_models::ephemeral_key::EphemeralKeyResponse;
 use api_models::{
@@ -11,6 +12,7 @@ use common_enums::ConnectorType;
 #[cfg(feature = "v2")]
 use common_utils::id_type::GenerateId;
 use common_utils::{
+    consts as common_consts,
     crypto::Encryptable,
     ext_traits::{AsyncExt, ByteSliceExt, Encode, ValueExt},
     fp_utils, generate_id, id_type,
@@ -71,8 +73,9 @@ use crate::{
         pm_auth::retrieve_payment_method_from_auth_service,
     },
     db::StorageInterface,
+    headers::ACCEPT_LANGUAGE,
     routes::{metrics, payment_methods as payment_methods_handler, SessionState},
-    services,
+    services::{self, authentication::get_header_value_by_key},
     types::{
         api::{self, admin, enums as api_enums, MandateValidationFieldsExt},
         domain::{self, types},
@@ -6267,4 +6270,15 @@ pub fn validate_platform_fees_for_marketplace(
         }
     }
     Ok(())
+}
+
+pub fn get_locale_from_header(headers: Option<&HeaderMap>) -> String {
+    headers
+        .and_then(|headers| {
+            get_header_value_by_key(ACCEPT_LANGUAGE.into(), headers)
+                .ok()
+                .flatten()
+                .map(|val| val.to_string())
+        })
+        .unwrap_or_else(|| common_consts::DEFAULT_LOCALE.to_string())
 }

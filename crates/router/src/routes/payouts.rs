@@ -1,30 +1,19 @@
 use actix_web::{
     body::{BoxBody, MessageBody},
-    http::header::HeaderMap,
     web, HttpRequest, HttpResponse, Responder,
 };
-use common_utils::consts;
 use router_env::{instrument, tracing, Flow};
 
 use super::app::AppState;
 use crate::{
     core::{api_locking, payouts::*},
-    headers::ACCEPT_LANGUAGE,
     services::{
         api,
-        authentication::{self as auth, get_header_value_by_key},
+        authentication::{self as auth},
         authorization::permissions::Permission,
     },
     types::api::payouts as payout_types,
 };
-
-fn get_locale_from_header(headers: &HeaderMap) -> String {
-    get_header_value_by_key(ACCEPT_LANGUAGE.into(), headers)
-        .ok()
-        .flatten()
-        .map(|val| val.to_string())
-        .unwrap_or(consts::DEFAULT_LOCALE.to_string())
-}
 
 /// Payouts - Create
 #[instrument(skip_all, fields(flow = ?Flow::PayoutsCreate))]
@@ -34,7 +23,7 @@ pub async fn payouts_create(
     json_payload: web::Json<payout_types::PayoutCreateRequest>,
 ) -> HttpResponse {
     let flow = Flow::PayoutsCreate;
-    let locale = get_locale_from_header(req.headers());
+    let locale = helpers::get_locale_from_header(Some(req.headers()));
 
     Box::pin(api::server_wrap(
         flow,
@@ -65,7 +54,7 @@ pub async fn payouts_retrieve(
         merchant_id: query_params.merchant_id.to_owned(),
     };
     let flow = Flow::PayoutsRetrieve;
-    let locale = get_locale_from_header(req.headers());
+    let locale = helpers::get_locale_from_header(Some(req.headers()));
 
     Box::pin(api::server_wrap(
         flow,
@@ -102,7 +91,7 @@ pub async fn payouts_update(
     json_payload: web::Json<payout_types::PayoutCreateRequest>,
 ) -> HttpResponse {
     let flow = Flow::PayoutsUpdate;
-    let locale = get_locale_from_header(req.headers());
+    let locale = helpers::get_locale_from_header(Some(req.headers()));
     let payout_id = path.into_inner();
     let mut payout_update_payload = json_payload.into_inner();
     payout_update_payload.payout_id = Some(payout_id);
@@ -138,7 +127,7 @@ pub async fn payouts_confirm(
             Ok(auth) => auth,
             Err(e) => return api::log_and_return_error_response(e),
         };
-    let locale = get_locale_from_header(req.headers());
+    let locale = helpers::get_locale_from_header(Some(req.headers()));
 
     Box::pin(api::server_wrap(
         flow,
@@ -165,7 +154,7 @@ pub async fn payouts_cancel(
     let flow = Flow::PayoutsCancel;
     let mut payload = json_payload.into_inner();
     payload.payout_id = path.into_inner();
-    let locale = get_locale_from_header(req.headers());
+    let locale = helpers::get_locale_from_header(Some(req.headers()));
 
     Box::pin(api::server_wrap(
         flow,
@@ -191,7 +180,7 @@ pub async fn payouts_fulfill(
     let flow = Flow::PayoutsFulfill;
     let mut payload = json_payload.into_inner();
     payload.payout_id = path.into_inner();
-    let locale = get_locale_from_header(req.headers());
+    let locale = helpers::get_locale_from_header(Some(req.headers()));
 
     Box::pin(api::server_wrap(
         flow,
@@ -217,7 +206,7 @@ pub async fn payouts_list(
 ) -> HttpResponse {
     let flow = Flow::PayoutsList;
     let payload = json_payload.into_inner();
-    let locale = get_locale_from_header(req.headers());
+    let locale = helpers::get_locale_from_header(Some(req.headers()));
 
     Box::pin(api::server_wrap(
         flow,
@@ -256,7 +245,7 @@ pub async fn payouts_list_profile(
 ) -> HttpResponse {
     let flow = Flow::PayoutsList;
     let payload = json_payload.into_inner();
-    let locale = get_locale_from_header(req.headers());
+    let locale = helpers::get_locale_from_header(Some(req.headers()));
 
     Box::pin(api::server_wrap(
         flow,
@@ -295,7 +284,7 @@ pub async fn payouts_list_by_filter(
 ) -> HttpResponse {
     let flow = Flow::PayoutsList;
     let payload = json_payload.into_inner();
-    let locale = get_locale_from_header(req.headers());
+    let locale = helpers::get_locale_from_header(Some(req.headers()));
 
     Box::pin(api::server_wrap(
         flow,
@@ -334,7 +323,7 @@ pub async fn payouts_list_by_filter_profile(
 ) -> HttpResponse {
     let flow = Flow::PayoutsList;
     let payload = json_payload.into_inner();
-    let locale = get_locale_from_header(req.headers());
+    let locale = helpers::get_locale_from_header(Some(req.headers()));
 
     Box::pin(api::server_wrap(
         flow,
@@ -373,7 +362,7 @@ pub async fn payouts_list_available_filters_for_merchant(
 ) -> HttpResponse {
     let flow = Flow::PayoutsFilter;
     let payload = json_payload.into_inner();
-    let locale = get_locale_from_header(req.headers());
+    let locale = helpers::get_locale_from_header(Some(req.headers()));
 
     Box::pin(api::server_wrap(
         flow,
@@ -405,7 +394,7 @@ pub async fn payouts_list_available_filters_for_profile(
 ) -> HttpResponse {
     let flow = Flow::PayoutsFilter;
     let payload = json_payload.into_inner();
-    let locale = get_locale_from_header(req.headers());
+    let locale = helpers::get_locale_from_header(Some(req.headers()));
 
     Box::pin(api::server_wrap(
         flow,

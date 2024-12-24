@@ -766,6 +766,7 @@ where
         .switch()
     })?;
     session_state.add_request_id(request_id);
+    session_state.add_header_map(incoming_request_header.clone());
     let mut request_state = session_state.get_req_state();
 
     request_state.event_context.record_info(request_id);

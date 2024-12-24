@@ -149,3 +149,6 @@ pub const APPLEPAY_VALIDATION_URL: &str =
 
 /// Request ID
 pub const X_REQUEST_ID: &str = "x-request-id";
+
+/// Refund flow identifier used for performing GSM operations
+pub const REFUND_FLOW_STR: &str = "refund_flow";
