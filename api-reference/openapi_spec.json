@@ -23239,6 +23239,16 @@
             "description": "The code for the error",
             "nullable": true
           },
+          "unified_code": {
+            "type": "string",
+            "description": "error code unified across the connectors is received here if there was an error while calling connector",
+            "nullable": true
+          },
+          "unified_message": {
+            "type": "string",
+            "description": "error message unified across the connectors is received here if there was an error while calling connector",
+            "nullable": true
+          },
           "created_at": {
             "type": "string",
             "format": "date-time",
