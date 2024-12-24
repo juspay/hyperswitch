@@ -1974,7 +1974,6 @@ pub struct ProfileCreate {
     pub is_network_tokenization_enabled: bool,
 
     /// Indicates if click to pay is enabled or not.
-    #[schema(default = false, example = false)]
     #[serde(default)]
     pub is_click_to_pay_enabled: bool,
 
