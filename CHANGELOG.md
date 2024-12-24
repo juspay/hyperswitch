@@ -4,6 +4,14 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.12.04.0-hotfix5
+
+### Bug Fixes
+
+- **users:** Remove force cookie for docker setup ([#6932](https://github.com/juspay/hyperswitch/pull/6932)) ([`5961878`](https://github.com/juspay/hyperswitch/commit/5961878127cddbfa151aec711a07676df9907156))
+
+- - -
+
 ## 2024.12.04.0-hotfix4
 
 ### Features
