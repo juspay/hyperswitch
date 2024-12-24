@@ -1,18 +1,35 @@
 use std::collections::HashMap;
 
-use common_utils::{errors::CustomResult, ext_traits::Encode, types::FloatMajorUnit};
+use api_models::webhooks::IncomingWebhookEvent;
+use common_enums::enums;
+use common_utils::{
+    errors::CustomResult, ext_traits::Encode, request::Method, types::FloatMajorUnit,
+};
 use error_stack::ResultExt;
+use hyperswitch_domain_models::{
+    payment_method_data::{BankRedirectData, PaymentMethodData, RealTimePaymentData, UpiData},
+    router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
+    router_flow_types::{
+        refunds::{Execute, RSync},
+        Authorize,
+    },
+    router_request_types::{PaymentsAuthorizeData, ResponseId},
+    router_response_types::{PaymentsResponseData, RedirectForm, RefundsResponseData},
+    types::{self, RefundsRouterData},
+};
+use hyperswitch_interfaces::{
+    consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
+    errors,
+};
 use masking::{Secret, SwitchStrategy};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{
-        self as connector_util, PaymentsAuthorizeRequestData, RefundsRequestData, RouterData,
+    types::{RefundsResponseRouterData, ResponseRouterData},
+    utils::{
+        get_unimplemented_payment_method_error_message, is_payment_failure, is_refund_failure,
+        PaymentsAuthorizeRequestData, RefundsRequestData, RouterData as _,
     },
-    consts,
-    core::errors,
-    services,
-    types::{self, api, domain, storage::enums, PaymentsAuthorizeData},
 };
 
 type Error = error_stack::Report<errors::ConnectorError>;
@@ -52,15 +69,15 @@ pub struct IatapayAuthUpdateResponse {
     pub expires_in: i64,
 }
 
-impl<F, T> TryFrom<types::ResponseRouterData<F, IatapayAuthUpdateResponse, T, types::AccessToken>>
-    for types::RouterData<F, T, types::AccessToken>
+impl<F, T> TryFrom<ResponseRouterData<F, IatapayAuthUpdateResponse, T, AccessToken>>
+    for RouterData<F, T, AccessToken>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<F, IatapayAuthUpdateResponse, T, types::AccessToken>,
+        item: ResponseRouterData<F, IatapayAuthUpdateResponse, T, AccessToken>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            response: Ok(types::AccessToken {
+            response: Ok(AccessToken {
                 token: item.response.access_token,
                 expires: item.response.expires_in,
             }),
@@ -107,114 +124,97 @@ pub struct IatapayPaymentsRequest {
 }
 
 impl
-    TryFrom<
-        &IatapayRouterData<
-            &types::RouterData<
-                api::payments::Authorize,
-                PaymentsAuthorizeData,
-                types::PaymentsResponseData,
-            >,
-        >,
-    > for IatapayPaymentsRequest
+    TryFrom<&IatapayRouterData<&RouterData<Authorize, PaymentsAuthorizeData, PaymentsResponseData>>>
+    for IatapayPaymentsRequest
 {
     type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(
         item: &IatapayRouterData<
-            &types::RouterData<
-                api::payments::Authorize,
-                PaymentsAuthorizeData,
-                types::PaymentsResponseData,
-            >,
+            &RouterData<Authorize, PaymentsAuthorizeData, PaymentsResponseData>,
         >,
     ) -> Result<Self, Self::Error> {
         let return_url = item.router_data.get_return_url()?;
         // Iatapay processes transactions through the payment method selected based on the country
-        let (country, payer_info, preferred_checkout_method) =
-            match item.router_data.request.payment_method_data.clone() {
-                domain::PaymentMethodData::Upi(upi_type) => match upi_type {
-                    domain::UpiData::UpiCollect(upi_data) => (
-                        common_enums::CountryAlpha2::IN,
-                        upi_data.vpa_id.map(|id| PayerInfo {
-                            token_id: id.switch_strategy(),
-                        }),
-                        None,
-                    ),
-                    domain::UpiData::UpiIntent(_) => (
-                        common_enums::CountryAlpha2::IN,
-                        None,
-                        Some(PreferredCheckoutMethod::Qr),
-                    ),
-                },
-                domain::PaymentMethodData::BankRedirect(bank_redirect_data) => {
-                    match bank_redirect_data {
-                        domain::BankRedirectData::Ideal { .. } => {
-                            (common_enums::CountryAlpha2::NL, None, None)
-                        }
-                        domain::BankRedirectData::LocalBankRedirect {} => {
-                            (common_enums::CountryAlpha2::AT, None, None)
-                        }
-                        domain::BankRedirectData::BancontactCard { .. }
-                        | domain::BankRedirectData::Bizum {}
-                        | domain::BankRedirectData::Blik { .. }
-                        | domain::BankRedirectData::Eps { .. }
-                        | domain::BankRedirectData::Giropay { .. }
-                        | domain::BankRedirectData::Interac { .. }
-                        | domain::BankRedirectData::OnlineBankingCzechRepublic { .. }
-                        | domain::BankRedirectData::OnlineBankingFinland { .. }
-                        | domain::BankRedirectData::OnlineBankingPoland { .. }
-                        | domain::BankRedirectData::OnlineBankingSlovakia { .. }
-                        | domain::BankRedirectData::OpenBankingUk { .. }
-                        | domain::BankRedirectData::Przelewy24 { .. }
-                        | domain::BankRedirectData::Sofort { .. }
-                        | domain::BankRedirectData::Trustly { .. }
-                        | domain::BankRedirectData::OnlineBankingFpx { .. }
-                        | domain::BankRedirectData::OnlineBankingThailand { .. } => {
-                            Err(errors::ConnectorError::NotImplemented(
-                                connector_util::get_unimplemented_payment_method_error_message(
-                                    "iatapay",
-                                ),
-                            ))?
-                        }
-                    }
+        let (country, payer_info, preferred_checkout_method) = match item
+            .router_data
+            .request
+            .payment_method_data
+            .clone()
+        {
+            PaymentMethodData::Upi(upi_type) => match upi_type {
+                UpiData::UpiCollect(upi_data) => (
+                    common_enums::CountryAlpha2::IN,
+                    upi_data.vpa_id.map(|id| PayerInfo {
+                        token_id: id.switch_strategy(),
+                    }),
+                    None,
+                ),
+                UpiData::UpiIntent(_) => (
+                    common_enums::CountryAlpha2::IN,
+                    None,
+                    Some(PreferredCheckoutMethod::Qr),
+                ),
+            },
+            PaymentMethodData::BankRedirect(bank_redirect_data) => match bank_redirect_data {
+                BankRedirectData::Ideal { .. } => (common_enums::CountryAlpha2::NL, None, None),
+                BankRedirectData::LocalBankRedirect {} => {
+                    (common_enums::CountryAlpha2::AT, None, None)
                 }
-                domain::PaymentMethodData::RealTimePayment(real_time_payment_data) => {
-                    match *real_time_payment_data {
-                        domain::RealTimePaymentData::DuitNow {} => {
-                            (common_enums::CountryAlpha2::MY, None, None)
-                        }
-                        domain::RealTimePaymentData::Fps {} => {
-                            (common_enums::CountryAlpha2::HK, None, None)
-                        }
-                        domain::RealTimePaymentData::PromptPay {} => {
-                            (common_enums::CountryAlpha2::TH, None, None)
-                        }
-                        domain::RealTimePaymentData::VietQr {} => {
-                            (common_enums::CountryAlpha2::VN, None, None)
-                        }
-                    }
-                }
-                domain::PaymentMethodData::Card(_)
-                | domain::PaymentMethodData::CardRedirect(_)
-                | domain::PaymentMethodData::Wallet(_)
-                | domain::PaymentMethodData::PayLater(_)
-                | domain::PaymentMethodData::BankDebit(_)
-                | domain::PaymentMethodData::BankTransfer(_)
-                | domain::PaymentMethodData::Crypto(_)
-                | domain::PaymentMethodData::MandatePayment
-                | domain::PaymentMethodData::Reward
-                | domain::PaymentMethodData::MobilePayment(_)
-                | domain::PaymentMethodData::Voucher(_)
-                | domain::PaymentMethodData::GiftCard(_)
-                | domain::PaymentMethodData::CardToken(_)
-                | domain::PaymentMethodData::OpenBanking(_)
-                | domain::PaymentMethodData::NetworkToken(_)
-                | domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+                BankRedirectData::BancontactCard { .. }
+                | BankRedirectData::Bizum {}
+                | BankRedirectData::Blik { .. }
+                | BankRedirectData::Eps { .. }
+                | BankRedirectData::Giropay { .. }
+                | BankRedirectData::Interac { .. }
+                | BankRedirectData::OnlineBankingCzechRepublic { .. }
+                | BankRedirectData::OnlineBankingFinland { .. }
+                | BankRedirectData::OnlineBankingPoland { .. }
+                | BankRedirectData::OnlineBankingSlovakia { .. }
+                | BankRedirectData::OpenBankingUk { .. }
+                | BankRedirectData::Przelewy24 { .. }
+                | BankRedirectData::Sofort { .. }
+                | BankRedirectData::Trustly { .. }
+                | BankRedirectData::OnlineBankingFpx { .. }
+                | BankRedirectData::OnlineBankingThailand { .. } => {
                     Err(errors::ConnectorError::NotImplemented(
-                        connector_util::get_unimplemented_payment_method_error_message("iatapay"),
+                        get_unimplemented_payment_method_error_message("iatapay"),
                     ))?
                 }
-            };
+            },
+            PaymentMethodData::RealTimePayment(real_time_payment_data) => {
+                match *real_time_payment_data {
+                    RealTimePaymentData::DuitNow {} => {
+                        (common_enums::CountryAlpha2::MY, None, None)
+                    }
+                    RealTimePaymentData::Fps {} => (common_enums::CountryAlpha2::HK, None, None),
+                    RealTimePaymentData::PromptPay {} => {
+                        (common_enums::CountryAlpha2::TH, None, None)
+                    }
+                    RealTimePaymentData::VietQr {} => (common_enums::CountryAlpha2::VN, None, None),
+                }
+            }
+            PaymentMethodData::Card(_)
+            | PaymentMethodData::CardRedirect(_)
+            | PaymentMethodData::Wallet(_)
+            | PaymentMethodData::PayLater(_)
+            | PaymentMethodData::BankDebit(_)
+            | PaymentMethodData::BankTransfer(_)
+            | PaymentMethodData::Crypto(_)
+            | PaymentMethodData::MandatePayment
+            | PaymentMethodData::Reward
+            | PaymentMethodData::MobilePayment(_)
+            | PaymentMethodData::Voucher(_)
+            | PaymentMethodData::GiftCard(_)
+            | PaymentMethodData::CardToken(_)
+            | PaymentMethodData::OpenBanking(_)
+            | PaymentMethodData::NetworkToken(_)
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    get_unimplemented_payment_method_error_message("iatapay"),
+                ))?
+            }
+        };
         let payload = Self {
             merchant_id: IatapayAuthType::try_from(&item.router_data.connector_auth_type)?
                 .merchant_id,
@@ -246,11 +246,11 @@ pub struct IatapayAuthType {
     pub(super) client_secret: Secret<String>,
 }
 
-impl TryFrom<&types::ConnectorAuthType> for IatapayAuthType {
+impl TryFrom<&ConnectorAuthType> for IatapayAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
+    fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            types::ConnectorAuthType::SignatureKey {
+            ConnectorAuthType::SignatureKey {
                 api_key,
                 key1,
                 api_secret,
@@ -323,21 +323,21 @@ fn get_iatpay_response(
 ) -> CustomResult<
     (
         enums::AttemptStatus,
-        Option<types::ErrorResponse>,
-        types::PaymentsResponseData,
+        Option<ErrorResponse>,
+        PaymentsResponseData,
     ),
     errors::ConnectorError,
 > {
     let status = enums::AttemptStatus::from(response.status);
-    let error = if connector_util::is_payment_failure(status) {
-        Some(types::ErrorResponse {
+    let error = if is_payment_failure(status) {
+        Some(ErrorResponse {
             code: response
                 .failure_code
-                .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
+                .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
             message: response
                 .failure_details
                 .clone()
-                .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
+                .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
             reason: response.failure_details,
             status_code,
             attempt_status: Some(status),
@@ -348,8 +348,8 @@ fn get_iatpay_response(
     };
     let form_fields = HashMap::new();
     let id = match response.iata_payment_id.clone() {
-        Some(s) => types::ResponseId::ConnectorTransactionId(s),
-        None => types::ResponseId::NoResponseId,
+        Some(s) => ResponseId::ConnectorTransactionId(s),
+        None => ResponseId::NoResponseId,
     };
     let connector_response_reference_id = response.merchant_payment_id.or(response.iata_payment_id);
 
@@ -373,15 +373,15 @@ fn get_iatpay_response(
                     }
                     false => (
                         None,
-                        Some(services::RedirectForm::Form {
+                        Some(RedirectForm::Form {
                             endpoint: checkout_methods.redirect.redirect_url,
-                            method: services::Method::Get,
+                            method: Method::Get,
                             form_fields,
                         }),
                     ),
                 };
 
-            types::PaymentsResponseData::TransactionResponse {
+            PaymentsResponseData::TransactionResponse {
                 resource_id: id,
                 redirection_data: Box::new(redirection_data),
                 mandate_reference: Box::new(None),
@@ -392,7 +392,7 @@ fn get_iatpay_response(
                 charge_id: None,
             }
         }
-        None => types::PaymentsResponseData::TransactionResponse {
+        None => PaymentsResponseData::TransactionResponse {
             resource_id: id.clone(),
             redirection_data: Box::new(None),
             mandate_reference: Box::new(None),
@@ -407,13 +407,12 @@ fn get_iatpay_response(
     Ok((status, error, payment_response_data))
 }
 
-impl<F, T>
-    TryFrom<types::ResponseRouterData<F, IatapayPaymentsResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+impl<F, T> TryFrom<ResponseRouterData<F, IatapayPaymentsResponse, T, PaymentsResponseData>>
+    for RouterData<F, T, PaymentsResponseData>
 {
     type Error = Error;
     fn try_from(
-        item: types::ResponseRouterData<F, IatapayPaymentsResponse, T, types::PaymentsResponseData>,
+        item: ResponseRouterData<F, IatapayPaymentsResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let (status, error, payment_response_data) =
             get_iatpay_response(item.response, item.http_code)?;
@@ -438,11 +437,9 @@ pub struct IatapayRefundRequest {
     pub notification_url: String,
 }
 
-impl<F> TryFrom<&IatapayRouterData<&types::RefundsRouterData<F>>> for IatapayRefundRequest {
+impl<F> TryFrom<&IatapayRouterData<&RefundsRouterData<F>>> for IatapayRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: &IatapayRouterData<&types::RefundsRouterData<F>>,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(item: &IatapayRouterData<&RefundsRouterData<F>>) -> Result<Self, Self::Error> {
         Ok(Self {
             amount: item.amount,
             merchant_id: IatapayAuthType::try_from(&item.router_data.connector_auth_type)?
@@ -508,32 +505,30 @@ pub struct RefundResponse {
     account_country: Option<String>,
 }
 
-impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
-    for types::RefundsRouterData<api::Execute>
-{
+impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>> for RefundsRouterData<Execute> {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::RefundsResponseRouterData<api::Execute, RefundResponse>,
+        item: RefundsResponseRouterData<Execute, RefundResponse>,
     ) -> Result<Self, Self::Error> {
         let refund_status = enums::RefundStatus::from(item.response.status);
-        let response = if connector_util::is_refund_failure(refund_status) {
-            Err(types::ErrorResponse {
+        let response = if is_refund_failure(refund_status) {
+            Err(ErrorResponse {
                 code: item
                     .response
                     .failure_code
-                    .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
+                    .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
                 message: item
                     .response
                     .failure_details
                     .clone()
-                    .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
+                    .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
                 reason: item.response.failure_details,
                 status_code: item.http_code,
                 attempt_status: None,
                 connector_transaction_id: Some(item.response.iata_refund_id.clone()),
             })
         } else {
-            Ok(types::RefundsResponseData {
+            Ok(RefundsResponseData {
                 connector_refund_id: item.response.iata_refund_id.to_string(),
                 refund_status,
             })
@@ -546,32 +541,30 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
     }
 }
 
-impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
-    for types::RefundsRouterData<api::RSync>
-{
+impl TryFrom<RefundsResponseRouterData<RSync, RefundResponse>> for RefundsRouterData<RSync> {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::RefundsResponseRouterData<api::RSync, RefundResponse>,
+        item: RefundsResponseRouterData<RSync, RefundResponse>,
     ) -> Result<Self, Self::Error> {
         let refund_status = enums::RefundStatus::from(item.response.status);
-        let response = if connector_util::is_refund_failure(refund_status) {
-            Err(types::ErrorResponse {
+        let response = if is_refund_failure(refund_status) {
+            Err(ErrorResponse {
                 code: item
                     .response
                     .failure_code
-                    .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
+                    .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
                 message: item
                     .response
                     .failure_details
                     .clone()
-                    .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
+                    .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
                 reason: item.response.failure_details,
                 status_code: item.http_code,
                 attempt_status: None,
                 connector_transaction_id: Some(item.response.iata_refund_id.clone()),
             })
         } else {
-            Ok(types::RefundsResponseData {
+            Ok(RefundsResponseData {
                 connector_refund_id: item.response.iata_refund_id.to_string(),
                 refund_status,
             })
@@ -629,7 +622,7 @@ pub enum IatapayWebhookResponse {
     IatapayRefundWebhookBody(IatapayRefundWebhookBody),
 }
 
-impl TryFrom<IatapayWebhookResponse> for api::IncomingWebhookEvent {
+impl TryFrom<IatapayWebhookResponse> for IncomingWebhookEvent {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(payload: IatapayWebhookResponse) -> CustomResult<Self, errors::ConnectorError> {
         match payload {

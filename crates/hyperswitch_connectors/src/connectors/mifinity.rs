@@ -1,30 +1,46 @@
 pub mod transformers;
 
-use common_utils::types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector};
-use error_stack::{report, Report, ResultExt};
-use masking::ExposeInterface;
-use transformers as mifinity;
-
-use self::transformers::auth_headers;
-use super::utils::convert_amount;
-use crate::{
-    configs::settings,
-    consts,
-    core::errors::{self, CustomResult},
-    events::connector_api_logs::ConnectorEvent,
-    headers, logger,
-    services::{
-        self,
-        request::{self, Mask},
-        ConnectorIntegration, ConnectorValidation,
-    },
-    types::{
-        self,
-        api::{self, ConnectorCommon, ConnectorCommonExt},
-        ErrorResponse, RequestContent, Response,
-    },
-    utils::BytesExt,
+use api_models::webhooks::{IncomingWebhookEvent, ObjectReferenceId};
+use common_utils::{
+    consts::CONNECTOR_UNAUTHORIZED_ERROR,
+    errors::CustomResult,
+    ext_traits::BytesExt,
+    request::{Method, Request, RequestBuilder, RequestContent},
+    types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector},
 };
+use error_stack::{report, Report, ResultExt};
+use hyperswitch_domain_models::{
+    router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
+    router_flow_types::{
+        access_token_auth::AccessTokenAuth,
+        payments::{Authorize, Capture, PSync, PaymentMethodToken, Session, SetupMandate, Void},
+        refunds::{Execute, RSync},
+    },
+    router_request_types::{
+        AccessTokenRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
+        PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
+        RefundsData, SetupMandateRequestData,
+    },
+    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    types::{
+        PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
+        RefundsRouterData,
+    },
+};
+use hyperswitch_interfaces::{
+    api::{self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorValidation},
+    configs::Connectors,
+    consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
+    errors,
+    events::connector_api_logs::ConnectorEvent,
+    types::{self, Response},
+    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
+};
+use masking::{ExposeInterface, Mask};
+use router_env::logger;
+use transformers::{self as mifinity, auth_headers};
+
+use crate::{constants::headers, types::ResponseRouterData, utils::convert_amount};
 
 #[derive(Clone)]
 pub struct Mifinity {
@@ -52,12 +68,8 @@ impl api::RefundExecute for Mifinity {}
 impl api::RefundSync for Mifinity {}
 impl api::PaymentToken for Mifinity {}
 
-impl
-    ConnectorIntegration<
-        api::PaymentMethodToken,
-        types::PaymentMethodTokenizationData,
-        types::PaymentsResponseData,
-    > for Mifinity
+impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
+    for Mifinity
 {
     // Not Implemented (R)
 }
@@ -70,9 +82,9 @@ where
 {
     fn build_headers(
         &self,
-        req: &types::RouterData<Flow, Request, Response>,
-        _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        req: &RouterData<Flow, Request, Response>,
+        _connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         let mut header = vec![
             (
                 headers::CONTENT_TYPE.to_string(),
@@ -102,14 +114,14 @@ impl ConnectorCommon for Mifinity {
         "application/json"
     }
 
-    fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
+    fn base_url<'a>(&self, connectors: &'a Connectors) -> &'a str {
         connectors.mifinity.base_url.as_ref()
     }
 
     fn get_auth_header(
         &self,
-        auth_type: &types::ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        auth_type: &ConnectorAuthType,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         let auth = mifinity::MifinityAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(
@@ -126,9 +138,9 @@ impl ConnectorCommon for Mifinity {
         if res.response.is_empty() {
             Ok(ErrorResponse {
                 status_code: res.status_code,
-                code: consts::NO_ERROR_CODE.to_string(),
-                message: consts::NO_ERROR_MESSAGE.to_string(),
-                reason: Some(consts::CONNECTOR_UNAUTHORIZED_ERROR.to_string()),
+                code: NO_ERROR_CODE.to_string(),
+                message: NO_ERROR_MESSAGE.to_string(),
+                reason: Some(CONNECTOR_UNAUTHORIZED_ERROR.to_string()),
                 attempt_status: None,
                 connector_transaction_id: None,
             })
@@ -183,34 +195,23 @@ impl ConnectorValidation for Mifinity {
     //TODO: implement functions when support enabled
 }
 
-impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>
-    for Mifinity
-{
+impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Mifinity {
     //TODO: implement sessions flow
 }
 
-impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken>
+impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> for Mifinity {}
+
+impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsResponseData>
     for Mifinity
 {
 }
 
-impl
-    ConnectorIntegration<
-        api::SetupMandate,
-        types::SetupMandateRequestData,
-        types::PaymentsResponseData,
-    > for Mifinity
-{
-}
-
-impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData>
-    for Mifinity
-{
+impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData> for Mifinity {
     fn get_headers(
         &self,
-        req: &types::PaymentsAuthorizeRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        req: &PaymentsAuthorizeRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -220,8 +221,8 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
 
     fn get_url(
         &self,
-        _req: &types::PaymentsAuthorizeRouterData,
-        connectors: &settings::Connectors,
+        _req: &PaymentsAuthorizeRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
             "{}pegasus-ci/api/gateway/init-iframe",
@@ -231,8 +232,8 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
 
     fn get_request_body(
         &self,
-        req: &types::PaymentsAuthorizeRouterData,
-        _connectors: &settings::Connectors,
+        req: &PaymentsAuthorizeRouterData,
+        _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let amount = convert_amount(
             self.amount_converter,
@@ -247,12 +248,12 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
 
     fn build_request(
         &self,
-        req: &types::PaymentsAuthorizeRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        req: &PaymentsAuthorizeRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Ok(Some(
-            services::RequestBuilder::new()
-                .method(services::Method::Post)
+            RequestBuilder::new()
+                .method(Method::Post)
                 .url(&types::PaymentsAuthorizeType::get_url(
                     self, req, connectors,
                 )?)
@@ -269,17 +270,17 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
 
     fn handle_response(
         &self,
-        data: &types::PaymentsAuthorizeRouterData,
+        data: &PaymentsAuthorizeRouterData,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
+    ) -> CustomResult<PaymentsAuthorizeRouterData, errors::ConnectorError> {
         let response: mifinity::MifinityPaymentsResponse = res
             .response
             .parse_struct("Mifinity PaymentsAuthorizeResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        types::RouterData::try_from(types::ResponseRouterData {
+        RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -302,14 +303,12 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     }
 }
 
-impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
-    for Mifinity
-{
+impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Mifinity {
     fn get_headers(
         &self,
-        req: &types::PaymentsSyncRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        req: &PaymentsSyncRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -319,8 +318,8 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
 
     fn get_url(
         &self,
-        req: &types::PaymentsSyncRouterData,
-        connectors: &settings::Connectors,
+        req: &PaymentsSyncRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let merchant_id = &req.merchant_id;
         let payment_id = &req.connector_request_reference_id;
@@ -334,12 +333,12 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
 
     fn build_request(
         &self,
-        req: &types::PaymentsSyncRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        req: &PaymentsSyncRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Ok(Some(
-            services::RequestBuilder::new()
-                .method(services::Method::Get)
+            RequestBuilder::new()
+                .method(Method::Get)
                 .url(&types::PaymentsSyncType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::PaymentsSyncType::get_headers(self, req, connectors)?)
@@ -349,10 +348,10 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
 
     fn handle_response(
         &self,
-        data: &types::PaymentsSyncRouterData,
+        data: &PaymentsSyncRouterData,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
+    ) -> CustomResult<PaymentsSyncRouterData, errors::ConnectorError> {
         let response: mifinity::MifinityPsyncResponse = res
             .response
             .parse_struct("mifinity PaymentsSyncResponse")
@@ -360,7 +359,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
 
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        types::RouterData::try_from(types::ResponseRouterData {
+        RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -376,14 +375,12 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
     }
 }
 
-impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::PaymentsResponseData>
-    for Mifinity
-{
+impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> for Mifinity {
     fn get_headers(
         &self,
-        req: &types::PaymentsCaptureRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        req: &PaymentsCaptureRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -393,28 +390,28 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
 
     fn get_url(
         &self,
-        _req: &types::PaymentsCaptureRouterData,
-        _connectors: &settings::Connectors,
+        _req: &PaymentsCaptureRouterData,
+        _connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
     }
 
     fn get_request_body(
         &self,
-        _req: &types::PaymentsCaptureRouterData,
-        _connectors: &settings::Connectors,
+        _req: &PaymentsCaptureRouterData,
+        _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         Err(errors::ConnectorError::NotImplemented("get_request_body method".to_string()).into())
     }
 
     fn build_request(
         &self,
-        req: &types::PaymentsCaptureRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        req: &PaymentsCaptureRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Ok(Some(
-            services::RequestBuilder::new()
-                .method(services::Method::Post)
+            RequestBuilder::new()
+                .method(Method::Post)
                 .url(&types::PaymentsCaptureType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::PaymentsCaptureType::get_headers(
@@ -429,17 +426,17 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
 
     fn handle_response(
         &self,
-        data: &types::PaymentsCaptureRouterData,
+        data: &PaymentsCaptureRouterData,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<types::PaymentsCaptureRouterData, errors::ConnectorError> {
+    ) -> CustomResult<PaymentsCaptureRouterData, errors::ConnectorError> {
         let response: mifinity::MifinityPaymentsResponse = res
             .response
             .parse_struct("Mifinity PaymentsCaptureResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        types::RouterData::try_from(types::ResponseRouterData {
+        RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -455,19 +452,14 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
     }
 }
 
-impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>
-    for Mifinity
-{
-}
+impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Mifinity {}
 
-impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsResponseData>
-    for Mifinity
-{
+impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Mifinity {
     fn build_request(
         &self,
-        _req: &types::RefundsRouterData<api::Execute>,
-        _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        _req: &RefundsRouterData<Execute>,
+        _connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Err(errors::ConnectorError::FlowNotSupported {
             flow: "Refunds".to_string(),
             connector: "Mifinity".to_string(),
@@ -476,27 +468,27 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     }
 }
 
-impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponseData> for Mifinity {}
+impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Mifinity {}
 
 #[async_trait::async_trait]
-impl api::IncomingWebhook for Mifinity {
+impl IncomingWebhook for Mifinity {
     fn get_webhook_object_reference_id(
         &self,
-        _request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<api::webhooks::ObjectReferenceId, errors::ConnectorError> {
+        _request: &IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<ObjectReferenceId, errors::ConnectorError> {
         Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 
     fn get_webhook_event_type(
         &self,
-        _request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
+        _request: &IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<IncomingWebhookEvent, errors::ConnectorError> {
         Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 
     fn get_webhook_resource_object(
         &self,
-        _request: &api::IncomingWebhookRequestDetails<'_>,
+        _request: &IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
         Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }

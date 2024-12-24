@@ -1,17 +1,24 @@
+use common_enums::enums;
 use common_utils::{
     pii::{self, Email},
     types::StringMajorUnit,
 };
 use error_stack::ResultExt;
+use hyperswitch_domain_models::{
+    payment_method_data::{PaymentMethodData, WalletData},
+    router_data::{ConnectorAuthType, RouterData},
+    router_request_types::ResponseId,
+    router_response_types::{PaymentsResponseData, RedirectForm},
+    types,
+};
+use hyperswitch_interfaces::errors;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 use time::Date;
 
 use crate::{
-    connector::utils::{self, PaymentsAuthorizeRequestData, PhoneDetailsData, RouterData},
-    core::errors,
-    services,
-    types::{self, domain, storage::enums},
+    types::ResponseRouterData,
+    utils::{self, PaymentsAuthorizeRequestData, PhoneDetailsData, RouterData as _},
 };
 
 pub struct MifinityRouterData<T> {
@@ -102,8 +109,8 @@ impl TryFrom<&MifinityRouterData<&types::PaymentsAuthorizeRouterData>> for Mifin
                     config: "merchant_connector_account.metadata",
                 })?;
         match item.router_data.request.payment_method_data.clone() {
-            domain::PaymentMethodData::Wallet(wallet_data) => match wallet_data {
-                domain::WalletData::Mifinity(data) => {
+            PaymentMethodData::Wallet(wallet_data) => match wallet_data {
+                WalletData::Mifinity(data) => {
                     let money = Money {
                         amount: item.amount.clone(),
                         currency: item.router_data.request.currency.to_string(),
@@ -151,55 +158,55 @@ impl TryFrom<&MifinityRouterData<&types::PaymentsAuthorizeRouterData>> for Mifin
                         language_preference,
                     })
                 }
-                domain::WalletData::AliPayQr(_)
-                | domain::WalletData::AliPayRedirect(_)
-                | domain::WalletData::AliPayHkRedirect(_)
-                | domain::WalletData::MomoRedirect(_)
-                | domain::WalletData::KakaoPayRedirect(_)
-                | domain::WalletData::GoPayRedirect(_)
-                | domain::WalletData::GcashRedirect(_)
-                | domain::WalletData::ApplePay(_)
-                | domain::WalletData::ApplePayRedirect(_)
-                | domain::WalletData::ApplePayThirdPartySdk(_)
-                | domain::WalletData::DanaRedirect {}
-                | domain::WalletData::GooglePay(_)
-                | domain::WalletData::GooglePayRedirect(_)
-                | domain::WalletData::GooglePayThirdPartySdk(_)
-                | domain::WalletData::MbWayRedirect(_)
-                | domain::WalletData::MobilePayRedirect(_)
-                | domain::WalletData::PaypalRedirect(_)
-                | domain::WalletData::PaypalSdk(_)
-                | domain::WalletData::Paze(_)
-                | domain::WalletData::SamsungPay(_)
-                | domain::WalletData::TwintRedirect {}
-                | domain::WalletData::VippsRedirect {}
-                | domain::WalletData::TouchNGoRedirect(_)
-                | domain::WalletData::WeChatPayRedirect(_)
-                | domain::WalletData::WeChatPayQr(_)
-                | domain::WalletData::CashappQr(_)
-                | domain::WalletData::SwishQr(_) => Err(errors::ConnectorError::NotImplemented(
+                WalletData::AliPayQr(_)
+                | WalletData::AliPayRedirect(_)
+                | WalletData::AliPayHkRedirect(_)
+                | WalletData::MomoRedirect(_)
+                | WalletData::KakaoPayRedirect(_)
+                | WalletData::GoPayRedirect(_)
+                | WalletData::GcashRedirect(_)
+                | WalletData::ApplePay(_)
+                | WalletData::ApplePayRedirect(_)
+                | WalletData::ApplePayThirdPartySdk(_)
+                | WalletData::DanaRedirect {}
+                | WalletData::GooglePay(_)
+                | WalletData::GooglePayRedirect(_)
+                | WalletData::GooglePayThirdPartySdk(_)
+                | WalletData::MbWayRedirect(_)
+                | WalletData::MobilePayRedirect(_)
+                | WalletData::PaypalRedirect(_)
+                | WalletData::PaypalSdk(_)
+                | WalletData::Paze(_)
+                | WalletData::SamsungPay(_)
+                | WalletData::TwintRedirect {}
+                | WalletData::VippsRedirect {}
+                | WalletData::TouchNGoRedirect(_)
+                | WalletData::WeChatPayRedirect(_)
+                | WalletData::WeChatPayQr(_)
+                | WalletData::CashappQr(_)
+                | WalletData::SwishQr(_) => Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Mifinity"),
                 )
                 .into()),
             },
-            domain::PaymentMethodData::Card(_)
-            | domain::PaymentMethodData::CardRedirect(_)
-            | domain::PaymentMethodData::BankRedirect(_)
-            | domain::PaymentMethodData::PayLater(_)
-            | domain::PaymentMethodData::BankDebit(_)
-            | domain::PaymentMethodData::BankTransfer(_)
-            | domain::PaymentMethodData::Crypto(_)
-            | domain::PaymentMethodData::MandatePayment
-            | domain::PaymentMethodData::Reward
-            | domain::PaymentMethodData::RealTimePayment(_)
-            | domain::PaymentMethodData::MobilePayment(_)
-            | domain::PaymentMethodData::Upi(_)
-            | domain::PaymentMethodData::Voucher(_)
-            | domain::PaymentMethodData::GiftCard(_)
-            | domain::PaymentMethodData::OpenBanking(_)
-            | domain::PaymentMethodData::CardToken(_)
-            | domain::PaymentMethodData::NetworkToken(_)
-            | domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+            PaymentMethodData::Card(_)
+            | PaymentMethodData::CardRedirect(_)
+            | PaymentMethodData::BankRedirect(_)
+            | PaymentMethodData::PayLater(_)
+            | PaymentMethodData::BankDebit(_)
+            | PaymentMethodData::BankTransfer(_)
+            | PaymentMethodData::Crypto(_)
+            | PaymentMethodData::MandatePayment
+            | PaymentMethodData::Reward
+            | PaymentMethodData::RealTimePayment(_)
+            | PaymentMethodData::MobilePayment(_)
+            | PaymentMethodData::Upi(_)
+            | PaymentMethodData::Voucher(_)
+            | PaymentMethodData::GiftCard(_)
+            | PaymentMethodData::OpenBanking(_)
+            | PaymentMethodData::CardToken(_)
+            | PaymentMethodData::NetworkToken(_)
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Mifinity"),
                 )
@@ -214,11 +221,11 @@ pub struct MifinityAuthType {
     pub(super) key: Secret<String>,
 }
 
-impl TryFrom<&types::ConnectorAuthType> for MifinityAuthType {
+impl TryFrom<&ConnectorAuthType> for MifinityAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
+    fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            types::ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
+            ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
                 key: api_key.to_owned(),
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
@@ -238,18 +245,12 @@ pub struct MifinityPayload {
     initialization_token: String,
 }
 
-impl<F, T>
-    TryFrom<types::ResponseRouterData<F, MifinityPaymentsResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+impl<F, T> TryFrom<ResponseRouterData<F, MifinityPaymentsResponse, T, PaymentsResponseData>>
+    for RouterData<F, T, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<
-            F,
-            MifinityPaymentsResponse,
-            T,
-            types::PaymentsResponseData,
-        >,
+        item: ResponseRouterData<F, MifinityPaymentsResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let payload = item.response.payload.first();
         match payload {
@@ -258,9 +259,9 @@ impl<F, T>
                 let initialization_token = payload.initialization_token.clone();
                 Ok(Self {
                     status: enums::AttemptStatus::AuthenticationPending,
-                    response: Ok(types::PaymentsResponseData::TransactionResponse {
-                        resource_id: types::ResponseId::ConnectorTransactionId(trace_id.clone()),
-                        redirection_data: Box::new(Some(services::RedirectForm::Mifinity {
+                    response: Ok(PaymentsResponseData::TransactionResponse {
+                        resource_id: ResponseId::ConnectorTransactionId(trace_id.clone()),
+                        redirection_data: Box::new(Some(RedirectForm::Mifinity {
                             initialization_token,
                         })),
                         mandate_reference: Box::new(None),
@@ -275,8 +276,8 @@ impl<F, T>
             }
             None => Ok(Self {
                 status: enums::AttemptStatus::AuthenticationPending,
-                response: Ok(types::PaymentsResponseData::TransactionResponse {
-                    resource_id: types::ResponseId::NoResponseId,
+                response: Ok(PaymentsResponseData::TransactionResponse {
+                    resource_id: ResponseId::NoResponseId,
                     redirection_data: Box::new(None),
                     mandate_reference: Box::new(None),
                     connector_metadata: None,
@@ -322,13 +323,12 @@ pub enum MifinityPaymentStatus {
     NotCompleted,
 }
 
-impl<F, T>
-    TryFrom<types::ResponseRouterData<F, MifinityPsyncResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+impl<F, T> TryFrom<ResponseRouterData<F, MifinityPsyncResponse, T, PaymentsResponseData>>
+    for RouterData<F, T, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<F, MifinityPsyncResponse, T, types::PaymentsResponseData>,
+        item: ResponseRouterData<F, MifinityPsyncResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let payload = item.response.payload.first();
 
@@ -342,8 +342,8 @@ impl<F, T>
                         let transaction_reference = payment_response.transaction_reference.clone();
                         Ok(Self {
                             status: enums::AttemptStatus::from(status),
-                            response: Ok(types::PaymentsResponseData::TransactionResponse {
-                                resource_id: types::ResponseId::ConnectorTransactionId(
+                            response: Ok(PaymentsResponseData::TransactionResponse {
+                                resource_id: ResponseId::ConnectorTransactionId(
                                     transaction_reference,
                                 ),
                                 redirection_data: Box::new(None),
@@ -359,8 +359,8 @@ impl<F, T>
                     }
                     None => Ok(Self {
                         status: enums::AttemptStatus::from(status),
-                        response: Ok(types::PaymentsResponseData::TransactionResponse {
-                            resource_id: types::ResponseId::NoResponseId,
+                        response: Ok(PaymentsResponseData::TransactionResponse {
+                            resource_id: ResponseId::NoResponseId,
                             redirection_data: Box::new(None),
                             mandate_reference: Box::new(None),
                             connector_metadata: None,
@@ -375,8 +375,8 @@ impl<F, T>
             }
             None => Ok(Self {
                 status: item.data.status,
-                response: Ok(types::PaymentsResponseData::TransactionResponse {
-                    resource_id: types::ResponseId::NoResponseId,
+                response: Ok(PaymentsResponseData::TransactionResponse {
+                    resource_id: ResponseId::NoResponseId,
                     redirection_data: Box::new(None),
                     mandate_reference: Box::new(None),
                     connector_metadata: None,
