@@ -109,6 +109,7 @@ pub struct PaymentIntent {
     pub tax_details: Option<TaxDetails>,
     pub skip_external_tax_calculation: Option<bool>,
     pub psd2_sca_exemption_type: Option<storage_enums::ScaExemptionType>,
+    pub platform_merchant_id: Option<id_type::MerchantId>,
 }
 
 impl PaymentIntent {
@@ -365,6 +366,8 @@ pub struct PaymentIntent {
     pub payment_link_config: Option<diesel_models::PaymentLinkConfigRequestForPayments>,
     /// The straight through routing algorithm id that is used for this payment. This overrides the default routing algorithm that is configured in business profile.
     pub routing_algorithm_id: Option<id_type::RoutingId>,
+    /// Identifier for the platform merchant.
+    pub platform_merchant_id: Option<id_type::MerchantId>,
 }
 
 #[cfg(feature = "v2")]
@@ -411,6 +414,7 @@ impl PaymentIntent {
         profile: &business_profile::Profile,
         request: api_models::payments::PaymentsCreateIntentRequest,
         decrypted_payment_intent: DecryptedPaymentIntent,
+        platform_merchant_id: Option<&merchant_account::MerchantAccount>,
     ) -> CustomResult<Self, errors::api_error_response::ApiErrorResponse> {
         let connector_metadata = request
             .get_connector_metadata_as_value()
@@ -504,6 +508,8 @@ impl PaymentIntent {
                 .payment_link_config
                 .map(ApiModelToDieselModelConvertor::convert_from),
             routing_algorithm_id: request.routing_algorithm_id,
+            platform_merchant_id: platform_merchant_id
+                .map(|merchant_account| merchant_account.get_id().to_owned()),
         })
     }
 }

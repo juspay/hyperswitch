@@ -708,6 +708,7 @@ diesel::table! {
         version -> ApiVersion,
         #[max_length = 64]
         id -> Varchar,
+        is_platform_account -> Bool,
     }
 }
 
@@ -722,7 +723,7 @@ diesel::table! {
         connector_name -> Varchar,
         connector_account_details -> Bytea,
         disabled -> Nullable<Bool>,
-        payment_methods_enabled -> Nullable<Array<Nullable<Json>>>,
+        payment_methods_enabled -> Nullable<Array<Nullable<Jsonb>>>,
         connector_type -> ConnectorType,
         metadata -> Nullable<Jsonb>,
         #[max_length = 255]
@@ -933,6 +934,8 @@ diesel::table! {
         id -> Varchar,
         psd2_sca_exemption_type -> Nullable<ScaExemptionType>,
         split_payments -> Nullable<Jsonb>,
+        #[max_length = 64]
+        platform_merchant_id -> Nullable<Varchar>,
     }
 }
 

@@ -49,7 +49,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::MerchantsAccountUpdate
             | Flow::MerchantsAccountDelete
             | Flow::MerchantTransferKey
-            | Flow::MerchantAccountList => Self::MerchantAccount,
+            | Flow::MerchantAccountList
+            | Flow::EnablePlatformAccount => Self::MerchantAccount,
 
             Flow::OrganizationCreate | Flow::OrganizationRetrieve | Flow::OrganizationUpdate => {
                 Self::Organization
@@ -166,7 +167,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::RefundsFilters
             | Flow::RefundsAggregate
             | Flow::RefundsManualUpdate => Self::Refunds,
-            Flow::Relay => Self::Relay,
+            Flow::Relay | Flow::RelayRetrieve => Self::Relay,
 
             Flow::FrmFulfillment
             | Flow::IncomingWebhookReceive

@@ -448,3 +448,6 @@ card_networks = "Visa, AmericanExpress, Mastercard"
 
 [network_tokenization_supported_connectors]
 connector_list = "cybersource"
+
+[platform]
+enabled = false
