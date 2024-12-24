@@ -2609,15 +2609,34 @@ pub(crate) fn validate_status_with_capture_method(
 pub(crate) fn validate_amount_to_capture(
     amount: i64,
     amount_to_capture: Option<i64>,
+    overcapture_details: Option<&common_utils::types::OvercaptureData>,
 ) -> RouterResult<()> {
-    utils::when(
-        amount_to_capture.is_some() && (Some(amount) < amount_to_capture),
-        || {
-            Err(report!(errors::ApiErrorResponse::InvalidRequestData {
-                message: "amount_to_capture is greater than amount".to_string()
-            }))
-        },
-    )
+    let (is_overcapture_applied, maximum_capturable_amount) = overcapture_details
+        .map(|overcapture_data| {
+            (
+                overcapture_data.overcapture_applied,
+                overcapture_data
+                    .maximum_capturable_amount
+                    .map(|maximum_capturable_amount| maximum_capturable_amount.get_amount_as_i64()),
+            )
+        })
+        .unwrap_or((None, None));
+
+    if let Some(true) =
+        amount_to_capture.map(|req_amount_to_capture| (amount < req_amount_to_capture))
+    {
+        utils::when(
+            !(is_overcapture_applied == Some(true)
+                && maximum_capturable_amount >= amount_to_capture),
+            || {
+                Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+                    message: "amount_to_capture is greater than amount".to_string()
+                }))
+            },
+        )
+    } else {
+        Ok(())
+    }
 }
 
 #[cfg(feature = "v1")]
@@ -3615,6 +3634,7 @@ mod tests {
             skip_external_tax_calculation: None,
             psd2_sca_exemption_type: None,
             platform_merchant_id: None,
+            request_overcapture: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_ok());
@@ -3686,6 +3706,7 @@ mod tests {
             skip_external_tax_calculation: None,
             psd2_sca_exemption_type: None,
             platform_merchant_id: None,
+            request_overcapture: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent,).is_err())
@@ -3755,6 +3776,7 @@ mod tests {
             skip_external_tax_calculation: None,
             psd2_sca_exemption_type: None,
             platform_merchant_id: None,
+            request_overcapture: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_err())
@@ -4078,6 +4100,7 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
         connector_mandate_request_reference_id: router_data.connector_mandate_request_reference_id,
         authentication_id: router_data.authentication_id,
         psd2_sca_exemption_type: router_data.psd2_sca_exemption_type,
+        request_overcapture: router_data.request_overcapture,
     }
 }
 
@@ -4286,6 +4309,7 @@ impl AttemptType {
             organization_id: old_payment_attempt.organization_id,
             profile_id: old_payment_attempt.profile_id,
             connector_mandate_detail: None,
+            overcapture_details: old_payment_attempt.overcapture_details,
         }
     }
 

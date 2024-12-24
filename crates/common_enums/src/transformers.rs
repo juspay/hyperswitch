@@ -2021,6 +2021,25 @@ impl super::External3dsAuthenticationRequest {
     }
 }
 
+impl From<Option<bool>> for super::OverCaptureRequest {
+    fn from(value: Option<bool>) -> Self {
+        match value {
+            Some(true) => Self::Enable,
+            _ => Self::Skip,
+        }
+    }
+}
+
+/// Get the boolean value of the `OverCaptureRequest`.
+impl super::OverCaptureRequest {
+    pub fn as_bool(&self) -> bool {
+        match self {
+            Self::Enable => true,
+            Self::Skip => false,
+        }
+    }
+}
+
 impl super::EnablePaymentLinkRequest {
     pub fn as_bool(&self) -> bool {
         match self {

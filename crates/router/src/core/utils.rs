@@ -216,6 +216,7 @@ pub async fn construct_payout_router_data<'a, F>(
         connector_mandate_request_reference_id: None,
         authentication_id: None,
         psd2_sca_exemption_type: None,
+        request_overcapture: None,
     };
 
     Ok(router_data)
@@ -364,7 +365,6 @@ pub async fn construct_refund_router_data<'a, F>(
             integrity_object: None,
             refund_status: refund.refund_status,
         },
-
         response: Ok(types::RefundsResponseData {
             connector_refund_id: connector_refund_id.unwrap_or_default(),
             refund_status: refund.refund_status,
@@ -397,6 +397,7 @@ pub async fn construct_refund_router_data<'a, F>(
         connector_mandate_request_reference_id: None,
         authentication_id: None,
         psd2_sca_exemption_type: None,
+        request_overcapture: None,
     };
 
     Ok(router_data)
@@ -445,6 +446,23 @@ pub fn validate_uuid(uuid: String, key: &str) -> Result<String, errors::ApiError
     match (Uuid::parse_str(&uuid), uuid.len() > consts::MAX_ID_LENGTH) {
         (Ok(_), false) => Ok(uuid),
         (_, _) => Err(invalid_id_format_error(key)),
+    }
+}
+
+pub fn get_overcaptured_amount(
+    overcapture_applied: Option<bool>,
+    amount_captured: Option<MinorUnit>,
+    net_amount: MinorUnit,
+) -> Option<MinorUnit> {
+    match overcapture_applied.zip(amount_captured) {
+        Some((true, amount_captured_minor_unit)) => {
+            if net_amount < amount_captured_minor_unit {
+                Some(amount_captured_minor_unit - net_amount)
+            } else {
+                None
+            }
+        }
+        _ => None,
     }
 }
 
@@ -705,6 +723,7 @@ pub async fn construct_accept_dispute_router_data<'a>(
         connector_mandate_request_reference_id: None,
         authentication_id: None,
         psd2_sca_exemption_type: None,
+        request_overcapture: None,
     };
     Ok(router_data)
 }
@@ -802,6 +821,7 @@ pub async fn construct_submit_evidence_router_data<'a>(
         connector_mandate_request_reference_id: None,
         authentication_id: None,
         psd2_sca_exemption_type: None,
+        request_overcapture: None,
     };
     Ok(router_data)
 }
@@ -905,6 +925,7 @@ pub async fn construct_upload_file_router_data<'a>(
         connector_mandate_request_reference_id: None,
         authentication_id: None,
         psd2_sca_exemption_type: None,
+        request_overcapture: None,
     };
     Ok(router_data)
 }
@@ -1028,6 +1049,7 @@ pub async fn construct_payments_dynamic_tax_calculation_router_data<'a, F: Clone
         connector_mandate_request_reference_id: None,
         authentication_id: None,
         psd2_sca_exemption_type: None,
+        request_overcapture: None,
     };
     Ok(router_data)
 }
@@ -1128,6 +1150,7 @@ pub async fn construct_defend_dispute_router_data<'a>(
         connector_mandate_request_reference_id: None,
         authentication_id: None,
         psd2_sca_exemption_type: None,
+        request_overcapture: None,
     };
     Ok(router_data)
 }
@@ -1222,6 +1245,7 @@ pub async fn construct_retrieve_file_router_data<'a>(
         connector_mandate_request_reference_id: None,
         authentication_id: None,
         psd2_sca_exemption_type: None,
+        request_overcapture: None,
     };
     Ok(router_data)
 }

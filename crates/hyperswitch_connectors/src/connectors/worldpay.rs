@@ -393,6 +393,8 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Wo
                         connector_response_reference_id: optional_correlation_id,
                         incremental_authorization_allowed: None,
                         charge_id: None,
+                        overcapture_applied: None,
+                        maximum_capturable_amount: None,
                     }),
                     ..data.clone()
                 })
@@ -532,6 +534,8 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Wor
                 connector_response_reference_id: optional_correlation_id,
                 incremental_authorization_allowed: None,
                 charge_id: None,
+                overcapture_applied: None,
+                maximum_capturable_amount: None,
             }),
             ..data.clone()
         })
@@ -633,6 +637,8 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
                         connector_response_reference_id: optional_correlation_id,
                         incremental_authorization_allowed: None,
                         charge_id: None,
+                        overcapture_applied: None,
+                        maximum_capturable_amount: None,
                     }),
                     ..data.clone()
                 })

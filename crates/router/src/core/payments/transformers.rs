@@ -171,6 +171,7 @@ where
         connector_mandate_request_reference_id,
         authentication_id: None,
         psd2_sca_exemption_type: None,
+        request_overcapture: None,
     };
     Ok(router_data)
 }
@@ -875,6 +876,8 @@ where
         connector_response_reference_id: None,
         incremental_authorization_allowed: None,
         charge_id: None,
+        overcapture_applied: None,
+        maximum_capturable_amount: None,
     });
 
     let additional_data = PaymentAdditionalData {
@@ -939,6 +942,12 @@ where
         .and_then(|detail| detail.get_connector_mandate_request_reference_id());
 
     crate::logger::debug!("unified address details {:?}", unified_address);
+
+    let request_overcapture = payment_data
+        .payment_attempt
+        .overcapture_details
+        .as_ref()
+        .and_then(|ovecapture_data| ovecapture_data.request_overcapture);
 
     router_data = types::RouterData {
         flow: PhantomData,
@@ -1008,6 +1017,7 @@ where
         connector_mandate_request_reference_id,
         authentication_id: None,
         psd2_sca_exemption_type: payment_data.payment_intent.psd2_sca_exemption_type,
+        request_overcapture,
     };
 
     Ok(router_data)
@@ -1347,6 +1357,7 @@ where
                 request_external_three_ds_authentication: payment_intent
                     .request_external_three_ds_authentication
                     .clone(),
+                request_overcapture: payment_intent.request_overcapture.clone(),
             },
             vec![],
         )))
@@ -2176,6 +2187,17 @@ where
                 })
         });
 
+        let (overcapture_applied, maximum_capturable_amount) = payment_attempt
+            .overcapture_details
+            .as_ref()
+            .map(|overcapture_data| {
+                (
+                    overcapture_data.overcapture_applied.clone(),
+                    overcapture_data.maximum_capturable_amount.clone(),
+                )
+            })
+            .unwrap_or((None, None));
+
         let connector_transaction_id = payment_attempt
             .get_connector_payment_id()
             .map(ToString::to_string);
@@ -2288,6 +2310,8 @@ where
             order_tax_amount,
             connector_mandate_id,
             shipping_cost: payment_intent.shipping_cost,
+            overcapture_applied,
+            maximum_capturable_amount,
         };
 
         services::ApplicationResponse::JsonWithHeaders((payments_response, headers))
@@ -2544,6 +2568,8 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             order_tax_amount: None,
             connector_mandate_id:None,
             shipping_cost: None,
+            overcapture_applied: pa.overcapture_details.as_ref().and_then(|overcapture_data| overcapture_data.overcapture_applied.clone()),
+            maximum_capturable_amount: pa.overcapture_details.as_ref().and_then(|overcapture_data| overcapture_data.maximum_capturable_amount.clone()),
         }
     }
 }

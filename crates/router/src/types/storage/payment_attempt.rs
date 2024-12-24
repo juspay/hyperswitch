@@ -217,6 +217,9 @@ mod tests {
             profile_id: common_utils::generate_profile_id_of_default_length(),
             organization_id: Default::default(),
             connector_mandate_detail: Default::default(),
+            request_overcapture: Default::default(),
+            overcapture_applied: Default::default(),
+            maximum_capturable_amount: Default::default(),
         };
 
         let store = state
@@ -301,6 +304,8 @@ mod tests {
             profile_id: common_utils::generate_profile_id_of_default_length(),
             organization_id: Default::default(),
             connector_mandate_detail: Default::default(),
+            overcapture_applied: Default::default(),
+            maximum_capturable_amount: Default::default(),
         };
         let store = state
             .stores
@@ -398,6 +403,8 @@ mod tests {
             profile_id: common_utils::generate_profile_id_of_default_length(),
             organization_id: Default::default(),
             connector_mandate_detail: Default::default(),
+            overcapture_applied: Default::default(),
+            maximum_capturable_amount: Default::default(),
         };
         let store = state
             .stores

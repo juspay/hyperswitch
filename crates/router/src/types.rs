@@ -254,6 +254,7 @@ pub trait Capturable {
         &self,
         _payment_data: &PaymentData<F>,
         _attempt_status: common_enums::AttemptStatus,
+        _maximum_capturable_amount: Option<MinorUnit>,
     ) -> Option<i64>
     where
         F: Clone,
@@ -280,6 +281,7 @@ impl Capturable for PaymentsAuthorizeData {
         &self,
         payment_data: &PaymentData<F>,
         attempt_status: common_enums::AttemptStatus,
+        maximum_capturable_amount: Option<MinorUnit>,
     ) -> Option<i64>
     where
         F: Clone,
@@ -302,7 +304,7 @@ impl Capturable for PaymentsAuthorizeData {
                     | common_enums::IntentStatus::PartiallyCapturedAndCapturable => None,
                 }
             },
-            common_enums::CaptureMethod::Manual => Some(payment_data.payment_attempt.get_total_amount().get_amount_as_i64()),
+            common_enums::CaptureMethod::Manual => maximum_capturable_amount.or( Some(payment_data.payment_attempt.get_total_amount())).map(|amount_capturable|amount_capturable.get_amount_as_i64()),
             // In case of manual multiple, amount capturable must be inferred from all captures.
             common_enums::CaptureMethod::ManualMultiple |
             // Scheduled capture is not supported as of now
@@ -323,6 +325,7 @@ impl Capturable for PaymentsCaptureData {
         &self,
         _payment_data: &PaymentData<F>,
         attempt_status: common_enums::AttemptStatus,
+        _maximum_capturable_amount: Option<MinorUnit>,
     ) -> Option<i64>
     where
         F: Clone,
@@ -361,6 +364,7 @@ impl Capturable for CompleteAuthorizeData {
         &self,
         payment_data: &PaymentData<F>,
         attempt_status: common_enums::AttemptStatus,
+        maximum_capturable_amount: Option<MinorUnit>,
     ) -> Option<i64>
     where
         F: Clone,
@@ -385,7 +389,7 @@ impl Capturable for CompleteAuthorizeData {
                     | common_enums::IntentStatus::PartiallyCapturedAndCapturable => None,
                 }
             },
-            common_enums::CaptureMethod::Manual => Some(payment_data.payment_attempt.get_total_amount().get_amount_as_i64()),
+            common_enums::CaptureMethod::Manual =>maximum_capturable_amount.or(Some(payment_data.payment_attempt.get_total_amount())).map(|amount_capturable| amount_capturable.get_amount_as_i64()),
             // In case of manual multiple, amount capturable must be inferred from all captures.
             common_enums::CaptureMethod::ManualMultiple |
             // Scheduled capture is not supported as of now
@@ -413,6 +417,7 @@ impl Capturable for PaymentsCancelData {
         &self,
         _payment_data: &PaymentData<F>,
         attempt_status: common_enums::AttemptStatus,
+        _maximum_capturable_amount: Option<MinorUnit>,
     ) -> Option<i64>
     where
         F: Clone,
@@ -441,6 +446,7 @@ impl Capturable for PaymentsIncrementalAuthorizationData {
         &self,
         _payment_data: &PaymentData<F>,
         _attempt_status: common_enums::AttemptStatus,
+        _maximum_capturable_amount: Option<MinorUnit>,
     ) -> Option<i64>
     where
         F: Clone,
@@ -479,6 +485,7 @@ impl Capturable for PaymentsSyncData {
         &self,
         _payment_data: &PaymentData<F>,
         attempt_status: common_enums::AttemptStatus,
+        _maximum_capturable_amount: Option<MinorUnit>,
     ) -> Option<i64>
     where
         F: Clone,
@@ -958,6 +965,7 @@ impl<F1, F2, T1, T2> ForeignFrom<(&RouterData<F1, T1, PaymentsResponseData>, T2)
                 .clone(),
             authentication_id: data.authentication_id.clone(),
             psd2_sca_exemption_type: data.psd2_sca_exemption_type,
+            request_overcapture: data.request_overcapture,
         }
     }
 }
@@ -1024,6 +1032,7 @@ impl<F1, F2>
             psd2_sca_exemption_type: None,
             additional_merchant_data: data.additional_merchant_data.clone(),
             connector_mandate_request_reference_id: None,
+            request_overcapture: None,
         }
     }
 }

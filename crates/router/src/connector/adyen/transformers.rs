@@ -3417,6 +3417,8 @@ impl TryFrom<types::PaymentsCancelResponseRouterData<AdyenCancelResponse>>
                 connector_response_reference_id: Some(item.response.reference),
                 incremental_authorization_allowed: None,
                 charge_id: None,
+                overcapture_applied: None,
+                maximum_capturable_amount: None,
             }),
             ..item.data
         })
@@ -3452,6 +3454,8 @@ impl<F>
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 charge_id: None,
+                overcapture_applied: None,
+                maximum_capturable_amount: None,
             }),
             payment_method_balance: Some(types::PaymentMethodBalance {
                 currency: item.response.balance.currency,
@@ -3522,6 +3526,8 @@ pub fn get_adyen_response(
         connector_response_reference_id: Some(response.merchant_reference),
         incremental_authorization_allowed: None,
         charge_id: None,
+        overcapture_applied: None,
+        maximum_capturable_amount: None,
     };
     Ok((status, error, payments_response_data))
 }
@@ -3589,6 +3595,8 @@ pub fn get_webhook_response(
             connector_response_reference_id: Some(response.merchant_reference_id),
             incremental_authorization_allowed: None,
             charge_id: None,
+            overcapture_applied: None,
+            maximum_capturable_amount: None,
         };
         Ok((status, error, payments_response_data))
     }
@@ -3665,6 +3673,8 @@ pub fn get_redirection_response(
             .or(response.psp_reference),
         incremental_authorization_allowed: None,
         charge_id: None,
+        overcapture_applied: None,
+        maximum_capturable_amount: None,
     };
     Ok((status, error, payments_response_data))
 }
@@ -3726,6 +3736,8 @@ pub fn get_present_to_shopper_response(
             .or(response.psp_reference),
         incremental_authorization_allowed: None,
         charge_id: None,
+        overcapture_applied: None,
+        maximum_capturable_amount: None,
     };
     Ok((status, error, payments_response_data))
 }
@@ -3786,6 +3798,8 @@ pub fn get_qr_code_response(
             .or(response.psp_reference),
         incremental_authorization_allowed: None,
         charge_id: None,
+        overcapture_applied: None,
+        maximum_capturable_amount: None,
     };
     Ok((status, error, payments_response_data))
 }
@@ -3829,6 +3843,8 @@ pub fn get_redirection_error_response(
             .or(response.psp_reference),
         incremental_authorization_allowed: None,
         charge_id: None,
+        overcapture_applied: None,
+        maximum_capturable_amount: None,
     };
 
     Ok((status, error, payments_response_data))
@@ -4196,6 +4212,8 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<AdyenCaptureResponse>>
                 connector_response_reference_id: Some(item.response.reference),
                 incremental_authorization_allowed: None,
                 charge_id: None,
+                overcapture_applied: None,
+                maximum_capturable_amount: None,
             }),
             amount_captured: Some(0),
             ..item.data

@@ -388,6 +388,8 @@ impl<F>
                 connector_response_reference_id: item.response.invoice_number.clone(),
                 incremental_authorization_allowed: None,
                 charge_id: None,
+                overcapture_applied: None,
+                maximum_capturable_amount: None,
             }),
             status: enums::AttemptStatus::from(item.response),
             ..item.data
@@ -439,6 +441,8 @@ impl<F>
                 connector_response_reference_id: item.response.invoice_number.clone(),
                 incremental_authorization_allowed: None,
                 charge_id: None,
+                overcapture_applied: None,
+                maximum_capturable_amount: None,
             }),
             status: enums::AttemptStatus::from(item.response),
             ..item.data
@@ -488,6 +492,8 @@ impl<F>
                     connector_response_reference_id: item.response.invoice_number.clone(),
                     incremental_authorization_allowed: None,
                     charge_id: None,
+                    overcapture_applied: None,
+                maximum_capturable_amount: None,
                 }),
                 status: enums::AttemptStatus::from(item.response),
                 ..item.data
@@ -568,6 +574,8 @@ impl<F>
                 connector_response_reference_id: item.response.invoice_number.clone(),
                 incremental_authorization_allowed: None,
                 charge_id: None,
+                overcapture_applied: None,
+                maximum_capturable_amount: None,
             }),
             status: enums::AttemptStatus::from(item.response),
             ..item.data
@@ -625,6 +633,8 @@ impl<F>
                 connector_response_reference_id: item.response.invoice_number.clone(),
                 incremental_authorization_allowed: None,
                 charge_id: None,
+                overcapture_applied: None,
+                maximum_capturable_amount: None,
             }),
             status: enums::AttemptStatus::from(item.response),
             ..item.data
