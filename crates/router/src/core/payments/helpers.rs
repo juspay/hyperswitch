@@ -1,8 +1,8 @@
 use std::{borrow::Cow, str::FromStr};
 
+use actix_web::http::header::HeaderMap;
 #[cfg(feature = "v2")]
 use api_models::ephemeral_key::EphemeralKeyResponse;
-use actix_web::http::header::HeaderMap;
 use api_models::{
     mandates::RecurringDetails,
     payments::{additional_info as payment_additional_types, RequestSurchargeDetails},
