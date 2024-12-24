@@ -35,7 +35,7 @@ use hyperswitch_domain_models::{
 use hyperswitch_interfaces::{
     api::{
         self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorRedirectResponse,
-        ConnectorValidation,
+        ConnectorSpecifications, ConnectorValidation,
     },
     configs::Connectors,
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
@@ -204,9 +204,10 @@ impl ConnectorCommon for Bluesnap {
 }
 
 impl ConnectorValidation for Bluesnap {
-    fn validate_capture_method(
+    fn validate_connector_against_payment_request(
         &self,
         capture_method: Option<enums::CaptureMethod>,
+        _payment_method: enums::PaymentMethod,
         _pmt: Option<enums::PaymentMethodType>,
     ) -> CustomResult<(), errors::ConnectorError> {
         let capture_method = capture_method.unwrap_or_default();
@@ -1371,3 +1372,5 @@ fn get_rsync_url_with_connector_refund_id(
         req.request.get_connector_refund_id()?
     ))
 }
+
+impl ConnectorSpecifications for Bluesnap {}

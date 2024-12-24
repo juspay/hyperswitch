@@ -70,6 +70,8 @@ use crate::analytics::AnalyticsProvider;
 use crate::errors::RouterResult;
 #[cfg(feature = "v1")]
 use crate::routes::cards_info::card_iin_info;
+#[cfg(all(feature = "olap", feature = "v1"))]
+use crate::routes::feature_matrix;
 #[cfg(all(feature = "frm", feature = "oltp"))]
 use crate::routes::fraud_check as frm_routes;
 #[cfg(all(feature = "recon", feature = "olap"))]
@@ -2252,5 +2254,17 @@ impl WebhookEvents {
                             .route(web::post().to(webhook_events::retry_webhook_delivery_attempt)),
                     ),
             )
+    }
+}
+
+#[cfg(feature = "olap")]
+pub struct FeatureMatrix;
+
+#[cfg(all(feature = "olap", feature = "v1"))]
+impl FeatureMatrix {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/feature_matrix")
+            .app_data(web::Data::new(state))
+            .service(web::resource("").route(web::get().to(feature_matrix::fetch_feature_matrix)))
     }
 }

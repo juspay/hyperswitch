@@ -3584,3 +3584,42 @@ pub enum StripeChargeType {
     Direct,
     Destination,
 }
+
+/// Connector Access Method
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    ToSchema,
+)]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+pub enum PaymentConnectorCategory {
+    PaymentGateway,
+    AlternativePaymentMethod,
+    BankAcquirer,
+}
+
+/// The status of the feature
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    ToSchema,
+)]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+pub enum FeatureStatus {
+    NotSupported,
+    Supported,
+}
