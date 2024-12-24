@@ -696,8 +696,13 @@ where
                     merchant_id: Some(merchant_id),
                     key_id: Some(key_id),
                 } => {
-                    let auth =
-                        construct_authentication_data(state, &merchant_id, request_headers, profile_id).await?;
+                    let auth = construct_authentication_data(
+                        state,
+                        &merchant_id,
+                        request_headers,
+                        profile_id,
+                    )
+                    .await?;
                     Ok((
                         auth.clone(),
                         AuthenticationType::ApiKey {
@@ -711,8 +716,13 @@ where
                     merchant_id: Some(merchant_id),
                     key_id: None,
                 } => {
-                    let auth =
-                        construct_authentication_data(state, &merchant_id, request_headers, profile_id).await?;
+                    let auth = construct_authentication_data(
+                        state,
+                        &merchant_id,
+                        request_headers,
+                        profile_id,
+                    )
+                    .await?;
                     Ok((
                         auth.clone(),
                         AuthenticationType::PublishableKey {
