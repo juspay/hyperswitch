@@ -64,7 +64,7 @@ check_v2 *FLAGS:
     cargo check {{ check_flags }} --no-default-features --features "${FEATURES}" -- {{ FLAGS }}
     set +x
 
-build_v2:
+build_v2 *FLAGS:
     #! /usr/bin/env bash
     set -euo pipefail
 
@@ -76,8 +76,11 @@ build_v2:
     ')"
 
     set -x
-    cargo build --package router --bin router --no-default-features --features "${FEATURES}"
+    cargo build --package router --bin router --no-default-features --features "${FEATURES}" {{ FLAGS }}
     set +x
+
+alias bb := build_v2
+
 
 run_v2:
     #! /usr/bin/env bash

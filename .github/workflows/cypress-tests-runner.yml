@@ -394,11 +394,11 @@ jobs:
         if: ${{ env.RUN_TESTS == 'true' }}
         env:
           RUSTFLAGS: "-Cinstrument-coverage"
-        run: just build_v2
+        run: just build_v2 --jobs 3
 
       - name: Delete compile-time profraw files
         if: ${{ env.RUN_TESTS == 'true' }}
-        run: rm -f *.profraw
+        run: rm -f **/*.profraw
 
       - name: Setup Local Server
         if: ${{ env.RUN_TESTS == 'true' }}
