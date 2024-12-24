@@ -22448,6 +22448,10 @@
             "type": "object",
             "description": "Product authentication ids",
             "nullable": true
+          },
+          "is_tokenize_before_payment_enabled": {
+            "type": "boolean",
+            "description": "Indicates if network tokenization before first payment is enabled or not"
           }
         },
         "additionalProperties": false
@@ -22481,7 +22485,8 @@
           "is_tax_connector_enabled",
           "is_network_tokenization_enabled",
           "is_auto_retries_enabled",
-          "is_click_to_pay_enabled"
+          "is_click_to_pay_enabled",
+          "is_tokenize_before_payment_enabled"
         ],
         "properties": {
           "merchant_id": {
@@ -22689,6 +22694,10 @@
             "type": "object",
             "description": "Product authentication ids",
             "nullable": true
+          },
+          "is_tokenize_before_payment_enabled": {
+            "type": "boolean",
+            "description": "Indicates if network tokenization before first payment is enabled or not"
           }
         }
       },
