@@ -70,6 +70,8 @@ use crate::analytics::AnalyticsProvider;
 use crate::errors::RouterResult;
 #[cfg(feature = "v1")]
 use crate::routes::cards_info::card_iin_info;
+#[cfg(all(feature = "olap", feature = "v1"))]
+use crate::routes::feature_matrix;
 #[cfg(all(feature = "frm", feature = "oltp"))]
 use crate::routes::fraud_check as frm_routes;
 #[cfg(all(feature = "recon", feature = "olap"))]
@@ -598,6 +600,7 @@ impl Relay {
         web::scope("/relay")
             .app_data(web::Data::new(state))
             .service(web::resource("").route(web::post().to(relay::relay)))
+            .service(web::resource("/{relay_id}").route(web::get().to(relay::relay_retrieve)))
     }
 }
 
@@ -1337,8 +1340,7 @@ impl MerchantAccount {
 #[cfg(all(feature = "olap", feature = "v1"))]
 impl MerchantAccount {
     pub fn server(state: AppState) -> Scope {
-        web::scope("/accounts")
-            .app_data(web::Data::new(state))
+        let mut routes = web::scope("/accounts")
             .service(web::resource("").route(web::post().to(admin::merchant_account_create)))
             .service(web::resource("/list").route(web::get().to(admin::merchant_account_list)))
             .service(
@@ -1358,7 +1360,14 @@ impl MerchantAccount {
                     .route(web::get().to(admin::retrieve_merchant_account))
                     .route(web::post().to(admin::update_merchant_account))
                     .route(web::delete().to(admin::delete_merchant_account)),
+            );
+        if state.conf.platform.enabled {
+            routes = routes.service(
+                web::resource("/{id}/platform")
+                    .route(web::post().to(admin::merchant_account_enable_platform_account)),
             )
+        }
+        routes.app_data(web::Data::new(state))
     }
 }
 
@@ -2245,5 +2254,17 @@ impl WebhookEvents {
                             .route(web::post().to(webhook_events::retry_webhook_delivery_attempt)),
                     ),
             )
+    }
+}
+
+#[cfg(feature = "olap")]
+pub struct FeatureMatrix;
+
+#[cfg(all(feature = "olap", feature = "v1"))]
+impl FeatureMatrix {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/feature_matrix")
+            .app_data(web::Data::new(state))
+            .service(web::resource("").route(web::get().to(feature_matrix::fetch_feature_matrix)))
     }
 }

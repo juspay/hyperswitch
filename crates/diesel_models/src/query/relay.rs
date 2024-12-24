@@ -35,4 +35,15 @@ impl Relay {
             result => result,
         }
     }
+
+    pub async fn find_by_id(
+        conn: &PgPooledConn,
+        id: &common_utils::id_type::RelayId,
+    ) -> StorageResult<Self> {
+        generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
+            conn,
+            dsl::id.eq(id.to_owned()),
+        )
+        .await
+    }
 }

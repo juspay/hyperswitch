@@ -90,6 +90,7 @@ pub mod headers {
     pub const X_REDIRECT_URI: &str = "x-redirect-uri";
     pub const X_TENANT_ID: &str = "x-tenant-id";
     pub const X_CLIENT_SECRET: &str = "X-Client-Secret";
+    pub const X_CONNECTED_MERCHANT_ID: &str = "x-connected-merchant-id";
     pub const X_RESOURCE_TYPE: &str = "X-Resource-Type";
 }
 
@@ -191,7 +192,8 @@ pub fn mk_app(
                 .service(routes::ConnectorOnboarding::server(state.clone()))
                 .service(routes::Verify::server(state.clone()))
                 .service(routes::Analytics::server(state.clone()))
-                .service(routes::WebhookEvents::server(state.clone()));
+                .service(routes::WebhookEvents::server(state.clone()))
+                .service(routes::FeatureMatrix::server(state.clone()));
         }
     }
 

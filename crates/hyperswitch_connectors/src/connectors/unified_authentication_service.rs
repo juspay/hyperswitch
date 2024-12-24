@@ -28,7 +28,10 @@ use hyperswitch_domain_models::{
     types::{UasPostAuthenticationRouterData, UasPreAuthenticationRouterData},
 };
 use hyperswitch_interfaces::{
-    api::{self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorValidation},
+    api::{
+        self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorSpecifications,
+        ConnectorValidation,
+    },
     configs::Connectors,
     consts::NO_ERROR_MESSAGE,
     errors,
@@ -411,3 +414,5 @@ impl webhooks::IncomingWebhook for UnifiedAuthenticationService {
         Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 }
+
+impl ConnectorSpecifications for UnifiedAuthenticationService {}
