@@ -87,9 +87,6 @@ Never share your secret api keys. Keep them guarded and secure.
         routes::merchant_account::merchant_account_update,
         routes::merchant_account::profiles_list,
 
-        // Routes for payments
-        routes::payments::payments_connector_session,
-
         // Routes for profile
         routes::profile::profile_create,
         routes::profile::profile_retrieve,
@@ -127,6 +124,8 @@ Never share your secret api keys. Keep them guarded and secure.
         routes::payments::payments_update_intent,
         routes::payments::payments_confirm_intent,
         routes::payments::payment_status,
+        routes::payments::payments_connector_session,
+        routes::payments::list_payment_methods,
 
         //Routes for payment methods
         routes::payment_method::list_customer_payment_method_for_payment,
@@ -162,6 +161,7 @@ Never share your secret api keys. Keep them guarded and secure.
         common_types::payments::StripeSplitPaymentRequest,
         common_types::refunds::StripeSplitRefundRequest,
         common_utils::types::ChargeRefunds,
+        common_types::payment_methods::PaymentMethodsEnabled,
         common_types::refunds::SplitRefund,
         api_models::payments::SplitPaymentsResponse,
         api_models::payments::StripeSplitPaymentsResponse,
@@ -198,6 +198,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payment_methods::PaymentMethodListRequest,
         api_models::payment_methods::PaymentMethodListResponse,
         api_models::payment_methods::ResponsePaymentMethodsEnabled,
+        api_models::payment_methods::PaymentMethodSubtypeSpecificData,
         api_models::payment_methods::ResponsePaymentMethodTypes,
         api_models::payment_methods::PaymentExperienceTypes,
         api_models::payment_methods::CardNetworkTypes,
@@ -272,7 +273,6 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::admin::FrmConfigs,
         api_models::admin::FrmPaymentMethod,
         api_models::admin::FrmPaymentMethodType,
-        api_models::admin::PaymentMethodsEnabled,
         api_models::admin::MerchantConnectorDetailsWrap,
         api_models::admin::MerchantConnectorDetails,
         api_models::admin::MerchantConnectorWebhookDetails,
@@ -341,7 +341,6 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::SwishQrData,
         api_models::payments::AirwallexData,
         api_models::payments::NoonData,
-        api_models::payments::OrderDetails,
         api_models::payments::OrderDetailsWithAmount,
         api_models::payments::NextActionType,
         api_models::payments::WalletData,
@@ -381,6 +380,12 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::ApplePayBillingContactFields,
         api_models::payments::ApplePayShippingContactFields,
         api_models::payments::ApplePayAddressParameters,
+        api_models::payments::ApplePayRecurringPaymentRequest,
+        api_models::payments::ApplePayRegularBillingRequest,
+        api_models::payments::ApplePayPaymentTiming,
+        api_models::payments::RecurringPaymentIntervalUnit,
+        api_models::payments::ApplePayRecurringDetails,
+        api_models::payments::ApplePayRegularBillingDetails,
         api_models::payments::AmountInfo,
         api_models::payments::GooglePayWalletData,
         api_models::payments::PayPalWalletData,
@@ -469,6 +474,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::PaymentsConfirmIntentResponse,
         api_models::payments::AmountDetailsResponse,
         api_models::payments::BankCodeResponse,
+        api_models::payments::PaymentMethodListResponseForPayments,
         api_models::payment_methods::RequiredFieldInfo,
         api_models::payment_methods::DefaultPaymentMethod,
         api_models::payment_methods::MaskedBankDetails,
@@ -634,7 +640,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::ErrorDetails,
         api_models::payments::CtpServiceDetails,
         common_utils::types::BrowserInformation,
-        api_models::payments::ConfirmIntentAmountDetailsResponse,
+        api_models::payments::PaymentAmountDetailsResponse,
         routes::payments::ForceSync,
     )),
     modifiers(&SecurityAddon)

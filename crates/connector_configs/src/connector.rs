@@ -7,7 +7,6 @@ use api_models::{
     payments,
 };
 use serde::Deserialize;
-#[cfg(any(feature = "sandbox", feature = "development", feature = "production"))]
 use toml;
 
 use crate::common_config::{CardProvider, InputData, Provider, ZenApplePay};
@@ -198,6 +197,7 @@ pub struct ConnectorConfig {
     pub gpayments: Option<ConnectorTomlConfig>,
     pub helcim: Option<ConnectorTomlConfig>,
     // pub inespay: Option<ConnectorTomlConfig>,
+    pub jpmorgan: Option<ConnectorTomlConfig>,
     pub klarna: Option<ConnectorTomlConfig>,
     pub mifinity: Option<ConnectorTomlConfig>,
     pub mollie: Option<ConnectorTomlConfig>,
@@ -253,25 +253,14 @@ pub struct ConnectorConfig {
 
 impl ConnectorConfig {
     fn new() -> Result<Self, String> {
-        #[cfg(all(
-            feature = "production",
-            not(any(feature = "sandbox", feature = "development"))
-        ))]
-        let config = toml::from_str::<Self>(include_str!("../toml/production.toml"));
-        #[cfg(all(
-            feature = "sandbox",
-            not(any(feature = "production", feature = "development"))
-        ))]
-        let config = toml::from_str::<Self>(include_str!("../toml/sandbox.toml"));
-        #[cfg(feature = "development")]
-        let config = toml::from_str::<Self>(include_str!("../toml/development.toml"));
-
-        #[cfg(not(any(feature = "sandbox", feature = "development", feature = "production")))]
-        return Err(String::from(
-            "Atleast one features has to be enabled for connectorconfig",
-        ));
-
-        #[cfg(any(feature = "sandbox", feature = "development", feature = "production"))]
+        let config_str = if cfg!(feature = "production") {
+            include_str!("../toml/production.toml")
+        } else if cfg!(feature = "sandbox") {
+            include_str!("../toml/sandbox.toml")
+        } else {
+            include_str!("../toml/development.toml")
+        };
+        let config = toml::from_str::<Self>(config_str);
         match config {
             Ok(data) => Ok(data),
             Err(err) => Err(err.to_string()),
@@ -370,6 +359,7 @@ impl ConnectorConfig {
             Connector::Gpayments => Ok(connector_data.gpayments),
             Connector::Helcim => Ok(connector_data.helcim),
             // Connector::Inespay => Ok(connector_data.inespay),
+            Connector::Jpmorgan => Ok(connector_data.jpmorgan),
             Connector::Klarna => Ok(connector_data.klarna),
             Connector::Mifinity => Ok(connector_data.mifinity),
             Connector::Mollie => Ok(connector_data.mollie),
