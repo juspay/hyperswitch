@@ -55,6 +55,12 @@ pub(crate) fn construct_not_supported_error_report(
     .into()
 }
 
+pub(crate) fn base64_decode(data: String) -> Result<Vec<u8>, Error> {
+    BASE64_ENGINE
+        .decode(data)
+        .change_context(errors::ConnectorError::ResponseDeserializationFailed)
+}
+
 pub(crate) fn to_currency_base_unit_with_zero_decimal_check(
     amount: i64,
     currency: enums::Currency,

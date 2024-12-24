@@ -24,6 +24,7 @@ pub mod forte;
 pub mod globepay;
 pub mod gocardless;
 pub mod helcim;
+pub mod iatapay;
 pub mod inespay;
 pub mod jpmorgan;
 pub mod mifinity;
@@ -64,7 +65,7 @@ pub use self::{
     ctp_mastercard::CtpMastercard, cybersource::Cybersource, datatrans::Datatrans,
     deutschebank::Deutschebank, digitalvirgo::Digitalvirgo, dlocal::Dlocal, elavon::Elavon,
     fiserv::Fiserv, fiservemea::Fiservemea, fiuu::Fiuu, forte::Forte, globepay::Globepay,
-    gocardless::Gocardless, helcim::Helcim, inespay::Inespay, jpmorgan::Jpmorgan,
+    gocardless::Gocardless, helcim::Helcim, iatapay::Iatapay, inespay::Inespay, jpmorgan::Jpmorgan,
     mifinity::Mifinity, mollie::Mollie, multisafepay::Multisafepay, nexinets::Nexinets,
     nexixpay::Nexixpay, nomupay::Nomupay, novalnet::Novalnet, paybox::Paybox, payeezy::Payeezy,
     payu::Payu, placetopay::Placetopay, powertranz::Powertranz, prophetpay::Prophetpay,
