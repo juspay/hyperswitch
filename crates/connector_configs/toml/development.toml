@@ -1731,47 +1731,6 @@ api_key="Client Secret"
 api_secret="Certificates"
 key2="Certificate Key"
 
-[jpmorgan]
-[[jpmorgan.credit]]
-  payment_method_type = "AmericanExpress"
-[[jpmorgan.credit]]
-  payment_method_type = "ChaseNet"
-[[jpmorgan.credit]]
-  payment_method_type = "DinersClub"
-[[jpmorgan.credit]]
-  payment_method_type = "Discover"
-[[jpmorgan.credit]]
-  payment_method_type = "JCB"
-[[jpmorgan.credit]]
-  payment_method_type = "Mastercard"
-[[jpmorgan.credit]]
-  payment_method_type = "Discover"
-[[jpmorgan.credit]]
-  payment_method_type = "UnionPay"
-[[jpmorgan.credit]]
-  payment_method_type = "Visa"
-  [[jpmorgan.debit]]
-  payment_method_type = "AmericanExpress"
-[[jpmorgan.debit]]
-  payment_method_type = "ChaseNet"
-[[jpmorgan.debit]]
-  payment_method_type = "DinersClub"
-[[jpmorgan.debit]]
-  payment_method_type = "Discover"
-[[jpmorgan.debit]]
-  payment_method_type = "JCB"
-[[jpmorgan.debit]]
-  payment_method_type = "Mastercard"
-[[jpmorgan.debit]]
-  payment_method_type = "Discover"
-[[jpmorgan.debit]]
-  payment_method_type = "UnionPay"
-[[jpmorgan.debit]]
-  payment_method_type = "Visa"
-[jpmorgan.connector_auth.BodyKey]
-api_key="Client ID"
-key1="Client Secret"
-
 [klarna]
 [[klarna.pay_later]]
   payment_method_type = "klarna"

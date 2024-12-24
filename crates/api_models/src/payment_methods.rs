@@ -163,6 +163,9 @@ pub struct PaymentMethodIntentCreate {
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct PaymentMethodIntentConfirm {
+    /// For SDK based calls, client_secret would be required
+    pub client_secret: String,
+
     /// The unique identifier of the customer.
     #[schema(value_type = Option<String>, max_length = 64, min_length = 1, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
     pub customer_id: Option<id_type::CustomerId>,
@@ -208,6 +211,9 @@ pub struct PaymentMethodIntentConfirmInternal {
     #[schema(value_type = PaymentMethodType,example = "credit")]
     pub payment_method_subtype: api_enums::PaymentMethodType,
 
+    /// For SDK based calls, client_secret would be required
+    pub client_secret: String,
+
     /// The unique identifier of the customer.
     #[schema(value_type = Option<String>, max_length = 64, min_length = 1, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
     pub customer_id: Option<id_type::CustomerId>,
@@ -220,6 +226,7 @@ pub struct PaymentMethodIntentConfirmInternal {
 impl From<PaymentMethodIntentConfirmInternal> for PaymentMethodIntentConfirm {
     fn from(item: PaymentMethodIntentConfirmInternal) -> Self {
         Self {
+            client_secret: item.client_secret,
             payment_method_type: item.payment_method_type,
             payment_method_subtype: item.payment_method_subtype,
             customer_id: item.customer_id,
@@ -401,6 +408,10 @@ pub struct PaymentMethodUpdate {
 pub struct PaymentMethodUpdate {
     /// payment method data to be passed
     pub payment_method_data: PaymentMethodUpdateData,
+
+    /// This is a 15 minute expiry token which shall be used from the client to authenticate and perform sessions from the SDK
+    #[schema(max_length = 30, min_length = 30, example = "secret_k2uj3he2893eiu2d")]
+    pub client_secret: Option<String>,
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
@@ -815,8 +826,7 @@ pub struct PaymentMethodResponse {
     pub last_used_at: Option<time::PrimitiveDateTime>,
 
     /// For Client based calls
-    #[schema(value_type=Option<String>)]
-    pub ephemeral_key: Option<masking::Secret<String>>,
+    pub client_secret: Option<String>,
 
     pub payment_method_data: Option<PaymentMethodResponseData>,
 }
@@ -1244,37 +1254,34 @@ pub struct ResponsePaymentMethodTypes {
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 #[derive(Debug, Clone, serde::Serialize, ToSchema, PartialEq)]
-#[serde(untagged)] // Untagged used for serialization only
-pub enum PaymentMethodSubtypeSpecificData {
-    Card {
-        card_networks: Vec<CardNetworkTypes>,
-    },
-    Bank {
-        bank_names: Vec<BankCodeResponse>,
-    },
-}
-
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-#[derive(Debug, Clone, serde::Serialize, ToSchema, PartialEq)]
 pub struct ResponsePaymentMethodTypes {
     /// The payment method type enabled
     #[schema(example = "klarna", value_type = PaymentMethodType)]
-    pub payment_method_type: common_enums::PaymentMethod,
+    pub payment_method_subtype: api_enums::PaymentMethodType,
 
-    /// The payment method subtype enabled
-    #[schema(example = "klarna", value_type = PaymentMethodType)]
-    pub payment_method_subtype: common_enums::PaymentMethodType,
+    /// The list of payment experiences enabled, if applicable for a payment method type
+    pub payment_experience: Option<Vec<PaymentExperienceTypes>>,
 
-    /// payment method subtype specific information
-    #[serde(flatten)]
-    pub extra_information: Option<PaymentMethodSubtypeSpecificData>,
+    /// The list of card networks enabled, if applicable for a payment method type
+    pub card_networks: Option<Vec<CardNetworkTypes>>,
+
+    /// The list of banks enabled, if applicable for a payment method type
+    pub bank_names: Option<Vec<BankCodeResponse>>,
+
+    /// The Bank debit payment method information, if applicable for a payment method type.
+    pub bank_debits: Option<BankDebitTypes>,
+
+    /// The Bank transfer payment method information, if applicable for a payment method type.
+    pub bank_transfers: Option<BankTransferTypes>,
 
     /// Required fields for the payment_method_type.
-    /// This is the union of all the required fields for the payment method type enabled in all the connectors.
     pub required_fields: Option<HashMap<String, RequiredFieldInfo>>,
 
     /// surcharge details for this payment method type if exists
     pub surcharge_details: Option<SurchargeDetailsResponse>,
+
+    /// auth service connector label for this payment method type, if exists
+    pub pm_auth_connector: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, ToSchema)]

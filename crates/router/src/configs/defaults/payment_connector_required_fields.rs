@@ -8142,8 +8142,7 @@ impl Default for settings::RequiredFields {
                                     enums::Connector::Bankofamerica,
                                     RequiredFieldFinal {
                                         mandate: HashMap::new(),
-                                        non_mandate: HashMap::new(),
-                                        common: HashMap::from(
+                                        non_mandate: HashMap::from(
                                             [
                                                 (
                                                     "email".to_string(),
@@ -8223,14 +8222,14 @@ impl Default for settings::RequiredFields {
                                                 )
                                             ]
                                         ),
+                                        common: HashMap::new(),
                                     }
                                 ),
                                 (
                                     enums::Connector::Cybersource,
                                     RequiredFieldFinal {
                                         mandate: HashMap::new(),
-                                        non_mandate: HashMap::new(),
-                                        common: HashMap::from(
+                                        non_mandate: HashMap::from(
                                             [
                                                 (
                                                     "billing.email".to_string(),
@@ -8310,6 +8309,7 @@ impl Default for settings::RequiredFields {
                                                 )
                                             ]
                                         ),
+                                        common: HashMap::new(),
                                     }
                                 ),
                                 (
@@ -8524,8 +8524,7 @@ impl Default for settings::RequiredFields {
                                     enums::Connector::Bankofamerica,
                                     RequiredFieldFinal {
                                         mandate: HashMap::new(),
-                                        non_mandate: HashMap::new(),
-                                        common:  HashMap::from(
+                                        non_mandate: HashMap::from(
                                             [
                                                 (
                                                     "email".to_string(),
@@ -8605,6 +8604,7 @@ impl Default for settings::RequiredFields {
                                                 )
                                             ]
                                         ),
+                                        common: HashMap::new(),
                                     }
                                 ),
                                 (
@@ -8789,8 +8789,7 @@ impl Default for settings::RequiredFields {
                                     enums::Connector::Cybersource,
                                     RequiredFieldFinal {
                                         mandate: HashMap::new(),
-                                        non_mandate: HashMap::new(),
-                                        common: HashMap::from(
+                                        non_mandate: HashMap::from(
                                             [
                                                 (
                                                     "billing.email".to_string(),
@@ -8870,6 +8869,7 @@ impl Default for settings::RequiredFields {
                                                 )
                                             ]
                                         ),
+                                        common: HashMap::new(),
                                     }
                                 ),
                                 (

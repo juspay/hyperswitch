@@ -73,8 +73,7 @@ where
     A: SessionStateInfo + Sync,
 {
     state
-        .session_state()
-        .global_store
+        .store()
         .find_by_role_id_and_org_id(role_id, org_id)
         .await
         .map(roles::RoleInfo::from)

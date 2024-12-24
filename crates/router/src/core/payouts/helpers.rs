@@ -769,7 +769,6 @@ pub(super) async fn get_or_create_customer_details(
     }
 }
 
-#[cfg(all(feature = "payouts", feature = "v1"))]
 pub async fn decide_payout_connector(
     state: &SessionState,
     merchant_account: &domain::MerchantAccount,

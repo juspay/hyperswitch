@@ -429,8 +429,6 @@ diesel::table! {
         payment_status -> AttemptStatus,
         conclusive_classification -> SuccessBasedRoutingConclusiveState,
         created_at -> Timestamp,
-        #[max_length = 64]
-        payment_method_type -> Nullable<Varchar>,
     }
 }
 
@@ -708,7 +706,6 @@ diesel::table! {
         version -> ApiVersion,
         #[max_length = 64]
         id -> Varchar,
-        is_platform_account -> Bool,
     }
 }
 
@@ -723,7 +720,7 @@ diesel::table! {
         connector_name -> Varchar,
         connector_account_details -> Bytea,
         disabled -> Nullable<Bool>,
-        payment_methods_enabled -> Nullable<Array<Nullable<Jsonb>>>,
+        payment_methods_enabled -> Nullable<Array<Nullable<Json>>>,
         connector_type -> ConnectorType,
         metadata -> Nullable<Jsonb>,
         #[max_length = 255]
@@ -934,8 +931,6 @@ diesel::table! {
         id -> Varchar,
         psd2_sca_exemption_type -> Nullable<ScaExemptionType>,
         split_payments -> Nullable<Jsonb>,
-        #[max_length = 64]
-        platform_merchant_id -> Nullable<Varchar>,
     }
 }
 
@@ -1188,35 +1183,6 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
-    relay (id) {
-        #[max_length = 64]
-        id -> Varchar,
-        #[max_length = 128]
-        connector_resource_id -> Varchar,
-        #[max_length = 64]
-        connector_id -> Varchar,
-        #[max_length = 64]
-        profile_id -> Varchar,
-        #[max_length = 64]
-        merchant_id -> Varchar,
-        relay_type -> RelayType,
-        request_data -> Nullable<Jsonb>,
-        status -> RelayStatus,
-        #[max_length = 128]
-        connector_reference_id -> Nullable<Varchar>,
-        #[max_length = 64]
-        error_code -> Nullable<Varchar>,
-        error_message -> Nullable<Text>,
-        created_at -> Timestamp,
-        modified_at -> Timestamp,
-        response_data -> Nullable<Jsonb>,
-    }
-}
-
-diesel::table! {
-    use diesel::sql_types::*;
-    use crate::enums::diesel_exports::*;
-
     reverse_lookup (lookup_id) {
         #[max_length = 128]
         lookup_id -> Varchar,
@@ -1459,7 +1425,6 @@ diesel::allow_tables_to_appear_in_same_query!(
     payouts,
     process_tracker,
     refund,
-    relay,
     reverse_lookup,
     roles,
     routing_algorithm,

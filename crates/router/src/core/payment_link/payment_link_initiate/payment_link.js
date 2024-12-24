@@ -303,7 +303,7 @@ function initializeEventListeners(paymentDetails) {
   var payNowButtonText = document.createElement("div");
   var payNowButtonText = document.getElementById('submit-button-text');
   if (payNowButtonText) {
-    payNowButtonText.textContent = paymentDetails.payment_button_text || translations.payNow;
+    payNowButtonText.textContent = translations.payNow;
   }
 
   if (submitButtonNode instanceof HTMLButtonElement) {

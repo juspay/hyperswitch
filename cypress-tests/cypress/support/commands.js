@@ -38,13 +38,6 @@ function logRequestId(xRequestId) {
   }
 }
 
-function validateErrorMessage(response, resData) {
-  if (resData.body.status !== "failed") {
-    expect(response.body.error_message).to.be.null;
-    expect(response.body.error_code).to.be.null;
-  }
-}
-
 Cypress.Commands.add(
   "merchantCreateCallTest",
   (merchantCreateBody, globalState) => {
@@ -1120,8 +1113,6 @@ Cypress.Commands.add(
         ).to.be.null;
         expect(response.body.connector_mandate_id, "connector_mandate_id").to.be
           .null;
-
-        validateErrorMessage(response, resData);
       } else {
         defaultErrorHandler(response, resData);
       }
@@ -1328,8 +1319,6 @@ Cypress.Commands.add(
         expect(response.body.profile_id, "profile_id").to.equal(profileId).and
           .to.not.be.null;
 
-        validateErrorMessage(response, resData);
-
         if (response.body.capture_method === "automatic") {
           if (response.body.authentication_type === "three_ds") {
             expect(response.body)
@@ -1430,68 +1419,64 @@ Cypress.Commands.add(
         globalState.set("connectorId", response.body.connector);
         globalState.set("paymentMethodType", confirmBody.payment_method_type);
 
-        if (response.status === 200) {
-          validateErrorMessage(response, resData);
-
-          switch (response.body.authentication_type) {
-            case "three_ds":
-              if (
-                response.body.capture_method === "automatic" ||
-                response.body.capture_method === "manual"
-              ) {
-                if (response.body.status !== "failed") {
-                  // we get many statuses here, hence this verification
-                  if (
-                    connectorId === "adyen" &&
-                    response.body.payment_method_type === "blik"
-                  ) {
-                    expect(response.body)
-                      .to.have.property("next_action")
-                      .to.have.property("type")
-                      .to.equal("wait_screen_information");
-                  } else {
-                    expect(response.body)
-                      .to.have.property("next_action")
-                      .to.have.property("redirect_to_url");
-                    globalState.set(
-                      "nextActionUrl",
-                      response.body.next_action.redirect_to_url
-                    );
-                  }
-                } else if (response.body.status === "failed") {
-                  expect(response.body.error_code).to.equal(
-                    resData.body.error_code
+        switch (response.body.authentication_type) {
+          case "three_ds":
+            if (
+              response.body.capture_method === "automatic" ||
+              response.body.capture_method === "manual"
+            ) {
+              if (response.body.status !== "failed") {
+                // we get many statuses here, hence this verification
+                if (
+                  connectorId === "adyen" &&
+                  response.body.payment_method_type === "blik"
+                ) {
+                  expect(response.body)
+                    .to.have.property("next_action")
+                    .to.have.property("type")
+                    .to.equal("wait_screen_information");
+                } else {
+                  expect(response.body)
+                    .to.have.property("next_action")
+                    .to.have.property("redirect_to_url");
+                  globalState.set(
+                    "nextActionUrl",
+                    response.body.next_action.redirect_to_url
                   );
                 }
-              } else {
-                throw new Error(
-                  `Invalid capture method ${response.body.capture_method}`
+              } else if (response.body.status === "failed") {
+                expect(response.body.error_code).to.equal(
+                  resData.body.error_code
                 );
               }
-              break;
-            case "no_three_ds":
-              if (
-                response.body.capture_method === "automatic" ||
-                response.body.capture_method === "manual"
-              ) {
-                expect(response.body)
-                  .to.have.property("next_action")
-                  .to.have.property("redirect_to_url");
-                globalState.set(
-                  "nextActionUrl",
-                  response.body.next_action.redirect_to_url
-                );
-              } else {
-                throw new Error(
-                  `Invalid capture method ${response.body.capture_method}`
-                );
-              }
-              break;
-            default:
+            } else {
               throw new Error(
-                `Invalid authentication type ${response.body.authentication_type}`
+                `Invalid capture method ${response.body.capture_method}`
               );
-          }
+            }
+            break;
+          case "no_three_ds":
+            if (
+              response.body.capture_method === "automatic" ||
+              response.body.capture_method === "manual"
+            ) {
+              expect(response.body)
+                .to.have.property("next_action")
+                .to.have.property("redirect_to_url");
+              globalState.set(
+                "nextActionUrl",
+                response.body.next_action.redirect_to_url
+              );
+            } else {
+              throw new Error(
+                `Invalid capture method ${response.body.capture_method}`
+              );
+            }
+            break;
+          default:
+            throw new Error(
+              `Invalid authentication type ${response.body.authentication_type}`
+            );
         }
       } else {
         defaultErrorHandler(response, resData);
@@ -1536,9 +1521,6 @@ Cypress.Commands.add(
       expect(response.headers["content-type"]).to.include("application/json");
       if (response.status === 200) {
         globalState.set("paymentID", paymentIntentID);
-
-        validateErrorMessage(response, resData);
-
         if (
           response.body.capture_method === "automatic" ||
           response.body.capture_method === "manual"
@@ -1619,8 +1601,6 @@ Cypress.Commands.add(
       logRequestId(response.headers["x-request-id"]);
       expect(response.headers["content-type"]).to.include("application/json");
       if (response.status === 200) {
-        validateErrorMessage(response, resData);
-
         if (
           response.body.capture_method === "automatic" ||
           response.body.capture_method === "manual"
@@ -1717,8 +1697,6 @@ Cypress.Commands.add(
         expect(response.body.billing, "billing_address").to.not.be.empty;
         expect(response.body.profile_id, "profile_id").to.not.be.null;
         expect(response.body).to.have.property("status");
-
-        validateErrorMessage(response, resData);
 
         if (response.body.capture_method === "automatic") {
           if (response.body.authentication_type === "three_ds") {
@@ -1840,8 +1818,6 @@ Cypress.Commands.add(
         }
         expect(response.body.profile_id, "profile_id").to.not.be.null;
         expect(response.body.payment_token, "payment_token").to.not.be.null;
-
-        validateErrorMessage(response, resData);
 
         if (response.body.capture_method === "automatic") {
           if (response.body.authentication_type === "three_ds") {

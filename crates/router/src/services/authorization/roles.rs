@@ -126,7 +126,7 @@ impl RoleInfo {
             Ok(role.clone())
         } else {
             state
-                .global_store
+                .store
                 .find_role_by_role_id_in_lineage(role_id, merchant_id, org_id)
                 .await
                 .map(Self::from)
@@ -142,7 +142,7 @@ impl RoleInfo {
             Ok(role.clone())
         } else {
             state
-                .global_store
+                .store
                 .find_by_role_id_and_org_id(role_id, org_id)
                 .await
                 .map(Self::from)

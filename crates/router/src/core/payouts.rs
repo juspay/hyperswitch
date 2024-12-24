@@ -84,7 +84,7 @@ pub fn get_next_connector(
         .attach_printable("Connector not found in connectors iterator")
 }
 
-#[cfg(all(feature = "payouts", feature = "v1"))]
+#[cfg(feature = "payouts")]
 pub async fn get_connector_choice(
     state: &SessionState,
     merchant_account: &domain::MerchantAccount,
@@ -263,7 +263,6 @@ pub async fn make_connector_decision(
     }
 }
 
-#[cfg(feature = "v1")]
 #[instrument(skip_all)]
 pub async fn payouts_core(
     state: &SessionState,
@@ -296,19 +295,6 @@ pub async fn payouts_core(
         payout_data,
     ))
     .await
-}
-
-#[cfg(feature = "v2")]
-#[instrument(skip_all)]
-pub async fn payouts_core(
-    state: &SessionState,
-    merchant_account: &domain::MerchantAccount,
-    key_store: &domain::MerchantKeyStore,
-    payout_data: &mut PayoutData,
-    routing_algorithm: Option<serde_json::Value>,
-    eligible_connectors: Option<Vec<api_enums::PayoutConnectors>>,
-) -> RouterResult<()> {
-    todo!()
 }
 
 #[instrument(skip_all)]
@@ -531,7 +517,6 @@ pub async fn payouts_update_core(
     response_handler(&state, &merchant_account, &payout_data).await
 }
 
-#[cfg(all(feature = "payouts", feature = "v1"))]
 #[instrument(skip_all)]
 pub async fn payouts_retrieve_core(
     state: SessionState,

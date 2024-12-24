@@ -715,7 +715,6 @@ fn get_apple_pay_payment_request(
         merchant_identifier: Some(merchant_identifier.to_string()),
         required_billing_contact_fields,
         required_shipping_contact_fields,
-        recurring_payment_request: session_data.apple_pay_recurring_details,
     };
     Ok(applepay_payment_request)
 }

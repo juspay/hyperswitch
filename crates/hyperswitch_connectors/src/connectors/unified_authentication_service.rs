@@ -189,7 +189,7 @@ impl
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
-            "{}pre_authentication_processing",
+            "{}pre_authetication_processing",
             self.base_url(connectors)
         ))
     }

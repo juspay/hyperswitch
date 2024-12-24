@@ -939,7 +939,6 @@ impl Default for PaymentAuthorizeType {
             payment_method_data: types::domain::PaymentMethodData::Card(CCardType::default().0),
             amount: 100,
             minor_amount: MinorUnit::new(100),
-            order_tax_amount: Some(MinorUnit::zero()),
             currency: enums::Currency::USD,
             confirm: true,
             statement_descriptor_suffix: None,
@@ -1013,9 +1012,6 @@ impl Default for BrowserInfoType {
             java_enabled: Some(true),
             java_script_enabled: Some(true),
             ip_address: Some("127.0.0.1".parse().unwrap()),
-            device_model: Some("Apple IPHONE 7".to_string()),
-            os_type: Some("IOS or ANDROID".to_string()),
-            os_version: Some("IOS 14.5".to_string()),
         };
         Self(data)
     }

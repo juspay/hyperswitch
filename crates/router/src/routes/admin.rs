@@ -910,26 +910,3 @@ pub async fn merchant_account_transfer_keys(
     ))
     .await
 }
-
-/// Merchant Account - Platform Account
-///
-/// Enable platform account
-#[instrument(skip_all)]
-pub async fn merchant_account_enable_platform_account(
-    state: web::Data<AppState>,
-    req: HttpRequest,
-    path: web::Path<common_utils::id_type::MerchantId>,
-) -> HttpResponse {
-    let flow = Flow::EnablePlatformAccount;
-    let merchant_id = path.into_inner();
-    Box::pin(api::server_wrap(
-        flow,
-        state,
-        &req,
-        merchant_id,
-        |state, _, req, _| enable_platform_account(state, req),
-        &auth::AdminApiAuth,
-        api_locking::LockAction::NotApplicable,
-    ))
-    .await
-}

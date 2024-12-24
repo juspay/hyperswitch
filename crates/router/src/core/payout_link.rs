@@ -326,7 +326,7 @@ pub async fn initiate_payout_link(
     }
 }
 
-#[cfg(all(feature = "payouts", feature = "v1"))]
+#[cfg(feature = "payouts")]
 pub async fn filter_payout_methods(
     state: &SessionState,
     merchant_account: &domain::MerchantAccount,

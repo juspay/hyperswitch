@@ -80,7 +80,6 @@ pub async fn send_recon_request(
         state
             .email_client
             .compose_and_send_email(
-                email_types::get_base_url(&state),
                 Box::new(email_contents),
                 state.conf.proxy.https_url.as_ref(),
             )
@@ -180,7 +179,7 @@ pub async fn recon_merchant_account_update(
         let theme = theme_utils::get_most_specific_theme_using_lineage(
             &state.clone(),
             ThemeLineage::Merchant {
-                tenant_id: state.tenant.tenant_id.clone(),
+                tenant_id: state.tenant.tenant_id,
                 org_id: auth.merchant_account.get_org_id().clone(),
                 merchant_id: merchant_id.clone(),
             },
@@ -211,7 +210,6 @@ pub async fn recon_merchant_account_update(
             let _ = state
                 .email_client
                 .compose_and_send_email(
-                    email_types::get_base_url(&state),
                     Box::new(email_contents),
                     state.conf.proxy.https_url.as_ref(),
                 )

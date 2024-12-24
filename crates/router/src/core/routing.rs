@@ -1413,10 +1413,7 @@ pub async fn success_based_routing_update_configs(
         .as_ref()
         .async_map(|sr_client| async {
             sr_client
-                .invalidate_success_rate_routing_keys(
-                    prefix_of_dynamic_routing_keys,
-                    state.get_grpc_headers(),
-                )
+                .invalidate_success_rate_routing_keys(prefix_of_dynamic_routing_keys)
                 .await
                 .change_context(errors::ApiErrorResponse::GenericNotFoundError {
                     message: "Failed to invalidate the routing keys".to_string(),

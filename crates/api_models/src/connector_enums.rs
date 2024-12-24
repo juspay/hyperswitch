@@ -88,7 +88,7 @@ pub enum Connector {
     // Inespay,
     Iatapay,
     Itaubank,
-    Jpmorgan,
+    //Jpmorgan,
     Klarna,
     Mifinity,
     Mollie,
@@ -175,7 +175,6 @@ impl Connector {
             (Self::Airwallex, _)
                 | (Self::Deutschebank, _)
                 | (Self::Globalpay, _)
-                | (Self::Jpmorgan, _)
                 | (Self::Paypal, _)
                 | (Self::Payu, _)
                 | (Self::Trustpay, PaymentMethod::BankRedirect)
@@ -235,7 +234,7 @@ impl Connector {
             | Self::Iatapay
 			// | Self::Inespay
             | Self::Itaubank
-            | Self::Jpmorgan
+            //| Self::Jpmorgan
             | Self::Klarna
             | Self::Mifinity
             | Self::Mollie

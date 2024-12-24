@@ -99,7 +99,6 @@ impl<F: Send + Clone + Sync>
         profile: &domain::Profile,
         key_store: &domain::MerchantKeyStore,
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
-        platform_merchant_account: Option<&domain::MerchantAccount>,
     ) -> RouterResult<operations::GetTrackerResponse<payments::PaymentIntentData<F>>> {
         let db = &*state.store;
         let key_manager_state = &state.into();
@@ -138,7 +137,6 @@ impl<F: Send + Clone + Sync>
                 profile,
                 request.clone(),
                 encrypted_data,
-                platform_merchant_account,
             )
             .await?;
 

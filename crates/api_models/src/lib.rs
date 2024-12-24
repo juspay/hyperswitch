@@ -31,7 +31,6 @@ pub mod poll;
 #[cfg(feature = "recon")]
 pub mod recon;
 pub mod refunds;
-pub mod relay;
 pub mod routing;
 pub mod surcharge_decision_configs;
 pub mod user;

@@ -57,7 +57,7 @@ pub async fn validate_role_name(
 
     // TODO: Create and use find_by_role_name to make this efficient
     let is_present_in_custom_roles = state
-        .global_store
+        .store
         .list_all_roles(merchant_id, org_id)
         .await
         .change_context(UserErrors::InternalServerError)?

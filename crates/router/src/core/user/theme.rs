@@ -21,7 +21,7 @@ pub async fn get_theme_using_lineage(
     lineage: ThemeLineage,
 ) -> UserResponse<theme_api::GetThemeResponse> {
     let theme = state
-        .store
+        .global_store
         .find_theme_by_lineage(lineage)
         .await
         .to_not_found_response(UserErrors::ThemeNotFound)?;
@@ -55,7 +55,7 @@ pub async fn get_theme_using_theme_id(
     theme_id: String,
 ) -> UserResponse<theme_api::GetThemeResponse> {
     let theme = state
-        .store
+        .global_store
         .find_theme_by_theme_id(theme_id.clone())
         .await
         .to_not_found_response(UserErrors::ThemeNotFound)?;
@@ -90,7 +90,7 @@ pub async fn upload_file_to_theme_storage(
     request: theme_api::UploadFileRequest,
 ) -> UserResponse<()> {
     let db_theme = state
-        .store
+        .global_store
         .find_theme_by_lineage(request.lineage)
         .await
         .to_not_found_response(UserErrors::ThemeNotFound)?;
@@ -131,7 +131,7 @@ pub async fn create_theme(
     );
 
     let db_theme = state
-        .store
+        .global_store
         .insert_theme(new_theme)
         .await
         .to_duplicate_response(UserErrors::ThemeAlreadyExists)?;
@@ -176,7 +176,7 @@ pub async fn update_theme(
     request: theme_api::UpdateThemeRequest,
 ) -> UserResponse<theme_api::GetThemeResponse> {
     let db_theme = state
-        .store
+        .global_store
         .find_theme_by_lineage(request.lineage)
         .await
         .to_not_found_response(UserErrors::ThemeNotFound)?;
@@ -225,7 +225,7 @@ pub async fn delete_theme(
     lineage: ThemeLineage,
 ) -> UserResponse<()> {
     state
-        .store
+        .global_store
         .delete_theme_by_lineage_and_theme_id(theme_id.clone(), lineage)
         .await
         .to_not_found_response(UserErrors::ThemeNotFound)?;

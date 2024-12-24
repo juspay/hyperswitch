@@ -129,12 +129,6 @@ pub struct Settings<S: SecretState> {
     pub network_tokenization_service: Option<SecretStateContainer<NetworkTokenizationService, S>>,
     pub network_tokenization_supported_connectors: NetworkTokenizationSupportedConnectors,
     pub theme: ThemeSettings,
-    pub platform: Platform,
-}
-
-#[derive(Debug, Deserialize, Clone, Default)]
-pub struct Platform {
-    pub enabled: bool,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -175,12 +169,6 @@ pub struct Tenant {
     pub schema: String,
     pub redis_key_prefix: String,
     pub clickhouse_database: String,
-    pub user: TenantUserConfig,
-}
-
-#[derive(Debug, Deserialize, Clone)]
-pub struct TenantUserConfig {
-    pub control_center_url: String,
 }
 
 impl storage_impl::config::TenantConfig for Tenant {
@@ -1142,7 +1130,6 @@ impl<'de> Deserialize<'de> for TenantConfig {
             schema: String,
             redis_key_prefix: String,
             clickhouse_database: String,
-            user: TenantUserConfig,
         }
 
         let hashmap = <HashMap<id_type::TenantId, Inner>>::deserialize(deserializer)?;
@@ -1159,7 +1146,6 @@ impl<'de> Deserialize<'de> for TenantConfig {
                             schema: value.schema,
                             redis_key_prefix: value.redis_key_prefix,
                             clickhouse_database: value.clickhouse_database,
-                            user: value.user,
                         },
                     )
                 })
