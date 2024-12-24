@@ -1102,11 +1102,11 @@ pub async fn push_metrics_with_update_window_for_contract_based_routing(
             ))?
             .0, first_contract_based_connector.score, first_contract_based_connector.current_count );
 
-            let outcome = get_success_based_metrics_outcome_for_payment(
-                payment_status_attribute,
-                payment_connector.to_string(),
-                first_contract_based_connector.to_string(),
-            );
+        let outcome = get_success_based_metrics_outcome_for_payment(
+            payment_status_attribute,
+            payment_connector.to_string(),
+            first_contract_based_connector.to_string(),
+        );
 
         core_metrics::DYNAMIC_CONTRACT_BASED_ROUTING.add(
             1,
