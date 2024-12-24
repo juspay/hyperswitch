@@ -395,7 +395,10 @@ jobs:
         env:
           RUSTFLAGS: "-Cinstrument-coverage -Zcoverage-options=branch"
           LLVM_PROFILE_FILE: "${{ github.workspace }}/coverage.profraw"
-        run: just build_v2 --jobs 3
+        run: |
+          just build_v2
+          ls -lh coverage.profraw
+          rm -f **/*.profraw
 
       - name: Setup Local Server
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -431,7 +434,13 @@ jobs:
         run: |
           scripts/execute_cypress_v2.sh
 
-          kill "${{ env.PID }}"
+      
+      - name: File size check
+        if: ${{ env.RUN_TESTS == 'true' }}
+        run: |
+          kill -2 "${{ env.PID }}"
+
+          ls -lh coverage.profraw
 
       - name: Upload Cypress test results
         if: env.RUN_TESTS == 'true' && failure()
@@ -445,7 +454,10 @@ jobs:
       - name: Process coverage report
         if: env.RUN_TESTS == 'true'
         # Explore using llvm-cov in future for better integration with codecov
-        run: grcov . --source-dir . --output-type lcov --output-path ${{ env.CODECOV_FILE }} --branch --binary-path ./target/debug --ignore "*cargo*" --ignore "target/*" --ignore "/*"
+        run: |
+          grcov . --source-dir . --output-type lcov --output-path lcov.info --branch --binary-path ./target/debug --ignore "*cargo*" --ignore "target/*" --ignore "/*"
+        
+          ls -lh lcov.info
 
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v5
@@ -453,3 +465,4 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ${{ env.CODECOV_FILE }}
+          disable_search: true
