@@ -84,9 +84,20 @@ pub struct RelayRetrieveRequest {
     #[serde(default)]
     pub force_sync: bool,
     /// The unique identifier for the Relay
-    pub id: String,
+    pub id: common_utils::id_type::RelayId,
+}
+
+#[derive(Debug, ToSchema, Clone, Deserialize, Serialize)]
+pub struct RelayRetrieveBody {
+    /// The unique identifier for the Relay
+    #[serde(default)]
+    pub force_sync: bool,
 }
 
 impl common_utils::events::ApiEventMetric for RelayRequest {}
 
 impl common_utils::events::ApiEventMetric for RelayResponse {}
+
+impl common_utils::events::ApiEventMetric for RelayRetrieveRequest {}
+
+impl common_utils::events::ApiEventMetric for RelayRetrieveBody {}

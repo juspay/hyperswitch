@@ -420,7 +420,15 @@ impl ApiEventMetric for PaymentStartRedirectionRequest {
 }
 
 #[cfg(feature = "v2")]
-impl ApiEventMetric for events::PaymentsCaptureResponse {
+impl ApiEventMetric for payments::PaymentMethodListResponseForPayments {
+    // Payment id would be populated by the request
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        None
+    }
+}
+
+#[cfg(feature = "v2")]
+impl ApiEventMetric for payments::PaymentsCaptureResponse {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::Payment {
             payment_id: self.id.clone(),

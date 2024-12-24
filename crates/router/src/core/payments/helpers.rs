@@ -3633,6 +3633,7 @@ mod tests {
             tax_details: None,
             skip_external_tax_calculation: None,
             psd2_sca_exemption_type: None,
+            platform_merchant_id: None,
             request_overcapture: None,
         };
         let req_cs = Some("1".to_string());
@@ -3704,6 +3705,7 @@ mod tests {
             tax_details: None,
             skip_external_tax_calculation: None,
             psd2_sca_exemption_type: None,
+            platform_merchant_id: None,
             request_overcapture: None,
         };
         let req_cs = Some("1".to_string());
@@ -3773,6 +3775,7 @@ mod tests {
             tax_details: None,
             skip_external_tax_calculation: None,
             psd2_sca_exemption_type: None,
+            platform_merchant_id: None,
             request_overcapture: None,
         };
         let req_cs = Some("1".to_string());

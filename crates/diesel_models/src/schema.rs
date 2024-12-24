@@ -718,6 +718,7 @@ diesel::table! {
         payment_link_config -> Nullable<Jsonb>,
         pm_collect_link_config -> Nullable<Jsonb>,
         version -> ApiVersion,
+        is_platform_account -> Bool,
     }
 }
 
@@ -972,6 +973,8 @@ diesel::table! {
         skip_external_tax_calculation -> Nullable<Bool>,
         psd2_sca_exemption_type -> Nullable<ScaExemptionType>,
         split_payments -> Nullable<Jsonb>,
+        #[max_length = 64]
+        platform_merchant_id -> Nullable<Varchar>,
         request_overcapture -> Nullable<Bool>,
     }
 }

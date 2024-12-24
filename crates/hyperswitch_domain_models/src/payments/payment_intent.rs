@@ -1338,6 +1338,7 @@ impl behaviour::Conversion for PaymentIntent {
             customer_present,
             routing_algorithm_id,
             payment_link_config,
+            platform_merchant_id,
             request_overcapture,
         } = self;
         Ok(DieselPaymentIntent {
@@ -1409,6 +1410,7 @@ impl behaviour::Conversion for PaymentIntent {
             payment_link_config,
             routing_algorithm_id,
             psd2_sca_exemption_type: None,
+            platform_merchant_id,
             split_payments: None,
             request_overcapture: Some(request_overcapture.as_bool()),
         })
@@ -1536,6 +1538,7 @@ impl behaviour::Conversion for PaymentIntent {
                 customer_present: storage_model.customer_present.into(),
                 payment_link_config: storage_model.payment_link_config,
                 routing_algorithm_id: storage_model.routing_algorithm_id,
+                platform_merchant_id: storage_model.platform_merchant_id,
                 request_overcapture: storage_model.request_overcapture.into(),
             })
         }
@@ -1609,6 +1612,7 @@ impl behaviour::Conversion for PaymentIntent {
             tax_details: amount_details.tax_details,
             enable_payment_link: Some(self.enable_payment_link.as_bool()),
             apply_mit_exemption: Some(self.apply_mit_exemption.as_bool()),
+            platform_merchant_id: self.platform_merchant_id,
             request_overcapture: Some(self.request_overcapture.as_bool()),
         })
     }
@@ -1676,6 +1680,7 @@ impl behaviour::Conversion for PaymentIntent {
             tax_details: self.tax_details,
             skip_external_tax_calculation: self.skip_external_tax_calculation,
             psd2_sca_exemption_type: self.psd2_sca_exemption_type,
+            platform_merchant_id: self.platform_merchant_id,
             request_overcapture: self.request_overcapture,
         })
     }
@@ -1765,6 +1770,7 @@ impl behaviour::Conversion for PaymentIntent {
                 organization_id: storage_model.organization_id,
                 skip_external_tax_calculation: storage_model.skip_external_tax_calculation,
                 psd2_sca_exemption_type: storage_model.psd2_sca_exemption_type,
+                platform_merchant_id: storage_model.platform_merchant_id,
                 request_overcapture: storage_model.request_overcapture,
             })
         }
@@ -1830,6 +1836,7 @@ impl behaviour::Conversion for PaymentIntent {
             tax_details: self.tax_details,
             skip_external_tax_calculation: self.skip_external_tax_calculation,
             psd2_sca_exemption_type: self.psd2_sca_exemption_type,
+            platform_merchant_id: self.platform_merchant_id,
             request_overcapture: self.request_overcapture,
         })
     }
