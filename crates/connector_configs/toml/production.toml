@@ -1447,8 +1447,6 @@ key2="Certificate Key"
 [[jpmorgan.credit]]
   payment_method_type = "AmericanExpress"
 [[jpmorgan.credit]]
-  payment_method_type = "ChaseNet"
-[[jpmorgan.credit]]
   payment_method_type = "DinersClub"
 [[jpmorgan.credit]]
   payment_method_type = "Discover"
@@ -1464,8 +1462,6 @@ key2="Certificate Key"
   payment_method_type = "Visa"
   [[jpmorgan.debit]]
   payment_method_type = "AmericanExpress"
-[[jpmorgan.debit]]
-  payment_method_type = "ChaseNet"
 [[jpmorgan.debit]]
   payment_method_type = "DinersClub"
 [[jpmorgan.debit]]
