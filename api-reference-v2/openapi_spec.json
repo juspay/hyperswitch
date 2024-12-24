@@ -18215,9 +18215,7 @@
           },
           "is_click_to_pay_enabled": {
             "type": "boolean",
-            "description": "Indicates if click to pay is enabled or not.",
-            "default": false,
-            "example": false
+            "description": "Indicates if click to pay is enabled or not."
           },
           "authentication_product_ids": {
             "type": "object",
