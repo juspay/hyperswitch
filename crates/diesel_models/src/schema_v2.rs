@@ -1181,6 +1181,8 @@ diesel::table! {
         #[max_length = 512]
         connector_transaction_data -> Nullable<Varchar>,
         split_refunds -> Nullable<Jsonb>,
+        unified_code -> Nullable<Varchar>,
+        unified_message -> Nullable<Varchar>,
     }
 }
 

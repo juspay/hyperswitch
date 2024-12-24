@@ -1,6 +1,6 @@
 use std::{collections::HashMap, sync::Arc};
 
-use actix_web::{web, Scope};
+use actix_web::{http::header::HeaderMap, web, Scope};
 #[cfg(all(feature = "olap", feature = "v1"))]
 use api_models::routing::RoutingRetrieveQuery;
 #[cfg(feature = "olap")]
@@ -141,6 +141,8 @@ pub trait SessionStateInfo {
     #[cfg(feature = "partial-auth")]
     fn get_detached_auth(&self) -> RouterResult<(Blake3, &[u8])>;
     fn session_state(&self) -> SessionState;
+    fn get_header_map(&self) -> Option<HeaderMap>;
+    fn add_header_map(&mut self, header_map: HeaderMap);
 }
 
 impl SessionStateInfo for SessionState {
@@ -160,6 +162,12 @@ impl SessionStateInfo for SessionState {
         self.api_client.add_request_id(request_id);
         self.store.add_request_id(request_id.to_string());
         self.request_id.replace(request_id);
+    }
+    fn get_header_map(&self) -> Option<HeaderMap> {
+        self.api_client.get_header_map()
+    }
+    fn add_header_map(&mut self, header_map: HeaderMap) {
+        self.api_client.add_header_map(header_map);
     }
 
     #[cfg(feature = "partial-auth")]
@@ -231,6 +239,8 @@ pub trait AppStateInfo {
     fn add_request_id(&mut self, request_id: RequestId);
     fn add_flow_name(&mut self, flow_name: String);
     fn get_request_id(&self) -> Option<String>;
+    fn get_header_map(&self) -> Option<HeaderMap>;
+    fn add_header_map(&mut self, header_map: HeaderMap);
 }
 
 #[cfg(feature = "partial-auth")]
@@ -260,6 +270,12 @@ impl AppStateInfo for AppState {
     }
     fn get_request_id(&self) -> Option<String> {
         self.api_client.get_request_id()
+    }
+    fn get_header_map(&self) -> Option<HeaderMap> {
+        self.api_client.get_header_map()
+    }
+    fn add_header_map(&mut self, header_map: HeaderMap) {
+        self.api_client.add_header_map(header_map);
     }
 }
 

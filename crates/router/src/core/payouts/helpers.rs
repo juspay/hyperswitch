@@ -1,5 +1,7 @@
+use actix_web::http::header::HeaderMap;
 use api_models::{enums, payment_methods::Card, payouts};
 use common_utils::{
+    consts as common_consts,
     crypto::Encryptable,
     encryption::Encryption,
     errors::CustomResult,
@@ -37,8 +39,9 @@ use crate::{
         utils as core_utils,
     },
     db::StorageInterface,
+    headers::ACCEPT_LANGUAGE,
     routes::{metrics, SessionState},
-    services,
+    services::{self, authentication::get_header_value_by_key},
     types::{
         api::{self, enums as api_enums},
         domain::{self, types::AsyncLift},
@@ -1388,4 +1391,15 @@ pub async fn get_additional_payout_data(
             ))
         }
     }
+}
+
+pub fn get_locale_from_header(headers: Option<&HeaderMap>) -> String {
+    headers
+        .and_then(|headers| {
+            get_header_value_by_key(ACCEPT_LANGUAGE.into(), headers)
+                .ok()
+                .flatten()
+                .map(|val| val.to_string())
+        })
+        .unwrap_or_else(|| common_consts::DEFAULT_LOCALE.to_string())
 }

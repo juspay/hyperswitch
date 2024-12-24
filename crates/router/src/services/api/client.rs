@@ -1,5 +1,6 @@
 use std::time::Duration;
 
+use actix_web::http::header::HeaderMap;
 use base64::Engine;
 use error_stack::ResultExt;
 use http::{HeaderValue, Method};
@@ -220,6 +221,8 @@ where
     fn add_request_id(&mut self, request_id: RequestId);
     fn get_request_id(&self) -> Option<String>;
     fn add_flow_name(&mut self, flow_name: String);
+    fn get_header_map(&self) -> Option<HeaderMap>;
+    fn add_header_map(&mut self, header_map: HeaderMap);
 }
 
 dyn_clone::clone_trait_object!(ApiClient);
@@ -230,6 +233,7 @@ pub struct ProxyClient {
     non_proxy_client: reqwest::Client,
     whitelisted_urls: Vec<String>,
     request_id: Option<String>,
+    header_map: Option<HeaderMap>,
 }
 
 impl ProxyClient {
@@ -267,6 +271,7 @@ impl ProxyClient {
             non_proxy_client,
             whitelisted_urls,
             request_id: None,
+            header_map: None,
         })
     }
 
@@ -400,6 +405,14 @@ impl ApiClient for ProxyClient {
         self.request_id.clone()
     }
 
+    fn get_header_map(&self) -> Option<HeaderMap> {
+        self.header_map.clone()
+    }
+
+    fn add_header_map(&mut self, header_map: HeaderMap) {
+        self.header_map.replace(header_map);
+    }
+
     fn add_flow_name(&mut self, _flow_name: String) {}
 }
 
@@ -448,6 +461,12 @@ impl ApiClient for MockApiClient {
         // [#2066]: Add Mock implementation for ApiClient
         None
     }
+
+    fn get_header_map(&self) -> Option<HeaderMap> {
+        None
+    }
+
+    fn add_header_map(&mut self, _header_map: HeaderMap) {}
 
     fn add_flow_name(&mut self, _flow_name: String) {}
 }

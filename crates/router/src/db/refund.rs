@@ -437,6 +437,8 @@ mod storage {
                         organization_id: new.organization_id.clone(),
                         connector_refund_data: new.connector_refund_data.clone(),
                         connector_transaction_data: new.connector_transaction_data.clone(),
+                        unified_code: None,
+                        unified_message: None,
                     };
 
                     let field = format!(
@@ -932,6 +934,8 @@ impl RefundInterface for MockDb {
             organization_id: new.organization_id,
             connector_refund_data: new.connector_refund_data,
             connector_transaction_data: new.connector_transaction_data,
+            unified_code: None,
+            unified_message: None,
         };
         refunds.push(refund.clone());
         Ok(refund)
