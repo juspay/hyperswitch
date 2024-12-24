@@ -1733,11 +1733,9 @@ key2="Certificate Key"
 
 [jpmorgan]
 [[jpmorgan.credit]]
-  payment_method_type = "American Express"
+  payment_method_type = "AmericanExpress"
 [[jpmorgan.credit]]
-  payment_method_type = "ChaseNet"
-[[jpmorgan.credit]]
-  payment_method_type = "Diners Club"
+  payment_method_type = "DinersClub"
 [[jpmorgan.credit]]
   payment_method_type = "Discover"
 [[jpmorgan.credit]]
@@ -1751,11 +1749,9 @@ key2="Certificate Key"
 [[jpmorgan.credit]]
   payment_method_type = "Visa"
   [[jpmorgan.debit]]
-  payment_method_type = "American Express"
+  payment_method_type = "AmericanExpress"
 [[jpmorgan.debit]]
-  payment_method_type = "ChaseNet"
-[[jpmorgan.debit]]
-  payment_method_type = "Diners Club"
+  payment_method_type = "DinersClub"
 [[jpmorgan.debit]]
   payment_method_type = "Discover"
 [[jpmorgan.debit]]
@@ -4441,7 +4437,7 @@ placeholder="Enter locale"
 required=true
 type="Text"
 
-[[ctp_mastercard.metadata.card_brands]]
+[ctp_mastercard.metadata.card_brands]
 name="card_brands"
 label="Card Brands"
 placeholder="Enter Card Brands"
@@ -4449,28 +4445,28 @@ required=true
 type="MultiSelect"
 options=["visa","mastercard"]
 
-[[ctp_mastercard.metadata.acquirer_bin]]
+[ctp_mastercard.metadata.acquirer_bin]
 name="acquirer_bin"
 label="Acquire Bin"
 placeholder="Enter Acquirer Bin"
 required=true
 type="Text"
 
-[[ctp_mastercard.metadata.acquirer_merchant_id]]
+[ctp_mastercard.metadata.acquirer_merchant_id]
 name="acquirer_merchant_id"
 label="Acquire Merchant Id"
 placeholder="Enter Acquirer Merchant Id"
 required=true
 type="Text"
 
-[[ctp_mastercard.metadata.merchant_category_code]]
+[ctp_mastercard.metadata.merchant_category_code]
 name="merchant_category_code"
 label="Merchant Category Code"
 placeholder="Enter Merchant Category Code"
 required=true
 type="Text"
 
-[[ctp_mastercard.metadata.merchant_country_code]]
+[ctp_mastercard.metadata.merchant_country_code]
 name="merchant_country_code"
 label="Merchant Country Code"
 placeholder="Enter Merchant Country Code"
