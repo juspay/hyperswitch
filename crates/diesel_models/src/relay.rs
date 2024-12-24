@@ -67,7 +67,7 @@ pub struct RelayNew {
 }
 
 #[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay)]
-#[table_name = "relay"]
+#[diesel(table_name = relay)]
 pub struct RelayUpdateInternal {
     pub connector_reference_id: Option<String>,
     pub status: Option<storage_enums::RelayStatus>,

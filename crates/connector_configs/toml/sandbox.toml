@@ -365,8 +365,6 @@ merchant_secret="Source verification key"
 [airwallex.connector_auth.BodyKey]
 api_key="API Key"
 key1="Client ID"
-[airwallex.connector_webhook_details]
-merchant_secret="Source verification key"
 
 [airwallex.connector_webhook_details]
 merchant_secret="Source verification key"
@@ -1683,11 +1681,11 @@ key2="Certificate Key"
 
 [jpmorgan]
 [[jpmorgan.credit]]
-  payment_method_type = "American Express"
+  payment_method_type = "AmericanExpress"
 [[jpmorgan.credit]]
   payment_method_type = "ChaseNet"
 [[jpmorgan.credit]]
-  payment_method_type = "Diners Club"
+  payment_method_type = "DinersClub"
 [[jpmorgan.credit]]
   payment_method_type = "Discover"
 [[jpmorgan.credit]]
@@ -1701,11 +1699,11 @@ key2="Certificate Key"
 [[jpmorgan.credit]]
   payment_method_type = "Visa"
   [[jpmorgan.debit]]
-  payment_method_type = "American Express"
+  payment_method_type = "AmericanExpress"
 [[jpmorgan.debit]]
   payment_method_type = "ChaseNet"
 [[jpmorgan.debit]]
-  payment_method_type = "Diners Club"
+  payment_method_type = "DinersClub"
 [[jpmorgan.debit]]
   payment_method_type = "Discover"
 [[jpmorgan.debit]]
@@ -3981,11 +3979,6 @@ type="Toggle"
 [netcetera.connector_auth.CertificateAuth]
 certificate="Base64 encoded PEM formatted certificate chain"
 private_key="Base64 encoded PEM formatted private key"
-[netcetera.metadata]
-merchant_country_code="3 digit numeric country code"
-merchant_name="Name of the merchant"
-three_ds_requestor_name="ThreeDS requestor name"
-three_ds_requestor_id="ThreeDS request id"
 
 [netcetera.metadata.endpoint_prefix]
 name="endpoint_prefix"
