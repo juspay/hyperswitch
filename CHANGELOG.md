@@ -4,6 +4,14 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.12.18.0-hotfix3
+
+### Bug Fixes
+
+- **router:** Disable partial auth feature for relay ([#6928](https://github.com/juspay/hyperswitch/pull/6928)) ([`931c322`](https://github.com/juspay/hyperswitch/commit/931c322084c5502df3388ea2ffc38bb662410947))
+
+- - -
+
 ## 2024.12.18.0-hotfix2
 
 ### Features
