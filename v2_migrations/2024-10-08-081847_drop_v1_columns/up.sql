@@ -33,7 +33,7 @@ ALTER TABLE business_profile DROP COLUMN profile_id,
     DROP COLUMN frm_routing_algorithm,
     DROP COLUMN payout_routing_algorithm;
 
--- This migration is to remove the business_country, business_label, business_sub_label, test_mode, merchant_connector_id and frm_configs columns from the merchant_connector_account table
+-- This migration is to remove the fields that are no longer used by the v1  application, or some type changes.
 ALTER TABLE merchant_connector_account DROP COLUMN IF EXISTS business_country,
     DROP COLUMN IF EXISTS business_label,
     DROP COLUMN IF EXISTS business_sub_label,

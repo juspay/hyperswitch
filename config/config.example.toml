@@ -223,6 +223,7 @@ iatapay.base_url = "https://sandbox.iata-pay.iata.org/api/v1"
 inespay.base_url = "https://apiflow.inespay.com/san/v21"
 itaubank.base_url = "https://sandbox.devportal.itau.com.br/"
 jpmorgan.base_url = "https://api-mock.payments.jpmorgan.com/api/v2"
+jpmorgan.secondary_base_url= "https://id.payments.jpmorgan.com"
 klarna.base_url = "https://api{{klarna_region}}.playground.klarna.com/"
 mifinity.base_url = "https://demo.mifinity.com/"
 mollie.base_url = "https://api.mollie.com/v2/"
@@ -661,6 +662,7 @@ pm_auth_key = "Some_pm_auth_key"
 # Analytics configuration.
 [analytics]
 source = "sqlx" # The Analytics source/strategy to be used
+forex_enabled = false # Enable or disable forex conversion for analytics
 
 [analytics.clickhouse]
 username = ""      # Clickhouse username
@@ -758,8 +760,15 @@ sdk_eligible_payment_methods = "card"
 enabled = false
 global_tenant = { schema = "public", redis_key_prefix = "", clickhouse_database = "default"}
 
-[multitenancy.tenants]
-public = { base_url = "http://localhost:8080", schema = "public", redis_key_prefix = "", clickhouse_database = "default" } # schema -> Postgres db schema, redis_key_prefix -> redis key distinguisher, base_url -> url of the tenant
+[multitenancy.tenants.public]
+base_url = "http://localhost:8080"               # URL of the tenant
+schema = "public"                                # Postgres db schema
+redis_key_prefix = ""                            # Redis key distinguisher
+clickhouse_database = "default"                  # Clickhouse database
+
+[multitenancy.tenants.public.user]
+control_center_url =  "http://localhost:9000"    # Control center URL
+
 
 [user_auth_methods]
 encryption_key = "" # Encryption key used for encrypting data in user_authentication_methods table

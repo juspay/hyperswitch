@@ -84,7 +84,7 @@ pub fn get_next_connector(
         .attach_printable("Connector not found in connectors iterator")
 }
 
-#[cfg(feature = "payouts")]
+#[cfg(all(feature = "payouts", feature = "v1"))]
 pub async fn get_connector_choice(
     state: &SessionState,
     merchant_account: &domain::MerchantAccount,
@@ -263,6 +263,7 @@ pub async fn make_connector_decision(
     }
 }
 
+#[cfg(feature = "v1")]
 #[instrument(skip_all)]
 pub async fn payouts_core(
     state: &SessionState,
@@ -295,6 +296,19 @@ pub async fn payouts_core(
         payout_data,
     ))
     .await
+}
+
+#[cfg(feature = "v2")]
+#[instrument(skip_all)]
+pub async fn payouts_core(
+    state: &SessionState,
+    merchant_account: &domain::MerchantAccount,
+    key_store: &domain::MerchantKeyStore,
+    payout_data: &mut PayoutData,
+    routing_algorithm: Option<serde_json::Value>,
+    eligible_connectors: Option<Vec<api_enums::PayoutConnectors>>,
+) -> RouterResult<()> {
+    todo!()
 }
 
 #[instrument(skip_all)]
@@ -517,6 +531,7 @@ pub async fn payouts_update_core(
     response_handler(&state, &merchant_account, &payout_data).await
 }
 
+#[cfg(all(feature = "payouts", feature = "v1"))]
 #[instrument(skip_all)]
 pub async fn payouts_retrieve_core(
     state: SessionState,
@@ -1269,11 +1284,11 @@ pub async fn create_recipient(
 
                         #[cfg(all(feature = "v2", feature = "customer_v2"))]
                         {
-                            let global_id = "temp_id".to_string();
+                            let customer_id = customer.get_id().clone();
                             payout_data.customer_details = Some(
                                 db.update_customer_by_global_id(
                                     &state.into(),
-                                    global_id,
+                                    &customer_id,
                                     customer,
                                     merchant_account.get_id(),
                                     updated_customer,

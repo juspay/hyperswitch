@@ -74,7 +74,7 @@ pub async fn customer_retrieve(
     req: HttpRequest,
     path: web::Path<id_type::CustomerId>,
 ) -> HttpResponse {
-    let payload = customer_types::CustomerId::new_customer_id_struct(path.into_inner());
+    let customer_id = path.into_inner();
 
     let flow = Flow::CustomersRetrieve;
 
@@ -91,9 +91,15 @@ pub async fn customer_retrieve(
         flow,
         state.into_inner(),
         &req,
-        payload,
-        |state, auth: auth::AuthenticationData, req, _| {
-            customers::retrieve_customer(state, auth.merchant_account, None, auth.key_store, req)
+        customer_id,
+        |state, auth: auth::AuthenticationData, customer_id, _| {
+            customers::retrieve_customer(
+                state,
+                auth.merchant_account,
+                None,
+                auth.key_store,
+                customer_id,
+            )
         },
         &auth::HeaderAuth(auth::ApiKeyAuth),
         api_locking::LockAction::NotApplicable,
@@ -121,10 +127,12 @@ pub async fn customer_update(
         }
     };
 
-    let customer_id = path.into_inner();
-    let mut cust_update_req: customer_types::CustomerUpdateRequest = payload.into();
-    cust_update_req.customer_id = Some(customer_id);
-    let customer_update_id = customer_types::UpdateCustomerId::new("temp_global_id".to_string());
+    let customer_id = path.into_inner().clone();
+    let request = customer_types::CustomerUpdateRequest::from(payload);
+    let request_internal = customer_types::CustomerUpdateRequestInternal {
+        customer_id,
+        request,
+    };
 
     let flow = Flow::CustomersUpdate;
 
@@ -141,14 +149,13 @@ pub async fn customer_update(
         flow,
         state.into_inner(),
         &req,
-        cust_update_req,
-        |state, auth: auth::AuthenticationData, req, _| {
+        request_internal,
+        |state, auth: auth::AuthenticationData, request_internal, _| {
             customers::update_customer(
                 state,
                 auth.merchant_account,
-                req,
+                request_internal,
                 auth.key_store,
-                customer_update_id.clone(),
             )
         },
         &auth::HeaderAuth(auth::ApiKeyAuth),
@@ -168,7 +175,7 @@ pub async fn customer_delete(
     req: HttpRequest,
     path: web::Path<id_type::CustomerId>,
 ) -> HttpResponse {
-    let payload = customer_types::CustomerId::new_customer_id_struct(path.into_inner());
+    let customer_id = path.into_inner();
 
     let flow = Flow::CustomersDelete;
 
@@ -185,9 +192,9 @@ pub async fn customer_delete(
         flow,
         state.into_inner(),
         &req,
-        payload,
-        |state, auth: auth::AuthenticationData, req, _| {
-            customers::delete_customer(state, auth.merchant_account, req, auth.key_store)
+        customer_id,
+        |state, auth: auth::AuthenticationData, customer_id, _| {
+            customers::delete_customer(state, auth.merchant_account, customer_id, auth.key_store)
         },
         &auth::HeaderAuth(auth::ApiKeyAuth),
         api_locking::LockAction::NotApplicable,

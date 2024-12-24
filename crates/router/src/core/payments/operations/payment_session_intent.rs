@@ -101,6 +101,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, payments::PaymentIntentData<F>, Payme
         _profile: &domain::Profile,
         key_store: &domain::MerchantKeyStore,
         header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
+        _platform_merchant_account: Option<&domain::MerchantAccount>,
     ) -> RouterResult<operations::GetTrackerResponse<payments::PaymentIntentData<F>>> {
         let db = &*state.store;
         let key_manager_state = &state.into();
@@ -173,7 +174,7 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsSessionRequest, payments::Payment
                     .store
                     .find_customer_by_global_id(
                         &state.into(),
-                        id.get_string_repr(),
+                        &id,
                         &payment_data.payment_intent.merchant_id,
                         merchant_key_store,
                         storage_scheme,
