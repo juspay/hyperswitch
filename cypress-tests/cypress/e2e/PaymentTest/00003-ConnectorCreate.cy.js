@@ -1,6 +1,7 @@
 import * as fixtures from "../../fixtures/imports";
 import State from "../../utils/State";
 import { payment_methods_enabled } from "../PaymentUtils/Commons";
+import * as utils from "../PaymentUtils/Utils";
 
 let globalState;
 describe("Connector Account Create flow test", () => {
@@ -14,7 +15,7 @@ describe("Connector Account Create flow test", () => {
     cy.task("setGlobalState", globalState.data);
   });
 
-  it("connector-create-call-test", () => {
+  it("Create merchant connector account", () => {
     cy.createConnectorCallTest(
       "payment_processor",
       fixtures.createConnectorBody,
@@ -23,31 +24,27 @@ describe("Connector Account Create flow test", () => {
     );
   });
 
-  it("check and create multiple connectors", () => {
-    const multiple_connectors = Cypress.env("MULTIPLE_CONNECTORS");
-    // multiple_connectors will be undefined if not set in the env
-    if (multiple_connectors?.status) {
-      // Create multiple connectors based on the count
-      // The first connector is already created when creating merchant account, so start from 1
-      for (let i = 1; i < multiple_connectors.count; i++) {
-        cy.createBusinessProfileTest(
+  // subsequent profile and mca ids should check for the existence of multiple connectors
+  context(
+    "Create another business profile and merchant connector account if MULTIPLE_CONNECTORS flag is true",
+    () => {
+      it("Create business profile", () => {
+        utils.createBusinessProfile(
           fixtures.businessProfile.bpCreate,
           globalState,
-          "profile" + i
+          { nextConnector: true }
         );
-        cy.createConnectorCallTest(
+      });
+
+      it("Create merchant connector account", () => {
+        utils.createMerchantConnectorAccount(
           "payment_processor",
           fixtures.createConnectorBody,
-          payment_methods_enabled,
           globalState,
-          `profile${i}`,
-          `merchantConnector${i}`
+          payment_methods_enabled,
+          { nextConnector: true }
         );
-      }
-    } else {
-      cy.log(
-        "Multiple connectors not enabled. Skipping creation of multiple profiles and respective MCAs"
-      );
+      });
     }
-  });
+  );
 });
