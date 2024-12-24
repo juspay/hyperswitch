@@ -51,6 +51,7 @@ pub use hyperswitch_interfaces::api::{
     ConnectorVerifyWebhookSourceV2, CurrencyUnit,
 };
 use hyperswitch_interfaces::api::{UnifiedAuthenticationService, UnifiedAuthenticationServiceV2};
+use rustc_hash::FxHashMap;
 
 #[cfg(feature = "frm")]
 pub use self::fraud_check::*;
@@ -64,7 +65,7 @@ pub use self::{
 use super::transformers::ForeignTryFrom;
 use crate::{
     configs::settings::Connectors,
-    connector,
+    connector, consts,
     core::{
         errors::{self, CustomResult},
         payments::types as payments_types,
@@ -76,7 +77,7 @@ use crate::{
 pub enum ConnectorCallType {
     PreDetermined(ConnectorData),
     Retryable(Vec<ConnectorData>),
-    SessionMultiple(Vec<SessionConnectorData>),
+    SessionMultiple(SessionConnectorDatas),
     #[cfg(feature = "v2")]
     Skip,
 }
@@ -188,7 +189,7 @@ pub enum GetToken {
 /// Routing algorithm will output merchant connector identifier instead of connector name
 /// In order to support backwards compatibility for older routing algorithms and merchant accounts
 /// the support for connector name is retained
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct ConnectorData {
     pub connector: ConnectorEnum,
     pub connector_name: types::Connector,
@@ -196,26 +197,68 @@ pub struct ConnectorData {
     pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct SessionConnectorData {
-    pub payment_method_type: api_enums::PaymentMethodType,
+    pub payment_method_sub_type: api_enums::PaymentMethodType,
+    pub payment_method_type: api_enums::PaymentMethod,
     pub connector: ConnectorData,
     pub business_sub_label: Option<String>,
 }
 
 impl SessionConnectorData {
     pub fn new(
-        payment_method_type: api_enums::PaymentMethodType,
+        payment_method_sub_type: api_enums::PaymentMethodType,
         connector: ConnectorData,
         business_sub_label: Option<String>,
+        payment_method_type: api_enums::PaymentMethod,
     ) -> Self {
         Self {
-            payment_method_type,
+            payment_method_sub_type,
             connector,
             business_sub_label,
+            payment_method_type,
         }
     }
 }
+
+common_utils::create_list_wrapper!(
+    SessionConnectorDatas,
+    SessionConnectorData,
+    impl_functions: {
+        pub fn apply_filter_for_session_routing(&self) -> Self {
+            let routing_enabled_pmts = &consts::ROUTING_ENABLED_PAYMENT_METHOD_TYPES;
+            let routing_enabled_pms = &consts::ROUTING_ENABLED_PAYMENT_METHODS;
+            self
+                .iter()
+                .filter(|connector_data| {
+                    routing_enabled_pmts.contains(&connector_data.payment_method_sub_type)
+                        || routing_enabled_pms.contains(&connector_data.payment_method_type)
+                })
+                .cloned()
+                .collect()
+        }
+        pub fn filter_and_validate_for_session_flow(self, routing_results: &FxHashMap<api_enums::PaymentMethodType, Vec<routing::SessionRoutingChoice>>) -> Result<Self, errors::ApiErrorResponse> {
+            let mut final_list = Self::new(Vec::new());
+            let routing_enabled_pmts = &consts::ROUTING_ENABLED_PAYMENT_METHOD_TYPES;
+            for connector_data in self {
+                if !routing_enabled_pmts.contains(&connector_data.payment_method_sub_type) {
+                    final_list.push(connector_data);
+                } else if let Some(choice) = routing_results.get(&connector_data.payment_method_sub_type) {
+                    let routing_choice = choice
+                        .first()
+                        .ok_or(errors::ApiErrorResponse::InternalServerError)?;
+                    if connector_data.connector.connector_name == routing_choice.connector.connector_name
+                        && connector_data.connector.merchant_connector_id
+                            == routing_choice.connector.merchant_connector_id
+                    {
+                        final_list.push(connector_data);
+                    }
+                }
+            }
+            Ok(final_list)
+        }
+    }
+);
 
 pub fn convert_connector_data_to_routable_connectors(
     connectors: &[ConnectorData],
@@ -271,7 +314,7 @@ impl SessionSurchargeDetails {
 }
 
 pub enum ConnectorChoice {
-    SessionMultiple(Vec<SessionConnectorData>),
+    SessionMultiple(SessionConnectorDatas),
     StraightThrough(serde_json::Value),
     Decide,
 }
