@@ -1102,6 +1102,12 @@ pub async fn push_metrics_with_update_window_for_contract_based_routing(
             ))?
             .0, first_contract_based_connector.score, first_contract_based_connector.current_count );
 
+            let outcome = get_success_based_metrics_outcome_for_payment(
+                payment_status_attribute,
+                payment_connector.to_string(),
+                first_contract_based_connector.to_string(),
+            );
+
         core_metrics::DYNAMIC_CONTRACT_BASED_ROUTING.add(
             1,
             router_env::metric_attributes!(
@@ -1165,38 +1171,10 @@ pub async fn push_metrics_with_update_window_for_contract_based_routing(
                     ),
                 ),
                 ("payment_status", payment_attempt.status.to_string()),
-                // ("conclusive_classification", outcome.to_string()),
+                ("conclusive_classification", outcome.to_string()),
             ),
         );
         logger::debug!("successfully pushed contract_based_routing metrics");
-
-        if payment_status_attribute == common_enums::AttemptStatus::Charged {
-            let dynamic_routing_stats = DynamicRoutingStatsNew {
-                payment_id: payment_attempt.payment_id.to_owned(),
-                attempt_id: payment_attempt.attempt_id.clone(),
-                merchant_id: payment_attempt.merchant_id.to_owned(),
-                profile_id: payment_attempt.profile_id.to_owned(),
-                amount: payment_attempt.get_total_amount(),
-                success_based_routing_connector: first_contract_based_connector.to_string(),
-                payment_connector: payment_connector.to_string(),
-                payment_method_type: payment_attempt.payment_method_type,
-                currency: payment_attempt.currency,
-                payment_method: payment_attempt.payment_method,
-                capture_method: payment_attempt.capture_method,
-                authentication_type: payment_attempt.authentication_type,
-                payment_status: payment_attempt.status,
-                conclusive_classification:
-                    common_enums::SuccessBasedRoutingConclusiveState::NonDeterministic,
-                created_at: common_utils::date_time::now(),
-            };
-
-            state
-                .store
-                .insert_dynamic_routing_stat_entry(dynamic_routing_stats)
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Unable to push dynamic routing stats to db")?;
-        }
 
         Ok(())
     } else {
