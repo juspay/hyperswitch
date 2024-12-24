@@ -147,7 +147,10 @@ impl CustomerCreateBridge for customers::CustomerRequest {
             types::CryptoOperation::BatchEncrypt(
                 domain::FromRequestEncryptableCustomer::to_encryptable(
                     domain::FromRequestEncryptableCustomer {
-                        name: self.name.clone(),
+                        name: self
+                            .name
+                            .clone()
+                            .map(|name| Secret::new(name.peek().to_string())),
                         email: self.email.clone().map(|a| a.expose().switch_strategy()),
                         phone: self.phone.clone(),
                     },

@@ -227,8 +227,8 @@ impl TryFrom<&RiskifiedRouterData<&frm_types::FrmCheckoutRouterData>>
                 customer: RiskifiedCustomer {
                     email: payment_data.request.email.clone(),
 
-                    first_name: address.get_first_name().ok().cloned(),
-                    last_name: address.get_last_name().ok().cloned(),
+                    first_name: address.get_first_name().ok(),
+                    last_name: address.get_last_name().ok(),
                     created_at: common_utils::date_time::now(),
                     verified_email: false,
                     id: payment_data.get_customer_id()?,
@@ -633,8 +633,8 @@ impl TryFrom<&hyperswitch_domain_models::address::Address> for OrderAddress {
                     field_name: "address",
                 })?;
         Ok(Self {
-            first_name: address.first_name.clone(),
-            last_name: address.last_name.clone(),
+            first_name: address.first_name.clone().map(From::from),
+            last_name: address.last_name.clone().map(From::from),
             address1: address.line1.clone(),
             country_code: address.country,
             city: address.city.clone(),
