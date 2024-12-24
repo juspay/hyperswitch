@@ -15,7 +15,10 @@ use hyperswitch_domain_models::{
     router_response_types::{PaymentsResponseData, RefundsResponseData},
 };
 use hyperswitch_interfaces::{
-    api::{self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorValidation},
+    api::{
+        self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorSpecifications,
+        ConnectorValidation,
+    },
     configs::Connectors,
     errors, webhooks,
 };
@@ -122,3 +125,5 @@ impl webhooks::IncomingWebhook for CtpMastercard {
         Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 }
+
+impl ConnectorSpecifications for CtpMastercard {}

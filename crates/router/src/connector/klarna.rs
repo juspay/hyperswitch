@@ -21,7 +21,7 @@ use crate::{
     services::{
         self,
         request::{self, Mask},
-        ConnectorValidation,
+        ConnectorSpecifications, ConnectorValidation,
     },
     types::{
         self,
@@ -110,9 +110,10 @@ impl ConnectorCommon for Klarna {
 }
 
 impl ConnectorValidation for Klarna {
-    fn validate_capture_method(
+    fn validate_connector_against_payment_request(
         &self,
         capture_method: Option<enums::CaptureMethod>,
+        _payment_method: enums::PaymentMethod,
         _pmt: Option<enums::PaymentMethodType>,
     ) -> CustomResult<(), errors::ConnectorError> {
         let capture_method = capture_method.unwrap_or_default();
@@ -1158,3 +1159,5 @@ impl api::IncomingWebhook for Klarna {
         Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 }
+
+impl ConnectorSpecifications for Klarna {}
