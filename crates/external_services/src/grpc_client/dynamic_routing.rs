@@ -1,3 +1,6 @@
+/// Module for Contract based routing
+pub mod contract_routing_client;
+
 use std::fmt::Debug;
 
 use common_utils::errors::CustomResult;
@@ -8,6 +11,7 @@ pub mod elimination_rate_client;
 /// Success Routing Client Interface Implementation
 pub mod success_rate_client;
 
+pub use contract_routing_client::ContractScoreCalculatorClient;
 pub use elimination_rate_client::EliminationAnalyserClient;
 pub use success_rate_client::SuccessRateCalculatorClient;
 
@@ -27,6 +31,10 @@ pub enum DynamicRoutingError {
     /// Error from Dynamic Routing Server while performing success_rate analysis
     #[error("Error from Dynamic Routing Server while perfrming success_rate analysis : {0}")]
     SuccessRateBasedRoutingFailure(String),
+
+    /// Error from Dynamic Routing Server while performing contract based routing
+    #[error("Error from Dynamic Routing Server while performing contract based routing: {0}")]
+    ContractBasedRoutingFailure(String),
     /// Error from Dynamic Routing Server while perfrming elimination
     #[error("Error from Dynamic Routing Server while perfrming elimination : {0}")]
     EliminationRateRoutingFailure(String),
@@ -37,6 +45,8 @@ pub enum DynamicRoutingError {
 pub struct RoutingStrategy {
     /// success rate service for Dynamic Routing
     pub success_rate_client: Option<SuccessRateCalculatorClient<Client>>,
+    /// contract based routing service for Dynamic Routing
+    pub contract_based_client: Option<ContractScoreCalculatorClient<Client>>,
     /// elimination service for Dynamic Routing
     pub elimination_rate_client: Option<EliminationAnalyserClient<Client>>,
 }
@@ -65,7 +75,7 @@ impl DynamicRoutingClientConfig {
         self,
         client: Client,
     ) -> Result<RoutingStrategy, Box<dyn std::error::Error>> {
-        let (success_rate_client, elimination_rate_client) = match self {
+        let (success_rate_client, contract_based_client, elimination_based_client) = match self {
             Self::Enabled { host, port, .. } => {
                 let uri = format!("http://{}:{}", host, port).parse::<tonic::transport::Uri>()?;
                 logger::info!("Connection established with dynamic routing gRPC Server");
@@ -74,14 +84,19 @@ impl DynamicRoutingClientConfig {
                         client.clone(),
                         uri.clone(),
                     )),
+                    Some(ContractScoreCalculatorClient::with_origin(
+                        client.clone(),
+                        uri.clone(),
+                    )),
                     Some(EliminationAnalyserClient::with_origin(client, uri)),
                 )
             }
-            Self::Disabled => (None, None),
+            Self::Disabled => (None, None, None),
         };
         Ok(RoutingStrategy {
             success_rate_client,
-            elimination_rate_client,
+            contract_based_client,
+            elimination_rate_client: elimination_based_client,
         })
     }
 }
