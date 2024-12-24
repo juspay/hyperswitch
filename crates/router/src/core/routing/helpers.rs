@@ -1170,23 +1170,33 @@ pub async fn push_metrics_with_update_window_for_contract_based_routing(
         );
         logger::debug!("successfully pushed contract_based_routing metrics");
 
-        // let new_contract_config = routing_types::ContractBasedRoutingConfig {
-        //     params: contract_based_routing_config.params,
-        //     config: contract_based_routing_config.config,
-        //     label_info: Some(request_label_info),
-        // };
+        if payment_status_attribute == common_enums::AttemptStatus::Charged {
+            let dynamic_routing_stats = DynamicRoutingStatsNew {
+                payment_id: payment_attempt.payment_id.to_owned(),
+                attempt_id: payment_attempt.attempt_id.clone(),
+                merchant_id: payment_attempt.merchant_id.to_owned(),
+                profile_id: payment_attempt.profile_id.to_owned(),
+                amount: payment_attempt.get_total_amount(),
+                success_based_routing_connector: first_contract_based_connector.to_string(),
+                payment_connector: payment_connector.to_string(),
+                payment_method_type: payment_attempt.payment_method_type,
+                currency: payment_attempt.currency,
+                payment_method: payment_attempt.payment_method,
+                capture_method: payment_attempt.capture_method,
+                authentication_type: payment_attempt.authentication_type,
+                payment_status: payment_attempt.status,
+                conclusive_classification:
+                    common_enums::SuccessBasedRoutingConclusiveState::NonDeterministic,
+                created_at: common_utils::date_time::now(),
+            };
 
-        // final_label_info.current_count += 1;
-
-        // contract_based_routing_config
-        //     .label_info
-        //     .map(|label_info_vec| {
-        //         for mut label_info in label_info_vec {
-        //             if Some(&label_info.mca_id) == payment_attempt.merchant_connector_id.as_ref() {
-        //                 label_info = final_label_info.clone();
-        //             }
-        //         }
-        //     });
+            state
+                .store
+                .insert_dynamic_routing_stat_entry(dynamic_routing_stats)
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Unable to push dynamic routing stats to db")?;
+        }
 
         Ok(())
     } else {
