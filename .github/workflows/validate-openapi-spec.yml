@@ -11,13 +11,17 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  # PR originated from same repository
+  IS_PR_FROM_SAME_REPO: ${{ (github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name) }}
+
 jobs:
   validate_json:
     name: Validate generated OpenAPI spec file
     runs-on: ubuntu-latest
     steps:
       - name: Generate a token
-        if: ${{ github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name }}
+        if: ${{ env.IS_PR_FROM_SAME_REPO == 'true' }}
         id: generate_token
         uses: actions/create-github-app-token@v1
         with:
@@ -25,14 +29,14 @@ jobs:
           private-key: ${{ secrets.HYPERSWITCH_BOT_APP_PRIVATE_KEY }}
 
       - name: Checkout PR from fork
-        if: ${{ (github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name != github.event.pull_request.base.repo.full_name) }}
+        if: ${{ env.IS_PR_FROM_SAME_REPO == 'false' }}
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.head.ref }}
           repository: ${{ github.event.pull_request.head.repo.full_name }}
 
       - name: Checkout PR with token
-        if: ${{ (github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name) }}
+        if: ${{ env.IS_PR_FROM_SAME_REPO == 'true' }}
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.head.ref }}
@@ -71,8 +75,7 @@ jobs:
         run: swagger-cli validate ./api-reference-v2/openapi_spec.json
 
       - name: Commit the JSON file if it is not up-to-date
-        # PR originated from same repository
-        if: ${{ (github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name) }}
+        if: ${{ env.IS_PR_FROM_SAME_REPO == 'true' }}
         shell: bash
         run: |
           if ! git diff --quiet --exit-code -- api-reference/openapi_spec.json api-reference-v2/openapi_spec.json ; then
@@ -84,7 +87,7 @@ jobs:
           fi
 
       - name: Fail check if the JSON file is not up-to-date
-        if: ${{ (github.event_name == 'merge_group') || ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name != github.event.pull_request.base.repo.full_name)) }}
+        if: ${{ (github.event_name == 'merge_group') || (env.IS_PR_FROM_SAME_REPO == 'false') }}
         shell: bash
         run: |
           if ! git diff --quiet --exit-code -- api-reference/openapi_spec.json ; then
