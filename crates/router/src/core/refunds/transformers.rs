@@ -47,6 +47,7 @@ impl TryFrom<SplitRefundInput> for router_request_types::SplitRefundsRequest {
                             },
                         ))
                     }
+                    common_types::payments::SplitPaymentsRequest::AdyenSplitPayment(_) => todo!(), // todooooo
                 }
             }
         }
