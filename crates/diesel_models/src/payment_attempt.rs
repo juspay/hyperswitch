@@ -798,9 +798,6 @@ pub struct PaymentAttemptUpdateInternal {
     // client_version: Option<String>,
     // customer_acceptance: Option<pii::SecretSerdeValue>,
     // card_network: Option<String>,
-    // pub request_overcapture: Option<bool>,
-    // pub overcapture_applied: Option<bool>,
-    // pub maximum_capturable_amount: Option<MinorUnit>,
 }
 
 #[cfg(feature = "v1")]
@@ -863,7 +860,6 @@ pub struct PaymentAttemptUpdateInternal {
 
 #[cfg(feature = "v1")]
 impl PaymentAttemptUpdateInternal {
-    // to think about todooo
     pub fn populate_derived_fields(self, source: &PaymentAttempt) -> Self {
         let mut update_internal = self;
         update_internal.net_amount = Some(
