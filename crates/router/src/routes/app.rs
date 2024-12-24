@@ -1166,7 +1166,7 @@ impl PaymentMethods {
                 )
                 .service(
                     web::resource("/list-payment-methods")
-                        .route(web::post().to(payment_methods::confirm_payment_method_intent_api)),
+                        .route(web::post().to(payment_methods::list_payment_methods)),
                 )
                 .service(
                     web::resource("/confirm-intent")
