@@ -502,7 +502,9 @@ where
                                             network_token_data: token_data.clone(),
                                         };
                                         payment_data.set_vault_operation(
-                                            PaymentMethodDataAction::SaveCardAndNetworkTokenData(card_and_network_token_data.clone()),
+                                            PaymentMethodDataAction::SaveCardAndNetworkTokenData(
+                                                card_and_network_token_data.clone(),
+                                            ),
                                         )
                                     }
                                     _ => (),
@@ -605,8 +607,8 @@ where
                             .map_err(|e| logger::error!(routable_connector_error=?e))
                             .unwrap_or_default();
 
-                            let filtered_nt_supported_connectors =
-                            get_filtered_nt_supported_connectors(&state, connectors.clone());
+                    let filtered_nt_supported_connectors =
+                        get_filtered_nt_supported_connectors(&state, connectors.clone());
                     let is_nt_supported_connector_available =
                         filtered_nt_supported_connectors.first().is_some();
 
@@ -646,7 +648,9 @@ where
                                             network_token_data: token_data.clone(),
                                         };
                                         payment_data.set_vault_operation(
-                                            PaymentMethodDataAction::SaveCardAndNetworkTokenData(card_and_network_token_data.clone()),
+                                            PaymentMethodDataAction::SaveCardAndNetworkTokenData(
+                                                card_and_network_token_data.clone(),
+                                            ),
                                         )
                                     }
                                     _ => (),
@@ -4526,7 +4530,7 @@ where
 #[derive(Clone, serde::Serialize, Debug)]
 pub enum PaymentMethodDataAction {
     SaveCardData(hyperswitch_domain_models::payment_method_data::Card),
-    SaveCardAndNetworkTokenData(CardAndNetworkTokenData)
+    SaveCardAndNetworkTokenData(CardAndNetworkTokenData),
 }
 
 #[derive(Default, Clone, serde::Serialize, Debug)]
