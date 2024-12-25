@@ -128,15 +128,14 @@ Never share your secret api keys. Keep them guarded and secure.
         routes::payments::list_payment_methods,
 
         //Routes for payment methods
-        routes::payment_method::list_customer_payment_method_for_payment,
-        routes::payment_method::list_customer_payment_method_api,
         routes::payment_method::create_payment_method_api,
         routes::payment_method::create_payment_method_intent_api,
+        routes::payment_method::list_payment_methods,
         routes::payment_method::confirm_payment_method_intent_api,
         routes::payment_method::payment_method_update_api,
         routes::payment_method::payment_method_retrieve_api,
         routes::payment_method::payment_method_delete_api,
-
+        routes::payment_method::list_customer_payment_method_api,
 
         //Routes for refunds
         routes::refunds::refunds_create,

@@ -2190,92 +2190,6 @@
         ]
       }
     },
-    "/v2/payments/{id}/saved-payment-methods": {
-      "get": {
-        "tags": [
-          "Payment Methods"
-        ],
-        "summary": "List customer saved payment methods for a payment",
-        "description": "To filter and list the applicable payment methods for a particular Customer ID, is to be associated with a payment",
-        "operationId": "List all Payment Methods for a Customer",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/PaymentMethodListRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Payment Methods retrieved for customer tied to its respective client-secret passed in the param",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CustomerPaymentMethodsListResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Invalid Data"
-          },
-          "404": {
-            "description": "Payment Methods does not exist in records"
-          }
-        },
-        "security": [
-          {
-            "publishable_key": []
-          }
-        ]
-      }
-    },
-    "/v2/customers/{id}/saved-payment-methods": {
-      "get": {
-        "tags": [
-          "Payment Methods"
-        ],
-        "summary": "List saved payment methods for a Customer",
-        "description": "To filter and list the applicable payment methods for a particular Customer ID, to be used in a non-payments context",
-        "operationId": "List all Payment Methods for a Customer",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/PaymentMethodListRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Payment Methods retrieved",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CustomerPaymentMethodsListResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Invalid Data"
-          },
-          "404": {
-            "description": "Payment Methods does not exist in records"
-          }
-        },
-        "security": [
-          {
-            "api_key": []
-          }
-        ]
-      }
-    },
     "/v2/payment-methods": {
       "post": {
         "tags": [
@@ -2352,6 +2266,60 @@
         "security": [
           {
             "api_key": []
+          }
+        ]
+      }
+    },
+    "/v2/payment-methods/{id}/list-payment-methods": {
+      "get": {
+        "tags": [
+          "Payment Methods"
+        ],
+        "summary": "Payment Methods - Payment Methods List",
+        "description": "List the payment methods eligible for a payment. This endpoint also returns the saved payment methods for the customer when the customer_id is passed when creating the payment",
+        "operationId": "Retrieve Payment methods for a Payment Method Intent",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The global payment method id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile ID associated to the payment method intent",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": {
+              "X-Profile-Id": "pro_abcdefghijklmnop"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Get the payment methods",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentMethodListResponseForPayments"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No payment method found with the given id"
+          }
+        },
+        "security": [
+          {
+            "api_key": [],
+            "ephemeral_key": []
           }
         ]
       }
@@ -2507,6 +2475,49 @@
           },
           "404": {
             "description": "Payment Method Not Found"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
+    "/v2/customers/{id}/saved-payment-methods": {
+      "get": {
+        "tags": [
+          "Payment Methods"
+        ],
+        "summary": "List saved payment methods for a Customer",
+        "description": "To filter and list the applicable payment methods for a particular Customer ID, to be used in a non-payments context",
+        "operationId": "List all Payment Methods for a Customer",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PaymentMethodListRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Payment Methods retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerPaymentMethodsListResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid Data"
+          },
+          "404": {
+            "description": "Payment Methods does not exist in records"
           }
         },
         "security": [
