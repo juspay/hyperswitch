@@ -7461,39 +7461,6 @@
         },
         "additionalProperties": false
       },
-      "CustomerDefaultPaymentMethodResponse": {
-        "type": "object",
-        "required": [
-          "customer_id",
-          "payment_method"
-        ],
-        "properties": {
-          "default_payment_method_id": {
-            "type": "string",
-            "description": "The unique identifier of the Payment method",
-            "example": "card_rGK4Vi5iSW70MY7J2mIg",
-            "nullable": true
-          },
-          "customer_id": {
-            "type": "string",
-            "description": "The unique identifier of the customer.",
-            "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
-            "maxLength": 64,
-            "minLength": 1
-          },
-          "payment_method": {
-            "$ref": "#/components/schemas/PaymentMethod"
-          },
-          "payment_method_type": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/PaymentMethodType"
-              }
-            ],
-            "nullable": true
-          }
-        }
-      },
       "CustomerDeleteResponse": {
         "type": "object",
         "required": [
@@ -8003,12 +7970,15 @@
         "properties": {
           "customer_id": {
             "type": "string",
-            "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
+            "example": "12345_cus_y3oqhf46pyzuxjbcn2giaqnb44",
             "maxLength": 64,
             "minLength": 1
           },
           "payment_method_id": {
-            "type": "string"
+            "type": "string",
+            "example": "12345_pm_y3oqhf46pyzuxjbcn2giaqnb44",
+            "maxLength": 64,
+            "minLength": 1
           }
         }
       },
@@ -13896,10 +13866,10 @@
       "PaymentMethodDeleteResponse": {
         "type": "object",
         "required": [
-          "payment_method_id"
+          "id"
         ],
         "properties": {
-          "payment_method_id": {
+          "id": {
             "type": "string",
             "description": "The unique identifier of the Payment method",
             "example": "card_rGK4Vi5iSW70MY7J2mIg"
@@ -14079,67 +14049,23 @@
       "PaymentMethodListResponse": {
         "type": "object",
         "required": [
-          "currency",
-          "payment_methods",
-          "mandate_payment",
-          "show_surcharge_breakup_screen",
-          "request_external_three_ds_authentication",
-          "is_tax_calculation_enabled"
+          "payment_methods_enabled"
         ],
         "properties": {
-          "redirect_url": {
-            "type": "string",
-            "description": "Redirect URL of the merchant",
-            "example": "https://www.google.com",
-            "nullable": true
-          },
-          "currency": {
-            "$ref": "#/components/schemas/Currency"
-          },
-          "payment_methods": {
+          "payment_methods_enabled": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/ResponsePaymentMethodsEnabled"
+              "$ref": "#/components/schemas/ResponsePaymentMethodTypes"
             },
-            "description": "Information about the payment method"
+            "description": "The list of payment methods that are enabled for the business profile"
           },
-          "mandate_payment": {
-            "$ref": "#/components/schemas/MandateType"
-          },
-          "merchant_name": {
-            "type": "string",
+          "customer_payment_methods": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CustomerPaymentMethod"
+            },
+            "description": "The list of payment methods that are saved by the given customer\nThis field is only returned if the customer_id is provided in the request",
             "nullable": true
-          },
-          "show_surcharge_breakup_screen": {
-            "type": "boolean",
-            "description": "flag to indicate if surcharge and tax breakup screen should be shown or not"
-          },
-          "payment_type": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/PaymentType"
-              }
-            ],
-            "nullable": true
-          },
-          "request_external_three_ds_authentication": {
-            "type": "boolean",
-            "description": "flag to indicate whether to perform external 3ds authentication",
-            "example": true
-          },
-          "collect_shipping_details_from_wallets": {
-            "type": "boolean",
-            "description": "flag that indicates whether to collect shipping details from wallets or from the customer",
-            "nullable": true
-          },
-          "collect_billing_details_from_wallets": {
-            "type": "boolean",
-            "description": "flag that indicates whether to collect billing details from wallets or from the customer",
-            "nullable": true
-          },
-          "is_tax_calculation_enabled": {
-            "type": "boolean",
-            "description": "flag that indicates whether to calculate tax on the order amount"
           }
         }
       },
@@ -14169,13 +14095,18 @@
       "PaymentMethodResponse": {
         "type": "object",
         "required": [
+          "id",
           "merchant_id",
           "customer_id",
-          "payment_method_id",
           "payment_method_type",
           "recurring_enabled"
         ],
         "properties": {
+          "id": {
+            "type": "string",
+            "description": "The unique identifier of the Payment method",
+            "example": "card_rGK4Vi5iSW70MY7J2mIg"
+          },
           "merchant_id": {
             "type": "string",
             "description": "Unique identifier for a merchant",
@@ -14187,11 +14118,6 @@
             "example": "12345_cus_01926c58bc6e77c09e809964e72af8c8",
             "maxLength": 64,
             "minLength": 32
-          },
-          "payment_method_id": {
-            "type": "string",
-            "description": "The unique identifier of the Payment method",
-            "example": "card_rGK4Vi5iSW70MY7J2mIg"
           },
           "payment_method_type": {
             "$ref": "#/components/schemas/PaymentMethod"
@@ -19209,14 +19135,6 @@
                 "additionalProperties": {
                   "$ref": "#/components/schemas/RequiredFieldInfo"
                 },
-                "nullable": true
-              },
-              "surcharge_details": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/SurchargeDetailsResponse"
-                  }
-                ],
                 "nullable": true
               }
             }
