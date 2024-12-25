@@ -135,7 +135,7 @@ pub async fn confirm_payment_method_intent_api(
     state: web::Data<AppState>,
     req: HttpRequest,
     json_payload: web::Json<payment_methods::PaymentMethodIntentConfirm>,
-    path: web::Path<String>,
+    path: web::Path<id_type::GlobalPaymentMethodId>,
 ) -> HttpResponse {
     let flow = Flow::PaymentMethodsCreate;
     let pm_id = path.into_inner();
@@ -147,7 +147,7 @@ pub async fn confirm_payment_method_intent_api(
     };
 
     let inner_payload = payment_methods::PaymentMethodIntentConfirmInternal {
-        id: pm_id.clone(),
+        id: pm_id.to_owned(),
         payment_method_type: payload.payment_method_type,
         payment_method_subtype: payload.payment_method_subtype,
         customer_id: payload.customer_id.to_owned(),
@@ -186,9 +186,31 @@ pub async fn list_payment_methods(
     path: web::Path<id_type::GlobalPaymentMethodId>,
 ) -> HttpResponse {
     let flow = Flow::PaymentMethodsList;
-    let pm_id = path.into_inner();
+    let payment_method_id = path.into_inner();
 
-    todo!()
+    let auth = match auth::is_ephemeral_or_publishible_auth(req.headers()) {
+        Ok(auth) => auth,
+        Err(e) => return api::log_and_return_error_response(e),
+    };
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payment_method_id,
+        |state, auth: auth::AuthenticationData, payment_method_id, _| {
+            payment_methods_routes::list_payment_methods(
+                state,
+                auth.merchant_account,
+                auth.key_store,
+                auth.profile,
+                payment_method_id,
+            )
+        },
+        &*auth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
@@ -534,7 +556,7 @@ pub async fn list_customer_payment_method_api(
     state: web::Data<AppState>,
     customer_id: web::Path<id_type::GlobalCustomerId>,
     req: HttpRequest,
-    query_payload: web::Query<payment_methods::PaymentMethodListRequest>,
+    query_payload: web::Query<api_models::payment_methods::PaymentMethodListRequest>,
 ) -> HttpResponse {
     let flow = Flow::CustomerPaymentMethodsList;
     let payload = query_payload.into_inner();

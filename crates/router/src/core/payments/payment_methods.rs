@@ -34,7 +34,7 @@ pub async fn list_payment_methods(
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
-    validate_payment_status(payment_intent.status)?;
+    validate_payment_status_for_payment_method_list(payment_intent.status)?;
 
     let client_secret = header_payload
         .client_secret
@@ -137,7 +137,7 @@ impl RequiredFieldsAndSurchargeForEnabledPaymentMethodTypes {
             .0
             .into_iter()
             .map(|payment_methods_enabled| {
-                api_models::payment_methods::ResponsePaymentMethodTypes {
+                api_models::payments::ResponsePaymentMethodTypesForPayments {
                     payment_method_type: payment_methods_enabled.payment_method_type,
                     payment_method_subtype: payment_methods_enabled.payment_method_subtype,
                     required_fields: payment_methods_enabled.required_field,
@@ -188,7 +188,7 @@ impl PerformFilteringOnPaymentMethodsEnabled
 }
 
 /// Validate if payment methods list can be performed on the current status of payment intent
-fn validate_payment_status(
+fn validate_payment_status_for_payment_method_list(
     intent_status: common_enums::IntentStatus,
 ) -> Result<(), errors::ApiErrorResponse> {
     match intent_status {

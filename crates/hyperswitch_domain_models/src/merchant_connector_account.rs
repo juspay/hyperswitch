@@ -1,5 +1,3 @@
-#[cfg(feature = "v2")]
-use api_models::admin;
 use common_utils::{
     crypto::Encryptable,
     date_time,
@@ -12,14 +10,10 @@ use common_utils::{
 use diesel_models::{enums, merchant_connector_account::MerchantConnectorAccountUpdateInternal};
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
-#[cfg(feature = "v2")]
-use router_env::logger;
 use rustc_hash::FxHashMap;
 use serde_json::Value;
 
 use super::behaviour;
-#[cfg(feature = "v2")]
-use crate::errors::api_error_response::ApiErrorResponse;
 use crate::{
     router_data,
     type_encryption::{crypto_operation, CryptoOperation},

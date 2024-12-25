@@ -33,8 +33,15 @@ pub enum ApiEventsType {
         payment_id: id_type::GlobalPaymentId,
         refund_id: id_type::GlobalRefundId,
     },
+    #[cfg(feature = "v1")]
     PaymentMethod {
         payment_method_id: String,
+        payment_method: Option<PaymentMethod>,
+        payment_method_type: Option<PaymentMethodType>,
+    },
+    #[cfg(feature = "v2")]
+    PaymentMethod {
+        payment_method_id: id_type::GlobalPaymentMethodId,
         payment_method: Option<PaymentMethod>,
         payment_method_type: Option<PaymentMethodType>,
     },
@@ -59,6 +66,10 @@ pub enum ApiEventsType {
     },
     PaymentMethodList {
         payment_id: Option<String>,
+    },
+    #[cfg(feature = "v2")]
+    PaymentMethodListForPaymentMethods {
+        payment_method_id: id_type::GlobalPaymentMethodId,
     },
     #[cfg(feature = "v1")]
     Webhooks {

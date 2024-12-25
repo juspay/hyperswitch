@@ -1025,15 +1025,12 @@ pub async fn payment_method_intent_confirm(
     req: api::PaymentMethodIntentConfirm,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
-    pm_id: String,
+    pm_id: id_type::GlobalPaymentMethodId,
 ) -> RouterResponse<api::PaymentMethodResponse> {
     let key_manager_state = &(state).into();
     req.validate()?;
 
     let db = &*state.store;
-    let pm_id = id_type::GlobalPaymentMethodId::generate_from_string(pm_id)
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Unable to generate GlobalPaymentMethodId")?;
 
     let payment_method = db
         .find_payment_method(
@@ -1129,6 +1126,141 @@ pub async fn payment_method_intent_confirm(
     }?;
 
     Ok(services::ApplicationResponse::Json(response))
+}
+
+#[cfg(feature = "v2")]
+trait PerformFilteringOnPaymentMethodsEnabled {
+    fn perform_filtering(self) -> FilteredPaymentMethodsEnabled;
+}
+
+#[cfg(feature = "v2")]
+impl PerformFilteringOnPaymentMethodsEnabled
+    for hyperswitch_domain_models::merchant_connector_account::FlattenedPaymentMethodsEnabled
+{
+    fn perform_filtering(self) -> FilteredPaymentMethodsEnabled {
+        FilteredPaymentMethodsEnabled(self.payment_methods_enabled)
+    }
+}
+
+#[cfg(feature = "v2")]
+/// Container for the inputs required for the required fields
+struct RequiredFieldsInput {}
+
+#[cfg(feature = "v2")]
+impl RequiredFieldsInput {
+    fn new() -> Self {
+        Self {}
+    }
+}
+
+#[cfg(feature = "v2")]
+/// Container for the filtered payment methods
+struct FilteredPaymentMethodsEnabled(
+    Vec<hyperswitch_domain_models::merchant_connector_account::PaymentMethodsEnabledForConnector>,
+);
+
+#[cfg(feature = "v2")]
+impl FilteredPaymentMethodsEnabled {
+    fn get_required_fields(
+        self,
+        _input: RequiredFieldsInput,
+    ) -> RequiredFieldsForEnabledPaymentMethodTypes {
+        let required_fields_info = self
+            .0
+            .into_iter()
+            .map(
+                |payment_methods_enabled| RequiredFieldsForEnabledPaymentMethod {
+                    required_field: None,
+                    payment_method_type: payment_methods_enabled.payment_method,
+                    payment_method_subtype: payment_methods_enabled
+                        .payment_methods_enabled
+                        .payment_method_subtype,
+                },
+            )
+            .collect();
+
+        RequiredFieldsForEnabledPaymentMethodTypes(required_fields_info)
+    }
+}
+
+#[cfg(feature = "v2")]
+/// Element container to hold the filtered payment methods with required fields
+struct RequiredFieldsForEnabledPaymentMethod {
+    required_field: Option<std::collections::HashMap<String, payment_methods::RequiredFieldInfo>>,
+    payment_method_subtype: common_enums::PaymentMethodType,
+    payment_method_type: common_enums::PaymentMethod,
+}
+
+#[cfg(feature = "v2")]
+/// Container to hold the filtered payment methods enabled with required fields
+struct RequiredFieldsForEnabledPaymentMethodTypes(Vec<RequiredFieldsForEnabledPaymentMethod>);
+
+#[cfg(feature = "v2")]
+impl RequiredFieldsForEnabledPaymentMethodTypes {
+    fn generate_response(self) -> payment_methods::PaymentMethodListResponse {
+        let response_payment_methods = self
+            .0
+            .into_iter()
+            .map(
+                |payment_methods_enabled| payment_methods::ResponsePaymentMethodTypes {
+                    payment_method_type: payment_methods_enabled.payment_method_type,
+                    payment_method_subtype: payment_methods_enabled.payment_method_subtype,
+                    required_fields: payment_methods_enabled.required_field,
+                    extra_information: None,
+                },
+            )
+            .collect();
+
+        payment_methods::PaymentMethodListResponse {
+            payment_methods_enabled: response_payment_methods,
+            customer_payment_methods: None,
+        }
+    }
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[instrument(skip_all)]
+pub async fn list_payment_methods(
+    state: SessionState,
+    merchant_account: domain::MerchantAccount,
+    key_store: domain::MerchantKeyStore,
+    profile: domain::Profile,
+    payment_method_id: id_type::GlobalPaymentMethodId,
+) -> RouterResponse<api::PaymentMethodListResponse> {
+    let key_manager_state = &(&state).into();
+
+    let db = &*state.store;
+
+    db.find_payment_method(
+        key_manager_state,
+        &key_store,
+        &payment_method_id,
+        merchant_account.storage_scheme,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
+    .attach_printable("Unable to find payment method")?;
+
+    let payment_connector_accounts = db
+        .list_enabled_connector_accounts_by_profile_id(
+            key_manager_state,
+            profile.get_id(),
+            &key_store,
+            common_enums::ConnectorType::PaymentProcessor,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("error when fetching merchant connector accounts")?;
+
+    let response =
+        hyperswitch_domain_models::merchant_connector_account::FlattenedPaymentMethodsEnabled::from_payment_connectors_list(payment_connector_accounts)
+            .perform_filtering()
+            .get_required_fields(RequiredFieldsInput::new())
+            .generate_response();
+
+    Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
+        response,
+    ))
 }
 
 #[cfg(all(
@@ -1787,7 +1919,7 @@ pub async fn retrieve_payment_method(
     let resp = api::PaymentMethodResponse {
         merchant_id: payment_method.merchant_id.to_owned(),
         customer_id: payment_method.customer_id.to_owned(),
-        payment_method_id: payment_method.id.get_string_repr().to_string(),
+        id: payment_method.id.to_owned(),
         payment_method_type: payment_method.get_payment_method_type(),
         payment_method_subtype: payment_method.get_payment_method_subtype(),
         created: Some(payment_method.created_at),
@@ -1955,9 +2087,7 @@ pub async fn delete_payment_method(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to delete payment method from vault")?;
 
-    let response = api::PaymentMethodDeleteResponse {
-        payment_method_id: pm_id.get_string_repr().to_string(),
-    };
+    let response = api::PaymentMethodDeleteResponse { id: pm_id };
 
     Ok(services::ApplicationResponse::Json(response))
 }

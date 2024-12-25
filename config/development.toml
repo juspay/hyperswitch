@@ -83,7 +83,6 @@ api_timeout = 20000
 api_key = "YOUR API KEY HERE"
 fallback_api_key = "YOUR API KEY HERE"
 redis_lock_timeout = 26000
-
 [jwekey]
 vault_encryption_key = """
 -----BEGIN PUBLIC KEY-----
