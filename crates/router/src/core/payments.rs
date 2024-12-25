@@ -497,12 +497,12 @@ where
                                 };
                                 match pm_data {
                                     Some(domain::PaymentMethodData::Card(card_data)) => {
-                                        let vault_data = VaultData {
+                                        let card_and_network_token_data = CardAndNetworkTokenData {
                                             card_data: card_data.clone(),
                                             network_token_data: token_data.clone(),
                                         };
                                         payment_data.set_vault_operation(
-                                            PaymentMethodDataAction::VaultData(vault_data.clone()),
+                                            PaymentMethodDataAction::SaveCardAndNetworkTokenData(card_and_network_token_data.clone()),
                                         )
                                     }
                                     _ => (),
@@ -641,12 +641,12 @@ where
                                 };
                                 match pm_data {
                                     Some(domain::PaymentMethodData::Card(card_data)) => {
-                                        let vault_data = VaultData {
+                                        let card_and_network_token_data = CardAndNetworkTokenData {
                                             card_data: card_data.clone(),
                                             network_token_data: token_data.clone(),
                                         };
                                         payment_data.set_vault_operation(
-                                            PaymentMethodDataAction::VaultData(vault_data.clone()),
+                                            PaymentMethodDataAction::SaveCardAndNetworkTokenData(card_and_network_token_data.clone()),
                                         )
                                     }
                                     _ => (),
@@ -4526,12 +4526,11 @@ where
 #[derive(Clone, serde::Serialize, Debug)]
 pub enum PaymentMethodDataAction {
     SaveCardData(hyperswitch_domain_models::payment_method_data::Card),
-    SaveNetworkTokenData(hyperswitch_domain_models::payment_method_data::NetworkTokenData),
-    VaultData(VaultData),
+    SaveCardAndNetworkTokenData(CardAndNetworkTokenData)
 }
 
-#[derive(Clone, serde::Serialize, Debug)]
-pub struct VaultData {
+#[derive(Default, Clone, serde::Serialize, Debug)]
+pub struct CardAndNetworkTokenData {
     pub card_data: hyperswitch_domain_models::payment_method_data::Card,
     pub network_token_data: hyperswitch_domain_models::payment_method_data::NetworkTokenData,
 }

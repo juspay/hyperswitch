@@ -85,6 +85,8 @@ pub async fn save_payment_method<FData>(
     payment_method_billing_address: Option<&hyperswitch_domain_models::address::Address>,
     business_profile: &domain::Profile,
     mut original_connector_mandate_reference_id: Option<ConnectorMandateReferenceId>,
+    vault_operation: Option<payments::PaymentMethodDataAction>,
+    payment_method_info: Option<domain::PaymentMethod>,
 ) -> RouterResult<SavePaymentMethodDataResponse>
 where
     FData: mandate::MandateBehaviour + Clone,
@@ -204,41 +206,146 @@ where
                     .await?;
                     ((res, dc, None), None)
                 } else {
-                    pm_status = Some(common_enums::PaymentMethodStatus::from(
+                    let payment_method_status = common_enums::PaymentMethodStatus::from(
                         save_payment_method_data.attempt_status,
-                    ));
-                    let (res, dc) = Box::pin(save_in_locker(
-                        state,
-                        merchant_account,
-                        payment_method_create_request.to_owned(),
-                    ))
-                    .await?;
+                    );
+                    pm_status = Some(payment_method_status);
 
-                    if is_network_tokenization_enabled {
-                        let pm_data = &save_payment_method_data.request.get_payment_method_data();
-                        match pm_data {
-                            domain::PaymentMethodData::Card(card) => {
-                                let (
-                                    network_token_resp,
-                                    _network_token_duplication_check, //the duplication check is discarded, since each card has only one token, handling card duplication check will be suffice
-                                    network_token_requestor_ref_id,
-                                ) = Box::pin(save_network_token_in_locker(
+                    if let Some(payment_method_data_action) = vault_operation {
+                        let network_token_requestor_reference_id = payment_method_info.and_then(|pm_info| pm_info.network_token_requestor_reference_id.clone());
+                        match payment_method_data_action {
+                            payments::PaymentMethodDataAction::SaveCardData(card)=>{
+                                if payment_method_status == common_enums::PaymentMethodStatus::Inactive {
+                                    if let (Some(nt_ref_id), Some(tokenization_service)) = (network_token_requestor_reference_id.clone(), &state.conf.network_tokenization_service) {
+                                        let _ = record_operation_time(
+                                            async {
+                                                network_tokenization::delete_network_token_from_tokenization_service(
+                                                    state,
+                                                    nt_ref_id.clone(),
+                                                    &customer_id,
+                                                    tokenization_service.get_inner(),
+                                                )
+                                                .await
+                                            },
+                                            &metrics::DELETE_NETWORK_TOKEN_TIME,
+                                            &[],
+                                        )
+                                        .await;
+                                    }
+                                }
+                                let card_data = api::CardDetail {
+                                    card_number: card.card_number.clone(),
+                                    card_exp_month: card.card_exp_month.clone(),
+                                    card_exp_year: card.card_exp_year.clone(),
+                                    card_holder_name: None,
+                                    nick_name: None,
+                                    card_issuing_country: None,
+                                    card_network: card.card_network.clone(),
+                                    card_issuer: None,
+                                    card_type: None,
+                                };
+                                let (res, dc) = Box::pin(payment_methods::cards::add_card_to_locker(
                                     state,
+                                    payment_method_create_request.to_owned(),
+                                    &card_data,
+                                    &customer_id,
                                     merchant_account,
-                                    card,
-                                    payment_method_create_request.clone(),
+                                    None,
                                 ))
-                                .await?;
+                                .await
+                                .change_context(errors::ApiErrorResponse::InternalServerError)
+                                .attach_printable("Add Card In Locker Failed")?;
 
-                                (
-                                    (res, dc, network_token_requestor_ref_id),
-                                    network_token_resp,
-                                )
+                                ((res,dc,None),None)
                             }
-                            _ => ((res, dc, None), None), //network_token_resp is None in case of other payment methods
+                            payments::PaymentMethodDataAction::SaveCardAndNetworkTokenData(save_card_and_network_token_data)=>{
+                                let card_data = api::CardDetail {
+                                    card_number: save_card_and_network_token_data.card_data.card_number.clone(),
+                                    card_exp_month: save_card_and_network_token_data.card_data.card_exp_month.clone(),
+                                    card_exp_year: save_card_and_network_token_data.card_data.card_exp_year.clone(),
+                                    card_holder_name: None,
+                                    nick_name: None,
+                                    card_issuing_country: None,
+                                    card_network: save_card_and_network_token_data.card_data.card_network.clone(),
+                                    card_issuer: None,
+                                    card_type: None,
+                                };
+                                let (res, dc) = Box::pin(payment_methods::cards::add_card_to_locker(
+                                    state,
+                                    payment_method_create_request.to_owned(),
+                                    &card_data,
+                                    &customer_id,
+                                    merchant_account,
+                                    None,
+                                ))
+                                .await
+                                .change_context(errors::ApiErrorResponse::InternalServerError)
+                                .attach_printable("Add Card In Locker Failed")?;
+
+                                let network_token_data = api::CardDetail {
+                                    card_number: save_card_and_network_token_data.network_token_data.token_number.clone(),
+                                    card_exp_month: save_card_and_network_token_data.network_token_data.token_exp_month.clone(),
+                                    card_exp_year: save_card_and_network_token_data.network_token_data.token_exp_year.clone(),
+                                    card_holder_name: None,
+                                    nick_name: None,
+                                    card_issuing_country: None,
+                                    card_network: save_card_and_network_token_data.network_token_data.card_network.clone(),
+                                    card_issuer: None,
+                                    card_type: None,
+                                };
+
+                                let card_reference = network_token_requestor_reference_id.as_ref().map(|x| x.as_str());
+                
+                                let (network_token_resp, _dc) = Box::pin(payment_methods::cards::add_card_to_locker(
+                                    state,
+                                    payment_method_create_request.to_owned(),
+                                    &network_token_data,
+                                    &customer_id,
+                                    merchant_account,
+                                    card_reference,
+                                ))
+                                .await
+                                .change_context(errors::ApiErrorResponse::InternalServerError)
+                                .attach_printable("Add Network Token In Locker Failed")?;
+                                
+                                ((res, dc, network_token_requestor_reference_id), Some(network_token_resp))
+                            }
                         }
                     } else {
-                        ((res, dc, None), None)
+                        let (res, dc) = Box::pin(save_in_locker(
+                            state,
+                            merchant_account,
+                            payment_method_create_request.to_owned(),
+                        ))
+                        .await?;
+    
+                        if is_network_tokenization_enabled {
+                            let pm_data = &save_payment_method_data.request.get_payment_method_data();
+                            match pm_data {
+                                domain::PaymentMethodData::Card(card) => {
+                                    let (
+                                        network_token_resp,
+                                        _network_token_duplication_check, //the duplication check is discarded, since each card has only one token, handling card duplication check will be suffice
+                                        network_token_requestor_ref_id,
+                                    ) = Box::pin(save_network_token_in_locker(
+                                        state,
+                                        merchant_account,
+                                        card,
+                                        payment_method_create_request.clone(),
+                                    ))
+                                    .await?;
+    
+                                    (
+                                        (res, dc, network_token_requestor_ref_id),
+                                        network_token_resp,
+                                    )
+                                }
+                                _ => ((res, dc, None), None), //network_token_resp is None in case of other payment methods
+                            }
+                        } else {
+                            ((res, dc, None), None)
+                        }
+                        
                     }
                 };
                 let network_token_locker_id = match network_token_resp {
