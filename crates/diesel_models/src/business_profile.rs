@@ -59,7 +59,7 @@ pub struct Profile {
     pub max_auto_retries_enabled: Option<i16>,
     pub is_click_to_pay_enabled: bool,
     pub authentication_product_ids: Option<serde_json::Value>,
-    pub is_tokenize_before_payment_enabled: bool,
+    pub is_pre_network_tokenization_enabled: bool,
 }
 
 #[cfg(feature = "v1")]
@@ -105,7 +105,7 @@ pub struct ProfileNew {
     pub max_auto_retries_enabled: Option<i16>,
     pub is_click_to_pay_enabled: bool,
     pub authentication_product_ids: Option<serde_json::Value>,
-    pub is_tokenize_before_payment_enabled: Option<bool>,
+    pub is_pre_network_tokenization_enabled: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -148,7 +148,7 @@ pub struct ProfileUpdateInternal {
     pub max_auto_retries_enabled: Option<i16>,
     pub is_click_to_pay_enabled: Option<bool>,
     pub authentication_product_ids: Option<serde_json::Value>,
-    pub is_tokenize_before_payment_enabled: Option<bool>,
+    pub is_pre_network_tokenization_enabled: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -190,7 +190,7 @@ impl ProfileUpdateInternal {
             max_auto_retries_enabled,
             is_click_to_pay_enabled,
             authentication_product_ids,
-            is_tokenize_before_payment_enabled,
+            is_pre_network_tokenization_enabled,
         } = self;
         Profile {
             profile_id: source.profile_id,
@@ -254,8 +254,8 @@ impl ProfileUpdateInternal {
                 .unwrap_or(source.is_click_to_pay_enabled),
             authentication_product_ids: authentication_product_ids
                 .or(source.authentication_product_ids),
-            is_tokenize_before_payment_enabled: is_tokenize_before_payment_enabled
-                .unwrap_or(source.is_tokenize_before_payment_enabled),
+            is_pre_network_tokenization_enabled: is_pre_network_tokenization_enabled
+                .unwrap_or(source.is_pre_network_tokenization_enabled),
         }
     }
 }

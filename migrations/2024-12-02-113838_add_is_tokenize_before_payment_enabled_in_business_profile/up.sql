@@ -1,2 +1,2 @@
 -- Your SQL goes here
-ALTER TABLE business_profile ADD COLUMN IF NOT EXISTS is_tokenize_before_payment_enabled BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE business_profile ADD COLUMN IF NOT EXISTS is_pre_network_tokenization_enabled BOOLEAN NOT NULL DEFAULT FALSE;
