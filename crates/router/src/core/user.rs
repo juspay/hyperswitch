@@ -2526,7 +2526,33 @@ pub async fn list_user_authentication_methods(
         user_authentication_methods
             .into_iter()
             .map(|auth_method| {
-                utils::user::get_auth_method_response_from_db_auth_method(auth_method)
+                let auth_name = match (auth_method.auth_type, auth_method.public_config) {
+                    (UserAuthType::OpenIdConnect, config) => {
+                        let open_id_public_config: Option<user_api::OpenIdConnectPublicConfig> =
+                            config
+                                .map(|config| {
+                                    utils::user::parse_value(config, "OpenIdConnectPublicConfig")
+                                })
+                                .transpose()?;
+                        if let Some(public_config) = open_id_public_config {
+                            Ok(Some(public_config.name))
+                        } else {
+                            Err(report!(UserErrors::InternalServerError))
+                                .attach_printable("Public config not found for OIDC auth type")
+                        }
+                    }
+                    _ => Ok(None),
+                }?;
+
+                Ok(user_api::UserAuthenticationMethodResponse {
+                    id: auth_method.id,
+                    auth_id: auth_method.auth_id,
+                    auth_method: user_api::AuthMethodDetails {
+                        name: auth_name,
+                        auth_type: auth_method.auth_type,
+                    },
+                    allow_signup: auth_method.allow_signup,
+                })
             })
             .collect::<UserResult<_>>()?,
     ))
