@@ -6,6 +6,8 @@ use common_utils::{
     id_type,
     types::{keymanager::KeyManagerState, theme::ThemeLineage},
 };
+#[cfg(feature = "v2")]
+use diesel_models::ephemeral_key::{EphemeralKeyType, EphemeralKeyTypeNew};
 use diesel_models::{
     enums,
     enums::ProcessTrackerStatus,
@@ -647,6 +649,7 @@ impl DisputeInterface for KafkaStore {
 
 #[async_trait::async_trait]
 impl EphemeralKeyInterface for KafkaStore {
+    #[cfg(feature = "v1")]
     async fn create_ephemeral_key(
         &self,
         ek: EphemeralKeyNew,
@@ -654,16 +657,45 @@ impl EphemeralKeyInterface for KafkaStore {
     ) -> CustomResult<EphemeralKey, errors::StorageError> {
         self.diesel_store.create_ephemeral_key(ek, validity).await
     }
+
+    #[cfg(feature = "v2")]
+    async fn create_ephemeral_key(
+        &self,
+        ek: EphemeralKeyTypeNew,
+        validity: i64,
+    ) -> CustomResult<EphemeralKeyType, errors::StorageError> {
+        self.diesel_store.create_ephemeral_key(ek, validity).await
+    }
+
+    #[cfg(feature = "v1")]
     async fn get_ephemeral_key(
         &self,
         key: &str,
     ) -> CustomResult<EphemeralKey, errors::StorageError> {
         self.diesel_store.get_ephemeral_key(key).await
     }
+
+    #[cfg(feature = "v2")]
+    async fn get_ephemeral_key(
+        &self,
+        key: &str,
+    ) -> CustomResult<EphemeralKeyType, errors::StorageError> {
+        self.diesel_store.get_ephemeral_key(key).await
+    }
+
+    #[cfg(feature = "v1")]
     async fn delete_ephemeral_key(
         &self,
         id: &str,
     ) -> CustomResult<EphemeralKey, errors::StorageError> {
+        self.diesel_store.delete_ephemeral_key(id).await
+    }
+
+    #[cfg(feature = "v2")]
+    async fn delete_ephemeral_key(
+        &self,
+        id: &str,
+    ) -> CustomResult<EphemeralKeyType, errors::StorageError> {
         self.diesel_store.delete_ephemeral_key(id).await
     }
 }
@@ -1195,6 +1227,23 @@ impl MerchantConnectorAccountInterface for KafkaStore {
                 key_store,
             )
             .await
+    }
+
+    #[cfg(all(feature = "oltp", feature = "v2"))]
+    async fn list_enabled_connector_accounts_by_profile_id(
+        &self,
+        state: &KeyManagerState,
+        profile_id: &id_type::ProfileId,
+        key_store: &domain::MerchantKeyStore,
+        connector_type: common_enums::ConnectorType,
+    ) -> CustomResult<Vec<domain::MerchantConnectorAccount>, errors::StorageError> {
+        self.list_enabled_connector_accounts_by_profile_id(
+            state,
+            profile_id,
+            key_store,
+            connector_type,
+        )
+        .await
     }
 
     async fn insert_merchant_connector_account(

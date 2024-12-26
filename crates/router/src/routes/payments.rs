@@ -85,6 +85,7 @@ pub async fn payments_create(
                 header_payload.clone(),
                 req,
                 api::AuthFlow::Merchant,
+                auth.platform_merchant_account,
             )
         },
         match env::which() {
@@ -143,6 +144,7 @@ pub async fn payments_create_intent(
                 req,
                 global_payment_id.clone(),
                 header_payload.clone(),
+                auth.platform_merchant_account,
             )
         },
         match env::which() {
@@ -206,6 +208,7 @@ pub async fn payments_get_intent(
                 req,
                 global_payment_id.clone(),
                 header_payload.clone(),
+                auth.platform_merchant_account,
             )
         },
         &auth::HeaderAuth(auth::ApiKeyAuth),
@@ -261,6 +264,7 @@ pub async fn payments_update_intent(
                 req.payload,
                 global_payment_id.clone(),
                 header_payload.clone(),
+                auth.platform_merchant_account,
             )
         },
         &auth::HeaderAuth(auth::ApiKeyAuth),
@@ -316,6 +320,7 @@ pub async fn payments_start(
                 payments::CallConnectorAction::Trigger,
                 None,
                 HeaderPayload::default(),
+                None,
             )
         },
         &auth::MerchantIdAuth(merchant_id),
@@ -390,6 +395,7 @@ pub async fn payments_retrieve(
                 payments::CallConnectorAction::Trigger,
                 None,
                 header_payload.clone(),
+                auth.platform_merchant_account,
             )
         },
         auth::auth_type(
@@ -460,6 +466,7 @@ pub async fn payments_retrieve_with_gateway_creds(
                 payments::CallConnectorAction::Trigger,
                 None,
                 HeaderPayload::default(),
+                auth.platform_merchant_account,
             )
         },
         &*auth_type,
@@ -512,6 +519,7 @@ pub async fn payments_update(
                 HeaderPayload::default(),
                 req,
                 auth_flow,
+                auth.platform_merchant_account,
             )
         },
         &*auth_type,
@@ -570,6 +578,7 @@ pub async fn payments_post_session_tokens(
                 payments::CallConnectorAction::Trigger,
                 None,
                 header_payload.clone(),
+                None,
             )
         },
         &auth::PublishableKeyAuth,
@@ -632,6 +641,7 @@ pub async fn payments_confirm(
                 header_payload.clone(),
                 req,
                 auth_flow,
+                auth.platform_merchant_account,
             )
         },
         &*auth_type,
@@ -684,6 +694,7 @@ pub async fn payments_capture(
                 payments::CallConnectorAction::Trigger,
                 None,
                 HeaderPayload::default(),
+                auth.platform_merchant_account,
             )
         },
         &auth::HeaderAuth(auth::ApiKeyAuth),
@@ -743,6 +754,7 @@ pub async fn payments_dynamic_tax_calculation(
                 payments::CallConnectorAction::Trigger,
                 None,
                 header_payload.clone(),
+                None,
             )
         },
         &auth::PublishableKeyAuth,
@@ -806,6 +818,7 @@ pub async fn payments_connector_session(
                 payment_id,
                 payments::CallConnectorAction::Trigger,
                 header_payload.clone(),
+                auth.platform_merchant_account,
             )
         },
         &auth::HeaderAuth(auth::PublishableKeyAuth),
@@ -864,6 +877,7 @@ pub async fn payments_connector_session(
                 payments::CallConnectorAction::Trigger,
                 None,
                 header_payload.clone(),
+                None,
             )
         },
         &auth::HeaderAuth(auth::PublishableKeyAuth),
@@ -913,7 +927,7 @@ pub async fn payments_redirect_response(
                 auth.merchant_account,
                 auth.key_store,
                 req,
-
+                auth.platform_merchant_account,
             )
         },
         &auth::MerchantIdAuth(merchant_id),
@@ -963,7 +977,7 @@ pub async fn payments_redirect_response_with_creds_identifier(
                 auth.merchant_account,
                 auth.key_store,
                 req,
-
+                auth.platform_merchant_account,
             )
         },
         &auth::MerchantIdAuth(merchant_id),
@@ -1014,7 +1028,7 @@ pub async fn payments_complete_authorize_redirect(
                 auth.merchant_account,
                 auth.key_store,
                 req,
-
+                auth.platform_merchant_account,
             )
         },
         &auth::MerchantIdAuth(merchant_id),
@@ -1080,6 +1094,7 @@ pub async fn payments_complete_authorize(
                 payments::CallConnectorAction::Trigger,
                 None,
                 HeaderPayload::default(),
+                None,
             )
         },
         &*auth_type,
@@ -1129,6 +1144,7 @@ pub async fn payments_cancel(
                 payments::CallConnectorAction::Trigger,
                 None,
                 HeaderPayload::default(),
+                auth.platform_merchant_account,
             )
         },
         &auth::HeaderAuth(auth::ApiKeyAuth),
@@ -1409,6 +1425,7 @@ pub async fn payments_approve(
                 payments::CallConnectorAction::Trigger,
                 None,
                 HeaderPayload::default(),
+                auth.platform_merchant_account,
             )
         },
         match env::which() {
@@ -1473,6 +1490,7 @@ pub async fn payments_reject(
                 payments::CallConnectorAction::Trigger,
                 None,
                 HeaderPayload::default(),
+                auth.platform_merchant_account,
             )
         },
         match env::which() {
@@ -1502,6 +1520,7 @@ async fn authorize_verify_select<Op>(
     header_payload: HeaderPayload,
     req: api_models::payments::PaymentsRequest,
     auth_flow: api::AuthFlow,
+    platform_merchant_account: Option<domain::MerchantAccount>,
 ) -> errors::RouterResponse<api_models::payments::PaymentsResponse>
 where
     Op: Sync
@@ -1551,6 +1570,7 @@ where
             auth_flow,
             payments::CallConnectorAction::Trigger,
             header_payload,
+            platform_merchant_account,
         )
         .await
     } else {
@@ -1578,6 +1598,7 @@ where
                     payments::CallConnectorAction::Trigger,
                     eligible_connectors,
                     header_payload,
+                    platform_merchant_account,
                 )
                 .await
             }
@@ -1601,6 +1622,7 @@ where
                     payments::CallConnectorAction::Trigger,
                     eligible_connectors,
                     header_payload,
+                    platform_merchant_account,
                 )
                 .await
             }
@@ -1649,6 +1671,7 @@ pub async fn payments_incremental_authorization(
                 payments::CallConnectorAction::Trigger,
                 None,
                 HeaderPayload::default(),
+                auth.platform_merchant_account,
             )
         },
         &auth::HeaderAuth(auth::ApiKeyAuth),
@@ -1734,6 +1757,7 @@ pub async fn post_3ds_payments_authorize(
                 auth.merchant_account,
                 auth.key_store,
                 req,
+                auth.platform_merchant_account,
             )
         },
         &auth::MerchantIdAuth(merchant_id),
@@ -2437,6 +2461,7 @@ pub async fn payments_finish_redirection(
                 auth.key_store,
                 auth.profile,
                 req,
+                auth.platform_merchant_account
             )
         },
         &auth::PublishableKeyAndProfileIdAuth {
@@ -2445,5 +2470,125 @@ pub async fn payments_finish_redirection(
         },
         locking_action,
     )
+    .await
+}
+
+#[cfg(feature = "v2")]
+#[instrument(skip(state, req), fields(flow, payment_id))]
+pub async fn payments_capture(
+    state: web::Data<app::AppState>,
+    req: actix_web::HttpRequest,
+    payload: web::Json<api_models::payments::PaymentsCaptureRequest>,
+    path: web::Path<common_utils::id_type::GlobalPaymentId>,
+) -> impl Responder {
+    use hyperswitch_domain_models::payments::PaymentCaptureData;
+    let flow = Flow::PaymentsCapture;
+
+    let global_payment_id = path.into_inner();
+    tracing::Span::current().record("payment_id", global_payment_id.get_string_repr());
+
+    let internal_payload = internal_payload_types::PaymentsGenericRequestWithResourceId {
+        global_payment_id,
+        payload: payload.into_inner(),
+    };
+
+    let header_payload = match HeaderPayload::foreign_try_from(req.headers()) {
+        Ok(headers) => headers,
+        Err(err) => {
+            return api::log_and_return_error_response(err);
+        }
+    };
+
+    let locking_action = internal_payload.get_locking_input(flow.clone());
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        internal_payload,
+        |state, auth: auth::AuthenticationData, req, req_state| async {
+            let payment_id = req.global_payment_id;
+            let request = req.payload;
+
+            let operation = payments::operations::payment_capture_v2::PaymentsCapture;
+
+            Box::pin(payments::payments_core::<
+                api_types::Capture,
+                api_models::payments::PaymentsCaptureResponse,
+                _,
+                _,
+                _,
+                PaymentCaptureData<api_types::Capture>,
+            >(
+                state,
+                req_state,
+                auth.merchant_account,
+                auth.profile,
+                auth.key_store,
+                operation,
+                request,
+                payment_id,
+                payments::CallConnectorAction::Trigger,
+                header_payload.clone(),
+            ))
+            .await
+        },
+        auth::auth_type(
+            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::JWTAuth {
+                permission: Permission::ProfileAccountWrite,
+            },
+            req.headers(),
+        ),
+        locking_action,
+    ))
+    .await
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsList))]
+pub async fn list_payment_methods(
+    state: web::Data<app::AppState>,
+    req: actix_web::HttpRequest,
+    path: web::Path<common_utils::id_type::GlobalPaymentId>,
+    query_payload: web::Query<api_models::payments::PaymentMethodsListRequest>,
+) -> impl Responder {
+    let flow = Flow::PaymentMethodsList;
+    let payload = query_payload.into_inner();
+    let global_payment_id = path.into_inner();
+
+    tracing::Span::current().record("payment_id", global_payment_id.get_string_repr());
+
+    let internal_payload = internal_payload_types::PaymentsGenericRequestWithResourceId {
+        global_payment_id,
+        payload,
+    };
+
+    let header_payload = match HeaderPayload::foreign_try_from(req.headers()) {
+        Ok(headers) => headers,
+        Err(err) => {
+            return api::log_and_return_error_response(err);
+        }
+    };
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        internal_payload,
+        |state, auth, req, _| {
+            payments::payment_methods::list_payment_methods(
+                state,
+                auth.merchant_account,
+                auth.profile,
+                auth.key_store,
+                req.global_payment_id,
+                req.payload,
+                &header_payload,
+            )
+        },
+        &auth::PublishableKeyAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
     .await
 }

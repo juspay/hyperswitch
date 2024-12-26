@@ -358,7 +358,6 @@ pub trait RouterData {
     fn get_billing_country(&self) -> Result<api_models::enums::CountryAlpha2, Error>;
     fn get_billing_phone(&self) -> Result<&PhoneDetails, Error>;
     fn get_description(&self) -> Result<String, Error>;
-    fn get_return_url(&self) -> Result<String, Error>;
     fn get_billing_address(&self) -> Result<&AddressDetails, Error>;
     fn get_shipping_address(&self) -> Result<&AddressDetails, Error>;
     fn get_shipping_address_with_phone_number(&self) -> Result<&Address, Error>;
@@ -546,11 +545,6 @@ impl<Flow, Request, Response> RouterData
         self.description
             .clone()
             .ok_or_else(missing_field_err("description"))
-    }
-    fn get_return_url(&self) -> Result<String, Error> {
-        self.return_url
-            .clone()
-            .ok_or_else(missing_field_err("return_url"))
     }
     fn get_billing_address(&self) -> Result<&AddressDetails, Error> {
         self.address
@@ -1261,7 +1255,6 @@ pub trait PaymentsAuthorizeRequestData {
     fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
     fn get_order_details(&self) -> Result<Vec<OrderDetailsWithAmount>, Error>;
     fn get_card(&self) -> Result<Card, Error>;
-    fn get_return_url(&self) -> Result<String, Error>;
     fn connector_mandate_id(&self) -> Option<String>;
     fn is_mandate_payment(&self) -> bool;
     fn is_customer_initiated_mandate_payment(&self) -> bool;
@@ -1323,11 +1316,6 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
             PaymentMethodData::Card(card) => Ok(card),
             _ => Err(missing_field_err("card")()),
         }
-    }
-    fn get_return_url(&self) -> Result<String, Error> {
-        self.router_return_url
-            .clone()
-            .ok_or_else(missing_field_err("return_url"))
     }
 
     fn get_complete_authorize_url(&self) -> Result<String, Error> {
@@ -1759,6 +1747,9 @@ pub trait BrowserInformationData {
     fn get_java_enabled(&self) -> Result<bool, Error>;
     fn get_java_script_enabled(&self) -> Result<bool, Error>;
     fn get_ip_address(&self) -> Result<Secret<String, IpAddress>, Error>;
+    fn get_os_type(&self) -> Result<String, Error>;
+    fn get_os_version(&self) -> Result<String, Error>;
+    fn get_device_model(&self) -> Result<String, Error>;
 }
 
 impl BrowserInformationData for BrowserInformation {
@@ -1806,6 +1797,21 @@ impl BrowserInformationData for BrowserInformation {
     fn get_java_script_enabled(&self) -> Result<bool, Error> {
         self.java_script_enabled
             .ok_or_else(missing_field_err("browser_info.java_script_enabled"))
+    }
+    fn get_os_type(&self) -> Result<String, Error> {
+        self.os_type
+            .clone()
+            .ok_or_else(missing_field_err("browser_info.os_type"))
+    }
+    fn get_os_version(&self) -> Result<String, Error> {
+        self.os_version
+            .clone()
+            .ok_or_else(missing_field_err("browser_info.os_version"))
+    }
+    fn get_device_model(&self) -> Result<String, Error> {
+        self.device_model
+            .clone()
+            .ok_or_else(missing_field_err("browser_info.device_model"))
     }
 }
 

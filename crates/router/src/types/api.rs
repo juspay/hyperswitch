@@ -278,12 +278,12 @@ pub enum ConnectorChoice {
 
 impl ConnectorData {
     pub fn get_connector_by_name(
-        connectors: &Connectors,
+        _connectors: &Connectors,
         name: &str,
         connector_type: GetToken,
         connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     ) -> CustomResult<Self, errors::ApiErrorResponse> {
-        let connector = Self::convert_connector(connectors, name)?;
+        let connector = Self::convert_connector(name)?;
         let connector_name = api_enums::Connector::from_str(name)
             .change_context(errors::ConnectorError::InvalidConnectorName)
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -298,12 +298,12 @@ impl ConnectorData {
 
     #[cfg(feature = "payouts")]
     pub fn get_payout_connector_by_name(
-        connectors: &Connectors,
+        _connectors: &Connectors,
         name: &str,
         connector_type: GetToken,
         connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     ) -> CustomResult<Self, errors::ApiErrorResponse> {
-        let connector = Self::convert_connector(connectors, name)?;
+        let connector = Self::convert_connector(name)?;
         let payout_connector_name = api_enums::PayoutConnectors::from_str(name)
             .change_context(errors::ConnectorError::InvalidConnectorName)
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -318,7 +318,6 @@ impl ConnectorData {
     }
 
     pub fn convert_connector(
-        _connectors: &Connectors,
         connector_name: &str,
     ) -> CustomResult<ConnectorEnum, errors::ApiErrorResponse> {
         match enums::Connector::from_str(connector_name) {
@@ -446,8 +445,10 @@ impl ConnectorData {
                 //     Ok(ConnectorEnum::Old(Box::new(connector::Inespay::new())))
                 // }
                 enums::Connector::Itaubank => {
-                    //enums::Connector::Jpmorgan => Ok(ConnectorEnum::Old(Box::new(connector::Jpmorgan))),
                     Ok(ConnectorEnum::Old(Box::new(connector::Itaubank::new())))
+                }
+                enums::Connector::Jpmorgan => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Jpmorgan::new())))
                 }
                 enums::Connector::Klarna => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Klarna::new())))
