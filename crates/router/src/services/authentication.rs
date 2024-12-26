@@ -666,6 +666,13 @@ where
             metrics::PARTIAL_AUTH_FAILURE.add(1, &[]);
         };
 
+        let profile_id = HeaderMapStruct::new(request_headers)
+            .get_id_type_from_header_if_present::<id_type::ProfileId>(headers::X_PROFILE_ID)
+            .change_context(errors::ValidationError::IncorrectValueProvided {
+                field_name: "X-Profile-Id",
+            })
+            .change_context(errors::ApiErrorResponse::Unauthorized)?;
+
         let payload = ExtractedPayload::from_headers(request_headers)
             .and_then(|value| {
                 let (algo, secret) = state.get_detached_auth()?;
@@ -687,8 +694,13 @@ where
                     merchant_id: Some(merchant_id),
                     key_id: Some(key_id),
                 } => {
-                    let auth =
-                        construct_authentication_data(state, &merchant_id, request_headers).await?;
+                    let auth = construct_authentication_data(
+                        state,
+                        &merchant_id,
+                        request_headers,
+                        profile_id,
+                    )
+                    .await?;
                     Ok((
                         auth.clone(),
                         AuthenticationType::ApiKey {
@@ -702,8 +714,13 @@ where
                     merchant_id: Some(merchant_id),
                     key_id: None,
                 } => {
-                    let auth =
-                        construct_authentication_data(state, &merchant_id, request_headers).await?;
+                    let auth = construct_authentication_data(
+                        state,
+                        &merchant_id,
+                        request_headers,
+                        profile_id,
+                    )
+                    .await?;
                     Ok((
                         auth.clone(),
                         AuthenticationType::PublishableKey {
@@ -779,6 +796,7 @@ async fn construct_authentication_data<A>(
     state: &A,
     merchant_id: &id_type::MerchantId,
     request_headers: &HeaderMap,
+    profile_id: Option<id_type::ProfileId>,
 ) -> RouterResult<AuthenticationData>
 where
     A: SessionStateInfo + Sync,
@@ -830,7 +848,7 @@ where
         merchant_account: merchant,
         platform_merchant_account,
         key_store,
-        profile_id: None,
+        profile_id,
     };
 
     Ok(auth)

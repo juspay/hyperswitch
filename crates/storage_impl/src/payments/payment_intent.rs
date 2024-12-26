@@ -831,10 +831,11 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         let conn = connection::pg_connection_read(self).await.switch()?;
         let conn = async_bb8_diesel::Connection::as_async_conn(&conn);
         let mut query = DieselPaymentIntent::table()
+            .filter(pi_dsl::merchant_id.eq(merchant_id.to_owned()))
             .inner_join(
                 payment_attempt_schema::table.on(pa_dsl::attempt_id.eq(pi_dsl::active_attempt_id)),
             )
-            .filter(pi_dsl::merchant_id.eq(merchant_id.to_owned()))
+            .filter(pa_dsl::merchant_id.eq(merchant_id.to_owned())) // Ensure merchant_ids match, as different merchants can share payment/attempt IDs.
             .into_boxed();
 
         query = match constraints {

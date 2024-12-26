@@ -154,7 +154,6 @@ pub fn construct_router_data<F: Clone, Req, Res>(
         payment_method,
         connector_auth_type: auth_type,
         description: None,
-        return_url: None,
         address,
         auth_type: common_enums::AuthenticationType::NoThreeDs,
         connector_meta_data: merchant_connector_account.get_metadata(),

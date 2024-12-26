@@ -5,6 +5,32 @@ import getConnectorDetails, * as utils from "../PaymentUtils/Utils";
 
 let globalState;
 
+/*
+Flow:
+- Create Business Profile with connector agnostic feature disabled
+- Create Merchant Connector Account and Customer
+- Make a Payment
+- List Payment Method for Customer using Client Secret (will get PMID)
+
+- Create Business Profile with connector agnostic feature enabled
+- Create Merchant Connector Account
+- Create Payment Intent
+- List Payment Method for Customer -- Empty list; i.e., no payment method should be listed
+- Confirm Payment with PMID from previous step (should fail as Connector Mandate ID is not present in the newly created Profile)
+
+
+- Create Business Profile with connector agnostic feature enabled
+- Create Merchant Connector Account and Customer
+- Make a Payment
+- List Payment Method for Customer using Client Secret (will get PMID)
+
+- Create Business Profile with connector agnostic feature enabled
+- Create Merchant Connector Account
+- Create Payment Intent
+- List Payment Method for Customer using Client Secret (will get PMID which is same as the one from previous step along with Payment Token)
+- Confirm Payment with PMID from previous step (should pass as NTID is present in the DB)
+*/
+
 describe("Connector Agnostic Tests", () => {
   before("seed global state", () => {
     cy.task("getGlobalState").then((state) => {
@@ -26,19 +52,19 @@ describe("Connector Agnostic Tests", () => {
         }
       });
 
-      it("Create Business Profile", () => {
-        cy.createBusinessProfileTest(
+      it("Create business profile", () => {
+        utils.createBusinessProfile(
           fixtures.businessProfile.bpCreate,
           globalState
         );
       });
 
-      it("connector-create-call-test", () => {
-        cy.createConnectorCallTest(
+      it("Create merchant connector account", () => {
+        utils.createMerchantConnectorAccount(
           "payment_processor",
           fixtures.createConnectorBody,
-          payment_methods_enabled,
-          globalState
+          globalState,
+          payment_methods_enabled
         );
       });
 
@@ -78,24 +104,24 @@ describe("Connector Agnostic Tests", () => {
         cy.listCustomerPMByClientSecret(globalState);
       });
 
-      it("Create Business Profile", () => {
-        cy.createBusinessProfileTest(
+      it("Create business profile", () => {
+        utils.createBusinessProfile(
           fixtures.businessProfile.bpCreate,
           globalState
         );
       });
 
-      it("connector-create-call-test", () => {
-        cy.createConnectorCallTest(
+      it("Create merchant connector account", () => {
+        utils.createMerchantConnectorAccount(
           "payment_processor",
           fixtures.createConnectorBody,
-          payment_methods_enabled,
-          globalState
+          globalState,
+          payment_methods_enabled
         );
       });
 
       it("Enable Connector Agnostic for Business Profile", () => {
-        cy.UpdateBusinessProfileTest(
+        utils.updateBusinessProfile(
           fixtures.businessProfile.bpUpdate,
           true, // is_connector_agnostic_enabled
           false, // collect_billing_address_from_wallet_connector
@@ -126,6 +152,80 @@ describe("Connector Agnostic Tests", () => {
       it("List Payment Method for Customer", () => {
         cy.listCustomerPMByClientSecret(globalState);
       });
+
+      it("Confirm No 3DS MIT (PMID)", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["MITAutoCapture"];
+        const commonData = getConnectorDetails(globalState.get("commons"))[
+          "card_pm"
+        ]["MITAutoCapture"];
+
+        const newData = {
+          ...data,
+          Response: utils.getConnectorFlowDetails(
+            data,
+            commonData,
+            "ResponseCustom"
+          ),
+        };
+
+        cy.mitUsingPMId(
+          fixtures.pmIdConfirmBody,
+          newData,
+          7000,
+          true,
+          "automatic",
+          globalState
+        );
+      });
+
+      it("Create Payment Intent", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["PaymentIntentOffSession"];
+
+        cy.createPaymentIntentTest(
+          fixtures.createPaymentBody,
+          data,
+          "no_three_ds",
+          "automatic",
+          globalState
+        );
+
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
+      });
+
+      it("List Payment Method for Customer", () => {
+        cy.listCustomerPMByClientSecret(globalState);
+      });
+
+      it("Confirm No 3DS MIT (Token)", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["SaveCardConfirmAutoCaptureOffSession"];
+        const commonData = getConnectorDetails(globalState.get("commons"))[
+          "card_pm"
+        ]["SaveCardConfirmAutoCaptureOffSession"];
+
+        const newData = {
+          ...data,
+          Response: utils.getConnectorFlowDetails(
+            data,
+            commonData,
+            "ResponseCustom"
+          ),
+        };
+        cy.saveCardConfirmCallTest(
+          fixtures.saveCardConfirmBody,
+          newData,
+          globalState
+        );
+
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
+      });
     }
   );
 
@@ -138,19 +238,19 @@ describe("Connector Agnostic Tests", () => {
       }
     });
 
-    it("Create Business Profile", () => {
-      cy.createBusinessProfileTest(
+    it("Create business profile", () => {
+      utils.createBusinessProfile(
         fixtures.businessProfile.bpCreate,
         globalState
       );
     });
 
-    it("connector-create-call-test", () => {
-      cy.createConnectorCallTest(
+    it("Create merchant connector account", () => {
+      utils.createMerchantConnectorAccount(
         "payment_processor",
         fixtures.createConnectorBody,
-        payment_methods_enabled,
-        globalState
+        globalState,
+        payment_methods_enabled
       );
     });
 
@@ -159,7 +259,7 @@ describe("Connector Agnostic Tests", () => {
     });
 
     it("Enable Connector Agnostic for Business Profile", () => {
-      cy.UpdateBusinessProfileTest(
+      utils.updateBusinessProfile(
         fixtures.businessProfile.bpUpdate,
         true, // is_connector_agnostic_enabled
         false, // collect_billing_address_from_wallet_connector
@@ -200,24 +300,24 @@ describe("Connector Agnostic Tests", () => {
       cy.listCustomerPMByClientSecret(globalState);
     });
 
-    it("Create Business Profile", () => {
-      cy.createBusinessProfileTest(
+    it("Create business profile", () => {
+      utils.createBusinessProfile(
         fixtures.businessProfile.bpCreate,
         globalState
       );
     });
 
-    it("connector-create-call-test", () => {
-      cy.createConnectorCallTest(
+    it("Create merchant connector account", () => {
+      utils.createMerchantConnectorAccount(
         "payment_processor",
         fixtures.createConnectorBody,
-        payment_methods_enabled,
-        globalState
+        globalState,
+        payment_methods_enabled
       );
     });
 
     it("Enable Connector Agnostic for Business Profile", () => {
-      cy.UpdateBusinessProfileTest(
+      utils.updateBusinessProfile(
         fixtures.businessProfile.bpUpdate,
         true, // is_connector_agnostic_enabled
         false, // collect_billing_address_from_wallet_connector
@@ -246,6 +346,55 @@ describe("Connector Agnostic Tests", () => {
 
     it("List Payment Method for Customer", () => {
       cy.listCustomerPMByClientSecret(globalState);
+    });
+
+    it("Confirm No 3DS MIT (PMID)", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["MITAutoCapture"];
+
+      cy.mitUsingPMId(
+        fixtures.pmIdConfirmBody,
+        data,
+        7000,
+        true,
+        "automatic",
+        globalState
+      );
+    });
+
+    it("Create Payment Intent", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["PaymentIntentOffSession"];
+
+      cy.createPaymentIntentTest(
+        fixtures.createPaymentBody,
+        data,
+        "no_three_ds",
+        "automatic",
+        globalState
+      );
+
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+    });
+
+    it("List Payment Method for Customer", () => {
+      cy.listCustomerPMByClientSecret(globalState);
+    });
+
+    it("Confirm No 3DS MIT (Token)", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["SaveCardConfirmAutoCaptureOffSession"];
+
+      cy.saveCardConfirmCallTest(
+        fixtures.saveCardConfirmBody,
+        data,
+        globalState
+      );
+
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
   });
 });
