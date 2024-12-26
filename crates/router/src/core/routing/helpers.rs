@@ -684,7 +684,7 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
             },
         )?;
 
-        let success_based_routing_configs = fetch_success_based_routing_configs(
+        let mut success_based_routing_configs = fetch_success_based_routing_configs(
             state,
             business_profile,
             success_based_algo_ref
