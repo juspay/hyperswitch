@@ -146,6 +146,7 @@ impl TryFrom<&PayeezyRouterData<&PaymentsAuthorizeRouterData>> for PayeezyPaymen
             | PaymentMethod::BankDebit
             | PaymentMethod::Reward
             | PaymentMethod::RealTimePayment
+            | PaymentMethod::MobilePayment
             | PaymentMethod::Upi
             | PaymentMethod::Voucher
             | PaymentMethod::OpenBanking
@@ -213,7 +214,9 @@ fn get_transaction_type_and_stored_creds(
         } else {
             match item.request.capture_method {
                 Some(CaptureMethod::Manual) => Ok((PayeezyTransactionType::Authorize, None)),
-                Some(CaptureMethod::Automatic) => Ok((PayeezyTransactionType::Purchase, None)),
+                Some(CaptureMethod::SequentialAutomatic) | Some(CaptureMethod::Automatic) => {
+                    Ok((PayeezyTransactionType::Purchase, None))
+                }
 
                 Some(CaptureMethod::ManualMultiple) | Some(CaptureMethod::Scheduled) | None => {
                     Err(ConnectorError::FlowNotSupported {
@@ -262,6 +265,7 @@ fn get_payment_method_data(
         | PaymentMethodData::MandatePayment
         | PaymentMethodData::Reward
         | PaymentMethodData::RealTimePayment(_)
+        | PaymentMethodData::MobilePayment(_)
         | PaymentMethodData::Upi(_)
         | PaymentMethodData::Voucher(_)
         | PaymentMethodData::GiftCard(_)

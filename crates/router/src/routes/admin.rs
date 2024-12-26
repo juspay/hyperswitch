@@ -357,7 +357,7 @@ pub async fn connector_create(
         state,
         &req,
         payload,
-        |state, auth_data, req, _| {
+        |state, auth_data: auth::AuthenticationData, req, _| {
             create_connector(
                 state,
                 req,
@@ -431,7 +431,10 @@ pub async fn connector_retrieve(
             &auth::AdminApiAuthWithMerchantIdFromHeader,
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
-                required_permission: Permission::ProfileConnectorRead,
+                // This should ideally be ProfileConnectorRead, but since this API responds with
+                // sensitive data, keeping this as ProfileConnectorWrite
+                // TODO: Convert this to ProfileConnectorRead once data is masked.
+                required_permission: Permission::ProfileConnectorWrite,
             },
             req.headers(),
         ),
@@ -458,14 +461,14 @@ pub async fn connector_retrieve(
         state,
         &req,
         payload,
-        |state, auth_data, req, _| {
-            retrieve_connector(
-                state,
-                auth_data.merchant_account,
-                auth_data.key_store,
-                req.id.clone(),
-            )
-        },
+        |state,
+         auth::AuthenticationData {
+             merchant_account,
+             key_store,
+             ..
+         },
+         req,
+         _| { retrieve_connector(state, merchant_account, key_store, req.id.clone()) },
         auth::auth_type(
             &auth::AdminApiAuthWithMerchantIdFromHeader,
             &auth::JWTAuthMerchantFromHeader {
@@ -493,8 +496,8 @@ pub async fn connector_list(
         state,
         &req,
         profile_id.to_owned(),
-        |state, auth, _, _| {
-            list_connectors_for_a_profile(state, auth.merchant_account.clone(), profile_id.clone())
+        |state, auth::AuthenticationData { key_store, .. }, _, _| {
+            list_connectors_for_a_profile(state, key_store, profile_id.clone())
         },
         auth::auth_type(
             &auth::AdminApiAuthWithMerchantIdFromHeader,
@@ -554,6 +557,8 @@ pub async fn connector_list(
     )
     .await
 }
+
+#[cfg(all(feature = "v1", feature = "olap"))]
 /// Merchant Connector - List
 ///
 /// List Merchant Connector Details for the merchant
@@ -791,14 +796,14 @@ pub async fn connector_delete(
         state,
         &req,
         payload,
-        |state, auth_data, req, _| {
-            delete_connector(
-                state,
-                auth_data.merchant_account,
-                auth_data.key_store,
-                req.id,
-            )
-        },
+        |state,
+         auth::AuthenticationData {
+             merchant_account,
+             key_store,
+             ..
+         },
+         req,
+         _| { delete_connector(state, merchant_account, key_store, req.id) },
         auth::auth_type(
             &auth::AdminApiAuthWithMerchantIdFromHeader,
             &auth::JWTAuthMerchantFromHeader {
@@ -900,6 +905,29 @@ pub async fn merchant_account_transfer_keys(
         &req,
         payload.into_inner(),
         |state, _, req, _| transfer_key_store_to_key_manager(state, req),
+        &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+/// Merchant Account - Platform Account
+///
+/// Enable platform account
+#[instrument(skip_all)]
+pub async fn merchant_account_enable_platform_account(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<common_utils::id_type::MerchantId>,
+) -> HttpResponse {
+    let flow = Flow::EnablePlatformAccount;
+    let merchant_id = path.into_inner();
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        merchant_id,
+        |state, _, req, _| enable_platform_account(state, req),
         &auth::AdminApiAuth,
         api_locking::LockAction::NotApplicable,
     ))

@@ -1,4 +1,8 @@
-use std::{collections::HashSet, ops, str::FromStr};
+use std::{
+    collections::HashSet,
+    ops::{Deref, Not},
+    str::FromStr,
+};
 
 use api_models::{
     admin as admin_api, organization as api_org, user as user_api, user_role as user_role_api,
@@ -99,7 +103,7 @@ impl UserEmail {
     pub fn new(email: Secret<String, pii::EmailStrategy>) -> UserResult<Self> {
         use validator::ValidateEmail;
 
-        let email_string = email.expose();
+        let email_string = email.expose().to_lowercase();
         let email =
             pii::Email::from_str(&email_string).change_context(UserErrors::EmailParsingError)?;
 
@@ -119,25 +123,16 @@ impl UserEmail {
     }
 
     pub fn from_pii_email(email: pii::Email) -> UserResult<Self> {
-        use validator::ValidateEmail;
-
-        let email_string = email.peek();
-        if email_string.validate_email() {
-            let (_username, domain) = match email_string.split_once('@') {
-                Some((u, d)) => (u, d),
-                None => return Err(UserErrors::EmailParsingError.into()),
-            };
-            if BLOCKED_EMAIL.contains(domain) {
-                return Err(UserErrors::InvalidEmailError.into());
-            }
-            Ok(Self(email))
-        } else {
-            Err(UserErrors::EmailParsingError.into())
-        }
+        let email_string = email.expose().map(|inner| inner.to_lowercase());
+        Self::new(email_string)
     }
 
     pub fn into_inner(self) -> pii::Email {
         self.0
+    }
+
+    pub fn get_inner(&self) -> &pii::Email {
+        &self.0
     }
 
     pub fn get_secret(self) -> Secret<String, pii::EmailStrategy> {
@@ -153,7 +148,7 @@ impl TryFrom<pii::Email> for UserEmail {
     }
 }
 
-impl ops::Deref for UserEmail {
+impl Deref for UserEmail {
     type Target = Secret<String, pii::EmailStrategy>;
 
     fn deref(&self) -> &Self::Target {
@@ -314,6 +309,40 @@ impl From<InviteeUserRequestWithInvitedUserToken> for NewUserOrganization {
         let new_organization = api_org::OrganizationNew::new(None);
         let db_organization = ForeignFrom::foreign_from(new_organization);
         Self(db_organization)
+    }
+}
+
+impl From<(user_api::CreateTenantUserRequest, MerchantAccountIdentifier)> for NewUserOrganization {
+    fn from(
+        (_value, merchant_account_identifier): (
+            user_api::CreateTenantUserRequest,
+            MerchantAccountIdentifier,
+        ),
+    ) -> Self {
+        let new_organization = api_org::OrganizationNew {
+            org_id: merchant_account_identifier.org_id,
+            org_name: None,
+        };
+        let db_organization = ForeignFrom::foreign_from(new_organization);
+        Self(db_organization)
+    }
+}
+
+impl ForeignFrom<api_models::user::UserOrgMerchantCreateRequest>
+    for diesel_models::organization::OrganizationNew
+{
+    fn foreign_from(item: api_models::user::UserOrgMerchantCreateRequest) -> Self {
+        let org_id = id_type::OrganizationId::default();
+        let api_models::user::UserOrgMerchantCreateRequest {
+            organization_name,
+            organization_details,
+            metadata,
+            ..
+        } = item;
+        let mut org_new_db = Self::new(org_id, Some(organization_name.expose()));
+        org_new_db.organization_details = organization_details;
+        org_new_db.metadata = metadata;
+        org_new_db
     }
 }
 
@@ -540,6 +569,18 @@ impl TryFrom<InviteeUserRequestWithInvitedUserToken> for NewUserMerchant {
     }
 }
 
+impl From<(user_api::CreateTenantUserRequest, MerchantAccountIdentifier)> for NewUserMerchant {
+    fn from(value: (user_api::CreateTenantUserRequest, MerchantAccountIdentifier)) -> Self {
+        let merchant_id = value.1.merchant_id.clone();
+        let new_organization = NewUserOrganization::from(value);
+        Self {
+            company_name: None,
+            merchant_id,
+            new_organization,
+        }
+    }
+}
+
 type UserMerchantCreateRequestWithToken =
     (UserFromStorage, user_api::UserMerchantCreate, UserFromToken);
 
@@ -560,13 +601,33 @@ impl TryFrom<UserMerchantCreateRequestWithToken> for NewUserMerchant {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct MerchantAccountIdentifier {
+    pub merchant_id: id_type::MerchantId,
+    pub org_id: id_type::OrganizationId,
+}
+
 #[derive(Clone)]
 pub struct NewUser {
     user_id: String,
     name: UserName,
     email: UserEmail,
-    password: Option<UserPassword>,
+    password: Option<NewUserPassword>,
     new_merchant: NewUserMerchant,
+}
+
+#[derive(Clone)]
+pub struct NewUserPassword {
+    password: UserPassword,
+    is_temporary: bool,
+}
+
+impl Deref for NewUserPassword {
+    type Target = UserPassword;
+
+    fn deref(&self) -> &Self::Target {
+        &self.password
+    }
 }
 
 impl NewUser {
@@ -587,7 +648,9 @@ impl NewUser {
     }
 
     pub fn get_password(&self) -> Option<UserPassword> {
-        self.password.clone()
+        self.password
+            .as_ref()
+            .map(|password| password.deref().clone())
     }
 
     pub async fn insert_user_in_db(
@@ -610,7 +673,7 @@ impl NewUser {
     pub async fn check_if_already_exists_in_db(&self, state: SessionState) -> UserResult<()> {
         if state
             .global_store
-            .find_user_by_email(&self.get_email().into_inner())
+            .find_user_by_email(&self.get_email())
             .await
             .is_ok()
         {
@@ -669,7 +732,10 @@ impl NewUser {
 
         let org_user_role = self
             .get_no_level_user_role(role_id, user_status)
-            .add_entity(OrganizationLevel { org_id });
+            .add_entity(OrganizationLevel {
+                tenant_id: state.tenant.tenant_id.clone(),
+                org_id,
+            });
 
         org_user_role.insert_in_v2(&state).await
     }
@@ -697,7 +763,9 @@ impl TryFrom<NewUser> for storage_user::UserNew {
             totp_status: TotpStatus::NotSet,
             totp_secret: None,
             totp_recovery_codes: None,
-            last_password_modified_at: value.password.is_some().then_some(now),
+            last_password_modified_at: value
+                .password
+                .and_then(|password_inner| password_inner.is_temporary.not().then_some(now)),
         })
     }
 }
@@ -708,7 +776,10 @@ impl TryFrom<user_api::SignUpWithMerchantIdRequest> for NewUser {
     fn try_from(value: user_api::SignUpWithMerchantIdRequest) -> UserResult<Self> {
         let email = value.email.clone().try_into()?;
         let name = UserName::new(value.name.clone())?;
-        let password = UserPassword::new(value.password.clone())?;
+        let password = NewUserPassword {
+            password: UserPassword::new(value.password.clone())?,
+            is_temporary: false,
+        };
         let user_id = uuid::Uuid::new_v4().to_string();
         let new_merchant = NewUserMerchant::try_from(value)?;
 
@@ -729,7 +800,10 @@ impl TryFrom<user_api::SignUpRequest> for NewUser {
         let user_id = uuid::Uuid::new_v4().to_string();
         let email = value.email.clone().try_into()?;
         let name = UserName::try_from(value.email.clone())?;
-        let password = UserPassword::new(value.password.clone())?;
+        let password = NewUserPassword {
+            password: UserPassword::new(value.password.clone())?,
+            is_temporary: false,
+        };
         let new_merchant = NewUserMerchant::try_from(value)?;
 
         Ok(Self {
@@ -770,7 +844,10 @@ impl TryFrom<(user_api::CreateInternalUserRequest, id_type::OrganizationId)> for
         let user_id = uuid::Uuid::new_v4().to_string();
         let email = value.email.clone().try_into()?;
         let name = UserName::new(value.name.clone())?;
-        let password = UserPassword::new(value.password.clone())?;
+        let password = NewUserPassword {
+            password: UserPassword::new(value.password.clone())?,
+            is_temporary: false,
+        };
         let new_merchant = NewUserMerchant::try_from((value, org_id))?;
 
         Ok(Self {
@@ -789,16 +866,21 @@ impl TryFrom<UserMerchantCreateRequestWithToken> for NewUser {
     fn try_from(value: UserMerchantCreateRequestWithToken) -> Result<Self, Self::Error> {
         let user = value.0.clone();
         let new_merchant = NewUserMerchant::try_from(value)?;
+        let password = user
+            .0
+            .password
+            .map(UserPassword::new_password_without_validation)
+            .transpose()?
+            .map(|password| NewUserPassword {
+                password,
+                is_temporary: false,
+            });
 
         Ok(Self {
             user_id: user.0.user_id,
             name: UserName::new(user.0.name)?,
             email: user.0.email.clone().try_into()?,
-            password: user
-                .0
-                .password
-                .map(UserPassword::new_password_without_validation)
-                .transpose()?,
+            password,
             new_merchant,
         })
     }
@@ -810,8 +892,10 @@ impl TryFrom<InviteeUserRequestWithInvitedUserToken> for NewUser {
         let user_id = uuid::Uuid::new_v4().to_string();
         let email = value.0.email.clone().try_into()?;
         let name = UserName::new(value.0.name.clone())?;
-        let password = cfg!(not(feature = "email"))
-            .then_some(UserPassword::new(password::get_temp_password())?);
+        let password = cfg!(not(feature = "email")).then_some(NewUserPassword {
+            password: UserPassword::new(password::get_temp_password())?,
+            is_temporary: true,
+        });
         let new_merchant = NewUserMerchant::try_from(value)?;
 
         Ok(Self {
@@ -819,6 +903,34 @@ impl TryFrom<InviteeUserRequestWithInvitedUserToken> for NewUser {
             name,
             email,
             password,
+            new_merchant,
+        })
+    }
+}
+
+impl TryFrom<(user_api::CreateTenantUserRequest, MerchantAccountIdentifier)> for NewUser {
+    type Error = error_stack::Report<UserErrors>;
+
+    fn try_from(
+        (value, merchant_account_identifier): (
+            user_api::CreateTenantUserRequest,
+            MerchantAccountIdentifier,
+        ),
+    ) -> UserResult<Self> {
+        let user_id = uuid::Uuid::new_v4().to_string();
+        let email = value.email.clone().try_into()?;
+        let name = UserName::new(value.name.clone())?;
+        let password = NewUserPassword {
+            password: UserPassword::new(value.password.clone())?,
+            is_temporary: false,
+        };
+        let new_merchant = NewUserMerchant::from((value, merchant_account_identifier));
+
+        Ok(Self {
+            user_id,
+            name,
+            email,
+            password: Some(password),
             new_merchant,
         })
     }
@@ -1077,18 +1189,26 @@ impl RecoveryCodes {
 pub struct NoLevel;
 
 #[derive(Clone)]
+pub struct TenantLevel {
+    pub tenant_id: id_type::TenantId,
+}
+
+#[derive(Clone)]
 pub struct OrganizationLevel {
+    pub tenant_id: id_type::TenantId,
     pub org_id: id_type::OrganizationId,
 }
 
 #[derive(Clone)]
 pub struct MerchantLevel {
+    pub tenant_id: id_type::TenantId,
     pub org_id: id_type::OrganizationId,
     pub merchant_id: id_type::MerchantId,
 }
 
 #[derive(Clone)]
 pub struct ProfileLevel {
+    pub tenant_id: id_type::TenantId,
     pub org_id: id_type::OrganizationId,
     pub merchant_id: id_type::MerchantId,
     pub profile_id: id_type::ProfileId,
@@ -1125,11 +1245,25 @@ impl NewUserRole<NoLevel> {
 }
 
 pub struct EntityInfo {
-    org_id: id_type::OrganizationId,
+    tenant_id: id_type::TenantId,
+    org_id: Option<id_type::OrganizationId>,
     merchant_id: Option<id_type::MerchantId>,
     profile_id: Option<id_type::ProfileId>,
     entity_id: String,
     entity_type: EntityType,
+}
+
+impl From<TenantLevel> for EntityInfo {
+    fn from(value: TenantLevel) -> Self {
+        Self {
+            entity_id: value.tenant_id.get_string_repr().to_owned(),
+            entity_type: EntityType::Tenant,
+            tenant_id: value.tenant_id,
+            org_id: None,
+            merchant_id: None,
+            profile_id: None,
+        }
+    }
 }
 
 impl From<OrganizationLevel> for EntityInfo {
@@ -1137,7 +1271,8 @@ impl From<OrganizationLevel> for EntityInfo {
         Self {
             entity_id: value.org_id.get_string_repr().to_owned(),
             entity_type: EntityType::Organization,
-            org_id: value.org_id,
+            tenant_id: value.tenant_id,
+            org_id: Some(value.org_id),
             merchant_id: None,
             profile_id: None,
         }
@@ -1149,9 +1284,10 @@ impl From<MerchantLevel> for EntityInfo {
         Self {
             entity_id: value.merchant_id.get_string_repr().to_owned(),
             entity_type: EntityType::Merchant,
-            org_id: value.org_id,
-            profile_id: None,
+            tenant_id: value.tenant_id,
+            org_id: Some(value.org_id),
             merchant_id: Some(value.merchant_id),
+            profile_id: None,
         }
     }
 }
@@ -1161,7 +1297,8 @@ impl From<ProfileLevel> for EntityInfo {
         Self {
             entity_id: value.profile_id.get_string_repr().to_owned(),
             entity_type: EntityType::Profile,
-            org_id: value.org_id,
+            tenant_id: value.tenant_id,
+            org_id: Some(value.org_id),
             merchant_id: Some(value.merchant_id),
             profile_id: Some(value.profile_id),
         }
@@ -1181,12 +1318,13 @@ where
             last_modified_by: self.last_modified_by,
             created_at: self.created_at,
             last_modified: self.last_modified,
-            org_id: Some(entity.org_id),
+            org_id: entity.org_id,
             merchant_id: entity.merchant_id,
             profile_id: entity.profile_id,
             entity_id: Some(entity.entity_id),
             entity_type: Some(entity.entity_type),
             version: UserRoleVersion::V2,
+            tenant_id: entity.tenant_id,
         }
     }
 
@@ -1196,7 +1334,7 @@ where
         let new_v2_role = self.convert_to_new_v2_role(entity.into());
 
         state
-            .store
+            .global_store
             .insert_user_role(new_v2_role)
             .await
             .change_context(UserErrors::InternalServerError)

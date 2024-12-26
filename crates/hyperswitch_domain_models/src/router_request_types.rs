@@ -1,13 +1,9 @@
 pub mod authentication;
 pub mod fraud_check;
-use api_models::payments::{AdditionalPaymentData, Address, RequestSurchargeDetails};
-use common_utils::{
-    consts, errors,
-    ext_traits::OptionExt,
-    id_type, pii,
-    types::{self as common_types, MinorUnit},
-};
-use diesel_models::enums as storage_enums;
+pub mod unified_authentication_service;
+use api_models::payments::{AdditionalPaymentData, RequestSurchargeDetails};
+use common_utils::{consts, errors, ext_traits::OptionExt, id_type, pii, types::MinorUnit};
+use diesel_models::{enums as storage_enums, types::OrderDetailsWithAmount};
 use error_stack::ResultExt;
 use masking::Secret;
 use serde::Serialize;
@@ -15,6 +11,7 @@ use serde_with::serde_as;
 
 use super::payment_method_data::PaymentMethodData;
 use crate::{
+    address,
     errors::api_error_response::ApiErrorResponse,
     mandates, payments,
     router_data::{self, RouterData},
@@ -32,6 +29,7 @@ pub struct PaymentsAuthorizeData {
     /// get_total_surcharge_amount() // returns surcharge_amount + tax_on_surcharge_amount
     /// ```
     pub amount: i64,
+    pub order_tax_amount: Option<MinorUnit>,
     pub email: Option<pii::Email>,
     pub customer_name: Option<Secret<String>>,
     pub currency: storage_enums::Currency,
@@ -49,7 +47,7 @@ pub struct PaymentsAuthorizeData {
     pub customer_acceptance: Option<mandates::CustomerAcceptance>,
     pub setup_mandate_details: Option<mandates::MandateData>,
     pub browser_info: Option<BrowserInformation>,
-    pub order_details: Option<Vec<api_models::payments::OrderDetailsWithAmount>>,
+    pub order_details: Option<Vec<OrderDetailsWithAmount>>,
     pub order_category: Option<String>,
     pub session_token: Option<String>,
     pub enrolled_for_3ds: bool,
@@ -61,7 +59,7 @@ pub struct PaymentsAuthorizeData {
     pub request_incremental_authorization: bool,
     pub metadata: Option<serde_json::Value>,
     pub authentication_data: Option<AuthenticationData>,
-    pub charges: Option<PaymentCharges>,
+    pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
 
     // New amount for amount frame work
     pub minor_amount: MinorUnit,
@@ -106,13 +104,6 @@ pub struct SyncIntegrityObject {
     pub amount: Option<MinorUnit>,
     /// Sync currency
     pub currency: Option<storage_enums::Currency>,
-}
-
-#[derive(Debug, serde::Deserialize, Clone)]
-pub struct PaymentCharges {
-    pub charge_type: api_models::enums::PaymentChargeType,
-    pub fees: MinorUnit,
-    pub transfer_account_id: String,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -288,7 +279,7 @@ pub struct PaymentsPreProcessingData {
     pub payment_method_type: Option<storage_enums::PaymentMethodType>,
     pub setup_mandate_details: Option<mandates::MandateData>,
     pub capture_method: Option<storage_enums::CaptureMethod>,
-    pub order_details: Option<Vec<api_models::payments::OrderDetailsWithAmount>>,
+    pub order_details: Option<Vec<OrderDetailsWithAmount>>,
     pub router_return_url: Option<String>,
     pub webhook_url: Option<String>,
     pub complete_authorize_url: Option<String>,
@@ -444,8 +435,7 @@ pub struct PaymentsSyncData {
     pub payment_method_type: Option<storage_enums::PaymentMethodType>,
     pub currency: storage_enums::Currency,
     pub payment_experience: Option<common_enums::PaymentExperience>,
-    pub charges: Option<PaymentCharges>,
-
+    pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
     pub amount: MinorUnit,
     pub integrity_object: Option<SyncIntegrityObject>,
 }
@@ -496,6 +486,9 @@ pub struct BrowserInformation {
     pub ip_address: Option<std::net::IpAddr>,
     pub accept_header: Option<String>,
     pub user_agent: Option<String>,
+    pub os_type: Option<String>,
+    pub os_version: Option<String>,
+    pub device_model: Option<String>,
 }
 
 #[derive(Debug, Clone, Default, Serialize)]
@@ -589,7 +582,7 @@ pub struct AuthenticationData {
     pub eci: Option<String>,
     pub cavv: String,
     pub threeds_server_transaction_id: String,
-    pub message_version: common_types::SemanticVersion,
+    pub message_version: common_utils::types::SemanticVersion,
     pub ds_trans_id: Option<String>,
 }
 
@@ -611,12 +604,13 @@ pub struct RefundsData {
     pub connector_metadata: Option<serde_json::Value>,
     pub browser_info: Option<BrowserInformation>,
     /// Charges associated with the payment
-    pub charges: Option<ChargeRefunds>,
+    pub split_refunds: Option<SplitRefundsRequest>,
 
     // New amount for amount frame work
     pub minor_payment_amount: MinorUnit,
     pub minor_refund_amount: MinorUnit,
     pub integrity_object: Option<RefundIntegrityObject>,
+    pub refund_status: storage_enums::RefundStatus,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -625,6 +619,19 @@ pub struct RefundIntegrityObject {
     pub currency: storage_enums::Currency,
     /// refund amount
     pub refund_amount: MinorUnit,
+}
+
+#[derive(Debug, serde::Deserialize, Clone)]
+pub enum SplitRefundsRequest {
+    StripeSplitRefund(StripeSplitRefund),
+}
+
+#[derive(Debug, serde::Deserialize, Clone)]
+pub struct StripeSplitRefund {
+    pub charge_id: String,
+    pub transfer_account_id: String,
+    pub charge_type: api_models::enums::PaymentChargeType,
+    pub options: ChargeRefundsOptions,
 }
 
 #[derive(Debug, serde::Deserialize, Clone)]
@@ -823,10 +830,11 @@ pub struct PaymentsSessionData {
     pub currency: common_enums::Currency,
     pub country: Option<common_enums::CountryAlpha2>,
     pub surcharge_details: Option<SurchargeDetails>,
-    pub order_details: Option<Vec<api_models::payments::OrderDetailsWithAmount>>,
+    pub order_details: Option<Vec<OrderDetailsWithAmount>>,
     pub email: Option<pii::Email>,
     // Minor Unit amount for amount frame work
     pub minor_amount: MinorUnit,
+    pub apple_pay_recurring_details: Option<api_models::payments::ApplePayRecurringPaymentRequest>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -834,8 +842,8 @@ pub struct PaymentsTaxCalculationData {
     pub amount: MinorUnit,
     pub currency: storage_enums::Currency,
     pub shipping_cost: Option<MinorUnit>,
-    pub order_details: Option<Vec<api_models::payments::OrderDetailsWithAmount>>,
-    pub shipping_address: Address,
+    pub order_details: Option<Vec<OrderDetailsWithAmount>>,
+    pub shipping_address: address::Address,
 }
 
 #[derive(Debug, Clone, Default)]

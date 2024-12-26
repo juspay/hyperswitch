@@ -67,13 +67,11 @@ pub struct GenericVariableInput<T> {
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-
 pub struct BraintreeApiErrorResponse {
     pub api_error_response: ApiErrorResponse,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-
 pub struct ErrorsObject {
     pub errors: Vec<ErrorObject>,
 
@@ -82,7 +80,6 @@ pub struct ErrorsObject {
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-
 pub struct TransactionError {
     pub errors: Vec<ErrorObject>,
     pub credit_card: Option<CreditCardError>,
@@ -122,7 +119,6 @@ pub struct BraintreeErrorResponse {
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 #[serde(untagged)]
-
 pub enum ErrorResponses {
     BraintreeApiErrorResponse(Box<BraintreeApiErrorResponse>),
     BraintreeErrorResponse(Box<BraintreeErrorResponse>),
@@ -305,6 +301,7 @@ impl TryFrom<&BraintreeRouterData<&types::PaymentsAuthorizeRouterData>>
             | domain::PaymentMethodData::Crypto(_)
             | domain::PaymentMethodData::Reward
             | domain::PaymentMethodData::RealTimePayment(_)
+            | domain::PaymentMethodData::MobilePayment(_)
             | domain::PaymentMethodData::Upi(_)
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::GiftCard(_)
@@ -341,6 +338,7 @@ impl TryFrom<&BraintreeRouterData<&types::PaymentsCompleteAuthorizeRouterData>>
             | api_models::enums::PaymentMethod::BankDebit
             | api_models::enums::PaymentMethod::Reward
             | api_models::enums::PaymentMethod::RealTimePayment
+            | api_models::enums::PaymentMethod::MobilePayment
             | api_models::enums::PaymentMethod::Upi
             | api_models::enums::PaymentMethod::OpenBanking
             | api_models::enums::PaymentMethod::Voucher
@@ -905,7 +903,6 @@ pub struct BraintreeRefundResponseData {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
-
 pub struct RefundResponse {
     pub data: BraintreeRefundResponseData,
 }
@@ -1105,6 +1102,7 @@ impl TryFrom<&types::TokenizationRouterData> for BraintreeTokenRequest {
             | domain::PaymentMethodData::OpenBanking(_)
             | domain::PaymentMethodData::Reward
             | domain::PaymentMethodData::RealTimePayment(_)
+            | domain::PaymentMethodData::MobilePayment(_)
             | domain::PaymentMethodData::Upi(_)
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::GiftCard(_)
@@ -1717,6 +1715,7 @@ fn get_braintree_redirect_form(
             | domain::PaymentMethodData::OpenBanking(_)
             | domain::PaymentMethodData::Reward
             | domain::PaymentMethodData::RealTimePayment(_)
+            | domain::PaymentMethodData::MobilePayment(_)
             | domain::PaymentMethodData::Upi(_)
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::GiftCard(_)
@@ -1762,7 +1761,7 @@ pub struct BraintreeDisputeData {
     pub amount_won: Option<String>,
     pub case_number: Option<String>,
     pub chargeback_protection_level: Option<String>,
-    pub currency_iso_code: String,
+    pub currency_iso_code: enums::Currency,
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub created_at: Option<PrimitiveDateTime>,
     pub evidence: Option<DisputeEvidence>,

@@ -1,4 +1,4 @@
-use api_models::{payments::AddressDetails, webhooks::IncomingWebhookEvent};
+use api_models::webhooks::IncomingWebhookEvent;
 use cards::CardNumber;
 use common_enums::enums;
 use common_utils::{
@@ -266,6 +266,7 @@ where
             | PaymentMethodData::MandatePayment
             | PaymentMethodData::Reward
             | PaymentMethodData::RealTimePayment(_)
+            | PaymentMethodData::MobilePayment(_)
             | PaymentMethodData::Upi(_)
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::CardToken(_)
@@ -479,6 +480,7 @@ impl<T> TryFrom<&Shift4RouterData<&RouterData<T, CompleteAuthorizeData, Payments
             | Some(PaymentMethodData::Voucher(_))
             | Some(PaymentMethodData::Reward)
             | Some(PaymentMethodData::RealTimePayment(_))
+            | Some(PaymentMethodData::MobilePayment(_))
             | Some(PaymentMethodData::Upi(_))
             | Some(PaymentMethodData::OpenBanking(_))
             | Some(PaymentMethodData::CardToken(_))
@@ -553,7 +555,9 @@ where
     }
 }
 
-fn get_address_details(address_details: Option<&AddressDetails>) -> Option<Address> {
+fn get_address_details(
+    address_details: Option<&hyperswitch_domain_models::address::AddressDetails>,
+) -> Option<Address> {
     address_details.map(|address| Address {
         line1: address.line1.clone(),
         line2: address.line1.clone(),

@@ -63,9 +63,23 @@ pub struct Customer {
     pub merchant_reference_id: Option<id_type::CustomerId>,
     pub default_billing_address: Option<Encryption>,
     pub default_shipping_address: Option<Encryption>,
-    pub id: String,
+    pub id: id_type::GlobalCustomerId,
     pub version: common_enums::ApiVersion,
     pub status: DeleteStatus,
+}
+
+impl Customer {
+    /// Get the unique identifier of Customer
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+    pub fn get_id(&self) -> &id_type::CustomerId {
+        &self.customer_id
+    }
+
+    /// Get the global identifier of Customer
+    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    pub fn get_id(&self) -> &id_type::GlobalCustomerId {
+        &self.id
+    }
 }
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]

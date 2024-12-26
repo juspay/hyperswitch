@@ -16,7 +16,9 @@ use super::{
         distribution::PaymentDistributionRow, filters::PaymentFilterRow, metrics::PaymentMetricRow,
     },
     query::{Aggregate, ToSql, Window},
-    refunds::{filters::RefundFilterRow, metrics::RefundMetricRow},
+    refunds::{
+        distribution::RefundDistributionRow, filters::RefundFilterRow, metrics::RefundMetricRow,
+    },
     sdk_events::{filters::SdkEventFilter, metrics::SdkEventMetricRow},
     types::{AnalyticsCollection, AnalyticsDataSource, LoadRow, QueryExecutionError},
 };
@@ -139,6 +141,9 @@ impl AnalyticsDataSource for ClickhouseClient {
             | AnalyticsCollection::Dispute => {
                 TableEngine::CollapsingMergeTree { sign: "sign_flag" }
             }
+            AnalyticsCollection::DisputeSessionized => {
+                TableEngine::CollapsingMergeTree { sign: "sign_flag" }
+            }
             AnalyticsCollection::SdkEvents
             | AnalyticsCollection::SdkEventsAnalytics
             | AnalyticsCollection::ApiEvents
@@ -167,6 +172,7 @@ impl super::payment_intents::filters::PaymentIntentFilterAnalytics for Clickhous
 impl super::payment_intents::metrics::PaymentIntentMetricAnalytics for ClickhouseClient {}
 impl super::refunds::metrics::RefundMetricAnalytics for ClickhouseClient {}
 impl super::refunds::filters::RefundFilterAnalytics for ClickhouseClient {}
+impl super::refunds::distribution::RefundDistributionAnalytics for ClickhouseClient {}
 impl super::frm::metrics::FrmMetricAnalytics for ClickhouseClient {}
 impl super::frm::filters::FrmFilterAnalytics for ClickhouseClient {}
 impl super::sdk_events::filters::SdkEventFilterAnalytics for ClickhouseClient {}
@@ -293,6 +299,16 @@ impl TryInto<RefundFilterRow> for serde_json::Value {
     fn try_into(self) -> Result<RefundFilterRow, Self::Error> {
         serde_json::from_value(self).change_context(ParsingError::StructParseFailure(
             "Failed to parse RefundFilterRow in clickhouse results",
+        ))
+    }
+}
+
+impl TryInto<RefundDistributionRow> for serde_json::Value {
+    type Error = Report<ParsingError>;
+
+    fn try_into(self) -> Result<RefundDistributionRow, Self::Error> {
+        serde_json::from_value(self).change_context(ParsingError::StructParseFailure(
+            "Failed to parse RefundDistributionRow in clickhouse results",
         ))
     }
 }
@@ -439,6 +455,7 @@ impl ToSql<ClickhouseClient> for AnalyticsCollection {
             Self::ConnectorEvents => Ok("connector_events_audit".to_string()),
             Self::OutgoingWebhookEvent => Ok("outgoing_webhook_events_audit".to_string()),
             Self::Dispute => Ok("dispute".to_string()),
+            Self::DisputeSessionized => Ok("sessionizer_dispute".to_string()),
             Self::ActivePaymentsAnalytics => Ok("active_payments".to_string()),
         }
     }

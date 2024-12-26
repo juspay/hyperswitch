@@ -33,7 +33,7 @@ impl Customer {
     #[cfg(all(feature = "v2", feature = "customer_v2"))]
     pub async fn update_by_id(
         conn: &PgPooledConn,
-        id: String,
+        id: id_type::GlobalCustomerId,
         customer: CustomerUpdateInternal,
     ) -> StorageResult<Self> {
         match generics::generic_update_by_id::<<Self as HasTable>::Table, _, _, _>(
@@ -54,7 +54,10 @@ impl Customer {
     }
 
     #[cfg(all(feature = "v2", feature = "customer_v2"))]
-    pub async fn find_by_global_id(conn: &PgPooledConn, id: &str) -> StorageResult<Self> {
+    pub async fn find_by_global_id(
+        conn: &PgPooledConn,
+        id: &id_type::GlobalCustomerId,
+    ) -> StorageResult<Self> {
         generics::generic_find_by_id::<<Self as HasTable>::Table, _, _>(conn, id.to_owned()).await
     }
 

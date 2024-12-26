@@ -35,7 +35,7 @@ where
         dimensions: &[PaymentIntentDimensions],
         auth: &AuthInfo,
         filters: &PaymentIntentFilters,
-        granularity: &Option<Granularity>,
+        granularity: Option<Granularity>,
         time_range: &TimeRange,
         pool: &T,
     ) -> MetricsResult<HashSet<(PaymentIntentMetricsBucketIdentifier, PaymentIntentMetricRow)>>
@@ -55,10 +55,6 @@ where
                 field: None,
                 alias: Some("count"),
             })
-            .switch()?;
-
-        query_builder
-            .add_select_column("(attempt_count == 1) as first_attempt".to_string())
             .switch()?;
 
         query_builder
@@ -90,12 +86,7 @@ where
                 .switch()?;
         }
 
-        query_builder
-            .add_group_by_clause("first_attempt")
-            .attach_printable("Error grouping by first_attempt")
-            .switch()?;
-
-        if let Some(granularity) = granularity.as_ref() {
+        if let Some(granularity) = granularity {
             granularity
                 .set_group_by_clause(&mut query_builder)
                 .attach_printable("Error adding granularity")
@@ -114,6 +105,15 @@ where
                         None,
                         i.currency.as_ref().map(|i| i.0),
                         i.profile_id.clone(),
+                        i.connector.clone(),
+                        i.authentication_type.as_ref().map(|i| i.0),
+                        i.payment_method.clone(),
+                        i.payment_method_type.clone(),
+                        i.card_network.clone(),
+                        i.merchant_id.clone(),
+                        i.card_last_4.clone(),
+                        i.card_issuer.clone(),
+                        i.error_reason.clone(),
                         TimeRange {
                             start_time: match (granularity, i.start_bucket) {
                                 (Some(g), Some(st)) => g.clip_to_start(st)?,

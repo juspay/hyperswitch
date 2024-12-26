@@ -12,6 +12,7 @@ pub mod configs;
 pub mod customers;
 pub mod dashboard_metadata;
 pub mod dispute;
+pub mod dynamic_routing_stats;
 pub mod ephemeral_key;
 pub mod events;
 pub mod file;
@@ -29,6 +30,7 @@ pub mod organization;
 pub mod payment_link;
 pub mod payment_method;
 pub mod refund;
+pub mod relay;
 pub mod reverse_lookup;
 pub mod role;
 pub mod routing_algorithm;
@@ -107,6 +109,7 @@ pub trait StorageInterface:
     + payment_method::PaymentMethodInterface
     + blocklist::BlocklistInterface
     + blocklist_fingerprint::BlocklistFingerprintInterface
+    + dynamic_routing_stats::DynamicRoutingStatsInterface
     + scheduler::SchedulerInterface
     + PayoutAttemptInterface
     + PayoutsInterface
@@ -123,14 +126,14 @@ pub trait StorageInterface:
     + routing_algorithm::RoutingAlgorithmInterface
     + gsm::GsmInterface
     + unified_translations::UnifiedTranslationsInterface
-    + user_role::UserRoleInterface
     + authorization::AuthorizationInterface
     + user::sample_data::BatchSampleDataInterface
     + health_check::HealthCheckDbInterface
-    + role::RoleInterface
     + user_authentication_method::UserAuthenticationMethodInterface
     + authentication::AuthenticationInterface
     + generic_link::GenericLinkInterface
+    + relay::RelayInterface
+    + user::theme::ThemeInterface
     + 'static
 {
     fn get_scheduler_db(&self) -> Box<dyn scheduler::SchedulerInterface>;
@@ -144,7 +147,9 @@ pub trait GlobalStorageInterface:
     + Sync
     + dyn_clone::DynClone
     + user::UserInterface
+    + user_role::UserRoleInterface
     + user_key_store::UserKeyStoreInterface
+    + role::RoleInterface
     + 'static
 {
 }

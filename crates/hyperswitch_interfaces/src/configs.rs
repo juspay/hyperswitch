@@ -3,7 +3,6 @@ use common_enums::ApplicationError;
 use masking::Secret;
 use router_derive;
 use serde::Deserialize;
-
 // struct Connectors
 #[allow(missing_docs, missing_debug_implementations)]
 #[derive(Debug, Deserialize, Clone, Default, router_derive::ConfigValidate)]
@@ -13,6 +12,7 @@ pub struct Connectors {
     pub adyen: AdyenParamsWithThreeBaseUrls,
     pub adyenplatform: ConnectorParams,
     pub airwallex: ConnectorParams,
+    pub amazonpay: ConnectorParams,
     pub applepay: ConnectorParams,
     pub authorizedotnet: ConnectorParams,
     pub bambora: ConnectorParams,
@@ -27,6 +27,7 @@ pub struct Connectors {
     pub checkout: ConnectorParams,
     pub coinbase: ConnectorParams,
     pub cryptopay: ConnectorParams,
+    pub ctp_mastercard: NoParams,
     pub cybersource: ConnectorParams,
     pub datatrans: ConnectorParams,
     pub deutschebank: ConnectorParams,
@@ -46,7 +47,9 @@ pub struct Connectors {
     pub gpayments: ConnectorParams,
     pub helcim: ConnectorParams,
     pub iatapay: ConnectorParams,
+    pub inespay: ConnectorParams,
     pub itaubank: ConnectorParams,
+    pub jpmorgan: ConnectorParams,
     pub klarna: ConnectorParams,
     pub mifinity: ConnectorParams,
     pub mollie: ConnectorParams,
@@ -55,6 +58,7 @@ pub struct Connectors {
     pub nexinets: ConnectorParams,
     pub nexixpay: ConnectorParams,
     pub nmi: ConnectorParams,
+    pub nomupay: ConnectorParams,
     pub noon: ConnectorParamsWithModeType,
     pub novalnet: ConnectorParams,
     pub nuvei: ConnectorParams,
@@ -72,6 +76,7 @@ pub struct Connectors {
     pub prophetpay: ConnectorParams,
     pub rapyd: ConnectorParams,
     pub razorpay: ConnectorParamsWithKeys,
+    pub redsys: ConnectorParams,
     pub riskified: ConnectorParams,
     pub shift4: ConnectorParams,
     pub signifyd: ConnectorParams,
@@ -83,12 +88,14 @@ pub struct Connectors {
     pub thunes: ConnectorParams,
     pub trustpay: ConnectorParamsWithMoreUrls,
     pub tsys: ConnectorParams,
+    pub unified_authentication_service: ConnectorParams,
     pub volt: ConnectorParams,
     pub wellsfargo: ConnectorParams,
     pub wellsfargopayout: ConnectorParams,
     pub wise: ConnectorParams,
     pub worldline: ConnectorParams,
     pub worldpay: ConnectorParams,
+    pub xendit: ConnectorParams,
     pub zen: ConnectorParams,
     pub zsl: ConnectorParams,
 }
@@ -101,6 +108,17 @@ pub struct ConnectorParams {
     pub base_url: String,
     /// secondary base url
     pub secondary_base_url: Option<String>,
+}
+
+///struct No Param for connectors with no params
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct NoParams;
+
+impl NoParams {
+    /// function to satisfy connector param validation macro
+    pub fn validate(&self, _parent_field: &str) -> Result<(), ApplicationError> {
+        Ok(())
+    }
 }
 
 /// struct ConnectorParamsWithKeys

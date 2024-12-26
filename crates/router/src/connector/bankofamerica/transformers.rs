@@ -1,4 +1,3 @@
-use api_models::payments;
 use base64::Engine;
 use common_utils::pii;
 use masking::{ExposeInterface, PeekInterface, Secret};
@@ -319,6 +318,7 @@ impl TryFrom<&types::SetupMandateRouterData> for BankOfAmericaPaymentsRequest {
             | domain::PaymentMethodData::MandatePayment
             | domain::PaymentMethodData::Reward
             | domain::PaymentMethodData::RealTimePayment(_)
+            | domain::PaymentMethodData::MobilePayment(_)
             | domain::PaymentMethodData::Upi(_)
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::GiftCard(_)
@@ -399,6 +399,7 @@ impl<F, T>
                     | common_enums::PaymentMethod::BankDebit
                     | common_enums::PaymentMethod::Reward
                     | common_enums::PaymentMethod::RealTimePayment
+                    | common_enums::PaymentMethod::MobilePayment
                     | common_enums::PaymentMethod::Upi
                     | common_enums::PaymentMethod::Voucher
                     | common_enums::PaymentMethod::OpenBanking
@@ -492,7 +493,7 @@ impl<F, T>
 // }
 
 fn build_bill_to(
-    address_details: Option<&payments::Address>,
+    address_details: Option<&hyperswitch_domain_models::address::Address>,
     email: pii::Email,
 ) -> Result<BillTo, error_stack::Report<errors::ConnectorError>> {
     let default_address = BillTo {
@@ -1094,6 +1095,7 @@ impl TryFrom<&BankOfAmericaRouterData<&types::PaymentsAuthorizeRouterData>>
                     | domain::PaymentMethodData::Crypto(_)
                     | domain::PaymentMethodData::Reward
                     | domain::PaymentMethodData::RealTimePayment(_)
+                    | domain::PaymentMethodData::MobilePayment(_)
                     | domain::PaymentMethodData::Upi(_)
                     | domain::PaymentMethodData::Voucher(_)
                     | domain::PaymentMethodData::GiftCard(_)
@@ -1587,6 +1589,7 @@ impl<F>
                     | common_enums::PaymentMethod::BankDebit
                     | common_enums::PaymentMethod::Reward
                     | common_enums::PaymentMethod::RealTimePayment
+                    | common_enums::PaymentMethod::MobilePayment
                     | common_enums::PaymentMethod::Upi
                     | common_enums::PaymentMethod::Voucher
                     | common_enums::PaymentMethod::OpenBanking
@@ -1804,6 +1807,7 @@ impl<F>
                     | common_enums::PaymentMethod::BankDebit
                     | common_enums::PaymentMethod::Reward
                     | common_enums::PaymentMethod::RealTimePayment
+                    | common_enums::PaymentMethod::MobilePayment
                     | common_enums::PaymentMethod::Upi
                     | common_enums::PaymentMethod::Voucher
                     | common_enums::PaymentMethod::OpenBanking

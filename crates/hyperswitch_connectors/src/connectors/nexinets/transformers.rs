@@ -122,7 +122,6 @@ pub struct NexinetsBankRedirects {
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
-
 pub struct NexinetsAsyncDetails {
     pub success_url: Option<String>,
     pub cancel_url: Option<String>,
@@ -618,6 +617,7 @@ fn get_payment_details_and_product(
         | PaymentMethodData::MandatePayment
         | PaymentMethodData::Reward
         | PaymentMethodData::RealTimePayment(_)
+        | PaymentMethodData::MobilePayment(_)
         | PaymentMethodData::Upi(_)
         | PaymentMethodData::Voucher(_)
         | PaymentMethodData::GiftCard(_)

@@ -102,11 +102,15 @@ pub struct ApiModelMetaData {
     pub source_balance_account: Option<String>,
     pub brand_id: Option<String>,
     pub destination_account_number: Option<String>,
+    pub dpa_id: Option<String>,
+    pub dpa_name: Option<String>,
+    pub locale: Option<String>,
+    pub card_brands: Option<Vec<String>>,
+    pub merchant_category_code: Option<String>,
 }
 
 #[serde_with::skip_serializing_none]
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
-
 pub enum KlarnaEndpoint {
     Europe,
     NorthAmerica,

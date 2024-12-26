@@ -35,6 +35,8 @@ jwt_secret = "secret"
 password_validity_in_days = 90
 two_factor_auth_expiry_in_secs = 300
 totp_issuer_name = "Hyperswitch"
+force_two_factor_auth = false
+force_cookies = true
 
 [locker]
 host = ""
@@ -78,6 +80,7 @@ adyenplatform.base_url = "https://balanceplatform-api-test.adyen.com/"
 adyen.payout_base_url = "https://pal-test.adyen.com/"
 adyen.dispute_base_url = "https://ca-test.adyen.com/"
 airwallex.base_url = "https://api-demo.airwallex.com/"
+amazonpay.base_url = "https://pay-api.amazon.com/v2"
 applepay.base_url = "https://apple-pay-gateway.apple.com/"
 authorizedotnet.base_url = "https://apitest.authorize.net/xml/v1/request.api"
 bambora.base_url = "https://api.na.bambora.com"
@@ -101,7 +104,7 @@ digitalvirgo.base_url = "https://dcb-integration-service-sandbox-external.stagin
 dlocal.base_url = "https://sandbox.dlocal.com/"
 dummyconnector.base_url = "http://localhost:8080/dummy-connector"
 ebanx.base_url = "https://sandbox.ebanxpay.com/"
-elavon.base_url = "https://api.demo.convergepay.com"
+elavon.base_url = "https://api.demo.convergepay.com/VirtualMerchantDemo/"
 fiserv.base_url = "https://cert.api.fiservapps.com/"
 fiservemea.base_url = "https://prod.emea.api.fiservapps.com/sandbox"
 fiuu.base_url = "https://sandbox.merchant.razer.com/"
@@ -114,7 +117,10 @@ gocardless.base_url = "https://api-sandbox.gocardless.com"
 gpayments.base_url = "https://{{merchant_endpoint_prefix}}-test.api.as1.gpayments.net"
 helcim.base_url = "https://api.helcim.com/"
 iatapay.base_url = "https://sandbox.iata-pay.iata.org/api/v1"
+inespay.base_url = "https://apiflow.inespay.com/san/v21"
 itaubank.base_url = "https://sandbox.devportal.itau.com.br/"
+jpmorgan.base_url = "https://api-mock.payments.jpmorgan.com/api/v2"
+jpmorgan.secondary_base_url="https://id.payments.jpmorgan.com"
 klarna.base_url = "https://api{{klarna_region}}.playground.klarna.com/"
 mifinity.base_url = "https://demo.mifinity.com/"
 mollie.base_url = "https://api.mollie.com/v2/"
@@ -124,6 +130,7 @@ netcetera.base_url = "https://{{merchant_endpoint_prefix}}.3ds-server.prev.netce
 nexinets.base_url = "https://apitest.payengine.de/v1"
 nexixpay.base_url = "https://xpaysandbox.nexigroup.com/api/phoenix-0.0/psp/api/v1"
 nmi.base_url = "https://secure.nmi.com/"
+nomupay.base_url = "https://payout-api.sandbox.nomupay.com"
 noon.base_url = "https://api-test.noonpayments.com/"
 noon.key_mode = "Test"
 novalnet.base_url = "https://payport.novalnet.de/v2"
@@ -143,6 +150,7 @@ powertranz.base_url = "https://staging.ptranz.com/api/"
 prophetpay.base_url = "https://ccm-thirdparty.cps.golf/"
 rapyd.base_url = "https://sandboxapi.rapyd.net"
 razorpay.base_url = "https://sandbox.juspay.in/"
+redsys.base_url = "https://sis-t.redsys.es:25443/sis/realizarPago"
 riskified.base_url = "https://sandbox.riskified.com/api"
 shift4.base_url = "https://api.shift4.com/"
 signifyd.base_url = "https://api.signifyd.com/"
@@ -157,11 +165,13 @@ stripe.base_url_file_upload = "https://files.stripe.com/"
 trustpay.base_url = "https://test-tpgw.trustpay.eu/"
 trustpay.base_url_bank_redirects = "https://aapi.trustpay.eu/"
 tsys.base_url = "https://stagegw.transnox.com/"
+unified_authentication_service.base_url = "http://localhost:8000"
 volt.base_url = "https://api.sandbox.volt.io/"
 wellsfargo.base_url = "https://apitest.cybersource.com/"
 wellsfargopayout.base_url = "https://api-sandbox.wellsfargo.com/"
 worldline.base_url = "https://eu.sandbox.api-ingenico.com/"
 worldpay.base_url = "https://try.access.worldpay.com/"
+xendit.base_url = "https://api.xendit.co"
 wise.base_url = "https://api.sandbox.transferwise.tech/"
 zen.base_url = "https://api.zen-test.com/"
 zen.secondary_base_url = "https://secure.zen-test.com/"
@@ -179,6 +189,7 @@ cards = [
     "adyen",
     "adyenplatform",
     "airwallex",
+    "amazonpay",
     "authorizedotnet",
     "bambora",
     "bamboraapac",
@@ -209,13 +220,16 @@ cards = [
     "gpayments",
     "helcim",
     "iatapay",
+    "inespay",
     "itaubank",
+    "jpmorgan",
     "mollie",
     "multisafepay",
     "netcetera",
     "nexinets",
     "nexixpay",
     "nmi",
+    "nomupay",
     "noon",
     "novalnet",
     "nuvei",
@@ -240,12 +254,14 @@ cards = [
     "thunes",
     "trustpay",
     "tsys",
+    "unified_authentication_service",
     "volt",
     "wellsfargo",
     "wellsfargopayout",
     "wise",
     "worldline",
     "worldpay",
+    "xendit",
     "zen",
     "zsl",
 ]
@@ -262,6 +278,10 @@ sofort = { country =  "AT,BE,DE,ES,CH,NL", currency =  "CHF,EUR"}
 paypal = { country = "AU,NZ,CN,JP,HK,MY,TH,KR,PH,ID,AE,KW,BR,ES,GB,SE,NO,SK,AT,NL,DE,HU,CY,LU,CH,BE,FR,DK,FI,RO,HR,UA,MT,SI,GI,PT,IE,CZ,EE,LT,LV,IT,PL,IS,CA,US", currency = "AUD,BRL,CAD,CZK,DKK,EUR,HKD,HUF,INR,JPY,MYR,MXN,NZD,NOK,PHP,PLN,RUB,GBP,SGD,SEK,CHF,THB,USD" }
 klarna = { country = "AU,AT,BE,CA,CZ,DK,FI,FR,DE,GR,IE,IT,NO,PL,PT,RO,ES,SE,CH,NL,GB,US", currency = "AUD,EUR,CAD,CZK,DKK,NOK,PLN,RON,SEK,CHF,GBP,USD"}
 ideal = { country = "NL", currency = "EUR" }
+
+[pm_filters.bambora]
+credit = { country = "US,CA", currency = "USD" }
+debit = { country = "US,CA", currency = "USD" }
 
 [pm_filters.zen]
 credit = { not_available_flows = { capture_method = "manual" } }
@@ -312,19 +332,31 @@ discord_invite_url = "https://discord.gg/wJZ7DVW8mm"
 payout_eligibility = true
 
 [mandates.supported_payment_methods]
-pay_later.klarna = {connector_list = "adyen"}
-wallet.google_pay = {connector_list = "stripe,adyen,bankofamerica"}
-wallet.apple_pay = {connector_list = "stripe,adyen,bankofamerica"}
-wallet.paypal = {connector_list = "adyen"}
-card.credit = {connector_list = "stripe,adyen,authorizedotnet,cybersource,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,braintree"}
-card.debit = {connector_list = "stripe,adyen,authorizedotnet,cybersource,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,braintree"}
-bank_debit.ach = { connector_list = "gocardless,adyen" }
-bank_debit.becs = { connector_list = "gocardless" }
-bank_debit.bacs = { connector_list = "adyen" }
-bank_debit.sepa = { connector_list = "gocardless,adyen" }
-bank_redirect.ideal = {connector_list = "stripe,adyen,globalpay"}
-bank_redirect.sofort = {connector_list = "stripe,adyen,globalpay"}
-bank_redirect.giropay = {connector_list = "adyen,globalpay"}
+bank_debit.ach = { connector_list = "gocardless,adyen,stripe" }                 
+bank_debit.becs = { connector_list = "gocardless,stripe,adyen" }                      
+bank_debit.bacs = { connector_list = "stripe,gocardless" }                           
+bank_debit.sepa = { connector_list = "gocardless,adyen,stripe,deutschebank" }                
+card.credit.connector_list = "stripe,adyen,authorizedotnet,cybersource,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,braintree,nuvei,payme,wellsfargo,bamboraapac,elavon,fiuu,nexixpay,novalnet,paybox,paypal"     
+card.debit.connector_list = "stripe,adyen,authorizedotnet,cybersource,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,braintree,nuvei,payme,wellsfargo,bamboraapac,elavon,fiuu,nexixpay,novalnet,paybox,paypal"      
+pay_later.klarna.connector_list = "adyen"                       
+wallet.apple_pay.connector_list = "stripe,adyen,cybersource,noon,bankofamerica,nexinets,novalnet"        
+wallet.google_pay.connector_list = "stripe,adyen,cybersource,bankofamerica,noon,globalpay,multisafepay,novalnet"            
+wallet.paypal.connector_list = "adyen,globalpay,nexinets,novalnet,paypal"                         
+wallet.momo.connector_list = "adyen"
+wallet.kakao_pay.connector_list = "adyen"
+wallet.go_pay.connector_list = "adyen"
+wallet.gcash.connector_list = "adyen"
+wallet.dana.connector_list = "adyen"
+wallet.twint.connector_list = "adyen"
+wallet.vipps.connector_list = "adyen"
+
+bank_redirect.ideal.connector_list = "stripe,adyen,globalpay,multisafepay,nexinets"   
+bank_redirect.sofort.connector_list = "stripe,adyen,globalpay"  
+bank_redirect.giropay.connector_list = "adyen,globalpay,multisafepay,nexinets"        
+bank_redirect.bancontact_card.connector_list="adyen,stripe"
+bank_redirect.trustly.connector_list="adyen"
+bank_redirect.open_banking_uk.connector_list="adyen"
+bank_redirect.eps.connector_list="globalpay,nexinets"
 
 
 [cors]
@@ -364,20 +396,26 @@ client_secret = ""
 partner_id = ""
 
 [unmasked_headers]
-keys = "accept-language,user-agent"
+keys = "accept-language,user-agent,x-profile-id"
 
 [multitenancy]
 enabled = false
 global_tenant = { schema = "public", redis_key_prefix = "" }
 
-[multitenancy.tenants]
-public = { base_url = "http://localhost:8080", schema = "public", redis_key_prefix = "", clickhouse_database = "default"}
+[multitenancy.tenants.public]
+base_url = "http://localhost:8080" 
+schema = "public"     
+redis_key_prefix = ""
+clickhouse_database = "default"
+
+[multitenancy.tenants.public.user]
+control_center_url =  "http://localhost:9000"
 
 [email]
 sender_email = "example@example.com"
 aws_region = ""
 allowed_unverified_days = 1
-active_email_client = "SES"
+active_email_client = "NO_EMAIL_CLIENT"
 recon_recipient_email = "recon@example.com"
 prod_intent_recipient_email = "business@example.com"
 

@@ -375,7 +375,7 @@ impl TryFrom<&PaymeRouterData<&types::PaymentsPreProcessingRouterData>> for Gene
             sale_payment_method: SalePaymentMethod::try_from(&pmd)?,
             sale_type,
             transaction_id: item.router_data.payment_id.clone(),
-            sale_return_url: item.router_data.request.get_return_url()?,
+            sale_return_url: item.router_data.request.get_router_return_url()?,
             sale_callback_url: item.router_data.request.get_webhook_url()?,
             language: LANGUAGE.to_string(),
             services,
@@ -430,6 +430,7 @@ impl TryFrom<&PaymentMethodData> for SalePaymentMethod {
             | PaymentMethodData::MandatePayment
             | PaymentMethodData::Reward
             | PaymentMethodData::RealTimePayment(_)
+            | PaymentMethodData::MobilePayment(_)
             | PaymentMethodData::GiftCard(_)
             | PaymentMethodData::CardRedirect(_)
             | PaymentMethodData::Upi(_)
@@ -578,6 +579,7 @@ impl<F>
                                     merchant_identifier: None,
                                     required_billing_contact_fields: None,
                                     required_shipping_contact_fields: None,
+                                    recurring_payment_request: None,
                                 },
                             ),
                             connector: "payme".to_string(),
@@ -633,7 +635,7 @@ impl TryFrom<&PaymeRouterData<&types::PaymentsAuthorizeRouterData>> for MandateR
             sale_price: item.amount.to_owned(),
             transaction_id: item.router_data.payment_id.clone(),
             product_name,
-            sale_return_url: item.router_data.request.get_return_url()?,
+            sale_return_url: item.router_data.request.get_router_return_url()?,
             seller_payme_id,
             sale_callback_url: item.router_data.request.get_webhook_url()?,
             buyer_key: Secret::new(item.router_data.request.get_connector_mandate_id()?),
@@ -678,6 +680,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PayRequest {
             | PaymentMethodData::MandatePayment
             | PaymentMethodData::Reward
             | PaymentMethodData::RealTimePayment(_)
+            | PaymentMethodData::MobilePayment(_)
             | PaymentMethodData::Upi(_)
             | PaymentMethodData::Voucher(_)
             | PaymentMethodData::GiftCard(_)
@@ -745,6 +748,7 @@ impl TryFrom<&types::PaymentsCompleteAuthorizeRouterData> for Pay3dsRequest {
             | Some(PaymentMethodData::MandatePayment)
             | Some(PaymentMethodData::Reward)
             | Some(PaymentMethodData::RealTimePayment(_))
+            | Some(PaymentMethodData::MobilePayment(_))
             | Some(PaymentMethodData::Upi(_))
             | Some(PaymentMethodData::Voucher(_))
             | Some(PaymentMethodData::GiftCard(_))
@@ -787,6 +791,7 @@ impl TryFrom<&types::TokenizationRouterData> for CaptureBuyerRequest {
             | PaymentMethodData::MandatePayment
             | PaymentMethodData::Reward
             | PaymentMethodData::RealTimePayment(_)
+            | PaymentMethodData::MobilePayment(_)
             | PaymentMethodData::Upi(_)
             | PaymentMethodData::Voucher(_)
             | PaymentMethodData::GiftCard(_)

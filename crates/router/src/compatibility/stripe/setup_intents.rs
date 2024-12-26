@@ -78,6 +78,7 @@ pub async fn setup_intents_create(
                 payments::CallConnectorAction::Trigger,
                 None,
                 hyperswitch_domain_models::payments::HeaderPayload::default(),
+                auth.platform_merchant_account,
             )
         },
         &auth::HeaderAuth(auth::ApiKeyAuth),
@@ -86,7 +87,7 @@ pub async fn setup_intents_create(
     .await
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsRetrieveForceSync))]
 pub async fn setup_intents_retrieve(
     state: web::Data<routes::AppState>,
@@ -148,6 +149,7 @@ pub async fn setup_intents_retrieve(
                 payments::CallConnectorAction::Trigger,
                 None,
                 hyperswitch_domain_models::payments::HeaderPayload::default(),
+                auth.platform_merchant_account,
             )
         },
         &*auth_type,
@@ -224,6 +226,7 @@ pub async fn setup_intents_update(
                 payments::CallConnectorAction::Trigger,
                 None,
                 hyperswitch_domain_models::payments::HeaderPayload::default(),
+                auth.platform_merchant_account,
             )
         },
         &*auth_type,
@@ -301,6 +304,7 @@ pub async fn setup_intents_confirm(
                 payments::CallConnectorAction::Trigger,
                 None,
                 hyperswitch_domain_models::payments::HeaderPayload::default(),
+                auth.platform_merchant_account,
             )
         },
         &*auth_type,

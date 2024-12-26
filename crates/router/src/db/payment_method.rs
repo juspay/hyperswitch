@@ -1,4 +1,4 @@
-use common_utils::{id_type, types::keymanager::KeyManagerState};
+use common_utils::{ext_traits::AsyncExt, id_type, types::keymanager::KeyManagerState};
 use diesel_models::payment_method::PaymentMethodUpdateInternal;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::behaviour::{Conversion, ReverseConversion};
@@ -62,20 +62,37 @@ pub trait PaymentMethodInterface {
 
     // Need to fix this once we start moving to v2 for payment method
     #[cfg(all(feature = "v2", feature = "customer_v2"))]
-    async fn find_payment_method_list_by_global_id(
+    async fn find_payment_method_list_by_global_customer_id(
         &self,
         state: &KeyManagerState,
         key_store: &domain::MerchantKeyStore,
-        id: &str,
+        id: &id_type::GlobalCustomerId,
         limit: Option<i64>,
-    ) -> CustomResult<Vec<storage_types::PaymentMethod>, errors::StorageError>;
+    ) -> CustomResult<Vec<domain::PaymentMethod>, errors::StorageError>;
 
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "payment_methods_v2")
+    ))]
     #[allow(clippy::too_many_arguments)]
     async fn find_payment_method_by_customer_id_merchant_id_status(
         &self,
         state: &KeyManagerState,
         key_store: &domain::MerchantKeyStore,
         customer_id: &id_type::CustomerId,
+        merchant_id: &id_type::MerchantId,
+        status: common_enums::PaymentMethodStatus,
+        limit: Option<i64>,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<Vec<domain::PaymentMethod>, errors::StorageError>;
+
+    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    #[allow(clippy::too_many_arguments)]
+    async fn find_payment_method_by_global_customer_id_merchant_id_status(
+        &self,
+        state: &KeyManagerState,
+        key_store: &domain::MerchantKeyStore,
+        customer_id: &id_type::GlobalCustomerId,
         merchant_id: &id_type::MerchantId,
         status: common_enums::PaymentMethodStatus,
         limit: Option<i64>,
@@ -698,16 +715,41 @@ mod storage {
             feature = "customer_v2",
             feature = "payment_methods_v2"
         ))]
-        async fn find_payment_method_list_by_global_id(
+        async fn find_payment_method_list_by_global_customer_id(
             &self,
-            _state: &KeyManagerState,
-            _key_store: &domain::MerchantKeyStore,
-            _id: &str,
-            _limit: Option<i64>,
-        ) -> CustomResult<Vec<storage_types::PaymentMethod>, errors::StorageError> {
-            todo!()
+            state: &KeyManagerState,
+            key_store: &domain::MerchantKeyStore,
+            customer_id: &id_type::GlobalCustomerId,
+            limit: Option<i64>,
+        ) -> CustomResult<Vec<domain::PaymentMethod>, errors::StorageError> {
+            let conn = connection::pg_connection_read(self).await?;
+            let payment_methods =
+                storage_types::PaymentMethod::find_by_global_customer_id(&conn, customer_id, limit)
+                    .await
+                    .map_err(|error| report!(errors::StorageError::from(error)))?;
+
+            let pm_futures = payment_methods
+                .into_iter()
+                .map(|pm| async {
+                    pm.convert(
+                        state,
+                        key_store.key.get_inner(),
+                        key_store.merchant_id.clone().into(),
+                    )
+                    .await
+                    .change_context(errors::StorageError::DecryptionError)
+                })
+                .collect::<Vec<_>>();
+
+            let domain_payment_methods = futures::future::try_join_all(pm_futures).await?;
+
+            Ok(domain_payment_methods)
         }
 
+        #[cfg(all(
+            any(feature = "v1", feature = "v2"),
+            not(feature = "payment_methods_v2")
+        ))]
         #[instrument(skip_all)]
         async fn find_payment_method_by_customer_id_merchant_id_status(
             &self,
@@ -766,6 +808,48 @@ mod storage {
                     .await
                 }
             }?;
+
+            let pm_futures = payment_methods
+                .into_iter()
+                .map(|pm| async {
+                    pm.convert(
+                        state,
+                        key_store.key.get_inner(),
+                        key_store.merchant_id.clone().into(),
+                    )
+                    .await
+                    .change_context(errors::StorageError::DecryptionError)
+                })
+                .collect::<Vec<_>>();
+
+            let domain_payment_methods = futures::future::try_join_all(pm_futures).await?;
+
+            Ok(domain_payment_methods)
+        }
+
+        #[cfg(all(feature = "v2", feature = "customer_v2"))]
+        #[instrument(skip_all)]
+        async fn find_payment_method_by_global_customer_id_merchant_id_status(
+            &self,
+            state: &KeyManagerState,
+            key_store: &domain::MerchantKeyStore,
+            customer_id: &id_type::GlobalCustomerId,
+            merchant_id: &id_type::MerchantId,
+            status: common_enums::PaymentMethodStatus,
+            limit: Option<i64>,
+            _storage_scheme: MerchantStorageScheme,
+        ) -> CustomResult<Vec<domain::PaymentMethod>, errors::StorageError> {
+            let conn = connection::pg_connection_read(self).await?;
+            let payment_methods =
+                storage_types::PaymentMethod::find_by_global_customer_id_merchant_id_status(
+                    &conn,
+                    customer_id,
+                    merchant_id,
+                    status,
+                    limit,
+                )
+                .await
+                .map_err(|error| report!(errors::StorageError::from(error)))?;
 
             let pm_futures = payment_methods
                 .into_iter()
@@ -1112,19 +1196,41 @@ mod storage {
         // Need to fix this once we move to payment method for customer
         #[cfg(all(feature = "v2", feature = "customer_v2"))]
         #[instrument(skip_all)]
-        async fn find_payment_method_list_by_global_id(
+        async fn find_payment_method_list_by_global_customer_id(
             &self,
             state: &KeyManagerState,
             key_store: &domain::MerchantKeyStore,
-            id: &str,
+            id: &id_type::GlobalCustomerId,
             limit: Option<i64>,
-        ) -> CustomResult<Vec<storage_types::PaymentMethod>, errors::StorageError> {
+        ) -> CustomResult<Vec<domain::PaymentMethod>, errors::StorageError> {
             let conn = connection::pg_connection_read(self).await?;
-            storage_types::PaymentMethod::find_by_global_id(&conn, id, limit)
-                .await
-                .map_err(|error| report!(errors::StorageError::from(error)))
+            let payment_methods =
+                storage_types::PaymentMethod::find_by_global_customer_id(&conn, customer_id, limit)
+                    .await
+                    .map_err(|error| report!(errors::StorageError::from(error)))?;
+
+            let pm_futures = payment_methods
+                .into_iter()
+                .map(|pm| async {
+                    pm.convert(
+                        state,
+                        key_store.key.get_inner(),
+                        key_store.merchant_id.clone().into(),
+                    )
+                    .await
+                    .change_context(errors::StorageError::DecryptionError)
+                })
+                .collect::<Vec<_>>();
+
+            let domain_payment_methods = futures::future::try_join_all(pm_futures).await?;
+
+            Ok(domain_payment_methods)
         }
 
+        #[cfg(all(
+            any(feature = "v1", feature = "v2"),
+            not(feature = "payment_methods_v2")
+        ))]
         #[instrument(skip_all)]
         async fn find_payment_method_by_customer_id_merchant_id_status(
             &self,
@@ -1139,6 +1245,48 @@ mod storage {
             let conn = connection::pg_connection_read(self).await?;
             let payment_methods =
                 storage_types::PaymentMethod::find_by_customer_id_merchant_id_status(
+                    &conn,
+                    customer_id,
+                    merchant_id,
+                    status,
+                    limit,
+                )
+                .await
+                .map_err(|error| report!(errors::StorageError::from(error)))?;
+
+            let pm_futures = payment_methods
+                .into_iter()
+                .map(|pm| async {
+                    pm.convert(
+                        state,
+                        key_store.key.get_inner(),
+                        key_store.merchant_id.clone().into(),
+                    )
+                    .await
+                    .change_context(errors::StorageError::DecryptionError)
+                })
+                .collect::<Vec<_>>();
+
+            let domain_payment_methods = futures::future::try_join_all(pm_futures).await?;
+
+            Ok(domain_payment_methods)
+        }
+
+        #[cfg(all(feature = "v2", feature = "customer_v2"))]
+        #[instrument(skip_all)]
+        async fn find_payment_method_by_global_customer_id_merchant_id_status(
+            &self,
+            state: &KeyManagerState,
+            key_store: &domain::MerchantKeyStore,
+            customer_id: &id_type::GlobalCustomerId,
+            merchant_id: &id_type::MerchantId,
+            status: common_enums::PaymentMethodStatus,
+            limit: Option<i64>,
+            _storage_scheme: MerchantStorageScheme,
+        ) -> CustomResult<Vec<domain::PaymentMethod>, errors::StorageError> {
+            let conn = connection::pg_connection_read(self).await?;
+            let payment_methods =
+                storage_types::PaymentMethod::find_by_global_customer_id_merchant_id_status(
                     &conn,
                     customer_id,
                     merchant_id,
@@ -1426,21 +1574,72 @@ impl PaymentMethodInterface for MockDb {
 
     // Need to fix this once we complete v2 payment method
     #[cfg(all(feature = "v2", feature = "customer_v2"))]
-    async fn find_payment_method_list_by_global_id(
+    async fn find_payment_method_list_by_global_customer_id(
         &self,
         state: &KeyManagerState,
         key_store: &domain::MerchantKeyStore,
-        _id: &str,
+        _id: &id_type::GlobalCustomerId,
         _limit: Option<i64>,
-    ) -> CustomResult<Vec<storage_types::PaymentMethod>, errors::StorageError> {
+    ) -> CustomResult<Vec<domain::PaymentMethod>, errors::StorageError> {
         todo!()
     }
 
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "payment_methods_v2")
+    ))]
     async fn find_payment_method_by_customer_id_merchant_id_status(
         &self,
         state: &KeyManagerState,
         key_store: &domain::MerchantKeyStore,
         customer_id: &id_type::CustomerId,
+        merchant_id: &id_type::MerchantId,
+        status: common_enums::PaymentMethodStatus,
+        _limit: Option<i64>,
+        _storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<Vec<domain::PaymentMethod>, errors::StorageError> {
+        let payment_methods = self.payment_methods.lock().await;
+        let payment_methods_found: Vec<storage_types::PaymentMethod> = payment_methods
+            .iter()
+            .filter(|pm| {
+                pm.customer_id == *customer_id
+                    && pm.merchant_id == *merchant_id
+                    && pm.status == status
+            })
+            .cloned()
+            .collect();
+
+        if payment_methods_found.is_empty() {
+            Err(
+                errors::StorageError::ValueNotFound("cannot find payment methods".to_string())
+                    .into(),
+            )
+        } else {
+            let pm_futures = payment_methods_found
+                .into_iter()
+                .map(|pm| async {
+                    pm.convert(
+                        state,
+                        key_store.key.get_inner(),
+                        key_store.merchant_id.clone().into(),
+                    )
+                    .await
+                    .change_context(errors::StorageError::DecryptionError)
+                })
+                .collect::<Vec<_>>();
+
+            let domain_payment_methods = futures::future::try_join_all(pm_futures).await?;
+
+            Ok(domain_payment_methods)
+        }
+    }
+
+    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    async fn find_payment_method_by_global_customer_id_merchant_id_status(
+        &self,
+        state: &KeyManagerState,
+        key_store: &domain::MerchantKeyStore,
+        customer_id: &id_type::GlobalCustomerId,
         merchant_id: &id_type::MerchantId,
         status: common_enums::PaymentMethodStatus,
         _limit: Option<i64>,
@@ -1524,34 +1723,38 @@ impl PaymentMethodInterface for MockDb {
         payment_method_update: storage_types::PaymentMethodUpdate,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::PaymentMethod, errors::StorageError> {
-        let pm_update_res = self
-            .payment_methods
+        self.payment_methods
             .lock()
             .await
             .iter_mut()
             .find(|pm| pm.get_id() == payment_method.get_id())
-            .map(|pm| {
+            .async_map(|pm| async {
                 let payment_method_updated =
-                    PaymentMethodUpdateInternal::from(payment_method_update)
-                        .create_payment_method(pm.clone());
-                *pm = payment_method_updated.clone();
-                payment_method_updated
-            });
+                    PaymentMethodUpdateInternal::from(payment_method_update).apply_changeset(
+                        Conversion::convert(payment_method)
+                            .await
+                            .change_context(errors::StorageError::EncryptionError)?,
+                    );
 
-        match pm_update_res {
-            Some(result) => Ok(result
-                .convert(
-                    state,
-                    key_store.key.get_inner(),
-                    key_store.merchant_id.clone().into(),
+                *pm = payment_method_updated.clone();
+
+                payment_method_updated
+                    .convert(
+                        state,
+                        key_store.key.get_inner(),
+                        key_store.merchant_id.clone().into(),
+                    )
+                    .await
+                    .change_context(errors::StorageError::DecryptionError)
+            })
+            .await
+            .transpose()?
+            .ok_or(
+                errors::StorageError::ValueNotFound(
+                    "cannot find payment method to update".to_string(),
                 )
-                .await
-                .change_context(errors::StorageError::DecryptionError)?),
-            None => Err(errors::StorageError::ValueNotFound(
-                "cannot find payment method to update".to_string(),
+                .into(),
             )
-            .into()),
-        }
     }
 
     #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
@@ -1565,34 +1768,38 @@ impl PaymentMethodInterface for MockDb {
             status: Some(common_enums::PaymentMethodStatus::Inactive),
         };
 
-        let pm_update_res = self
-            .payment_methods
+        self.payment_methods
             .lock()
             .await
             .iter_mut()
             .find(|pm| pm.get_id() == payment_method.get_id())
-            .map(|pm| {
+            .async_map(|pm| async {
                 let payment_method_updated =
-                    PaymentMethodUpdateInternal::from(payment_method_update)
-                        .create_payment_method(pm.clone());
-                *pm = payment_method_updated.clone();
-                payment_method_updated
-            });
+                    PaymentMethodUpdateInternal::from(payment_method_update).apply_changeset(
+                        Conversion::convert(payment_method)
+                            .await
+                            .change_context(errors::StorageError::EncryptionError)?,
+                    );
 
-        match pm_update_res {
-            Some(result) => Ok(result
-                .convert(
-                    state,
-                    key_store.key.get_inner(),
-                    key_store.merchant_id.clone().into(),
+                *pm = payment_method_updated.clone();
+
+                payment_method_updated
+                    .convert(
+                        state,
+                        key_store.key.get_inner(),
+                        key_store.merchant_id.clone().into(),
+                    )
+                    .await
+                    .change_context(errors::StorageError::DecryptionError)
+            })
+            .await
+            .transpose()?
+            .ok_or(
+                errors::StorageError::ValueNotFound(
+                    "cannot find payment method to update".to_string(),
                 )
-                .await
-                .change_context(errors::StorageError::DecryptionError)?),
-            None => Err(errors::StorageError::ValueNotFound(
-                "cannot find payment method to update".to_string(),
+                .into(),
             )
-            .into()),
-        }
     }
 
     #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]

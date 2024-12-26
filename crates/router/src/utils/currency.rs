@@ -7,6 +7,7 @@ use error_stack::ResultExt;
 use masking::PeekInterface;
 use once_cell::sync::Lazy;
 use redis_interface::DelReply;
+use router_env::{instrument, tracing};
 use rust_decimal::Decimal;
 use strum::IntoEnumIterator;
 use tokio::{sync::RwLock, time::sleep};
@@ -26,7 +27,7 @@ const FALLBACK_FOREX_API_CURRENCY_PREFIX: &str = "USD";
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct FxExchangeRatesCacheEntry {
-    data: Arc<ExchangeRates>,
+    pub data: Arc<ExchangeRates>,
     timestamp: i64,
 }
 
@@ -150,11 +151,13 @@ impl TryFrom<DefaultExchangeRates> for ExchangeRates {
         let mut conversion_usable: HashMap<enums::Currency, CurrencyFactors> = HashMap::new();
         for (curr, conversion) in value.conversion {
             let enum_curr = enums::Currency::from_str(curr.as_str())
-                .change_context(ForexCacheError::ConversionError)?;
+                .change_context(ForexCacheError::ConversionError)
+                .attach_printable("Unable to Convert currency received")?;
             conversion_usable.insert(enum_curr, CurrencyFactors::from(conversion));
         }
         let base_curr = enums::Currency::from_str(value.base_currency.as_str())
-            .change_context(ForexCacheError::ConversionError)?;
+            .change_context(ForexCacheError::ConversionError)
+            .attach_printable("Unable to convert base currency")?;
         Ok(Self {
             base_currency: base_curr,
             conversion: conversion_usable,
@@ -170,6 +173,8 @@ impl From<Conversion> for CurrencyFactors {
         }
     }
 }
+
+#[instrument(skip_all)]
 pub async fn get_forex_rates(
     state: &SessionState,
     call_delay: i64,
@@ -235,6 +240,7 @@ async fn successive_fetch_and_save_forex(
                         Ok(rates) => Ok(successive_save_data_to_redis_local(state, rates).await?),
                         Err(error) => stale_redis_data.ok_or({
                             logger::error!(?error);
+                            release_redis_lock(state).await?;
                             ForexCacheError::ApiUnresponsive.into()
                         }),
                     }
@@ -254,9 +260,9 @@ async fn successive_save_data_to_redis_local(
 ) -> CustomResult<FxExchangeRatesCacheEntry, ForexCacheError> {
     Ok(save_forex_to_redis(state, &forex)
         .await
-        .async_and_then(|_rates| async { release_redis_lock(state).await })
+        .async_and_then(|_rates| release_redis_lock(state))
         .await
-        .async_and_then(|_val| async { Ok(save_forex_to_local(forex.clone()).await) })
+        .async_and_then(|_val| save_forex_to_local(forex.clone()))
         .await
         .map_or_else(
             |error| {
@@ -336,11 +342,15 @@ async fn fetch_forex_rates(
             false,
         )
         .await
-        .change_context(ForexCacheError::ApiUnresponsive)?;
+        .change_context(ForexCacheError::ApiUnresponsive)
+        .attach_printable("Primary forex fetch api unresponsive")?;
     let forex_response = response
         .json::<ForexResponse>()
         .await
-        .change_context(ForexCacheError::ParsingError)?;
+        .change_context(ForexCacheError::ParsingError)
+        .attach_printable(
+            "Unable to parse response received from primary api into ForexResponse",
+        )?;
 
     logger::info!("{:?}", forex_response);
 
@@ -392,11 +402,16 @@ pub async fn fallback_fetch_forex_rates(
             false,
         )
         .await
-        .change_context(ForexCacheError::ApiUnresponsive)?;
+        .change_context(ForexCacheError::ApiUnresponsive)
+        .attach_printable("Fallback forex fetch api unresponsive")?;
+
     let fallback_forex_response = response
         .json::<FallbackForexResponse>()
         .await
-        .change_context(ForexCacheError::ParsingError)?;
+        .change_context(ForexCacheError::ParsingError)
+        .attach_printable(
+            "Unable to parse response received from falback api into ForexResponse",
+        )?;
 
     logger::info!("{:?}", fallback_forex_response);
     let mut conversions: HashMap<enums::Currency, CurrencyFactors> = HashMap::new();
@@ -421,7 +436,13 @@ pub async fn fallback_fetch_forex_rates(
                 conversions.insert(enum_curr, currency_factors);
             }
             None => {
-                logger::error!("Rates for {} not received from API", &enum_curr);
+                if enum_curr == enums::Currency::USD {
+                    let currency_factors =
+                        CurrencyFactors::new(Decimal::new(1, 0), Decimal::new(1, 0));
+                    conversions.insert(enum_curr, currency_factors);
+                } else {
+                    logger::error!("Rates for {} not received from API", &enum_curr);
+                }
             }
         };
     }
@@ -447,6 +468,7 @@ async fn release_redis_lock(
         .delete_key(REDIX_FOREX_CACHE_KEY)
         .await
         .change_context(ForexCacheError::RedisLockReleaseFailed)
+        .attach_printable("Unable to release redis lock")
 }
 
 async fn acquire_redis_lock(state: &SessionState) -> CustomResult<bool, ForexCacheError> {
@@ -469,6 +491,7 @@ async fn acquire_redis_lock(state: &SessionState) -> CustomResult<bool, ForexCac
         .await
         .map(|val| matches!(val, redis_interface::SetnxReply::KeySet))
         .change_context(ForexCacheError::CouldNotAcquireLock)
+        .attach_printable("Unable to acquire redis lock")
 }
 
 async fn save_forex_to_redis(
@@ -482,6 +505,7 @@ async fn save_forex_to_redis(
         .serialize_and_set_key(REDIX_FOREX_CACHE_DATA, forex_exchange_cache_entry)
         .await
         .change_context(ForexCacheError::RedisWriteError)
+        .attach_printable("Unable to save forex data to redis")
 }
 
 async fn retrieve_forex_from_redis(
@@ -494,6 +518,7 @@ async fn retrieve_forex_from_redis(
         .get_and_deserialize_key(REDIX_FOREX_CACHE_DATA, "FxExchangeRatesCache")
         .await
         .change_context(ForexCacheError::EntryNotFound)
+        .attach_printable("Forex entry not found in redis")
 }
 
 async fn is_redis_expired(
@@ -509,6 +534,7 @@ async fn is_redis_expired(
     })
 }
 
+#[instrument(skip_all)]
 pub async fn convert_currency(
     state: SessionState,
     amount: i64,
@@ -526,14 +552,17 @@ pub async fn convert_currency(
     .change_context(ForexCacheError::ApiError)?;
 
     let to_currency = enums::Currency::from_str(to_currency.as_str())
-        .change_context(ForexCacheError::CurrencyNotAcceptable)?;
+        .change_context(ForexCacheError::CurrencyNotAcceptable)
+        .attach_printable("The provided currency is not acceptable")?;
 
     let from_currency = enums::Currency::from_str(from_currency.as_str())
-        .change_context(ForexCacheError::CurrencyNotAcceptable)?;
+        .change_context(ForexCacheError::CurrencyNotAcceptable)
+        .attach_printable("The provided currency is not acceptable")?;
 
     let converted_amount =
         currency_conversion::conversion::convert(&rates.data, from_currency, to_currency, amount)
-            .change_context(ForexCacheError::ConversionError)?;
+            .change_context(ForexCacheError::ConversionError)
+            .attach_printable("Unable to perform currency conversion")?;
 
     Ok(api_models::currency::CurrencyConversionResponse {
         converted_amount: converted_amount.to_string(),

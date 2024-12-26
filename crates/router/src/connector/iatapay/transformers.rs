@@ -6,9 +6,7 @@ use masking::{Secret, SwitchStrategy};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{
-        self as connector_util, PaymentsAuthorizeRequestData, RefundsRequestData, RouterData,
-    },
+    connector::utils::{self as connector_util, PaymentsAuthorizeRequestData, RefundsRequestData},
     consts,
     core::errors,
     services,
@@ -128,7 +126,7 @@ impl
             >,
         >,
     ) -> Result<Self, Self::Error> {
-        let return_url = item.router_data.get_return_url()?;
+        let return_url = item.router_data.request.get_router_return_url()?;
         // Iatapay processes transactions through the payment method selected based on the country
         let (country, payer_info, preferred_checkout_method) =
             match item.router_data.request.payment_method_data.clone() {
@@ -203,6 +201,7 @@ impl
                 | domain::PaymentMethodData::Crypto(_)
                 | domain::PaymentMethodData::MandatePayment
                 | domain::PaymentMethodData::Reward
+                | domain::PaymentMethodData::MobilePayment(_)
                 | domain::PaymentMethodData::Voucher(_)
                 | domain::PaymentMethodData::GiftCard(_)
                 | domain::PaymentMethodData::CardToken(_)

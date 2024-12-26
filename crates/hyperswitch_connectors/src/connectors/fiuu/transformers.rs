@@ -101,7 +101,9 @@ impl TryFrom<Option<CaptureMethod>> for TxnType {
     type Error = Report<errors::ConnectorError>;
     fn try_from(capture_method: Option<CaptureMethod>) -> Result<Self, Self::Error> {
         match capture_method {
-            Some(CaptureMethod::Automatic) => Ok(Self::Sals),
+            Some(CaptureMethod::Automatic) | Some(CaptureMethod::SequentialAutomatic) | None => {
+                Ok(Self::Sals)
+            }
             Some(CaptureMethod::Manual) => Ok(Self::Auts),
             _ => Err(errors::ConnectorError::CaptureMethodNotSupported.into()),
         }
@@ -205,8 +207,11 @@ impl TryFrom<&FiuuRouterData<&PaymentsAuthorizeRouterData>> for FiuuMandateReque
         let order_id = item.router_data.connector_request_reference_id.clone();
         let currency = item.router_data.request.currency;
         let amount = item.amount.clone();
-        let billing_name = item.router_data.get_billing_full_name()?;
-        let email = item.router_data.request.get_email()?;
+        let billing_name = item
+            .router_data
+            .request
+            .get_card_holder_name_from_additional_payment_method_data()?;
+        let email = item.router_data.get_billing_email()?;
         let token = Secret::new(item.router_data.request.get_connector_mandate_id()?);
         let verify_key = auth.verify_key;
         let recurring_request = FiuuRecurringRequest {
@@ -313,8 +318,6 @@ pub struct FiuuCardData {
     cc_year: Secret<String>,
     #[serde(rename = "mpstokenstatus")]
     mps_token_status: Option<i32>,
-    #[serde(rename = "CustName")]
-    customer_name: Option<Secret<String>>,
     #[serde(rename = "CustEmail")]
     customer_email: Option<Email>,
 }
@@ -514,6 +517,7 @@ impl TryFrom<&FiuuRouterData<&PaymentsAuthorizeRouterData>> for FiuuPaymentReque
             | PaymentMethodData::BankTransfer(_)
             | PaymentMethodData::Crypto(_)
             | PaymentMethodData::MandatePayment
+            | PaymentMethodData::MobilePayment(_)
             | PaymentMethodData::Reward
             | PaymentMethodData::Upi(_)
             | PaymentMethodData::Voucher(_)
@@ -548,15 +552,11 @@ impl TryFrom<(&Card, &PaymentsAuthorizeRouterData)> for FiuuPaymentMethodData {
     fn try_from(
         (req_card, item): (&Card, &PaymentsAuthorizeRouterData),
     ) -> Result<Self, Self::Error> {
-        let (mps_token_status, customer_name, customer_email) =
+        let (mps_token_status, customer_email) =
             if item.request.is_customer_initiated_mandate_payment() {
-                (
-                    Some(1),
-                    Some(item.request.get_customer_name()?),
-                    Some(item.request.get_email()?),
-                )
+                (Some(1), Some(item.get_billing_email()?))
             } else {
-                (None, None, None)
+                (None, None)
             };
         let non_3ds = match item.is_three_ds() {
             false => 1,
@@ -570,7 +570,6 @@ impl TryFrom<(&Card, &PaymentsAuthorizeRouterData)> for FiuuPaymentMethodData {
             cc_month: req_card.card_exp_month.clone(),
             cc_year: req_card.card_exp_year.clone(),
             mps_token_status,
-            customer_name,
             customer_email,
         })))
     }
@@ -730,7 +729,7 @@ pub struct NonThreeDSResponseData {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ExtraParameters {
-    token: Option<Secret<String>>,
+    pub token: Option<Secret<String>>,
 }
 
 impl<F>
@@ -994,6 +993,8 @@ pub struct FiuuRefundSuccessResponse {
     #[serde(rename = "RefundID")]
     refund_id: i64,
     status: String,
+    #[serde(rename = "reason")]
+    reason: Option<String>,
 }
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(untagged)]
@@ -1020,20 +1021,40 @@ impl TryFrom<RefundsResponseRouterData<Execute, FiuuRefundResponse>>
                 }),
                 ..item.data
             }),
-            FiuuRefundResponse::Success(refund_data) => Ok(Self {
-                response: Ok(RefundsResponseData {
-                    connector_refund_id: refund_data.refund_id.to_string(),
-                    refund_status: match refund_data.status.as_str() {
-                        "00" => Ok(enums::RefundStatus::Success),
-                        "11" => Ok(enums::RefundStatus::Failure),
-                        "22" => Ok(enums::RefundStatus::Pending),
-                        other => Err(errors::ConnectorError::UnexpectedResponseError(
-                            bytes::Bytes::from(other.to_owned()),
-                        )),
-                    }?,
-                }),
-                ..item.data
-            }),
+            FiuuRefundResponse::Success(refund_data) => {
+                let refund_status = match refund_data.status.as_str() {
+                    "00" => Ok(enums::RefundStatus::Success),
+                    "11" => Ok(enums::RefundStatus::Failure),
+                    "22" => Ok(enums::RefundStatus::Pending),
+                    other => Err(errors::ConnectorError::UnexpectedResponseError(
+                        bytes::Bytes::from(other.to_owned()),
+                    )),
+                }?;
+                if refund_status == enums::RefundStatus::Failure {
+                    Ok(Self {
+                        response: Err(ErrorResponse {
+                            code: refund_data.status.clone(),
+                            message: refund_data
+                                .reason
+                                .clone()
+                                .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+                            reason: refund_data.reason.clone(),
+                            status_code: item.http_code,
+                            attempt_status: None,
+                            connector_transaction_id: None,
+                        }),
+                        ..item.data
+                    })
+                } else {
+                    Ok(Self {
+                        response: Ok(RefundsResponseData {
+                            connector_refund_id: refund_data.refund_id.to_string(),
+                            refund_status,
+                        }),
+                        ..item.data
+                    })
+                }
+            }
         }
     }
 }
@@ -1247,7 +1268,9 @@ impl TryFrom<FiuuWebhookStatus> for enums::AttemptStatus {
     fn try_from(webhook_status: FiuuWebhookStatus) -> Result<Self, Self::Error> {
         match webhook_status.status {
             FiuuPaymentWebhookStatus::Success => match webhook_status.capture_method {
-                Some(CaptureMethod::Automatic) => Ok(Self::Charged),
+                Some(CaptureMethod::Automatic) | Some(CaptureMethod::SequentialAutomatic) => {
+                    Ok(Self::Charged)
+                }
                 Some(CaptureMethod::Manual) => Ok(Self::Authorized),
                 _ => Err(errors::ConnectorError::UnexpectedResponseError(
                     bytes::Bytes::from(webhook_status.status.to_string()),
