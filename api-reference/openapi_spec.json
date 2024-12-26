@@ -990,8 +990,10 @@
                     "connector_id": "mca_5apGeP94tMts6rg3U3kR",
                     "connector_resource_id": "7256228702616471803954",
                     "data": {
-                      "amount": 6540,
-                      "currency": "USD"
+                      "refund": {
+                        "amount": 6540,
+                        "currency": "USD"
+                      }
                     },
                     "type": "refund"
                   }
