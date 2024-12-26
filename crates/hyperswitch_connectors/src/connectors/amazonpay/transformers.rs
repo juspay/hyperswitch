@@ -36,36 +36,40 @@ impl<T> From<(StringMajorUnit, T)> for AmazonpayRouterData<T> {
 }
 
 #[derive(Default, Debug, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct AmazonpayFinalizeRequest {
-    charge_amount: AmazonpayChargeAmount,
-    total_order_amount: Option<AmazonpayTotalOrderAmount>,
-    shipping_address: AmazonpayAddressDetails,
-    payment_intent: AmazonpayPaymentIntent,
+    charge_amount: ChargeAmount,
+    total_order_amount: Option<TotalOrderAmount>,
+    shipping_address: AddressDetails,
+    payment_intent: PaymentIntent,
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct AmazonpayChargeAmount {
+#[serde(rename_all = "camelCase")]
+pub struct ChargeAmount {
     amount: StringMajorUnit,
     currency_code: common_enums::Currency,
 }
 
 #[derive(Default, Debug, Serialize, PartialEq)]
-pub struct AmazonpayTotalOrderAmount {
+#[serde(rename_all = "camelCase")]
+pub struct TotalOrderAmount {
     amount: Option<StringMajorUnit>,
     currency_code: Option<common_enums::Currency>,
     can_handle_pending_authorization: Option<bool>,
     supplementary_data: Option<String>,
 }
 
-#[derive(Default, Debug, Serialize, PartialEq)]
-pub struct AmazonpayAddressDetails {
+#[derive(Default, Debug, Deserialize, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct AddressDetails {
     name: Option<String>,
     address_line_1: Option<String>,
     address_line_2: Option<String>,
     address_line_3: Option<String>,
     city: Option<String>,
-    country: Option<String>,
-    district: Option<String>,
+    // country: Option<String>,
+    // district: Option<String>,
     state_or_region: Option<String>,
     postal_code: Option<String>,
     country_code: Option<common_enums::CountryAlpha2>,
@@ -73,7 +77,7 @@ pub struct AmazonpayAddressDetails {
 }
 
 #[derive(Default, Debug, Serialize, PartialEq)]
-pub enum AmazonpayPaymentIntent {
+pub enum PaymentIntent {
     Authorize,
     AuthorizeWithCapture,
     #[default]
@@ -82,12 +86,12 @@ pub enum AmazonpayPaymentIntent {
 
 fn get_amazonpay_capture_type(
     item: Option<CaptureMethod>,
-) -> CustomResult<Option<AmazonpayPaymentIntent>, errors::ConnectorError> {
+) -> CustomResult<Option<PaymentIntent>, errors::ConnectorError> {
     match item {
-        Some(CaptureMethod::Manual) => Ok(Some(AmazonpayPaymentIntent::Authorize)),
-        Some(CaptureMethod::Automatic) => Ok(Some(AmazonpayPaymentIntent::AuthorizeWithCapture)),
+        Some(CaptureMethod::Manual) => Ok(Some(PaymentIntent::Authorize)),
+        Some(CaptureMethod::Automatic) => Ok(Some(PaymentIntent::AuthorizeWithCapture)),
         Some(CaptureMethod::SequentialAutomatic) | None => {
-            Ok(Some(AmazonpayPaymentIntent::Confirm))
+            Ok(Some(PaymentIntent::Confirm))
         }
         Some(item) => Err(errors::ConnectorError::FlowNotSupported {
             flow: item.to_string(),
@@ -102,21 +106,21 @@ impl TryFrom<&AmazonpayRouterData<&PaymentsAuthorizeRouterData>> for AmazonpayFi
     fn try_from(
         item: &AmazonpayRouterData<&PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
-        let charge_amount = AmazonpayChargeAmount {
+        let charge_amount = ChargeAmount {
             amount: item.amount.clone(),
             currency_code: common_enums::Currency::USD,
         };
         let shipping_address_details = item.router_data.address.get_shipping();
         let shipping_address = if let Some(shipping) = shipping_address_details {
             if let Some(address_details) = shipping.address.as_ref() {
-                AmazonpayAddressDetails {
+                AddressDetails {
                     name: address_details
                         .get_optional_full_name()
-                        .map(|secret_name| secret_name.peek().to_string()), // Map name
+                        .map(|secret_name| secret_name.peek().to_string()), 
                     address_line_1: address_details
                         .line1
                         .clone()
-                        .map(|l1| l1.peek().to_string()), // Unwrap Secret and convert to string
+                        .map(|l1| l1.peek().to_string()),
                     address_line_2: address_details
                         .line2
                         .clone()
@@ -126,8 +130,8 @@ impl TryFrom<&AmazonpayRouterData<&PaymentsAuthorizeRouterData>> for AmazonpayFi
                         .clone()
                         .map(|l3| l3.peek().to_string()),
                     city: address_details.city.clone(),
-                    country: address_details.country.map(|country| country.to_string()), // Assuming CountryAlpha2 has a to_string implementation
-                    district: None, // If no specific field is available, set to None
+                    // country: address_details.country.map(|country| country.to_string()), 
+                    // district: None, // If no specific field is available, set to None
                     state_or_region: address_details
                         .state
                         .clone()
@@ -141,16 +145,19 @@ impl TryFrom<&AmazonpayRouterData<&PaymentsAuthorizeRouterData>> for AmazonpayFi
                         .phone
                         .as_ref()
                         .and_then(|phone| phone.number.as_ref())
-                        .map(|phone_number| phone_number.peek().to_string()), // Map phone number
+                        .map(|phone_number| phone_number.peek().to_string()), 
                 }
             } else {
-                AmazonpayAddressDetails::default()
+                AddressDetails::default()
             }
         } else {
-            AmazonpayAddressDetails::default()
+            AddressDetails::default()
         };
         let payment_intent = get_amazonpay_capture_type(item.router_data.request.capture_method)?
             .unwrap_or_default();
+        println!(">>>>>>> FINALIZE REQUEST <<<<<<<");
+        // println!("{}", charge_amount.amount);
+        // println!("{}", charge_amount.cuurency_code);
         Ok(Self {
             charge_amount,
             total_order_amount: None,
@@ -160,46 +167,47 @@ impl TryFrom<&AmazonpayRouterData<&PaymentsAuthorizeRouterData>> for AmazonpayFi
     }
 }
 
-#[derive(Default, Debug, Serialize, PartialEq)]
+#[derive(Default, Debug, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct AmazonpayFinalizeResponse {
     checkout_session_id: String,
-    web_checkout_details: AmazonpayWebCheckoutDetails,
+    web_checkout_details: WebCheckoutDetails,
     product_type: Option<String>,
-    payment_details: AmazonpayPaymentDetails,
-    cart_details: AmazonpayCartDetails,
+    payment_details: Option<PaymentDetails>,
+    cart_details: CartDetails,
     charge_permission_type: String,
     order_type: Option<String>,
-    recurring_metadata: AmazonpayRecurringMetadata,
+    recurring_metadata: Option<RecurringMetadata>,
     payment_method_on_file_metadata: Option<String>, // not sure
     processor_specifications: Option<String>,        // not sure
     merchant_details: Option<String>,
-    merchant_metadata: AmazonpayMerchantMetadata,
-    supplementary_data: String,
-    buyer: AmazonpayBuyerDetails,
-    billing_address: AmazonpayAddressDetails,
+    merchant_metadata: Option<MerchantMetadata>,
+    supplementary_data: Option<String>,
+    buyer: Option<BuyerDetails>,
+    billing_address: Option<AddressDetails>,
     payment_preferences: Option<String>, // not sure
-    status_details: AmazonpayFinalizeStatusDetails,
-    shipping_address: AmazonpayAddressDetails,
+    status_details: FinalizeStatusDetails,
+    shipping_address: Option<AddressDetails>,
     platform_id: Option<String>,
     charge_permission_id: String,
     charge_id: Option<String>,
     constraints: Option<String>, // not sure
     creation_timestamp: String,
-    expiration_timestamp: String,
+    expiration_timestamp: Option<String>,
     store_id: Option<String>,
-    provider_metadata: Option<AmazonpayProviderMetadata>,
-    release_environment: Option<AmazonpayReleaseEnvironment>,
+    provider_metadata: Option<ProviderMetadata>,
+    release_environment: Option<ReleaseEnvironment>,
     checkout_button_text: Option<String>,
-    delivery_specifications: AmazonpayDeliverySpecifications,
+    delivery_specifications: Option<DeliverySpecifications>,
     tokens: Option<String>,               // not sure
     disbursement_details: Option<String>, // not sure
-    payment_processing_meta_data: AmazonpayPaymentProcessingMetaData,
+    channel_type: Option<String>, // not sure
+    payment_processing_meta_data: PaymentProcessingMetaData,
 }
 
 #[derive(Clone, Default, Debug, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
-pub struct AmazonpayWebCheckoutDetails {
+pub struct WebCheckoutDetails {
     checkout_review_return_url: Option<String>,
     checkout_result_return_url: Option<String>,
     amazon_pay_redirect_url: Option<String>,
@@ -212,58 +220,58 @@ pub struct AmazonpayWebCheckoutDetails {
     checkout_cancel_url: Option<String>,
 }
 
-#[derive(Default, Debug, Serialize, PartialEq)]
+#[derive(Default, Debug, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
-pub struct AmazonpayPaymentDetails {
+pub struct PaymentDetails {
     payment_intent: String,
     can_handle_pending_authorization: bool,
-    charge_amount: AmazonpayChargeAmount,
-    total_order_amount: AmazonpayChargeAmount, // have to see
+    charge_amount: ChargeAmount,
+    total_order_amount: ChargeAmount, // have to see
     presentment_currency: String,
     soft_descriptor: String,
     allow_overcharge: bool,
     extend_expiration: bool,
 }
 
-#[derive(Default, Debug, Serialize, PartialEq)]
+#[derive(Default, Debug, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
-pub struct AmazonpayCartDetails {
+pub struct CartDetails {
     line_items: Vec<String>,
-    delivery_options: Vec<AmazonpayDeliveryOptions>,
+    delivery_options: Vec<DeliveryOptions>,
 }
 
-#[derive(Default, Debug, Serialize, PartialEq)]
+#[derive(Default, Debug, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
-pub struct AmazonpayDeliveryOptions {
+pub struct DeliveryOptions {
     id: String,
-    price: AmazonpayChargeAmount,
-    shipping_method: AmazonpayShippingMethod,
+    price: ChargeAmount,
+    shipping_method: ShippingMethod,
     is_default: bool,
 }
 
-#[derive(Default, Debug, Serialize, PartialEq)]
+#[derive(Default, Debug, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
-pub struct AmazonpayShippingMethod {
+pub struct ShippingMethod {
     shipping_method_name: String,
 }
 
-#[derive(Default, Debug, Serialize, PartialEq)]
+#[derive(Default, Debug, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
-pub struct AmazonpayRecurringMetadata {
+pub struct RecurringMetadata {
     frequency: Frequency,
-    amount: AmazonpayChargeAmount,
+    amount: ChargeAmount,
 }
 
-#[derive(Default, Debug, Serialize, PartialEq)]
+#[derive(Default, Debug, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Frequency {
     unit: String,
     value: String,
 }
 
-#[derive(Default, Debug, Serialize, PartialEq)]
+#[derive(Default, Debug, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
-pub struct AmazonpayBuyerDetails {
+pub struct BuyerDetails {
     buyer_id: String,
     name: String,
     email: String,
@@ -271,56 +279,56 @@ pub struct AmazonpayBuyerDetails {
     prime_membership_types: Vec<String>,
 }
 
-#[derive(Default, Debug, Serialize, PartialEq)]
+#[derive(Default, Debug, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
-pub struct AmazonpayFinalizeStatusDetails {
-    state: AmazonpayFinalizeState,
-    reason_code: String,
-    reason_description: String,
+pub struct FinalizeStatusDetails {
+    state: FinalizeState,
+    reason_code: Option<String>,
+    reason_description: Option<String>,
     last_updated_timestamp: String,
 }
 
-#[derive(Default, Debug, Serialize, PartialEq)]
-pub enum AmazonpayFinalizeState {
+#[derive(Default, Debug, Deserialize, Serialize, PartialEq)]
+pub enum FinalizeState {
     #[default]
     Open,
     Completed,
     Canceled,
 }
 
-#[derive(Default, Debug, Serialize, PartialEq)]
+#[derive(Default, Debug, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
-pub struct AmazonpayDeliverySpecifications {
+pub struct DeliverySpecifications {
     special_restrictions: Vec<String>,
-    address_restrictions: AmazonpayAddressRestrictions,
+    address_restrictions: AddressRestrictions,
 }
 
-#[derive(Default, Debug, Serialize, PartialEq)]
+#[derive(Default, Debug, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
-pub struct AmazonpayAddressRestrictions {
+pub struct AddressRestrictions {
     r#type: String,
     restrictions: HashMap<String, Restriction>,
 }
 
-#[derive(Default, Debug, Serialize, PartialEq)]
+#[derive(Default, Debug, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Restriction {
     pub states_or_regions: Vec<String>,
     pub zip_codes: Vec<String>,
 }
 
-#[derive(Default, Debug, Serialize, PartialEq)]
+#[derive(Default, Debug, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
-pub struct AmazonpayPaymentProcessingMetaData {
+pub struct PaymentProcessingMetaData {
     payment_processing_model: String,
 }
 
-impl From<AmazonpayFinalizeState> for common_enums::AttemptStatus {
-    fn from(item: AmazonpayFinalizeState) -> Self {
+impl From<FinalizeState> for common_enums::AttemptStatus {
+    fn from(item: FinalizeState) -> Self {
         match item {
-            AmazonpayFinalizeState::Open => Self::AuthenticationPending, // or Started?
-            AmazonpayFinalizeState::Completed => Self::AuthenticationSuccessful,
-            AmazonpayFinalizeState::Canceled => Self::AuthenticationFailed, // or Failure?
+            FinalizeState::Open => Self::AuthenticationPending, // or Started?
+            FinalizeState::Completed => Self::AuthenticationSuccessful,  // not sure
+            FinalizeState::Canceled => Self::AuthenticationFailed, // or Failure?
         }
     }
 }
@@ -333,7 +341,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, AmazonpayFinalizeResponse, T, PaymentsR
         item: ResponseRouterData<F, AmazonpayFinalizeResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            status: common_enums::AttemptStatus::from(item.response.status_details.state),
+            status: common_enums::AttemptStatus::AuthenticationPending,
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.charge_permission_id),
                 redirection_data: Box::new(None),
@@ -351,7 +359,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, AmazonpayFinalizeResponse, T, PaymentsR
 
 #[derive(Default, Debug, Serialize, PartialEq)]
 pub struct AmazonpayPaymentsRequest {
-    charge_amount: AmazonpayChargeAmount,
+    charge_amount: ChargeAmount,
     charge_permission_id: String,
     capture_now: Option<bool>,
 }
@@ -372,12 +380,14 @@ impl TryFrom<&AmazonpayRouterData<&PaymentsCompleteAuthorizeRouterData>>
     fn try_from(
         item: &AmazonpayRouterData<&PaymentsCompleteAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
-        let charge_amount = AmazonpayChargeAmount {
+        let charge_amount = ChargeAmount {
             amount: item.amount.clone(),
             currency_code: common_enums::Currency::USD,
         };
-        let charge_permission_id = item.router_data.connector_request_reference_id.clone();
+        // let charge_permission_id = item.router_data.connector_request_reference_id.clone();
+        let charge_permission_id = item.router_data.request.connector_transaction_id.clone().unwrap_or_default();
         let capture_now: Option<bool> = Some(item.router_data.request.is_auto_capture()?);
+        println!(">>>>>> CHARGE PERMISSION ID - {:?}", charge_permission_id);
         Ok(Self {
             charge_amount,
             charge_permission_id,
@@ -433,36 +443,36 @@ impl From<AmazonpayPaymentStatus> for common_enums::AttemptStatus {
 #[serde(rename_all = "camelCase")]
 pub struct AmazonpayPaymentsResponse {
     charge_id: String,
-    charge_amount: AmazonpayChargeAmount,
+    charge_amount: ChargeAmount,
     charge_permission_id: String,
-    capture_amount: Option<AmazonpayChargeAmount>,
-    refunded_amount: AmazonpayChargeAmount,
+    capture_amount: Option<ChargeAmount>,
+    refunded_amount: ChargeAmount,
     soft_descriptor: Option<String>,
-    provider_metadata: AmazonpayProviderMetadata,
-    converted_amount: Option<AmazonpayChargeAmount>,
+    provider_metadata: Option<ProviderMetadata>,
+    converted_amount: Option<ChargeAmount>,
     conversion_rate: Option<f64>,
     channel: Option<String>, // not sure
     charge_initiator: Option<String>,
-    status_details: AmazonpayPaymentsStatusDetails,
+    status_details: PaymentsStatusDetails,
     creation_timestamp: String,
     expiration_timestamp: String,
-    release_environment: AmazonpayReleaseEnvironment,
-    merchant_metadata: AmazonpayMerchantMetadata,
+    release_environment: Option<ReleaseEnvironment>,
+    merchant_metadata: Option<MerchantMetadata>,
     platform_id: Option<String>,
-    web_checkout_details: AmazonpayWebCheckoutDetails,
-    disburement_details: Option<String>, // not sure
+    web_checkout_details: WebCheckoutDetails,
+    disbursement_details: Option<String>, // not sure
     payment_method: Option<String>,      // not sure
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
-pub struct AmazonpayProviderMetadata {
+pub struct ProviderMetadata {
     provider_reference_id: Option<String>,
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
-pub struct AmazonpayPaymentsStatusDetails {
+pub struct PaymentsStatusDetails {
     state: AmazonpayPaymentStatus,
     reason_code: Option<String>,
     reason_description: Option<String>,
@@ -470,7 +480,7 @@ pub struct AmazonpayPaymentsStatusDetails {
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub enum AmazonpayReleaseEnvironment {
+pub enum ReleaseEnvironment {
     #[default]
     Sandbox,
     Live,
@@ -478,7 +488,7 @@ pub enum AmazonpayReleaseEnvironment {
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
-pub struct AmazonpayMerchantMetadata {
+pub struct MerchantMetadata {
     merchant_reference_id: Option<String>,
     merchant_store_name: Option<String>,
     note_to_buyer: Option<String>,
@@ -511,7 +521,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, AmazonpayPaymentsResponse, T, PaymentsR
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct AmazonpayCaptureRequest {
-    pub capture_amount: AmazonpayChargeAmount,
+    pub capture_amount: ChargeAmount,
 }
 
 impl TryFrom<&AmazonpayRouterData<&PaymentsCaptureRouterData>> for AmazonpayCaptureRequest {
@@ -519,7 +529,7 @@ impl TryFrom<&AmazonpayRouterData<&PaymentsCaptureRouterData>> for AmazonpayCapt
     fn try_from(
         item: &AmazonpayRouterData<&PaymentsCaptureRouterData>,
     ) -> Result<Self, Self::Error> {
-        let capture_amount = AmazonpayChargeAmount {
+        let capture_amount = ChargeAmount {
             amount: item.amount.clone(),
             currency_code: common_enums::Currency::USD,
         };
@@ -546,14 +556,14 @@ impl TryFrom<&AmazonpayRouterData<&PaymentsCancelRouterData>> for AmazonpayCance
 
 #[derive(Default, Debug, Serialize)]
 pub struct AmazonpayRefundRequest {
-    pub refund_amount: AmazonpayChargeAmount,
+    pub refund_amount: ChargeAmount,
     pub charge_id: String,
 }
 
 impl<F> TryFrom<&AmazonpayRouterData<&RefundsRouterData<F>>> for AmazonpayRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &AmazonpayRouterData<&RefundsRouterData<F>>) -> Result<Self, Self::Error> {
-        let refund_amount = AmazonpayChargeAmount {
+        let refund_amount = ChargeAmount {
             amount: item.amount.clone(),
             currency_code: common_enums::Currency::USD,
         };
@@ -589,8 +599,8 @@ pub struct RefundResponse {
     refund_id: String,
     charge_id: String,
     creation_timestamp: String,
-    refund_amount: AmazonpayChargeAmount,
-    status_details: AmazonpayRefundStatusDetails,
+    refund_amount: ChargeAmount,
+    status_details: RefundStatusDetails,
     soft_descriptor: String,
     release_environment: String,
     disbursement_details: String,
@@ -598,7 +608,7 @@ pub struct RefundResponse {
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct AmazonpayRefundStatusDetails {
+pub struct RefundStatusDetails {
     state: RefundStatus,
     reason_code: String,
     reason_description: String,

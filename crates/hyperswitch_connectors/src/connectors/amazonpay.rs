@@ -45,7 +45,7 @@ use hyperswitch_interfaces::{
     types::{self, Response},
     webhooks,
 };
-use masking::{ExposeInterface, Mask, PeekInterface, Secret};
+use masking::{ExposeInterface, Mask, Maskable, PeekInterface, Secret};
 use openssl::{
     hash::MessageDigest,
     pkey::PKey,
@@ -55,7 +55,7 @@ use openssl::{
 use sha2::{Digest, Sha256};
 use transformers as amazonpay;
 
-use crate::{constants::headers, types::ResponseRouterData, utils};
+use crate::{constants::headers, types::ResponseRouterData, utils::{self, PaymentsSyncRequestData}};
 
 #[derive(Clone)]
 pub struct Amazonpay {
@@ -67,11 +67,6 @@ impl Amazonpay {
         &Self {
             amount_converter: &StringMajorUnitForConnector,
         }
-    }
-
-    fn get_timestamp() -> String {
-        let date = Utc::now();
-        date.format("%Y-%m-%dT%H:%M:%SZ").to_string()
     }
 
     fn get_last_segment(canonical_uri: &str) -> String {
@@ -91,7 +86,7 @@ impl Amazonpay {
         canonical_uri: &str,
         http_method: &Method,
         hashed_payload: &str,
-        header: &[(String, masking::Maskable<String>)],
+        header: &[(String, Maskable<String>)],
     ) -> String {
         let amazonpay::AmazonpayAuthType {
             public_key,
@@ -102,13 +97,13 @@ impl Amazonpay {
         if *http_method == Method::Post
             && Self::get_last_segment(canonical_uri) != "finalize".to_string()
         {
-            signed_headers.push_str("x-amz-pay-idempotency-key");
+            signed_headers.push_str("x-amz-pay-idempotency-key;");
         }
         signed_headers.push_str("x-amz-pay-region");
 
         format!(
-            "{:?} PublicKeyId={:?}, SignedHeaders={:?}, Signature={:?}",
-            "AMZN-PAY-RSASSA-PSS-V2".to_string(),
+            "{} PublicKeyId={}, SignedHeaders={}, Signature={}",
+            "AMZN-PAY-RSASSA-PSS-V2",
             public_key.expose().clone(),
             signed_headers,
             Self::create_signature(
@@ -118,7 +113,7 @@ impl Amazonpay {
                 &signed_headers,
                 hashed_payload,
                 header
-            )
+            ).unwrap_or_else(|_| "Invalid signature".to_string()) // Handling Result if needed
         )
     }
 
@@ -128,8 +123,9 @@ impl Amazonpay {
         canonical_uri: &str,
         signed_headers: &str,
         hashed_payload: &str,
-        header: &[(String, masking::Maskable<String>)],
+        header: &[(String, Maskable<String>)],
     ) -> Result<String, String> {
+        println!(">>>>> INSIDE create_signature <<<<<\n");
         let mut canonical_request = http_method.to_string() + "\n" + canonical_uri + "\n\n";
 
         let mut lowercase_sorted_header_keys: Vec<String> =
@@ -138,24 +134,28 @@ impl Amazonpay {
         lowercase_sorted_header_keys.sort();
 
         for key in lowercase_sorted_header_keys {
-            if let Some(value) = header.iter().find(|(k, _)| k.to_lowercase() == key) {
-                canonical_request.push_str(&format!("{:?}:{:?}\n", key, value));
+            if let Some((_, maskable_value)) = header.iter().find(|(k, _)| k.to_lowercase() == key) {
+                let value: String = match maskable_value {
+                    Maskable::Normal(v) => v.clone(),
+                    Maskable::Masked(secret) => secret.clone().expose(), // Expose masked data
+                };
+                canonical_request.push_str(&format!("{}:{}\n", key, value));
             }
         }
 
         canonical_request.push_str(&("\n".to_owned() + signed_headers + "\n" + hashed_payload));
 
-        let hashed_canonical_request = hex::encode(Sha256::digest(canonical_request.as_bytes()));
+        println!(">>>>> CANONICAL REQUEST -\n{} \n", canonical_request);
 
-        let string_to_sign = "AMZN-PAY-RSASSA-PSS-V2\n".to_string() + &hashed_canonical_request;
+        println!(">>>>> HASHED CANONICAL REQUEST - {} \n", hex::encode(Sha256::digest(canonical_request.as_bytes())));
+
+        let string_to_sign = "AMZN-PAY-RSASSA-PSS-V2\n".to_string() + &hex::encode(Sha256::digest(canonical_request.as_bytes()));
 
         Self::sign(private_key, &string_to_sign)
             .map_err(|e| format!("Failed to create signature: {}", e))
     }
 
     fn sign(private_key_pem: &Secret<String>, string_to_sign: &String) -> Result<String, String> {
-        let salt_length: i32 = 32;
-
         let pkey = PKey::private_key_from_pem(private_key_pem.peek().as_bytes())
             .map_err(|e| format!("Failed to parse PKCS8 private key: {}", e))?;
 
@@ -167,18 +167,16 @@ impl Amazonpay {
             .map_err(|e| format!("Failed to set RSA padding: {}", e))?;
 
         signer
-            .set_rsa_pss_saltlen(RsaPssSaltlen::custom(salt_length))
+            .set_rsa_pss_saltlen(RsaPssSaltlen::custom(32))
             .map_err(|e| format!("Failed to set RSA PSS salt length: {}", e))?;
 
         signer
             .update(string_to_sign.as_bytes())
             .map_err(|e| format!("Failed to update signer with string: {}", e))?;
 
-        let signature = signer
+        Ok(encode(signer
             .sign_to_vec()
-            .map_err(|e| format!("Failed to sign data: {}", e))?;
-
-        Ok(encode(signature))
+            .map_err(|e| format!("Failed to sign data: {}", e))?))
     }
 }
 
@@ -209,19 +207,13 @@ where
         &self,
         req: &RouterData<Flow, Request, Response>,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        let timestamp = Self::get_timestamp();
-        let http_method = self.get_http_method();
-        let payload = self.get_request_body(req, connectors)?;
-        let hashed_payload = hex::encode(Sha256::digest(
-            payload.get_inner_value().expose().as_bytes(),
-        ));
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        println!(">>>>>> INSIDE BUILD_HEADERS FUNCTION <<<<<<\n\n");
 
-        let base_url = connectors.amazonpay.base_url.as_str();
         let canonical_uri: String = self
             .get_url(req, connectors)?
             .chars()
-            .skip(base_url.len())
+            .skip(connectors.amazonpay.base_url.as_str().len() - 11)  // need to do it in a better way
             .collect();
 
         let mut header = vec![
@@ -233,7 +225,10 @@ where
                 headers::ACCEPT.to_string(),
                 "application/json".to_string().into(),
             ),
-            ("x-amz-pay-date".to_string(), timestamp.into_masked()),
+            (
+                "x-amz-pay-date".to_string(), 
+                Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string().into_masked()
+            ),
             (
                 "x-amz-pay-host".to_string(),
                 "pay-api.amazon.com".to_string().into_masked(),
@@ -244,7 +239,7 @@ where
             ),
         ];
 
-        if http_method == Method::Post
+        if self.get_http_method() == Method::Post
             && Self::get_last_segment(&canonical_uri) != "finalize".to_string()
         {
             header.push((
@@ -253,18 +248,22 @@ where
             ));
         }
 
-        let auth = amazonpay::AmazonpayAuthType::try_from(&req.connector_auth_type)?;
         let authorization = self.create_authorization_header(
-            auth,
+            amazonpay::AmazonpayAuthType::try_from(&req.connector_auth_type)?,
             &canonical_uri,
-            &http_method,
-            &hashed_payload,
+            &self.get_http_method(),
+            &hex::encode(Sha256::digest(self.get_request_body(req, connectors)?.get_inner_value().expose().as_bytes())),
             &header,
         );
+
+        println!(">>>>>> AUTHORIZATION - {:?} \n", authorization.clone());
+
         header.push((
             headers::AUTHORIZATION.to_string(),
-            authorization.into_masked(),
+            authorization.clone().into_masked(),
         ));
+
+        println!(">>>>>> HEADERS - {:?} \n", header);
 
         Ok(header)
     }
@@ -327,7 +326,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         &self,
         req: &PaymentsAuthorizeRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -343,7 +342,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         match req.request.payment_method_data.clone() {
             PaymentMethodData::Wallet(ref wallet_data) => match wallet_data {
                 WalletDataPaymentMethod::AmazonPay(ref req_wallet) => Ok(format!(
-                    "{}/checkoutSessions/{:?}/finalize",
+                    "{}/checkoutSessions/{}/finalize",
                     self.base_url(connectors),
                     req_wallet.checkout_session_id.clone()
                 )),
@@ -429,7 +428,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        let response: amazonpay::AmazonpayPaymentsResponse = res
+        let response: amazonpay::AmazonpayFinalizeResponse = res
             .response
             .parse_struct("Amazonpay PaymentsAuthorizeResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
@@ -451,14 +450,13 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
     }
 }
 
-impl ConnectorIntegration<CompleteAuthorize, CompleteAuthorizeData, PaymentsResponseData>
-    for Amazonpay
+impl ConnectorIntegration<CompleteAuthorize, CompleteAuthorizeData, PaymentsResponseData> for Amazonpay
 {
     fn get_headers(
         &self,
         req: &PaymentsCompleteAuthorizeRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -545,7 +543,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Ama
         &self,
         req: &PaymentsSyncRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -558,12 +556,15 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Ama
         req: &PaymentsSyncRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let charge_id = req.request.connector_transaction_id.clone();
         Ok(format!(
-            "{}/charges/{:?}",
+            "{}/charges/{}",
             self.base_url(connectors),
-            charge_id
+            req.request.get_connector_transaction_id()?
         ))
+    }
+
+    fn get_http_method(&self) -> Method {
+        Method::Get
     }
 
     fn build_request(
@@ -614,7 +615,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         &self,
         req: &PaymentsCaptureRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -627,11 +628,10 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         req: &PaymentsCaptureRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let charge_id = req.request.connector_transaction_id.clone(); // not sure about "connector_transaction_id"
         Ok(format!(
-            "{}/charges/{:?}/capture",
+            "{}/charges/{}/capture",
             self.base_url(connectors),
-            charge_id
+            req.request.connector_transaction_id.clone()
         ))
     }
 
@@ -704,7 +704,7 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Am
         &self,
         req: &PaymentsCancelRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -717,11 +717,10 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Am
         req: &PaymentsCancelRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let charge_id = req.request.connector_transaction_id.clone(); // not sure about "connector_transaction_id"
         Ok(format!(
-            "{}/charges/{:?}/cancel",
+            "{}/charges/{}/cancel",
             self.base_url(connectors),
-            charge_id
+            req.request.connector_transaction_id.clone()
         ))
     }
 
@@ -747,7 +746,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Amazonp
         &self,
         req: &RefundsRouterData<Execute>,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -831,7 +830,7 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Amazonpay
         &self,
         req: &RefundSyncRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -847,8 +846,12 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Amazonpay
         Ok(format!(
             "{}/refunds/{}",
             self.base_url(connectors),
-            req.request.connector_refund_id.clone().unwrap_or_default()
-        )) // req.request.refund_id
+            req.request.refund_id.clone()
+        ))  // req.request.connector_refund_id
+    }
+
+    fn get_http_method(&self) -> Method {
+        Method::Get
     }
 
     fn build_request(
