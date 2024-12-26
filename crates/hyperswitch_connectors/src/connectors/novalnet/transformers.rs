@@ -88,6 +88,13 @@ pub struct NovalnetCard {
     card_holder: Secret<String>,
 }
 
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+pub struct NovalnetRawCardDetails {
+    card_number: CardNumber,
+    card_expiry_month: Secret<String>,
+    card_expiry_year: Secret<String>,
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct NovalnetMandate {
     token: Secret<String>,
@@ -107,6 +114,7 @@ pub struct NovalnetApplePay {
 #[serde(untagged)]
 pub enum NovalNetPaymentData {
     Card(NovalnetCard),
+    RawCardForNTI(NovalnetRawCardDetails),
     GooglePay(NovalnetGooglePay),
     ApplePay(NovalnetApplePay),
     MandatePayment(NovalnetMandate),
@@ -130,6 +138,7 @@ pub struct NovalnetPaymentsRequestTransaction {
     error_return_url: Option<String>,
     enforce_3d: Option<i8>, //NOTE: Needed for CREDITCARD, GOOGLEPAY
     create_token: Option<i8>,
+    scheme_tid: Option<Secret<String>>, // Card network's transaction ID
 }
 
 #[derive(Debug, Serialize, Clone)]
@@ -243,6 +252,7 @@ impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaym
                         payment_data: Some(novalnet_card),
                         enforce_3d,
                         create_token,
+                        scheme_tid: None,
                     };
 
                     Ok(Self {
@@ -274,6 +284,7 @@ impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaym
                             payment_data: Some(novalnet_google_pay),
                             enforce_3d,
                             create_token,
+                            scheme_tid: None,
                         };
 
                         Ok(Self {
@@ -299,6 +310,7 @@ impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaym
                             })),
                             enforce_3d: None,
                             create_token,
+                            scheme_tid: None,
                         };
 
                         Ok(Self {
@@ -340,6 +352,7 @@ impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaym
                             payment_data: None,
                             enforce_3d: None,
                             create_token,
+                            scheme_tid: None,
                         };
                         Ok(Self {
                             merchant,
@@ -398,6 +411,7 @@ impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaym
                     payment_data: Some(novalnet_mandate_data),
                     enforce_3d,
                     create_token: None,
+                    scheme_tid: None,
                 };
 
                 Ok(Self {
@@ -407,6 +421,43 @@ impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaym
                     custom,
                 })
             }
+            Some(api_models::payments::MandateReferenceId::NetworkMandateId(
+                network_transaction_id,
+            )) => match item.router_data.request.payment_method_data {
+                PaymentMethodData::CardDetailsForNetworkTransactionId(ref raw_card_details) => {
+                    let novalnet_card = NovalNetPaymentData::RawCardForNTI(NovalnetRawCardDetails {
+                        card_number: raw_card_details.card_number.clone(),
+                        card_expiry_month: raw_card_details.card_exp_month.clone(),
+                        card_expiry_year: raw_card_details.card_exp_year.clone(),
+                    });
+
+                    let transaction = NovalnetPaymentsRequestTransaction {
+                        test_mode,
+                        payment_type: NovalNetPaymentTypes::CREDITCARD,
+                        amount: item.amount.clone(),
+                        currency: item.router_data.request.currency,
+                        order_no: item.router_data.connector_request_reference_id.clone(),
+                        hook_url: Some(hook_url),
+                        return_url: Some(return_url.clone()),
+                        error_return_url: Some(return_url.clone()),
+                        payment_data: Some(novalnet_card),
+                        enforce_3d,
+                        create_token,
+                        scheme_tid: Some(network_transaction_id.into()),
+                    };
+
+                    Ok(Self {
+                        merchant,
+                        transaction,
+                        customer,
+                        custom,
+                    })
+                }
+                _ => Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("novalnet"),
+                )
+                .into()),
+            },
             _ => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("novalnet"),
             )
