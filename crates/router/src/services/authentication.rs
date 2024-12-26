@@ -666,14 +666,12 @@ where
             metrics::PARTIAL_AUTH_FAILURE.add(1, &[]);
         };
 
-        let profile_id =
-            get_header_value_by_key(headers::X_PROFILE_ID.to_string(), request_headers)?
-                .map(id_type::ProfileId::from_str)
-                .transpose()
-                .change_context(errors::ValidationError::IncorrectValueProvided {
-                    field_name: "X-Profile-Id",
-                })
-                .change_context(errors::ApiErrorResponse::Unauthorized)?;
+        let profile_id = HeaderMapStruct::new(request_headers)
+            .get_id_type_from_header_if_present::<id_type::ProfileId>(headers::X_PROFILE_ID)
+            .change_context(errors::ValidationError::IncorrectValueProvided {
+                field_name: "X-Profile-Id",
+            })
+            .change_context(errors::ApiErrorResponse::Unauthorized)?;
 
         let payload = ExtractedPayload::from_headers(request_headers)
             .and_then(|value| {
@@ -696,8 +694,13 @@ where
                     merchant_id: Some(merchant_id),
                     key_id: Some(key_id),
                 } => {
-                    let auth =
-                        construct_authentication_data(state, &merchant_id, request_headers, profile_id).await?;
+                    let auth = construct_authentication_data(
+                        state,
+                        &merchant_id,
+                        request_headers,
+                        profile_id,
+                    )
+                    .await?;
                     Ok((
                         auth.clone(),
                         AuthenticationType::ApiKey {
@@ -711,8 +714,13 @@ where
                     merchant_id: Some(merchant_id),
                     key_id: None,
                 } => {
-                    let auth =
-                        construct_authentication_data(state, &merchant_id, request_headers, profile_id).await?;
+                    let auth = construct_authentication_data(
+                        state,
+                        &merchant_id,
+                        request_headers,
+                        profile_id,
+                    )
+                    .await?;
                     Ok((
                         auth.clone(),
                         AuthenticationType::PublishableKey {
