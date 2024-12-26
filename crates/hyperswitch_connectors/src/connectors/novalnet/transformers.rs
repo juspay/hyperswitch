@@ -425,11 +425,12 @@ impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaym
                 network_transaction_id,
             )) => match item.router_data.request.payment_method_data {
                 PaymentMethodData::CardDetailsForNetworkTransactionId(ref raw_card_details) => {
-                    let novalnet_card = NovalNetPaymentData::RawCardForNTI(NovalnetRawCardDetails {
-                        card_number: raw_card_details.card_number.clone(),
-                        card_expiry_month: raw_card_details.card_exp_month.clone(),
-                        card_expiry_year: raw_card_details.card_exp_year.clone(),
-                    });
+                    let novalnet_card =
+                        NovalNetPaymentData::RawCardForNTI(NovalnetRawCardDetails {
+                            card_number: raw_card_details.card_number.clone(),
+                            card_expiry_month: raw_card_details.card_exp_month.clone(),
+                            card_expiry_year: raw_card_details.card_exp_year.clone(),
+                        });
 
                     let transaction = NovalnetPaymentsRequestTransaction {
                         test_mode,
