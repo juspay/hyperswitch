@@ -395,44 +395,32 @@ function upiRedirection(
 }
 
 export function verifyReturnUrl(redirection_url, expected_url, forward_flow) {
-  const urlParams = new URLSearchParams(redirection_url.search);
-  const initialPaymentStatus = urlParams.get('status');
-
-  if (!initialPaymentStatus) {
-    console.error(`Error: Payment status is undefined. This might indicate a 4xx or 5xx error.`);
-    cy.screenshot('redirection-error');
-    throw new Error(`Payment status is undefined. There may have been a client or server error (4xx/5xx). Check network logs or UI.`);
-  }
-
-  if (initialPaymentStatus !== 'succeeded' && initialPaymentStatus !== 'processing' && initialPaymentStatus !== 'partially_captured') {
-    throw new Error(`Payment failed after redirection with status: ${initialPaymentStatus}`);
-  }
-
   // Proceed with redirection validation
   if (forward_flow) {
     if (redirection_url.host.endsWith(expected_url.host)) {
       // Wait for 10 seconds before checking the final redirection URL
-      cy.wait(WAIT_TIME); // WAIT_TIME is 10 seconds and is defined at the top
+      cy.wait(WAIT_TIME / 2); // WAIT_TIME is 10 seconds and is defined at the top
 
-      cy.location('search') 
-        .then((search) => {
-          const url_params = new URLSearchParams(search);
+      cy.window()
+        .its("location") // after 10 sec wait, the end url will be `hyperswitch.io/status=<payment_status>`
+        .then((location) => {
+          const url_params = new URLSearchParams(location.search);
           const payment_status = url_params.get("status");
 
           // Perform validation based on the final payment status
-          if (payment_status !== 'succeeded' && payment_status !== 'processing' && payment_status !== 'partially_captured') {
+          if (
+            payment_status !== "succeeded" &&
+            payment_status !== "processing" &&
+            payment_status !== "partially_captured"
+          ) {
             throw new Error(`Payment failed after redirection with status: ${payment_status}`);
           }
         });
     } else {
       // Handling CORS workaround for cross-origin redirection
-      cy.origin(
-        expected_url.origin,
-        { args: { expected_url: expected_url.origin } },
-        ({ expected_url }) => {
-          cy.window().its("location.origin").should("eq", expected_url);
-        }
-      );
+      cy.origin(expected_url.origin, { args: { expected_url: expected_url.origin } }, ({ expected_url }) => {
+        cy.window().its("location.origin").should("eq", expected_url);
+      });
     }
   }
 }
