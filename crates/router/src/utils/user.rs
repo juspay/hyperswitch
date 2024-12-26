@@ -5,8 +5,11 @@ use common_enums::UserAuthType;
 use common_utils::{
     encryption::Encryption, errors::CustomResult, id_type, type_name, types::keymanager::Identifier,
 };
-use diesel_models::{organization, organization::OrganizationBridge};
-use error_stack::ResultExt;
+use diesel_models::{
+    organization::{self, OrganizationBridge},
+    UserAuthenticationMethod,
+};
+use error_stack::{report, ResultExt};
 use masking::{ExposeInterface, Secret};
 use redis_interface::RedisConnectionPool;
 use router_env::env;
@@ -331,4 +334,33 @@ pub async fn validate_email_domain_auth_type_using_db(
             .any(|auth_method| auth_method.auth_type == required_auth_type))
     .then(|| ())
     .ok_or(UserErrors::InvalidUserAuthMethodOperation.into())
+}
+
+pub fn get_auth_method_response_from_db_auth_method(
+    auth_method: UserAuthenticationMethod,
+) -> UserResult<user_api::UserAuthenticationMethodResponse> {
+    let auth_name = match (auth_method.auth_type, auth_method.public_config) {
+        (UserAuthType::OpenIdConnect, config) => {
+            let open_id_public_config: Option<user_api::OpenIdConnectPublicConfig> = config
+                .map(|config| parse_value(config, "OpenIdConnectPublicConfig"))
+                .transpose()?;
+            if let Some(public_config) = open_id_public_config {
+                Ok(Some(public_config.name))
+            } else {
+                Err(report!(UserErrors::InternalServerError))
+                    .attach_printable("Public config not found for OIDC auth type")
+            }
+        }
+        _ => Ok(None),
+    }?;
+
+    Ok(user_api::UserAuthenticationMethodResponse {
+        id: auth_method.id,
+        auth_id: auth_method.auth_id,
+        auth_method: user_api::AuthMethodDetails {
+            name: auth_name,
+            auth_type: auth_method.auth_type,
+        },
+        allow_signup: auth_method.allow_signup,
+    })
 }
