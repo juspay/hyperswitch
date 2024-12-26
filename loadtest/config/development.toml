@@ -396,7 +396,7 @@ client_secret = ""
 partner_id = ""
 
 [unmasked_headers]
-keys = "accept-language,user-agent"
+keys = "accept-language,user-agent,x-profile-id"
 
 [multitenancy]
 enabled = false
