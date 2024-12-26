@@ -296,6 +296,25 @@ pub struct CommonMandateReference {
     pub payouts: Option<PayoutsMandateReference>,
 }
 
+impl From<CommonMandateReference> for PaymentsMandateReference {
+    fn from(common_mandate: CommonMandateReference) -> Self {
+        if let Some(payments) = common_mandate.payments {
+            payments
+        } else {
+            Self(HashMap::new())
+        }
+    }
+}
+
+impl From<PaymentsMandateReference> for CommonMandateReference {
+    fn from(payments_reference: PaymentsMandateReference) -> Self {
+        Self {
+            payments: Some(payments_reference),
+            payouts: None,
+        }
+    }
+}
+
 impl<'de> serde::Deserialize<'de> for PaymentMethodMigrate {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
@@ -368,21 +387,6 @@ impl<'de> serde::Deserialize<'de> for PaymentMethodMigrate {
     }
 }
 
-pub fn convert_to_payments_reference(
-    common_mandate: Option<CommonMandateReference>,
-) -> Option<PaymentsMandateReference> {
-    common_mandate.and_then(|cm| cm.payments)
-}
-
-pub fn convert_to_common_reference(
-    payments_reference: Option<PaymentsMandateReference>,
-) -> Option<CommonMandateReference> {
-    payments_reference.map(|payments| CommonMandateReference {
-        payments: Some(payments),
-        payouts: None,
-    })
-}
-
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
     not(feature = "payment_methods_v2")
@@ -416,10 +420,12 @@ impl PaymentMethodCreate {
             payment_method_issuer_code: payment_method_migrate.payment_method_issuer_code,
             metadata: payment_method_migrate.metadata.clone(),
             payment_method_data: payment_method_migrate.payment_method_data.clone(),
-            connector_mandate_details: convert_to_payments_reference(
-                payment_method_migrate.connector_mandate_details.clone(),
-            ),
-            // connector_mandate_details: Option::<CommonMandateReference>::foreign_from(payment_method_migrate.connector_mandate_details.clone()),
+            connector_mandate_details: payment_method_migrate
+                .connector_mandate_details
+                .clone()
+                .map(|common_mandate_reference| {
+                    PaymentsMandateReference::from(common_mandate_reference)
+                }),
             client_secret: None,
             billing: payment_method_migrate.billing.clone(),
             card: card_details,
@@ -2434,7 +2440,11 @@ impl
                 }),
                 email: record.email,
             }),
-            connector_mandate_details: convert_to_common_reference(connector_mandate_details),
+            connector_mandate_details: connector_mandate_details.map(
+                |payments_mandate_reference| {
+                    CommonMandateReference::from(payments_mandate_reference)
+                },
+            ),
             metadata: None,
             payment_method_issuer_code: None,
             card_network: None,

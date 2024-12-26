@@ -1,11 +1,8 @@
 use std::{fmt::Debug, marker::PhantomData, str::FromStr};
 
-use api_models::{
-    payment_methods::{CommonMandateReference, PaymentsMandateReference},
-    payments::{
-        Address, ConnectorMandateReferenceId, CustomerDetails, CustomerDetailsResponse, FrmMessage,
-        RequestSurchargeDetails,
-    },
+use api_models::payments::{
+    Address, ConnectorMandateReferenceId, CustomerDetails, CustomerDetailsResponse, FrmMessage,
+    RequestSurchargeDetails,
 };
 use common_enums::{Currency, RequestIncrementalAuthorization};
 use common_utils::{
@@ -4193,20 +4190,5 @@ impl ForeignFrom<(Self, Option<&api_models::payments::AdditionalPaymentData>)>
                 }
                 Some(card_type_in_bin_store)
             })
-    }
-}
-
-impl ForeignFrom<Option<CommonMandateReference>> for Option<PaymentsMandateReference> {
-    fn foreign_from(common_mandate: Option<CommonMandateReference>) -> Self {
-        common_mandate.and_then(|cm| cm.payments)
-    }
-}
-
-impl ForeignFrom<Option<PaymentsMandateReference>> for Option<CommonMandateReference> {
-    fn foreign_from(payments_reference: Option<PaymentsMandateReference>) -> Self {
-        payments_reference.map(|payments| CommonMandateReference {
-            payments: Some(payments),
-            payouts: None,
-        })
     }
 }
