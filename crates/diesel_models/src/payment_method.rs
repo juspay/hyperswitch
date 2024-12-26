@@ -118,13 +118,13 @@ impl PaymentMethod {
                         payouts: None,
                     }),
                     Err(_) => Err(ParsingError::StructParseFailure(
-                        "Faild to deserialize PaymentMethod",
+                        "Failed to deserialize PaymentMethod",
                     ))?,
                 },
             }
         } else {
             Err(ParsingError::StructParseFailure(
-                "Faild to deserialize PaymentMethod",
+                "Failed to deserialize PaymentMethod",
             ))?
         }
     }
