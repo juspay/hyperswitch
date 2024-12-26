@@ -313,7 +313,9 @@ impl<'de> serde::Deserialize<'de> for PaymentMethodMigrate {
             pub metadata: Option<pii::SecretSerdeValue>,
             pub customer_id: Option<id_type::CustomerId>,
             pub card_network: Option<String>,
+            #[cfg(feature = "payouts")]
             pub bank_transfer: Option<payouts::Bank>,
+            #[cfg(feature = "payouts")]
             pub wallet: Option<payouts::Wallet>,
             pub payment_method_data: Option<PaymentMethodCreateData>,
             pub billing: Option<payments::Address>,
@@ -337,7 +339,7 @@ impl<'de> serde::Deserialize<'de> for PaymentMethodMigrate {
                         payouts: None,
                     })
                 } else {
-                    return Err(de::Error::custom("Faild to deserialize PaymentMethod_V2"));
+                    return Err(de::Error::custom("Failed to deserialize PaymentMethod_V2"));
                 }
             } else {
                 None
@@ -354,7 +356,9 @@ impl<'de> serde::Deserialize<'de> for PaymentMethodMigrate {
             metadata: inner.metadata,
             customer_id: inner.customer_id,
             card_network: inner.card_network,
+            #[cfg(feature = "payouts")]
             bank_transfer: inner.bank_transfer,
+            #[cfg(feature = "payouts")]
             wallet: inner.wallet,
             payment_method_data: inner.payment_method_data,
             billing: inner.billing,
@@ -415,6 +419,7 @@ impl PaymentMethodCreate {
             connector_mandate_details: convert_to_payments_reference(
                 payment_method_migrate.connector_mandate_details.clone(),
             ),
+            // connector_mandate_details: Option::<CommonMandateReference>::foreign_from(payment_method_migrate.connector_mandate_details.clone()),
             client_secret: None,
             billing: payment_method_migrate.billing.clone(),
             card: card_details,
