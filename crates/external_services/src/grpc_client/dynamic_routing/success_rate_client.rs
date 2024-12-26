@@ -1,14 +1,15 @@
 use api_models::routing::{
     CurrentBlockThreshold, RoutableConnectorChoice, RoutableConnectorChoiceWithStatus,
-    SuccessBasedRoutingConfig, SuccessBasedRoutingConfigBody,
+    SuccessBasedRoutingConfig, SuccessBasedRoutingConfigBody, SuccessRateSpecificityLevel,
 };
 use common_utils::{ext_traits::OptionExt, transformers::ForeignTryFrom};
 use error_stack::ResultExt;
 pub use success_rate::{
-    success_rate_calculator_client::SuccessRateCalculatorClient, CalSuccessRateConfig,
-    CalSuccessRateRequest, CalSuccessRateResponse,
-    CurrentBlockThreshold as DynamicCurrentThreshold, InvalidateWindowsRequest,
-    InvalidateWindowsResponse, LabelWithStatus, UpdateSuccessRateWindowConfig,
+    success_rate_calculator_client::SuccessRateCalculatorClient,
+    success_rate_specificity_level::SpecificityLevel, CalSuccessRateConfig, CalSuccessRateRequest,
+    CalSuccessRateResponse, CurrentBlockThreshold as DynamicCurrentThreshold,
+    InvalidateWindowsRequest, InvalidateWindowsResponse, LabelWithStatus,
+    SuccessRateSpecificityLevel as ProtoSpecificityLevel, UpdateSuccessRateWindowConfig,
     UpdateSuccessRateWindowRequest, UpdateSuccessRateWindowResponse,
 };
 #[allow(
@@ -203,6 +204,14 @@ impl ForeignTryFrom<SuccessBasedRoutingConfigBody> for CalSuccessRateConfig {
                 .change_context(DynamicRoutingError::MissingRequiredField {
                     field: "default_success_rate".to_string(),
                 })?,
+            specificity_level: config.specificity_level.map(|level| match level {
+                SuccessRateSpecificityLevel::Merchant => ProtoSpecificityLevel {
+                    status: SpecificityLevel::Merchant.into(),
+                },
+                SuccessRateSpecificityLevel::Global => ProtoSpecificityLevel {
+                    status: SpecificityLevel::Global.into(),
+                },
+            }),
         })
     }
 }

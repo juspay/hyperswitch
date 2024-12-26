@@ -20,10 +20,20 @@ message CalSuccessRateRequest {
 message CalSuccessRateConfig {
     uint32 min_aggregates_size = 1;
     double default_success_rate = 2;
+    SuccessRateSpecificityLevel specificity_level = 3;
+}
+
+message SuccessRateSpecificityLevel {
+   enum SpecificityLevel {
+      MERCHANT = 0;
+      GLOBAL = 1;
+   }
+   SpecificityLevel status = 1;
 }
 
 message CalSuccessRateResponse {
-    repeated LabelWithScore labels_with_score = 1;
+    repeated LabelWithScore merchant_labels_with_score = 1;
+    repeated LabelWithScore global_labels_with_score = 2;
 }
 
 message LabelWithScore {
@@ -31,7 +41,7 @@ message LabelWithScore {
     string label = 2;
 }
 
- // API-2 types
+// API-2 types
 message UpdateSuccessRateWindowRequest {
     string id = 1;
     string params = 2;
