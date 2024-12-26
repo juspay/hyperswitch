@@ -223,6 +223,52 @@ unstable features:
 cargo +nightly fmt
 ```
 
+### Code Coverage
+
+We value well tested code. You should try to add tests for the code you add.
+
+For generating code coverage, follow the following steps:
+
+- Make sure `grcov` and `llvm-tools-preview` are installed
+
+- Build the project with the `-Cinstrument-coverage` flag:
+
+  ```shell
+  RUSTFLAGS="-Cinstrument-coverage" cargo build --bin=router --package=router
+  ```
+
+  Several `.profraw` files will be generated.
+
+- Run the project using:
+  ```shell
+  LLVM_PROFILE_FILE="coverage.profraw" target/debug/router
+  ```
+
+- Open a separate terminal tab and run the cypress tests, following the README
+
+- After the tests have finished running, stop the `router` process using `Ctrl+C`
+
+- The generated `coverage.profraw` file will contain the code coverage data for `router`
+
+- Generate an html report from the data using:
+  ```shell
+  grcov . --source-dir . --output-type html --binary-path ./target/debug
+  ```
+
+- A folder named `html` will be generated, containing the report. You can view it using:
+  ```shell
+  cd html && python3 -m http.server 8000
+  ```
+
+- You can delete the generated `.profraw` files using:
+  ```shell
+  rm **/*.profraw
+  ```
+
+Note:
+- It is necessary to stop the `router` process to generate the coverage file
+- Branch coverage generation requires nightly and currently `grcov` crashes while trying to include branch coverage. (Checked using `--log-level` parameter in `grcov`)
+
 ### Commits
 
 It is a recommended best practice to keep your changes as logically grouped as
