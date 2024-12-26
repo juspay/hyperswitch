@@ -519,10 +519,10 @@ pub struct DynamicAlgorithmWithTimestamp<T> {
     pub timestamp: i64,
 }
 
-impl Default for DynamicAlgorithmWithTimestamp<common_utils::id_type::RoutingId> {
-    fn default() -> Self {
+impl<T> DynamicAlgorithmWithTimestamp<T> {
+    fn new(algorithm_id: Option<T>) -> Self {
         Self {
-            algorithm_id: None,
+            algorithm_id,
             timestamp: common_utils::date_time::now_unix_timestamp(),
         }
     }
@@ -748,7 +748,7 @@ impl DynamicRoutingAlgorithmRef {
             DynamicRoutingType::SuccessRateBasedRouting => {
                 if let Some(success_based_algo) = &self.success_based_algorithm {
                     self.success_based_algorithm = Some(SuccessBasedAlgorithm {
-                        algorithm_id_with_timestamp: DynamicAlgorithmWithTimestamp::default(),
+                        algorithm_id_with_timestamp: DynamicAlgorithmWithTimestamp::new(None),
                         enabled_feature: success_based_algo.enabled_feature,
                     });
                 }
@@ -756,7 +756,7 @@ impl DynamicRoutingAlgorithmRef {
             DynamicRoutingType::EliminationRouting => {
                 if let Some(elimination_based_algo) = &self.elimination_routing_algorithm {
                     self.elimination_routing_algorithm = Some(EliminationRoutingAlgorithm {
-                        algorithm_id_with_timestamp: DynamicAlgorithmWithTimestamp::default(),
+                        algorithm_id_with_timestamp: DynamicAlgorithmWithTimestamp::new(None),
                         enabled_feature: elimination_based_algo.enabled_feature,
                     });
                 }
@@ -764,7 +764,7 @@ impl DynamicRoutingAlgorithmRef {
             DynamicRoutingType::ContractBasedRouting => {
                 if let Some(contract_based_algo) = &self.contract_based_routing {
                     self.contract_based_routing = Some(ContractRoutingAlgorithm {
-                        algorithm_id_with_timestamp: DynamicAlgorithmWithTimestamp::default(),
+                        algorithm_id_with_timestamp: DynamicAlgorithmWithTimestamp::new(None),
                         enabled_feature: contract_based_algo.enabled_feature,
                     });
                 }

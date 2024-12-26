@@ -2,11 +2,6 @@
 //!
 //! Functions that are used to perform the retrieval of merchant's
 //! routing dict, configs, defaults
-#[cfg(all(feature = "dynamic_routing", feature = "v1"))]
-use std::str::FromStr;
-#[cfg(any(feature = "dynamic_routing", feature = "v1"))]
-use std::sync::Arc;
-
 use api_models::routing as routing_types;
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
 use common_utils::ext_traits::ValueExt;
@@ -29,7 +24,12 @@ use router_env::logger;
 #[cfg(any(feature = "dynamic_routing", feature = "v1"))]
 use router_env::{instrument, tracing};
 use rustc_hash::FxHashSet;
-use storage_impl::redis::cache;
+use std::fmt::Debug;
+#[cfg(all(feature = "dynamic_routing", feature = "v1"))]
+use std::str::FromStr;
+#[cfg(any(feature = "dynamic_routing", feature = "v1"))]
+use std::sync::Arc;
+use storage_impl::redis::cache::{self, Cacheable};
 
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
 use crate::db::errors::StorageErrorExt;
@@ -580,11 +580,15 @@ pub trait DynamicRoutingCache {
         key: &str,
     ) -> Option<Arc<Self>>;
 
-    async fn refresh_dynamic_routing_cache(
+    async fn refresh_dynamic_routing_cache<T, F, Fut>(
         state: &SessionState,
         key: &str,
-        dynamic_routing_config: Self,
-    ) -> Arc<Self>;
+        func: F,
+    ) -> RouterResult<T>
+    where
+        F: FnOnce() -> Fut + Send,
+        T: Cacheable + serde::Serialize + serde::de::DeserializeOwned + Debug + Clone,
+        Fut: futures::Future<Output = errors::CustomResult<T, errors::StorageError>> + Send;
 }
 
 #[async_trait::async_trait]
@@ -601,22 +605,25 @@ impl DynamicRoutingCache for routing_types::SuccessBasedRoutingConfig {
             .await
     }
 
-    async fn refresh_dynamic_routing_cache(
+    async fn refresh_dynamic_routing_cache<T, F, Fut>(
         state: &SessionState,
         key: &str,
-        dynamic_routing_config: Self,
-    ) -> Arc<Self> {
-        let config = Arc::new(dynamic_routing_config);
-        cache::SUCCESS_BASED_DYNAMIC_ALGORITHM_CACHE
-            .push(
-                cache::CacheKey {
-                    key: key.to_string(),
-                    prefix: state.tenant.redis_key_prefix.clone(),
-                },
-                config.clone(),
-            )
-            .await;
-        config
+        func: F,
+    ) -> RouterResult<T>
+    where
+        F: FnOnce() -> Fut + Send,
+        T: Cacheable + serde::Serialize + serde::de::DeserializeOwned + Debug + Clone,
+        Fut: futures::Future<Output = errors::CustomResult<T, errors::StorageError>> + Send,
+    {
+        cache::get_or_populate_in_memory(
+            state.store.get_cache_store().as_ref(),
+            key,
+            func,
+            &cache::SUCCESS_BASED_DYNAMIC_ALGORITHM_CACHE,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("unable to populate SUCCESS_BASED_DYNAMIC_ALGORITHM_CACHE")
     }
 }
 
@@ -634,69 +641,44 @@ impl DynamicRoutingCache for routing_types::ContractBasedRoutingConfig {
             .await
     }
 
-    async fn refresh_dynamic_routing_cache(
+    async fn refresh_dynamic_routing_cache<T, F, Fut>(
         state: &SessionState,
         key: &str,
-        dynamic_routing_config: Self,
-    ) -> Arc<Self> {
-        let config = Arc::new(dynamic_routing_config);
-        cache::CONTRACT_BASED_DYNAMIC_ALGORITHM_CACHE
-            .push(
-                cache::CacheKey {
-                    key: key.to_string(),
-                    prefix: state.tenant.redis_key_prefix.clone(),
-                },
-                config.clone(),
-            )
-            .await;
-        config
+        func: F,
+    ) -> RouterResult<T>
+    where
+        F: FnOnce() -> Fut + Send,
+        T: Cacheable + serde::Serialize + serde::de::DeserializeOwned + Debug + Clone,
+        Fut: futures::Future<Output = errors::CustomResult<T, errors::StorageError>> + Send,
+    {
+        cache::get_or_populate_in_memory(
+            state.store.get_cache_store().as_ref(),
+            key,
+            func,
+            &cache::CONTRACT_BASED_DYNAMIC_ALGORITHM_CACHE,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("unable to populate CONTRACT_BASED_DYNAMIC_ALGORITHM_CACHE")
     }
 }
 
-/// Retrieves cached success_based routing configs specific to tenant and profile
-#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-pub async fn get_cached_success_based_routing_config_for_profile<'a>(
-    state: &SessionState,
-    key: &str,
-) -> Option<Arc<routing_types::SuccessBasedRoutingConfig>> {
-    cache::SUCCESS_BASED_DYNAMIC_ALGORITHM_CACHE
-        .get_val::<Arc<routing_types::SuccessBasedRoutingConfig>>(cache::CacheKey {
-            key: key.to_string(),
-            prefix: state.tenant.redis_key_prefix.clone(),
-        })
-        .await
-}
-
-/// Refreshes the cached success_based routing configs specific to tenant and profile
-#[cfg(feature = "v1")]
-pub async fn refresh_success_based_routing_cache(
-    state: &SessionState,
-    key: &str,
-    success_based_routing_config: routing_types::SuccessBasedRoutingConfig,
-) -> Arc<routing_types::SuccessBasedRoutingConfig> {
-    let config = Arc::new(success_based_routing_config);
-    cache::SUCCESS_BASED_DYNAMIC_ALGORITHM_CACHE
-        .push(
-            cache::CacheKey {
-                key: key.to_string(),
-                prefix: state.tenant.redis_key_prefix.clone(),
-            },
-            config.clone(),
-        )
-        .await;
-    config
-}
-
-/// Checked fetch of success based routing configs
+/// Cfetch dynamic routing configs
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 #[instrument(skip_all)]
-pub async fn fetch_dynamic_routing_configs<
-    T: serde::de::DeserializeOwned + Clone + DynamicRoutingCache,
->(
+pub async fn fetch_dynamic_routing_configs<T>(
     state: &SessionState,
     business_profile: &domain::Profile,
     success_based_routing_id: id_type::RoutingId,
-) -> RouterResult<T> {
+) -> RouterResult<T>
+where
+    T: serde::de::DeserializeOwned
+        + Clone
+        + DynamicRoutingCache
+        + Cacheable
+        + serde::Serialize
+        + Debug,
+{
     let key = format!(
         "{}_{}",
         business_profile.get_id().get_string_repr(),
@@ -708,23 +690,30 @@ pub async fn fetch_dynamic_routing_configs<
     {
         Ok(config.as_ref().clone())
     } else {
-        let routing_algorithm = state
-            .store
-            .find_routing_algorithm_by_profile_id_algorithm_id(
-                business_profile.get_id(),
-                &success_based_routing_id,
-            )
-            .await
-            .change_context(errors::ApiErrorResponse::ResourceIdNotFound)
-            .attach_printable("unable to retrieve routing_algorithm for profile from db")?;
+        let func = || async {
+            let routing_algorithm = state
+                .store
+                .find_routing_algorithm_by_profile_id_algorithm_id(
+                    business_profile.get_id(),
+                    &success_based_routing_id,
+                )
+                .await
+                .change_context(errors::StorageError::ValueNotFound(
+                    "RoutingAlgorithm".to_string(),
+                ))
+                .attach_printable("unable to retrieve routing_algorithm for profile from db")?;
 
-        let dynamic_routing_config = routing_algorithm
-            .algorithm_data
-            .parse_value::<T>("type_name")
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("unable to parse type_name struct")?;
+            let dynamic_routing_config = routing_algorithm
+                .algorithm_data
+                .parse_value::<T>("dynamic_routing_config")
+                .change_context(errors::StorageError::DeserializationFailed)
+                .attach_printable("unable to parse dynamic_routing_config")?;
 
-        T::refresh_dynamic_routing_cache(state, key.as_str(), dynamic_routing_config.clone()).await;
+            Ok(dynamic_routing_config)
+        };
+
+        let dynamic_routing_config =
+            T::refresh_dynamic_routing_cache(state, key.as_str(), func).await?;
 
         Ok(dynamic_routing_config)
     }

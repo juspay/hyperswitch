@@ -67,9 +67,7 @@ crates/router/src/core/routing.rs @juspay/hyperswitch-routing
 crates/router/src/core/payments/routing @juspay/hyperswitch-routing
 crates/router/src/core/payments/routing.rs @juspay/hyperswitch-routing
 crates/external_services/src/grpc_client/dynamic_routing.rs @juspay/hyperswitch-routing
-crates/external_services/src/grpc_client/dynamic_routing/contract_routing_client.rs @juspay/hyperswitch-routing
-crates/external_services/src/grpc_client/dynamic_routing/elimination_rate_client.rs @juspay/hyperswitch-routing
-crates/external_services/src/grpc_client/dynamic_routing/success_rate_client.rs @juspay/hyperswitch-routing
+crates/external_services/src/grpc_client/dynamic_routing/ @juspay/hyperswitch-routing
 crates/external_services/src/grpc_client/health_check_client.rs @juspay/hyperswitch-routing
 
 crates/api_models/src/payment_methods.rs @juspay/hyperswitch-routing
