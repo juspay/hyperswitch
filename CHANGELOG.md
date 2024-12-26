@@ -4,6 +4,26 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.12.26.0
+
+### Features
+
+- **router:** Add endpoint for listing connector features ([#6612](https://github.com/juspay/hyperswitch/pull/6612)) ([`a423ff5`](https://github.com/juspay/hyperswitch/commit/a423ff53d3523508ba6c584134e32f3f1bb4f0c0))
+
+### Bug Fixes
+
+- **cors:** Expose all headers set by application in `access-control-expose-headers` header value ([#6877](https://github.com/juspay/hyperswitch/pull/6877)) ([`9c3547f`](https://github.com/juspay/hyperswitch/commit/9c3547fa8dd5930613380014025add33ccd5db4a))
+- **payments_list:** Handle same payment/attempt ids for different merchants ([#6917](https://github.com/juspay/hyperswitch/pull/6917)) ([`2e472e3`](https://github.com/juspay/hyperswitch/commit/2e472e3fee0c33b3ce8affc520db7a512ed41b2f))
+- **wasm:** Remove chasenet from jpmorgan wasm as ChaseNet doesn’t exist in PMT ([#6927](https://github.com/juspay/hyperswitch/pull/6927)) ([`5e4eded`](https://github.com/juspay/hyperswitch/commit/5e4eded8fa13c9cb4a1d648ab5c133e86522c29c))
+
+### Refactors
+
+- **core:** Remove merchant return url from `router_data` ([#6895](https://github.com/juspay/hyperswitch/pull/6895)) ([`c5717a8`](https://github.com/juspay/hyperswitch/commit/c5717a8147899e0c690e234dbf9b4fd425a7bb71))
+
+**Full Changelog:** [`2024.12.24.0...2024.12.26.0`](https://github.com/juspay/hyperswitch/compare/2024.12.24.0...2024.12.26.0)
+
+- - -
+
 ## 2024.12.24.0
 
 ### Features
