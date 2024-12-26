@@ -2719,8 +2719,7 @@ pub async fn terminate_auth_select(
         (Some(id), _) => auth_methods
             .into_iter()
             .find(|auth_method| auth_method.auth_id == id)
-            .ok_or(UserErrors::InvalidUserAuthMethodOperation)?
-            .into(),
+            .ok_or(UserErrors::InvalidUserAuthMethodOperation)?,
         (None, true) => DEFAULT_USER_AUTH_METHOD.clone(),
         (None, false) => return Err(UserErrors::InvalidUserAuthMethodOperation.into()),
     };

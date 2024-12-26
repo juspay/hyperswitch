@@ -329,6 +329,6 @@ pub async fn validate_email_domain_auth_type_using_db(
         || user_auth_methods
             .iter()
             .any(|auth_method| auth_method.auth_type == required_auth_type))
-    .then(|| ())
+    .then_some(())
     .ok_or(UserErrors::InvalidUserAuthMethodOperation.into())
 }
