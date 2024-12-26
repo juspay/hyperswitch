@@ -1,16 +1,17 @@
-const { defineConfig } = require("cypress");
-const fs = require("fs-extra");
-const path = require("path");
+import { defineConfig } from "cypress";
+import mochawesome from "cypress-mochawesome-reporter/plugin.js";
 
 let globalState;
+
 // Fetch from environment variable
 const connectorId = process.env.CYPRESS_CONNECTOR || "service";
+const screenshotsFolderName = `screenshots/${connectorId}`;
 const reportName = process.env.REPORT_NAME || `${connectorId}_report`;
 
-module.exports = defineConfig({
+export default defineConfig({
   e2e: {
     setupNodeEvents(on, config) {
-      require("cypress-mochawesome-reporter/plugin")(on);
+      mochawesome(on);
 
       on("task", {
         setGlobalState: (val) => {
@@ -20,41 +21,21 @@ module.exports = defineConfig({
           return globalState || {};
         },
         cli_log: (message) => {
+          // eslint-disable-next-line no-console
           console.log("Logging console message from task");
+          // eslint-disable-next-line no-console
           console.log(message);
           return null;
         },
       });
-      on("after:screenshot", (details) => {
-        // Full path to the screenshot file
-        const screenshotPath = details.path;
 
-        // Extract filename without extension
-        const name = path.basename(
-          screenshotPath,
-          path.extname(screenshotPath)
-        );
-
-        // Define a new name with a connectorId
-        const newName = `[${connectorId}] ${name}.png`;
-        const newPath = path.join(path.dirname(screenshotPath), newName);
-
-        return fs
-          .rename(screenshotPath, newPath)
-          .then(() => {
-            console.log("Screenshot renamed successfully");
-            return { path: newPath };
-          })
-          .catch((err) => {
-            console.error("Failed to rename screenshot:", err);
-          });
-      });
+      return config;
     },
     experimentalRunAllSpecs: true,
 
     reporter: "cypress-mochawesome-reporter",
     reporterOptions: {
-      reportDir: "cypress/reports",
+      reportDir: `cypress/reports/${connectorId}`,
       reportFilename: reportName,
       reportPageTitle: `[${connectorId}] Cypress test report`,
       embeddedScreenshots: true,
@@ -66,4 +47,5 @@ module.exports = defineConfig({
   chromeWebSecurity: false,
   defaultCommandTimeout: 10000,
   pageLoadTimeout: 20000,
+  screenshotsFolder: screenshotsFolderName,
 });

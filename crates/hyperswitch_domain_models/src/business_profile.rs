@@ -58,6 +58,8 @@ pub struct Profile {
     pub is_network_tokenization_enabled: bool,
     pub is_auto_retries_enabled: bool,
     pub max_auto_retries_enabled: Option<i16>,
+    pub is_click_to_pay_enabled: bool,
+    pub authentication_product_ids: Option<serde_json::Value>,
 }
 
 #[cfg(feature = "v1")]
@@ -98,6 +100,8 @@ pub struct ProfileSetter {
     pub is_network_tokenization_enabled: bool,
     pub is_auto_retries_enabled: bool,
     pub max_auto_retries_enabled: Option<i16>,
+    pub is_click_to_pay_enabled: bool,
+    pub authentication_product_ids: Option<serde_json::Value>,
 }
 
 #[cfg(feature = "v1")]
@@ -145,6 +149,8 @@ impl From<ProfileSetter> for Profile {
             is_network_tokenization_enabled: value.is_network_tokenization_enabled,
             is_auto_retries_enabled: value.is_auto_retries_enabled,
             max_auto_retries_enabled: value.max_auto_retries_enabled,
+            is_click_to_pay_enabled: value.is_click_to_pay_enabled,
+            authentication_product_ids: value.authentication_product_ids,
         }
     }
 }
@@ -194,6 +200,8 @@ pub struct ProfileGeneralUpdate {
     pub is_network_tokenization_enabled: Option<bool>,
     pub is_auto_retries_enabled: Option<bool>,
     pub max_auto_retries_enabled: Option<i16>,
+    pub is_click_to_pay_enabled: Option<bool>,
+    pub authentication_product_ids: Option<serde_json::Value>,
 }
 
 #[cfg(feature = "v1")]
@@ -208,13 +216,13 @@ pub enum ProfileUpdate {
         dynamic_routing_algorithm: Option<serde_json::Value>,
     },
     ExtendedCardInfoUpdate {
-        is_extended_card_info_enabled: Option<bool>,
+        is_extended_card_info_enabled: bool,
     },
     ConnectorAgnosticMitUpdate {
-        is_connector_agnostic_mit_enabled: Option<bool>,
+        is_connector_agnostic_mit_enabled: bool,
     },
     NetworkTokenizationUpdate {
-        is_network_tokenization_enabled: Option<bool>,
+        is_network_tokenization_enabled: bool,
     },
 }
 
@@ -256,6 +264,8 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     is_network_tokenization_enabled,
                     is_auto_retries_enabled,
                     max_auto_retries_enabled,
+                    is_click_to_pay_enabled,
+                    authentication_product_ids,
                 } = *update;
 
                 Self {
@@ -293,6 +303,8 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     is_network_tokenization_enabled,
                     is_auto_retries_enabled,
                     max_auto_retries_enabled,
+                    is_click_to_pay_enabled,
+                    authentication_product_ids,
                 }
             }
             ProfileUpdate::RoutingAlgorithmUpdate {
@@ -332,6 +344,8 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_network_tokenization_enabled: None,
                 is_auto_retries_enabled: None,
                 max_auto_retries_enabled: None,
+                is_click_to_pay_enabled: None,
+                authentication_product_ids: None,
             },
             ProfileUpdate::DynamicRoutingAlgorithmUpdate {
                 dynamic_routing_algorithm,
@@ -369,6 +383,8 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_network_tokenization_enabled: None,
                 is_auto_retries_enabled: None,
                 max_auto_retries_enabled: None,
+                is_click_to_pay_enabled: None,
+                authentication_product_ids: None,
             },
             ProfileUpdate::ExtendedCardInfoUpdate {
                 is_extended_card_info_enabled,
@@ -391,7 +407,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 session_expiry: None,
                 authentication_connector_details: None,
                 payout_link_config: None,
-                is_extended_card_info_enabled,
+                is_extended_card_info_enabled: Some(is_extended_card_info_enabled),
                 extended_card_info_config: None,
                 is_connector_agnostic_mit_enabled: None,
                 use_billing_as_payment_method_billing: None,
@@ -406,6 +422,8 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_network_tokenization_enabled: None,
                 is_auto_retries_enabled: None,
                 max_auto_retries_enabled: None,
+                is_click_to_pay_enabled: None,
+                authentication_product_ids: None,
             },
             ProfileUpdate::ConnectorAgnosticMitUpdate {
                 is_connector_agnostic_mit_enabled,
@@ -430,7 +448,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 payout_link_config: None,
                 is_extended_card_info_enabled: None,
                 extended_card_info_config: None,
-                is_connector_agnostic_mit_enabled,
+                is_connector_agnostic_mit_enabled: Some(is_connector_agnostic_mit_enabled),
                 use_billing_as_payment_method_billing: None,
                 collect_shipping_details_from_wallet_connector: None,
                 collect_billing_details_from_wallet_connector: None,
@@ -443,6 +461,8 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_network_tokenization_enabled: None,
                 is_auto_retries_enabled: None,
                 max_auto_retries_enabled: None,
+                is_click_to_pay_enabled: None,
+                authentication_product_ids: None,
             },
             ProfileUpdate::NetworkTokenizationUpdate {
                 is_network_tokenization_enabled,
@@ -477,9 +497,11 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 tax_connector_id: None,
                 is_tax_connector_enabled: None,
                 dynamic_routing_algorithm: None,
-                is_network_tokenization_enabled,
+                is_network_tokenization_enabled: Some(is_network_tokenization_enabled),
                 is_auto_retries_enabled: None,
                 max_auto_retries_enabled: None,
+                is_click_to_pay_enabled: None,
+                authentication_product_ids: None,
             },
         }
     }
@@ -536,6 +558,8 @@ impl super::behaviour::Conversion for Profile {
             is_network_tokenization_enabled: self.is_network_tokenization_enabled,
             is_auto_retries_enabled: Some(self.is_auto_retries_enabled),
             max_auto_retries_enabled: self.max_auto_retries_enabled,
+            is_click_to_pay_enabled: self.is_click_to_pay_enabled,
+            authentication_product_ids: self.authentication_product_ids,
         })
     }
 
@@ -604,6 +628,8 @@ impl super::behaviour::Conversion for Profile {
                 is_network_tokenization_enabled: item.is_network_tokenization_enabled,
                 is_auto_retries_enabled: item.is_auto_retries_enabled.unwrap_or(false),
                 max_auto_retries_enabled: item.max_auto_retries_enabled,
+                is_click_to_pay_enabled: item.is_click_to_pay_enabled,
+                authentication_product_ids: item.authentication_product_ids,
             })
         }
         .await
@@ -656,6 +682,8 @@ impl super::behaviour::Conversion for Profile {
             is_network_tokenization_enabled: self.is_network_tokenization_enabled,
             is_auto_retries_enabled: Some(self.is_auto_retries_enabled),
             max_auto_retries_enabled: self.max_auto_retries_enabled,
+            is_click_to_pay_enabled: self.is_click_to_pay_enabled,
+            authentication_product_ids: self.authentication_product_ids,
         })
     }
 }
@@ -668,7 +696,7 @@ pub struct Profile {
     pub profile_name: String,
     pub created_at: time::PrimitiveDateTime,
     pub modified_at: time::PrimitiveDateTime,
-    pub return_url: Option<String>,
+    pub return_url: Option<common_utils::types::Url>,
     pub enable_payment_response_hash: bool,
     pub payment_response_hash_key: Option<String>,
     pub redirect_to_merchant_with_http_post: bool,
@@ -695,10 +723,13 @@ pub struct Profile {
     pub frm_routing_algorithm_id: Option<String>,
     pub payout_routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
     pub default_fallback_routing: Option<pii::SecretSerdeValue>,
+    pub should_collect_cvv_during_payment: bool,
     pub tax_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub is_tax_connector_enabled: bool,
     pub version: common_enums::ApiVersion,
     pub is_network_tokenization_enabled: bool,
+    pub is_click_to_pay_enabled: bool,
+    pub authentication_product_ids: Option<serde_json::Value>,
 }
 
 #[cfg(feature = "v2")]
@@ -708,7 +739,7 @@ pub struct ProfileSetter {
     pub profile_name: String,
     pub created_at: time::PrimitiveDateTime,
     pub modified_at: time::PrimitiveDateTime,
-    pub return_url: Option<String>,
+    pub return_url: Option<common_utils::types::Url>,
     pub enable_payment_response_hash: bool,
     pub payment_response_hash_key: Option<String>,
     pub redirect_to_merchant_with_http_post: bool,
@@ -735,9 +766,12 @@ pub struct ProfileSetter {
     pub frm_routing_algorithm_id: Option<String>,
     pub payout_routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
     pub default_fallback_routing: Option<pii::SecretSerdeValue>,
+    pub should_collect_cvv_during_payment: bool,
     pub tax_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub is_tax_connector_enabled: bool,
     pub is_network_tokenization_enabled: bool,
+    pub is_click_to_pay_enabled: bool,
+    pub authentication_product_ids: Option<serde_json::Value>,
 }
 
 #[cfg(feature = "v2")]
@@ -780,10 +814,13 @@ impl From<ProfileSetter> for Profile {
             frm_routing_algorithm_id: value.frm_routing_algorithm_id,
             payout_routing_algorithm_id: value.payout_routing_algorithm_id,
             default_fallback_routing: value.default_fallback_routing,
+            should_collect_cvv_during_payment: value.should_collect_cvv_during_payment,
             tax_connector_id: value.tax_connector_id,
             is_tax_connector_enabled: value.is_tax_connector_enabled,
             version: consts::API_VERSION,
             is_network_tokenization_enabled: value.is_network_tokenization_enabled,
+            is_click_to_pay_enabled: value.is_click_to_pay_enabled,
+            authentication_product_ids: value.authentication_product_ids,
         }
     }
 }
@@ -812,7 +849,7 @@ impl Profile {
 #[derive(Debug)]
 pub struct ProfileGeneralUpdate {
     pub profile_name: Option<String>,
-    pub return_url: Option<String>,
+    pub return_url: Option<common_utils::types::Url>,
     pub enable_payment_response_hash: Option<bool>,
     pub payment_response_hash_key: Option<String>,
     pub redirect_to_merchant_with_http_post: Option<bool>,
@@ -834,6 +871,8 @@ pub struct ProfileGeneralUpdate {
     pub order_fulfillment_time: Option<i64>,
     pub order_fulfillment_time_origin: Option<common_enums::OrderFulfillmentTimeOrigin>,
     pub is_network_tokenization_enabled: Option<bool>,
+    pub is_click_to_pay_enabled: Option<bool>,
+    pub authentication_product_ids: Option<serde_json::Value>,
 }
 
 #[cfg(feature = "v2")]
@@ -848,13 +887,16 @@ pub enum ProfileUpdate {
         default_fallback_routing: Option<pii::SecretSerdeValue>,
     },
     ExtendedCardInfoUpdate {
-        is_extended_card_info_enabled: Option<bool>,
+        is_extended_card_info_enabled: bool,
     },
     ConnectorAgnosticMitUpdate {
-        is_connector_agnostic_mit_enabled: Option<bool>,
+        is_connector_agnostic_mit_enabled: bool,
     },
     NetworkTokenizationUpdate {
-        is_network_tokenization_enabled: Option<bool>,
+        is_network_tokenization_enabled: bool,
+    },
+    CollectCvvDuringPaymentUpdate {
+        should_collect_cvv_during_payment: bool,
     },
 }
 
@@ -889,6 +931,8 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     order_fulfillment_time,
                     order_fulfillment_time_origin,
                     is_network_tokenization_enabled,
+                    is_click_to_pay_enabled,
+                    authentication_product_ids,
                 } = *update;
                 Self {
                     profile_name,
@@ -921,11 +965,14 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     frm_routing_algorithm_id: None,
                     payout_routing_algorithm_id: None,
                     default_fallback_routing: None,
+                    should_collect_cvv_during_payment: None,
                     tax_connector_id: None,
                     is_tax_connector_enabled: None,
                     is_network_tokenization_enabled,
                     is_auto_retries_enabled: None,
                     max_auto_retries_enabled: None,
+                    is_click_to_pay_enabled: None,
+                    authentication_product_ids,
                 }
             }
             ProfileUpdate::RoutingAlgorithmUpdate {
@@ -961,11 +1008,14 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 frm_routing_algorithm_id: None,
                 payout_routing_algorithm_id,
                 default_fallback_routing: None,
+                should_collect_cvv_during_payment: None,
                 tax_connector_id: None,
                 is_tax_connector_enabled: None,
                 is_network_tokenization_enabled: None,
                 is_auto_retries_enabled: None,
                 max_auto_retries_enabled: None,
+                is_click_to_pay_enabled: None,
+                authentication_product_ids: None,
             },
             ProfileUpdate::ExtendedCardInfoUpdate {
                 is_extended_card_info_enabled,
@@ -984,7 +1034,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 session_expiry: None,
                 authentication_connector_details: None,
                 payout_link_config: None,
-                is_extended_card_info_enabled,
+                is_extended_card_info_enabled: Some(is_extended_card_info_enabled),
                 extended_card_info_config: None,
                 is_connector_agnostic_mit_enabled: None,
                 use_billing_as_payment_method_billing: None,
@@ -999,11 +1049,14 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 order_fulfillment_time_origin: None,
                 frm_routing_algorithm_id: None,
                 default_fallback_routing: None,
+                should_collect_cvv_during_payment: None,
                 tax_connector_id: None,
                 is_tax_connector_enabled: None,
                 is_network_tokenization_enabled: None,
                 is_auto_retries_enabled: None,
                 max_auto_retries_enabled: None,
+                is_click_to_pay_enabled: None,
+                authentication_product_ids: None,
             },
             ProfileUpdate::ConnectorAgnosticMitUpdate {
                 is_connector_agnostic_mit_enabled,
@@ -1024,7 +1077,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 payout_link_config: None,
                 is_extended_card_info_enabled: None,
                 extended_card_info_config: None,
-                is_connector_agnostic_mit_enabled,
+                is_connector_agnostic_mit_enabled: Some(is_connector_agnostic_mit_enabled),
                 use_billing_as_payment_method_billing: None,
                 collect_shipping_details_from_wallet_connector: None,
                 collect_billing_details_from_wallet_connector: None,
@@ -1037,11 +1090,14 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 order_fulfillment_time_origin: None,
                 frm_routing_algorithm_id: None,
                 default_fallback_routing: None,
+                should_collect_cvv_during_payment: None,
                 tax_connector_id: None,
                 is_tax_connector_enabled: None,
                 is_network_tokenization_enabled: None,
                 is_auto_retries_enabled: None,
                 max_auto_retries_enabled: None,
+                is_click_to_pay_enabled: None,
+                authentication_product_ids: None,
             },
             ProfileUpdate::DefaultRoutingFallbackUpdate {
                 default_fallback_routing,
@@ -1075,11 +1131,14 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 order_fulfillment_time_origin: None,
                 frm_routing_algorithm_id: None,
                 default_fallback_routing,
+                should_collect_cvv_during_payment: None,
                 tax_connector_id: None,
                 is_tax_connector_enabled: None,
                 is_network_tokenization_enabled: None,
                 is_auto_retries_enabled: None,
                 max_auto_retries_enabled: None,
+                is_click_to_pay_enabled: None,
+                authentication_product_ids: None,
             },
             ProfileUpdate::NetworkTokenizationUpdate {
                 is_network_tokenization_enabled,
@@ -1113,11 +1172,55 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 order_fulfillment_time_origin: None,
                 frm_routing_algorithm_id: None,
                 default_fallback_routing: None,
+                should_collect_cvv_during_payment: None,
                 tax_connector_id: None,
                 is_tax_connector_enabled: None,
-                is_network_tokenization_enabled,
+                is_network_tokenization_enabled: Some(is_network_tokenization_enabled),
                 is_auto_retries_enabled: None,
                 max_auto_retries_enabled: None,
+                is_click_to_pay_enabled: None,
+                authentication_product_ids: None,
+            },
+            ProfileUpdate::CollectCvvDuringPaymentUpdate {
+                should_collect_cvv_during_payment,
+            } => Self {
+                profile_name: None,
+                modified_at: now,
+                return_url: None,
+                enable_payment_response_hash: None,
+                payment_response_hash_key: None,
+                redirect_to_merchant_with_http_post: None,
+                webhook_details: None,
+                metadata: None,
+                is_recon_enabled: None,
+                applepay_verified_domains: None,
+                payment_link_config: None,
+                session_expiry: None,
+                authentication_connector_details: None,
+                payout_link_config: None,
+                is_extended_card_info_enabled: None,
+                extended_card_info_config: None,
+                is_connector_agnostic_mit_enabled: None,
+                use_billing_as_payment_method_billing: None,
+                collect_shipping_details_from_wallet_connector: None,
+                collect_billing_details_from_wallet_connector: None,
+                outgoing_webhook_custom_http_headers: None,
+                always_collect_billing_details_from_wallet_connector: None,
+                always_collect_shipping_details_from_wallet_connector: None,
+                routing_algorithm_id: None,
+                payout_routing_algorithm_id: None,
+                order_fulfillment_time: None,
+                order_fulfillment_time_origin: None,
+                frm_routing_algorithm_id: None,
+                default_fallback_routing: None,
+                should_collect_cvv_during_payment: Some(should_collect_cvv_during_payment),
+                tax_connector_id: None,
+                is_tax_connector_enabled: None,
+                is_network_tokenization_enabled: None,
+                is_auto_retries_enabled: None,
+                max_auto_retries_enabled: None,
+                is_click_to_pay_enabled: None,
+                authentication_product_ids: None,
             },
         }
     }
@@ -1169,6 +1272,7 @@ impl super::behaviour::Conversion for Profile {
             order_fulfillment_time_origin: self.order_fulfillment_time_origin,
             frm_routing_algorithm_id: self.frm_routing_algorithm_id,
             default_fallback_routing: self.default_fallback_routing,
+            should_collect_cvv_during_payment: self.should_collect_cvv_during_payment,
             tax_connector_id: self.tax_connector_id,
             is_tax_connector_enabled: Some(self.is_tax_connector_enabled),
             version: self.version,
@@ -1176,6 +1280,8 @@ impl super::behaviour::Conversion for Profile {
             is_network_tokenization_enabled: self.is_network_tokenization_enabled,
             is_auto_retries_enabled: None,
             max_auto_retries_enabled: None,
+            is_click_to_pay_enabled: self.is_click_to_pay_enabled,
+            authentication_product_ids: self.authentication_product_ids,
         })
     }
 
@@ -1239,10 +1345,13 @@ impl super::behaviour::Conversion for Profile {
                 frm_routing_algorithm_id: item.frm_routing_algorithm_id,
                 payout_routing_algorithm_id: item.payout_routing_algorithm_id,
                 default_fallback_routing: item.default_fallback_routing,
+                should_collect_cvv_during_payment: item.should_collect_cvv_during_payment,
                 tax_connector_id: item.tax_connector_id,
                 is_tax_connector_enabled: item.is_tax_connector_enabled.unwrap_or(false),
                 version: item.version,
                 is_network_tokenization_enabled: item.is_network_tokenization_enabled,
+                is_click_to_pay_enabled: item.is_click_to_pay_enabled,
+                authentication_product_ids: item.authentication_product_ids,
             })
         }
         .await
@@ -1291,12 +1400,15 @@ impl super::behaviour::Conversion for Profile {
             frm_routing_algorithm_id: self.frm_routing_algorithm_id,
             payout_routing_algorithm_id: self.payout_routing_algorithm_id,
             default_fallback_routing: self.default_fallback_routing,
+            should_collect_cvv_during_payment: self.should_collect_cvv_during_payment,
             tax_connector_id: self.tax_connector_id,
             is_tax_connector_enabled: Some(self.is_tax_connector_enabled),
             version: self.version,
             is_network_tokenization_enabled: self.is_network_tokenization_enabled,
             is_auto_retries_enabled: None,
             max_auto_retries_enabled: None,
+            is_click_to_pay_enabled: self.is_click_to_pay_enabled,
+            authentication_product_ids: self.authentication_product_ids,
         })
     }
 }

@@ -1,9 +1,13 @@
-import { getCustomExchange } from "./Commons";
+import {
+  cardRequiredField,
+  connectorDetails as commonConnectorDetails,
+  getCustomExchange,
+} from "./Commons";
 
 const successfulNo3DSCardDetails = {
   card_number: "4242424242424242",
   card_exp_month: "10",
-  card_exp_year: "25",
+  card_exp_year: "50",
   card_holder_name: "morino",
   card_cvc: "737",
 };
@@ -11,9 +15,17 @@ const successfulNo3DSCardDetails = {
 const successfulThreeDSTestCardDetails = {
   card_number: "4000002500003155",
   card_exp_month: "10",
-  card_exp_year: "25",
+  card_exp_year: "50",
   card_holder_name: "morino",
   card_cvc: "737",
+};
+
+const failedNo3DSCardDetails = {
+  card_number: "4000000000000002",
+  card_exp_month: "01",
+  card_exp_year: "25",
+  card_holder_name: "joseph Doe",
+  card_cvc: "123",
 };
 
 const singleUseMandateData = {
@@ -50,7 +62,70 @@ const multiUseMandateData = {
   },
 };
 
+const payment_method_data_3ds = {
+  card: {
+    last4: "3155",
+    card_type: "CREDIT",
+    card_network: "Visa",
+    card_issuer: "INTL HDQTRS-CENTER OWNED",
+    card_issuing_country: "UNITEDSTATES",
+    card_isin: "400000",
+    card_extended_bin: null,
+    card_exp_month: "10",
+    card_exp_year: "50",
+    card_holder_name: "morino",
+    payment_checks: null,
+    authentication_data: null,
+  },
+  billing: null,
+};
+
+const payment_method_data_no3ds = {
+  card: {
+    last4: "4242",
+    card_type: "CREDIT",
+    card_network: "Visa",
+    card_issuer: "STRIPE PAYMENTS UK LIMITED",
+    card_issuing_country: "UNITEDKINGDOM",
+    card_isin: "424242",
+    card_extended_bin: null,
+    card_exp_month: "10",
+    card_exp_year: "50",
+    card_holder_name: "morino",
+    payment_checks: {
+      cvc_check: "pass",
+      address_line1_check: "pass",
+      address_postal_code_check: "pass",
+    },
+    authentication_data: null,
+  },
+  billing: null,
+};
+
+const requiredFields = {
+  payment_methods: [
+    {
+      payment_method: "card",
+      payment_method_types: [
+        {
+          payment_method_type: "credit",
+          card_networks: [
+            {
+              eligible_connectors: ["stripe"],
+            },
+          ],
+          required_fields: cardRequiredField,
+        },
+      ],
+    },
+  ],
+};
+
 export const connectorDetails = {
+  multi_credential_config: {
+    specName: ["connectorAgnostic"],
+    value: "connector_2",
+  },
   card_pm: {
     PaymentIntent: {
       Request: {
@@ -62,19 +137,63 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_payment_method",
+          setup_future_usage: "on_session",
         },
       },
     },
     PaymentIntentOffSession: {
+      Configs: {
+        CONNECTOR_CREDENTIAL: {
+          specName: ["connectorAgnostic"],
+          value: "connector_2",
+        },
+      },
       Request: {
         currency: "USD",
         customer_acceptance: null,
+        amount: 6500,
+        authentication_type: "no_three_ds",
         setup_future_usage: "off_session",
       },
       Response: {
         status: 200,
         body: {
           status: "requires_payment_method",
+          setup_future_usage: "off_session",
+        },
+      },
+    },
+    PaymentIntentWithShippingCost: {
+      Request: {
+        currency: "USD",
+        shipping_cost: 50,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+          shipping_cost: 50,
+          amount: 6500,
+        },
+      },
+    },
+    PaymentConfirmWithShippingCost: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          shipping_cost: 50,
+          amount_received: 6550,
+          amount: 6500,
+          net_amount: 6550,
         },
       },
     },
@@ -91,10 +210,13 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "requires_capture",
+          status: "requires_customer_action",
+          setup_future_usage: "on_session",
+          payment_method_data: payment_method_data_3ds,
         },
       },
     },
+
     "3DSAutoCapture": {
       Request: {
         payment_method: "card",
@@ -109,6 +231,8 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_customer_action",
+          setup_future_usage: "on_session",
+          payment_method_data: payment_method_data_3ds,
         },
       },
     },
@@ -126,6 +250,9 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_capture",
+          payment_method: "card",
+          attempt_count: 1,
+          payment_method_data: payment_method_data_no3ds,
         },
       },
     },
@@ -143,6 +270,30 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
+          payment_method: "card",
+          attempt_count: 1,
+          payment_method_data: payment_method_data_no3ds,
+        },
+      },
+    },
+    No3DSFailPayment: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: failedNo3DSCardDetails,
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_code: "card_declined",
+          error_message:
+            "message - Your card was declined., decline_code - generic_decline",
+          unified_code: "UE_9000",
+          unified_message: "Something went wrong",
         },
       },
     },
@@ -187,6 +338,37 @@ export const connectorDetails = {
       },
     },
     Refund: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    manualPaymentRefund: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        customer_acceptance: null,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    manualPaymentPartialRefund: {
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -362,6 +544,24 @@ export const connectorDetails = {
         },
       },
     },
+    MITAutoCapture: getCustomExchange({
+      Configs: {
+        CONNECTOR_CREDENTIAL: {
+          specName: ["connectorAgnostic"],
+          value: "connector_2",
+        },
+      },
+      ...commonConnectorDetails.card_pm.MITAutoCapture,
+    }),
+    MITManualCapture: {
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
+        },
+      },
+    },
     ZeroAuthMandate: {
       Request: {
         payment_method: "card",
@@ -375,6 +575,37 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
+        },
+      },
+    },
+    ZeroAuthPaymentIntent: {
+      Request: {
+        amount: 0,
+        setup_future_usage: "off_session",
+        currency: "USD",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+          setup_future_usage: "off_session",
+        },
+      },
+    },
+    ZeroAuthConfirmPayment: {
+      Request: {
+        payment_type: "setup_mandate",
+        payment_method: "card",
+        payment_method_type: "credit",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          setup_future_usage: "off_session",
         },
       },
     },
@@ -451,8 +682,15 @@ export const connectorDetails = {
       },
     },
     SaveCardUseNo3DSAutoCaptureOffSession: {
+      Configs: {
+        CONNECTOR_CREDENTIAL: {
+          specName: ["connectorAgnostic"],
+          value: "connector_2",
+        },
+      },
       Request: {
         payment_method: "card",
+        payment_method_type: "debit",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
@@ -497,15 +735,19 @@ export const connectorDetails = {
       },
     },
     SaveCardConfirmAutoCaptureOffSession: {
+      Configs: {
+        CONNECTOR_CREDENTIAL: {
+          specName: ["connectorAgnostic"],
+          value: "connector_2",
+        },
+      },
       Request: {
         setup_future_usage: "off_session",
       },
       Response: {
         status: 200,
         body: {
-          error_code: "No error code",
-          error_message:
-            "You cannot confirm with `off_session=true` when `setup_future_usage` is also set on the PaymentIntent. The customer needs to be on-session to perform the steps which may be required to set up the PaymentMethod for future usage. Please confirm this PaymentIntent with your customer on-session.",
+          status: "succeeded",
         },
       },
     },
@@ -516,9 +758,19 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          error_code: "No error code",
-          error_message:
-            "You cannot confirm with `off_session=true` when `setup_future_usage` is also set on the PaymentIntent. The customer needs to be on-session to perform the steps which may be required to set up the PaymentMethod for future usage. Please confirm this PaymentIntent with your customer on-session.",
+          status: "requires_capture",
+        },
+      },
+    },
+    SaveCardConfirmAutoCaptureOffSessionWithoutBilling: {
+      Request: {
+        setup_future_usage: "off_session",
+        billing: null,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
         },
       },
     },
@@ -792,6 +1044,17 @@ export const connectorDetails = {
           status: "requires_customer_action",
         },
       },
+    },
+  },
+  pm_list: {
+    PmListResponse: {
+      PmListNull: {
+        payment_methods: [],
+      },
+      pmListDynamicFieldWithoutBilling: requiredFields,
+      pmListDynamicFieldWithBilling: requiredFields,
+      pmListDynamicFieldWithNames: requiredFields,
+      pmListDynamicFieldWithEmail: requiredFields,
     },
   },
 };

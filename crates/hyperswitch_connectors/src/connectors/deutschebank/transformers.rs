@@ -5,7 +5,7 @@ use common_utils::{ext_traits::ValueExt, pii::Email, types::MinorUnit};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::{BankDebitData, PaymentMethodData},
-    router_data::{AccessToken, ConnectorAuthType, RouterData},
+    router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
         payments::{Authorize, Capture, CompleteAuthorize, PSync},
         refunds::{Execute, RSync},
@@ -146,7 +146,9 @@ impl TryFrom<&DeutschebankRouterData<&PaymentsAuthorizeRouterData>>
             .and_then(|mandate_id| mandate_id.mandate_reference_id)
         {
             None => {
-                if item.router_data.request.is_mandate_payment() {
+                // To facilitate one-off payments via SEPA with Deutsche Bank, we are considering not storing the connector mandate ID in our system if future usage is on-session.
+                // We will only check for customer acceptance to make a one-off payment. we will be storing the connector mandate details only when setup future usage is off-session.
+                if item.router_data.request.customer_acceptance.is_some() {
                     match item.router_data.request.payment_method_data.clone() {
                         PaymentMethodData::BankDebit(BankDebitData::SepaBankDebit {
                             iban, ..
@@ -167,14 +169,14 @@ impl TryFrom<&DeutschebankRouterData<&PaymentsAuthorizeRouterData>>
                     }
                 } else {
                     Err(errors::ConnectorError::MissingRequiredField {
-                        field_name: "setup_future_usage or customer_acceptance.acceptance_type",
+                        field_name: "customer_acceptance",
                     }
                     .into())
                 }
             }
             Some(api_models::payments::MandateReferenceId::ConnectorMandateId(mandate_data)) => {
                 let mandate_metadata: DeutschebankMandateMetadata = mandate_data
-                    .mandate_metadata
+                    .get_mandate_metadata()
                     .ok_or(errors::ConnectorError::MissingConnectorMandateMetadata)?
                     .clone()
                     .parse_value("DeutschebankMandateMetadata")
@@ -261,6 +263,21 @@ pub struct DeutschebankMandatePostResponse {
     state: Option<DeutschebankSEPAMandateStatus>,
 }
 
+fn get_error_response(error_code: String, error_reason: String, status_code: u16) -> ErrorResponse {
+    ErrorResponse {
+        code: error_code.to_string(),
+        message: error_reason.clone(),
+        reason: Some(error_reason),
+        status_code,
+        attempt_status: None,
+        connector_transaction_id: None,
+    }
+}
+
+fn is_response_success(rc: &String) -> bool {
+    rc == "0"
+}
+
 impl
     TryFrom<
         ResponseRouterData<
@@ -284,45 +301,52 @@ impl
             Some(date) => date.chars().take(10).collect(),
             None => time::OffsetDateTime::now_utc().date().to_string(),
         };
-        match item.response.reference.clone() {
-            Some(reference) => Ok(Self {
-                status: if item.response.rc == "0" {
-                    match item.response.state.clone() {
-                        Some(state) => common_enums::AttemptStatus::from(state),
-                        None => common_enums::AttemptStatus::Failure,
-                    }
-                } else {
-                    common_enums::AttemptStatus::Failure
-                },
+        let response_code = item.response.rc.clone();
+        let is_response_success = is_response_success(&response_code);
+
+        match (
+            item.response.reference.clone(),
+            item.response.state.clone(),
+            is_response_success,
+        ) {
+            (Some(reference), Some(state), true) => Ok(Self {
+                status: common_enums::AttemptStatus::from(state),
                 response: Ok(PaymentsResponseData::TransactionResponse {
                     resource_id: ResponseId::NoResponseId,
-                    redirection_data: Some(RedirectForm::Form {
+                    redirection_data: Box::new(Some(RedirectForm::Form {
                         endpoint: item.data.request.get_complete_authorize_url()?,
                         method: common_utils::request::Method::Get,
                         form_fields: HashMap::from([
                             ("reference".to_string(), reference.clone()),
                             ("signed_on".to_string(), signed_on.clone()),
                         ]),
-                    }),
-                    mandate_reference: Some(MandateReference {
-                        connector_mandate_id: item.response.mandate_id,
-                        payment_method_id: None,
-                        mandate_metadata: Some(serde_json::json!(DeutschebankMandateMetadata {
-                            account_holder: item.data.get_billing_address()?.get_full_name()?,
-                            iban: match item.data.request.payment_method_data.clone() {
-                                PaymentMethodData::BankDebit(BankDebitData::SepaBankDebit {
-                                    iban,
-                                    ..
-                                }) => Ok(Secret::from(iban.peek().replace(" ", ""))),
-                                _ => Err(errors::ConnectorError::MissingRequiredField {
-                                    field_name:
-                                        "payment_method_data.bank_debit.sepa_bank_debit.iban"
-                                }),
-                            }?,
-                            reference: Secret::from(reference),
-                            signed_on,
-                        })),
-                    }),
+                    })),
+                    mandate_reference: if item.data.request.is_mandate_payment() {
+                        Box::new(Some(MandateReference {
+                            connector_mandate_id: item.response.mandate_id,
+                            payment_method_id: None,
+                            mandate_metadata: Some(Secret::new(
+                                serde_json::json!(DeutschebankMandateMetadata {
+                                account_holder: item.data.get_billing_address()?.get_full_name()?,
+                                iban: match item.data.request.payment_method_data.clone() {
+                                    PaymentMethodData::BankDebit(BankDebitData::SepaBankDebit {
+                                        iban,
+                                        ..
+                                    }) => Ok(Secret::from(iban.peek().replace(" ", ""))),
+                                    _ => Err(errors::ConnectorError::MissingRequiredField {
+                                        field_name:
+                                            "payment_method_data.bank_debit.sepa_bank_debit.iban"
+                                    }),
+                                }?,
+                                reference: Secret::from(reference.clone()),
+                                signed_on,
+                            }),
+                            )),
+                            connector_mandate_request_reference_id: None,
+                        }))
+                    } else {
+                        Box::new(None)
+                    },
                     connector_metadata: None,
                     network_txn_id: None,
                     connector_response_reference_id: None,
@@ -331,8 +355,13 @@ impl
                 }),
                 ..item.data
             }),
-            None => Ok(Self {
+            _ => Ok(Self {
                 status: common_enums::AttemptStatus::Failure,
+                response: Err(get_error_response(
+                    response_code.clone(),
+                    item.response.message.clone(),
+                    item.http_code,
+                )),
                 ..item.data
             }),
         }
@@ -358,27 +387,36 @@ impl
             PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            status: if item.response.rc == "0" {
-                match item.data.request.is_auto_capture()? {
+        let response_code = item.response.rc.clone();
+        if is_response_success(&response_code) {
+            Ok(Self {
+                status: match item.data.request.is_auto_capture()? {
                     true => common_enums::AttemptStatus::Charged,
                     false => common_enums::AttemptStatus::Authorized,
-                }
-            } else {
-                common_enums::AttemptStatus::Failure
-            },
-            response: Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::ConnectorTransactionId(item.response.tx_id),
-                redirection_data: None,
-                mandate_reference: None,
-                connector_metadata: None,
-                network_txn_id: None,
-                connector_response_reference_id: None,
-                incremental_authorization_allowed: None,
-                charge_id: None,
-            }),
-            ..item.data
-        })
+                },
+                response: Ok(PaymentsResponseData::TransactionResponse {
+                    resource_id: ResponseId::ConnectorTransactionId(item.response.tx_id),
+                    redirection_data: Box::new(None),
+                    mandate_reference: Box::new(None),
+                    connector_metadata: None,
+                    network_txn_id: None,
+                    connector_response_reference_id: None,
+                    incremental_authorization_allowed: None,
+                    charge_id: None,
+                }),
+                ..item.data
+            })
+        } else {
+            Ok(Self {
+                status: common_enums::AttemptStatus::Failure,
+                response: Err(get_error_response(
+                    response_code.clone(),
+                    item.response.message.clone(),
+                    item.http_code,
+                )),
+                ..item.data
+            })
+        }
     }
 }
 
@@ -561,27 +599,36 @@ impl
             PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            status: if item.response.rc == "0" {
-                match item.data.request.is_auto_capture()? {
+        let response_code = item.response.rc.clone();
+        if is_response_success(&response_code) {
+            Ok(Self {
+                status: match item.data.request.is_auto_capture()? {
                     true => common_enums::AttemptStatus::Charged,
                     false => common_enums::AttemptStatus::Authorized,
-                }
-            } else {
-                common_enums::AttemptStatus::Failure
-            },
-            response: Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::ConnectorTransactionId(item.response.tx_id),
-                redirection_data: None,
-                mandate_reference: None,
-                connector_metadata: None,
-                network_txn_id: None,
-                connector_response_reference_id: None,
-                incremental_authorization_allowed: None,
-                charge_id: None,
-            }),
-            ..item.data
-        })
+                },
+                response: Ok(PaymentsResponseData::TransactionResponse {
+                    resource_id: ResponseId::ConnectorTransactionId(item.response.tx_id),
+                    redirection_data: Box::new(None),
+                    mandate_reference: Box::new(None),
+                    connector_metadata: None,
+                    network_txn_id: None,
+                    connector_response_reference_id: None,
+                    incremental_authorization_allowed: None,
+                    charge_id: None,
+                }),
+                ..item.data
+            })
+        } else {
+            Ok(Self {
+                status: common_enums::AttemptStatus::Failure,
+                response: Err(get_error_response(
+                    response_code.clone(),
+                    item.response.message.clone(),
+                    item.http_code,
+                )),
+                ..item.data
+            })
+        }
     }
 }
 
@@ -628,24 +675,33 @@ impl
             PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            response: Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::ConnectorTransactionId(item.response.tx_id),
-                redirection_data: None,
-                mandate_reference: None,
-                connector_metadata: None,
-                network_txn_id: None,
-                connector_response_reference_id: None,
-                incremental_authorization_allowed: None,
-                charge_id: None,
-            }),
-            status: if item.response.rc == "0" {
-                common_enums::AttemptStatus::Charged
-            } else {
-                common_enums::AttemptStatus::Failure
-            },
-            ..item.data
-        })
+        let response_code = item.response.rc.clone();
+        if is_response_success(&response_code) {
+            Ok(Self {
+                status: common_enums::AttemptStatus::Charged,
+                response: Ok(PaymentsResponseData::TransactionResponse {
+                    resource_id: ResponseId::ConnectorTransactionId(item.response.tx_id),
+                    redirection_data: Box::new(None),
+                    mandate_reference: Box::new(None),
+                    connector_metadata: None,
+                    network_txn_id: None,
+                    connector_response_reference_id: None,
+                    incremental_authorization_allowed: None,
+                    charge_id: None,
+                }),
+                ..item.data
+            })
+        } else {
+            Ok(Self {
+                status: common_enums::AttemptStatus::Failure,
+                response: Err(get_error_response(
+                    response_code.clone(),
+                    item.response.message.clone(),
+                    item.http_code,
+                )),
+                ..item.data
+            })
+        }
     }
 }
 
@@ -668,7 +724,8 @@ impl
             PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        let status = if item.response.rc == "0" {
+        let response_code = item.response.rc.clone();
+        let status = if is_response_success(&response_code) {
             item.response
                 .tx_action
                 .and_then(|tx_action| match tx_action {
@@ -690,6 +747,15 @@ impl
             Some(common_enums::AttemptStatus::Failure)
         };
         match status {
+            Some(common_enums::AttemptStatus::Failure) => Ok(Self {
+                status: common_enums::AttemptStatus::Failure,
+                response: Err(get_error_response(
+                    response_code.clone(),
+                    item.response.message.clone(),
+                    item.http_code,
+                )),
+                ..item.data
+            }),
             Some(status) => Ok(Self {
                 status,
                 ..item.data
@@ -720,14 +786,23 @@ impl TryFrom<PaymentsCancelResponseRouterData<DeutschebankPaymentsResponse>>
     fn try_from(
         item: PaymentsCancelResponseRouterData<DeutschebankPaymentsResponse>,
     ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            status: if item.response.rc == "0" {
-                common_enums::AttemptStatus::Voided
-            } else {
-                common_enums::AttemptStatus::VoidFailed
-            },
-            ..item.data
-        })
+        let response_code = item.response.rc.clone();
+        if is_response_success(&response_code) {
+            Ok(Self {
+                status: common_enums::AttemptStatus::Voided,
+                ..item.data
+            })
+        } else {
+            Ok(Self {
+                status: common_enums::AttemptStatus::VoidFailed,
+                response: Err(get_error_response(
+                    response_code.clone(),
+                    item.response.message.clone(),
+                    item.http_code,
+                )),
+                ..item.data
+            })
+        }
     }
 }
 
@@ -754,17 +829,26 @@ impl TryFrom<RefundsResponseRouterData<Execute, DeutschebankPaymentsResponse>>
     fn try_from(
         item: RefundsResponseRouterData<Execute, DeutschebankPaymentsResponse>,
     ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            response: Ok(RefundsResponseData {
-                connector_refund_id: item.response.tx_id,
-                refund_status: if item.response.rc == "0" {
-                    enums::RefundStatus::Success
-                } else {
-                    enums::RefundStatus::Failure
-                },
-            }),
-            ..item.data
-        })
+        let response_code = item.response.rc.clone();
+        if is_response_success(&response_code) {
+            Ok(Self {
+                response: Ok(RefundsResponseData {
+                    connector_refund_id: item.response.tx_id,
+                    refund_status: enums::RefundStatus::Success,
+                }),
+                ..item.data
+            })
+        } else {
+            Ok(Self {
+                status: common_enums::AttemptStatus::Failure,
+                response: Err(get_error_response(
+                    response_code.clone(),
+                    item.response.message.clone(),
+                    item.http_code,
+                )),
+                ..item.data
+            })
+        }
     }
 }
 
@@ -775,7 +859,8 @@ impl TryFrom<RefundsResponseRouterData<RSync, DeutschebankPaymentsResponse>>
     fn try_from(
         item: RefundsResponseRouterData<RSync, DeutschebankPaymentsResponse>,
     ) -> Result<Self, Self::Error> {
-        let status = if item.response.rc == "0" {
+        let response_code = item.response.rc.clone();
+        let status = if is_response_success(&response_code) {
             item.response
                 .tx_action
                 .and_then(|tx_action| match tx_action {
@@ -794,7 +879,17 @@ impl TryFrom<RefundsResponseRouterData<RSync, DeutschebankPaymentsResponse>>
         } else {
             Some(enums::RefundStatus::Failure)
         };
+
         match status {
+            Some(enums::RefundStatus::Failure) => Ok(Self {
+                status: common_enums::AttemptStatus::Failure,
+                response: Err(get_error_response(
+                    response_code.clone(),
+                    item.response.message.clone(),
+                    item.http_code,
+                )),
+                ..item.data
+            }),
             Some(refund_status) => Ok(Self {
                 response: Ok(RefundsResponseData {
                     refund_status,

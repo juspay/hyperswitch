@@ -58,6 +58,7 @@ impl From<enums::WalletType> for global_enums::PaymentMethodType {
             enums::WalletType::Cashapp => Self::Cashapp,
             enums::WalletType::Venmo => Self::Venmo,
             enums::WalletType::Mifinity => Self::Mifinity,
+            enums::WalletType::Paze => Self::Paze,
         }
     }
 }
@@ -139,6 +140,14 @@ impl From<enums::CardRedirectType> for global_enums::PaymentMethodType {
             enums::CardRedirectType::Knet => Self::Knet,
             enums::CardRedirectType::MomoAtm => Self::MomoAtm,
             enums::CardRedirectType::CardRedirect => Self::CardRedirect,
+        }
+    }
+}
+
+impl From<enums::MobilePaymentType> for global_enums::PaymentMethodType {
+    fn from(value: enums::MobilePaymentType) -> Self {
+        match value {
+            enums::MobilePaymentType::DirectCarrierBilling => Self::DirectCarrierBilling,
         }
     }
 }
@@ -247,6 +256,7 @@ fn lower_value(dir_value: dir::DirValue) -> Result<EuclidValue, AnalysisErrorTyp
         dir::DirValue::BusinessLabel(bl) => EuclidValue::BusinessLabel(bl),
         dir::DirValue::SetupFutureUsage(sfu) => EuclidValue::SetupFutureUsage(sfu),
         dir::DirValue::OpenBankingType(ob) => EuclidValue::PaymentMethodType(ob.into()),
+        dir::DirValue::MobilePaymentType(mp) => EuclidValue::PaymentMethodType(mp.into()),
     })
 }
 

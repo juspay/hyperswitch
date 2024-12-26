@@ -4,12 +4,12 @@ use api_models::payment_methods::SurchargeDetailsResponse;
 use common_utils::{
     errors::CustomResult,
     ext_traits::{Encode, OptionExt},
-    types as common_types,
+    types::{self as common_types, ConnectorTransactionIdTrait},
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt;
 pub use hyperswitch_domain_models::router_request_types::{
-    AuthenticationData, PaymentCharges, SurchargeDetails,
+    AuthenticationData, SplitRefundsRequest, StripeSplitRefund, SurchargeDetails,
 };
 use redis_interface::errors::RedisError;
 use router_env::{instrument, logger, tracing};
@@ -162,11 +162,13 @@ impl MultipleCaptureData {
     }
     pub fn get_capture_by_connector_capture_id(
         &self,
-        connector_capture_id: String,
+        connector_capture_id: &String,
     ) -> Option<&storage::Capture> {
         self.all_captures
             .iter()
-            .find(|(_, capture)| capture.connector_capture_id == Some(connector_capture_id.clone()))
+            .find(|(_, capture)| {
+                capture.get_optional_connector_transaction_id() == Some(connector_capture_id)
+            })
             .map(|(_, capture)| capture)
     }
     pub fn get_latest_capture(&self) -> &storage::Capture {
@@ -176,14 +178,14 @@ impl MultipleCaptureData {
         let pending_connector_capture_ids = self
             .get_pending_captures()
             .into_iter()
-            .filter_map(|capture| capture.connector_capture_id.clone())
+            .filter_map(|capture| capture.get_optional_connector_transaction_id().cloned())
             .collect();
         pending_connector_capture_ids
     }
     pub fn get_pending_captures_without_connector_capture_id(&self) -> Vec<&storage::Capture> {
         self.get_pending_captures()
             .into_iter()
-            .filter(|capture| capture.connector_capture_id.is_none())
+            .filter(|capture| capture.get_optional_connector_transaction_id().is_none())
             .collect()
     }
 }
@@ -212,8 +214,6 @@ impl ForeignTryFrom<(&SurchargeDetails, &PaymentAttempt)> for SurchargeDetailsRe
                 .tax_on_surcharge_amount
                 .get_amount_as_i64(),
         )?;
-        let display_final_amount = currency
-            .to_currency_base_unit_asf64(surcharge_details.final_amount.get_amount_as_i64())?;
         let display_total_surcharge_amount = currency.to_currency_base_unit_asf64(
             (surcharge_details.surcharge_amount + surcharge_details.tax_on_surcharge_amount)
                 .get_amount_as_i64(),
@@ -224,7 +224,6 @@ impl ForeignTryFrom<(&SurchargeDetails, &PaymentAttempt)> for SurchargeDetailsRe
             display_surcharge_amount,
             display_tax_on_surcharge_amount,
             display_total_surcharge_amount,
-            display_final_amount,
         })
     }
 }

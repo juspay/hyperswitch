@@ -2,7 +2,10 @@ use std::fmt::{Display, Formatter};
 
 use serde::{Deserialize, Serialize};
 
-use crate::enums::{Country, CountryAlpha2, CountryAlpha3, PaymentMethod, PaymentMethodType};
+use crate::enums::{
+    AttemptStatus, Country, CountryAlpha2, CountryAlpha3, IntentStatus, PaymentMethod,
+    PaymentMethodType,
+};
 
 impl Display for NumericCountryCodeParseError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
@@ -519,7 +522,7 @@ impl Country {
             CountryAlpha2::ZW => Self::Zimbabwe,
         }
     }
-    pub const fn to_alpha2(&self) -> CountryAlpha2 {
+    pub const fn to_alpha2(self) -> CountryAlpha2 {
         match self {
             Self::Afghanistan => CountryAlpha2::AF,
             Self::AlandIslands => CountryAlpha2::AX,
@@ -1025,7 +1028,7 @@ impl Country {
             CountryAlpha3::ZWE => Self::Zimbabwe,
         }
     }
-    pub const fn to_alpha3(&self) -> CountryAlpha3 {
+    pub const fn to_alpha3(self) -> CountryAlpha3 {
         match self {
             Self::Afghanistan => CountryAlpha3::AFG,
             Self::AlandIslands => CountryAlpha3::ALA,
@@ -1532,7 +1535,7 @@ impl Country {
             _ => Err(NumericCountryCodeParseError),
         }
     }
-    pub const fn to_numeric(&self) -> u32 {
+    pub const fn to_numeric(self) -> u32 {
         match self {
             Self::Afghanistan => 4,
             Self::AlandIslands => 248,
@@ -1843,6 +1846,7 @@ impl From<PaymentMethodType> for PaymentMethod {
             PaymentMethodType::OnlineBankingThailand => Self::BankRedirect,
             PaymentMethodType::OnlineBankingPoland => Self::BankRedirect,
             PaymentMethodType::OnlineBankingSlovakia => Self::BankRedirect,
+            PaymentMethodType::Paze => Self::Wallet,
             PaymentMethodType::PermataBankTransfer => Self::BankTransfer,
             PaymentMethodType::Pix => Self::BankTransfer,
             PaymentMethodType::Pse => Self::BankTransfer,
@@ -1883,6 +1887,7 @@ impl From<PaymentMethodType> for PaymentMethod {
             PaymentMethodType::Seicomart => Self::Voucher,
             PaymentMethodType::PayEasy => Self::Voucher,
             PaymentMethodType::OpenBankingPIS => Self::OpenBanking,
+            PaymentMethodType::DirectCarrierBilling => Self::MobilePayment,
         }
     }
 }
@@ -1900,6 +1905,8 @@ mod custom_serde {
 
         use super::*;
 
+        // `serde::Serialize` implementation needs the function to accept `&Country`
+        #[allow(clippy::trivially_copy_pass_by_ref)]
         pub fn serialize<S>(code: &Country, serializer: S) -> Result<S::Ok, S::Error>
         where
             S: serde::Serializer,
@@ -1909,7 +1916,7 @@ mod custom_serde {
 
         struct FieldVisitor;
 
-        impl<'de> Visitor<'de> for FieldVisitor {
+        impl Visitor<'_> for FieldVisitor {
             type Value = CountryAlpha2;
 
             fn expecting(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
@@ -1932,6 +1939,8 @@ mod custom_serde {
 
         use super::*;
 
+        // `serde::Serialize` implementation needs the function to accept `&Country`
+        #[allow(clippy::trivially_copy_pass_by_ref)]
         pub fn serialize<S>(code: &Country, serializer: S) -> Result<S::Ok, S::Error>
         where
             S: serde::Serializer,
@@ -1941,7 +1950,7 @@ mod custom_serde {
 
         struct FieldVisitor;
 
-        impl<'de> Visitor<'de> for FieldVisitor {
+        impl Visitor<'_> for FieldVisitor {
             type Value = CountryAlpha3;
 
             fn expecting(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
@@ -1964,6 +1973,8 @@ mod custom_serde {
 
         use super::*;
 
+        // `serde::Serialize` implementation needs the function to accept `&Country`
+        #[allow(clippy::trivially_copy_pass_by_ref)]
         pub fn serialize<S>(code: &Country, serializer: S) -> Result<S::Ok, S::Error>
         where
             S: serde::Serializer,
@@ -1973,7 +1984,7 @@ mod custom_serde {
 
         struct FieldVisitor;
 
-        impl<'de> Visitor<'de> for FieldVisitor {
+        impl Visitor<'_> for FieldVisitor {
             type Value = u32;
 
             fn expecting(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
@@ -2060,6 +2071,41 @@ impl super::PresenceOfCustomerDuringPayment {
         match self {
             Self::Present => true,
             Self::Absent => false,
+        }
+    }
+}
+
+impl From<AttemptStatus> for IntentStatus {
+    fn from(s: AttemptStatus) -> Self {
+        match s {
+            AttemptStatus::Charged | AttemptStatus::AutoRefunded => Self::Succeeded,
+
+            AttemptStatus::ConfirmationAwaited => Self::RequiresConfirmation,
+            AttemptStatus::PaymentMethodAwaited => Self::RequiresPaymentMethod,
+
+            AttemptStatus::Authorized => Self::RequiresCapture,
+            AttemptStatus::AuthenticationPending | AttemptStatus::DeviceDataCollectionPending => {
+                Self::RequiresCustomerAction
+            }
+            AttemptStatus::Unresolved => Self::RequiresMerchantAction,
+
+            AttemptStatus::PartialCharged => Self::PartiallyCaptured,
+            AttemptStatus::PartialChargedAndChargeable => Self::PartiallyCapturedAndCapturable,
+            AttemptStatus::Started
+            | AttemptStatus::AuthenticationSuccessful
+            | AttemptStatus::Authorizing
+            | AttemptStatus::CodInitiated
+            | AttemptStatus::VoidInitiated
+            | AttemptStatus::CaptureInitiated
+            | AttemptStatus::Pending => Self::Processing,
+
+            AttemptStatus::AuthenticationFailed
+            | AttemptStatus::AuthorizationFailed
+            | AttemptStatus::VoidFailed
+            | AttemptStatus::RouterDeclined
+            | AttemptStatus::CaptureFailed
+            | AttemptStatus::Failure => Self::Failed,
+            AttemptStatus::Voided => Self::Cancelled,
         }
     }
 }

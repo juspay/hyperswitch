@@ -71,7 +71,7 @@ impl NuveiAuthorizePreprocessingCommon for types::PaymentsAuthorizeData {
     fn get_return_url_required(
         &self,
     ) -> Result<String, error_stack::Report<errors::ConnectorError>> {
-        self.get_return_url()
+        self.get_router_return_url()
     }
 
     fn get_capture_method(&self) -> Option<enums::CaptureMethod> {
@@ -122,7 +122,7 @@ impl NuveiAuthorizePreprocessingCommon for types::PaymentsPreProcessingData {
     fn get_return_url_required(
         &self,
     ) -> Result<String, error_stack::Report<errors::ConnectorError>> {
-        self.get_return_url()
+        self.get_router_return_url()
     }
 
     fn get_capture_method(&self) -> Option<enums::CaptureMethod> {
@@ -914,6 +914,7 @@ where
                 | domain::WalletData::MbWayRedirect(_)
                 | domain::WalletData::MobilePayRedirect(_)
                 | domain::WalletData::PaypalSdk(_)
+                | domain::WalletData::Paze(_)
                 | domain::WalletData::SamsungPay(_)
                 | domain::WalletData::TwintRedirect {}
                 | domain::WalletData::VippsRedirect {}
@@ -976,6 +977,7 @@ where
                     get_pay_later_info(AlternativePaymentMethodType::AfterPay, item)
                 }
                 domain::PayLaterData::KlarnaSdk { .. }
+                | domain::PayLaterData::KlarnaCheckout {}
                 | domain::PayLaterData::AffirmRedirect {}
                 | domain::PayLaterData::PayBrightRedirect {}
                 | domain::PayLaterData::WalleyRedirect {}
@@ -992,13 +994,15 @@ where
             | domain::PaymentMethodData::Crypto(_)
             | domain::PaymentMethodData::Reward
             | domain::PaymentMethodData::RealTimePayment(_)
+            | domain::PaymentMethodData::MobilePayment(_)
             | domain::PaymentMethodData::Upi(_)
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::CardRedirect(_)
             | domain::PaymentMethodData::GiftCard(_)
             | domain::PaymentMethodData::OpenBanking(_)
             | domain::PaymentMethodData::CardToken(_)
-            | domain::PaymentMethodData::NetworkToken(_) => {
+            | domain::PaymentMethodData::NetworkToken(_)
+            | domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("nuvei"),
                 )
@@ -1126,7 +1130,7 @@ where
             browser_details,
             v2_additional_params: additional_params,
             notification_url: item.request.get_complete_authorize_url().clone(),
-            merchant_url: item.return_url.clone(),
+            merchant_url: Some(item.request.get_return_url_required()?),
             platform_type: Some(PlatformType::Browser),
             method_completion_ind: Some(MethodCompletion::Unavailable),
             ..Default::default()
@@ -1198,10 +1202,12 @@ impl TryFrom<(&types::PaymentsCompleteAuthorizeRouterData, Secret<String>)>
             | Some(domain::PaymentMethodData::CardRedirect(..))
             | Some(domain::PaymentMethodData::Reward)
             | Some(domain::PaymentMethodData::RealTimePayment(..))
+            | Some(domain::PaymentMethodData::MobilePayment(..))
             | Some(domain::PaymentMethodData::Upi(..))
             | Some(domain::PaymentMethodData::OpenBanking(_))
             | Some(domain::PaymentMethodData::CardToken(..))
             | Some(domain::PaymentMethodData::NetworkToken(..))
+            | Some(domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_))
             | None => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("nuvei"),
             )),
@@ -1595,15 +1601,18 @@ where
                         .map_or(response.order_id.clone(), Some) // For paypal there will be no transaction_id, only order_id will be present
                         .map(types::ResponseId::ConnectorTransactionId)
                         .ok_or(errors::ConnectorError::MissingConnectorTransactionID)?,
-                    redirection_data,
-                    mandate_reference: response
-                        .payment_option
-                        .and_then(|po| po.user_payment_option_id)
-                        .map(|id| types::MandateReference {
-                            connector_mandate_id: Some(id),
-                            payment_method_id: None,
-                            mandate_metadata: None,
-                        }),
+                    redirection_data: Box::new(redirection_data),
+                    mandate_reference: Box::new(
+                        response
+                            .payment_option
+                            .and_then(|po| po.user_payment_option_id)
+                            .map(|id| types::MandateReference {
+                                connector_mandate_id: Some(id),
+                                payment_method_id: None,
+                                mandate_metadata: None,
+                                connector_mandate_request_reference_id: None,
+                            }),
+                    ),
                     // we don't need to save session token for capture, void flow so ignoring if it is not present
                     connector_metadata: if let Some(token) = response.session_token {
                         Some(

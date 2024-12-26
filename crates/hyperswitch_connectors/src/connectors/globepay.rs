@@ -28,7 +28,10 @@ use hyperswitch_domain_models::{
     },
 };
 use hyperswitch_interfaces::{
-    api::{self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorValidation},
+    api::{
+        self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorSpecifications,
+        ConnectorValidation,
+    },
     configs::Connectors,
     consts, errors,
     events::connector_api_logs::ConnectorEvent,
@@ -195,7 +198,11 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let query_params = get_globlepay_query_params(&req.connector_auth_type)?;
-        if req.request.capture_method == Some(common_enums::enums::CaptureMethod::Automatic) {
+        if matches!(
+            req.request.capture_method,
+            Some(common_enums::enums::CaptureMethod::Automatic)
+                | Some(common_enums::enums::CaptureMethod::SequentialAutomatic)
+        ) {
             Ok(format!(
                 "{}api/v1.0/gateway/partners/{}/orders/{}{query_params}",
                 self.base_url(connectors),
@@ -549,3 +556,5 @@ impl webhooks::IncomingWebhook for Globepay {
         Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 }
+
+impl ConnectorSpecifications for Globepay {}

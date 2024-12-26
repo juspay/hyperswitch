@@ -15,7 +15,7 @@ use crate::{
     services::{
         self,
         request::{self, Mask},
-        ConnectorIntegration, ConnectorValidation,
+        ConnectorIntegration, ConnectorSpecifications, ConnectorValidation,
     },
     types::{
         self,
@@ -530,3 +530,5 @@ impl
     > for Threedsecureio
 {
 }
+
+impl ConnectorSpecifications for Threedsecureio {}

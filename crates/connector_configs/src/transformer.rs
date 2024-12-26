@@ -56,8 +56,14 @@ impl DashboardRequestPayload {
                 | (Connector::Stripe, WeChatPay) => {
                     Some(api_models::enums::PaymentExperience::DisplayQrCode)
                 }
-                (_, GooglePay) | (_, ApplePay) | (_, PaymentMethodType::SamsungPay) => {
+                (_, GooglePay)
+                | (_, ApplePay)
+                | (_, PaymentMethodType::SamsungPay)
+                | (_, PaymentMethodType::Paze) => {
                     Some(api_models::enums::PaymentExperience::InvokeSdkClient)
+                }
+                (_, PaymentMethodType::DirectCarrierBilling) => {
+                    Some(api_models::enums::PaymentExperience::CollectOtp)
                 }
                 _ => Some(api_models::enums::PaymentExperience::RedirectToUrl),
             },
@@ -139,7 +145,8 @@ impl DashboardRequestPayload {
                     | PaymentMethod::Voucher
                     | PaymentMethod::GiftCard
                     | PaymentMethod::OpenBanking
-                    | PaymentMethod::CardRedirect => {
+                    | PaymentMethod::CardRedirect
+                    | PaymentMethod::MobilePayment => {
                         if let Some(provider) = payload.provider {
                             let val = Self::transform_payment_method(
                                 request.connector,

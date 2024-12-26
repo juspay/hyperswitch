@@ -37,9 +37,9 @@ impl
         _merchant_account: &domain::MerchantAccount,
         _key_store: &domain::MerchantKeyStore,
         _customer: &Option<domain::Customer>,
-        _merchant_connector_account: &helpers::MerchantConnectorAccountType,
+        _merchant_connector_account: &domain::MerchantConnectorAccount,
         _merchant_recipient_data: Option<MerchantRecipientData>,
-        _header_payload: Option<api_models::payments::HeaderPayload>,
+        _header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
     ) -> RouterResult<
         RouterData<frm_api::Transaction, FraudCheckTransactionData, FraudCheckResponseData>,
     > {
@@ -56,7 +56,7 @@ impl
         customer: &Option<domain::Customer>,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         _merchant_recipient_data: Option<MerchantRecipientData>,
-        header_payload: Option<api_models::payments::HeaderPayload>,
+        header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
     ) -> RouterResult<
         RouterData<frm_api::Transaction, FraudCheckTransactionData, FraudCheckResponseData>,
     > {
@@ -88,7 +88,6 @@ impl
                 .ok_or(errors::ApiErrorResponse::PaymentMethodNotFound)?,
             connector_auth_type: auth_type,
             description: None,
-            return_url: None,
             address: self.address.clone(),
             auth_type: storage_enums::AuthenticationType::NoThreeDs,
             connector_meta_data: None,
@@ -96,13 +95,20 @@ impl
             amount_captured: None,
             minor_amount_captured: None,
             request: FraudCheckTransactionData {
-                amount: self.payment_attempt.amount.get_amount_as_i64(),
+                amount: self
+                    .payment_attempt
+                    .net_amount
+                    .get_total_amount()
+                    .get_amount_as_i64(),
                 order_details: self.order_details.clone(),
                 currency,
                 payment_method,
                 error_code: self.payment_attempt.error_code.clone(),
                 error_message: self.payment_attempt.error_message.clone(),
-                connector_transaction_id: self.payment_attempt.connector_transaction_id.clone(),
+                connector_transaction_id: self
+                    .payment_attempt
+                    .get_connector_payment_id()
+                    .map(ToString::to_string),
                 connector: self.payment_attempt.connector.clone(),
             }, // self.order_details
             response: Ok(FraudCheckResponseData::TransactionResponse {
@@ -138,6 +144,9 @@ impl
             integrity_check: Ok(()),
             additional_merchant_data: None,
             header_payload,
+            connector_mandate_request_reference_id: None,
+            authentication_id: None,
+            psd2_sca_exemption_type: None,
         };
 
         Ok(router_data)

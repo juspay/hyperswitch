@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 
-use common_enums::{EntityType, PermissionGroup, RoleScope, TokenPurpose};
+use common_enums::{EntityType, TokenPurpose};
 use common_utils::{crypto::OptionalEncryptableName, id_type, pii};
 use masking::Secret;
 
@@ -8,6 +8,8 @@ use crate::user_role::UserStatus;
 pub mod dashboard_metadata;
 #[cfg(feature = "dummy_connector")]
 pub mod sample_data;
+#[cfg(feature = "control_center_theme")]
+pub mod theme;
 
 #[derive(serde::Deserialize, Debug, Clone, serde::Serialize)]
 pub struct SignUpWithMerchantIdRequest {
@@ -23,19 +25,6 @@ pub type SignUpWithMerchantIdResponse = AuthorizeResponse;
 pub struct SignUpRequest {
     pub email: pii::Email,
     pub password: Secret<String>,
-}
-
-#[derive(serde::Serialize, Debug, Clone)]
-pub struct DashboardEntryResponse {
-    pub token: Secret<String>,
-    pub merchant_id: id_type::MerchantId,
-    pub name: Secret<String>,
-    pub email: pii::Email,
-    pub verification_days_left: Option<i64>,
-    pub user_role: String,
-    //this field is added for audit/debug reasons
-    #[serde(skip_serializing)]
-    pub user_id: String,
 }
 
 pub type SignInRequest = SignUpRequest;
@@ -126,23 +115,24 @@ pub struct CreateInternalUserRequest {
     pub password: Secret<String>,
 }
 
+#[derive(serde::Deserialize, Debug, serde::Serialize)]
+pub struct CreateTenantUserRequest {
+    pub name: Secret<String>,
+    pub email: pii::Email,
+    pub password: Secret<String>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
+pub struct UserOrgMerchantCreateRequest {
+    pub organization_name: Secret<String>,
+    pub organization_details: Option<pii::SecretSerdeValue>,
+    pub metadata: Option<pii::SecretSerdeValue>,
+    pub merchant_name: Secret<String>,
+}
+
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct UserMerchantCreate {
     pub company_name: String,
-}
-
-#[derive(Debug, serde::Serialize)]
-pub struct ListUsersResponse(pub Vec<UserDetails>);
-
-#[derive(Debug, serde::Serialize)]
-pub struct UserDetails {
-    pub email: pii::Email,
-    pub name: Secret<String>,
-    pub role_id: String,
-    pub role_name: String,
-    pub status: UserStatus,
-    #[serde(with = "common_utils::custom_serde::iso8601")]
-    pub last_modified_at: time::PrimitiveDateTime,
 }
 
 #[derive(serde::Serialize, Debug, Clone)]
@@ -160,24 +150,12 @@ pub struct GetUserDetailsResponse {
     pub recovery_codes_left: Option<usize>,
     pub profile_id: id_type::ProfileId,
     pub entity_type: EntityType,
+    pub theme_id: Option<String>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct GetUserRoleDetailsRequest {
     pub email: pii::Email,
-}
-
-#[derive(Debug, serde::Serialize)]
-pub struct GetUserRoleDetailsResponse {
-    pub email: pii::Email,
-    pub name: Secret<String>,
-    pub role_id: String,
-    pub role_name: String,
-    pub status: UserStatus,
-    #[serde(with = "common_utils::custom_serde::iso8601")]
-    pub last_modified_at: time::PrimitiveDateTime,
-    pub groups: Vec<PermissionGroup>,
-    pub role_scope: RoleScope,
 }
 
 #[derive(Debug, serde::Serialize)]
@@ -207,23 +185,6 @@ pub struct SendVerifyEmailRequest {
     pub email: pii::Email,
 }
 
-#[derive(Debug, serde::Serialize)]
-pub struct UserMerchantAccount {
-    pub merchant_id: id_type::MerchantId,
-    pub merchant_name: OptionalEncryptableName,
-    pub is_active: bool,
-    pub role_id: String,
-    pub role_name: String,
-    pub org_id: id_type::OrganizationId,
-}
-
-#[cfg(feature = "recon")]
-#[derive(serde::Serialize, Debug)]
-pub struct VerifyTokenResponse {
-    pub merchant_id: id_type::MerchantId,
-    pub user_email: pii::Email,
-}
-
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct UpdateUserAccountDetailsRequest {
     pub name: Option<Secret<String>>,
@@ -244,6 +205,24 @@ pub struct TokenResponse {
 pub struct TwoFactorAuthStatusResponse {
     pub totp: bool,
     pub recovery_code: bool,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct TwoFactorAuthAttempts {
+    pub is_completed: bool,
+    pub remaining_attempts: u8,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct TwoFactorAuthStatusResponseWithAttempts {
+    pub totp: TwoFactorAuthAttempts,
+    pub recovery_code: TwoFactorAuthAttempts,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct TwoFactorStatus {
+    pub status: Option<TwoFactorAuthStatusResponseWithAttempts>,
+    pub is_skippable: bool,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
@@ -367,8 +346,9 @@ pub struct SsoSignInRequest {
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
-pub struct AuthIdQueryParam {
+pub struct AuthIdAndThemeIdQueryParam {
     pub auth_id: Option<String>,
+    pub theme_id: Option<String>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]

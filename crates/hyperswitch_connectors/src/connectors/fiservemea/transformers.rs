@@ -103,13 +103,16 @@ impl TryFrom<&FiservemeaRouterData<&PaymentsAuthorizeRouterData>> for Fiservemea
                     },
                     security_code: req_card.card_cvc,
                 };
-                let request_type = if item.router_data.request.capture_method
-                    == Some(enums::CaptureMethod::Automatic)
-                {
+                let request_type = if matches!(
+                    item.router_data.request.capture_method,
+                    Some(enums::CaptureMethod::Automatic)
+                        | Some(enums::CaptureMethod::SequentialAutomatic)
+                ) {
                     FiservemeaRequestType::PaymentCardSaleTransaction
                 } else {
                     FiservemeaRequestType::PaymentCardPreAuthTransaction
                 };
+
                 Ok(Self {
                     request_type,
                     merchant_transaction_id: item
@@ -361,8 +364,8 @@ impl<F, T> TryFrom<ResponseRouterData<F, FiservemeaPaymentsResponse, T, Payments
             ),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.ipg_transaction_id),
-                redirection_data: None,
-                mandate_reference: None,
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: item.response.order_id,

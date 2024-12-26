@@ -23,6 +23,7 @@ impl
         types::PaymentsResponseData,
     > for PaymentData<api::SetupMandate>
 {
+    #[cfg(feature = "v1")]
     async fn construct_router_data<'a>(
         &self,
         state: &SessionState,
@@ -32,7 +33,7 @@ impl
         customer: &Option<domain::Customer>,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
-        header_payload: Option<api_models::payments::HeaderPayload>,
+        header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
     ) -> RouterResult<types::SetupMandateRouterData> {
         Box::pin(transformers::construct_payment_router_data::<
             api::SetupMandate,
@@ -49,6 +50,21 @@ impl
             header_payload,
         ))
         .await
+    }
+
+    #[cfg(feature = "v2")]
+    async fn construct_router_data<'a>(
+        &self,
+        state: &SessionState,
+        connector_id: &str,
+        merchant_account: &domain::MerchantAccount,
+        key_store: &domain::MerchantKeyStore,
+        customer: &Option<domain::Customer>,
+        merchant_connector_account: &domain::MerchantConnectorAccount,
+        merchant_recipient_data: Option<types::MerchantRecipientData>,
+        header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
+    ) -> RouterResult<types::SetupMandateRouterData> {
+        todo!()
     }
 
     async fn get_merchant_recipient_data<'a>(
@@ -72,7 +88,7 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
         call_connector_action: payments::CallConnectorAction,
         connector_request: Option<services::Request>,
         _business_profile: &domain::Profile,
-        _header_payload: api_models::payments::HeaderPayload,
+        _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<Self> {
         let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
             api::SetupMandate,

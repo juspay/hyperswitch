@@ -1,3 +1,5 @@
+pub mod theme;
+
 use actix_web::{web, HttpRequest, HttpResponse};
 #[cfg(feature = "dummy_connector")]
 use api_models::user::sample_data::SampleDataRequest;
@@ -5,7 +7,7 @@ use api_models::{
     errors::types::ApiErrorResponse,
     user::{self as user_api},
 };
-use common_enums::{EntityType, TokenPurpose};
+use common_enums::TokenPurpose;
 use common_utils::errors::ReportSwitchExt;
 use router_env::Flow;
 
@@ -39,18 +41,23 @@ pub async fn user_signup_with_merchant_id(
     state: web::Data<AppState>,
     http_req: HttpRequest,
     json_payload: web::Json<user_api::SignUpWithMerchantIdRequest>,
-    query: web::Query<user_api::AuthIdQueryParam>,
+    query: web::Query<user_api::AuthIdAndThemeIdQueryParam>,
 ) -> HttpResponse {
     let flow = Flow::UserSignUpWithMerchantId;
     let req_payload = json_payload.into_inner();
-    let auth_id = query.into_inner().auth_id;
+    let query_params = query.into_inner();
     Box::pin(api::server_wrap(
         flow.clone(),
         state,
         &http_req,
         req_payload.clone(),
         |state, _, req_body, _| {
-            user_core::signup_with_merchant_id(state, req_body, auth_id.clone())
+            user_core::signup_with_merchant_id(
+                state,
+                req_body,
+                query_params.auth_id.clone(),
+                query_params.theme_id.clone(),
+            )
         },
         &auth::AdminApiAuth,
         api_locking::LockAction::NotApplicable,
@@ -105,17 +112,24 @@ pub async fn user_connect_account(
     state: web::Data<AppState>,
     http_req: HttpRequest,
     json_payload: web::Json<user_api::ConnectAccountRequest>,
-    query: web::Query<user_api::AuthIdQueryParam>,
+    query: web::Query<user_api::AuthIdAndThemeIdQueryParam>,
 ) -> HttpResponse {
     let flow = Flow::UserConnectAccount;
     let req_payload = json_payload.into_inner();
-    let auth_id = query.into_inner().auth_id;
+    let query_params = query.into_inner();
     Box::pin(api::server_wrap(
         flow.clone(),
         state,
         &http_req,
         req_payload.clone(),
-        |state, _: (), req_body, _| user_core::connect_account(state, req_body, auth_id.clone()),
+        |state, _: (), req_body, _| {
+            user_core::connect_account(
+                state,
+                req_body,
+                query_params.auth_id.clone(),
+                query_params.theme_id.clone(),
+            )
+        },
         &auth::NoAuth,
         api_locking::LockAction::NotApplicable,
     ))
@@ -130,7 +144,7 @@ pub async fn signout(state: web::Data<AppState>, http_req: HttpRequest) -> HttpR
         &http_req,
         (),
         |state, user, _, _| user_core::signout(state, user),
-        &auth::DashboardNoPermissionAuth,
+        &auth::AnyPurposeOrLoginTokenAuth,
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -176,8 +190,7 @@ pub async fn set_dashboard_metadata(
         payload,
         user_core::dashboard_metadata::set_metadata,
         &auth::JWTAuth {
-            permission: Permission::MerchantAccountWrite,
-            minimum_entity_level: EntityType::Profile,
+            permission: Permission::ProfileAccountWrite,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -228,19 +241,42 @@ pub async fn internal_user_signup(
     .await
 }
 
-pub async fn switch_merchant_id(
+pub async fn create_tenant_user(
     state: web::Data<AppState>,
     http_req: HttpRequest,
-    json_payload: web::Json<user_api::SwitchMerchantRequest>,
+    json_payload: web::Json<user_api::CreateTenantUserRequest>,
 ) -> HttpResponse {
-    let flow = Flow::SwitchMerchant;
+    let flow = Flow::TenantUserCreate;
     Box::pin(api::server_wrap(
         flow,
         state.clone(),
         &http_req,
         json_payload.into_inner(),
-        |state, user, req, _| user_core::switch_merchant_id(state, req, user),
-        &auth::DashboardNoPermissionAuth,
+        |state, _, req, _| user_core::create_tenant_user(state, req),
+        &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(feature = "v1")]
+pub async fn user_org_create(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<user_api::UserOrgMerchantCreateRequest>,
+) -> HttpResponse {
+    let flow = Flow::UserOrgMerchantCreate;
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        json_payload.into_inner(),
+        |state, _auth: auth::UserFromToken, json_payload, _| {
+            user_core::create_org_merchant_for_user(state, json_payload)
+        },
+        &auth::JWTAuth {
+            permission: Permission::TenantAccountWrite,
+        },
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -261,8 +297,7 @@ pub async fn user_merchant_account_create(
             user_core::create_merchant_account(state, auth, json_payload)
         },
         &auth::JWTAuth {
-            permission: Permission::MerchantAccountCreate,
-            minimum_entity_level: EntityType::Merchant,
+            permission: Permission::OrganizationAccountWrite,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -285,8 +320,7 @@ pub async fn generate_sample_data(
         payload.into_inner(),
         sample_data::generate_sample_data_for_user,
         &auth::JWTAuth {
-            permission: Permission::PaymentWrite,
-            minimum_entity_level: EntityType::Merchant,
+            permission: Permission::MerchantPaymentWrite,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -310,42 +344,6 @@ pub async fn delete_sample_data(
         sample_data::delete_sample_data_for_user,
         &auth::JWTAuth {
             permission: Permission::MerchantAccountWrite,
-            minimum_entity_level: EntityType::Merchant,
-        },
-        api_locking::LockAction::NotApplicable,
-    ))
-    .await
-}
-
-pub async fn list_merchants_for_user(state: web::Data<AppState>, req: HttpRequest) -> HttpResponse {
-    let flow = Flow::UserMerchantAccountList;
-    Box::pin(api::server_wrap(
-        flow,
-        state,
-        &req,
-        (),
-        |state, user, _, _| user_core::list_merchants_for_user(state, user),
-        &auth::SinglePurposeOrLoginTokenAuth(TokenPurpose::AcceptInvite),
-        api_locking::LockAction::NotApplicable,
-    ))
-    .await
-}
-
-pub async fn get_user_role_details(
-    state: web::Data<AppState>,
-    req: HttpRequest,
-    payload: web::Query<user_api::GetUserRoleDetailsRequest>,
-) -> HttpResponse {
-    let flow = Flow::GetUserDetails;
-    Box::pin(api::server_wrap(
-        flow,
-        state.clone(),
-        &req,
-        payload.into_inner(),
-        user_core::get_user_details_in_merchant_account,
-        &auth::JWTAuth {
-            permission: Permission::UsersRead,
-            minimum_entity_level: EntityType::Merchant,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -365,28 +363,7 @@ pub async fn list_user_roles_details(
         payload.into_inner(),
         user_core::list_user_roles_details,
         &auth::JWTAuth {
-            permission: Permission::UsersRead,
-            minimum_entity_level: EntityType::Profile,
-        },
-        api_locking::LockAction::NotApplicable,
-    ))
-    .await
-}
-
-pub async fn list_users_for_merchant_account(
-    state: web::Data<AppState>,
-    req: HttpRequest,
-) -> HttpResponse {
-    let flow = Flow::ListUsersForMerchantAccount;
-    Box::pin(api::server_wrap(
-        flow,
-        state.clone(),
-        &req,
-        (),
-        |state, user, _, _| user_core::list_users_for_merchant_account(state, user),
-        &auth::JWTAuth {
-            permission: Permission::UsersRead,
-            minimum_entity_level: EntityType::Merchant,
+            permission: Permission::ProfileUserRead,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -416,16 +393,23 @@ pub async fn forgot_password(
     state: web::Data<AppState>,
     req: HttpRequest,
     payload: web::Json<user_api::ForgotPasswordRequest>,
-    query: web::Query<user_api::AuthIdQueryParam>,
+    query: web::Query<user_api::AuthIdAndThemeIdQueryParam>,
 ) -> HttpResponse {
     let flow = Flow::ForgotPassword;
-    let auth_id = query.into_inner().auth_id;
+    let query_params = query.into_inner();
     Box::pin(api::server_wrap(
         flow,
         state.clone(),
         &req,
         payload.into_inner(),
-        |state, _: (), payload, _| user_core::forgot_password(state, payload, auth_id.clone()),
+        |state, _: (), payload, _| {
+            user_core::forgot_password(
+                state,
+                payload,
+                query_params.auth_id.clone(),
+                query_params.theme_id.clone(),
+            )
+        },
         &auth::NoAuth,
         api_locking::LockAction::NotApplicable,
     ))
@@ -455,7 +439,7 @@ pub async fn invite_multiple_user(
     state: web::Data<AppState>,
     req: HttpRequest,
     payload: web::Json<Vec<user_api::InviteUserRequest>>,
-    auth_id_query_param: web::Query<user_api::AuthIdQueryParam>,
+    auth_id_query_param: web::Query<user_api::AuthIdAndThemeIdQueryParam>,
 ) -> HttpResponse {
     let flow = Flow::InviteMultipleUser;
     let auth_id = auth_id_query_param.into_inner().auth_id;
@@ -468,8 +452,7 @@ pub async fn invite_multiple_user(
             user_core::invite_multiple_user(state, user, payload, req_state, auth_id.clone())
         },
         &auth::JWTAuth {
-            permission: Permission::UsersWrite,
-            minimum_entity_level: EntityType::Profile,
+            permission: Permission::ProfileUserWrite,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -481,7 +464,7 @@ pub async fn resend_invite(
     state: web::Data<AppState>,
     req: HttpRequest,
     payload: web::Json<user_api::ReInviteUserRequest>,
-    query: web::Query<user_api::AuthIdQueryParam>,
+    query: web::Query<user_api::AuthIdAndThemeIdQueryParam>,
 ) -> HttpResponse {
     let flow = Flow::ReInviteUser;
     let auth_id = query.into_inner().auth_id;
@@ -494,8 +477,7 @@ pub async fn resend_invite(
             user_core::resend_invite(state, user, req_payload, auth_id.clone())
         },
         &auth::JWTAuth {
-            permission: Permission::UsersWrite,
-            minimum_entity_level: EntityType::Profile,
+            permission: Permission::ProfileUserWrite,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -549,37 +531,24 @@ pub async fn verify_email_request(
     state: web::Data<AppState>,
     http_req: HttpRequest,
     json_payload: web::Json<user_api::SendVerifyEmailRequest>,
-    query: web::Query<user_api::AuthIdQueryParam>,
+    query: web::Query<user_api::AuthIdAndThemeIdQueryParam>,
 ) -> HttpResponse {
     let flow = Flow::VerifyEmailRequest;
-    let auth_id = query.into_inner().auth_id;
+    let query_params = query.into_inner();
     Box::pin(api::server_wrap(
         flow,
         state.clone(),
         &http_req,
         json_payload.into_inner(),
         |state, _: (), req_body, _| {
-            user_core::send_verification_mail(state, req_body, auth_id.clone())
+            user_core::send_verification_mail(
+                state,
+                req_body,
+                query_params.auth_id.clone(),
+                query_params.theme_id.clone(),
+            )
         },
         &auth::NoAuth,
-        api_locking::LockAction::NotApplicable,
-    ))
-    .await
-}
-
-#[cfg(feature = "recon")]
-pub async fn verify_recon_token(state: web::Data<AppState>, http_req: HttpRequest) -> HttpResponse {
-    let flow = Flow::ReconVerifyToken;
-    Box::pin(api::server_wrap(
-        flow,
-        state.clone(),
-        &http_req,
-        (),
-        |state, user, _req, _| user_core::verify_token(state, user),
-        &auth::JWTAuth {
-            permission: Permission::ReconAdmin,
-            minimum_entity_level: EntityType::Merchant,
-        },
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -755,6 +724,24 @@ pub async fn check_two_factor_auth_status(
     .await
 }
 
+pub async fn check_two_factor_auth_status_with_attempts(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+) -> HttpResponse {
+    let flow = Flow::TwoFactorAuthStatus;
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &req,
+        (),
+        |state, user, _, _| user_core::check_two_factor_auth_status_with_attempts(state, user),
+        &auth::SinglePurposeOrLoginTokenAuth(TokenPurpose::TOTP),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(feature = "v1")]
 pub async fn get_sso_auth_url(
     state: web::Data<AppState>,
     req: HttpRequest,

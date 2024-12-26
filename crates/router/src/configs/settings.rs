@@ -6,7 +6,7 @@ use std::{
 #[cfg(feature = "olap")]
 use analytics::{opensearch::OpenSearchConfig, ReportConfig};
 use api_models::{enums, payment_methods::RequiredFieldInfo};
-use common_utils::ext_traits::ConfigExt;
+use common_utils::{ext_traits::ConfigExt, id_type, types::theme::EmailThemeConfig};
 use config::{Environment, File};
 use error_stack::ResultExt;
 #[cfg(feature = "email")]
@@ -96,6 +96,7 @@ pub struct Settings<S: SecretState> {
     pub payouts: Payouts,
     pub payout_method_filters: ConnectorFilters,
     pub applepay_decrypt_keys: SecretStateContainer<ApplePayDecryptConfig, S>,
+    pub paze_decrypt_keys: Option<SecretStateContainer<PazeDecryptConfig, S>>,
     pub multiple_api_version_supported_connectors: MultipleApiVersionSupportedConnectors,
     pub applepay_merchant_configs: SecretStateContainer<ApplepayMerchantConfigs, S>,
     pub lock_settings: LockSettings,
@@ -127,6 +128,13 @@ pub struct Settings<S: SecretState> {
     pub network_tokenization_supported_card_networks: NetworkTokenizationSupportedCardNetworks,
     pub network_tokenization_service: Option<SecretStateContainer<NetworkTokenizationService, S>>,
     pub network_tokenization_supported_connectors: NetworkTokenizationSupportedConnectors,
+    pub theme: ThemeSettings,
+    pub platform: Platform,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct Platform {
+    pub enabled: bool,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -137,13 +145,17 @@ pub struct Multitenancy {
 }
 
 impl Multitenancy {
-    pub fn get_tenants(&self) -> &HashMap<String, Tenant> {
+    pub fn get_tenants(&self) -> &HashMap<id_type::TenantId, Tenant> {
         &self.tenants.0
     }
-    pub fn get_tenant_names(&self) -> Vec<String> {
-        self.tenants.0.keys().cloned().collect()
+    pub fn get_tenant_ids(&self) -> Vec<id_type::TenantId> {
+        self.tenants
+            .0
+            .values()
+            .map(|tenant| tenant.tenant_id.clone())
+            .collect()
     }
-    pub fn get_tenant(&self, tenant_id: &str) -> Option<&Tenant> {
+    pub fn get_tenant(&self, tenant_id: &id_type::TenantId) -> Option<&Tenant> {
         self.tenants.0.get(tenant_id)
     }
 }
@@ -153,17 +165,22 @@ pub struct DecisionConfig {
     pub base_url: String,
 }
 
-#[derive(Debug, Deserialize, Clone, Default)]
-#[serde(transparent)]
-pub struct TenantConfig(pub HashMap<String, Tenant>);
+#[derive(Debug, Clone, Default)]
+pub struct TenantConfig(pub HashMap<id_type::TenantId, Tenant>);
 
-#[derive(Debug, Deserialize, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct Tenant {
-    pub name: String,
+    pub tenant_id: id_type::TenantId,
     pub base_url: String,
     pub schema: String,
     pub redis_key_prefix: String,
     pub clickhouse_database: String,
+    pub user: TenantUserConfig,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct TenantUserConfig {
+    pub control_center_url: String,
 }
 
 impl storage_impl::config::TenantConfig for Tenant {
@@ -552,6 +569,8 @@ pub struct UserSettings {
     pub two_factor_auth_expiry_in_secs: i64,
     pub totp_issuer_name: String,
     pub base_url: String,
+    pub force_two_factor_auth: bool,
+    pub force_cookies: bool,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -724,6 +743,12 @@ pub struct ApplePayDecryptConfig {
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
+pub struct PazeDecryptConfig {
+    pub paze_private_key: Secret<String>,
+    pub paze_private_key_passphrase: Secret<String>,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
 #[serde(default)]
 pub struct LockerBasedRecipientConnectorList {
     #[serde(deserialize_with = "deserialize_hashset")]
@@ -732,8 +757,7 @@ pub struct LockerBasedRecipientConnectorList {
 
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct ConnectorRequestReferenceIdConfig {
-    pub merchant_ids_send_payment_id_as_connector_request_id:
-        HashSet<common_utils::id_type::MerchantId>,
+    pub merchant_ids_send_payment_id_as_connector_request_id: HashSet<id_type::MerchantId>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -864,7 +888,21 @@ impl Settings<SecuredSecret> {
             .map(|x| x.get_inner().validate())
             .transpose()?;
 
+        self.paze_decrypt_keys
+            .as_ref()
+            .map(|x| x.get_inner().validate())
+            .transpose()?;
+
         self.key_manager.get_inner().validate()?;
+        #[cfg(feature = "email")]
+        self.email
+            .validate()
+            .map_err(|err| ApplicationError::InvalidConfigurationValueError(err.into()))?;
+
+        self.theme
+            .storage
+            .validate()
+            .map_err(|err| ApplicationError::InvalidConfigurationValueError(err.to_string()))?;
 
         Ok(())
     }
@@ -950,7 +988,7 @@ pub struct ServerTls {
 #[cfg(feature = "v2")]
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
 pub struct CellInformation {
-    pub id: common_utils::id_type::CellId,
+    pub id: id_type::CellId,
 }
 
 #[cfg(feature = "v2")]
@@ -961,10 +999,16 @@ impl Default for CellInformation {
         // around the time of deserializing application settings.
         // And a panic at application startup is considered acceptable.
         #[allow(clippy::expect_used)]
-        let cell_id = common_utils::id_type::CellId::from_string("defid")
-            .expect("Failed to create a default for Cell Id");
+        let cell_id =
+            id_type::CellId::from_string("defid").expect("Failed to create a default for Cell Id");
         Self { id: cell_id }
     }
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct ThemeSettings {
+    pub storage: FileStorageConfig,
+    pub email_config: EmailThemeConfig,
 }
 
 fn deserialize_hashmap_inner<K, V>(
@@ -1088,6 +1132,40 @@ where
             }
         })
     })?
+}
+
+impl<'de> Deserialize<'de> for TenantConfig {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        #[derive(Deserialize)]
+        struct Inner {
+            base_url: String,
+            schema: String,
+            redis_key_prefix: String,
+            clickhouse_database: String,
+            user: TenantUserConfig,
+        }
+
+        let hashmap = <HashMap<id_type::TenantId, Inner>>::deserialize(deserializer)?;
+
+        Ok(Self(
+            hashmap
+                .into_iter()
+                .map(|(key, value)| {
+                    (
+                        key.clone(),
+                        Tenant {
+                            tenant_id: key,
+                            base_url: value.base_url,
+                            schema: value.schema,
+                            redis_key_prefix: value.redis_key_prefix,
+                            clickhouse_database: value.clickhouse_database,
+                            user: value.user,
+                        },
+                    )
+                })
+                .collect(),
+        ))
+    }
 }
 
 #[cfg(test)]

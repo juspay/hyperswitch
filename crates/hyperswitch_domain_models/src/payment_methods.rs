@@ -1,10 +1,9 @@
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+use common_utils::crypto::Encryptable;
 use common_utils::{
     crypto::OptionalEncryptableValue,
-    // date_time,
-    // encryption::Encryption,
     errors::{CustomResult, ValidationError},
-    pii,
-    type_name,
+    pii, type_name,
     types::keymanager,
 };
 use diesel_models::enums as storage_enums;
@@ -12,8 +11,24 @@ use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
 use time::PrimitiveDateTime;
 
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+use crate::type_encryption::OptionalEncryptableJsonType;
 use crate::type_encryption::{crypto_operation, AsyncLift, CryptoOperation};
 
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
+pub struct VaultId(String);
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+impl VaultId {
+    pub fn get_string_repr(&self) -> &String {
+        &self.0
+    }
+
+    pub fn generate(id: String) -> Self {
+        Self(id)
+    }
+}
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
     not(feature = "payment_methods_v2")
@@ -59,17 +74,17 @@ pub struct PaymentMethod {
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 #[derive(Clone, Debug)]
 pub struct PaymentMethod {
-    pub customer_id: common_utils::id_type::CustomerId,
+    pub customer_id: common_utils::id_type::GlobalCustomerId,
     pub merchant_id: common_utils::id_type::MerchantId,
     pub created_at: PrimitiveDateTime,
     pub last_modified: PrimitiveDateTime,
-    pub payment_method: Option<storage_enums::PaymentMethod>,
-    pub payment_method_type: Option<storage_enums::PaymentMethodType>,
-    pub metadata: Option<pii::SecretSerdeValue>,
-    pub payment_method_data: OptionalEncryptableValue,
-    pub locker_id: Option<String>,
+    pub payment_method_type: Option<storage_enums::PaymentMethod>,
+    pub payment_method_subtype: Option<storage_enums::PaymentMethodType>,
+    pub payment_method_data:
+        OptionalEncryptableJsonType<api_models::payment_methods::PaymentMethodsData>,
+    pub locker_id: Option<VaultId>,
     pub last_used_at: PrimitiveDateTime,
-    pub connector_mandate_details: Option<pii::SecretSerdeValue>,
+    pub connector_mandate_details: Option<diesel_models::PaymentsMandateReference>,
     pub customer_acceptance: Option<pii::SecretSerdeValue>,
     pub status: storage_enums::PaymentMethodStatus,
     pub network_transaction_id: Option<String>,
@@ -96,6 +111,32 @@ impl PaymentMethod {
     #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
     pub fn get_id(&self) -> &common_utils::id_type::GlobalPaymentMethodId {
         &self.id
+    }
+
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "payment_methods_v2")
+    ))]
+    pub fn get_payment_method_type(&self) -> Option<storage_enums::PaymentMethod> {
+        self.payment_method
+    }
+
+    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    pub fn get_payment_method_type(&self) -> Option<storage_enums::PaymentMethod> {
+        self.payment_method_type
+    }
+
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "payment_methods_v2")
+    ))]
+    pub fn get_payment_method_subtype(&self) -> Option<storage_enums::PaymentMethodType> {
+        self.payment_method_type
+    }
+
+    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    pub fn get_payment_method_subtype(&self) -> Option<storage_enums::PaymentMethodType> {
+        self.payment_method_subtype
     }
 }
 
@@ -298,11 +339,10 @@ impl super::behaviour::Conversion for PaymentMethod {
             id: self.id,
             created_at: self.created_at,
             last_modified: self.last_modified,
-            payment_method: self.payment_method,
-            payment_method_type: self.payment_method_type,
-            metadata: self.metadata,
+            payment_method_type_v2: self.payment_method_type,
+            payment_method_subtype: self.payment_method_subtype,
             payment_method_data: self.payment_method_data.map(|val| val.into()),
-            locker_id: self.locker_id,
+            locker_id: self.locker_id.map(|id| id.get_string_repr().clone()),
             last_used_at: self.last_used_at,
             connector_mandate_details: self.connector_mandate_details,
             customer_acceptance: self.customer_acceptance,
@@ -339,9 +379,8 @@ impl super::behaviour::Conversion for PaymentMethod {
                 id: item.id,
                 created_at: item.created_at,
                 last_modified: item.last_modified,
-                payment_method: item.payment_method,
-                payment_method_type: item.payment_method_type,
-                metadata: item.metadata,
+                payment_method_type: item.payment_method_type_v2,
+                payment_method_subtype: item.payment_method_subtype,
                 payment_method_data: item
                     .payment_method_data
                     .async_lift(|inner| async {
@@ -356,7 +395,7 @@ impl super::behaviour::Conversion for PaymentMethod {
                         .and_then(|val| val.try_into_optionaloperation())
                     })
                     .await?,
-                locker_id: item.locker_id,
+                locker_id: item.locker_id.map(VaultId::generate),
                 last_used_at: item.last_used_at,
                 connector_mandate_details: item.connector_mandate_details,
                 customer_acceptance: item.customer_acceptance,
@@ -411,11 +450,10 @@ impl super::behaviour::Conversion for PaymentMethod {
             id: self.id,
             created_at: self.created_at,
             last_modified: self.last_modified,
-            payment_method: self.payment_method,
-            payment_method_type: self.payment_method_type,
-            metadata: self.metadata,
+            payment_method_type_v2: self.payment_method_type,
+            payment_method_subtype: self.payment_method_subtype,
             payment_method_data: self.payment_method_data.map(|val| val.into()),
-            locker_id: self.locker_id,
+            locker_id: self.locker_id.map(|id| id.get_string_repr().clone()),
             last_used_at: self.last_used_at,
             connector_mandate_details: self.connector_mandate_details,
             customer_acceptance: self.customer_acceptance,

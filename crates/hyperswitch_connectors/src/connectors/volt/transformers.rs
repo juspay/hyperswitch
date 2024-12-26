@@ -143,15 +143,19 @@ impl TryFrom<&VoltRouterData<&types::PaymentsAuthorizeRouterData>> for VoltPayme
             | PaymentMethodData::MandatePayment
             | PaymentMethodData::Reward
             | PaymentMethodData::RealTimePayment(_)
+            | PaymentMethodData::MobilePayment(_)
             | PaymentMethodData::Upi(_)
             | PaymentMethodData::Voucher(_)
             | PaymentMethodData::GiftCard(_)
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::CardToken(_)
-            | PaymentMethodData::NetworkToken(_) => Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("Volt"),
-            )
-            .into()),
+            | PaymentMethodData::NetworkToken(_)
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("Volt"),
+                )
+                .into())
+            }
         }
     }
 }
@@ -231,22 +235,27 @@ impl TryFrom<&ConnectorAuthType> for VoltAuthType {
     }
 }
 
-impl From<VoltPaymentStatus> for enums::AttemptStatus {
-    fn from(item: VoltPaymentStatus) -> Self {
-        match item {
-            VoltPaymentStatus::Received | VoltPaymentStatus::Settled => Self::Charged,
-            VoltPaymentStatus::Completed | VoltPaymentStatus::DelayedAtBank => Self::Pending,
-            VoltPaymentStatus::NewPayment
-            | VoltPaymentStatus::BankRedirect
-            | VoltPaymentStatus::AwaitingCheckoutAuthorisation => Self::AuthenticationPending,
-            VoltPaymentStatus::RefusedByBank
-            | VoltPaymentStatus::RefusedByRisk
-            | VoltPaymentStatus::NotReceived
-            | VoltPaymentStatus::ErrorAtBank
-            | VoltPaymentStatus::CancelledByUser
-            | VoltPaymentStatus::AbandonedByUser
-            | VoltPaymentStatus::Failed => Self::Failure,
+fn get_attempt_status(
+    (item, current_status): (VoltPaymentStatus, enums::AttemptStatus),
+) -> enums::AttemptStatus {
+    match item {
+        VoltPaymentStatus::Received | VoltPaymentStatus::Settled => enums::AttemptStatus::Charged,
+        VoltPaymentStatus::Completed | VoltPaymentStatus::DelayedAtBank => {
+            enums::AttemptStatus::Pending
         }
+        VoltPaymentStatus::NewPayment
+        | VoltPaymentStatus::BankRedirect
+        | VoltPaymentStatus::AwaitingCheckoutAuthorisation => {
+            enums::AttemptStatus::AuthenticationPending
+        }
+        VoltPaymentStatus::RefusedByBank
+        | VoltPaymentStatus::RefusedByRisk
+        | VoltPaymentStatus::NotReceived
+        | VoltPaymentStatus::ErrorAtBank
+        | VoltPaymentStatus::CancelledByUser
+        | VoltPaymentStatus::AbandonedByUser
+        | VoltPaymentStatus::Failed => enums::AttemptStatus::Failure,
+        VoltPaymentStatus::Unknown => current_status,
     }
 }
 
@@ -274,8 +283,8 @@ impl<F, T> TryFrom<ResponseRouterData<F, VoltPaymentsResponse, T, PaymentsRespon
             status: enums::AttemptStatus::AuthenticationPending,
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
-                redirection_data,
-                mandate_reference: None,
+                redirection_data: Box::new(redirection_data),
+                mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.id),
@@ -305,6 +314,7 @@ pub enum VoltPaymentStatus {
     AbandonedByUser,
     Failed,
     Settled,
+    Unknown,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -331,7 +341,8 @@ impl<F, T> TryFrom<ResponseRouterData<F, VoltPaymentsResponseData, T, PaymentsRe
     ) -> Result<Self, Self::Error> {
         match item.response {
             VoltPaymentsResponseData::PsyncResponse(payment_response) => {
-                let status = enums::AttemptStatus::from(payment_response.status.clone());
+                let status =
+                    get_attempt_status((payment_response.status.clone(), item.data.status));
                 Ok(Self {
                     status,
                     response: if is_payment_failure(status) {
@@ -348,8 +359,8 @@ impl<F, T> TryFrom<ResponseRouterData<F, VoltPaymentsResponseData, T, PaymentsRe
                             resource_id: ResponseId::ConnectorTransactionId(
                                 payment_response.id.clone(),
                             ),
-                            redirection_data: None,
-                            mandate_reference: None,
+                            redirection_data: Box::new(None),
+                            mandate_reference: Box::new(None),
                             connector_metadata: None,
                             network_txn_id: None,
                             connector_response_reference_id: payment_response
@@ -389,8 +400,8 @@ impl<F, T> TryFrom<ResponseRouterData<F, VoltPaymentsResponseData, T, PaymentsRe
                             resource_id: ResponseId::ConnectorTransactionId(
                                 webhook_response.payment.clone(),
                             ),
-                            redirection_data: None,
-                            mandate_reference: None,
+                            redirection_data: Box::new(None),
+                            mandate_reference: Box::new(None),
                             connector_metadata: None,
                             network_txn_id: None,
                             connector_response_reference_id: webhook_response
@@ -514,6 +525,7 @@ pub enum VoltWebhookObjectResource {
 #[derive(Debug, Deserialize, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct VoltPaymentWebhookObjectResource {
+    #[serde(alias = "id")]
     pub payment: String,
     pub merchant_internal_reference: Option<String>,
     pub status: VoltWebhookPaymentStatus,

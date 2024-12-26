@@ -32,7 +32,7 @@ type PaymentCaptureOperation<'b, F> =
     BoxedOperation<'b, F, api::PaymentsCaptureRequest, payments::PaymentData<F>>;
 
 #[async_trait]
-impl<F: Send + Clone> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptureRequest>
+impl<F: Send + Clone + Sync> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptureRequest>
     for PaymentCapture
 {
     #[instrument(skip_all)]
@@ -44,7 +44,8 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptu
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
         _auth_flow: services::AuthFlow,
-        _header_payload: &api::HeaderPayload,
+        _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
+        _platform_merchant_account: Option<&domain::MerchantAccount>,
     ) -> RouterResult<
         operations::GetTrackerResponse<
             'a,
@@ -253,6 +254,8 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptu
             recurring_details: None,
             poll_config: None,
             tax_data: None,
+            session_id: None,
+            service_details: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -268,7 +271,7 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptu
 }
 
 #[async_trait]
-impl<F: Clone> UpdateTracker<F, payments::PaymentData<F>, api::PaymentsCaptureRequest>
+impl<F: Clone + Sync> UpdateTracker<F, payments::PaymentData<F>, api::PaymentsCaptureRequest>
     for PaymentCapture
 {
     #[instrument(skip_all)]
@@ -282,7 +285,7 @@ impl<F: Clone> UpdateTracker<F, payments::PaymentData<F>, api::PaymentsCaptureRe
         _updated_customer: Option<storage::CustomerUpdate>,
         _mechant_key_store: &domain::MerchantKeyStore,
         _frm_suggestion: Option<FrmSuggestion>,
-        _header_payload: api::HeaderPayload,
+        _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<(PaymentCaptureOperation<'b, F>, payments::PaymentData<F>)>
     where
         F: 'b + Send,
@@ -325,8 +328,8 @@ impl<F: Clone> UpdateTracker<F, payments::PaymentData<F>, api::PaymentsCaptureRe
     }
 }
 
-impl<F: Send + Clone> ValidateRequest<F, api::PaymentsCaptureRequest, payments::PaymentData<F>>
-    for PaymentCapture
+impl<F: Send + Clone + Sync>
+    ValidateRequest<F, api::PaymentsCaptureRequest, payments::PaymentData<F>> for PaymentCapture
 {
     #[instrument(skip_all)]
     fn validate_request<'a, 'b>(

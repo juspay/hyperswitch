@@ -42,7 +42,7 @@ pub enum PayPalOnboardingStatus {
     MorePermissionsNeeded,
     EmailNotVerified,
     Success(PayPalOnboardingDone),
-    ConnectorIntegrated(admin::MerchantConnectorResponse),
+    ConnectorIntegrated(Box<admin::MerchantConnectorResponse>),
 }
 
 #[derive(serde::Serialize, Debug, Clone)]

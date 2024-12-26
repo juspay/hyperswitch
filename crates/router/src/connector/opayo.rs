@@ -1,8 +1,9 @@
 mod transformers;
 
-use std::fmt::Debug;
-
-use common_utils::request::RequestContent;
+use common_utils::{
+    request::RequestContent,
+    types::{AmountConvertor, MinorUnit, MinorUnitForConnector},
+};
 use diesel_models::enums;
 use error_stack::{report, ResultExt};
 use masking::ExposeInterface;
@@ -10,14 +11,14 @@ use transformers as opayo;
 
 use crate::{
     configs::settings,
-    connector::utils as connector_utils,
+    connector::{utils as connector_utils, utils::convert_amount},
     core::errors::{self, CustomResult},
     events::connector_api_logs::ConnectorEvent,
     headers,
     services::{
         self,
         request::{self, Mask},
-        ConnectorIntegration, ConnectorValidation,
+        ConnectorIntegration, ConnectorSpecifications, ConnectorValidation,
     },
     types::{
         self,
@@ -27,8 +28,18 @@ use crate::{
     utils::BytesExt,
 };
 
-#[derive(Debug, Clone)]
-pub struct Opayo;
+#[derive(Clone)]
+pub struct Opayo {
+    amount_converter: &'static (dyn AmountConvertor<Output = MinorUnit> + Sync),
+}
+
+impl Opayo {
+    pub fn new() -> &'static Self {
+        &Self {
+            amount_converter: &MinorUnitForConnector,
+        }
+    }
+}
 
 impl api::Payment for Opayo {}
 impl api::PaymentSession for Opayo {}
@@ -120,14 +131,17 @@ impl ConnectorCommon for Opayo {
 }
 
 impl ConnectorValidation for Opayo {
-    fn validate_capture_method(
+    fn validate_connector_against_payment_request(
         &self,
         capture_method: Option<enums::CaptureMethod>,
+        _payment_method: enums::PaymentMethod,
         _pmt: Option<enums::PaymentMethodType>,
     ) -> CustomResult<(), errors::ConnectorError> {
         let capture_method = capture_method.unwrap_or_default();
         match capture_method {
-            enums::CaptureMethod::Automatic | enums::CaptureMethod::Manual => Ok(()),
+            enums::CaptureMethod::Automatic
+            | enums::CaptureMethod::Manual
+            | enums::CaptureMethod::SequentialAutomatic => Ok(()),
             enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => Err(
                 connector_utils::construct_not_supported_error_report(capture_method, self.id()),
             ),
@@ -197,7 +211,13 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = opayo::OpayoPaymentsRequest::try_from(req)?;
+        let amount = convert_amount(
+            self.amount_converter,
+            req.request.minor_amount,
+            req.request.currency,
+        )?;
+        let connector_router_data = opayo::OpayoRouterData::from((amount, req));
+        let connector_req = opayo::OpayoPaymentsRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -433,7 +453,13 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         req: &types::RefundsRouterData<api::Execute>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = opayo::OpayoRefundRequest::try_from(req)?;
+        let refund_amount = convert_amount(
+            self.amount_converter,
+            req.request.minor_refund_amount,
+            req.request.currency,
+        )?;
+        let connector_router_data = opayo::OpayoRouterData::from((refund_amount, req));
+        let connector_req = opayo::OpayoRefundRequest::try_from(&connector_router_data)?;
 
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
@@ -576,3 +602,5 @@ impl api::IncomingWebhook for Opayo {
         Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 }
+
+impl ConnectorSpecifications for Opayo {}

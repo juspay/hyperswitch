@@ -94,7 +94,7 @@ impl<'a, T: KafkaMessage> KafkaEvent<'a, T> {
     }
 }
 
-impl<'a, T: KafkaMessage> KafkaMessage for KafkaEvent<'a, T> {
+impl<T: KafkaMessage> KafkaMessage for KafkaEvent<'_, T> {
     fn key(&self) -> String {
         self.event.key()
     }
@@ -130,7 +130,7 @@ impl<'a, T: KafkaMessage> KafkaConsolidatedEvent<'a, T> {
     }
 }
 
-impl<'a, T: KafkaMessage> KafkaMessage for KafkaConsolidatedEvent<'a, T> {
+impl<T: KafkaMessage> KafkaMessage for KafkaConsolidatedEvent<'_, T> {
     fn key(&self) -> String {
         self.log.event.key()
     }
@@ -580,6 +580,21 @@ impl KafkaProducer {
             tenant_id.clone(),
         ))
         .attach_printable_lazy(|| format!("Failed to add consolidated dispute event {dispute:?}"))
+    }
+
+    pub async fn log_dispute_delete(
+        &self,
+        delete_old_dispute: &Dispute,
+        tenant_id: TenantID,
+    ) -> MQResult<()> {
+        self.log_event(&KafkaEvent::old(
+            &KafkaDispute::from_storage(delete_old_dispute),
+            tenant_id.clone(),
+            self.ckh_database_name.clone(),
+        ))
+        .attach_printable_lazy(|| {
+            format!("Failed to add negative dispute event {delete_old_dispute:?}")
+        })
     }
 
     #[cfg(feature = "payouts")]

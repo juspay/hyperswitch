@@ -1,6 +1,9 @@
 use std::collections::{HashMap, HashSet};
 
-use api_models::{user as user_api, user_role as user_role_api};
+use api_models::{
+    user as user_api,
+    user_role::{self as user_role_api, role as role_api},
+};
 use diesel_models::{
     enums::{UserRoleVersion, UserStatus},
     organization::OrganizationBridge,
@@ -16,16 +19,21 @@ use crate::{
     routes::{app::ReqState, SessionState},
     services::{
         authentication as auth,
-        authorization::{info, roles},
+        authorization::{
+            info,
+            permission_groups::{ParentGroupExt, PermissionGroupExt},
+            roles,
+        },
         ApplicationResponse,
     },
     types::domain,
     utils,
 };
 pub mod role;
-use common_enums::{EntityType, PermissionGroup};
+use common_enums::{EntityType, ParentGroup, PermissionGroup};
 use strum::IntoEnumIterator;
 
+// TODO: To be deprecated
 pub async fn get_authorization_info_with_groups(
     _state: SessionState,
 ) -> UserResponse<user_role_api::AuthorizationInfoResponse> {
@@ -38,15 +46,15 @@ pub async fn get_authorization_info_with_groups(
         ),
     ))
 }
+
 pub async fn get_authorization_info_with_group_tag(
 ) -> UserResponse<user_role_api::AuthorizationInfoResponse> {
     static GROUPS_WITH_PARENT_TAGS: Lazy<Vec<user_role_api::ParentInfo>> = Lazy::new(|| {
         PermissionGroup::iter()
-            .map(|value| (info::get_parent_name(value), value))
+            .map(|group| (group.parent(), group))
             .fold(
                 HashMap::new(),
-                |mut acc: HashMap<user_role_api::ParentGroup, Vec<PermissionGroup>>,
-                 (key, value)| {
+                |mut acc: HashMap<ParentGroup, Vec<PermissionGroup>>, (key, value)| {
                     acc.entry(key).or_default().push(value);
                     acc
                 },
@@ -71,13 +79,46 @@ pub async fn get_authorization_info_with_group_tag(
     ))
 }
 
+pub async fn get_parent_group_info(
+    state: SessionState,
+    user_from_token: auth::UserFromToken,
+) -> UserResponse<Vec<role_api::ParentGroupInfo>> {
+    let role_info = roles::RoleInfo::from_role_id_and_org_id(
+        &state,
+        &user_from_token.role_id,
+        &user_from_token.org_id,
+    )
+    .await
+    .to_not_found_response(UserErrors::InvalidRoleId)?;
+
+    let parent_groups = ParentGroup::get_descriptions_for_groups(
+        role_info.get_entity_type(),
+        PermissionGroup::iter().collect(),
+    )
+    .into_iter()
+    .map(|(parent_group, description)| role_api::ParentGroupInfo {
+        name: parent_group.clone(),
+        description,
+        scopes: PermissionGroup::iter()
+            .filter_map(|group| (group.parent() == parent_group).then_some(group.scope()))
+            // TODO: Remove this hashset conversion when merhant access
+            // and organization access groups are removed
+            .collect::<HashSet<_>>()
+            .into_iter()
+            .collect(),
+    })
+    .collect::<Vec<_>>();
+
+    Ok(ApplicationResponse::Json(parent_groups))
+}
+
 pub async fn update_user_role(
     state: SessionState,
     user_from_token: auth::UserFromToken,
     req: user_role_api::UpdateUserRoleRequest,
     _req_state: ReqState,
 ) -> UserResponse<()> {
-    let role_info = roles::RoleInfo::from_role_id_in_merchant_scope(
+    let role_info = roles::RoleInfo::from_role_id_in_lineage(
         &state,
         &req.role_id,
         &user_from_token.merchant_id,
@@ -102,10 +143,9 @@ pub async fn update_user_role(
             .attach_printable("User Changing their own role");
     }
 
-    let updator_role = roles::RoleInfo::from_role_id_in_merchant_scope(
+    let updator_role = roles::RoleInfo::from_role_id_and_org_id(
         &state,
         &user_from_token.role_id,
-        &user_from_token.merchant_id,
         &user_from_token.org_id,
     )
     .await
@@ -114,12 +154,16 @@ pub async fn update_user_role(
     let mut is_updated = false;
 
     let v2_user_role_to_be_updated = match state
-        .store
+        .global_store
         .find_user_role_by_user_id_and_lineage(
             user_to_be_updated.get_user_id(),
+            user_from_token
+                .tenant_id
+                .as_ref()
+                .unwrap_or(&state.tenant.tenant_id),
             &user_from_token.org_id,
             &user_from_token.merchant_id,
-            user_from_token.profile_id.as_ref(),
+            &user_from_token.profile_id,
             UserRoleVersion::V2,
         )
         .await
@@ -135,10 +179,9 @@ pub async fn update_user_role(
     };
 
     if let Some(user_role) = v2_user_role_to_be_updated {
-        let role_to_be_updated = roles::RoleInfo::from_role_id_in_merchant_scope(
+        let role_to_be_updated = roles::RoleInfo::from_role_id_and_org_id(
             &state,
             &user_role.role_id,
-            &user_from_token.merchant_id,
             &user_from_token.org_id,
         )
         .await
@@ -151,6 +194,14 @@ pub async fn update_user_role(
             ));
         }
 
+        if role_info.get_entity_type() != role_to_be_updated.get_entity_type() {
+            return Err(report!(UserErrors::InvalidRoleOperation)).attach_printable(format!(
+                "Upgrade and downgrade of roles is not allowed, user_entity_type = {} req_entity_type = {}",
+                role_to_be_updated.get_entity_type(),
+                role_info.get_entity_type(),
+            ));
+        }
+
         if updator_role.get_entity_type() < role_to_be_updated.get_entity_type() {
             return Err(report!(UserErrors::InvalidRoleOperation)).attach_printable(format!(
                 "Invalid operation, update requestor = {} cannot update target = {}",
@@ -160,12 +211,16 @@ pub async fn update_user_role(
         }
 
         state
-            .store
+            .global_store
             .update_user_role_by_user_id_and_lineage(
                 user_to_be_updated.get_user_id(),
+                user_from_token
+                    .tenant_id
+                    .as_ref()
+                    .unwrap_or(&state.tenant.tenant_id),
                 &user_from_token.org_id,
-                &user_from_token.merchant_id,
-                user_from_token.profile_id.as_ref(),
+                Some(&user_from_token.merchant_id),
+                Some(&user_from_token.profile_id),
                 UserRoleUpdate::UpdateRole {
                     role_id: req.role_id.clone(),
                     modified_by: user_from_token.user_id.clone(),
@@ -179,12 +234,16 @@ pub async fn update_user_role(
     }
 
     let v1_user_role_to_be_updated = match state
-        .store
+        .global_store
         .find_user_role_by_user_id_and_lineage(
             user_to_be_updated.get_user_id(),
+            user_from_token
+                .tenant_id
+                .as_ref()
+                .unwrap_or(&state.tenant.tenant_id),
             &user_from_token.org_id,
             &user_from_token.merchant_id,
-            user_from_token.profile_id.as_ref(),
+            &user_from_token.profile_id,
             UserRoleVersion::V1,
         )
         .await
@@ -200,10 +259,9 @@ pub async fn update_user_role(
     };
 
     if let Some(user_role) = v1_user_role_to_be_updated {
-        let role_to_be_updated = roles::RoleInfo::from_role_id_in_merchant_scope(
+        let role_to_be_updated = roles::RoleInfo::from_role_id_and_org_id(
             &state,
             &user_role.role_id,
-            &user_from_token.merchant_id,
             &user_from_token.org_id,
         )
         .await
@@ -216,6 +274,14 @@ pub async fn update_user_role(
             ));
         }
 
+        if role_info.get_entity_type() != role_to_be_updated.get_entity_type() {
+            return Err(report!(UserErrors::InvalidRoleOperation)).attach_printable(format!(
+                "Upgrade and downgrade of roles is not allowed, user_entity_type = {} req_entity_type = {}",
+                role_to_be_updated.get_entity_type(),
+                role_info.get_entity_type(),
+            ));
+        }
+
         if updator_role.get_entity_type() < role_to_be_updated.get_entity_type() {
             return Err(report!(UserErrors::InvalidRoleOperation)).attach_printable(format!(
                 "Invalid operation, update requestor = {} cannot update target = {}",
@@ -225,12 +291,16 @@ pub async fn update_user_role(
         }
 
         state
-            .store
+            .global_store
             .update_user_role_by_user_id_and_lineage(
                 user_to_be_updated.get_user_id(),
+                user_from_token
+                    .tenant_id
+                    .as_ref()
+                    .unwrap_or(&state.tenant.tenant_id),
                 &user_from_token.org_id,
-                &user_from_token.merchant_id,
-                user_from_token.profile_id.as_ref(),
+                Some(&user_from_token.merchant_id),
+                Some(&user_from_token.profile_id),
                 UserRoleUpdate::UpdateRole {
                     role_id: req.role_id.clone(),
                     modified_by: user_from_token.user_id,
@@ -253,49 +323,6 @@ pub async fn update_user_role(
     Ok(ApplicationResponse::StatusOk)
 }
 
-pub async fn accept_invitation(
-    state: SessionState,
-    user_token: auth::UserFromToken,
-    req: user_role_api::AcceptInvitationRequest,
-) -> UserResponse<()> {
-    let merchant_accounts = state
-        .store
-        .list_multiple_merchant_accounts(&(&state).into(), req.merchant_ids)
-        .await
-        .change_context(UserErrors::InternalServerError)?;
-    let update_result =
-        futures::future::join_all(merchant_accounts.iter().map(|merchant_account| async {
-            let (update_v1_result, update_v2_result) =
-                utils::user_role::update_v1_and_v2_user_roles_in_db(
-                    &state,
-                    user_token.user_id.as_str(),
-                    &merchant_account.organization_id,
-                    merchant_account.get_id(),
-                    None,
-                    UserRoleUpdate::UpdateStatus {
-                        status: UserStatus::Active,
-                        modified_by: user_token.user_id.clone(),
-                    },
-                )
-                .await;
-
-            if update_v1_result.is_err_and(|err| !err.current_context().is_db_not_found())
-                || update_v2_result.is_err_and(|err| !err.current_context().is_db_not_found())
-            {
-                Err(report!(UserErrors::InternalServerError))
-            } else {
-                Ok(())
-            }
-        }))
-        .await;
-
-    if update_result.is_empty() || update_result.iter().all(Result::is_err) {
-        return Err(UserErrors::MerchantIdNotFound.into());
-    }
-
-    Ok(ApplicationResponse::StatusOk)
-}
-
 pub async fn accept_invitations_v2(
     state: SessionState,
     user_from_token: auth::UserFromToken,
@@ -305,6 +332,10 @@ pub async fn accept_invitations_v2(
         utils::user_role::get_lineage_for_user_id_and_entity_for_accepting_invite(
             &state,
             &user_from_token.user_id,
+            user_from_token
+                .tenant_id
+                .as_ref()
+                .unwrap_or(&state.tenant.tenant_id),
             entity.entity_id,
             entity.entity_type,
         )
@@ -320,8 +351,12 @@ pub async fn accept_invitations_v2(
                 utils::user_role::update_v1_and_v2_user_roles_in_db(
                     &state,
                     user_from_token.user_id.as_str(),
+                    user_from_token
+                        .tenant_id
+                        .as_ref()
+                        .unwrap_or(&state.tenant.tenant_id),
                     org_id,
-                    merchant_id,
+                    merchant_id.as_ref(),
                     profile_id.as_ref(),
                     UserRoleUpdate::UpdateStatus {
                         status: UserStatus::Active,
@@ -348,67 +383,6 @@ pub async fn accept_invitations_v2(
     Ok(ApplicationResponse::StatusOk)
 }
 
-pub async fn merchant_select_token_only_flow(
-    state: SessionState,
-    user_token: auth::UserFromSinglePurposeToken,
-    req: user_role_api::MerchantSelectRequest,
-) -> UserResponse<user_api::TokenResponse> {
-    let merchant_accounts = state
-        .store
-        .list_multiple_merchant_accounts(&(&state).into(), req.merchant_ids)
-        .await
-        .change_context(UserErrors::InternalServerError)?;
-
-    let update_result =
-        futures::future::join_all(merchant_accounts.iter().map(|merchant_account| async {
-            let (update_v1_result, update_v2_result) =
-                utils::user_role::update_v1_and_v2_user_roles_in_db(
-                    &state,
-                    user_token.user_id.as_str(),
-                    &merchant_account.organization_id,
-                    merchant_account.get_id(),
-                    None,
-                    UserRoleUpdate::UpdateStatus {
-                        status: UserStatus::Active,
-                        modified_by: user_token.user_id.clone(),
-                    },
-                )
-                .await;
-
-            if update_v1_result.is_err_and(|err| !err.current_context().is_db_not_found())
-                || update_v2_result.is_err_and(|err| !err.current_context().is_db_not_found())
-            {
-                Err(report!(UserErrors::InternalServerError))
-            } else {
-                Ok(())
-            }
-        }))
-        .await;
-
-    if update_result.is_empty() || update_result.iter().all(Result::is_err) {
-        return Err(UserErrors::MerchantIdNotFound.into());
-    }
-
-    let user_from_db: domain::UserFromStorage = state
-        .global_store
-        .find_user_by_id(user_token.user_id.as_str())
-        .await
-        .change_context(UserErrors::InternalServerError)?
-        .into();
-
-    let current_flow =
-        domain::CurrentFlow::new(user_token, domain::SPTFlow::MerchantSelect.into())?;
-    let next_flow = current_flow.next(user_from_db.clone(), &state).await?;
-
-    let token = next_flow.get_token(&state).await?;
-
-    let response = user_api::TokenResponse {
-        token: token.clone(),
-        token_type: next_flow.get_flow().into(),
-    };
-    auth::cookies::set_cookie_response(response, token)
-}
-
 pub async fn accept_invitations_pre_auth(
     state: SessionState,
     user_token: auth::UserFromSinglePurposeToken,
@@ -418,6 +392,10 @@ pub async fn accept_invitations_pre_auth(
         utils::user_role::get_lineage_for_user_id_and_entity_for_accepting_invite(
             &state,
             &user_token.user_id,
+            user_token
+                .tenant_id
+                .as_ref()
+                .unwrap_or(&state.tenant.tenant_id),
             entity.entity_id,
             entity.entity_type,
         )
@@ -433,8 +411,12 @@ pub async fn accept_invitations_pre_auth(
                 utils::user_role::update_v1_and_v2_user_roles_in_db(
                     &state,
                     user_token.user_id.as_str(),
+                    user_token
+                        .tenant_id
+                        .as_ref()
+                        .unwrap_or(&state.tenant.tenant_id),
                     org_id,
-                    merchant_id,
+                    merchant_id.as_ref(),
                     profile_id.as_ref(),
                     UserRoleUpdate::UpdateStatus {
                         status: UserStatus::Active,
@@ -486,7 +468,7 @@ pub async fn delete_user_role(
 ) -> UserResponse<()> {
     let user_from_db: domain::UserFromStorage = state
         .global_store
-        .find_user_by_email(&domain::UserEmail::from_pii_email(request.email)?.into_inner())
+        .find_user_by_email(&domain::UserEmail::from_pii_email(request.email)?)
         .await
         .map_err(|e| {
             if e.current_context().is_db_not_found() {
@@ -503,10 +485,9 @@ pub async fn delete_user_role(
             .attach_printable("User deleting himself");
     }
 
-    let deletion_requestor_role_info = roles::RoleInfo::from_role_id_in_merchant_scope(
+    let deletion_requestor_role_info = roles::RoleInfo::from_role_id_and_org_id(
         &state,
         &user_from_token.role_id,
-        &user_from_token.merchant_id,
         &user_from_token.org_id,
     )
     .await
@@ -516,12 +497,16 @@ pub async fn delete_user_role(
 
     // Find in V2
     let user_role_v2 = match state
-        .store
+        .global_store
         .find_user_role_by_user_id_and_lineage(
             user_from_db.get_user_id(),
+            user_from_token
+                .tenant_id
+                .as_ref()
+                .unwrap_or(&state.tenant.tenant_id),
             &user_from_token.org_id,
             &user_from_token.merchant_id,
-            user_from_token.profile_id.as_ref(),
+            &user_from_token.profile_id,
             UserRoleVersion::V2,
         )
         .await
@@ -537,7 +522,7 @@ pub async fn delete_user_role(
     };
 
     if let Some(role_to_be_deleted) = user_role_v2 {
-        let target_role_info = roles::RoleInfo::from_role_id_in_merchant_scope(
+        let target_role_info = roles::RoleInfo::from_role_id_in_lineage(
             &state,
             &role_to_be_deleted.role_id,
             &user_from_token.merchant_id,
@@ -563,12 +548,16 @@ pub async fn delete_user_role(
 
         user_role_deleted_flag = true;
         state
-            .store
+            .global_store
             .delete_user_role_by_user_id_and_lineage(
                 user_from_db.get_user_id(),
+                user_from_token
+                    .tenant_id
+                    .as_ref()
+                    .unwrap_or(&state.tenant.tenant_id),
                 &user_from_token.org_id,
                 &user_from_token.merchant_id,
-                user_from_token.profile_id.as_ref(),
+                &user_from_token.profile_id,
                 UserRoleVersion::V2,
             )
             .await
@@ -578,12 +567,16 @@ pub async fn delete_user_role(
 
     // Find in V1
     let user_role_v1 = match state
-        .store
+        .global_store
         .find_user_role_by_user_id_and_lineage(
             user_from_db.get_user_id(),
+            user_from_token
+                .tenant_id
+                .as_ref()
+                .unwrap_or(&state.tenant.tenant_id),
             &user_from_token.org_id,
             &user_from_token.merchant_id,
-            user_from_token.profile_id.as_ref(),
+            &user_from_token.profile_id,
             UserRoleVersion::V1,
         )
         .await
@@ -599,7 +592,7 @@ pub async fn delete_user_role(
     };
 
     if let Some(role_to_be_deleted) = user_role_v1 {
-        let target_role_info = roles::RoleInfo::from_role_id_in_merchant_scope(
+        let target_role_info = roles::RoleInfo::from_role_id_in_lineage(
             &state,
             &role_to_be_deleted.role_id,
             &user_from_token.merchant_id,
@@ -625,12 +618,16 @@ pub async fn delete_user_role(
 
         user_role_deleted_flag = true;
         state
-            .store
+            .global_store
             .delete_user_role_by_user_id_and_lineage(
                 user_from_db.get_user_id(),
+                user_from_token
+                    .tenant_id
+                    .as_ref()
+                    .unwrap_or(&state.tenant.tenant_id),
                 &user_from_token.org_id,
                 &user_from_token.merchant_id,
-                user_from_token.profile_id.as_ref(),
+                &user_from_token.profile_id,
                 UserRoleVersion::V1,
             )
             .await
@@ -644,20 +641,28 @@ pub async fn delete_user_role(
     }
 
     // Check if user has any more role associations
-    let user_roles_v2 = state
-        .store
-        .list_user_roles_by_user_id_and_version(user_from_db.get_user_id(), UserRoleVersion::V2)
-        .await
-        .change_context(UserErrors::InternalServerError)?;
+    let remaining_roles = state
+        .global_store
+        .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
+            user_id: user_from_db.get_user_id(),
+            tenant_id: user_from_token
+                .tenant_id
+                .as_ref()
+                .unwrap_or(&state.tenant.tenant_id),
 
-    let user_roles_v1 = state
-        .store
-        .list_user_roles_by_user_id_and_version(user_from_db.get_user_id(), UserRoleVersion::V1)
+            org_id: None,
+            merchant_id: None,
+            profile_id: None,
+            entity_id: None,
+            version: None,
+            status: None,
+            limit: None,
+        })
         .await
         .change_context(UserErrors::InternalServerError)?;
 
     // If user has no more role associated with him then deleting user
-    if user_roles_v2.is_empty() && user_roles_v1.is_empty() {
+    if remaining_roles.is_empty() {
         state
             .global_store
             .delete_user_by_user_id(user_from_db.get_user_id())
@@ -675,10 +680,9 @@ pub async fn list_users_in_lineage(
     user_from_token: auth::UserFromToken,
     request: user_role_api::ListUsersInEntityRequest,
 ) -> UserResponse<Vec<user_role_api::ListUsersInEntityResponse>> {
-    let requestor_role_info = roles::RoleInfo::from_role_id_in_merchant_scope(
+    let requestor_role_info = roles::RoleInfo::from_role_id_and_org_id(
         &state,
         &user_from_token.role_id,
-        &user_from_token.merchant_id,
         &user_from_token.org_id,
     )
     .await
@@ -688,15 +692,20 @@ pub async fn list_users_in_lineage(
         requestor_role_info.get_entity_type(),
         request.entity_type,
     )? {
-        EntityType::Organization => {
+        EntityType::Tenant | EntityType::Organization => {
             utils::user_role::fetch_user_roles_by_payload(
                 &state,
                 ListUserRolesByOrgIdPayload {
                     user_id: None,
+                    tenant_id: user_from_token
+                        .tenant_id
+                        .as_ref()
+                        .unwrap_or(&state.tenant.tenant_id),
                     org_id: &user_from_token.org_id,
                     merchant_id: None,
                     profile_id: None,
                     version: None,
+                    limit: None,
                 },
                 request.entity_type,
             )
@@ -707,28 +716,34 @@ pub async fn list_users_in_lineage(
                 &state,
                 ListUserRolesByOrgIdPayload {
                     user_id: None,
+                    tenant_id: user_from_token
+                        .tenant_id
+                        .as_ref()
+                        .unwrap_or(&state.tenant.tenant_id),
                     org_id: &user_from_token.org_id,
                     merchant_id: Some(&user_from_token.merchant_id),
                     profile_id: None,
                     version: None,
+                    limit: None,
                 },
                 request.entity_type,
             )
             .await?
         }
         EntityType::Profile => {
-            let Some(profile_id) = user_from_token.profile_id.as_ref() else {
-                return Err(UserErrors::JwtProfileIdMissing.into());
-            };
-
             utils::user_role::fetch_user_roles_by_payload(
                 &state,
                 ListUserRolesByOrgIdPayload {
                     user_id: None,
+                    tenant_id: user_from_token
+                        .tenant_id
+                        .as_ref()
+                        .unwrap_or(&state.tenant.tenant_id),
                     org_id: &user_from_token.org_id,
                     merchant_id: Some(&user_from_token.merchant_id),
-                    profile_id: Some(profile_id),
+                    profile_id: Some(&user_from_token.profile_id),
                     version: None,
+                    limit: None,
                 },
                 request.entity_type,
             )
@@ -762,7 +777,7 @@ pub async fn list_users_in_lineage(
 
     let role_info_map =
         futures::future::try_join_all(user_roles_set.iter().map(|user_role| async {
-            roles::RoleInfo::from_role_id_in_org_scope(
+            roles::RoleInfo::from_role_id_and_org_id(
                 &state,
                 &user_role.role_id,
                 &user_from_token.org_id,
@@ -820,9 +835,13 @@ pub async fn list_invitations_for_user(
     user_from_token: auth::UserIdFromAuth,
 ) -> UserResponse<Vec<user_role_api::ListInvitationForUserResponse>> {
     let user_roles = state
-        .store
+        .global_store
         .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
             user_id: &user_from_token.user_id,
+            tenant_id: user_from_token
+                .tenant_id
+                .as_ref()
+                .unwrap_or(&state.tenant.tenant_id),
             org_id: None,
             merchant_id: None,
             profile_id: None,
@@ -846,6 +865,10 @@ pub async fn list_invitations_for_user(
                 .attach_printable("Failed to compute entity id and type")?;
 
             match entity_type {
+                EntityType::Tenant => {
+                    return Err(report!(UserErrors::InternalServerError))
+                        .attach_printable("Tenant roles are not allowed for this operation");
+                }
                 EntityType::Organization => org_ids.push(
                     user_role
                         .org_id
@@ -950,6 +973,10 @@ pub async fn list_invitations_for_user(
                 .attach_printable("Failed to compute entity id and type")?;
 
             let entity_name = match entity_type {
+                EntityType::Tenant => {
+                    return Err(report!(UserErrors::InternalServerError))
+                        .attach_printable("Tenant roles are not allowed for this operation");
+                }
                 EntityType::Organization => user_role
                     .org_id
                     .as_ref()

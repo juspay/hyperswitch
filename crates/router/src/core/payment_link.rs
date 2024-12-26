@@ -5,13 +5,9 @@ use api_models::{
     payments::{PaymentLinkData, PaymentLinkStatusWrap},
 };
 use common_utils::{
-    consts::{
-        DEFAULT_ALLOWED_DOMAINS, DEFAULT_BACKGROUND_COLOR, DEFAULT_DISPLAY_SDK_ONLY,
-        DEFAULT_ENABLE_SAVED_PAYMENT_METHOD, DEFAULT_LOCALE, DEFAULT_MERCHANT_LOGO,
-        DEFAULT_PRODUCT_IMG, DEFAULT_SDK_LAYOUT, DEFAULT_SESSION_EXPIRY,
-    },
+    consts::{DEFAULT_LOCALE, DEFAULT_SESSION_EXPIRY},
     ext_traits::{AsyncExt, OptionExt, ValueExt},
-    types::{AmountConvertor, MinorUnit, StringMajorUnitForCore},
+    types::{AmountConvertor, StringMajorUnitForCore},
 };
 use error_stack::{report, ResultExt};
 use futures::future;
@@ -25,7 +21,11 @@ use super::{
     payments::helpers,
 };
 use crate::{
-    consts,
+    consts::{
+        self, DEFAULT_ALLOWED_DOMAINS, DEFAULT_BACKGROUND_COLOR, DEFAULT_DISPLAY_SDK_ONLY,
+        DEFAULT_ENABLE_SAVED_PAYMENT_METHOD, DEFAULT_HIDE_CARD_NICKNAME_FIELD,
+        DEFAULT_MERCHANT_LOGO, DEFAULT_PRODUCT_IMG, DEFAULT_SDK_LAYOUT, DEFAULT_SHOW_CARD_FORM,
+    },
     errors::RouterResponse,
     get_payment_link_config_value, get_payment_link_config_value_based_on_priority,
     headers::ACCEPT_LANGUAGE,
@@ -35,7 +35,7 @@ use crate::{
         api::payment_link::PaymentLinkResponseExt,
         domain,
         storage::{enums as storage_enums, payment_link::PaymentLink},
-        transformers::ForeignFrom,
+        transformers::{ForeignFrom, ForeignInto},
     },
 };
 
@@ -125,8 +125,14 @@ pub async fn form_payment_link_data(
                 sdk_layout: DEFAULT_SDK_LAYOUT.to_owned(),
                 display_sdk_only: DEFAULT_DISPLAY_SDK_ONLY,
                 enabled_saved_payment_method: DEFAULT_ENABLE_SAVED_PAYMENT_METHOD,
+                hide_card_nickname_field: DEFAULT_HIDE_CARD_NICKNAME_FIELD,
+                show_card_form_by_default: DEFAULT_SHOW_CARD_FORM,
                 allowed_domains: DEFAULT_ALLOWED_DOMAINS,
                 transaction_details: None,
+                background_image: None,
+                details_layout: None,
+                branding_visibility: None,
+                payment_button_text: None,
             }
         };
 
@@ -180,7 +186,7 @@ pub async fn form_payment_link_data(
     let payment_link_status = check_payment_link_status(session_expiry);
 
     let is_terminal_state = check_payment_link_invalid_conditions(
-        &payment_intent.status,
+        payment_intent.status,
         &[
             storage_enums::IntentStatus::Cancelled,
             storage_enums::IntentStatus::Failed,
@@ -265,8 +271,14 @@ pub async fn form_payment_link_data(
         merchant_description: payment_intent.description,
         sdk_layout: payment_link_config.sdk_layout.clone(),
         display_sdk_only: payment_link_config.display_sdk_only,
+        hide_card_nickname_field: payment_link_config.hide_card_nickname_field,
+        show_card_form_by_default: payment_link_config.show_card_form_by_default,
         locale,
         transaction_details: payment_link_config.transaction_details.clone(),
+        background_image: payment_link_config.background_image.clone(),
+        details_layout: payment_link_config.details_layout,
+        branding_visibility: payment_link_config.branding_visibility,
+        payment_button_text: payment_link_config.payment_button_text.clone(),
     };
 
     Ok((
@@ -322,7 +334,10 @@ pub async fn initiate_secure_payment_link_flow(
         PaymentLinkData::PaymentLinkDetails(link_details) => {
             let secure_payment_link_details = api_models::payments::SecurePaymentLinkDetails {
                 enabled_saved_payment_method: payment_link_config.enabled_saved_payment_method,
+                hide_card_nickname_field: payment_link_config.hide_card_nickname_field,
+                show_card_form_by_default: payment_link_config.show_card_form_by_default,
                 payment_link_details: *link_details.to_owned(),
+                payment_button_text: payment_link_config.payment_button_text,
             };
             let js_script = format!(
                 "window.__PAYMENT_DETAILS = {}",
@@ -547,7 +562,7 @@ fn validate_order_details(
                         .clone_from(&order.product_img_link)
                 };
                 order_details_amount_string.amount = required_conversion_type
-                    .convert(MinorUnit::new(order.amount), currency)
+                    .convert(order.amount, currency)
                     .change_context(errors::ApiErrorResponse::AmountConversionFailed {
                         amount_type: "StringMajorUnit",
                     })?;
@@ -580,18 +595,16 @@ pub fn get_payment_link_config_based_on_priority(
     default_domain_name: String,
     payment_link_config_id: Option<String>,
 ) -> Result<(PaymentLinkConfig, String), error_stack::Report<errors::ApiErrorResponse>> {
-    let (domain_name, business_theme_configs, allowed_domains) =
+    let (domain_name, business_theme_configs, allowed_domains, branding_visibility) =
         if let Some(business_config) = business_link_config {
-            logger::info!(
-                "domain name set to custom domain https://{:?}",
-                business_config.domain_name
-            );
-
             (
                 business_config
                     .domain_name
                     .clone()
-                    .map(|d_name| format!("https://{}", d_name))
+                    .map(|d_name| {
+                        logger::info!("domain name set to custom domain https://{:?}", d_name);
+                        format!("https://{}", d_name)
+                    })
                     .unwrap_or_else(|| default_domain_name.clone()),
                 payment_link_config_id
                     .and_then(|id| {
@@ -602,12 +615,22 @@ pub fn get_payment_link_config_based_on_priority(
                     })
                     .or(business_config.default_config),
                 business_config.allowed_domains,
+                business_config.branding_visibility,
             )
         } else {
-            (default_domain_name, None, None)
+            (default_domain_name, None, None, None)
         };
 
-    let (theme, logo, seller_name, sdk_layout, display_sdk_only, enabled_saved_payment_method) = get_payment_link_config_value!(
+    let (
+        theme,
+        logo,
+        seller_name,
+        sdk_layout,
+        display_sdk_only,
+        enabled_saved_payment_method,
+        hide_card_nickname_field,
+        show_card_form_by_default,
+    ) = get_payment_link_config_value!(
         payment_create_link_config,
         business_theme_configs,
         (theme, DEFAULT_BACKGROUND_COLOR.to_string()),
@@ -618,19 +641,61 @@ pub fn get_payment_link_config_based_on_priority(
         (
             enabled_saved_payment_method,
             DEFAULT_ENABLE_SAVED_PAYMENT_METHOD
-        )
+        ),
+        (hide_card_nickname_field, DEFAULT_HIDE_CARD_NICKNAME_FIELD),
+        (show_card_form_by_default, DEFAULT_SHOW_CARD_FORM)
     );
-    let payment_link_config = PaymentLinkConfig {
-        theme,
-        logo,
-        seller_name,
-        sdk_layout,
-        display_sdk_only,
-        enabled_saved_payment_method,
-        allowed_domains,
-        transaction_details: payment_create_link_config
-            .and_then(|payment_link_config| payment_link_config.theme_config.transaction_details),
-    };
+    let payment_link_config =
+        PaymentLinkConfig {
+            theme,
+            logo,
+            seller_name,
+            sdk_layout,
+            display_sdk_only,
+            enabled_saved_payment_method,
+            hide_card_nickname_field,
+            show_card_form_by_default,
+            allowed_domains,
+            branding_visibility,
+            transaction_details: payment_create_link_config.as_ref().and_then(
+                |payment_link_config| payment_link_config.theme_config.transaction_details.clone(),
+            ),
+            details_layout: payment_create_link_config
+                .as_ref()
+                .and_then(|payment_link_config| payment_link_config.theme_config.details_layout)
+                .or_else(|| {
+                    business_theme_configs
+                        .as_ref()
+                        .and_then(|business_theme_config| business_theme_config.details_layout)
+                }),
+            background_image: payment_create_link_config
+                .as_ref()
+                .and_then(|payment_link_config| {
+                    payment_link_config.theme_config.background_image.clone()
+                })
+                .or_else(|| {
+                    business_theme_configs
+                        .as_ref()
+                        .and_then(|business_theme_config| {
+                            business_theme_config
+                                .background_image
+                                .as_ref()
+                                .map(|background_image| background_image.clone().foreign_into())
+                        })
+                }),
+            payment_button_text: payment_create_link_config
+                .as_ref()
+                .and_then(|payment_link_config| {
+                    payment_link_config.theme_config.payment_button_text.clone()
+                })
+                .or_else(|| {
+                    business_theme_configs
+                        .as_ref()
+                        .and_then(|business_theme_config| {
+                            business_theme_config.payment_button_text.clone()
+                        })
+                }),
+        };
 
     Ok((payment_link_config, domain_name))
 }
@@ -649,10 +714,10 @@ fn capitalize_first_char(s: &str) -> String {
 }
 
 fn check_payment_link_invalid_conditions(
-    intent_status: &storage_enums::IntentStatus,
+    intent_status: storage_enums::IntentStatus,
     not_allowed_statuses: &[storage_enums::IntentStatus],
 ) -> bool {
-    not_allowed_statuses.contains(intent_status)
+    not_allowed_statuses.contains(&intent_status)
 }
 
 #[cfg(feature = "v2")]
@@ -729,8 +794,14 @@ pub async fn get_payment_link_status(
             sdk_layout: DEFAULT_SDK_LAYOUT.to_owned(),
             display_sdk_only: DEFAULT_DISPLAY_SDK_ONLY,
             enabled_saved_payment_method: DEFAULT_ENABLE_SAVED_PAYMENT_METHOD,
+            hide_card_nickname_field: DEFAULT_HIDE_CARD_NICKNAME_FIELD,
+            show_card_form_by_default: DEFAULT_SHOW_CARD_FORM,
             allowed_domains: DEFAULT_ALLOWED_DOMAINS,
             transaction_details: None,
+            background_image: None,
+            details_layout: None,
+            branding_visibility: None,
+            payment_button_text: None,
         }
     };
 
@@ -744,7 +815,7 @@ pub async fn get_payment_link_status(
     let required_conversion_type = StringMajorUnitForCore;
 
     let amount = required_conversion_type
-        .convert(payment_attempt.net_amount, currency)
+        .convert(payment_attempt.get_total_amount(), currency)
         .change_context(errors::ApiErrorResponse::AmountConversionFailed {
             amount_type: "StringMajorUnit",
         })?;

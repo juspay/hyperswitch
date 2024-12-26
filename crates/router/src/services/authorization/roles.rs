@@ -1,9 +1,15 @@
+#[cfg(feature = "recon")]
+use std::collections::HashMap;
 use std::collections::HashSet;
 
-use common_enums::{EntityType, PermissionGroup, RoleScope};
+#[cfg(feature = "recon")]
+use api_models::enums::ReconPermissionScope;
+use common_enums::{EntityType, PermissionGroup, Resource, RoleScope};
 use common_utils::{errors::CustomResult, id_type};
 
-use super::{permission_groups::get_permissions_vec, permissions::Permission};
+#[cfg(feature = "recon")]
+use super::permission_groups::{RECON_OPS, RECON_REPORTS};
+use super::{permission_groups::PermissionGroupExt, permissions::Permission};
 use crate::{core::errors, routes::SessionState};
 
 pub mod predefined_roles;
@@ -30,8 +36,13 @@ impl RoleInfo {
         &self.role_name
     }
 
-    pub fn get_permission_groups(&self) -> &Vec<PermissionGroup> {
-        &self.groups
+    pub fn get_permission_groups(&self) -> Vec<PermissionGroup> {
+        self.groups
+            .iter()
+            .flat_map(|group| group.accessible_groups())
+            .collect::<HashSet<_>>()
+            .into_iter()
+            .collect()
     }
 
     pub fn get_scope(&self) -> RoleScope {
@@ -58,20 +69,54 @@ impl RoleInfo {
         self.is_updatable
     }
 
-    pub fn get_permissions_set(&self) -> HashSet<Permission> {
-        self.groups
+    pub fn get_resources_set(&self) -> HashSet<Resource> {
+        self.get_permission_groups()
             .iter()
-            .flat_map(|group| get_permissions_vec(group).iter().copied())
+            .flat_map(|group| group.resources())
             .collect()
     }
 
-    pub fn check_permission_exists(&self, required_permission: &Permission) -> bool {
-        self.groups
-            .iter()
-            .any(|group| get_permissions_vec(group).contains(required_permission))
+    pub fn check_permission_exists(&self, required_permission: Permission) -> bool {
+        required_permission.entity_type() <= self.entity_type
+            && self.get_permission_groups().iter().any(|group| {
+                required_permission.scope() <= group.scope()
+                    && group.resources().contains(&required_permission.resource())
+            })
     }
 
-    pub async fn from_role_id_in_merchant_scope(
+    #[cfg(feature = "recon")]
+    pub fn get_recon_acl(&self) -> HashMap<Resource, ReconPermissionScope> {
+        let mut acl: HashMap<Resource, ReconPermissionScope> = HashMap::new();
+        let mut recon_resources = RECON_OPS.to_vec();
+        recon_resources.extend(RECON_REPORTS);
+        let recon_internal_resources = [Resource::ReconToken];
+        self.get_permission_groups()
+            .iter()
+            .for_each(|permission_group| {
+                permission_group.resources().iter().for_each(|resource| {
+                    if recon_resources.contains(resource)
+                        && !recon_internal_resources.contains(resource)
+                    {
+                        let scope = match resource {
+                            Resource::ReconAndSettlementAnalytics => ReconPermissionScope::Read,
+                            _ => ReconPermissionScope::from(permission_group.scope()),
+                        };
+                        acl.entry(*resource)
+                            .and_modify(|curr_scope| {
+                                *curr_scope = if (*curr_scope) < scope {
+                                    scope
+                                } else {
+                                    *curr_scope
+                                }
+                            })
+                            .or_insert(scope);
+                    }
+                })
+            });
+        acl
+    }
+
+    pub async fn from_role_id_in_lineage(
         state: &SessionState,
         role_id: &str,
         merchant_id: &id_type::MerchantId,
@@ -81,14 +126,14 @@ impl RoleInfo {
             Ok(role.clone())
         } else {
             state
-                .store
-                .find_role_by_role_id_in_merchant_scope(role_id, merchant_id, org_id)
+                .global_store
+                .find_role_by_role_id_in_lineage(role_id, merchant_id, org_id)
                 .await
                 .map(Self::from)
         }
     }
 
-    pub async fn from_role_id_in_org_scope(
+    pub async fn from_role_id_and_org_id(
         state: &SessionState,
         role_id: &str,
         org_id: &id_type::OrganizationId,
@@ -97,8 +142,8 @@ impl RoleInfo {
             Ok(role.clone())
         } else {
             state
-                .store
-                .find_role_by_role_id_in_org_scope(role_id, org_id)
+                .global_store
+                .find_by_role_id_and_org_id(role_id, org_id)
                 .await
                 .map(Self::from)
         }
@@ -112,7 +157,7 @@ impl From<diesel_models::role::Role> for RoleInfo {
             role_name: role.role_name,
             groups: role.groups.into_iter().map(Into::into).collect(),
             scope: role.scope,
-            entity_type: role.entity_type.unwrap_or(EntityType::Merchant),
+            entity_type: role.entity_type,
             is_invitable: true,
             is_deletable: true,
             is_updatable: true,

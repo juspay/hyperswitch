@@ -203,7 +203,7 @@ pub struct CashtocodePaymentsSyncResponse {
 }
 
 fn get_redirect_form_data(
-    payment_method_type: &enums::PaymentMethodType,
+    payment_method_type: enums::PaymentMethodType,
     response_data: CashtocodePaymentsResponseData,
 ) -> CustomResult<RedirectForm, errors::ConnectorError> {
     match payment_method_type {
@@ -260,7 +260,6 @@ impl<F>
                     .data
                     .request
                     .payment_method_type
-                    .as_ref()
                     .ok_or(errors::ConnectorError::MissingPaymentMethodType)?;
                 let redirection_data = get_redirect_form_data(payment_method_type, response_data)?;
                 (
@@ -269,8 +268,8 @@ impl<F>
                         resource_id: ResponseId::ConnectorTransactionId(
                             item.data.attempt_id.clone(),
                         ),
-                        redirection_data: Some(redirection_data),
-                        mandate_reference: None,
+                        redirection_data: Box::new(Some(redirection_data)),
+                        mandate_reference: Box::new(None),
                         connector_metadata: None,
                         network_txn_id: None,
                         connector_response_reference_id: None,
@@ -302,8 +301,8 @@ impl<F, T> TryFrom<ResponseRouterData<F, CashtocodePaymentsSyncResponse, T, Paym
                 resource_id: ResponseId::ConnectorTransactionId(
                     item.data.attempt_id.clone(), //in response they only send PayUrl, so we use attempt_id as connector_transaction_id
                 ),
-                redirection_data: None,
-                mandate_reference: None,
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: None,

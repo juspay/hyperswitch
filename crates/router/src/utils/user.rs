@@ -5,10 +5,11 @@ use common_enums::UserAuthType;
 use common_utils::{
     encryption::Encryption, errors::CustomResult, id_type, type_name, types::keymanager::Identifier,
 };
-use diesel_models::user_role::UserRole;
-use error_stack::{report, ResultExt};
+use diesel_models::{organization, organization::OrganizationBridge};
+use error_stack::ResultExt;
 use masking::{ExposeInterface, Secret};
 use redis_interface::RedisConnectionPool;
+use router_env::env;
 
 use crate::{
     consts::user::{REDIS_SSO_PREFIX, REDIS_SSO_TTL},
@@ -28,6 +29,7 @@ pub mod dashboard_metadata;
 pub mod password;
 #[cfg(feature = "dummy_connector")]
 pub mod sample_data;
+pub mod theme;
 pub mod two_factor_auth;
 
 impl UserFromToken {
@@ -75,54 +77,10 @@ impl UserFromToken {
     }
 
     pub async fn get_role_info_from_db(&self, state: &SessionState) -> UserResult<RoleInfo> {
-        RoleInfo::from_role_id_in_merchant_scope(
-            state,
-            &self.role_id,
-            &self.merchant_id,
-            &self.org_id,
-        )
-        .await
-        .change_context(UserErrors::InternalServerError)
+        RoleInfo::from_role_id_and_org_id(state, &self.role_id, &self.org_id)
+            .await
+            .change_context(UserErrors::InternalServerError)
     }
-}
-
-pub async fn generate_jwt_auth_token_without_profile(
-    state: &SessionState,
-    user: &UserFromStorage,
-    user_role: &UserRole,
-) -> UserResult<Secret<String>> {
-    let token = AuthToken::new_token(
-        user.get_user_id().to_string(),
-        user_role
-            .merchant_id
-            .as_ref()
-            .ok_or(report!(UserErrors::InternalServerError))
-            .attach_printable("merchant_id not found for user_role")?
-            .clone(),
-        user_role.role_id.clone(),
-        &state.conf,
-        user_role
-            .org_id
-            .as_ref()
-            .ok_or(report!(UserErrors::InternalServerError))
-            .attach_printable("org_id not found for user_role")?
-            .clone(),
-        None,
-    )
-    .await?;
-    Ok(Secret::new(token))
-}
-
-pub async fn generate_jwt_auth_token_with_attributes_without_profile(
-    state: &SessionState,
-    user_id: String,
-    merchant_id: id_type::MerchantId,
-    org_id: id_type::OrganizationId,
-    role_id: String,
-) -> UserResult<Secret<String>> {
-    let token =
-        AuthToken::new_token(user_id, merchant_id, role_id, &state.conf, org_id, None).await?;
-    Ok(Secret::new(token))
 }
 
 pub async fn generate_jwt_auth_token_with_attributes(
@@ -132,6 +90,7 @@ pub async fn generate_jwt_auth_token_with_attributes(
     org_id: id_type::OrganizationId,
     role_id: String,
     profile_id: id_type::ProfileId,
+    tenant_id: Option<id_type::TenantId>,
 ) -> UserResult<Secret<String>> {
     let token = AuthToken::new_token(
         user_id,
@@ -139,7 +98,8 @@ pub async fn generate_jwt_auth_token_with_attributes(
         role_id,
         &state.conf,
         org_id,
-        Some(profile_id),
+        profile_id,
+        tenant_id,
     )
     .await?;
     Ok(Secret::new(token))
@@ -162,7 +122,7 @@ pub async fn get_user_from_db_by_email(
 ) -> CustomResult<UserFromStorage, StorageError> {
     state
         .global_store
-        .find_user_by_email(&email.into_inner())
+        .find_user_by_email(&email)
         .await
         .map(UserFromStorage::from)
 }
@@ -310,9 +270,45 @@ pub fn get_oidc_sso_redirect_url(state: &SessionState, provider: &str) -> String
     format!("{}/redirect/oidc/{}", state.conf.user.base_url, provider)
 }
 
-pub fn is_sso_auth_type(auth_type: &UserAuthType) -> bool {
+pub fn is_sso_auth_type(auth_type: UserAuthType) -> bool {
     match auth_type {
         UserAuthType::OpenIdConnect => true,
         UserAuthType::Password | UserAuthType::MagicLink => false,
     }
+}
+
+#[cfg(feature = "v1")]
+pub fn create_merchant_account_request_for_org(
+    req: user_api::UserOrgMerchantCreateRequest,
+    org: organization::Organization,
+) -> UserResult<api_models::admin::MerchantAccountCreate> {
+    let merchant_id = if matches!(env::which(), env::Env::Production) {
+        id_type::MerchantId::try_from(domain::MerchantId::new(req.merchant_name.clone().expose())?)?
+    } else {
+        id_type::MerchantId::new_from_unix_timestamp()
+    };
+
+    let company_name = domain::UserCompanyName::new(req.merchant_name.expose())?;
+    Ok(api_models::admin::MerchantAccountCreate {
+        merchant_id,
+        metadata: None,
+        locker_id: None,
+        return_url: None,
+        merchant_name: Some(Secret::new(company_name.get_secret())),
+        webhook_details: None,
+        publishable_key: None,
+        organization_id: Some(org.get_organization_id()),
+        merchant_details: None,
+        routing_algorithm: None,
+        parent_merchant_id: None,
+        sub_merchants_enabled: None,
+        frm_routing_algorithm: None,
+        #[cfg(feature = "payouts")]
+        payout_routing_algorithm: None,
+        primary_business_details: None,
+        payment_response_hash_key: None,
+        enable_payment_response_hash: None,
+        redirect_to_merchant_with_http_post: None,
+        pm_collect_link_config: None,
+    })
 }

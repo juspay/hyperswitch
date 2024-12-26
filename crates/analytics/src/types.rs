@@ -26,15 +26,19 @@ pub enum AnalyticsDomain {
 #[derive(Debug, strum::AsRefStr, strum::Display, Clone, Copy)]
 pub enum AnalyticsCollection {
     Payment,
+    PaymentSessionized,
     Refund,
+    RefundSessionized,
     FraudCheck,
     SdkEvents,
     SdkEventsAnalytics,
     ApiEvents,
     PaymentIntent,
+    PaymentIntentSessionized,
     ConnectorEvents,
     OutgoingWebhookEvent,
     Dispute,
+    DisputeSessionized,
     ApiEventsAnalytics,
     ActivePaymentsAnalytics,
 }
@@ -53,6 +57,12 @@ pub struct DBEnumWrapper<T: FromStr + Display>(pub T);
 impl<T: FromStr + Display> AsRef<T> for DBEnumWrapper<T> {
     fn as_ref(&self) -> &T {
         &self.0
+    }
+}
+
+impl<T: FromStr + Display + Default> Default for DBEnumWrapper<T> {
+    fn default() -> Self {
+        Self(T::default())
     }
 }
 

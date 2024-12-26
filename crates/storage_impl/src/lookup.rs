@@ -44,7 +44,7 @@ impl<T: DatabaseStore> ReverseLookupInterface for RouterStore<T> {
             .await
             .change_context(errors::StorageError::DatabaseConnectionError)?;
         new.insert(&conn).await.map_err(|er| {
-            let new_err = diesel_error_to_data_error(er.current_context());
+            let new_err = diesel_error_to_data_error(*er.current_context());
             er.change_context(new_err)
         })
     }
@@ -58,7 +58,7 @@ impl<T: DatabaseStore> ReverseLookupInterface for RouterStore<T> {
         DieselReverseLookup::find_by_lookup_id(id, &conn)
             .await
             .map_err(|er| {
-                let new_err = diesel_error_to_data_error(er.current_context());
+                let new_err = diesel_error_to_data_error(*er.current_context());
                 er.change_context(new_err)
             })
     }
@@ -93,17 +93,17 @@ impl<T: DatabaseStore> ReverseLookupInterface for KVRouterStore<T> {
                 };
                 let redis_entry = kv::TypedSql {
                     op: kv::DBOperation::Insert {
-                        insertable: kv::Insertable::ReverseLookUp(new),
+                        insertable: Box::new(kv::Insertable::ReverseLookUp(new)),
                     },
                 };
 
-                match kv_wrapper::<DieselReverseLookup, _, _>(
+                match Box::pin(kv_wrapper::<DieselReverseLookup, _, _>(
                     self,
                     KvOperation::SetNx(&created_rev_lookup, redis_entry),
                     PartitionKey::CombinationKey {
                         combination: &format!("reverse_lookup_{}", &created_rev_lookup.lookup_id),
                     },
-                )
+                ))
                 .await
                 .map_err(|err| err.to_redis_failed_response(&created_rev_lookup.lookup_id))?
                 .try_into_setnx()
@@ -140,13 +140,13 @@ impl<T: DatabaseStore> ReverseLookupInterface for KVRouterStore<T> {
             storage_enums::MerchantStorageScheme::PostgresOnly => database_call().await,
             storage_enums::MerchantStorageScheme::RedisKv => {
                 let redis_fut = async {
-                    kv_wrapper(
+                    Box::pin(kv_wrapper(
                         self,
                         KvOperation::<DieselReverseLookup>::Get,
                         PartitionKey::CombinationKey {
                             combination: &format!("reverse_lookup_{id}"),
                         },
-                    )
+                    ))
                     .await?
                     .try_into_get()
                 };

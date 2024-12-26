@@ -130,11 +130,11 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
 
                 let redis_entry = kv::TypedSql {
                     op: kv::DBOperation::Insert {
-                        insertable: kv::Insertable::Payouts(new.to_storage_model()),
+                        insertable: Box::new(kv::Insertable::Payouts(new.to_storage_model())),
                     },
                 };
 
-                match kv_wrapper::<DieselPayouts, _, _>(
+                match Box::pin(kv_wrapper::<DieselPayouts, _, _>(
                     self,
                     KvOperation::<DieselPayouts>::HSetNx(
                         &field,
@@ -142,7 +142,7 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
                         redis_entry,
                     ),
                     key,
-                )
+                ))
                 .await
                 .map_err(|err| err.to_redis_failed_response(&key_str))?
                 .try_into_hsetnx()
@@ -201,18 +201,18 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
 
                 let redis_entry = kv::TypedSql {
                     op: kv::DBOperation::Update {
-                        updatable: kv::Updateable::PayoutsUpdate(kv::PayoutsUpdateMems {
+                        updatable: Box::new(kv::Updateable::PayoutsUpdate(kv::PayoutsUpdateMems {
                             orig: origin_diesel_payout,
                             update_data: diesel_payout_update,
-                        }),
+                        })),
                     },
                 };
 
-                kv_wrapper::<(), _, _>(
+                Box::pin(kv_wrapper::<(), _, _>(
                     self,
                     KvOperation::<DieselPayouts>::Hset((&field, redis_value), redis_entry),
                     key,
-                )
+                ))
                 .await
                 .map_err(|err| err.to_redis_failed_response(&key_str))?
                 .try_into_hset()
@@ -235,7 +235,7 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
             DieselPayouts::find_by_merchant_id_payout_id(&conn, merchant_id, payout_id)
                 .await
                 .map_err(|er| {
-                    let new_err = diesel_error_to_data_error(er.current_context());
+                    let new_err = diesel_error_to_data_error(*er.current_context());
                     er.change_context(new_err)
                 })
         };
@@ -255,11 +255,11 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
                 let field = format!("po_{payout_id}");
                 Box::pin(utils::try_redis_get_else_try_database_get(
                     async {
-                        kv_wrapper::<DieselPayouts, _, _>(
+                        Box::pin(kv_wrapper::<DieselPayouts, _, _>(
                             self,
                             KvOperation::<DieselPayouts>::HGet(&field),
                             key,
-                        )
+                        ))
                         .await?
                         .try_into_hget()
                     },
@@ -283,7 +283,7 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
             DieselPayouts::find_optional_by_merchant_id_payout_id(&conn, merchant_id, payout_id)
                 .await
                 .map_err(|er| {
-                    let new_err = diesel_error_to_data_error(er.current_context());
+                    let new_err = diesel_error_to_data_error(*er.current_context());
                     er.change_context(new_err)
                 })
         };
@@ -312,11 +312,11 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
                 let field = format!("po_{payout_id}");
                 Box::pin(utils::try_redis_get_else_try_database_get(
                     async {
-                        kv_wrapper::<DieselPayouts, _, _>(
+                        Box::pin(kv_wrapper::<DieselPayouts, _, _>(
                             self,
                             KvOperation::<DieselPayouts>::HGet(&field),
                             key,
-                        )
+                        ))
                         .await?
                         .try_into_hget()
                         .map(Some)
@@ -423,7 +423,7 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
             .insert(&conn)
             .await
             .map_err(|er| {
-                let new_err = diesel_error_to_data_error(er.current_context());
+                let new_err = diesel_error_to_data_error(*er.current_context());
                 er.change_context(new_err)
             })
             .map(Payouts::from_storage_model)
@@ -443,7 +443,7 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
             .update(&conn, payout.to_storage_model())
             .await
             .map_err(|er| {
-                let new_err = diesel_error_to_data_error(er.current_context());
+                let new_err = diesel_error_to_data_error(*er.current_context());
                 er.change_context(new_err)
             })
             .map(Payouts::from_storage_model)
@@ -461,7 +461,7 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
             .await
             .map(Payouts::from_storage_model)
             .map_err(|er| {
-                let new_err = diesel_error_to_data_error(er.current_context());
+                let new_err = diesel_error_to_data_error(*er.current_context());
                 er.change_context(new_err)
             })
     }
@@ -478,7 +478,7 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
             .await
             .map(|x| x.map(Payouts::from_storage_model))
             .map_err(|er| {
-                let new_err = diesel_error_to_data_error(er.current_context());
+                let new_err = diesel_error_to_data_error(*er.current_context());
                 er.change_context(new_err)
             })
     }
@@ -814,7 +814,7 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
         )
         .await
         .map_err(|er| {
-            let new_err = diesel_error_to_data_error(er.current_context());
+            let new_err = diesel_error_to_data_error(*er.current_context());
             er.change_context(new_err)
         })
     }

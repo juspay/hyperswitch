@@ -1,8 +1,3 @@
-use std::{
-    collections::HashMap,
-    ops::{Deref, DerefMut},
-};
-
 use api_models::payment_methods;
 use diesel_models::enums;
 pub use diesel_models::payment_method::{
@@ -110,6 +105,10 @@ impl PaymentTokenData {
     }
 }
 
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PaymentMethodListContext {
     pub card_details: Option<api::CardDetailFromLocker>,
@@ -118,32 +117,35 @@ pub struct PaymentMethodListContext {
     pub bank_transfer_details: Option<api::BankPayout>,
 }
 
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct PaymentsMandateReferenceRecord {
-    pub connector_mandate_id: String,
-    pub payment_method_type: Option<common_enums::PaymentMethodType>,
-    pub original_payment_authorized_amount: Option<i64>,
-    pub original_payment_authorized_currency: Option<common_enums::Currency>,
-    pub mandate_metadata: Option<serde_json::Value>,
+pub enum PaymentMethodListContext {
+    Card {
+        card_details: api::CardDetailFromLocker,
+        token_data: Option<PaymentTokenData>,
+    },
+    Bank {
+        token_data: Option<PaymentTokenData>,
+    },
+    #[cfg(feature = "payouts")]
+    BankTransfer {
+        bank_transfer_details: api::BankPayout,
+        token_data: Option<PaymentTokenData>,
+    },
+    TemporaryToken {
+        token_data: Option<PaymentTokenData>,
+    },
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct PaymentsMandateReference(
-    pub HashMap<common_utils::id_type::MerchantConnectorAccountId, PaymentsMandateReferenceRecord>,
-);
-
-impl Deref for PaymentsMandateReference {
-    type Target =
-        HashMap<common_utils::id_type::MerchantConnectorAccountId, PaymentsMandateReferenceRecord>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl DerefMut for PaymentsMandateReference {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+impl PaymentMethodListContext {
+    pub(crate) fn get_token_data(&self) -> Option<PaymentTokenData> {
+        match self {
+            Self::Card { token_data, .. }
+            | Self::Bank { token_data }
+            | Self::BankTransfer { token_data, .. }
+            | Self::TemporaryToken { token_data } => token_data.clone(),
+        }
     }
 }
 

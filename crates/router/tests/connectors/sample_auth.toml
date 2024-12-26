@@ -10,6 +10,9 @@ api_key = "Bearer MyApiKey"
 key1 = "MerchantId"
 api_secret = "Secondary key"
 
+[amazonpay]
+api_key="API Key"
+
 [authorizedotnet]
 api_key = "MyMerchantName"
 key1 = "MyTransactionKey"
@@ -30,6 +33,7 @@ api_key = "Bearer MyApiKey"
 [worldpay]
 api_key = "api_key"
 key1 = "key1"
+api_secret = "Merchant Identifier"
 
 [payu]
 api_key = "Bearer MyApiKey"
@@ -264,6 +268,9 @@ api_key="API Key"
 [nexixpay]
 api_key="API Key"
 
+[redsys]
+api_key="API Key"
+
 [wellsfargopayout]
 api_key = "Consumer Key"
 key1 = "Gateway Entity Id"
@@ -281,4 +288,20 @@ key1 = "Merchant ID"
 api_secret = "Client Key"
 
 [thunes]
+api_key="API Key"
+
+[inespay]
+api_key="API Key"
+
+[jpmorgan]
+api_key="Client ID"
+key1 ="Client Secret"
+
+[elavon]
+api_key="API Key"
+
+[nomupay]
+api_key="API Key"
+
+[unified_authentication_service]
 api_key="API Key"

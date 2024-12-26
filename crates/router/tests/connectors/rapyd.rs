@@ -16,7 +16,7 @@ impl utils::Connector for Rapyd {
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Rapyd;
         utils::construct_connector_data_old(
-            Box::new(&Rapyd),
+            Box::new(Rapyd::new()),
             types::Connector::Rapyd,
             types::api::GetToken::Connector,
             None,
@@ -53,6 +53,7 @@ async fn should_only_authorize_payment() {
                     card_issuing_country: None,
                     bank_code: None,
                     nick_name: Some(Secret::new("nick_name".into())),
+                    card_holder_name: Some(Secret::new("card holder name".into())),
                 }),
                 capture_method: Some(diesel_models::enums::CaptureMethod::Manual),
                 ..utils::PaymentAuthorizeType::default().0
@@ -80,6 +81,7 @@ async fn should_authorize_and_capture_payment() {
                     card_issuing_country: None,
                     bank_code: None,
                     nick_name: Some(Secret::new("nick_name".into())),
+                    card_holder_name: Some(Secret::new("card holder name".into())),
                 }),
                 ..utils::PaymentAuthorizeType::default().0
             }),

@@ -92,6 +92,44 @@ pub async fn msearch_results(
                     .switch()?;
             }
         };
+        if let Some(connector) = filters.connector {
+            if !connector.is_empty() {
+                query_builder
+                    .add_filter_clause("connector.keyword".to_string(), connector.clone())
+                    .switch()?;
+            }
+        };
+        if let Some(payment_method_type) = filters.payment_method_type {
+            if !payment_method_type.is_empty() {
+                query_builder
+                    .add_filter_clause(
+                        "payment_method_type.keyword".to_string(),
+                        payment_method_type.clone(),
+                    )
+                    .switch()?;
+            }
+        };
+        if let Some(card_network) = filters.card_network {
+            if !card_network.is_empty() {
+                query_builder
+                    .add_filter_clause("card_network.keyword".to_string(), card_network.clone())
+                    .switch()?;
+            }
+        };
+        if let Some(card_last_4) = filters.card_last_4 {
+            if !card_last_4.is_empty() {
+                query_builder
+                    .add_filter_clause("card_last_4.keyword".to_string(), card_last_4.clone())
+                    .switch()?;
+            }
+        };
+        if let Some(payment_id) = filters.payment_id {
+            if !payment_id.is_empty() {
+                query_builder
+                    .add_filter_clause("payment_id.keyword".to_string(), payment_id.clone())
+                    .switch()?;
+            }
+        };
     };
 
     if let Some(time_range) = req.time_range {
@@ -152,7 +190,17 @@ pub async fn search_results(
     search_params: Vec<AuthInfo>,
 ) -> CustomResult<GetSearchResponse, OpenSearchError> {
     let search_req = req.search_req;
-
+    if search_req.query.trim().is_empty()
+        && search_req
+            .filters
+            .as_ref()
+            .map_or(true, |filters| filters.is_all_none())
+    {
+        return Err(OpenSearchError::BadRequestError(
+            "Both query and filters are empty".to_string(),
+        )
+        .into());
+    }
     let mut query_builder = OpenSearchQueryBuilder::new(
         OpenSearchQuery::Search(req.index),
         search_req.query,
@@ -214,6 +262,44 @@ pub async fn search_results(
                             })
                             .collect(),
                     )
+                    .switch()?;
+            }
+        };
+        if let Some(connector) = filters.connector {
+            if !connector.is_empty() {
+                query_builder
+                    .add_filter_clause("connector.keyword".to_string(), connector.clone())
+                    .switch()?;
+            }
+        };
+        if let Some(payment_method_type) = filters.payment_method_type {
+            if !payment_method_type.is_empty() {
+                query_builder
+                    .add_filter_clause(
+                        "payment_method_type.keyword".to_string(),
+                        payment_method_type.clone(),
+                    )
+                    .switch()?;
+            }
+        };
+        if let Some(card_network) = filters.card_network {
+            if !card_network.is_empty() {
+                query_builder
+                    .add_filter_clause("card_network.keyword".to_string(), card_network.clone())
+                    .switch()?;
+            }
+        };
+        if let Some(card_last_4) = filters.card_last_4 {
+            if !card_last_4.is_empty() {
+                query_builder
+                    .add_filter_clause("card_last_4.keyword".to_string(), card_last_4.clone())
+                    .switch()?;
+            }
+        };
+        if let Some(payment_id) = filters.payment_id {
+            if !payment_id.is_empty() {
+                query_builder
+                    .add_filter_clause("payment_id.keyword".to_string(), payment_id.clone())
                     .switch()?;
             }
         };

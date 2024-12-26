@@ -1,6 +1,4 @@
-//!
 //! Types.
-//!
 
 use serde::Deserialize;
 use strum::{Display, EnumString};
@@ -9,12 +7,9 @@ pub use tracing::{
     Level, Value,
 };
 
-///
 /// Category and tag of log event.
 ///
 /// Don't hesitate to add your variant if it is missing here.
-///
-
 #[derive(Debug, Default, Deserialize, Clone, Display, EnumString)]
 pub enum Tag {
     /// General.
@@ -93,6 +88,8 @@ pub enum Flow {
     ConfigKeyCreate,
     /// ConfigKey fetch flow.
     ConfigKeyFetch,
+    /// Enable platform account flow.
+    EnablePlatformAccount,
     /// ConfigKey Update flow.
     ConfigKeyUpdate,
     /// ConfigKey Delete flow.
@@ -169,6 +166,12 @@ pub enum Flow {
     PaymentsFilters,
     /// Payments aggregates flow
     PaymentsAggregate,
+    /// Payments Create Intent flow
+    PaymentsCreateIntent,
+    /// Payments Get Intent flow
+    PaymentsGetIntent,
+    /// Payments Update Intent flow
+    PaymentsUpdateIntent,
     #[cfg(feature = "payouts")]
     /// Payouts create flow
     PayoutsCreate,
@@ -350,6 +353,8 @@ pub enum Flow {
     DecisionManagerRetrieveConfig,
     /// Manual payment fulfillment acknowledgement
     FrmFulfillment,
+    /// Get connectors feature matrix
+    FeatureMatrix,
     /// Change password flow
     ChangePassword,
     /// Signout flow
@@ -362,10 +367,10 @@ pub enum Flow {
     VerifyPaymentConnector,
     /// Internal user signup
     InternalUserSignup,
+    /// Create tenant level user
+    TenantUserCreate,
     /// Switch org
     SwitchOrg,
-    /// Switch merchant
-    SwitchMerchant,
     /// Switch merchant v2
     SwitchMerchantV2,
     /// Switch profile
@@ -374,8 +379,8 @@ pub enum Flow {
     GetAuthorizationInfo,
     /// Get Roles info
     GetRolesInfo,
-    /// List roles
-    ListRoles,
+    /// Get Parent Group Info
+    GetParentGroupInfo,
     /// List roles v2
     ListRolesV2,
     /// List invitable roles at entity level
@@ -384,24 +389,26 @@ pub enum Flow {
     ListUpdatableRolesAtEntityLevel,
     /// Get role
     GetRole,
+    /// Get parent info for role
+    GetRoleV2,
     /// Get role from token
     GetRoleFromToken,
+    /// Get resources and groups for role from token
+    GetRoleFromTokenV2,
     /// Update user role
     UpdateUserRole,
     /// Create merchant account for user in a org
     UserMerchantAccountCreate,
+    /// Create Org in a given tenancy
+    UserOrgMerchantCreate,
     /// Generate Sample Data
     GenerateSampleData,
     /// Delete Sample Data
     DeleteSampleData,
-    /// List merchant accounts for user
-    UserMerchantAccountList,
     /// Get details of a user
     GetUserDetails,
     /// Get details of a user role in a merchant account
     GetUserRoleDetails,
-    /// List users for merchant account
-    ListUsersForMerchantAccount,
     /// PaymentMethodAuth Link token create
     PmAuthLinkTokenCreate,
     /// PaymentMethodAuth Exchange token create
@@ -434,12 +441,8 @@ pub enum Flow {
     VerifyEmailRequest,
     /// Update user account details
     UpdateUserAccountDetails,
-    /// Accept user invitation using merchant_ids
-    AcceptInvitation,
     /// Accept user invitation using entities
     AcceptInvitationsV2,
-    /// Select merchant from invitations
-    MerchantSelect,
     /// Accept user invitation using entities before user login
     AcceptInvitationsPreAuth,
     /// Initiate external authentication for a payment
@@ -490,6 +493,18 @@ pub enum Flow {
     ListUsersInLineage,
     /// List invitations for user
     ListInvitationsForUser,
+    /// Get theme using lineage
+    GetThemeUsingLineage,
+    /// Get theme using theme id
+    GetThemeUsingThemeId,
+    /// Upload file to theme storage
+    UploadFileToThemeStorage,
+    /// Create theme
+    CreateTheme,
+    /// Update theme
+    UpdateTheme,
+    /// Delete theme
+    DeleteTheme,
     /// List initial webhook delivery attempts
     WebhookEventInitialDeliveryAttemptList,
     /// List delivery attempts for a webhook event
@@ -510,11 +525,21 @@ pub enum Flow {
     PaymentsManualUpdate,
     /// Dynamic Tax Calcultion
     SessionUpdateTaxCalculation,
+    /// Payments confirm intent
+    PaymentsConfirmIntent,
+    /// Payments post session tokens flow
+    PaymentsPostSessionTokens,
+    /// Payments start redirection flow
+    PaymentStartRedirection,
+    /// Volume split on the routing type
+    VolumeSplitOnRoutingType,
+    /// Relay flow
+    Relay,
+    /// Relay retrieve flow
+    RelayRetrieve,
 }
 
-///
 /// Trait for providing generic behaviour to flow metric
-///
 pub trait FlowMetric: ToString + std::fmt::Debug + Clone {}
 impl FlowMetric for Flow {}
 

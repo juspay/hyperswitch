@@ -30,9 +30,9 @@ pub trait MandateInterface {
 
     // Fix this function once we move to mandate v2
     #[cfg(all(feature = "v2", feature = "customer_v2"))]
-    async fn find_mandate_by_global_id(
+    async fn find_mandate_by_global_customer_id(
         &self,
-        id: &str,
+        id: &id_type::GlobalCustomerId,
     ) -> CustomResult<Vec<storage_types::Mandate>, errors::StorageError>;
 
     async fn update_mandate_by_merchant_id_mandate_id(
@@ -114,11 +114,11 @@ mod storage {
 
                     Box::pin(db_utils::try_redis_get_else_try_database_get(
                         async {
-                            kv_wrapper(
+                            Box::pin(kv_wrapper(
                                 self,
                                 KvOperation::<diesel_models::Mandate>::HGet(&field),
                                 key,
-                            )
+                            ))
                             .await?
                             .try_into_hget()
                         },
@@ -172,11 +172,11 @@ mod storage {
 
                     Box::pin(db_utils::try_redis_get_else_try_database_get(
                         async {
-                            kv_wrapper(
+                            Box::pin(kv_wrapper(
                                 self,
                                 KvOperation::<diesel_models::Mandate>::HGet(&lookup.sk_id),
                                 key,
-                            )
+                            ))
                             .await?
                             .try_into_hget()
                         },
@@ -201,12 +201,12 @@ mod storage {
 
         #[cfg(all(feature = "v2", feature = "customer_v2"))]
         #[instrument(skip_all)]
-        async fn find_mandate_by_global_id(
+        async fn find_mandate_by_global_customer_id(
             &self,
-            id: &str,
+            id: &id_type::GlobalCustomerId,
         ) -> CustomResult<Vec<storage_types::Mandate>, errors::StorageError> {
             let conn = connection::pg_connection_read(self).await?;
-            storage_types::Mandate::find_by_global_id(&conn, id)
+            storage_types::Mandate::find_by_global_customer_id(&conn, id)
                 .await
                 .map_err(|error| report!(errors::StorageError::from(error)))
         }
@@ -274,21 +274,23 @@ mod storage {
 
                     let redis_entry = kv::TypedSql {
                         op: kv::DBOperation::Update {
-                            updatable: kv::Updateable::MandateUpdate(kv::MandateUpdateMems {
-                                orig: mandate,
-                                update_data: m_update,
-                            }),
+                            updatable: Box::new(kv::Updateable::MandateUpdate(
+                                kv::MandateUpdateMems {
+                                    orig: mandate,
+                                    update_data: m_update,
+                                },
+                            )),
                         },
                     };
 
-                    kv_wrapper::<(), _, _>(
+                    Box::pin(kv_wrapper::<(), _, _>(
                         self,
                         KvOperation::<diesel_models::Mandate>::Hset(
                             (&field, redis_value),
                             redis_entry,
                         ),
                         key,
-                    )
+                    ))
                     .await
                     .map_err(|err| err.to_redis_failed_response(&key_str))?
                     .try_into_hset()
@@ -346,7 +348,7 @@ mod storage {
 
                     let redis_entry = kv::TypedSql {
                         op: kv::DBOperation::Insert {
-                            insertable: kv::Insertable::Mandate(mandate),
+                            insertable: Box::new(kv::Insertable::Mandate(mandate)),
                         },
                     };
 
@@ -369,7 +371,7 @@ mod storage {
                             .await?;
                     }
 
-                    match kv_wrapper::<diesel_models::Mandate, _, _>(
+                    match Box::pin(kv_wrapper::<diesel_models::Mandate, _, _>(
                         self,
                         KvOperation::<diesel_models::Mandate>::HSetNx(
                             &field,
@@ -377,7 +379,7 @@ mod storage {
                             redis_entry,
                         ),
                         key,
-                    )
+                    ))
                     .await
                     .map_err(|err| err.to_redis_failed_response(&key_str))?
                     .try_into_hsetnx()
@@ -457,9 +459,9 @@ mod storage {
         // Need to fix this once we start moving to mandate v2
         #[cfg(all(feature = "v2", feature = "customer_v2"))]
         #[instrument(skip_all)]
-        async fn find_mandate_by_global_id(
+        async fn find_mandate_by_global_customer_id(
             &self,
-            customer_id: &str,
+            customer_id: &id_type::GlobalCustomerId,
         ) -> CustomResult<Vec<storage_types::Mandate>, errors::StorageError> {
             let conn = connection::pg_connection_read(self).await?;
             storage_types::Mandate::find_by_global_id(&conn, customer_id)
@@ -570,9 +572,9 @@ impl MandateInterface for MockDb {
 
     // Need to fix this once we move to v2 mandate
     #[cfg(all(feature = "v2", feature = "customer_v2"))]
-    async fn find_mandate_by_global_id(
+    async fn find_mandate_by_global_customer_id(
         &self,
-        id: &str,
+        id: &id_type::GlobalCustomerId,
     ) -> CustomResult<Vec<storage_types::Mandate>, errors::StorageError> {
         todo!()
     }

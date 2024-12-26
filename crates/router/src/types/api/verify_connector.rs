@@ -29,6 +29,7 @@ impl VerifyConnectorData {
             amount: 1000,
             minor_amount: common_utils::types::MinorUnit::new(1000),
             confirm: true,
+            order_tax_amount: None,
             currency: storage_enums::Currency::USD,
             metadata: None,
             mandate_id: None,
@@ -54,9 +55,11 @@ impl VerifyConnectorData {
             request_incremental_authorization: false,
             authentication_data: None,
             customer_acceptance: None,
-            charges: None,
+            split_payments: None,
             merchant_order_reference_id: None,
             integrity_object: None,
+            additional_payment_method_data: None,
+            shipping_cost: None,
         }
     }
 
@@ -75,7 +78,6 @@ impl VerifyConnectorData {
             connector: self.connector.id().to_string(),
             auth_type: storage_enums::AuthenticationType::NoThreeDs,
             test_mode: None,
-            return_url: None,
             attempt_id: attempt_id.clone(),
             description: None,
             customer_id: None,
@@ -115,6 +117,9 @@ impl VerifyConnectorData {
             integrity_check: Ok(()),
             additional_merchant_data: None,
             header_payload: None,
+            connector_mandate_request_reference_id: None,
+            authentication_id: None,
+            psd2_sca_exemption_type: None,
         }
     }
 }

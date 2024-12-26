@@ -29,7 +29,10 @@ use hyperswitch_domain_models::{
     },
 };
 use hyperswitch_interfaces::{
-    api::{self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorValidation},
+    api::{
+        self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorSpecifications,
+        ConnectorValidation,
+    },
     configs::Connectors,
     consts::NO_ERROR_CODE,
     errors,
@@ -65,9 +68,9 @@ impl api::PaymentToken for Helcim {}
 impl Helcim {
     pub fn connector_transaction_id(
         &self,
-        connector_meta: &Option<serde_json::Value>,
+        connector_meta: Option<&serde_json::Value>,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let meta: helcim::HelcimMetaData = to_connector_meta(connector_meta.clone())?;
+        let meta: helcim::HelcimMetaData = to_connector_meta(connector_meta.cloned())?;
         Ok(Some(meta.preauth_transaction_id.to_string()))
     }
 }
@@ -170,14 +173,17 @@ impl ConnectorCommon for Helcim {
 }
 
 impl ConnectorValidation for Helcim {
-    fn validate_capture_method(
+    fn validate_connector_against_payment_request(
         &self,
         capture_method: Option<enums::CaptureMethod>,
+        _payment_method: enums::PaymentMethod,
         _pmt: Option<enums::PaymentMethodType>,
     ) -> CustomResult<(), errors::ConnectorError> {
         let capture_method = capture_method.unwrap_or_default();
         match capture_method {
-            enums::CaptureMethod::Automatic | enums::CaptureMethod::Manual => Ok(()),
+            enums::CaptureMethod::Automatic
+            | enums::CaptureMethod::Manual
+            | enums::CaptureMethod::SequentialAutomatic => Ok(()),
             enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => Err(
                 crate::utils::construct_not_supported_error_report(capture_method, self.id()),
             ),
@@ -808,3 +814,5 @@ impl IncomingWebhook for Helcim {
         Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 }
+
+impl ConnectorSpecifications for Helcim {}

@@ -29,7 +29,7 @@ use crate::{
     services::{
         self,
         request::{self, Mask},
-        ConnectorIntegration, ConnectorValidation,
+        ConnectorIntegration, ConnectorSpecifications, ConnectorValidation,
     },
     types::{
         self,
@@ -688,7 +688,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
                 req.request.connector_transaction_id,
                 "/Refund"
             )),
-            _ => Ok(format!("{}{}", self.base_url(connectors), "api/v1/Reverse")),
+            _ => Ok(format!("{}{}", self.base_url(connectors), "api/v1/Refund")),
         }
     }
 
@@ -1077,3 +1077,5 @@ impl ConnectorErrorTypeMapping for Trustpay {
         }
     }
 }
+
+impl ConnectorSpecifications for Trustpay {}

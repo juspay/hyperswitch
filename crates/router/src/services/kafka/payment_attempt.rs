@@ -67,14 +67,14 @@ impl<'a> KafkaPaymentAttempt<'a> {
             merchant_id: &attempt.merchant_id,
             attempt_id: &attempt.attempt_id,
             status: attempt.status,
-            amount: attempt.amount,
+            amount: attempt.net_amount.get_order_amount(),
             currency: attempt.currency,
             save_to_locker: attempt.save_to_locker,
             connector: attempt.connector.as_ref(),
             error_message: attempt.error_message.as_ref(),
             offer_amount: attempt.offer_amount,
-            surcharge_amount: attempt.surcharge_amount,
-            tax_amount: attempt.tax_amount,
+            surcharge_amount: attempt.net_amount.get_surcharge_amount(),
+            tax_amount: attempt.net_amount.get_tax_on_surcharge(),
             payment_method_id: attempt.payment_method_id.as_ref(),
             payment_method: attempt.payment_method,
             connector_transaction_id: attempt.connector_transaction_id.as_ref(),
@@ -98,7 +98,7 @@ impl<'a> KafkaPaymentAttempt<'a> {
             multiple_capture_count: attempt.multiple_capture_count,
             amount_capturable: attempt.amount_capturable,
             merchant_connector_id: attempt.merchant_connector_id.as_ref(),
-            net_amount: attempt.net_amount,
+            net_amount: attempt.net_amount.get_total_amount(),
             unified_code: attempt.unified_code.as_ref(),
             unified_message: attempt.unified_message.as_ref(),
             mandate_data: attempt.mandate_data.as_ref(),
@@ -180,7 +180,7 @@ impl<'a> KafkaPaymentAttempt<'a> {
     }
 }
 
-impl<'a> super::KafkaMessage for KafkaPaymentAttempt<'a> {
+impl super::KafkaMessage for KafkaPaymentAttempt<'_> {
     fn key(&self) -> String {
         format!(
             "{}_{}_{}",

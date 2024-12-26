@@ -13,7 +13,8 @@ concurrency:
 env:
   CARGO_INCREMENTAL: 0
   CARGO_NET_RETRY: 10
-  CONNECTORS: stripe
+  PAYMENTS_CONNECTORS: "cybersource stripe"
+  PAYOUTS_CONNECTORS: "adyenplatform wise"
   RUST_BACKTRACE: short
   RUSTUP_MAX_RETRIES: 10
   RUN_TESTS: ${{ ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)) || (github.event_name == 'merge_group')}}
@@ -21,9 +22,68 @@ env:
   RUST_MIN_STACK: 10485760
 
 jobs:
+  formatter:
+    name: Run formatter on Cypress tests and address lints
+    if: ${{ github.event_name == 'pull_request' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate a token
+        if: ${{ github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name }}
+        id: generate_token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.HYPERSWITCH_BOT_APP_ID }}
+          private-key: ${{ secrets.HYPERSWITCH_BOT_APP_PRIVATE_KEY }}
+
+      - name: Checkout repository with token
+        if: ${{ github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name }}
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.ref }}
+          token: ${{ steps.generate_token.outputs.token }}
+
+      - name: Checkout repository for fork
+        if: ${{ github.event.pull_request.head.repo.full_name != github.event.pull_request.base.repo.full_name }}
+        uses: actions/checkout@v4
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Cypress and dependencies
+        run: |
+          npm ci --prefix ./cypress-tests
+
+      - name: Check formatting for forked pull requests
+        if: ${{ github.event.pull_request.head.repo.full_name != github.event.pull_request.base.repo.full_name }}
+        shell: bash
+        run: |
+          npm run format:check --prefix cypress-tests
+          npm run lint --prefix cypress-tests
+
+      - name: Check formatting
+        if: ${{ github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name }}
+        shell: bash
+        run: |
+          npm run format --prefix cypress-tests
+          npm run lint --prefix cypress-tests -- --fix
+
+          if ! git diff --exit-code --quiet -- cypress-tests; then
+            echo "::notice::Cypress formatting and lint check failed"
+
+            git config --local user.name 'hyperswitch-bot[bot]'
+            git config --local user.email '148525504+hyperswitch-bot[bot]@users.noreply.github.com'
+
+            git add cypress-tests
+            git commit --message 'chore(cypress): run formatter and address lints'
+            git push
+          fi
+
   runner:
     name: Run Cypress tests
-    runs-on: hyperswitch-runners
+    runs-on: ubuntu-latest
 
     services:
       redis:
@@ -68,7 +128,7 @@ jobs:
           CONNECTOR_AUTH_PASSPHRASE: ${{ secrets.CONNECTOR_AUTH_PASSPHRASE }}
           CONNECTOR_CREDS_S3_BUCKET_URI: ${{ secrets.CONNECTOR_CREDS_S3_BUCKET_URI}}
           DESTINATION_FILE_NAME: "creds.json.gpg"
-          S3_SOURCE_FILE_NAME: "f64157fe-a8f7-43a8-a268-b17e9a8c305f.json.gpg"
+          S3_SOURCE_FILE_NAME: "aa328308-b34e-41b7-a590-4fe45cfe7991.json.gpg"
         shell: bash
         run: |
           mkdir -p ".github/secrets" ".github/test"
@@ -151,9 +211,14 @@ jobs:
           DATABASE_URL: postgres://db_user:db_pass@localhost:5432/hyperswitch_db
         run: just migrate run --locked-schema
 
+      - name: Insert card info into the database
+        if: ${{ env.RUN_TESTS == 'true' }}
+        run: |
+          PGPASSWORD=db_pass psql --host=localhost --port=5432 --username=db_user --dbname=hyperswitch_db --command "\copy cards_info FROM '.github/data/cards_info.csv' DELIMITER ',' CSV HEADER;"
+
       - name: Build project
         if: ${{ env.RUN_TESTS == 'true' }}
-        run: cargo build --package router --bin router --jobs 6
+        run: cargo build --package router --bin router --jobs 3
 
       - name: Setup Local Server
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -181,29 +246,10 @@ jobs:
         if: ${{ env.RUN_TESTS == 'true' }}
         env:
           CYPRESS_BASEURL: "http://localhost:8080"
+          ROUTER__SERVER__WORKERS: 4
         shell: bash -leuo pipefail {0}
         run: |
-          cd cypress-tests
-
-          RED='\033[0;31m'
-          RESET='\033[0m'
-
-          failed_connectors=()
-
-          for connector in $(echo "${CONNECTORS}" | tr "," "\n"); do
-            echo "${connector}"
-            for service in "payments" "payouts"; do
-              if ! ROUTER__SERVER__WORKERS=4 CYPRESS_CONNECTOR="${connector}" npm run cypress:"${service}"; then
-                failed_connectors+=("${connector}-${service}")
-              fi
-            done
-          done
-
-          if [ ${#failed_connectors[@]} -gt 0 ]; then
-            echo -e "${RED}One or more connectors failed to run:${RESET}"
-            printf '%s\n' "${failed_connectors[@]}"
-            exit 1
-          fi
+          scripts/execute_cypress.sh
 
           kill "${{ env.PID }}"
 
@@ -213,6 +259,5 @@ jobs:
         with:
           name: cypress-test-results
           path: |
-            cypress-tests/cypress/reports/*.json
-            cypress-tests/cypress/reports/*.html
+            cypress-tests/cypress/reports/
           retention-days: 1

@@ -37,6 +37,8 @@ pub enum ApiIdentifier {
     Recon,
     Poll,
     ApplePayCertificatesMigration,
+    Relay,
+    Documentation,
 }
 
 impl From<Flow> for ApiIdentifier {
@@ -47,7 +49,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::MerchantsAccountUpdate
             | Flow::MerchantsAccountDelete
             | Flow::MerchantTransferKey
-            | Flow::MerchantAccountList => Self::MerchantAccount,
+            | Flow::MerchantAccountList
+            | Flow::EnablePlatformAccount => Self::MerchantAccount,
 
             Flow::OrganizationCreate | Flow::OrganizationRetrieve | Flow::OrganizationUpdate => {
                 Self::Organization
@@ -67,7 +70,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::DecisionManagerRetrieveConfig
             | Flow::ToggleDynamicRouting
             | Flow::UpdateDynamicRoutingConfigs
-            | Flow::DecisionManagerUpsertConfig => Self::Routing,
+            | Flow::DecisionManagerUpsertConfig
+            | Flow::VolumeSplitOnRoutingType => Self::Routing,
 
             Flow::RetrieveForexFlow => Self::Forex,
 
@@ -136,7 +140,13 @@ impl From<Flow> for ApiIdentifier {
             | Flow::GetExtendedCardInfo
             | Flow::PaymentsCompleteAuthorize
             | Flow::PaymentsManualUpdate
-            | Flow::SessionUpdateTaxCalculation => Self::Payments,
+            | Flow::SessionUpdateTaxCalculation
+            | Flow::PaymentsConfirmIntent
+            | Flow::PaymentsCreateIntent
+            | Flow::PaymentsGetIntent
+            | Flow::PaymentsPostSessionTokens
+            | Flow::PaymentsUpdateIntent
+            | Flow::PaymentStartRedirection => Self::Payments,
 
             Flow::PayoutsCreate
             | Flow::PayoutsRetrieve
@@ -157,6 +167,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::RefundsFilters
             | Flow::RefundsAggregate
             | Flow::RefundsManualUpdate => Self::Refunds,
+            Flow::Relay | Flow::RelayRetrieve => Self::Relay,
 
             Flow::FrmFulfillment
             | Flow::IncomingWebhookReceive
@@ -218,17 +229,16 @@ impl From<Flow> for ApiIdentifier {
             | Flow::GetMultipleDashboardMetadata
             | Flow::VerifyPaymentConnector
             | Flow::InternalUserSignup
+            | Flow::TenantUserCreate
             | Flow::SwitchOrg
-            | Flow::SwitchMerchant
             | Flow::SwitchMerchantV2
             | Flow::SwitchProfile
+            | Flow::UserOrgMerchantCreate
             | Flow::UserMerchantAccountCreate
             | Flow::GenerateSampleData
             | Flow::DeleteSampleData
-            | Flow::UserMerchantAccountList
             | Flow::GetUserDetails
             | Flow::GetUserRoleDetails
-            | Flow::ListUsersForMerchantAccount
             | Flow::ForgotPassword
             | Flow::ResetPassword
             | Flow::RotatePassword
@@ -257,20 +267,26 @@ impl From<Flow> for ApiIdentifier {
             | Flow::ListMerchantsForUserInOrg
             | Flow::ListProfileForUserInOrgAndMerchant
             | Flow::ListInvitationsForUser
-            | Flow::AuthSelect => Self::User,
+            | Flow::AuthSelect
+            | Flow::GetThemeUsingLineage
+            | Flow::GetThemeUsingThemeId
+            | Flow::UploadFileToThemeStorage
+            | Flow::CreateTheme
+            | Flow::UpdateTheme
+            | Flow::DeleteTheme => Self::User,
 
-            Flow::ListRoles
-            | Flow::ListRolesV2
+            Flow::ListRolesV2
             | Flow::ListInvitableRolesAtEntityLevel
             | Flow::ListUpdatableRolesAtEntityLevel
             | Flow::GetRole
+            | Flow::GetRoleV2
             | Flow::GetRoleFromToken
+            | Flow::GetRoleFromTokenV2
             | Flow::UpdateUserRole
             | Flow::GetAuthorizationInfo
             | Flow::GetRolesInfo
-            | Flow::AcceptInvitation
+            | Flow::GetParentGroupInfo
             | Flow::AcceptInvitationsV2
-            | Flow::MerchantSelect
             | Flow::AcceptInvitationsPreAuth
             | Flow::DeleteUserRole
             | Flow::CreateRole
@@ -288,6 +304,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::ReconVerifyToken => Self::Recon,
 
             Flow::RetrievePollStatus => Self::Poll,
+
+            Flow::FeatureMatrix => Self::Documentation,
         }
     }
 }

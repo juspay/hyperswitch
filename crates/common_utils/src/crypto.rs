@@ -238,7 +238,6 @@ impl VerifySignature for HmacSha512 {
     }
 }
 
-///
 /// Blake3
 #[derive(Debug)]
 pub struct Blake3(String);
@@ -437,9 +436,7 @@ pub fn generate_cryptographically_secure_random_bytes<const N: usize>() -> [u8; 
     bytes
 }
 
-///
 /// A wrapper type to store the encrypted data for sensitive pii domain data types
-///
 #[derive(Debug, Clone)]
 pub struct Encryptable<T: Clone> {
     inner: T,
@@ -447,9 +444,7 @@ pub struct Encryptable<T: Clone> {
 }
 
 impl<T: Clone, S: masking::Strategy<T>> Encryptable<Secret<T, S>> {
-    ///
     /// constructor function to be used by the encryptor and decryptor to generate the data type
-    ///
     pub fn new(
         masked_data: Secret<T, S>,
         encrypted_data: Secret<Vec<u8>, EncryptionStrategy>,
@@ -462,28 +457,38 @@ impl<T: Clone, S: masking::Strategy<T>> Encryptable<Secret<T, S>> {
 }
 
 impl<T: Clone> Encryptable<T> {
-    ///
     /// Get the inner data while consuming self
-    ///
     #[inline]
     pub fn into_inner(self) -> T {
         self.inner
     }
 
-    ///
     /// Get the reference to inner value
-    ///
     #[inline]
     pub fn get_inner(&self) -> &T {
         &self.inner
     }
 
-    ///
     /// Get the inner encrypted data while consuming self
-    ///
     #[inline]
     pub fn into_encrypted(self) -> Secret<Vec<u8>, EncryptionStrategy> {
         self.encrypted
+    }
+
+    /// Deserialize inner value and return new Encryptable object
+    pub fn deserialize_inner_value<U, F>(
+        self,
+        f: F,
+    ) -> CustomResult<Encryptable<U>, errors::ParsingError>
+    where
+        F: FnOnce(T) -> CustomResult<U, errors::ParsingError>,
+        U: Clone,
+    {
+        // Option::map(self, f)
+        let inner = self.inner;
+        let encrypted = self.encrypted;
+        let inner = f(inner)?;
+        Ok(Encryptable { inner, encrypted })
     }
 }
 

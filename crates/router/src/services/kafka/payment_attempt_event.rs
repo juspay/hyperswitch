@@ -25,15 +25,15 @@ pub struct KafkaPaymentAttemptEvent<'a> {
     pub payment_method: Option<storage_enums::PaymentMethod>,
     pub connector_transaction_id: Option<&'a String>,
     pub capture_method: Option<storage_enums::CaptureMethod>,
-    #[serde(default, with = "time::serde::timestamp::milliseconds::option")]
+    #[serde(default, with = "time::serde::timestamp::nanoseconds::option")]
     pub capture_on: Option<OffsetDateTime>,
     pub confirm: bool,
     pub authentication_type: Option<storage_enums::AuthenticationType>,
-    #[serde(with = "time::serde::timestamp::milliseconds")]
+    #[serde(with = "time::serde::timestamp::nanoseconds")]
     pub created_at: OffsetDateTime,
-    #[serde(with = "time::serde::timestamp::milliseconds")]
+    #[serde(with = "time::serde::timestamp::nanoseconds")]
     pub modified_at: OffsetDateTime,
-    #[serde(default, with = "time::serde::timestamp::milliseconds::option")]
+    #[serde(default, with = "time::serde::timestamp::nanoseconds::option")]
     pub last_synced: Option<OffsetDateTime>,
     pub cancellation_reason: Option<&'a String>,
     pub amount_to_capture: Option<MinorUnit>,
@@ -68,14 +68,14 @@ impl<'a> KafkaPaymentAttemptEvent<'a> {
             merchant_id: &attempt.merchant_id,
             attempt_id: &attempt.attempt_id,
             status: attempt.status,
-            amount: attempt.amount,
+            amount: attempt.net_amount.get_order_amount(),
             currency: attempt.currency,
             save_to_locker: attempt.save_to_locker,
             connector: attempt.connector.as_ref(),
             error_message: attempt.error_message.as_ref(),
             offer_amount: attempt.offer_amount,
-            surcharge_amount: attempt.surcharge_amount,
-            tax_amount: attempt.tax_amount,
+            surcharge_amount: attempt.net_amount.get_surcharge_amount(),
+            tax_amount: attempt.net_amount.get_tax_on_surcharge(),
             payment_method_id: attempt.payment_method_id.as_ref(),
             payment_method: attempt.payment_method,
             connector_transaction_id: attempt.connector_transaction_id.as_ref(),
@@ -99,7 +99,7 @@ impl<'a> KafkaPaymentAttemptEvent<'a> {
             multiple_capture_count: attempt.multiple_capture_count,
             amount_capturable: attempt.amount_capturable,
             merchant_connector_id: attempt.merchant_connector_id.as_ref(),
-            net_amount: attempt.net_amount,
+            net_amount: attempt.net_amount.get_total_amount(),
             unified_code: attempt.unified_code.as_ref(),
             unified_message: attempt.unified_message.as_ref(),
             mandate_data: attempt.mandate_data.as_ref(),
@@ -181,7 +181,7 @@ impl<'a> KafkaPaymentAttemptEvent<'a> {
     }
 }
 
-impl<'a> super::KafkaMessage for KafkaPaymentAttemptEvent<'a> {
+impl super::KafkaMessage for KafkaPaymentAttemptEvent<'_> {
     fn key(&self) -> String {
         format!(
             "{}_{}_{}",

@@ -1,8 +1,8 @@
 use std::str::FromStr;
 
-use api_models::payments::OrderDetailsWithAmount;
 use cards::CardNumber;
 use common_utils::{pii::Email, types::MinorUnit};
+use hyperswitch_domain_models::types::OrderDetailsWithAmount;
 use masking::Secret;
 use router::types::{self, domain, storage::enums};
 
@@ -325,7 +325,7 @@ async fn should_fail_payment_for_incorrect_card_number() {
                 order_details: Some(vec![OrderDetailsWithAmount {
                     product_name: "test".to_string(),
                     quantity: 1,
-                    amount: 1000,
+                    amount: MinorUnit::new(1000),
                     product_img_link: None,
                     requires_shipping: None,
                     product_id: None,
@@ -334,6 +334,8 @@ async fn should_fail_payment_for_incorrect_card_number() {
                     brand: None,
                     product_type: None,
                     product_tax_code: None,
+                    tax_rate: None,
+                    total_tax_amount: None,
                 }]),
                 email: Some(Email::from_str("test@gmail.com").unwrap()),
                 webhook_url: Some("https://1635-116-74-253-164.ngrok-free.app".to_string()),
@@ -368,7 +370,7 @@ async fn should_fail_payment_for_incorrect_cvc() {
                 order_details: Some(vec![OrderDetailsWithAmount {
                     product_name: "test".to_string(),
                     quantity: 1,
-                    amount: 1000,
+                    amount: MinorUnit::new(1000),
                     product_img_link: None,
                     requires_shipping: None,
                     product_id: None,
@@ -377,6 +379,8 @@ async fn should_fail_payment_for_incorrect_cvc() {
                     brand: None,
                     product_type: None,
                     product_tax_code: None,
+                    tax_rate: None,
+                    total_tax_amount: None,
                 }]),
                 email: Some(Email::from_str("test@gmail.com").unwrap()),
                 webhook_url: Some("https://1635-116-74-253-164.ngrok-free.app".to_string()),
@@ -411,7 +415,7 @@ async fn should_fail_payment_for_invalid_exp_month() {
                 order_details: Some(vec![OrderDetailsWithAmount {
                     product_name: "test".to_string(),
                     quantity: 1,
-                    amount: 1000,
+                    amount: MinorUnit::new(1000),
                     product_img_link: None,
                     requires_shipping: None,
                     product_id: None,
@@ -420,6 +424,8 @@ async fn should_fail_payment_for_invalid_exp_month() {
                     brand: None,
                     product_type: None,
                     product_tax_code: None,
+                    tax_rate: None,
+                    total_tax_amount: None,
                 }]),
                 email: Some(Email::from_str("test@gmail.com").unwrap()),
                 webhook_url: Some("https://1635-116-74-253-164.ngrok-free.app".to_string()),
@@ -454,7 +460,7 @@ async fn should_fail_payment_for_incorrect_expiry_year() {
                 order_details: Some(vec![OrderDetailsWithAmount {
                     product_name: "test".to_string(),
                     quantity: 1,
-                    amount: 1000,
+                    amount: MinorUnit::new(1000),
                     product_img_link: None,
                     requires_shipping: None,
                     product_id: None,
@@ -463,6 +469,8 @@ async fn should_fail_payment_for_incorrect_expiry_year() {
                     brand: None,
                     product_type: None,
                     product_tax_code: None,
+                    tax_rate: None,
+                    total_tax_amount: None,
                 }]),
                 email: Some(Email::from_str("test@gmail.com").unwrap()),
                 webhook_url: Some("https://1635-116-74-253-164.ngrok-free.app".to_string()),

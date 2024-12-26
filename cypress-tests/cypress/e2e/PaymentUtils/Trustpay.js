@@ -3,7 +3,7 @@ import { getCustomExchange } from "./Commons";
 const successfulNo3DSCardDetails = {
   card_number: "4200000000000000",
   card_exp_month: "10",
-  card_exp_year: "25",
+  card_exp_year: "50",
   card_holder_name: "joseph Doe",
   card_cvc: "123",
 };
@@ -36,6 +36,12 @@ const multiUseMandateData = {
 export const connectorDetails = {
   card_pm: {
     PaymentIntent: getCustomExchange({
+      Configs: {
+        CONNECTOR_CREDENTIAL: {
+          specName: ["refundPayment", "syncRefund"],
+          value: "connector_2",
+        },
+      },
       Request: {
         currency: "USD",
         customer_acceptance: null,
@@ -48,7 +54,47 @@ export const connectorDetails = {
         },
       },
     }),
+    PaymentIntentWithShippingCost: {
+      Request: {
+        currency: "USD",
+        shipping_cost: 50,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+          shipping_cost: 50,
+          amount: 6500,
+        },
+      },
+    },
+    PaymentConfirmWithShippingCost: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          shipping_cost: 50,
+          amount_received: 6550,
+          amount: 6500,
+          net_amount: 6550,
+        },
+      },
+    },
     "3DSAutoCapture": {
+      Configs: {
+        CONNECTOR_CREDENTIAL: {
+          specName: ["refundPayment", "syncRefund"],
+          value: "connector_2",
+        },
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -66,6 +112,12 @@ export const connectorDetails = {
       },
     },
     No3DSAutoCapture: {
+      Configs: {
+        CONNECTOR_CREDENTIAL: {
+          specName: ["refundPayment", "syncRefund"],
+          value: "connector_2",
+        },
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -83,6 +135,12 @@ export const connectorDetails = {
       },
     },
     Capture: {
+      Configs: {
+        CONNECTOR_CREDENTIAL: {
+          specName: ["refundPayment", "syncRefund"],
+          value: "connector_2",
+        },
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -104,6 +162,16 @@ export const connectorDetails = {
       },
     },
     PartialCapture: {
+      Configs: {
+        CONNECTOR_CREDENTIAL: {
+          specName: ["refundPayment", "syncRefund"],
+          value: "connector_2",
+        },
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 15000,
+        },
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -138,6 +206,12 @@ export const connectorDetails = {
       },
     },
     Refund: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 15000,
+        },
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -154,6 +228,12 @@ export const connectorDetails = {
       },
     },
     PartialRefund: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 15000,
+        },
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -165,12 +245,18 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          error_code: "1",
-          error_message: "transaction declined (invalid amount)",
+          reason: "FRAUD",
+          status: "succeeded",
         },
       },
     },
     SyncRefund: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 15000,
+        },
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -203,6 +289,40 @@ export const connectorDetails = {
       },
     },
     ZeroAuthMandate: {
+      Response: {
+        status: 501,
+        body: {
+          error: {
+            type: "invalid_request",
+            message: "Setup Mandate flow for Trustpay is not implemented",
+            code: "IR_00",
+          },
+        },
+      },
+    },
+    ZeroAuthPaymentIntent: {
+      Request: {
+        amount: 0,
+        setup_future_usage: "off_session",
+        currency: "USD",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+          setup_future_usage: "off_session",
+        },
+      },
+    },
+    ZeroAuthConfirmPayment: {
+      Request: {
+        payment_type: "setup_mandate",
+        payment_method: "card",
+        payment_method_type: "credit",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+      },
       Response: {
         status: 501,
         body: {

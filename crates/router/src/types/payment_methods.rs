@@ -10,30 +10,15 @@ use crate::{
 };
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-#[async_trait::async_trait]
 pub trait VaultingInterface {
     fn get_vaulting_request_url() -> &'static str;
+
+    fn get_vaulting_flow_name() -> &'static str;
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-#[async_trait::async_trait]
 pub trait VaultingDataInterface {
     fn get_vaulting_data_key(&self) -> String;
-}
-
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
-pub struct VaultId(String);
-
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-impl VaultId {
-    pub fn get_string_repr(&self) -> &String {
-        &self.0
-    }
-
-    pub fn generate(id: String) -> Self {
-        Self(id)
-    }
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
@@ -53,7 +38,7 @@ pub struct VaultFingerprintResponse {
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct AddVaultRequest<D> {
     pub entity_id: common_utils::id_type::MerchantId,
-    pub vault_id: VaultId,
+    pub vault_id: domain::VaultId,
     pub data: D,
     pub ttl: i64,
 }
@@ -62,7 +47,7 @@ pub struct AddVaultRequest<D> {
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct AddVaultResponse {
     pub entity_id: common_utils::id_type::MerchantId,
-    pub vault_id: VaultId,
+    pub vault_id: domain::VaultId,
     pub fingerprint_id: Option<String>,
 }
 
@@ -79,26 +64,50 @@ pub struct GetVaultFingerprint;
 pub struct VaultRetrieve;
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-#[async_trait::async_trait]
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct VaultDelete;
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 impl VaultingInterface for AddVault {
     fn get_vaulting_request_url() -> &'static str {
         consts::ADD_VAULT_REQUEST_URL
     }
-}
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-#[async_trait::async_trait]
-impl VaultingInterface for GetVaultFingerprint {
-    fn get_vaulting_request_url() -> &'static str {
-        consts::VAULT_FINGERPRINT_REQUEST_URL
+    fn get_vaulting_flow_name() -> &'static str {
+        consts::VAULT_ADD_FLOW_TYPE
     }
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-#[async_trait::async_trait]
+impl VaultingInterface for GetVaultFingerprint {
+    fn get_vaulting_request_url() -> &'static str {
+        consts::VAULT_FINGERPRINT_REQUEST_URL
+    }
+
+    fn get_vaulting_flow_name() -> &'static str {
+        consts::VAULT_GET_FINGERPRINT_FLOW_TYPE
+    }
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 impl VaultingInterface for VaultRetrieve {
     fn get_vaulting_request_url() -> &'static str {
         consts::VAULT_RETRIEVE_REQUEST_URL
+    }
+
+    fn get_vaulting_flow_name() -> &'static str {
+        consts::VAULT_RETRIEVE_FLOW_TYPE
+    }
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+impl VaultingInterface for VaultDelete {
+    fn get_vaulting_request_url() -> &'static str {
+        consts::VAULT_DELETE_REQUEST_URL
+    }
+
+    fn get_vaulting_flow_name() -> &'static str {
+        consts::VAULT_DELETE_FLOW_TYPE
     }
 }
 
@@ -109,7 +118,6 @@ pub enum PaymentMethodVaultingData {
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-#[async_trait::async_trait]
 impl VaultingDataInterface for PaymentMethodVaultingData {
     fn get_vaulting_data_key(&self) -> String {
         match &self {
@@ -119,20 +127,10 @@ impl VaultingDataInterface for PaymentMethodVaultingData {
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-pub struct PaymentMethodClientSecret;
-
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-impl PaymentMethodClientSecret {
-    pub fn generate(payment_method_id: &common_utils::id_type::GlobalPaymentMethodId) -> String {
-        todo!()
-    }
-}
-
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 pub struct SavedPMLPaymentsInfo {
     pub payment_intent: storage::PaymentIntent,
-    pub business_profile: Option<domain::Profile>,
-    pub requires_cvv: bool,
+    pub profile: domain::Profile,
+    pub collect_cvv_during_payment: bool,
     pub off_session_payment_flag: bool,
     pub is_connector_agnostic_mit_enabled: bool,
 }
@@ -141,11 +139,25 @@ pub struct SavedPMLPaymentsInfo {
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct VaultRetrieveRequest {
     pub entity_id: common_utils::id_type::MerchantId,
-    pub vault_id: VaultId,
+    pub vault_id: domain::VaultId,
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct VaultRetrieveResponse {
-    pub data: Secret<String>,
+    pub data: PaymentMethodVaultingData,
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct VaultDeleteRequest {
+    pub entity_id: common_utils::id_type::MerchantId,
+    pub vault_id: domain::VaultId,
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct VaultDeleteResponse {
+    pub entity_id: common_utils::id_type::MerchantId,
+    pub vault_id: domain::VaultId,
 }

@@ -3,9 +3,9 @@ pub mod transformers;
 use common_utils::types::{AmountConvertor, StringMinorUnit, StringMinorUnitForConnector};
 use error_stack::{report, ResultExt};
 use masking::ExposeInterface;
-use transformers as wellsfargopayout;
 
-use super::utils::{self as connector_utils};
+use self::transformers as wellsfargopayout;
+use super::utils as connector_utils;
 use crate::{
     configs::settings,
     core::errors::{self, CustomResult},
@@ -14,7 +14,7 @@ use crate::{
     services::{
         self,
         request::{self, Mask},
-        ConnectorIntegration, ConnectorValidation,
+        ConnectorIntegration, ConnectorSpecifications, ConnectorValidation,
     },
     types::{
         self,
@@ -581,3 +581,5 @@ impl api::IncomingWebhook for Wellsfargopayout {
         Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 }
+
+impl ConnectorSpecifications for Wellsfargopayout {}

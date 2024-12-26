@@ -146,8 +146,8 @@ impl<F, T> TryFrom<ResponseRouterData<F, CoinbasePaymentsResponse, T, PaymentsRe
         let response_data = timeline.context.map_or(
             Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: connector_id.clone(),
-                redirection_data: Some(redirection_data),
-                mandate_reference: None,
+                redirection_data: Box::new(Some(redirection_data)),
+                mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.data.id.clone()),
@@ -278,8 +278,8 @@ fn get_crypto_specific_payment_data(
         })?;
     let pricing_type = connector_meta.pricing_type;
     let local_price = get_local_price(item);
-    let redirect_url = item.request.get_return_url()?;
-    let cancel_url = item.request.get_return_url()?;
+    let redirect_url = item.request.get_router_return_url()?;
+    let cancel_url = item.request.get_router_return_url()?;
 
     Ok(CoinbasePaymentsRequest {
         name,

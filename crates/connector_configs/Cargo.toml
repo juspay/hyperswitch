@@ -9,15 +9,14 @@ license.workspace = true
 [features]
 default = ["payouts", "dummy_connector"]
 production = []
-development = []
 sandbox = []
-dummy_connector = ["api_models/dummy_connector", "development"]
+dummy_connector = ["api_models/dummy_connector"]
 payouts = ["api_models/payouts"]
-v1 = ["api_models/v1"]
+v1 = ["api_models/v1", "common_utils/v1"]
 
 [dependencies]
 # First party crates
-api_models = { version = "0.1.0", path = "../api_models", package = "api_models"}
+api_models = { version = "0.1.0", path = "../api_models", package = "api_models" }
 common_utils = { version = "0.1.0", path = "../common_utils" }
 
 # Third party crates

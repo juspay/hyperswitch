@@ -4,14 +4,15 @@ use hyperswitch_domain_models::{
     router_flow_types::payments::{
         Approve, Authorize, AuthorizeSessionToken, CalculateTax, Capture, CompleteAuthorize,
         CreateConnectorCustomer, IncrementalAuthorization, PSync, PaymentMethodToken,
-        PostProcessing, PreProcessing, Reject, SdkSessionUpdate, Session, SetupMandate, Void,
+        PostProcessing, PostSessionTokens, PreProcessing, Reject, SdkSessionUpdate, Session,
+        SetupMandate, Void,
     },
     router_request_types::{
         AuthorizeSessionTokenData, CompleteAuthorizeData, ConnectorCustomerData,
         PaymentMethodTokenizationData, PaymentsApproveData, PaymentsAuthorizeData,
         PaymentsCancelData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
-        PaymentsPostProcessingData, PaymentsPreProcessingData, PaymentsRejectData,
-        PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData,
+        PaymentsPostProcessingData, PaymentsPostSessionTokensData, PaymentsPreProcessingData,
+        PaymentsRejectData, PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData,
         SdkPaymentsSessionUpdateData, SetupMandateRequestData,
     },
     router_response_types::{PaymentsResponseData, TaxCalculationResponseData},
@@ -22,6 +23,7 @@ use crate::api;
 /// trait Payment
 pub trait Payment:
     api::ConnectorCommon
+    + api::ConnectorSpecifications
     + api::ConnectorValidation
     + PaymentAuthorize
     + PaymentAuthorizeSessionToken
@@ -39,6 +41,7 @@ pub trait Payment:
     + ConnectorCustomer
     + PaymentIncrementalAuthorization
     + PaymentSessionUpdate
+    + PaymentPostSessionTokens
 {
 }
 
@@ -121,6 +124,12 @@ pub trait TaxCalculation:
 /// trait SessionUpdate
 pub trait PaymentSessionUpdate:
     api::ConnectorIntegration<SdkSessionUpdate, SdkPaymentsSessionUpdateData, PaymentsResponseData>
+{
+}
+
+/// trait PostSessionTokens
+pub trait PaymentPostSessionTokens:
+    api::ConnectorIntegration<PostSessionTokens, PaymentsPostSessionTokensData, PaymentsResponseData>
 {
 }
 

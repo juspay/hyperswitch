@@ -1,4 +1,3 @@
-use api_models::payments;
 use common_enums::enums::{AttemptStatus, BankNames, CaptureMethod, CountryAlpha2, Currency};
 use common_utils::{pii::Email, request::Method};
 use hyperswitch_domain_models::{
@@ -218,38 +217,41 @@ impl
             &RouterData<Authorize, PaymentsAuthorizeData, PaymentsResponseData>,
         >,
     ) -> Result<Self, Self::Error> {
-        let payment_data = match &item.router_data.request.payment_method_data {
-            PaymentMethodData::Card(card) => {
-                let card_holder_name = item.router_data.get_optional_billing_full_name();
-                WorldlinePaymentMethod::CardPaymentMethodSpecificInput(Box::new(make_card_request(
-                    &item.router_data.request,
-                    card,
-                    card_holder_name,
-                )?))
-            }
-            PaymentMethodData::BankRedirect(bank_redirect) => {
-                WorldlinePaymentMethod::RedirectPaymentMethodSpecificInput(Box::new(
-                    make_bank_redirect_request(item.router_data, bank_redirect)?,
-                ))
-            }
-            PaymentMethodData::CardRedirect(_)
-            | PaymentMethodData::Wallet(_)
-            | PaymentMethodData::PayLater(_)
-            | PaymentMethodData::BankDebit(_)
-            | PaymentMethodData::BankTransfer(_)
-            | PaymentMethodData::Crypto(_)
-            | PaymentMethodData::MandatePayment
-            | PaymentMethodData::Reward
-            | PaymentMethodData::RealTimePayment(_)
-            | PaymentMethodData::Upi(_)
-            | PaymentMethodData::Voucher(_)
-            | PaymentMethodData::GiftCard(_)
-            | PaymentMethodData::OpenBanking(_)
-            | PaymentMethodData::CardToken(_)
-            | PaymentMethodData::NetworkToken(_) => Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("worldline"),
-            ))?,
-        };
+        let payment_data =
+            match &item.router_data.request.payment_method_data {
+                PaymentMethodData::Card(card) => {
+                    let card_holder_name = item.router_data.get_optional_billing_full_name();
+                    WorldlinePaymentMethod::CardPaymentMethodSpecificInput(Box::new(
+                        make_card_request(&item.router_data.request, card, card_holder_name)?,
+                    ))
+                }
+                PaymentMethodData::BankRedirect(bank_redirect) => {
+                    WorldlinePaymentMethod::RedirectPaymentMethodSpecificInput(Box::new(
+                        make_bank_redirect_request(item.router_data, bank_redirect)?,
+                    ))
+                }
+                PaymentMethodData::CardRedirect(_)
+                | PaymentMethodData::Wallet(_)
+                | PaymentMethodData::PayLater(_)
+                | PaymentMethodData::BankDebit(_)
+                | PaymentMethodData::BankTransfer(_)
+                | PaymentMethodData::Crypto(_)
+                | PaymentMethodData::MandatePayment
+                | PaymentMethodData::Reward
+                | PaymentMethodData::RealTimePayment(_)
+                | PaymentMethodData::MobilePayment(_)
+                | PaymentMethodData::Upi(_)
+                | PaymentMethodData::Voucher(_)
+                | PaymentMethodData::GiftCard(_)
+                | PaymentMethodData::OpenBanking(_)
+                | PaymentMethodData::CardToken(_)
+                | PaymentMethodData::NetworkToken(_)
+                | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+                    Err(errors::ConnectorError::NotImplemented(
+                        utils::get_unimplemented_payment_method_error_message("worldline"),
+                    ))?
+                }
+            };
 
         let billing_address = item.router_data.get_billing()?;
 
@@ -415,15 +417,18 @@ fn make_bank_redirect_request(
 }
 
 fn get_address(
-    billing: &payments::Address,
-) -> Option<(&payments::Address, &payments::AddressDetails)> {
+    billing: &hyperswitch_domain_models::address::Address,
+) -> Option<(
+    &hyperswitch_domain_models::address::Address,
+    &hyperswitch_domain_models::address::AddressDetails,
+)> {
     let address = billing.address.as_ref()?;
     address.country.as_ref()?;
     Some((billing, address))
 }
 
 fn build_customer_info(
-    billing_address: &payments::Address,
+    billing_address: &hyperswitch_domain_models::address::Address,
     email: &Option<Email>,
 ) -> Result<Customer, error_stack::Report<errors::ConnectorError>> {
     let (billing, address) =
@@ -451,8 +456,8 @@ fn build_customer_info(
     })
 }
 
-impl From<payments::AddressDetails> for BillingAddress {
-    fn from(value: payments::AddressDetails) -> Self {
+impl From<hyperswitch_domain_models::address::AddressDetails> for BillingAddress {
+    fn from(value: hyperswitch_domain_models::address::AddressDetails) -> Self {
         Self {
             city: value.city,
             country_code: value.country,
@@ -463,8 +468,8 @@ impl From<payments::AddressDetails> for BillingAddress {
     }
 }
 
-impl From<payments::AddressDetails> for Shipping {
-    fn from(value: payments::AddressDetails) -> Self {
+impl From<hyperswitch_domain_models::address::AddressDetails> for Shipping {
+    fn from(value: hyperswitch_domain_models::address::AddressDetails) -> Self {
         Self {
             city: value.city,
             country_code: value.country,
@@ -533,12 +538,16 @@ fn get_status(item: (PaymentStatus, CaptureMethod)) -> AttemptStatus {
         PaymentStatus::Rejected => AttemptStatus::Failure,
         PaymentStatus::RejectedCapture => AttemptStatus::CaptureFailed,
         PaymentStatus::CaptureRequested => {
-            if capture_method == CaptureMethod::Automatic {
+            if matches!(
+                capture_method,
+                CaptureMethod::Automatic | CaptureMethod::SequentialAutomatic
+            ) {
                 AttemptStatus::Pending
             } else {
                 AttemptStatus::CaptureInitiated
             }
         }
+
         PaymentStatus::PendingApproval => AttemptStatus::Authorized,
         PaymentStatus::Created => AttemptStatus::Started,
         PaymentStatus::Redirected => AttemptStatus::AuthenticationPending,
@@ -568,8 +577,8 @@ impl<F, T> TryFrom<ResponseRouterData<F, Payment, T, PaymentsResponseData>>
             status: get_status((item.response.status, item.response.capture_method)),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
-                redirection_data: None,
-                mandate_reference: None,
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.id),
@@ -619,8 +628,8 @@ impl<F, T> TryFrom<ResponseRouterData<F, PaymentResponse, T, PaymentsResponseDat
             )),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.payment.id.clone()),
-                redirection_data,
-                mandate_reference: None,
+                redirection_data: Box::new(redirection_data),
+                mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.payment.id),

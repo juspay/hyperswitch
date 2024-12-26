@@ -25,7 +25,7 @@ pub async fn api_key_create() {}
 /// displayed only once on creation, so ensure you store it securely.
 #[utoipa::path(
     post,
-    path = "/v2/api_keys",
+    path = "/v2/api-keys",
     request_body= CreateApiKeyRequest,
     responses(
         (status = 200, description = "API Key created", body = CreateApiKeyResponse),
@@ -64,9 +64,9 @@ pub async fn api_key_retrieve() {}
 /// Retrieve information about the specified API Key.
 #[utoipa::path(
     get,
-    path = "/v2/api_keys/{key_id}",
+    path = "/v2/api-keys/{id}",
     params (
-        ("key_id" = String, Path, description = "The unique identifier for the API Key")
+        ("id" = String, Path, description = "The unique identifier for the API Key")
     ),
     responses(
         (status = 200, description = "API Key retrieved", body = RetrieveApiKeyResponse),
@@ -106,10 +106,10 @@ pub async fn api_key_update() {}
 /// Update information for the specified API Key.
 #[utoipa::path(
     put,
-    path = "/v2/api_keys/{key_id}",
+    path = "/v2/api-keys/{id}",
     request_body = UpdateApiKeyRequest,
     params (
-        ("key_id" = String, Path, description = "The unique identifier for the API Key")
+        ("id" = String, Path, description = "The unique identifier for the API Key")
     ),
     responses(
         (status = 200, description = "API Key updated", body = RetrieveApiKeyResponse),
@@ -150,9 +150,9 @@ pub async fn api_key_revoke() {}
 /// authenticating with our APIs.
 #[utoipa::path(
     delete,
-    path = "/v2/api_keys/{key_id}",
+    path = "/v2/api-keys/{id}",
     params (
-        ("key_id" = String, Path, description = "The unique identifier for the API Key")
+        ("id" = String, Path, description = "The unique identifier for the API Key")
     ),
     responses(
         (status = 200, description = "API Key revoked", body = RevokeApiKeyResponse),
@@ -191,7 +191,7 @@ pub async fn api_key_list() {}
 /// List all the API Keys associated to a merchant account.
 #[utoipa::path(
     get,
-    path = "/v2/api_keys/list",
+    path = "/v2/api-keys/list",
     params(
         ("limit" = Option<i64>, Query, description = "The maximum number of API Keys to include in the response"),
         ("skip" = Option<i64>, Query, description = "The number of API Keys to skip when retrieving the list of API keys."),

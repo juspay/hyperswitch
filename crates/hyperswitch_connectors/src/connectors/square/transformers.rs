@@ -85,6 +85,7 @@ impl TryFrom<(&types::TokenizationRouterData, PayLaterData)> for SquareTokenRequ
             PayLaterData::AfterpayClearpayRedirect { .. }
             | PayLaterData::KlarnaRedirect { .. }
             | PayLaterData::KlarnaSdk { .. }
+            | PayLaterData::KlarnaCheckout {}
             | PayLaterData::AffirmRedirect { .. }
             | PayLaterData::PayBrightRedirect { .. }
             | PayLaterData::WalleyRedirect { .. }
@@ -119,6 +120,7 @@ impl TryFrom<(&types::TokenizationRouterData, WalletData)> for SquareTokenReques
             | WalletData::MobilePayRedirect(_)
             | WalletData::PaypalRedirect(_)
             | WalletData::PaypalSdk(_)
+            | WalletData::Paze(_)
             | WalletData::SamsungPay(_)
             | WalletData::TwintRedirect {}
             | WalletData::VippsRedirect {}
@@ -172,13 +174,17 @@ impl TryFrom<&types::TokenizationRouterData> for SquareTokenRequest {
             | PaymentMethodData::MandatePayment
             | PaymentMethodData::Reward
             | PaymentMethodData::RealTimePayment(_)
+            | PaymentMethodData::MobilePayment(_)
             | PaymentMethodData::Upi(_)
             | PaymentMethodData::Voucher(_)
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::CardToken(_)
-            | PaymentMethodData::NetworkToken(_) => Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("Square"),
-            ))?,
+            | PaymentMethodData::NetworkToken(_)
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("Square"),
+                ))?
+            }
         }
     }
 }
@@ -263,6 +269,9 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for SquarePaymentsRequest {
                         PaymentMethodToken::ApplePayDecrypt(_) => Err(
                             unimplemented_payment_method!("Apple Pay", "Simplified", "Square"),
                         )?,
+                        PaymentMethodToken::PazeDecrypt(_) => {
+                            Err(unimplemented_payment_method!("Paze", "Square"))?
+                        }
                     },
                     amount_money: SquarePaymentsAmountData {
                         amount: item.request.amount,
@@ -286,13 +295,17 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for SquarePaymentsRequest {
             | PaymentMethodData::MandatePayment
             | PaymentMethodData::Reward
             | PaymentMethodData::RealTimePayment(_)
+            | PaymentMethodData::MobilePayment(_)
             | PaymentMethodData::Upi(_)
             | PaymentMethodData::Voucher(_)
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::CardToken(_)
-            | PaymentMethodData::NetworkToken(_) => Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("Square"),
-            ))?,
+            | PaymentMethodData::NetworkToken(_)
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("Square"),
+                ))?
+            }
         }
     }
 }
@@ -375,8 +388,8 @@ impl<F, T> TryFrom<ResponseRouterData<F, SquarePaymentsResponse, T, PaymentsResp
             status,
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.payment.id),
-                redirection_data: None,
-                mandate_reference: None,
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: item.response.payment.reference_id,

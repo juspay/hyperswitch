@@ -78,7 +78,6 @@ pub async fn construct_fulfillment_router_data<'a>(
         payment_method,
         connector_auth_type: auth_type,
         description: None,
-        return_url: payment_intent.return_url.clone(),
         address: PaymentAddress::default(),
         auth_type: payment_attempt.authentication_type.unwrap_or_default(),
         connector_meta_data: merchant_connector_account.get_metadata(),
@@ -89,7 +88,10 @@ pub async fn construct_fulfillment_router_data<'a>(
         minor_amount_captured: payment_intent.amount_captured,
         payment_method_status: None,
         request: FraudCheckFulfillmentData {
-            amount: payment_attempt.amount.get_amount_as_i64(),
+            amount: payment_attempt
+                .net_amount
+                .get_total_amount()
+                .get_amount_as_i64(),
             order_details: payment_intent.order_details.clone(),
             fulfillment_req: fulfillment_request,
         },
@@ -124,6 +126,9 @@ pub async fn construct_fulfillment_router_data<'a>(
         integrity_check: Ok(()),
         additional_merchant_data: None,
         header_payload: None,
+        connector_mandate_request_reference_id: None,
+        authentication_id: None,
+        psd2_sca_exemption_type: None,
     };
     Ok(router_data)
 }

@@ -3,8 +3,6 @@
 //! The folder provides generic functions for providing serialization
 //! and deserialization while calling redis.
 //! It also includes instruments to provide tracing.
-//!
-//!
 
 use std::fmt::Debug;
 
@@ -16,7 +14,7 @@ use common_utils::{
 use error_stack::{report, ResultExt};
 use fred::{
     interfaces::{HashesInterface, KeysInterface, ListInterface, SetsInterface, StreamsInterface},
-    prelude::RedisErrorKind,
+    prelude::{LuaInterface, RedisErrorKind},
     types::{
         Expiration, FromRedis, MultipleIDs, MultipleKeys, MultipleOrderedPairs, MultipleStrings,
         MultipleValues, RedisKey, RedisMap, RedisValue, ScanType, Scanner, SetOptions, XCap,
@@ -854,11 +852,30 @@ impl super::RedisConnectionPool {
             .await
             .change_context(errors::RedisError::ConsumerGroupClaimFailed)
     }
+
+    #[instrument(level = "DEBUG", skip(self))]
+    pub async fn incr_keys_using_script<V>(
+        &self,
+        lua_script: &'static str,
+        key: Vec<String>,
+        values: V,
+    ) -> CustomResult<(), errors::RedisError>
+    where
+        V: TryInto<MultipleValues> + Debug + Send + Sync,
+        V::Error: Into<fred::error::RedisError> + Send + Sync,
+    {
+        self.pool
+            .eval(lua_script, key, values)
+            .await
+            .change_context(errors::RedisError::IncrementHashFieldFailed)
+    }
 }
 
 #[cfg(test)]
 mod tests {
     #![allow(clippy::expect_used, clippy::unwrap_used)]
+
+    use std::collections::HashMap;
 
     use crate::{errors::RedisError, RedisConnectionPool, RedisEntryId, RedisSettings};
 
@@ -913,7 +930,6 @@ mod tests {
 
         assert!(is_success);
     }
-
     #[tokio::test]
     async fn test_delete_non_existing_key_success() {
         let is_success = tokio::task::spawn_blocking(move || {
@@ -925,6 +941,44 @@ mod tests {
 
                 // Act
                 let result = pool.delete_key("key not exists").await;
+
+                // Assert Setup
+                result.is_ok()
+            })
+        })
+        .await
+        .expect("Spawn block failure");
+        assert!(is_success);
+    }
+
+    #[tokio::test]
+    async fn test_setting_keys_using_scripts() {
+        let is_success = tokio::task::spawn_blocking(move || {
+            futures::executor::block_on(async {
+                // Arrange
+                let pool = RedisConnectionPool::new(&RedisSettings::default())
+                    .await
+                    .expect("failed to create redis connection pool");
+                let lua_script = r#"
+                local results = {}
+                for i = 1, #KEYS do
+                    results[i] = redis.call("INCRBY", KEYS[i], ARGV[i])
+                end
+                return results
+                "#;
+                let mut keys_and_values = HashMap::new();
+                for i in 0..10 {
+                    keys_and_values.insert(format!("key{}", i), i);
+                }
+
+                let key = keys_and_values.keys().cloned().collect::<Vec<_>>();
+                let values = keys_and_values
+                    .values()
+                    .map(|val| val.to_string())
+                    .collect::<Vec<String>>();
+
+                // Act
+                let result = pool.incr_keys_using_script(lua_script, key, values).await;
 
                 // Assert Setup
                 result.is_ok()

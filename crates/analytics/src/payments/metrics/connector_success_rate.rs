@@ -36,7 +36,7 @@ where
         dimensions: &[PaymentDimensions],
         auth: &AuthInfo,
         filters: &PaymentFilters,
-        granularity: &Option<Granularity>,
+        granularity: Option<Granularity>,
         time_range: &TimeRange,
         pool: &T,
     ) -> MetricsResult<HashSet<(PaymentMetricsBucketIdentifier, PaymentMetricRow)>> {
@@ -87,7 +87,7 @@ where
                 .switch()?;
         }
 
-        if let Some(granularity) = granularity.as_ref() {
+        if let Some(granularity) = granularity {
             granularity
                 .set_group_by_clause(&mut query_builder)
                 .attach_printable("Error adding granularity")
@@ -112,6 +112,11 @@ where
                         i.client_source.clone(),
                         i.client_version.clone(),
                         i.profile_id.clone(),
+                        i.card_network.clone(),
+                        i.merchant_id.clone(),
+                        i.card_last_4.clone(),
+                        i.card_issuer.clone(),
+                        i.error_reason.clone(),
                         TimeRange {
                             start_time: match (granularity, i.start_bucket) {
                                 (Some(g), Some(st)) => g.clip_to_start(st)?,
