@@ -1523,7 +1523,7 @@ impl DataModelExt for PaymentAttempt {
         let overcaptured_amount = storage_model
             .overcapture_details
             .as_ref()
-            .and_then(|overcapture_data| overcapture_data.overcaptured_amount.clone());
+            .and_then(|overcapture_data| overcapture_data.overcaptured_amount);
         Self {
             net_amount: hyperswitch_domain_models::payments::payment_attempt::NetAmount::new(
                 storage_model.amount,
@@ -1686,7 +1686,7 @@ impl DataModelExt for PaymentAttemptNew {
         let overcapture_amount = storage_model
             .overcapture_details
             .as_ref()
-            .and_then(|overcapture_data| overcapture_data.overcaptured_amount.clone());
+            .and_then(|overcapture_data| overcapture_data.overcaptured_amount);
 
         Self {
             net_amount: hyperswitch_domain_models::payments::payment_attempt::NetAmount::new(

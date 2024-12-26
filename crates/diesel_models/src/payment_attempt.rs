@@ -94,7 +94,7 @@ pub struct PaymentAttempt {
     pub shipping_cost: Option<MinorUnit>,
     pub order_tax_amount: Option<MinorUnit>,
     pub connector_mandate_detail: Option<ConnectorMandateReferenceId>,
-    pub overcapture_details: Option<OvercaptureData>,
+    pub overcapture_details: Option<common_utils::types::OvercaptureData>,
 }
 
 #[cfg(feature = "v1")]

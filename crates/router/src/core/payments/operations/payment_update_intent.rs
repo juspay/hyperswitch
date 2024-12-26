@@ -347,7 +347,6 @@ impl<F: Clone> UpdateTracker<F, payments::PaymentIntentData<F>, PaymentsUpdateIn
                 request_external_three_ds_authentication: Some(
                     intent.request_external_three_ds_authentication,
                 ),
-                request_overcapture: Some(intent.request_overcapture),
                 updated_by: intent.updated_by,
                 tax_details: intent.amount_details.tax_details,
             }));

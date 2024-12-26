@@ -376,6 +376,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         connector_mandate_request_reference_id,
         authentication_id: None,
         psd2_sca_exemption_type: None,
+        request_overcapture: None,
     };
 
     Ok(router_data)
@@ -544,6 +545,7 @@ pub async fn construct_payment_router_data_for_capture<'a>(
         connector_mandate_request_reference_id,
         psd2_sca_exemption_type: None,
         authentication_id: None,
+        request_overcapture: None,
     };
 
     Ok(router_data)
@@ -678,6 +680,7 @@ pub async fn construct_router_data_for_psync<'a>(
         connector_mandate_request_reference_id: None,
         authentication_id: None,
         psd2_sca_exemption_type: None,
+        request_overcapture: None,
     };
 
     Ok(router_data)
@@ -843,6 +846,7 @@ pub async fn construct_payment_router_data_for_sdk_session<'a>(
         connector_mandate_request_reference_id: None,
         psd2_sca_exemption_type: None,
         authentication_id: None,
+        request_overcapture: None,
     };
 
     Ok(router_data)
@@ -2225,8 +2229,8 @@ where
             .as_ref()
             .map(|overcapture_data| {
                 (
-                    overcapture_data.overcapture_applied.clone(),
-                    overcapture_data.maximum_capturable_amount.clone(),
+                    overcapture_data.overcapture_applied,
+                    overcapture_data.maximum_capturable_amount,
                 )
             })
             .unwrap_or((None, None));
@@ -2601,8 +2605,8 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             order_tax_amount: None,
             connector_mandate_id:None,
             shipping_cost: None,
-            overcapture_applied: pa.overcapture_details.as_ref().and_then(|overcapture_data| overcapture_data.overcapture_applied.clone()),
-            maximum_capturable_amount: pa.overcapture_details.as_ref().and_then(|overcapture_data| overcapture_data.maximum_capturable_amount.clone()),
+            overcapture_applied: pa.overcapture_details.as_ref().and_then(|overcapture_data| overcapture_data.overcapture_applied),
+            maximum_capturable_amount: pa.overcapture_details.as_ref().and_then(|overcapture_data| overcapture_data.maximum_capturable_amount),
         }
     }
 }

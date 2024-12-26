@@ -205,8 +205,8 @@ impl PaymentsResponseData {
                 incremental_authorization_allowed: (*capture_incremental_auth_allowed)
                     .or(*auth_incremental_auth_allowed),
                 charge_id: capture_charge_id.clone().or(auth_charge_id.clone()),
-                overcapture_applied: auth_overcapture_applied.clone(),
-                maximum_capturable_amount: auth_maximum_capturable_amount.clone(),
+                overcapture_applied: *auth_overcapture_applied,
+                maximum_capturable_amount: *auth_maximum_capturable_amount,
             }),
             _ => Err(ApiErrorResponse::NotSupported {
                 message: "Invalid Flow ".to_owned(),

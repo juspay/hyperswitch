@@ -164,7 +164,6 @@ pub struct PaymentIntentUpdateFields {
 
     // updated_by is set internally, field not present in request
     pub updated_by: String,
-    pub request_overcapture: Option<common_enums::OverCaptureRequest>,
 }
 
 #[cfg(feature = "v1")]
@@ -401,7 +400,6 @@ impl From<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal {
                 frm_metadata: None,
                 request_external_three_ds_authentication: None,
                 updated_by,
-                request_overcapture: None,
             },
 
             PaymentIntentUpdate::ConfirmIntentPostUpdate {
@@ -443,7 +441,6 @@ impl From<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal {
                 frm_metadata: None,
                 request_external_three_ds_authentication: None,
                 updated_by,
-                request_overcapture: None,
             },
             PaymentIntentUpdate::SyncUpdate {
                 status,
@@ -524,7 +521,6 @@ impl From<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal {
                 frm_metadata: None,
                 request_external_three_ds_authentication: None,
                 updated_by,
-                request_overcapture: None,
             },
             PaymentIntentUpdate::UpdateIntent(boxed_intent) => {
                 let PaymentIntentUpdateFields {
@@ -558,7 +554,6 @@ impl From<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal {
                     frm_metadata,
                     request_external_three_ds_authentication,
                     updated_by,
-                    request_overcapture,
                 } = *boxed_intent;
                 Self {
                     status: None,
@@ -602,7 +597,6 @@ impl From<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal {
                         request_external_three_ds_authentication.map(|val| val.as_bool()),
 
                     updated_by,
-                    request_overcapture: request_overcapture.map(|val| val.as_bool()),
                 }
             }
         }

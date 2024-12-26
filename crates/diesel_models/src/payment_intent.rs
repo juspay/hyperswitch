@@ -499,7 +499,6 @@ pub struct PaymentIntentUpdateFields {
     pub customer_details: Option<Encryption>,
     pub merchant_order_reference_id: Option<String>,
     pub is_payment_processor_token_flow: Option<bool>,
-    pub request_overcapture: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -574,7 +573,6 @@ pub struct PaymentIntentUpdateInternal {
     pub frm_metadata: Option<pii::SecretSerdeValue>,
     pub request_external_three_ds_authentication: Option<bool>,
     pub updated_by: String,
-    pub request_overcapture: Option<bool>,
 }
 
 #[cfg(feature = "v1")]

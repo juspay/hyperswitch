@@ -873,7 +873,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCaptureData>
             .payment_attempt
             .overcapture_details
             .as_ref()
-            .and_then(|overcapture_data| overcapture_data.overcapture_applied.clone());
+            .and_then(|overcapture_data| overcapture_data.overcapture_applied);
         core_utils::get_overcaptured_amount(
             overcapture_applied,
             router_data.amount_captured.map(MinorUnit::new),

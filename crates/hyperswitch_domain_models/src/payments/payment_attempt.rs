@@ -402,10 +402,8 @@ pub struct PaymentAttempt {
     pub id: id_type::GlobalAttemptId,
     /// The connector mandate details which are stored temporarily
     pub connector_mandate_detail: Option<ConnectorMandateReferenceId>,
-    /// This is based on Payment Request and the configuration of the merchant in the business profile
-    pub request_overcapture: Option<bool>,
-    pub overcapture_applied: Option<bool>,
-    pub maximum_capturable_amount: Option<MinorUnit>,
+    /// Details related to payment overcapture
+    pub overcapture_details: Option<common_utils::types::OvercaptureData>,
 }
 
 impl PaymentAttempt {
@@ -524,6 +522,7 @@ impl PaymentAttempt {
             error: None,
             connector_mandate_detail: None,
             id,
+            overcapture_details: None,
         })
     }
 }
@@ -1604,7 +1603,7 @@ impl behaviour::Conversion for PaymentAttempt {
             let overcaptured_amount = storage_model
                 .overcapture_details
                 .as_ref()
-                .and_then(|overcapture_data| overcapture_data.overcaptured_amount.clone());
+                .and_then(|overcapture_data| overcapture_data.overcaptured_amount);
             Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(Self {
                 payment_id: storage_model.payment_id,
                 merchant_id: storage_model.merchant_id,
@@ -1822,6 +1821,7 @@ impl behaviour::Conversion for PaymentAttempt {
             payment_method_billing_address,
             connector,
             connector_mandate_detail,
+            overcapture_details,
         } = self;
 
         let AttemptAmountDetails {
@@ -1899,6 +1899,7 @@ impl behaviour::Conversion for PaymentAttempt {
             payment_method_billing_address: payment_method_billing_address.map(Encryption::from),
             connector_payment_data,
             connector_mandate_detail,
+            overcapture_details,
         })
     }
 
@@ -2010,6 +2011,7 @@ impl behaviour::Conversion for PaymentAttempt {
                 connector: storage_model.connector,
                 payment_method_billing_address,
                 connector_mandate_detail: storage_model.connector_mandate_detail,
+                overcapture_details: storage_model.overcapture_details,
             })
         }
         .await
@@ -2094,6 +2096,7 @@ impl behaviour::Conversion for PaymentAttempt {
             payment_method_type_v2: self.payment_method_type,
             id: self.id,
             connector_mandate_detail: self.connector_mandate_detail,
+            overcapture_details: self.overcapture_details,
         })
     }
 }
