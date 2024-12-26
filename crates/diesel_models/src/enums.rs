@@ -14,7 +14,6 @@ pub mod diesel_exports {
         DbIntentStatus as IntentStatus, DbMandateStatus as MandateStatus,
         DbMandateType as MandateType, DbMerchantStorageScheme as MerchantStorageScheme,
         DbOrderFulfillmentTimeOrigin as OrderFulfillmentTimeOrigin,
-        DbPaymentDirection as PaymentDirection,
         DbPaymentMethodIssuerCode as PaymentMethodIssuerCode, DbPaymentSource as PaymentSource,
         DbPaymentType as PaymentType, DbPayoutStatus as PayoutStatus, DbPayoutType as PayoutType,
         DbProcessTrackerStatus as ProcessTrackerStatus, DbReconStatus as ReconStatus,
@@ -328,23 +327,3 @@ pub enum UserRoleVersion {
     V2,
 }
 
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Default,
-    Eq,
-    PartialEq,
-    serde::Serialize,
-    serde::Deserialize,
-    strum::EnumString,
-    strum::Display,
-)]
-#[router_derive::diesel_enum(storage_type = "db_enum")]
-#[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "snake_case")]
-pub enum PaymentDirection {
-    #[default]
-    Payin,
-    Payout,
-}
