@@ -1,3 +1,8 @@
+import {
+  connectorDetails as commonConnectorDetails,
+  getCustomExchange,
+} from "./Commons";
+
 const successfulNo3DSCardDetails = {
   card_number: "4242424242424242",
   card_exp_month: "01",
@@ -631,20 +636,14 @@ export const connectorDetails = {
         },
       },
     },
-    MITAutoCapture: {
+    MITAutoCapture: getCustomExchange({
       Configs: {
         CONNECTOR_CREDENTIAL: {
           value: "connector_1",
         },
       },
-      Request: {},
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
-      },
-    },
+      ...commonConnectorDetails.card_pm.MITAutoCapture,
+    }),
     MITManualCapture: {
       Configs: {
         CONNECTOR_CREDENTIAL: {
