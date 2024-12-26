@@ -1864,6 +1864,10 @@ pub struct ProfileCreate {
     /// Product authentication ids
     #[schema(value_type = Option<Object>, example = r#"{ "key1": "value-1", "key2": "value-2" }"#)]
     pub authentication_product_ids: Option<HashMap<String, id_type::MerchantConnectorAccountId>>,
+
+    /// Indicates if network tokenization before first payment is enabled or not
+    #[serde(default)]
+    pub is_tokenize_before_payment_enabled: bool,
 }
 
 #[nutype::nutype(
@@ -1981,6 +1985,10 @@ pub struct ProfileCreate {
     /// Product authentication ids
     #[schema(value_type = Option<Object>, example = r#"{ "key1": "value-1", "key2": "value-2" }"#)]
     pub authentication_product_ids: Option<HashMap<String, id_type::MerchantConnectorAccountId>>,
+
+    /// Indicates if network tokenization before first payment is enabled or not
+    #[serde(default)]
+    pub is_tokenize_before_payment_enabled: bool,
 }
 
 #[cfg(feature = "v1")]
@@ -2117,6 +2125,9 @@ pub struct ProfileResponse {
     /// Product authentication ids
     #[schema(value_type = Option<Object>, example = r#"{ "key1": "value-1", "key2": "value-2" }"#)]
     pub authentication_product_ids: Option<serde_json::Value>,
+
+    /// Indicates if network tokenization before first payment is enabled or not
+    pub is_tokenize_before_payment_enabled: bool,
 }
 
 #[cfg(feature = "v2")]
@@ -2240,6 +2251,9 @@ pub struct ProfileResponse {
     /// Product authentication ids
     #[schema(value_type = Option<Object>, example = r#"{ "key1": "value-1", "key2": "value-2" }"#)]
     pub authentication_product_ids: Option<serde_json::Value>,
+
+    /// Indicates if network tokenization before first payment is enabled or not
+    pub is_tokenize_before_payment_enabled: bool,
 }
 
 #[cfg(feature = "v1")]
@@ -2370,6 +2384,10 @@ pub struct ProfileUpdate {
     /// Product authentication ids
     #[schema(value_type = Option<Object>, example = r#"{ "key1": "value-1", "key2": "value-2" }"#)]
     pub authentication_product_ids: Option<HashMap<String, id_type::MerchantConnectorAccountId>>,
+
+    /// Indicates if network tokenization before first payment is enabled or not
+    #[schema(default = false, example = false)]
+    pub is_tokenize_before_payment_enabled: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -2481,6 +2499,10 @@ pub struct ProfileUpdate {
     /// Product authentication ids
     #[schema(value_type = Option<Object>, example = r#"{ "key1": "value-1", "key2": "value-2" }"#)]
     pub authentication_product_ids: Option<HashMap<String, id_type::MerchantConnectorAccountId>>,
+
+    /// Indicates if network tokenization before first payment is enabled or not
+    #[schema(default = false, example = false)]
+    pub is_tokenize_before_payment_enabled: Option<bool>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
