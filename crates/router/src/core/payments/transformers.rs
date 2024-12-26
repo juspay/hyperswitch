@@ -3480,7 +3480,7 @@ impl
                     .recurring_payment_interval_count,
             },
             billing_agreement: apple_pay_recurring_details.billing_agreement,
-            management_url: apple_pay_recurring_details.management_url,
+            management_u_r_l: apple_pay_recurring_details.management_url,
         }
     }
 }
