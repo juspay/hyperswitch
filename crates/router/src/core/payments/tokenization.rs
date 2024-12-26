@@ -257,30 +257,34 @@ where
                         None => None,
                     };
 
-                let optional_pm_details = match (
-                    resp.card.as_ref(),
-                    save_payment_method_data.request.get_payment_method_data(),
-                ) {
-                    (Some(card), _) => Some(PaymentMethodsData::Card(
-                        CardDetailsPaymentMethod::from(card.clone()),
-                    )),
-                    (
-                        _,
-                        domain::PaymentMethodData::Wallet(domain::WalletData::GooglePay(googlepay)),
-                    ) => Some(PaymentMethodsData::WalletDetails(
-                        PaymentMethodDataWalletInfo::from(googlepay),
-                    )),
-                    _ => None,
-                };
+                    let optional_pm_details = match (
+                        resp.card.as_ref(),
+                        save_payment_method_data.request.get_payment_method_data(),
+                    ) {
+                        (Some(card), _) => Some(PaymentMethodsData::Card(
+                            CardDetailsPaymentMethod::from(card.clone()),
+                        )),
+                        (
+                            _,
+                            domain::PaymentMethodData::Wallet(domain::WalletData::GooglePay(
+                                googlepay,
+                            )),
+                        ) => Some(PaymentMethodsData::WalletDetails(
+                            PaymentMethodDataWalletInfo::from(googlepay),
+                        )),
+                        _ => None,
+                    };
 
-                let key_manager_state = state.into();
-                let pm_data_encrypted: Option<Encryptable<Secret<serde_json::Value>>> =
-                    optional_pm_details
-                        .async_map(|pm| create_encrypted_data(&key_manager_state, key_store, pm))
-                        .await
-                        .transpose()
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Unable to encrypt payment method data")?;
+                    let key_manager_state = state.into();
+                    let pm_data_encrypted: Option<Encryptable<Secret<serde_json::Value>>> =
+                        optional_pm_details
+                            .async_map(|pm| {
+                                create_encrypted_data(&key_manager_state, key_store, pm)
+                            })
+                            .await
+                            .transpose()
+                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable("Unable to encrypt payment method data")?;
 
                     let pm_network_token_data_encrypted: Option<
                         Encryptable<Secret<serde_json::Value>>,
