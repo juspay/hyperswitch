@@ -1143,7 +1143,10 @@ impl PaymentCreate {
             .transpose()?
             .flatten();
 
-        let overcapture_details = match request.capture_method.map(|capture_method| capture_method.eq(&common_enums::CaptureMethod::Manual)){
+        let overcapture_details = match request
+            .capture_method
+            .map(|capture_method| capture_method.eq(&common_enums::CaptureMethod::Manual))
+        {
             Some(true) => Some(common_utils::types::OvercaptureData {
                 request_overcapture: request
                     .request_overcapture
@@ -1152,7 +1155,7 @@ impl PaymentCreate {
                 maximum_capturable_amount: None,
                 overcaptured_amount: None,
             }),
-            Some(false) | None => None
+            Some(false) | None => None,
         };
 
         if additional_pm_data.is_none() {

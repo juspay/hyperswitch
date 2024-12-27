@@ -444,10 +444,10 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 id: profile_id.get_string_repr().to_owned(),
             })?;
 
-            helpers::update_or_add_overcapture_details_if_required(
-                request.request_overcapture,
-                &mut payment_attempt,
-            )?;
+        helpers::update_or_add_overcapture_details_if_required(
+            request.request_overcapture,
+            &mut payment_attempt,
+        )?;
 
         let surcharge_details = request.surcharge_details.map(|request_surcharge_details| {
             payments::types::SurchargeDetails::from((&request_surcharge_details, &payment_attempt))

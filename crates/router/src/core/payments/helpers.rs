@@ -6298,7 +6298,11 @@ pub fn update_or_add_overcapture_details_if_required(
     request_overcapture: Option<bool>,
     payment_attempt: &mut PaymentAttempt,
 ) -> Result<(), errors::ApiErrorResponse> {
-    if let Some((request_overcapture, true)) = request_overcapture.zip(Some(payment_attempt.capture_method.eq(&Some(enums::CaptureMethod::Manual)))) {
+    if let Some((request_overcapture, true)) = request_overcapture.zip(Some(
+        payment_attempt
+            .capture_method
+            .eq(&Some(enums::CaptureMethod::Manual)),
+    )) {
         match payment_attempt.overcapture_details {
             Some(ref mut overcapture_data) => {
                 overcapture_data.request_overcapture = Some(request_overcapture);
