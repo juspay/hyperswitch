@@ -21,6 +21,7 @@ pub mod fiserv;
 pub mod fiservemea;
 pub mod fiuu;
 pub mod forte;
+pub mod globalpay;
 pub mod globepay;
 pub mod gocardless;
 pub mod helcim;
@@ -65,7 +66,7 @@ pub use self::{
     boku::Boku, cashtocode::Cashtocode, coinbase::Coinbase, cryptopay::Cryptopay,
     ctp_mastercard::CtpMastercard, cybersource::Cybersource, datatrans::Datatrans,
     deutschebank::Deutschebank, digitalvirgo::Digitalvirgo, dlocal::Dlocal, elavon::Elavon,
-    fiserv::Fiserv, fiservemea::Fiservemea, fiuu::Fiuu, forte::Forte, globepay::Globepay,
+    fiserv::Fiserv, fiservemea::Fiservemea, fiuu::Fiuu, forte::Forte, globalpay::Globalpay, globepay::Globepay,
     gocardless::Gocardless, helcim::Helcim, iatapay::Iatapay, inespay::Inespay, itaubank::Itaubank,
     jpmorgan::Jpmorgan, mifinity::Mifinity, mollie::Mollie, multisafepay::Multisafepay,
     nexinets::Nexinets, nexixpay::Nexixpay, nomupay::Nomupay, novalnet::Novalnet, paybox::Paybox,

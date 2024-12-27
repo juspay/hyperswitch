@@ -10,7 +10,7 @@ use common_enums::{
 };
 use common_utils::{
     consts::BASE64_ENGINE,
-    errors::{CustomResult, ReportSwitchExt},
+    errors::{CustomResult, ParsingError, ReportSwitchExt},
     ext_traits::{OptionExt, StringExt, ValueExt},
     id_type,
     pii::{self, Email, IpAddress},
@@ -18,18 +18,14 @@ use common_utils::{
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
-    address::{Address, AddressDetails, PhoneDetails},
-    payment_method_data::{self, Card, PaymentMethodData},
-    router_data::{
+    address::{Address, AddressDetails, PhoneDetails}, payment_method_data::{self, Card, PaymentMethodData}, router_data::{
         ApplePayPredecryptData, ErrorResponse, PaymentMethodToken, RecurringMandatePaymentData,
-    },
-    router_request_types::{
+    }, router_request_types::{
         AuthenticationData, BrowserInformation, CompleteAuthorizeData, ConnectorCustomerData,
         MandateRevokeRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
         PaymentsCancelData, PaymentsCaptureData, PaymentsPreProcessingData, PaymentsSyncData,
         RefundsData, ResponseId, SetupMandateRequestData,
-    },
-    types::OrderDetailsWithAmount,
+    }, router_response_types::CaptureSyncResponse, types::OrderDetailsWithAmount
 };
 use hyperswitch_interfaces::{api, consts, errors, types::Response};
 use image::Luma;
@@ -54,6 +50,47 @@ pub(crate) fn construct_not_supported_error_report(
         connector: connector_name,
     }
     .into()
+}
+
+pub trait MultipleCaptureSyncResponse {
+    fn get_connector_capture_id(&self) -> String;
+    fn get_capture_attempt_status(&self) -> AttemptStatus;
+    fn is_capture_response(&self) -> bool;
+    fn get_connector_reference_id(&self) -> Option<String> {
+        None
+    }
+    fn get_amount_captured(&self) -> Result<Option<MinorUnit>, error_stack::Report<ParsingError>>;
+}
+
+pub(crate) fn construct_captures_response_hashmap<T>(
+    capture_sync_response_list: Vec<T>,
+) -> CustomResult<HashMap<String, CaptureSyncResponse>, errors::ConnectorError>
+where
+    T: MultipleCaptureSyncResponse,
+{
+    let mut hashmap = HashMap::new();
+    for capture_sync_response in capture_sync_response_list {
+        let connector_capture_id = capture_sync_response.get_connector_capture_id();
+        if capture_sync_response.is_capture_response() {
+            hashmap.insert(
+                connector_capture_id.clone(),
+                CaptureSyncResponse::Success {
+                    resource_id: ResponseId::ConnectorTransactionId(connector_capture_id),
+                    status: capture_sync_response.get_capture_attempt_status(),
+                    connector_response_reference_id: capture_sync_response
+                        .get_connector_reference_id(),
+                    amount: capture_sync_response
+                        .get_amount_captured()
+                        .change_context(errors::ConnectorError::AmountConversionFailed)
+                        .attach_printable(
+                            "failed to convert back captured response amount to minor unit",
+                        )?,
+                },
+            );
+        }
+    }
+
+    Ok(hashmap)
 }
 
 pub(crate) fn get_timestamp_in_milliseconds(datetime: &PrimitiveDateTime) -> i64 {

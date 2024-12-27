@@ -267,7 +267,7 @@ default_imp_for_webhook_source_verification!(
     connector::Braintree,
     connector::Checkout,
     connector::Ebanx,
-    connector::Globalpay,
+    
     connector::Gpayments,
     connector::Klarna,
     connector::Netcetera,
@@ -323,7 +323,7 @@ default_imp_for_create_customer!(
     connector::Braintree,
     connector::Checkout,
     connector::Ebanx,
-    connector::Globalpay,
+    
     connector::Gpayments,
     connector::Klarna,
     connector::Netcetera,
@@ -525,7 +525,6 @@ default_imp_for_accept_dispute!(
     connector::Authorizedotnet,
     connector::Braintree,
     connector::Ebanx,
-    connector::Globalpay,
     connector::Gpayments,
     connector::Klarna,
     connector::Netcetera,
@@ -602,7 +601,7 @@ default_imp_for_file_upload!(
     connector::Authorizedotnet,
     connector::Braintree,
     connector::Ebanx,
-    connector::Globalpay,
+    
     connector::Gpayments,
     connector::Klarna,
     connector::Netcetera,
@@ -656,7 +655,7 @@ default_imp_for_submit_evidence!(
     connector::Authorizedotnet,
     connector::Braintree,
     connector::Ebanx,
-    connector::Globalpay,
+    
     connector::Gpayments,
     connector::Klarna,
     connector::Netcetera,
@@ -710,7 +709,7 @@ default_imp_for_defend_dispute!(
     connector::Authorizedotnet,
     connector::Braintree,
     connector::Ebanx,
-    connector::Globalpay,
+    
     connector::Gpayments,
     connector::Klarna,
     connector::Netcetera,
@@ -781,7 +780,7 @@ default_imp_for_pre_processing_steps!(
     connector::Braintree,
     connector::Checkout,
     connector::Ebanx,
-    connector::Globalpay,
+    
     connector::Gpayments,
     connector::Klarna,
     connector::Netcetera,
@@ -823,7 +822,7 @@ default_imp_for_post_processing_steps!(
     connector::Braintree,
     connector::Checkout,
     connector::Ebanx,
-    connector::Globalpay,
+    
     connector::Gpayments,
     connector::Klarna,
     connector::Netcetera,
@@ -854,7 +853,7 @@ default_imp_for_payouts!(
     connector::Authorizedotnet,
     connector::Braintree,
     connector::Checkout,
-    connector::Globalpay,
+    
     connector::Gpayments,
     connector::Klarna,
     connector::Netcetera,
@@ -906,7 +905,7 @@ default_imp_for_payouts_create!(
     connector::Authorizedotnet,
     connector::Braintree,
     connector::Checkout,
-    connector::Globalpay,
+    
     connector::Gpayments,
     connector::Klarna,
     connector::Netcetera,
@@ -961,7 +960,7 @@ default_imp_for_payouts_retrieve!(
     connector::Braintree,
     connector::Checkout,
     connector::Ebanx,
-    connector::Globalpay,
+    
     connector::Gpayments,
     connector::Klarna,
     connector::Netcetera,
@@ -1019,7 +1018,7 @@ default_imp_for_payouts_eligibility!(
     connector::Authorizedotnet,
     connector::Braintree,
     connector::Checkout,
-    connector::Globalpay,
+    
     connector::Gpayments,
     connector::Klarna,
     connector::Netcetera,
@@ -1073,7 +1072,7 @@ default_imp_for_payouts_fulfill!(
     connector::Authorizedotnet,
     connector::Braintree,
     connector::Checkout,
-    connector::Globalpay,
+    
     connector::Gpayments,
     connector::Klarna,
     connector::Netcetera,
@@ -1125,7 +1124,7 @@ default_imp_for_payouts_cancel!(
     connector::Authorizedotnet,
     connector::Braintree,
     connector::Checkout,
-    connector::Globalpay,
+    
     connector::Gpayments,
     connector::Klarna,
     connector::Netcetera,
@@ -1180,7 +1179,7 @@ default_imp_for_payouts_quote!(
     connector::Authorizedotnet,
     connector::Braintree,
     connector::Checkout,
-    connector::Globalpay,
+    
     connector::Gpayments,
     connector::Klarna,
     connector::Netcetera,
@@ -1236,7 +1235,7 @@ default_imp_for_payouts_recipient!(
     connector::Authorizedotnet,
     connector::Braintree,
     connector::Checkout,
-    connector::Globalpay,
+    
     connector::Gpayments,
     connector::Klarna,
     connector::Netcetera,
@@ -1295,7 +1294,7 @@ default_imp_for_payouts_recipient_account!(
     connector::Braintree,
     connector::Checkout,
     connector::Ebanx,
-    connector::Globalpay,
+    
     connector::Gpayments,
     connector::Klarna,
     connector::Netcetera,
@@ -1351,7 +1350,7 @@ default_imp_for_approve!(
     connector::Braintree,
     connector::Checkout,
     connector::Ebanx,
-    connector::Globalpay,
+    
     connector::Gpayments,
     connector::Klarna,
     connector::Netcetera,
@@ -1408,7 +1407,7 @@ default_imp_for_reject!(
     connector::Braintree,
     connector::Checkout,
     connector::Ebanx,
-    connector::Globalpay,
+    
     connector::Gpayments,
     connector::Klarna,
     connector::Netcetera,
@@ -1564,7 +1563,7 @@ default_imp_for_frm_sale!(
     connector::Braintree,
     connector::Checkout,
     connector::Ebanx,
-    connector::Globalpay,
+    
     connector::Gpayments,
     connector::Klarna,
     connector::Netcetera,
@@ -1621,7 +1620,7 @@ default_imp_for_frm_checkout!(
     connector::Braintree,
     connector::Checkout,
     connector::Ebanx,
-    connector::Globalpay,
+    
     connector::Gpayments,
     connector::Klarna,
     connector::Netcetera,
@@ -1678,7 +1677,7 @@ default_imp_for_frm_transaction!(
     connector::Braintree,
     connector::Checkout,
     connector::Ebanx,
-    connector::Globalpay,
+    
     connector::Gpayments,
     connector::Klarna,
     connector::Netcetera,
@@ -1735,7 +1734,7 @@ default_imp_for_frm_fulfillment!(
     connector::Braintree,
     connector::Checkout,
     connector::Ebanx,
-    connector::Globalpay,
+    
     connector::Gpayments,
     connector::Klarna,
     connector::Netcetera,
@@ -1792,7 +1791,7 @@ default_imp_for_frm_record_return!(
     connector::Braintree,
     connector::Checkout,
     connector::Ebanx,
-    connector::Globalpay,
+    
     connector::Gpayments,
     connector::Klarna,
     connector::Netcetera,
@@ -1847,7 +1846,7 @@ default_imp_for_incremental_authorization!(
     connector::Braintree,
     connector::Checkout,
     connector::Ebanx,
-    connector::Globalpay,
+    
     connector::Gpayments,
     connector::Klarna,
     connector::Netcetera,
@@ -1902,7 +1901,7 @@ default_imp_for_revoking_mandates!(
     connector::Braintree,
     connector::Checkout,
     connector::Ebanx,
-    connector::Globalpay,
+    
     connector::Gpayments,
     connector::Klarna,
     connector::Netcetera,
@@ -2125,7 +2124,7 @@ default_imp_for_authorize_session_token!(
     connector::Braintree,
     connector::Checkout,
     connector::Ebanx,
-    connector::Globalpay,
+    
     connector::Gpayments,
     connector::Klarna,
     connector::Netcetera,
@@ -2179,7 +2178,7 @@ default_imp_for_calculate_tax!(
     connector::Braintree,
     connector::Checkout,
     connector::Ebanx,
-    connector::Globalpay,
+    
     connector::Gpayments,
     connector::Klarna,
     connector::Netcetera,
@@ -2234,7 +2233,7 @@ default_imp_for_session_update!(
     connector::Braintree,
     connector::Checkout,
     connector::Ebanx,
-    connector::Globalpay,
+    
     connector::Gpayments,
     connector::Klarna,
     connector::Netcetera,
@@ -2288,7 +2287,7 @@ default_imp_for_post_session_tokens!(
     connector::Braintree,
     connector::Checkout,
     connector::Ebanx,
-    connector::Globalpay,
+    
     connector::Gpayments,
     connector::Klarna,
     connector::Netcetera,
@@ -2345,7 +2344,7 @@ default_imp_for_uas_pre_authentication!(
     connector::Braintree,
     connector::Checkout,
     connector::Ebanx,
-    connector::Globalpay,
+    
     connector::Gpayments,
     connector::Klarna,
     connector::Netcetera,
@@ -2400,7 +2399,7 @@ default_imp_for_uas_post_authentication!(
     connector::Braintree,
     connector::Checkout,
     connector::Ebanx,
-    connector::Globalpay,
+    
     connector::Gpayments,
     connector::Klarna,
     connector::Netcetera,
