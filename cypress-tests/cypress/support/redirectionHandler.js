@@ -441,21 +441,23 @@ export function verifyReturnUrl(redirection_url, expected_url, forward_flow) {
             payment_status !== "processing" &&
             payment_status !== "partially_captured"
           ) {
-            throw new Error(`Payment failed after redirection with status: ${payment_status}`);
+            throw new Error(
+              `Payment failed after redirection with status: ${payment_status}`
+            );
           }
         });
     } else {
       // Handling CORS workaround for cross-origin redirection
-      cy.origin(expected_url.origin, { args: { expected_url: expected_url.origin } }, ({ expected_url }) => {
-        cy.window().its("location.origin").should("eq", expected_url);
-      });
+      cy.origin(
+        expected_url.origin,
+        { args: { expected_url: expected_url.origin } },
+        ({ expected_url }) => {
+          cy.window().its("location.origin").should("eq", expected_url);
+        }
+      );
     }
   }
 }
-
-
-
-
 
 async function fetchAndParseQRCode(url) {
   const response = await fetch(url, { encoding: "binary" });
