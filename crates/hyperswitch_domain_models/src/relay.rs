@@ -42,7 +42,7 @@ impl Relay {
     ) -> Self {
         let relay_id = id_type::RelayId::generate();
         Self {
-            id: relay_id.clone(),
+            id: relay_id,
             connector_resource_id: relay_request.connector_resource_id.clone(),
             connector_id: relay_request.connector_id.clone(),
             profile_id: profile_id.clone(),
@@ -198,7 +198,7 @@ impl super::behaviour::Conversion for Relay {
                 .request_data
                 .map(|data| {
                     serde_json::to_value(data).change_context(ValidationError::InvalidValue {
-                        message: "Failed while decrypting business profile data".to_string(),
+                        message: "Failed to serialize relay request data".to_string(),
                     })
                 })
                 .transpose()?
@@ -225,13 +225,13 @@ impl super::behaviour::Conversion for Relay {
             connector_id: item.connector_id,
             profile_id: item.profile_id,
             merchant_id: item.merchant_id,
-            relay_type: enums::RelayType::Refund,
+            relay_type: item.relay_type,
             request_data: item
                 .request_data
                 .map(|data| {
                     serde_json::from_value(data.expose()).change_context(
                         ValidationError::InvalidValue {
-                            message: "Failed while decrypting business profile data".to_string(),
+                            message: "Failed to deserialize relay request data".to_string(),
                         },
                     )
                 })
@@ -258,7 +258,7 @@ impl super::behaviour::Conversion for Relay {
                 .request_data
                 .map(|data| {
                     serde_json::to_value(data).change_context(ValidationError::InvalidValue {
-                        message: "Failed while decrypting business profile data".to_string(),
+                        message: "Failed to serialize relay request data".to_string(),
                     })
                 })
                 .transpose()?
