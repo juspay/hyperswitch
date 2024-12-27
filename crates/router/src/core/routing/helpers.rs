@@ -718,7 +718,7 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
             );
 
         let success_based_connectors = client
-            .calculate_success_rate(
+            .calculate_global_success_rate(
                 tenant_business_profile_id.clone(),
                 success_based_routing_configs.clone(),
                 success_based_routing_config_params.clone(),
@@ -735,7 +735,7 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
             get_desired_payment_status_for_success_routing_metrics(payment_attempt.status);
 
         let first_merchant_success_based_connector_label = &success_based_connectors
-            .merchant_labels_with_score
+            .entity_scores_with_labels
             .first()
             .ok_or(errors::ApiErrorResponse::InternalServerError)
             .attach_printable(
@@ -753,7 +753,7 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
             ))?;
 
         let first_global_success_based_connector_label = &success_based_connectors
-            .global_labels_with_score
+            .global_scores_with_labels
             .first()
             .ok_or(errors::ApiErrorResponse::InternalServerError)
             .attach_printable(

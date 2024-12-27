@@ -5,10 +5,11 @@ use api_models::routing::{
 use common_utils::{ext_traits::OptionExt, transformers::ForeignTryFrom};
 use error_stack::ResultExt;
 pub use success_rate::{
-    success_rate_calculator_client::SuccessRateCalculatorClient,
-    success_rate_specificity_level::SpecificityLevel, CalSuccessRateConfig, CalSuccessRateRequest,
-    CalSuccessRateResponse, CurrentBlockThreshold as DynamicCurrentThreshold,
-    InvalidateWindowsRequest, InvalidateWindowsResponse, LabelWithStatus,
+    success_rate_calculator_client::SuccessRateCalculatorClient, CalGlobalSuccessRateConfig,
+    CalGlobalSuccessRateRequest, CalGlobalSuccessRateResponse, CalSuccessRateConfig,
+    CalSuccessRateRequest, CalSuccessRateResponse,
+    CurrentBlockThreshold as DynamicCurrentThreshold, InvalidateWindowsRequest,
+    InvalidateWindowsResponse, LabelWithStatus,
     SuccessRateSpecificityLevel as ProtoSpecificityLevel, UpdateSuccessRateWindowConfig,
     UpdateSuccessRateWindowRequest, UpdateSuccessRateWindowResponse,
 };
@@ -51,6 +52,15 @@ pub trait SuccessBasedDynamicRouting: dyn_clone::DynClone + Send + Sync {
         id: String,
         headers: GrpcHeaders,
     ) -> DynamicRoutingResult<InvalidateWindowsResponse>;
+    /// To calculate both global and merchant specific success rate for the list of chosen connectors
+    async fn calculate_global_success_rate(
+        &self,
+        id: String,
+        success_rate_based_config: SuccessBasedRoutingConfig,
+        params: String,
+        label_input: Vec<RoutableConnectorChoice>,
+        headers: GrpcHeaders,
+    ) -> DynamicRoutingResult<CalGlobalSuccessRateResponse>;
 }
 
 #[async_trait::async_trait]
@@ -154,6 +164,45 @@ impl SuccessBasedDynamicRouting for SuccessRateCalculatorClient<Client> {
             .into_inner();
         Ok(response)
     }
+
+    async fn calculate_global_success_rate(
+        &self,
+        id: String,
+        success_rate_based_config: SuccessBasedRoutingConfig,
+        params: String,
+        label_input: Vec<RoutableConnectorChoice>,
+        headers: GrpcHeaders,
+    ) -> DynamicRoutingResult<CalGlobalSuccessRateResponse> {
+        let labels = label_input
+            .into_iter()
+            .map(|conn_choice| conn_choice.to_string())
+            .collect::<Vec<_>>();
+
+        let config = success_rate_based_config
+            .config
+            .map(ForeignTryFrom::foreign_try_from)
+            .transpose()?;
+
+        let mut request = tonic::Request::new(CalGlobalSuccessRateRequest {
+            id,
+            params,
+            labels,
+            config,
+        });
+
+        request.add_headers_to_grpc_request(headers);
+
+        let response = self
+            .clone()
+            .fetch_entity_and_global_success_rate(request)
+            .await
+            .change_context(DynamicRoutingError::SuccessRateBasedRoutingFailure(
+                "Failed to fetch the success rate".to_string(),
+            ))?
+            .into_inner();
+
+        Ok(response)
+    }
 }
 
 impl ForeignTryFrom<CurrentBlockThreshold> for DynamicCurrentThreshold {
@@ -206,12 +255,8 @@ impl ForeignTryFrom<SuccessBasedRoutingConfigBody> for CalSuccessRateConfig {
                     field: "default_success_rate".to_string(),
                 })?,
             specificity_level: config.specificity_level.map(|level| match level {
-                SuccessRateSpecificityLevel::Merchant => ProtoSpecificityLevel {
-                    status: SpecificityLevel::Merchant.into(),
-                },
-                SuccessRateSpecificityLevel::Global => ProtoSpecificityLevel {
-                    status: SpecificityLevel::Global.into(),
-                },
+                SuccessRateSpecificityLevel::Merchant => ProtoSpecificityLevel::Entity,
+                SuccessRateSpecificityLevel::Global => ProtoSpecificityLevel::Global,
             }),
         })
     }
