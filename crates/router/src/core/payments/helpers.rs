@@ -6293,3 +6293,27 @@ pub fn validate_platform_fees_for_marketplace(
     }
     Ok(())
 }
+
+pub fn update_or_add_overcapture_details_if_required(
+    request_overcapture: Option<bool>,
+    payment_attempt: &mut PaymentAttempt,
+) -> Result<(), errors::ApiErrorResponse> {
+    if let Some((request_overcapture, true)) = request_overcapture.zip(Some(payment_attempt.capture_method.eq(&Some(enums::CaptureMethod::Manual)))) {
+        match payment_attempt.overcapture_details {
+            Some(ref mut overcapture_data) => {
+                overcapture_data.request_overcapture = Some(request_overcapture);
+            }
+            None => {
+                payment_attempt.overcapture_details = Some(common_utils::types::OvercaptureData {
+                    request_overcapture: Some(request_overcapture),
+                    overcapture_applied: None,
+                    maximum_capturable_amount: None,
+                    overcaptured_amount: None,
+                });
+            }
+        }
+        Ok(())
+    } else {
+        Ok(())
+    }
+}
