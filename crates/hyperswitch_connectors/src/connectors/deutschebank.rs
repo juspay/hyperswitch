@@ -984,17 +984,7 @@ lazy_static! {
             enums::PaymentMethod::BankDebit,
             enums::PaymentMethodType::Sepa,
             PaymentMethodDetails{
-                mandates: enums::FeatureStatus::NotSupported,
-                refunds: enums::FeatureStatus::NotSupported,
-                supported_capture_methods: supported_capture_methods.clone(),
-            }
-        );
-
-        deutschebank_supported_payment_methods.add(
-            enums::PaymentMethod::Card,
-            enums::PaymentMethodType::Credit,
-            PaymentMethodDetails{
-                mandates: enums::FeatureStatus::NotSupported,
+                mandates: enums::FeatureStatus::Supported,
                 refunds: enums::FeatureStatus::Supported,
                 supported_capture_methods: supported_capture_methods.clone(),
             }
@@ -1002,7 +992,7 @@ lazy_static! {
 
         deutschebank_supported_payment_methods.add(
             enums::PaymentMethod::Card,
-            enums::PaymentMethodType::Debit,
+            enums::PaymentMethodType::Credit,
             PaymentMethodDetails{
                 mandates: enums::FeatureStatus::NotSupported,
                 refunds: enums::FeatureStatus::Supported,
