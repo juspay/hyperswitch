@@ -439,7 +439,8 @@ export function verifyReturnUrl(redirection_url, expected_url, forward_flow) {
           if (
             payment_status !== "succeeded" &&
             payment_status !== "processing" &&
-            payment_status !== "partially_captured"
+            payment_status !== "partially_captured" &&
+            payment_status !== "requires_capture"
           ) {
             throw new Error(
               `Payment failed after redirection with status: ${payment_status}`
