@@ -422,38 +422,101 @@ function upiRedirection(
   });
 }
 
-export function verifyReturnUrl(redirection_url, expected_url, forward_flow) {
-  // Proceed with redirection validation
+function verifyReturnUrl(redirection_url, expected_url, forward_flow) {
   if (forward_flow) {
     if (redirection_url.host.endsWith(expected_url.host)) {
-      // Wait for 10 seconds before checking the final redirection URL
-      cy.wait(WAIT_TIME / 2); // WAIT_TIME is 10 seconds and is defined at the top
+      cy.wait(WAIT_TIME / 2);
 
       cy.window()
-        .its("location") // after 10 sec wait, the end url will be `hyperswitch.io/status=<payment_status>`
+        .its("location")
         .then((location) => {
+          // Check page state before taking screenshots
+          cy.document().then((doc) => {
+            // For blank page
+            cy.wrap(doc.body.innerText.trim()).then((text) => {
+              if (text === "") {
+                // Assert before screenshot
+                cy.wrap(text).should("eq", "");
+                cy.screenshot("blank-page-error");
+              }
+            });
+
+            // For error pages
+            const errorPatterns = [
+              /4\d{2}/,
+              /5\d{2}/,
+              /error/i,
+              /invalid request/i,
+              /server error/i,
+            ];
+
+            const pageText = doc.body.innerText.toLowerCase();
+            cy.wrap(pageText).then((text) => {
+              if (errorPatterns.some((pattern) => pattern.test(text))) {
+                // Assert the presence of error message
+                cy.wrap(text).should((content) => {
+                  expect(errorPatterns.some((pattern) => pattern.test(content)))
+                    .to.be.true;
+                });
+                cy.screenshot(`error-page-${Date.now()}`);
+              }
+            });
+          });
+
           const url_params = new URLSearchParams(location.search);
           const payment_status = url_params.get("status");
 
-          // Perform validation based on the final payment status
           if (
             payment_status !== "succeeded" &&
             payment_status !== "processing" &&
             payment_status !== "partially_captured" &&
             payment_status !== "requires_capture"
           ) {
+            // Assert payment status before screenshot
+            cy.wrap(payment_status).should("exist");
+            cy.screenshot(`failed-payment-${payment_status}`);
             throw new Error(
               `Payment failed after redirection with status: ${payment_status}`
             );
           }
         });
     } else {
-      // Handling CORS workaround for cross-origin redirection
       cy.origin(
         expected_url.origin,
         { args: { expected_url: expected_url.origin } },
         ({ expected_url }) => {
           cy.window().its("location.origin").should("eq", expected_url);
+
+          cy.document().then((doc) => {
+            // For blank page in cross-origin
+            cy.wrap(doc.body.innerText.trim()).then((text) => {
+              if (text === "") {
+                // Assert before screenshot
+                cy.wrap(text).should("eq", "");
+                cy.screenshot("cross-origin-blank-page");
+              }
+            });
+
+            const errorPatterns = [
+              /4\d{2}/,
+              /5\d{2}/,
+              /error/i,
+              /invalid request/i,
+              /server error/i,
+            ];
+
+            const pageText = doc.body.innerText.toLowerCase();
+            cy.wrap(pageText).then((text) => {
+              if (errorPatterns.some((pattern) => pattern.test(text))) {
+                // Assert the presence of error message
+                cy.wrap(text).should((content) => {
+                  expect(errorPatterns.some((pattern) => pattern.test(content)))
+                    .to.be.true;
+                });
+                cy.screenshot(`cross-origin-error-${Date.now()}`);
+              }
+            });
+          });
         }
       );
     }
