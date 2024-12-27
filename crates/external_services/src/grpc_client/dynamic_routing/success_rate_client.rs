@@ -255,9 +255,29 @@ impl ForeignTryFrom<SuccessBasedRoutingConfigBody> for CalSuccessRateConfig {
                     field: "default_success_rate".to_string(),
                 })?,
             specificity_level: config.specificity_level.map(|level| match level {
-                SuccessRateSpecificityLevel::Merchant => ProtoSpecificityLevel::Entity,
-                SuccessRateSpecificityLevel::Global => ProtoSpecificityLevel::Global,
+                SuccessRateSpecificityLevel::Merchant => ProtoSpecificityLevel::Entity.into(),
+                SuccessRateSpecificityLevel::Global => ProtoSpecificityLevel::Global.into(),
             }),
+        })
+    }
+}
+
+impl ForeignTryFrom<SuccessBasedRoutingConfigBody> for CalGlobalSuccessRateConfig {
+    type Error = error_stack::Report<DynamicRoutingError>;
+    fn foreign_try_from(config: SuccessBasedRoutingConfigBody) -> Result<Self, Self::Error> {
+        Ok(Self {
+            entity_min_aggregates_size: config
+                .min_aggregates_size
+                .get_required_value("min_aggregate_size")
+                .change_context(DynamicRoutingError::MissingRequiredField {
+                    field: "min_aggregates_size".to_string(),
+                })?,
+            entity_default_success_rate: config
+                .default_success_rate
+                .get_required_value("default_success_rate")
+                .change_context(DynamicRoutingError::MissingRequiredField {
+                    field: "default_success_rate".to_string(),
+                })?,
         })
     }
 }

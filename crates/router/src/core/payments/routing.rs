@@ -1322,22 +1322,28 @@ pub async fn perform_success_based_routing(
             .ok_or(errors::RoutingError::SuccessRateClientInitializationError)
             .attach_printable("success_rate gRPC client not found")?;
 
-        let success_based_routing_configs = routing::helpers::fetch_success_based_routing_configs(
-            state,
-            business_profile,
-            success_based_algo_ref
-                .algorithm_id_with_timestamp
-                .algorithm_id
-                .ok_or(errors::RoutingError::GenericNotFoundError {
-                    field: "success_based_routing_algorithm_id".to_string(),
-                })
-                .attach_printable(
-                    "success_based_routing_algorithm_id not found in business_profile",
-                )?,
-        )
-        .await
-        .change_context(errors::RoutingError::SuccessBasedRoutingConfigError)
-        .attach_printable("unable to fetch success_rate based dynamic routing configs")?;
+        let mut success_based_routing_configs =
+            routing::helpers::fetch_success_based_routing_configs(
+                state,
+                business_profile,
+                success_based_algo_ref
+                    .algorithm_id_with_timestamp
+                    .algorithm_id
+                    .ok_or(errors::RoutingError::GenericNotFoundError {
+                        field: "success_based_routing_algorithm_id".to_string(),
+                    })
+                    .attach_printable(
+                        "success_based_routing_algorithm_id not found in business_profile",
+                    )?,
+            )
+            .await
+            .change_context(errors::RoutingError::SuccessBasedRoutingConfigError)
+            .attach_printable("unable to fetch success_rate based dynamic routing configs")?;
+
+        success_based_routing_configs.config.as_mut().map(|config| {
+            config.specificity_level =
+                Some(api_models::routing::SuccessRateSpecificityLevel::Merchant)
+        });
 
         let success_based_routing_config_params = success_based_routing_config_params_interpolator
             .get_string_val(
@@ -1366,9 +1372,8 @@ pub async fn perform_success_based_routing(
                 "unable to calculate/fetch success rate from dynamic routing service",
             )?;
 
-        let mut connectors =
-            Vec::with_capacity(success_based_connectors.merchant_labels_with_score.len());
-        for label_with_score in success_based_connectors.merchant_labels_with_score {
+        let mut connectors = Vec::with_capacity(success_based_connectors.labels_with_score.len());
+        for label_with_score in success_based_connectors.labels_with_score {
             let (connector, merchant_connector_id) = label_with_score.label
                 .split_once(':')
                 .ok_or(errors::RoutingError::InvalidSuccessBasedConnectorLabel(label_with_score.label.to_string()))

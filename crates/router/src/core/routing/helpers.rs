@@ -684,7 +684,7 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
             },
         )?;
 
-        let mut success_based_routing_configs = fetch_success_based_routing_configs(
+        let success_based_routing_configs = fetch_success_based_routing_configs(
             state,
             business_profile,
             success_based_algo_ref
@@ -698,10 +698,6 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("unable to retrieve success_rate based dynamic routing configs")?;
-
-        success_based_routing_configs.config.as_mut().map(|config| {
-            config.specificity_level = Some(routing_types::SuccessRateSpecificityLevel::Global)
-        });
 
         let tenant_business_profile_id = generate_tenant_business_profile_id(
             &state.tenant.redis_key_prefix,
