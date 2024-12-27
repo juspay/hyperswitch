@@ -4,7 +4,7 @@ use std::time::SystemTime;
 
 use actix_web::http::header::Date;
 use base64::Engine;
-use common_enums::{enums, PaymentMethod};
+use common_enums::enums;
 use common_utils::{
     errors::CustomResult,
     ext_traits::BytesExt,
@@ -462,7 +462,7 @@ impl ConnectorIntegration<CompleteAuthorize, CompleteAuthorizeData, PaymentsResp
             "preauthorization"
         };
 
-        if req.is_three_ds() && matches!(req.payment_method, PaymentMethod::Card) {
+        if req.is_three_ds() && matches!(req.payment_method, enums::PaymentMethod::Card) {
             Ok(format!(
                 "{}/services/v2.1//headless3DSecure/event/{event_id}/final",
                 self.base_url(connectors)
@@ -986,7 +986,27 @@ lazy_static! {
             PaymentMethodDetails{
                 mandates: enums::FeatureStatus::NotSupported,
                 refunds: enums::FeatureStatus::NotSupported,
-                supported_capture_methods,
+                supported_capture_methods: supported_capture_methods.clone(),
+            }
+        );
+
+        deutschebank_supported_payment_methods.add(
+            enums::PaymentMethod::Card,
+            enums::PaymentMethodType::Credit,
+            PaymentMethodDetails{
+                mandates: enums::FeatureStatus::NotSupported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
+            }
+        );
+
+        deutschebank_supported_payment_methods.add(
+            enums::PaymentMethod::Card,
+            enums::PaymentMethodType::Debit,
+            PaymentMethodDetails{
+                mandates: enums::FeatureStatus::NotSupported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
             }
         );
 
