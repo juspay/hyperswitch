@@ -1,18 +1,28 @@
-use api_models::payments;
+use api_models::payments::{KlarnaSessionTokenResponse, SessionToken};
+use common_enums::enums;
 use common_utils::{pii, types::MinorUnit};
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
-    router_data::KlarnaSdkResponse, router_response_types::RedirectForm,
+    payment_method_data::{PayLaterData, PaymentMethodData},
+    router_data::{
+        AdditionalPaymentMethodConnectorResponse, ConnectorAuthType, ConnectorResponseData,
+        KlarnaSdkResponse, RouterData,
+    },
+    router_flow_types::refunds::{Execute, RSync},
+    router_request_types::{PaymentsCaptureData, ResponseId},
+    router_response_types::{PaymentsResponseData, RedirectForm, RefundsResponseData},
+    types,
 };
+use hyperswitch_interfaces::errors;
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{
-        self, AddressData, AddressDetailsData, PaymentsAuthorizeRequestData, RouterData,
+    types::{
+        PaymentsResponseRouterData, PaymentsSessionResponseRouterData, RefundsResponseRouterData,
+        ResponseRouterData,
     },
-    core::errors,
-    types::{self, api, domain, storage::enums, transformers::ForeignFrom},
+    utils::{self, AddressData, AddressDetailsData, PaymentsAuthorizeRequestData, RouterData as _},
 };
 
 #[derive(Debug, Serialize)]
@@ -125,7 +135,7 @@ pub struct AuthorizedPaymentMethod {
     payment_type: String,
 }
 
-impl From<AuthorizedPaymentMethod> for types::AdditionalPaymentMethodConnectorResponse {
+impl From<AuthorizedPaymentMethod> for AdditionalPaymentMethodConnectorResponse {
     fn from(item: AuthorizedPaymentMethod) -> Self {
         Self::PayLater {
             klarna_sdk: Some(KlarnaSdkResponse {
@@ -206,22 +216,20 @@ impl TryFrom<&KlarnaRouterData<&types::PaymentsSessionRouterData>> for KlarnaSes
     }
 }
 
-impl TryFrom<types::PaymentsSessionResponseRouterData<KlarnaSessionResponse>>
+impl TryFrom<PaymentsSessionResponseRouterData<KlarnaSessionResponse>>
     for types::PaymentsSessionRouterData
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::PaymentsSessionResponseRouterData<KlarnaSessionResponse>,
+        item: PaymentsSessionResponseRouterData<KlarnaSessionResponse>,
     ) -> Result<Self, Self::Error> {
         let response = &item.response;
         Ok(Self {
-            response: Ok(types::PaymentsResponseData::SessionResponse {
-                session_token: api::SessionToken::Klarna(Box::new(
-                    payments::KlarnaSessionTokenResponse {
-                        session_token: response.client_token.clone().expose(),
-                        session_id: response.session_id.clone(),
-                    },
-                )),
+            response: Ok(PaymentsResponseData::SessionResponse {
+                session_token: SessionToken::Klarna(Box::new(KlarnaSessionTokenResponse {
+                    session_token: response.client_token.clone().expose(),
+                    session_id: response.session_id.clone(),
+                })),
             }),
             ..item.data
         })
@@ -239,7 +247,7 @@ impl TryFrom<&KlarnaRouterData<&types::PaymentsAuthorizeRouterData>> for KlarnaP
         let return_url = item.router_data.request.get_return_url()?;
         let webhook_url = item.router_data.request.get_webhook_url()?;
         match payment_method_data {
-            domain::PaymentMethodData::PayLater(domain::PayLaterData::KlarnaSdk { .. }) => {
+            PaymentMethodData::PayLater(PayLaterData::KlarnaSdk { .. }) => {
                 match request.order_details.clone() {
                     Some(order_details) => Ok(Self {
                         purchase_country: item.router_data.get_billing_country()?,
@@ -277,7 +285,7 @@ impl TryFrom<&KlarnaRouterData<&types::PaymentsAuthorizeRouterData>> for KlarnaP
                     })),
                 }
             }
-            domain::PaymentMethodData::PayLater(domain::PayLaterData::KlarnaCheckout {}) => {
+            PaymentMethodData::PayLater(PayLaterData::KlarnaCheckout {}) => {
                 match request.order_details.clone() {
                     Some(order_details) => Ok(Self {
                         purchase_country: item.router_data.get_billing_country()?,
@@ -356,14 +364,12 @@ fn get_address_info(
     })
 }
 
-impl TryFrom<types::PaymentsResponseRouterData<KlarnaAuthResponse>>
+impl TryFrom<PaymentsResponseRouterData<KlarnaAuthResponse>>
     for types::PaymentsAuthorizeRouterData
 {
     type Error = error_stack::Report<errors::ConnectorError>;
 
-    fn try_from(
-        item: types::PaymentsResponseRouterData<KlarnaAuthResponse>,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(item: PaymentsResponseRouterData<KlarnaAuthResponse>) -> Result<Self, Self::Error> {
         match item.response {
             KlarnaAuthResponse::KlarnaPaymentsAuthResponse(ref response) => {
                 let connector_response =
@@ -371,18 +377,16 @@ impl TryFrom<types::PaymentsResponseRouterData<KlarnaAuthResponse>>
                         .authorized_payment_method
                         .as_ref()
                         .map(|authorized_payment_method| {
-                            types::ConnectorResponseData::with_additional_payment_method_data(
-                                types::AdditionalPaymentMethodConnectorResponse::from(
+                            ConnectorResponseData::with_additional_payment_method_data(
+                                AdditionalPaymentMethodConnectorResponse::from(
                                     authorized_payment_method.clone(),
                                 ),
                             )
                         });
 
                 Ok(Self {
-                    response: Ok(types::PaymentsResponseData::TransactionResponse {
-                        resource_id: types::ResponseId::ConnectorTransactionId(
-                            response.order_id.clone(),
-                        ),
+                    response: Ok(PaymentsResponseData::TransactionResponse {
+                        resource_id: ResponseId::ConnectorTransactionId(response.order_id.clone()),
                         redirection_data: Box::new(None),
                         mandate_reference: Box::new(None),
                         connector_metadata: None,
@@ -391,19 +395,17 @@ impl TryFrom<types::PaymentsResponseRouterData<KlarnaAuthResponse>>
                         incremental_authorization_allowed: None,
                         charge_id: None,
                     }),
-                    status: enums::AttemptStatus::foreign_from((
+                    status: get_fraud_status(
                         response.fraud_status.clone(),
                         item.data.request.is_auto_capture()?,
-                    )),
+                    ),
                     connector_response,
                     ..item.data
                 })
             }
             KlarnaAuthResponse::KlarnaCheckoutAuthResponse(ref response) => Ok(Self {
-                response: Ok(types::PaymentsResponseData::TransactionResponse {
-                    resource_id: types::ResponseId::ConnectorTransactionId(
-                        response.order_id.clone(),
-                    ),
+                response: Ok(PaymentsResponseData::TransactionResponse {
+                    resource_id: ResponseId::ConnectorTransactionId(response.order_id.clone()),
                     redirection_data: Box::new(Some(RedirectForm::Html {
                         html_data: response.html_snippet.clone(),
                     })),
@@ -414,10 +416,10 @@ impl TryFrom<types::PaymentsResponseRouterData<KlarnaAuthResponse>>
                     incremental_authorization_allowed: None,
                     charge_id: None,
                 }),
-                status: enums::AttemptStatus::foreign_from((
+                status: get_checkout_status(
                     response.status.clone(),
                     item.data.request.is_auto_capture()?,
-                )),
+                ),
                 connector_response: None,
                 ..item.data
             }),
@@ -448,10 +450,10 @@ pub struct KlarnaAuthType {
     pub password: Secret<String>,
 }
 
-impl TryFrom<&types::ConnectorAuthType> for KlarnaAuthType {
+impl TryFrom<&ConnectorAuthType> for KlarnaAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
-        if let types::ConnectorAuthType::BodyKey { api_key, key1 } = auth_type {
+    fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
+        if let ConnectorAuthType::BodyKey { api_key, key1 } = auth_type {
             Ok(Self {
                 username: key1.to_owned(),
                 password: api_key.to_owned(),
@@ -477,36 +479,40 @@ pub enum KlarnaCheckoutStatus {
     CheckoutIncomplete,
 }
 
-impl ForeignFrom<(KlarnaFraudStatus, bool)> for enums::AttemptStatus {
-    fn foreign_from((klarna_status, is_auto_capture): (KlarnaFraudStatus, bool)) -> Self {
-        match klarna_status {
-            KlarnaFraudStatus::Accepted => {
-                if is_auto_capture {
-                    Self::Charged
-                } else {
-                    Self::Authorized
-                }
+fn get_fraud_status(
+    klarna_status: KlarnaFraudStatus,
+    is_auto_capture: bool,
+) -> common_enums::AttemptStatus {
+    match klarna_status {
+        KlarnaFraudStatus::Accepted => {
+            if is_auto_capture {
+                common_enums::AttemptStatus::Charged
+            } else {
+                common_enums::AttemptStatus::Authorized
             }
-            KlarnaFraudStatus::Pending => Self::Pending,
-            KlarnaFraudStatus::Rejected => Self::Failure,
         }
+        KlarnaFraudStatus::Pending => common_enums::AttemptStatus::Pending,
+        KlarnaFraudStatus::Rejected => common_enums::AttemptStatus::Failure,
     }
 }
 
-impl ForeignFrom<(KlarnaCheckoutStatus, bool)> for enums::AttemptStatus {
-    fn foreign_from((klarna_status, is_auto_capture): (KlarnaCheckoutStatus, bool)) -> Self {
-        match klarna_status {
-            KlarnaCheckoutStatus::CheckoutIncomplete => {
-                if is_auto_capture {
-                    Self::AuthenticationPending
-                } else {
-                    Self::Authorized
-                }
+// impl ForeignFrom<(KlarnaCheckoutStatus, bool)> for enums::AttemptStatus {
+fn get_checkout_status(
+    klarna_status: KlarnaCheckoutStatus,
+    is_auto_capture: bool,
+) -> common_enums::AttemptStatus {
+    match klarna_status {
+        KlarnaCheckoutStatus::CheckoutIncomplete => {
+            if is_auto_capture {
+                common_enums::AttemptStatus::AuthenticationPending
+            } else {
+                common_enums::AttemptStatus::Authorized
             }
-            KlarnaCheckoutStatus::CheckoutComplete => Self::Charged,
         }
+        KlarnaCheckoutStatus::CheckoutComplete => common_enums::AttemptStatus::Charged,
     }
 }
+// }
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(untagged)]
@@ -552,21 +558,18 @@ impl From<KlarnaPaymentStatus> for enums::AttemptStatus {
     }
 }
 
-impl<F, T>
-    TryFrom<types::ResponseRouterData<F, KlarnaPsyncResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+impl<F, T> TryFrom<ResponseRouterData<F, KlarnaPsyncResponse, T, PaymentsResponseData>>
+    for RouterData<F, T, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<F, KlarnaPsyncResponse, T, types::PaymentsResponseData>,
+        item: ResponseRouterData<F, KlarnaPsyncResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         match item.response {
             KlarnaPsyncResponse::KlarnaSDKPsyncResponse(response) => Ok(Self {
                 status: enums::AttemptStatus::from(response.status),
-                response: Ok(types::PaymentsResponseData::TransactionResponse {
-                    resource_id: types::ResponseId::ConnectorTransactionId(
-                        response.order_id.clone(),
-                    ),
+                response: Ok(PaymentsResponseData::TransactionResponse {
+                    resource_id: ResponseId::ConnectorTransactionId(response.order_id.clone()),
                     redirection_data: Box::new(None),
                     mandate_reference: Box::new(None),
                     connector_metadata: None,
@@ -580,14 +583,9 @@ impl<F, T>
                 ..item.data
             }),
             KlarnaPsyncResponse::KlarnaCheckoutPSyncResponse(response) => Ok(Self {
-                status: enums::AttemptStatus::foreign_from((
-                    response.status.clone(),
-                    response.options.auto_capture,
-                )),
-                response: Ok(types::PaymentsResponseData::TransactionResponse {
-                    resource_id: types::ResponseId::ConnectorTransactionId(
-                        response.order_id.clone(),
-                    ),
+                status: get_checkout_status(response.status.clone(), response.options.auto_capture),
+                response: Ok(PaymentsResponseData::TransactionResponse {
+                    resource_id: ResponseId::ConnectorTransactionId(response.order_id.clone()),
                     redirection_data: Box::new(None),
                     mandate_reference: Box::new(None),
                     connector_metadata: None,
@@ -632,22 +630,16 @@ pub struct KlarnaCaptureResponse {
 }
 
 impl<F>
-    TryFrom<
-        types::ResponseRouterData<
-            F,
-            KlarnaCaptureResponse,
-            types::PaymentsCaptureData,
-            types::PaymentsResponseData,
-        >,
-    > for types::RouterData<F, types::PaymentsCaptureData, types::PaymentsResponseData>
+    TryFrom<ResponseRouterData<F, KlarnaCaptureResponse, PaymentsCaptureData, PaymentsResponseData>>
+    for RouterData<F, PaymentsCaptureData, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<
+        item: ResponseRouterData<
             F,
             KlarnaCaptureResponse,
-            types::PaymentsCaptureData,
-            types::PaymentsResponseData,
+            PaymentsCaptureData,
+            PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
         let connector_meta = serde_json::json!(KlarnaMeta {
@@ -664,8 +656,8 @@ impl<F>
         let resource_id = item.data.request.connector_transaction_id.clone();
 
         Ok(Self {
-            response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(resource_id),
+            response: Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(resource_id),
                 redirection_data: Box::new(None),
                 mandate_reference: Box::new(None),
                 connector_metadata: Some(connector_meta),
@@ -704,12 +696,12 @@ pub struct KlarnaRefundResponse {
     pub refund_id: String,
 }
 
-impl TryFrom<types::RefundsResponseRouterData<api::Execute, KlarnaRefundResponse>>
-    for types::RefundsRouterData<api::Execute>
+impl TryFrom<RefundsResponseRouterData<Execute, KlarnaRefundResponse>>
+    for types::RefundsRouterData<Execute>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::RefundsResponseRouterData<api::Execute, KlarnaRefundResponse>,
+        item: RefundsResponseRouterData<Execute, KlarnaRefundResponse>,
     ) -> Result<Self, Self::Error> {
         // https://docs.klarna.com/api/ordermanagement/#operation/refundOrder
         // If 201 status code, then Refund is Successful, other status codes are handled by the error handler
@@ -719,7 +711,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, KlarnaRefundResponse
             enums::RefundStatus::Failure
         };
         Ok(Self {
-            response: Ok(types::RefundsResponseData {
+            response: Ok(RefundsResponseData {
                 connector_refund_id: item.response.refund_id,
                 refund_status: status,
             }),
@@ -733,12 +725,12 @@ pub struct KlarnaRefundSyncResponse {
     pub refund_id: String,
 }
 
-impl TryFrom<types::RefundsResponseRouterData<api::RSync, KlarnaRefundSyncResponse>>
-    for types::RefundsRouterData<api::RSync>
+impl TryFrom<RefundsResponseRouterData<RSync, KlarnaRefundSyncResponse>>
+    for types::RefundsRouterData<RSync>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::RefundsResponseRouterData<api::RSync, KlarnaRefundSyncResponse>,
+        item: RefundsResponseRouterData<RSync, KlarnaRefundSyncResponse>,
     ) -> Result<Self, Self::Error> {
         // https://docs.klarna.com/api/ordermanagement/#operation/get
         // If 200 status code, then Refund is Successful, other status codes are handled by the error handler
@@ -748,7 +740,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, KlarnaRefundSyncRespon
             enums::RefundStatus::Failure
         };
         Ok(Self {
-            response: Ok(types::RefundsResponseData {
+            response: Ok(RefundsResponseData {
                 connector_refund_id: item.response.refund_id,
                 refund_status: status,
             }),

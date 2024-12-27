@@ -8,7 +8,6 @@ pub mod checkout;
 pub mod dummyconnector;
 pub mod ebanx;
 pub mod gpayments;
-pub mod klarna;
 pub mod netcetera;
 pub mod nmi;
 pub mod noon;
@@ -37,28 +36,28 @@ pub use hyperswitch_connectors::connectors::{
     cybersource::Cybersource, datatrans, datatrans::Datatrans, deutschebank,
     deutschebank::Deutschebank, digitalvirgo, digitalvirgo::Digitalvirgo, dlocal, dlocal::Dlocal,
     elavon, elavon::Elavon, fiserv, fiserv::Fiserv, fiservemea, fiservemea::Fiservemea, fiuu,
-    fiuu::Fiuu, forte, forte::Forte, globalpay, globalpay::Globalpay, globepay, globepay::Globepay, gocardless,
-    gocardless::Gocardless, helcim, helcim::Helcim, iatapay, iatapay::Iatapay, inespay,
-    inespay::Inespay, itaubank, itaubank::Itaubank, jpmorgan, jpmorgan::Jpmorgan, mifinity,
-    mifinity::Mifinity, mollie, mollie::Mollie, multisafepay, multisafepay::Multisafepay, nexinets,
-    nexinets::Nexinets, nexixpay, nexixpay::Nexixpay, nomupay, nomupay::Nomupay, novalnet,
-    novalnet::Novalnet, paybox, paybox::Paybox, payeezy, payeezy::Payeezy, payu, payu::Payu,
-    placetopay, placetopay::Placetopay, powertranz, powertranz::Powertranz, prophetpay,
-    prophetpay::Prophetpay, rapyd, rapyd::Rapyd, razorpay, razorpay::Razorpay, redsys,
-    redsys::Redsys, shift4, shift4::Shift4, square, square::Square, stax, stax::Stax, taxjar,
-    taxjar::Taxjar, thunes, thunes::Thunes, tsys, tsys::Tsys, unified_authentication_service,
-    unified_authentication_service::UnifiedAuthenticationService, volt, volt::Volt, wellsfargo,
-    wellsfargo::Wellsfargo, worldline, worldline::Worldline, worldpay, worldpay::Worldpay, xendit,
-    xendit::Xendit, zen, zen::Zen, zsl, zsl::Zsl,
+    fiuu::Fiuu, forte, forte::Forte, globalpay, globalpay::Globalpay, globepay, globepay::Globepay,
+    gocardless, gocardless::Gocardless, helcim, helcim::Helcim, iatapay, iatapay::Iatapay, inespay,
+    inespay::Inespay, itaubank, itaubank::Itaubank, jpmorgan, jpmorgan::Jpmorgan, klarna,
+    klarna::Klarna, mifinity, mifinity::Mifinity, mollie, mollie::Mollie, multisafepay,
+    multisafepay::Multisafepay, nexinets, nexinets::Nexinets, nexixpay, nexixpay::Nexixpay,
+    nomupay, nomupay::Nomupay, novalnet, novalnet::Novalnet, paybox, paybox::Paybox, payeezy,
+    payeezy::Payeezy, payu, payu::Payu, placetopay, placetopay::Placetopay, powertranz,
+    powertranz::Powertranz, prophetpay, prophetpay::Prophetpay, rapyd, rapyd::Rapyd, razorpay,
+    razorpay::Razorpay, redsys, redsys::Redsys, shift4, shift4::Shift4, square, square::Square,
+    stax, stax::Stax, taxjar, taxjar::Taxjar, thunes, thunes::Thunes, tsys, tsys::Tsys,
+    unified_authentication_service, unified_authentication_service::UnifiedAuthenticationService,
+    volt, volt::Volt, wellsfargo, wellsfargo::Wellsfargo, worldline, worldline::Worldline,
+    worldpay, worldpay::Worldpay, xendit, xendit::Xendit, zen, zen::Zen, zsl, zsl::Zsl,
 };
 
 #[cfg(feature = "dummy_connector")]
 pub use self::dummyconnector::DummyConnector;
 pub use self::{
     aci::Aci, adyen::Adyen, adyenplatform::Adyenplatform, authorizedotnet::Authorizedotnet,
-    braintree::Braintree, checkout::Checkout, ebanx::Ebanx,
-    gpayments::Gpayments, klarna::Klarna, netcetera::Netcetera, nmi::Nmi, noon::Noon, nuvei::Nuvei,
-    opayo::Opayo, opennode::Opennode, payme::Payme, payone::Payone, paypal::Paypal, plaid::Plaid,
-    riskified::Riskified, signifyd::Signifyd, stripe::Stripe, threedsecureio::Threedsecureio,
-    trustpay::Trustpay, wellsfargopayout::Wellsfargopayout, wise::Wise,
+    braintree::Braintree, checkout::Checkout, ebanx::Ebanx, gpayments::Gpayments,
+    netcetera::Netcetera, nmi::Nmi, noon::Noon, nuvei::Nuvei, opayo::Opayo, opennode::Opennode,
+    payme::Payme, payone::Payone, paypal::Paypal, plaid::Plaid, riskified::Riskified,
+    signifyd::Signifyd, stripe::Stripe, threedsecureio::Threedsecureio, trustpay::Trustpay,
+    wellsfargopayout::Wellsfargopayout, wise::Wise,
 };

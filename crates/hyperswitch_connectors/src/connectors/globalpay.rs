@@ -5,7 +5,11 @@ pub mod transformers;
 use api_models::webhooks::IncomingWebhookEvent;
 use common_enums::{enums, CallConnectorAction, PaymentAction};
 use common_utils::{
-    crypto, errors::{CustomResult, ReportSwitchExt}, ext_traits::{ByteSliceExt, BytesExt}, request::{Method, Request, RequestBuilder, RequestContent}, types::{AmountConvertor, StringMinorUnit, StringMinorUnitForConnector}
+    crypto,
+    errors::{CustomResult, ReportSwitchExt},
+    ext_traits::{ByteSliceExt, BytesExt},
+    request::{Method, Request, RequestBuilder, RequestContent},
+    types::{AmountConvertor, StringMinorUnit, StringMinorUnitForConnector},
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
@@ -31,25 +35,33 @@ use hyperswitch_domain_models::{
 };
 use hyperswitch_interfaces::{
     api::{
-        self, CaptureSyncMethod, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorRedirectResponse, ConnectorValidation, PaymentsCompleteAuthorize
+        self, CaptureSyncMethod, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration,
+        ConnectorRedirectResponse, ConnectorValidation, PaymentsCompleteAuthorize,
     },
     configs::Connectors,
     errors,
     events::connector_api_logs::ConnectorEvent,
     types::{
-        PaymentsAuthorizeType, PaymentsCaptureType, PaymentsCompleteAuthorizeType, PaymentsSyncType, PaymentsVoidType, RefreshTokenType, RefundExecuteType, RefundSyncType, Response
+        PaymentsAuthorizeType, PaymentsCaptureType, PaymentsCompleteAuthorizeType,
+        PaymentsSyncType, PaymentsVoidType, RefreshTokenType, RefundExecuteType, RefundSyncType,
+        Response,
     },
     webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
 };
 use masking::{Mask, PeekInterface};
-use serde_json::Value;
 use requests::{GlobalpayPaymentsRequest, GlobalpayRefreshTokenRequest};
-use response::{GlobalpayPaymentsResponse, GlobalpayRefreshTokenErrorResponse, GlobalpayRefreshTokenResponse};
+use response::{
+    GlobalpayPaymentsResponse, GlobalpayRefreshTokenErrorResponse, GlobalpayRefreshTokenResponse,
+};
+use serde_json::Value;
 
 use crate::{
     constants::headers,
     types::{RefreshTokenRouterData, ResponseRouterData},
-    utils::{construct_not_implemented_error_report, convert_amount, get_header_key_value, is_mandate_supported, ForeignTryFrom, PaymentMethodDataType, RefundsRequestData},
+    utils::{
+        construct_not_implemented_error_report, convert_amount, get_header_key_value,
+        is_mandate_supported, ForeignTryFrom, PaymentMethodDataType, RefundsRequestData,
+    },
 };
 
 #[derive(Clone)]
@@ -151,9 +163,10 @@ impl ConnectorValidation for Globalpay {
             | enums::CaptureMethod::Manual
             | enums::CaptureMethod::ManualMultiple
             | enums::CaptureMethod::SequentialAutomatic => Ok(()),
-            enums::CaptureMethod::Scheduled => Err(
-                construct_not_implemented_error_report(capture_method, self.id()),
-            ),
+            enums::CaptureMethod::Scheduled => Err(construct_not_implemented_error_report(
+                capture_method,
+                self.id(),
+            )),
         }
     }
     fn validate_mandate_payment(
@@ -176,12 +189,8 @@ impl ConnectorValidation for Globalpay {
 
 impl PaymentsCompleteAuthorize for Globalpay {}
 
-impl
-    ConnectorIntegration<
-        CompleteAuthorize,
-        CompleteAuthorizeData,
-        PaymentsResponseData,
-    > for Globalpay
+impl ConnectorIntegration<CompleteAuthorize, CompleteAuthorizeData, PaymentsResponseData>
+    for Globalpay
 {
     fn get_headers(
         &self,
@@ -273,9 +282,7 @@ impl
 
 impl api::ConnectorAccessToken for Globalpay {}
 
-impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken>
-    for Globalpay
-{
+impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> for Globalpay {
     fn get_headers(
         &self,
         _req: &RefreshTokenRouterData,
@@ -284,9 +291,7 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken>
         Ok(vec![
             (
                 headers::CONTENT_TYPE.to_string(),
-                RefreshTokenType::get_content_type(self)
-                    .to_string()
-                    .into(),
+                RefreshTokenType::get_content_type(self).to_string().into(),
             ),
             ("X-GP-Version".to_string(), "2021-03-22".to_string().into()),
         ])
@@ -315,9 +320,7 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken>
                 .url(&RefreshTokenType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(RefreshTokenType::get_headers(self, req, connectors)?)
-                .set_body(RefreshTokenType::get_request_body(
-                    self, req, connectors,
-                )?)
+                .set_body(RefreshTokenType::get_request_body(self, req, connectors)?)
                 .build(),
         ))
     }
@@ -381,31 +384,19 @@ impl api::Payment for Globalpay {}
 
 impl api::PaymentToken for Globalpay {}
 
-impl
-    ConnectorIntegration<
-        PaymentMethodToken,
-        PaymentMethodTokenizationData,
-        PaymentsResponseData,
-    > for Globalpay
+impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
+    for Globalpay
 {
     // Not Implemented (R)
 }
 
 impl api::MandateSetup for Globalpay {}
-impl
-    ConnectorIntegration<
-        SetupMandate,
-        SetupMandateRequestData,
-        PaymentsResponseData,
-    > for Globalpay
+impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsResponseData>
+    for Globalpay
 {
     fn build_request(
         &self,
-        _req: &RouterData<
-            SetupMandate,
-            SetupMandateRequestData,
-            PaymentsResponseData,
-        >,
+        _req: &RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponseData>,
         _connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Err(
@@ -417,9 +408,7 @@ impl
 
 impl api::PaymentVoid for Globalpay {}
 
-impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData>
-    for Globalpay
-{
+impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Globalpay {
     fn get_headers(
         &self,
         req: &PaymentsCancelRouterData,
@@ -455,9 +444,7 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData>
                 .url(&PaymentsVoidType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(PaymentsVoidType::get_headers(self, req, connectors)?)
-                .set_body(PaymentsVoidType::get_request_body(
-                    self, req, connectors,
-                )?)
+                .set_body(PaymentsVoidType::get_request_body(self, req, connectors)?)
                 .build(),
         ))
     }
@@ -471,9 +458,9 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData>
             .request
             .minor_amount
             .and_then(|amount| {
-                req.request.currency.map(|currency| {
-                    convert_amount(self.amount_converter, amount, currency)
-                })
+                req.request
+                    .currency
+                    .map(|currency| convert_amount(self.amount_converter, amount, currency))
             })
             .transpose()?;
         let connector_router_data = requests::GlobalpayCancelRouterData::from((amount, req));
@@ -511,9 +498,7 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData>
 }
 
 impl api::PaymentSync for Globalpay {}
-impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData>
-    for Globalpay
-{
+impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Globalpay {
     fn get_headers(
         &self,
         req: &PaymentsSyncRouterData,
@@ -600,9 +585,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData>
 }
 
 impl api::PaymentCapture for Globalpay {}
-impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData>
-    for Globalpay
-{
+impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> for Globalpay {
     fn get_headers(
         &self,
         req: &PaymentsCaptureRouterData,
@@ -653,9 +636,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData>
                 .method(Method::Post)
                 .url(&PaymentsCaptureType::get_url(self, req, connectors)?)
                 .attach_default_headers()
-                .headers(PaymentsCaptureType::get_headers(
-                    self, req, connectors,
-                )?)
+                .headers(PaymentsCaptureType::get_headers(self, req, connectors)?)
                 .set_body(PaymentsCaptureType::get_request_body(
                     self, req, connectors,
                 )?)
@@ -694,16 +675,11 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData>
 
 impl api::PaymentSession for Globalpay {}
 
-impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData>
-    for Globalpay
-{
-}
+impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Globalpay {}
 
 impl api::PaymentAuthorize for Globalpay {}
 
-impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData>
-    for Globalpay
-{
+impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData> for Globalpay {
     fn get_headers(
         &self,
         req: &PaymentsAuthorizeRouterData,
@@ -748,13 +724,9 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         Ok(Some(
             RequestBuilder::new()
                 .method(Method::Post)
-                .url(&PaymentsAuthorizeType::get_url(
-                    self, req, connectors,
-                )?)
+                .url(&PaymentsAuthorizeType::get_url(self, req, connectors)?)
                 .attach_default_headers()
-                .headers(PaymentsAuthorizeType::get_headers(
-                    self, req, connectors,
-                )?)
+                .headers(PaymentsAuthorizeType::get_headers(self, req, connectors)?)
                 .set_body(PaymentsAuthorizeType::get_request_body(
                     self, req, connectors,
                 )?)
@@ -795,9 +767,7 @@ impl api::Refund for Globalpay {}
 impl api::RefundExecute for Globalpay {}
 impl api::RefundSync for Globalpay {}
 
-impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData>
-    for Globalpay
-{
+impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Globalpay {
     fn get_headers(
         &self,
         req: &RefundsRouterData<Execute>,
@@ -847,12 +817,8 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData>
             .method(Method::Post)
             .url(&RefundExecuteType::get_url(self, req, connectors)?)
             .attach_default_headers()
-            .headers(RefundExecuteType::get_headers(
-                self, req, connectors,
-            )?)
-            .set_body(RefundExecuteType::get_request_body(
-                self, req, connectors,
-            )?)
+            .headers(RefundExecuteType::get_headers(self, req, connectors)?)
+            .set_body(RefundExecuteType::get_request_body(self, req, connectors)?)
             .build();
         Ok(Some(request))
     }
@@ -888,9 +854,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData>
     }
 }
 
-impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData>
-    for Globalpay
-{
+impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Globalpay {
     fn get_headers(
         &self,
         req: &RefundSyncRouterData,
@@ -1021,9 +985,7 @@ impl IncomingWebhook for Globalpay {
             response::GlobalpayWebhookStatus::Captured => {
                 IncomingWebhookEvent::PaymentIntentSuccess
             }
-            response::GlobalpayWebhookStatus::Unknown => {
-                IncomingWebhookEvent::EventNotSupported
-            }
+            response::GlobalpayWebhookStatus::Unknown => IncomingWebhookEvent::EventNotSupported,
         })
     }
 

@@ -18,14 +18,19 @@ use common_utils::{
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
-    address::{Address, AddressDetails, PhoneDetails}, payment_method_data::{self, Card, PaymentMethodData}, router_data::{
+    address::{Address, AddressDetails, PhoneDetails},
+    payment_method_data::{self, Card, PaymentMethodData},
+    router_data::{
         ApplePayPredecryptData, ErrorResponse, PaymentMethodToken, RecurringMandatePaymentData,
-    }, router_request_types::{
+    },
+    router_request_types::{
         AuthenticationData, BrowserInformation, CompleteAuthorizeData, ConnectorCustomerData,
         MandateRevokeRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
         PaymentsCancelData, PaymentsCaptureData, PaymentsPreProcessingData, PaymentsSyncData,
         RefundsData, ResponseId, SetupMandateRequestData,
-    }, router_response_types::CaptureSyncResponse, types::OrderDetailsWithAmount
+    },
+    router_response_types::CaptureSyncResponse,
+    types::OrderDetailsWithAmount,
 };
 use hyperswitch_interfaces::{api, consts, errors, types::Response};
 use image::Luma;
@@ -1787,6 +1792,8 @@ impl PaymentsCompleteAuthorizeRequestData for CompleteAuthorizeData {
 }
 pub trait AddressData {
     fn get_optional_full_name(&self) -> Option<Secret<String>>;
+    fn get_email(&self) -> Result<Email, Error>;
+    fn get_phone_with_country_code(&self) -> Result<Secret<String>, Error>;
 }
 
 impl AddressData for Address {
@@ -1794,6 +1801,16 @@ impl AddressData for Address {
         self.address
             .as_ref()
             .and_then(|billing_address| billing_address.get_optional_full_name())
+    }
+    fn get_email(&self) -> Result<Email, Error> {
+        self.email.clone().ok_or_else(missing_field_err("email"))
+    }
+    fn get_phone_with_country_code(&self) -> Result<Secret<String>, Error> {
+        self.phone
+            .clone()
+            .map(|phone_details| phone_details.get_number_with_country_code())
+            .transpose()?
+            .ok_or_else(missing_field_err("phone"))
     }
 }
 pub trait PaymentsPreProcessingRequestData {

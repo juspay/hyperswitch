@@ -24,18 +24,48 @@
 //     types::{self, api, domain, storage::enums, transformers::ForeignTryFrom, ErrorResponse},
 // };
 
-use common_utils::{crypto::{self, GenerateDigest}, errors::ParsingError, request::Method, types::{AmountConvertor, MinorUnit, StringMinorUnit, StringMinorUnitForConnector}};
+use common_utils::{
+    crypto::{self, GenerateDigest},
+    errors::ParsingError,
+    request::Method,
+    types::{AmountConvertor, MinorUnit, StringMinorUnit, StringMinorUnitForConnector},
+};
 use error_stack::ResultExt;
-use hyperswitch_domain_models::{payment_method_data, router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData}, router_flow_types::{Execute, RSync}, router_request_types::ResponseId, router_response_types::{MandateReference, PaymentsResponseData, RedirectForm, RefundsResponseData}, types::{PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData, RefreshTokenRouterData, RefundExecuteRouterData, RefundsRouterData}};
+use hyperswitch_domain_models::{
+    payment_method_data,
+    router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
+    router_flow_types::{Execute, RSync},
+    router_request_types::ResponseId,
+    router_response_types::{
+        MandateReference, PaymentsResponseData, RedirectForm, RefundsResponseData,
+    },
+    types::{
+        PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
+        PaymentsSyncRouterData, RefreshTokenRouterData, RefundExecuteRouterData, RefundsRouterData,
+    },
+};
 use hyperswitch_interfaces::{consts::NO_ERROR_MESSAGE, errors};
 use masking::{ExposeInterface, PeekInterface, Secret};
 use rand::distributions::DistString;
 use serde::{Deserialize, Serialize};
 use url::Url;
 
-use crate::{types::{PaymentsSyncResponseRouterData, RefundsResponseRouterData, ResponseRouterData}, utils::{construct_captures_response_hashmap, to_connector_meta_from_secret, CardData, ForeignTryFrom, MultipleCaptureSyncResponse, PaymentsAuthorizeRequestData, RouterData as _, WalletData}};
-
-use super::{requests::{self, ApmProvider, GlobalPayRouterData, GlobalpayCancelRouterData, GlobalpayPaymentsRequest, GlobalpayRefreshTokenRequest, Initiator, PaymentMethodData, Sequence, StoredCredential}, response::{GlobalpayPaymentStatus, GlobalpayPaymentsResponse, GlobalpayRefreshTokenResponse}};
+use super::{
+    requests::{
+        self, ApmProvider, GlobalPayRouterData, GlobalpayCancelRouterData,
+        GlobalpayPaymentsRequest, GlobalpayRefreshTokenRequest, Initiator, PaymentMethodData,
+        Sequence, StoredCredential,
+    },
+    response::{GlobalpayPaymentStatus, GlobalpayPaymentsResponse, GlobalpayRefreshTokenResponse},
+};
+use crate::{
+    types::{PaymentsSyncResponseRouterData, RefundsResponseRouterData, ResponseRouterData},
+    utils::{
+        construct_captures_response_hashmap, to_connector_meta_from_secret, CardData,
+        ForeignTryFrom, MultipleCaptureSyncResponse, PaymentsAuthorizeRequestData, RouterData as _,
+        WalletData,
+    },
+};
 
 impl<T> From<(StringMinorUnit, T)> for GlobalPayRouterData<T> {
     fn from((amount, item): (StringMinorUnit, T)) -> Self {
@@ -62,9 +92,7 @@ pub struct GlobalPayMeta {
     account_name: Secret<String>,
 }
 
-impl TryFrom<&GlobalPayRouterData<&PaymentsAuthorizeRouterData>>
-    for GlobalpayPaymentsRequest
-{
+impl TryFrom<&GlobalPayRouterData<&PaymentsAuthorizeRouterData>> for GlobalpayPaymentsRequest {
     type Error = Error;
     fn try_from(
         item: &GlobalPayRouterData<&PaymentsAuthorizeRouterData>,
@@ -299,18 +327,12 @@ fn get_payment_response(
     }
 }
 
-impl<F, T>
-    TryFrom<ResponseRouterData<F, GlobalpayPaymentsResponse, T, PaymentsResponseData>>
+impl<F, T> TryFrom<ResponseRouterData<F, GlobalpayPaymentsResponse, T, PaymentsResponseData>>
     for RouterData<F, T, PaymentsResponseData>
 {
     type Error = Error;
     fn try_from(
-        item: ResponseRouterData<
-            F,
-            GlobalpayPaymentsResponse,
-            T,
-            PaymentsResponseData,
-        >,
+        item: ResponseRouterData<F, GlobalpayPaymentsResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let status = common_enums::AttemptStatus::from(item.response.status);
         let redirect_url = item
@@ -328,8 +350,7 @@ impl<F, T>
                 Url::parse(url).change_context(errors::ConnectorError::FailedToObtainIntegrationUrl)
             })
             .transpose()?;
-        let redirection_data =
-            redirect_url.map(|url| RedirectForm::from((url, Method::Get)));
+        let redirection_data = redirect_url.map(|url| RedirectForm::from((url, Method::Get)));
         Ok(Self {
             status,
             response: get_payment_response(status, item.response, redirection_data),
@@ -367,8 +388,7 @@ impl
     }
 }
 
-impl<F, T>
-    TryFrom<ResponseRouterData<F, GlobalpayRefreshTokenResponse, T, AccessToken>>
+impl<F, T> TryFrom<ResponseRouterData<F, GlobalpayRefreshTokenResponse, T, AccessToken>>
     for RouterData<F, T, AccessToken>
 {
     type Error = error_stack::Report<ParsingError>;
@@ -385,13 +405,9 @@ impl<F, T>
     }
 }
 
-impl<F> TryFrom<&GlobalPayRouterData<&RefundsRouterData<F>>>
-    for requests::GlobalpayRefundRequest
-{
+impl<F> TryFrom<&GlobalPayRouterData<&RefundsRouterData<F>>> for requests::GlobalpayRefundRequest {
     type Error = Error;
-    fn try_from(
-        item: &GlobalPayRouterData<&RefundsRouterData<F>>,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(item: &GlobalPayRouterData<&RefundsRouterData<F>>) -> Result<Self, Self::Error> {
         Ok(Self {
             amount: item.amount.to_owned(),
         })
@@ -444,22 +460,24 @@ fn get_payment_method_data(
     brand_reference: Option<String>,
 ) -> Result<PaymentMethodData, Error> {
     match &item.request.payment_method_data {
-        payment_method_data::PaymentMethodData::Card(ccard) => Ok(PaymentMethodData::Card(requests::Card {
-            number: ccard.card_number.clone(),
-            expiry_month: ccard.card_exp_month.clone(),
-            expiry_year: ccard.get_card_expiry_year_2_digit()?,
-            cvv: ccard.card_cvc.clone(),
-            account_type: None,
-            authcode: None,
-            avs_address: None,
-            avs_postal_code: None,
-            brand_reference,
-            chip_condition: None,
-            funding: None,
-            pin_block: None,
-            tag: None,
-            track: None,
-        })),
+        payment_method_data::PaymentMethodData::Card(ccard) => {
+            Ok(PaymentMethodData::Card(requests::Card {
+                number: ccard.card_number.clone(),
+                expiry_month: ccard.card_exp_month.clone(),
+                expiry_year: ccard.get_card_expiry_year_2_digit()?,
+                cvv: ccard.card_cvc.clone(),
+                account_type: None,
+                authcode: None,
+                avs_address: None,
+                avs_postal_code: None,
+                brand_reference,
+                chip_condition: None,
+                funding: None,
+                pin_block: None,
+                tag: None,
+                track: None,
+            }))
+        }
         payment_method_data::PaymentMethodData::Wallet(wallet_data) => get_wallet_data(wallet_data),
         payment_method_data::PaymentMethodData::BankRedirect(bank_redirect) => {
             PaymentMethodData::try_from(bank_redirect)
@@ -472,9 +490,9 @@ fn get_payment_method_data(
 
 fn get_return_url(item: &PaymentsAuthorizeRouterData) -> Option<String> {
     match item.request.payment_method_data.clone() {
-        payment_method_data::PaymentMethodData::Wallet(payment_method_data::WalletData::PaypalRedirect(_)) => {
-            item.request.complete_authorize_url.clone()
-        }
+        payment_method_data::PaymentMethodData::Wallet(
+            payment_method_data::WalletData::PaypalRedirect(_),
+        ) => item.request.complete_authorize_url.clone(),
         _ => item.request.router_return_url.clone(),
     }
 }
@@ -509,11 +527,15 @@ fn get_mandate_details(item: &PaymentsAuthorizeRouterData) -> Result<MandateDeta
     })
 }
 
-fn get_wallet_data(wallet_data: &payment_method_data::WalletData) -> Result<PaymentMethodData, Error> {
+fn get_wallet_data(
+    wallet_data: &payment_method_data::WalletData,
+) -> Result<PaymentMethodData, Error> {
     match wallet_data {
-        payment_method_data::WalletData::PaypalRedirect(_) => Ok(PaymentMethodData::Apm(requests::Apm {
-            provider: Some(ApmProvider::Paypal),
-        })),
+        payment_method_data::WalletData::PaypalRedirect(_) => {
+            Ok(PaymentMethodData::Apm(requests::Apm {
+                provider: Some(ApmProvider::Paypal),
+            }))
+        }
         payment_method_data::WalletData::GooglePay(_) => {
             Ok(PaymentMethodData::DigitalWallet(requests::DigitalWallet {
                 provider: Some(requests::DigitalWalletProvider::PayByGoogle),
@@ -560,9 +582,7 @@ impl MultipleCaptureSyncResponse for GlobalpayPaymentsResponse {
         true
     }
 
-    fn get_amount_captured(
-        &self,
-    ) -> Result<Option<MinorUnit>, error_stack::Report<ParsingError>> {
+    fn get_amount_captured(&self) -> Result<Option<MinorUnit>, error_stack::Report<ParsingError>> {
         match self.amount.clone() {
             Some(amount) => {
                 let minor_amount = StringMinorUnitForConnector::convert_back(
