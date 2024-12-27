@@ -6294,6 +6294,7 @@ pub fn validate_platform_fees_for_marketplace(
     Ok(())
 }
 
+#[cfg(feature = "v1")]
 pub fn update_or_add_overcapture_details_if_required(
     request_overcapture: Option<bool>,
     payment_attempt: &mut PaymentAttempt,
