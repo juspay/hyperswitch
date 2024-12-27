@@ -112,6 +112,7 @@ pub struct SessionState {
     pub opensearch_client: Arc<OpenSearchClient>,
     pub grpc_client: Arc<GrpcClients>,
     pub theme_storage_client: Arc<dyn FileStorageInterface>,
+    pub locale: String,
 }
 impl scheduler::SchedulerSessionState for SessionState {
     fn get_db(&self) -> Box<dyn SchedulerInterface> {
@@ -129,6 +130,14 @@ impl SessionState {
             tenant_id: self.tenant.tenant_id.get_string_repr().to_string(),
             request_id: self.request_id.map(|req_id| (*req_id).to_string()),
         }
+    }
+
+    pub fn get_locale(&self) -> &String {
+        &self.locale
+    }
+
+    pub fn set_locale(&mut self, locale: String) {
+        self.locale = locale
     }
 }
 
@@ -484,6 +493,7 @@ impl AppState {
             opensearch_client: Arc::clone(&self.opensearch_client),
             grpc_client: Arc::clone(&self.grpc_client),
             theme_storage_client: self.theme_storage_client.clone(),
+            locale: common_utils::consts::DEFAULT_LOCALE.to_string(),
         })
     }
 }

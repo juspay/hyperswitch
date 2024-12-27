@@ -79,6 +79,7 @@ use crate::{
         generic_link_response::build_generic_link_html,
     },
     types::{self, api, ErrorResponse},
+    utils,
 };
 
 pub type BoxedPaymentConnectorIntegrationInterface<T, Req, Resp> =
@@ -766,6 +767,8 @@ where
         .switch()
     })?;
     session_state.add_request_id(request_id);
+    let locale = utils::get_locale_from_header(&incoming_request_header.clone());
+    session_state.set_locale(locale);
     let mut request_state = session_state.get_req_state();
 
     request_state.event_context.record_info(request_id);

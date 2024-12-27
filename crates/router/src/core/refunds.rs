@@ -26,7 +26,7 @@ use crate::{
     consts,
     core::{
         errors::{self, ConnectorErrorExt, RouterResponse, RouterResult, StorageErrorExt},
-        payments::{self, access_token},
+        payments::{self, access_token, helpers},
         refunds::transformers::SplitRefundInput,
         utils as core_utils,
     },
@@ -116,7 +116,7 @@ pub async fn refund_create_core(
     req.merchant_connector_details
         .to_owned()
         .async_map(|mcd| async {
-            payments::helpers::insert_merchant_connector_creds_to_config(db, merchant_id, mcd).await
+            helpers::insert_merchant_connector_creds_to_config(db, merchant_id, mcd).await
         })
         .await
         .transpose()?;
@@ -237,6 +237,8 @@ pub async fn trigger_refund_to_gateway(
                             updated_by: storage_scheme.to_string(),
                             connector_refund_id: None,
                             connector_refund_data: None,
+                            unified_code: None,
+                            unified_message: None,
                         })
                     }
                     errors::ConnectorError::NotSupported { message, connector } => {
@@ -249,6 +251,8 @@ pub async fn trigger_refund_to_gateway(
                             updated_by: storage_scheme.to_string(),
                             connector_refund_id: None,
                             connector_refund_data: None,
+                            unified_code: None,
+                            unified_message: None,
                         })
                     }
                     _ => None,
@@ -284,14 +288,41 @@ pub async fn trigger_refund_to_gateway(
     };
 
     let refund_update = match router_data_res.response {
-        Err(err) => storage::RefundUpdate::ErrorUpdate {
-            refund_status: Some(enums::RefundStatus::Failure),
-            refund_error_message: err.reason.or(Some(err.message)),
-            refund_error_code: Some(err.code),
-            updated_by: storage_scheme.to_string(),
-            connector_refund_id: None,
-            connector_refund_data: None,
-        },
+        Err(err) => {
+            let option_gsm = helpers::get_gsm_record(
+                state,
+                Some(err.code.clone()),
+                Some(err.message.clone()),
+                connector.connector_name.to_string(),
+                consts::REFUND_FLOW_STR.to_string(),
+            )
+            .await;
+
+            let gsm_unified_code = option_gsm.as_ref().and_then(|gsm| gsm.unified_code.clone());
+            let gsm_unified_message = option_gsm.and_then(|gsm| gsm.unified_message);
+
+            let (unified_code, unified_message) = if let Some((code, message)) =
+                gsm_unified_code.as_ref().zip(gsm_unified_message.as_ref())
+            {
+                (code.to_owned(), message.to_owned())
+            } else {
+                (
+                    consts::DEFAULT_UNIFIED_ERROR_CODE.to_owned(),
+                    consts::DEFAULT_UNIFIED_ERROR_MESSAGE.to_owned(),
+                )
+            };
+
+            storage::RefundUpdate::ErrorUpdate {
+                refund_status: Some(enums::RefundStatus::Failure),
+                refund_error_message: err.reason.or(Some(err.message)),
+                refund_error_code: Some(err.code),
+                updated_by: storage_scheme.to_string(),
+                connector_refund_id: None,
+                connector_refund_data: None,
+                unified_code: Some(unified_code),
+                unified_message: Some(unified_message),
+            }
+        }
         Ok(response) => {
             // match on connector integrity checks
             match router_data_res.integrity_check.clone() {
@@ -319,6 +350,8 @@ pub async fn trigger_refund_to_gateway(
                         updated_by: storage_scheme.to_string(),
                         connector_refund_id: refund_connector_transaction_id,
                         connector_refund_data,
+                        unified_code: None,
+                        unified_message: None,
                     }
                 }
                 Ok(()) => {
@@ -461,7 +494,7 @@ pub async fn refund_retrieve_core(
         .merchant_connector_details
         .to_owned()
         .async_map(|mcd| async {
-            payments::helpers::insert_merchant_connector_creds_to_config(db, merchant_id, mcd).await
+            helpers::insert_merchant_connector_creds_to_config(db, merchant_id, mcd).await
         })
         .await
         .transpose()?;
@@ -478,6 +511,27 @@ pub async fn refund_retrieve_core(
             })
         })
         .transpose()?;
+
+    let locale = state.get_locale();
+    let unified_translated_message = if let (Some(unified_code), Some(unified_message)) =
+        (refund.unified_code.clone(), refund.unified_message.clone())
+    {
+        helpers::get_unified_translation(
+            &state,
+            unified_code,
+            unified_message.clone(),
+            locale.to_owned(),
+        )
+        .await
+        .or(Some(unified_message))
+    } else {
+        refund.unified_message
+    };
+
+    let refund = storage::Refund {
+        unified_message: unified_translated_message,
+        ..refund
+    };
 
     let response = if should_call_refund(&refund, request.force_sync.unwrap_or(false)) {
         Box::pin(sync_refund_with_gateway(
@@ -617,6 +671,8 @@ pub async fn sync_refund_with_gateway(
                 updated_by: storage_scheme.to_string(),
                 connector_refund_id: None,
                 connector_refund_data: None,
+                unified_code: None,
+                unified_message: None,
             }
         }
         Ok(response) => match router_data_res.integrity_check.clone() {
@@ -645,6 +701,8 @@ pub async fn sync_refund_with_gateway(
                     updated_by: storage_scheme.to_string(),
                     connector_refund_id: refund_connector_transaction_id,
                     connector_refund_data,
+                    unified_code: None,
+                    unified_message: None,
                 }
             }
             Ok(()) => {
@@ -898,6 +956,26 @@ pub async fn validate_and_create_refund(
                     .attach_printable("Inserting Refund failed");
             }
         }
+    };
+    let locale = state.get_locale();
+    let unified_translated_message = if let (Some(unified_code), Some(unified_message)) =
+        (refund.unified_code.clone(), refund.unified_message.clone())
+    {
+        helpers::get_unified_translation(
+            state,
+            unified_code,
+            unified_message.clone(),
+            locale.to_owned(),
+        )
+        .await
+        .or(Some(unified_message))
+    } else {
+        refund.unified_message
+    };
+
+    let refund = storage::Refund {
+        unified_message: unified_translated_message,
+        ..refund
     };
 
     Ok(refund.foreign_into())
@@ -1199,6 +1277,8 @@ impl ForeignFrom<storage::Refund> for api::RefundResponse {
             connector: refund.connector,
             merchant_connector_id: refund.merchant_connector_id,
             split_refunds: refund.split_refunds,
+            unified_code: refund.unified_code,
+            unified_message: refund.unified_message,
         }
     }
 }
