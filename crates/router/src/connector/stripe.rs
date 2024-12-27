@@ -963,7 +963,7 @@ impl
                         )];
                         header.append(&mut customer_account_header);
                     }
-                },
+                }
                 _ => (),
             }
         }

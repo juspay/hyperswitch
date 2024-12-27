@@ -6248,11 +6248,15 @@ pub fn validate_platform_fees_for_marketplace(
 ) -> Result<(), errors::ApiErrorResponse> {
     if let Some(split_payment) = split_payments {
         let (field_name, split_amount_i64) = match split_payment {
-            common_types::payments::SplitPaymentsRequest::StripeSplitPayment(stripe_split_payment) => (
+            common_types::payments::SplitPaymentsRequest::StripeSplitPayment(
+                stripe_split_payment,
+            ) => (
                 "split_payments.stripe_split_payment.application_fees",
                 stripe_split_payment.application_fees.get_amount_as_i64(),
             ),
-            common_types::payments::SplitPaymentsRequest::AdyenSplitPayment(adyen_split_payment) => (
+            common_types::payments::SplitPaymentsRequest::AdyenSplitPayment(
+                adyen_split_payment,
+            ) => (
                 "split_payments.adyen_split_payment.split_amount",
                 adyen_split_payment.split_amount.get_amount_as_i64(),
             ),
@@ -6266,21 +6270,17 @@ pub fn validate_platform_fees_for_marketplace(
 fn validate_split_amount(
     amount: api::Amount,
     split_amount_i64: i64,
-    field_name: &'static str ,
-) -> Result<(), errors::ApiErrorResponse> {    
+    field_name: &'static str,
+) -> Result<(), errors::ApiErrorResponse> {
     match amount {
         api::Amount::Zero => {
             if split_amount_i64 != 0 {
-                return Err(errors::ApiErrorResponse::InvalidDataValue {
-                    field_name,
-                });
+                return Err(errors::ApiErrorResponse::InvalidDataValue { field_name });
             }
         }
         api::Amount::Value(amount) => {
             if split_amount_i64 > amount.into() {
-                return ErPr(errors::ApiErrorResponse::InvalidDataValue {
-                    field_name,
-                });
+                return ErPr(errors::ApiErrorResponse::InvalidDataValue { field_name });
             }
         }
     }

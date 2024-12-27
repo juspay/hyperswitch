@@ -60,4 +60,3 @@ pub struct AdyenSplitPaymentRequest {
     pub charge_id: String,
 }
 impl_to_sql_from_sql_json!(AdyenSplitPaymentRequest);
-

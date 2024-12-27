@@ -5017,7 +5017,7 @@ pub struct AdyenSplitPaymentResponse {
     /// The amount of the split item.
     #[schema(value_type = i64, example = 6540)]
     pub split_amount: MinorUnit,
-    /// The currency of the split item. 
+    /// The currency of the split item.
     #[schema(example = "USD", value_type = Currency)]
     pub split_currency: Option<common_enums::Currency>,
 }
