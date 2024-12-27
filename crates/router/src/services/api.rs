@@ -760,15 +760,15 @@ where
             )?
     };
 
-    let mut session_state = Arc::new(app_state.clone()).get_session_state(&tenant_id, || {
-        errors::ApiErrorResponse::InvalidTenant {
-            tenant_id: tenant_id.get_string_repr().to_string(),
-        }
-        .switch()
-    })?;
-    session_state.add_request_id(request_id);
     let locale = utils::get_locale_from_header(&incoming_request_header.clone());
-    session_state.set_locale(locale);
+    let mut session_state =
+        Arc::new(app_state.clone()).get_session_state(&tenant_id, Some(locale), || {
+            errors::ApiErrorResponse::InvalidTenant {
+                tenant_id: tenant_id.get_string_repr().to_string(),
+            }
+            .switch()
+        })?;
+    session_state.add_request_id(request_id);
     let mut request_state = session_state.get_req_state();
 
     request_state.event_context.record_info(request_id);

@@ -131,14 +131,6 @@ impl SessionState {
             request_id: self.request_id.map(|req_id| (*req_id).to_string()),
         }
     }
-
-    pub fn get_locale(&self) -> &String {
-        &self.locale
-    }
-
-    pub fn set_locale(&mut self, locale: String) {
-        self.locale = locale
-    }
 }
 
 pub trait SessionStateInfo {
@@ -467,6 +459,7 @@ impl AppState {
     pub fn get_session_state<E, F>(
         self: Arc<Self>,
         tenant: &id_type::TenantId,
+        locale: Option<String>,
         err: F,
     ) -> Result<SessionState, E>
     where
@@ -493,7 +486,7 @@ impl AppState {
             opensearch_client: Arc::clone(&self.opensearch_client),
             grpc_client: Arc::clone(&self.grpc_client),
             theme_storage_client: self.theme_storage_client.clone(),
-            locale: common_utils::consts::DEFAULT_LOCALE.to_string(),
+            locale: locale.unwrap_or(common_utils::consts::DEFAULT_LOCALE.to_string()),
         })
     }
 }

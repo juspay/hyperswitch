@@ -13,7 +13,6 @@ use crate::{
         authorization::permissions::Permission,
     },
     types::api::payouts as payout_types,
-    utils,
 };
 
 /// Payouts - Create
@@ -24,7 +23,6 @@ pub async fn payouts_create(
     json_payload: web::Json<payout_types::PayoutCreateRequest>,
 ) -> HttpResponse {
     let flow = Flow::PayoutsCreate;
-    let locale = utils::get_locale_from_header(req.headers());
 
     Box::pin(api::server_wrap(
         flow,
@@ -32,7 +30,7 @@ pub async fn payouts_create(
         &req,
         json_payload.into_inner(),
         |state, auth: auth::AuthenticationData, req, _| {
-            payouts_create_core(state, auth.merchant_account, auth.key_store, req, &locale)
+            payouts_create_core(state, auth.merchant_account, auth.key_store, req)
         },
         &auth::HeaderAuth(auth::ApiKeyAuth),
         api_locking::LockAction::NotApplicable,
@@ -55,7 +53,6 @@ pub async fn payouts_retrieve(
         merchant_id: query_params.merchant_id.to_owned(),
     };
     let flow = Flow::PayoutsRetrieve;
-    let locale = utils::get_locale_from_header(req.headers());
 
     Box::pin(api::server_wrap(
         flow,
@@ -69,7 +66,6 @@ pub async fn payouts_retrieve(
                 auth.profile_id,
                 auth.key_store,
                 req,
-                &locale,
             )
         },
         auth::auth_type(
@@ -92,7 +88,6 @@ pub async fn payouts_update(
     json_payload: web::Json<payout_types::PayoutCreateRequest>,
 ) -> HttpResponse {
     let flow = Flow::PayoutsUpdate;
-    let locale = utils::get_locale_from_header(req.headers());
     let payout_id = path.into_inner();
     let mut payout_update_payload = json_payload.into_inner();
     payout_update_payload.payout_id = Some(payout_id);
@@ -102,7 +97,7 @@ pub async fn payouts_update(
         &req,
         payout_update_payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            payouts_update_core(state, auth.merchant_account, auth.key_store, req, &locale)
+            payouts_update_core(state, auth.merchant_account, auth.key_store, req)
         },
         &auth::HeaderAuth(auth::ApiKeyAuth),
         api_locking::LockAction::NotApplicable,
@@ -128,7 +123,6 @@ pub async fn payouts_confirm(
             Ok(auth) => auth,
             Err(e) => return api::log_and_return_error_response(e),
         };
-    let locale = utils::get_locale_from_header(req.headers());
 
     Box::pin(api::server_wrap(
         flow,
@@ -136,7 +130,7 @@ pub async fn payouts_confirm(
         &req,
         payload,
         |state, auth, req, _| {
-            payouts_confirm_core(state, auth.merchant_account, auth.key_store, req, &locale)
+            payouts_confirm_core(state, auth.merchant_account, auth.key_store, req)
         },
         &*auth_type,
         api_locking::LockAction::NotApplicable,
@@ -155,7 +149,6 @@ pub async fn payouts_cancel(
     let flow = Flow::PayoutsCancel;
     let mut payload = json_payload.into_inner();
     payload.payout_id = path.into_inner();
-    let locale = utils::get_locale_from_header(req.headers());
 
     Box::pin(api::server_wrap(
         flow,
@@ -163,7 +156,7 @@ pub async fn payouts_cancel(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            payouts_cancel_core(state, auth.merchant_account, auth.key_store, req, &locale)
+            payouts_cancel_core(state, auth.merchant_account, auth.key_store, req)
         },
         &auth::HeaderAuth(auth::ApiKeyAuth),
         api_locking::LockAction::NotApplicable,
@@ -181,7 +174,6 @@ pub async fn payouts_fulfill(
     let flow = Flow::PayoutsFulfill;
     let mut payload = json_payload.into_inner();
     payload.payout_id = path.into_inner();
-    let locale = utils::get_locale_from_header(req.headers());
 
     Box::pin(api::server_wrap(
         flow,
@@ -189,7 +181,7 @@ pub async fn payouts_fulfill(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            payouts_fulfill_core(state, auth.merchant_account, auth.key_store, req, &locale)
+            payouts_fulfill_core(state, auth.merchant_account, auth.key_store, req)
         },
         &auth::HeaderAuth(auth::ApiKeyAuth),
         api_locking::LockAction::NotApplicable,
@@ -207,7 +199,6 @@ pub async fn payouts_list(
 ) -> HttpResponse {
     let flow = Flow::PayoutsList;
     let payload = json_payload.into_inner();
-    let locale = utils::get_locale_from_header(req.headers());
 
     Box::pin(api::server_wrap(
         flow,
@@ -215,14 +206,7 @@ pub async fn payouts_list(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            payouts_list_core(
-                state,
-                auth.merchant_account,
-                None,
-                auth.key_store,
-                req,
-                &locale,
-            )
+            payouts_list_core(state, auth.merchant_account, None, auth.key_store, req)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
@@ -246,7 +230,6 @@ pub async fn payouts_list_profile(
 ) -> HttpResponse {
     let flow = Flow::PayoutsList;
     let payload = json_payload.into_inner();
-    let locale = utils::get_locale_from_header(req.headers());
 
     Box::pin(api::server_wrap(
         flow,
@@ -260,7 +243,6 @@ pub async fn payouts_list_profile(
                 auth.profile_id.map(|profile_id| vec![profile_id]),
                 auth.key_store,
                 req,
-                &locale,
             )
         },
         auth::auth_type(
@@ -285,7 +267,6 @@ pub async fn payouts_list_by_filter(
 ) -> HttpResponse {
     let flow = Flow::PayoutsList;
     let payload = json_payload.into_inner();
-    let locale = utils::get_locale_from_header(req.headers());
 
     Box::pin(api::server_wrap(
         flow,
@@ -293,14 +274,7 @@ pub async fn payouts_list_by_filter(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            payouts_filtered_list_core(
-                state,
-                auth.merchant_account,
-                None,
-                auth.key_store,
-                req,
-                &locale,
-            )
+            payouts_filtered_list_core(state, auth.merchant_account, None, auth.key_store, req)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
@@ -324,7 +298,6 @@ pub async fn payouts_list_by_filter_profile(
 ) -> HttpResponse {
     let flow = Flow::PayoutsList;
     let payload = json_payload.into_inner();
-    let locale = utils::get_locale_from_header(req.headers());
 
     Box::pin(api::server_wrap(
         flow,
@@ -338,7 +311,6 @@ pub async fn payouts_list_by_filter_profile(
                 auth.profile_id.map(|profile_id| vec![profile_id]),
                 auth.key_store,
                 req,
-                &locale,
             )
         },
         auth::auth_type(
@@ -363,7 +335,6 @@ pub async fn payouts_list_available_filters_for_merchant(
 ) -> HttpResponse {
     let flow = Flow::PayoutsFilter;
     let payload = json_payload.into_inner();
-    let locale = utils::get_locale_from_header(req.headers());
 
     Box::pin(api::server_wrap(
         flow,
@@ -371,7 +342,7 @@ pub async fn payouts_list_available_filters_for_merchant(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            payouts_list_available_filters_core(state, auth.merchant_account, None, req, &locale)
+            payouts_list_available_filters_core(state, auth.merchant_account, None, req)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
@@ -395,7 +366,6 @@ pub async fn payouts_list_available_filters_for_profile(
 ) -> HttpResponse {
     let flow = Flow::PayoutsFilter;
     let payload = json_payload.into_inner();
-    let locale = utils::get_locale_from_header(req.headers());
 
     Box::pin(api::server_wrap(
         flow,
@@ -408,7 +378,6 @@ pub async fn payouts_list_available_filters_for_profile(
                 auth.merchant_account,
                 auth.profile_id.map(|profile_id| vec![profile_id]),
                 req,
-                &locale,
             )
         },
         auth::auth_type(

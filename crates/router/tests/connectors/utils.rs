@@ -604,6 +604,7 @@ pub trait ConnectorActions: Connector {
         let state = Arc::new(app_state)
             .get_session_state(
                 &common_utils::id_type::TenantId::try_from_string("public".to_string()).unwrap(),
+                None,
                 || {},
             )
             .unwrap();
@@ -647,6 +648,7 @@ pub trait ConnectorActions: Connector {
         let state = Arc::new(app_state)
             .get_session_state(
                 &common_utils::id_type::TenantId::try_from_string("public".to_string()).unwrap(),
+                None,
                 || {},
             )
             .unwrap();
@@ -691,6 +693,7 @@ pub trait ConnectorActions: Connector {
         let state = Arc::new(app_state)
             .get_session_state(
                 &common_utils::id_type::TenantId::try_from_string("public".to_string()).unwrap(),
+                None,
                 || {},
             )
             .unwrap();
@@ -734,6 +737,7 @@ pub trait ConnectorActions: Connector {
         let state = Arc::new(app_state)
             .get_session_state(
                 &common_utils::id_type::TenantId::try_from_string("public".to_string()).unwrap(),
+                None,
                 || {},
             )
             .unwrap();
@@ -828,6 +832,7 @@ pub trait ConnectorActions: Connector {
         let state = Arc::new(app_state)
             .get_session_state(
                 &common_utils::id_type::TenantId::try_from_string("public".to_string()).unwrap(),
+                None,
                 || {},
             )
             .unwrap();
@@ -868,6 +873,7 @@ async fn call_connector<
     let state = Arc::new(app_state)
         .get_session_state(
             &common_utils::id_type::TenantId::try_from_string("public".to_string()).unwrap(),
+            None,
             || {},
         )
         .unwrap();

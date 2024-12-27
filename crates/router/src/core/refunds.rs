@@ -512,7 +512,6 @@ pub async fn refund_retrieve_core(
         })
         .transpose()?;
 
-    let locale = state.get_locale();
     let unified_translated_message = if let (Some(unified_code), Some(unified_message)) =
         (refund.unified_code.clone(), refund.unified_message.clone())
     {
@@ -520,7 +519,7 @@ pub async fn refund_retrieve_core(
             &state,
             unified_code,
             unified_message.clone(),
-            locale.to_owned(),
+            state.locale.to_string(),
         )
         .await
         .or(Some(unified_message))
@@ -957,7 +956,6 @@ pub async fn validate_and_create_refund(
             }
         }
     };
-    let locale = state.get_locale();
     let unified_translated_message = if let (Some(unified_code), Some(unified_message)) =
         (refund.unified_code.clone(), refund.unified_message.clone())
     {
@@ -965,7 +963,7 @@ pub async fn validate_and_create_refund(
             state,
             unified_code,
             unified_message.clone(),
-            locale.to_owned(),
+            state.locale.to_string(),
         )
         .await
         .or(Some(unified_message))
