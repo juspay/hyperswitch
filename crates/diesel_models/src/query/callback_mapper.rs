@@ -6,7 +6,7 @@ use crate::{
 };
 
 impl CallbackMapper {
-    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<CallbackMapper> {
+    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<Self> {
         generics::generic_insert(conn, self).await
     }
 
