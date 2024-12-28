@@ -3,16 +3,7 @@ use diesel::{Identifiable, Insertable, Queryable, Selectable};
 
 use crate::schema::callback_mapper;
 
-#[derive(
-    Clone,
-    Debug,
-    Eq,
-    PartialEq,
-    Identifiable,
-    Queryable,
-    Selectable,
-    Insertable,
-)]
+#[derive(Clone, Debug, Eq, PartialEq, Identifiable, Queryable, Selectable, Insertable)]
 #[diesel(table_name = callback_mapper,  primary_key(id, type_), check_for_backend(diesel::pg::Pg))]
 pub struct CallbackMapper {
     pub id: String,
