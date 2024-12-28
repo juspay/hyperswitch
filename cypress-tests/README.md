@@ -1,30 +1,78 @@
-# Cypress Tests
+# Hyperswitch Cypress Testing Framework
 
 ## Overview
 
-This Tool is a solution designed to automate testing for the [Hyperswitch](https://github.com/juspay/hyperswitch/) using Cypress, an open-source tool capable of conducting API call tests and UI tests. This README provides guidance on installing Cypress and its dependencies.
+This is a comprehensive testing framework built with [Cypress](https://cypress.io) to automate testing for [Hyperswitch](https://github.com/juspay/hyperswitch/). The framework supports API testing with features like multiple credential management, configuration management, global state handling, and extensive utility functions. The framework provides extensive support for API testing with advanced features including:
 
-## Installation
+- Multiple credential management
+- Dynamic configuration management
+- Global state handling
+- Extensive utility functions
+- Parallel test execution
+- Connector-specific implementations
 
-### Prerequisites
+## Table of Contents
 
-Before installing Cypress, ensure that `Node` and `npm` is installed on your machine. To check if it is installed, run the following command:
+- [Overview](#overview)
+- [Table of Contents](#table-of-contents)
+- [Quick Start](#quick-start)
+- [Getting Started](#getting-started)
+  - [Prerequisites](#prerequisites)
+  - [Installation](#installation)
+  - [Running Tests](#running-tests)
+    - [Development Mode (Interactive)](#development-mode-interactive)
+    - [CI Mode (Headless)](#ci-mode-headless)
+    - [Execute tests against multiple connectors or in parallel](#execute-tests-against-multiple-connectors-or-in-parallel)
+- [Test reports](#test-reports)
+- [Folder structure](#folder-structure)
+- [Adding tests](#adding-tests)
+  - [Addition of test for a new connector](#addition-of-test-for-a-new-connector)
+  - [Developing Core Features or adding new tests](#developing-core-features-or-adding-new-tests)
+    - [1. Create or update test file](#1-create-or-update-test-file)
+    - [2. Add New Commands](#2-add-new-commands)
+    - [Managing global state](#managing-global-state)
+- [Debugging](#debugging)
+  - [1. Interactive Mode](#1-interactive-mode)
+  - [2. Logging](#2-logging)
+  - [3. Screenshots](#3-screenshots)
+  - [4. State Debugging](#4-state-debugging)
+  - [5. Hooks](#5-hooks)
+  - [6. Tasks](#6-tasks)
+- [Linting](#linting)
+- [Best Practices](#best-practices)
+- [Additional Resources](#additional-resources)
+- [Contributing](#contributing)
+- [Example creds.json](#example-credsjson)
 
-```shell
-node -v
-npm -v
+## Quick Start
+
+For experienced users who want to get started quickly:
+
+```bash
+git clone https://github.com/juspay/hyperswitch.git
+cd cypress-tests
+npm ci
+CYPRESS_CONNECTOR="connector_id" npm run cypress:ci
 ```
 
-If not, download and install `Node` from the official [Node.js website](https://nodejs.org/en/download/package-manager/current). This will also install `npm`.
+## Getting Started
 
-### Run Test Cases on your local
+## Prerequisites
 
-To run test cases, follow these steps:
+- Node.js (18.x or above)
+- npm or yarn
+- [Hyperswitch development environment](https://github.com/juspay/hyperswitch/blob/main/docs/try_local_system.md)
+- PostgreSQL database (for card info)
+
+> [!NOTE]
+> To learn about the hardware requirements and software dependencies for running Cypress, refer to the [official documentation](https://docs.cypress.io/app/get-started/install-cypress).
+
+## Installation
 
 1. Clone the repository and switch to the project directory:
 
    ```shell
-   git clone https://github.com/juspay/hyperswitch
+   git clone https://github.com/juspay/hyperswitch.git
    cd cypress-tests
    ```
 
@@ -34,7 +82,19 @@ To run test cases, follow these steps:
    npm ci
    ```
 
-3. Insert data to `cards_info` table in `hyperswitch_db`
+   Once installed, verify the installation by running:
+
+   ```shell
+    npx cypress --version
+   ```
+
+   To learn about the supported commands, execute:
+
+   ```shell
+   npm run
+   ```
+
+3. Set up the cards database:
 
    ```shell
    psql --host=localhost --port=5432 --username=db_user --dbname=hyperswitch_db --command "\copy cards_info FROM '.github/data/cards_info.csv' DELIMITER ',' CSV HEADER;"
@@ -50,49 +110,40 @@ To run test cases, follow these steps:
    export CYPRESS_CONNECTOR_AUTH_FILE_PATH="path/to/creds.json"
    ```
 
-5. Run Cypress test cases
+> [!TIP]
+> It is recommended to install [direnv](https://github.com/direnv/direnv) and use a `.envrc` file to store these environment variables with `cypress-tests` directory. This will make it easier to manage environment variables while working with Cypress tests.
 
-   To run the tests in interactive mode run the following command
+> [!NOTE]
+> To learn about how `creds` file should be structured, refer to the [example.creds.json](#example-credsjson) section below.
+
+## Running Tests
+
+Execution of Cypress tests can be done in two modes: Development mode (Interactive) and CI mode (Headless). The tests can be executed against a single connector or multiple connectors in parallel. Time taken to execute the tests will vary based on the number of connectors and the number of tests. For a single connector, the tests will take approximately 07-12 minutes to execute.
+
+### Development Mode (Interactive)
+
+```bash
+npm run cypress
+```
+
+### CI Mode (Headless)
+
+```bash
+# All tests
+npm run cypress:ci
+
+# Specific test suites
+npm run cypress:payments            # Payment tests
+npm run cypress:payment-method-list # Payment method list tests
+npm run cypress:payouts             # Payout tests
+npm run cypress:routing             # Routing tests
+```
+
+### Execute tests against multiple connectors or in parallel
+
+1. Set additional environment variables:
 
    ```shell
-   npm run cypress
-   ```
-
-   To run all the tests in headless mode run the following command
-
-   ```shell
-   npm run cypress:ci
-   ```
-
-   To run payment tests in headless mode run the following command
-
-   ```shell
-   npm run cypress:payments
-   ```
-
-   To run payout tests in headless mode run the following command
-
-   ```shell
-   npm run cypress:payouts
-   ```
-
-   To run routing tests in headless mode run the following command
-
-   ```shell
-   npm run cypress:routing
-   ```
-
-In order to run cypress tests against multiple connectors at a time or in parallel:
-
-1. Set up `.env` file that exports necessary info:
-
-   ```env
-   export DEBUG=cypress:cli
-
-   export CYPRESS_ADMINAPIKEY='admin_api_key'
-   export CYPRESS_BASEURL='base_url'
-   export CYPRESS_CONNECTOR_AUTH_FILE_PATH="path/to/creds.json"
-
    export PAYMENTS_CONNECTORS="payment_connector_1 payment_connector_2 payment_connector_3 payment_connector_4"
    export PAYOUTS_CONNECTORS="payout_connector_1 payout_connector_2 payout_connector_3"
    export PAYMENT_METHOD_LIST=""
@@ -108,59 +159,54 @@ In order to run cypress tests against multiple connectors at a time or in parall
 
    Optionally, `--parallel <jobs (integer)>` can be passed to run cypress tests in parallel. By default, when `parallel` command is passed, it will be run in batches of `5`.
 
-> [!NOTE]
-> To learn about how creds file should be structured, refer to the [example.creds.json](#example-credsjson) section below.
+## Test reports
 
-## Folder Structure
+The test reports are generated in the `cypress/reports` directory. The reports are generated in the `mochawesome` format and can be viewed in the browser.
+These reports does include:
+
+- screenshots of the failed tests
+- HTML and JSON reports
+
+## Folder structure
 
 The folder structure of this directory is as follows:
 
-```text
-.                                                        # The root directory for the Cypress tests.
-├── .gitignore
-├── cypress                                              # Contains Cypress-related files and folders.
-│   ├── e2e                                              # End-to-end test directory.
-│   │   ├── ConnectorTest                                # Directory for test scenarios related to connectors.
-│   │   │   ├── your_testcase1_files_here.cy.js
-│   │   │   ├── your_testcase2_files_here.cy.js
-│   │   │   └── ...
-│   │   └── ConnectorUtils                               # Directory for utility functions related to connectors.
-│   │       ├── connector_detail_files_here.js
-│   │       └── utils.js
-│   ├── fixtures                                         # Directory for storing test data API request.
-│   │   └── your_fixture_files_here.json
-│   ├── support                                          # Directory for Cypress support files.
-│   │   ├── commands.js                                  # File containing custom Cypress commands and utilities.
-│   │   └── e2e.js
-│   └── utils
-│       └── utility_files_go_here.js
-├── cypress.config.js                                    # Cypress configuration file.
-├── cypress.env.json                                     # File is used to store environment-specific configuration values,such as base URLs, which can be accessed within your Cypress tests.
-├── package.json                                         # Node.js package file.
-├── readme.md                                            # This file
-└── yarn.lock
+```txt
+.
+├── .prettierrc                       # prettier configs
+├── README.md                         # this file
+├── cypress
+│   ├── e2e
+│   │   ├── <Service>Test             # Directory for test scenarios related to connectors.
+│   │   │   ├── 00000-test_<0>.cy.js
+│   │   │   ├── ...
+│   │   │   └── 0000n-test_<n>.cy.js
+│   │   └── <Service>Utils            # Directory for utility functions related to connectors.
+│   │        ├── connector_<1>.js
+│   │        ├── ...
+│   │        └── connector_<n>.js
+│   ├── fixtures                      # Directory for storing test data API request.
+│   │   ├── fixture_<1>.json
+│   │   ├── ...
+│   │   └── fixture_<n>.json
+│   ├── support                       # Directory for Cypress support files.
+│   │   ├── commands.js               # File containing custom Cypress commands and utilities.
+│   │   ├── e2e.js
+│   │   └── redirectionHandler.js
+│   └── utils
+│       ├── RequestBodyUtils.js
+│       ├── State.js
+│       └── featureFlags.js
+├── cypress.config.js                 # Cypress configuration file.
+├── eslint.config.js                  # linter configuration file.
+└── package.json                      # Node.js package file.
 ```
 
-## Writing Tests
+## Adding tests
 
-### Adding Connectors
+### Addition of test for a new connector
 
-To add a new connector for testing with Hyperswitch, follow these steps:
-
-1. Include the connector details in the `creds.json` file:
-
-   example:
-
-   ```json
-   {
-     "stripe": {
-       "connector_account_details": {
-         "auth_type": "HeaderKey",
-         "api_key": "SK_134"
-       }
-     }
-   }
-   ```
+1. Include the connector details in the `creds.json` file
 
 2. Add the new connector details to the ConnectorUtils folder (including CardNo and connector-specific information).
 
@@ -180,103 +226,169 @@ To add a new connector for testing with Hyperswitch, follow these steps:
    - You can omit the relevant configurations in the <connector_name>.js file.
    - The handling of unsupported features will be managed by the commons.js file, which will throw an unsupported or not implemented error as appropriate.
 
-3. In `Utils.js`, import the new connector details.
+3. In `Utils.js`, import the new connector details
 
-### Adding Functions
+4. If the connector has a specific redirection requirement, add relevant redirection logic in `support/redirectionHandler.js`
 
-Similarly, add any helper functions or utilities in the `commands.js` in support folder and import them into your tests as needed.
+### Developing Core Features or adding new tests
 
-Example: Adding List Mandate function to support `ListMandate` scenario
+#### 1. Create or update test file
+
+To add a new test, create a new test file in the `e2e` directory under respective `service`. The test file should follow the naming convention `000<number>-<Service>Test.cy.js` and should contain the test cases related to the service.
 
 ```javascript
-Cypress.Commands.add("listMandateCallTest", (globalState) => {
-  // declare all the variables and constants
-  const customerId = globalState.get("customerId");
-  // construct the URL for the API call
-  const url: `${globalState.get("baseUrl")}/customers/${customerId}/mandates`
-  const api_key = globalState.get("apiKey");
+// cypress/e2e/<Service>Test/NewFeature.cy.js
+import * as fixtures from "../../fixtures/imports";
+import State from "../../utils/State";
+
+describe("New Feature", () => {
+  let globalState;
+
+  before(() => {
+    cy.task("getGlobalState").then((state) => {
+      globalState = new State(state);
+    });
+  });
+
+  after("flush global state", () => {
+    cy.task("setGlobalState", globalState.data);
+  });
+
+  it("tests new functionality", () => {
+    // Test implementation
+  });
+});
+```
+
+### 2. Add New Commands
+
+```javascript
+// cypress/support/commands.js
+Cypress.Commands.add("newCommand", (params, globalState) => {
+  const baseUrl = globalState.get("baseUrl");
+  const apiKey = globalState.get("apiKey");
+  const url = `${baseUrl}/endpoint`;
 
   cy.request({
-    method: "GET",
+    method: "POST",
     url: url,
     headers: {
-      "Content-Type": "application/json",
-      "api-key": api_key,
+      "api-key": apiKey,
     },
-    // set failOnStatusCode to false to prevent Cypress from failing the test
-    failOnStatusCode: false,
+    body: params,
   }).then((response) => {
-    // mandatorliy log the `x-request-id` to the console
-    logRequestId(response.headers["x-request-id"]);
-
-    expect(response.headers["content-type"]).to.include("application/json");
-
-    if (response.status === 200) {
-      // do the necessary validations like below
-      for (const key in response.body) {
-        expect(response.body[key]).to.have.property("mandate_id");
-        expect(response.body[key]).to.have.property("status");
-      }
-    } else {
-      // handle the error response
-      expect(response.status).to.equal(400);
-    }
+    // Assertions
   });
 });
 ```
 
-### Adding Scenarios
+### Managing global state
 
-To add new test scenarios:
+The global state is used to share data between tests. The global state is stored in the `State` class and is accessible across all tests. Can only be accessed in the `before` and `after` hooks.
 
-1. Navigate to the ConnectorTest directory.
-2. Create a new test file or modify existing ones to add your scenarios.
-3. Write your test scenarios using Cypress commands.
+## Debugging
 
-For example, to add a scenario for listing mandates in the `Mandateflows`:
+### 1. Interactive Mode
+
+- Use `npm run cypress` for real-time test execution
+- View request/response details in Cypress UI
+- Use DevTools for deeper debugging
+
+### 2. Logging
 
 ```javascript
-// cypress/ConnectorTest/CreateSingleuseMandate.js
-describe("Payment Scenarios", () => {
-  it("should complete a successful payment", () => {
-    // Your test logic here
-  });
-});
+cy.task("cli_log", "Debug message");
+cy.log("Test state:", globalState.data);
 ```
 
-In this scenario, you can call functions defined in `command.js`. For instance, to test the `listMandateCallTest` function:
+### 3. Screenshots
+
+- Automatically captured on test failure
+- Custom screenshot capture:
 
 ```javascript
-describe("Payment Scenarios", () => {
-  it("list-mandate-call-test", () => {
-    cy.listMandateCallTest(globalState);
-  });
+cy.screenshot("debug-state");
+```
+
+### 4. State Debugging
+
+- Add state logging in hooks:
+
+```javascript
+beforeEach(() => {
+  cy.log("Current state:", JSON.stringify(globalState.data));
 });
 ```
 
-You can create similar scenarios by calling other functions defined in `commands.js`. These functions interact with utility files like `<connector_name>.js` and include necessary assertions to support various connector scenarios.
+### 5. Hooks
 
-### Debugging
+- If the `globalState` object does not contain latest data, it must be due to the hooks not being executed in the correct order
+- Add `cy.log(globalState)` to the test case to verify the data in the `globalState` object
 
-It is recommended to run `npm run cypress` while developing new test cases to debug and verify as it opens the Cypress UI allowing the developer to run individual tests. This also opens up the possibility to to view the test execution in real-time and debug any issues that may arise by viewing the request and response payloads directly.
+> [!NOTE]
+> Refer to the Cypress's official documentation for more information on hooks and their execution order [here](https://docs.cypress.io/app/core-concepts/writing-and-organizing-tests#Hooks).
 
-If, for any reason, the `globalState` object does not contain latest data, it must be due to the hooks not being executed in the correct order. In such cases, it is recommended to add `cy.log(globalState)` to the test case to verify the data in the `globalState` object.
-Please refer to the Cypress's official documentation for more information on hooks and their execution order [here](https://docs.cypress.io/app/core-concepts/writing-and-organizing-tests#Hooks).
+### 6. Tasks
+
+- Use `cy.task` to interact with the Node.js environment
+- Task can only be used in `support` files and `spec` files. Using them in files outside these directories will result in unexpected behavior or errors like abrupt termination of the test suite
+
+````javascript
+
+## Linting
+
+To run the formatting and lint checks, execute the following command:
+
+```shell
+# Format the code
+npm run format
+
+# Check the formatting
+npm run format:check
+
+# Lint the code. This wont fix the logic issues, unused imports or variables
+npm run lint -- --fix
+````
+
+## Best Practices
+
+1. Use the global state for sharing data between tests
+2. Implement proper error handling
+3. Use appropriate wait strategies
+4. Maintain test independence
+5. Follow the existing folder structure
+6. Document connector-specific behaviors
+7. Use descriptive test and variable names
+8. Use custom commands for repetitive tasks
+9. Use `cy.log` for debugging and do not use `console.log`
 
 ## Additional Resources
 
-For more information on using Cypress and writing effective tests, refer to the official Cypress documentation: [Cypress Documentation](https://docs.cypress.io/)
+- [Cypress Documentation](https://docs.cypress.io/)
+- [API Testing Best Practices](https://docs.cypress.io/guides/end-to-end-testing/api-testing)
+- [Hyperswitch API Documentation](https://hyperswitch.io/docs)
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Add tests following the guidelines
+4. Submit a pull request
 
 ## Example creds.json
 
 ```json
 {
+  // Connector with single credential support and metadata support
   "adyen": {
     "connector_account_details": {
       "auth_type": "SignatureKey",
       "api_key": "api_key",
       "key1": "key1",
       "api_secret": "api_secret"
+    },
+    "metadata": {
+      "key": "value"
     }
   },
   "bankofamerica": {
@@ -294,12 +406,23 @@ For more information on using Cypress and writing effective tests, refer to the 
       "key1": "key1"
     }
   },
+  // Connector with multiple credential support
   "cybersource": {
-    "connector_account_details": {
-      "auth_type": "SignatureKey",
-      "api_key": "api_key",
-      "key1": "key1",
-      "api_secret": "api_secret"
+    "connector_1": {
+      "connector_account_details": {
+        "auth_type": "SignatureKey",
+        "api_key": "api_key",
+        "key1": "key1",
+        "api_secret": "api_secret"
+      }
+    },
+    "connector_2": {
+      "connector_account_details": {
+        "auth_type": "SignatureKey",
+        "api_key": "api_key",
+        "key1": "key1",
+        "api_secret": "api_secret"
+      }
     }
   },
   "nmi": {
