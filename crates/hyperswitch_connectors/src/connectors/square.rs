@@ -1,7 +1,5 @@
 pub mod transformers;
 
-use std::fmt::Debug;
-
 use api_models::{
     enums,
     webhooks::{IncomingWebhookEvent, ObjectReferenceId},
@@ -11,6 +9,7 @@ use common_utils::{
     errors::CustomResult,
     ext_traits::ByteSliceExt,
     request::{Method, Request, RequestBuilder, RequestContent},
+    types::{AmountConvertor, MinorUnit, MinorUnitForConnector},
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
@@ -45,18 +44,26 @@ use hyperswitch_interfaces::{
     webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
 };
 use masking::{Mask, Maskable, PeekInterface};
-use transformers::{
-    self as square, SquareAuthType, SquarePaymentsRequest, SquareRefundRequest, SquareTokenRequest,
-};
+use transformers::{self as square, SquareAuthType};
 
 use crate::{
     constants::headers,
     types::ResponseRouterData,
-    utils::{self, get_header_key_value, RefundsRequestData},
+    utils::{self, convert_amount, get_header_key_value, RefundsRequestData},
 };
 
-#[derive(Debug, Clone)]
-pub struct Square;
+#[derive(Clone)]
+pub struct Square {
+    amount_converter: &'static (dyn AmountConvertor<Output = MinorUnit> + Sync),
+}
+
+impl Square {
+    pub fn new() -> &'static Self {
+        &Self {
+            amount_converter: &MinorUnitForConnector,
+        }
+    }
+}
 
 impl api::Payment for Square {}
 impl api::PaymentSession for Square {}
@@ -237,8 +244,7 @@ impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, Pay
         req: &TokenizationRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = SquareTokenRequest::try_from(req)?;
-
+        let connector_req = square::SquareTokenRequest::try_from(req)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -406,7 +412,13 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         req: &PaymentsAuthorizeRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = SquarePaymentsRequest::try_from(req)?;
+        let amount = convert_amount(
+            self.amount_converter,
+            req.request.minor_amount,
+            req.request.currency,
+        )?;
+        let connector_router_data = square::SquareRouterData::try_from((amount, req))?;
+        let connector_req = square::SquarePaymentsRequest::try_from(&connector_router_data)?;
 
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
@@ -708,7 +720,14 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Square 
         req: &RefundsRouterData<Execute>,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = SquareRefundRequest::try_from(req)?;
+        let amount = convert_amount(
+            self.amount_converter,
+            req.request.minor_refund_amount,
+            req.request.currency,
+        )?;
+        let connector_router_data = square::SquareRouterData::try_from((amount, req))?;
+        let connector_req = square::SquareRefundRequest::try_from(&connector_router_data)?;
+
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
