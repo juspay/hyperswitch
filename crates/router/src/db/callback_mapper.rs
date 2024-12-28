@@ -39,6 +39,7 @@ impl CallbackMapperInterface for Store {
             .map(domain::CallbackMapper::from_storage_model)
     }
 
+    #[instrument(skip_all)]
     async fn find_call_back_mapper_by_id(
         &self,
         id: &str,
