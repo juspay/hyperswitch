@@ -50,7 +50,7 @@ For experienced users who want to get started quickly:
 
 ```bash
 git clone https://github.com/juspay/hyperswitch.git
-cd cypress-tests
+cd hyperswitch/cypress-tests
 npm ci
 CYPRESS_CONNECTOR="connector_id" npm run cypress:ci
 ```
@@ -72,7 +72,7 @@ CYPRESS_CONNECTOR="connector_id" npm run cypress:ci
 
    ```shell
    git clone https://github.com/juspay/hyperswitch.git
-   cd cypress-tests
+   cd hyperswitch/cypress-tests
    ```
 
 2. Install Cypress and its dependencies to `cypress-tests` directory by running the following command:
@@ -117,7 +117,9 @@ CYPRESS_CONNECTOR="connector_id" npm run cypress:ci
 
 ## Running Tests
 
-Execution of Cypress tests can be done in two modes: Development mode (Interactive) and CI mode (Headless). The tests can be executed against a single connector or multiple connectors in parallel. Time taken to execute the tests will vary based on the number of connectors and the number of tests. For a single connector, the tests will take approximately 07-12 minutes to execute.
+Execution of Cypress tests can be done in two modes: Development mode (Interactive) and CI mode (Headless). The tests can be executed against a single connector or multiple connectors in parallel. Time taken to execute the tests will vary based on the number of connectors and the number of tests. For a single connector, the tests will take approximately 07-12 minutes to execute (this also depends on the hardware configurations).
+
+For Development mode, the tests will run in the Cypress UI where execution of tests can be seen in real-time and provides a larger area for debugging based on the need. In CI mode (Headless), tests run in the terminal without UI interaction and generate reports automatically.
 
 ### Development Mode (Interactive)
 
@@ -153,7 +155,7 @@ npm run cypress:routing             # Routing tests
 
    ```shell
    source .env
-   scripts/execute_cypress.sh
+   ../scripts/execute_cypress.sh
    ```
 
    Optionally, `--parallel <jobs (integer)>` can be passed to run cypress tests in parallel. By default, when `parallel` command is passed, it will be run in batches of `5`.
@@ -209,10 +211,10 @@ The folder structure of this directory is as follows:
 
 2. Add the new connector details to the ConnectorUtils folder (including CardNo and connector-specific information).
 
-   Refer to Stripe.js file for guidance:
+   Refer to [Stripe.js](cypress/e2e/PaymentUtils/Stripe.js) file for guidance:
 
    ```javascript
-   /cypress-tests/cypress/e2e/ConnectorUtils/Stripe.js
+   /cypress/e2e/ConnectorUtils/Stripe.js
    ```
 
    **File Naming:** Create a new file named <connector_name>.js for your specific connector.
@@ -332,8 +334,6 @@ beforeEach(() => {
 - Use `cy.task` to interact with the Node.js environment
 - Task can only be used in `support` files and `spec` files. Using them in files outside these directories will result in unexpected behavior or errors like abrupt termination of the test suite
 
-````javascript
-
 ## Linting
 
 To run the formatting and lint checks, execute the following command:
@@ -347,7 +347,7 @@ npm run format:check
 
 # Lint the code. This wont fix the logic issues, unused imports or variables
 npm run lint -- --fix
-````
+```
 
 ## Best Practices
 
