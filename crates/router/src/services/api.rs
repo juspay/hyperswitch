@@ -17,7 +17,7 @@ use actix_web::{
     http::header::{HeaderName, HeaderValue},
     web, FromRequest, HttpRequest, HttpResponse, Responder, ResponseError,
 };
-pub use client::{proxy_bypass_urls, ApiClient, MockApiClient, ProxyClient};
+pub use client::{ApiClient, MockApiClient, ProxyClient};
 pub use common_enums::enums::PaymentAction;
 pub use common_utils::request::{ContentType, Method, Request, RequestBuilder};
 use common_utils::{
@@ -415,29 +415,11 @@ pub async fn send_request(
 ) -> CustomResult<reqwest::Response, errors::ApiClientError> {
     logger::info!(method=?request.method, headers=?request.headers, payload=?request.body, ?request);
 
-    let url = reqwest::Url::parse(&request.url)
-        .change_context(errors::ApiClientError::UrlEncodingFailed)?;
+    let url =
+        url::Url::parse(&request.url).change_context(errors::ApiClientError::UrlParsingFailed)?;
 
-    #[cfg(feature = "dummy_connector")]
-    let should_bypass_proxy = url
-        .as_str()
-        .starts_with(&state.conf.connectors.dummyconnector.base_url)
-        || proxy_bypass_urls(
-            state.conf.key_manager.get_inner(),
-            &state.conf.locker,
-            &state.conf.proxy.bypass_proxy_urls,
-        )
-        .contains(&url.to_string());
-    #[cfg(not(feature = "dummy_connector"))]
-    let should_bypass_proxy = proxy_bypass_urls(
-        &state.conf.key_manager.get_inner(),
-        &state.conf.locker,
-        &state.conf.proxy.bypass_proxy_urls,
-    )
-    .contains(&url.to_string());
     let client = client::create_client(
         &state.conf.proxy,
-        should_bypass_proxy,
         request.certificate,
         request.certificate_key,
     )?;

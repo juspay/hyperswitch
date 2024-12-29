@@ -63,6 +63,8 @@ pub enum ApiClientError {
     #[error("Unexpected state reached/Invariants conflicted")]
     UnexpectedState,
 
+    #[error("Failed to parse URL")]
+    UrlParsingFailed,
     #[error("URL encoding of request payload failed")]
     UrlEncodingFailed,
     #[error("Failed to send request to connector {0}")]

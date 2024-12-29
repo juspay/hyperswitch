@@ -195,9 +195,9 @@ pm_auth_key = "pm_auth_key" # Payment method auth key used for authorization
 redis_expiry = 900          # Redis expiry time in milliseconds
 
 [proxy]
-http_url = "http://proxy_http_url"    # Outgoing proxy http URL to proxy the HTTP traffic
-https_url = "https://proxy_https_url" # Outgoing proxy https URL to proxy the HTTPS traffic
-bypass_proxy_urls = []                # A list of URLs that should bypass the proxy
+http_url = "http://proxy_http_url"              # Proxy all HTTP traffic via this proxy
+https_url = "https://proxy_https_url"           # Proxy all HTTPS traffic via this proxy
+bypass_proxy_hosts = "localhost, cluster.local" # A comma-separated list of domains or IP addresses that should not use the proxy. Whitespace between entries would be ignored.
 
 # Redis credentials
 [redis]
@@ -306,8 +306,8 @@ enabled = false
 global_tenant = { schema = "public", redis_key_prefix = "", clickhouse_database = "default"}
 
 [multitenancy.tenants.public]
-base_url = "http://localhost:8080" 
-schema = "public"     
+base_url = "http://localhost:8080"
+schema = "public"
 redis_key_prefix = ""
 clickhouse_database = "default"
 
