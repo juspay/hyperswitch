@@ -62,7 +62,6 @@ CYPRESS_CONNECTOR="connector_id" npm run cypress:ci
 - Node.js (18.x or above)
 - npm or yarn
 - [Hyperswitch development environment](https://github.com/juspay/hyperswitch/blob/main/docs/try_local_system.md)
-- PostgreSQL database (for card info)
 
 > [!NOTE]
 > To learn about the hardware requirements and software dependencies for running Cypress, refer to the [official documentation](https://docs.cypress.io/app/get-started/install-cypress).
