@@ -654,9 +654,13 @@ pub async fn save_payout_data_to_locker(
     };
 
     // Store card_reference in payouts table
-    let updated_payout = storage::PayoutsUpdate::PayoutMethodIdUpdate {
-        payout_method_id: stored_resp.card_reference.to_owned(),
+    let payout_method_id = match &payout_data.payment_method {
+        Some(pm) => pm.payment_method_id.clone(),
+        None => stored_resp.card_reference.to_owned(),
     };
+
+    let updated_payout = storage::PayoutsUpdate::PayoutMethodIdUpdate { payout_method_id };
+
     payout_data.payouts = db
         .update_payout(
             payouts,
