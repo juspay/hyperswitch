@@ -16,7 +16,8 @@ pub use success_rate::{
     missing_docs,
     unused_qualifications,
     clippy::unwrap_used,
-    clippy::as_conversions
+    clippy::as_conversions,
+    clippy::use_self
 )]
 pub mod success_rate {
     tonic::include_proto!("success_rate");
