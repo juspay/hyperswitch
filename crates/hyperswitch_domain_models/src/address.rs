@@ -53,7 +53,7 @@ impl AddressDetails {
                 first_name.peek(),
                 last_name.peek()
             ))),
-            (Some(name), None) | (None, Some(name)) => Some(Secret::from(name.to_owned())),
+            (Some(name), None) | (None, Some(name)) => Some(Secret::from(name)),
             _ => None,
         }
     }

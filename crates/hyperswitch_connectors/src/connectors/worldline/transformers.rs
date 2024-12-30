@@ -18,7 +18,7 @@ use url::Url;
 
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
-    utils::{self, AddressDetailsData, CardData, RouterData as RouterDataUtils},
+    utils::{self, CardData, RouterData as RouterDataUtils},
 };
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
@@ -474,8 +474,8 @@ impl From<hyperswitch_domain_models::address::AddressDetails> for Shipping {
             city: value.city.clone(),
             country_code: value.country,
             name: Some(Name {
-                first_name: value.get_first_name().ok(),
-                surname: value.get_last_name().ok(),
+                first_name: value.first_name.map(From::from),
+                surname: value.last_name.map(From::from),
                 ..Default::default()
             }),
             state: value.state,

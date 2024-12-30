@@ -19,7 +19,7 @@ use hyperswitch_domain_models::{
 #[cfg(feature = "payouts")]
 use masking::{ExposeInterface, PeekInterface};
 use maud::{html, PreEscaped};
-use router_env::{instrument, tracing};
+use router_env::{instrument, logger, tracing};
 use uuid::Uuid;
 
 use super::payments::helpers;
@@ -98,7 +98,7 @@ pub async fn construct_payout_router_data<'a, F>(
             .and_then(|name| {
                 NameType::try_from(name.expose())
                     .map_err(|err| {
-                        report!(errors::ApiErrorResponse::InternalServerError).attach_printable(err)
+                        logger::error!("Error in converting first name: {err}");
                     })
                     .ok()
             });
@@ -109,7 +109,7 @@ pub async fn construct_payout_router_data<'a, F>(
             .and_then(|name| {
                 NameType::try_from(name.expose())
                     .map_err(|err| {
-                        report!(errors::ApiErrorResponse::InternalServerError).attach_printable(err)
+                        logger::error!("Error in converting last name: {err}");
                     })
                     .ok()
             });

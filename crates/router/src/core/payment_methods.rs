@@ -43,7 +43,9 @@ use error_stack::{report, ResultExt};
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use hyperswitch_domain_models::api::{GenericLinks, GenericLinksData};
 use hyperswitch_domain_models::payments::{payment_attempt::PaymentAttempt, PaymentIntent};
-use masking::{ExposeInterface, PeekInterface, Secret};
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+use masking::ExposeInterface;
+use masking::{PeekInterface, Secret};
 use router_env::{instrument, logger, tracing};
 use time::Duration;
 
@@ -692,7 +694,7 @@ pub(crate) async fn get_payment_method_create_request(
                         card_exp_month: card.card_exp_month.clone(),
                         card_exp_year: card.card_exp_year.clone(),
                         card_holder_name: billing_name.and_then(|name| {
-                            NameType::try_from(name.expose())
+                            NameType::try_from(name)
                                 .map_err(|err| {
                                     logger::error!(
                                         "Failed to convert billing name to NameType: {}",
@@ -779,7 +781,7 @@ pub(crate) async fn get_payment_method_create_request(
                         card_exp_month: card.card_exp_month.clone(),
                         card_exp_year: card.card_exp_year.clone(),
                         card_holder_name: billing_name.and_then(|name| {
-                            NameType::try_from(name.expose())
+                            NameType::try_from(name)
                                 .map_err(|err| {
                                     logger::error!(
                                         "Failed to convert billing name to NameType: {}",

@@ -2,7 +2,7 @@ use std::{collections::HashMap, fmt, ops::Deref, str::FromStr};
 
 use common_utils::{errors::ValidationError, ext_traits::ConfigExt, types::LengthString};
 use error_stack::report;
-use masking::{PeekInterface, Secret, Strategy, StrongSecret, WithType};
+use masking::{ExposeInterface, PeekInterface, Secret, Strategy, StrongSecret, WithType};
 use once_cell::sync::Lazy;
 use regex::Regex;
 #[cfg(not(target_arch = "wasm32"))]
@@ -256,6 +256,13 @@ impl TryFrom<String> for NameType {
     }
 }
 
+impl TryFrom<Secret<String>> for NameType {
+    type Error = error_stack::Report<ValidationError>;
+    fn try_from(masked_card_holder_name: Secret<String>) -> Result<Self, Self::Error> {
+        Self::try_from(masked_card_holder_name.expose())
+    }
+}
+
 impl FromStr for NameType {
     type Err = error_stack::Report<ValidationError>;
 
@@ -272,7 +279,7 @@ impl From<NameType> for Secret<String> {
 
 impl From<&NameType> for Secret<String> {
     fn from(card_holder_name: &NameType) -> Self {
-        Self::new(card_holder_name.peek().to_string().to_owned())
+        Self::new(card_holder_name.peek().to_string())
     }
 }
 

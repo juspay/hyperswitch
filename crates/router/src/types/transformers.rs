@@ -17,6 +17,7 @@ use diesel_models::enums as storage_enums;
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::payments::payment_intent::CustomerData;
 use masking::{ExposeInterface, PeekInterface, Secret};
+use router_env::logger;
 
 use super::domain;
 use crate::{
@@ -739,10 +740,8 @@ impl From<&domain::Address> for hyperswitch_domain_models::address::Address {
                 .map(Encryptable::into_inner)
                 .and_then(|name| {
                     NameType::try_from(name.expose())
-                        .map_err(|_| {
-                            report!(errors::ValidationError::InvalidValue {
-                                message: "Invalid first name".to_string()
-                            })
+                        .map_err(|err| {
+                            logger::error!("Invalid first name: {err}");
                         })
                         .ok()
                 });
@@ -752,10 +751,8 @@ impl From<&domain::Address> for hyperswitch_domain_models::address::Address {
                 .map(Encryptable::into_inner)
                 .and_then(|name| {
                     NameType::try_from(name.expose())
-                        .map_err(|_| {
-                            report!(errors::ValidationError::InvalidValue {
-                                message: "Invalid last name".to_string()
-                            })
+                        .map_err(|err| {
+                            logger::error!("Invalid last name {err}");
                         })
                         .ok()
                 });
@@ -811,10 +808,8 @@ impl ForeignFrom<domain::Address> for api_types::Address {
                 .map(Encryptable::into_inner)
                 .and_then(|name| {
                     NameType::try_from(name.expose())
-                        .map_err(|_| {
-                            report!(errors::ValidationError::InvalidValue {
-                                message: "Invalid first name".to_string()
-                            })
+                        .map_err(|err| {
+                            logger::error!("Invalid first name: {err}");
                         })
                         .ok()
                 });
@@ -824,10 +819,8 @@ impl ForeignFrom<domain::Address> for api_types::Address {
                 .map(Encryptable::into_inner)
                 .and_then(|name| {
                     NameType::try_from(name.expose())
-                        .map_err(|_| {
-                            report!(errors::ValidationError::InvalidValue {
-                                message: "Invalid last name".to_string()
-                            })
+                        .map_err(|err| {
+                            logger::error!("Invalid last name {err}");
                         })
                         .ok()
                 });
@@ -1695,10 +1688,8 @@ impl From<domain::Address> for payments::AddressDetails {
             .map(Encryptable::into_inner)
             .and_then(|name| {
                 NameType::try_from(name.expose())
-                    .map_err(|_| {
-                        report!(errors::ValidationError::InvalidValue {
-                            message: "Invalid first name".to_string()
-                        })
+                    .map_err(|err| {
+                        logger::error!("Invalid first name: {err}");
                     })
                     .ok()
             });
@@ -1708,10 +1699,8 @@ impl From<domain::Address> for payments::AddressDetails {
             .map(Encryptable::into_inner)
             .and_then(|name| {
                 NameType::try_from(name.expose())
-                    .map_err(|_| {
-                        report!(errors::ValidationError::InvalidValue {
-                            message: "Invalid first name".to_string()
-                        })
+                    .map_err(|err| {
+                        logger::error!("Invalid last name {err}");
                     })
                     .ok()
             });

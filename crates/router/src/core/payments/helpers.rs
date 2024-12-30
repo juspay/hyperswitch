@@ -128,16 +128,14 @@ pub async fn create_or_update_address_for_payment_by_request(
                                 line2: address.address.as_ref().and_then(|a| a.line2.clone()),
                                 line3: address.address.as_ref().and_then(|a| a.line3.clone()),
                                 state: address.address.as_ref().and_then(|a| a.state.clone()),
-                                first_name: address.address.as_ref().and_then(|a| {
-                                    a.first_name
-                                        .clone()
-                                        .map(|name| masking::Secret::new(name.peek().to_string()))
-                                }),
-                                last_name: address.address.as_ref().and_then(|a| {
-                                    a.last_name
-                                        .clone()
-                                        .map(|name| masking::Secret::new(name.peek().to_string()))
-                                }),
+                                first_name: address
+                                    .address
+                                    .as_ref()
+                                    .and_then(|a| a.first_name.clone().map(From::from)),
+                                last_name: address
+                                    .address
+                                    .as_ref()
+                                    .and_then(|a| a.last_name.clone().map(From::from)),
                                 zip: address.address.as_ref().and_then(|a| a.zip.clone()),
                                 phone_number: address
                                     .phone
@@ -346,16 +344,14 @@ pub async fn get_domain_address(
                         line2: address.address.as_ref().and_then(|a| a.line2.clone()),
                         line3: address.address.as_ref().and_then(|a| a.line3.clone()),
                         state: address.address.as_ref().and_then(|a| a.state.clone()),
-                        first_name: address.address.as_ref().and_then(|a| {
-                            a.first_name
-                                .clone()
-                                .map(|name| masking::Secret::new(name.peek().to_string()))
-                        }),
-                        last_name: address.address.as_ref().and_then(|a| {
-                            a.last_name
-                                .clone()
-                                .map(|name| masking::Secret::new(name.peek().to_string()))
-                        }),
+                        first_name: address
+                            .address
+                            .as_ref()
+                            .and_then(|a| a.first_name.clone().map(From::from)),
+                        last_name: address
+                            .address
+                            .as_ref()
+                            .and_then(|a| a.last_name.clone().map(From::from)),
                         zip: address.address.as_ref().and_then(|a| a.zip.clone()),
                         phone_number: address
                             .phone
