@@ -1,11 +1,15 @@
 use common_utils::{crypto, errors::CustomResult, request::Request};
-use hyperswitch_domain_models::{router_data::RouterData, router_data_v2::RouterDataV2};
+use hyperswitch_domain_models::{
+    router_data::RouterData,
+    router_data_v2::RouterDataV2,
+    router_response_types::{ConnectorInfo, SupportedPaymentMethods},
+};
 use hyperswitch_interfaces::{
     authentication::ExternalAuthenticationPayload,
     connector_integration_v2::ConnectorIntegrationV2, webhooks::IncomingWebhookFlowError,
 };
 
-use super::{BoxedConnectorIntegrationV2, ConnectorValidation};
+use super::{BoxedConnectorIntegrationV2, ConnectorSpecifications, ConnectorValidation};
 use crate::{
     core::payments,
     errors,
@@ -378,14 +382,23 @@ impl ConnectorRedirectResponse for ConnectorEnum {
 }
 
 impl ConnectorValidation for ConnectorEnum {
-    fn validate_capture_method(
+    fn validate_connector_against_payment_request(
         &self,
         capture_method: Option<common_enums::CaptureMethod>,
+        payment_method: common_enums::PaymentMethod,
         pmt: Option<common_enums::PaymentMethodType>,
     ) -> CustomResult<(), errors::ConnectorError> {
         match self {
-            Self::Old(connector) => connector.validate_capture_method(capture_method, pmt),
-            Self::New(connector) => connector.validate_capture_method(capture_method, pmt),
+            Self::Old(connector) => connector.validate_connector_against_payment_request(
+                capture_method,
+                payment_method,
+                pmt,
+            ),
+            Self::New(connector) => connector.validate_connector_against_payment_request(
+                capture_method,
+                payment_method,
+                pmt,
+            ),
         }
     }
 
@@ -427,6 +440,31 @@ impl ConnectorValidation for ConnectorEnum {
         match self {
             Self::Old(connector) => connector.is_webhook_source_verification_mandatory(),
             Self::New(connector) => connector.is_webhook_source_verification_mandatory(),
+        }
+    }
+}
+
+impl ConnectorSpecifications for ConnectorEnum {
+    fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
+        match self {
+            Self::Old(connector) => connector.get_supported_payment_methods(),
+            Self::New(connector) => connector.get_supported_payment_methods(),
+        }
+    }
+
+    /// Supported webhooks flows
+    fn get_supported_webhook_flows(&self) -> Option<&'static [common_enums::EventClass]> {
+        match self {
+            Self::Old(connector) => connector.get_supported_webhook_flows(),
+            Self::New(connector) => connector.get_supported_webhook_flows(),
+        }
+    }
+
+    /// Details related to connector
+    fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
+        match self {
+            Self::Old(connector) => connector.get_connector_about(),
+            Self::New(connector) => connector.get_connector_about(),
         }
     }
 }

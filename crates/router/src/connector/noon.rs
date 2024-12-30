@@ -27,7 +27,7 @@ use crate::{
     services::{
         self,
         request::{self, Mask},
-        ConnectorIntegration, ConnectorValidation,
+        ConnectorIntegration, ConnectorSpecifications, ConnectorValidation,
     },
     types::{
         self,
@@ -176,9 +176,10 @@ impl ConnectorCommon for Noon {
 }
 
 impl ConnectorValidation for Noon {
-    fn validate_capture_method(
+    fn validate_connector_against_payment_request(
         &self,
         capture_method: Option<enums::CaptureMethod>,
+        _payment_method: enums::PaymentMethod,
         _pmt: Option<enums::PaymentMethodType>,
     ) -> CustomResult<(), errors::ConnectorError> {
         let capture_method = capture_method.unwrap_or_default();
@@ -945,3 +946,5 @@ impl api::IncomingWebhook for Noon {
         Ok(Box::new(noon::NoonPaymentsResponse::from(resource)))
     }
 }
+
+impl ConnectorSpecifications for Noon {}
