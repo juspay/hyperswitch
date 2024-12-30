@@ -2,7 +2,7 @@ import State from "../../utils/State";
 
 let globalState;
 
-describe("In Memeory Cache Test", () => {
+describe("In Memory Cache Test", () => {
   before("seed global state", () => {
     cy.task("getGlobalState").then((state) => {
       globalState = new State(state);
