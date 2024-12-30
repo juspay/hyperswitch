@@ -20,7 +20,6 @@ env:
   RUN_TESTS: ${{ ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)) || (github.event_name == 'merge_group')}}
   DEBUG: cypress:cli
   RUST_MIN_STACK: 10485760
-  CODECOV_FILE: "lcov.info"
 
 jobs:
   formatter:
@@ -264,6 +263,8 @@ jobs:
   runner_v2:
     name: Run Cypress tests on v2 and generate coverage report
     runs-on: ubuntu-latest
+    env:
+      CODECOV_FILE: "lcov.info"
 
     services:
       redis:
@@ -341,7 +342,7 @@ jobs:
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable 2 weeks ago
-          components: clippy llvm-tools-preview
+          components: llvm-tools-preview
 
       - name: Install sccache
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -360,9 +361,10 @@ jobs:
 
       - name: Install grcov
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: baptiste0928/cargo-install@v3.1.1
+        uses: taiki-e/install-action@v2.41.10
         with:
-          crate: grcov
+          tool: grcov
+          checksum: true
 
       - name: Install Just
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -433,7 +435,7 @@ jobs:
         shell: bash -leuo pipefail {0}
         continue-on-error: true
         run: |
-          scripts/execute_cypress_v2.sh
+          scripts/execute_cypress.sh "" "" "cypress-tests-v2"
 
       - name: Stop running server
         if: ${{ env.RUN_TESTS == 'true' }} && always()
