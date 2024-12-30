@@ -1246,6 +1246,7 @@ async fn perform_session_routing_for_pm_type(
     }
 }
 
+#[cfg(feature = "v2")]
 async fn perform_session_routing_for_pm_type(
     session_pm_input: &SessionRoutingPmTypeInput<'_>,
     transaction_type: &api_enums::TransactionType,

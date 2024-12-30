@@ -661,12 +661,12 @@ common_utils::create_list_wrapper!(
                     .payment_methods_enabled.as_ref()
                     .unwrap_or(&Vec::default())
                     .iter()
-                    .flat_map(|payment_method_types| payment_method_types.payment_method_subtypes.as_ref().unwrap_or(&ref_vector))
-                    .filter(|payment_method_types_enabled| {
+                    .flat_map(|payment_method_types| payment_method_types.payment_method_subtypes.as_ref().unwrap_or(&ref_vector).iter().map(|payment_method_subtype| (payment_method_subtype, payment_method_types.payment_method_type)).collect::<Vec<_>>())
+                    .filter(|(payment_method_types_enabled, _)| {
                         payment_method_types_enabled.payment_experience == Some(api_models::enums::PaymentExperience::InvokeSdkClient)
                     })
-                    .map(|payment_method_types| {
-                        (connector_account, payment_method_types.payment_method_subtype)
+                    .map(|(payment_method_subtypes, payment_method_type)| {
+                        (connector_account, payment_method_subtypes.payment_method_subtype, payment_method_type)
                     })
                     .collect::<Vec<_>>()
             }).collect();

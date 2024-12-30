@@ -539,7 +539,6 @@ pub struct PaymentIntentUpdateInternal {
     pub prerouting_algorithm: Option<serde_json::Value>,
     pub amount_captured: Option<MinorUnit>,
     pub modified_at: PrimitiveDateTime,
-    pub active_attempt_id: Option<common_utils::id_type::GlobalAttemptId>,
     pub amount: Option<MinorUnit>,
     pub currency: Option<storage_enums::Currency>,
     pub shipping_cost: Option<MinorUnit>,
