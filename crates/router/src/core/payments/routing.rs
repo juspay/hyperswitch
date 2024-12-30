@@ -1353,14 +1353,9 @@ pub async fn perform_success_based_routing(
                     .ok_or(errors::RoutingError::SuccessBasedRoutingParamsNotFoundError)?,
             );
 
-        let tenant_business_profile_id = routing::helpers::generate_tenant_business_profile_id(
-            &state.tenant.redis_key_prefix,
-            business_profile.get_id().get_string_repr(),
-        );
-
         let success_based_connectors: CalSuccessRateResponse = client
             .calculate_success_rate(
-                tenant_business_profile_id,
+                business_profile.get_id().get_string_repr().into(),
                 success_based_routing_configs,
                 success_based_routing_config_params,
                 routable_connectors,

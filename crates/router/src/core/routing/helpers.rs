@@ -699,11 +699,6 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("unable to retrieve success_rate based dynamic routing configs")?;
 
-        let tenant_business_profile_id = generate_tenant_business_profile_id(
-            &state.tenant.redis_key_prefix,
-            business_profile.get_id().get_string_repr(),
-        );
-
         let success_based_routing_config_params = success_based_routing_config_params_interpolator
             .get_string_val(
                 success_based_routing_configs
@@ -863,7 +858,7 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
 
         client
             .update_success_rate(
-                tenant_business_profile_id,
+                business_profile.get_id().get_string_repr().into(),
                 success_based_routing_configs,
                 success_based_routing_config_params,
                 vec![routing_types::RoutableConnectorChoiceWithStatus::new(
@@ -956,14 +951,6 @@ fn get_success_based_metrics_outcome_for_payment(
         }
         _ => common_enums::SuccessBasedRoutingConclusiveState::NonDeterministic,
     }
-}
-
-/// generates cache key with tenant's redis key prefix and profile_id
-pub fn generate_tenant_business_profile_id(
-    redis_key_prefix: &str,
-    business_profile_id: &str,
-) -> String {
-    format!("{}:{}", redis_key_prefix, business_profile_id)
 }
 
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
