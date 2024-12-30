@@ -3,7 +3,6 @@ import State from "../../utils/State";
 let globalState;
 
 describe("In Memeory Cache Test", () => {
-
   before("seed global state", () => {
     cy.task("getGlobalState").then((state) => {
       globalState = new State(state);
@@ -31,6 +30,6 @@ describe("In Memeory Cache Test", () => {
 
     it("delete configs", () => {
       cy.deleteConfigs(globalState, key, newValue);
-    })
+    });
   });
-})
+});

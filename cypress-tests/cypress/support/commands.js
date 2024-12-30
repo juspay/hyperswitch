@@ -3344,8 +3344,8 @@ Cypress.Commands.add("createConfigs", (globalState, key, value) => {
       "api-key": api_key,
     },
     body: {
-      key: key, 
-      value: value
+      key: key,
+      value: value,
     },
     failOnStatusCode: false,
   }).then((response) => {
@@ -3390,8 +3390,8 @@ Cypress.Commands.add("updateConfigs", (globalState, key, value) => {
       "api-key": api_key,
     },
     body: {
-      key: key, 
-      value: value
+      key: key,
+      value: value,
     },
     failOnStatusCode: false,
   }).then((response) => {
