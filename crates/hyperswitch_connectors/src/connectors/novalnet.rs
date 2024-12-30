@@ -145,7 +145,6 @@ impl ConnectorCommon for Novalnet {
 
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response.code,
