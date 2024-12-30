@@ -200,6 +200,7 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
             payment_method_billing_address,
             business_profile,
             connector_mandate_reference_id.clone(),
+            merchant_connector_id.clone(),
         ));
 
         let is_connector_mandate = resp.request.customer_acceptance.is_some()
@@ -315,6 +316,7 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
                         payment_method_billing_address.as_ref(),
                         &business_profile,
                         connector_mandate_reference_id,
+                        merchant_connector_id.clone(),
                     ))
                     .await;
 
@@ -1099,6 +1101,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
             payment_method_billing_address,
             business_profile,
             connector_mandate_reference_id,
+            merchant_connector_id.clone(),
         ))
         .await?;
 

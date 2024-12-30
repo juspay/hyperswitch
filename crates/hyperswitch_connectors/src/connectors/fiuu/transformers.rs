@@ -1168,9 +1168,9 @@ impl TryFrom<PaymentsSyncResponseRouterData<FiuuPaymentResponse>> for PaymentsSy
                 let error_response = if status == enums::AttemptStatus::Failure {
                     Some(ErrorResponse {
                         status_code: item.http_code,
-                        code: response.stat_code.to_string(),
-                        message: response.stat_name.clone().to_string(),
-                        reason: Some(response.stat_name.clone().to_string()),
+                        code: response.error_code.clone(),
+                        message: response.error_desc.clone(),
+                        reason: Some(response.error_desc),
                         attempt_status: Some(enums::AttemptStatus::Failure),
                         connector_transaction_id: None,
                     })
@@ -1199,7 +1199,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<FiuuPaymentResponse>> for PaymentsSy
                     status: response.status,
                 })?;
                 let mandate_reference = response.extra_parameters.as_ref().and_then(|extra_p| {
-                    let mandate_token: Result<ExtraParameters, _> = serde_json::from_str(extra_p);
+                    let mandate_token: Result<ExtraParameters, _> = serde_json::from_str(&extra_p.clone().expose());
                     match mandate_token {
                         Ok(token) => {
                             token.token.as_ref().map(|token| MandateReference {
@@ -1212,7 +1212,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<FiuuPaymentResponse>> for PaymentsSy
                         Err(err) => {
                             router_env::logger::warn!(
                                 "Failed to convert 'extraP' from fiuu webhook response to fiuu::ExtraParameters. \
-                                 Input: '{}', Error: {}",
+                                 Input: '{:?}', Error: {}",
                                 extra_p,
                                 err
                             );
@@ -1228,7 +1228,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<FiuuPaymentResponse>> for PaymentsSy
                             .clone()
                             .unwrap_or(consts::NO_ERROR_CODE.to_owned()),
                         message: response
-                            .error_code
+                            .error_desc
                             .clone()
                             .unwrap_or(consts::NO_ERROR_MESSAGE.to_owned()),
                         reason: response.error_desc.clone(),
@@ -1697,7 +1697,7 @@ pub struct FiuuWebhooksPaymentResponse {
     pub error_desc: Option<String>,
     pub error_code: Option<String>,
     #[serde(rename = "extraP")]
-    pub extra_parameters: Option<String>,
+    pub extra_parameters: Option<Secret<String>>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]

@@ -138,6 +138,15 @@ impl UserEmail {
     pub fn get_secret(self) -> Secret<String, pii::EmailStrategy> {
         (*self.0).clone()
     }
+
+    pub fn extract_domain(&self) -> UserResult<&str> {
+        let (_username, domain) = self
+            .peek()
+            .split_once('@')
+            .ok_or(UserErrors::InternalServerError)?;
+
+        Ok(domain)
+    }
 }
 
 impl TryFrom<pii::Email> for UserEmail {
