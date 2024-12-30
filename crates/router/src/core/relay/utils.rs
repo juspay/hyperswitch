@@ -32,10 +32,7 @@ pub async fn construct_relay_refund_router_data<'a, F>(
     let webhook_url = Some(payments::helpers::create_webhook_url(
         &state.base_url.clone(),
         merchant_id,
-        #[cfg(feature = "v1")]
-        &connector_account.merchant_connector_id,
-        #[cfg(feature = "v2")]
-        &connector_account.id,
+        &connector_account.get_id(),
     ));
 
     let supported_connector = &state
