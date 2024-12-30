@@ -225,11 +225,16 @@ cargo +nightly fmt
 
 ### Code Coverage
 
-We value well tested code. You should try to add tests for the code you add.
+We appreciate well-tested code, so feel free to add tests when you can.
 
-For generating code coverage, follow the following steps:
+To generate code coverage using the cypress tests, follow these steps:
 
 - Make sure `grcov` and `llvm-tools-preview` are installed
+
+  ```shell
+  rustup install llvm-tools-preview
+  cargo install grcov
+  ```
 
 - Build the project with the `-Cinstrument-coverage` flag:
 
@@ -237,30 +242,34 @@ For generating code coverage, follow the following steps:
   RUSTFLAGS="-Cinstrument-coverage" cargo build --bin=router --package=router
   ```
 
-  Several `.profraw` files will be generated.
+  Several `.profraw` files will be generated. (Due to the execution of build scripts)
 
-- Run the project using:
+- Execute the binary:
+
   ```shell
   LLVM_PROFILE_FILE="coverage.profraw" target/debug/router
   ```
 
-- Open a separate terminal tab and run the cypress tests, following the README
+- Open a separate terminal tab and run the cypress tests, following the [README]
 
 - After the tests have finished running, stop the `router` process using `Ctrl+C`
 
 - The generated `coverage.profraw` file will contain the code coverage data for `router`
 
-- Generate an html report from the data using:
+- Generate an html report from the data:
+
   ```shell
   grcov . --source-dir . --output-type html --binary-path ./target/debug
   ```
 
 - A folder named `html` will be generated, containing the report. You can view it using:
+
   ```shell
   cd html && python3 -m http.server 8000
   ```
 
 - You can delete the generated `.profraw` files using:
+
   ```shell
   rm **/*.profraw
   ```
@@ -268,6 +277,8 @@ For generating code coverage, follow the following steps:
 Note:
 - It is necessary to stop the `router` process to generate the coverage file
 - Branch coverage generation requires nightly and currently `grcov` crashes while trying to include branch coverage. (Checked using `--log-level` parameter in `grcov`)
+
+[README]: /cypress-tests-v2/README.md
 
 ### Commits
 

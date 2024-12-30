@@ -79,8 +79,6 @@ build_v2 *FLAGS:
     cargo build --package router --bin router --no-default-features --features "${FEATURES}" {{ FLAGS }}
     set +x
 
-alias bb := build_v2
-
 
 run_v2:
     #! /usr/bin/env bash
