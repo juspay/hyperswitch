@@ -14,7 +14,7 @@ use time::PrimitiveDateTime;
 
 use crate::{router_data::ErrorResponse, router_response_types};
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone)]
 pub struct Relay {
     pub id: id_type::RelayId,
     pub connector_resource_id: String,
@@ -27,9 +27,7 @@ pub struct Relay {
     pub connector_reference_id: Option<String>,
     pub error_code: Option<String>,
     pub error_message: Option<String>,
-    #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: PrimitiveDateTime,
-    #[serde(with = "common_utils::custom_serde::iso8601")]
     pub modified_at: PrimitiveDateTime,
     pub response_data: Option<pii::SecretSerdeValue>,
 }
