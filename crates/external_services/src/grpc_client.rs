@@ -128,3 +128,12 @@ impl<T> AddHeaders for tonic::Request<T> {
         });
     }
 }
+
+pub(crate) fn create_grpc_request<T: Debug>(message: T, headers: GrpcHeaders) -> tonic::Request<T> {
+    let mut request = tonic::Request::new(message);
+    request.add_headers_to_grpc_request(headers);
+
+    logger::info!(dynamic_routing_request=?request);
+
+    request
+}
