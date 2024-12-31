@@ -4,8 +4,8 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
 use crate::enums::{
-    CaptureMethod, Connector, CountryAlpha2, Currency, EventClass, FeatureStatus,
-    PaymentConnectorCategory, PaymentMethod, PaymentMethodType, CardNetwork
+    CaptureMethod, CardNetwork, Connector, CountryAlpha2, Currency, EventClass, FeatureStatus,
+    PaymentConnectorCategory, PaymentMethod, PaymentMethodType,
 };
 
 #[derive(Default, Debug, Deserialize, Serialize, Clone, ToSchema)]
