@@ -2615,6 +2615,22 @@ pub fn deserialize_xml_to_struct<T: serde::de::DeserializeOwned>(
 }
 
 #[cfg(feature = "payouts")]
+pub trait CustomerDetails {
+    fn get_customer_phone_country_code(&self) -> Result<String, errors::ConnectorError>;
+}
+
+#[cfg(feature = "payouts")]
+impl CustomerDetails for hyperswitch_domain_models::router_request_types::CustomerDetails {
+    fn get_customer_phone_country_code(&self) -> Result<String, errors::ConnectorError> {
+        self.phone_country_code
+            .clone()
+            .ok_or(errors::ConnectorError::MissingRequiredField {
+                field_name: "customer_phone_country_code",
+            })
+    }
+}
+
+#[cfg(feature = "payouts")]
 pub trait PayoutsData {
     fn get_transfer_id(&self) -> Result<String, Error>;
     fn get_customer_details(

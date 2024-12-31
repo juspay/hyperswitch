@@ -1,22 +1,20 @@
 #[cfg(feature = "payouts")]
-use api_models::enums::Currency;
-#[cfg(feature = "payouts")]
 use api_models::payouts::{Bank, PayoutMethodData};
 #[cfg(feature = "payouts")]
-use common_utils::pii::Email;
-use common_utils::types::FloatMajorUnit;
+use common_enums::{Currency, PayoutStatus, PayoutType};
+use common_utils::{pii::Email, types::FloatMajorUnit};
+use hyperswitch_domain_models::{router_data::ConnectorAuthType, types::PayoutsResponseData};
 #[cfg(feature = "payouts")]
-use masking::ExposeInterface;
-use masking::Secret;
+use hyperswitch_domain_models::{router_flow_types::PoCreate, types::PayoutsRouterData};
+use hyperswitch_interfaces::errors;
+use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "payouts")]
 use crate::{
-    connector::utils::{AddressDetailsData, RouterData},
-    connector::utils::{CustomerDetails, PayoutsData},
-    types::{api, storage::enums as storage_enums},
+    types::PayoutsResponseRouterData,
+    utils::{AddressDetailsData, CustomerDetails, PayoutsData, RouterData},
 };
-use crate::{core::errors, types};
 
 pub struct EbanxRouterData<T> {
     pub amount: FloatMajorUnit, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
@@ -90,13 +88,9 @@ pub enum EbanxBankAccountType {
 }
 
 #[cfg(feature = "payouts")]
-impl TryFrom<&EbanxRouterData<&types::PayoutsRouterData<api::PoCreate>>>
-    for EbanxPayoutCreateRequest
-{
+impl TryFrom<&EbanxRouterData<&PayoutsRouterData<PoCreate>>> for EbanxPayoutCreateRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: &EbanxRouterData<&types::PayoutsRouterData<api::PoCreate>>,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(item: &EbanxRouterData<&PayoutsRouterData<PoCreate>>) -> Result<Self, Self::Error> {
         let ebanx_auth_type = EbanxAuthType::try_from(&item.router_data.connector_auth_type)?;
         match item.router_data.get_payout_method_data()? {
             PayoutMethodData::Bank(Bank::Pix(pix_data)) => {
@@ -150,11 +144,11 @@ pub struct EbanxAuthType {
     pub integration_key: Secret<String>,
 }
 
-impl TryFrom<&types::ConnectorAuthType> for EbanxAuthType {
+impl TryFrom<&ConnectorAuthType> for EbanxAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
+    fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            types::ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
+            ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
                 integration_key: api_key.to_owned(),
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
@@ -176,7 +170,7 @@ pub enum EbanxPayoutStatus {
 }
 
 #[cfg(feature = "payouts")]
-impl From<EbanxPayoutStatus> for storage_enums::PayoutStatus {
+impl From<EbanxPayoutStatus> for PayoutStatus {
     fn from(item: EbanxPayoutStatus) -> Self {
         match item {
             EbanxPayoutStatus::Succeeded => Self::Success,
@@ -201,18 +195,14 @@ pub struct EbanxPayoutResponseDetails {
 }
 
 #[cfg(feature = "payouts")]
-impl<F> TryFrom<types::PayoutsResponseRouterData<F, EbanxPayoutResponse>>
-    for types::PayoutsRouterData<F>
-{
+impl<F> TryFrom<PayoutsResponseRouterData<F, EbanxPayoutResponse>> for PayoutsRouterData<F> {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::PayoutsResponseRouterData<F, EbanxPayoutResponse>,
+        item: PayoutsResponseRouterData<F, EbanxPayoutResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            response: Ok(types::PayoutsResponseData {
-                status: Some(storage_enums::PayoutStatus::from(
-                    item.response.payout.status,
-                )),
+            response: Ok(PayoutsResponseData {
+                status: Some(PayoutStatus::from(item.response.payout.status)),
                 connector_payout_id: Some(item.response.payout.uid),
                 payout_eligible: None,
                 should_add_next_step_to_process_tracker: false,
@@ -232,26 +222,24 @@ pub struct EbanxPayoutFulfillRequest {
 }
 
 #[cfg(feature = "payouts")]
-impl<F> TryFrom<&EbanxRouterData<&types::PayoutsRouterData<F>>> for EbanxPayoutFulfillRequest {
+impl<F> TryFrom<&EbanxRouterData<&PayoutsRouterData<F>>> for EbanxPayoutFulfillRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &EbanxRouterData<&types::PayoutsRouterData<F>>) -> Result<Self, Self::Error> {
+    fn try_from(item: &EbanxRouterData<&PayoutsRouterData<F>>) -> Result<Self, Self::Error> {
         let request = item.router_data.request.to_owned();
         let ebanx_auth_type = EbanxAuthType::try_from(&item.router_data.connector_auth_type)?;
         let payout_type = request.get_payout_type()?;
         match payout_type {
-            storage_enums::PayoutType::Bank => Ok(Self {
+            PayoutType::Bank => Ok(Self {
                 integration_key: ebanx_auth_type.integration_key,
                 uid: request
                     .connector_payout_id
                     .to_owned()
                     .ok_or(errors::ConnectorError::MissingRequiredField { field_name: "uid" })?,
             }),
-            storage_enums::PayoutType::Card | storage_enums::PayoutType::Wallet => {
-                Err(errors::ConnectorError::NotSupported {
-                    message: "Payout Method Not Supported".to_string(),
-                    connector: "Ebanx",
-                })?
-            }
+            PayoutType::Card | PayoutType::Wallet => Err(errors::ConnectorError::NotSupported {
+                message: "Payout Method Not Supported".to_string(),
+                connector: "Ebanx",
+            })?,
         }
     }
 }
@@ -276,7 +264,7 @@ pub enum EbanxFulfillStatus {
 }
 
 #[cfg(feature = "payouts")]
-impl From<EbanxFulfillStatus> for storage_enums::PayoutStatus {
+impl From<EbanxFulfillStatus> for PayoutStatus {
     fn from(item: EbanxFulfillStatus) -> Self {
         match item {
             EbanxFulfillStatus::Success => Self::Success,
@@ -289,16 +277,14 @@ impl From<EbanxFulfillStatus> for storage_enums::PayoutStatus {
 }
 
 #[cfg(feature = "payouts")]
-impl<F> TryFrom<types::PayoutsResponseRouterData<F, EbanxFulfillResponse>>
-    for types::PayoutsRouterData<F>
-{
+impl<F> TryFrom<PayoutsResponseRouterData<F, EbanxFulfillResponse>> for PayoutsRouterData<F> {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::PayoutsResponseRouterData<F, EbanxFulfillResponse>,
+        item: PayoutsResponseRouterData<F, EbanxFulfillResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            response: Ok(types::PayoutsResponseData {
-                status: Some(storage_enums::PayoutStatus::from(item.response.status)),
+            response: Ok(PayoutsResponseData {
+                status: Some(PayoutStatus::from(item.response.status)),
                 connector_payout_id: Some(item.data.request.get_transfer_id()?),
                 payout_eligible: None,
                 should_add_next_step_to_process_tracker: false,
@@ -325,26 +311,24 @@ pub struct EbanxPayoutCancelRequest {
 }
 
 #[cfg(feature = "payouts")]
-impl<F> TryFrom<&types::PayoutsRouterData<F>> for EbanxPayoutCancelRequest {
+impl<F> TryFrom<&PayoutsRouterData<F>> for EbanxPayoutCancelRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PayoutsRouterData<F>) -> Result<Self, Self::Error> {
+    fn try_from(item: &PayoutsRouterData<F>) -> Result<Self, Self::Error> {
         let request = item.request.to_owned();
         let ebanx_auth_type = EbanxAuthType::try_from(&item.connector_auth_type)?;
         let payout_type = request.get_payout_type()?;
         match payout_type {
-            storage_enums::PayoutType::Bank => Ok(Self {
+            PayoutType::Bank => Ok(Self {
                 integration_key: ebanx_auth_type.integration_key,
                 uid: request
                     .connector_payout_id
                     .to_owned()
                     .ok_or(errors::ConnectorError::MissingRequiredField { field_name: "uid" })?,
             }),
-            storage_enums::PayoutType::Card | storage_enums::PayoutType::Wallet => {
-                Err(errors::ConnectorError::NotSupported {
-                    message: "Payout Method Not Supported".to_string(),
-                    connector: "Ebanx",
-                })?
-            }
+            PayoutType::Card | PayoutType::Wallet => Err(errors::ConnectorError::NotSupported {
+                message: "Payout Method Not Supported".to_string(),
+                connector: "Ebanx",
+            })?,
         }
     }
 }
@@ -369,7 +353,7 @@ pub enum EbanxCancelStatus {
 }
 
 #[cfg(feature = "payouts")]
-impl From<EbanxCancelStatus> for storage_enums::PayoutStatus {
+impl From<EbanxCancelStatus> for PayoutStatus {
     fn from(item: EbanxCancelStatus) -> Self {
         match item {
             EbanxCancelStatus::Success => Self::Cancelled,
@@ -382,16 +366,14 @@ impl From<EbanxCancelStatus> for storage_enums::PayoutStatus {
 }
 
 #[cfg(feature = "payouts")]
-impl<F> TryFrom<types::PayoutsResponseRouterData<F, EbanxCancelResponse>>
-    for types::PayoutsRouterData<F>
-{
+impl<F> TryFrom<PayoutsResponseRouterData<F, EbanxCancelResponse>> for PayoutsRouterData<F> {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::PayoutsResponseRouterData<F, EbanxCancelResponse>,
+        item: PayoutsResponseRouterData<F, EbanxCancelResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            response: Ok(types::PayoutsResponseData {
-                status: Some(storage_enums::PayoutStatus::from(item.response.status)),
+            response: Ok(PayoutsResponseData {
+                status: Some(PayoutStatus::from(item.response.status)),
                 connector_payout_id: item.data.request.connector_payout_id.clone(),
                 payout_eligible: None,
                 should_add_next_step_to_process_tracker: false,

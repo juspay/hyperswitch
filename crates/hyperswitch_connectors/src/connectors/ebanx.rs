@@ -1,32 +1,48 @@
 pub mod transformers;
 
-#[cfg(feature = "payouts")]
-use common_utils::request::RequestContent;
-#[cfg(feature = "payouts")]
-use common_utils::types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector};
+use api_models::webhooks::{IncomingWebhookEvent, ObjectReferenceId};
+use common_utils::{
+    errors::CustomResult,
+    ext_traits::BytesExt,
+    request::{Method, Request, RequestBuilder, RequestContent},
+    types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector},
+};
 use error_stack::{report, ResultExt};
+use hyperswitch_domain_models::{
+    router_data::{AccessToken, ErrorResponse, RouterData},
+    router_flow_types::{
+        access_token_auth::AccessTokenAuth,
+        payments::{Authorize, Capture, PSync, PaymentMethodToken, Session, SetupMandate, Void},
+        refunds::{Execute, RSync},
+    },
+    router_request_types::{
+        AccessTokenRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
+        PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
+        RefundsData, SetupMandateRequestData,
+    },
+    router_response_types::{PaymentsResponseData, RefundsResponseData},
+};
+#[cfg(feature = "payouts")]
+use hyperswitch_domain_models::{
+    router_flow_types::{PoCancel, PoCreate, PoEligibility, PoFulfill, PoQuote, PoRecipient},
+    types::{PayoutsData, PayoutsResponseData, PayoutsRouterData},
+};
+use hyperswitch_interfaces::{
+    api::{self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorValidation},
+    configs::Connectors,
+    errors,
+    events::connector_api_logs::ConnectorEvent,
+    types::{self, Response},
+    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
+};
 #[cfg(feature = "payouts")]
 use router_env::{instrument, tracing};
 use transformers as ebanx;
 
 #[cfg(feature = "payouts")]
-use crate::connector::utils::convert_amount;
-use crate::{
-    configs::settings,
-    core::errors::{self, CustomResult},
-    events::connector_api_logs::ConnectorEvent,
-    services::{ConnectorIntegration, ConnectorValidation},
-    types::{
-        self,
-        api::{self, ConnectorCommon, ConnectorCommonExt},
-    },
-    utils::BytesExt,
-};
-#[cfg(feature = "payouts")]
-use crate::{
-    headers,
-    services::{self, request},
-};
+use crate::utils::convert_amount;
+use crate::{constants::headers, types::ResponseRouterData};
+
 #[derive(Clone)]
 pub struct Ebanx {
     #[cfg(feature = "payouts")]
@@ -76,9 +92,9 @@ where
     #[cfg(feature = "payouts")]
     fn build_headers(
         &self,
-        _req: &types::RouterData<Flow, Request, Response>,
-        _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        _req: &RouterData<Flow, Request, Response>,
+        _connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         let header = vec![(
             headers::CONTENT_TYPE.to_string(),
             self.common_get_content_type().to_string().into(),
@@ -100,15 +116,15 @@ impl ConnectorCommon for Ebanx {
         "application/json"
     }
 
-    fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
+    fn base_url<'a>(&self, connectors: &'a Connectors) -> &'a str {
         connectors.ebanx.base_url.as_ref()
     }
 
     fn build_error_response(
         &self,
-        res: types::Response,
+        res: Response,
         event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         let response: ebanx::EbanxErrorResponse =
             res.response
                 .parse_struct("EbanxErrorResponse")
@@ -117,7 +133,7 @@ impl ConnectorCommon for Ebanx {
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        Ok(types::ErrorResponse {
+        Ok(ErrorResponse {
             status_code: res.status_code,
             code: response.status_code,
             message: response.code,
@@ -129,27 +145,27 @@ impl ConnectorCommon for Ebanx {
 }
 
 #[cfg(feature = "payouts")]
-impl ConnectorIntegration<api::PoCreate, types::PayoutsData, types::PayoutsResponseData> for Ebanx {
+impl ConnectorIntegration<PoCreate, PayoutsData, PayoutsResponseData> for Ebanx {
     fn get_url(
         &self,
-        _req: &types::PayoutsRouterData<api::PoCreate>,
-        connectors: &settings::Connectors,
+        _req: &PayoutsRouterData<PoCreate>,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!("{}ws/payout/create", connectors.ebanx.base_url))
     }
 
     fn get_headers(
         &self,
-        req: &types::PayoutsRouterData<api::PoCreate>,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        req: &PayoutsRouterData<PoCreate>,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
     fn get_request_body(
         &self,
-        req: &types::PayoutsRouterData<api::PoCreate>,
-        _connectors: &settings::Connectors,
+        req: &PayoutsRouterData<PoCreate>,
+        _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let amount = convert_amount(
             self.amount_converter,
@@ -163,11 +179,11 @@ impl ConnectorIntegration<api::PoCreate, types::PayoutsData, types::PayoutsRespo
 
     fn build_request(
         &self,
-        req: &types::PayoutsRouterData<api::PoCreate>,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        let request = services::RequestBuilder::new()
-            .method(services::Method::Post)
+        req: &PayoutsRouterData<PoCreate>,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        let request = RequestBuilder::new()
+            .method(Method::Post)
             .url(&types::PayoutCreateType::get_url(self, req, connectors)?)
             .attach_default_headers()
             .headers(types::PayoutCreateType::get_headers(self, req, connectors)?)
@@ -181,10 +197,10 @@ impl ConnectorIntegration<api::PoCreate, types::PayoutsData, types::PayoutsRespo
 
     fn handle_response(
         &self,
-        data: &types::PayoutsRouterData<api::PoCreate>,
+        data: &PayoutsRouterData<PoCreate>,
         event_builder: Option<&mut ConnectorEvent>,
-        res: types::Response,
-    ) -> CustomResult<types::PayoutsRouterData<api::PoCreate>, errors::ConnectorError> {
+        res: Response,
+    ) -> CustomResult<PayoutsRouterData<PoCreate>, errors::ConnectorError> {
         let response: ebanx::EbanxPayoutResponse = res
             .response
             .parse_struct("EbanxPayoutResponse")
@@ -193,7 +209,7 @@ impl ConnectorIntegration<api::PoCreate, types::PayoutsData, types::PayoutsRespo
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        types::RouterData::try_from(types::ResponseRouterData {
+        RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -202,37 +218,35 @@ impl ConnectorIntegration<api::PoCreate, types::PayoutsData, types::PayoutsRespo
 
     fn get_error_response(
         &self,
-        res: types::Response,
+        res: Response,
         event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res, event_builder)
     }
 }
 
 #[cfg(feature = "payouts")]
-impl ConnectorIntegration<api::PoFulfill, types::PayoutsData, types::PayoutsResponseData>
-    for Ebanx
-{
+impl ConnectorIntegration<PoFulfill, PayoutsData, PayoutsResponseData> for Ebanx {
     fn get_url(
         &self,
-        _req: &types::PayoutsRouterData<api::PoFulfill>,
-        connectors: &settings::Connectors,
+        _req: &PayoutsRouterData<PoFulfill>,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!("{}ws/payout/commit", connectors.ebanx.base_url,))
     }
 
     fn get_headers(
         &self,
-        req: &types::PayoutsRouterData<api::PoFulfill>,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        req: &PayoutsRouterData<PoFulfill>,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
     fn get_request_body(
         &self,
-        req: &types::PayoutsRouterData<api::PoFulfill>,
-        _connectors: &settings::Connectors,
+        req: &PayoutsRouterData<PoFulfill>,
+        _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let amount = convert_amount(
             self.amount_converter,
@@ -246,11 +260,11 @@ impl ConnectorIntegration<api::PoFulfill, types::PayoutsData, types::PayoutsResp
 
     fn build_request(
         &self,
-        req: &types::PayoutsRouterData<api::PoFulfill>,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        let request = services::RequestBuilder::new()
-            .method(services::Method::Post)
+        req: &PayoutsRouterData<PoFulfill>,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        let request = RequestBuilder::new()
+            .method(Method::Post)
             .url(&types::PayoutFulfillType::get_url(self, req, connectors)?)
             .attach_default_headers()
             .headers(types::PayoutFulfillType::get_headers(
@@ -267,10 +281,10 @@ impl ConnectorIntegration<api::PoFulfill, types::PayoutsData, types::PayoutsResp
     #[instrument(skip_all)]
     fn handle_response(
         &self,
-        data: &types::PayoutsRouterData<api::PoFulfill>,
+        data: &PayoutsRouterData<PoFulfill>,
         event_builder: Option<&mut ConnectorEvent>,
-        res: types::Response,
-    ) -> CustomResult<types::PayoutsRouterData<api::PoFulfill>, errors::ConnectorError> {
+        res: Response,
+    ) -> CustomResult<PayoutsRouterData<PoFulfill>, errors::ConnectorError> {
         let response: ebanx::EbanxFulfillResponse = res
             .response
             .parse_struct("EbanxFulfillResponse")
@@ -279,7 +293,7 @@ impl ConnectorIntegration<api::PoFulfill, types::PayoutsData, types::PayoutsResp
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        types::RouterData::try_from(types::ResponseRouterData {
+        RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -288,35 +302,35 @@ impl ConnectorIntegration<api::PoFulfill, types::PayoutsData, types::PayoutsResp
 
     fn get_error_response(
         &self,
-        res: types::Response,
+        res: Response,
         event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res, event_builder)
     }
 }
 
 #[cfg(feature = "payouts")]
-impl ConnectorIntegration<api::PoCancel, types::PayoutsData, types::PayoutsResponseData> for Ebanx {
+impl ConnectorIntegration<PoCancel, PayoutsData, PayoutsResponseData> for Ebanx {
     fn get_url(
         &self,
-        _req: &types::PayoutsRouterData<api::PoCancel>,
-        connectors: &settings::Connectors,
+        _req: &PayoutsRouterData<PoCancel>,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!("{}ws/payout/cancel", connectors.ebanx.base_url,))
     }
 
     fn get_headers(
         &self,
-        req: &types::PayoutsRouterData<api::PoCancel>,
-        _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        req: &PayoutsRouterData<PoCancel>,
+        _connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, _connectors)
     }
 
     fn get_request_body(
         &self,
-        req: &types::PayoutsRouterData<api::PoCancel>,
-        _connectors: &settings::Connectors,
+        req: &PayoutsRouterData<PoCancel>,
+        _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = ebanx::EbanxPayoutCancelRequest::try_from(req)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
@@ -324,11 +338,11 @@ impl ConnectorIntegration<api::PoCancel, types::PayoutsData, types::PayoutsRespo
 
     fn build_request(
         &self,
-        req: &types::PayoutsRouterData<api::PoCancel>,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        let request = services::RequestBuilder::new()
-            .method(services::Method::Put)
+        req: &PayoutsRouterData<PoCancel>,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        let request = RequestBuilder::new()
+            .method(Method::Put)
             .url(&types::PayoutCancelType::get_url(self, req, connectors)?)
             .attach_default_headers()
             .headers(types::PayoutCancelType::get_headers(self, req, connectors)?)
@@ -343,10 +357,10 @@ impl ConnectorIntegration<api::PoCancel, types::PayoutsData, types::PayoutsRespo
     #[instrument(skip_all)]
     fn handle_response(
         &self,
-        data: &types::PayoutsRouterData<api::PoCancel>,
+        data: &PayoutsRouterData<PoCancel>,
         event_builder: Option<&mut ConnectorEvent>,
-        res: types::Response,
-    ) -> CustomResult<types::PayoutsRouterData<api::PoCancel>, errors::ConnectorError> {
+        res: Response,
+    ) -> CustomResult<PayoutsRouterData<PoCancel>, errors::ConnectorError> {
         let response: ebanx::EbanxCancelResponse = res
             .response
             .parse_struct("EbanxCancelResponse")
@@ -355,7 +369,7 @@ impl ConnectorIntegration<api::PoCancel, types::PayoutsData, types::PayoutsRespo
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        types::RouterData::try_from(types::ResponseRouterData {
+        RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -364,34 +378,24 @@ impl ConnectorIntegration<api::PoCancel, types::PayoutsData, types::PayoutsRespo
 
     fn get_error_response(
         &self,
-        res: types::Response,
+        res: Response,
         event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res, event_builder)
     }
 }
 
 #[cfg(feature = "payouts")]
-impl ConnectorIntegration<api::PoQuote, types::PayoutsData, types::PayoutsResponseData> for Ebanx {}
+impl ConnectorIntegration<PoQuote, PayoutsData, PayoutsResponseData> for Ebanx {}
 
 #[cfg(feature = "payouts")]
-impl ConnectorIntegration<api::PoRecipient, types::PayoutsData, types::PayoutsResponseData>
-    for Ebanx
-{
-}
+impl ConnectorIntegration<PoRecipient, PayoutsData, PayoutsResponseData> for Ebanx {}
 
 #[cfg(feature = "payouts")]
-impl ConnectorIntegration<api::PoEligibility, types::PayoutsData, types::PayoutsResponseData>
-    for Ebanx
-{
-}
+impl ConnectorIntegration<PoEligibility, PayoutsData, PayoutsResponseData> for Ebanx {}
 
-impl
-    ConnectorIntegration<
-        api::PaymentMethodToken,
-        types::PaymentMethodTokenizationData,
-        types::PaymentsResponseData,
-    > for Ebanx
+impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
+    for Ebanx
 {
     // Not Implemented (R)
 }
@@ -400,68 +404,44 @@ impl ConnectorValidation for Ebanx {
     //TODO: implement functions when support enabled
 }
 
-impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>
-    for Ebanx
-{
+impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Ebanx {
     //TODO: implement sessions flow
 }
 
-impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken>
-    for Ebanx
-{
-}
+impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> for Ebanx {}
 
-impl
-    ConnectorIntegration<
-        api::SetupMandate,
-        types::SetupMandateRequestData,
-        types::PaymentsResponseData,
-    > for Ebanx
-{
-}
+impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsResponseData> for Ebanx {}
 
-impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData>
-    for Ebanx
-{
-}
+impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData> for Ebanx {}
 
-impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
-    for Ebanx
-{
-}
+impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Ebanx {}
 
-impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::PaymentsResponseData>
-    for Ebanx
-{
-}
+impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> for Ebanx {}
 
-impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>
-    for Ebanx
-{
-}
+impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Ebanx {}
 
-impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsResponseData> for Ebanx {}
+impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Ebanx {}
 
-impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponseData> for Ebanx {}
+impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Ebanx {}
 
-impl api::IncomingWebhook for Ebanx {
+impl IncomingWebhook for Ebanx {
     fn get_webhook_object_reference_id(
         &self,
-        _request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<api::webhooks::ObjectReferenceId, errors::ConnectorError> {
+        _request: &IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<ObjectReferenceId, errors::ConnectorError> {
         Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 
     fn get_webhook_event_type(
         &self,
-        _request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
+        _request: &IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<IncomingWebhookEvent, errors::ConnectorError> {
         Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 
     fn get_webhook_resource_object(
         &self,
-        _request: &api::IncomingWebhookRequestDetails<'_>,
+        _request: &IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
         Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
