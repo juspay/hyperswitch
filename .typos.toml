@@ -43,6 +43,7 @@ ws2tcpip = "ws2tcpip" # WinSock Extension
 ZAR = "ZAR"  # South African Rand currency code
 JOD = "JOD" # Jordan currency code
 Payed = "Payed" # Paid status for digital virgo
+SessionConnectorDatas = "SessionConnectorDatas" # Wrapper for List of SessionConnectorData
 
 [default.extend-words]
 aci = "aci" # Name of a connector
