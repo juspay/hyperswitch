@@ -229,50 +229,61 @@ We appreciate well-tested code, so feel free to add tests when you can.
 
 To generate code coverage using the cypress tests, follow these steps:
 
-- Make sure `grcov` and `llvm-tools-preview` are installed
+0. Make sure `grcov` and `llvm-tools-preview` are installed
 
-  ```shell
-  rustup install llvm-tools-preview
-  cargo install grcov
-  ```
+   ```shell
+   rustup install llvm-tools-preview
+   cargo install grcov
+   ```
 
-- Build the project with the `-Cinstrument-coverage` flag:
+1. Build the project with the `-Cinstrument-coverage` flag:
 
-  ```shell
-  RUSTFLAGS="-Cinstrument-coverage" cargo build --bin=router --package=router
-  ```
+   ```shell
+   RUSTFLAGS="-Cinstrument-coverage" cargo build --bin=router --package=router
+   ```
 
-  Several `.profraw` files will be generated. (Due to the execution of build scripts)
+   Several `.profraw` files will be generated. (Due to the execution of build scripts)
 
-- Execute the binary:
+2. Execute the binary:
 
-  ```shell
-  LLVM_PROFILE_FILE="coverage.profraw" target/debug/router
-  ```
+   ```shell
+   LLVM_PROFILE_FILE="coverage.profraw" target/debug/router
+   ```
 
-- Open a separate terminal tab and run the cypress tests, following the [README]
+3. Open a separate terminal tab and run the cypress tests, following the [README]
 
-- After the tests have finished running, stop the `router` process using `Ctrl+C`
+4. After the tests have finished running, stop the `router` process using `Ctrl+C`
 
-- The generated `coverage.profraw` file will contain the code coverage data for `router`
+   The generated `coverage.profraw` file will contain the code coverage data for `router`
 
-- Generate an html report from the data:
+5. Generate an html report from the data:
 
-  ```shell
-  grcov . --source-dir . --output-type html --binary-path ./target/debug
-  ```
+   ```shell
+   grcov . --source-dir . --output-type html --binary-path ./target/debug
+   ```
 
-- A folder named `html` will be generated, containing the report. You can view it using:
+6. A folder named `html` will be generated, containing the report. You can view it using:
 
-  ```shell
-  cd html && python3 -m http.server 8000
-  ```
+   ```shell
+   cd html && python3 -m http.server 8000
+   ```
 
-- You can delete the generated `.profraw` files using:
+7. You can delete the generated `.profraw` files:
 
-  ```shell
-  rm **/*.profraw
-  ```
+   ```shell
+   rm **/*.profraw
+   ```
+
+#### Integration with VSCode
+You can also visualize code coverage in VSCode using the [coverage-gutters](https://marketplace.visualstudio.com/items?itemName=ryanluker.vscode-coverage-gutters) extension.
+
+You need to generate an `lcov.info` file in the directory root. After following till step 4 above:
+
+```shell
+grcov . -s . -t lcov --output-path lcov.info --binary-path ./target/debug --ignore "*cargo*" --ignore "target/*" --ignore "/*"
+```
+
+This will generate an `lcov.info` file that can be read by the extension.
 
 Note:
 - It is necessary to stop the `router` process to generate the coverage file
