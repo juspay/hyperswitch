@@ -4,6 +4,22 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.12.31.0
+
+### Features
+
+- **users:** Add email domain based restriction for dashboard entry APIs ([#6940](https://github.com/juspay/hyperswitch/pull/6940)) ([`227c274`](https://github.com/juspay/hyperswitch/commit/227c274ece0e593df1fa9555da29e37c689c9452))
+
+### Refactors
+
+- **dynamic_routing:**
+  - Add non_deterministic value in SuccessBasedRoutingConclusiveState type ([#6878](https://github.com/juspay/hyperswitch/pull/6878)) ([`849fbbf`](https://github.com/juspay/hyperswitch/commit/849fbbf71b6332d30c3a955d2cc33b16dcd3e727))
+  - Remove `tenant-id` prefixed in `id` field of dynamic routing grpc requests ([#6949](https://github.com/juspay/hyperswitch/pull/6949)) ([`8092c1f`](https://github.com/juspay/hyperswitch/commit/8092c1fd8fbe115ce7b3f4329758800e506bccae))
+
+**Full Changelog:** [`2024.12.30.0...2024.12.31.0`](https://github.com/juspay/hyperswitch/compare/2024.12.30.0...2024.12.31.0)
+
+- - -
+
 ## 2024.12.30.0
 
 ### Features
