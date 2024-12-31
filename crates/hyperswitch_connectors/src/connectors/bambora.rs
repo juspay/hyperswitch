@@ -825,7 +825,7 @@ lazy_static! {
             enums::CaptureMethod::SequentialAutomatic,
         ];
 
-        let supported_card_network  = vec![
+        let supported_card_network = vec![
             common_enums::CardNetwork::Visa,
             common_enums::CardNetwork::Mastercard,
             common_enums::CardNetwork::AmericanExpress,
@@ -843,14 +843,15 @@ lazy_static! {
                 mandates: common_enums::FeatureStatus::NotSupported,
                 refunds: common_enums::FeatureStatus::Supported,
                 supported_capture_methods: default_capture_methods.clone(),
-                specific_features: Some(api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
-                    api_models::feature_matrix::CardSpecificFeatures {
-                        three_ds: common_enums::FeatureStatus::Supported,
-                        non_three_ds: common_enums::FeatureStatus::Supported,
-                        supported_card_networks: supported_card_network.clone(),
-                    }
-
-                }))
+                specific_features: Some(
+                    api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
+                        api_models::feature_matrix::CardSpecificFeatures {
+                            three_ds: common_enums::FeatureStatus::Supported,
+                            non_three_ds: common_enums::FeatureStatus::Supported,
+                            supported_card_networks: supported_card_network.clone(),
+                        }
+                    }),
+                ),
             },
         );
 

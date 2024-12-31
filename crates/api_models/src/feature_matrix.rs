@@ -28,7 +28,7 @@ pub struct CardSpecificFeatures {
 #[serde(untagged)]
 pub enum PaymentMethodSpecificFeatures {
     /// Card specific features
-    Card(CardSpecificFeatures)
+    Card(CardSpecificFeatures),
 }
 
 #[derive(Debug, ToSchema, Serialize)]
