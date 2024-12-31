@@ -6,6 +6,7 @@ use hyperswitch_domain_models::errors::{StorageError, StorageResult};
 use masking::StrongSecret;
 use redis::{kv_store::RedisConnInterface, pub_sub::PubSubInterface, RedisStore};
 mod address;
+pub mod callback_mapper;
 pub mod config;
 pub mod connection;
 pub mod customers;
