@@ -142,6 +142,9 @@ fn build_payment_method_wise_feature_details(
                 mandates: feature_metadata.mandates,
                 refunds: feature_metadata.refunds,
                 supported_capture_methods: feature_metadata.supported_capture_methods.clone(),
+                payment_method_specific_features: feature_metadata
+                    .specific_features
+                    .clone(),
                 supported_countries,
                 supported_currencies,
             }
