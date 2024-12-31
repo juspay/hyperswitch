@@ -434,8 +434,8 @@ jobs:
           ROUTER__SERVER__WORKERS: 4
         shell: bash -leuo pipefail {0}
         continue-on-error: true
-        run: |
-          scripts/execute_cypress.sh "" "" "cypress-tests-v2"
+        # We aren't specifying `command` and `jobs` arguments currently
+        run: scripts/execute_cypress.sh "" "" "cypress-tests-v2"
 
       - name: Stop running server
         if: ${{ env.RUN_TESTS == 'true' }} && always()
@@ -451,6 +451,14 @@ jobs:
             cypress-tests-v2/cypress/reports/
           retention-days: 1
 
+      # Notes:
+      # - The `router` process must be killed (using SIGINT/SIGTERM) to generate the `coverage.profraw` file, otherwise the coverage will only be generated for the buildscripts
+      # - Trying to generate branch coverage using "-Z coverage-options=branch" currently fails. Both grcov and cargo-llvm-cov crash when trying
+      #   to process the generated `.profraw` files.
+      # - Explanation of ignore flags:
+      #   - "*cargo*"  : Exclude external crates from the generated `lcov.info` file
+      #   - "target/*" : Exclude compile time generated .rs files, e.g. isodata.rs, chrono-tz/timezones.rs
+      #   - "/*"       : Exclude /Users/../rustlib/src/rust/library/core/src/panic.rs, /Users/../rustlib/src/rust/library/std/src/sys/thread_local/native/mod.rs etc.
       - name: Process coverage report
         if: ${{ env.RUN_TESTS == 'true' }}
         run: |
