@@ -5,7 +5,7 @@ use utoipa::ToSchema;
 
 use crate::enums::{
     CaptureMethod, Connector, CountryAlpha2, Currency, EventClass, FeatureStatus,
-    PaymentConnectorCategory, PaymentMethod, PaymentMethodType,
+    PaymentConnectorCategory, PaymentMethod, PaymentMethodType, CardNetwork
 };
 
 #[derive(Default, Debug, Deserialize, Serialize, Clone, ToSchema)]
@@ -21,7 +21,7 @@ pub struct CardSpecificFeatures {
     /// Indicates whether non three_ds card payments are supported.
     pub non_three_ds: FeatureStatus,
     /// List of supported card networks
-    pub supported_card_networks: Vec<common_enums::CardNetwork>,
+    pub supported_card_networks: Vec<CardNetwork>,
 }
 
 #[derive(Debug, Clone, ToSchema, Serialize)]
