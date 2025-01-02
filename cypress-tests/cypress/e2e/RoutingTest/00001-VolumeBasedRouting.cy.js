@@ -14,7 +14,7 @@ describe("Volume Based Routing Test", () => {
     });
   });
 
-  context("Login", () => {
+  context("Get merchant info", () => {
     before("seed global state", () => {
       cy.task("getGlobalState").then((state) => {
         globalState = new State(state);

@@ -14,7 +14,7 @@ describe("Auto Retries & Step Up 3DS", () => {
     });
   });
 
-  context("Login", () => {
+  context("Get merchant info", () => {
     before("seed global state", () => {
       cy.task("getGlobalState").then((state) => {
         globalState = new State(state);
