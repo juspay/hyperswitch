@@ -64,4 +64,18 @@ impl UserAuthenticationMethod {
         )
         .await
     }
+
+    pub async fn list_user_authentication_methods_for_email_domain(
+        conn: &PgPooledConn,
+        email_domain: &str,
+    ) -> StorageResult<Vec<Self>> {
+        generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
+            conn,
+            dsl::email_domain.eq(email_domain.to_owned()),
+            None,
+            None,
+            Some(dsl::last_modified_at.asc()),
+        )
+        .await
+    }
 }

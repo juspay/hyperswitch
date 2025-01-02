@@ -609,7 +609,7 @@ source = "logs"
 file_storage_backend = "file_system"
 
 [unmasked_headers]
-keys = "accept-language,user-agent"
+keys = "accept-language,user-agent,x-profile-id"
 
 [opensearch]
 host = "https://opensearch:9200"
