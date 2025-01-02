@@ -30,11 +30,8 @@ use hyperswitch_domain_models::{
 };
 use hyperswitch_interfaces::{
     api::{
-        
-        self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorSpecifications,
-        ConnectorRedirectResponse,
-        ConnectorValidation,
-    ,
+        self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorRedirectResponse,
+        ConnectorSpecifications, ConnectorValidation,
     },
     configs::Connectors,
     errors,
@@ -165,9 +162,10 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Xe
 }
 
 impl ConnectorValidation for Xendit {
-    fn validate_capture_method(
+    fn validate_connector_against_payment_request(
         &self,
         capture_method: Option<CaptureMethod>,
+        _payment_method: enums::PaymentMethod,
         _pmt: Option<PaymentMethodType>,
     ) -> CustomResult<(), errors::ConnectorError> {
         let capture_method = capture_method.unwrap_or_default();
@@ -176,7 +174,7 @@ impl ConnectorValidation for Xendit {
             | CaptureMethod::Manual
             | CaptureMethod::SequentialAutomatic => Ok(()),
             CaptureMethod::ManualMultiple | CaptureMethod::Scheduled => Err(
-                utils::construct_not_implemented_error_report(capture_method, self.id()),
+                utils::construct_not_supported_error_report(capture_method, self.id()),
             ),
         }
     }

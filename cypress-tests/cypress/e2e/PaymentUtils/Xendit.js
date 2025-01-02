@@ -308,11 +308,6 @@ export const connectorDetails = {
               country_code: "+91",
             },
             email: "mauro.morandi@nexi.it",
-            phone: {
-              number: "8056594427",
-              country_code: "+91"
-
-            },
           },
         },
         setup_future_usage: "off_session",
@@ -354,11 +349,6 @@ export const connectorDetails = {
               country_code: "+91",
             },
             email: "mauro.morandi@nexi.it",
-            phone: {
-              number: "8056594427",
-              country_code: "+91"
-
-            },
           },
         },
         setup_future_usage: "off_session",
@@ -416,10 +406,6 @@ export const connectorDetails = {
               country: "NL",
               first_name: "joseph",
               last_name: "Doe",
-            },
-            phone: {
-              number: "9123456789",
-              country_code: "+91",
             },
             email: "mauro.morandi@nexi.it",
             phone: {
