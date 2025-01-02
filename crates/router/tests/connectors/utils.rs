@@ -63,7 +63,6 @@ pub struct PaymentInfo {
     pub auth_type: Option<enums::AuthenticationType>,
     pub access_token: Option<AccessToken>,
     pub connector_meta_data: Option<serde_json::Value>,
-    pub return_url: Option<String>,
     pub connector_customer: Option<String>,
     pub payment_method_token: Option<String>,
     #[cfg(feature = "payouts")]
@@ -503,7 +502,6 @@ pub trait ConnectorActions: Connector {
             payment_method: enums::PaymentMethod::Card,
             connector_auth_type: self.get_auth_token(),
             description: Some("This is a test".to_string()),
-            return_url: info.clone().and_then(|a| a.return_url),
             payment_method_status: None,
             request: req,
             response: Err(types::ErrorResponse::default()),
@@ -939,6 +937,7 @@ impl Default for PaymentAuthorizeType {
             payment_method_data: types::domain::PaymentMethodData::Card(CCardType::default().0),
             amount: 100,
             minor_amount: MinorUnit::new(100),
+            order_tax_amount: Some(MinorUnit::zero()),
             currency: enums::Currency::USD,
             confirm: true,
             statement_descriptor_suffix: None,
@@ -1012,6 +1011,9 @@ impl Default for BrowserInfoType {
             java_enabled: Some(true),
             java_script_enabled: Some(true),
             ip_address: Some("127.0.0.1".parse().unwrap()),
+            device_model: Some("Apple IPHONE 7".to_string()),
+            os_type: Some("IOS or ANDROID".to_string()),
+            os_version: Some("IOS 14.5".to_string()),
         };
         Self(data)
     }

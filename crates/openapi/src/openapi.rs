@@ -84,6 +84,10 @@ Never share your secret api keys. Keep them guarded and secure.
         routes::payments::payments_complete_authorize,
         routes::payments::payments_post_session_tokens,
 
+        // Routes for relay
+        routes::relay,
+        routes::relay_retrieve,
+
         // Routes for refunds
         routes::refunds::refunds_create,
         routes::refunds::refunds_retrieve,
@@ -302,6 +306,8 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::enums::PaymentLinkDetailsLayout,
         api_models::enums::PaymentMethodStatus,
         api_models::enums::UIWidgetFormLayout,
+        api_models::enums::PaymentConnectorCategory,
+        api_models::enums::FeatureStatus,
         api_models::admin::MerchantConnectorCreate,
         api_models::admin::AdditionalMerchantData,
         api_models::admin::ConnectorWalletDetails,
@@ -381,7 +387,6 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::SwishQrData,
         api_models::payments::AirwallexData,
         api_models::payments::NoonData,
-        api_models::payments::OrderDetails,
         api_models::payments::OrderDetailsWithAmount,
         api_models::payments::NextActionType,
         api_models::payments::WalletData,
@@ -419,6 +424,12 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::ApplePayPaymentRequest,
         api_models::payments::ApplePayBillingContactFields,
         api_models::payments::ApplePayShippingContactFields,
+        api_models::payments::ApplePayRecurringPaymentRequest,
+        api_models::payments::ApplePayRegularBillingRequest,
+        api_models::payments::ApplePayPaymentTiming,
+        api_models::payments::RecurringPaymentIntervalUnit,
+        api_models::payments::ApplePayRecurringDetails,
+        api_models::payments::ApplePayRegularBillingDetails,
         api_models::payments::ApplePayAddressParameters,
         api_models::payments::AmountInfo,
         api_models::payments::ClickToPaySessionResponse,
@@ -515,6 +526,13 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payment_methods::PaymentMethodCollectLinkResponse,
         api_models::refunds::RefundListRequest,
         api_models::refunds::RefundListResponse,
+        api_models::relay::RelayRequest,
+        api_models::relay::RelayResponse,
+        api_models::enums::RelayType,
+        api_models::relay::RelayData,
+        api_models::relay::RelayRefundRequest,
+        api_models::enums::RelayStatus,
+        api_models::relay::RelayError,
         api_models::payments::AmountFilter,
         api_models::mandates::MandateRevokedResponse,
         api_models::mandates::MandateResponse,
@@ -672,7 +690,11 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::DisplayAmountOnSdk,
         api_models::payments::PaymentsPostSessionTokensRequest,
         api_models::payments::PaymentsPostSessionTokensResponse,
-        api_models::payments::CtpServiceDetails
+        api_models::payments::CtpServiceDetails,
+        api_models::feature_matrix::FeatureMatrixListResponse,
+        api_models::feature_matrix::FeatureMatrixRequest,
+        api_models::feature_matrix::ConnectorFeatureMatrixResponse,
+        api_models::feature_matrix::SupportedPaymentMethod,
     )),
     modifiers(&SecurityAddon)
 )]

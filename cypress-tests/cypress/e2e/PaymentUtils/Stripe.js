@@ -1,4 +1,8 @@
-import { cardRequiredField, getCustomExchange } from "./Commons";
+import {
+  cardRequiredField,
+  connectorDetails as commonConnectorDetails,
+  getCustomExchange,
+} from "./Commons";
 
 const successfulNo3DSCardDetails = {
   card_number: "4242424242424242",
@@ -118,6 +122,10 @@ const requiredFields = {
 };
 
 export const connectorDetails = {
+  multi_credential_config: {
+    specName: ["connectorAgnostic"],
+    value: "connector_2",
+  },
   card_pm: {
     PaymentIntent: {
       Request: {
@@ -134,6 +142,12 @@ export const connectorDetails = {
       },
     },
     PaymentIntentOffSession: {
+      Configs: {
+        CONNECTOR_CREDENTIAL: {
+          specName: ["connectorAgnostic"],
+          value: "connector_2",
+        },
+      },
       Request: {
         currency: "USD",
         customer_acceptance: null,
@@ -530,15 +544,15 @@ export const connectorDetails = {
         },
       },
     },
-    MITAutoCapture: {
-      Request: {},
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
+    MITAutoCapture: getCustomExchange({
+      Configs: {
+        CONNECTOR_CREDENTIAL: {
+          specName: ["connectorAgnostic"],
+          value: "connector_2",
         },
       },
-    },
+      ...commonConnectorDetails.card_pm.MITAutoCapture,
+    }),
     MITManualCapture: {
       Request: {},
       Response: {
@@ -668,6 +682,12 @@ export const connectorDetails = {
       },
     },
     SaveCardUseNo3DSAutoCaptureOffSession: {
+      Configs: {
+        CONNECTOR_CREDENTIAL: {
+          specName: ["connectorAgnostic"],
+          value: "connector_2",
+        },
+      },
       Request: {
         payment_method: "card",
         payment_method_type: "debit",
@@ -715,6 +735,12 @@ export const connectorDetails = {
       },
     },
     SaveCardConfirmAutoCaptureOffSession: {
+      Configs: {
+        CONNECTOR_CREDENTIAL: {
+          specName: ["connectorAgnostic"],
+          value: "connector_2",
+        },
+      },
       Request: {
         setup_future_usage: "off_session",
       },

@@ -7,7 +7,7 @@ use api_models::{
     payments::RedirectionResponse,
     user::{self as user_api, InviteMultipleUserResponse, NameIdUnit},
 };
-use common_enums::EntityType;
+use common_enums::{EntityType, UserAuthType};
 use common_utils::{type_name, types::keymanager::Identifier};
 #[cfg(feature = "email")]
 use diesel_models::user_role::UserRoleUpdate;
@@ -22,6 +22,7 @@ use masking::{ExposeInterface, PeekInterface, Secret};
 #[cfg(feature = "email")]
 use router_env::env;
 use router_env::logger;
+use storage_impl::errors::StorageError;
 #[cfg(not(feature = "email"))]
 use user_api::dashboard_metadata::SetMetaDataRequest;
 
@@ -96,6 +97,7 @@ pub async fn signup_with_merchant_id(
     let send_email_result = state
         .email_client
         .compose_and_send_email(
+            email_types::get_base_url(&state),
             Box::new(email_contents),
             state.conf.proxy.https_url.as_ref(),
         )
@@ -151,6 +153,14 @@ pub async fn signup_token_only_flow(
     state: SessionState,
     request: user_api::SignUpRequest,
 ) -> UserResponse<user_api::TokenResponse> {
+    let user_email = domain::UserEmail::from_pii_email(request.email.clone())?;
+    utils::user::validate_email_domain_auth_type_using_db(
+        &state,
+        &user_email,
+        UserAuthType::Password,
+    )
+    .await?;
+
     let new_user = domain::NewUser::try_from(request)?;
     new_user
         .get_new_merchant()
@@ -186,9 +196,18 @@ pub async fn signin_token_only_flow(
     state: SessionState,
     request: user_api::SignInRequest,
 ) -> UserResponse<user_api::TokenResponse> {
+    let user_email = domain::UserEmail::from_pii_email(request.email)?;
+
+    utils::user::validate_email_domain_auth_type_using_db(
+        &state,
+        &user_email,
+        UserAuthType::Password,
+    )
+    .await?;
+
     let user_from_db: domain::UserFromStorage = state
         .global_store
-        .find_user_by_email(&domain::UserEmail::from_pii_email(request.email)?)
+        .find_user_by_email(&user_email)
         .await
         .to_not_found_response(UserErrors::InvalidCredentials)?
         .into();
@@ -214,10 +233,16 @@ pub async fn connect_account(
     auth_id: Option<String>,
     theme_id: Option<String>,
 ) -> UserResponse<user_api::ConnectAccountResponse> {
-    let find_user = state
-        .global_store
-        .find_user_by_email(&domain::UserEmail::from_pii_email(request.email.clone())?)
-        .await;
+    let user_email = domain::UserEmail::from_pii_email(request.email.clone())?;
+
+    utils::user::validate_email_domain_auth_type_using_db(
+        &state,
+        &user_email,
+        UserAuthType::MagicLink,
+    )
+    .await?;
+
+    let find_user = state.global_store.find_user_by_email(&user_email).await;
 
     if let Ok(found_user) = find_user {
         let user_from_db: domain::UserFromStorage = found_user.into();
@@ -239,6 +264,7 @@ pub async fn connect_account(
         let send_email_result = state
             .email_client
             .compose_and_send_email(
+                email_types::get_base_url(&state),
                 Box::new(email_contents),
                 state.conf.proxy.https_url.as_ref(),
             )
@@ -294,6 +320,7 @@ pub async fn connect_account(
         let magic_link_result = state
             .email_client
             .compose_and_send_email(
+                email_types::get_base_url(&state),
                 Box::new(magic_link_email),
                 state.conf.proxy.https_url.as_ref(),
             )
@@ -310,6 +337,7 @@ pub async fn connect_account(
             let welcome_email_result = state
                 .email_client
                 .compose_and_send_email(
+                    email_types::get_base_url(&state),
                     Box::new(welcome_to_community_email),
                     state.conf.proxy.https_url.as_ref(),
                 )
@@ -408,6 +436,13 @@ pub async fn forgot_password(
 ) -> UserResponse<()> {
     let user_email = domain::UserEmail::from_pii_email(request.email)?;
 
+    utils::user::validate_email_domain_auth_type_using_db(
+        &state,
+        &user_email,
+        UserAuthType::Password,
+    )
+    .await?;
+
     let user_from_db = state
         .global_store
         .find_user_by_email(&user_email)
@@ -438,6 +473,7 @@ pub async fn forgot_password(
     state
         .email_client
         .compose_and_send_email(
+            email_types::get_base_url(&state),
             Box::new(email_contents),
             state.conf.proxy.https_url.as_ref(),
         )
@@ -845,6 +881,7 @@ async fn handle_existing_user_invitation(
         is_email_sent = state
             .email_client
             .compose_and_send_email(
+                email_types::get_base_url(state),
                 Box::new(email_contents),
                 state.conf.proxy.https_url.as_ref(),
             )
@@ -1000,6 +1037,7 @@ async fn handle_new_user_invitation(
         let send_email_result = state
             .email_client
             .compose_and_send_email(
+                email_types::get_base_url(state),
                 Box::new(email_contents),
                 state.conf.proxy.https_url.as_ref(),
             )
@@ -1151,6 +1189,7 @@ pub async fn resend_invite(
     state
         .email_client
         .compose_and_send_email(
+            email_types::get_base_url(&state),
             Box::new(email_contents),
             state.conf.proxy.https_url.as_ref(),
         )
@@ -1749,7 +1788,15 @@ pub async fn send_verification_mail(
     auth_id: Option<String>,
     theme_id: Option<String>,
 ) -> UserResponse<()> {
-    let user_email = domain::UserEmail::try_from(req.email)?;
+    let user_email = domain::UserEmail::from_pii_email(req.email)?;
+
+    utils::user::validate_email_domain_auth_type_using_db(
+        &state,
+        &user_email,
+        UserAuthType::MagicLink,
+    )
+    .await?;
+
     let user = state
         .global_store
         .find_user_by_email(&user_email)
@@ -1782,6 +1829,7 @@ pub async fn send_verification_mail(
     state
         .email_client
         .compose_and_send_email(
+            email_types::get_base_url(&state),
             Box::new(email_contents),
             state.conf.proxy.https_url.as_ref(),
         )
@@ -2308,10 +2356,30 @@ pub async fn create_user_authentication_method(
         .change_context(UserErrors::InternalServerError)
         .attach_printable("Failed to get list of auth methods for the owner id")?;
 
-    let auth_id = auth_methods
-        .first()
-        .map(|auth_method| auth_method.auth_id.clone())
-        .unwrap_or(uuid::Uuid::new_v4().to_string());
+    let (auth_id, email_domain) = if let Some(auth_method) = auth_methods.first() {
+        let email_domain = match req.email_domain {
+            Some(email_domain) => {
+                if email_domain != auth_method.email_domain {
+                    return Err(report!(UserErrors::InvalidAuthMethodOperationWithMessage(
+                        "Email domain mismatch".to_string()
+                    )));
+                }
+
+                email_domain
+            }
+            None => auth_method.email_domain.clone(),
+        };
+
+        (auth_method.auth_id.clone(), email_domain)
+    } else {
+        let email_domain =
+            req.email_domain
+                .ok_or(UserErrors::InvalidAuthMethodOperationWithMessage(
+                    "Email domain not found".to_string(),
+                ))?;
+
+        (uuid::Uuid::new_v4().to_string(), email_domain)
+    };
 
     for db_auth_method in auth_methods {
         let is_type_same = db_auth_method.auth_type == (&req.auth_method).foreign_into();
@@ -2351,6 +2419,7 @@ pub async fn create_user_authentication_method(
             allow_signup: req.allow_signup,
             created_at: now,
             last_modified_at: now,
+            email_domain,
         })
         .await
         .to_duplicate_response(UserErrors::UserAuthMethodAlreadyExists)?;
@@ -2374,25 +2443,71 @@ pub async fn update_user_authentication_method(
     .change_context(UserErrors::InternalServerError)
     .attach_printable("Failed to decode DEK")?;
 
-    let (private_config, public_config) = utils::user::construct_public_and_private_db_configs(
-        &state,
-        &req.auth_method,
-        &user_auth_encryption_key,
-        req.id.clone(),
-    )
-    .await?;
+    match req {
+        user_api::UpdateUserAuthenticationMethodRequest::AuthMethod {
+            id,
+            auth_config: auth_method,
+        } => {
+            let (private_config, public_config) =
+                utils::user::construct_public_and_private_db_configs(
+                    &state,
+                    &auth_method,
+                    &user_auth_encryption_key,
+                    id.clone(),
+                )
+                .await?;
 
-    state
-        .store
-        .update_user_authentication_method(
-            &req.id,
-            UserAuthenticationMethodUpdate::UpdateConfig {
-                private_config,
-                public_config,
-            },
-        )
-        .await
-        .change_context(UserErrors::InvalidUserAuthMethodOperation)?;
+            state
+                .store
+                .update_user_authentication_method(
+                    &id,
+                    UserAuthenticationMethodUpdate::UpdateConfig {
+                        private_config,
+                        public_config,
+                    },
+                )
+                .await
+                .map_err(|error| {
+                    let user_error = match error.current_context() {
+                        StorageError::ValueNotFound(_) => {
+                            UserErrors::InvalidAuthMethodOperationWithMessage(
+                                "Auth method not found".to_string(),
+                            )
+                        }
+                        StorageError::DuplicateValue { .. } => {
+                            UserErrors::UserAuthMethodAlreadyExists
+                        }
+                        _ => UserErrors::InternalServerError,
+                    };
+                    error.change_context(user_error)
+                })?;
+        }
+        user_api::UpdateUserAuthenticationMethodRequest::EmailDomain {
+            owner_id,
+            email_domain,
+        } => {
+            let auth_methods = state
+                .store
+                .list_user_authentication_methods_for_owner_id(&owner_id)
+                .await
+                .change_context(UserErrors::InternalServerError)?;
+
+            futures::future::try_join_all(auth_methods.iter().map(|auth_method| async {
+                state
+                    .store
+                    .update_user_authentication_method(
+                        &auth_method.id,
+                        UserAuthenticationMethodUpdate::EmailDomain {
+                            email_domain: email_domain.clone(),
+                        },
+                    )
+                    .await
+                    .to_duplicate_response(UserErrors::UserAuthMethodAlreadyExists)
+            }))
+            .await?;
+        }
+    }
+
     Ok(ApplicationResponse::StatusOk)
 }
 
@@ -2400,18 +2515,28 @@ pub async fn list_user_authentication_methods(
     state: SessionState,
     req: user_api::GetUserAuthenticationMethodsRequest,
 ) -> UserResponse<Vec<user_api::UserAuthenticationMethodResponse>> {
-    let user_authentication_methods = state
-        .store
-        .list_user_authentication_methods_for_auth_id(&req.auth_id)
-        .await
-        .change_context(UserErrors::InternalServerError)?;
+    let user_authentication_methods = match (req.auth_id, req.email_domain) {
+        (Some(auth_id), None) => state
+            .store
+            .list_user_authentication_methods_for_auth_id(&auth_id)
+            .await
+            .change_context(UserErrors::InternalServerError)?,
+        (None, Some(email_domain)) => state
+            .store
+            .list_user_authentication_methods_for_email_domain(&email_domain)
+            .await
+            .change_context(UserErrors::InternalServerError)?,
+        (Some(_), Some(_)) | (None, None) => {
+            return Err(UserErrors::InvalidUserAuthMethodOperation.into());
+        }
+    };
 
     Ok(ApplicationResponse::Json(
         user_authentication_methods
             .into_iter()
             .map(|auth_method| {
                 let auth_name = match (auth_method.auth_type, auth_method.public_config) {
-                    (common_enums::UserAuthType::OpenIdConnect, config) => {
+                    (UserAuthType::OpenIdConnect, config) => {
                         let open_id_public_config: Option<user_api::OpenIdConnectPublicConfig> =
                             config
                                 .map(|config| {
@@ -2537,6 +2662,13 @@ pub async fn sso_sign(
     )
     .await?;
 
+    utils::user::validate_email_domain_auth_type_using_db(
+        &state,
+        &email,
+        UserAuthType::OpenIdConnect,
+    )
+    .await?;
+
     // TODO: Use config to handle not found error
     let user_from_db: domain::UserFromStorage = state
         .global_store
@@ -2585,14 +2717,20 @@ pub async fn terminate_auth_select(
         .change_context(UserErrors::InternalServerError)?
         .into();
 
-    let user_authentication_method = if let Some(id) = &req.id {
-        state
-            .store
-            .get_user_authentication_method_by_id(id)
-            .await
-            .to_not_found_response(UserErrors::InvalidUserAuthMethodOperation)?
-    } else {
-        DEFAULT_USER_AUTH_METHOD.clone()
+    let user_email = domain::UserEmail::from_pii_email(user_from_db.get_email())?;
+    let auth_methods = state
+        .store
+        .list_user_authentication_methods_for_email_domain(user_email.extract_domain()?)
+        .await
+        .change_context(UserErrors::InternalServerError)?;
+
+    let user_authentication_method = match (req.id, auth_methods.is_empty()) {
+        (Some(id), _) => auth_methods
+            .into_iter()
+            .find(|auth_method| auth_method.id == id)
+            .ok_or(UserErrors::InvalidUserAuthMethodOperation)?,
+        (None, true) => DEFAULT_USER_AUTH_METHOD.clone(),
+        (None, false) => return Err(UserErrors::InvalidUserAuthMethodOperation.into()),
     };
 
     let current_flow = domain::CurrentFlow::new(user_token, domain::SPTFlow::AuthSelect.into())?;

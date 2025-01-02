@@ -6,6 +6,11 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 
+[features]
+default = []
+v1 = ["common_utils/v1"]
+v2 = ["common_utils/v2"]
+
 [dependencies]
 diesel = "2.2.3"
 serde = { version = "1.0.197", features = ["derive"] }

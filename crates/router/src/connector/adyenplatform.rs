@@ -29,7 +29,7 @@ use crate::{
     configs::settings,
     core::errors::{self, CustomResult},
     headers,
-    services::{self, request::Mask, ConnectorValidation},
+    services::{self, request::Mask, ConnectorSpecifications, ConnectorValidation},
     types::{
         self,
         api::{self, ConnectorCommon},
@@ -461,3 +461,5 @@ impl api::IncomingWebhook for Adyenplatform {
         }
     }
 }
+
+impl ConnectorSpecifications for Adyenplatform {}

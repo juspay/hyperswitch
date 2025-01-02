@@ -30,7 +30,7 @@ use hyperswitch_domain_models::{
 use hyperswitch_interfaces::{
     api::{
         self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorRedirectResponse,
-        ConnectorValidation,
+        ConnectorSpecifications, ConnectorValidation,
     },
     configs::Connectors,
     consts, errors,
@@ -634,3 +634,5 @@ impl ConnectorRedirectResponse for Mollie {
         }
     }
 }
+
+impl ConnectorSpecifications for Mollie {}

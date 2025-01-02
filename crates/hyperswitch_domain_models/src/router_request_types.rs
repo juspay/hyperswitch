@@ -29,6 +29,7 @@ pub struct PaymentsAuthorizeData {
     /// get_total_surcharge_amount() // returns surcharge_amount + tax_on_surcharge_amount
     /// ```
     pub amount: i64,
+    pub order_tax_amount: Option<MinorUnit>,
     pub email: Option<pii::Email>,
     pub customer_name: Option<Secret<String>>,
     pub currency: storage_enums::Currency,
@@ -485,6 +486,9 @@ pub struct BrowserInformation {
     pub ip_address: Option<std::net::IpAddr>,
     pub accept_header: Option<String>,
     pub user_agent: Option<String>,
+    pub os_type: Option<String>,
+    pub os_version: Option<String>,
+    pub device_model: Option<String>,
 }
 
 #[derive(Debug, Clone, Default, Serialize)]
@@ -830,6 +834,7 @@ pub struct PaymentsSessionData {
     pub email: Option<pii::Email>,
     // Minor Unit amount for amount frame work
     pub minor_amount: MinorUnit,
+    pub apple_pay_recurring_details: Option<api_models::payments::ApplePayRecurringPaymentRequest>,
 }
 
 #[derive(Debug, Clone, Default)]
