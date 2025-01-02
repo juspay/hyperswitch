@@ -5,6 +5,15 @@ import * as utils from "../RoutingUtils/Utils";
 let globalState;
 
 describe("Auto Retries & Step Up 3DS", () => {
+  beforeEach(() => {
+    // Restore the session if it exists
+    cy.session("login", () => {
+      cy.userLogin(globalState);
+      cy.terminate2Fa(globalState);
+      cy.userInfo(globalState);
+    });
+  });
+
   context("Login", () => {
     before("seed global state", () => {
       cy.task("getGlobalState").then((state) => {
