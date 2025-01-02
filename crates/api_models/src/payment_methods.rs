@@ -766,7 +766,7 @@ pub struct PaymentMethodResponse {
 #[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema, Clone)]
 pub struct PaymentMethodResponse {
     /// The unique identifier of the Payment method
-    #[schema(value_type = String, example = "card_rGK4Vi5iSW70MY7J2mIg")]
+    #[schema(value_type = String, example = "12345_pm_01926c58bc6e77c09e809964e72af8c8")]
     pub id: id_type::GlobalPaymentMethodId,
 
     /// Unique identifier for a merchant
@@ -1036,12 +1036,10 @@ impl From<CardDetailFromLocker> for payments::AdditionalCardInfo {
 #[derive(Debug, serde::Serialize, ToSchema)]
 pub struct PaymentMethodListResponse {
     /// The list of payment methods that are enabled for the business profile
-    #[schema(value_type = Vec<ResponsePaymentMethodTypes>)]
     pub payment_methods_enabled: Vec<ResponsePaymentMethodTypes>,
 
     /// The list of payment methods that are saved by the given customer
     /// This field is only returned if the customer_id is provided in the request
-    #[schema(value_type = Option<Vec<CustomerPaymentMethod>>)]
     pub customer_payment_methods: Option<Vec<CustomerPaymentMethod>>,
 }
 
@@ -1758,7 +1756,7 @@ pub struct PaymentMethodDeleteResponse {
 #[derive(Debug, serde::Serialize, ToSchema)]
 pub struct PaymentMethodDeleteResponse {
     /// The unique identifier of the Payment method
-    #[schema(value_type = String, example = "card_rGK4Vi5iSW70MY7J2mIg")]
+    #[schema(value_type = String, example = "12345_pm_01926c58bc6e77c09e809964e72af8c8")]
     pub id: id_type::GlobalPaymentMethodId,
 }
 

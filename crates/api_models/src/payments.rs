@@ -6558,7 +6558,6 @@ pub struct PaymentMethodsListRequest {}
 #[derive(Debug, serde::Serialize, ToSchema)]
 pub struct PaymentMethodListResponseForPayments {
     /// The list of payment methods that are enabled for the business profile
-    #[schema(value_type = Vec<ResponsePaymentMethodTypes>)]
     pub payment_methods_enabled: Vec<ResponsePaymentMethodTypesForPayments>,
 
     /// The list of payment methods that are saved by the given customer
@@ -6571,7 +6570,7 @@ pub struct PaymentMethodListResponseForPayments {
 #[derive(Debug, Clone, serde::Serialize, ToSchema, PartialEq)]
 pub struct ResponsePaymentMethodTypesForPayments {
     /// The payment method type enabled
-    #[schema(example = "klarna", value_type = PaymentMethodType)]
+    #[schema(example = "klarna", value_type = PaymentMethod)]
     pub payment_method_type: common_enums::PaymentMethod,
 
     /// The payment method subtype enabled

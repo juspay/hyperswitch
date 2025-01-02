@@ -212,8 +212,8 @@ impl ApiEventMetric for PaymentMethodResponse {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::PaymentMethod {
             payment_method_id: self.id.clone(),
-            payment_method: self.payment_method_type,
-            payment_method_type: self.payment_method_subtype,
+            payment_method_type: self.payment_method_type,
+            payment_method_subtype: self.payment_method_subtype,
         })
     }
 }
@@ -235,14 +235,15 @@ impl ApiEventMetric for PaymentMethodMigrateResponse {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::PaymentMethod {
             payment_method_id: self.payment_method_response.id.clone(),
-            payment_method: self.payment_method_response.payment_method_type,
-            payment_method_type: self.payment_method_response.payment_method_subtype,
+            payment_method_type: self.payment_method_response.payment_method_type,
+            payment_method_subtype: self.payment_method_response.payment_method_subtype,
         })
     }
 }
 
 impl ApiEventMetric for PaymentMethodUpdate {}
 
+#[cfg(feature = "v1")]
 impl ApiEventMetric for DefaultPaymentMethod {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::PaymentMethod {
@@ -258,8 +259,8 @@ impl ApiEventMetric for PaymentMethodDeleteResponse {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::PaymentMethod {
             payment_method_id: self.id.clone(),
-            payment_method: None,
             payment_method_type: None,
+            payment_method_subtype: None,
         })
     }
 }

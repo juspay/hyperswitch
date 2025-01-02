@@ -1177,7 +1177,7 @@ impl PaymentMethods {
                 )
                 .service(
                     web::resource("/update-saved-payment-method")
-                        .route(web::patch().to(payment_methods::payment_method_update_api)),
+                        .route(web::put().to(payment_methods::payment_method_update_api)),
                 ),
         );
 

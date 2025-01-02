@@ -71,7 +71,7 @@ applepay_endpoint = "DOMAIN SPECIFIC ENDPOINT"
 [locker]
 host = "http://127.0.0.1:3000"
 host_rs = "http://127.0.0.1:3000"
-mock_locker = false
+mock_locker = true
 basilisk_host = "http://127.0.0.1:3000"
 locker_enabled = false
 
