@@ -363,7 +363,7 @@ where
 }
 
 #[instrument(skip_all)]
-pub async fn publish_into_redact_channel<
+pub async fn redact_from_redis_and_publish<
     'a,
     K: IntoIterator<Item = CacheKind<'a>> + Send + Clone,
 >(
@@ -420,7 +420,7 @@ where
     Fut: futures::Future<Output = CustomResult<T, StorageError>> + Send,
 {
     let data = fun().await?;
-    publish_into_redact_channel(store, [key]).await?;
+    redact_from_redis_and_publish(store, [key]).await?;
     Ok(data)
 }
 
@@ -436,7 +436,7 @@ where
     K: IntoIterator<Item = CacheKind<'a>> + Send + Clone,
 {
     let data = fun().await?;
-    publish_into_redact_channel(store, keys).await?;
+    redact_from_redis_and_publish(store, keys).await?;
     Ok(data)
 }
 

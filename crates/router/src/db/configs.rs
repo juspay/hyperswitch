@@ -66,7 +66,7 @@ impl ConfigInterface for Store {
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))?;
 
-        cache::publish_into_redact_channel(
+        cache::redact_from_redis_and_publish(
             self.get_cache_store().as_ref(),
             [CacheKind::Config((&inserted.key).into())],
         )
@@ -171,7 +171,7 @@ impl ConfigInterface for Store {
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))?;
 
-        cache::publish_into_redact_channel(
+        cache::redact_from_redis_and_publish(
             self.get_cache_store().as_ref(),
             [CacheKind::Config((&deleted.key).into())],
         )
