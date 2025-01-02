@@ -11,7 +11,7 @@ use once_cell::sync::OnceCell;
 use router_env::{instrument, logger, tracing};
 
 use crate::{
-    consts::BASE64_ENGINE,
+    consts::{BASE64_ENGINE, TENANT_HEADER},
     errors,
     types::keymanager::{
         BatchDecryptDataRequest, DataKeyCreateResponse, DecryptDataRequest,
@@ -122,6 +122,15 @@ where
                 .change_context(errors::KeyManagerClientError::FailedtoConstructHeader)?,
         ))
     }
+
+    //Add Tenant ID
+    header.push((
+        HeaderName::from_str(TENANT_HEADER)
+            .change_context(errors::KeyManagerClientError::FailedtoConstructHeader)?,
+        HeaderValue::from_str(state.tenant_id.get_string_repr())
+            .change_context(errors::KeyManagerClientError::FailedtoConstructHeader)?,
+    ));
+
     let response = send_encryption_request(
         state,
         HeaderMap::from_iter(header.into_iter()),

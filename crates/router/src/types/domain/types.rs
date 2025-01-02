@@ -7,6 +7,7 @@ impl From<&crate::SessionState> for KeyManagerState {
     fn from(state: &crate::SessionState) -> Self {
         let conf = state.conf.key_manager.get_inner();
         Self {
+            tenant_id: state.tenant.tenant_id.clone(),
             enabled: conf.enabled,
             url: conf.url.clone(),
             client_idle_timeout: state.conf.proxy.idle_pool_connection_timeout,

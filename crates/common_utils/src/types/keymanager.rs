@@ -25,6 +25,7 @@ use crate::{
 
 #[derive(Debug, Clone)]
 pub struct KeyManagerState {
+    pub tenant_id: id_type::TenantId,
     pub enabled: bool,
     pub url: String,
     pub client_idle_timeout: Option<u64>,
