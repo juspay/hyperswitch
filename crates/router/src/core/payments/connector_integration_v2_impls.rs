@@ -2133,6 +2133,7 @@ default_imp_for_new_connector_integration_connector_authentication!(
     connector::Wise,
     connector::Worldline,
     connector::Worldpay,
+    connector::Xendit,
     connector::Zen,
     connector::Zsl,
     connector::Plaid

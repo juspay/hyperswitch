@@ -414,6 +414,7 @@ impl ConnectorConfig {
             Connector::DummyConnector7 => Ok(connector_data.paypal_test),
             Connector::Netcetera => Ok(connector_data.netcetera),
             Connector::CtpMastercard => Ok(connector_data.ctp_mastercard),
+            Connector::Xendit => Ok(connector_data.xendit),
         }
     }
 }
