@@ -675,14 +675,7 @@ common_utils::create_list_wrapper!(
             .as_ref()
             .map_or(false, |payments| {
                 payments.0.keys().any(|mca_id| mca_ids.contains(mca_id))
-            }) ||
-            connector_mandate_details
-            .payouts
-            .as_ref()
-            .map_or(false, |payouts| {
-                payouts.0.keys().any(|mca_id| mca_ids.contains(mca_id))
             })
-
         }
     }
 );
