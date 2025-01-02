@@ -115,10 +115,9 @@ impl PaymentMethod {
                         payments: Some(payment_mandate_reference),
                         payouts: None,
                     }),
-                    Err(_) => Ok(CommonMandateReference {
-                        payments: None,
-                        payouts: None,
-                    }),
+                    Err(_) => Err(ParsingError::StructParseFailure(
+                        "Failed to deserialize PaymentMethod",
+                    ))?,
                 },
             }
         } else {

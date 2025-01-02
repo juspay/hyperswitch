@@ -1594,9 +1594,15 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                         .connector_mandate_details
                                         .clone()
                                         .map(|val| {
-                                            val.parse_value::<diesel_models::CommonMandateReference>(
-                                                "CommonMandateReference",
-                                            )
+                                            val.clone()
+                                            .parse_value::<diesel_models::CommonMandateReference>("CommonMandateReference")
+                                            .or_else(|_| {
+                                                val.parse_value::<diesel_models::PaymentsMandateReference>("PaymentsMandateReference")
+                                                    .map(|payments| diesel_models::CommonMandateReference {
+                                                        payments: Some(payments),
+                                                        payouts: None,
+                                                    })
+                                            })
                                         })
                                         .transpose()
                                         .change_context(
