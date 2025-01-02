@@ -779,7 +779,7 @@ impl Default for SuccessBasedRoutingConfig {
                     duration_in_mins: Some(5),
                     max_total_count: Some(2),
                 }),
-                specificity_level: Some(SuccessRateSpecificityLevel::default()),
+                specificity_level: SuccessRateSpecificityLevel::default(),
             }),
         }
     }
@@ -802,7 +802,8 @@ pub struct SuccessBasedRoutingConfigBody {
     pub default_success_rate: Option<f64>,
     pub max_aggregates_size: Option<u32>,
     pub current_block_threshold: Option<CurrentBlockThreshold>,
-    pub specificity_level: Option<SuccessRateSpecificityLevel>,
+    #[serde(default)]
+    pub specificity_level: SuccessRateSpecificityLevel,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, ToSchema)]
@@ -812,6 +813,7 @@ pub struct CurrentBlockThreshold {
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Default, Clone, ToSchema)]
+#[serde(rename_all = "snake_case")]
 pub enum SuccessRateSpecificityLevel {
     #[default]
     Merchant,
@@ -858,9 +860,7 @@ impl SuccessBasedRoutingConfigBody {
                 .as_mut()
                 .map(|threshold| threshold.update(current_block_threshold));
         }
-        if let Some(level) = new.specificity_level {
-            self.specificity_level = Some(level)
-        }
+        self.specificity_level = new.specificity_level
     }
 }
 

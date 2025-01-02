@@ -1340,11 +1340,6 @@ pub async fn perform_success_based_routing(
             .change_context(errors::RoutingError::SuccessBasedRoutingConfigError)
             .attach_printable("unable to fetch success_rate based dynamic routing configs")?;
 
-        success_based_routing_configs.config.as_mut().map(|config| {
-            config.specificity_level =
-                Some(api_models::routing::SuccessRateSpecificityLevel::Merchant)
-        });
-
         let success_based_routing_config_params = success_based_routing_config_params_interpolator
             .get_string_val(
                 success_based_routing_configs

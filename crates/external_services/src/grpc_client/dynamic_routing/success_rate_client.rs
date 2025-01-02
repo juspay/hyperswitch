@@ -53,7 +53,7 @@ pub trait SuccessBasedDynamicRouting: dyn_clone::DynClone + Send + Sync {
         headers: GrpcHeaders,
     ) -> DynamicRoutingResult<InvalidateWindowsResponse>;
     /// To calculate both global and merchant specific success rate for the list of chosen connectors
-    async fn calculate_global_success_rate(
+    async fn calculate_entity_and_global_success_rate(
         &self,
         id: String,
         success_rate_based_config: SuccessBasedRoutingConfig,
@@ -165,7 +165,7 @@ impl SuccessBasedDynamicRouting for SuccessRateCalculatorClient<Client> {
         Ok(response)
     }
 
-    async fn calculate_global_success_rate(
+    async fn calculate_entity_and_global_success_rate(
         &self,
         id: String,
         success_rate_based_config: SuccessBasedRoutingConfig,
@@ -174,8 +174,14 @@ impl SuccessBasedDynamicRouting for SuccessRateCalculatorClient<Client> {
         headers: GrpcHeaders,
     ) -> DynamicRoutingResult<CalGlobalSuccessRateResponse> {
         let labels = label_input
+            .clone()
             .into_iter()
             .map(|conn_choice| conn_choice.to_string())
+            .collect::<Vec<_>>();
+
+        let global_labels = label_input
+            .into_iter()
+            .map(|conn_choice| conn_choice.connector.to_string())
             .collect::<Vec<_>>();
 
         let config = success_rate_based_config
@@ -184,9 +190,12 @@ impl SuccessBasedDynamicRouting for SuccessRateCalculatorClient<Client> {
             .transpose()?;
 
         let mut request = tonic::Request::new(CalGlobalSuccessRateRequest {
-            id,
-            params,
-            labels,
+            entity_id: id,
+            entity_params: params.clone(),
+            entity_labels: labels,
+            global_id: "".to_string(),
+            global_params: params,
+            global_labels,
             config,
         });
 
@@ -197,7 +206,7 @@ impl SuccessBasedDynamicRouting for SuccessRateCalculatorClient<Client> {
             .fetch_entity_and_global_success_rate(request)
             .await
             .change_context(DynamicRoutingError::SuccessRateBasedRoutingFailure(
-                "Failed to fetch the success rate".to_string(),
+                "Failed to fetch the entity and global success rate".to_string(),
             ))?
             .into_inner();
 
@@ -254,10 +263,10 @@ impl ForeignTryFrom<SuccessBasedRoutingConfigBody> for CalSuccessRateConfig {
                 .change_context(DynamicRoutingError::MissingRequiredField {
                     field: "default_success_rate".to_string(),
                 })?,
-            specificity_level: config.specificity_level.map(|level| match level {
-                SuccessRateSpecificityLevel::Merchant => ProtoSpecificityLevel::Entity.into(),
-                SuccessRateSpecificityLevel::Global => ProtoSpecificityLevel::Global.into(),
-            }),
+            specificity_level: match config.specificity_level {
+                SuccessRateSpecificityLevel::Merchant => Some(ProtoSpecificityLevel::Entity.into()),
+                SuccessRateSpecificityLevel::Global => Some(ProtoSpecificityLevel::Global.into()),
+            },
         })
     }
 }
