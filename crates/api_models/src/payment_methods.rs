@@ -11,7 +11,7 @@ use common_utils::{
     id_type, link_utils, pii,
     types::{MinorUnit, Percentage, Surcharge},
 };
-use masking::PeekInterface;
+use masking::{self, Deserialize, PeekInterface};
 use serde::de;
 use utoipa::{schema, ToSchema};
 
@@ -243,6 +243,7 @@ pub struct PaymentMethodMigrate {
     pub billing: Option<payments::Address>,
 
     /// The connector mandate details of the payment method
+    #[serde(deserialize_with = "deserialize_connector_mandate_details")]
     pub connector_mandate_details: Option<CommonMandateReference>,
 
     // The CIT (customer initiated transaction) transaction id associated with the payment method
@@ -298,11 +299,7 @@ pub struct CommonMandateReference {
 
 impl From<CommonMandateReference> for PaymentsMandateReference {
     fn from(common_mandate: CommonMandateReference) -> Self {
-        if let Some(payments) = common_mandate.payments {
-            payments
-        } else {
-            Self(HashMap::new())
-        }
+        common_mandate.payments.unwrap_or_default()
     }
 }
 
@@ -315,75 +312,32 @@ impl From<PaymentsMandateReference> for CommonMandateReference {
     }
 }
 
-impl<'de> serde::Deserialize<'de> for PaymentMethodMigrate {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        #[derive(Debug, serde::Deserialize)]
-        struct InnerPaymentMethodMigrate {
-            pub merchant_id: id_type::MerchantId,
-            pub payment_method: Option<api_enums::PaymentMethod>,
-            pub payment_method_type: Option<api_enums::PaymentMethodType>,
-            pub payment_method_issuer: Option<String>,
-            pub payment_method_issuer_code: Option<api_enums::PaymentMethodIssuerCode>,
-            pub card: Option<MigrateCardDetail>,
-            pub network_token: Option<MigrateNetworkTokenDetail>,
-            pub metadata: Option<pii::SecretSerdeValue>,
-            pub customer_id: Option<id_type::CustomerId>,
-            pub card_network: Option<String>,
-            #[cfg(feature = "payouts")]
-            pub bank_transfer: Option<payouts::Bank>,
-            #[cfg(feature = "payouts")]
-            pub wallet: Option<payouts::Wallet>,
-            pub payment_method_data: Option<PaymentMethodCreateData>,
-            pub billing: Option<payments::Address>,
-            pub connector_mandate_details: Option<serde_json::Value>,
-            pub network_transaction_id: Option<String>,
+fn deserialize_connector_mandate_details<'de, D>(
+    deserializer: D,
+) -> Result<Option<CommonMandateReference>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let value: Option<serde_json::Value> = Option::<serde_json::Value>::deserialize(deserializer)?;
+    if let Some(connector_mandate_value) = value {
+        if let Ok(common_mandate) =
+            serde_json::from_value::<CommonMandateReference>(connector_mandate_value.clone())
+        {
+            Ok(Some(common_mandate))
+        } else if let Ok(payment_mandate_record) =
+            serde_json::from_value::<PaymentsMandateReference>(connector_mandate_value)
+        {
+            Ok(Some(CommonMandateReference {
+                payments: Some(payment_mandate_record),
+                payouts: None,
+            }))
+        } else {
+            Err(de::Error::custom(
+                "Failed to deserialize connector_mandate_details",
+            ))
         }
-
-        let inner = InnerPaymentMethodMigrate::deserialize(deserializer)?;
-
-        let connector_mandate_details =
-            if let Some(connector_mandate_value) = inner.connector_mandate_details {
-                if let Ok(common_mandate) = serde_json::from_value::<CommonMandateReference>(
-                    connector_mandate_value.clone(),
-                ) {
-                    Some(common_mandate)
-                } else if let Ok(payment_mandate_record) =
-                    serde_json::from_value::<PaymentsMandateReference>(connector_mandate_value)
-                {
-                    Some(CommonMandateReference {
-                        payments: Some(payment_mandate_record),
-                        payouts: None,
-                    })
-                } else {
-                    return Err(de::Error::custom("Failed to deserialize PaymentMethod_V2"));
-                }
-            } else {
-                None
-            };
-
-        Ok(Self {
-            merchant_id: inner.merchant_id,
-            payment_method: inner.payment_method,
-            payment_method_type: inner.payment_method_type,
-            payment_method_issuer: inner.payment_method_issuer,
-            payment_method_issuer_code: inner.payment_method_issuer_code,
-            card: inner.card,
-            network_token: inner.network_token,
-            metadata: inner.metadata,
-            customer_id: inner.customer_id,
-            card_network: inner.card_network,
-            #[cfg(feature = "payouts")]
-            bank_transfer: inner.bank_transfer,
-            #[cfg(feature = "payouts")]
-            wallet: inner.wallet,
-            payment_method_data: inner.payment_method_data,
-            billing: inner.billing,
-            connector_mandate_details,
-            network_transaction_id: inner.network_transaction_id,
-        })
+    } else {
+        Ok(None)
     }
 }
 
@@ -1556,7 +1510,7 @@ pub struct PaymentMethodListRequest {
     any(feature = "v1", feature = "v2"),
     not(feature = "payment_methods_v2")
 ))]
-impl<'de> serde::Deserialize<'de> for PaymentMethodListRequest {
+impl<'de> Deserialize<'de> for PaymentMethodListRequest {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
@@ -1672,7 +1626,7 @@ pub struct PaymentMethodListRequest {
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-impl<'de> serde::Deserialize<'de> for PaymentMethodListRequest {
+impl<'de> Deserialize<'de> for PaymentMethodListRequest {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,

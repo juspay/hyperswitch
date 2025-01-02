@@ -6173,7 +6173,6 @@ where
 pub async fn validate_merchant_connector_ids_in_connector_mandate_details(
     state: &SessionState,
     key_store: &domain::MerchantKeyStore,
-    // connector_mandate_details: &api_models::payment_methods::PaymentsMandateReference,
     connector_mandate_details: &api_models::payment_methods::CommonMandateReference,
     merchant_id: &id_type::MerchantId,
     card_network: Option<api_enums::CardNetwork>,

@@ -2113,7 +2113,7 @@ pub async fn create_recipient_disburse_account(
                 )]);
 
                 let common_connector_mandate = CommonMandateReference {
-                    payments: None, // doubt here, i think i need to fetch it here.
+                    payments: None,
                     payouts: Some(PayoutsMandateReference(connector_mandate_details)),
                 };
 
@@ -2702,7 +2702,9 @@ pub async fn payout_create_db_entries(
             Some(api_enums::PayoutType::foreign_from(payout_method_data)),
         ),
         None => (
-            payment_method.clone().map(|pm| pm.payment_method_id),
+            payment_method
+                .as_ref()
+                .map(|pm| pm.payment_method_id.clone()),
             req.payout_type.to_owned(),
         ),
     };

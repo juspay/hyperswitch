@@ -846,7 +846,8 @@ pub async fn skip_locker_call_and_migrate_payment_method(
             .and_then(|val| if val == json!({}) { None } else { Some(true) })
             .or_else(|| {
                 req.connector_mandate_details.clone().and_then(|val| {
-                    (!val.payments.unwrap_or_default().0.is_empty()).then_some(false)
+                    val.payments
+                        .and_then(|payin_val| (!payin_val.0.is_empty()).then_some(false))
                 })
             }),
     );
@@ -4938,7 +4939,19 @@ pub async fn list_customer_payment_method(
             .connector_mandate_details
             .clone()
             .map(|val| {
-                val.parse_value::<diesel_models::CommonMandateReference>("CommonMandateReference")
+                val.clone()
+                    .parse_value::<diesel_models::CommonMandateReference>("CommonMandateReference")
+                    .or_else(|_| {
+                        val.parse_value::<diesel_models::PaymentsMandateReference>(
+                            "PaymentsMandateReference",
+                        )
+                        .map(|payments| {
+                            diesel_models::CommonMandateReference {
+                                payments: Some(payments),
+                                payouts: None,
+                            }
+                        })
+                    })
             })
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)
