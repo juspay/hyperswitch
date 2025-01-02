@@ -625,7 +625,6 @@ default_imp_for_connector_redirect_response!(
     connectors::UnifiedAuthenticationService,
     connectors::Worldline,
     connectors::Volt,
-    connectors::Xendit,
     connectors::Zsl,
     connectors::CtpMastercard
 );
