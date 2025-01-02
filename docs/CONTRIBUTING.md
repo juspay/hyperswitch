@@ -34,6 +34,7 @@ Please join us!
   - [Resolving a Bug Report](#resolving-a-bug-report)
 - [Pull Requests](#pull-requests)
   - [Cargo Commands](#cargo-commands)
+  - [Code Coverage](#code-coverage)
   - [Commits](#commits)
   - [Opening the Pull Request](#opening-the-pull-request)
   - [Discuss and update](#discuss-and-update)
@@ -232,7 +233,7 @@ To generate code coverage using the cypress tests, follow these steps:
 0. Make sure `grcov` and `llvm-tools-preview` are installed
 
    ```shell
-   rustup install llvm-tools-preview
+   rustup component add llvm-tools-preview
    cargo install grcov
    ```
 
@@ -250,7 +251,7 @@ To generate code coverage using the cypress tests, follow these steps:
    LLVM_PROFILE_FILE="coverage.profraw" target/debug/router
    ```
 
-3. Open a separate terminal tab and run the cypress tests, following the [README]
+3. Open a separate terminal tab and run the cypress tests, following the [README][cypress-v2-readme]
 
 4. After the tests have finished running, stop the `router` process using `Ctrl+C`
 
@@ -274,22 +275,22 @@ To generate code coverage using the cypress tests, follow these steps:
    rm **/*.profraw
    ```
 
+Note:
+- It is necessary to stop the `router` process to generate the coverage file
+- Branch coverage generation requires nightly and currently `grcov` crashes while trying to include branch coverage. (Checked using `--log-level` parameter in `grcov`)
+
 #### Integration with VSCode
 You can also visualize code coverage in VSCode using the [coverage-gutters](https://marketplace.visualstudio.com/items?itemName=ryanluker.vscode-coverage-gutters) extension.
 
 You need to generate an `lcov.info` file in the directory root. After following till step 4 above:
 
 ```shell
-grcov . -s . -t lcov --output-path lcov.info --binary-path ./target/debug --ignore "*cargo*" --ignore "target/*" --ignore "/*"
+grcov . -s . -t lcov --output-path lcov.info --binary-path ./target/debug --keep-only "crates/*"
 ```
 
 This will generate an `lcov.info` file that can be read by the extension.
 
-Note:
-- It is necessary to stop the `router` process to generate the coverage file
-- Branch coverage generation requires nightly and currently `grcov` crashes while trying to include branch coverage. (Checked using `--log-level` parameter in `grcov`)
-
-[README]: /cypress-tests-v2/README.md
+[cypress-v2-readme]: /cypress-tests-v2/README.md
 
 ### Commits
 
