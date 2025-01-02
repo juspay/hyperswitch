@@ -113,7 +113,7 @@ export const connectorDetails = {
             email: "mauro.morandi@nexi.it",
             phone: {
               number: "8056594427",
-              country_code: "+91"
+              country_code: "+91",
             },
           },
         },
@@ -138,16 +138,13 @@ export const connectorDetails = {
           card: successfulNo3DSCardDetails,
           billing: {
             email: "mauro.morandi@nexi.it",
-
-
           },
         },
         billing: {
           email: "mauro.morandi@nexi.it",
           phone: {
             number: "8056594427",
-            country_code: "+91"
-
+            country_code: "+91",
           },
         },
         currency: "IDR",
@@ -262,8 +259,7 @@ export const connectorDetails = {
             email: "mauro.morandi@nexi.it",
             phone: {
               number: "8056594427",
-              country_code: "+91"
-
+              country_code: "+91",
             },
           },
         },
@@ -410,8 +406,7 @@ export const connectorDetails = {
             email: "mauro.morandi@nexi.it",
             phone: {
               number: "8056594427",
-              country_code: "+91"
-
+              country_code: "+91",
             },
           },
         },
@@ -442,8 +437,7 @@ export const connectorDetails = {
             email: "mauro.morandi@nexi.it",
             phone: {
               number: "8056594427",
-              country_code: "+91"
-
+              country_code: "+91",
             },
           },
         },
@@ -466,8 +460,7 @@ export const connectorDetails = {
             email: "mauro.morandi@nexi.it",
             phone: {
               number: "8056594427",
-              country_code: "+91"
-
+              country_code: "+91",
             },
           },
         },
@@ -584,8 +577,7 @@ export const connectorDetails = {
           email: "mauro.morandi@nexi.it",
           phone: {
             number: "8056594427",
-            country_code: "+91"
-
+            country_code: "+91",
           },
         },
         mandate_data: null,
@@ -615,8 +607,7 @@ export const connectorDetails = {
           email: "mauro.morandi@nexi.it",
           phone: {
             number: "8056594427",
-            country_code: "+91"
-
+            country_code: "+91",
           },
         },
         currency: "IDR",
