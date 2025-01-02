@@ -25,12 +25,6 @@ describe("Auto Retries & Step Up 3DS", () => {
       cy.task("setGlobalState", globalState.data);
     });
 
-    it("User login", () => {
-      cy.userLogin(globalState);
-      cy.terminate2Fa(globalState);
-      cy.userInfo(globalState);
-    });
-
     it("List MCA", () => {
       cy.ListMcaByMid(globalState);
     });
