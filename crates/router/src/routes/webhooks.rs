@@ -1,5 +1,4 @@
 use actix_web::{web, HttpRequest, Responder};
-
 use router_env::{instrument, tracing, Flow};
 
 use super::app::AppState;
