@@ -1258,7 +1258,7 @@ pub enum PaymentMethodSubtypeSpecificData {
 #[derive(Debug, Clone, serde::Serialize, ToSchema, PartialEq)]
 pub struct ResponsePaymentMethodTypes {
     /// The payment method type enabled
-    #[schema(example = "klarna", value_type = PaymentMethodType)]
+    #[schema(example = "pay_later", value_type = PaymentMethod)]
     pub payment_method_type: common_enums::PaymentMethod,
 
     /// The payment method subtype enabled
