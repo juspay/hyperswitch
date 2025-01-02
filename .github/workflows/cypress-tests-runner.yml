@@ -455,18 +455,14 @@ jobs:
       # - The `router` process must be killed (using SIGINT/SIGTERM) to generate the `coverage.profraw` file, otherwise the coverage will only be generated for the buildscripts
       # - Trying to generate branch coverage using "-Z coverage-options=branch" currently fails. Both grcov and cargo-llvm-cov crash when trying
       #   to process the generated `.profraw` files.
-      # - Explanation of ignore flags:
-      #   - "*cargo*"  : Exclude external crates from the generated `lcov.info` file
-      #   - "target/*" : Exclude compile time generated .rs files, e.g. isodata.rs, chrono-tz/timezones.rs
-      #   - "/*"       : Exclude /Users/../rustlib/src/rust/library/core/src/panic.rs, /Users/../rustlib/src/rust/library/std/src/sys/thread_local/native/mod.rs etc.
+      # - --keep-only argument is used to exclude external crates in generated lcov.info file (~500MiB -> ~70MiB)
       - name: Process coverage report
-        if: ${{ env.RUN_TESTS == 'true' }}
-        run: |
-          grcov . --source-dir . --output-types lcov --output-path ${{ env.CODECOV_FILE }} --binary-path ./target/debug --ignore "*cargo*" --ignore "target/*" --ignore "/*"
+        if: ${{ env.RUN_TESTS == 'true' && github.event_name != 'merge_group' }}
+        run: grcov . --source-dir . --output-types lcov --output-path ${{ env.CODECOV_FILE }} --binary-path ./target/debug --keep-only "crates/*"
 
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v5
-        if: ${{ env.RUN_TESTS == 'true' }}
+        if: ${{ env.RUN_TESTS == 'true' && github.event_name != 'merge_group'}}
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ${{ env.CODECOV_FILE }}
