@@ -2680,7 +2680,9 @@ pub async fn payout_create_db_entries(
 
     let (payout_method_id, payout_type) = match stored_payout_method_data {
         Some(payout_method_data) => (
-            req.payout_token.to_owned(),
+            payment_method
+                .as_ref()
+                .map(|pm| pm.payment_method_id.clone()),
             Some(api_enums::PayoutType::foreign_from(payout_method_data)),
         ),
         None => (
