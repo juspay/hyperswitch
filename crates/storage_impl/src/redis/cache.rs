@@ -2,14 +2,17 @@ use std::{any::Any, borrow::Cow, fmt::Debug, sync::Arc};
 
 use common_utils::{
     errors::{self, CustomResult},
-    ext_traits::{AsyncExt, ByteSliceExt},
+    ext_traits::ByteSliceExt,
 };
 use dyn_clone::DynClone;
 use error_stack::{Report, ResultExt};
 use moka::future::Cache as MokaCache;
 use once_cell::sync::Lazy;
 use redis_interface::{errors::RedisError, RedisConnectionPool, RedisValue};
-use router_env::tracing::{self, instrument};
+use router_env::{
+    logger,
+    tracing::{self, instrument},
+};
 
 use crate::{
     errors::StorageError,
@@ -100,7 +103,7 @@ pub struct CacheRedact<'a> {
     pub kind: CacheKind<'a>,
 }
 
-#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub enum CacheKind<'a> {
     Config(Cow<'a, str>),
     Accounts(Cow<'a, str>),
@@ -112,6 +115,23 @@ pub enum CacheKind<'a> {
     EliminationBasedDynamicRoutingCache(Cow<'a, str>),
     PmFiltersCGraph(Cow<'a, str>),
     All(Cow<'a, str>),
+}
+
+impl CacheKind<'_> {
+    pub(crate) fn get_key_without_prefix(&self) -> &str {
+        match self {
+            CacheKind::Config(key)
+            | CacheKind::Accounts(key)
+            | CacheKind::Routing(key)
+            | CacheKind::DecisionManager(key)
+            | CacheKind::Surcharge(key)
+            | CacheKind::CGraph(key)
+            | CacheKind::SuccessBasedDynamicRoutingCache(key)
+            | CacheKind::EliminationBasedDynamicRoutingCache(key)
+            | CacheKind::PmFiltersCGraph(key)
+            | CacheKind::All(key) => key,
+        }
+    }
 }
 
 impl<'a> TryFrom<CacheRedact<'a>> for RedisValue {
@@ -343,39 +363,10 @@ where
 }
 
 #[instrument(skip_all)]
-pub async fn redact_cache<T, F, Fut>(
-    store: &(dyn RedisConnInterface + Send + Sync),
-    key: &'static str,
-    fun: F,
-    in_memory: Option<&Cache>,
-) -> CustomResult<T, StorageError>
-where
-    F: FnOnce() -> Fut + Send,
-    Fut: futures::Future<Output = CustomResult<T, StorageError>> + Send,
-{
-    let data = fun().await?;
-
-    let redis_conn = store
-        .get_redis_conn()
-        .change_context(StorageError::RedisError(
-            RedisError::RedisConnectionError.into(),
-        ))
-        .attach_printable("Failed to get redis connection")?;
-    let tenant_key = CacheKey {
-        key: key.to_string(),
-        prefix: redis_conn.key_prefix.clone(),
-    };
-    in_memory.async_map(|cache| cache.remove(tenant_key)).await;
-
-    redis_conn
-        .delete_key(key)
-        .await
-        .change_context(StorageError::KVError)?;
-    Ok(data)
-}
-
-#[instrument(skip_all)]
-pub async fn publish_into_redact_channel<'a, K: IntoIterator<Item = CacheKind<'a>> + Send>(
+pub async fn publish_into_redact_channel<
+    'a,
+    K: IntoIterator<Item = CacheKind<'a>> + Send + Clone,
+>(
     store: &(dyn RedisConnInterface + Send + Sync),
     keys: K,
 ) -> CustomResult<usize, StorageError> {
@@ -385,6 +376,24 @@ pub async fn publish_into_redact_channel<'a, K: IntoIterator<Item = CacheKind<'a
             RedisError::RedisConnectionError.into(),
         ))
         .attach_printable("Failed to get redis connection")?;
+
+    let redis_keys_to_be_deleted = keys
+        .clone()
+        .into_iter()
+        .map(|val| val.get_key_without_prefix().to_owned())
+        .collect::<Vec<_>>();
+
+    let del_replies = redis_conn
+        .delete_multiple_keys(&redis_keys_to_be_deleted)
+        .await
+        .map_err(StorageError::RedisError)?;
+
+    let deletion_result = redis_keys_to_be_deleted
+        .into_iter()
+        .zip(del_replies)
+        .collect::<Vec<_>>();
+
+    logger::debug!(redis_deletion_result=?deletion_result);
 
     let futures = keys.into_iter().map(|key| async {
         redis_conn
@@ -424,7 +433,7 @@ pub async fn publish_and_redact_multiple<'a, T, F, Fut, K>(
 where
     F: FnOnce() -> Fut + Send,
     Fut: futures::Future<Output = CustomResult<T, StorageError>> + Send,
-    K: IntoIterator<Item = CacheKind<'a>> + Send,
+    K: IntoIterator<Item = CacheKind<'a>> + Send + Clone,
 {
     let data = fun().await?;
     publish_into_redact_channel(store, keys).await?;
