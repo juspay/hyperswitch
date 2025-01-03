@@ -1,4 +1,5 @@
 use api_models;
+use cards::NameType;
 use common_enums;
 use common_utils::{
     events::{ApiEventMetric, ApiEventsType},
@@ -140,7 +141,7 @@ pub struct Product {
 #[serde_with::skip_serializing_none]
 #[serde(rename_all = "snake_case")]
 pub struct Destination {
-    pub full_name: Secret<String>,
+    pub full_name: NameType,
     pub organization: Option<String>,
     pub email: Option<Email>,
     pub address: Address,

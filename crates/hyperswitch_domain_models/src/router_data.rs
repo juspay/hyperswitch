@@ -1,5 +1,6 @@
 use std::{collections::HashMap, marker::PhantomData};
 
+use cards::NameType;
 use common_utils::{
     errors::IntegrityCheckError,
     ext_traits::{OptionExt, ValueExt},
@@ -280,7 +281,7 @@ pub struct PazeDynamicData {
 #[derive(Debug, Clone, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PazeAddress {
-    pub name: Option<Secret<String>>,
+    pub name: Option<NameType>,
     pub line1: Option<Secret<String>>,
     pub line2: Option<Secret<String>>,
     pub line3: Option<Secret<String>>,

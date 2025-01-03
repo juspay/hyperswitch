@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use cards::CardNumber;
+use cards::{CardNumber, NameType};
 use common_utils::{
     consts::default_payouts_list_limit,
     crypto, id_type, link_utils, payout_method_utils,
@@ -251,7 +251,7 @@ pub struct CardPayout {
 
     /// The card holder's name
     #[schema(value_type = String, example = "John Doe")]
-    pub card_holder_name: Option<Secret<String>>,
+    pub card_holder_name: Option<NameType>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]

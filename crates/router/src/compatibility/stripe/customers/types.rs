@@ -6,6 +6,7 @@ use std::{convert::From, default::Default};
 ))]
 use api_models::payment_methods as api_types;
 use api_models::payments;
+use cards::NameType;
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use common_utils::{crypto::Encryptable, date_time};
 use common_utils::{
@@ -42,7 +43,7 @@ pub struct StripeAddressDetails {
 pub struct CreateCustomerRequest {
     pub email: Option<Email>,
     pub invoice_prefix: Option<String>,
-    pub name: Option<masking::Secret<String>>,
+    pub name: Option<NameType>,
     pub phone: Option<masking::Secret<String>>,
     pub address: Option<StripeAddressDetails>,
     pub metadata: Option<pii::SecretSerdeValue>,

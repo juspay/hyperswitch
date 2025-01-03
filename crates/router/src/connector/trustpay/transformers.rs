@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use cards::NameType;
 use common_utils::{
     errors::CustomResult,
     pii::{self, Email},
@@ -312,7 +313,7 @@ fn get_card_request_data(
 
 fn get_full_name(
     billing_first_name: Secret<String>,
-    billing_last_name: Option<Secret<String>>,
+    billing_last_name: Option<NameType>,
 ) -> Secret<String> {
     match billing_last_name {
         Some(last_name) => format!("{} {}", billing_first_name.peek(), last_name.peek()).into(),
