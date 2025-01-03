@@ -777,6 +777,7 @@ impl
                         &mut header,
                     );
                 }
+                common_types::payments::SplitPaymentsRequest::AdyenSplitPayment(_) => (),
             }
         }
         Ok(header)
@@ -963,6 +964,7 @@ impl
                         header.append(&mut customer_account_header);
                     }
                 }
+                _ => (),
             }
         }
         Ok(header)

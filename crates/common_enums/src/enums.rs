@@ -3613,3 +3613,45 @@ pub enum FeatureStatus {
     NotSupported,
     Supported,
 }
+
+#[derive(
+    Clone,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+    Default,
+)]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+pub enum AdyenSplitType {
+    /// Books split amount to the specified account.
+    BalanceAccount,
+    /// The aggregated amount of the interchange and scheme fees.
+    AcquiringFees,
+    /// The aggregated amount of all transaction fees.
+    PaymentFee,
+    /// The aggregated amount of Adyen's commission and markup fees.
+    AdyenFees,
+    ///  The transaction fees due to Adyen under blended rates.
+    AdyenCommission,
+    /// The transaction fees due to Adyen under Interchange ++ pricing.
+    AdyenMarkup,
+    ///  The fees paid to the issuer for each payment made with the card network.
+    Interchange,
+    ///  The fees paid to the card scheme for using their network.
+    SchemeFee,
+    /// Your platform's commission on the payment (specified in amount), booked to your liable balance account.
+    Commission,
+    /// Allows you and your users to top up balance accounts using direct debit, card payments, or other payment methods.
+    TopUp,
+    /// The value-added tax charged on the payment, booked to your platforms liable balance account.
+    Vat,
+    /// In very specific use cases, allows you to book the specified amount to the specified account.
+    #[default]
+    Default,
+}
