@@ -9,17 +9,14 @@ use hyperswitch_domain_models::{
     router_response_types::{PaymentsResponseData, RefundsResponseData},
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
-        PaymentsCompleteAuthorizeRouterData, RefundsRouterData,
+        RefundsRouterData,
     },
 };
 use hyperswitch_interfaces::errors;
 use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    types::{RefundsResponseRouterData, ResponseRouterData},
-    utils::PaymentsCompleteAuthorizeRequestData,
-};
+use crate::types::{RefundsResponseRouterData, ResponseRouterData};
 
 pub struct AmazonpayRouterData<T> {
     pub amount: StringMajorUnit, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
@@ -79,9 +76,8 @@ pub struct AddressDetails {
 #[derive(Default, Debug, Serialize, PartialEq)]
 pub enum PaymentIntent {
     Authorize,
-    AuthorizeWithCapture,
     #[default]
-    Confirm,
+    AuthorizeWithCapture,
 }
 
 fn get_amazonpay_capture_type(
@@ -89,10 +85,7 @@ fn get_amazonpay_capture_type(
 ) -> CustomResult<Option<PaymentIntent>, errors::ConnectorError> {
     match item {
         Some(CaptureMethod::Manual) => Ok(Some(PaymentIntent::Authorize)),
-        Some(CaptureMethod::Automatic) => Ok(Some(PaymentIntent::AuthorizeWithCapture)),
-        Some(CaptureMethod::SequentialAutomatic) | None => {
-            Ok(Some(PaymentIntent::Confirm))
-        }
+        Some(CaptureMethod::Automatic) | None => Ok(Some(PaymentIntent::AuthorizeWithCapture)),
         Some(item) => Err(errors::ConnectorError::FlowNotSupported {
             flow: item.to_string(),
             connector: "Amazonpay".to_string(),
@@ -116,7 +109,7 @@ impl TryFrom<&AmazonpayRouterData<&PaymentsAuthorizeRouterData>> for AmazonpayFi
                 AddressDetails {
                     name: address_details
                         .get_optional_full_name()
-                        .map(|secret_name| secret_name.peek().to_string()), 
+                        .map(|secret_name| secret_name.peek().to_string()),
                     address_line_1: address_details
                         .line1
                         .clone()
@@ -130,7 +123,7 @@ impl TryFrom<&AmazonpayRouterData<&PaymentsAuthorizeRouterData>> for AmazonpayFi
                         .clone()
                         .map(|l3| l3.peek().to_string()),
                     city: address_details.city.clone(),
-                    // country: address_details.country.map(|country| country.to_string()), 
+                    // country: address_details.country.map(|country| country.to_string()),
                     // district: None, // If no specific field is available, set to None
                     state_or_region: address_details
                         .state
@@ -145,7 +138,7 @@ impl TryFrom<&AmazonpayRouterData<&PaymentsAuthorizeRouterData>> for AmazonpayFi
                         .phone
                         .as_ref()
                         .and_then(|phone| phone.number.as_ref())
-                        .map(|phone_number| phone_number.peek().to_string()), 
+                        .map(|phone_number| phone_number.peek().to_string()),
                 }
             } else {
                 AddressDetails::default()
@@ -156,8 +149,6 @@ impl TryFrom<&AmazonpayRouterData<&PaymentsAuthorizeRouterData>> for AmazonpayFi
         let payment_intent = get_amazonpay_capture_type(item.router_data.request.capture_method)?
             .unwrap_or_default();
         println!(">>>>>>> FINALIZE REQUEST <<<<<<<");
-        // println!("{}", charge_amount.amount);
-        // println!("{}", charge_amount.cuurency_code);
         Ok(Self {
             charge_amount,
             total_order_amount: None,
@@ -190,7 +181,7 @@ pub struct AmazonpayFinalizeResponse {
     shipping_address: Option<AddressDetails>,
     platform_id: Option<String>,
     charge_permission_id: String,
-    charge_id: Option<String>,
+    charge_id: String,
     constraints: Option<String>, // not sure
     creation_timestamp: String,
     expiration_timestamp: Option<String>,
@@ -201,7 +192,7 @@ pub struct AmazonpayFinalizeResponse {
     delivery_specifications: Option<DeliverySpecifications>,
     tokens: Option<String>,               // not sure
     disbursement_details: Option<String>, // not sure
-    channel_type: Option<String>, // not sure
+    channel_type: Option<String>,         // not sure
     payment_processing_meta_data: PaymentProcessingMetaData,
 }
 
@@ -326,12 +317,26 @@ pub struct PaymentProcessingMetaData {
 impl From<FinalizeState> for common_enums::AttemptStatus {
     fn from(item: FinalizeState) -> Self {
         match item {
-            FinalizeState::Open => Self::AuthenticationPending, // or Started?
-            FinalizeState::Completed => Self::AuthenticationSuccessful,  // not sure
-            FinalizeState::Canceled => Self::AuthenticationFailed, // or Failure?
+            FinalizeState::Open => Self::Pending,
+            // FinalizeState::Completed => Self::Charged,
+            FinalizeState::Completed => Self::Authorized,
+            FinalizeState::Canceled => Self::Failure,
         }
     }
 }
+
+// impl From<FinalizeState> for common_enums::AttemptStatus {
+//     fn from(item: (FinalizeState, PaymentIntent)) -> Self {
+//         match item.0 {
+//             FinalizeState::Open => Self::Pending,
+//             FinalizeState::Completed => match item.1 {
+//                 PaymentIntent::Authorize => Self::Authorized,
+//                 PaymentIntent::AuthorizeWithCapture => Self::Charged,
+//             },
+//             FinalizeState::Canceled => Self::Failure,
+//         }
+//     }
+// }
 
 impl<F, T> TryFrom<ResponseRouterData<F, AmazonpayFinalizeResponse, T, PaymentsResponseData>>
     for RouterData<F, T, PaymentsResponseData>
@@ -341,9 +346,9 @@ impl<F, T> TryFrom<ResponseRouterData<F, AmazonpayFinalizeResponse, T, PaymentsR
         item: ResponseRouterData<F, AmazonpayFinalizeResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            status: common_enums::AttemptStatus::AuthenticationPending,
+            status: common_enums::AttemptStatus::from(item.response.status_details.state),
             response: Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::ConnectorTransactionId(item.response.charge_permission_id),
+                resource_id: ResponseId::ConnectorTransactionId(item.response.charge_id),
                 redirection_data: Box::new(None),
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
@@ -358,6 +363,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, AmazonpayFinalizeResponse, T, PaymentsR
 }
 
 #[derive(Default, Debug, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct AmazonpayPaymentsRequest {
     charge_amount: ChargeAmount,
     charge_permission_id: String,
@@ -371,29 +377,6 @@ pub struct AmazonpayCard {
     expiry_year: Secret<String>,
     cvc: Secret<String>,
     complete: bool,
-}
-
-impl TryFrom<&AmazonpayRouterData<&PaymentsCompleteAuthorizeRouterData>>
-    for AmazonpayPaymentsRequest
-{
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: &AmazonpayRouterData<&PaymentsCompleteAuthorizeRouterData>,
-    ) -> Result<Self, Self::Error> {
-        let charge_amount = ChargeAmount {
-            amount: item.amount.clone(),
-            currency_code: common_enums::Currency::USD,
-        };
-        // let charge_permission_id = item.router_data.connector_request_reference_id.clone();
-        let charge_permission_id = item.router_data.request.connector_transaction_id.clone().unwrap_or_default();
-        let capture_now: Option<bool> = Some(item.router_data.request.is_auto_capture()?);
-        println!(">>>>>> CHARGE PERMISSION ID - {:?}", charge_permission_id);
-        Ok(Self {
-            charge_amount,
-            charge_permission_id,
-            capture_now,
-        })
-    }
 }
 
 pub struct AmazonpayAuthType {
@@ -459,9 +442,9 @@ pub struct AmazonpayPaymentsResponse {
     release_environment: Option<ReleaseEnvironment>,
     merchant_metadata: Option<MerchantMetadata>,
     platform_id: Option<String>,
-    web_checkout_details: WebCheckoutDetails,
+    web_checkout_details: Option<WebCheckoutDetails>,
     disbursement_details: Option<String>, // not sure
-    payment_method: Option<String>,      // not sure
+    payment_method: Option<String>,       // not sure
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -520,6 +503,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, AmazonpayPaymentsResponse, T, PaymentsR
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct AmazonpayCaptureRequest {
     pub capture_amount: ChargeAmount,
 }
@@ -538,8 +522,9 @@ impl TryFrom<&AmazonpayRouterData<&PaymentsCaptureRouterData>> for AmazonpayCapt
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct AmazonpayCancelRequest {
-    pub cancellation_reason: Option<String>, // ig only String should be the datatype
+    pub cancellation_reason: String,
 }
 
 impl TryFrom<&AmazonpayRouterData<&PaymentsCancelRouterData>> for AmazonpayCancelRequest {
@@ -547,14 +532,13 @@ impl TryFrom<&AmazonpayRouterData<&PaymentsCancelRouterData>> for AmazonpayCance
     fn try_from(
         item: &AmazonpayRouterData<&PaymentsCancelRouterData>,
     ) -> Result<Self, Self::Error> {
-        let cancellation_reason = item.router_data.request.cancellation_reason.clone();
-        Ok(Self {
-            cancellation_reason,
-        })
+        let cancellation_reason = item.router_data.request.cancellation_reason.clone().unwrap_or_default();
+        Ok(Self { cancellation_reason })
     }
 }
 
 #[derive(Default, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct AmazonpayRefundRequest {
     pub refund_amount: ChargeAmount,
     pub charge_id: String,
@@ -603,15 +587,15 @@ pub struct RefundResponse {
     status_details: RefundStatusDetails,
     soft_descriptor: String,
     release_environment: String,
-    disbursement_details: String,
+    disbursement_details: Option<String>,
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RefundStatusDetails {
     state: RefundStatus,
-    reason_code: String,
-    reason_description: String,
+    reason_code: Option<String>,
+    reason_description: Option<String>,
     last_updated_timestamp: String,
 }
 
@@ -622,7 +606,7 @@ impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>> for RefundsRout
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(RefundsResponseData {
-                connector_refund_id: item.response.refund_id.clone(),
+                connector_refund_id: item.response.refund_id,
                 refund_status: enums::RefundStatus::from(item.response.status_details.state),
             }),
             ..item.data
@@ -635,9 +619,10 @@ impl TryFrom<RefundsResponseRouterData<RSync, RefundResponse>> for RefundsRouter
     fn try_from(
         item: RefundsResponseRouterData<RSync, RefundResponse>,
     ) -> Result<Self, Self::Error> {
+        println!(">>>>>> REFUND STATUS - \n{:?}\n", item.response.status_details.state);
         Ok(Self {
             response: Ok(RefundsResponseData {
-                connector_refund_id: item.response.refund_id.to_string(),
+                connector_refund_id: item.response.refund_id,
                 refund_status: enums::RefundStatus::from(item.response.status_details.state),
             }),
             ..item.data

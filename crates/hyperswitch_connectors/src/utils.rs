@@ -2188,17 +2188,17 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
                 payment_method_data::CardRedirectData::CardRedirect {} => Self::CardRedirect,
             },
             PaymentMethodData::Wallet(wallet_data) => match wallet_data {
-                 hyperswitch_domain_models::payment_method_data::WalletData::AliPayQr(_) => Self::AliPayQr,
-                 hyperswitch_domain_models::payment_method_data::WalletData::AliPayRedirect(_) => Self::AliPayRedirect,
-                 hyperswitch_domain_models::payment_method_data::WalletData::AliPayHkRedirect(_) => Self::AliPayHkRedirect,
-                 hyperswitch_domain_models::payment_method_data::WalletData::MomoRedirect(_) => Self::MomoRedirect,
-                 hyperswitch_domain_models::payment_method_data::WalletData::KakaoPayRedirect(_) => Self::KakaoPayRedirect,
-                 hyperswitch_domain_models::payment_method_data::WalletData::GoPayRedirect(_) => Self::GoPayRedirect,
-                 hyperswitch_domain_models::payment_method_data::WalletData::GcashRedirect(_) => Self::GcashRedirect,
-                 hyperswitch_domain_models::payment_method_data::WalletData::AmazonPay(_) => Self::AmazonPay,
-                 hyperswitch_domain_models::payment_method_data::WalletData::ApplePay(_) => Self::ApplePay,
-                 hyperswitch_domain_models::payment_method_data::WalletData::ApplePayRedirect(_) => Self::ApplePayRedirect,
-                 hyperswitch_domain_models::payment_method_data::WalletData::ApplePayThirdPartySdk(_) => {
+                payment_method_data::WalletData::AliPayQr(_) => Self::AliPayQr,
+                payment_method_data::WalletData::AliPayRedirect(_) => Self::AliPayRedirect,
+                payment_method_data::WalletData::AliPayHkRedirect(_) => Self::AliPayHkRedirect,
+                payment_method_data::WalletData::MomoRedirect(_) => Self::MomoRedirect,
+                payment_method_data::WalletData::KakaoPayRedirect(_) => Self::KakaoPayRedirect,
+                payment_method_data::WalletData::GoPayRedirect(_) => Self::GoPayRedirect,
+                payment_method_data::WalletData::GcashRedirect(_) => Self::GcashRedirect,
+                payment_method_data::WalletData::AmazonPay(_) => Self::AmazonPay,
+                payment_method_data::WalletData::ApplePay(_) => Self::ApplePay,
+                payment_method_data::WalletData::ApplePayRedirect(_) => Self::ApplePayRedirect,
+                payment_method_data::WalletData::ApplePayThirdPartySdk(_) => {
                     Self::ApplePayThirdPartySdk
                 }
                 payment_method_data::WalletData::DanaRedirect {} => Self::DanaRedirect,
