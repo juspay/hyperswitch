@@ -68,6 +68,7 @@ encoding_rs = "0.8.33"
 error-stack = "0.4.1"
 futures = "0.3.30"
 hex = "0.4.3"
+rust_hkdf = { package = "hkdf", version = "0.12.4" }
 http = "0.2.12"
 hyper = "0.14.28"
 infer = "0.15.0"
@@ -104,6 +105,7 @@ serde_repr = "0.1.19"
 serde_urlencoded = "0.7.1"
 serde_with = "3.7.0"
 sha1 = { version = "0.10.6" }
+sha2 = "0.10.8"
 strum = { version = "0.26", features = ["derive"] }
 tera = "1.19.1"
 thiserror = "1.0.58"
