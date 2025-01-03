@@ -163,6 +163,23 @@ export const connectorDetails = {
         },
       },
     },
+    SessionToken: {
+      Response: {
+        status: 200,
+        body: {
+          session_token: [
+            {
+              wallet_name: "apple_pay",
+              connector: "stripe",
+            },
+            {
+              wallet_name: "google_pay",
+              connector: "stripe",
+            },
+          ],
+        },
+      },
+    },
     PaymentIntentWithShippingCost: {
       Request: {
         currency: "USD",

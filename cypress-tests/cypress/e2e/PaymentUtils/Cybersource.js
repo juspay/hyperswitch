@@ -151,6 +151,23 @@ export const connectorDetails = {
         },
       },
     },
+    SessionToken: {
+      Response: {
+        status: 200,
+        body: {
+          session_token: [
+            {
+              wallet_name: "apple_pay",
+              connector: "cybersource",
+            },
+            {
+              wallet_name: "google_pay",
+              connector: "cybersource",
+            },
+          ],
+        },
+      },
+    },
     PaymentIntentWithShippingCost: {
       Request: {
         currency: "USD",

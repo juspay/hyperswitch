@@ -398,6 +398,27 @@ export const payment_methods_enabled = [
       },
     ],
   },
+  {
+    payment_method: "wallet",
+    payment_method_types: [
+      {
+        payment_method_type: "apple_pay",
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: true,
+        installment_payment_enabled: true,
+        payment_experience: "invoke_sdk_client",
+      },
+      {
+        payment_method_type: "google_pay",
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: true,
+        installment_payment_enabled: true,
+        payment_experience: "invoke_sdk_client",
+      },
+    ],
+  },
 ];
 
 export const connectorDetails = {
@@ -684,6 +705,14 @@ export const connectorDetails = {
         setup_future_usage: "on_session",
       },
     }),
+    SessionToken: {
+      Response: {
+        status: 200,
+        body: {
+          session_token: [],
+        },
+      },
+    },
     No3DSManualCapture: getCustomExchange({
       Request: {
         payment_method: "card",
