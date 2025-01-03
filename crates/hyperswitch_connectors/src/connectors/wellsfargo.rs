@@ -2,14 +2,12 @@ pub mod transformers;
 
 use base64::Engine;
 use common_enums::enums;
-use common_utils::types::{
-    AmountConvertor, MinorUnit, StringMajorUnit, StringMajorUnitForConnector,
-};
 use common_utils::{
     consts,
     errors::CustomResult,
     ext_traits::BytesExt,
     request::{Method, Request, RequestBuilder, RequestContent},
+    types::{AmountConvertor, MinorUnit, StringMajorUnit, StringMajorUnitForConnector},
 };
 use error_stack::{report, Report, ResultExt};
 use hyperswitch_domain_models::{
@@ -42,7 +40,8 @@ use hyperswitch_interfaces::{
     api::{
         self,
         refunds::{Refund, RefundExecute, RefundSync},
-        ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorValidation,ConnectorSpecifications
+        ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorSpecifications,
+        ConnectorValidation,
     },
     configs::Connectors,
     errors,
@@ -61,7 +60,7 @@ use transformers as wellsfargo;
 use url::Url;
 
 use crate::{
-    constants::{headers,self},
+    constants::{self, headers},
     types::ResponseRouterData,
     utils::{self, convert_amount, PaymentMethodDataType, RefundsRequestData},
 };

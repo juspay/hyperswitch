@@ -1,3 +1,5 @@
+#[cfg(feature = "payouts")]
+use hyperswitch_domain_models::types::{PayoutsData, PayoutsResponseData};
 use hyperswitch_domain_models::{
     router_data::{AccessToken, RouterData},
     router_flow_types::{AccessTokenAuth, Capture, PSync, PreProcessing, Session, Void},
@@ -7,9 +9,6 @@ use hyperswitch_domain_models::{
     },
     router_response_types::{PaymentsResponseData, RefundsResponseData},
 };
-
-#[cfg(feature = "payouts")]
-use hyperswitch_domain_models::types::{PayoutsData, PayoutsResponseData};
 
 pub(crate) type PaymentsSyncResponseRouterData<R> =
     ResponseRouterData<PSync, R, PaymentsSyncData, PaymentsResponseData>;
