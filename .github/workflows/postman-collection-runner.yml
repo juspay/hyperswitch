@@ -1,10 +1,11 @@
 name: Run postman tests
 
 on:
-  workflow_dispatch:
   pull_request:
+
   merge_group:
-    types: [checks_requested]
+    types:
+      - checks_requested
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -13,8 +14,8 @@ concurrency:
 env:
   CARGO_INCREMENTAL: 1
   CARGO_NET_RETRY: 10
-  CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse
   CONNECTORS: stripe
+  RUN_TESTS: ${{ ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)) || (github.event_name == 'merge_group')}}
   RUST_BACKTRACE: short
   RUSTUP_MAX_RETRIES: 10
   RUST_MIN_STACK: 10485760
@@ -26,7 +27,7 @@ jobs:
 
     services:
       redis:
-        image: "redis"
+        image: "redis:alpine"
         options: >-
           --health-cmd "redis-cli ping"
           --health-interval 10s
@@ -35,7 +36,7 @@ jobs:
         ports:
           - 6379:6379
       postgres:
-        image: "postgres:14.5"
+        image: "postgres:alpine"
         env:
           POSTGRES_USER: db_user
           POSTGRES_PASSWORD: db_pass
@@ -49,11 +50,17 @@ jobs:
           - 5432:5432
 
     steps:
-      - name: Repository checkout
-        uses: actions/checkout@v4
+      - name: Skip tests for PRs from forks
+        shell: bash
+        if: ${{ env.RUN_TESTS == 'false' }}
+        run: echo 'Skipping tests for PRs from forks'
 
-      - name: Download Encrypted TOML from S3 and Decrypt
-        if: ${{ ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)) || (github.event_name == 'merge_group')}}
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        if: ${{ env.RUN_TESTS == 'true' }}
+
+      - name: Download encrypted TOML from S3 and decrypt
+        if: ${{ env.RUN_TESTS == 'true' }}
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.CONNECTOR_CREDS_AWS_ACCESS_KEY_ID }}
           AWS_REGION: ${{ secrets.CONNECTOR_CREDS_AWS_REGION }}
@@ -64,71 +71,70 @@ jobs:
           S3_SOURCE_FILE_NAME: "95aa1243-4caa-4539-a65a-723aa5cbe3d7.toml.gpg"
         shell: bash
         run: |
-          mkdir -p ${HOME}/target/secrets ${HOME}/target/test
+          mkdir -p "${HOME}/target/secrets" "${HOME}/target/test"
 
           aws s3 cp "${CONNECTOR_CREDS_S3_BUCKET_URI}/${S3_SOURCE_FILE_NAME}" "${HOME}/target/secrets/${DESTINATION_FILE_NAME}"
           gpg --quiet --batch --yes --decrypt --passphrase="${CONNECTOR_AUTH_PASSPHRASE}" --output "${HOME}/target/test/connector_auth.toml" "${HOME}/target/secrets/${DESTINATION_FILE_NAME}"
 
-      - name: Set paths in env
-        if: ${{ ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)) || (github.event_name == 'merge_group')}}
-        id: config_path
+      - name: Set paths in environment variables
+        if: ${{ env.RUN_TESTS == 'true' }}
         shell: bash
         run: |
           echo "CONNECTOR_AUTH_FILE_PATH=${HOME}/target/test/connector_auth.toml" >> $GITHUB_ENV
 
       - name: Fetch keys
-        if: ${{ ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)) || (github.event_name == 'merge_group')}}
-        env:
-          TOML_PATH: "./config/development.toml"
+        if: ${{ env.RUN_TESTS == 'true' }}
         run: |
-          LOCAL_ADMIN_API_KEY=$(yq '.secrets.admin_api_key' ${TOML_PATH})
-          echo "ADMIN_API_KEY=${LOCAL_ADMIN_API_KEY}" >> $GITHUB_ENV
+          ADMIN_API_KEY="$(yq '.secrets.admin_api_key' './config/development.toml')"
+          echo "ADMIN_API_KEY=${ADMIN_API_KEY}" >> $GITHUB_ENV
 
       - name: Install Rust
-        if: ${{ ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)) || (github.event_name == 'merge_group')}}
+        if: ${{ env.RUN_TESTS == 'true' }}
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable 2 weeks ago
 
-      - name: Build and Cache Rust Dependencies
-        if: ${{ ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)) || (github.event_name == 'merge_group')}}
-        uses: Swatinem/rust-cache@v2.7.0
+      - uses: Swatinem/rust-cache@v2.7.3
+        if: ${{ env.RUN_TESTS == 'true' }}
 
       - name: Install Protoc
-        if: ${{ ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)) || (github.event_name == 'merge_group')}}
+        if: ${{ env.RUN_TESTS == 'true' }}
         uses: arduino/setup-protoc@v3
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Install Diesel CLI with Postgres Support
-        if: ${{ ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)) || (github.event_name == 'merge_group')}}
-        uses: baptiste0928/cargo-install@v2.2.0
+      - name: Install Diesel CLI
+        if: ${{ env.RUN_TESTS == 'true' }}
+        uses: baptiste0928/cargo-install@v3.1.1
         with:
           crate: diesel_cli
           features: postgres
-          args: "--no-default-features"
+          args: --no-default-features
 
-      - uses: baptiste0928/cargo-install@v2.2.0
-        if: ${{ ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)) || (github.event_name == 'merge_group')}}
+      - name: Install just
+        uses: taiki-e/install-action@v2.42.18
+        if: ${{ env.RUN_TESTS == 'true' }}
         with:
-          crate: just
+          tool: just
+          checksum: true
 
-      - name: Diesel migration run
-        if: ${{ ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)) || (github.event_name == 'merge_group')}}
+      - name: Run database migrations
+        if: ${{ env.RUN_TESTS == 'true' }}
         shell: bash
         env:
           DATABASE_URL: postgres://db_user:db_pass@localhost:5432/hyperswitch_db
         run: just migrate run --locked-schema
 
       - name: Install newman from fork
+        if: ${{ env.RUN_TESTS == 'true' }}
         run: npm ci
 
       - name: Build project
-        if: ${{ ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)) || (github.event_name == 'merge_group')}}
+        if: ${{ env.RUN_TESTS == 'true' }}
         run: cargo build --package router --bin router
 
-      - name: Setup Local Server
-        if: ${{ ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)) || (github.event_name == 'merge_group')}}
+      - name: Start application server
+        if: ${{ env.RUN_TESTS == 'true' }}
         run: |
           # Start the server in the background
           target/debug/router &
@@ -137,9 +143,9 @@ jobs:
           # Wait for the server to start in port 8080
           COUNT=0
           while ! nc -z localhost 8080; do
-            if [ $COUNT -gt 12 ]; then # Wait for up to 2 minutes (12 * 10 seconds)
+            if [ "${COUNT}" -gt 12 ]; then # Wait for up to 2 minutes (12 * 10 seconds)
               echo "Server did not start within a reasonable time. Exiting."
-              kill ${SERVER_PID}
+              kill "${SERVER_PID}"
               exit 1
             else
               COUNT=$((COUNT+1))
@@ -147,8 +153,8 @@ jobs:
             fi
           done
 
-      - name: Run Tests
-        if: ${{ ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)) || (github.event_name == 'merge_group')}}
+      - name: Run tests
+        if: ${{ env.RUN_TESTS == 'true' }}
         env:
           BASE_URL: "http://localhost:8080"
           GATEWAY_MERCHANT_ID: ${{ secrets.STRIPE_GATEWAY_MERCHANT_ID }}
@@ -158,8 +164,8 @@ jobs:
         run: |
           RED='\033[0;31m'
           RESET='\033[0m'
-          NEWMAN_PATH=$(pwd)/node_modules/.bin
-          export PATH=${NEWMAN_PATH}:${PATH}
+          NEWMAN_PATH="$(pwd)/node_modules/.bin"
+          export PATH="${NEWMAN_PATH}:${PATH}"
           failed_connectors=()
 
           for i in $(echo "${CONNECTORS}" | tr "," "\n"); do
