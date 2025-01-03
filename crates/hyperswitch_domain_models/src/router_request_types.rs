@@ -71,6 +71,7 @@ pub struct PaymentsAuthorizeData {
     pub integrity_object: Option<AuthoriseIntegrityObject>,
     pub shipping_cost: Option<MinorUnit>,
     pub additional_payment_method_data: Option<AdditionalPaymentData>,
+    pub request_overcapture: Option<bool>,
 }
 
 #[derive(Debug, Clone)]
