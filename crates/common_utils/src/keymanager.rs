@@ -15,7 +15,7 @@ use crate::{
     errors,
     types::keymanager::{
         BatchDecryptDataRequest, DataKeyCreateResponse, DecryptDataRequest,
-        EncryptionCreateRequest, EncryptionTransferRequest, KeyManagerState,
+        EncryptionCreateRequest, EncryptionTransferRequest, GetKeymanagerTenant, KeyManagerState,
         TransientBatchDecryptDataRequest, TransientDecryptDataRequest,
     },
 };
@@ -100,7 +100,7 @@ pub async fn call_encryption_service<T, R>(
     request_body: T,
 ) -> errors::CustomResult<R, errors::KeyManagerClientError>
 where
-    T: ConvertRaw + Send + Sync + 'static + Debug,
+    T: GetKeymanagerTenant + ConvertRaw + Send + Sync + 'static + Debug,
     R: serde::de::DeserializeOwned,
 {
     let url = format!("{}/{endpoint}", &state.url);
@@ -127,7 +127,7 @@ where
     header.push((
         HeaderName::from_str(TENANT_HEADER)
             .change_context(errors::KeyManagerClientError::FailedtoConstructHeader)?,
-        HeaderValue::from_str(state.tenant_id.get_string_repr())
+        HeaderValue::from_str(request_body.get_tenant_id(state).get_string_repr())
             .change_context(errors::KeyManagerClientError::FailedtoConstructHeader)?,
     ));
 
