@@ -6,7 +6,7 @@ use api_models::routing::RoutableConnectorChoice;
 use async_trait::async_trait;
 use common_enums::{AuthorizationStatus, SessionUpdateStatus};
 use common_utils::{
-    ext_traits::{AsyncExt, Encode, ValueExt},
+    ext_traits::{AsyncExt, Encode},
     types::{keymanager::KeyManagerState, ConnectorTransactionId, MinorUnit},
 };
 use error_stack::{report, ResultExt};
@@ -1587,21 +1587,10 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                     payment_data.payment_method_info.clone()
                                 {
                                     // Parse value to check for mandates' existence
-                                    let mandate_details = payment_method
-                                        .connector_mandate_details
-                                        .clone()
-                                        .map(|val| {
-                                            val.clone()
-                                            .parse_value::<diesel_models::CommonMandateReference>("CommonMandateReference")
-                                            .or_else(|_| {
-                                                val.parse_value::<diesel_models::PaymentsMandateReference>("PaymentsMandateReference")
-                                                    .map(|payments| diesel_models::CommonMandateReference {
-                                                        payments: Some(payments),
-                                                        payouts: None,
-                                                    })
-                                            })
-                                        })
-                                        .transpose()
+                                    let mandate_details =
+                                        storage::PaymentMethod::get_common_mandate_reference(
+                                            payment_method.connector_mandate_details.clone(),
+                                        )
                                         .change_context(
                                             errors::ApiErrorResponse::InternalServerError,
                                         )
@@ -1613,17 +1602,11 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                         payment_data.payment_attempt.merchant_connector_id.clone()
                                     {
                                         // check if the mandate has not already been set to active
-                                        if !mandate_details
-                                        .as_ref()
-                                        .map(|common_mandate_reference| {
-
-                                            common_mandate_reference.payments
+                                        if !mandate_details.payments
                                             .as_ref()
                                             .and_then(|payments| payments.0.get(&mca_id))
                                                     .map(|payment_mandate_reference_record| payment_mandate_reference_record.connector_mandate_status == Some(common_enums::ConnectorMandateStatus::Active))
                                                     .unwrap_or(false)
-                                        })
-                                        .unwrap_or(false)
                                     {
 
                                         let (connector_mandate_id, mandate_metadata,connector_mandate_request_reference_id) = payment_data.payment_attempt.connector_mandate_detail.clone()
@@ -1632,7 +1615,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                         // Update the connector mandate details with the payment attempt connector mandate id
                                         let connector_mandate_details =
                                                     tokenization::update_connector_mandate_details(
-                                                        mandate_details,
+                                                        Some(mandate_details),
                                                         payment_data.payment_attempt.payment_method_type,
                                                         Some(
                                                             payment_data

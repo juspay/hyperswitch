@@ -227,7 +227,7 @@ impl From<PaymentMethodIntentConfirmInternal> for PaymentMethodIntentConfirm {
         }
     }
 }
-#[derive(Debug, serde::Serialize, serde::Deserialize, Clone)]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
 /// This struct is only used by and internal api to migrate payment method
 pub struct PaymentMethodMigrate {
     /// Merchant id

@@ -6214,7 +6214,7 @@ pub async fn validate_merchant_connector_ids_in_connector_mandate_details(
                                     .original_payment_authorized_currency,
                             ),
                     ) {
-                        return Err(errors::ApiErrorResponse::MissingRequiredFields {
+                        Err(errors::ApiErrorResponse::MissingRequiredFields {
                             field_names: vec![
                                 "original_payment_authorized_currency",
                                 "original_payment_authorized_amount",
@@ -6223,21 +6223,19 @@ pub async fn validate_merchant_connector_ids_in_connector_mandate_details(
                         .attach_printable(format!(
                             "Invalid connector_mandate_details provided for connector {:?}",
                             migrating_merchant_connector_id
-                        ))?;
+                        ))?
                     }
                 }
                 (_, Some(_)) => (),
-                (_, None) => {
-                    return Err(errors::ApiErrorResponse::InvalidDataValue {
-                        field_name: "merchant_connector_id",
-                    })
-                    .attach_printable_lazy(|| {
-                        format!(
-                            "{:?} invalid merchant connector id in connector_mandate_details",
-                            migrating_merchant_connector_id
-                        )
-                    })?
-                }
+                (_, None) => Err(errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "merchant_connector_id",
+                })
+                .attach_printable_lazy(|| {
+                    format!(
+                        "{:?} invalid merchant connector id in connector_mandate_details",
+                        migrating_merchant_connector_id
+                    )
+                })?,
             }
         }
     }

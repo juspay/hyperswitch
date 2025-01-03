@@ -4936,34 +4936,18 @@ pub async fn list_customer_payment_method(
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("unable to decrypt payment method billing address details")?;
-        let connector_mandate_details = pm
-            .connector_mandate_details
-            .clone()
-            .map(|val| {
-                val.clone()
-                    .parse_value::<diesel_models::CommonMandateReference>("CommonMandateReference")
-                    .or_else(|_| {
-                        val.parse_value::<diesel_models::PaymentsMandateReference>(
-                            "PaymentsMandateReference",
-                        )
-                        .map(|payments| {
-                            diesel_models::CommonMandateReference {
-                                payments: Some(payments),
-                                payouts: None,
-                            }
-                        })
-                    })
-            })
-            .transpose()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to deserialize to Payment Mandate Reference ")?;
+        let connector_mandate_details = storage::PaymentMethod::get_common_mandate_reference(
+            pm.connector_mandate_details.clone(),
+        )
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to deserialize to Payment Mandate Reference ")?;
         let mca_enabled = get_mca_status(
             state,
             &key_store,
             profile_id.clone(),
             merchant_account.get_id(),
             is_connector_agnostic_mit_enabled,
-            connector_mandate_details,
+            Some(connector_mandate_details),
             pm.network_transaction_id.as_ref(),
         )
         .await?;
