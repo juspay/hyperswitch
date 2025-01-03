@@ -224,7 +224,10 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
     let webhook_url = Some(helpers::create_webhook_url(
         router_base_url,
         &attempt.merchant_id,
-        &merchant_connector_account.get_id().get_string_repr().to_string(),
+        &merchant_connector_account
+            .get_id()
+            .get_string_repr()
+            .to_string(),
     ));
 
     let router_return_url = payment_data
