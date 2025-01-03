@@ -286,10 +286,17 @@ pub async fn construct_refund_router_data<'a, F>(
         .get_required_value("payment_method_type")
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
+    let merchant_connector_account_id = payment_attempt
+        .merchant_connector_id
+        .clone()
+        .get_required_value("merchant_connector_id")
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Merchant connector id is not present in payment_attempt")?;
+
     let webhook_url = Some(helpers::create_webhook_url(
         &state.base_url.clone(),
         merchant_account.get_id(),
-        connector_id,
+        &merchant_connector_account_id,
     ));
     let test_mode: Option<bool> = merchant_connector_account.is_test_mode_on();
 
