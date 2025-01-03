@@ -88,6 +88,8 @@ pub enum Flow {
     ConfigKeyCreate,
     /// ConfigKey fetch flow.
     ConfigKeyFetch,
+    /// Enable platform account flow.
+    EnablePlatformAccount,
     /// ConfigKey Update flow.
     ConfigKeyUpdate,
     /// ConfigKey Delete flow.
@@ -351,6 +353,8 @@ pub enum Flow {
     DecisionManagerRetrieveConfig,
     /// Manual payment fulfillment acknowledgement
     FrmFulfillment,
+    /// Get connectors feature matrix
+    FeatureMatrix,
     /// Change password flow
     ChangePassword,
     /// Signout flow
@@ -531,6 +535,8 @@ pub enum Flow {
     VolumeSplitOnRoutingType,
     /// Relay flow
     Relay,
+    /// Relay retrieve flow
+    RelayRetrieve,
 }
 
 /// Trait for providing generic behaviour to flow metric

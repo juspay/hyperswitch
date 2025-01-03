@@ -337,8 +337,9 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
             payments::CallConnectorAction::Trigger => {
                 connector
                     .connector
-                    .validate_capture_method(
+                    .validate_connector_against_payment_request(
                         self.request.capture_method,
+                        self.payment_method,
                         self.request.payment_method_type,
                     )
                     .to_payment_failed_response()?;
