@@ -6623,7 +6623,6 @@
       },
       "Connector": {
         "type": "string",
-        "description": "A connector is an integration to fulfill payments",
         "enum": [
           "adyenplatform",
           "phonypay",
@@ -13883,7 +13882,7 @@
           "id": {
             "type": "string",
             "description": "The unique identifier of the Payment method",
-            "example": "card_rGK4Vi5iSW70MY7J2mIg"
+            "example": "12345_pm_01926c58bc6e77c09e809964e72af8c8"
           }
         }
       },
@@ -14089,7 +14088,7 @@
           "payment_methods_enabled": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/ResponsePaymentMethodTypes"
+              "$ref": "#/components/schemas/ResponsePaymentMethodTypesForPayments"
             },
             "description": "The list of payment methods that are enabled for the business profile"
           },
@@ -14116,7 +14115,7 @@
           "id": {
             "type": "string",
             "description": "The unique identifier of the Payment method",
-            "example": "card_rGK4Vi5iSW70MY7J2mIg"
+            "example": "12345_pm_01926c58bc6e77c09e809964e72af8c8"
           },
           "merchant_id": {
             "type": "string",
@@ -19131,21 +19130,64 @@
             "type": "object",
             "required": [
               "payment_method_type",
-              "payment_method_subtype"
+              "payment_method_subtype",
+              "required_fields"
             ],
             "properties": {
               "payment_method_type": {
-                "$ref": "#/components/schemas/PaymentMethodType"
+                "$ref": "#/components/schemas/PaymentMethod"
               },
               "payment_method_subtype": {
                 "$ref": "#/components/schemas/PaymentMethodType"
               },
               "required_fields": {
-                "type": "object",
-                "description": "Required fields for the payment_method_type.\nThis is the union of all the required fields for the payment method type enabled in all the connectors.",
-                "additionalProperties": {
+                "type": "array",
+                "items": {
                   "$ref": "#/components/schemas/RequiredFieldInfo"
                 },
+                "description": "Required fields for the payment_method_type.\nThis is the union of all the required fields for the payment method type enabled in all the connectors."
+              }
+            }
+          }
+        ]
+      },
+      "ResponsePaymentMethodTypesForPayments": {
+        "allOf": [
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodSubtypeSpecificData"
+              }
+            ],
+            "nullable": true
+          },
+          {
+            "type": "object",
+            "required": [
+              "payment_method_type",
+              "payment_method_subtype"
+            ],
+            "properties": {
+              "payment_method_type": {
+                "$ref": "#/components/schemas/PaymentMethod"
+              },
+              "payment_method_subtype": {
+                "$ref": "#/components/schemas/PaymentMethodType"
+              },
+              "required_fields": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/RequiredFieldInfo"
+                  }
+                ],
+                "nullable": true
+              },
+              "surcharge_details": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/SurchargeDetailsResponse"
+                  }
+                ],
                 "nullable": true
               }
             }
@@ -19370,7 +19412,7 @@
       },
       "RoutableConnectors": {
         "type": "string",
-        "description": "Connectors eligible for payments routing",
+        "description": "RoutableConnectors are the subset of Connectors that are eligible for payments routing",
         "enum": [
           "adyenplatform",
           "phonypay",
@@ -19448,7 +19490,6 @@
           "wise",
           "worldline",
           "worldpay",
-          "xendit",
           "zen",
           "plaid",
           "zsl"

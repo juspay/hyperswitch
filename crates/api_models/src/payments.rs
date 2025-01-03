@@ -6570,7 +6570,7 @@ pub struct PaymentMethodListResponseForPayments {
 #[derive(Debug, Clone, serde::Serialize, ToSchema, PartialEq)]
 pub struct ResponsePaymentMethodTypesForPayments {
     /// The payment method type enabled
-    #[schema(example = "klarna", value_type = PaymentMethod)]
+    #[schema(example = "pay_later", value_type = PaymentMethod)]
     pub payment_method_type: common_enums::PaymentMethod,
 
     /// The payment method subtype enabled
@@ -6579,13 +6579,16 @@ pub struct ResponsePaymentMethodTypesForPayments {
 
     /// payment method subtype specific information
     #[serde(flatten)]
+    #[schema(value_type = Option<PaymentMethodSubtypeSpecificData>)]
     pub extra_information: Option<payment_methods::PaymentMethodSubtypeSpecificData>,
 
     /// Required fields for the payment_method_type.
     /// This is the union of all the required fields for the payment method type enabled in all the connectors.
-    pub required_fields: Option<HashMap<String, payment_methods::RequiredFieldInfo>>,
+    #[schema(value_type = Option<RequiredFieldInfo>)]
+    pub required_fields: Option<Vec<payment_methods::RequiredFieldInfo>>,
 
     /// surcharge details for this payment method type if exists
+    #[schema(value_type = Option<SurchargeDetailsResponse>)]
     pub surcharge_details: Option<payment_methods::SurchargeDetailsResponse>,
 }
 
