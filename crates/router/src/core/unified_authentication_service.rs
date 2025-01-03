@@ -8,11 +8,13 @@ use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     errors::api_error_response::ApiErrorResponse,
     router_request_types::unified_authentication_service::{
-        UasPostAuthenticationRequestData, UasPreAuthenticationRequestData,
+        UasConfirmationRequestData, UasPostAuthenticationRequestData,
+        UasPreAuthenticationRequestData,
     },
 };
+use masking::ExposeInterface;
 
-use super::{errors::RouterResult, payments::helpers::MerchantConnectorAccountType};
+use super::errors::RouterResult;
 use crate::{
     core::{
         errors::utils::StorageErrorExt,
@@ -23,6 +25,7 @@ use crate::{
     },
     db::domain,
     routes::SessionState,
+    types::domain::MerchantConnectorAccount,
 };
 
 #[cfg(feature = "v1")]
@@ -33,7 +36,7 @@ impl<F: Clone + Sync> UnifiedAuthenticationService<F> for ClickToPay {
         _key_store: &domain::MerchantKeyStore,
         _business_profile: &domain::Profile,
         payment_data: &PaymentData<F>,
-        merchant_connector_account: &MerchantConnectorAccountType,
+        merchant_connector_account: &MerchantConnectorAccount,
         connector_name: &str,
         authentication_id: &str,
         payment_method: common_enums::PaymentMethod,
@@ -67,7 +70,7 @@ impl<F: Clone + Sync> UnifiedAuthenticationService<F> for ClickToPay {
         _key_store: &domain::MerchantKeyStore,
         _business_profile: &domain::Profile,
         payment_data: &PaymentData<F>,
-        merchant_connector_account: &MerchantConnectorAccountType,
+        merchant_connector_account: &MerchantConnectorAccount,
         connector_name: &str,
         payment_method: common_enums::PaymentMethod,
     ) -> RouterResult<hyperswitch_domain_models::types::UasPostAuthenticationRouterData> {
@@ -100,12 +103,42 @@ impl<F: Clone + Sync> UnifiedAuthenticationService<F> for ClickToPay {
         Ok(response)
     }
 
-    fn confirmation(
-        _state: &SessionState,
+    async fn confirmation(
+        state: &SessionState,
         _key_store: &domain::MerchantKeyStore,
         _business_profile: &domain::Profile,
-        _merchant_connector_account: &MerchantConnectorAccountType,
+        payment_data: &PaymentData<F>,
+        merchant_connector_account: &MerchantConnectorAccount,
+        connector_name: &str,
+        payment_method: common_enums::PaymentMethod,
     ) -> RouterResult<()> {
+        let authentication_id = payment_data
+            .payment_attempt
+            .authentication_id
+            .clone()
+            .ok_or(ApiErrorResponse::InternalServerError)
+            .attach_printable("Missing authentication id in payment attempt")?;
+
+        let authentication_confirmation_data =
+            UasConfirmationRequestData::try_from(payment_data.clone())?;
+
+        let authentication_confirmation_router_data : hyperswitch_domain_models::types::UasAuthenticationConfirmationRouterData = utils::construct_uas_router_data(
+            connector_name.to_string(),
+            payment_method,
+            payment_data.payment_attempt.merchant_id.clone(),
+            None,
+            authentication_confirmation_data,
+            merchant_connector_account,
+            Some(authentication_id.clone()),
+        )?;
+
+        utils::do_auth_connector_call(
+            state,
+            UNIFIED_AUTHENTICATION_SERVICE.to_string(),
+            authentication_confirmation_router_data,
+        )
+        .await?;
+
         Ok(())
     }
 }
@@ -121,6 +154,7 @@ pub async fn create_new_authentication(
     authentication_id: &str,
     service_details: Option<CtpServiceDetails>,
     authentication_status: common_enums::AuthenticationStatus,
+    network_token: Option<hyperswitch_domain_models::payment_method_data::NetworkTokenData>,
 ) -> RouterResult<Authentication> {
     let service_details_value = service_details
         .map(serde_json::to_value)
@@ -143,10 +177,12 @@ pub async fn create_new_authentication(
         connector_metadata: None,
         maximum_supported_version: None,
         threeds_server_transaction_id: None,
-        cavv: None,
+        cavv: network_token
+            .clone()
+            .and_then(|data| data.token_cryptogram.map(|cavv| cavv.expose())),
         authentication_flow_type: None,
         message_version: None,
-        eci: None,
+        eci: network_token.and_then(|data| data.eci),
         trans_status: None,
         acquirer_bin: None,
         acquirer_merchant_id: None,

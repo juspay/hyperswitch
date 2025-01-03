@@ -41,7 +41,7 @@ use crate::{
         },
         unified_authentication_service::{
             self as uas_utils,
-            types::{ClickToPay, UnifiedAuthenticationService, CTP_MASTERCARD},
+            types::{ClickToPay, UnifiedAuthenticationService},
         },
         utils as core_utils,
     },
@@ -1042,26 +1042,45 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         &'a self,
         state: &SessionState,
         payment_data: &mut PaymentData<F>,
-        _should_continue_confirm_transaction: &mut bool,
-        _connector_call_type: &ConnectorCallType,
         business_profile: &domain::Profile,
         key_store: &domain::MerchantKeyStore,
+        do_authorisation_confirmation: &bool,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
+        let authentication_product_ids = business_profile
+            .authentication_product_ids
+            .clone()
+            .ok_or(errors::ApiErrorResponse::PreconditionFailed {
+                message: "authentication_product_ids is not configured in business profile"
+                    .to_string(),
+            })?;
+
         if let Some(payment_method) = payment_data.payment_attempt.payment_method {
             if payment_method == storage_enums::PaymentMethod::Card
                 && business_profile.is_click_to_pay_enabled
             {
-                let connector_name = CTP_MASTERCARD; // since the above checks satisfies the connector should be click to pay hence hardcoded the connector name
-                let connector_mca = helpers::get_merchant_connector_account(
-                    state,
-                    &business_profile.merchant_id,
-                    None,
-                    key_store,
-                    business_profile.get_id(),
-                    connector_name,
-                    None,
-                )
-                .await?;
+                let click_to_pay_mca_id = authentication_product_ids
+                    .get_click_to_pay_connector_account_id()
+                    .change_context(errors::ApiErrorResponse::MissingRequiredField {
+                        field_name: "authentication_product_ids",
+                    })?;
+
+                let key_manager_state = &(state).into();
+                let merchant_id = &business_profile.merchant_id;
+
+                let connector_mca = state
+                    .store
+                    .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+                        key_manager_state,
+                        merchant_id,
+                        &click_to_pay_mca_id,
+                        key_store,
+                    )
+                    .await
+                    .to_not_found_response(
+                        errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                            id: click_to_pay_mca_id.get_string_repr().to_string(),
+                        },
+                    )?;
 
                 let authentication_id =
                     common_utils::generate_id_with_default_len(consts::AUTHENTICATION_ID_PREFIX);
@@ -1072,13 +1091,19 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     },
                 )?;
 
-                let connector_transaction_id = connector_mca
-                    .clone()
-                    .get_mca_id()
-                    .ok_or(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable(
-                        "Error while finding mca_id from merchant_connector_account",
-                    )?;
+                if *do_authorisation_confirmation {
+                    ClickToPay::confirmation(
+                        state,
+                        key_store,
+                        business_profile,
+                        payment_data,
+                        &connector_mca,
+                        &connector_mca.connector_name,
+                        payment_method,
+                    )
+                    .await?;
+                    return Ok(());
+                };
 
                 ClickToPay::pre_authentication(
                     state,
@@ -1086,7 +1111,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     business_profile,
                     payment_data,
                     &connector_mca,
-                    connector_name,
+                    &connector_mca.connector_name,
                     &authentication_id,
                     payment_method,
                 )
@@ -1100,7 +1125,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     business_profile,
                     payment_data,
                     &connector_mca,
-                    connector_name,
+                    &connector_mca.connector_name,
                     payment_method,
                 )
                 .await?;
@@ -1131,6 +1156,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                             }),common_enums::AuthenticationStatus::Success)
                     },
                     Ok(unified_authentication_service::UasAuthenticationResponseData::PreAuthentication {}) => (None, common_enums::AuthenticationStatus::Started),
+                    Ok(unified_authentication_service::UasAuthenticationResponseData::Confirmation {}) => (None, common_enums::AuthenticationStatus::Success),
                     Err(_) => (None, common_enums::AuthenticationStatus::Failed)
                 };
 
@@ -1141,21 +1167,23 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     .clone()
                     .map(domain::PaymentMethodData::NetworkToken);
 
-                uas_utils::create_new_authentication(
+                let authentication = uas_utils::create_new_authentication(
                     state,
                     payment_data.payment_attempt.merchant_id.clone(),
-                    connector_name.to_string(),
+                    connector_mca.connector_name.to_string(),
                     business_profile.get_id().clone(),
                     Some(payment_data.payment_intent.get_id().clone()),
-                    connector_transaction_id,
+                    click_to_pay_mca_id.to_owned(),
                     &authentication_id,
                     payment_data.service_details.clone(),
                     authentication_status,
+                    network_token,
                 )
                 .await?;
+                payment_data.authentication = Some(authentication);
             }
         }
-
+        logger::info!("skipping unified authentication service call since payment conditions {:?}, {:?} are not satisfied", payment_data.payment_attempt.payment_method, business_profile.is_click_to_pay_enabled);
         Ok(())
     }
 

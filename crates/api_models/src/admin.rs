@@ -1863,7 +1863,8 @@ pub struct ProfileCreate {
 
     /// Product authentication ids
     #[schema(value_type = Option<Object>, example = r#"{ "key1": "value-1", "key2": "value-2" }"#)]
-    pub authentication_product_ids: Option<HashMap<String, id_type::MerchantConnectorAccountId>>,
+    pub authentication_product_ids:
+        Option<common_types::payments::AuthenticationConnectorAccountMap>,
 }
 
 #[nutype::nutype(
@@ -1980,7 +1981,8 @@ pub struct ProfileCreate {
 
     /// Product authentication ids
     #[schema(value_type = Option<Object>, example = r#"{ "key1": "value-1", "key2": "value-2" }"#)]
-    pub authentication_product_ids: Option<HashMap<String, id_type::MerchantConnectorAccountId>>,
+    pub authentication_product_ids:
+        Option<common_types::payments::AuthenticationConnectorAccountMap>,
 }
 
 #[cfg(feature = "v1")]
@@ -2116,7 +2118,8 @@ pub struct ProfileResponse {
 
     /// Product authentication ids
     #[schema(value_type = Option<Object>, example = r#"{ "key1": "value-1", "key2": "value-2" }"#)]
-    pub authentication_product_ids: Option<serde_json::Value>,
+    pub authentication_product_ids:
+        Option<common_types::payments::AuthenticationConnectorAccountMap>,
 }
 
 #[cfg(feature = "v2")]
@@ -2239,7 +2242,8 @@ pub struct ProfileResponse {
 
     /// Product authentication ids
     #[schema(value_type = Option<Object>, example = r#"{ "key1": "value-1", "key2": "value-2" }"#)]
-    pub authentication_product_ids: Option<serde_json::Value>,
+    pub authentication_product_ids:
+        Option<common_types::payments::AuthenticationConnectorAccountMap>,
 }
 
 #[cfg(feature = "v1")]
@@ -2369,7 +2373,8 @@ pub struct ProfileUpdate {
 
     /// Product authentication ids
     #[schema(value_type = Option<Object>, example = r#"{ "key1": "value-1", "key2": "value-2" }"#)]
-    pub authentication_product_ids: Option<HashMap<String, id_type::MerchantConnectorAccountId>>,
+    pub authentication_product_ids:
+        Option<common_types::payments::AuthenticationConnectorAccountMap>,
 }
 
 #[cfg(feature = "v2")]
@@ -2480,7 +2485,8 @@ pub struct ProfileUpdate {
 
     /// Product authentication ids
     #[schema(value_type = Option<Object>, example = r#"{ "key1": "value-1", "key2": "value-2" }"#)]
-    pub authentication_product_ids: Option<HashMap<String, id_type::MerchantConnectorAccountId>>,
+    pub authentication_product_ids:
+        Option<common_types::payments::AuthenticationConnectorAccountMap>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
