@@ -224,9 +224,7 @@ async fn acquire_redis_lock_and_fetch_data(
             }
             let api_rates = fetch_forex_rates(state).await;
             match api_rates {
-                Ok(rates) => {
-                    successive_save_data_to_redis_local(state, rates).await
-                }
+                Ok(rates) => successive_save_data_to_redis_local(state, rates).await,
                 Err(error) => {
                     // API not able to fetch data call secondary service
                     logger::error!(?error);
