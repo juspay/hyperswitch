@@ -34,6 +34,7 @@ Please join us!
   - [Resolving a Bug Report](#resolving-a-bug-report)
 - [Pull Requests](#pull-requests)
   - [Cargo Commands](#cargo-commands)
+  - [Code Coverage](#code-coverage)
   - [Commits](#commits)
   - [Opening the Pull Request](#opening-the-pull-request)
   - [Discuss and update](#discuss-and-update)
@@ -222,6 +223,74 @@ unstable features:
 ```shell
 cargo +nightly fmt
 ```
+
+### Code Coverage
+
+We appreciate well-tested code, so feel free to add tests when you can.
+
+To generate code coverage using the cypress tests, follow these steps:
+
+0. Make sure `grcov` and `llvm-tools-preview` are installed
+
+   ```shell
+   rustup component add llvm-tools-preview
+   cargo install grcov
+   ```
+
+1. Build the project with the `-Cinstrument-coverage` flag:
+
+   ```shell
+   RUSTFLAGS="-Cinstrument-coverage" cargo build --bin=router --package=router
+   ```
+
+   Several `.profraw` files will be generated. (Due to the execution of build scripts)
+
+2. Execute the binary:
+
+   ```shell
+   LLVM_PROFILE_FILE="coverage.profraw" target/debug/router
+   ```
+
+3. Open a separate terminal tab and run the cypress tests, following the [README][cypress-v2-readme]
+
+4. After the tests have finished running, stop the `router` process using `Ctrl+C`
+
+   The generated `coverage.profraw` file will contain the code coverage data for `router`
+
+5. Generate an html report from the data:
+
+   ```shell
+   grcov . --source-dir . --output-type html --binary-path ./target/debug
+   ```
+
+6. A folder named `html` will be generated, containing the report. You can view it using:
+
+   ```shell
+   cd html && python3 -m http.server 8000
+   ```
+
+7. You can delete the generated `.profraw` files:
+
+   ```shell
+   rm **/*.profraw
+   ```
+
+Note:
+- It is necessary to stop the `router` process to generate the coverage file
+- Branch coverage generation requires nightly and currently `grcov` crashes while trying to include branch coverage. (Checked using `--log-level` parameter in `grcov`)
+
+#### Integration with VSCode
+You can also visualize code coverage in VSCode using the [coverage-gutters](https://marketplace.visualstudio.com/items?itemName=ryanluker.vscode-coverage-gutters) extension.
+
+You need to generate an `lcov.info` file in the directory root. After following till step 4 above:
+
+```shell
+grcov . -s . -t lcov --output-path lcov.info --binary-path ./target/debug --keep-only "crates/*"
+```
+
+This will generate an `lcov.info` file that can be read by the extension.
+
+[cypress-v2-readme]: /cypress-tests-v2/README.md
 
 ### Commits
 
