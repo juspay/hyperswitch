@@ -1,3 +1,4 @@
+use common_utils::id_type;
 use std::collections::{HashMap, HashSet};
 
 use api_models::{enums, payment_methods::RequiredFieldInfo};
@@ -134,6 +135,17 @@ impl Default for super::settings::KvConfig {
         Self {
             ttl: 900,
             soft_kill: Some(false),
+        }
+    }
+}
+
+impl Default for super::settings::GlobalTenant {
+    fn default() -> Self {
+        Self {
+            tenant_id: id_type::TenantId::new_unchecked(String::new()),
+            schema: String::from("global"),
+            redis_key_prefix: String::from("global"),
+            clickhouse_database: String::from("global"),
         }
     }
 }

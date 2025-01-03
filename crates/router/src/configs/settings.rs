@@ -195,7 +195,7 @@ impl storage_impl::config::TenantConfig for Tenant {
     }
 }
 
-#[derive(Debug, Deserialize, Clone, Default)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct GlobalTenant {
     pub tenant_id: id_type::TenantId,
     pub schema: String,

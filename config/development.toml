@@ -794,7 +794,7 @@ sdk_eligible_payment_methods = "card"
 
 [multitenancy]
 enabled = false
-global_tenant = { tenant_id = "global" ,schema = "public", redis_key_prefix = "", clickhouse_database = "default"}
+global_tenant = { tenant_id = "global" ,schema = "public", redis_key_prefix = "global", clickhouse_database = "default"}
 
 [multitenancy.tenants.public]
 base_url = "http://localhost:8080"
