@@ -55,7 +55,11 @@ message CurrentBlockThreshold {
 }
 
 message UpdateSuccessRateWindowResponse {
-    string message = 1;
+   enum UpdationStatus {
+      WINDOW_UPDATION_SUCCEEDED = 0;
+      WINDOW_UPDATION_FAILED = 1;
+   }
+   UpdationStatus status = 1;
 }
 
  // API-3 types
@@ -64,5 +68,9 @@ message InvalidateWindowsRequest {
 }
 
 message InvalidateWindowsResponse {
-    string message = 1;
+   enum InvalidationStatus {
+      WINDOW_INVALIDATION_SUCCEEDED = 0;
+      WINDOW_INVALIDATION_FAILED = 1;
+   }
+   InvalidationStatus status = 1;
 }
