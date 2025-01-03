@@ -346,7 +346,7 @@ pub async fn list_customer_payment_method_api() {}
 
 /// Payment Methods - Payment Methods List
 ///
-/// List the payment methods eligible for a payment. This endpoint also returns the saved payment methods for the customer when the customer_id is passed when creating the payment
+/// List the payment methods eligible for a payment. This endpoint also returns the saved payment methods for the customer.
 #[cfg(feature = "v2")]
 #[utoipa::path(
     get,

@@ -1246,12 +1246,12 @@ pub struct ResponsePaymentMethodTypes {
 #[derive(Debug, Clone, serde::Serialize, ToSchema, PartialEq)]
 #[serde(untagged)] // Untagged used for serialization only
 pub enum PaymentMethodSubtypeSpecificData {
+    #[schema(title = "card")]
     Card {
         card_networks: Vec<CardNetworkTypes>,
     },
-    Bank {
-        bank_names: Vec<BankCodeResponse>,
-    },
+    #[schema(title = "bank")]
+    Bank { bank_names: Vec<BankCodeResponse> },
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
