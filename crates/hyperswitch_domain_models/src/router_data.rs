@@ -90,8 +90,6 @@ pub struct RouterData<Flow, Request, Response> {
     pub authentication_id: Option<String>,
     /// Contains the type of sca exemption required for the transaction
     pub psd2_sca_exemption_type: Option<common_enums::ScaExemptionType>,
-
-    pub request_overcapture: Option<bool>,
 }
 
 // Different patterns of authentication.

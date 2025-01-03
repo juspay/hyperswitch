@@ -140,7 +140,7 @@ impl<F,T> TryFrom<ResponseRouterData<F, {{project-name | downcase | pascal_case}
                 incremental_authorization_allowed: None,
                 charge_id: None,
                 overcapture_applied: None,
-                maximum_capturable_amount: None,
+                
             }),
             ..item.data
         })

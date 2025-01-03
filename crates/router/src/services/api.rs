@@ -495,7 +495,21 @@ pub async fn send_request(
                     None => client,
                 }
             }
-            Method::Delete => client.delete(url),
+            Method::Delete => {
+                let client = client.delete(url);
+                match request.body {
+                    Some(RequestContent::Json(payload)) => client.json(&payload),
+                    Some(RequestContent::FormData(form)) => client.multipart(form),
+                    Some(RequestContent::FormUrlEncoded(payload)) => client.form(&payload),
+                    Some(RequestContent::Xml(payload)) => {
+                        let body = quick_xml::se::to_string(&payload)
+                            .change_context(errors::ApiClientError::BodySerializationFailed)?;
+                        client.body(body).header("Content-Type", "application/xml")
+                    }
+                    Some(RequestContent::RawBytes(payload)) => client.body(payload),
+                    None => client,
+                }
+            }
         }
         .add_headers(headers)
         .timeout(Duration::from_secs(

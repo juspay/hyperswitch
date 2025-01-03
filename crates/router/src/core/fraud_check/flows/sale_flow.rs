@@ -139,7 +139,6 @@ impl ConstructFlowSpecificData<frm_api::Sale, FraudCheckSaleData, FraudCheckResp
             connector_mandate_request_reference_id: None,
             authentication_id: None,
             psd2_sca_exemption_type: None,
-            request_overcapture: None,
         };
 
         Ok(router_data)

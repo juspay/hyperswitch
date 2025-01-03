@@ -1824,7 +1824,7 @@ impl TryFrom<(&types::PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntent
                                 &item.request,
                             )),
                             billing_address,
-                            item.request_overcapture,
+                            None,
                         )?;
 
                     validate_shipping_address_against_payment_method(
@@ -2095,7 +2095,7 @@ impl TryFrom<&types::TokenizationRouterData> for TokenRequest {
             item.payment_method_token.clone(),
             None,
             StripeBillingAddress::default(),
-            item.request_overcapture,
+            None, //todooo
         )?;
         Ok(Self {
             token_data: payment_data.0,

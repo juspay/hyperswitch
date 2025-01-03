@@ -172,7 +172,6 @@ where
         connector_mandate_request_reference_id,
         authentication_id: None,
         psd2_sca_exemption_type: None,
-        request_overcapture: None,
     };
     Ok(router_data)
 }
@@ -979,12 +978,6 @@ where
 
     crate::logger::debug!("unified address details {:?}", unified_address);
 
-    let request_overcapture = payment_data
-        .payment_attempt
-        .overcapture_details
-        .as_ref()
-        .and_then(|ovecapture_data| ovecapture_data.request_overcapture);
-
     router_data = types::RouterData {
         flow: PhantomData,
         merchant_id: merchant_account.get_id().clone(),
@@ -1054,7 +1047,6 @@ where
         connector_mandate_request_reference_id,
         authentication_id: None,
         psd2_sca_exemption_type: payment_data.payment_intent.psd2_sca_exemption_type,
-        request_overcapture,
     };
 
     Ok(router_data)
