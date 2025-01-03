@@ -627,7 +627,7 @@ impl MerchantConnectorAccountInterface for Store {
             for (merchant_connector_account, update_merchant_connector_account) in
                 merchant_connector_accounts
             {
-                let _connector_name = merchant_connector_account.connector_name.clone();
+                let _connector_name = merchant_connector_account.connector_name;
                 let _profile_id = merchant_connector_account.profile_id.clone();
 
                 let _merchant_id = merchant_connector_account.merchant_id.clone();
@@ -791,7 +791,7 @@ impl MerchantConnectorAccountInterface for Store {
         merchant_connector_account: storage::MerchantConnectorAccountUpdateInternal,
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::MerchantConnectorAccount, errors::StorageError> {
-        let _connector_name = this.connector_name.clone();
+        let _connector_name = this.connector_name;
         let _profile_id = this.profile_id.clone();
 
         let _merchant_id = this.merchant_id.clone();
@@ -1805,7 +1805,7 @@ mod merchant_connector_account_cache_tests {
         let mca = domain::MerchantConnectorAccount {
             id: id.clone(),
             merchant_id: merchant_id.clone(),
-            connector_name: "stripe".to_string(),
+            connector_name: common_enums::connector_enums::Connector::Stripe,
             connector_account_details: domain::types::crypto_operation(
                 key_manager_state,
                 type_name!(domain::MerchantConnectorAccount),

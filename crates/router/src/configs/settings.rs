@@ -548,11 +548,20 @@ pub struct ConnectorFields {
     pub fields: HashMap<enums::Connector, RequiredFieldFinal>,
 }
 
+#[cfg(feature = "v1")]
 #[derive(Debug, Deserialize, Clone)]
 pub struct RequiredFieldFinal {
     pub mandate: HashMap<String, RequiredFieldInfo>,
     pub non_mandate: HashMap<String, RequiredFieldInfo>,
     pub common: HashMap<String, RequiredFieldInfo>,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, Deserialize, Clone)]
+pub struct RequiredFieldFinal {
+    pub mandate: Option<Vec<RequiredFieldInfo>>,
+    pub non_mandate: Option<Vec<RequiredFieldInfo>>,
+    pub common: Option<Vec<RequiredFieldInfo>>,
 }
 
 #[derive(Debug, Default, Deserialize, Clone)]
@@ -793,9 +802,12 @@ impl Settings<SecuredSecret> {
         let environment = env::which();
         let config_path = router_env::Config::config_path(&environment.to_string(), config_path);
 
+        let required_fields_path_buf = PathBuf::from("config/payment_required_fields.toml");
+
         let config = router_env::Config::builder(&environment.to_string())
             .change_context(ApplicationError::ConfigurationError)?
             .add_source(File::from(config_path).required(false))
+             .add_source(File::from(required_fields_path_buf).required(true))
             .add_source(
                 Environment::with_prefix("ROUTER")
                     .try_parsing(true)

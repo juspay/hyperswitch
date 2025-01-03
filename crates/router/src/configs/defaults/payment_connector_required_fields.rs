@@ -105,6 +105,15 @@ impl Default for Mandates {
     }
 }
 
+// The values will be filled in from the config file in configs/payment_required_fields.toml
+#[cfg(feature = "v2")]
+impl Default for settings::RequiredFields {
+    fn default() -> Self {
+        Self(HashMap::new())
+    }
+}
+
+#[cfg(feature = "v1")]
 impl Default for settings::RequiredFields {
     fn default() -> Self {
         Self(HashMap::from([
@@ -1019,7 +1028,7 @@ impl Default for settings::RequiredFields {
                                     common:HashMap::new(),
                                 }
                             ),
-                            #[cfg(feature = "dummy_connector")]                         
+                            #[cfg(feature = "dummy_connector")]
                             (
                                 enums::Connector::DummyConnector1,
                                 RequiredFieldFinal {
@@ -9750,7 +9759,7 @@ impl Default for settings::RequiredFields {
                                                                 "VI".to_string(),
                                                                 "WF".to_string(),
                                                                 "EH".to_string(),
-                                                                "ZM".to_string(), 
+                                                                "ZM".to_string(),
                                                             ]
                                                         },
                                                         value: None,
@@ -12528,7 +12537,7 @@ impl Default for settings::RequiredFields {
                                                                         "ES".to_string(),
                                                                         "FR".to_string(),
                                                                         "IE".to_string(),
-                                                                        "NL".to_string(),  
+                                                                        "NL".to_string(),
                                                                     ],
                                                                 },
                                                                 value: None,

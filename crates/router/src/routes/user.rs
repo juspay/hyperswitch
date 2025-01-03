@@ -197,6 +197,7 @@ pub async fn set_dashboard_metadata(
     .await
 }
 
+#[cfg(feature = "v1")]
 pub async fn get_multiple_dashboard_metadata(
     state: web::Data<AppState>,
     req: HttpRequest,

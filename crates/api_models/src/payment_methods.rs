@@ -1271,7 +1271,7 @@ pub struct ResponsePaymentMethodTypes {
 
     /// Required fields for the payment_method_type.
     /// This is the union of all the required fields for the payment method type enabled in all the connectors.
-    pub required_fields: Option<HashMap<String, RequiredFieldInfo>>,
+    pub required_fields: Vec<RequiredFieldInfo>,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, ToSchema)]

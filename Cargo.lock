@@ -6635,6 +6635,7 @@ dependencies = [
  "thiserror",
  "time",
  "tokio 1.40.0",
+ "toml 0.8.19",
  "totp-rs",
  "tracing-futures",
  "unicode-segmentation",

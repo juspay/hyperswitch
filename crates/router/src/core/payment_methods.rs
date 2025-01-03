@@ -1144,12 +1144,16 @@ impl PerformFilteringOnPaymentMethodsEnabled
 
 #[cfg(feature = "v2")]
 /// Container for the inputs required for the required fields
-struct RequiredFieldsInput {}
+struct RequiredFieldsInput {
+    required_fields_config: settings::RequiredFields,
+}
 
 #[cfg(feature = "v2")]
 impl RequiredFieldsInput {
-    fn new() -> Self {
-        Self {}
+    fn new(required_fields_config: settings::RequiredFields) -> Self {
+        Self {
+            required_fields_config,
+        }
     }
 }
 
@@ -1160,23 +1164,78 @@ struct FilteredPaymentMethodsEnabled(
 );
 
 #[cfg(feature = "v2")]
+trait GetRequiredFields {
+    fn get_required_fields(
+        &self,
+        payment_method_enabled: &hyperswitch_domain_models::merchant_connector_account::PaymentMethodsEnabledForConnector,
+    ) -> Option<&settings::RequiredFieldFinal>;
+}
+
+#[cfg(feature = "v2")]
+impl GetRequiredFields for settings::RequiredFields {
+    fn get_required_fields(
+        &self,
+        payment_method_enabled: &hyperswitch_domain_models::merchant_connector_account::PaymentMethodsEnabledForConnector,
+    ) -> Option<&settings::RequiredFieldFinal> {
+        self.0
+            .get(&payment_method_enabled.payment_method)
+            .and_then(|required_fields_for_payment_method| {
+                required_fields_for_payment_method.0.get(
+                    &payment_method_enabled
+                        .payment_methods_enabled
+                        .payment_method_subtype,
+                )
+            })
+            .map(|connector_fields| &connector_fields.fields)
+            .and_then(|connector_hashmap| connector_hashmap.get(&payment_method_enabled.connector))
+    }
+}
+
+#[cfg(feature = "v2")]
 impl FilteredPaymentMethodsEnabled {
     fn get_required_fields(
         self,
-        _input: RequiredFieldsInput,
+        input: RequiredFieldsInput,
     ) -> RequiredFieldsForEnabledPaymentMethodTypes {
+        let required_fields_config = input.required_fields_config;
+
         let required_fields_info = self
             .0
             .into_iter()
-            .map(
-                |payment_methods_enabled| RequiredFieldsForEnabledPaymentMethod {
-                    required_field: None,
+            .map(|payment_methods_enabled| {
+                let required_fields =
+                    required_fields_config.get_required_fields(&payment_methods_enabled);
+
+                let required_fields = required_fields
+                    .map(|required_fields| {
+                        let common_required_fields = required_fields
+                            .common
+                            .iter()
+                            .flatten()
+                            .map(ToOwned::to_owned);
+
+                        // Collect mandate required fields because this is for zero auth mandates only
+                        let mandate_required_fields = required_fields
+                            .mandate
+                            .iter()
+                            .flatten()
+                            .map(ToOwned::to_owned);
+
+                        // Combine both common and mandate required fields
+                        common_required_fields
+                            .chain(mandate_required_fields)
+                            .collect::<Vec<_>>()
+                    })
+                    .unwrap_or_default();
+
+                RequiredFieldsForEnabledPaymentMethod {
+                    required_fields,
                     payment_method_type: payment_methods_enabled.payment_method,
                     payment_method_subtype: payment_methods_enabled
                         .payment_methods_enabled
                         .payment_method_subtype,
-                },
-            )
+                }
+            })
             .collect();
 
         RequiredFieldsForEnabledPaymentMethodTypes(required_fields_info)
@@ -1186,7 +1245,7 @@ impl FilteredPaymentMethodsEnabled {
 #[cfg(feature = "v2")]
 /// Element container to hold the filtered payment methods with required fields
 struct RequiredFieldsForEnabledPaymentMethod {
-    required_field: Option<std::collections::HashMap<String, payment_methods::RequiredFieldInfo>>,
+    required_fields: Vec<payment_methods::RequiredFieldInfo>,
     payment_method_subtype: common_enums::PaymentMethodType,
     payment_method_type: common_enums::PaymentMethod,
 }
@@ -1205,7 +1264,7 @@ impl RequiredFieldsForEnabledPaymentMethodTypes {
                 |payment_methods_enabled| payment_methods::ResponsePaymentMethodTypes {
                     payment_method_type: payment_methods_enabled.payment_method_type,
                     payment_method_subtype: payment_methods_enabled.payment_method_subtype,
-                    required_fields: payment_methods_enabled.required_field,
+                    required_fields: payment_methods_enabled.required_fields,
                     extra_information: None,
                 },
             )
@@ -1255,7 +1314,7 @@ pub async fn list_payment_methods(
     let response =
         hyperswitch_domain_models::merchant_connector_account::FlattenedPaymentMethodsEnabled::from_payment_connectors_list(payment_connector_accounts)
             .perform_filtering()
-            .get_required_fields(RequiredFieldsInput::new())
+            .get_required_fields(RequiredFieldsInput::new(state.conf.required_fields.clone()))
             .generate_response();
 
     Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
