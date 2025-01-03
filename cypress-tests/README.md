@@ -4,8 +4,8 @@
 
 This is a comprehensive testing framework built with [Cypress](https://cypress.io) to automate testing for [Hyperswitch](https://github.com/juspay/hyperswitch/). The framework supports API testing with features like multiple credential management, configuration management, global state handling, and extensive utility functions. The framework provides extensive support for API testing with advanced features including:
 
-- Multiple credential management
-- Dynamic configuration management
+- [Multiple credential management](#multiple-credential-support)
+- [Dynamic configuration management](#dynamic-configuration-management)
 - Global state handling
 - Extensive utility functions
 - Parallel test execution
@@ -30,7 +30,7 @@ This is a comprehensive testing framework built with [Cypress](https://cypress.i
   - [Developing Core Features or adding new tests](#developing-core-features-or-adding-new-tests)
     - [1. Create or update test file](#1-create-or-update-test-file)
     - [2. Add New Commands](#2-add-new-commands)
-    - [Managing global state](#managing-global-state)
+  - [Managing global state](#managing-global-state)
 - [Debugging](#debugging)
   - [1. Interactive Mode](#1-interactive-mode)
   - [2. Logging](#2-logging)
@@ -42,7 +42,10 @@ This is a comprehensive testing framework built with [Cypress](https://cypress.i
 - [Best Practices](#best-practices)
 - [Additional Resources](#additional-resources)
 - [Contributing](#contributing)
-- [Example creds.json](#example-credsjson)
+- [Appendix](#appendix)
+  - [Example creds.json](#example-credsjson)
+  - [Multiple credential support](#multiple-credential-support)
+  - [Dynamic configuration management](#dynamic-configuration-management)
 
 ## Quick Start
 
@@ -52,6 +55,7 @@ For experienced users who want to get started quickly:
 git clone https://github.com/juspay/hyperswitch.git
 cd hyperswitch/cypress-tests
 npm ci
+# connector_id must be replaced with the connector name that is being tested (e.g. stripe, paypal, etc.)
 CYPRESS_CONNECTOR="connector_id" npm run cypress:ci
 ```
 
@@ -211,11 +215,8 @@ The folder structure of this directory is as follows:
 
 2. Add the new connector details to the ConnectorUtils folder (including CardNo and connector-specific information).
 
-   Refer to [Stripe.js](cypress/e2e/PaymentUtils/Stripe.js) file for guidance:
-
-   ```javascript
-   /cypress/e2e/ConnectorUtils/Stripe.js
-   ```
+   To add a new Payment connector, refer to [`Stripe.js`](cypress/e2e/PaymentUtils/Stripe.js) file for reference.
+   To add a new Payout connector, refer to [`Adyen.js`](cypress-tests/cypress/e2e/PayoutUtils/Adyen.js) file for reference.
 
    **File Naming:** Create a new file named <connector_name>.js for your specific connector.
 
@@ -223,9 +224,9 @@ The folder structure of this directory is as follows:
 
    **Handling Unsupported Features:**
 
-   - If a connector does not support a specific payment method or feature:
-   - You can omit the relevant configurations in the <connector_name>.js file.
-   - The handling of unsupported features will be managed by the commons.js file, which will throw an unsupported or not implemented error as appropriate.
+   - If a connector does not support a specific payment method or a feature:
+   - The relevant configurations in the `<connector_name>.js` file can be omited
+   - The handling of unsupported or unimplemented features will be managed by the [`Commons.js`](cypress/e2e/PaymentUtils/Commons.js) file, which will throw the appropriate `unsupported` or `not implemented` error
 
 3. In `Utils.js`, import the new connector details
 
@@ -261,7 +262,7 @@ describe("New Feature", () => {
 });
 ```
 
-### 2. Add New Commands
+#### 2. Add New Commands
 
 ```javascript
 // cypress/support/commands.js
@@ -374,7 +375,9 @@ npm run lint -- --fix
 3. Add tests following the guidelines
 4. Submit a pull request
 
-## Example creds.json
+## Appendix
+
+### Example creds.json
 
 ```json
 {
@@ -450,6 +453,57 @@ npm run lint -- --fix
       "api_key": "api_key",
       "key1": "key1",
       "api_secret": "api_secret"
+    }
+  }
+}
+```
+
+### Multiple credential support
+
+- There are some use cases where a connector supports a feature that requires a different set of API keys (example: Netwrok transaction ID for Stripe expects a different API Key to be passed). This forces the need for having multiple credentials that serves different use cases
+- This basically means that a connector can have multiple credentials
+- At present the maximum number of credentials that can be supported is `2`
+- The `creds.json` file should be structured to support multiple credentials for such connectors. The `creds.json` file should be structured as follows:
+
+```json
+{
+  "connector_name": {
+    "connector_1": {
+      "connector_account_details": {
+        "auth_type": "SignatureKey",
+        "api_key": "api_key",
+        "key1": "key1",
+        "api_secret": "api_secret"
+      }
+    },
+    "connector_2": {
+      "connector_account_details": {
+        "auth_type": "SignatureKey",
+        "api_key": "api_key",
+        "key1": "key1",
+        "api_secret": "api_secret"
+      }
+    }
+  }
+}
+```
+
+### Dynamic configuration management
+
+- `Configs` is the new `object` that is introduced to manage the dynamic configurations that are required for the tests
+- This is supposed to be passed in an exchange (configuration for a specific can be passed to a test based on the need and this will impact everywhere in the test execution for that connector)
+- At present, only 3 configs are supported:
+  - `DELAY`: This is used to introduce a delay in the test execution. This is useful when a connector requires a delay in order to perform a specific operation
+  - `CONNECTOR_CREDENTIAL`: This is used to control the connector credentials that are used in the test execution. This is useful only when a connector supports multiple credentials and the test needs to be executed with a specific credential
+  - `TRIGGER_SKIP`: This is used to skip a test execution (preferably redirection flows). This is useful when a test is does not support a specific rdirection flow and needs to be skipped
+- Example: In order to refund a payment in Trustpay, a `delay` of at least `5` seconds is required. By passing `delay` to the `Configs` object for Trustpay, the delay will be applied to all the tests that are executed for Trustpay
+
+```json
+{
+  "Configs": {
+    "DELAY": {
+      "STATUS": true,
+      "TIMEOUT": 15000
     }
   }
 }
