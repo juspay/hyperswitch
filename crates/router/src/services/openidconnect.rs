@@ -155,7 +155,7 @@ async fn get_oidc_reqwest_client(
     state: &SessionState,
     request: oidc::HttpRequest,
 ) -> Result<oidc::HttpResponse, ApiClientError> {
-    let client = client::create_client(&state.conf.proxy, false, None, None)
+    let client = client::create_client(&state.conf.proxy, None, None)
         .map_err(|e| e.current_context().to_owned())?;
 
     let mut request_builder = client
