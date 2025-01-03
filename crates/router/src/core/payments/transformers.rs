@@ -366,6 +366,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         connector_mandate_request_reference_id,
         authentication_id: None,
         psd2_sca_exemption_type: None,
+        request_overcapture: None,
     };
 
     Ok(router_data)
@@ -526,6 +527,7 @@ pub async fn construct_payment_router_data_for_capture<'a>(
         connector_mandate_request_reference_id,
         psd2_sca_exemption_type: None,
         authentication_id: None,
+        request_overcapture: None,
     };
 
     Ok(router_data)
@@ -653,6 +655,7 @@ pub async fn construct_router_data_for_psync<'a>(
         connector_mandate_request_reference_id: None,
         authentication_id: None,
         psd2_sca_exemption_type: None,
+        request_overcapture: None,
     };
 
     Ok(router_data)
@@ -810,6 +813,7 @@ pub async fn construct_payment_router_data_for_sdk_session<'a>(
         connector_mandate_request_reference_id: None,
         psd2_sca_exemption_type: None,
         authentication_id: None,
+        request_overcapture: None,
     };
 
     Ok(router_data)
@@ -875,6 +879,8 @@ where
         connector_response_reference_id: None,
         incremental_authorization_allowed: None,
         charge_id: None,
+        overcapture_applied: None,
+        maximum_capturable_amount: None,
     });
 
     let additional_data = PaymentAdditionalData {
@@ -1347,6 +1353,7 @@ where
                 request_external_three_ds_authentication: payment_intent
                     .request_external_three_ds_authentication
                     .clone(),
+                request_overcapture: payment_intent.request_overcapture.clone(),
             },
             vec![],
         )))
@@ -2176,6 +2183,17 @@ where
                 })
         });
 
+        let (overcapture_applied, maximum_capturable_amount) = payment_attempt
+            .overcapture_details
+            .as_ref()
+            .map(|overcapture_data| {
+                (
+                    overcapture_data.overcapture_applied,
+                    overcapture_data.maximum_capturable_amount,
+                )
+            })
+            .unwrap_or((None, None));
+
         let connector_transaction_id = payment_attempt
             .get_connector_payment_id()
             .map(ToString::to_string);
@@ -2288,6 +2306,8 @@ where
             order_tax_amount,
             connector_mandate_id,
             shipping_cost: payment_intent.shipping_cost,
+            overcapture_applied,
+            maximum_capturable_amount,
         };
 
         services::ApplicationResponse::JsonWithHeaders((payments_response, headers))
@@ -2544,6 +2564,8 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             order_tax_amount: None,
             connector_mandate_id:None,
             shipping_cost: None,
+            overcapture_applied: pa.overcapture_details.as_ref().and_then(|overcapture_data| overcapture_data.overcapture_applied),
+            maximum_capturable_amount: pa.overcapture_details.as_ref().and_then(|overcapture_data| overcapture_data.maximum_capturable_amount),
         }
     }
 }
@@ -2803,6 +2825,12 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             .clone();
         let shipping_cost = payment_data.payment_intent.shipping_cost;
 
+        let request_overcapture = payment_data
+            .payment_attempt
+            .overcapture_details
+            .as_ref()
+            .and_then(|overcapture_details| overcapture_details.request_overcapture);
+
         Ok(Self {
             payment_method_data: (payment_method_data.get_required_value("payment_method_data")?),
             setup_future_usage: payment_data.payment_intent.setup_future_usage,
@@ -2854,6 +2882,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             integrity_object: None,
             additional_payment_method_data,
             shipping_cost,
+            request_overcapture,
         })
     }
 }

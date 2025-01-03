@@ -486,6 +486,8 @@ impl
                     connector_response_reference_id,
                     incremental_authorization_allowed,
                     charge_id,
+                    overcapture_applied,
+                    maximum_capturable_amount,
                 } => {
                     let attempt_status = self.get_attempt_status_for_db_update(payment_data);
 
@@ -692,6 +694,8 @@ impl
                     connector_response_reference_id,
                     incremental_authorization_allowed,
                     charge_id,
+                    overcapture_applied,
+                    maximum_capturable_amount,
                 } => {
                     let attempt_status = self.status;
 
@@ -907,6 +911,8 @@ impl
                     connector_response_reference_id,
                     incremental_authorization_allowed,
                     charge_id,
+                    overcapture_applied,
+                    maximum_capturable_amount,
                 } => {
                     let attempt_status = self.get_attempt_status_for_db_update(payment_data);
 

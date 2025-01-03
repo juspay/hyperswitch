@@ -951,6 +951,8 @@ fn get_zen_response(
         connector_response_reference_id: None,
         incremental_authorization_allowed: None,
         charge_id: None,
+        overcapture_applied: None,
+        maximum_capturable_amount: None,
     };
     Ok((status, error, payment_response_data))
 }
@@ -995,6 +997,8 @@ impl<F, T> TryFrom<ResponseRouterData<F, CheckoutResponse, T, PaymentsResponseDa
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 charge_id: None,
+                overcapture_applied: None,
+                maximum_capturable_amount: None,
             }),
             ..value.data
         })

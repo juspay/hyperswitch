@@ -404,6 +404,11 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
 
         payment_attempt.capture_method = request.capture_method.or(payment_attempt.capture_method);
 
+        helpers::update_or_add_overcapture_details_if_required(
+            request.request_overcapture,
+            &mut payment_attempt,
+        )?;
+
         payment_attempt.customer_acceptance = request
             .customer_acceptance
             .clone()
@@ -1293,6 +1298,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
         let browser_info = payment_data.payment_attempt.browser_info.clone();
         let frm_message = payment_data.frm_message.clone();
         let capture_method = payment_data.payment_attempt.capture_method;
+        let overcapture_details = payment_data.payment_attempt.overcapture_details.clone();
 
         let default_status_result = (
             storage_enums::IntentStatus::Processing,
@@ -1514,11 +1520,13 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                                     .get_order_tax_amount(),
                                 surcharge_amount,
                                 tax_amount,
+                                None,
                             ),
 
                         connector_mandate_detail: payment_data
                             .payment_attempt
                             .connector_mandate_detail,
+                        overcapture_details,
                     },
                     storage_scheme,
                 )
@@ -1602,6 +1610,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                         shipping_details,
                         is_payment_processor_token_flow,
                         tax_details: None,
+                        request_overcapture: None,
                     })),
                     &m_key_store,
                     storage_scheme,

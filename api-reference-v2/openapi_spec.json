@@ -12397,6 +12397,14 @@
           }
         }
       },
+      "OverCaptureRequest": {
+        "type": "string",
+        "description": "Whether overcapture is requested or not",
+        "enum": [
+          "Enable",
+          "Skip"
+        ]
+      },
       "PayLaterData": {
         "oneOf": [
           {
@@ -14936,6 +14944,14 @@
               }
             ],
             "nullable": true
+          },
+          "request_overcapture": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OverCaptureRequest"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -15476,6 +15492,19 @@
             "type": "string",
             "description": "Connector Identifier for the payment method",
             "nullable": true
+          },
+          "overcapture_applied": {
+            "type": "boolean",
+            "description": "Whether the payment is overcaptureable or not",
+            "nullable": true
+          },
+          "maximum_capturable_amount": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -15650,7 +15679,8 @@
           "payment_link_enabled",
           "request_incremental_authorization",
           "expires_on",
-          "request_external_three_ds_authentication"
+          "request_external_three_ds_authentication",
+          "request_overcapture"
         ],
         "properties": {
           "id": {
@@ -15811,6 +15841,9 @@
           },
           "request_external_three_ds_authentication": {
             "$ref": "#/components/schemas/External3dsAuthenticationRequest"
+          },
+          "request_overcapture": {
+            "$ref": "#/components/schemas/OverCaptureRequest"
           }
         },
         "additionalProperties": false
@@ -16376,6 +16409,19 @@
             "type": "string",
             "description": "Connector Identifier for the payment method",
             "nullable": true
+          },
+          "overcapture_applied": {
+            "type": "boolean",
+            "description": "Whether the payment is overcaptureable or not",
+            "nullable": true
+          },
+          "maximum_capturable_amount": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -16703,6 +16749,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/External3dsAuthenticationRequest"
+              }
+            ],
+            "nullable": true
+          },
+          "request_overcapture": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OverCaptureRequest"
               }
             ],
             "nullable": true
@@ -18054,7 +18108,8 @@
       "ProfileCreate": {
         "type": "object",
         "required": [
-          "profile_name"
+          "profile_name",
+          "always_request_overcapture"
         ],
         "properties": {
           "profile_name": {
@@ -18223,6 +18278,12 @@
             "type": "object",
             "description": "Product authentication ids",
             "nullable": true
+          },
+          "always_request_overcapture": {
+            "type": "boolean",
+            "description": "Indicates if the overcapture is always requested or not.",
+            "default": false,
+            "example": false
           }
         },
         "additionalProperties": false
@@ -18256,7 +18317,8 @@
           "is_tax_connector_enabled",
           "is_network_tokenization_enabled",
           "should_collect_cvv_during_payment",
-          "is_click_to_pay_enabled"
+          "is_click_to_pay_enabled",
+          "always_request_overcapture"
         ],
         "properties": {
           "merchant_id": {
@@ -18447,6 +18509,12 @@
             "type": "object",
             "description": "Product authentication ids",
             "nullable": true
+          },
+          "always_request_overcapture": {
+            "type": "boolean",
+            "description": "Indicates if the overcapture is always requested or not.",
+            "default": false,
+            "example": false
           }
         }
       },

@@ -325,6 +325,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             &payment_method_info,
             merchant_key_store,
             profile_id,
+            &business_profile,
             &customer_acceptance,
         )
         .await?;
@@ -1106,6 +1107,7 @@ impl PaymentCreate {
         payment_method_info: &Option<domain::PaymentMethod>,
         _key_store: &domain::MerchantKeyStore,
         profile_id: common_utils::id_type::ProfileId,
+        business_profile: &domain::Profile,
         customer_acceptance: &Option<payments::CustomerAcceptance>,
     ) -> RouterResult<(
         storage::PaymentAttemptNew,
@@ -1140,6 +1142,21 @@ impl PaymentCreate {
             .await
             .transpose()?
             .flatten();
+
+        let overcapture_details = match request
+            .capture_method
+            .map(|capture_method| capture_method.eq(&common_enums::CaptureMethod::Manual))
+        {
+            Some(true) => Some(common_utils::types::OvercaptureData {
+                request_overcapture: request
+                    .request_overcapture
+                    .or(Some(business_profile.always_request_overcapture)),
+                overcapture_applied: None,
+                maximum_capturable_amount: None,
+                overcaptured_amount: None,
+            }),
+            Some(false) | None => None,
+        };
 
         if additional_pm_data.is_none() {
             // If recurring payment is made using payment_method_id, then fetch payment_method_data from retrieved payment_method object
@@ -1289,6 +1306,7 @@ impl PaymentCreate {
                 organization_id: organization_id.clone(),
                 profile_id,
                 connector_mandate_detail: None,
+                overcapture_details,
             },
             additional_pm_data,
 
@@ -1499,6 +1517,7 @@ impl PaymentCreate {
             psd2_sca_exemption_type: request.psd2_sca_exemption_type,
             platform_merchant_id: platform_merchant_account
                 .map(|platform_merchant_account| platform_merchant_account.get_id().to_owned()),
+            request_overcapture: request.request_overcapture,
         })
     }
 

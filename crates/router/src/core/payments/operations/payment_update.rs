@@ -393,6 +393,10 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .request_external_three_ds_authentication
             .or(payment_intent.request_external_three_ds_authentication);
 
+        payment_intent.request_overcapture = request
+            .request_overcapture
+            .or(payment_intent.request_overcapture);
+
         payment_intent.merchant_order_reference_id = request
             .merchant_order_reference_id
             .clone()
@@ -439,6 +443,11 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
                 id: profile_id.get_string_repr().to_owned(),
             })?;
+
+        helpers::update_or_add_overcapture_details_if_required(
+            request.request_overcapture,
+            &mut payment_attempt,
+        )?;
 
         let surcharge_details = request.surcharge_details.map(|request_surcharge_details| {
             payments::types::SurchargeDetails::from((&request_surcharge_details, &payment_attempt))
@@ -779,6 +788,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
         let payment_experience = payment_data.payment_attempt.payment_experience;
         let amount_to_capture = payment_data.payment_attempt.amount_to_capture;
         let capture_method = payment_data.payment_attempt.capture_method;
+        let overcapture_details = payment_data.payment_attempt.overcapture_details.clone();
         let payment_method_billing_address_id = payment_data
             .payment_attempt
             .payment_method_billing_address_id
@@ -818,7 +828,9 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                             None,
                             surcharge_amount,
                             tax_amount,
+                            None,
                         ),
+                    overcapture_details,
                 },
                 storage_scheme,
             )
@@ -887,6 +899,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
         let metadata = payment_data.payment_intent.metadata.clone();
         let frm_metadata = payment_data.payment_intent.frm_metadata.clone();
         let session_expiry = payment_data.payment_intent.session_expiry;
+        let request_overcapture = payment_data.payment_intent.request_overcapture;
         let merchant_order_reference_id = payment_data
             .payment_intent
             .merchant_order_reference_id
@@ -926,6 +939,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                     shipping_details,
                     is_payment_processor_token_flow: None,
                     tax_details: None,
+                    request_overcapture,
                 })),
                 key_store,
                 storage_scheme,

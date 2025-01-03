@@ -364,7 +364,6 @@ pub async fn construct_refund_router_data<'a, F>(
             integrity_object: None,
             refund_status: refund.refund_status,
         },
-
         response: Ok(types::RefundsResponseData {
             connector_refund_id: connector_refund_id.unwrap_or_default(),
             refund_status: refund.refund_status,
@@ -445,6 +444,23 @@ pub fn validate_uuid(uuid: String, key: &str) -> Result<String, errors::ApiError
     match (Uuid::parse_str(&uuid), uuid.len() > consts::MAX_ID_LENGTH) {
         (Ok(_), false) => Ok(uuid),
         (_, _) => Err(invalid_id_format_error(key)),
+    }
+}
+
+pub fn get_overcaptured_amount(
+    overcapture_applied: Option<bool>,
+    amount_captured: Option<MinorUnit>,
+    net_amount: MinorUnit,
+) -> Option<MinorUnit> {
+    match overcapture_applied.zip(amount_captured) {
+        Some((true, amount_captured_minor_unit)) => {
+            if net_amount < amount_captured_minor_unit {
+                Some(amount_captured_minor_unit - net_amount)
+            } else {
+                None
+            }
+        }
+        _ => None,
     }
 }
 

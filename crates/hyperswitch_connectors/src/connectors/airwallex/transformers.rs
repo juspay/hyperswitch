@@ -671,6 +671,8 @@ impl<F, T> TryFrom<ResponseRouterData<F, AirwallexPaymentsResponse, T, PaymentsR
                 connector_response_reference_id: Some(item.response.id),
                 incremental_authorization_allowed: None,
                 charge_id: None,
+                overcapture_applied: None,
+                maximum_capturable_amount: None,
             }),
             ..item.data
         })
@@ -714,6 +716,8 @@ impl
                 connector_response_reference_id: Some(item.response.id),
                 incremental_authorization_allowed: None,
                 charge_id: None,
+                overcapture_applied: None,
+                maximum_capturable_amount: None,
             }),
             ..item.data
         })

@@ -211,6 +211,8 @@ async fn payments_create_core() {
         order_tax_amount: None,
         connector_mandate_id: None,
         shipping_cost: None,
+        maximum_capturable_amount: None,
+        overcapture_applied: None,
     };
 
     let expected_response =
@@ -483,6 +485,8 @@ async fn payments_create_core_adyen_no_redirect() {
             order_tax_amount: None,
             connector_mandate_id: None,
             shipping_cost: None,
+            maximum_capturable_amount: None,
+            overcapture_applied: None,
         },
         vec![],
     ));
