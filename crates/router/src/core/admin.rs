@@ -2814,7 +2814,7 @@ pub async fn create_connector(
     let key_manager_state = &(&state).into();
     #[cfg(feature = "dummy_connector")]
     fp_utils::when(
-        !req.connector_name
+        req.connector_name
             .validate_dummy_connector_create(state.conf.dummy_connector.enabled),
         || {
             Err(errors::ApiErrorResponse::InvalidRequestData {
