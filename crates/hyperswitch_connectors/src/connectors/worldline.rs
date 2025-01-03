@@ -31,8 +31,8 @@ use hyperswitch_domain_models::{
 };
 use hyperswitch_interfaces::{
     api::{
-        self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorValidation,
-        PaymentCapture, PaymentSync,
+        self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorSpecifications,
+        ConnectorValidation, PaymentCapture, PaymentSync,
     },
     configs::Connectors,
     errors,
@@ -41,7 +41,7 @@ use hyperswitch_interfaces::{
         PaymentsAuthorizeType, PaymentsCaptureType, PaymentsSyncType, PaymentsVoidType,
         RefundExecuteType, RefundSyncType, Response,
     },
-    webhooks,
+    webhooks::{self, IncomingWebhookFlowError},
 };
 use masking::{ExposeInterface, Mask, PeekInterface};
 use ring::hmac;
@@ -62,7 +62,7 @@ impl Worldline {
     pub fn generate_authorization_token(
         &self,
         auth: worldline::WorldlineAuthType,
-        http_method: &Method,
+        http_method: Method,
         content_type: &str,
         date: &str,
         endpoint: &str,
@@ -113,7 +113,7 @@ where
         let date = Self::get_current_date_time()?;
         let content_type = Self::get_content_type(self);
         let signed_data: String =
-            self.generate_authorization_token(auth, &http_method, content_type, &date, &endpoint)?;
+            self.generate_authorization_token(auth, http_method, content_type, &date, &endpoint)?;
 
         Ok(vec![
             (headers::DATE.to_string(), date.into()),
@@ -170,14 +170,17 @@ impl ConnectorCommon for Worldline {
 }
 
 impl ConnectorValidation for Worldline {
-    fn validate_capture_method(
+    fn validate_connector_against_payment_request(
         &self,
         capture_method: Option<enums::CaptureMethod>,
+        _payment_method: enums::PaymentMethod,
         _pmt: Option<enums::PaymentMethodType>,
     ) -> CustomResult<(), errors::ConnectorError> {
         let capture_method = capture_method.unwrap_or_default();
         match capture_method {
-            enums::CaptureMethod::Automatic | enums::CaptureMethod::Manual => Ok(()),
+            enums::CaptureMethod::Automatic
+            | enums::CaptureMethod::Manual
+            | enums::CaptureMethod::SequentialAutomatic => Ok(()),
             enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => Err(
                 utils::construct_not_implemented_error_report(capture_method, self.id()),
             ),
@@ -814,6 +817,7 @@ impl webhooks::IncomingWebhook for Worldline {
     fn get_webhook_api_response(
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _error_kind: Option<IncomingWebhookFlowError>,
     ) -> CustomResult<
         hyperswitch_domain_models::api::ApplicationResponse<serde_json::Value>,
         errors::ConnectorError,
@@ -834,3 +838,5 @@ impl webhooks::IncomingWebhook for Worldline {
         Ok(response)
     }
 }
+
+impl ConnectorSpecifications for Worldline {}

@@ -7,14 +7,17 @@ use api_models::{
     routing::{self as routing_types, RoutingRetrieveQuery},
 };
 use async_trait::async_trait;
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+use common_utils::ext_traits::AsyncExt;
 use diesel_models::routing_algorithm::RoutingAlgorithm;
 use error_stack::ResultExt;
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+use external_services::grpc_client::dynamic_routing::success_rate_client::SuccessBasedDynamicRouting;
 use hyperswitch_domain_models::{mandates, payment_address};
-#[cfg(feature = "v1")]
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use router_env::logger;
-use router_env::metrics::add_attributes;
 use rustc_hash::FxHashSet;
-#[cfg(feature = "v1")]
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use storage_impl::redis::cache;
 
 #[cfg(feature = "payouts")]
@@ -94,7 +97,7 @@ impl RoutingAlgorithmUpdate {
         request: &routing_types::RoutingConfigRequest,
         merchant_id: &common_utils::id_type::MerchantId,
         profile_id: common_utils::id_type::ProfileId,
-        transaction_type: &enums::TransactionType,
+        transaction_type: enums::TransactionType,
     ) -> Self {
         let algorithm_id = common_utils::generate_routing_id_of_default_length();
         let timestamp = common_utils::date_time::now();
@@ -108,7 +111,7 @@ impl RoutingAlgorithmUpdate {
             algorithm_data: serde_json::json!(request.algorithm),
             created_at: timestamp,
             modified_at: timestamp,
-            algorithm_for: transaction_type.to_owned(),
+            algorithm_for: transaction_type,
         };
         Self(algo)
     }
@@ -132,7 +135,7 @@ pub async fn retrieve_merchant_routing_dictionary(
     query_params: RoutingRetrieveQuery,
     transaction_type: &enums::TransactionType,
 ) -> RouterResponse<routing_types::RoutingKind> {
-    metrics::ROUTING_MERCHANT_DICTIONARY_RETRIEVE.add(&metrics::CONTEXT, 1, &[]);
+    metrics::ROUTING_MERCHANT_DICTIONARY_RETRIEVE.add(1, &[]);
 
     let routing_metadata: Vec<diesel_models::routing_algorithm::RoutingProfileMetadata> = state
         .store
@@ -152,7 +155,7 @@ pub async fn retrieve_merchant_routing_dictionary(
         .map(ForeignInto::foreign_into)
         .collect::<Vec<_>>();
 
-    metrics::ROUTING_MERCHANT_DICTIONARY_RETRIEVE_SUCCESS_RESPONSE.add(&metrics::CONTEXT, 1, &[]);
+    metrics::ROUTING_MERCHANT_DICTIONARY_RETRIEVE_SUCCESS_RESPONSE.add(1, &[]);
     Ok(service_api::ApplicationResponse::Json(
         routing_types::RoutingKind::RoutingAlgorithm(result),
     ))
@@ -165,9 +168,9 @@ pub async fn create_routing_algorithm_under_profile(
     key_store: domain::MerchantKeyStore,
     authentication_profile_id: Option<common_utils::id_type::ProfileId>,
     request: routing_types::RoutingConfigRequest,
-    transaction_type: &enums::TransactionType,
+    transaction_type: enums::TransactionType,
 ) -> RouterResponse<routing_types::RoutingDictionaryRecord> {
-    metrics::ROUTING_CREATE_REQUEST_RECEIVED.add(&metrics::CONTEXT, 1, &[]);
+    metrics::ROUTING_CREATE_REQUEST_RECEIVED.add(1, &[]);
     let db = &*state.store;
     let key_manager_state = &(&state).into();
 
@@ -224,7 +227,7 @@ pub async fn create_routing_algorithm_under_profile(
 
     let new_record = record.foreign_into();
 
-    metrics::ROUTING_CREATE_SUCCESS_RESPONSE.add(&metrics::CONTEXT, 1, &[]);
+    metrics::ROUTING_CREATE_SUCCESS_RESPONSE.add(1, &[]);
     Ok(service_api::ApplicationResponse::Json(new_record))
 }
 
@@ -235,9 +238,9 @@ pub async fn create_routing_algorithm_under_profile(
     key_store: domain::MerchantKeyStore,
     authentication_profile_id: Option<common_utils::id_type::ProfileId>,
     request: routing_types::RoutingConfigRequest,
-    transaction_type: &enums::TransactionType,
+    transaction_type: enums::TransactionType,
 ) -> RouterResponse<routing_types::RoutingDictionaryRecord> {
-    metrics::ROUTING_CREATE_REQUEST_RECEIVED.add(&metrics::CONTEXT, 1, &[]);
+    metrics::ROUTING_CREATE_REQUEST_RECEIVED.add(1, &[]);
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
 
@@ -314,7 +317,7 @@ pub async fn create_routing_algorithm_under_profile(
 
     let new_record = record.foreign_into();
 
-    metrics::ROUTING_CREATE_SUCCESS_RESPONSE.add(&metrics::CONTEXT, 1, &[]);
+    metrics::ROUTING_CREATE_SUCCESS_RESPONSE.add(1, &[]);
     Ok(service_api::ApplicationResponse::Json(new_record))
 }
 
@@ -327,7 +330,7 @@ pub async fn link_routing_config_under_profile(
     algorithm_id: common_utils::id_type::RoutingId,
     transaction_type: &enums::TransactionType,
 ) -> RouterResponse<routing_types::RoutingDictionaryRecord> {
-    metrics::ROUTING_LINK_CONFIG.add(&metrics::CONTEXT, 1, &[]);
+    metrics::ROUTING_LINK_CONFIG.add(1, &[]);
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
 
@@ -382,7 +385,7 @@ pub async fn link_routing_config_under_profile(
         )
         .await?;
 
-    metrics::ROUTING_LINK_CONFIG_SUCCESS_RESPONSE.add(&metrics::CONTEXT, 1, &[]);
+    metrics::ROUTING_LINK_CONFIG_SUCCESS_RESPONSE.add(1, &[]);
     Ok(service_api::ApplicationResponse::Json(
         routing_algorithm.0.foreign_into(),
     ))
@@ -397,7 +400,7 @@ pub async fn link_routing_config(
     algorithm_id: common_utils::id_type::RoutingId,
     transaction_type: &enums::TransactionType,
 ) -> RouterResponse<routing_types::RoutingDictionaryRecord> {
-    metrics::ROUTING_LINK_CONFIG.add(&metrics::CONTEXT, 1, &[]);
+    metrics::ROUTING_LINK_CONFIG.add(1, &[]);
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
 
@@ -449,6 +452,16 @@ pub async fn link_routing_config(
                         },
                         enabled_feature: _
                     }) if id == &algorithm_id
+                ) || matches!(
+                    dynamic_routing_ref.elimination_routing_algorithm,
+                    Some(routing::EliminationRoutingAlgorithm {
+                        algorithm_id_with_timestamp:
+                        routing_types::DynamicAlgorithmWithTimestamp {
+                            algorithm_id: Some(ref id),
+                            timestamp: _
+                        },
+                        enabled_feature: _
+                    }) if id == &algorithm_id
                 ),
                 || {
                     Err(errors::ApiErrorResponse::PreconditionFailed {
@@ -467,7 +480,9 @@ pub async fn link_routing_config(
                         "missing success_based_algorithm in dynamic_algorithm_ref from business_profile table",
                     )?
                     .enabled_feature,
+                routing_types::DynamicRoutingType::SuccessRateBasedRouting,
             );
+
             helpers::update_business_profile_active_dynamic_algorithm_ref(
                 db,
                 key_manager_state,
@@ -522,7 +537,7 @@ pub async fn link_routing_config(
         }
     };
 
-    metrics::ROUTING_LINK_CONFIG_SUCCESS_RESPONSE.add(&metrics::CONTEXT, 1, &[]);
+    metrics::ROUTING_LINK_CONFIG_SUCCESS_RESPONSE.add(1, &[]);
     Ok(service_api::ApplicationResponse::Json(
         routing_algorithm.foreign_into(),
     ))
@@ -536,7 +551,7 @@ pub async fn retrieve_routing_algorithm_from_algorithm_id(
     authentication_profile_id: Option<common_utils::id_type::ProfileId>,
     algorithm_id: common_utils::id_type::RoutingId,
 ) -> RouterResponse<routing_types::MerchantRoutingAlgorithm> {
-    metrics::ROUTING_RETRIEVE_CONFIG.add(&metrics::CONTEXT, 1, &[]);
+    metrics::ROUTING_RETRIEVE_CONFIG.add(1, &[]);
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
 
@@ -560,7 +575,7 @@ pub async fn retrieve_routing_algorithm_from_algorithm_id(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("unable to parse routing algorithm")?;
 
-    metrics::ROUTING_RETRIEVE_CONFIG_SUCCESS_RESPONSE.add(&metrics::CONTEXT, 1, &[]);
+    metrics::ROUTING_RETRIEVE_CONFIG_SUCCESS_RESPONSE.add(1, &[]);
     Ok(service_api::ApplicationResponse::Json(response))
 }
 
@@ -572,7 +587,7 @@ pub async fn retrieve_routing_algorithm_from_algorithm_id(
     authentication_profile_id: Option<common_utils::id_type::ProfileId>,
     algorithm_id: common_utils::id_type::RoutingId,
 ) -> RouterResponse<routing_types::MerchantRoutingAlgorithm> {
-    metrics::ROUTING_RETRIEVE_CONFIG.add(&metrics::CONTEXT, 1, &[]);
+    metrics::ROUTING_RETRIEVE_CONFIG.add(1, &[]);
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
 
@@ -601,7 +616,7 @@ pub async fn retrieve_routing_algorithm_from_algorithm_id(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("unable to parse routing algorithm")?;
 
-    metrics::ROUTING_RETRIEVE_CONFIG_SUCCESS_RESPONSE.add(&metrics::CONTEXT, 1, &[]);
+    metrics::ROUTING_RETRIEVE_CONFIG_SUCCESS_RESPONSE.add(1, &[]);
     Ok(service_api::ApplicationResponse::Json(response))
 }
 
@@ -613,7 +628,7 @@ pub async fn unlink_routing_config_under_profile(
     profile_id: common_utils::id_type::ProfileId,
     transaction_type: &enums::TransactionType,
 ) -> RouterResponse<routing_types::RoutingDictionaryRecord> {
-    metrics::ROUTING_UNLINK_CONFIG.add(&metrics::CONTEXT, 1, &[]);
+    metrics::ROUTING_UNLINK_CONFIG.add(1, &[]);
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
 
@@ -650,7 +665,7 @@ pub async fn unlink_routing_config_under_profile(
                 transaction_type,
             )
             .await?;
-        metrics::ROUTING_UNLINK_CONFIG_SUCCESS_RESPONSE.add(&metrics::CONTEXT, 1, &[]);
+        metrics::ROUTING_UNLINK_CONFIG_SUCCESS_RESPONSE.add(1, &[]);
         Ok(service_api::ApplicationResponse::Json(response))
     } else {
         Err(errors::ApiErrorResponse::PreconditionFailed {
@@ -668,7 +683,7 @@ pub async fn unlink_routing_config(
     authentication_profile_id: Option<common_utils::id_type::ProfileId>,
     transaction_type: &enums::TransactionType,
 ) -> RouterResponse<routing_types::RoutingDictionaryRecord> {
-    metrics::ROUTING_UNLINK_CONFIG.add(&metrics::CONTEXT, 1, &[]);
+    metrics::ROUTING_UNLINK_CONFIG.add(1, &[]);
 
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
@@ -737,7 +752,7 @@ pub async fn unlink_routing_config(
                     )
                     .await?;
 
-                    metrics::ROUTING_UNLINK_CONFIG_SUCCESS_RESPONSE.add(&metrics::CONTEXT, 1, &[]);
+                    metrics::ROUTING_UNLINK_CONFIG_SUCCESS_RESPONSE.add(1, &[]);
                     Ok(service_api::ApplicationResponse::Json(response))
                 }
                 None => Err(errors::ApiErrorResponse::PreconditionFailed {
@@ -760,7 +775,7 @@ pub async fn update_default_fallback_routing(
     profile_id: common_utils::id_type::ProfileId,
     updated_list_of_connectors: Vec<routing_types::RoutableConnectorChoice>,
 ) -> RouterResponse<Vec<routing_types::RoutableConnectorChoice>> {
-    metrics::ROUTING_UPDATE_CONFIG.add(&metrics::CONTEXT, 1, &[]);
+    metrics::ROUTING_UPDATE_CONFIG.add(1, &[]);
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
     let profile = core_utils::validate_and_get_business_profile(
@@ -822,7 +837,7 @@ pub async fn update_default_fallback_routing(
         )
         .await?;
 
-    metrics::ROUTING_UPDATE_CONFIG_SUCCESS_RESPONSE.add(&metrics::CONTEXT, 1, &[]);
+    metrics::ROUTING_UPDATE_CONFIG_SUCCESS_RESPONSE.add(1, &[]);
     Ok(service_api::ApplicationResponse::Json(
         updated_list_of_connectors,
     ))
@@ -835,7 +850,7 @@ pub async fn update_default_routing_config(
     updated_config: Vec<routing_types::RoutableConnectorChoice>,
     transaction_type: &enums::TransactionType,
 ) -> RouterResponse<Vec<routing_types::RoutableConnectorChoice>> {
-    metrics::ROUTING_UPDATE_CONFIG.add(&metrics::CONTEXT, 1, &[]);
+    metrics::ROUTING_UPDATE_CONFIG.add(1, &[]);
     let db = state.store.as_ref();
     let default_config = helpers::get_merchant_default_config(
         db,
@@ -877,7 +892,7 @@ pub async fn update_default_routing_config(
     )
     .await?;
 
-    metrics::ROUTING_UPDATE_CONFIG_SUCCESS_RESPONSE.add(&metrics::CONTEXT, 1, &[]);
+    metrics::ROUTING_UPDATE_CONFIG_SUCCESS_RESPONSE.add(1, &[]);
     Ok(service_api::ApplicationResponse::Json(updated_config))
 }
 
@@ -888,7 +903,7 @@ pub async fn retrieve_default_fallback_algorithm_for_profile(
     key_store: domain::MerchantKeyStore,
     profile_id: common_utils::id_type::ProfileId,
 ) -> RouterResponse<Vec<routing_types::RoutableConnectorChoice>> {
-    metrics::ROUTING_RETRIEVE_DEFAULT_CONFIG.add(&metrics::CONTEXT, 1, &[]);
+    metrics::ROUTING_RETRIEVE_DEFAULT_CONFIG.add(1, &[]);
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
     let profile = core_utils::validate_and_get_business_profile(
@@ -904,31 +919,31 @@ pub async fn retrieve_default_fallback_algorithm_for_profile(
     let connectors_choice = admin::ProfileWrapper::new(profile)
         .get_default_fallback_list_of_connector_under_profile()?;
 
-    metrics::ROUTING_RETRIEVE_DEFAULT_CONFIG_SUCCESS_RESPONSE.add(&metrics::CONTEXT, 1, &[]);
+    metrics::ROUTING_RETRIEVE_DEFAULT_CONFIG_SUCCESS_RESPONSE.add(1, &[]);
     Ok(service_api::ApplicationResponse::Json(connectors_choice))
 }
 
 #[cfg(feature = "v1")]
-
 pub async fn retrieve_default_routing_config(
     state: SessionState,
+    profile_id: Option<common_utils::id_type::ProfileId>,
     merchant_account: domain::MerchantAccount,
     transaction_type: &enums::TransactionType,
 ) -> RouterResponse<Vec<routing_types::RoutableConnectorChoice>> {
-    metrics::ROUTING_RETRIEVE_DEFAULT_CONFIG.add(&metrics::CONTEXT, 1, &[]);
+    metrics::ROUTING_RETRIEVE_DEFAULT_CONFIG.add(1, &[]);
     let db = state.store.as_ref();
+    let id = profile_id
+        .map(|profile_id| profile_id.get_string_repr().to_owned())
+        .unwrap_or_else(|| merchant_account.get_id().get_string_repr().to_string());
 
-    helpers::get_merchant_default_config(
-        db,
-        merchant_account.get_id().get_string_repr(),
-        transaction_type,
-    )
-    .await
-    .map(|conn_choice| {
-        metrics::ROUTING_RETRIEVE_DEFAULT_CONFIG_SUCCESS_RESPONSE.add(&metrics::CONTEXT, 1, &[]);
-        service_api::ApplicationResponse::Json(conn_choice)
-    })
+    helpers::get_merchant_default_config(db, &id, transaction_type)
+        .await
+        .map(|conn_choice| {
+            metrics::ROUTING_RETRIEVE_DEFAULT_CONFIG_SUCCESS_RESPONSE.add(1, &[]);
+            service_api::ApplicationResponse::Json(conn_choice)
+        })
 }
+
 #[cfg(feature = "v2")]
 pub async fn retrieve_routing_config_under_profile(
     state: SessionState,
@@ -938,7 +953,7 @@ pub async fn retrieve_routing_config_under_profile(
     profile_id: common_utils::id_type::ProfileId,
     transaction_type: &enums::TransactionType,
 ) -> RouterResponse<routing_types::LinkedRoutingConfigRetrieveResponse> {
-    metrics::ROUTING_RETRIEVE_LINK_CONFIG.add(&metrics::CONTEXT, 1, &[]);
+    metrics::ROUTING_RETRIEVE_LINK_CONFIG.add(1, &[]);
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
 
@@ -967,7 +982,7 @@ pub async fn retrieve_routing_config_under_profile(
         .map(|routing_algo| routing_algo.foreign_into())
         .collect::<Vec<_>>();
 
-    metrics::ROUTING_RETRIEVE_LINK_CONFIG_SUCCESS_RESPONSE.add(&metrics::CONTEXT, 1, &[]);
+    metrics::ROUTING_RETRIEVE_LINK_CONFIG_SUCCESS_RESPONSE.add(1, &[]);
     Ok(service_api::ApplicationResponse::Json(
         routing_types::LinkedRoutingConfigRetrieveResponse::ProfileBased(active_algorithms),
     ))
@@ -982,7 +997,7 @@ pub async fn retrieve_linked_routing_config(
     query_params: routing_types::RoutingRetrieveLinkQuery,
     transaction_type: &enums::TransactionType,
 ) -> RouterResponse<routing_types::LinkedRoutingConfigRetrieveResponse> {
-    metrics::ROUTING_RETRIEVE_LINK_CONFIG.add(&metrics::CONTEXT, 1, &[]);
+    metrics::ROUTING_RETRIEVE_LINK_CONFIG.add(1, &[]);
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
 
@@ -1041,7 +1056,7 @@ pub async fn retrieve_linked_routing_config(
         }
     }
 
-    metrics::ROUTING_RETRIEVE_LINK_CONFIG_SUCCESS_RESPONSE.add(&metrics::CONTEXT, 1, &[]);
+    metrics::ROUTING_RETRIEVE_LINK_CONFIG_SUCCESS_RESPONSE.add(1, &[]);
     Ok(service_api::ApplicationResponse::Json(
         routing_types::LinkedRoutingConfigRetrieveResponse::ProfileBased(active_algorithms),
     ))
@@ -1053,7 +1068,7 @@ pub async fn retrieve_default_routing_config_for_profiles(
     key_store: domain::MerchantKeyStore,
     transaction_type: &enums::TransactionType,
 ) -> RouterResponse<Vec<routing_types::ProfileDefaultRoutingConfig>> {
-    metrics::ROUTING_RETRIEVE_CONFIG_FOR_PROFILE.add(&metrics::CONTEXT, 1, &[]);
+    metrics::ROUTING_RETRIEVE_CONFIG_FOR_PROFILE.add(1, &[]);
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
 
@@ -1090,7 +1105,7 @@ pub async fn retrieve_default_routing_config_for_profiles(
         )
         .collect::<Vec<_>>();
 
-    metrics::ROUTING_RETRIEVE_CONFIG_FOR_PROFILE_SUCCESS_RESPONSE.add(&metrics::CONTEXT, 1, &[]);
+    metrics::ROUTING_RETRIEVE_CONFIG_FOR_PROFILE_SUCCESS_RESPONSE.add(1, &[]);
     Ok(service_api::ApplicationResponse::Json(default_configs))
 }
 
@@ -1102,7 +1117,7 @@ pub async fn update_default_routing_config_for_profile(
     profile_id: common_utils::id_type::ProfileId,
     transaction_type: &enums::TransactionType,
 ) -> RouterResponse<routing_types::ProfileDefaultRoutingConfig> {
-    metrics::ROUTING_UPDATE_CONFIG_FOR_PROFILE.add(&metrics::CONTEXT, 1, &[]);
+    metrics::ROUTING_UPDATE_CONFIG_FOR_PROFILE.add(1, &[]);
 
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
@@ -1169,7 +1184,7 @@ pub async fn update_default_routing_config_for_profile(
     )
     .await?;
 
-    metrics::ROUTING_UPDATE_CONFIG_FOR_PROFILE_SUCCESS_RESPONSE.add(&metrics::CONTEXT, 1, &[]);
+    metrics::ROUTING_UPDATE_CONFIG_FOR_PROFILE_SUCCESS_RESPONSE.add(1, &[]);
     Ok(service_api::ApplicationResponse::Json(
         routing_types::ProfileDefaultRoutingConfig {
             profile_id: business_profile.get_id().to_owned(),
@@ -1178,18 +1193,20 @@ pub async fn update_default_routing_config_for_profile(
     ))
 }
 
-#[cfg(feature = "v1")]
-pub async fn toggle_success_based_routing(
+// Toggle the specific routing type as well as add the default configs in RoutingAlgorithm table
+// and update the same in business profile table.
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+pub async fn toggle_specific_dynamic_routing(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
-    feature_to_enable: routing::SuccessBasedRoutingFeatures,
+    feature_to_enable: routing::DynamicRoutingFeatures,
     profile_id: common_utils::id_type::ProfileId,
+    dynamic_routing_type: routing::DynamicRoutingType,
 ) -> RouterResponse<routing_types::RoutingDictionaryRecord> {
     metrics::ROUTING_CREATE_REQUEST_RECEIVED.add(
-        &metrics::CONTEXT,
         1,
-        &add_attributes([("profile_id", profile_id.get_string_repr().to_owned())]),
+        router_env::metric_attributes!(("profile_id", profile_id.clone())),
     );
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
@@ -1207,175 +1224,111 @@ pub async fn toggle_success_based_routing(
         id: profile_id.get_string_repr().to_owned(),
     })?;
 
-    let mut success_based_dynamic_routing_algo_ref: routing_types::DynamicRoutingAlgorithmRef =
-        business_profile
-            .dynamic_routing_algorithm
-            .clone()
-            .map(|val| val.parse_value("DynamicRoutingAlgorithmRef"))
-            .transpose()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable(
-                "unable to deserialize dynamic routing algorithm ref from business profile",
-            )?
-            .unwrap_or_default();
+    let dynamic_routing_algo_ref: routing_types::DynamicRoutingAlgorithmRef = business_profile
+        .dynamic_routing_algorithm
+        .clone()
+        .map(|val| val.parse_value("DynamicRoutingAlgorithmRef"))
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable(
+            "unable to deserialize dynamic routing algorithm ref from business profile",
+        )?
+        .unwrap_or_default();
 
     match feature_to_enable {
-        routing::SuccessBasedRoutingFeatures::Metrics
-        | routing::SuccessBasedRoutingFeatures::DynamicConnectorSelection => {
-            if let Some(ref mut algo_with_timestamp) =
-                success_based_dynamic_routing_algo_ref.success_based_algorithm
-            {
-                match algo_with_timestamp
-                    .algorithm_id_with_timestamp
-                    .algorithm_id
-                    .clone()
-                {
-                    Some(algorithm_id) => {
-                        // algorithm is already present in profile
-                        if algo_with_timestamp.enabled_feature == feature_to_enable {
-                            // algorithm already has the required feature
-                            Err(errors::ApiErrorResponse::PreconditionFailed {
-                                message: "Success rate based routing is already enabled"
-                                    .to_string(),
-                            })?
-                        } else {
-                            // enable the requested feature for the algorithm
-                            algo_with_timestamp.update_enabled_features(feature_to_enable);
-                            let record = db
-                                .find_routing_algorithm_by_profile_id_algorithm_id(
-                                    business_profile.get_id(),
-                                    &algorithm_id,
-                                )
-                                .await
-                                .to_not_found_response(
-                                    errors::ApiErrorResponse::ResourceIdNotFound,
-                                )?;
-                            let response = record.foreign_into();
-                            helpers::update_business_profile_active_dynamic_algorithm_ref(
-                                db,
-                                key_manager_state,
-                                &key_store,
-                                business_profile,
-                                success_based_dynamic_routing_algo_ref,
-                            )
-                            .await?;
-
-                            metrics::ROUTING_CREATE_SUCCESS_RESPONSE.add(
-                                &metrics::CONTEXT,
-                                1,
-                                &add_attributes([(
-                                    "profile_id",
-                                    profile_id.get_string_repr().to_owned(),
-                                )]),
-                            );
-                            Ok(service_api::ApplicationResponse::Json(response))
-                        }
-                    }
-                    None => {
-                        // algorithm isn't present in profile
-                        helpers::default_success_based_routing_setup(
-                            &state,
-                            key_store,
-                            business_profile,
-                            feature_to_enable,
-                            merchant_account.get_id().to_owned(),
-                            success_based_dynamic_routing_algo_ref,
-                        )
-                        .await
-                    }
-                }
-            } else {
-                // algorithm isn't present in profile
-                helpers::default_success_based_routing_setup(
-                    &state,
-                    key_store,
-                    business_profile,
-                    feature_to_enable,
-                    merchant_account.get_id().to_owned(),
-                    success_based_dynamic_routing_algo_ref,
-                )
-                .await
-            }
+        routing::DynamicRoutingFeatures::Metrics
+        | routing::DynamicRoutingFeatures::DynamicConnectorSelection => {
+            // occurs when algorithm is already present in the db
+            // 1. If present with same feature then return response as already enabled
+            // 2. Else update the feature and persist the same on db
+            // 3. If not present in db then create a new default entry
+            helpers::enable_dynamic_routing_algorithm(
+                &state,
+                key_store,
+                business_profile,
+                feature_to_enable,
+                dynamic_routing_algo_ref,
+                dynamic_routing_type,
+            )
+            .await
         }
-        routing::SuccessBasedRoutingFeatures::None => {
-            // disable success based routing for the requested profile
-            let timestamp = common_utils::date_time::now_unix_timestamp();
-            match success_based_dynamic_routing_algo_ref.success_based_algorithm {
-                Some(algorithm_ref) => {
-                    if let Some(algorithm_id) =
-                        algorithm_ref.algorithm_id_with_timestamp.algorithm_id
-                    {
-                        let dynamic_routing_algorithm = routing_types::DynamicRoutingAlgorithmRef {
-                            success_based_algorithm: Some(routing::SuccessBasedAlgorithm {
-                                algorithm_id_with_timestamp:
-                                    routing_types::DynamicAlgorithmWithTimestamp {
-                                        algorithm_id: None,
-                                        timestamp,
-                                    },
-                                enabled_feature: routing::SuccessBasedRoutingFeatures::None,
-                            }),
-                        };
-
-                        // redact cache for success based routing configs
-                        let cache_key = format!(
-                            "{}_{}",
-                            business_profile.get_id().get_string_repr(),
-                            algorithm_id.get_string_repr()
-                        );
-                        let cache_entries_to_redact =
-                            vec![cache::CacheKind::SuccessBasedDynamicRoutingCache(
-                                cache_key.into(),
-                            )];
-                        let _ = cache::publish_into_redact_channel(
-                            state.store.get_cache_store().as_ref(),
-                            cache_entries_to_redact,
-                        )
-                        .await
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("unable to publish into the redact channel for evicting the success based routing config cache")?;
-
-                        let record = db
-                            .find_routing_algorithm_by_profile_id_algorithm_id(
-                                business_profile.get_id(),
-                                &algorithm_id,
-                            )
-                            .await
-                            .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?;
-                        let response = record.foreign_into();
-                        helpers::update_business_profile_active_dynamic_algorithm_ref(
-                            db,
-                            key_manager_state,
-                            &key_store,
-                            business_profile,
-                            dynamic_routing_algorithm,
-                        )
-                        .await?;
-
-                        metrics::ROUTING_UNLINK_CONFIG_SUCCESS_RESPONSE.add(
-                            &metrics::CONTEXT,
-                            1,
-                            &add_attributes([(
-                                "profile_id",
-                                profile_id.get_string_repr().to_owned(),
-                            )]),
-                        );
-
-                        Ok(service_api::ApplicationResponse::Json(response))
-                    } else {
-                        Err(errors::ApiErrorResponse::PreconditionFailed {
-                            message: "Algorithm is already inactive".to_string(),
-                        })?
-                    }
-                }
-                None => Err(errors::ApiErrorResponse::PreconditionFailed {
-                    message: "Success rate based routing is already disabled".to_string(),
-                })?,
-            }
+        routing::DynamicRoutingFeatures::None => {
+            // disable specific dynamic routing for the requested profile
+            helpers::disable_dynamic_routing_algorithm(
+                &state,
+                key_store,
+                business_profile,
+                dynamic_routing_algo_ref,
+                dynamic_routing_type,
+            )
+            .await
         }
     }
 }
 
 #[cfg(feature = "v1")]
+pub async fn configure_dynamic_routing_volume_split(
+    state: SessionState,
+    merchant_account: domain::MerchantAccount,
+    key_store: domain::MerchantKeyStore,
+    profile_id: common_utils::id_type::ProfileId,
+    routing_info: routing::RoutingVolumeSplit,
+) -> RouterResponse<()> {
+    metrics::ROUTING_CREATE_REQUEST_RECEIVED.add(
+        1,
+        router_env::metric_attributes!(("profile_id", profile_id.clone())),
+    );
+    let db = state.store.as_ref();
+    let key_manager_state = &(&state).into();
+
+    utils::when(
+        routing_info.split > crate::consts::DYNAMIC_ROUTING_MAX_VOLUME,
+        || {
+            Err(errors::ApiErrorResponse::InvalidRequestData {
+                message: "Dynamic routing volume split should be less than 100".to_string(),
+            })
+        },
+    )?;
+
+    let business_profile: domain::Profile = core_utils::validate_and_get_business_profile(
+        db,
+        key_manager_state,
+        &key_store,
+        Some(&profile_id),
+        merchant_account.get_id(),
+    )
+    .await?
+    .get_required_value("Profile")
+    .change_context(errors::ApiErrorResponse::ProfileNotFound {
+        id: profile_id.get_string_repr().to_owned(),
+    })?;
+
+    let mut dynamic_routing_algo_ref: routing_types::DynamicRoutingAlgorithmRef = business_profile
+        .dynamic_routing_algorithm
+        .clone()
+        .map(|val| val.parse_value("DynamicRoutingAlgorithmRef"))
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable(
+            "unable to deserialize dynamic routing algorithm ref from business profile",
+        )?
+        .unwrap_or_default();
+
+    dynamic_routing_algo_ref.update_volume_split(Some(routing_info.split));
+
+    helpers::update_business_profile_active_dynamic_algorithm_ref(
+        db,
+        &((&state).into()),
+        &key_store,
+        business_profile.clone(),
+        dynamic_routing_algo_ref.clone(),
+    )
+    .await?;
+
+    Ok(service_api::ApplicationResponse::StatusOk)
+}
+
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 pub async fn success_based_routing_update_configs(
     state: SessionState,
     request: routing_types::SuccessBasedRoutingConfig,
@@ -1383,9 +1336,8 @@ pub async fn success_based_routing_update_configs(
     profile_id: common_utils::id_type::ProfileId,
 ) -> RouterResponse<routing_types::RoutingDictionaryRecord> {
     metrics::ROUTING_UPDATE_CONFIG_FOR_PROFILE.add(
-        &metrics::CONTEXT,
         1,
-        &add_attributes([("profile_id", profile_id.get_string_repr().to_owned())]),
+        router_env::metric_attributes!(("profile_id", profile_id.clone())),
     );
     let db = state.store.as_ref();
 
@@ -1441,10 +1393,29 @@ pub async fn success_based_routing_update_configs(
     let new_record = record.foreign_into();
 
     metrics::ROUTING_UPDATE_CONFIG_FOR_PROFILE_SUCCESS_RESPONSE.add(
-        &metrics::CONTEXT,
         1,
-        &add_attributes([("profile_id", profile_id.get_string_repr().to_owned())]),
+        router_env::metric_attributes!(("profile_id", profile_id.clone())),
     );
+
+    state
+        .grpc_client
+        .dynamic_routing
+        .success_rate_client
+        .as_ref()
+        .async_map(|sr_client| async {
+            sr_client
+                .invalidate_success_rate_routing_keys(
+                    profile_id.get_string_repr().into(),
+                    state.get_grpc_headers(),
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::GenericNotFoundError {
+                    message: "Failed to invalidate the routing keys".to_string(),
+                })
+        })
+        .await
+        .transpose()?;
+
     Ok(service_api::ApplicationResponse::Json(new_record))
 }
 

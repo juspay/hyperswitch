@@ -5,7 +5,7 @@ use std::{
 
 use common_utils::id_type;
 
-use super::{NameDescription, TimeRange};
+use super::{ForexMetric, NameDescription, TimeRange};
 use crate::enums::{
     AttemptStatus, AuthenticationType, CardNetwork, Connector, Currency, PaymentMethod,
     PaymentMethodType,
@@ -41,6 +41,8 @@ pub struct PaymentFilters {
     pub card_issuer: Vec<String>,
     #[serde(default)]
     pub error_reason: Vec<String>,
+    #[serde(default)]
+    pub first_attempt: Vec<bool>,
 }
 
 #[derive(
@@ -117,6 +119,17 @@ pub enum PaymentMetrics {
     FailureReasons,
 }
 
+impl ForexMetric for PaymentMetrics {
+    fn is_forex_metric(&self) -> bool {
+        matches!(
+            self,
+            Self::PaymentProcessedAmount
+                | Self::AvgTicketSize
+                | Self::SessionizedPaymentProcessedAmount
+                | Self::SessionizedAvgTicketSize
+        )
+    }
+}
 #[derive(Debug, Default, serde::Serialize)]
 pub struct ErrorResult {
     pub reason: String,
@@ -271,7 +284,7 @@ pub struct PaymentMetricsBucketValue {
     pub payment_count: Option<u64>,
     pub payment_success_count: Option<u64>,
     pub payment_processed_amount: Option<u64>,
-    pub payment_processed_amount_usd: Option<u64>,
+    pub payment_processed_amount_in_usd: Option<u64>,
     pub payment_processed_count: Option<u64>,
     pub payment_processed_amount_without_smart_retries: Option<u64>,
     pub payment_processed_amount_without_smart_retries_usd: Option<u64>,
@@ -283,8 +296,10 @@ pub struct PaymentMetricsBucketValue {
     pub connector_success_rate: Option<f64>,
     pub payments_success_rate_distribution: Option<f64>,
     pub payments_success_rate_distribution_without_smart_retries: Option<f64>,
+    pub payments_success_rate_distribution_with_only_retries: Option<f64>,
     pub payments_failure_rate_distribution: Option<f64>,
     pub payments_failure_rate_distribution_without_smart_retries: Option<f64>,
+    pub payments_failure_rate_distribution_with_only_retries: Option<f64>,
     pub failure_reason_count: Option<u64>,
     pub failure_reason_count_without_smart_retries: Option<u64>,
 }

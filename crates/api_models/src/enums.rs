@@ -141,7 +141,6 @@ pub enum FrmConnectors {
 )]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
-
 pub enum TaxConnectors {
     Taxjar,
 }
@@ -224,8 +223,12 @@ pub enum FieldType {
     UserCpf,
     UserCnpj,
     UserIban,
-    BrowserLanguage,
-    BrowserIp,
+    UserBsbNumber,
+    UserBankSortCode,
+    UserBankRoutingNumber,
+    UserMsisdn,
+    UserClientIdentifier,
+    OrderDetailsProductName,
 }
 
 impl FieldType {
@@ -316,6 +319,9 @@ impl PartialEq for FieldType {
             (Self::UserCpf, Self::UserCpf) => true,
             (Self::UserCnpj, Self::UserCnpj) => true,
             (Self::LanguagePreference { .. }, Self::LanguagePreference { .. }) => true,
+            (Self::UserMsisdn, Self::UserMsisdn) => true,
+            (Self::UserClientIdentifier, Self::UserClientIdentifier) => true,
+            (Self::OrderDetailsProductName, Self::OrderDetailsProductName) => true,
             _unused => false,
         }
     }
@@ -395,51 +401,24 @@ pub fn convert_tax_connector(connector_name: &str) -> Option<TaxConnectors> {
     TaxConnectors::from_str(connector_name).ok()
 }
 
-#[derive(
-    Clone,
-    Debug,
-    Eq,
-    PartialEq,
-    serde::Deserialize,
-    serde::Serialize,
-    strum::Display,
-    strum::EnumString,
-    ToSchema,
-    Hash,
-)]
-pub enum PaymentChargeType {
-    #[serde(untagged)]
-    Stripe(StripeChargeType),
-}
-
-impl Default for PaymentChargeType {
-    fn default() -> Self {
-        Self::Stripe(StripeChargeType::default())
-    }
-}
-
-#[derive(
-    Clone,
-    Debug,
-    Default,
-    Hash,
-    Eq,
-    PartialEq,
-    ToSchema,
-    serde::Serialize,
-    serde::Deserialize,
-    strum::Display,
-    strum::EnumString,
-)]
-#[serde(rename_all = "lowercase")]
-#[strum(serialize_all = "lowercase")]
-pub enum StripeChargeType {
-    #[default]
-    Direct,
-    Destination,
-}
-
 #[cfg(feature = "frm")]
 pub fn convert_frm_connector(connector_name: &str) -> Option<FrmConnectors> {
     FrmConnectors::from_str(connector_name).ok()
+}
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd, serde::Serialize, Hash)]
+pub enum ReconPermissionScope {
+    #[serde(rename = "R")]
+    Read = 0,
+    #[serde(rename = "RW")]
+    Write = 1,
+}
+
+impl From<PermissionScope> for ReconPermissionScope {
+    fn from(scope: PermissionScope) -> Self {
+        match scope {
+            PermissionScope::Read => Self::Read,
+            PermissionScope::Write => Self::Write,
+        }
+    }
 }

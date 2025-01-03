@@ -68,12 +68,14 @@ pub enum Connector {
     Checkout,
     Coinbase,
     Cryptopay,
+    CtpMastercard,
     Cybersource,
     Datatrans,
     Deutschebank,
-    // Digitalvirgo, template code for future usage
+    Digitalvirgo,
     Dlocal,
     Ebanx,
+    Elavon,
     Fiserv,
     Fiservemea,
     Fiuu,
@@ -83,9 +85,10 @@ pub enum Connector {
     Gocardless,
     Gpayments,
     Helcim,
+    // Inespay,
     Iatapay,
     Itaubank,
-    //Jpmorgan,
+    Jpmorgan,
     Klarna,
     Mifinity,
     Mollie,
@@ -94,6 +97,7 @@ pub enum Connector {
     Nexinets,
     Nexixpay,
     Nmi,
+    // Nomupay,
     Noon,
     Novalnet,
     Nuvei,
@@ -110,6 +114,7 @@ pub enum Connector {
     Prophetpay,
     Rapyd,
     Razorpay,
+    // Redsys,
     Shift4,
     Square,
     Stax,
@@ -119,6 +124,7 @@ pub enum Connector {
     //Thunes,
     Trustpay,
     Tsys,
+    // UnifiedAuthenticationService,
     Volt,
     Wellsfargo,
     // Wellsfargopayout,
@@ -128,13 +134,14 @@ pub enum Connector {
     Signifyd,
     Plaid,
     Riskified,
+    // Xendit,
     Zen,
     Zsl,
 }
 
 impl Connector {
     #[cfg(feature = "payouts")]
-    pub fn supports_instant_payout(&self, payout_method: Option<PayoutType>) -> bool {
+    pub fn supports_instant_payout(self, payout_method: Option<PayoutType>) -> bool {
         matches!(
             (self, payout_method),
             (Self::Paypal, Some(PayoutType::Wallet))
@@ -143,31 +150,32 @@ impl Connector {
         )
     }
     #[cfg(feature = "payouts")]
-    pub fn supports_create_recipient(&self, payout_method: Option<PayoutType>) -> bool {
+    pub fn supports_create_recipient(self, payout_method: Option<PayoutType>) -> bool {
         matches!((self, payout_method), (_, Some(PayoutType::Bank)))
     }
     #[cfg(feature = "payouts")]
-    pub fn supports_payout_eligibility(&self, payout_method: Option<PayoutType>) -> bool {
+    pub fn supports_payout_eligibility(self, payout_method: Option<PayoutType>) -> bool {
         matches!((self, payout_method), (_, Some(PayoutType::Card)))
     }
     #[cfg(feature = "payouts")]
-    pub fn is_payout_quote_call_required(&self) -> bool {
+    pub fn is_payout_quote_call_required(self) -> bool {
         matches!(self, Self::Wise)
     }
     #[cfg(feature = "payouts")]
-    pub fn supports_access_token_for_payout(&self, payout_method: Option<PayoutType>) -> bool {
+    pub fn supports_access_token_for_payout(self, payout_method: Option<PayoutType>) -> bool {
         matches!((self, payout_method), (Self::Paypal, _))
     }
     #[cfg(feature = "payouts")]
-    pub fn supports_vendor_disburse_account_create_for_payout(&self) -> bool {
+    pub fn supports_vendor_disburse_account_create_for_payout(self) -> bool {
         matches!(self, Self::Stripe)
     }
-    pub fn supports_access_token(&self, payment_method: PaymentMethod) -> bool {
+    pub fn supports_access_token(self, payment_method: PaymentMethod) -> bool {
         matches!(
             (self, payment_method),
             (Self::Airwallex, _)
                 | (Self::Deutschebank, _)
                 | (Self::Globalpay, _)
+                | (Self::Jpmorgan, _)
                 | (Self::Paypal, _)
                 | (Self::Payu, _)
                 | (Self::Trustpay, PaymentMethod::BankRedirect)
@@ -176,13 +184,13 @@ impl Connector {
                 | (Self::Itaubank, _)
         )
     }
-    pub fn supports_file_storage_module(&self) -> bool {
+    pub fn supports_file_storage_module(self) -> bool {
         matches!(self, Self::Stripe | Self::Checkout)
     }
-    pub fn requires_defend_dispute(&self) -> bool {
+    pub fn requires_defend_dispute(self) -> bool {
         matches!(self, Self::Checkout)
     }
-    pub fn is_separate_authentication_supported(&self) -> bool {
+    pub fn is_separate_authentication_supported(self) -> bool {
         match self {
             #[cfg(feature = "dummy_connector")]
             Self::DummyConnector1
@@ -211,8 +219,10 @@ impl Connector {
             | Self::Coinbase
             | Self::Cryptopay
             | Self::Deutschebank
+            | Self::Digitalvirgo
             | Self::Dlocal
             | Self::Ebanx
+            | Self::Elavon
             | Self::Fiserv
             | Self::Fiservemea
             | Self::Fiuu
@@ -223,14 +233,16 @@ impl Connector {
             | Self::Gpayments
             | Self::Helcim
             | Self::Iatapay
+			// | Self::Inespay
             | Self::Itaubank
-            //| Self::Jpmorgan
+            | Self::Jpmorgan
             | Self::Klarna
             | Self::Mifinity
             | Self::Mollie
             | Self::Multisafepay
             | Self::Nexinets
             | Self::Nexixpay
+            // | Self::Nomupay
             | Self::Novalnet
             | Self::Nuvei
             | Self::Opennode
@@ -243,6 +255,7 @@ impl Connector {
             | Self::Powertranz
             | Self::Prophetpay
             | Self::Rapyd
+			// | Self::Redsys
             | Self::Shift4
             | Self::Square
             | Self::Stax
@@ -250,12 +263,14 @@ impl Connector {
             // | Self::Thunes
             | Self::Trustpay
             | Self::Tsys
+            // | Self::UnifiedAuthenticationService
             | Self::Volt
             | Self::Wellsfargo
             // | Self::Wellsfargopayout
             | Self::Wise
             | Self::Worldline
             | Self::Worldpay
+            // | Self::Xendit
             | Self::Zen
             | Self::Zsl
             | Self::Signifyd
@@ -265,17 +280,21 @@ impl Connector {
             | Self::Threedsecureio
             | Self::Datatrans
             | Self::Netcetera
+            | Self::CtpMastercard
             | Self::Noon
             | Self::Stripe => false,
             Self::Checkout | Self::Nmi | Self::Cybersource => true,
         }
     }
-    pub fn is_pre_processing_required_before_authorize(&self) -> bool {
+    pub fn is_pre_processing_required_before_authorize(self) -> bool {
         matches!(self, Self::Airwallex)
+    }
+    pub fn should_acknowledge_webhook_for_resource_not_found_errors(self) -> bool {
+        matches!(self, Self::Adyenplatform)
     }
     #[cfg(feature = "dummy_connector")]
     pub fn validate_dummy_connector_enabled(
-        &self,
+        self,
         is_dummy_connector_enabled: bool,
     ) -> errors::CustomResult<(), errors::ValidationError> {
         if !is_dummy_connector_enabled

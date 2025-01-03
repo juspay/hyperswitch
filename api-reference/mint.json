@@ -32,7 +32,6 @@
     {
       "group": "Essentials",
       "pages": [
-        "essentials/webhooks",
         "essentials/error_codes",
         "essentials/rate_limit",
         "essentials/go-live"
@@ -52,8 +51,7 @@
         "api-reference/payments/payments-link--retrieve",
         "api-reference/payments/payments--list",
         "api-reference/payments/payments--external-3ds-authentication",
-        "api-reference/payments/payments--complete-authorize",
-        "api-reference/payments/post-session-tokens"
+        "api-reference/payments/payments--complete-authorize"
       ]
     },
     {
@@ -234,6 +232,13 @@
         "api-reference/routing/routing--update-default-for-profile",
         "api-reference/routing/routing--retrieve",
         "api-reference/routing/routing--activate-config"
+      ]
+    },
+    {
+      "group": "Relay",
+      "pages": [
+        "api-reference/relay/relay",
+        "api-reference/relay/relay--retrieve"
       ]
     },
     {

@@ -7,7 +7,6 @@ use api_models::{
     payments,
 };
 use serde::Deserialize;
-#[cfg(any(feature = "sandbox", feature = "development", feature = "production"))]
 use toml;
 
 use crate::common_config::{CardProvider, InputData, Provider, ZenApplePay};
@@ -73,7 +72,6 @@ pub enum ApplePayTomlConfig {
 
 #[serde_with::skip_serializing_none]
 #[derive(Debug, Clone, serde::Serialize, Deserialize)]
-
 pub enum KlarnaEndpoint {
     Europe,
     NorthAmerica,
@@ -115,12 +113,18 @@ pub struct ConfigMetadata {
     pub source_balance_account: Option<InputData>,
     pub brand_id: Option<InputData>,
     pub destination_account_number: Option<InputData>,
+    pub dpa_id: Option<InputData>,
+    pub dpa_name: Option<InputData>,
+    pub locale: Option<InputData>,
+    pub card_brands: Option<InputData>,
+    pub merchant_category_code: Option<InputData>,
 }
 
 #[serde_with::skip_serializing_none]
 #[derive(Debug, Deserialize, serde::Serialize, Clone)]
 pub struct ConnectorWalletDetailsConfig {
     pub samsung_pay: Option<Vec<InputData>>,
+    pub paze: Option<Vec<InputData>>,
 }
 
 #[serde_with::skip_serializing_none]
@@ -182,6 +186,7 @@ pub struct ConnectorConfig {
     pub digitalvirgo: Option<ConnectorTomlConfig>,
     pub dlocal: Option<ConnectorTomlConfig>,
     pub ebanx_payout: Option<ConnectorTomlConfig>,
+    pub elavon: Option<ConnectorTomlConfig>,
     pub fiserv: Option<ConnectorTomlConfig>,
     pub fiservemea: Option<ConnectorTomlConfig>,
     pub fiuu: Option<ConnectorTomlConfig>,
@@ -191,6 +196,8 @@ pub struct ConnectorConfig {
     pub gocardless: Option<ConnectorTomlConfig>,
     pub gpayments: Option<ConnectorTomlConfig>,
     pub helcim: Option<ConnectorTomlConfig>,
+    // pub inespay: Option<ConnectorTomlConfig>,
+    pub jpmorgan: Option<ConnectorTomlConfig>,
     pub klarna: Option<ConnectorTomlConfig>,
     pub mifinity: Option<ConnectorTomlConfig>,
     pub mollie: Option<ConnectorTomlConfig>,
@@ -231,6 +238,7 @@ pub struct ConnectorConfig {
     pub wise_payout: Option<ConnectorTomlConfig>,
     pub worldline: Option<ConnectorTomlConfig>,
     pub worldpay: Option<ConnectorTomlConfig>,
+    pub xendit: Option<ConnectorTomlConfig>,
     pub square: Option<ConnectorTomlConfig>,
     pub stax: Option<ConnectorTomlConfig>,
     pub dummy_connector: Option<ConnectorTomlConfig>,
@@ -239,29 +247,20 @@ pub struct ConnectorConfig {
     pub zen: Option<ConnectorTomlConfig>,
     pub zsl: Option<ConnectorTomlConfig>,
     pub taxjar: Option<ConnectorTomlConfig>,
+    pub ctp_mastercard: Option<ConnectorTomlConfig>,
+    pub unified_authentication_service: Option<ConnectorTomlConfig>,
 }
 
 impl ConnectorConfig {
     fn new() -> Result<Self, String> {
-        #[cfg(all(
-            feature = "production",
-            not(any(feature = "sandbox", feature = "development"))
-        ))]
-        let config = toml::from_str::<Self>(include_str!("../toml/production.toml"));
-        #[cfg(all(
-            feature = "sandbox",
-            not(any(feature = "production", feature = "development"))
-        ))]
-        let config = toml::from_str::<Self>(include_str!("../toml/sandbox.toml"));
-        #[cfg(feature = "development")]
-        let config = toml::from_str::<Self>(include_str!("../toml/development.toml"));
-
-        #[cfg(not(any(feature = "sandbox", feature = "development", feature = "production")))]
-        return Err(String::from(
-            "Atleast one features has to be enabled for connectorconfig",
-        ));
-
-        #[cfg(any(feature = "sandbox", feature = "development", feature = "production"))]
+        let config_str = if cfg!(feature = "production") {
+            include_str!("../toml/production.toml")
+        } else if cfg!(feature = "sandbox") {
+            include_str!("../toml/sandbox.toml")
+        } else {
+            include_str!("../toml/development.toml")
+        };
+        let config = toml::from_str::<Self>(config_str);
         match config {
             Ok(data) => Ok(data),
             Err(err) => Err(err.to_string()),
@@ -293,6 +292,10 @@ impl ConnectorConfig {
             AuthenticationConnectors::Threedsecureio => Ok(connector_data.threedsecureio),
             AuthenticationConnectors::Netcetera => Ok(connector_data.netcetera),
             AuthenticationConnectors::Gpayments => Ok(connector_data.gpayments),
+            AuthenticationConnectors::CtpMastercard => Ok(connector_data.ctp_mastercard),
+            AuthenticationConnectors::UnifiedAuthenticationService => {
+                Ok(connector_data.unified_authentication_service)
+            }
         }
     }
 
@@ -342,8 +345,10 @@ impl ConnectorConfig {
             Connector::Bambora => Ok(connector_data.bambora),
             Connector::Datatrans => Ok(connector_data.datatrans),
             Connector::Deutschebank => Ok(connector_data.deutschebank),
+            Connector::Digitalvirgo => Ok(connector_data.digitalvirgo),
             Connector::Dlocal => Ok(connector_data.dlocal),
             Connector::Ebanx => Ok(connector_data.ebanx_payout),
+            Connector::Elavon => Ok(connector_data.elavon),
             Connector::Fiserv => Ok(connector_data.fiserv),
             Connector::Fiservemea => Ok(connector_data.fiservemea),
             Connector::Fiuu => Ok(connector_data.fiuu),
@@ -353,6 +358,8 @@ impl ConnectorConfig {
             Connector::Gocardless => Ok(connector_data.gocardless),
             Connector::Gpayments => Ok(connector_data.gpayments),
             Connector::Helcim => Ok(connector_data.helcim),
+            // Connector::Inespay => Ok(connector_data.inespay),
+            Connector::Jpmorgan => Ok(connector_data.jpmorgan),
             Connector::Klarna => Ok(connector_data.klarna),
             Connector::Mifinity => Ok(connector_data.mifinity),
             Connector::Mollie => Ok(connector_data.mollie),
@@ -406,6 +413,7 @@ impl ConnectorConfig {
             #[cfg(feature = "dummy_connector")]
             Connector::DummyConnector7 => Ok(connector_data.paypal_test),
             Connector::Netcetera => Ok(connector_data.netcetera),
+            Connector::CtpMastercard => Ok(connector_data.ctp_mastercard),
         }
     }
 }

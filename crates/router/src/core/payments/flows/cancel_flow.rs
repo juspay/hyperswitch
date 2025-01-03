@@ -1,5 +1,4 @@
 use async_trait::async_trait;
-use router_env::metrics::add_attributes;
 
 use super::{ConstructFlowSpecificData, Feature};
 use crate::{
@@ -16,6 +15,22 @@ use crate::{
 impl ConstructFlowSpecificData<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>
     for PaymentData<api::Void>
 {
+    #[cfg(feature = "v2")]
+    async fn construct_router_data<'a>(
+        &self,
+        _state: &SessionState,
+        _connector_id: &str,
+        _merchant_account: &domain::MerchantAccount,
+        _key_store: &domain::MerchantKeyStore,
+        _customer: &Option<domain::Customer>,
+        _merchant_connector_account: &domain::MerchantConnectorAccount,
+        _merchant_recipient_data: Option<types::MerchantRecipientData>,
+        _header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
+    ) -> RouterResult<types::PaymentsCancelRouterData> {
+        todo!()
+    }
+
+    #[cfg(feature = "v1")]
     async fn construct_router_data<'a>(
         &self,
         state: &SessionState,
@@ -70,9 +85,8 @@ impl Feature<api::Void, types::PaymentsCancelData>
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<Self> {
         metrics::PAYMENT_CANCEL_COUNT.add(
-            &metrics::CONTEXT,
             1,
-            &add_attributes([("connector", connector.connector_name.to_string())]),
+            router_env::metric_attributes!(("connector", connector.connector_name.to_string())),
         );
 
         let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<

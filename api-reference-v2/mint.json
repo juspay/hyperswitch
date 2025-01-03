@@ -28,7 +28,6 @@
     {
       "group": "Essentials",
       "pages": [
-        "essentials/webhooks",
         "essentials/error_codes",
         "essentials/rate_limit",
         "essentials/go-live"
@@ -39,8 +38,24 @@
       "pages": [
         "api-reference/payments/payments--create-intent",
         "api-reference/payments/payments--get-intent",
+        "api-reference/payments/payments--update-intent",
         "api-reference/payments/payments--session-token",
-        "api-reference/payments/payments--confirm-intent"
+        "api-reference/payments/payments--payment-methods-list",
+        "api-reference/payments/payments--confirm-intent",
+        "api-reference/payments/payments--get"
+      ]
+    },
+    {
+      "group": "Payment Methods",
+      "pages": [
+        "api-reference/payment-methods/payment-method--create",
+        "api-reference/payment-methods/payment-method--retrieve",
+        "api-reference/payment-methods/payment-method--update",
+        "api-reference/payment-methods/payment-method--delete",
+        "api-reference/payment-methods/payment-method--create-intent",
+        "api-reference/payment-methods/payment-method--confirm-intent",
+        "api-reference/payment-methods/list-customer-saved-payment-methods-for-a-payment",
+        "api-reference/payment-methods/list-payment-methods-for-a-customer"
       ]
     },
     {
@@ -76,11 +91,11 @@
       ]
     },
     {
-      "group": "Merchant Connector Account",
+      "group": "Connector Account",
       "pages": [
-        "api-reference/merchant-connector-account/merchant-connector--create",
-        "api-reference/merchant-connector-account/merchant-connector--retrieve",
-        "api-reference/merchant-connector-account/merchant-connector--update"
+        "api-reference/connector-account/connector-account--create",
+        "api-reference/connector-account/connector-account--retrieve",
+        "api-reference/connector-account/connector-account--update"
       ]
     },
     {
@@ -112,9 +127,7 @@
     },
     {
       "group": "Refunds",
-      "pages": [
-        "api-reference/refunds/refunds--create"
-      ]
+      "pages": ["api-reference/refunds/refunds--create"]
     }
   ],
   "footerSocials": {

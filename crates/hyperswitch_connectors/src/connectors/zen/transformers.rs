@@ -523,7 +523,7 @@ impl
             amount,
             terminal_uuid: Secret::new(terminal_uuid),
             signature: None,
-            url_redirect: item.router_data.request.get_return_url()?,
+            url_redirect: item.router_data.request.get_router_return_url()?,
         };
         checkout_request.signature =
             Some(get_checkout_signature(&checkout_request, &session_data)?);
@@ -700,6 +700,7 @@ impl TryFrom<&ZenRouterData<&types::PaymentsAuthorizeRouterData>> for ZenPayment
             | PaymentMethodData::MandatePayment
             | PaymentMethodData::Reward
             | PaymentMethodData::RealTimePayment(_)
+            | PaymentMethodData::MobilePayment(_)
             | PaymentMethodData::Upi(_)
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::CardToken(_)
@@ -750,6 +751,7 @@ impl TryFrom<&PayLaterData> for ZenPaymentsRequest {
         match value {
             PayLaterData::KlarnaRedirect { .. }
             | PayLaterData::KlarnaSdk { .. }
+            | PayLaterData::KlarnaCheckout {}
             | PayLaterData::AffirmRedirect {}
             | PayLaterData::AfterpayClearpayRedirect { .. }
             | PayLaterData::PayBrightRedirect {}

@@ -149,7 +149,9 @@ impl TryFrom<&FiservRouterData<&types::PaymentsAuthorizeRouterData>> for FiservP
         let transaction_details = TransactionDetails {
             capture_flag: Some(matches!(
                 item.router_data.request.capture_method,
-                Some(enums::CaptureMethod::Automatic) | None
+                Some(enums::CaptureMethod::Automatic)
+                    | Some(enums::CaptureMethod::SequentialAutomatic)
+                    | None
             )),
             reversal_reason_code: None,
             merchant_transaction_id: item.router_data.connector_request_reference_id.clone(),
@@ -195,6 +197,7 @@ impl TryFrom<&FiservRouterData<&types::PaymentsAuthorizeRouterData>> for FiservP
             | PaymentMethodData::Reward
             | PaymentMethodData::RealTimePayment(_)
             | PaymentMethodData::Upi(_)
+            | PaymentMethodData::MobilePayment(_)
             | PaymentMethodData::Voucher(_)
             | PaymentMethodData::GiftCard(_)
             | PaymentMethodData::OpenBanking(_)

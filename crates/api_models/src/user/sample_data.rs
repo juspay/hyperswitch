@@ -1,5 +1,4 @@
 use common_enums::{AuthenticationType, CountryAlpha2};
-use common_utils::{self};
 use time::PrimitiveDateTime;
 
 use crate::enums::Connector;

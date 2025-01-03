@@ -1,6 +1,7 @@
-pub mod payment;
-pub mod payment_methods;
-pub mod refunds;
+pub(super) mod customer;
+pub(super) mod payment;
+pub(super) mod payment_methods;
+pub(super) mod refunds;
 
 use diesel::{backend::Backend, deserialize::FromSql, serialize::ToSql, sql_types};
 use error_stack::ResultExt;
@@ -29,7 +30,7 @@ pub(crate) enum GlobalEntity {
 }
 
 impl GlobalEntity {
-    fn prefix(&self) -> &'static str {
+    fn prefix(self) -> &'static str {
         match self {
             Self::Customer => "cus",
             Self::Payment => "pay",
@@ -120,7 +121,7 @@ pub(crate) enum GlobalIdError {
 impl GlobalId {
     /// Create a new global id from entity and cell information
     /// The entity prefix is used to identify the entity, `cus` for customers, `pay`` for payments etc.
-    pub fn generate(cell_id: CellId, entity: GlobalEntity) -> Self {
+    pub fn generate(cell_id: &CellId, entity: GlobalEntity) -> Self {
         let prefix = format!("{}_{}", cell_id.get_string_repr(), entity.prefix());
         let id = generate_time_ordered_id(&prefix);
         let alphanumeric_id = AlphaNumericId::new_unchecked(id);
@@ -201,7 +202,7 @@ mod global_id_tests {
         let cell_id_string = "12345";
         let entity = GlobalEntity::Customer;
         let cell_id = CellId::from_str(cell_id_string).unwrap();
-        let global_id = GlobalId::generate(cell_id, entity);
+        let global_id = GlobalId::generate(&cell_id, entity);
 
         /// Generate a regex for globalid
         /// Eg - 12abc_cus_abcdefghijklmnopqrstuvwxyz1234567890

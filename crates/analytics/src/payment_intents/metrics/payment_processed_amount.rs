@@ -36,7 +36,7 @@ where
         dimensions: &[PaymentIntentDimensions],
         auth: &AuthInfo,
         filters: &PaymentIntentFilters,
-        granularity: &Option<Granularity>,
+        granularity: Option<Granularity>,
         time_range: &TimeRange,
         pool: &T,
     ) -> MetricsResult<HashSet<(PaymentIntentMetricsBucketIdentifier, PaymentIntentMetricRow)>>
@@ -57,10 +57,6 @@ where
                 field: None,
                 alias: Some("count"),
             })
-            .switch()?;
-
-        query_builder
-            .add_select_column("attempt_count == 1 as first_attempt")
             .switch()?;
 
         query_builder.add_select_column("currency").switch()?;
@@ -103,16 +99,11 @@ where
         }
 
         query_builder
-            .add_group_by_clause("attempt_count")
-            .attach_printable("Error grouping by attempt_count")
-            .switch()?;
-
-        query_builder
             .add_group_by_clause("currency")
             .attach_printable("Error grouping by currency")
             .switch()?;
 
-        if let Some(granularity) = granularity.as_ref() {
+        if let Some(granularity) = granularity {
             granularity
                 .set_group_by_clause(&mut query_builder)
                 .attach_printable("Error adding granularity")

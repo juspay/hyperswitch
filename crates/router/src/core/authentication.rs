@@ -24,8 +24,8 @@ pub async fn perform_authentication(
     authentication_connector: String,
     payment_method_data: domain::PaymentMethodData,
     payment_method: common_enums::PaymentMethod,
-    billing_address: payments::Address,
-    shipping_address: Option<payments::Address>,
+    billing_address: hyperswitch_domain_models::address::Address,
+    shipping_address: Option<hyperswitch_domain_models::address::Address>,
     browser_details: Option<core_types::BrowserInformation>,
     merchant_connector_account: payments_core::helpers::MerchantConnectorAccountType,
     amount: Option<common_utils::types::MinorUnit>,
@@ -39,6 +39,7 @@ pub async fn perform_authentication(
     email: Option<common_utils::pii::Email>,
     webhook_url: String,
     three_ds_requestor_url: String,
+    psd2_sca_exemption_type: Option<common_enums::ScaExemptionType>,
 ) -> CustomResult<api::authentication::AuthenticationResponse, ApiErrorResponse> {
     let router_data = transformers::construct_authentication_router_data(
         merchant_id,
@@ -60,6 +61,7 @@ pub async fn perform_authentication(
         email,
         webhook_url,
         three_ds_requestor_url,
+        psd2_sca_exemption_type,
     )?;
     let response = Box::pin(utils::do_auth_connector_call(
         state,

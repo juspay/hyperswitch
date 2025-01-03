@@ -4,17 +4,17 @@ use api_models::{
     payments::{ExtendedCardInfo, GetAddressFromPaymentMethodData, PaymentsConfirmIntentRequest},
 };
 use async_trait::async_trait;
+use common_utils::{ext_traits::Encode, types::keymanager::ToEncryptable};
 use error_stack::ResultExt;
-use hyperswitch_domain_models::payments::{
-    payment_attempt::PaymentAttempt, PaymentConfirmData, PaymentIntent,
-};
+use hyperswitch_domain_models::payments::PaymentConfirmData;
+use masking::PeekInterface;
 use router_env::{instrument, tracing};
 use tracing_futures::Instrument;
 
 use super::{Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
     core::{
-        authentication,
+        admin,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         payments::{
             self, helpers,
@@ -28,7 +28,7 @@ use crate::{
     types::{
         self,
         api::{self, ConnectorCallType, PaymentIdTypeExt},
-        domain::{self},
+        domain::{self, types as domain_types},
         storage::{self, enums as storage_enums},
     },
     utils::{self, OptionExt},
@@ -71,7 +71,7 @@ type BoxedConfirmOperation<'b, F> =
 
 // TODO: change the macro to include changes for v2
 // TODO: PaymentData in the macro should be an input
-impl<F: Send + Clone> Operation<F, PaymentsConfirmIntentRequest> for &PaymentIntentConfirm {
+impl<F: Send + Clone + Sync> Operation<F, PaymentsConfirmIntentRequest> for &PaymentIntentConfirm {
     type Data = PaymentConfirmData<F>;
     fn to_validate_request(
         &self,
@@ -99,7 +99,7 @@ impl<F: Send + Clone> Operation<F, PaymentsConfirmIntentRequest> for &PaymentInt
     }
 }
 #[automatically_derived]
-impl<F: Send + Clone> Operation<F, PaymentsConfirmIntentRequest> for PaymentIntentConfirm {
+impl<F: Send + Clone + Sync> Operation<F, PaymentsConfirmIntentRequest> for PaymentIntentConfirm {
     type Data = PaymentConfirmData<F>;
     fn to_validate_request(
         &self,
@@ -125,7 +125,7 @@ impl<F: Send + Clone> Operation<F, PaymentsConfirmIntentRequest> for PaymentInte
     }
 }
 
-impl<F: Send + Clone> ValidateRequest<F, PaymentsConfirmIntentRequest, PaymentConfirmData<F>>
+impl<F: Send + Clone + Sync> ValidateRequest<F, PaymentsConfirmIntentRequest, PaymentConfirmData<F>>
     for PaymentIntentConfirm
 {
     #[instrument(skip_all)]
@@ -133,19 +133,19 @@ impl<F: Send + Clone> ValidateRequest<F, PaymentsConfirmIntentRequest, PaymentCo
         &'b self,
         request: &PaymentsConfirmIntentRequest,
         merchant_account: &'a domain::MerchantAccount,
-    ) -> RouterResult<(BoxedConfirmOperation<'b, F>, operations::ValidateResult)> {
+    ) -> RouterResult<operations::ValidateResult> {
         let validate_result = operations::ValidateResult {
             merchant_id: merchant_account.get_id().to_owned(),
             storage_scheme: merchant_account.storage_scheme,
             requeue: false,
         };
 
-        Ok((Box::new(self), validate_result))
+        Ok(validate_result)
     }
 }
 
 #[async_trait]
-impl<F: Send + Clone> GetTracker<F, PaymentConfirmData<F>, PaymentsConfirmIntentRequest>
+impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, PaymentsConfirmIntentRequest>
     for PaymentIntentConfirm
 {
     #[instrument(skip_all)]
@@ -158,9 +158,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentConfirmData<F>, PaymentsConfirmIntent
         profile: &domain::Profile,
         key_store: &domain::MerchantKeyStore,
         header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
-    ) -> RouterResult<
-        operations::GetTrackerResponse<'a, F, PaymentsConfirmIntentRequest, PaymentConfirmData<F>>,
-    > {
+        _platform_merchant_account: Option<&domain::MerchantAccount>,
+    ) -> RouterResult<operations::GetTrackerResponse<PaymentConfirmData<F>>> {
         let db = &*state.store;
         let key_manager_state = &state.into();
 
@@ -180,12 +179,36 @@ impl<F: Send + Clone> GetTracker<F, PaymentConfirmData<F>, PaymentsConfirmIntent
 
         let cell_id = state.conf.cell_information.id.clone();
 
+        let batch_encrypted_data = domain_types::crypto_operation(
+            key_manager_state,
+            common_utils::type_name!(hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt),
+            domain_types::CryptoOperation::BatchEncrypt(
+                hyperswitch_domain_models::payments::payment_attempt::FromRequestEncryptablePaymentAttempt::to_encryptable(
+                    hyperswitch_domain_models::payments::payment_attempt::FromRequestEncryptablePaymentAttempt {
+                        payment_method_billing_address: request.payment_method_data.billing.as_ref().map(|address| address.clone().encode_to_value()).transpose().change_context(errors::ApiErrorResponse::InternalServerError).attach_printable("Failed to encode payment_method_billing address")?.map(masking::Secret::new),
+                    },
+                ),
+            ),
+            common_utils::types::keymanager::Identifier::Merchant(merchant_account.get_id().to_owned()),
+            key_store.key.peek(),
+        )
+        .await
+        .and_then(|val| val.try_into_batchoperation())
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed while encrypting payment intent details".to_string())?;
+
+        let encrypted_data =
+             hyperswitch_domain_models::payments::payment_attempt::FromRequestEncryptablePaymentAttempt::from_encryptable(batch_encrypted_data)
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed while encrypting payment intent details")?;
+
         let payment_attempt_domain_model =
             hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt::create_domain_model(
                 &payment_intent,
                 cell_id,
                 storage_scheme,
-                request
+                request,
+                encrypted_data
             )
             .await?;
 
@@ -206,24 +229,38 @@ impl<F: Send + Clone> GetTracker<F, PaymentConfirmData<F>, PaymentsConfirmIntent
             .clone()
             .map(hyperswitch_domain_models::payment_method_data::PaymentMethodData::from);
 
+        let payment_address = hyperswitch_domain_models::payment_address::PaymentAddress::new(
+            payment_intent
+                .shipping_address
+                .clone()
+                .map(|address| address.into_inner()),
+            payment_intent
+                .billing_address
+                .clone()
+                .map(|address| address.into_inner()),
+            payment_attempt
+                .payment_method_billing_address
+                .clone()
+                .map(|address| address.into_inner()),
+            Some(true),
+        );
+
         let payment_data = PaymentConfirmData {
             flow: std::marker::PhantomData,
             payment_intent,
             payment_attempt,
             payment_method_data,
+            payment_address,
         };
 
-        let get_trackers_response = operations::GetTrackerResponse {
-            operation: Box::new(self),
-            payment_data,
-        };
+        let get_trackers_response = operations::GetTrackerResponse { payment_data };
 
         Ok(get_trackers_response)
     }
 }
 
 #[async_trait]
-impl<F: Clone + Send> Domain<F, PaymentsConfirmIntentRequest, PaymentConfirmData<F>>
+impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConfirmData<F>>
     for PaymentIntentConfirm
 {
     async fn get_customer_details<'a>(
@@ -240,7 +277,7 @@ impl<F: Clone + Send> Domain<F, PaymentsConfirmIntentRequest, PaymentConfirmData
                     .store
                     .find_customer_by_global_id(
                         &state.into(),
-                        id.get_string_repr(),
+                        &id,
                         &payment_data.payment_intent.merchant_id,
                         merchant_key_store,
                         storage_scheme,
@@ -270,20 +307,49 @@ impl<F: Clone + Send> Domain<F, PaymentsConfirmIntentRequest, PaymentConfirmData
         Ok((Box::new(self), None, None))
     }
 
-    async fn get_connector<'a>(
+    #[cfg(feature = "v2")]
+    async fn perform_routing<'a>(
         &'a self,
-        _merchant_account: &domain::MerchantAccount,
+        merchant_account: &domain::MerchantAccount,
+        business_profile: &domain::Profile,
         state: &SessionState,
-        request: &PaymentsConfirmIntentRequest,
-        _payment_intent: &storage::PaymentIntent,
-        _key_store: &domain::MerchantKeyStore,
-    ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {
-        todo!()
+        // TODO: do not take the whole payment data here
+        payment_data: &mut PaymentConfirmData<F>,
+        mechant_key_store: &domain::MerchantKeyStore,
+    ) -> CustomResult<ConnectorCallType, errors::ApiErrorResponse> {
+        use crate::core::payments::OperationSessionSetters;
+
+        let fallback_config = admin::ProfileWrapper::new(business_profile.clone())
+            .get_default_fallback_list_of_connector_under_profile()
+            .change_context(errors::RoutingError::FallbackConfigFetchFailed)
+            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+        let first_chosen_connector = fallback_config
+            .first()
+            .ok_or(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)?;
+
+        let connector_name = first_chosen_connector.connector.to_string();
+        let merchant_connector_id = first_chosen_connector
+            .merchant_connector_id
+            .clone()
+            .get_required_value("merchant_connector_id")?;
+
+        payment_data.set_connector_in_payment_attempt(Some(connector_name.to_string()));
+        payment_data.set_merchant_connector_id_in_attempt(Some(merchant_connector_id.clone()));
+
+        let connector_data = api::ConnectorData::get_connector_by_name(
+            &state.conf.connectors,
+            &connector_name,
+            api::GetToken::Connector,
+            Some(merchant_connector_id),
+        )?;
+
+        Ok(ConnectorCallType::PreDetermined(connector_data))
     }
 }
 
 #[async_trait]
-impl<F: Clone> UpdateTracker<F, PaymentConfirmData<F>, PaymentsConfirmIntentRequest>
+impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, PaymentsConfirmIntentRequest>
     for PaymentIntentConfirm
 {
     #[instrument(skip_all)]
@@ -328,7 +394,7 @@ impl<F: Clone> UpdateTracker<F, PaymentConfirmData<F>, PaymentsConfirmIntentRequ
             hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdate::ConfirmIntent {
                 status: intent_status,
                 updated_by: storage_scheme.to_string(),
-                active_attempt_id: payment_data.payment_attempt.get_id().clone(),
+                active_attempt_id: payment_data.payment_attempt.id.clone(),
             };
 
         let payment_attempt_update = hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptUpdate::ConfirmIntent {

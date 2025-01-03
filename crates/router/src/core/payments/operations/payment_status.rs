@@ -16,6 +16,7 @@ use crate::{
             PaymentData,
         },
     },
+    events::audit_events::{AuditEvent, AuditEventType},
     routes::{app::ReqState, SessionState},
     services,
     types::{
@@ -31,7 +32,7 @@ pub struct PaymentStatus;
 
 type PaymentStatusOperation<'b, F, R> = BoxedOperation<'b, F, R, PaymentData<F>>;
 
-impl<F: Send + Clone> Operation<F, api::PaymentsRequest> for PaymentStatus {
+impl<F: Send + Clone + Sync> Operation<F, api::PaymentsRequest> for PaymentStatus {
     type Data = PaymentData<F>;
     fn to_domain(&self) -> RouterResult<&dyn Domain<F, api::PaymentsRequest, PaymentData<F>>> {
         Ok(self)
@@ -43,7 +44,7 @@ impl<F: Send + Clone> Operation<F, api::PaymentsRequest> for PaymentStatus {
         Ok(self)
     }
 }
-impl<F: Send + Clone> Operation<F, api::PaymentsRequest> for &PaymentStatus {
+impl<F: Send + Clone + Sync> Operation<F, api::PaymentsRequest> for &PaymentStatus {
     type Data = PaymentData<F>;
     fn to_domain(&self) -> RouterResult<&dyn Domain<F, api::PaymentsRequest, PaymentData<F>>> {
         Ok(*self)
@@ -57,7 +58,7 @@ impl<F: Send + Clone> Operation<F, api::PaymentsRequest> for &PaymentStatus {
 }
 
 #[async_trait]
-impl<F: Clone + Send> Domain<F, api::PaymentsRequest, PaymentData<F>> for PaymentStatus {
+impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for PaymentStatus {
     #[instrument(skip_all)]
     async fn get_or_create_customer_details<'a>(
         &'a self,
@@ -137,11 +138,11 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest, PaymentData<F>> for Paymen
 }
 
 #[async_trait]
-impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for PaymentStatus {
+impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for PaymentStatus {
     async fn update_trackers<'b>(
         &'b self,
         _state: &'b SessionState,
-        _req_state: ReqState,
+        req_state: ReqState,
         payment_data: PaymentData<F>,
         _customer: Option<domain::Customer>,
         _storage_scheme: enums::MerchantStorageScheme,
@@ -156,16 +157,24 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
     where
         F: 'b + Send,
     {
+        req_state
+            .event_context
+            .event(AuditEvent::new(AuditEventType::PaymentStatus))
+            .with(payment_data.to_event())
+            .emit();
+
         Ok((Box::new(self), payment_data))
     }
 }
 
 #[async_trait]
-impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRetrieveRequest> for PaymentStatus {
+impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRetrieveRequest>
+    for PaymentStatus
+{
     async fn update_trackers<'b>(
         &'b self,
         _state: &'b SessionState,
-        _req_state: ReqState,
+        req_state: ReqState,
         payment_data: PaymentData<F>,
         _customer: Option<domain::Customer>,
         _storage_scheme: enums::MerchantStorageScheme,
@@ -180,12 +189,18 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRetrieveRequest> fo
     where
         F: 'b + Send,
     {
+        req_state
+            .event_context
+            .event(AuditEvent::new(AuditEventType::PaymentStatus))
+            .with(payment_data.to_event())
+            .emit();
+
         Ok((Box::new(self), payment_data))
     }
 }
 
 #[async_trait]
-impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRetrieveRequest>
+impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRetrieveRequest>
     for PaymentStatus
 {
     #[instrument(skip_all)]
@@ -198,6 +213,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRetrieveRequest
         key_store: &domain::MerchantKeyStore,
         _auth_flow: services::AuthFlow,
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
+        _platform_merchant_account: Option<&domain::MerchantAccount>,
     ) -> RouterResult<
         operations::GetTrackerResponse<'a, F, api::PaymentsRetrieveRequest, PaymentData<F>>,
     > {
@@ -480,7 +496,7 @@ async fn get_tracker_for_sync<
         payment_method_info,
         force_sync: Some(
             request.force_sync
-                && (helpers::check_force_psync_precondition(&payment_attempt.status)
+                && (helpers::check_force_psync_precondition(payment_attempt.status)
                     || contains_encoded_data),
         ),
         payment_attempt,
@@ -506,6 +522,7 @@ async fn get_tracker_for_sync<
         poll_config: None,
         tax_data: None,
         session_id: None,
+        service_details: None,
     };
 
     let get_trackers_response = operations::GetTrackerResponse {
@@ -519,7 +536,7 @@ async fn get_tracker_for_sync<
     Ok(get_trackers_response)
 }
 
-impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRetrieveRequest, PaymentData<F>>
+impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRetrieveRequest, PaymentData<F>>
     for PaymentStatus
 {
     fn validate_request<'b>(

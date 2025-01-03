@@ -36,7 +36,7 @@ use hyperswitch_domain_models::{
 use hyperswitch_interfaces::{
     api::{
         self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorRedirectResponse,
-        ConnectorValidation,
+        ConnectorSpecifications, ConnectorValidation,
     },
     configs::Connectors,
     errors,
@@ -54,8 +54,8 @@ use response::{
     WP_CORRELATION_ID,
 };
 use ring::hmac;
-use transformers::{self as worldpay};
 
+use self::transformers as worldpay;
 use crate::{
     constants::headers,
     types::ResponseRouterData,
@@ -161,14 +161,17 @@ impl ConnectorCommon for Worldpay {
 }
 
 impl ConnectorValidation for Worldpay {
-    fn validate_capture_method(
+    fn validate_connector_against_payment_request(
         &self,
         capture_method: Option<enums::CaptureMethod>,
+        _payment_method: enums::PaymentMethod,
         _pmt: Option<enums::PaymentMethodType>,
     ) -> CustomResult<(), errors::ConnectorError> {
         let capture_method = capture_method.unwrap_or_default();
         match capture_method {
-            enums::CaptureMethod::Automatic | enums::CaptureMethod::Manual => Ok(()),
+            enums::CaptureMethod::Automatic
+            | enums::CaptureMethod::Manual
+            | enums::CaptureMethod::SequentialAutomatic => Ok(()),
             enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => Err(
                 construct_not_implemented_error_report(capture_method, self.id()),
             ),
@@ -617,7 +620,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
                         .map(|id| id.to_string())
                 });
                 Ok(PaymentsCaptureRouterData {
-                    status: enums::AttemptStatus::Pending,
+                    status: enums::AttemptStatus::from(response.outcome.clone()),
                     response: Ok(PaymentsResponseData::TransactionResponse {
                         resource_id: ResponseId::foreign_try_from((
                             response,
@@ -967,12 +970,12 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Worldpa
                 });
                 Ok(RefundExecuteRouterData {
                     response: Ok(RefundsResponseData {
+                        refund_status: enums::RefundStatus::from(response.outcome.clone()),
                         connector_refund_id: ResponseIdStr::foreign_try_from((
                             response,
                             optional_correlation_id,
                         ))?
                         .id,
-                        refund_status: enums::RefundStatus::Pending,
                     }),
                     ..data.clone()
                 })
@@ -1213,3 +1216,5 @@ impl ConnectorRedirectResponse for Worldpay {
         }
     }
 }
+
+impl ConnectorSpecifications for Worldpay {}

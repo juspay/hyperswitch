@@ -1,4 +1,3 @@
-use common_enums as storage_enums;
 #[cfg(feature = "v2")]
 use common_utils::ext_traits::{Encode, ValueExt};
 use common_utils::{
@@ -14,8 +13,6 @@ use common_utils::{
         MinorUnit,
     },
 };
-#[cfg(feature = "v2")]
-use diesel_models::types::OrderDetailsWithAmount;
 use diesel_models::{
     PaymentIntent as DieselPaymentIntent, PaymentIntentNew as DieselPaymentIntentNew,
 };
@@ -29,6 +26,8 @@ use time::PrimitiveDateTime;
 #[cfg(all(feature = "v1", feature = "olap"))]
 use super::payment_attempt::PaymentAttempt;
 use super::PaymentIntent;
+#[cfg(feature = "v2")]
+use crate::address::Address;
 use crate::{
     behaviour, errors,
     merchant_key_store::MerchantKeyStore,
@@ -44,7 +43,7 @@ pub trait PaymentIntentInterface {
         this: PaymentIntent,
         payment_intent: PaymentIntentUpdate,
         merchant_key_store: &MerchantKeyStore,
-        storage_scheme: storage_enums::MerchantStorageScheme,
+        storage_scheme: common_enums::MerchantStorageScheme,
     ) -> error_stack::Result<PaymentIntent, errors::StorageError>;
 
     async fn insert_payment_intent(
@@ -52,7 +51,7 @@ pub trait PaymentIntentInterface {
         state: &KeyManagerState,
         new: PaymentIntent,
         merchant_key_store: &MerchantKeyStore,
-        storage_scheme: storage_enums::MerchantStorageScheme,
+        storage_scheme: common_enums::MerchantStorageScheme,
     ) -> error_stack::Result<PaymentIntent, errors::StorageError>;
 
     #[cfg(feature = "v1")]
@@ -62,7 +61,7 @@ pub trait PaymentIntentInterface {
         payment_id: &id_type::PaymentId,
         merchant_id: &id_type::MerchantId,
         merchant_key_store: &MerchantKeyStore,
-        storage_scheme: storage_enums::MerchantStorageScheme,
+        storage_scheme: common_enums::MerchantStorageScheme,
     ) -> error_stack::Result<PaymentIntent, errors::StorageError>;
 
     #[cfg(feature = "v2")]
@@ -71,7 +70,7 @@ pub trait PaymentIntentInterface {
         state: &KeyManagerState,
         id: &id_type::GlobalPaymentId,
         merchant_key_store: &MerchantKeyStore,
-        storage_scheme: storage_enums::MerchantStorageScheme,
+        storage_scheme: common_enums::MerchantStorageScheme,
     ) -> error_stack::Result<PaymentIntent, errors::StorageError>;
 
     #[cfg(all(feature = "v1", feature = "olap"))]
@@ -81,7 +80,7 @@ pub trait PaymentIntentInterface {
         merchant_id: &id_type::MerchantId,
         filters: &PaymentIntentFetchConstraints,
         merchant_key_store: &MerchantKeyStore,
-        storage_scheme: storage_enums::MerchantStorageScheme,
+        storage_scheme: common_enums::MerchantStorageScheme,
     ) -> error_stack::Result<Vec<PaymentIntent>, errors::StorageError>;
 
     #[cfg(all(feature = "v1", feature = "olap"))]
@@ -91,7 +90,7 @@ pub trait PaymentIntentInterface {
         merchant_id: &id_type::MerchantId,
         time_range: &common_utils::types::TimeRange,
         merchant_key_store: &MerchantKeyStore,
-        storage_scheme: storage_enums::MerchantStorageScheme,
+        storage_scheme: common_enums::MerchantStorageScheme,
     ) -> error_stack::Result<Vec<PaymentIntent>, errors::StorageError>;
 
     #[cfg(all(feature = "v1", feature = "olap"))]
@@ -109,7 +108,7 @@ pub trait PaymentIntentInterface {
         merchant_id: &id_type::MerchantId,
         constraints: &PaymentIntentFetchConstraints,
         merchant_key_store: &MerchantKeyStore,
-        storage_scheme: storage_enums::MerchantStorageScheme,
+        storage_scheme: common_enums::MerchantStorageScheme,
     ) -> error_stack::Result<Vec<(PaymentIntent, PaymentAttempt)>, errors::StorageError>;
 
     #[cfg(all(feature = "v1", feature = "olap"))]
@@ -117,7 +116,7 @@ pub trait PaymentIntentInterface {
         &self,
         merchant_id: &id_type::MerchantId,
         constraints: &PaymentIntentFetchConstraints,
-        storage_scheme: storage_enums::MerchantStorageScheme,
+        storage_scheme: common_enums::MerchantStorageScheme,
     ) -> error_stack::Result<Vec<String>, errors::StorageError>;
 }
 
@@ -133,39 +132,52 @@ pub struct CustomerData {
 #[derive(Debug, Clone, Serialize)]
 pub struct PaymentIntentUpdateFields {
     pub amount: Option<MinorUnit>,
-    pub currency: Option<storage_enums::Currency>,
-    pub setup_future_usage: Option<storage_enums::FutureUsage>,
-    pub status: storage_enums::IntentStatus,
-    pub customer_id: Option<id_type::CustomerId>,
-    pub shipping_address: Option<Encryptable<Secret<serde_json::Value>>>,
-    pub billing_address: Option<Encryptable<Secret<serde_json::Value>>>,
-    pub return_url: Option<String>,
-    pub description: Option<String>,
-    pub statement_descriptor: Option<String>,
-    pub order_details: Option<Vec<pii::SecretSerdeValue>>,
+    pub currency: Option<common_enums::Currency>,
+    pub shipping_cost: Option<MinorUnit>,
+    pub tax_details: Option<diesel_models::TaxDetails>,
+    pub skip_external_tax_calculation: Option<common_enums::TaxCalculationOverride>,
+    pub skip_surcharge_calculation: Option<common_enums::SurchargeCalculationOverride>,
+    pub surcharge_amount: Option<MinorUnit>,
+    pub tax_on_surcharge: Option<MinorUnit>,
+    pub routing_algorithm_id: Option<id_type::RoutingId>,
+    pub capture_method: Option<common_enums::CaptureMethod>,
+    pub authentication_type: Option<common_enums::AuthenticationType>,
+    pub billing_address: Option<Encryptable<Address>>,
+    pub shipping_address: Option<Encryptable<Address>>,
+    pub customer_present: Option<common_enums::PresenceOfCustomerDuringPayment>,
+    pub description: Option<common_utils::types::Description>,
+    pub return_url: Option<common_utils::types::Url>,
+    pub setup_future_usage: Option<common_enums::FutureUsage>,
+    pub apply_mit_exemption: Option<common_enums::MitExemptionRequest>,
+    pub statement_descriptor: Option<common_utils::types::StatementDescriptor>,
+    pub order_details: Option<Vec<Secret<diesel_models::types::OrderDetailsWithAmount>>>,
+    pub allowed_payment_method_types: Option<Vec<common_enums::PaymentMethodType>>,
     pub metadata: Option<pii::SecretSerdeValue>,
-    pub payment_confirm_source: Option<storage_enums::PaymentSource>,
-    pub updated_by: String,
+    pub connector_metadata: Option<pii::SecretSerdeValue>,
+    pub feature_metadata: Option<diesel_models::types::FeatureMetadata>,
+    pub payment_link_config: Option<diesel_models::PaymentLinkConfigRequestForPayments>,
+    pub request_incremental_authorization: Option<common_enums::RequestIncrementalAuthorization>,
     pub session_expiry: Option<PrimitiveDateTime>,
-    pub request_external_three_ds_authentication: Option<bool>,
     pub frm_metadata: Option<pii::SecretSerdeValue>,
-    pub customer_details: Option<Encryptable<Secret<serde_json::Value>>>,
-    pub merchant_order_reference_id: Option<String>,
-    pub is_payment_processor_token_flow: Option<bool>,
+    pub request_external_three_ds_authentication:
+        Option<common_enums::External3dsAuthenticationRequest>,
+
+    // updated_by is set internally, field not present in request
+    pub updated_by: String,
 }
 
 #[cfg(feature = "v1")]
 #[derive(Debug, Clone, Serialize)]
 pub struct PaymentIntentUpdateFields {
     pub amount: MinorUnit,
-    pub currency: storage_enums::Currency,
-    pub setup_future_usage: Option<storage_enums::FutureUsage>,
-    pub status: storage_enums::IntentStatus,
+    pub currency: common_enums::Currency,
+    pub setup_future_usage: Option<common_enums::FutureUsage>,
+    pub status: common_enums::IntentStatus,
     pub customer_id: Option<id_type::CustomerId>,
     pub shipping_address_id: Option<String>,
     pub billing_address_id: Option<String>,
     pub return_url: Option<String>,
-    pub business_country: Option<storage_enums::CountryAlpha2>,
+    pub business_country: Option<common_enums::CountryAlpha2>,
     pub business_label: Option<String>,
     pub description: Option<String>,
     pub statement_descriptor_name: Option<String>,
@@ -173,7 +185,7 @@ pub struct PaymentIntentUpdateFields {
     pub order_details: Option<Vec<pii::SecretSerdeValue>>,
     pub metadata: Option<serde_json::Value>,
     pub frm_metadata: Option<pii::SecretSerdeValue>,
-    pub payment_confirm_source: Option<storage_enums::PaymentSource>,
+    pub payment_confirm_source: Option<common_enums::PaymentSource>,
     pub updated_by: String,
     pub fingerprint_id: Option<String>,
     pub session_expiry: Option<PrimitiveDateTime>,
@@ -190,9 +202,8 @@ pub struct PaymentIntentUpdateFields {
 #[derive(Debug, Clone, Serialize)]
 pub enum PaymentIntentUpdate {
     ResponseUpdate {
-        status: storage_enums::IntentStatus,
+        status: common_enums::IntentStatus,
         amount_captured: Option<MinorUnit>,
-        return_url: Option<String>,
         updated_by: String,
         fingerprint_id: Option<String>,
         incremental_authorization_allowed: Option<bool>,
@@ -204,7 +215,7 @@ pub enum PaymentIntentUpdate {
     Update(Box<PaymentIntentUpdateFields>),
     PaymentCreateUpdate {
         return_url: Option<String>,
-        status: Option<storage_enums::IntentStatus>,
+        status: Option<common_enums::IntentStatus>,
         customer_id: Option<id_type::CustomerId>,
         shipping_address_id: Option<String>,
         billing_address_id: Option<String>,
@@ -212,13 +223,13 @@ pub enum PaymentIntentUpdate {
         updated_by: String,
     },
     MerchantStatusUpdate {
-        status: storage_enums::IntentStatus,
+        status: common_enums::IntentStatus,
         shipping_address_id: Option<String>,
         billing_address_id: Option<String>,
         updated_by: String,
     },
     PGStatusUpdate {
-        status: storage_enums::IntentStatus,
+        status: common_enums::IntentStatus,
         incremental_authorization_allowed: Option<bool>,
         updated_by: String,
     },
@@ -228,18 +239,18 @@ pub enum PaymentIntentUpdate {
         updated_by: String,
     },
     StatusAndAttemptUpdate {
-        status: storage_enums::IntentStatus,
+        status: common_enums::IntentStatus,
         active_attempt_id: String,
         attempt_count: i16,
         updated_by: String,
     },
     ApproveUpdate {
-        status: storage_enums::IntentStatus,
+        status: common_enums::IntentStatus,
         merchant_decision: Option<String>,
         updated_by: String,
     },
     RejectUpdate {
-        status: storage_enums::IntentStatus,
+        status: common_enums::IntentStatus,
         merchant_decision: Option<String>,
         updated_by: String,
     },
@@ -257,7 +268,7 @@ pub enum PaymentIntentUpdate {
         shipping_address_id: Option<String>,
     },
     ManualUpdate {
-        status: Option<storage_enums::IntentStatus>,
+        status: Option<common_enums::IntentStatus>,
         updated_by: String,
     },
     SessionResponseUpdate {
@@ -271,67 +282,50 @@ pub enum PaymentIntentUpdate {
 #[cfg(feature = "v2")]
 #[derive(Debug, Clone, Serialize)]
 pub enum PaymentIntentUpdate {
+    /// PreUpdate tracker of ConfirmIntent
     ConfirmIntent {
-        status: storage_enums::IntentStatus,
-        updated_by: String,
+        status: common_enums::IntentStatus,
         active_attempt_id: id_type::GlobalAttemptId,
-    },
-    ConfirmIntentPostUpdate {
-        status: storage_enums::IntentStatus,
         updated_by: String,
     },
-}
-
-#[cfg(feature = "v2")]
-#[derive(Clone, Debug, Default)]
-pub struct PaymentIntentUpdateInternal {
-    pub amount: Option<MinorUnit>,
-    pub currency: Option<storage_enums::Currency>,
-    pub status: Option<storage_enums::IntentStatus>,
-    pub amount_captured: Option<MinorUnit>,
-    pub customer_id: Option<id_type::CustomerId>,
-    pub return_url: Option<String>,
-    pub setup_future_usage: Option<storage_enums::FutureUsage>,
-    pub off_session: Option<bool>,
-    pub metadata: Option<pii::SecretSerdeValue>,
-    pub modified_at: Option<PrimitiveDateTime>,
-    pub active_attempt_id: Option<id_type::GlobalAttemptId>,
-    pub description: Option<String>,
-    pub statement_descriptor: Option<String>,
-    pub order_details: Option<Vec<pii::SecretSerdeValue>>,
-    pub attempt_count: Option<i16>,
-    pub frm_merchant_decision: Option<common_enums::MerchantDecision>,
-    pub payment_confirm_source: Option<storage_enums::PaymentSource>,
-    pub updated_by: String,
-    pub surcharge_applicable: Option<bool>,
-    pub authorization_count: Option<i32>,
-    pub session_expiry: Option<PrimitiveDateTime>,
-    pub request_external_three_ds_authentication: Option<bool>,
-    pub frm_metadata: Option<pii::SecretSerdeValue>,
-    pub customer_details: Option<Encryptable<Secret<serde_json::Value>>>,
-    pub billing_address: Option<Encryptable<Secret<serde_json::Value>>>,
-    pub shipping_address: Option<Encryptable<Secret<serde_json::Value>>>,
-    pub merchant_order_reference_id: Option<String>,
-    pub is_payment_processor_token_flow: Option<bool>,
+    /// PostUpdate tracker of ConfirmIntent
+    ConfirmIntentPostUpdate {
+        status: common_enums::IntentStatus,
+        amount_captured: Option<MinorUnit>,
+        updated_by: String,
+    },
+    /// SyncUpdate of ConfirmIntent in PostUpdateTrackers
+    SyncUpdate {
+        status: common_enums::IntentStatus,
+        amount_captured: Option<MinorUnit>,
+        updated_by: String,
+    },
+    CaptureUpdate {
+        status: common_enums::IntentStatus,
+        amount_captured: Option<MinorUnit>,
+        updated_by: String,
+    },
+    /// UpdateIntent
+    UpdateIntent(Box<PaymentIntentUpdateFields>),
 }
 
 #[cfg(feature = "v1")]
 #[derive(Clone, Debug, Default)]
 pub struct PaymentIntentUpdateInternal {
     pub amount: Option<MinorUnit>,
-    pub currency: Option<storage_enums::Currency>,
-    pub status: Option<storage_enums::IntentStatus>,
+    pub currency: Option<common_enums::Currency>,
+    pub status: Option<common_enums::IntentStatus>,
     pub amount_captured: Option<MinorUnit>,
     pub customer_id: Option<id_type::CustomerId>,
     pub return_url: Option<String>,
-    pub setup_future_usage: Option<storage_enums::FutureUsage>,
+    pub setup_future_usage: Option<common_enums::FutureUsage>,
     pub off_session: Option<bool>,
     pub metadata: Option<serde_json::Value>,
     pub billing_address_id: Option<String>,
     pub shipping_address_id: Option<String>,
     pub modified_at: Option<PrimitiveDateTime>,
     pub active_attempt_id: Option<String>,
-    pub business_country: Option<storage_enums::CountryAlpha2>,
+    pub business_country: Option<common_enums::CountryAlpha2>,
     pub business_label: Option<String>,
     pub description: Option<String>,
     pub statement_descriptor_name: Option<String>,
@@ -341,7 +335,7 @@ pub struct PaymentIntentUpdateInternal {
     // Denotes the action(approve or reject) taken by merchant in case of manual review.
     // Manual review can occur when the transaction is marked as risky by the frm_processor, payment processor or when there is underpayment/over payment incase of crypto payment
     pub merchant_decision: Option<String>,
-    pub payment_confirm_source: Option<storage_enums::PaymentSource>,
+    pub payment_confirm_source: Option<common_enums::PaymentSource>,
 
     pub updated_by: String,
     pub surcharge_applicable: Option<bool>,
@@ -359,26 +353,249 @@ pub struct PaymentIntentUpdateInternal {
     pub tax_details: Option<diesel_models::TaxDetails>,
 }
 
-// TODO: convert directly to diesel_models::PaymentIntentUpdateInternal
+// This conversion is used in the `update_payment_intent` function
 #[cfg(feature = "v2")]
-impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
+impl From<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal {
     fn from(payment_intent_update: PaymentIntentUpdate) -> Self {
         match payment_intent_update {
             PaymentIntentUpdate::ConfirmIntent {
                 status,
-                updated_by,
                 active_attempt_id,
+                updated_by,
             } => Self {
                 status: Some(status),
-                updated_by,
                 active_attempt_id: Some(active_attempt_id),
-                ..Default::default()
-            },
-            PaymentIntentUpdate::ConfirmIntentPostUpdate { status, updated_by } => Self {
-                status: Some(status),
+                modified_at: common_utils::date_time::now(),
+                amount: None,
+                amount_captured: None,
+                currency: None,
+                shipping_cost: None,
+                tax_details: None,
+                skip_external_tax_calculation: None,
+                surcharge_applicable: None,
+                surcharge_amount: None,
+                tax_on_surcharge: None,
+                routing_algorithm_id: None,
+                capture_method: None,
+                authentication_type: None,
+                billing_address: None,
+                shipping_address: None,
+                customer_present: None,
+                description: None,
+                return_url: None,
+                setup_future_usage: None,
+                apply_mit_exemption: None,
+                statement_descriptor: None,
+                order_details: None,
+                allowed_payment_method_types: None,
+                metadata: None,
+                connector_metadata: None,
+                feature_metadata: None,
+                payment_link_config: None,
+                request_incremental_authorization: None,
+                session_expiry: None,
+                frm_metadata: None,
+                request_external_three_ds_authentication: None,
                 updated_by,
-                ..Default::default()
             },
+
+            PaymentIntentUpdate::ConfirmIntentPostUpdate {
+                status,
+                updated_by,
+                amount_captured,
+            } => Self {
+                status: Some(status),
+                active_attempt_id: None,
+                modified_at: common_utils::date_time::now(),
+                amount_captured,
+                amount: None,
+                currency: None,
+                shipping_cost: None,
+                tax_details: None,
+                skip_external_tax_calculation: None,
+                surcharge_applicable: None,
+                surcharge_amount: None,
+                tax_on_surcharge: None,
+                routing_algorithm_id: None,
+                capture_method: None,
+                authentication_type: None,
+                billing_address: None,
+                shipping_address: None,
+                customer_present: None,
+                description: None,
+                return_url: None,
+                setup_future_usage: None,
+                apply_mit_exemption: None,
+                statement_descriptor: None,
+                order_details: None,
+                allowed_payment_method_types: None,
+                metadata: None,
+                connector_metadata: None,
+                feature_metadata: None,
+                payment_link_config: None,
+                request_incremental_authorization: None,
+                session_expiry: None,
+                frm_metadata: None,
+                request_external_three_ds_authentication: None,
+                updated_by,
+            },
+            PaymentIntentUpdate::SyncUpdate {
+                status,
+                amount_captured,
+                updated_by,
+            } => Self {
+                status: Some(status),
+                active_attempt_id: None,
+                modified_at: common_utils::date_time::now(),
+                amount: None,
+                currency: None,
+                amount_captured,
+                shipping_cost: None,
+                tax_details: None,
+                skip_external_tax_calculation: None,
+                surcharge_applicable: None,
+                surcharge_amount: None,
+                tax_on_surcharge: None,
+                routing_algorithm_id: None,
+                capture_method: None,
+                authentication_type: None,
+                billing_address: None,
+                shipping_address: None,
+                customer_present: None,
+                description: None,
+                return_url: None,
+                setup_future_usage: None,
+                apply_mit_exemption: None,
+                statement_descriptor: None,
+                order_details: None,
+                allowed_payment_method_types: None,
+                metadata: None,
+                connector_metadata: None,
+                feature_metadata: None,
+                payment_link_config: None,
+                request_incremental_authorization: None,
+                session_expiry: None,
+                frm_metadata: None,
+                request_external_three_ds_authentication: None,
+                updated_by,
+            },
+            PaymentIntentUpdate::CaptureUpdate {
+                status,
+                amount_captured,
+                updated_by,
+            } => Self {
+                status: Some(status),
+                amount_captured,
+                active_attempt_id: None,
+                modified_at: common_utils::date_time::now(),
+                amount: None,
+                currency: None,
+                shipping_cost: None,
+                tax_details: None,
+                skip_external_tax_calculation: None,
+                surcharge_applicable: None,
+                surcharge_amount: None,
+                tax_on_surcharge: None,
+                routing_algorithm_id: None,
+                capture_method: None,
+                authentication_type: None,
+                billing_address: None,
+                shipping_address: None,
+                customer_present: None,
+                description: None,
+                return_url: None,
+                setup_future_usage: None,
+                apply_mit_exemption: None,
+                statement_descriptor: None,
+                order_details: None,
+                allowed_payment_method_types: None,
+                metadata: None,
+                connector_metadata: None,
+                feature_metadata: None,
+                payment_link_config: None,
+                request_incremental_authorization: None,
+                session_expiry: None,
+                frm_metadata: None,
+                request_external_three_ds_authentication: None,
+                updated_by,
+            },
+            PaymentIntentUpdate::UpdateIntent(boxed_intent) => {
+                let PaymentIntentUpdateFields {
+                    amount,
+                    currency,
+                    shipping_cost,
+                    tax_details,
+                    skip_external_tax_calculation,
+                    skip_surcharge_calculation,
+                    surcharge_amount,
+                    tax_on_surcharge,
+                    routing_algorithm_id,
+                    capture_method,
+                    authentication_type,
+                    billing_address,
+                    shipping_address,
+                    customer_present,
+                    description,
+                    return_url,
+                    setup_future_usage,
+                    apply_mit_exemption,
+                    statement_descriptor,
+                    order_details,
+                    allowed_payment_method_types,
+                    metadata,
+                    connector_metadata,
+                    feature_metadata,
+                    payment_link_config,
+                    request_incremental_authorization,
+                    session_expiry,
+                    frm_metadata,
+                    request_external_three_ds_authentication,
+                    updated_by,
+                } = *boxed_intent;
+                Self {
+                    status: None,
+                    active_attempt_id: None,
+                    modified_at: common_utils::date_time::now(),
+                    amount_captured: None,
+                    amount,
+                    currency,
+                    shipping_cost,
+                    tax_details,
+                    skip_external_tax_calculation: skip_external_tax_calculation
+                        .map(|val| val.as_bool()),
+                    surcharge_applicable: skip_surcharge_calculation.map(|val| val.as_bool()),
+                    surcharge_amount,
+                    tax_on_surcharge,
+                    routing_algorithm_id,
+                    capture_method,
+                    authentication_type,
+                    billing_address: billing_address.map(Encryption::from),
+                    shipping_address: shipping_address.map(Encryption::from),
+                    customer_present: customer_present.map(|val| val.as_bool()),
+                    description,
+                    return_url,
+                    setup_future_usage,
+                    apply_mit_exemption: apply_mit_exemption.map(|val| val.as_bool()),
+                    statement_descriptor,
+                    order_details,
+                    allowed_payment_method_types: allowed_payment_method_types
+                        .map(|allowed_payment_method_types| {
+                            allowed_payment_method_types.encode_to_value()
+                        })
+                        .and_then(|r| r.ok().map(Secret::new)),
+                    metadata,
+                    connector_metadata,
+                    feature_metadata,
+                    payment_link_config,
+                    request_incremental_authorization,
+                    session_expiry,
+                    frm_metadata,
+                    request_external_three_ds_authentication:
+                        request_external_three_ds_authentication.map(|val| val.as_bool()),
+
+                    updated_by,
+                }
+            }
         }
     }
 }
@@ -476,7 +693,6 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 amount_captured,
                 fingerprint_id,
                 // customer_id,
-                return_url,
                 updated_by,
                 incremental_authorization_allowed,
             } => Self {
@@ -486,7 +702,6 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 amount_captured,
                 fingerprint_id,
                 // customer_id,
-                return_url,
                 modified_at: Some(common_utils::date_time::now()),
                 updated_by,
                 incremental_authorization_allowed,
@@ -580,29 +795,26 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
     }
 }
 
+#[cfg(feature = "v1")]
 use diesel_models::{
     PaymentIntentUpdate as DieselPaymentIntentUpdate,
     PaymentIntentUpdateFields as DieselPaymentIntentUpdateFields,
 };
-#[cfg(feature = "v2")]
-impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
-    fn from(value: PaymentIntentUpdate) -> Self {
-        match value {
-            PaymentIntentUpdate::ConfirmIntent {
-                status,
-                updated_by,
-                active_attempt_id,
-            } => Self::ConfirmIntent {
-                status,
-                updated_by,
-                active_attempt_id,
-            },
-            PaymentIntentUpdate::ConfirmIntentPostUpdate { status, updated_by } => {
-                Self::ConfirmIntentPostUpdate { status, updated_by }
-            }
-        }
-    }
-}
+
+// TODO: check where this conversion is used
+// #[cfg(feature = "v2")]
+// impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
+//     fn from(value: PaymentIntentUpdate) -> Self {
+//         match value {
+//             PaymentIntentUpdate::ConfirmIntent { status, updated_by } => {
+//                 Self::ConfirmIntent { status, updated_by }
+//             }
+//             PaymentIntentUpdate::ConfirmIntentPostUpdate { status, updated_by } => {
+//                 Self::ConfirmIntentPostUpdate { status, updated_by }
+//             }
+//         }
+//     }
+// }
 
 #[cfg(feature = "v1")]
 impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
@@ -612,14 +824,12 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
                 status,
                 amount_captured,
                 fingerprint_id,
-                return_url,
                 updated_by,
                 incremental_authorization_allowed,
             } => Self::ResponseUpdate {
                 status,
                 amount_captured,
                 fingerprint_id,
-                return_url,
                 updated_by,
                 incremental_authorization_allowed,
             },
@@ -775,75 +985,6 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
     }
 }
 
-// TODO: evaluate if we will be using the same update struct for v2 as well, uncomment this and make necessary changes if necessary
-#[cfg(feature = "v2")]
-impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInternal {
-    fn from(value: PaymentIntentUpdateInternal) -> Self {
-        todo!()
-        // let modified_at = common_utils::date_time::now();
-        // let PaymentIntentUpdateInternal {
-        //     amount,
-        //     currency,
-        //     status,
-        //     amount_captured,
-        //     customer_id,
-        //     return_url,
-        //     setup_future_usage,
-        //     off_session,
-        //     metadata,
-        //     modified_at: _,
-        //     active_attempt_id,
-        //     description,
-        //     statement_descriptor,
-        //     order_details,
-        //     attempt_count,
-        //     frm_merchant_decision,
-        //     payment_confirm_source,
-        //     updated_by,
-        //     surcharge_applicable,
-        //     authorization_count,
-        //     session_expiry,
-        //     request_external_three_ds_authentication,
-        //     frm_metadata,
-        //     customer_details,
-        //     billing_address,
-        //     merchant_order_reference_id,
-        //     shipping_address,
-        //     is_payment_processor_token_flow,
-        // } = value;
-        // Self {
-        //     amount,
-        //     currency,
-        //     status,
-        //     amount_captured,
-        //     customer_id,
-        //     return_url,
-        //     setup_future_usage,
-        //     off_session,
-        //     metadata,
-        //     modified_at,
-        //     active_attempt_id,
-        //     description,
-        //     statement_descriptor,
-        //     order_details,
-        //     attempt_count,
-        //     frm_merchant_decision,
-        //     payment_confirm_source,
-        //     updated_by,
-        //     surcharge_applicable,
-        //     authorization_count,
-        //     session_expiry,
-        //     request_external_three_ds_authentication,
-        //     frm_metadata,
-        //     customer_details: customer_details.map(Encryption::from),
-        //     billing_address: billing_address.map(Encryption::from),
-        //     merchant_order_reference_id,
-        //     shipping_address: shipping_address.map(Encryption::from),
-        //     is_payment_processor_token_flow,
-        // }
-    }
-}
-
 #[cfg(feature = "v1")]
 impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInternal {
     fn from(value: PaymentIntentUpdateInternal) -> Self {
@@ -950,11 +1091,11 @@ pub struct PaymentIntentListParams {
     pub ending_at: Option<PrimitiveDateTime>,
     pub amount_filter: Option<api_models::payments::AmountFilter>,
     pub connector: Option<Vec<api_models::enums::Connector>>,
-    pub currency: Option<Vec<storage_enums::Currency>>,
-    pub status: Option<Vec<storage_enums::IntentStatus>>,
-    pub payment_method: Option<Vec<storage_enums::PaymentMethod>>,
-    pub payment_method_type: Option<Vec<storage_enums::PaymentMethodType>>,
-    pub authentication_type: Option<Vec<storage_enums::AuthenticationType>>,
+    pub currency: Option<Vec<common_enums::Currency>>,
+    pub status: Option<Vec<common_enums::IntentStatus>>,
+    pub payment_method: Option<Vec<common_enums::PaymentMethod>>,
+    pub payment_method_type: Option<Vec<common_enums::PaymentMethodType>>,
+    pub authentication_type: Option<Vec<common_enums::AuthenticationType>>,
     pub merchant_connector_id: Option<Vec<id_type::MerchantConnectorAccountId>>,
     pub profile_id: Option<Vec<id_type::ProfileId>>,
     pub customer_id: Option<id_type::CustomerId>,
@@ -962,7 +1103,8 @@ pub struct PaymentIntentListParams {
     pub ending_before_id: Option<id_type::PaymentId>,
     pub limit: Option<u32>,
     pub order: api_models::payments::Order,
-    pub card_network: Option<Vec<storage_enums::CardNetwork>>,
+    pub card_network: Option<Vec<common_enums::CardNetwork>>,
+    pub merchant_order_reference_id: Option<String>,
 }
 
 impl From<api_models::payments::PaymentListConstraints> for PaymentIntentFetchConstraints {
@@ -997,6 +1139,7 @@ impl From<api_models::payments::PaymentListConstraints> for PaymentIntentFetchCo
             limit: Some(std::cmp::min(limit, PAYMENTS_LIST_MAX_LIMIT_V1)),
             order: Default::default(),
             card_network: None,
+            merchant_order_reference_id: None,
         }))
     }
 }
@@ -1022,6 +1165,7 @@ impl From<common_utils::types::TimeRange> for PaymentIntentFetchConstraints {
             limit: None,
             order: Default::default(),
             card_network: None,
+            merchant_order_reference_id: None,
         }))
     }
 }
@@ -1045,6 +1189,7 @@ impl From<api_models::payments::PaymentListFilterConstraints> for PaymentIntentF
             merchant_connector_id,
             order,
             card_network,
+            merchant_order_reference_id,
         } = value;
         if let Some(payment_intent_id) = payment_id {
             Self::Single { payment_intent_id }
@@ -1068,6 +1213,7 @@ impl From<api_models::payments::PaymentListFilterConstraints> for PaymentIntentF
                 limit: Some(std::cmp::min(limit, PAYMENTS_LIST_MAX_LIMIT_V2)),
                 order,
                 card_network,
+                merchant_order_reference_id,
             }))
         }
     }
@@ -1175,6 +1321,7 @@ impl behaviour::Conversion for PaymentIntent {
             customer_present,
             routing_algorithm_id,
             payment_link_config,
+            platform_merchant_id,
         } = self;
         Ok(DieselPaymentIntent {
             skip_external_tax_calculation: Some(amount_details.get_external_tax_action_as_bool()),
@@ -1244,6 +1391,9 @@ impl behaviour::Conversion for PaymentIntent {
             customer_present: Some(customer_present.as_bool()),
             payment_link_config,
             routing_algorithm_id,
+            psd2_sca_exemption_type: None,
+            platform_merchant_id,
+            split_payments: None,
         })
     }
     async fn convert_back(
@@ -1283,10 +1433,10 @@ impl behaviour::Conversion for PaymentIntent {
                 tax_on_surcharge: storage_model.tax_on_surcharge,
                 shipping_cost: storage_model.shipping_cost,
                 tax_details: storage_model.tax_details,
-                skip_external_tax_calculation: super::TaxCalculationOverride::from(
+                skip_external_tax_calculation: common_enums::TaxCalculationOverride::from(
                     storage_model.skip_external_tax_calculation,
                 ),
-                skip_surcharge_calculation: super::SurchargeCalculationOverride::from(
+                skip_surcharge_calculation: common_enums::SurchargeCalculationOverride::from(
                     storage_model.surcharge_applicable,
                 ),
                 amount_captured: storage_model.amount_captured,
@@ -1351,10 +1501,9 @@ impl behaviour::Conversion for PaymentIntent {
                     .unwrap_or_default(),
                 authorization_count: storage_model.authorization_count,
                 session_expiry: storage_model.session_expiry,
-                request_external_three_ds_authentication:
-                    common_enums::External3dsAuthenticationRequest::from(
-                        storage_model.request_external_three_ds_authentication,
-                    ),
+                request_external_three_ds_authentication: storage_model
+                    .request_external_three_ds_authentication
+                    .into(),
                 frm_metadata: storage_model.frm_metadata,
                 customer_details: data.customer_details,
                 billing_address,
@@ -1365,17 +1514,12 @@ impl behaviour::Conversion for PaymentIntent {
                 organization_id: storage_model.organization_id,
                 authentication_type: storage_model.authentication_type.unwrap_or_default(),
                 prerouting_algorithm: storage_model.prerouting_algorithm,
-                enable_payment_link: common_enums::EnablePaymentLinkRequest::from(
-                    storage_model.enable_payment_link,
-                ),
-                apply_mit_exemption: common_enums::MitExemptionRequest::from(
-                    storage_model.apply_mit_exemption,
-                ),
-                customer_present: common_enums::PresenceOfCustomerDuringPayment::from(
-                    storage_model.customer_present,
-                ),
+                enable_payment_link: storage_model.enable_payment_link.into(),
+                apply_mit_exemption: storage_model.apply_mit_exemption.into(),
+                customer_present: storage_model.customer_present.into(),
                 payment_link_config: storage_model.payment_link_config,
                 routing_algorithm_id: storage_model.routing_algorithm_id,
+                platform_merchant_id: storage_model.platform_merchant_id,
             })
         }
         .await
@@ -1448,6 +1592,7 @@ impl behaviour::Conversion for PaymentIntent {
             tax_details: amount_details.tax_details,
             enable_payment_link: Some(self.enable_payment_link.as_bool()),
             apply_mit_exemption: Some(self.apply_mit_exemption.as_bool()),
+            platform_merchant_id: self.platform_merchant_id,
         })
     }
 }
@@ -1501,7 +1646,8 @@ impl behaviour::Conversion for PaymentIntent {
             fingerprint_id: self.fingerprint_id,
             session_expiry: self.session_expiry,
             request_external_three_ds_authentication: self.request_external_three_ds_authentication,
-            charges: self.charges,
+            charges: None,
+            split_payments: self.split_payments,
             frm_metadata: self.frm_metadata,
             customer_details: self.customer_details.map(Encryption::from),
             billing_details: self.billing_details.map(Encryption::from),
@@ -1512,6 +1658,8 @@ impl behaviour::Conversion for PaymentIntent {
             shipping_cost: self.shipping_cost,
             tax_details: self.tax_details,
             skip_external_tax_calculation: self.skip_external_tax_calculation,
+            psd2_sca_exemption_type: self.psd2_sca_exemption_type,
+            platform_merchant_id: self.platform_merchant_id,
         })
     }
 
@@ -1588,7 +1736,7 @@ impl behaviour::Conversion for PaymentIntent {
                 session_expiry: storage_model.session_expiry,
                 request_external_three_ds_authentication: storage_model
                     .request_external_three_ds_authentication,
-                charges: storage_model.charges,
+                split_payments: storage_model.split_payments,
                 frm_metadata: storage_model.frm_metadata,
                 shipping_cost: storage_model.shipping_cost,
                 tax_details: storage_model.tax_details,
@@ -1599,6 +1747,8 @@ impl behaviour::Conversion for PaymentIntent {
                 is_payment_processor_token_flow: storage_model.is_payment_processor_token_flow,
                 organization_id: storage_model.organization_id,
                 skip_external_tax_calculation: storage_model.skip_external_tax_calculation,
+                psd2_sca_exemption_type: storage_model.psd2_sca_exemption_type,
+                platform_merchant_id: storage_model.platform_merchant_id,
             })
         }
         .await
@@ -1650,7 +1800,8 @@ impl behaviour::Conversion for PaymentIntent {
             fingerprint_id: self.fingerprint_id,
             session_expiry: self.session_expiry,
             request_external_three_ds_authentication: self.request_external_three_ds_authentication,
-            charges: self.charges,
+            charges: None,
+            split_payments: self.split_payments,
             frm_metadata: self.frm_metadata,
             customer_details: self.customer_details.map(Encryption::from),
             billing_details: self.billing_details.map(Encryption::from),
@@ -1661,6 +1812,8 @@ impl behaviour::Conversion for PaymentIntent {
             shipping_cost: self.shipping_cost,
             tax_details: self.tax_details,
             skip_external_tax_calculation: self.skip_external_tax_calculation,
+            psd2_sca_exemption_type: self.psd2_sca_exemption_type,
+            platform_merchant_id: self.platform_merchant_id,
         })
     }
 }

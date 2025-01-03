@@ -129,6 +129,7 @@ impl TryFrom<&types::TokenizationRouterData> for TokenRequest {
             | domain::PaymentMethodData::MandatePayment
             | domain::PaymentMethodData::Reward
             | domain::PaymentMethodData::RealTimePayment(_)
+            | domain::PaymentMethodData::MobilePayment(_)
             | domain::PaymentMethodData::Upi(_)
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::CardRedirect(_)
@@ -381,6 +382,7 @@ impl TryFrom<&CheckoutRouterData<&types::PaymentsAuthorizeRouterData>> for Payme
             | domain::PaymentMethodData::MandatePayment
             | domain::PaymentMethodData::Reward
             | domain::PaymentMethodData::RealTimePayment(_)
+            | domain::PaymentMethodData::MobilePayment(_)
             | domain::PaymentMethodData::Upi(_)
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::CardRedirect(_)
@@ -642,9 +644,11 @@ fn get_connector_meta(
     capture_method: enums::CaptureMethod,
 ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
     match capture_method {
-        enums::CaptureMethod::Automatic => Ok(serde_json::json!(CheckoutMeta {
-            psync_flow: CheckoutPaymentIntent::Capture,
-        })),
+        enums::CaptureMethod::Automatic | enums::CaptureMethod::SequentialAutomatic => {
+            Ok(serde_json::json!(CheckoutMeta {
+                psync_flow: CheckoutPaymentIntent::Capture,
+            }))
+        }
         enums::CaptureMethod::Manual | enums::CaptureMethod::ManualMultiple => {
             Ok(serde_json::json!(CheckoutMeta {
                 psync_flow: CheckoutPaymentIntent::Authorize,
@@ -1256,7 +1260,7 @@ pub struct CheckoutDisputeWebhookData {
     pub payment_id: Option<String>,
     pub action_id: Option<String>,
     pub amount: i32,
-    pub currency: String,
+    pub currency: enums::Currency,
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub evidence_required_by: Option<PrimitiveDateTime>,
     pub reason_code: Option<String>,

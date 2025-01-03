@@ -2,7 +2,7 @@ pub mod transformers;
 
 use std::collections::{HashMap, HashSet};
 
-use common_enums::{CaptureMethod, PaymentMethodType};
+use common_enums::{CaptureMethod, PaymentMethod, PaymentMethodType};
 use common_utils::{
     crypto::{self, GenerateDigest},
     errors::{self as common_errors, CustomResult},
@@ -31,7 +31,10 @@ use hyperswitch_domain_models::{
     },
 };
 use hyperswitch_interfaces::{
-    api::{self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorValidation},
+    api::{
+        self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorSpecifications,
+        ConnectorValidation,
+    },
     configs::Connectors,
     errors,
     events::connector_api_logs::ConnectorEvent,
@@ -42,7 +45,7 @@ use masking::{ExposeInterface, PeekInterface, Secret};
 use reqwest::multipart::Form;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use transformers::{self as fiuu, FiuuWebhooksResponse};
+use transformers::{self as fiuu, ExtraParameters, FiuuWebhooksResponse};
 
 use crate::{
     constants::headers,
@@ -202,14 +205,17 @@ pub fn build_form_from_struct<T: Serialize>(data: T) -> Result<Form, common_erro
 }
 
 impl ConnectorValidation for Fiuu {
-    fn validate_capture_method(
+    fn validate_connector_against_payment_request(
         &self,
         capture_method: Option<CaptureMethod>,
+        _payment_method: PaymentMethod,
         _pmt: Option<PaymentMethodType>,
     ) -> CustomResult<(), errors::ConnectorError> {
         let capture_method = capture_method.unwrap_or_default();
         match capture_method {
-            CaptureMethod::Automatic | CaptureMethod::Manual => Ok(()),
+            CaptureMethod::Automatic
+            | CaptureMethod::Manual
+            | CaptureMethod::SequentialAutomatic => Ok(()),
             CaptureMethod::ManualMultiple | CaptureMethod::Scheduled => Err(
                 utils::construct_not_implemented_error_report(capture_method, self.id()),
             ),
@@ -890,4 +896,38 @@ impl webhooks::IncomingWebhook for Fiuu {
             }
         }
     }
+
+    fn get_mandate_details(
+        &self,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<
+        Option<hyperswitch_domain_models::router_flow_types::ConnectorMandateDetails>,
+        errors::ConnectorError,
+    > {
+        let webhook_payment_response: transformers::FiuuWebhooksPaymentResponse =
+            serde_urlencoded::from_bytes::<transformers::FiuuWebhooksPaymentResponse>(request.body)
+                .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
+        let mandate_reference = webhook_payment_response.extra_parameters.as_ref().and_then(|extra_p| {
+                    let mandate_token: Result<ExtraParameters, _> = serde_json::from_str(&extra_p.clone().expose());
+                    match mandate_token {
+                        Ok(token) => {
+                            token.token.as_ref().map(|token| hyperswitch_domain_models::router_flow_types::ConnectorMandateDetails {
+                                connector_mandate_id:token.clone(),
+                            })
+                        }
+                        Err(err) => {
+                            router_env::logger::warn!(
+                                "Failed to convert 'extraP' from fiuu webhook response to fiuu::ExtraParameters. \
+                                 Input: '{:?}', Error: {}",
+                                extra_p,
+                                err
+                            );
+                            None
+                        }
+                    }
+                });
+        Ok(mandate_reference)
+    }
 }
+
+impl ConnectorSpecifications for Fiuu {}

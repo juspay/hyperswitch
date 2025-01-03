@@ -28,8 +28,8 @@ pub fn construct_authentication_router_data(
     authentication_connector: String,
     payment_method_data: domain::PaymentMethodData,
     payment_method: PaymentMethod,
-    billing_address: payments::Address,
-    shipping_address: Option<payments::Address>,
+    billing_address: hyperswitch_domain_models::address::Address,
+    shipping_address: Option<hyperswitch_domain_models::address::Address>,
     browser_details: Option<types::BrowserInformation>,
     amount: Option<common_utils::types::MinorUnit>,
     currency: Option<common_enums::Currency>,
@@ -43,6 +43,7 @@ pub fn construct_authentication_router_data(
     email: Option<common_utils::pii::Email>,
     webhook_url: String,
     three_ds_requestor_url: String,
+    psd2_sca_exemption_type: Option<common_enums::ScaExemptionType>,
 ) -> RouterResult<types::authentication::ConnectorAuthenticationRouterData> {
     let router_request = types::authentication::ConnectorAuthenticationRequestData {
         payment_method_data,
@@ -70,6 +71,7 @@ pub fn construct_authentication_router_data(
         types::PaymentAddress::default(),
         router_request,
         &merchant_connector_account,
+        psd2_sca_exemption_type,
     )
 }
 
@@ -94,6 +96,7 @@ pub fn construct_post_authentication_router_data(
         types::PaymentAddress::default(),
         router_request,
         &merchant_connector_account,
+        None,
     )
 }
 
@@ -119,6 +122,7 @@ pub fn construct_pre_authentication_router_data<F: Clone>(
         types::PaymentAddress::default(),
         router_request,
         merchant_connector_account,
+        None,
     )
 }
 
@@ -129,6 +133,7 @@ pub fn construct_router_data<F: Clone, Req, Res>(
     address: types::PaymentAddress,
     request_data: Req,
     merchant_connector_account: &payments_helpers::MerchantConnectorAccountType,
+    psd2_sca_exemption_type: Option<common_enums::ScaExemptionType>,
 ) -> RouterResult<types::RouterData<F, Req, Res>> {
     let test_mode: Option<bool> = merchant_connector_account.is_test_mode_on();
     let auth_type: types::ConnectorAuthType = merchant_connector_account
@@ -149,7 +154,6 @@ pub fn construct_router_data<F: Clone, Req, Res>(
         payment_method,
         connector_auth_type: auth_type,
         description: None,
-        return_url: None,
         address,
         auth_type: common_enums::AuthenticationType::NoThreeDs,
         connector_meta_data: merchant_connector_account.get_metadata(),
@@ -185,6 +189,8 @@ pub fn construct_router_data<F: Clone, Req, Res>(
         additional_merchant_data: None,
         header_payload: None,
         connector_mandate_request_reference_id: None,
+        authentication_id: None,
+        psd2_sca_exemption_type,
     })
 }
 

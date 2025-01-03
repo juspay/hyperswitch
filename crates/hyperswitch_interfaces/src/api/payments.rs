@@ -23,6 +23,7 @@ use crate::api;
 /// trait Payment
 pub trait Payment:
     api::ConnectorCommon
+    + api::ConnectorSpecifications
     + api::ConnectorValidation
     + PaymentAuthorize
     + PaymentAuthorizeSessionToken

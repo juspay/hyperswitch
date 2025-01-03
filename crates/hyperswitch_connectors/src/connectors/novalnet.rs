@@ -34,10 +34,10 @@ use hyperswitch_domain_models::{
 use hyperswitch_interfaces::{
     api::{
         self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorRedirectResponse,
-        ConnectorValidation,
+        ConnectorSpecifications, ConnectorValidation,
     },
     configs::Connectors,
-    errors,
+    disputes, errors,
     events::connector_api_logs::ConnectorEvent,
     types::{self, Response},
     webhooks,
@@ -158,14 +158,17 @@ impl ConnectorCommon for Novalnet {
 }
 
 impl ConnectorValidation for Novalnet {
-    fn validate_capture_method(
+    fn validate_connector_against_payment_request(
         &self,
         capture_method: Option<enums::CaptureMethod>,
+        _payment_method: enums::PaymentMethod,
         _pmt: Option<enums::PaymentMethodType>,
     ) -> CustomResult<(), errors::ConnectorError> {
         let capture_method = capture_method.unwrap_or_default();
         match capture_method {
-            enums::CaptureMethod::Automatic | enums::CaptureMethod::Manual => Ok(()),
+            enums::CaptureMethod::Automatic
+            | enums::CaptureMethod::Manual
+            | enums::CaptureMethod::SequentialAutomatic => Ok(()),
             enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => Err(
                 utils::construct_not_implemented_error_report(capture_method, self.id()),
             ),
@@ -877,4 +880,46 @@ impl webhooks::IncomingWebhook for Novalnet {
             .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
         Ok(Box::new(notif))
     }
+
+    fn get_dispute_details(
+        &self,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<disputes::DisputePayload, errors::ConnectorError> {
+        let notif: transformers::NovalnetWebhookNotificationResponse =
+            get_webhook_object_from_body(request.body)
+                .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        let (amount, currency, reason, reason_code) = match notif.transaction {
+            novalnet::NovalnetWebhookTransactionData::CaptureTransactionData(data) => {
+                (data.amount, data.currency, None, None)
+            }
+            novalnet::NovalnetWebhookTransactionData::CancelTransactionData(data) => {
+                (data.amount, data.currency, None, None)
+            }
+
+            novalnet::NovalnetWebhookTransactionData::RefundsTransactionData(data) => {
+                (data.amount, data.currency, None, None)
+            }
+
+            novalnet::NovalnetWebhookTransactionData::SyncTransactionData(data) => {
+                (data.amount, data.currency, data.reason, data.reason_code)
+            }
+        };
+
+        let dispute_status =
+            novalnet::get_novalnet_dispute_status(notif.event.event_type).to_string();
+        Ok(disputes::DisputePayload {
+            amount: novalnet::option_to_result(amount)?.to_string(),
+            currency: novalnet::option_to_result(currency)?,
+            dispute_stage: api_models::enums::DisputeStage::Dispute,
+            connector_dispute_id: notif.event.tid.to_string(),
+            connector_reason: reason,
+            connector_reason_code: reason_code,
+            challenge_required_by: None,
+            connector_status: dispute_status,
+            created_at: None,
+            updated_at: None,
+        })
+    }
 }
+
+impl ConnectorSpecifications for Novalnet {}

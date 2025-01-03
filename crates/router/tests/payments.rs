@@ -295,7 +295,10 @@ async fn payments_create_core() {
     let merchant_id = id_type::MerchantId::try_from(Cow::from("juspay_merchant")).unwrap();
 
     let state = Arc::new(app_state)
-        .get_session_state("public", || {})
+        .get_session_state(
+            &id_type::TenantId::try_from_string("public".to_string()).unwrap(),
+            || {},
+        )
         .unwrap();
     let key_manager_state = &(&state).into();
     let key_store = state
@@ -441,7 +444,7 @@ async fn payments_create_core() {
         payment_method_id: None,
         payment_method_status: None,
         updated: None,
-        charges: None,
+        split_payments: None,
         frm_metadata: None,
         merchant_order_reference_id: None,
         order_tax_amount: None,
@@ -469,6 +472,7 @@ async fn payments_create_core() {
         payments::CallConnectorAction::Trigger,
         None,
         hyperswitch_domain_models::payments::HeaderPayload::default(),
+        None,
     ))
     .await
     .unwrap();
@@ -552,7 +556,10 @@ async fn payments_create_core_adyen_no_redirect() {
     ))
     .await;
     let state = Arc::new(app_state)
-        .get_session_state("public", || {})
+        .get_session_state(
+            &id_type::TenantId::try_from_string("public".to_string()).unwrap(),
+            || {},
+        )
         .unwrap();
 
     let payment_id =
@@ -700,7 +707,7 @@ async fn payments_create_core_adyen_no_redirect() {
             payment_method_id: None,
             payment_method_status: None,
             updated: None,
-            charges: None,
+            split_payments: None,
             frm_metadata: None,
             merchant_order_reference_id: None,
             order_tax_amount: None,
@@ -728,6 +735,7 @@ async fn payments_create_core_adyen_no_redirect() {
         payments::CallConnectorAction::Trigger,
         None,
         hyperswitch_domain_models::payments::HeaderPayload::default(),
+        None,
     ))
     .await
     .unwrap();
