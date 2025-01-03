@@ -993,4 +993,40 @@ mod tests {
 
         assert!(is_success);
     }
+    #[tokio::test]
+    async fn test_getting_keys_using_scripts() {
+        let is_success = tokio::task::spawn_blocking(move || {
+            futures::executor::block_on(async {
+                // Arrange
+                let pool = RedisConnectionPool::new(&RedisSettings::default())
+                    .await
+                    .expect("failed to create redis connection pool");
+                let lua_script = r#"
+                local results = {}
+                for i = 1, #KEYS do
+                    results[i] = redis.call("GET", KEYS[i])
+                end
+                return results
+                "#;
+                let mut keys_and_values = HashMap::new();
+                for i in 0..10 {
+                    keys_and_values.insert(format!("key{}", i), i);
+                }
+
+                let key = keys_and_values.keys().cloned().collect::<Vec<_>>();
+
+                // Act
+                let result = pool
+                    .incr_keys_using_script::<_, String>(lua_script, key, 0)
+                    .await;
+
+                // Assert Setup
+                result.is_ok()
+            })
+        })
+        .await
+        .expect("Spawn block failure");
+
+        assert!(is_success);
+    }
 }
