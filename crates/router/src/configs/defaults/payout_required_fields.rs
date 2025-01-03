@@ -14,13 +14,6 @@ use crate::settings::{
     RequiredFieldFinal,
 };
 
-#[cfg(feature = "v2")]
-impl Default for PayoutRequiredFields {
-    fn default() -> Self {
-        Self(HashMap::new())
-    }
-}
-
 #[cfg(feature = "v1")]
 impl Default for PayoutRequiredFields {
     fn default() -> Self {

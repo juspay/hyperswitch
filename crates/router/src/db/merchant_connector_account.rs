@@ -627,7 +627,12 @@ impl MerchantConnectorAccountInterface for Store {
             for (merchant_connector_account, update_merchant_connector_account) in
                 merchant_connector_accounts
             {
-                let _connector_name = merchant_connector_account.connector_name;
+                #[cfg(feature = "v1")]
+                let _connector_name = merchant_connector_account.connector_name.clone();
+
+                #[cfg(feature = "v2")]
+                let _connector_name = merchant_connector_account.connector_name.to_string();
+
                 let _profile_id = merchant_connector_account.profile_id.clone();
 
                 let _merchant_id = merchant_connector_account.merchant_id.clone();

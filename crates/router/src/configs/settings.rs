@@ -535,9 +535,11 @@ pub struct NotAvailableFlows {
 
 #[cfg(feature = "payouts")]
 #[derive(Debug, Deserialize, Clone)]
+#[cfg_attr(feature = "v2", derive(Default))] // Configs are read from the config file in config/payout_required_fields.toml
 pub struct PayoutRequiredFields(pub HashMap<enums::PaymentMethod, PaymentMethodType>);
 
 #[derive(Debug, Deserialize, Clone)]
+#[cfg_attr(feature = "v2", derive(Default))] // Configs are read from the config file in config/payment_required_fields.toml
 pub struct RequiredFields(pub HashMap<enums::PaymentMethod, PaymentMethodType>);
 
 #[derive(Debug, Deserialize, Clone)]

@@ -105,14 +105,6 @@ impl Default for Mandates {
     }
 }
 
-// The values will be filled in from the config file in configs/payment_required_fields.toml
-#[cfg(feature = "v2")]
-impl Default for settings::RequiredFields {
-    fn default() -> Self {
-        Self(HashMap::new())
-    }
-}
-
 #[cfg(feature = "v1")]
 impl Default for settings::RequiredFields {
     fn default() -> Self {
