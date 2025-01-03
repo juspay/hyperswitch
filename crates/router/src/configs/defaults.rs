@@ -1,7 +1,7 @@
-use common_utils::id_type;
 use std::collections::{HashMap, HashSet};
 
 use api_models::{enums, payment_methods::RequiredFieldInfo};
+use common_utils::id_type;
 
 #[cfg(feature = "payouts")]
 pub mod payout_required_fields;
