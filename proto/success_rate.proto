@@ -44,7 +44,10 @@ message UpdateSuccessRateWindowRequest {
     string id = 1;
     string params = 2;
     repeated LabelWithStatus labels_with_status = 3;
-    UpdateSuccessRateWindowConfig config = 4;
+    string global_id = 4;
+    string global_params = 5;
+    repeated LabelWithStatus global_labels_with_status = 6;
+    UpdateSuccessRateWindowConfig config = 7;
 }
 
 message LabelWithStatus {

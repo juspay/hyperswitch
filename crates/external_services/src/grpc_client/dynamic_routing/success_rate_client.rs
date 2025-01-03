@@ -118,6 +118,7 @@ impl SuccessBasedDynamicRouting for SuccessRateCalculatorClient<Client> {
             .transpose()?;
 
         let labels_with_status = label_input
+            .clone()
             .into_iter()
             .map(|conn_choice| LabelWithStatus {
                 label: conn_choice.routable_connector_choice.to_string(),
@@ -125,11 +126,22 @@ impl SuccessBasedDynamicRouting for SuccessRateCalculatorClient<Client> {
             })
             .collect();
 
+        let global_labels_with_status = label_input
+            .into_iter()
+            .map(|conn_choice| LabelWithStatus {
+                label: conn_choice.routable_connector_choice.connector.to_string(),
+                status: conn_choice.status,
+            })
+            .collect();
+
         let mut request = tonic::Request::new(UpdateSuccessRateWindowRequest {
             id,
-            params,
+            params: params.clone(),
             labels_with_status,
             config,
+            global_id: "".to_string(),
+            global_params: params,
+            global_labels_with_status,
         });
 
         request.add_headers_to_grpc_request(headers);
