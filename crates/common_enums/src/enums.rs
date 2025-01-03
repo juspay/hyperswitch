@@ -2883,8 +2883,6 @@ pub enum PermissionGroup {
     ReconReportsManage,
     ReconOpsView,
     ReconOpsManage,
-    // TODO: To be deprecated, make sure DB is migrated before removing
-    ReconOps,
 }
 
 #[derive(Clone, Debug, serde::Serialize, PartialEq, Eq, Hash, strum::EnumIter)]
