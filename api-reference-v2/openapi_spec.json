@@ -2276,7 +2276,7 @@
           "Payment Methods"
         ],
         "summary": "Payment Methods - Payment Methods List",
-        "description": "List the payment methods eligible for a payment. This endpoint also returns the saved payment methods for the customer when the customer_id is passed when creating the payment",
+        "description": "List the payment methods eligible for a payment. This endpoint also returns the saved payment methods for the customer.",
         "operationId": "Retrieve Payment methods for a Payment Method Intent",
         "parameters": [
           {
@@ -14202,6 +14202,7 @@
         "oneOf": [
           {
             "type": "object",
+            "title": "card",
             "required": [
               "card_networks"
             ],
@@ -14216,6 +14217,7 @@
           },
           {
             "type": "object",
+            "title": "bank",
             "required": [
               "bank_names"
             ],
