@@ -537,6 +537,8 @@ pub enum Flow {
     Relay,
     /// Relay retrieve flow
     RelayRetrieve,
+    /// Incoming Relay Webhook Receive
+    IncomingRelayWebhookReceive,
 }
 
 /// Trait for providing generic behaviour to flow metric

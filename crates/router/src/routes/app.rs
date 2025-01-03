@@ -1512,6 +1512,22 @@ impl Webhooks {
     }
 }
 
+pub struct RelayWebhooks;
+
+#[cfg(feature = "oltp")]
+impl RelayWebhooks {
+    pub fn server(state: AppState) -> Scope {
+        use api_models::webhooks as webhook_type;
+        web::scope("/webhooks")
+            .app_data(web::Data::new(state))
+            .service(
+                web::resource("/relay/{merchant_id}/{connector_id_or_name}").route(
+                    web::post().to(receive_incoming_relay_webhook::<webhook_type::OutgoingWebhook>),
+                ),
+            )
+    }
+}
+
 #[cfg(all(feature = "oltp", feature = "v2"))]
 impl Webhooks {
     pub fn server(config: AppState) -> Scope {

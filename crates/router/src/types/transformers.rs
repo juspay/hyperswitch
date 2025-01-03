@@ -662,6 +662,22 @@ impl ForeignTryFrom<api_models::webhooks::IncomingWebhookEvent> for storage_enum
     }
 }
 
+impl ForeignTryFrom<api_models::webhooks::IncomingWebhookEvent> for api_enums::RelayStatus {
+    type Error = errors::ValidationError;
+
+    fn foreign_try_from(
+        value: api_models::webhooks::IncomingWebhookEvent,
+    ) -> Result<Self, Self::Error> {
+        match value {
+            api_models::webhooks::IncomingWebhookEvent::RefundSuccess => Ok(Self::Success),
+            api_models::webhooks::IncomingWebhookEvent::RefundFailure => Ok(Self::Failure),
+            _ => Err(errors::ValidationError::IncorrectValueProvided {
+                field_name: "incoming_webhook_event_type",
+            }),
+        }
+    }
+}
+
 #[cfg(feature = "payouts")]
 impl ForeignTryFrom<api_models::webhooks::IncomingWebhookEvent> for storage_enums::PayoutStatus {
     type Error = errors::ValidationError;

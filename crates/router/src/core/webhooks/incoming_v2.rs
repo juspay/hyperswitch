@@ -56,6 +56,7 @@ pub async fn incoming_webhooks_wrapper<W: types::OutgoingWebhookType>(
     key_store: domain::MerchantKeyStore,
     connector_id: &common_utils::id_type::MerchantConnectorAccountId,
     body: actix_web::web::Bytes,
+    is_relay_webhook: bool,
 ) -> RouterResponse<serde_json::Value> {
     let start_instant = Instant::now();
     let (application_response, webhooks_response_tracker, serialized_req) =
@@ -68,6 +69,7 @@ pub async fn incoming_webhooks_wrapper<W: types::OutgoingWebhookType>(
             key_store,
             connector_id,
             body.clone(),
+            is_relay_webhook,
         ))
         .await?;
 
@@ -124,6 +126,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
     key_store: domain::MerchantKeyStore,
     connector_id: &common_utils::id_type::MerchantConnectorAccountId,
     body: actix_web::web::Bytes,
+    _is_relay_webhook: bool,
 ) -> errors::RouterResult<(
     services::ApplicationResponse<serde_json::Value>,
     WebhookResponseTracker,
