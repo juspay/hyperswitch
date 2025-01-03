@@ -49,6 +49,12 @@ pub async fn update_trackers<F: Clone, Req>(
                     .and_then(|data| data.dynamic_data_value.expose_option()),
                 eci: authentication_details.eci,
             },
+            UasAuthenticationResponseData::Confirmation {} => {
+                AuthenticationUpdate::AuthenticationStatusUpdate {
+                    trans_status: common_enums::TransactionStatus::Success,
+                    authentication_status: common_enums::AuthenticationStatus::Success,
+                }
+            }
         },
         Err(error) => AuthenticationUpdate::ErrorUpdate {
             connector_authentication_id: error.connector_transaction_id,

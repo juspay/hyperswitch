@@ -379,18 +379,19 @@ where
             should_continue_capture,
         );
 
-        if helpers::is_merchant_eligible_authenthention_service(merchant_account.get_id(), state)
-            .await?
-        {
+        let is_eligible_for_uas =
+            helpers::is_merchant_eligible_authenthention_service(merchant_account.get_id(), state)
+                .await?;
+
+        if is_eligible_for_uas {
             operation
                 .to_domain()?
                 .call_unified_authentication_service_if_eligible(
                     state,
                     &mut payment_data,
-                    &mut should_continue_transaction,
-                    &connector_details,
                     &business_profile,
                     &key_store,
+                    &false,
                 )
                 .await?;
         } else {
@@ -492,6 +493,19 @@ where
 
                     let op_ref = &operation;
                     let should_trigger_post_processing_flows = is_operation_confirm(&operation);
+
+                    if is_eligible_for_uas {
+                        operation
+                            .to_domain()?
+                            .call_unified_authentication_service_if_eligible(
+                                state,
+                                &mut payment_data,
+                                &business_profile,
+                                &key_store,
+                                &true,
+                            )
+                            .await?;
+                    }
 
                     let operation = Box::new(PaymentResponse);
 
@@ -630,6 +644,19 @@ where
 
                     let op_ref = &operation;
                     let should_trigger_post_processing_flows = is_operation_confirm(&operation);
+
+                    if is_eligible_for_uas {
+                        operation
+                            .to_domain()?
+                            .call_unified_authentication_service_if_eligible(
+                                state,
+                                &mut payment_data,
+                                &business_profile,
+                                &key_store,
+                                &true,
+                            )
+                            .await?;
+                    }
 
                     let operation = Box::new(PaymentResponse);
                     connector_http_status_code = router_data.connector_http_status_code;

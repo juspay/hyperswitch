@@ -30,13 +30,13 @@ use hyperswitch_domain_models::{
         UasFlowData,
     },
     router_flow_types::{
-        mandate_revoke::MandateRevoke, AccessTokenAuth, PostAuthenticate, PreAuthenticate,
-        VerifyWebhookSource,
+        mandate_revoke::MandateRevoke, AccessTokenAuth, AuthenticationConfirmation,
+        PostAuthenticate, PreAuthenticate, VerifyWebhookSource,
     },
     router_request_types::{
         unified_authentication_service::{
-            UasAuthenticationResponseData, UasPostAuthenticationRequestData,
-            UasPreAuthenticationRequestData,
+            UasAuthenticationResponseData, UasConfirmationRequestData,
+            UasPostAuthenticationRequestData, UasPreAuthenticationRequestData,
         },
         AccessTokenRequestData, MandateRevokeRequestData, VerifyWebhookSourceRequestData,
     },
@@ -346,7 +346,7 @@ pub trait ConnectorVerifyWebhookSourceV2:
 
 /// trait UnifiedAuthenticationService
 pub trait UnifiedAuthenticationService:
-    ConnectorCommon + UasPreAuthentication + UasPostAuthentication
+    ConnectorCommon + UasPreAuthentication + UasPostAuthentication + UasAuthenticationConfirmation
 {
 }
 
@@ -370,9 +370,18 @@ pub trait UasPostAuthentication:
 {
 }
 
+/// trait UasAuthenticationConfirmation
+pub trait UasAuthenticationConfirmation:
+    ConnectorIntegration<
+    AuthenticationConfirmation,
+    UasConfirmationRequestData,
+    UasAuthenticationResponseData,
+>
+{
+}
 /// trait UnifiedAuthenticationServiceV2
 pub trait UnifiedAuthenticationServiceV2:
-    ConnectorCommon + UasPreAuthenticationV2 + UasPostAuthenticationV2
+    ConnectorCommon + UasPreAuthenticationV2 + UasPostAuthenticationV2 + UasAuthenticationConfirmationV2
 {
 }
 
@@ -393,6 +402,17 @@ pub trait UasPostAuthenticationV2:
     PostAuthenticate,
     UasFlowData,
     UasPostAuthenticationRequestData,
+    UasAuthenticationResponseData,
+>
+{
+}
+
+/// trait UasAuthenticationConfirmationV2
+pub trait UasAuthenticationConfirmationV2:
+    ConnectorIntegrationV2<
+    AuthenticationConfirmation,
+    UasFlowData,
+    UasConfirmationRequestData,
     UasAuthenticationResponseData,
 >
 {

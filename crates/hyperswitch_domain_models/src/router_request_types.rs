@@ -581,8 +581,8 @@ impl
 pub struct AuthenticationData {
     pub eci: Option<String>,
     pub cavv: String,
-    pub threeds_server_transaction_id: String,
-    pub message_version: common_utils::types::SemanticVersion,
+    pub threeds_server_transaction_id: Option<String>,
+    pub message_version: Option<common_utils::types::SemanticVersion>,
     pub ds_trans_id: Option<String>,
 }
 
