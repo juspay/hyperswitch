@@ -1,4 +1,5 @@
 use crate::{
+    constants,
     types::{RefundsResponseRouterData, ResponseRouterData},
     unimplemented_payment_method,
     utils::{
@@ -2069,8 +2070,8 @@ impl TryFrom<RefundsResponseRouterData<RSync, BankOfAmericaRsyncResponse>>
                     if status == BankofamericaRefundStatus::Voided {
                         Err(get_error_response(
                             &Some(BankOfAmericaErrorInformation {
-                                message: Some(consts::REFUND_VOIDED.to_string()),
-                                reason: Some(consts::REFUND_VOIDED.to_string()),
+                                message: Some(constants::REFUND_VOIDED.to_string()),
+                                reason: Some(constants::REFUND_VOIDED.to_string()),
                                 details: None,
                             }),
                             &None,

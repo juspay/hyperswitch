@@ -75,7 +75,7 @@ use transformers as cybersource;
 use url::Url;
 
 use crate::{
-    constants::headers,
+    constants::{self,headers},
     types::ResponseRouterData,
     utils::{
         self, convert_amount, PaymentMethodDataType, PaymentsAuthorizeRequestData,
@@ -182,7 +182,7 @@ impl ConnectorCommon for Cybersource {
         > = res.response.parse_struct("Cybersource ErrorResponse");
 
         let error_message = if res.status_code == 401 {
-            consts::CONNECTOR_UNAUTHORIZED_ERROR
+            constants::CONNECTOR_UNAUTHORIZED_ERROR
         } else {
             hyperswitch_interfaces::consts::NO_ERROR_MESSAGE
         };

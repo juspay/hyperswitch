@@ -1,7 +1,7 @@
 pub mod transformers;
 
 use crate::{
-    constants::headers,
+    constants::{self,headers},
     types::ResponseRouterData,
     utils::{self, PaymentMethodDataType, RefundsRequestData},
 };
@@ -35,7 +35,10 @@ use hyperswitch_domain_models::{
     },
 };
 use hyperswitch_interfaces::{
-    api::{self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorValidation,ConnectorSpecifications},
+    api::{
+        self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorSpecifications,
+        ConnectorValidation,
+    },
     configs::Connectors,
     errors,
     events::connector_api_logs::ConnectorEvent,
@@ -215,7 +218,7 @@ impl ConnectorCommon for Bankofamerica {
         router_env::logger::info!(connector_response=?response);
 
         let error_message = if res.status_code == 401 {
-            consts::CONNECTOR_UNAUTHORIZED_ERROR
+            constants::CONNECTOR_UNAUTHORIZED_ERROR
         } else {
             hyperswitch_interfaces::consts::NO_ERROR_MESSAGE
         };

@@ -4,6 +4,7 @@ use masking::{ExposeInterface, PeekInterface, Secret};
 use serde_json::Value;
 
 use crate::{
+    constants,
     types::{RefundsResponseRouterData, ResponseRouterData},
     unimplemented_payment_method,
     utils::{
@@ -2203,8 +2204,8 @@ impl TryFrom<RefundsResponseRouterData<RSync, WellsfargoRsyncResponse>>
                     if status == WellsfargoRefundStatus::Voided {
                         Err(get_error_response(
                             &Some(WellsfargoErrorInformation {
-                                message: Some(consts::REFUND_VOIDED.to_string()),
-                                reason: Some(consts::REFUND_VOIDED.to_string()),
+                                message: Some(constants::REFUND_VOIDED.to_string()),
+                                reason: Some(constants::REFUND_VOIDED.to_string()),
                                 details: None,
                             }),
                             &None,

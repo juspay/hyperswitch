@@ -61,7 +61,7 @@ use transformers as wellsfargo;
 use url::Url;
 
 use crate::{
-    constants::headers,
+    constants::{headers,self},
     types::ResponseRouterData,
     utils::{self, convert_amount, PaymentMethodDataType, RefundsRequestData},
 };
@@ -163,7 +163,7 @@ impl ConnectorCommon for Wellsfargo {
         > = res.response.parse_struct("Wellsfargo ErrorResponse");
 
         let error_message = if res.status_code == 401 {
-            consts::CONNECTOR_UNAUTHORIZED_ERROR
+            constants::CONNECTOR_UNAUTHORIZED_ERROR
         } else {
             hyperswitch_interfaces::consts::NO_ERROR_MESSAGE
         };

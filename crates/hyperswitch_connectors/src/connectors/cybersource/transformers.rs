@@ -59,6 +59,7 @@ use crate::utils::PayoutsData;
 use crate::types::PayoutsResponseRouterData;
 
 use crate::{
+    constants,
     types::{RefundsResponseRouterData, ResponseRouterData},
     unimplemented_payment_method,
     utils::{
@@ -3556,8 +3557,8 @@ impl TryFrom<RefundsResponseRouterData<RSync, CybersourceRsyncResponse>>
                     if status == CybersourceRefundStatus::Voided {
                         Err(get_error_response(
                             &Some(CybersourceErrorInformation {
-                                message: Some(consts::REFUND_VOIDED.to_string()),
-                                reason: Some(consts::REFUND_VOIDED.to_string()),
+                                message: Some(constants::REFUND_VOIDED.to_string()),
+                                reason: Some(constants::REFUND_VOIDED.to_string()),
                                 details: None,
                             }),
                             &None,
