@@ -1,5 +1,6 @@
-pub use super::enums::{PaymentMethod, PayoutType};
 use utoipa::ToSchema;
+
+pub use super::enums::{PaymentMethod, PayoutType};
 
 #[derive(
     Clone,
