@@ -122,7 +122,7 @@ impl<F: Clone + Sync> UnifiedAuthenticationService<F> for ClickToPay {
         let authentication_confirmation_data =
             UasConfirmationRequestData::try_from(payment_data.clone())?;
 
-        let authentication_confimation_router_data : hyperswitch_domain_models::types::UasAuthenticationConfirmationRouterData = utils::construct_uas_router_data(
+        let authentication_confirmation_router_data : hyperswitch_domain_models::types::UasAuthenticationConfirmationRouterData = utils::construct_uas_router_data(
             connector_name.to_string(),
             payment_method,
             payment_data.payment_attempt.merchant_id.clone(),
@@ -135,7 +135,7 @@ impl<F: Clone + Sync> UnifiedAuthenticationService<F> for ClickToPay {
         utils::do_auth_connector_call(
             state,
             UNIFIED_AUTHENTICATION_SERVICE.to_string(),
-            authentication_confimation_router_data,
+            authentication_confirmation_router_data,
         )
         .await?;
 
