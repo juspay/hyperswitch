@@ -15,6 +15,13 @@ crate::impl_queryable_id_type!(TenantId);
 crate::impl_to_sql_from_sql_id_type!(TenantId);
 
 impl TenantId {
+    /// Construct TenantID without checking for length constraints
+    pub fn new_unchecked(input_string: String) -> Self {
+        Self(super::LengthId::new_unchecked(
+            super::AlphaNumericId::new_unchecked(input_string),
+        ))
+    }
+
     /// Get tenant id from String
     pub fn try_from_string(tenant_id: String) -> CustomResult<Self, ValidationError> {
         Self::try_from(std::borrow::Cow::from(tenant_id))
