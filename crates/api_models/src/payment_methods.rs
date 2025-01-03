@@ -11,7 +11,7 @@ use common_utils::{
     id_type, link_utils, pii,
     types::{MinorUnit, Percentage, Surcharge},
 };
-use masking::PeekInterface;
+use masking::{self, Deserialize, PeekInterface};
 use serde::de;
 use utoipa::{schema, ToSchema};
 
@@ -227,7 +227,7 @@ impl From<PaymentMethodIntentConfirmInternal> for PaymentMethodIntentConfirm {
         }
     }
 }
-#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone)]
 /// This struct is only used by and internal api to migrate payment method
 pub struct PaymentMethodMigrate {
     /// Merchant id
@@ -276,7 +276,8 @@ pub struct PaymentMethodMigrate {
     pub billing: Option<payments::Address>,
 
     /// The connector mandate details of the payment method
-    pub connector_mandate_details: Option<PaymentsMandateReference>,
+    #[serde(deserialize_with = "deserialize_connector_mandate_details")]
+    pub connector_mandate_details: Option<CommonMandateReference>,
 
     // The CIT (customer initiated transaction) transaction id associated with the payment method
     pub network_transaction_id: Option<String>,
@@ -300,10 +301,20 @@ pub struct PaymentMethodMigrateResponse {
     pub network_transaction_id_migrated: Option<bool>,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PaymentsMandateReference(
     pub HashMap<id_type::MerchantConnectorAccountId, PaymentsMandateReferenceRecord>,
 );
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct PayoutsMandateReference(
+    pub HashMap<id_type::MerchantConnectorAccountId, PayoutsMandateReferenceRecord>,
+);
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct PayoutsMandateReferenceRecord {
+    pub transfer_method_id: Option<String>,
+}
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PaymentsMandateReferenceRecord {
@@ -311,6 +322,56 @@ pub struct PaymentsMandateReferenceRecord {
     pub payment_method_type: Option<common_enums::PaymentMethodType>,
     pub original_payment_authorized_amount: Option<i64>,
     pub original_payment_authorized_currency: Option<common_enums::Currency>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct CommonMandateReference {
+    pub payments: Option<PaymentsMandateReference>,
+    pub payouts: Option<PayoutsMandateReference>,
+}
+
+impl From<CommonMandateReference> for PaymentsMandateReference {
+    fn from(common_mandate: CommonMandateReference) -> Self {
+        common_mandate.payments.unwrap_or_default()
+    }
+}
+
+impl From<PaymentsMandateReference> for CommonMandateReference {
+    fn from(payments_reference: PaymentsMandateReference) -> Self {
+        Self {
+            payments: Some(payments_reference),
+            payouts: None,
+        }
+    }
+}
+
+fn deserialize_connector_mandate_details<'de, D>(
+    deserializer: D,
+) -> Result<Option<CommonMandateReference>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let value: Option<serde_json::Value> = Option::<serde_json::Value>::deserialize(deserializer)?;
+    if let Some(connector_mandate_value) = value {
+        if let Ok(common_mandate) =
+            serde_json::from_value::<CommonMandateReference>(connector_mandate_value.clone())
+        {
+            Ok(Some(common_mandate))
+        } else if let Ok(payment_mandate_record) =
+            serde_json::from_value::<PaymentsMandateReference>(connector_mandate_value)
+        {
+            Ok(Some(CommonMandateReference {
+                payments: Some(payment_mandate_record),
+                payouts: None,
+            }))
+        } else {
+            Err(de::Error::custom(
+                "Failed to deserialize connector_mandate_details",
+            ))
+        }
+    } else {
+        Ok(None)
+    }
 }
 
 #[cfg(all(
@@ -346,7 +407,12 @@ impl PaymentMethodCreate {
             payment_method_issuer_code: payment_method_migrate.payment_method_issuer_code,
             metadata: payment_method_migrate.metadata.clone(),
             payment_method_data: payment_method_migrate.payment_method_data.clone(),
-            connector_mandate_details: payment_method_migrate.connector_mandate_details.clone(),
+            connector_mandate_details: payment_method_migrate
+                .connector_mandate_details
+                .clone()
+                .map(|common_mandate_reference| {
+                    PaymentsMandateReference::from(common_mandate_reference)
+                }),
             client_secret: None,
             billing: payment_method_migrate.billing.clone(),
             card: card_details,
@@ -1473,7 +1539,7 @@ pub struct PaymentMethodListRequest {
     any(feature = "v1", feature = "v2"),
     not(feature = "payment_methods_v2")
 ))]
-impl<'de> serde::Deserialize<'de> for PaymentMethodListRequest {
+impl<'de> Deserialize<'de> for PaymentMethodListRequest {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
@@ -1589,7 +1655,7 @@ pub struct PaymentMethodListRequest {
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-impl<'de> serde::Deserialize<'de> for PaymentMethodListRequest {
+impl<'de> Deserialize<'de> for PaymentMethodListRequest {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
@@ -2352,7 +2418,11 @@ impl
                 }),
                 email: record.email,
             }),
-            connector_mandate_details,
+            connector_mandate_details: connector_mandate_details.map(
+                |payments_mandate_reference| {
+                    CommonMandateReference::from(payments_mandate_reference)
+                },
+            ),
             metadata: None,
             payment_method_issuer_code: None,
             card_network: None,

@@ -20886,6 +20886,11 @@
             "example": "+1",
             "nullable": true,
             "maxLength": 255
+          },
+          "payout_method_id": {
+            "type": "string",
+            "description": "Identifier for payout method",
+            "nullable": true
           }
         }
       },
@@ -21184,6 +21189,11 @@
             "example": "Invalid card details",
             "nullable": true,
             "maxLength": 1024
+          },
+          "payout_method_id": {
+            "type": "string",
+            "description": "Identifier for payout method",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -21830,6 +21840,11 @@
             "example": "+1",
             "nullable": true,
             "maxLength": 255
+          },
+          "payout_method_id": {
+            "type": "string",
+            "description": "Identifier for payout method",
+            "nullable": true
           }
         }
       },
@@ -22042,6 +22057,11 @@
             "example": "+1",
             "nullable": true,
             "maxLength": 255
+          },
+          "payout_method_id": {
+            "type": "string",
+            "description": "Identifier for payout method",
+            "nullable": true
           }
         }
       },

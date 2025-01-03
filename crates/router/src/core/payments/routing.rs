@@ -152,7 +152,7 @@ pub fn make_dsl_input_for_payouts(
             .map(api_enums::PaymentMethod::foreign_from),
         payment_method_type: payout_data
             .payout_method_data
-            .clone()
+            .as_ref()
             .map(api_enums::PaymentMethodType::foreign_from),
         card_network: None,
     };

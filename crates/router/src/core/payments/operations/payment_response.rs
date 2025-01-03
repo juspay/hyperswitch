@@ -1594,9 +1594,15 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                         .connector_mandate_details
                                         .clone()
                                         .map(|val| {
-                                            val.parse_value::<diesel_models::PaymentsMandateReference>(
-                                                "PaymentsMandateReference",
-                                            )
+                                            val.clone()
+                                            .parse_value::<diesel_models::CommonMandateReference>("CommonMandateReference")
+                                            .or_else(|_| {
+                                                val.parse_value::<diesel_models::PaymentsMandateReference>("PaymentsMandateReference")
+                                                    .map(|payments| diesel_models::CommonMandateReference {
+                                                        payments: Some(payments),
+                                                        payouts: None,
+                                                    })
+                                            })
                                         })
                                         .transpose()
                                         .change_context(
@@ -1612,9 +1618,11 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                         // check if the mandate has not already been set to active
                                         if !mandate_details
                                         .as_ref()
-                                        .map(|payment_mandate_reference| {
+                                        .map(|common_mandate_reference| {
 
-                                                payment_mandate_reference.0.get(&mca_id)
+                                            common_mandate_reference.payments
+                                            .as_ref()
+                                            .and_then(|payments| payments.0.get(&mca_id))
                                                     .map(|payment_mandate_reference_record| payment_mandate_reference_record.connector_mandate_status == Some(common_enums::ConnectorMandateStatus::Active))
                                                     .unwrap_or(false)
                                         })

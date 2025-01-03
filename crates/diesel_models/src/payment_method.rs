@@ -1,8 +1,9 @@
 use std::collections::HashMap;
 
 use common_enums::MerchantStorageScheme;
-use common_utils::{encryption::Encryption, pii};
+use common_utils::{encryption::Encryption, errors::ParsingError, pii};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
+use error_stack::report;
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
     not(feature = "payment_methods_v2")
@@ -77,7 +78,7 @@ pub struct PaymentMethod {
     pub payment_method_data: Option<Encryption>,
     pub locker_id: Option<String>,
     pub last_used_at: PrimitiveDateTime,
-    pub connector_mandate_details: Option<PaymentsMandateReference>,
+    pub connector_mandate_details: Option<CommonMandateReference>,
     pub customer_acceptance: Option<pii::SecretSerdeValue>,
     pub status: storage_enums::PaymentMethodStatus,
     pub network_transaction_id: Option<String>,
@@ -101,6 +102,30 @@ impl PaymentMethod {
     ))]
     pub fn get_id(&self) -> &String {
         &self.payment_method_id
+    }
+
+    pub fn get_common_mandate_reference(
+        connector_mandate_details: Option<serde_json::Value>,
+    ) -> Result<CommonMandateReference, ParsingError> {
+        if let Some(value) = connector_mandate_details {
+            match serde_json::from_value::<CommonMandateReference>(value.clone()) {
+                Ok(common_mandate_reference) => Ok(common_mandate_reference),
+                Err(_) => match serde_json::from_value::<PaymentsMandateReference>(value.clone()) {
+                    Ok(payment_mandate_reference) => Ok(CommonMandateReference {
+                        payments: Some(payment_mandate_reference),
+                        payouts: None,
+                    }),
+                    Err(_) => Err(ParsingError::StructParseFailure(
+                        "Failed to deserialize PaymentMethod",
+                    ))?,
+                },
+            }
+        } else {
+            Ok(CommonMandateReference {
+                payments: None,
+                payouts: None,
+            })
+        }
     }
 
     #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
@@ -165,7 +190,7 @@ pub struct PaymentMethodNew {
     pub payment_method_data: Option<Encryption>,
     pub locker_id: Option<String>,
     pub last_used_at: PrimitiveDateTime,
-    pub connector_mandate_details: Option<PaymentsMandateReference>,
+    pub connector_mandate_details: Option<CommonMandateReference>,
     pub customer_acceptance: Option<pii::SecretSerdeValue>,
     pub status: storage_enums::PaymentMethodStatus,
     pub network_transaction_id: Option<String>,
@@ -293,7 +318,7 @@ pub enum PaymentMethodUpdate {
         locker_fingerprint_id: Option<String>,
     },
     ConnectorMandateDetailsUpdate {
-        connector_mandate_details: Option<PaymentsMandateReference>,
+        connector_mandate_details: Option<CommonMandateReference>,
     },
 }
 
@@ -318,7 +343,7 @@ pub struct PaymentMethodUpdateInternal {
     status: Option<storage_enums::PaymentMethodStatus>,
     locker_id: Option<String>,
     payment_method_type_v2: Option<storage_enums::PaymentMethod>,
-    connector_mandate_details: Option<PaymentsMandateReference>,
+    connector_mandate_details: Option<CommonMandateReference>,
     updated_by: Option<String>,
     payment_method_subtype: Option<storage_enums::PaymentMethodType>,
     last_modified: PrimitiveDateTime,
@@ -970,3 +995,90 @@ impl std::ops::DerefMut for PaymentsMandateReference {
 }
 
 common_utils::impl_to_sql_from_sql_json!(PaymentsMandateReference);
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct PayoutsMandateReferenceRecord {
+    pub transfer_method_id: Option<String>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, diesel::AsExpression)]
+#[diesel(sql_type = diesel::sql_types::Jsonb)]
+pub struct PayoutsMandateReference(
+    pub HashMap<common_utils::id_type::MerchantConnectorAccountId, PayoutsMandateReferenceRecord>,
+);
+
+impl std::ops::Deref for PayoutsMandateReference {
+    type Target =
+        HashMap<common_utils::id_type::MerchantConnectorAccountId, PayoutsMandateReferenceRecord>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl std::ops::DerefMut for PayoutsMandateReference {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+#[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize, diesel::AsExpression)]
+#[diesel(sql_type = diesel::sql_types::Jsonb)]
+pub struct CommonMandateReference {
+    pub payments: Option<PaymentsMandateReference>,
+    pub payouts: Option<PayoutsMandateReference>,
+}
+
+impl diesel::serialize::ToSql<diesel::sql_types::Jsonb, diesel::pg::Pg> for CommonMandateReference {
+    fn to_sql<'b>(
+        &'b self,
+        out: &mut diesel::serialize::Output<'b, '_, diesel::pg::Pg>,
+    ) -> diesel::serialize::Result {
+        let value = serde_json::to_value(self)?;
+        <serde_json::Value as diesel::serialize::ToSql<
+            diesel::sql_types::Jsonb,
+            diesel::pg::Pg,
+        >>::to_sql(&value, &mut out.reborrow())
+    }
+}
+
+impl<DB: diesel::backend::Backend> diesel::deserialize::FromSql<diesel::sql_types::Jsonb, DB>
+    for CommonMandateReference
+where
+    serde_json::Value: diesel::deserialize::FromSql<diesel::sql_types::Jsonb, DB>,
+{
+    fn from_sql(bytes: DB::RawValue<'_>) -> diesel::deserialize::Result<Self> {
+        // Deserialize into a generic serde_json::Value first
+        let value = <serde_json::Value as diesel::deserialize::FromSql<
+            diesel::sql_types::Jsonb,
+            DB,
+        >>::from_sql(bytes)?;
+
+        // Try to directly deserialize into CommonMandateReference
+        if let Ok(common_reference) = serde_json::from_value::<Self>(value.clone()) {
+            return Ok(common_reference);
+        }
+
+        // If that fails, try deserializing into PaymentsMandateReference
+        if let Ok(payment_reference) = serde_json::from_value::<PaymentsMandateReference>(value) {
+            // Convert PaymentsMandateReference to CommonMandateReference
+            return Ok(Self::from(payment_reference));
+        }
+
+        // If neither succeeds, return an error
+        Err(
+            report!(ParsingError::StructParseFailure("CommonMandateReference")).attach_printable(
+                "Failed to parse JSON into CommonMandateReference or PaymentsMandateReference",
+            ),
+        )?
+    }
+}
+
+impl From<PaymentsMandateReference> for CommonMandateReference {
+    fn from(payment_reference: PaymentsMandateReference) -> Self {
+        Self {
+            payments: Some(payment_reference),
+            payouts: None,
+        }
+    }
+}

@@ -846,9 +846,10 @@ pub async fn skip_locker_call_and_migrate_payment_method(
             .clone()
             .and_then(|val| if val == json!({}) { None } else { Some(true) })
             .or_else(|| {
-                req.connector_mandate_details
-                    .clone()
-                    .and_then(|val| (!val.0.is_empty()).then_some(false))
+                req.connector_mandate_details.clone().and_then(|val| {
+                    val.payments
+                        .and_then(|payin_val| (!payin_val.0.is_empty()).then_some(false))
+                })
             }),
     );
 
@@ -2819,7 +2820,7 @@ pub async fn update_payment_method_connector_mandate_details(
     key_store: &domain::MerchantKeyStore,
     db: &dyn db::StorageInterface,
     pm: domain::PaymentMethod,
-    connector_mandate_details: Option<diesel_models::PaymentsMandateReference>,
+    connector_mandate_details: Option<diesel_models::CommonMandateReference>,
     storage_scheme: MerchantStorageScheme,
 ) -> errors::CustomResult<(), errors::VaultError> {
     let pm_update = payment_method::PaymentMethodUpdate::ConnectorMandateDetailsUpdate {
@@ -4939,9 +4940,19 @@ pub async fn list_customer_payment_method(
             .connector_mandate_details
             .clone()
             .map(|val| {
-                val.parse_value::<diesel_models::PaymentsMandateReference>(
-                    "PaymentsMandateReference",
-                )
+                val.clone()
+                    .parse_value::<diesel_models::CommonMandateReference>("CommonMandateReference")
+                    .or_else(|_| {
+                        val.parse_value::<diesel_models::PaymentsMandateReference>(
+                            "PaymentsMandateReference",
+                        )
+                        .map(|payments| {
+                            diesel_models::CommonMandateReference {
+                                payments: Some(payments),
+                                payouts: None,
+                            }
+                        })
+                    })
             })
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -5063,7 +5074,7 @@ pub async fn list_customer_payment_method(
     not(feature = "payment_methods_v2"),
     not(feature = "customer_v2")
 ))]
-async fn get_pm_list_context(
+pub async fn get_pm_list_context(
     state: &routes::SessionState,
     payment_method: &enums::PaymentMethod,
     #[cfg(feature = "payouts")] key_store: &domain::MerchantKeyStore,
@@ -5218,7 +5229,7 @@ pub async fn get_mca_status(
     profile_id: Option<id_type::ProfileId>,
     merchant_id: &id_type::MerchantId,
     is_connector_agnostic_mit_enabled: bool,
-    connector_mandate_details: Option<payment_method::PaymentsMandateReference>,
+    connector_mandate_details: Option<payment_method::CommonMandateReference>,
     network_transaction_id: Option<&String>,
 ) -> errors::RouterResult<bool> {
     if is_connector_agnostic_mit_enabled && network_transaction_id.is_some() {
@@ -5256,7 +5267,7 @@ pub async fn get_mca_status(
     profile_id: Option<id_type::ProfileId>,
     merchant_id: &id_type::MerchantId,
     is_connector_agnostic_mit_enabled: bool,
-    connector_mandate_details: Option<&payment_method::PaymentsMandateReference>,
+    connector_mandate_details: Option<&payment_method::CommonMandateReference>,
     network_transaction_id: Option<&String>,
     merchant_connector_accounts: &domain::MerchantConnectorAccounts,
 ) -> bool {
