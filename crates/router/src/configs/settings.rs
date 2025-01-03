@@ -299,16 +299,13 @@ pub struct PaymentLink {
 #[derive(Debug, Deserialize, Clone, Default)]
 #[serde(default)]
 pub struct ForexApi {
-    pub local_fetch_retry_count: u64,
     pub api_key: Secret<String>,
     pub fallback_api_key: Secret<String>,
-    /// in ms
+    /// in s
     pub call_delay: i64,
     /// in ms
-    pub local_fetch_retry_delay: u64,
-    /// in ms
     pub api_timeout: u64,
-    /// in ms
+    /// in s
     pub redis_lock_timeout: u64,
 }
 

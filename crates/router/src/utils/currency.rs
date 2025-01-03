@@ -121,6 +121,7 @@ async fn save_forex_to_local(
 ) -> CustomResult<(), ForexCacheError> {
     let mut local = FX_EXCHANGE_RATES_CACHE.write().await;
     *local = Some(exchange_rates_cache_entry);
+    logger::debug!("forex_log: forex saved in cache");
     Ok(())
 }
 
@@ -161,9 +162,11 @@ pub async fn get_forex_rates(
     if let Some(local_rates) = retrieve_forex_from_local().await {
         if local_rates.is_expired(call_delay) {
             // expired local data
+            logger::debug!("forex_log: Forex stored in cache is expired");
             successive_fetch_and_save_forex(state, Some(local_rates)).await
         } else {
             // Valid data present in local
+            logger::debug!("forex_log: forex response from cache");
             Ok(local_rates)
         }
     } else {
@@ -198,7 +201,7 @@ async fn successive_fetch_and_save_forex(
 ) -> CustomResult<FxExchangeRatesCacheEntry, ForexCacheError> {
     // spawn a new thread and do the api fetch and write operations on redis.
     let forex_api_key = state.conf.forex_api.get_inner().api_key.peek();
-    if forex_api_key.eq("") {
+    if forex_api_key.is_empty() {
         logger::debug!("forex_log: api_keys not present in configs");
         Err(ForexCacheError::ConfigurationError.into())
     } else {
@@ -278,6 +281,7 @@ async fn fallback_forex_redis_check(
         Some(redis_forex) => {
             // Valid data present in redis
             let exchange_rates = FxExchangeRatesCacheEntry::new(redis_forex.as_ref().clone());
+            logger::debug!("forex_log: forex response from redis");
             save_forex_to_local(exchange_rates.clone()).await?;
             Ok(exchange_rates)
         }
@@ -499,6 +503,7 @@ async fn is_redis_expired(
         if cache.timestamp + call_delay > date_time::now_unix_timestamp() {
             Some(cache.data.clone())
         } else {
+            logger::debug!("forex_log: Forex stored in redis is expired");
             None
         }
     })
