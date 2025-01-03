@@ -7,7 +7,16 @@ let globalState;
 describe("Priority Based Routing Test", () => {
   let shouldContinue = true;
 
-  context("Login", () => {
+  beforeEach(() => {
+    // Restore the session if it exists
+    cy.session("login", () => {
+      cy.userLogin(globalState);
+      cy.terminate2Fa(globalState);
+      cy.userInfo(globalState);
+    });
+  });
+
+  context("Get merchant info", () => {
     before("seed global state", () => {
       cy.task("getGlobalState").then((state) => {
         globalState = new State(state);
@@ -16,12 +25,6 @@ describe("Priority Based Routing Test", () => {
 
     after("flush global state", () => {
       cy.task("setGlobalState", globalState.data);
-    });
-
-    it("User login", () => {
-      cy.userLogin(globalState);
-      cy.terminate2Fa(globalState);
-      cy.userInfo(globalState);
     });
 
     it("merchant retrieve call", () => {
@@ -39,6 +42,7 @@ describe("Priority Based Routing Test", () => {
     after("flush global state", () => {
       cy.task("setGlobalState", globalState.data);
     });
+
     it("list-mca-by-mid", () => {
       cy.ListMcaByMid(globalState);
     });
@@ -117,6 +121,7 @@ describe("Priority Based Routing Test", () => {
     after("flush global state", () => {
       cy.task("setGlobalState", globalState.data);
     });
+
     it("list-mca-by-mid", () => {
       cy.ListMcaByMid(globalState);
     });
