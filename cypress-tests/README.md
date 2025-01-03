@@ -225,7 +225,7 @@ The folder structure of this directory is as follows:
    **Handling Unsupported Features:**
 
    - If a connector does not support a specific payment method or a feature:
-   - The relevant configurations in the `<connector_name>.js` file can be omited
+   - The relevant configurations in the `<connector_name>.js` file can be omitted
    - The handling of unsupported or unimplemented features will be managed by the [`Commons.js`](cypress/e2e/PaymentUtils/Commons.js) file, which will throw the appropriate `unsupported` or `not implemented` error
 
 3. In `Utils.js`, import the new connector details
@@ -460,7 +460,7 @@ npm run lint -- --fix
 
 ### Multiple credential support
 
-- There are some use cases where a connector supports a feature that requires a different set of API keys (example: Netwrok transaction ID for Stripe expects a different API Key to be passed). This forces the need for having multiple credentials that serves different use cases
+- There are some use cases where a connector supports a feature that requires a different set of API keys (example: Network transaction ID for Stripe expects a different API Key to be passed). This forces the need for having multiple credentials that serves different use cases
 - This basically means that a connector can have multiple credentials
 - At present the maximum number of credentials that can be supported is `2`
 - The `creds.json` file should be structured to support multiple credentials for such connectors. The `creds.json` file should be structured as follows:
