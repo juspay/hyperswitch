@@ -1,13 +1,18 @@
-ALTER TYPE "Currency" ADD VALUE IF NOT EXISTS 'AFN';
-ALTER TYPE "Currency" ADD VALUE IF NOT EXISTS 'BTN';
-ALTER TYPE "Currency" ADD VALUE IF NOT EXISTS 'CDF';
-ALTER TYPE "Currency" ADD VALUE IF NOT EXISTS 'ERN';
-ALTER TYPE "Currency" ADD VALUE IF NOT EXISTS 'IRR';
-ALTER TYPE "Currency" ADD VALUE IF NOT EXISTS 'ISK';
-ALTER TYPE "Currency" ADD VALUE IF NOT EXISTS 'KPW';
-ALTER TYPE "Currency" ADD VALUE IF NOT EXISTS 'SDG';
-ALTER TYPE "Currency" ADD VALUE IF NOT EXISTS 'SYP';
-ALTER TYPE "Currency" ADD VALUE IF NOT EXISTS 'TJS';
-ALTER TYPE "Currency" ADD VALUE IF NOT EXISTS 'TMT';
-ALTER TYPE "Currency" ADD VALUE IF NOT EXISTS 'ZMW';
-ALTER TYPE "Currency" ADD VALUE IF NOT EXISTS 'ZWL';
+DO $$
+  DECLARE currency TEXT;
+  BEGIN
+    FOR currency IN
+      SELECT
+        unnest(
+          ARRAY ['AFN', 'BTN', 'CDF', 'ERN', 'IRR', 'ISK', 'KPW', 'SDG', 'SYP', 'TJS', 'TMT', 'ZWL']
+        ) AS currency
+      LOOP
+        IF NOT EXISTS (
+            SELECT 1
+            FROM pg_enum
+            WHERE enumlabel = currency
+              AND enumtypid = (SELECT oid FROM pg_type WHERE typname = 'Currency')
+          ) THEN EXECUTE format('ALTER TYPE "Currency" ADD VALUE %L', currency);
+        END IF;
+      END LOOP;
+END $$;
