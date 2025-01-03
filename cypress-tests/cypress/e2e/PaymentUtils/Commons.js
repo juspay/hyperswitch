@@ -715,10 +715,6 @@ export const connectorDetails = {
         customer_acceptance: null,
         setup_future_usage: "on_session",
       },
-      Response: {
-        status: 200,
-        body: {},
-      },
     }),
     Capture: getCustomExchange({
       Request: {
