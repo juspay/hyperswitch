@@ -1092,6 +1092,8 @@ pub struct FiuuPaymentSyncResponse {
     error_desc: String,
     #[serde(rename = "miscellaneous")]
     miscellaneous: Option<HashMap<String, Secret<String>>>,
+    #[serde(rename = "SchemeTransactionID")]
+    scheme_transaction_id: Option<Secret<String>>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Display, Clone, PartialEq)]
@@ -1182,7 +1184,10 @@ impl TryFrom<PaymentsSyncResponseRouterData<FiuuPaymentResponse>> for PaymentsSy
                     redirection_data: Box::new(None),
                     mandate_reference: Box::new(None),
                     connector_metadata: None,
-                    network_txn_id: None,
+                    network_txn_id: response
+                        .scheme_transaction_id
+                        .as_ref()
+                        .map(|id| id.clone().expose()),
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
                     charge_id: None,

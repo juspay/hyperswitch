@@ -540,7 +540,7 @@ card.credit = { connector_list = "cybersource" }
 card.debit = { connector_list = "cybersource" }
 
 [network_transaction_id_supported_connectors]
-connector_list = "stripe,adyen,cybersource"
+connector_list = "adyen,cybersource,fiuu,novalnet,stripe,worldpay"
 
 [connector_customer]
 connector_list = "gocardless,stax,stripe"

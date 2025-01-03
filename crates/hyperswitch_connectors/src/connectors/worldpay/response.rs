@@ -43,6 +43,8 @@ pub struct AuthorizedResponse {
     pub fraud: Option<Fraud>,
     /// Mandate's token
     pub token: Option<MandateToken>,
+    /// Network transaction ID
+    pub scheme_reference: Option<Secret<String>>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -429,9 +431,13 @@ pub struct WorldpayWebhookTransactionId {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct EventDetails {
-    pub transaction_reference: String,
     #[serde(rename = "type")]
     pub event_type: EventType,
+    pub transaction_reference: String,
+    /// Mandate's token
+    pub token: Option<MandateToken>,
+    /// Network transaction ID
+    pub scheme_reference: Option<Secret<String>>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
