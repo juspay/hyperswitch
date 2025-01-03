@@ -243,11 +243,6 @@ impl PubSubInterface for std::sync::Arc<redis_interface::RedisConnectionPool> {
                         }
                     };
 
-                    self.delete_key(key.as_ref())
-                        .await
-                        .map_err(|err| logger::error!("Error while deleting redis key: {err:?}"))
-                        .ok();
-
                     logger::debug!(
                         key_prefix=?message.tenant.clone(),
                         channel_name=?channel_name,
