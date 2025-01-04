@@ -20,6 +20,7 @@ async fn invalidate_existing_cache_success() {
     let state = Arc::new(app_state)
         .get_session_state(
             &common_utils::id_type::TenantId::try_from_string("public".to_string()).unwrap(),
+            None,
             || {},
         )
         .unwrap();
