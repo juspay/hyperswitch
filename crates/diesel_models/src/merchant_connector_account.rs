@@ -73,7 +73,7 @@ impl MerchantConnectorAccount {
 #[diesel(table_name = merchant_connector_account, check_for_backend(diesel::pg::Pg))]
 pub struct MerchantConnectorAccount {
     pub merchant_id: id_type::MerchantId,
-    pub connector_name: String,
+    pub connector_name: common_enums::connector_enums::Connector,
     pub connector_account_details: Encryption,
     pub disabled: Option<bool>,
     #[diesel(deserialize_as = super::OptionalDieselArray<common_types::payment_methods::PaymentMethodsEnabled>)]
@@ -143,7 +143,7 @@ pub struct MerchantConnectorAccountNew {
 pub struct MerchantConnectorAccountNew {
     pub merchant_id: Option<id_type::MerchantId>,
     pub connector_type: Option<storage_enums::ConnectorType>,
-    pub connector_name: Option<String>,
+    pub connector_name: Option<common_enums::connector_enums::Connector>,
     pub connector_account_details: Option<Encryption>,
     pub disabled: Option<bool>,
     #[diesel(deserialize_as = super::OptionalDieselArray<common_types::payment_methods::PaymentMethodsEnabled>)]

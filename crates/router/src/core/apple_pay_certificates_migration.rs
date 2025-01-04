@@ -13,6 +13,7 @@ use crate::{
     types::{domain::types as domain_types, storage},
 };
 
+#[cfg(feature = "v1")]
 pub async fn apple_pay_certificates_migration(
     state: SessionState,
     req: &apple_pay_certificates_migration::ApplePayCertificatesMigrationRequest,

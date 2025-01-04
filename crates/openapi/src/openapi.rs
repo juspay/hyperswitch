@@ -85,8 +85,8 @@ Never share your secret api keys. Keep them guarded and secure.
         routes::payments::payments_post_session_tokens,
 
         // Routes for relay
-        routes::relay,
-        routes::relay_retrieve,
+        routes::relay::relay,
+        routes::relay::relay_retrieve,
 
         // Routes for refunds
         routes::refunds::refunds_create,

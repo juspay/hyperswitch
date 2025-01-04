@@ -19,7 +19,6 @@ const IRRELEVANT_PAYMENT_ATTEMPT_ID: &str = "irrelevant_payment_attempt_id";
 
 pub async fn construct_relay_refund_router_data<'a, F>(
     state: &'a SessionState,
-    connector_name: &str,
     merchant_id: &id_type::MerchantId,
     connector_account: &domain::MerchantConnectorAccount,
     relay_record: &hyperswitch_domain_models::relay::Relay,
@@ -28,6 +27,12 @@ pub async fn construct_relay_refund_router_data<'a, F>(
         .get_connector_account_details()
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed while parsing value for ConnectorAuthType")?;
+
+    #[cfg(feature = "v2")]
+    let connector_name = &connector_account.connector_name.to_string();
+
+    #[cfg(feature = "v1")]
+    let connector_name = &connector_account.connector_name;
 
     let webhook_url = Some(payments::helpers::create_webhook_url(
         &state.base_url.clone(),
