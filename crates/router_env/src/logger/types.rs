@@ -205,6 +205,8 @@ pub enum Flow {
     PaymentsCompleteAuthorize,
     /// Refunds create flow.
     RefundsCreate,
+    /// Platform Account create flow.
+    PlatformAccountCreate,
     /// Refunds retrieve flow.
     RefundsRetrieve,
     /// Refunds retrieve force sync flow.

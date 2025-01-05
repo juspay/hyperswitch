@@ -572,6 +572,25 @@ pub async fn update_user_account_details(
     .await
 }
 
+pub async fn platform_create(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<user_api::PlatformCreateRequest>,
+) -> HttpResponse {
+    let flow = Flow::PlatformAccountCreate;
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &req,
+        json_payload.into_inner(),
+        |state, user, req_body, _| user_core::set_platform_account(state, user, req_body),
+        &auth::JWTAuth {
+            permission: Permission::OrganizationAccountWrite,
+        },
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
 #[cfg(feature = "email")]
 pub async fn user_from_email(
     state: web::Data<AppState>,
