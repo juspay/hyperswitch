@@ -37,11 +37,15 @@ use crate::{
     consts,
     core::encryption::send_request_to_key_service_for_user,
     db::{
-        domain::user_authentication_method::DEFAULT_USER_AUTH_METHOD,
+        domain::user_authentication_method::DEFAULT_USER_AUTH_METHOD, storage,
         user_role::ListUserRolesByUserIdPayload,
     },
     routes::{app::ReqState, SessionState},
-    services::{authentication as auth, authorization::roles, openidconnect, ApplicationResponse},
+    services::{
+        authentication as auth,
+        authorization::roles::{self},
+        openidconnect, ApplicationResponse,
+    },
     types::{domain, transformers::ForeignInto},
     utils::{
         self,
@@ -1461,6 +1465,83 @@ pub async fn create_org_merchant_for_user(
         .await
         .change_context(UserErrors::InternalServerError)
         .attach_printable("Error while creating a merchant")?;
+
+    Ok(ApplicationResponse::StatusOk)
+}
+
+pub async fn set_platform_account(
+    state: SessionState,
+    user_from_token: auth::UserFromToken,
+    req: user_api::PlatformCreateRequest,
+) -> UserResponse<()> {
+    let role_info = roles::RoleInfo::from_role_id_and_org_id(
+        &state,
+        &user_from_token.role_id,
+        &user_from_token.org_id,
+    )
+    .await
+    .change_context(UserErrors::InternalServerError)?;
+
+    let role_id = role_info.get_role_id();
+
+    if role_id != common_utils::consts::ROLE_ID_ORGANIZATION_ADMIN {
+        return Err(UserErrors::PlatformAccountCreationNotAuthorized)?;
+    }
+
+    let kms = (&state).into();
+    let org_id = &user_from_token.org_id;
+
+    let merchant_list_for_this_org = state
+        .store
+        .list_merchant_accounts_by_organization_id(&kms, org_id)
+        .await
+        .change_context(UserErrors::InternalServerError)?;
+
+    let merchant_ids_for_this_org = merchant_list_for_this_org
+        .into_iter()
+        .map(|merchant| merchant.get_id().clone())
+        .collect::<HashSet<_>>();
+
+    if merchant_ids_for_this_org.is_empty() {
+        return Err(UserErrors::InternalServerError)?;
+    }
+
+    let requested_merchant_id = req.merchant_id.clone();
+
+    if !merchant_ids_for_this_org.contains(&requested_merchant_id) {
+        return Err(UserErrors::MerchantNotAMemberOfOrg)?;
+    }
+
+    logger::info!(
+        "Merchant {:#?} is a member of this org {:#?} ",
+        &requested_merchant_id,
+        &org_id
+    );
+
+    let db = state.store.as_ref();
+    let key_store = db
+        .get_merchant_key_store_by_merchant_id(
+            &kms,
+            &requested_merchant_id,
+            &db.get_master_key().to_vec().into(),
+        )
+        .await
+        .change_context(UserErrors::InternalServerError)?;
+
+    let merchant_account = db
+        .find_merchant_account_by_merchant_id(&kms, &requested_merchant_id, &key_store)
+        .await
+        .change_context(UserErrors::MerchantIdNotFound)?;
+
+    db.update_merchant(
+        &kms,
+        merchant_account,
+        storage::MerchantAccountUpdate::ToPlatformAccount,
+        &key_store,
+    )
+    .await
+    .change_context(UserErrors::PlatformAccountCreationFailed)
+    .attach_printable("Error while enabling platform merchant account")?;
 
     Ok(ApplicationResponse::StatusOk)
 }
