@@ -77,9 +77,14 @@ impl UserFromToken {
     }
 
     pub async fn get_role_info_from_db(&self, state: &SessionState) -> UserResult<RoleInfo> {
-        RoleInfo::from_role_id_and_org_id(state, &self.role_id, &self.org_id)
-            .await
-            .change_context(UserErrors::InternalServerError)
+        RoleInfo::from_role_id_org_id_tenant_id(
+            state,
+            &self.role_id,
+            &self.org_id,
+            self.tenant_id.as_ref().unwrap_or(&state.tenant.tenant_id),
+        )
+        .await
+        .change_context(UserErrors::InternalServerError)
     }
 }
 

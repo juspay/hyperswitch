@@ -121,29 +121,32 @@ impl RoleInfo {
         role_id: &str,
         merchant_id: &id_type::MerchantId,
         org_id: &id_type::OrganizationId,
+        tenant_id: &id_type::TenantId,
     ) -> CustomResult<Self, errors::StorageError> {
         if let Some(role) = predefined_roles::PREDEFINED_ROLES.get(role_id) {
             Ok(role.clone())
         } else {
             state
                 .global_store
-                .find_role_by_role_id_in_lineage(role_id, merchant_id, org_id)
+                .find_role_by_role_id_in_lineage(role_id, merchant_id, org_id, tenant_id)
                 .await
                 .map(Self::from)
         }
     }
 
-    pub async fn from_role_id_and_org_id(
+    // TODO: To evalutate whether we can omit org_id and tenant_id for this function
+    pub async fn from_role_id_org_id_tenant_id(
         state: &SessionState,
         role_id: &str,
         org_id: &id_type::OrganizationId,
+        tenant_id: &id_type::TenantId,
     ) -> CustomResult<Self, errors::StorageError> {
         if let Some(role) = predefined_roles::PREDEFINED_ROLES.get(role_id) {
             Ok(role.clone())
         } else {
             state
                 .global_store
-                .find_by_role_id_and_org_id(role_id, org_id)
+                .find_by_role_id_org_id_tenant_id(role_id, org_id, tenant_id)
                 .await
                 .map(Self::from)
         }

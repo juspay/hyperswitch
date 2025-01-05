@@ -73,6 +73,10 @@ pub async fn create_role(
         &role_name,
         &user_from_token.merchant_id,
         &user_from_token.org_id,
+        user_from_token
+            .tenant_id
+            .as_ref()
+            .unwrap_or(&state.tenant.tenant_id),
     )
     .await?;
 
@@ -99,6 +103,7 @@ pub async fn create_role(
             last_modified_by: user_from_token.user_id,
             created_at: now,
             last_modified_at: now,
+            tenant_id: user_from_token.tenant_id.unwrap_or(state.tenant.tenant_id),
         })
         .await
         .to_duplicate_response(UserErrors::RoleNameAlreadyExists)?;
@@ -118,10 +123,17 @@ pub async fn get_role_with_groups(
     user_from_token: UserFromToken,
     role: role_api::GetRoleRequest,
 ) -> UserResponse<role_api::RoleInfoWithGroupsResponse> {
-    let role_info =
-        roles::RoleInfo::from_role_id_and_org_id(&state, &role.role_id, &user_from_token.org_id)
-            .await
-            .to_not_found_response(UserErrors::InvalidRoleId)?;
+    let role_info = roles::RoleInfo::from_role_id_org_id_tenant_id(
+        &state,
+        &role.role_id,
+        &user_from_token.org_id,
+        user_from_token
+            .tenant_id
+            .as_ref()
+            .unwrap_or(&state.tenant.tenant_id),
+    )
+    .await
+    .to_not_found_response(UserErrors::InvalidRoleId)?;
 
     if role_info.is_internal() {
         return Err(UserErrors::InvalidRoleId.into());
@@ -142,10 +154,17 @@ pub async fn get_parent_info_for_role(
     user_from_token: UserFromToken,
     role: role_api::GetRoleRequest,
 ) -> UserResponse<role_api::RoleInfoWithParents> {
-    let role_info =
-        roles::RoleInfo::from_role_id_and_org_id(&state, &role.role_id, &user_from_token.org_id)
-            .await
-            .to_not_found_response(UserErrors::InvalidRoleId)?;
+    let role_info = roles::RoleInfo::from_role_id_org_id_tenant_id(
+        &state,
+        &role.role_id,
+        &user_from_token.org_id,
+        user_from_token
+            .tenant_id
+            .as_ref()
+            .unwrap_or(&state.tenant.tenant_id),
+    )
+    .await
+    .to_not_found_response(UserErrors::InvalidRoleId)?;
 
     if role_info.is_internal() {
         return Err(UserErrors::InvalidRoleId.into());
@@ -193,6 +212,10 @@ pub async fn update_role(
             role_name,
             &user_from_token.merchant_id,
             &user_from_token.org_id,
+            user_from_token
+                .tenant_id
+                .as_ref()
+                .unwrap_or(&state.tenant.tenant_id),
         )
         .await?;
     }
@@ -206,6 +229,10 @@ pub async fn update_role(
         role_id,
         &user_from_token.merchant_id,
         &user_from_token.org_id,
+        user_from_token
+            .tenant_id
+            .as_ref()
+            .unwrap_or(&state.tenant.tenant_id),
     )
     .await
     .to_not_found_response(UserErrors::InvalidRoleOperation)?;
@@ -273,6 +300,10 @@ pub async fn list_roles_with_info(
             EntityType::Tenant | EntityType::Organization => state
                 .global_store
                 .list_roles_for_org_by_parameters(
+                    user_from_token
+                        .tenant_id
+                        .as_ref()
+                        .unwrap_or(&state.tenant.tenant_id),
                     &user_from_token.org_id,
                     None,
                     request.entity_type,
@@ -284,6 +315,10 @@ pub async fn list_roles_with_info(
             EntityType::Merchant => state
                 .global_store
                 .list_roles_for_org_by_parameters(
+                    user_from_token
+                        .tenant_id
+                        .as_ref()
+                        .unwrap_or(&state.tenant.tenant_id),
                     &user_from_token.org_id,
                     Some(&user_from_token.merchant_id),
                     request.entity_type,
@@ -346,6 +381,10 @@ pub async fn list_roles_at_entity_level(
         EntityType::Tenant | EntityType::Organization => state
             .global_store
             .list_roles_for_org_by_parameters(
+                user_from_token
+                    .tenant_id
+                    .as_ref()
+                    .unwrap_or(&state.tenant.tenant_id),
                 &user_from_token.org_id,
                 None,
                 Some(req.entity_type),
@@ -358,6 +397,10 @@ pub async fn list_roles_at_entity_level(
         EntityType::Merchant => state
             .global_store
             .list_roles_for_org_by_parameters(
+                user_from_token
+                    .tenant_id
+                    .as_ref()
+                    .unwrap_or(&state.tenant.tenant_id),
                 &user_from_token.org_id,
                 Some(&user_from_token.merchant_id),
                 Some(req.entity_type),
