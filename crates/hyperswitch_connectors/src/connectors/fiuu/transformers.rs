@@ -838,7 +838,7 @@ impl<F>
                             reason: non_threeds_data.error_desc.clone(),
                             status_code: item.http_code,
                             attempt_status: None,
-                            connector_transaction_id: Some(data.txn_id), 
+                            connector_transaction_id: Some(data.txn_id),
                         })
                     } else {
                         Ok(PaymentsResponseData::TransactionResponse {
@@ -884,7 +884,7 @@ impl<F>
                                 reason: recurring_response.reason.clone(),
                                 status_code: item.http_code,
                                 attempt_status: None,
-                                connector_transaction_id: recurring_response.tran_id.clone(), 
+                                connector_transaction_id: recurring_response.tran_id.clone(),
                             })
                         } else {
                             Ok(PaymentsResponseData::TransactionResponse {
@@ -1041,7 +1041,7 @@ impl TryFrom<RefundsResponseRouterData<Execute, FiuuRefundResponse>>
                             reason: refund_data.reason.clone(),
                             status_code: item.http_code,
                             attempt_status: None,
-                            connector_transaction_id: Some(refund_data.refund_id.to_string()), 
+                            connector_transaction_id: Some(refund_data.refund_id.to_string()),
                         }),
                         ..item.data
                     })
@@ -1173,13 +1173,13 @@ impl TryFrom<PaymentsSyncResponseRouterData<FiuuPaymentResponse>> for PaymentsSy
                         message: response.error_desc.clone(),
                         reason: Some(response.error_desc),
                         attempt_status: Some(enums::AttemptStatus::Failure),
-                        connector_transaction_id: Some(txn_id.clone()), 
+                        connector_transaction_id: Some(txn_id.clone()),
                     })
                 } else {
                     None
                 };
                 let payments_response_data = PaymentsResponseData::TransactionResponse {
-                    resource_id: ResponseId::ConnectorTransactionId(txn_id.clone().to_string()), 
+                    resource_id: ResponseId::ConnectorTransactionId(txn_id.clone().to_string()),
                     redirection_data: Box::new(None),
                     mandate_reference: Box::new(None),
                     connector_metadata: None,
@@ -1410,7 +1410,9 @@ impl TryFrom<PaymentsCaptureResponseRouterData<PaymentCaptureResponse>>
             None
         };
         let payments_response_data = PaymentsResponseData::TransactionResponse {
-            resource_id: ResponseId::ConnectorTransactionId(item.response.tran_id.clone().to_string()),
+            resource_id: ResponseId::ConnectorTransactionId(
+                item.response.tran_id.clone().to_string(),
+            ),
             redirection_data: Box::new(None),
             mandate_reference: Box::new(None),
             connector_metadata: None,
@@ -1515,13 +1517,15 @@ impl TryFrom<PaymentsCancelResponseRouterData<FiuuPaymentCancelResponse>>
                         .to_string(),
                 ),
                 attempt_status: None,
-                connector_transaction_id: Some(item.response.tran_id.clone()), 
+                connector_transaction_id: Some(item.response.tran_id.clone()),
             })
         } else {
             None
         };
         let payments_response_data = PaymentsResponseData::TransactionResponse {
-            resource_id: ResponseId::ConnectorTransactionId(item.response.tran_id.clone().to_string()),
+            resource_id: ResponseId::ConnectorTransactionId(
+                item.response.tran_id.clone().to_string(),
+            ),
             redirection_data: Box::new(None),
             mandate_reference: Box::new(None),
             connector_metadata: None,
