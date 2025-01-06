@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.01.06.0
+
+### Miscellaneous Tasks
+
+- Add migrations for Currency type in DB ([#6980](https://github.com/juspay/hyperswitch/pull/6980)) ([`60ed69c`](https://github.com/juspay/hyperswitch/commit/60ed69c1cff706aaba248e1aba0219f70bb679bd))
+
+**Full Changelog:** [`2025.01.03.0...2025.01.06.0`](https://github.com/juspay/hyperswitch/compare/2025.01.03.0...2025.01.06.0)
+
+- - -
+
 ## 2025.01.03.0
 
 ### Bug Fixes

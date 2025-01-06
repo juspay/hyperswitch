@@ -207,4 +207,167 @@ export const connectorDetails = {
       },
     },
   },
+  pm_list: {
+    PmListResponse: {
+      PmListNull: {
+        payment_methods: [],
+      },
+      pmListDynamicFieldWithoutBilling: {
+        payment_methods: [
+          {
+            payment_method: "card",
+            payment_method_types: [
+              {
+                payment_method_type: "credit",
+                card_networks: [
+                  {
+                    eligible_connectors: ["novalnet"],
+                  },
+                ],
+                required_fields: {
+                  "billing.address.first_name": {
+                    required_field:
+                      "payment_method_data.billing.address.first_name",
+                    display_name: "first_name",
+                    field_type: "user_full_name",
+                    value: null,
+                  },
+                  "billing.address.last_name": {
+                    required_field:
+                      "payment_method_data.billing.address.last_name",
+                    display_name: "last_name",
+                    field_type: "user_full_name",
+                    value: null,
+                  },
+                  "billing.email": {
+                    required_field: "payment_method_data.billing.email",
+                    display_name: "email_address",
+                    field_type: "user_email_address",
+                    value: "hyperswitch_sdk_demo_id@gmail.com",
+                  },
+                },
+              },
+            ],
+          },
+        ],
+      },
+      pmListDynamicFieldWithBilling: {
+        payment_methods: [
+          {
+            payment_method: "card",
+            payment_method_types: [
+              {
+                payment_method_type: "credit",
+                card_networks: [
+                  {
+                    eligible_connectors: ["novalnet"],
+                  },
+                ],
+                required_fields: {
+                  "billing.address.first_name": {
+                    required_field:
+                      "payment_method_data.billing.address.first_name",
+                    display_name: "first_name",
+                    field_type: "user_full_name",
+                    value: "joseph",
+                  },
+                  "billing.address.last_name": {
+                    required_field:
+                      "payment_method_data.billing.address.last_name",
+                    display_name: "last_name",
+                    field_type: "user_full_name",
+                    value: "Doe",
+                  },
+                  "billing.email": {
+                    required_field: "payment_method_data.billing.email",
+                    display_name: "email_address",
+                    field_type: "user_email_address",
+                    value: "hyperswitch.example@gmail.com",
+                  },
+                },
+              },
+            ],
+          },
+        ],
+      },
+      pmListDynamicFieldWithNames: {
+        payment_methods: [
+          {
+            payment_method: "card",
+            payment_method_types: [
+              {
+                payment_method_type: "credit",
+                card_networks: [
+                  {
+                    eligible_connectors: ["novalnet"],
+                  },
+                ],
+                required_fields: {
+                  "billing.address.first_name": {
+                    required_field:
+                      "payment_method_data.billing.address.first_name",
+                    display_name: "first_name",
+                    field_type: "user_full_name",
+                    value: "joseph",
+                  },
+                  "billing.address.last_name": {
+                    required_field:
+                      "payment_method_data.billing.address.last_name",
+                    display_name: "last_name",
+                    field_type: "user_full_name",
+                    value: "Doe",
+                  },
+                  "billing.email": {
+                    required_field: "payment_method_data.billing.email",
+                    display_name: "email_address",
+                    field_type: "user_email_address",
+                    value: "hyperswitch.example@gmail.com",
+                  },
+                },
+              },
+            ],
+          },
+        ],
+      },
+      pmListDynamicFieldWithEmail: {
+        payment_methods: [
+          {
+            payment_method: "card",
+            payment_method_types: [
+              {
+                payment_method_type: "credit",
+                card_networks: [
+                  {
+                    eligible_connectors: ["novalnet"],
+                  },
+                ],
+                required_fields: {
+                  "billing.address.first_name": {
+                    required_field:
+                      "payment_method_data.billing.address.first_name",
+                    display_name: "first_name",
+                    field_type: "user_full_name",
+                    value: "joseph",
+                  },
+                  "billing.address.last_name": {
+                    required_field:
+                      "payment_method_data.billing.address.last_name",
+                    display_name: "last_name",
+                    field_type: "user_full_name",
+                    value: "Doe",
+                  },
+                  "billing.email": {
+                    required_field: "payment_method_data.billing.email",
+                    display_name: "email_address",
+                    field_type: "user_email_address",
+                    value: "hyperswitch.example@gmail.com",
+                  },
+                },
+              },
+            ],
+          },
+        ],
+      },
+    },
+  },
 };
