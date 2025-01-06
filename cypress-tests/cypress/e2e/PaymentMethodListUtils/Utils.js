@@ -1,9 +1,9 @@
 import { connectorDetails as CommonConnectorDetails } from "./Commons.js";
-import { connectorDetails as stripeConnectorDetails } from "./Stripe.js";
+import { connectorDetails as ConnectorDetails } from "./Connector.js";
 
 const connectorDetails = {
   commons: CommonConnectorDetails,
-  stripe: stripeConnectorDetails,
+  connector: ConnectorDetails,
 };
 
 export default function getConnectorDetails(connectorId) {
