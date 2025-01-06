@@ -849,7 +849,7 @@ impl super::RedisConnectionPool {
     }
 
     #[instrument(level = "DEBUG", skip(self))]
-    pub async fn incr_keys_using_script<V, T>(
+    pub async fn implement_redis_functionalities_using_scripts<V, T>(
         &self,
         lua_script: &'static str,
         key: Vec<String>,
@@ -976,7 +976,7 @@ mod tests {
 
                 // Act
                 let result = pool
-                    .incr_keys_using_script::<_, ()>(lua_script, key, values)
+                    .implement_redis_functionalities_using_scripts::<_, ()>(lua_script, key, values)
                     .await;
 
                 // Assert Setup
@@ -1012,7 +1012,7 @@ mod tests {
 
                 // Act
                 let result = pool
-                    .incr_keys_using_script::<_, String>(lua_script, key, 0)
+                    .implement_redis_functionalities_using_scripts::<_, String>(lua_script, key, 0)
                     .await;
 
                 // Assert Setup
