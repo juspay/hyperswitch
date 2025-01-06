@@ -139,8 +139,6 @@ impl<F,T> TryFrom<ResponseRouterData<F, {{project-name | downcase | pascal_case}
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 charge_id: None,
-                overcapture_applied: None,
-                
             }),
             ..item.data
         })

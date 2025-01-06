@@ -2339,7 +2339,6 @@ where
             connector_mandate_id,
             shipping_cost: payment_intent.shipping_cost,
             overcapture_applied: None,
-            maximum_capturable_amount: None, //todoooo
         };
 
         services::ApplicationResponse::JsonWithHeaders((payments_response, headers))
@@ -2597,7 +2596,6 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             connector_mandate_id:None,
             shipping_cost: None,
             overcapture_applied: pa.overcapture_applied,
-            maximum_capturable_amount: None //todoo
         }
     }
 }

@@ -4764,9 +4764,6 @@ pub struct PaymentsResponse {
 
     /// Whether the payment is overcaptureable or not
     pub overcapture_applied: Option<bool>,
-
-    /// Maximum capturable amount
-    pub maximum_capturable_amount: Option<MinorUnit>,
 }
 
 // Serialize is implemented because, this will be serialized in the api events.
