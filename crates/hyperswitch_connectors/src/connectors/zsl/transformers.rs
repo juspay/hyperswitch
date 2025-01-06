@@ -335,8 +335,6 @@ impl<F, T> TryFrom<ResponseRouterData<F, ZslPaymentsResponse, T, PaymentsRespons
                         connector_response_reference_id: Some(item.response.mer_ref.clone()),
                         incremental_authorization_allowed: None,
                         charge_id: None,
-                        overcapture_applied: None,
-                        maximum_capturable_amount: None,
                     }),
                     ..item.data
                 })
@@ -430,8 +428,6 @@ impl<F> TryFrom<ResponseRouterData<F, ZslWebhookResponse, PaymentsSyncData, Paym
                     connector_response_reference_id: Some(item.response.mer_ref.clone()),
                     incremental_authorization_allowed: None,
                     charge_id: None,
-                    overcapture_applied: None,
-                    maximum_capturable_amount: None,
                 }),
                 ..item.data
             })

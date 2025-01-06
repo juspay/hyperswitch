@@ -602,8 +602,6 @@ impl<F, T> TryFrom<ResponseRouterData<F, NovalnetPaymentsResponse, T, PaymentsRe
                         connector_response_reference_id: transaction_id.clone(),
                         incremental_authorization_allowed: None,
                         charge_id: None,
-                        overcapture_applied: None,
-                        maximum_capturable_amount: None,
                     }),
                     ..item.data
                 })
@@ -1006,8 +1004,6 @@ impl<F>
                         connector_response_reference_id: transaction_id.clone(),
                         incremental_authorization_allowed: None,
                         charge_id: None,
-                        overcapture_applied: None,
-                        maximum_capturable_amount: None,
                     }),
                     ..item.data
                 })
@@ -1092,8 +1088,6 @@ impl<F>
                         connector_response_reference_id: transaction_id.clone(),
                         incremental_authorization_allowed: None,
                         charge_id: None,
-                        overcapture_applied: None,
-                        maximum_capturable_amount: None,
                     }),
                     ..item.data
                 })
@@ -1263,8 +1257,6 @@ impl<F>
                         connector_response_reference_id: transaction_id.clone(),
                         incremental_authorization_allowed: None,
                         charge_id: None,
-                        overcapture_applied: None,
-                        maximum_capturable_amount: None,
                     }),
                     ..item.data
                 })

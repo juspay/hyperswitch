@@ -386,8 +386,6 @@ impl<F, T> TryFrom<ResponseRouterData<F, FiservPaymentsResponse, T, PaymentsResp
                 ),
                 incremental_authorization_allowed: None,
                 charge_id: None,
-                overcapture_applied: None,
-                maximum_capturable_amount: None,
             }),
             ..item.data
         })
@@ -431,8 +429,6 @@ impl<F, T> TryFrom<ResponseRouterData<F, FiservSyncResponse, T, PaymentsResponse
                 ),
                 incremental_authorization_allowed: None,
                 charge_id: None,
-                overcapture_applied: None,
-                maximum_capturable_amount: None,
             }),
             ..item.data
         })

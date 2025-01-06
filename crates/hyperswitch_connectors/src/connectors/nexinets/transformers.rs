@@ -372,8 +372,6 @@ impl<F, T> TryFrom<ResponseRouterData<F, NexinetsPreAuthOrDebitResponse, T, Paym
                 connector_response_reference_id: Some(item.response.order_id),
                 incremental_authorization_allowed: None,
                 charge_id: None,
-                overcapture_applied: None,
-                maximum_capturable_amount: None,
             }),
             ..item.data
         })
@@ -454,8 +452,6 @@ impl<F, T> TryFrom<ResponseRouterData<F, NexinetsPaymentResponse, T, PaymentsRes
                 connector_response_reference_id: Some(item.response.order.order_id),
                 incremental_authorization_allowed: None,
                 charge_id: None,
-                overcapture_applied: None,
-                maximum_capturable_amount: None,
             }),
             ..item.data
         })

@@ -1003,8 +1003,6 @@ impl<F, T> TryFrom<ResponseRouterData<F, MultisafepayAuthResponse, T, PaymentsRe
                             ),
                             incremental_authorization_allowed: None,
                             charge_id: None,
-                            overcapture_applied: None,
-                            maximum_capturable_amount: None,
                         })
                     },
                     ..item.data

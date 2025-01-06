@@ -408,8 +408,6 @@ impl<F, T>
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
                     charge_id: None,
-                    overcapture_applied: None,
-                    maximum_capturable_amount: None,
                 }),
                 ..item.data
             }),
@@ -1145,8 +1143,6 @@ impl<F, T>
                             ),
                             incremental_authorization_allowed: None,
                             charge_id: None,
-                            overcapture_applied: None,
-                            maximum_capturable_amount: None,
                         }),
                     },
                     ..item.data
@@ -1220,8 +1216,6 @@ impl<F, T>
                             ),
                             incremental_authorization_allowed: None,
                             charge_id: None,
-                            overcapture_applied: None,
-                            maximum_capturable_amount: None,
                         }),
                     },
                     ..item.data
@@ -1547,8 +1541,6 @@ impl<F, Req>
                         connector_response_reference_id: Some(transaction.transaction_id.clone()),
                         incremental_authorization_allowed: None,
                         charge_id: None,
-                        overcapture_applied: None,
-                        maximum_capturable_amount: None,
                     }),
                     status: payment_status,
                     ..item.data

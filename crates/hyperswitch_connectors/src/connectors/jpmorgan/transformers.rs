@@ -362,8 +362,6 @@ impl<F, T> TryFrom<ResponseRouterData<F, JpmorganPaymentsResponse, T, PaymentsRe
                 connector_response_reference_id: Some(item.response.transaction_id.clone()),
                 incremental_authorization_allowed: None,
                 charge_id: None,
-                overcapture_applied: None,
-                maximum_capturable_amount: None,
             }),
             ..item.data
         })
@@ -450,8 +448,6 @@ impl<F, T> TryFrom<ResponseRouterData<F, JpmorganCaptureResponse, T, PaymentsRes
                 connector_response_reference_id: Some(item.response.transaction_id.clone()),
                 incremental_authorization_allowed: None,
                 charge_id: None,
-                maximum_capturable_amount: None,
-                overcapture_applied: None,
             }),
             ..item.data
         })
@@ -495,8 +491,6 @@ impl<F, PaymentsSyncData>
                 connector_response_reference_id: Some(item.response.transaction_id.clone()),
                 incremental_authorization_allowed: None,
                 charge_id: None,
-                overcapture_applied: None,
-                maximum_capturable_amount: None,
             }),
             ..item.data
         })
@@ -718,8 +712,6 @@ impl<F>
                 connector_response_reference_id: Some(item.response.transaction_id.clone()),
                 incremental_authorization_allowed: None,
                 charge_id: None,
-                overcapture_applied: None,
-                maximum_capturable_amount: None,
             }),
             ..item.data
         })

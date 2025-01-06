@@ -434,8 +434,6 @@ impl<F>
                 connector_response_reference_id: Some(item.response.operation.order_id),
                 incremental_authorization_allowed: None,
                 charge_id: None,
-                overcapture_applied: None,
-                maximum_capturable_amount: None,
             }),
             ..item.data
         })
@@ -832,8 +830,6 @@ impl<F>
                         ),
                         incremental_authorization_allowed: None,
                         charge_id: None,
-                        overcapture_applied: None,
-                        maximum_capturable_amount: None,
                     }),
                     ..item.data
                 })
@@ -853,8 +849,6 @@ impl<F>
                     ),
                     incremental_authorization_allowed: None,
                     charge_id: None,
-                    overcapture_applied: None,
-                    maximum_capturable_amount: None,
                 }),
                 ..item.data
             }),
@@ -978,8 +972,6 @@ impl<F>
                 connector_response_reference_id: Some(item.response.operation.order_id),
                 incremental_authorization_allowed: None,
                 charge_id: None,
-                overcapture_applied: None,
-                maximum_capturable_amount: None,
             }),
             ..item.data
         })
@@ -1152,8 +1144,6 @@ impl<F>
                 connector_response_reference_id: Some(item.response.order_id.clone()),
                 incremental_authorization_allowed: None,
                 charge_id: None,
-                overcapture_applied: None,
-                maximum_capturable_amount: None,
             }),
             ..item.data
         })
@@ -1212,8 +1202,6 @@ impl<F>
                 ),
                 incremental_authorization_allowed: None,
                 charge_id: None,
-                overcapture_applied: None,
-                maximum_capturable_amount: None,
             }),
             ..item.data
         })
@@ -1277,8 +1265,6 @@ impl<F>
                 ),
                 incremental_authorization_allowed: None,
                 charge_id: None,
-                overcapture_applied: None,
-                maximum_capturable_amount: None,
             }),
             ..item.data
         })

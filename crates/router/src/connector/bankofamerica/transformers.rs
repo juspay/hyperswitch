@@ -427,8 +427,6 @@ impl<F, T>
                             ),
                             incremental_authorization_allowed: None,
                             charge_id: None,
-                            overcapture_applied: None,
-                            maximum_capturable_amount: None,
                         }),
                     },
                     connector_response,
@@ -1535,8 +1533,6 @@ fn get_payment_response(
                 ),
                 incremental_authorization_allowed: None,
                 charge_id: None,
-                overcapture_applied: None,
-                maximum_capturable_amount: None,
             })
         }
     }
@@ -1850,8 +1846,6 @@ impl<F>
                                 .unwrap_or(Some(item.response.id)),
                             incremental_authorization_allowed: None,
                             charge_id: None,
-                            overcapture_applied: None,
-                            maximum_capturable_amount: None,
                         }),
                         connector_response,
                         ..item.data
@@ -1871,8 +1865,6 @@ impl<F>
                     connector_response_reference_id: Some(item.response.id),
                     incremental_authorization_allowed: None,
                     charge_id: None,
-                    overcapture_applied: None,
-                    maximum_capturable_amount: None,
                 }),
                 ..item.data
             }),

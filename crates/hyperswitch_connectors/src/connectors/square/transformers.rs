@@ -395,8 +395,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, SquarePaymentsResponse, T, PaymentsResp
                 connector_response_reference_id: item.response.payment.reference_id,
                 incremental_authorization_allowed: None,
                 charge_id: None,
-                overcapture_applied: None,
-                maximum_capturable_amount: None,
+
             }),
             amount_captured,
             ..item.data

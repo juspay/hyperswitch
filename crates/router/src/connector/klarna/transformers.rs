@@ -390,8 +390,6 @@ impl TryFrom<types::PaymentsResponseRouterData<KlarnaAuthResponse>>
                         connector_response_reference_id: Some(response.order_id.clone()),
                         incremental_authorization_allowed: None,
                         charge_id: None,
-                        maximum_capturable_amount: None,
-                        overcapture_applied: None,
                     }),
                     status: enums::AttemptStatus::foreign_from((
                         response.fraud_status.clone(),
@@ -415,8 +413,6 @@ impl TryFrom<types::PaymentsResponseRouterData<KlarnaAuthResponse>>
                     connector_response_reference_id: Some(response.order_id.clone()),
                     incremental_authorization_allowed: None,
                     charge_id: None,
-                    maximum_capturable_amount: None,
-                    overcapture_applied: None,
                 }),
                 status: enums::AttemptStatus::foreign_from((
                     response.status.clone(),
@@ -580,8 +576,6 @@ impl<F, T>
                         .or(Some(response.order_id.clone())),
                     incremental_authorization_allowed: None,
                     charge_id: None,
-                    maximum_capturable_amount: None,
-                    overcapture_applied: None,
                 }),
                 ..item.data
             }),
@@ -601,8 +595,6 @@ impl<F, T>
                     connector_response_reference_id: Some(response.order_id.clone()),
                     incremental_authorization_allowed: None,
                     charge_id: None,
-                    maximum_capturable_amount: None,
-                    overcapture_applied: None,
                 }),
                 ..item.data
             }),
@@ -681,8 +673,6 @@ impl<F>
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 charge_id: None,
-                overcapture_applied: None,
-                maximum_capturable_amount: None,
             }),
             status,
             ..item.data

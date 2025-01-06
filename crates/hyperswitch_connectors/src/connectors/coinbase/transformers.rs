@@ -153,8 +153,6 @@ impl<F, T> TryFrom<ResponseRouterData<F, CoinbasePaymentsResponse, T, PaymentsRe
                 connector_response_reference_id: Some(item.response.data.id.clone()),
                 incremental_authorization_allowed: None,
                 charge_id: None,
-                overcapture_applied: None,
-                maximum_capturable_amount: None,
             }),
             |context| {
                 Ok(PaymentsResponseData::TransactionUnresolvedResponse{

@@ -1128,8 +1128,6 @@ pub fn get_connector_metadata(
             connector_response_reference_id: _,
             incremental_authorization_allowed: _,
             charge_id: _,
-            overcapture_applied: _,
-            maximum_capturable_amount: _,
         }) => connector_metadata,
         _ => None,
     }

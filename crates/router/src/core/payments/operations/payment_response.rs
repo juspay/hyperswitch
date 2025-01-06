@@ -1551,8 +1551,6 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                             connector_response_reference_id,
                             incremental_authorization_allowed,
                             charge_id,
-                            overcapture_applied,
-                            maximum_capturable_amount,
                             ..
                         } => {
                             payment_data
@@ -1587,21 +1585,21 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                 None
                             };
 
-                            let overcapture_details =
-                                match payment_data.payment_attempt.overcapture_details.clone() {
-                                    Some(mut overcapture_details) => {
-                                        overcapture_details.overcapture_applied =
-                                            overcapture_applied;
-                                        overcapture_details.maximum_capturable_amount =
-                                            maximum_capturable_amount;
-                                        overcapture_details.overcaptured_amount = payment_data
-                                            .payment_attempt
-                                            .net_amount
-                                            .get_overcaptured_amount();
-                                        Some(overcapture_details)
-                                    }
-                                    None => None,
-                                };
+                            let overcapture_details = None; //todoo
+                                // match payment_data.payment_attempt.overcapture_details.clone() {
+                                //     Some(mut overcapture_details) => {
+                                //         overcapture_details.overcapture_applied =
+                                //             overcapture_applied;
+                                //         overcapture_details.maximum_capturable_amount =
+                                //             maximum_capturable_amount;
+                                //         overcapture_details.overcaptured_amount = payment_data
+                                //             .payment_attempt
+                                //             .net_amount
+                                //             .get_overcaptured_amount();
+                                //         Some(overcapture_details)
+                                //     }
+                                //     None => None,
+                                // };
 
                             // incase of success, update error code and error message
                             let error_status =
@@ -1750,7 +1748,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                             .get_amount_capturable(
                                                 &payment_data,
                                                 updated_attempt_status,
-                                                maximum_capturable_amount,
+                                                None,
                                             )
                                             .map(MinorUnit::new),
                                         payment_method_id,

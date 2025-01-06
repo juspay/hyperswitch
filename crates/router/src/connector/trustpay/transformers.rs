@@ -738,8 +738,6 @@ fn handle_cards_response(
         connector_response_reference_id: None,
         incremental_authorization_allowed: None,
         charge_id: None,
-        overcapture_applied: None,
-        maximum_capturable_amount: None,
     };
     Ok((status, error, payment_response_data))
 }
@@ -770,8 +768,6 @@ fn handle_bank_redirects_response(
         connector_response_reference_id: None,
         incremental_authorization_allowed: None,
         charge_id: None,
-        overcapture_applied: None,
-        maximum_capturable_amount: None,
     };
     Ok((status, error, payment_response_data))
 }
@@ -806,8 +802,6 @@ fn handle_bank_redirects_error_response(
         connector_response_reference_id: None,
         incremental_authorization_allowed: None,
         charge_id: None,
-        overcapture_applied: None,
-        maximum_capturable_amount: None,
     };
     Ok((status, error, payment_response_data))
 }
@@ -869,8 +863,6 @@ fn handle_bank_redirects_sync_response(
         connector_response_reference_id: None,
         incremental_authorization_allowed: None,
         charge_id: None,
-        overcapture_applied: None,
-        maximum_capturable_amount: None,
     };
     Ok((status, error, payment_response_data))
 }
@@ -919,8 +911,6 @@ pub fn handle_webhook_response(
         connector_response_reference_id: None,
         incremental_authorization_allowed: None,
         charge_id: None,
-        overcapture_applied: None,
-        maximum_capturable_amount: None,
     };
     Ok((status, error, payment_response_data))
 }

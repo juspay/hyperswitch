@@ -195,8 +195,6 @@ impl<F, T>
                     .or(Some(item.response.data.id)),
                 incremental_authorization_allowed: None,
                 charge_id: None,
-                overcapture_applied: None,
-                maximum_capturable_amount: None,
             })
         };
         match amount_captured_in_minor_units {

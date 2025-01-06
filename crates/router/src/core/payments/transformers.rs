@@ -911,8 +911,6 @@ where
         connector_response_reference_id: None,
         incremental_authorization_allowed: None,
         charge_id: None,
-        overcapture_applied: None,
-        maximum_capturable_amount: None,
     });
 
     let additional_data = PaymentAdditionalData {

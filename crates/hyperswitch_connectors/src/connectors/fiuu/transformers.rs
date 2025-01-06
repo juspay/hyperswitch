@@ -758,8 +758,6 @@ impl<F>
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
                     charge_id: None,
-                    overcapture_applied: None,
-                    maximum_capturable_amount: None,
                 }),
                 ..item.data
             }),
@@ -796,8 +794,6 @@ impl<F>
                             connector_response_reference_id: None,
                             incremental_authorization_allowed: None,
                             charge_id: None,
-                            overcapture_applied: None,
-                            maximum_capturable_amount: None,
                         }),
                         ..item.data
                     })
@@ -854,8 +850,6 @@ impl<F>
                             connector_response_reference_id: None,
                             incremental_authorization_allowed: None,
                             charge_id: None,
-                            overcapture_applied: None,
-                            maximum_capturable_amount: None,
                         })
                     };
                     Ok(Self {
@@ -902,8 +896,6 @@ impl<F>
                                 connector_response_reference_id: None,
                                 incremental_authorization_allowed: None,
                                 charge_id: None,
-                                overcapture_applied: None,
-                                maximum_capturable_amount: None,
                             })
                         };
                         Self {
@@ -923,8 +915,6 @@ impl<F>
                             connector_response_reference_id: None,
                             incremental_authorization_allowed: None,
                             charge_id: None,
-                            overcapture_applied: None,
-                            maximum_capturable_amount: None,
                         });
                         Self {
                             response,
@@ -1196,8 +1186,6 @@ impl TryFrom<PaymentsSyncResponseRouterData<FiuuPaymentResponse>> for PaymentsSy
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
                     charge_id: None,
-                    overcapture_applied: None,
-                    maximum_capturable_amount: None,
                 };
                 Ok(Self {
                     status,
@@ -1259,8 +1247,6 @@ impl TryFrom<PaymentsSyncResponseRouterData<FiuuPaymentResponse>> for PaymentsSy
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
                     charge_id: None,
-                    overcapture_applied: None,
-                    maximum_capturable_amount: None,
                 };
                 Ok(Self {
                     status,
@@ -1430,8 +1416,6 @@ impl TryFrom<PaymentsCaptureResponseRouterData<PaymentCaptureResponse>>
             connector_response_reference_id: None,
             incremental_authorization_allowed: None,
             charge_id: None,
-            overcapture_applied: None,
-            maximum_capturable_amount: None,
         };
         Ok(Self {
             status,
@@ -1543,8 +1527,6 @@ impl TryFrom<PaymentsCancelResponseRouterData<FiuuPaymentCancelResponse>>
             connector_response_reference_id: None,
             incremental_authorization_allowed: None,
             charge_id: None,
-            overcapture_applied: None,
-            maximum_capturable_amount: None,
         };
         Ok(Self {
             status,
