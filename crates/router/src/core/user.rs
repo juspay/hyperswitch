@@ -1413,7 +1413,7 @@ pub async fn create_tenant_user(
         .change_context(UserErrors::InternalServerError)
         .attach_printable("Failed to get merchants list for org")?
         .pop()
-        .ok_or(UserErrors::InternalServerError)
+        .ok_or(UserErrors::InvalidRoleOperation)
         .attach_printable("No merchants found in the tenancy")?;
 
     let new_user = domain::NewUser::try_from((

@@ -70,7 +70,7 @@ impl Role {
         .await
     }
 
-    pub async fn find_by_role_id_and_org_id(
+    pub async fn find_by_role_id_org_id_tenant_id(
         conn: &PgPooledConn,
         role_id: &str,
         org_id: &id_type::OrganizationId,

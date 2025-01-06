@@ -728,7 +728,49 @@ pub async fn list_users_in_lineage(
         requestor_role_info.get_entity_type(),
         request.entity_type,
     )? {
-        EntityType::Tenant | EntityType::Organization => {
+        EntityType::Tenant => {
+            let mut org_users = utils::user_role::fetch_user_roles_by_payload(
+                &state,
+                ListUserRolesByOrgIdPayload {
+                    user_id: None,
+                    tenant_id: user_from_token
+                        .tenant_id
+                        .as_ref()
+                        .unwrap_or(&state.tenant.tenant_id),
+                    org_id: &user_from_token.org_id,
+                    merchant_id: None,
+                    profile_id: None,
+                    version: None,
+                    limit: None,
+                },
+                request.entity_type,
+            )
+            .await?;
+
+            // Fetch tenant user
+            let tenant_user = state
+                .global_store
+                .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
+                    user_id: &user_from_token.user_id,
+                    tenant_id: user_from_token
+                        .tenant_id
+                        .as_ref()
+                        .unwrap_or(&state.tenant.tenant_id),
+                    org_id: None,
+                    merchant_id: None,
+                    profile_id: None,
+                    entity_id: None,
+                    version: None,
+                    status: None,
+                    limit: None,
+                })
+                .await
+                .change_context(UserErrors::InternalServerError)?;
+
+            org_users.extend(tenant_user);
+            org_users
+        }
+        EntityType::Organization => {
             utils::user_role::fetch_user_roles_by_payload(
                 &state,
                 ListUserRolesByOrgIdPayload {

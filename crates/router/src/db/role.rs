@@ -142,7 +142,7 @@ impl RoleInterface for Store {
         tenant_id: &id_type::TenantId,
     ) -> CustomResult<storage::Role, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
-        storage::Role::find_by_role_id_and_org_id(&conn, role_id, org_id, tenant_id)
+        storage::Role::find_by_role_id_org_id_tenant_id(&conn, role_id, org_id, tenant_id)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
     }

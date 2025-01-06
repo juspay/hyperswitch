@@ -83,10 +83,11 @@ pub async fn create_role(
     let user_role_info = user_from_token.get_role_info_from_db(&state).await?;
 
     if matches!(req.role_scope, RoleScope::Organization)
-        && user_role_info.get_entity_type() != EntityType::Organization
+        && user_role_info.get_entity_type() < EntityType::Organization
     {
-        return Err(report!(UserErrors::InvalidRoleOperation))
-            .attach_printable("Non org admin user creating org level role");
+        return Err(report!(UserErrors::InvalidRoleOperation)).attach_printable(
+            "User does not have sufficient privileges to perform organization-level role operation",
+        );
     }
 
     let role = state
