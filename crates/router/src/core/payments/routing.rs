@@ -1322,23 +1322,22 @@ pub async fn perform_success_based_routing(
             .ok_or(errors::RoutingError::SuccessRateClientInitializationError)
             .attach_printable("success_rate gRPC client not found")?;
 
-        let mut success_based_routing_configs =
-            routing::helpers::fetch_success_based_routing_configs(
-                state,
-                business_profile,
-                success_based_algo_ref
-                    .algorithm_id_with_timestamp
-                    .algorithm_id
-                    .ok_or(errors::RoutingError::GenericNotFoundError {
-                        field: "success_based_routing_algorithm_id".to_string(),
-                    })
-                    .attach_printable(
-                        "success_based_routing_algorithm_id not found in business_profile",
-                    )?,
-            )
-            .await
-            .change_context(errors::RoutingError::SuccessBasedRoutingConfigError)
-            .attach_printable("unable to fetch success_rate based dynamic routing configs")?;
+        let success_based_routing_configs = routing::helpers::fetch_success_based_routing_configs(
+            state,
+            business_profile,
+            success_based_algo_ref
+                .algorithm_id_with_timestamp
+                .algorithm_id
+                .ok_or(errors::RoutingError::GenericNotFoundError {
+                    field: "success_based_routing_algorithm_id".to_string(),
+                })
+                .attach_printable(
+                    "success_based_routing_algorithm_id not found in business_profile",
+                )?,
+        )
+        .await
+        .change_context(errors::RoutingError::SuccessBasedRoutingConfigError)
+        .attach_printable("unable to fetch success_rate based dynamic routing configs")?;
 
         let success_based_routing_config_params = success_based_routing_config_params_interpolator
             .get_string_val(
