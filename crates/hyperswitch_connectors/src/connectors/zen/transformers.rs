@@ -523,7 +523,7 @@ impl
             amount,
             terminal_uuid: Secret::new(terminal_uuid),
             signature: None,
-            url_redirect: item.router_data.request.get_return_url()?,
+            url_redirect: item.router_data.request.get_router_return_url()?,
         };
         checkout_request.signature =
             Some(get_checkout_signature(&checkout_request, &session_data)?);

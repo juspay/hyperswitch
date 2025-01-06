@@ -126,7 +126,6 @@ pub fn construct_uas_router_data<F: Clone, Req, Res>(
         payment_method,
         connector_auth_type: auth_type,
         description: None,
-        return_url: None,
         address: address.unwrap_or_default(),
         auth_type: common_enums::AuthenticationType::default(),
         connector_meta_data: merchant_connector_account.metadata.clone(),

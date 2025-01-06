@@ -708,6 +708,7 @@ diesel::table! {
         version -> ApiVersion,
         #[max_length = 64]
         id -> Varchar,
+        is_platform_account -> Bool,
     }
 }
 
@@ -933,6 +934,8 @@ diesel::table! {
         id -> Varchar,
         psd2_sca_exemption_type -> Nullable<ScaExemptionType>,
         split_payments -> Nullable<Jsonb>,
+        #[max_length = 64]
+        platform_merchant_id -> Nullable<Varchar>,
     }
 }
 
@@ -1349,6 +1352,8 @@ diesel::table! {
         allow_signup -> Bool,
         created_at -> Timestamp,
         last_modified_at -> Timestamp,
+        #[max_length = 64]
+        email_domain -> Varchar,
     }
 }
 
