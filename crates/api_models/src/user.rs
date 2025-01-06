@@ -18,10 +18,6 @@ pub struct SignUpWithMerchantIdRequest {
     pub password: Secret<String>,
     pub company_name: String,
 }
-#[derive(serde::Deserialize, Debug, Clone, serde::Serialize)]
-pub struct PlatformCreateRequest {
-    pub merchant_id: id_type::MerchantId,
-}
 
 pub type SignUpWithMerchantIdResponse = AuthorizeResponse;
 

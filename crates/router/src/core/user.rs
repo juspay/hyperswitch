@@ -1472,12 +1472,10 @@ pub async fn create_org_merchant_for_user(
 pub async fn set_platform_account(
     state: SessionState,
     user_from_token: auth::UserFromToken,
-    req: user_api::PlatformCreateRequest,
 ) -> UserResponse<()> {
     let kms = (&state).into();
     let db = state.store.as_ref();
-    let org_id = &user_from_token.org_id;
-    let requested_merchant_id = &req.merchant_id;
+    let requested_merchant_id = &user_from_token.merchant_id;
     let key_store = db
         .get_merchant_key_store_by_merchant_id(
             &kms,
@@ -1487,17 +1485,7 @@ pub async fn set_platform_account(
         .await
         .change_context(UserErrors::InternalServerError)?;
 
-    let requested_merchant_account = db
-        .find_merchant_account_by_merchant_id(&kms, requested_merchant_id, &key_store)
-        .await
-        .change_context(UserErrors::InternalServerError)?;
-    
-    if &requested_merchant_account.organization_id != org_id {
-        return Err(UserErrors::MerchantNotAMemberOfOrg)?;
-    }
-
     // TODO: Add check for Org level is_platform_enabled to check if the org already has a platform account.
-    
     let merchant_account = db
         .find_merchant_account_by_merchant_id(&kms, &requested_merchant_id, &key_store)
         .await
