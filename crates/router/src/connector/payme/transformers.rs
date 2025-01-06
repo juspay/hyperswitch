@@ -1125,7 +1125,6 @@ impl TryFrom<types::PaymentsCancelResponseRouterData<PaymeVoidResponse>>
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 charge_id: None,
-
             })
         };
         Ok(Self {

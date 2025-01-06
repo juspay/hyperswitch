@@ -290,7 +290,6 @@ impl<F, T> TryFrom<ResponseRouterData<F, VoltPaymentsResponse, T, PaymentsRespon
                 connector_response_reference_id: Some(item.response.id),
                 incremental_authorization_allowed: None,
                 charge_id: None,
-
             }),
             ..item.data
         })
@@ -369,7 +368,6 @@ impl<F, T> TryFrom<ResponseRouterData<F, VoltPaymentsResponseData, T, PaymentsRe
                                 .or(Some(payment_response.id)),
                             incremental_authorization_allowed: None,
                             charge_id: None,
-
                         })
                     },
                     ..item.data
