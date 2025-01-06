@@ -39,6 +39,8 @@ use crate::{
     events::EventsConfig,
 };
 
+pub const REQUIRED_FIELDS_CONFIG_FILE: &str = "payment_required_fields_v2.toml";
+
 #[derive(clap::Parser, Default)]
 #[cfg_attr(feature = "vergen", command(version = router_env::version!()))]
 pub struct CmdLineConf {
@@ -810,8 +812,9 @@ impl Settings<SecuredSecret> {
 
         #[cfg(feature = "v2")]
         let config = {
-            let required_fields_path_buf = PathBuf::from("config/payment_required_fields.toml");
-            config.add_source(File::from(required_fields_path_buf).required(true))
+            let required_fields_path_buf =
+                router_env::Config::get_config_directory().join(REQUIRED_FIELDS_CONFIG_FILE);
+            config.add_source(File::from(required_fields_path_buf).required(false))
         };
 
         let config = config
