@@ -1163,7 +1163,7 @@ pub async fn resend_invite(
         .get_entity_id_and_type()
         .ok_or(UserErrors::InternalServerError)?;
 
-    let invitee_role_info = roles::RoleInfo::from_role_id_and_org_id(
+    let invitee_role_info = roles::RoleInfo::from_role_id_org_id_tenant_id(
         &state,
         &user_role.role_id,
         &user_from_token.org_id,
