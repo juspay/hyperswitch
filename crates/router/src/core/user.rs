@@ -1474,51 +1474,10 @@ pub async fn set_platform_account(
     user_from_token: auth::UserFromToken,
     req: user_api::PlatformCreateRequest,
 ) -> UserResponse<()> {
-    let role_info = roles::RoleInfo::from_role_id_and_org_id(
-        &state,
-        &user_from_token.role_id,
-        &user_from_token.org_id,
-    )
-    .await
-    .change_context(UserErrors::InternalServerError)?;
-
-    let role_id = role_info.get_role_id();
-
-    if role_id != common_utils::consts::ROLE_ID_ORGANIZATION_ADMIN {
-        return Err(UserErrors::PlatformAccountCreationNotAuthorized)?;
-    }
-
     let kms = (&state).into();
-    let org_id = &user_from_token.org_id;
-
-    let merchant_list_for_this_org = state
-        .store
-        .list_merchant_accounts_by_organization_id(&kms, org_id)
-        .await
-        .change_context(UserErrors::InternalServerError)?;
-
-    let merchant_ids_for_this_org = merchant_list_for_this_org
-        .into_iter()
-        .map(|merchant| merchant.get_id().clone())
-        .collect::<HashSet<_>>();
-
-    if merchant_ids_for_this_org.is_empty() {
-        return Err(UserErrors::InternalServerError)?;
-    }
-
-    let requested_merchant_id = req.merchant_id.clone();
-
-    if !merchant_ids_for_this_org.contains(&requested_merchant_id) {
-        return Err(UserErrors::MerchantNotAMemberOfOrg)?;
-    }
-
-    logger::info!(
-        "Merchant {:#?} is a member of this org {:#?} ",
-        &requested_merchant_id,
-        &org_id
-    );
-
     let db = state.store.as_ref();
+    let org_id = &user_from_token.org_id;
+    let requested_merchant_id = &req.merchant_id;
     let key_store = db
         .get_merchant_key_store_by_merchant_id(
             &kms,
@@ -1528,6 +1487,17 @@ pub async fn set_platform_account(
         .await
         .change_context(UserErrors::InternalServerError)?;
 
+    let requested_merchant_account = db
+        .find_merchant_account_by_merchant_id(&kms, requested_merchant_id, &key_store)
+        .await
+        .change_context(UserErrors::InternalServerError)?;
+    
+    if &requested_merchant_account.organization_id != org_id {
+        return Err(UserErrors::MerchantNotAMemberOfOrg)?;
+    }
+
+    // TODO: Add check for Org level is_platform_enabled to check if the org already has a platform account.
+    
     let merchant_account = db
         .find_merchant_account_by_merchant_id(&kms, &requested_merchant_id, &key_store)
         .await
@@ -2980,6 +2950,7 @@ pub async fn list_merchants_for_user_in_org(
                 |merchant_account| user_api::ListMerchantsForUserInOrgResponse {
                     merchant_name: merchant_account.merchant_name.clone(),
                     merchant_id: merchant_account.get_id().to_owned(),
+                    is_platform_account: merchant_account.is_platform_account.to_owned(),
                 },
             )
             .collect::<Vec<_>>(),
