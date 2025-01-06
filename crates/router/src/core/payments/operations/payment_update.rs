@@ -444,12 +444,16 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 id: profile_id.get_string_repr().to_owned(),
             })?;
 
-            match payment_attempt.capture_method {
-                Some(storage_enums::CaptureMethod::Manual) | None => {
-                    payment_attempt.request_overcapture = request.request_overcapture.or(payment_attempt.request_overcapture);
-                }
-                _ => Err(errors::ApiErrorResponse::NotSupported{message: "requesting overcapture is supported only via manual capture".to_owned()})?
-            };
+        match payment_attempt.capture_method {
+            Some(storage_enums::CaptureMethod::Manual) | None => {
+                payment_attempt.request_overcapture = request
+                    .request_overcapture
+                    .or(payment_attempt.request_overcapture);
+            }
+            _ => Err(errors::ApiErrorResponse::NotSupported {
+                message: "requesting overcapture is supported only via manual capture".to_owned(),
+            })?,
+        };
 
         let surcharge_details = request.surcharge_details.map(|request_surcharge_details| {
             payments::types::SurchargeDetails::from((&request_surcharge_details, &payment_attempt))
@@ -831,7 +835,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                             surcharge_amount,
                             tax_amount,
                         ),
-                        request_overcapture,
+                    request_overcapture,
                 },
                 storage_scheme,
             )

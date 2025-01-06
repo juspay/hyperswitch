@@ -1592,7 +1592,8 @@ impl DataModelExt for PaymentAttempt {
             profile_id: storage_model.profile_id,
             connector_mandate_detail: storage_model.connector_mandate_detail,
             request_overcapture: storage_model.request_overcapture,
-            overcapture_applied: storage_model.overcapture_applied,        }
+            overcapture_applied: storage_model.overcapture_applied,
+        }
     }
 }
 

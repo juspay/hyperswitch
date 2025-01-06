@@ -2614,14 +2614,11 @@ pub(crate) fn validate_amount_to_capture(
     if let Some(true) =
         amount_to_capture.map(|req_amount_to_capture| (amount < req_amount_to_capture))
     {
-        utils::when(
-            is_overcapture_applied != Some(true),
-            || {
-                Err(report!(errors::ApiErrorResponse::InvalidRequestData {
-                    message: "amount_to_capture is greater than amount".to_string()
-                }))
-            },
-        )
+        utils::when(is_overcapture_applied != Some(true), || {
+            Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+                message: "amount_to_capture is greater than amount".to_string()
+            }))
+        })
     } else {
         Ok(())
     }

@@ -449,7 +449,6 @@ pub fn validate_uuid(uuid: String, key: &str) -> Result<String, errors::ApiError
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     #![allow(clippy::expect_used)]

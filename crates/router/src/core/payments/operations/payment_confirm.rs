@@ -406,9 +406,13 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
 
         match payment_attempt.capture_method {
             Some(storage_enums::CaptureMethod::Manual) => {
-                payment_attempt.request_overcapture = request.request_overcapture.or(payment_attempt.request_overcapture);
+                payment_attempt.request_overcapture = request
+                    .request_overcapture
+                    .or(payment_attempt.request_overcapture);
             }
-            _ => Err(errors::ApiErrorResponse::NotSupported{message: "requesting overcapture is supported only via manual capture".to_owned()})?
+            _ => Err(errors::ApiErrorResponse::NotSupported {
+                message: "requesting overcapture is supported only via manual capture".to_owned(),
+            })?,
         };
 
         payment_attempt.customer_acceptance = request

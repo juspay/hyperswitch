@@ -2949,7 +2949,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     order_tax_amount: None,
                     connector_mandate_detail: None,
                     request_overcapture: None,
-                overcapture_applied: None,
+                    overcapture_applied: None,
                 }
             }
             PaymentAttemptUpdate::PreprocessingUpdate {
@@ -3019,7 +3019,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     order_tax_amount: None,
                     connector_mandate_detail: None,
                     request_overcapture: None,
-                overcapture_applied: None,
+                    overcapture_applied: None,
                 }
             }
             PaymentAttemptUpdate::CaptureUpdate {

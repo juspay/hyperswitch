@@ -652,7 +652,6 @@ impl NetAmount {
             .map(|surcharge_amount| surcharge_amount + self.tax_on_surcharge.unwrap_or_default())
     }
 
-
     pub fn get_total_amount(&self) -> MinorUnit {
         self.order_amount
             + self.shipping_cost.unwrap_or_default()
