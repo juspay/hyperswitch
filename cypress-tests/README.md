@@ -495,7 +495,7 @@ npm run lint -- --fix
 - At present, only 3 configs are supported:
   - `DELAY`: This is used to introduce a delay in the test execution. This is useful when a connector requires a delay in order to perform a specific operation
   - `CONNECTOR_CREDENTIAL`: This is used to control the connector credentials that are used in the test execution. This is useful only when a connector supports multiple credentials and the test needs to be executed with a specific credential
-  - `TRIGGER_SKIP`: This is used to skip a test execution (preferably redirection flows). This is useful when a test is does not support a specific rdirection flow and needs to be skipped
+  - `TRIGGER_SKIP`: This is used to skip a test execution (preferably redirection flows). This is useful when a test is does not support a specific redirection flow and needs to be skipped
 - Example: In order to refund a payment in Trustpay, a `DELAY` of at least `5` seconds is required. By passing `DELAY` to the `Configs` object for Trustpay, the delay will be applied to all the tests that are executed for Trustpay
 
 ```json
