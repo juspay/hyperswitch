@@ -866,27 +866,35 @@ async fn relay_refunds_incoming_webhook_flow(
     let db = &*state.store;
     let key_manager_state = &(&state).into();
 
-    let relay_id = match webhook_details.object_reference_id {
+    let relay_record = match webhook_details.object_reference_id {
         webhooks::ObjectReferenceId::RefundId(refund_id_type) => match refund_id_type {
-            webhooks::RefundIdType::RefundId(refund_id) => refund_id,
-            webhooks::RefundIdType::ConnectorRefundId(connector_refund_id) => connector_refund_id,
+            webhooks::RefundIdType::RefundId(refund_id) => {
+                let relay_id = common_utils::id_type::RelayId::from_str(&refund_id)
+                    .change_context(errors::ValidationError::IncorrectValueProvided {
+                        field_name: "relay_id",
+                    })
+                    .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+                db.find_relay_by_id(key_manager_state, &merchant_key_store, &relay_id)
+                    .await
+                    .to_not_found_response(errors::ApiErrorResponse::WebhookResourceNotFound)
+                    .attach_printable("Failed to fetch the relay record")?
+            }
+            webhooks::RefundIdType::ConnectorRefundId(connector_refund_id) => db
+                .find_relay_by_connector_reference_id(
+                    key_manager_state,
+                    &merchant_key_store,
+                    &connector_refund_id,
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::WebhookResourceNotFound)
+                .attach_printable("Failed to fetch the relay record")?,
         },
         _ => Err(errors::ApiErrorResponse::WebhookProcessingFailure)
-            .attach_printable("received a non-refund id when processing refund webhooks")?,
+            .attach_printable("received a non-refund id when processing relay refund webhooks")?,
     };
 
-    let relay_id = common_utils::id_type::RelayId::from_str(&relay_id)
-        .change_context(errors::ValidationError::IncorrectValueProvided {
-            field_name: "relay_id",
-        })
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
-
-    let relay_record = db
-        .find_relay_by_id(key_manager_state, &merchant_key_store, &relay_id)
-        .await
-        .change_context(errors::ApiErrorResponse::WebhookResourceNotFound)
-        .attach_printable("Failed to fetch the relay record")?;
-
+    // if source_verified then update relay status else trigger relay force sync
     if source_verified {
         let relay_update = hyperswitch_domain_models::relay::RelayUpdate::StatusUpdate {
             connector_reference_id: None,

@@ -1521,7 +1521,7 @@ impl RelayWebhooks {
         web::scope("/webhooks")
             .app_data(web::Data::new(state))
             .service(
-                web::resource("/relay/{merchant_id}/{connector_id_or_name}").route(
+                web::resource("/relay/{merchant_id}/{connector_id}").route(
                     web::post().to(receive_incoming_relay_webhook::<webhook_type::OutgoingWebhook>),
                 ),
             )

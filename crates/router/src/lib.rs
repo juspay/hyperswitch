@@ -147,7 +147,10 @@ pub fn mk_app(
 
         #[cfg(feature = "oltp")]
         {
-            server_app = server_app.service(routes::PaymentMethods::server(state.clone()));
+            server_app = server_app
+                .service(routes::PaymentMethods::server(state.clone()))
+                .service(routes::RelayWebhooks::server(state.clone()))
+                .service(routes::EphemeralKey::server(state.clone()));
         }
 
         #[cfg(feature = "v1")]
@@ -158,10 +161,6 @@ pub fn mk_app(
         }
     }
 
-    #[cfg(all(feature = "oltp", any(feature = "v1", feature = "v2"),))]
-    {
-        server_app = server_app.service(routes::EphemeralKey::server(state.clone()))
-    }
     #[cfg(all(
         feature = "oltp",
         any(feature = "v1", feature = "v2"),
