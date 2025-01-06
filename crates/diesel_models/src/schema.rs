@@ -890,7 +890,8 @@ diesel::table! {
         #[max_length = 512]
         connector_transaction_data -> Nullable<Varchar>,
         connector_mandate_detail -> Nullable<Jsonb>,
-        overcapture_details -> Nullable<Jsonb>,
+        request_overcapture -> Nullable<Bool>,
+        overcapture_applied -> Nullable<Bool>,
     }
 }
 

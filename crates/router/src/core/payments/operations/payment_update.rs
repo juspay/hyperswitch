@@ -444,10 +444,12 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 id: profile_id.get_string_repr().to_owned(),
             })?;
 
-        helpers::update_or_add_overcapture_details_if_required(
-            request.request_overcapture,
-            &mut payment_attempt,
-        )?;
+            match payment_attempt.capture_method {
+                Some(storage_enums::CaptureMethod::Manual) | None => {
+                    payment_attempt.request_overcapture = request.request_overcapture.or(payment_attempt.request_overcapture);
+                }
+                _ => Err(errors::ApiErrorResponse::NotSupported{message: "requesting overcapture is supported only via manual capture".to_owned()})?
+            };
 
         let surcharge_details = request.surcharge_details.map(|request_surcharge_details| {
             payments::types::SurchargeDetails::from((&request_surcharge_details, &payment_attempt))
@@ -788,7 +790,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
         let payment_experience = payment_data.payment_attempt.payment_experience;
         let amount_to_capture = payment_data.payment_attempt.amount_to_capture;
         let capture_method = payment_data.payment_attempt.capture_method;
-        let overcapture_details = payment_data.payment_attempt.overcapture_details.clone();
+        let request_overcapture = payment_data.payment_attempt.request_overcapture.clone();
         let payment_method_billing_address_id = payment_data
             .payment_attempt
             .payment_method_billing_address_id
@@ -828,9 +830,8 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                             None,
                             surcharge_amount,
                             tax_amount,
-                            None,
                         ),
-                    overcapture_details,
+                        request_overcapture,
                 },
                 storage_scheme,
             )

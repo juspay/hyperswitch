@@ -1153,7 +1153,7 @@ fn create_stripe_payment_method(
     payment_method_token: Option<types::PaymentMethodToken>,
     is_customer_initiated_mandate_payment: Option<bool>,
     billing_address: StripeBillingAddress,
-    is_overcapture_requested: Option<bool>,
+    is_request_overcapture: Option<bool>,
 ) -> Result<
     (
         StripePaymentMethodData,
@@ -1172,7 +1172,7 @@ fn create_stripe_payment_method(
                 StripePaymentMethodData::try_from((
                     card_details,
                     payment_method_auth_type,
-                    is_overcapture_requested,
+                    is_request_overcapture,
                 ))?,
                 Some(StripePaymentMethodType::Card),
                 billing_address,
@@ -1394,7 +1394,7 @@ fn get_stripe_card_network(card_network: common_enums::CardNetwork) -> Option<St
 impl TryFrom<(&domain::Card, Auth3ds, Option<bool>)> for StripePaymentMethodData {
     type Error = errors::ConnectorError;
     fn try_from(
-        (card, payment_method_auth_type, is_overcapture_requested): (
+        (card, payment_method_auth_type, is_request_overcapture): (
             &domain::Card,
             Auth3ds,
             Option<bool>,
@@ -1411,7 +1411,7 @@ impl TryFrom<(&domain::Card, Auth3ds, Option<bool>)> for StripePaymentMethodData
                 .card_network
                 .clone()
                 .and_then(get_stripe_card_network),
-            payment_method_data_card_request_overcapture: match is_overcapture_requested {
+            payment_method_data_card_request_overcapture: match is_request_overcapture {
                 Some(true) => Some(StripeOvercaptureRequest::IfAvailable),
                 _ => None,
             },

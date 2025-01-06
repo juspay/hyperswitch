@@ -417,9 +417,9 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsIncrementalAu
                                     None,
                                     None,
                                     None,
-                                    None,
                                 ),
                                 amount_capturable: incremental_authorization_details.total_amount,
+                                overcapture_applied: None, //todooooo 
                             },
                         ),
                         Some(
@@ -868,24 +868,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCaptureData>
     where
         F: 'b + Send,
     {
-        let net_amount = payment_data.payment_attempt.net_amount.get_total_amount();
-        let overcapture_applied = payment_data
-            .payment_attempt
-            .overcapture_details
-            .as_ref()
-            .and_then(|overcapture_data| overcapture_data.overcapture_applied);
-        core_utils::get_overcaptured_amount(
-            overcapture_applied,
-            router_data.amount_captured.map(MinorUnit::new),
-            net_amount,
-        )
-        .map(|overcaptured_amount| {
-            payment_data
-                .payment_attempt
-                .net_amount
-                .set_overcaptured_amount(overcaptured_amount)
-        });
-
         payment_data = Box::pin(payment_response_update_tracker(
             db,
             payment_data,
@@ -1585,7 +1567,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                 None
                             };
 
-                            let overcapture_details = None; //todoo
+                            // let overcapture_details = None; todoo
                                                             // match payment_data.payment_attempt.overcapture_details.clone() {
                                                             //     Some(mut overcapture_details) => {
                                                             //         overcapture_details.overcapture_applied =
@@ -1770,7 +1752,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                             .payment_attempt
                                             .connector_mandate_detail
                                             .clone(),
-                                        overcapture_details,
+                                        overcapture_applied: None, // todo
                                     }),
                                 ),
                             };

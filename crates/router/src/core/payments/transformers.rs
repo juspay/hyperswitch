@@ -2214,16 +2214,17 @@ where
                 })
         });
 
-        let (overcapture_applied, maximum_capturable_amount) = payment_attempt
-            .overcapture_details
-            .as_ref()
-            .map(|overcapture_data| {
-                (
-                    overcapture_data.overcapture_applied,
-                    overcapture_data.maximum_capturable_amount,
-                )
-            })
-            .unwrap_or((None, None));
+        // let (overcapture_applied, maximum_capturable_amount) = payment_attempt
+        //     .overcapture_details
+        //     .as_ref()
+        //     .map(|overcapture_data| {
+        //         (
+        //             overcapture_data.overcapture_applied,
+        //             overcapture_data.maximum_capturable_amount,
+        //         )
+        //     })
+        //     .unwrap_or((None, None));
+        //todooooo
 
         let connector_transaction_id = payment_attempt
             .get_connector_payment_id()
@@ -2337,8 +2338,8 @@ where
             order_tax_amount,
             connector_mandate_id,
             shipping_cost: payment_intent.shipping_cost,
-            overcapture_applied,
-            maximum_capturable_amount,
+            overcapture_applied: None,
+            maximum_capturable_amount: None, //todoooo
         };
 
         services::ApplicationResponse::JsonWithHeaders((payments_response, headers))
@@ -2595,8 +2596,8 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             order_tax_amount: None,
             connector_mandate_id:None,
             shipping_cost: None,
-            overcapture_applied: pa.overcapture_details.as_ref().and_then(|overcapture_data| overcapture_data.overcapture_applied),
-            maximum_capturable_amount: pa.overcapture_details.as_ref().and_then(|overcapture_data| overcapture_data.maximum_capturable_amount),
+            overcapture_applied: pa.overcapture_applied,
+            maximum_capturable_amount: None //todoo
         }
     }
 }
@@ -2858,9 +2859,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
 
         let request_overcapture = payment_data
             .payment_attempt
-            .overcapture_details
-            .as_ref()
-            .and_then(|overcapture_details| overcapture_details.request_overcapture);
+            .request_overcapture;
 
         Ok(Self {
             payment_method_data: (payment_method_data.get_required_value("payment_method_data")?),

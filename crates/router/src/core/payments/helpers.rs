@@ -2609,25 +2609,13 @@ pub(crate) fn validate_status_with_capture_method(
 pub(crate) fn validate_amount_to_capture(
     amount: i64,
     amount_to_capture: Option<i64>,
-    overcapture_details: Option<&common_utils::types::OvercaptureData>,
+    is_overcapture_applied: Option<bool>,
 ) -> RouterResult<()> {
-    let (is_overcapture_applied, maximum_capturable_amount) = overcapture_details
-        .map(|overcapture_data| {
-            (
-                overcapture_data.overcapture_applied,
-                overcapture_data
-                    .maximum_capturable_amount
-                    .map(|maximum_capturable_amount| maximum_capturable_amount.get_amount_as_i64()),
-            )
-        })
-        .unwrap_or((None, None));
-
     if let Some(true) =
         amount_to_capture.map(|req_amount_to_capture| (amount < req_amount_to_capture))
     {
         utils::when(
-            !(is_overcapture_applied == Some(true)
-                && maximum_capturable_amount >= amount_to_capture),
+            is_overcapture_applied != Some(true),
             || {
                 Err(report!(errors::ApiErrorResponse::InvalidRequestData {
                     message: "amount_to_capture is greater than amount".to_string()
@@ -4309,7 +4297,7 @@ impl AttemptType {
             organization_id: old_payment_attempt.organization_id,
             profile_id: old_payment_attempt.profile_id,
             connector_mandate_detail: None,
-            overcapture_details: old_payment_attempt.overcapture_details,
+            request_overcapture: old_payment_attempt.request_overcapture,
         }
     }
 
@@ -6291,33 +6279,4 @@ pub fn validate_platform_fees_for_marketplace(
         }
     }
     Ok(())
-}
-
-#[cfg(feature = "v1")]
-pub fn update_or_add_overcapture_details_if_required(
-    request_overcapture: Option<bool>,
-    payment_attempt: &mut PaymentAttempt,
-) -> Result<(), errors::ApiErrorResponse> {
-    if let Some((request_overcapture, true)) = request_overcapture.zip(Some(
-        payment_attempt
-            .capture_method
-            .eq(&Some(enums::CaptureMethod::Manual)),
-    )) {
-        match payment_attempt.overcapture_details {
-            Some(ref mut overcapture_data) => {
-                overcapture_data.request_overcapture = Some(request_overcapture);
-            }
-            None => {
-                payment_attempt.overcapture_details = Some(common_utils::types::OvercaptureData {
-                    request_overcapture: Some(request_overcapture),
-                    overcapture_applied: None,
-                    maximum_capturable_amount: None,
-                    overcaptured_amount: None,
-                });
-            }
-        }
-        Ok(())
-    } else {
-        Ok(())
-    }
 }

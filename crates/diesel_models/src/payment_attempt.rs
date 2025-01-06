@@ -94,7 +94,6 @@ pub struct PaymentAttempt {
     pub shipping_cost: Option<MinorUnit>,
     pub order_tax_amount: Option<MinorUnit>,
     pub connector_mandate_detail: Option<ConnectorMandateReferenceId>,
-    pub overcapture_details: Option<common_utils::types::OvercaptureData>,
 }
 
 #[cfg(feature = "v1")]
@@ -173,7 +172,8 @@ pub struct PaymentAttempt {
     pub order_tax_amount: Option<MinorUnit>,
     pub connector_transaction_data: Option<String>,
     pub connector_mandate_detail: Option<ConnectorMandateReferenceId>,
-    pub overcapture_details: Option<common_utils::types::OvercaptureData>,
+    pub request_overcapture: Option<bool>,
+    pub overcapture_applied: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -280,7 +280,6 @@ pub struct PaymentAttemptNew {
     pub payment_method_subtype: storage_enums::PaymentMethodType,
     pub id: id_type::GlobalAttemptId,
     pub connector_mandate_detail: Option<ConnectorMandateReferenceId>,
-    pub overcapture_details: Option<common_utils::types::OvercaptureData>,
 }
 
 #[cfg(feature = "v1")]
@@ -354,7 +353,7 @@ pub struct PaymentAttemptNew {
     pub shipping_cost: Option<MinorUnit>,
     pub order_tax_amount: Option<MinorUnit>,
     pub connector_mandate_detail: Option<ConnectorMandateReferenceId>,
-    pub overcapture_details: Option<common_utils::types::OvercaptureData>,
+    pub request_overcapture: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -378,7 +377,7 @@ pub enum PaymentAttemptUpdate {
         fingerprint_id: Option<String>,
         payment_method_billing_address_id: Option<String>,
         updated_by: String,
-        overcapture_details: Option<common_utils::types::OvercaptureData>,
+        request_overcapture: Option<bool>,
     },
     UpdateTrackers {
         payment_token: Option<String>,
@@ -428,7 +427,7 @@ pub enum PaymentAttemptUpdate {
         shipping_cost: Option<MinorUnit>,
         order_tax_amount: Option<MinorUnit>,
         connector_mandate_detail: Option<ConnectorMandateReferenceId>,
-        overcapture_details: Option<common_utils::types::OvercaptureData>,
+        request_overcapture: Option<bool>,
     },
     VoidUpdate {
         status: storage_enums::AttemptStatus,
@@ -477,7 +476,7 @@ pub enum PaymentAttemptUpdate {
         payment_method_data: Option<serde_json::Value>,
         charge_id: Option<String>,
         connector_mandate_detail: Option<ConnectorMandateReferenceId>,
-        overcapture_details: Option<common_utils::types::OvercaptureData>,
+        overcapture_applied: Option<bool>,
     },
     UnresolvedResponseUpdate {
         status: storage_enums::AttemptStatus,
@@ -538,6 +537,7 @@ pub enum PaymentAttemptUpdate {
     IncrementalAuthorizationAmountUpdate {
         amount: MinorUnit,
         amount_capturable: MinorUnit,
+        overcapture_applied: Option<bool>,
     },
     AuthenticationUpdate {
         status: storage_enums::AttemptStatus,
@@ -855,7 +855,8 @@ pub struct PaymentAttemptUpdateInternal {
     pub order_tax_amount: Option<MinorUnit>,
     pub connector_transaction_data: Option<String>,
     pub connector_mandate_detail: Option<ConnectorMandateReferenceId>,
-    pub overcapture_details: Option<common_utils::types::OvercaptureData>,
+    pub request_overcapture: Option<bool>,
+    pub overcapture_applied: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -879,15 +880,6 @@ impl PaymentAttemptUpdateInternal {
                 + update_internal
                     .order_tax_amount
                     .or(source.order_tax_amount)
-                    .unwrap_or(MinorUnit::new(0))
-                + update_internal
-                    .overcapture_details
-                    .as_ref()
-                    .and_then(|data| data.overcaptured_amount)
-                    .or(source
-                        .overcapture_details
-                        .as_ref()
-                        .and_then(|data| data.overcaptured_amount))
                     .unwrap_or(MinorUnit::new(0)),
         );
         update_internal.card_network = update_internal
@@ -1048,7 +1040,8 @@ impl PaymentAttemptUpdate {
             order_tax_amount,
             connector_transaction_data,
             connector_mandate_detail,
-            overcapture_details,
+            request_overcapture,
+            overcapture_applied,
         } = PaymentAttemptUpdateInternal::from(self).populate_derived_fields(&source);
         PaymentAttempt {
             amount: amount.unwrap_or(source.amount),
@@ -1107,7 +1100,8 @@ impl PaymentAttemptUpdate {
             connector_transaction_data: connector_transaction_data
                 .or(source.connector_transaction_data),
             connector_mandate_detail: connector_mandate_detail.or(source.connector_mandate_detail),
-            overcapture_details: overcapture_details.or(source.overcapture_details),
+            request_overcapture: request_overcapture.or(source.request_overcapture),
+            overcapture_applied: overcapture_applied.or(source.overcapture_applied),
             ..source
         }
     }
@@ -2107,7 +2101,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 fingerprint_id,
                 updated_by,
                 payment_method_billing_address_id,
-                overcapture_details,
+                request_overcapture,
             } => Self {
                 amount: Some(amount),
                 currency: Some(currency),
@@ -2161,7 +2155,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 order_tax_amount: None,
                 connector_transaction_data: None,
                 connector_mandate_detail: None,
-                overcapture_details,
+                request_overcapture,
+                overcapture_applied: None,
             },
             PaymentAttemptUpdate::AuthenticationTypeUpdate {
                 authentication_type,
@@ -2218,7 +2213,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 order_tax_amount: None,
                 connector_transaction_data: None,
                 connector_mandate_detail: None,
-                overcapture_details: None,
+                request_overcapture: None,
+                overcapture_applied: None,
             },
             PaymentAttemptUpdate::ConfirmUpdate {
                 amount,
@@ -2254,7 +2250,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 shipping_cost,
                 order_tax_amount,
                 connector_mandate_detail,
-                overcapture_details,
+                request_overcapture,
             } => Self {
                 amount: Some(amount),
                 currency: Some(currency),
@@ -2307,7 +2303,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 order_tax_amount,
                 connector_transaction_data: None,
                 connector_mandate_detail,
-                overcapture_details,
+                request_overcapture,
+                overcapture_applied: None,
             },
             PaymentAttemptUpdate::VoidUpdate {
                 status,
@@ -2365,7 +2362,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 order_tax_amount: None,
                 connector_transaction_data: None,
                 connector_mandate_detail: None,
-                overcapture_details: None,
+                request_overcapture: None,
+                overcapture_applied: None,
             },
             PaymentAttemptUpdate::RejectUpdate {
                 status,
@@ -2424,7 +2422,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 order_tax_amount: None,
                 connector_transaction_data: None,
                 connector_mandate_detail: None,
-                overcapture_details: None,
+                request_overcapture: None,
+                overcapture_applied: None,
             },
             PaymentAttemptUpdate::BlocklistUpdate {
                 status,
@@ -2483,7 +2482,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 order_tax_amount: None,
                 connector_transaction_data: None,
                 connector_mandate_detail: None,
-                overcapture_details: None,
+                request_overcapture: None,
+                overcapture_applied: None,
             },
             PaymentAttemptUpdate::ConnectorMandateDetailUpdate {
                 connector_mandate_detail,
@@ -2540,7 +2540,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 order_tax_amount: None,
                 connector_transaction_data: None,
                 connector_mandate_detail,
-                overcapture_details: None,
+                request_overcapture: None,
+                overcapture_applied: None,
             },
             PaymentAttemptUpdate::PaymentMethodDetailsUpdate {
                 payment_method_id,
@@ -2597,7 +2598,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 order_tax_amount: None,
                 connector_transaction_data: None,
                 connector_mandate_detail: None,
-                overcapture_details: None,
+                request_overcapture: None,
+                overcapture_applied: None,
             },
             PaymentAttemptUpdate::ResponseUpdate {
                 status,
@@ -2621,7 +2623,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 payment_method_data,
                 charge_id,
                 connector_mandate_detail,
-                overcapture_details,
+                overcapture_applied,
             } => {
                 let (connector_transaction_id, connector_transaction_data) =
                     connector_transaction_id
@@ -2680,7 +2682,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     shipping_cost: None,
                     order_tax_amount: None,
                     connector_mandate_detail,
-                    overcapture_details,
+                    request_overcapture: None,
+                    overcapture_applied,
                 }
             }
             PaymentAttemptUpdate::ErrorUpdate {
@@ -2754,7 +2757,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     shipping_cost: None,
                     order_tax_amount: None,
                     connector_mandate_detail: None,
-                    overcapture_details: None,
+                    request_overcapture: None,
+                    overcapture_applied: None,
                 }
             }
             PaymentAttemptUpdate::StatusUpdate { status, updated_by } => Self {
@@ -2809,7 +2813,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 order_tax_amount: None,
                 connector_transaction_data: None,
                 connector_mandate_detail: None,
-                overcapture_details: None,
+                request_overcapture: None,
+                overcapture_applied: None,
             },
             PaymentAttemptUpdate::UpdateTrackers {
                 payment_token,
@@ -2872,7 +2877,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 order_tax_amount: None,
                 connector_transaction_data: None,
                 connector_mandate_detail: None,
-                overcapture_details: None,
+                request_overcapture: None,
+                overcapture_applied: None,
             },
             PaymentAttemptUpdate::UnresolvedResponseUpdate {
                 status,
@@ -2942,7 +2948,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     shipping_cost: None,
                     order_tax_amount: None,
                     connector_mandate_detail: None,
-                    overcapture_details: None,
+                    request_overcapture: None,
+                overcapture_applied: None,
                 }
             }
             PaymentAttemptUpdate::PreprocessingUpdate {
@@ -3011,7 +3018,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     shipping_cost: None,
                     order_tax_amount: None,
                     connector_mandate_detail: None,
-                    overcapture_details: None,
+                    request_overcapture: None,
+                overcapture_applied: None,
                 }
             }
             PaymentAttemptUpdate::CaptureUpdate {
@@ -3070,7 +3078,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 order_tax_amount: None,
                 connector_transaction_data: None,
                 connector_mandate_detail: None,
-                overcapture_details: None,
+                request_overcapture: None,
+                overcapture_applied: None,
             },
             PaymentAttemptUpdate::AmountToCaptureUpdate {
                 status,
@@ -3128,7 +3137,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 order_tax_amount: None,
                 connector_transaction_data: None,
                 connector_mandate_detail: None,
-                overcapture_details: None,
+                request_overcapture: None,
+                overcapture_applied: None,
             },
             PaymentAttemptUpdate::ConnectorResponse {
                 authentication_data,
@@ -3195,12 +3205,14 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     shipping_cost: None,
                     order_tax_amount: None,
                     connector_mandate_detail: None,
-                    overcapture_details: None,
+                    request_overcapture: None,
+                    overcapture_applied: None,
                 }
             }
             PaymentAttemptUpdate::IncrementalAuthorizationAmountUpdate {
                 amount,
                 amount_capturable,
+                overcapture_applied,
             } => Self {
                 amount: Some(amount),
                 modified_at: common_utils::date_time::now(),
@@ -3253,7 +3265,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 order_tax_amount: None,
                 connector_transaction_data: None,
                 connector_mandate_detail: None,
-                overcapture_details: None,
+                request_overcapture: None,
+                overcapture_applied,
             },
             PaymentAttemptUpdate::AuthenticationUpdate {
                 status,
@@ -3313,7 +3326,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 order_tax_amount: None,
                 connector_transaction_data: None,
                 connector_mandate_detail: None,
-                overcapture_details: None,
+                request_overcapture: None,
+                overcapture_applied: None,
             },
             PaymentAttemptUpdate::ManualUpdate {
                 status,
@@ -3382,7 +3396,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     shipping_cost: None,
                     order_tax_amount: None,
                     connector_mandate_detail: None,
-                    overcapture_details: None,
+                    request_overcapture: None,
+                    overcapture_applied: None,
                 }
             }
             PaymentAttemptUpdate::PostSessionTokensUpdate {
@@ -3440,7 +3455,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 order_tax_amount: None,
                 connector_transaction_data: None,
                 connector_mandate_detail: None,
-                overcapture_details: None,
+                request_overcapture: None,
+                overcapture_applied: None,
             },
         }
     }

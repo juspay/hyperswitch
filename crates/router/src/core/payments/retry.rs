@@ -16,7 +16,6 @@ use crate::{
             flows::{ConstructFlowSpecificData, Feature},
             operations,
         },
-        utils::get_overcaptured_amount,
     },
     db::StorageInterface,
     routes::{
@@ -489,7 +488,7 @@ where
                 payment_method_data: additional_payment_method_data,
                 charge_id,
                 connector_mandate_detail: None,
-                overcapture_details: None,
+                overcapture_applied: None,
             };
 
             #[cfg(feature = "v1")]
@@ -677,7 +676,7 @@ pub fn make_new_payment_attempt(
         charge_id: Default::default(),
         customer_acceptance: Default::default(),
         connector_mandate_detail: Default::default(),
-        overcapture_details: old_payment_attempt.overcapture_details,
+        request_overcapture: old_payment_attempt.request_overcapture,
     }
 }
 

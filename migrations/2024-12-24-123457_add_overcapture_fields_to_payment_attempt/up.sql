@@ -1,2 +1,5 @@
 ALTER TABLE payment_attempt
-ADD COLUMN IF NOT EXISTS overcapture_details JSONB DEFAULT NULL;
+ADD COLUMN IF NOT EXISTS request_overcapture BOOLEAN DEFAULT NULL;
+
+ALTER TABLE payment_attempt
+ADD COLUMN IF NOT EXISTS overcapture_applied BOOLEAN DEFAULT NULL;
