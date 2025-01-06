@@ -1,9 +1,10 @@
 use actix_multipart::form::{bytes::Bytes, text::Text, MultipartForm};
-use api_models::payment_methods::{PaymentMethodMigrationResponse, PaymentMethodRecord};
+use api_models::payment_methods::{PaymentMethodMigrationResponse, PaymentMethodRecord, CardsPaymentRecord, WalletsPaymentRecord, CardsPaymentRecord2, PaymentMethodRecord2};
 use csv::Reader;
 use error_stack::ResultExt;
 use masking::PeekInterface;
 use rdkafka::message::ToBytes;
+use std::ops::Deref;
 use router_env::{instrument, tracing};
 
 use crate::{
@@ -74,20 +75,58 @@ pub struct PaymentMethodsMigrateForm {
 fn parse_csv(data: &[u8]) -> csv::Result<Vec<PaymentMethodRecord>> {
     let mut csv_reader = Reader::from_reader(data);
     let mut records = Vec::new();
+    println!("*******data: {:?}",data);
+    println!("*******csv_reader: {:?}",csv_reader);
+    match std::str::from_utf8(data) {
+        Ok(string) => println!("Converted string: {}", string),
+        Err(e) => println!("Error: {}", e),
+    }
     let mut id_counter = 0;
     for result in csv_reader.deserialize() {
-        let mut record: PaymentMethodRecord = result?;
-        id_counter += 1;
-        record.line_number = Some(id_counter);
-        records.push(record);
+        println!("*******parsed: {:?}",result);
+        let mut record: PaymentMethodRecord2 = result?;
+        println!("*******parsedResult: {:?}",record);
+        // id_counter += 1;
+        // match &mut record {
+        //     PaymentMethodRecord::CardsPaymentRecord(ref mut card_record) => {
+        //         card_record.common_record.line_number = Some(id_counter);
+        //     }
+        //     PaymentMethodRecord::WalletsPaymentRecord(ref mut wallet_record) => {
+        //         wallet_record.common_record.line_number = Some(id_counter);
+        //     }
+        // }
+        // records.push(record);
     }
     Ok(records)
 }
+
+// fn parse_csv(data: &[u8]) -> csv::Result<Vec<PaymentMethodRecord>> {
+//     let mut csv_reader = Reader::from_reader(data);
+//     let mut records = Vec::new();
+//     let mut id_counter = 0;
+//     for result in csv_reader.deserialize::<serde_json::Value>() {
+//         let value: serde_json::Value = result?;
+//         print!("****Value: {:?}",value);
+//         if let Ok(mut card_record) = serde_json::from_value::<CardsPaymentRecord>(value.clone()) {
+//             id_counter += 1;
+//             card_record.line_number = Some(id_counter);
+//             records.push(PaymentMethodRecord::CardsPaymentRecord(card_record));
+//         } else if let Ok(mut wallet_record) = serde_json::from_value::<WalletsPaymentRecord>(value) {
+//             id_counter += 1;
+//             wallet_record.line_number = Some(id_counter);
+//             records.push(PaymentMethodRecord::WalletsPaymentRecord(wallet_record));
+//         } else {
+//             print!("****Error in line: {:?}",id_counter);
+//             id_counter += 1;
+//         }
+//     }
+//     Ok(records)
+// }
 pub fn get_payment_method_records(
     form: PaymentMethodsMigrateForm,
 ) -> Result<
     (
-        common_utils::id_type::MerchantId,
+        common_utils::id_type::MerchantId, 
         Vec<PaymentMethodRecord>,
         Option<common_utils::id_type::MerchantConnectorAccountId>,
     ),

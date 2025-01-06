@@ -2173,7 +2173,7 @@ pub struct TokenizedBankRedirectValue2 {
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
-pub struct PaymentMethodRecord {
+pub struct CardsPaymentRecord {
     pub customer_id: id_type::CustomerId,
     pub name: Option<masking::Secret<String>>,
     pub email: Option<pii::Email>,
@@ -2209,6 +2209,75 @@ pub struct PaymentMethodRecord {
     pub network_token_requestor_ref_id: Option<String>,
 }
 
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct CardsPaymentRecord2 {
+    // pub customer_id: id_type::CustomerId,
+    pub name: masking::Secret<String>,
+    pub name2: masking::Secret<String>,
+    // pub nick_name: masking::Secret<String>,
+    // pub card_number_masked: masking::Secret<String>,
+    // pub card_expiry_month: masking::Secret<String>,
+    // pub card_expiry_year: masking::Secret<String>,
+    // pub billing_address_zip: masking::Secret<String>,
+    // pub billing_address_state: masking::Secret<String>,
+    // pub billing_address_first_name: masking::Secret<String>,
+    // pub billing_address_last_name: masking::Secret<String>,
+    // pub billing_address_city: String,
+}
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct WalletsPaymentRecord {
+    pub customer_id: id_type::CustomerId,
+    pub name: Option<masking::Secret<String>>,
+    pub email: Option<pii::Email>,
+    pub phone: Option<masking::Secret<String>>,
+    pub phone_country_code: Option<String>,
+    pub merchant_id: Option<id_type::MerchantId>,
+    pub payment_method: Option<api_enums::PaymentMethod>,
+    pub payment_method_type: Option<api_enums::PaymentMethodType>,
+    pub payment_instrument_id: Option<masking::Secret<String>>,
+    pub original_transaction_id: Option<String>,
+    pub billing_address_zip: masking::Secret<String>,
+    pub billing_address_state: masking::Secret<String>,
+    pub billing_address_first_name: masking::Secret<String>,
+    pub billing_address_last_name: masking::Secret<String>,
+    pub billing_address_city: String,
+    pub billing_address_country: Option<api_enums::CountryAlpha2>,
+    pub billing_address_line1: masking::Secret<String>,
+    pub billing_address_line2: Option<masking::Secret<String>>,
+    pub billing_address_line3: Option<masking::Secret<String>>,
+    pub merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
+    pub original_transaction_amount: Option<i64>,
+    pub original_transaction_currency: Option<common_enums::Currency>,
+    pub line_number: Option<i64>,
+    // pub abc: masking::Secret<String>
+    // Add wallet-specific fields here if necessary
+}
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct WalletsPaymentRecord2 {
+    // pub customer_id: id_type::CustomerId,
+    // pub billing_address_zip: masking::Secret<String>,
+    // pub billing_address_state: masking::Secret<String>,
+    // pub billing_address_first_name: masking::Secret<String>,
+    // pub billing_address_last_name: masking::Secret<String>,
+    // pub billing_address_city: String,
+    // pub billing_address_line1: masking::Secret<String>,
+    pub billing_address_line10: masking::Secret<String>
+}
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[serde(untagged)]
+pub enum PaymentMethodRecord {
+    CardsPaymentRecord(CardsPaymentRecord),
+    WalletsPaymentRecord(WalletsPaymentRecord),
+}
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[serde(untagged)]
+pub enum PaymentMethodRecord2 {
+    WalletsPaymentRecord2(WalletsPaymentRecord2),
+    CardsPaymentRecord2(CardsPaymentRecord2),
+}
 #[derive(Debug, Default, serde::Serialize)]
 pub struct PaymentMethodMigrationResponse {
     pub line_number: Option<i64>,
@@ -2246,6 +2315,15 @@ type PaymentMethodMigrationResponseType = (
 ))]
 impl From<PaymentMethodMigrationResponseType> for PaymentMethodMigrationResponse {
     fn from((response, record): PaymentMethodMigrationResponseType) -> Self {
+        let (customer_id, card_number_masked, line_number) = match record {
+            PaymentMethodRecord::CardsPaymentRecord(record) => {
+                (record.customer_id, Some(record.card_number_masked), record.line_number)
+            }
+            PaymentMethodRecord::WalletsPaymentRecord(record) => {
+                (record.customer_id, None, record.line_number)
+            }
+        };
+
         match response {
             Ok(res) => Self {
                 payment_method_id: Some(res.payment_method_response.payment_method_id),
@@ -2254,33 +2332,32 @@ impl From<PaymentMethodMigrationResponseType> for PaymentMethodMigrationResponse
                 customer_id: res.payment_method_response.customer_id,
                 migration_status: MigrationStatus::Success,
                 migration_error: None,
-                card_number_masked: Some(record.card_number_masked),
-                line_number: record.line_number,
+                card_number_masked,
+                line_number,
                 card_migrated: res.card_migrated,
                 network_token_migrated: res.network_token_migrated,
                 connector_mandate_details_migrated: res.connector_mandate_details_migrated,
                 network_transaction_id_migrated: res.network_transaction_id_migrated,
             },
             Err(e) => Self {
-                customer_id: Some(record.customer_id),
+                customer_id: Some(customer_id),
                 migration_status: MigrationStatus::Failed,
                 migration_error: Some(e),
-                card_number_masked: Some(record.card_number_masked),
-                line_number: record.line_number,
+                card_number_masked,
+                line_number,
                 ..Self::default()
             },
         }
     }
 }
 
-impl
-    TryFrom<(
-        PaymentMethodRecord,
-        id_type::MerchantId,
-        Option<id_type::MerchantConnectorAccountId>,
-    )> for PaymentMethodMigrate
-{
+impl TryFrom<(
+    PaymentMethodRecord,
+    id_type::MerchantId,
+    Option<id_type::MerchantConnectorAccountId>,
+)> for PaymentMethodMigrate {
     type Error = error_stack::Report<errors::ValidationError>;
+
     fn try_from(
         item: (
             PaymentMethodRecord,
@@ -2290,12 +2367,29 @@ impl
     ) -> Result<Self, Self::Error> {
         let (record, merchant_id, mca_id) = item;
 
-        //  if payment instrument id is present then only construct this
+        match record {
+            PaymentMethodRecord::CardsPaymentRecord(card_record) => {
+                PaymentMethodMigrate::try_from_cards(card_record, merchant_id, mca_id)
+            }
+            PaymentMethodRecord::WalletsPaymentRecord(wallet_record) => {
+                PaymentMethodMigrate::try_from_wallets(wallet_record, merchant_id, mca_id)
+            }
+        }
+    }
+}
+
+impl PaymentMethodMigrate {
+    fn try_from_cards(
+        record: CardsPaymentRecord,
+        merchant_id: id_type::MerchantId,
+        mca_id: Option<id_type::MerchantConnectorAccountId>,
+    ) -> Result<Self, error_stack::Report<errors::ValidationError>> {
         let connector_mandate_details = if record.payment_instrument_id.is_some() {
             Some(PaymentsMandateReference(HashMap::from([(
                 mca_id.get_required_value("merchant_connector_id")?,
                 PaymentsMandateReferenceRecord {
                     connector_mandate_id: record
+                        
                         .payment_instrument_id
                         .get_required_value("payment_instrument_id")?
                         .peek()
@@ -2308,6 +2402,7 @@ impl
         } else {
             None
         };
+
         Ok(Self {
             merchant_id,
             customer_id: Some(record.customer_id),
@@ -2334,10 +2429,9 @@ impl
                     card_issuer: None,
                     card_type: None,
                 },
-                network_token_requestor_ref_id: record
-                    .network_token_requestor_ref_id
-                    .unwrap_or_default(),
+                network_token_requestor_ref_id: record.network_token_requestor_ref_id.unwrap_or_default(),
             }),
+            connector_mandate_details,
             payment_method: record.payment_method,
             payment_method_type: record.payment_method_type,
             payment_method_issuer: None,
@@ -2359,7 +2453,68 @@ impl
                 }),
                 email: record.email,
             }),
+            metadata: None,
+            payment_method_issuer_code: None,
+            card_network: None,
+            #[cfg(feature = "payouts")]
+            bank_transfer: None,
+            #[cfg(feature = "payouts")]
+            wallet: None,
+            payment_method_data: None,
+            network_transaction_id: record.original_transaction_id,
+        })
+    }
+
+    fn try_from_wallets(
+        record: WalletsPaymentRecord,
+        merchant_id: id_type::MerchantId,
+        mca_id: Option<id_type::MerchantConnectorAccountId>,
+    ) -> Result<Self, error_stack::Report<errors::ValidationError>> {
+        let connector_mandate_details = if record.payment_instrument_id.is_some() {
+            Some(PaymentsMandateReference(HashMap::from([(
+                mca_id.get_required_value("merchant_connector_id")?,
+                PaymentsMandateReferenceRecord {
+                    connector_mandate_id: record
+                        
+                        .payment_instrument_id
+                        .get_required_value("payment_instrument_id")?
+                        .peek()
+                        .to_string(),
+                    payment_method_type: record.payment_method_type,
+                    original_payment_authorized_amount: record.original_transaction_amount,
+                    original_payment_authorized_currency: record.original_transaction_currency,
+                },
+            )])))
+        } else {
+            None
+        };
+        Ok(Self {
+            merchant_id,
+            customer_id: Some(record.customer_id),
+            card:None,
+            network_token:None,
+            payment_method: record.payment_method,
+            payment_method_type: record.payment_method_type,
+            billing: Some(payments::Address {
+                address: Some(payments::AddressDetails {
+                    city: Some(record.billing_address_city),
+                    country: record.billing_address_country,
+                    line1: Some(record.billing_address_line1),
+                    line2: record.billing_address_line2,
+                    state: Some(record.billing_address_state),
+                    line3: record.billing_address_line3,
+                    zip: Some(record.billing_address_zip),
+                    first_name: Some(record.billing_address_first_name),
+                    last_name: Some(record.billing_address_last_name),
+                }),
+                phone: Some(payments::PhoneDetails {
+                    number: record.phone,
+                    country_code: record.phone_country_code,
+                }),
+                email: record.email,
+            }),
             connector_mandate_details,
+            payment_method_issuer: None,
             metadata: None,
             payment_method_issuer_code: None,
             card_network: None,
@@ -2373,30 +2528,58 @@ impl
     }
 }
 
+
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 impl From<(PaymentMethodRecord, id_type::MerchantId)> for customers::CustomerRequest {
     fn from(value: (PaymentMethodRecord, id_type::MerchantId)) -> Self {
         let (record, merchant_id) = value;
-        Self {
-            customer_id: Some(record.customer_id),
-            merchant_id,
-            name: record.name,
-            email: record.email,
-            phone: record.phone,
-            description: None,
-            phone_country_code: record.phone_country_code,
-            address: Some(payments::AddressDetails {
-                city: Some(record.billing_address_city),
-                country: record.billing_address_country,
-                line1: Some(record.billing_address_line1),
-                line2: record.billing_address_line2,
-                state: Some(record.billing_address_state),
-                line3: record.billing_address_line3,
-                zip: Some(record.billing_address_zip),
-                first_name: Some(record.billing_address_first_name),
-                last_name: Some(record.billing_address_last_name),
-            }),
-            metadata: None,
+        match record {
+            PaymentMethodRecord::CardsPaymentRecord(card_record) => {
+                Self {
+                    customer_id: Some(card_record.customer_id),
+                    merchant_id,
+                    name: card_record.name,
+                    email: card_record.email,
+                    phone: card_record.phone,
+                    description: None,
+                    phone_country_code: card_record.phone_country_code,
+                    address: Some(payments::AddressDetails {
+                        city: Some(card_record.billing_address_city),
+                        country: card_record.billing_address_country,
+                        line1: Some(card_record.billing_address_line1),
+                        line2: card_record.billing_address_line2,
+                        state: Some(card_record.billing_address_state),
+                        line3: card_record.billing_address_line3,
+                        zip: Some(card_record.billing_address_zip),
+                        first_name: Some(card_record.billing_address_first_name),
+                        last_name: Some(card_record.billing_address_last_name),
+                    }),
+                    metadata: None,
+                }
+            }
+            PaymentMethodRecord::WalletsPaymentRecord(wallet_record) => {
+                Self {
+                    customer_id: Some(wallet_record.customer_id),
+                    merchant_id,
+                    name: wallet_record.name,
+                    email: wallet_record.email,
+                    phone: wallet_record.phone,
+                    description: None,
+                    phone_country_code: wallet_record.phone_country_code,
+                    address: Some(payments::AddressDetails {
+                        city: Some(wallet_record.billing_address_city),
+                        country: wallet_record.billing_address_country,
+                        line1: Some(wallet_record.billing_address_line1),
+                        line2: wallet_record.billing_address_line2,
+                        state: Some(wallet_record.billing_address_state),
+                        line3: wallet_record.billing_address_line3,
+                        zip: Some(wallet_record.billing_address_zip),
+                        first_name: Some(wallet_record.billing_address_first_name),
+                        last_name: Some(wallet_record.billing_address_last_name),
+                    }),
+                    metadata: None,
+                }
+            }
         }
     }
 }
