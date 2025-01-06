@@ -299,7 +299,7 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
                 None,
             )),
             Self::MerchantNotAMemberOfOrg => {
-                AER::Unauthorized(ApiError::new(sub_code, 59, self.get_error_message(), None))
+                AER::BadRequest(ApiError::new(sub_code, 59, self.get_error_message(), None))
             },
             Self::MerchantAlreadyPlatformAccount => {
                 AER::BadRequest(ApiError::new(sub_code, 60, self.get_error_message(), None))
