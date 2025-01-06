@@ -5062,6 +5062,9 @@ async fn get_and_merge_apple_pay_metadata(
                     paze: connector_wallets_details_optional
                         .as_ref()
                         .and_then(|d| d.paze.clone()),
+                    google_pay: connector_wallets_details_optional
+                        .as_ref()
+                        .and_then(|d| d.google_pay.clone()),
                 }
             }
             api_models::payments::ApplepaySessionTokenMetadata::ApplePay(apple_pay_metadata) => {
@@ -5080,6 +5083,9 @@ async fn get_and_merge_apple_pay_metadata(
                     paze: connector_wallets_details_optional
                         .as_ref()
                         .and_then(|d| d.paze.clone()),
+                    google_pay: connector_wallets_details_optional
+                        .as_ref()
+                        .and_then(|d| d.google_pay.clone()),
                 }
             }
         };
@@ -5516,27 +5522,28 @@ fn filter_root_signing_keys(root_keys: Vec<serde_json::Value>) -> Vec<GooglePayR
 
 impl GooglePayTokenDecryptor {
     pub fn new(
-        root_keys: Vec<serde_json::Value>,
-        recipient_id: String,
-        private_key: &[u8],
+        root_keys: masking::Secret<String>,
+        recipient_id: masking::Secret<String>,
+        private_key: masking::Secret<String>,
     ) -> CustomResult<Self, errors::GooglePayDecryptionError> {
         // base64 decode the private key
         let decoded_key = BASE64_ENGINE
-            .decode(
-                std::str::from_utf8(private_key)
-                    .change_context(errors::GooglePayDecryptionError::KeyDeserializationFailed)?,
-            )
+            .decode(&private_key.expose())
             .change_context(errors::GooglePayDecryptionError::Base64DecodingFailed)?;
         // create a private key from the decoded key
         let private_key = PKey::private_key_from_pkcs8(&decoded_key)
             .change_context(errors::GooglePayDecryptionError::KeyDeserializationFailed)?;
 
+        // parse the root signing keys
+        let root_keys_vector: Vec<serde_json::Value> = serde_json::from_str(&root_keys.expose())
+            .change_context(errors::GooglePayDecryptionError::DeserializationFailed)?;
+
         // parse and filter the root signing keys by protocol version
-        let filtered_root_signing_keys = filter_root_signing_keys(root_keys);
+        let filtered_root_signing_keys = filter_root_signing_keys(root_keys_vector);
 
         Ok(Self {
             root_signing_keys: filtered_root_signing_keys,
-            recipient_id,
+            recipient_id: recipient_id.expose(),
             private_key,
         })
     }
@@ -5545,16 +5552,13 @@ impl GooglePayTokenDecryptor {
     pub fn decrypt_token(
         &self,
         data: &str,
-        verify: bool,
     ) -> CustomResult<serde_json::Value, errors::GooglePayDecryptionError> {
         // parse the encrypted data
         let encrypted_data: EncryptedData = serde_json::from_str(data)
             .change_context(errors::GooglePayDecryptionError::DeserializationFailed)?;
 
         // verify the signature if required
-        if verify {
-            self.verify_signature(&encrypted_data)?;
-        }
+        self.verify_signature(&encrypted_data)?;
 
         // load the signed message from the token
         let signed_message: serde_json::Value =
