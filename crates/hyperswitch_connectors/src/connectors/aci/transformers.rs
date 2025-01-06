@@ -1,17 +1,26 @@
 use std::str::FromStr;
 
-use common_utils::{id_type, pii::Email, types::StringMajorUnit};
+use common_enums::enums;
+use common_utils::{id_type, pii::Email, request::Method, types::StringMajorUnit};
 use error_stack::report;
+use hyperswitch_domain_models::{
+    payment_method_data::{BankRedirectData, Card, PayLaterData, PaymentMethodData, WalletData},
+    router_data::{ConnectorAuthType, RouterData},
+    router_request_types::ResponseId,
+    router_response_types::{
+        MandateReference, PaymentsResponseData, RedirectForm, RefundsResponseData,
+    },
+    types::{PaymentsAuthorizeRouterData, PaymentsCancelRouterData, RefundsRouterData},
+};
+use hyperswitch_interfaces::errors;
 use masking::{ExposeInterface, Secret};
-use reqwest::Url;
 use serde::{Deserialize, Serialize};
+use url::Url;
 
 use super::result_codes::{FAILURE_CODES, PENDING_CODES, SUCCESSFUL_CODES};
 use crate::{
-    connector::utils::{self, PhoneDetailsData, RouterData},
-    core::errors,
-    services,
-    types::{self, domain, storage::enums},
+    types::{RefundsResponseRouterData, ResponseRouterData},
+    utils::{self, PhoneDetailsData, RouterData as _},
 };
 
 type Error = error_stack::Report<errors::ConnectorError>;
@@ -36,10 +45,10 @@ pub struct AciAuthType {
     pub entity_id: Secret<String>,
 }
 
-impl TryFrom<&types::ConnectorAuthType> for AciAuthType {
+impl TryFrom<&ConnectorAuthType> for AciAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
-        if let types::ConnectorAuthType::BodyKey { api_key, key1 } = item {
+    fn try_from(item: &ConnectorAuthType) -> Result<Self, Self::Error> {
+        if let ConnectorAuthType::BodyKey { api_key, key1 } = item {
             Ok(Self {
                 api_key: api_key.to_owned(),
                 entity_id: key1.to_owned(),
@@ -89,50 +98,48 @@ pub enum PaymentDetails {
     Mandate,
 }
 
-impl TryFrom<(&domain::WalletData, &types::PaymentsAuthorizeRouterData)> for PaymentDetails {
+impl TryFrom<(&WalletData, &PaymentsAuthorizeRouterData)> for PaymentDetails {
     type Error = Error;
-    fn try_from(
-        value: (&domain::WalletData, &types::PaymentsAuthorizeRouterData),
-    ) -> Result<Self, Self::Error> {
+    fn try_from(value: (&WalletData, &PaymentsAuthorizeRouterData)) -> Result<Self, Self::Error> {
         let (wallet_data, item) = value;
         let payment_data = match wallet_data {
-            domain::WalletData::MbWayRedirect(_) => {
+            WalletData::MbWayRedirect(_) => {
                 let phone_details = item.get_billing_phone()?;
                 Self::Wallet(Box::new(WalletPMData {
                     payment_brand: PaymentBrand::Mbway,
                     account_id: Some(phone_details.get_number_with_hash_country_code()?),
                 }))
             }
-            domain::WalletData::AliPayRedirect { .. } => Self::Wallet(Box::new(WalletPMData {
+            WalletData::AliPayRedirect { .. } => Self::Wallet(Box::new(WalletPMData {
                 payment_brand: PaymentBrand::AliPay,
                 account_id: None,
             })),
-            domain::WalletData::AliPayHkRedirect(_)
-            | domain::WalletData::MomoRedirect(_)
-            | domain::WalletData::KakaoPayRedirect(_)
-            | domain::WalletData::GoPayRedirect(_)
-            | domain::WalletData::GcashRedirect(_)
-            | domain::WalletData::ApplePay(_)
-            | domain::WalletData::ApplePayThirdPartySdk(_)
-            | domain::WalletData::DanaRedirect { .. }
-            | domain::WalletData::GooglePay(_)
-            | domain::WalletData::GooglePayThirdPartySdk(_)
-            | domain::WalletData::MobilePayRedirect(_)
-            | domain::WalletData::PaypalRedirect(_)
-            | domain::WalletData::PaypalSdk(_)
-            | domain::WalletData::Paze(_)
-            | domain::WalletData::SamsungPay(_)
-            | domain::WalletData::TwintRedirect { .. }
-            | domain::WalletData::VippsRedirect { .. }
-            | domain::WalletData::TouchNGoRedirect(_)
-            | domain::WalletData::WeChatPayRedirect(_)
-            | domain::WalletData::WeChatPayQr(_)
-            | domain::WalletData::CashappQr(_)
-            | domain::WalletData::SwishQr(_)
-            | domain::WalletData::AliPayQr(_)
-            | domain::WalletData::ApplePayRedirect(_)
-            | domain::WalletData::GooglePayRedirect(_)
-            | domain::WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
+            WalletData::AliPayHkRedirect(_)
+            | WalletData::MomoRedirect(_)
+            | WalletData::KakaoPayRedirect(_)
+            | WalletData::GoPayRedirect(_)
+            | WalletData::GcashRedirect(_)
+            | WalletData::ApplePay(_)
+            | WalletData::ApplePayThirdPartySdk(_)
+            | WalletData::DanaRedirect { .. }
+            | WalletData::GooglePay(_)
+            | WalletData::GooglePayThirdPartySdk(_)
+            | WalletData::MobilePayRedirect(_)
+            | WalletData::PaypalRedirect(_)
+            | WalletData::PaypalSdk(_)
+            | WalletData::Paze(_)
+            | WalletData::SamsungPay(_)
+            | WalletData::TwintRedirect { .. }
+            | WalletData::VippsRedirect { .. }
+            | WalletData::TouchNGoRedirect(_)
+            | WalletData::WeChatPayRedirect(_)
+            | WalletData::WeChatPayQr(_)
+            | WalletData::CashappQr(_)
+            | WalletData::SwishQr(_)
+            | WalletData::AliPayQr(_)
+            | WalletData::ApplePayRedirect(_)
+            | WalletData::GooglePayRedirect(_)
+            | WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
                 "Payment method".to_string(),
             ))?,
         };
@@ -142,33 +149,31 @@ impl TryFrom<(&domain::WalletData, &types::PaymentsAuthorizeRouterData)> for Pay
 
 impl
     TryFrom<(
-        &AciRouterData<&types::PaymentsAuthorizeRouterData>,
-        &domain::BankRedirectData,
+        &AciRouterData<&PaymentsAuthorizeRouterData>,
+        &BankRedirectData,
     )> for PaymentDetails
 {
     type Error = Error;
     fn try_from(
         value: (
-            &AciRouterData<&types::PaymentsAuthorizeRouterData>,
-            &domain::BankRedirectData,
+            &AciRouterData<&PaymentsAuthorizeRouterData>,
+            &BankRedirectData,
         ),
     ) -> Result<Self, Self::Error> {
         let (item, bank_redirect_data) = value;
         let payment_data = match bank_redirect_data {
-            domain::BankRedirectData::Eps { .. } => {
-                Self::BankRedirect(Box::new(BankRedirectionPMData {
-                    payment_brand: PaymentBrand::Eps,
-                    bank_account_country: Some(item.router_data.get_billing_country()?),
-                    bank_account_bank_name: None,
-                    bank_account_bic: None,
-                    bank_account_iban: None,
-                    billing_country: None,
-                    merchant_customer_id: None,
-                    merchant_transaction_id: None,
-                    customer_email: None,
-                }))
-            }
-            domain::BankRedirectData::Giropay {
+            BankRedirectData::Eps { .. } => Self::BankRedirect(Box::new(BankRedirectionPMData {
+                payment_brand: PaymentBrand::Eps,
+                bank_account_country: Some(item.router_data.get_billing_country()?),
+                bank_account_bank_name: None,
+                bank_account_bic: None,
+                bank_account_iban: None,
+                billing_country: None,
+                merchant_customer_id: None,
+                merchant_transaction_id: None,
+                customer_email: None,
+            })),
+            BankRedirectData::Giropay {
                 bank_account_bic,
                 bank_account_iban,
                 ..
@@ -183,7 +188,7 @@ impl
                 merchant_transaction_id: None,
                 customer_email: None,
             })),
-            domain::BankRedirectData::Ideal { bank_name, .. } => {
+            BankRedirectData::Ideal { bank_name, .. } => {
                 Self::BankRedirect(Box::new(BankRedirectionPMData {
                     payment_brand: PaymentBrand::Ideal,
                     bank_account_country: Some(item.router_data.get_billing_country()?),
@@ -200,7 +205,7 @@ impl
                     customer_email: None,
                 }))
             }
-            domain::BankRedirectData::Sofort { .. } => {
+            BankRedirectData::Sofort { .. } => {
                 Self::BankRedirect(Box::new(BankRedirectionPMData {
                     payment_brand: PaymentBrand::Sofortueberweisung,
                     bank_account_country: Some(item.router_data.get_billing_country()?),
@@ -213,7 +218,7 @@ impl
                     customer_email: None,
                 }))
             }
-            domain::BankRedirectData::Przelewy24 { .. } => {
+            BankRedirectData::Przelewy24 { .. } => {
                 Self::BankRedirect(Box::new(BankRedirectionPMData {
                     payment_brand: PaymentBrand::Przelewy,
                     bank_account_country: None,
@@ -226,7 +231,7 @@ impl
                     customer_email: Some(item.router_data.get_billing_email()?),
                 }))
             }
-            domain::BankRedirectData::Interac { .. } => {
+            BankRedirectData::Interac { .. } => {
                 Self::BankRedirect(Box::new(BankRedirectionPMData {
                     payment_brand: PaymentBrand::InteracOnline,
                     bank_account_country: Some(item.router_data.get_billing_country()?),
@@ -239,7 +244,7 @@ impl
                     customer_email: Some(item.router_data.get_billing_email()?),
                 }))
             }
-            domain::BankRedirectData::Trustly { .. } => {
+            BankRedirectData::Trustly { .. } => {
                 Self::BankRedirect(Box::new(BankRedirectionPMData {
                     payment_brand: PaymentBrand::Trustly,
                     bank_account_country: None,
@@ -254,17 +259,17 @@ impl
                     customer_email: None,
                 }))
             }
-            domain::BankRedirectData::Bizum { .. }
-            | domain::BankRedirectData::Blik { .. }
-            | domain::BankRedirectData::BancontactCard { .. }
-            | domain::BankRedirectData::OnlineBankingCzechRepublic { .. }
-            | domain::BankRedirectData::OnlineBankingFinland { .. }
-            | domain::BankRedirectData::OnlineBankingFpx { .. }
-            | domain::BankRedirectData::OnlineBankingPoland { .. }
-            | domain::BankRedirectData::OnlineBankingSlovakia { .. }
-            | domain::BankRedirectData::OnlineBankingThailand { .. }
-            | domain::BankRedirectData::LocalBankRedirect {}
-            | domain::BankRedirectData::OpenBankingUk { .. } => Err(
+            BankRedirectData::Bizum { .. }
+            | BankRedirectData::Blik { .. }
+            | BankRedirectData::BancontactCard { .. }
+            | BankRedirectData::OnlineBankingCzechRepublic { .. }
+            | BankRedirectData::OnlineBankingFinland { .. }
+            | BankRedirectData::OnlineBankingFpx { .. }
+            | BankRedirectData::OnlineBankingPoland { .. }
+            | BankRedirectData::OnlineBankingSlovakia { .. }
+            | BankRedirectData::OnlineBankingThailand { .. }
+            | BankRedirectData::LocalBankRedirect {}
+            | BankRedirectData::OpenBankingUk { .. } => Err(
                 errors::ConnectorError::NotImplemented("Payment method".to_string()),
             )?,
         };
@@ -272,10 +277,10 @@ impl
     }
 }
 
-impl TryFrom<(domain::payments::Card, Option<Secret<String>>)> for PaymentDetails {
+impl TryFrom<(Card, Option<Secret<String>>)> for PaymentDetails {
     type Error = Error;
     fn try_from(
-        (card_data, card_holder_name): (domain::payments::Card, Option<Secret<String>>),
+        (card_data, card_holder_name): (Card, Option<Secret<String>>),
     ) -> Result<Self, Self::Error> {
         Ok(Self::AciCard(Box::new(CardDetails {
             card_number: card_data.card_number,
@@ -405,23 +410,19 @@ pub enum AciPaymentType {
     Refund,
 }
 
-impl TryFrom<&AciRouterData<&types::PaymentsAuthorizeRouterData>> for AciPaymentsRequest {
+impl TryFrom<&AciRouterData<&PaymentsAuthorizeRouterData>> for AciPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: &AciRouterData<&types::PaymentsAuthorizeRouterData>,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(item: &AciRouterData<&PaymentsAuthorizeRouterData>) -> Result<Self, Self::Error> {
         match item.router_data.request.payment_method_data.clone() {
-            domain::PaymentMethodData::Card(ref card_data) => Self::try_from((item, card_data)),
-            domain::PaymentMethodData::Wallet(ref wallet_data) => {
-                Self::try_from((item, wallet_data))
-            }
-            domain::PaymentMethodData::PayLater(ref pay_later_data) => {
+            PaymentMethodData::Card(ref card_data) => Self::try_from((item, card_data)),
+            PaymentMethodData::Wallet(ref wallet_data) => Self::try_from((item, wallet_data)),
+            PaymentMethodData::PayLater(ref pay_later_data) => {
                 Self::try_from((item, pay_later_data))
             }
-            domain::PaymentMethodData::BankRedirect(ref bank_redirect_data) => {
+            PaymentMethodData::BankRedirect(ref bank_redirect_data) => {
                 Self::try_from((item, bank_redirect_data))
             }
-            domain::PaymentMethodData::MandatePayment => {
+            PaymentMethodData::MandatePayment => {
                 let mandate_id = item.router_data.request.mandate_id.clone().ok_or(
                     errors::ConnectorError::MissingRequiredField {
                         field_name: "mandate_id",
@@ -429,20 +430,20 @@ impl TryFrom<&AciRouterData<&types::PaymentsAuthorizeRouterData>> for AciPayment
                 )?;
                 Self::try_from((item, mandate_id))
             }
-            domain::PaymentMethodData::Crypto(_)
-            | domain::PaymentMethodData::BankDebit(_)
-            | domain::PaymentMethodData::BankTransfer(_)
-            | domain::PaymentMethodData::Reward
-            | domain::PaymentMethodData::RealTimePayment(_)
-            | domain::PaymentMethodData::MobilePayment(_)
-            | domain::PaymentMethodData::GiftCard(_)
-            | domain::PaymentMethodData::CardRedirect(_)
-            | domain::PaymentMethodData::Upi(_)
-            | domain::PaymentMethodData::Voucher(_)
-            | domain::PaymentMethodData::OpenBanking(_)
-            | domain::PaymentMethodData::CardToken(_)
-            | domain::PaymentMethodData::NetworkToken(_)
-            | domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+            PaymentMethodData::Crypto(_)
+            | PaymentMethodData::BankDebit(_)
+            | PaymentMethodData::BankTransfer(_)
+            | PaymentMethodData::Reward
+            | PaymentMethodData::RealTimePayment(_)
+            | PaymentMethodData::MobilePayment(_)
+            | PaymentMethodData::GiftCard(_)
+            | PaymentMethodData::CardRedirect(_)
+            | PaymentMethodData::Upi(_)
+            | PaymentMethodData::Voucher(_)
+            | PaymentMethodData::OpenBanking(_)
+            | PaymentMethodData::CardToken(_)
+            | PaymentMethodData::NetworkToken(_)
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Aci"),
                 ))?
@@ -451,18 +452,10 @@ impl TryFrom<&AciRouterData<&types::PaymentsAuthorizeRouterData>> for AciPayment
     }
 }
 
-impl
-    TryFrom<(
-        &AciRouterData<&types::PaymentsAuthorizeRouterData>,
-        &domain::WalletData,
-    )> for AciPaymentsRequest
-{
+impl TryFrom<(&AciRouterData<&PaymentsAuthorizeRouterData>, &WalletData)> for AciPaymentsRequest {
     type Error = Error;
     fn try_from(
-        value: (
-            &AciRouterData<&types::PaymentsAuthorizeRouterData>,
-            &domain::WalletData,
-        ),
+        value: (&AciRouterData<&PaymentsAuthorizeRouterData>, &WalletData),
     ) -> Result<Self, Self::Error> {
         let (item, wallet_data) = value;
         let txn_details = get_transaction_details(item)?;
@@ -479,15 +472,15 @@ impl
 
 impl
     TryFrom<(
-        &AciRouterData<&types::PaymentsAuthorizeRouterData>,
-        &domain::BankRedirectData,
+        &AciRouterData<&PaymentsAuthorizeRouterData>,
+        &BankRedirectData,
     )> for AciPaymentsRequest
 {
     type Error = Error;
     fn try_from(
         value: (
-            &AciRouterData<&types::PaymentsAuthorizeRouterData>,
-            &domain::BankRedirectData,
+            &AciRouterData<&PaymentsAuthorizeRouterData>,
+            &BankRedirectData,
         ),
     ) -> Result<Self, Self::Error> {
         let (item, bank_redirect_data) = value;
@@ -503,18 +496,10 @@ impl
     }
 }
 
-impl
-    TryFrom<(
-        &AciRouterData<&types::PaymentsAuthorizeRouterData>,
-        &domain::payments::PayLaterData,
-    )> for AciPaymentsRequest
-{
+impl TryFrom<(&AciRouterData<&PaymentsAuthorizeRouterData>, &PayLaterData)> for AciPaymentsRequest {
     type Error = Error;
     fn try_from(
-        value: (
-            &AciRouterData<&types::PaymentsAuthorizeRouterData>,
-            &domain::payments::PayLaterData,
-        ),
+        value: (&AciRouterData<&PaymentsAuthorizeRouterData>, &PayLaterData),
     ) -> Result<Self, Self::Error> {
         let (item, _pay_later_data) = value;
         let txn_details = get_transaction_details(item)?;
@@ -529,18 +514,10 @@ impl
     }
 }
 
-impl
-    TryFrom<(
-        &AciRouterData<&types::PaymentsAuthorizeRouterData>,
-        &domain::Card,
-    )> for AciPaymentsRequest
-{
+impl TryFrom<(&AciRouterData<&PaymentsAuthorizeRouterData>, &Card)> for AciPaymentsRequest {
     type Error = Error;
     fn try_from(
-        value: (
-            &AciRouterData<&types::PaymentsAuthorizeRouterData>,
-            &domain::Card,
-        ),
+        value: (&AciRouterData<&PaymentsAuthorizeRouterData>, &Card),
     ) -> Result<Self, Self::Error> {
         let (item, card_data) = value;
         let card_holder_name = item.router_data.get_optional_billing_full_name();
@@ -559,14 +536,14 @@ impl
 
 impl
     TryFrom<(
-        &AciRouterData<&types::PaymentsAuthorizeRouterData>,
+        &AciRouterData<&PaymentsAuthorizeRouterData>,
         api_models::payments::MandateIds,
     )> for AciPaymentsRequest
 {
     type Error = Error;
     fn try_from(
         value: (
-            &AciRouterData<&types::PaymentsAuthorizeRouterData>,
+            &AciRouterData<&PaymentsAuthorizeRouterData>,
             api_models::payments::MandateIds,
         ),
     ) -> Result<Self, Self::Error> {
@@ -584,7 +561,7 @@ impl
 }
 
 fn get_transaction_details(
-    item: &AciRouterData<&types::PaymentsAuthorizeRouterData>,
+    item: &AciRouterData<&PaymentsAuthorizeRouterData>,
 ) -> Result<TransactionDetails, error_stack::Report<errors::ConnectorError>> {
     let auth = AciAuthType::try_from(&item.router_data.connector_auth_type)?;
     Ok(TransactionDetails {
@@ -596,7 +573,7 @@ fn get_transaction_details(
 }
 
 fn get_instruction_details(
-    item: &AciRouterData<&types::PaymentsAuthorizeRouterData>,
+    item: &AciRouterData<&PaymentsAuthorizeRouterData>,
 ) -> Option<Instruction> {
     if item.router_data.request.setup_mandate_details.is_some() {
         return Some(Instruction {
@@ -616,9 +593,9 @@ fn get_instruction_details(
     None
 }
 
-impl TryFrom<&types::PaymentsCancelRouterData> for AciCancelRequest {
+impl TryFrom<&PaymentsCancelRouterData> for AciCancelRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsCancelRouterData) -> Result<Self, Self::Error> {
+    fn try_from(item: &PaymentsCancelRouterData) -> Result<Self, Self::Error> {
         let auth = AciAuthType::try_from(&item.connector_auth_type)?;
         let aci_payment_request = Self {
             entity_id: auth.entity_id,
@@ -691,7 +668,7 @@ pub struct AciErrorResponse {
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AciRedirectionData {
-    method: Option<services::Method>,
+    method: Option<Method>,
     parameters: Vec<Parameters>,
     url: Url,
 }
@@ -717,13 +694,12 @@ pub struct ErrorParameters {
     pub(super) message: String,
 }
 
-impl<F, T>
-    TryFrom<types::ResponseRouterData<F, AciPaymentsResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+impl<F, T> TryFrom<ResponseRouterData<F, AciPaymentsResponse, T, PaymentsResponseData>>
+    for RouterData<F, T, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<F, AciPaymentsResponse, T, types::PaymentsResponseData>,
+        item: ResponseRouterData<F, AciPaymentsResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let redirection_data = item.response.redirect.map(|data| {
             let form_fields = std::collections::HashMap::<_, _>::from_iter(
@@ -734,24 +710,21 @@ impl<F, T>
 
             // If method is Get, parameters are appended to URL
             // If method is post, we http Post the method to URL
-            services::RedirectForm::Form {
+            RedirectForm::Form {
                 endpoint: data.url.to_string(),
                 // Handles method for Bank redirects currently.
                 // 3DS response have method within preconditions. That would require replacing below line with a function.
-                method: data.method.unwrap_or(services::Method::Post),
+                method: data.method.unwrap_or(Method::Post),
                 form_fields,
             }
         });
 
-        let mandate_reference = item
-            .response
-            .registration_id
-            .map(|id| types::MandateReference {
-                connector_mandate_id: Some(id.expose()),
-                payment_method_id: None,
-                mandate_metadata: None,
-                connector_mandate_request_reference_id: None,
-            });
+        let mandate_reference = item.response.registration_id.map(|id| MandateReference {
+            connector_mandate_id: Some(id.expose()),
+            payment_method_id: None,
+            mandate_metadata: None,
+            connector_mandate_request_reference_id: None,
+        });
 
         Ok(Self {
             status: {
@@ -763,8 +736,8 @@ impl<F, T>
                     )?)
                 }
             },
-            response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id.clone()),
+            response: Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
                 redirection_data: Box::new(redirection_data),
                 mandate_reference: Box::new(mandate_reference),
                 connector_metadata: None,
@@ -787,9 +760,9 @@ pub struct AciRefundRequest {
     pub entity_id: Secret<String>,
 }
 
-impl<F> TryFrom<&AciRouterData<&types::RefundsRouterData<F>>> for AciRefundRequest {
+impl<F> TryFrom<&AciRouterData<&RefundsRouterData<F>>> for AciRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &AciRouterData<&types::RefundsRouterData<F>>) -> Result<Self, Self::Error> {
+    fn try_from(item: &AciRouterData<&RefundsRouterData<F>>) -> Result<Self, Self::Error> {
         let amount = item.amount.to_owned();
         let currency = item.router_data.request.currency;
         let payment_type = AciPaymentType::Refund;
@@ -851,15 +824,13 @@ pub struct AciRefundResponse {
     pub(super) result: ResultCode,
 }
 
-impl<F> TryFrom<types::RefundsResponseRouterData<F, AciRefundResponse>>
-    for types::RefundsRouterData<F>
-{
+impl<F> TryFrom<RefundsResponseRouterData<F, AciRefundResponse>> for RefundsRouterData<F> {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::RefundsResponseRouterData<F, AciRefundResponse>,
+        item: RefundsResponseRouterData<F, AciRefundResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            response: Ok(types::RefundsResponseData {
+            response: Ok(RefundsResponseData {
                 connector_refund_id: item.response.id,
                 refund_status: enums::RefundStatus::from(AciRefundStatus::from_str(
                     &item.response.result.code,

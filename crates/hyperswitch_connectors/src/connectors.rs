@@ -1,3 +1,4 @@
+pub mod aci;
 pub mod airwallex;
 pub mod amazonpay;
 pub mod bambora;
@@ -63,12 +64,12 @@ pub mod zen;
 pub mod zsl;
 
 pub use self::{
-    airwallex::Airwallex, amazonpay::Amazonpay, bambora::Bambora, bamboraapac::Bamboraapac,
-    bankofamerica::Bankofamerica, billwerk::Billwerk, bitpay::Bitpay, bluesnap::Bluesnap,
-    boku::Boku, cashtocode::Cashtocode, coinbase::Coinbase, cryptopay::Cryptopay,
-    ctp_mastercard::CtpMastercard, cybersource::Cybersource, datatrans::Datatrans,
-    deutschebank::Deutschebank, digitalvirgo::Digitalvirgo, dlocal::Dlocal, ebanx::Ebanx,
-    elavon::Elavon, fiserv::Fiserv, fiservemea::Fiservemea, fiuu::Fiuu, forte::Forte,
+    aci::Aci, airwallex::Airwallex, amazonpay::Amazonpay, bambora::Bambora,
+    bamboraapac::Bamboraapac, bankofamerica::Bankofamerica, billwerk::Billwerk, bitpay::Bitpay,
+    bluesnap::Bluesnap, boku::Boku, cashtocode::Cashtocode, coinbase::Coinbase,
+    cryptopay::Cryptopay, ctp_mastercard::CtpMastercard, cybersource::Cybersource,
+    datatrans::Datatrans, deutschebank::Deutschebank, digitalvirgo::Digitalvirgo, dlocal::Dlocal,
+    ebanx::Ebanx, elavon::Elavon, fiserv::Fiserv, fiservemea::Fiservemea, fiuu::Fiuu, forte::Forte,
     globalpay::Globalpay, globepay::Globepay, gocardless::Gocardless, helcim::Helcim,
     iatapay::Iatapay, inespay::Inespay, itaubank::Itaubank, jpmorgan::Jpmorgan, klarna::Klarna,
     mifinity::Mifinity, mollie::Mollie, multisafepay::Multisafepay, nexinets::Nexinets,

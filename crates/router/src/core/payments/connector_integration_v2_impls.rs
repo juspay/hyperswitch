@@ -695,7 +695,6 @@ macro_rules! default_imp_for_new_connector_integration_payment {
 }
 
 default_imp_for_new_connector_integration_payment!(
-    connector::Aci,
     connector::Adyen,
     connector::Adyenplatform,
     connector::Authorizedotnet,
@@ -738,7 +737,6 @@ macro_rules! default_imp_for_new_connector_integration_refund {
 }
 
 default_imp_for_new_connector_integration_refund!(
-    connector::Aci,
     connector::Adyen,
     connector::Adyenplatform,
     connector::Authorizedotnet,
@@ -775,7 +773,6 @@ macro_rules! default_imp_for_new_connector_integration_connector_access_token {
 }
 
 default_imp_for_new_connector_integration_connector_access_token!(
-    connector::Aci,
     connector::Adyen,
     connector::Adyenplatform,
     connector::Authorizedotnet,
@@ -834,7 +831,6 @@ macro_rules! default_imp_for_new_connector_integration_submit_evidence {
 }
 
 default_imp_for_new_connector_integration_accept_dispute!(
-    connector::Aci,
     connector::Adyen,
     connector::Adyenplatform,
     connector::Authorizedotnet,
@@ -875,7 +871,6 @@ macro_rules! default_imp_for_new_connector_integration_defend_dispute {
     };
 }
 default_imp_for_new_connector_integration_defend_dispute!(
-    connector::Aci,
     connector::Adyen,
     connector::Adyenplatform,
     connector::Authorizedotnet,
@@ -900,7 +895,6 @@ default_imp_for_new_connector_integration_defend_dispute!(
     connector::Plaid
 );
 default_imp_for_new_connector_integration_submit_evidence!(
-    connector::Aci,
     connector::Adyen,
     connector::Adyenplatform,
     connector::Authorizedotnet,
@@ -952,7 +946,6 @@ macro_rules! default_imp_for_new_connector_integration_file_upload {
 }
 
 default_imp_for_new_connector_integration_file_upload!(
-    connector::Aci,
     connector::Adyen,
     connector::Adyenplatform,
     connector::Authorizedotnet,
@@ -1079,7 +1072,6 @@ macro_rules! default_imp_for_new_connector_integration_payouts_create {
 
 #[cfg(feature = "payouts")]
 default_imp_for_new_connector_integration_payouts_create!(
-    connector::Aci,
     connector::Adyen,
     connector::Adyenplatform,
     connector::Authorizedotnet,
@@ -1123,7 +1115,6 @@ macro_rules! default_imp_for_new_connector_integration_payouts_eligibility {
 
 #[cfg(feature = "payouts")]
 default_imp_for_new_connector_integration_payouts_eligibility!(
-    connector::Aci,
     connector::Adyen,
     connector::Adyenplatform,
     connector::Authorizedotnet,
@@ -1167,7 +1158,6 @@ macro_rules! default_imp_for_new_connector_integration_payouts_fulfill {
 
 #[cfg(feature = "payouts")]
 default_imp_for_new_connector_integration_payouts_fulfill!(
-    connector::Aci,
     connector::Adyen,
     connector::Adyenplatform,
     connector::Authorizedotnet,
@@ -1211,7 +1201,6 @@ macro_rules! default_imp_for_new_connector_integration_payouts_cancel {
 
 #[cfg(feature = "payouts")]
 default_imp_for_new_connector_integration_payouts_cancel!(
-    connector::Aci,
     connector::Adyen,
     connector::Adyenplatform,
     connector::Authorizedotnet,
@@ -1255,7 +1244,6 @@ macro_rules! default_imp_for_new_connector_integration_payouts_quote {
 
 #[cfg(feature = "payouts")]
 default_imp_for_new_connector_integration_payouts_quote!(
-    connector::Aci,
     connector::Adyen,
     connector::Adyenplatform,
     connector::Authorizedotnet,
@@ -1299,7 +1287,6 @@ macro_rules! default_imp_for_new_connector_integration_payouts_recipient {
 
 #[cfg(feature = "payouts")]
 default_imp_for_new_connector_integration_payouts_recipient!(
-    connector::Aci,
     connector::Adyen,
     connector::Adyenplatform,
     connector::Authorizedotnet,
@@ -1344,7 +1331,6 @@ macro_rules! default_imp_for_new_connector_integration_payouts_sync {
 #[cfg(feature = "payouts")]
 default_imp_for_new_connector_integration_payouts_sync!(
     connector::Adyenplatform,
-    connector::Aci,
     connector::Adyen,
     connector::Authorizedotnet,
     connector::Braintree,
@@ -1387,7 +1373,6 @@ macro_rules! default_imp_for_new_connector_integration_payouts_recipient_account
 
 #[cfg(feature = "payouts")]
 default_imp_for_new_connector_integration_payouts_recipient_account!(
-    connector::Aci,
     connector::Adyen,
     connector::Adyenplatform,
     connector::Authorizedotnet,
@@ -1429,7 +1414,6 @@ macro_rules! default_imp_for_new_connector_integration_webhook_source_verificati
 }
 
 default_imp_for_new_connector_integration_webhook_source_verification!(
-    connector::Aci,
     connector::Adyen,
     connector::Adyenplatform,
     connector::Authorizedotnet,
@@ -1556,7 +1540,6 @@ macro_rules! default_imp_for_new_connector_integration_frm_sale {
 
 #[cfg(feature = "frm")]
 default_imp_for_new_connector_integration_frm_sale!(
-    connector::Aci,
     connector::Adyen,
     connector::Adyenplatform,
     connector::Authorizedotnet,
@@ -1600,7 +1583,6 @@ macro_rules! default_imp_for_new_connector_integration_frm_checkout {
 
 #[cfg(feature = "frm")]
 default_imp_for_new_connector_integration_frm_checkout!(
-    connector::Aci,
     connector::Adyen,
     connector::Adyenplatform,
     connector::Authorizedotnet,
@@ -1644,7 +1626,6 @@ macro_rules! default_imp_for_new_connector_integration_frm_transaction {
 
 #[cfg(feature = "frm")]
 default_imp_for_new_connector_integration_frm_transaction!(
-    connector::Aci,
     connector::Adyen,
     connector::Adyenplatform,
     connector::Authorizedotnet,
@@ -1688,7 +1669,6 @@ macro_rules! default_imp_for_new_connector_integration_frm_fulfillment {
 
 #[cfg(feature = "frm")]
 default_imp_for_new_connector_integration_frm_fulfillment!(
-    connector::Aci,
     connector::Adyen,
     connector::Adyenplatform,
     connector::Authorizedotnet,
@@ -1732,7 +1712,6 @@ macro_rules! default_imp_for_new_connector_integration_frm_record_return {
 
 #[cfg(feature = "frm")]
 default_imp_for_new_connector_integration_frm_record_return!(
-    connector::Aci,
     connector::Adyen,
     connector::Adyenplatform,
     connector::Authorizedotnet,
@@ -1773,7 +1752,6 @@ macro_rules! default_imp_for_new_connector_integration_revoking_mandates {
 }
 
 default_imp_for_new_connector_integration_revoking_mandates!(
-    connector::Aci,
     connector::Adyen,
     connector::Adyenplatform,
     connector::Authorizedotnet,
@@ -1951,7 +1929,6 @@ macro_rules! default_imp_for_new_connector_integration_uas {
 
 default_imp_for_new_connector_integration_uas!(
     connector::Adyenplatform,
-    connector::Aci,
     connector::Adyen,
     connector::Authorizedotnet,
     connector::Braintree,
