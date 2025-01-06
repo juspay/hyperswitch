@@ -134,7 +134,7 @@ impl RoleInfo {
         }
     }
 
-    // TODO: To evalutate whether we can omit org_id and tenant_id for this function
+    // TODO: To evaluate whether we can omit org_id and tenant_id for this function
     pub async fn from_role_id_org_id_tenant_id(
         state: &SessionState,
         role_id: &str,
