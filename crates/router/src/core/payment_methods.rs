@@ -1272,7 +1272,6 @@ impl RequiredFieldsForEnabledPaymentMethodTypes {
 
         payment_methods::PaymentMethodListResponse {
             payment_methods_enabled: response_payment_methods,
-            customer_payment_methods: None,
         }
     }
 }

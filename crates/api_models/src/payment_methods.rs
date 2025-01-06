@@ -1037,10 +1037,6 @@ impl From<CardDetailFromLocker> for payments::AdditionalCardInfo {
 pub struct PaymentMethodListResponse {
     /// The list of payment methods that are enabled for the business profile
     pub payment_methods_enabled: Vec<ResponsePaymentMethodTypes>,
-
-    /// The list of payment methods that are saved by the given customer
-    /// This field is only returned if the customer_id is provided in the request
-    pub customer_payment_methods: Option<Vec<CustomerPaymentMethod>>,
 }
 
 #[cfg(all(
