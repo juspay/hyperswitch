@@ -112,8 +112,6 @@ pub enum UserErrors {
     InvalidAuthMethodOperationWithMessage(String),
     #[error("Couldn't create platform account")]
     PlatformAccountCreationFailed,
-    #[error("Requested Merchant is not a member of the org")]
-    MerchantNotAMemberOfOrg,
     #[error("Requested Merchant is already a platform account")]
     MerchantAlreadyPlatformAccount,
 
@@ -298,9 +296,6 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
                 self.get_error_message(),
                 None,
             )),
-            Self::MerchantNotAMemberOfOrg => {
-                AER::BadRequest(ApiError::new(sub_code, 59, self.get_error_message(), None))
-            },
             Self::MerchantAlreadyPlatformAccount => {
                 AER::BadRequest(ApiError::new(sub_code, 60, self.get_error_message(), None))
             }
@@ -375,9 +370,6 @@ impl UserErrors {
                 format!("Invalid Auth Method Operation: {}", operation)
             }
             Self::PlatformAccountCreationFailed => "Couldn't create platform account".to_string(),
-            Self::MerchantNotAMemberOfOrg => {
-                "Requested Merchant is not a member of the org".to_string()
-            },
             Self::MerchantAlreadyPlatformAccount => {
                 "Merchant already has a platform account".to_string()
             }
