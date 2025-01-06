@@ -31,8 +31,8 @@ pool_size = 5
 
 [forex_api]
 call_delay = 21600
-api_key = "YOUR API KEY HERE"
-fallback_api_key = "YOUR API KEY HERE"
+api_key = ""
+fallback_api_key = ""
 redis_lock_timeout = 100
 
 [replica_database]
