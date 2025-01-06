@@ -224,7 +224,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
     let webhook_url = Some(helpers::create_webhook_url(
         router_base_url,
         &attempt.merchant_id,
-        &merchant_connector_account.get_id().get_string_repr().to_string(),
+        merchant_connector_account.get_id().get_string_repr(),
     ));
 
     let router_return_url = payment_data
@@ -2745,17 +2745,17 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             attempt,
             connector_name,
         ));
-        let merchant_connector_account_id = payment_data
+        let merchant_connector_account_id_or_connector_name = payment_data
             .payment_attempt
-            .clone()
             .merchant_connector_id
-            .map(|mca_id| mca_id.get_string_repr().to_string())
-            .unwrap_or(connector_name.to_string());
+            .as_ref()
+            .map(|mca_id| mca_id.get_string_repr())
+            .unwrap_or(connector_name);
 
         let webhook_url = Some(helpers::create_webhook_url(
             router_base_url,
             &attempt.merchant_id,
-            &merchant_connector_account_id,
+            merchant_connector_account_id_or_connector_name,
         ));
         let router_return_url = Some(helpers::create_redirect_url(
             router_base_url,
@@ -3575,17 +3575,16 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
                     .map(|customer| customer.clone().into_inner())
             });
         let amount = payment_data.payment_attempt.get_total_amount();
-        let merchant_connector_account_id = payment_data
+        let merchant_connector_account_id_or_connector_name = payment_data
             .payment_attempt
             .merchant_connector_id
-            .clone()
-            .get_required_value("merchant_connector_id")
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Merchant connector id is not present in payment_attempt")?;
+            .as_ref()
+            .map(|mca_id| mca_id.get_string_repr())
+            .unwrap_or(connector_name);
         let webhook_url = Some(helpers::create_webhook_url(
             router_base_url,
             &attempt.merchant_id,
-            &merchant_connector_account_id.get_string_repr().to_string(),
+            merchant_connector_account_id_or_connector_name,
         ));
 
         Ok(Self {
@@ -3784,17 +3783,16 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPreProce
                     .collect::<Result<Vec<_>, _>>()
             })
             .transpose()?;
-        let merchant_connector_account_id = payment_data
+        let merchant_connector_account_id_or_connector_name = payment_data
             .payment_attempt
             .merchant_connector_id
-            .clone()
-            .get_required_value("merchant_connector_id")
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Merchant connector id is not present in payment_attempt")?;
+            .as_ref()
+            .map(|mca_id| mca_id.get_string_repr())
+            .unwrap_or(connector_name);
         let webhook_url = Some(helpers::create_webhook_url(
             router_base_url,
             &attempt.merchant_id,
-            &merchant_connector_account_id.get_string_repr().to_string(),
+            merchant_connector_account_id_or_connector_name,
         ));
         let router_return_url = Some(helpers::create_redirect_url(
             router_base_url,
