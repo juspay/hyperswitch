@@ -285,7 +285,7 @@ pub async fn payment_method_retrieve_api() {}
 ///
 /// Update an existing payment method of a customer.
 #[utoipa::path(
-    patch,
+    put,
     path = "/v2/payment-methods/{id}/update-saved-payment-method",
     request_body(
     content = PaymentMethodUpdate,

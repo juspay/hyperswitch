@@ -916,7 +916,7 @@
       }
     },
     "/v2/profiles/{id}/activate-routing-algorithm": {
-      "patch": {
+      "put": {
         "tags": [
           "Profile"
         ],
@@ -983,7 +983,7 @@
       }
     },
     "/v2/profiles/{id}/deactivate-routing-algorithm": {
-      "patch": {
+      "put": {
         "tags": [
           "Profile"
         ],
@@ -1036,7 +1036,7 @@
       }
     },
     "/v2/profiles/{id}/fallback-routing": {
-      "patch": {
+      "put": {
         "tags": [
           "Profile"
         ],
@@ -2397,7 +2397,7 @@
       }
     },
     "/v2/payment-methods/{id}/update-saved-payment-method": {
-      "patch": {
+      "put": {
         "tags": [
           "Payment Methods"
         ],

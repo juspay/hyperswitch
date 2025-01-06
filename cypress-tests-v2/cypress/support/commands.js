@@ -853,7 +853,7 @@ Cypress.Commands.add(
     routingActivationBody.routing_algorithm_id = routing_algorithm_id;
 
     cy.request({
-      method: "PATCH",
+      method: "PUT",
       url: url,
       headers: {
         Authorization: `Bearer ${api_key}`,
@@ -925,7 +925,7 @@ Cypress.Commands.add("routingDeactivateCall", (globalState) => {
   const url = `${base_url}/v2/profiles/${profile_id}/deactivate-routing-algorithm`;
 
   cy.request({
-    method: "PATCH",
+    method: "PUT",
     url: url,
     headers: {
       Authorization: `Bearer ${api_key}`,
