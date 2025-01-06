@@ -4,6 +4,26 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.01.06.0
+
+### Miscellaneous Tasks
+
+- Add migrations for Currency type in DB ([#6980](https://github.com/juspay/hyperswitch/pull/6980)) ([`60ed69c`](https://github.com/juspay/hyperswitch/commit/60ed69c1cff706aaba248e1aba0219f70bb679bd))
+
+**Full Changelog:** [`2025.01.03.0...2025.01.06.0`](https://github.com/juspay/hyperswitch/compare/2025.01.03.0...2025.01.06.0)
+
+- - -
+
+## 2025.01.03.0
+
+### Bug Fixes
+
+- **cache:** Address in-memory cache invalidation using global tenant as `key_prefix` ([#6976](https://github.com/juspay/hyperswitch/pull/6976)) ([`fce5ffa`](https://github.com/juspay/hyperswitch/commit/fce5ffa4e06bc6b8e413b13ec550613617e05568))
+
+**Full Changelog:** [`2024.12.31.0...2025.01.03.0`](https://github.com/juspay/hyperswitch/compare/2024.12.31.0...2025.01.03.0)
+
+- - -
+
 ## 2024.12.31.0
 
 ### Features
