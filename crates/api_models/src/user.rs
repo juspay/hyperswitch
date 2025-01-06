@@ -389,6 +389,7 @@ pub struct ListOrgsForUserResponse {
 pub struct ListMerchantsForUserInOrgResponse {
     pub merchant_id: id_type::MerchantId,
     pub merchant_name: OptionalEncryptableName,
+    pub is_platform_account: bool,
 }
 
 #[derive(Debug, serde::Serialize)]
