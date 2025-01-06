@@ -328,6 +328,7 @@ pub struct PaymentMethodBalance {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ConnectorResponseData {
     pub additional_payment_method_data: Option<AdditionalPaymentMethodConnectorResponse>,
+    pub overcapture_applied : Option<bool>
 }
 
 impl ConnectorResponseData {
@@ -336,9 +337,11 @@ impl ConnectorResponseData {
     ) -> Self {
         Self {
             additional_payment_method_data: Some(additional_payment_method_data),
+            overcapture_applied: None,
         }
     }
 }
+
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum AdditionalPaymentMethodConnectorResponse {
