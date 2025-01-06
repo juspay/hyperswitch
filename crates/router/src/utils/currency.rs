@@ -221,7 +221,8 @@ async fn acquire_redis_lock_and_fetch_data(
     match acquire_redis_lock(state).await {
         Ok(lock_acquired) => {
             if !lock_acquired {
-                logger::debug!("forex_log: Unable to acquire redis lock");
+                logger::error!("forex_log: Unable to acquire redis lock");
+                return Err(ForexCacheError::CouldNotAcquireLock.into());
             }
             logger::debug!("forex_log: redis lock acquired");
             let api_rates = fetch_forex_rates(state).await;
@@ -307,7 +308,7 @@ async fn fetch_forex_rates(
         .build();
 
     logger::debug!("forex_log: Primary api call for forex fetch");
-    logger::info!("forex_log: primary_forex_request: {:?}", forex_request);
+    logger::info!(primary_forex_request=?forex_request,"forex_log");
     let response = state
         .api_client
         .send_request(
@@ -327,7 +328,7 @@ async fn fetch_forex_rates(
             "Unable to parse response received from primary api into ForexResponse",
         )?;
 
-    logger::info!("forex_log: primary_forex_response: {:?}", forex_response);
+    logger::info!(primary_forex_response=?forex_response,"forex_log");
 
     let mut conversions: HashMap<enums::Currency, CurrencyFactors> = HashMap::new();
     for enum_curr in enums::Currency::iter() {
@@ -368,10 +369,7 @@ pub async fn fallback_fetch_forex_rates(
         .build();
 
     logger::debug!("forex_log: Fallback api call for forex fetch");
-    logger::info!(
-        "forex_log: fallback_forex_request: {:?}",
-        fallback_forex_request
-    );
+    logger::info!(fallback_forex_request=?fallback_forex_request,"forex_log");
     let response = state
         .api_client
         .send_request(
@@ -392,10 +390,8 @@ pub async fn fallback_fetch_forex_rates(
             "Unable to parse response received from falback api into ForexResponse",
         )?;
 
-    logger::info!(
-        "forex_log: fallback_forex_response: {:?}",
-        fallback_forex_response
-    );
+    logger::info!(fallback_forex_response=?fallback_forex_response,"forex_log");
+
     let mut conversions: HashMap<enums::Currency, CurrencyFactors> = HashMap::new();
     for enum_curr in enums::Currency::iter() {
         match fallback_forex_response.quotes.get(
