@@ -307,8 +307,7 @@ async fn fetch_forex_rates(
         .url(&forex_url)
         .build();
 
-    logger::debug!("forex_log: Primary api call for forex fetch");
-    logger::info!(primary_forex_request=?forex_request,"forex_log");
+    logger::info!(primary_forex_request=?forex_request,"forex_log: Primary api call for forex fetch");
     let response = state
         .api_client
         .send_request(
@@ -368,8 +367,7 @@ pub async fn fallback_fetch_forex_rates(
         .url(&fallback_forex_url)
         .build();
 
-    logger::debug!("forex_log: Fallback api call for forex fetch");
-    logger::info!(fallback_forex_request=?fallback_forex_request,"forex_log");
+    logger::info!(fallback_forex_request=?fallback_forex_request,"forex_log: Fallback api call for forex fetch");
     let response = state
         .api_client
         .send_request(
