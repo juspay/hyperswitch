@@ -211,18 +211,13 @@ impl super::RedisConnectionPool {
     #[instrument(level = "DEBUG", skip(self))]
     pub async fn delete_multiple_keys(
         &self,
-        keys: Vec<String>,
+        keys: &[String],
     ) -> CustomResult<Vec<DelReply>, errors::RedisError> {
-        let mut del_result = Vec::with_capacity(keys.len());
+        let futures = keys.iter().map(|key| self.pool.del(self.add_prefix(key)));
 
-        for key in keys {
-            del_result.push(
-                self.pool
-                    .del(self.add_prefix(&key))
-                    .await
-                    .change_context(errors::RedisError::DeleteFailed)?,
-            );
-        }
+        let del_result = futures::future::try_join_all(futures)
+            .await
+            .change_context(errors::RedisError::DeleteFailed)?;
 
         Ok(del_result)
     }
