@@ -14068,14 +14068,6 @@
               "$ref": "#/components/schemas/ResponsePaymentMethodTypes"
             },
             "description": "The list of payment methods that are enabled for the business profile"
-          },
-          "customer_payment_methods": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/CustomerPaymentMethod"
-            },
-            "description": "The list of payment methods that are saved by the given customer\nThis field is only returned if the customer_id is provided in the request",
-            "nullable": true
           }
         }
       },
