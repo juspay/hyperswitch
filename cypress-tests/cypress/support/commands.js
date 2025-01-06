@@ -1016,21 +1016,56 @@ Cypress.Commands.add(
   }
 );
 
-Cypress.Commands.add("sessionTokenCall", (globalState, sessionTokenBody) => {
-  cy.request({
-    method: "POST",
-    url: `${globalState.get("baseUrl")}/payments/session_tokens`,
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json",
-      "api-key": globalState.get("publishableKey"),
-    },
-    body: sessionTokenBody,
-    failOnStatusCode: false,
-  }).then((response) => {
-    logRequestId(response.headers["x-request-id"]);
-  });
-});
+Cypress.Commands.add(
+  "sessionTokenCall",
+  (sessionTokenBody, data, globalState) => {
+    const { Response: resData } = data || {};
+
+    sessionTokenBody.payment_id = globalState.get("paymentID");
+    sessionTokenBody.client_secret = globalState.get("clientSecret");
+
+    cy.request({
+      method: "POST",
+      url: `${globalState.get("baseUrl")}/payments/session_tokens`,
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        "api-key": globalState.get("publishableKey"),
+        "x-merchant-domain": "hyperswitch - demo - store.netlify.app",
+        "x-client-platform": "web",
+      },
+      body: sessionTokenBody,
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      if (response.status === 200) {
+        const expectedTokens = resData.body.session_token;
+        const actualTokens = response.body.session_token;
+
+        // Verifying length of array
+        expect(actualTokens.length, "arrayLength").to.equal(
+          expectedTokens.length
+        );
+
+        // Verify specific fields in each session_token object
+        expectedTokens.forEach((expectedToken, index) => {
+          const actualToken = actualTokens[index];
+
+          // Check specific fields only
+          expect(actualToken.wallet_name, "wallet_name").to.equal(
+            expectedToken.wallet_name
+          );
+          expect(actualToken.connector, "connector").to.equal(
+            expectedToken.connector
+          );
+        });
+      } else {
+        defaultErrorHandler(response, resData);
+      }
+    });
+  }
+);
 
 Cypress.Commands.add(
   "createPaymentIntentTest",
