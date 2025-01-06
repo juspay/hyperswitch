@@ -223,36 +223,27 @@ async fn successive_fetch_and_save_forex(
 async fn acquire_redis_lock_and_fetch_data(
     state: &SessionState,
 ) -> CustomResult<(), ForexCacheError> {
-    match acquire_redis_lock(state).await {
-        Ok(lock_acquired) => {
-            if !lock_acquired {
-                return Err(ForexCacheError::CouldNotAcquireLock.into());
-            }
-            logger::debug!("forex_log: redis lock acquired");
-            let api_rates = fetch_forex_rates(state).await;
-            match api_rates {
-                Ok(rates) => {
-                    successive_save_data_to_redis_local(state, rates).await?;
-                    Ok(())
-                }
-                Err(error) => {
-                    logger::error!(forex_error=?error,"primary_forex_error");
-                    // API not able to fetch data call secondary service
-                    let secondary_api_rates = fallback_fetch_forex_rates(state).await;
-                    match secondary_api_rates {
-                        Ok(rates) => {
-                            successive_save_data_to_redis_local(state, rates).await?;
-                            Ok(())
-                        }
-                        Err(error) => {
-                            release_redis_lock(state).await?;
-                            Err(error)
-                        }
+    let lock_acquired = acquire_redis_lock(state).await?;
+    if !lock_acquired {
+        Err(ForexCacheError::CouldNotAcquireLock.into())
+    } else {
+        logger::debug!("forex_log: redis lock acquired");
+        let api_rates = fetch_forex_rates(state).await;
+        match api_rates {
+            Ok(rates) => successive_save_data_to_redis_local(state, rates).await,
+            Err(error) => {
+                logger::error!(forex_error=?error,"primary_forex_error");
+                // API not able to fetch data call secondary service
+                let secondary_api_rates = fallback_fetch_forex_rates(state).await;
+                match secondary_api_rates {
+                    Ok(rates) => successive_save_data_to_redis_local(state, rates).await,
+                    Err(error) => {
+                        release_redis_lock(state).await?;
+                        Err(error)
                     }
                 }
             }
         }
-        Err(error) => Err(error),
     }
 }
 
