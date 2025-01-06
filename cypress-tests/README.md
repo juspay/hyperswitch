@@ -13,45 +13,46 @@ This is a comprehensive testing framework built with [Cypress](https://cypress.i
 
 ## Table of Contents
 
-- [Overview](#overview)
-- [Table of Contents](#table-of-contents)
-- [Quick Start](#quick-start)
-- [Getting Started](#getting-started)
+- [Hyperswitch Cypress Testing Framework](#hyperswitch-cypress-testing-framework)
+  - [Overview](#overview)
+  - [Table of Contents](#table-of-contents)
+  - [Quick Start](#quick-start)
+  - [Getting Started](#getting-started)
   - [Prerequisites](#prerequisites)
   - [Installation](#installation)
   - [Running Tests](#running-tests)
     - [Development Mode (Interactive)](#development-mode-interactive)
     - [CI Mode (Headless)](#ci-mode-headless)
     - [Execute tests against multiple connectors or in parallel](#execute-tests-against-multiple-connectors-or-in-parallel)
-- [Test reports](#test-reports)
-- [Folder structure](#folder-structure)
-- [Adding tests](#adding-tests)
-  - [Addition of test for a new connector](#addition-of-test-for-a-new-connector)
-  - [Developing Core Features or adding new tests](#developing-core-features-or-adding-new-tests)
-    - [1. Create or update test file](#1-create-or-update-test-file)
-    - [2. Add New Commands](#2-add-new-commands)
-  - [Managing global state](#managing-global-state)
-- [Debugging](#debugging)
-  - [1. Interactive Mode](#1-interactive-mode)
-  - [2. Logging](#2-logging)
-  - [3. Screenshots](#3-screenshots)
-  - [4. State Debugging](#4-state-debugging)
-  - [5. Hooks](#5-hooks)
-  - [6. Tasks](#6-tasks)
-- [Linting](#linting)
-- [Best Practices](#best-practices)
-- [Additional Resources](#additional-resources)
-- [Contributing](#contributing)
-- [Appendix](#appendix)
-  - [Example creds.json](#example-credsjson)
-  - [Multiple credential support](#multiple-credential-support)
-  - [Dynamic configuration management](#dynamic-configuration-management)
+  - [Test reports](#test-reports)
+  - [Folder structure](#folder-structure)
+  - [Adding tests](#adding-tests)
+    - [Addition of test for a new connector](#addition-of-test-for-a-new-connector)
+    - [Developing Core Features or adding new tests](#developing-core-features-or-adding-new-tests)
+      - [1. Create or update test file](#1-create-or-update-test-file)
+      - [2. Add New Commands](#2-add-new-commands)
+    - [Managing global state](#managing-global-state)
+  - [Debugging](#debugging)
+    - [1. Interactive Mode](#1-interactive-mode)
+    - [2. Logging](#2-logging)
+    - [3. Screenshots](#3-screenshots)
+    - [4. State Debugging](#4-state-debugging)
+    - [5. Hooks](#5-hooks)
+    - [6. Tasks](#6-tasks)
+  - [Linting](#linting)
+  - [Best Practices](#best-practices)
+  - [Additional Resources](#additional-resources)
+  - [Contributing](#contributing)
+  - [Appendix](#appendix)
+    - [Example creds.json](#example-credsjson)
+    - [Multiple credential support](#multiple-credential-support)
+    - [Dynamic configuration management](#dynamic-configuration-management)
 
 ## Quick Start
 
 For experienced users who want to get started quickly:
 
-```bash
+```shell
 git clone https://github.com/juspay/hyperswitch.git
 cd hyperswitch/cypress-tests
 npm ci
@@ -127,13 +128,13 @@ For Development mode, the tests will run in the Cypress UI where execution of te
 
 ### Development Mode (Interactive)
 
-```bash
+```shell
 npm run cypress
 ```
 
 ### CI Mode (Headless)
 
-```bash
+```shell
 # All tests
 npm run cypress:ci
 
@@ -496,7 +497,7 @@ npm run lint -- --fix
   - `DELAY`: This is used to introduce a delay in the test execution. This is useful when a connector requires a delay in order to perform a specific operation
   - `CONNECTOR_CREDENTIAL`: This is used to control the connector credentials that are used in the test execution. This is useful only when a connector supports multiple credentials and the test needs to be executed with a specific credential
   - `TRIGGER_SKIP`: This is used to skip a test execution (preferably redirection flows). This is useful when a test is does not support a specific rdirection flow and needs to be skipped
-- Example: In order to refund a payment in Trustpay, a `delay` of at least `5` seconds is required. By passing `delay` to the `Configs` object for Trustpay, the delay will be applied to all the tests that are executed for Trustpay
+- Example: In order to refund a payment in Trustpay, a `DELAY` of at least `5` seconds is required. By passing `DELAY` to the `Configs` object for Trustpay, the delay will be applied to all the tests that are executed for Trustpay
 
 ```json
 {
