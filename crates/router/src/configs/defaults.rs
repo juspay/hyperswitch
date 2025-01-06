@@ -142,7 +142,7 @@ impl Default for super::settings::KvConfig {
 impl Default for super::settings::GlobalTenant {
     fn default() -> Self {
         Self {
-            tenant_id: id_type::TenantId::new_unchecked(String::new()),
+            tenant_id: id_type::TenantId::get_default_global_tenant_id(),
             schema: String::from("global"),
             redis_key_prefix: String::from("global"),
             clickhouse_database: String::from("global"),

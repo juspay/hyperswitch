@@ -197,6 +197,7 @@ impl storage_impl::config::TenantConfig for Tenant {
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct GlobalTenant {
+    #[serde(default = "id_type::TenantId::get_default_global_tenant_id")]
     pub tenant_id: id_type::TenantId,
     pub schema: String,
     pub redis_key_prefix: String,

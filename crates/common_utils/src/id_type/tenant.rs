@@ -1,5 +1,7 @@
 use crate::errors::{CustomResult, ValidationError};
 
+const DEFAULT_GLOBAL_TENANT_ID: &str = "global";
+
 crate::id_type!(
     TenantId,
     "A type for tenant_id that can be used for unique identifier for a tenant"
@@ -15,10 +17,10 @@ crate::impl_queryable_id_type!(TenantId);
 crate::impl_to_sql_from_sql_id_type!(TenantId);
 
 impl TenantId {
-    /// Construct TenantID without checking for length constraints
-    pub fn new_unchecked(input_string: String) -> Self {
+    /// Get the default global tenant ID
+    pub fn get_default_global_tenant_id() -> Self {
         Self(super::LengthId::new_unchecked(
-            super::AlphaNumericId::new_unchecked(input_string),
+            super::AlphaNumericId::new_unchecked(DEFAULT_GLOBAL_TENANT_ID.to_string()),
         ))
     }
 
