@@ -1,6 +1,7 @@
-use crate::errors::{CustomResult, ValidationError};
-
-const DEFAULT_GLOBAL_TENANT_ID: &str = "global";
+use crate::{
+    consts::DEFAULT_GLOBAL_TENANT_ID,
+    errors::{CustomResult, ValidationError},
+};
 
 crate::id_type!(
     TenantId,
