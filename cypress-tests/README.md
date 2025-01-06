@@ -13,7 +13,6 @@ This is a comprehensive testing framework built with [Cypress](https://cypress.i
 
 ## Table of Contents
 
-
 - [Overview](#overview)
 - [Table of Contents](#table-of-contents)
 - [Quick Start](#quick-start)
