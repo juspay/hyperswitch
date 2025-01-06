@@ -108,6 +108,8 @@ pub enum UserErrors {
     InvalidThemeLineage(String),
     #[error("Missing required field: email_config")]
     MissingEmailConfig,
+    #[error("Invalid Auth Method Operation: {0}")]
+    InvalidAuthMethodOperationWithMessage(String),
     #[error("User role not found")]
     UserRoleNotFound,
 }
@@ -282,8 +284,11 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
             Self::MissingEmailConfig => {
                 AER::BadRequest(ApiError::new(sub_code, 56, self.get_error_message(), None))
             }
-            Self::UserRoleNotFound => {
+            Self::InvalidAuthMethodOperationWithMessage(_) => {
                 AER::BadRequest(ApiError::new(sub_code, 57, self.get_error_message(), None))
+            }
+            Self::UserRoleNotFound => {
+                AER::BadRequest(ApiError::new(sub_code, 58, self.get_error_message(), None))
             }
         }
     }
@@ -352,6 +357,9 @@ impl UserErrors {
                 format!("Invalid field: {} in lineage", field_name)
             }
             Self::MissingEmailConfig => "Missing required field: email_config".to_string(),
+            Self::InvalidAuthMethodOperationWithMessage(operation) => {
+                format!("Invalid Auth Method Operation: {}", operation)
+            }
             Self::UserRoleNotFound => "User role not found".to_string(),
         }
     }

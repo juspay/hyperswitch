@@ -3833,6 +3833,18 @@ impl UserAuthenticationMethodInterface for KafkaStore {
             .update_user_authentication_method(id, user_authentication_method_update)
             .await
     }
+
+    async fn list_user_authentication_methods_for_email_domain(
+        &self,
+        email_domain: &str,
+    ) -> CustomResult<
+        Vec<diesel_models::user_authentication_method::UserAuthenticationMethod>,
+        errors::StorageError,
+    > {
+        self.diesel_store
+            .list_user_authentication_methods_for_email_domain(email_domain)
+            .await
+    }
 }
 
 #[async_trait::async_trait]
