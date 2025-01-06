@@ -303,8 +303,6 @@ pub struct ForexApi {
     pub fallback_api_key: Secret<String>,
     /// in s
     pub call_delay: i64,
-    /// in ms
-    pub api_timeout: u64,
     /// in s
     pub redis_lock_timeout: u64,
 }
