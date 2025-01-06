@@ -139,7 +139,6 @@ impl SuccessBasedDynamicRouting for SuccessRateCalculatorClient<Client> {
             params: params.clone(),
             labels_with_status,
             config,
-            global_id: "".to_string(),
             global_params: params,
             global_labels_with_status,
         });
@@ -205,7 +204,6 @@ impl SuccessBasedDynamicRouting for SuccessRateCalculatorClient<Client> {
             entity_id: id,
             entity_params: params.clone(),
             entity_labels: labels,
-            global_id: "".to_string(),
             global_params: params,
             global_labels,
             config,

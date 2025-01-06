@@ -44,10 +44,9 @@ message UpdateSuccessRateWindowRequest {
     string id = 1;
     string params = 2;
     repeated LabelWithStatus labels_with_status = 3;
-    string global_id = 4;
+    UpdateSuccessRateWindowConfig config = 4;
     string global_params = 5;
     repeated LabelWithStatus global_labels_with_status = 6;
-    UpdateSuccessRateWindowConfig config = 7;
 }
 
 message LabelWithStatus {
@@ -83,10 +82,9 @@ message CalGlobalSuccessRateRequest {
     string entity_id = 1;
     string entity_params = 2;
     repeated string entity_labels = 3;
-    string global_id = 4;
-    string global_params = 5;
-    repeated string global_labels = 6;
-    CalGlobalSuccessRateConfig config = 7;
+    string global_params = 4;
+    repeated string global_labels = 5;
+    CalGlobalSuccessRateConfig config = 6;
 }
 
 message CalGlobalSuccessRateConfig {
