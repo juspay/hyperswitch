@@ -2,6 +2,8 @@
 /* eslint-disable cypress/no-unnecessary-waiting */
 import jsQR from "jsqr";
 
+import * as RequestBodyUtils from "../utils/RequestBodyUtils";
+
 // Define constants for wait times
 const TIMEOUT = 20000; // 20 seconds
 const WAIT_TIME = 10000; // 10 seconds
@@ -422,104 +424,134 @@ function upiRedirection(
   });
 }
 
-function verifyReturnUrl(redirection_url, expected_url, forward_flow) {
-  if (forward_flow) {
-    if (redirection_url.host.endsWith(expected_url.host)) {
-      cy.wait(WAIT_TIME / 2);
+const ERROR_PATTERNS = {
+  HTTP_ERROR: /[45]\d{2}/,
+  GENERAL_ERROR: /error/i,
+  INVALID_REQUEST: /invalid request/i,
+  SERVER_ERROR: /server error/i,
+};
 
-      cy.window()
-        .its("location")
-        .then((location) => {
-          // Check page state before taking screenshots
-          cy.document().then((doc) => {
-            // For blank page
-            cy.wrap(doc.body.innerText.trim()).then((text) => {
-              if (text === "") {
-                // Assert before screenshot
-                cy.wrap(text).should("eq", "");
-                cy.screenshot("blank-page-error");
-              }
-            });
+function checkForErrors(text, prefix = "") {
+  const hasError = Object.values(ERROR_PATTERNS).some((pattern) =>
+    pattern.test(text)
+  );
 
-            // For error pages
-            const errorPatterns = [
-              /4\d{2}/,
-              /5\d{2}/,
-              /error/i,
-              /invalid request/i,
-              /server error/i,
-            ];
-
-            const pageText = doc.body.innerText.toLowerCase();
-            cy.wrap(pageText).then((text) => {
-              if (errorPatterns.some((pattern) => pattern.test(text))) {
-                // Assert the presence of error message
-                cy.wrap(text).should((content) => {
-                  expect(errorPatterns.some((pattern) => pattern.test(content)))
-                    .to.be.true;
-                });
-                cy.screenshot(`error-page-${Date.now()}`);
-              }
-            });
-          });
-
-          const url_params = new URLSearchParams(location.search);
-          const payment_status = url_params.get("status");
-
-          if (
-            payment_status !== "succeeded" &&
-            payment_status !== "processing" &&
-            payment_status !== "partially_captured" &&
-            payment_status !== "requires_capture"
-          ) {
-            // Assert payment status before screenshot
-            cy.wrap(payment_status).should("exist");
-            cy.screenshot(`failed-payment-${payment_status}`);
-            throw new Error(
-              `Payment failed after redirection with status: ${payment_status}`
-            );
-          }
+  if (hasError) {
+    cy.wrap(text)
+      .should(
+        "match",
+        new RegExp(
+          Object.values(ERROR_PATTERNS)
+            .map((p) => p.source)
+            .join("|")
+        )
+      )
+      .then(() => {
+        // eslint-disable-next-line cypress/assertion-before-screenshot
+        cy.screenshot(`${prefix}error-page-${Date.now()}`, {
+          capture: "viewport",
         });
-    } else {
-      cy.origin(
-        expected_url.origin,
-        { args: { expected_url: expected_url.origin } },
-        ({ expected_url }) => {
-          cy.window().its("location.origin").should("eq", expected_url);
+      });
+    return true;
+  }
+  return false;
+}
 
-          cy.document().then((doc) => {
-            // For blank page in cross-origin
-            cy.wrap(doc.body.innerText.trim()).then((text) => {
-              if (text === "") {
-                // Assert before screenshot
-                cy.wrap(text).should("eq", "");
-                cy.screenshot("cross-origin-blank-page");
+function checkBlankPage(text, screenshotName) {
+  if (text === "") {
+    cy.wrap(text)
+      .should("be.empty")
+      .then(() => {
+        // eslint-disable-next-line cypress/assertion-before-screenshot
+        cy.screenshot(screenshotName, { capture: "viewport" });
+      });
+    return true;
+  }
+  return false;
+}
+
+function checkPaymentStatus(payment_status) {
+  const validStatuses = [
+    "succeeded",
+    "processing",
+    "requires_capture",
+    "failed",
+  ];
+
+  if (!validStatuses.includes(payment_status)) {
+    cy.wrap(payment_status)
+      .should("exist")
+      .then(() => {
+        const screenshotName = `${RequestBodyUtils.generateRandomString("redirection-failure")}-${payment_status}`;
+        // eslint-disable-next-line cypress/assertion-before-screenshot
+        cy.screenshot(screenshotName, { capture: "viewport" });
+      })
+      .then(() => {
+        throw new Error(
+          `Redirection failed with payment status: \`${payment_status}\``
+        );
+      });
+  }
+}
+
+function verifyReturnUrl(redirection_url, expected_url, forward_flow) {
+  if (!forward_flow) return;
+
+  const isSameHost = redirection_url.host.endsWith(expected_url.host);
+
+  if (isSameHost) {
+    cy.wait(WAIT_TIME / 2);
+
+    cy.window()
+      .its("location")
+      .then((location) => {
+        cy.document().then((doc) => {
+          const pageText = doc.body.innerText.trim();
+
+          // Chain assertions properly
+          cy.wrap(pageText)
+            .should("exist")
+            .then((text) => {
+              const hasBlankPage = checkBlankPage(text, "blank-page-error");
+              if (!hasBlankPage) {
+                checkForErrors(text);
               }
             });
+        });
 
-            const errorPatterns = [
-              /4\d{2}/,
-              /5\d{2}/,
-              /error/i,
-              /invalid request/i,
-              /server error/i,
-            ];
+        // Check payment status
+        const payment_status = new URLSearchParams(location.search).get(
+          "status"
+        );
+        checkPaymentStatus(payment_status);
+      });
+  } else {
+    cy.origin(
+      expected_url.origin,
+      { args: { expected_url: expected_url.origin } },
+      ({ expected_url }) => {
+        cy.window()
+          .its("location.origin")
+          .should("eq", expected_url)
+          .then(() => {
+            cy.document().then((doc) => {
+              const pageText = doc.body.innerText.trim();
 
-            const pageText = doc.body.innerText.toLowerCase();
-            cy.wrap(pageText).then((text) => {
-              if (errorPatterns.some((pattern) => pattern.test(text))) {
-                // Assert the presence of error message
-                cy.wrap(text).should((content) => {
-                  expect(errorPatterns.some((pattern) => pattern.test(content)))
-                    .to.be.true;
+              cy.wrap(pageText)
+                .should("exist")
+                .then((text) => {
+                  const hasBlankPage = checkBlankPage(
+                    text,
+                    "cross-origin-blank-page"
+                  );
+                  if (!hasBlankPage) {
+                    checkForErrors(text, "cross-origin-");
+                  }
                 });
-                cy.screenshot(`cross-origin-error-${Date.now()}`);
-              }
             });
           });
-        }
-      );
-    }
+      }
+    );
   }
 }
 

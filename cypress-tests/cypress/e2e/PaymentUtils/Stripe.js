@@ -21,7 +21,7 @@ const successfulThreeDSTestCardDetails = {
 };
 
 const failedNo3DSCardDetails = {
-  card_number: "4000000000000002",
+  card_number: "4917610000000000",
   card_exp_month: "01",
   card_exp_year: "25",
   card_holder_name: "joseph Doe",
