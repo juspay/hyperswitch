@@ -108,8 +108,7 @@ impl FilteredPaymentMethodsEnabled {
 
 /// Element container to hold the filtered payment methods with required fields
 struct RequiredFieldsForEnabledPaymentMethod {
-    required_field:
-        Option<std::collections::HashMap<String, api_models::payment_methods::RequiredFieldInfo>>,
+    required_field: Option<Vec<api_models::payment_methods::RequiredFieldInfo>>,
     payment_method_subtype: common_enums::PaymentMethodType,
     payment_method_type: common_enums::PaymentMethod,
 }
@@ -119,8 +118,7 @@ struct RequiredFieldsForEnabledPaymentMethodTypes(Vec<RequiredFieldsForEnabledPa
 
 /// Element Container to hold the filtered payment methods enabled with required fields and surcharge
 struct RequiredFieldsAndSurchargeForEnabledPaymentMethodType {
-    required_field:
-        Option<std::collections::HashMap<String, api_models::payment_methods::RequiredFieldInfo>>,
+    required_field: Option<Vec<api_models::payment_methods::RequiredFieldInfo>>,
     payment_method_subtype: common_enums::PaymentMethodType,
     payment_method_type: common_enums::PaymentMethod,
     surcharge: Option<api_models::payment_methods::SurchargeDetailsResponse>,
