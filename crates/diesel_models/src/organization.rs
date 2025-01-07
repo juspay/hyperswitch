@@ -9,6 +9,7 @@ pub trait OrganizationBridge {
     fn get_organization_id(&self) -> id_type::OrganizationId;
     fn get_organization_name(&self) -> Option<String>;
     fn set_organization_name(&mut self, organization_name: String);
+    fn set_platform_merchant_id(&mut self, platform_merchant_id: id_type::MerchantId);
 }
 #[cfg(feature = "v1")]
 #[derive(Clone, Debug, Identifiable, Queryable, Selectable)]
@@ -28,6 +29,7 @@ pub struct Organization {
     id: Option<id_type::OrganizationId>,
     #[allow(dead_code)]
     organization_name: Option<String>,
+    pub platform_merchant_id: Option<id_type::MerchantId>,
 }
 
 #[cfg(feature = "v2")]
@@ -44,6 +46,7 @@ pub struct Organization {
     pub modified_at: time::PrimitiveDateTime,
     id: id_type::OrganizationId,
     organization_name: Option<String>,
+    pub platform_merchant_id: Option<id_type::MerchantId>,
 }
 
 #[cfg(feature = "v1")]
@@ -58,6 +61,7 @@ impl Organization {
             modified_at,
             id: _,
             organization_name: _,
+            platform_merchant_id,
         } = org_new;
         Self {
             id: Some(org_id.clone()),
@@ -68,6 +72,7 @@ impl Organization {
             metadata,
             created_at,
             modified_at,
+            platform_merchant_id,
         }
     }
 }
@@ -82,6 +87,7 @@ impl Organization {
             metadata,
             created_at,
             modified_at,
+            platform_merchant_id,
         } = org_new;
         Self {
             id,
@@ -90,6 +96,7 @@ impl Organization {
             metadata,
             created_at,
             modified_at,
+            platform_merchant_id,
         }
     }
 }
@@ -106,6 +113,7 @@ pub struct OrganizationNew {
     pub metadata: Option<pii::SecretSerdeValue>,
     pub created_at: time::PrimitiveDateTime,
     pub modified_at: time::PrimitiveDateTime,
+    pub platform_merchant_id: Option<id_type::MerchantId>,
 }
 
 #[cfg(feature = "v2")]
@@ -118,6 +126,7 @@ pub struct OrganizationNew {
     pub metadata: Option<pii::SecretSerdeValue>,
     pub created_at: time::PrimitiveDateTime,
     pub modified_at: time::PrimitiveDateTime,
+    pub platform_merchant_id: Option<id_type::MerchantId>,
 }
 
 #[cfg(feature = "v1")]
@@ -132,6 +141,7 @@ impl OrganizationNew {
             metadata: None,
             created_at: common_utils::date_time::now(),
             modified_at: common_utils::date_time::now(),
+            platform_merchant_id: None,
         }
     }
 }
@@ -146,6 +156,7 @@ impl OrganizationNew {
             metadata: None,
             created_at: common_utils::date_time::now(),
             modified_at: common_utils::date_time::now(),
+            platform_merchant_id: None,
         }
     }
 }
@@ -159,6 +170,7 @@ pub struct OrganizationUpdateInternal {
     organization_details: Option<pii::SecretSerdeValue>,
     metadata: Option<pii::SecretSerdeValue>,
     modified_at: time::PrimitiveDateTime,
+    platform_merchant_id: Option<id_type::MerchantId>,
 }
 
 #[cfg(feature = "v2")]
@@ -169,6 +181,7 @@ pub struct OrganizationUpdateInternal {
     organization_details: Option<pii::SecretSerdeValue>,
     metadata: Option<pii::SecretSerdeValue>,
     modified_at: time::PrimitiveDateTime,
+    platform_merchant_id: Option<id_type::MerchantId>,
 }
 
 pub enum OrganizationUpdate {
@@ -176,6 +189,9 @@ pub enum OrganizationUpdate {
         organization_name: Option<String>,
         organization_details: Option<pii::SecretSerdeValue>,
         metadata: Option<pii::SecretSerdeValue>,
+    },
+    ToPlatformAccount {
+        platform_merchant_id: id_type::MerchantId,
     },
 }
 
@@ -193,6 +209,17 @@ impl From<OrganizationUpdate> for OrganizationUpdateInternal {
                 organization_details,
                 metadata,
                 modified_at: common_utils::date_time::now(),
+                platform_merchant_id: None,
+            },
+            OrganizationUpdate::ToPlatformAccount {
+                platform_merchant_id,
+            } => Self {
+                org_name: None,
+                organization_name: None,
+                organization_details: None,
+                metadata: None,
+                modified_at: common_utils::date_time::now(),
+                platform_merchant_id: Some(platform_merchant_id),
             },
         }
     }
@@ -211,6 +238,16 @@ impl From<OrganizationUpdate> for OrganizationUpdateInternal {
                 organization_details,
                 metadata,
                 modified_at: common_utils::date_time::now(),
+                platform_merchant_id: None,
+            },
+            OrganizationUpdate::ToPlatformAccount {
+                platform_merchant_id,
+            } => Self {
+                organization_name: None,
+                organization_details: None,
+                metadata: None,
+                modified_at: common_utils::date_time::now(),
+                platform_merchant_id: Some(platform_merchant_id),
             },
         }
     }
@@ -227,6 +264,9 @@ impl OrganizationBridge for Organization {
     fn set_organization_name(&mut self, organization_name: String) {
         self.org_name = Some(organization_name);
     }
+    fn set_platform_merchant_id(&mut self, platform_merchant_id: id_type::MerchantId) {
+        self.platform_merchant_id = Some(platform_merchant_id);
+    }
 }
 
 #[cfg(feature = "v1")]
@@ -239,6 +279,9 @@ impl OrganizationBridge for OrganizationNew {
     }
     fn set_organization_name(&mut self, organization_name: String) {
         self.org_name = Some(organization_name);
+    }
+    fn set_platform_merchant_id(&mut self, platform_merchant_id: id_type::MerchantId) {
+        self.platform_merchant_id = Some(platform_merchant_id);
     }
 }
 
@@ -253,6 +296,9 @@ impl OrganizationBridge for Organization {
     fn set_organization_name(&mut self, organization_name: String) {
         self.organization_name = Some(organization_name);
     }
+    fn set_platform_merchant_id(&mut self, platform_merchant_id: id_type::MerchantId) {
+        self.platform_merchant_id = Some(platform_merchant_id);
+    }
 }
 
 #[cfg(feature = "v2")]
@@ -265,5 +311,8 @@ impl OrganizationBridge for OrganizationNew {
     }
     fn set_organization_name(&mut self, organization_name: String) {
         self.organization_name = Some(organization_name);
+    }
+    fn set_platform_merchant_id(&mut self, platform_merchant_id: id_type::MerchantId) {
+        self.platform_merchant_id = Some(platform_merchant_id);
     }
 }

@@ -769,6 +769,7 @@ diesel::table! {
         #[max_length = 32]
         id -> Varchar,
         organization_name -> Nullable<Text>,
+        platform_merchant_id -> Nullable<Varchar>,
     }
 }
 
