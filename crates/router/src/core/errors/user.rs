@@ -110,8 +110,6 @@ pub enum UserErrors {
     MissingEmailConfig,
     #[error("Invalid Auth Method Operation: {0}")]
     InvalidAuthMethodOperationWithMessage(String),
-    #[error("User role not found")]
-    UserRoleNotFound,
 }
 
 impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorResponse> for UserErrors {
@@ -287,9 +285,6 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
             Self::InvalidAuthMethodOperationWithMessage(_) => {
                 AER::BadRequest(ApiError::new(sub_code, 57, self.get_error_message(), None))
             }
-            Self::UserRoleNotFound => {
-                AER::BadRequest(ApiError::new(sub_code, 58, self.get_error_message(), None))
-            }
         }
     }
 }
@@ -360,7 +355,6 @@ impl UserErrors {
             Self::InvalidAuthMethodOperationWithMessage(operation) => {
                 format!("Invalid Auth Method Operation: {}", operation)
             }
-            Self::UserRoleNotFound => "User role not found".to_string(),
         }
     }
 }
