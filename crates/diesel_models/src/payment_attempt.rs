@@ -537,7 +537,6 @@ pub enum PaymentAttemptUpdate {
     IncrementalAuthorizationAmountUpdate {
         amount: MinorUnit,
         amount_capturable: MinorUnit,
-        overcapture_applied: Option<bool>,
     },
     AuthenticationUpdate {
         status: storage_enums::AttemptStatus,
@@ -3212,7 +3211,6 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
             PaymentAttemptUpdate::IncrementalAuthorizationAmountUpdate {
                 amount,
                 amount_capturable,
-                overcapture_applied,
             } => Self {
                 amount: Some(amount),
                 modified_at: common_utils::date_time::now(),
@@ -3266,7 +3264,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 connector_transaction_data: None,
                 connector_mandate_detail: None,
                 request_overcapture: None,
-                overcapture_applied,
+                overcapture_applied: None,
             },
             PaymentAttemptUpdate::AuthenticationUpdate {
                 status,

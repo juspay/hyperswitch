@@ -175,16 +175,18 @@ where
                 }
             }
             enums::AttemptStatus::Charged => {
-                let captured_amount =
-                    types::Capturable::get_captured_amount(&self.request, payment_data);
                 let total_capturable_amount = payment_data.payment_attempt.get_total_amount();
-                if Some(total_capturable_amount) == captured_amount.map(MinorUnit::new) {
-                    enums::AttemptStatus::Charged
-                } else if captured_amount.is_some() {
-                    enums::AttemptStatus::PartialCharged
-                } else {
-                    self.status
-                }
+                let is_overcapture_applied = payment_data.payment_attempt.overcapture_applied;
+                types::Capturable::get_captured_amount(&self.request, payment_data).map(MinorUnit::new).map(|captured_amount|
+                    if total_capturable_amount == captured_amount ||
+                        (is_overcapture_applied == Some(true) && captured_amount > total_capturable_amount) {
+                        enums::AttemptStatus::Charged
+                    } else if captured_amount < total_capturable_amount{ 
+                        enums::AttemptStatus::PartialCharged
+                    } else {
+                        self.status
+                    }
+                 ).unwrap_or(self.status)
             }
             _ => self.status,
         }

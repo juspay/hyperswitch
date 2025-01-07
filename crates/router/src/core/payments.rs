@@ -482,6 +482,7 @@ where
                     )
                     .await?;
 
+
                     let op_ref = &operation;
                     let should_trigger_post_processing_flows = is_operation_confirm(&operation);
 
@@ -583,6 +584,7 @@ where
                         false,
                     )
                     .await?;
+
 
                     #[cfg(all(feature = "retry", feature = "v1"))]
                     let mut router_data = router_data;

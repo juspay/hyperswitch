@@ -1016,7 +1016,6 @@ pub enum PaymentAttemptUpdate {
     IncrementalAuthorizationAmountUpdate {
         net_amount: NetAmount,
         amount_capturable: MinorUnit,
-        overcapture_applied: Option<bool>,
     },
     AuthenticationUpdate {
         status: storage_enums::AttemptStatus,
@@ -1371,11 +1370,9 @@ impl PaymentAttemptUpdate {
             Self::IncrementalAuthorizationAmountUpdate {
                 net_amount,
                 amount_capturable,
-                overcapture_applied,
             } => DieselPaymentAttemptUpdate::IncrementalAuthorizationAmountUpdate {
                 amount: net_amount.get_order_amount(),
                 amount_capturable,
-                overcapture_applied,
             },
             Self::AuthenticationUpdate {
                 status,

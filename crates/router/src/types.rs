@@ -45,6 +45,7 @@ pub use hyperswitch_domain_models::{
         AccessToken, AdditionalPaymentMethodConnectorResponse, ApplePayCryptogramData,
         ApplePayPredecryptData, ConnectorAuthType, ConnectorResponseData, ErrorResponse,
         PaymentMethodBalance, PaymentMethodToken, RecurringMandatePaymentData, RouterData,
+        OverCaptureData,
     },
     router_data_v2::{
         AccessTokenFlowData, DisputesFlowData, ExternalAuthenticationFlowData, FilesFlowData,

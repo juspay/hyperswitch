@@ -414,6 +414,10 @@ where
                 .clone()
                 .and_then(|connector_response| connector_response.additional_payment_method_data),
         )?;
+    
+        let overcapture_data = router_data.connector_response.as_ref().and_then(|resp| resp.overcapture_data.clone());
+        let overcapture_applied = overcapture_data.as_ref().map(|data| data.overcapture_applied);
+        let maximum_capturable_amount = overcapture_data.as_ref().map(|data| data.maximum_capturable_amount);
 
     match router_data.response {
         Ok(types::PaymentsResponseData::TransactionResponse {
@@ -431,27 +435,6 @@ where
                 .transpose()
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Could not parse the connector response")?;
-
-            // let overcapture_details = match payment_data
-            //     .get_payment_attempt() //todoooo
-            //     .overcapture_details
-            //     .clone()
-            // {
-            //     Some(mut overcapture_details) => {
-            //         overcapture_details.overcapture_applied = overcapture_applied;
-            //         overcapture_details.maximum_capturable_amount = maximum_capturable_amount;
-            //         overcapture_details.overcaptured_amount = get_overcaptured_amount(
-            //             overcapture_applied,
-            //             router_data.amount_captured.map(MinorUnit::new),
-            //             payment_data
-            //                 .get_payment_attempt()
-            //                 .net_amount
-            //                 .get_total_amount(),
-            //         );
-            //         Some(overcapture_details)
-            //     }
-            //     None => None,
-            // };
 
             let payment_attempt_update = storage::PaymentAttemptUpdate::ResponseUpdate {
                 status: router_data.status,
@@ -478,7 +461,7 @@ where
                 amount_capturable: if router_data.status.is_terminal_status() {
                     Some(MinorUnit::new(0))
                 } else {
-                    None
+                    maximum_capturable_amount
                 },
                 updated_by: storage_scheme.to_string(),
                 authentication_data,
@@ -488,7 +471,7 @@ where
                 payment_method_data: additional_payment_method_data,
                 charge_id,
                 connector_mandate_detail: None,
-                overcapture_applied: None, //todoo
+                overcapture_applied,
             };
 
             #[cfg(feature = "v1")]

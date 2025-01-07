@@ -1824,7 +1824,7 @@ impl TryFrom<(&types::PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntent
                                 &item.request,
                             )),
                             billing_address,
-                            None,
+                            item.request.request_overcapture,
                         )?;
 
                     validate_shipping_address_against_payment_method(
@@ -2095,7 +2095,7 @@ impl TryFrom<&types::TokenizationRouterData> for TokenRequest {
             item.payment_method_token.clone(),
             None,
             StripeBillingAddress::default(),
-            None, //todooo
+            None,
         )?;
         Ok(Self {
             token_data: payment_data.0,
@@ -2458,7 +2458,7 @@ pub struct SetupIntentResponse {
 
 fn extract_payment_method_connector_response_from_latest_charge(
     stripe_charge_enum: &StripeChargeEnum,
-) -> Option<types::ConnectorResponseData> {
+) -> Option<types::AdditionalPaymentMethodConnectorResponse> {
     if let StripeChargeEnum::ChargeObject(charge_object) = stripe_charge_enum {
         charge_object
             .payment_method_details
@@ -2468,12 +2468,11 @@ fn extract_payment_method_connector_response_from_latest_charge(
         None
     }
     .map(types::AdditionalPaymentMethodConnectorResponse::from)
-    .map(types::ConnectorResponseData::with_additional_payment_method_data)
 }
 
 fn extract_payment_method_connector_response_from_latest_attempt(
     stripe_latest_attempt: &LatestAttempt,
-) -> Option<types::ConnectorResponseData> {
+) -> Option<types::AdditionalPaymentMethodConnectorResponse> {
     if let LatestAttempt::PaymentIntentAttempt(intent_attempt) = stripe_latest_attempt {
         intent_attempt
             .payment_method_details
@@ -2483,7 +2482,6 @@ fn extract_payment_method_connector_response_from_latest_attempt(
         None
     }
     .map(types::AdditionalPaymentMethodConnectorResponse::from)
-    .map(types::ConnectorResponseData::with_additional_payment_method_data)
 }
 
 impl<F, T>
@@ -2530,9 +2528,6 @@ impl<F, T>
             _ => None,
         };
 
-        let (overcapture_applied, maximum_capturable_amount) =
-            extract_overcapture_response(item.response.latest_charge.as_ref());
-
         let connector_metadata =
             get_connector_metadata(item.response.next_action.as_ref(), item.response.amount)?;
 
@@ -2565,11 +2560,19 @@ impl<F, T>
             })
         };
 
-        let connector_response_data = item
+        let additional_payment_method_data = item
             .response
             .latest_charge
             .as_ref()
             .and_then(extract_payment_method_connector_response_from_latest_charge);
+        let overcapture_data = item.response.latest_charge.as_ref().and_then(extract_overcapture_response_from_latest_charge);
+        let connector_response = if overcapture_data.is_some() || additional_payment_method_data.is_some() {
+        Some(types::ConnectorResponseData {
+            additional_payment_method_data,
+            overcapture_data,
+        })} else{
+            None
+        };
 
         Ok(Self {
             status,
@@ -2583,7 +2586,7 @@ impl<F, T>
                 .amount_received
                 .map(|amount| amount.get_amount_as_i64()),
             minor_amount_captured: item.response.amount_received,
-            connector_response: connector_response_data,
+            connector_response,
             ..item.data
         })
     }
@@ -2729,11 +2732,19 @@ impl<F, T>
 
         let status = enums::AttemptStatus::from(item.response.status.to_owned());
 
-        let connector_response_data = item
+        let additional_payment_method_data = item
             .response
             .latest_charge
             .as_ref()
             .and_then(extract_payment_method_connector_response_from_latest_charge);
+        let overcapture_data = item.response.latest_charge.as_ref().and_then(extract_overcapture_response_from_latest_charge);
+        let connector_response = if overcapture_data.is_some() || additional_payment_method_data.is_some() {
+        Some(types::ConnectorResponseData {
+            additional_payment_method_data,
+            overcapture_data,
+        })} else{
+            None
+        };
 
         let response = if connector_util::is_payment_failure(status) {
             types::PaymentsResponseData::foreign_try_from((
@@ -2754,8 +2765,6 @@ impl<F, T>
                 _ => None,
             };
 
-            let (overcapture_applied, maximum_capturable_amount) =
-                extract_overcapture_response(item.response.latest_charge.as_ref());
 
             let charge_id = item
                 .response
@@ -2785,7 +2794,7 @@ impl<F, T>
                 .amount_received
                 .map(|amount| amount.get_amount_as_i64()),
             minor_amount_captured: item.response.amount_received,
-            connector_response: connector_response_data,
+            connector_response,
             ..item.data
         })
     }
@@ -2824,7 +2833,8 @@ impl<F, T>
             .response
             .latest_attempt
             .as_ref()
-            .and_then(extract_payment_method_connector_response_from_latest_attempt);
+            .and_then(extract_payment_method_connector_response_from_latest_attempt)
+            .map(types::ConnectorResponseData::with_additional_payment_method_data);
 
         let response = if connector_util::is_payment_failure(status) {
             types::PaymentsResponseData::foreign_try_from((
@@ -4135,11 +4145,11 @@ fn get_transaction_metadata(
     meta_data
 }
 
-fn extract_overcapture_response(
-    latest_charge: Option<&StripeChargeEnum>,
-) -> (Option<bool>, Option<MinorUnit>) {
-    match latest_charge {
-        Some(StripeChargeEnum::ChargeObject(charge_object)) => charge_object
+fn extract_overcapture_response_from_latest_charge(
+    latest_charge: &StripeChargeEnum,
+) -> Option<types::OverCaptureData>{
+    let (overcapture_applied, maximum_overcapture_amount) = match latest_charge {
+        StripeChargeEnum::ChargeObject(charge_object) => charge_object
             .payment_method_details
             .as_ref()
             .and_then(|payment_method_details| match payment_method_details {
@@ -4161,7 +4171,11 @@ fn extract_overcapture_response(
             })
             .unwrap_or((None, None)),
         _ => (None, None),
-    }
+    };
+    overcapture_applied.zip(maximum_overcapture_amount).map(|overcapture_data| types::OverCaptureData {
+        overcapture_applied: overcapture_data.0,
+        maximum_capturable_amount: overcapture_data.1,
+    })
 }
 
 impl ForeignTryFrom<(&Option<ErrorDetails>, u16, String)> for types::PaymentsResponseData {
