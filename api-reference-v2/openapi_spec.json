@@ -15497,14 +15497,6 @@
             "type": "boolean",
             "description": "Whether the payment is overcaptureable or not",
             "nullable": true
-          },
-          "maximum_capturable_amount": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/MinorUnit"
-              }
-            ],
-            "nullable": true
           }
         }
       },
@@ -16413,14 +16405,6 @@
           "overcapture_applied": {
             "type": "boolean",
             "description": "Whether the payment is overcaptureable or not",
-            "nullable": true
-          },
-          "maximum_capturable_amount": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/MinorUnit"
-              }
-            ],
             "nullable": true
           }
         }
