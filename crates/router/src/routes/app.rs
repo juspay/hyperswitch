@@ -112,6 +112,7 @@ pub struct SessionState {
     pub opensearch_client: Arc<OpenSearchClient>,
     pub grpc_client: Arc<GrpcClients>,
     pub theme_storage_client: Arc<dyn FileStorageInterface>,
+    pub locale: String,
 }
 impl scheduler::SchedulerSessionState for SessionState {
     fn get_db(&self) -> Box<dyn SchedulerInterface> {
@@ -458,6 +459,7 @@ impl AppState {
     pub fn get_session_state<E, F>(
         self: Arc<Self>,
         tenant: &id_type::TenantId,
+        locale: Option<String>,
         err: F,
     ) -> Result<SessionState, E>
     where
@@ -484,6 +486,7 @@ impl AppState {
             opensearch_client: Arc::clone(&self.opensearch_client),
             grpc_client: Arc::clone(&self.grpc_client),
             theme_storage_client: self.theme_storage_client.clone(),
+            locale: locale.unwrap_or(common_utils::consts::DEFAULT_LOCALE.to_string()),
         })
     }
 }
