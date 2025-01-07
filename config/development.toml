@@ -654,7 +654,7 @@ card.credit = { connector_list = "cybersource" }
 card.debit = { connector_list = "cybersource" }
 
 [network_transaction_id_supported_connectors]
-connector_list = "adyen,cybersource,novalnet,stripe,worldpay"
+connector_list = "adyen,cybersource,fiuu,novalnet,stripe,worldpay"
 
 [connector_request_reference_id_config]
 merchant_ids_send_payment_id_as_connector_request_id = []
