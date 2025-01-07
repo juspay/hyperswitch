@@ -996,7 +996,7 @@ impl std::ops::DerefMut for PaymentsMandateReference {
 
 common_utils::impl_to_sql_from_sql_json!(PaymentsMandateReference);
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct PayoutsMandateReferenceRecord {
     pub transfer_method_id: Option<String>,
 }
@@ -1048,24 +1048,20 @@ where
     serde_json::Value: diesel::deserialize::FromSql<diesel::sql_types::Jsonb, DB>,
 {
     fn from_sql(bytes: DB::RawValue<'_>) -> diesel::deserialize::Result<Self> {
-        // Deserialize into a generic serde_json::Value first
         let value = <serde_json::Value as diesel::deserialize::FromSql<
             diesel::sql_types::Jsonb,
             DB,
         >>::from_sql(bytes)?;
 
-        // Try to directly deserialize into CommonMandateReference
-        if let Ok(common_reference) = serde_json::from_value::<Self>(value.clone()) {
-            return Ok(common_reference);
-        }
-
-        // If that fails, try deserializing into PaymentsMandateReference
-        if let Ok(payment_reference) = serde_json::from_value::<PaymentsMandateReference>(value) {
-            // Convert PaymentsMandateReference to CommonMandateReference
+        if let Ok(payment_reference) =
+            serde_json::from_value::<PaymentsMandateReference>(value.clone())
+        {
             return Ok(Self::from(payment_reference));
         }
 
-        // If neither succeeds, return an error
+        if let Ok(common_reference) = serde_json::from_value::<Self>(value) {
+            return Ok(common_reference);
+        }
         Err(
             report!(ParsingError::StructParseFailure("CommonMandateReference")).attach_printable(
                 "Failed to parse JSON into CommonMandateReference or PaymentsMandateReference",
