@@ -524,6 +524,8 @@ impl PaymentAttempt {
             error: None,
             connector_mandate_detail: None,
             id,
+            overcapture_status: None,
+            request_overcapture: None,
         })
     }
 }
@@ -1802,6 +1804,8 @@ impl behaviour::Conversion for PaymentAttempt {
             payment_method_billing_address,
             connector,
             connector_mandate_detail,
+            request_overcapture,
+            overcapture_status,
         } = self;
 
         let AttemptAmountDetails {
@@ -1879,6 +1883,8 @@ impl behaviour::Conversion for PaymentAttempt {
             payment_method_billing_address: payment_method_billing_address.map(Encryption::from),
             connector_payment_data,
             connector_mandate_detail,
+            overcapture_status,
+            request_overcapture,
         })
     }
 
@@ -1990,6 +1996,8 @@ impl behaviour::Conversion for PaymentAttempt {
                 connector: storage_model.connector,
                 payment_method_billing_address,
                 connector_mandate_detail: storage_model.connector_mandate_detail,
+                request_overcapture: storage_model.request_overcapture,
+                overcapture_status: storage_model.overcapture_status,
             })
         }
         .await

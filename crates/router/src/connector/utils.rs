@@ -180,7 +180,7 @@ where
                     .map(MinorUnit::new)
                     .map(|captured_amount| {
                         if total_capturable_amount == captured_amount
-                            || (overcapture_status == Some(enums::OverCaptureStatus::Available)
+                            || (overcapture_status == Some(enums::OverCaptureStatus::Applicable)
                                 && captured_amount > total_capturable_amount)
                         {
                             enums::AttemptStatus::Charged
