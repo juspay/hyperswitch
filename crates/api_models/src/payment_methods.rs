@@ -474,7 +474,6 @@ pub struct CardDetail {
     pub card_type: Option<String>,
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 #[derive(
     Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema, strum::EnumString, strum::Display,
 )]
@@ -2420,3 +2419,95 @@ impl From<(PaymentMethodRecord, id_type::MerchantId)> for customers::CustomerReq
 //         }
 //     }
 // }
+
+#[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct CardNetworkTokenizeRequest {
+    pub merchant_id: id_type::MerchantId,
+
+    #[serde(flatten)]
+    pub data: TokenizeDataRequest,
+
+    /// Card type
+    pub card_type: Option<CardType>,
+
+    /// The CIT (customer initiated transaction) transaction id associated with the payment method
+    pub network_transaction_id: Option<String>,
+
+    /// Customer details
+    pub customer: Option<payments::CustomerDetails>,
+
+    /// The billing details of the payment method
+    pub billing: Option<payments::Address>,
+
+    /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
+    pub metadata: Option<pii::SecretSerdeValue>,
+
+    /// The name of the bank/ provider issuing the payment method to the end user
+    pub payment_method_issuer: Option<String>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(untagged)]
+pub enum TokenizeDataRequest {
+    Card { card: TokenizeCardRequest },
+    PaymentMethodId { payment_method_id: String },
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct TokenizeCardRequest {
+    /// Card Number
+    #[schema(value_type = String,example = "4111111145551142")]
+    pub card_number: masking::Secret<String>,
+
+    /// Card Expiry Month
+    #[schema(value_type = String,example = "10")]
+    pub card_exp_month: masking::Secret<String>,
+
+    /// Card Expiry Year
+    #[schema(value_type = String,example = "25")]
+    pub card_exp_year: masking::Secret<String>,
+
+    /// The CVC number for the card
+    #[schema(value_type = String, example = "242")]
+    pub card_cvc: masking::Secret<String>,
+
+    /// Card Holder Name
+    #[schema(value_type = String,example = "John Doe")]
+    pub card_holder_name: Option<masking::Secret<String>>,
+
+    /// Card Holder's Nick Name
+    #[schema(value_type = Option<String>,example = "John Doe")]
+    pub nick_name: Option<masking::Secret<String>>,
+
+    /// Card Issuing Country
+    pub card_issuing_country: Option<String>,
+
+    /// Card's Network
+    #[schema(value_type = Option<CardNetwork>)]
+    pub card_network: Option<api_enums::CardNetwork>,
+
+    /// Issuer Bank for Card
+    pub card_issuer: Option<String>,
+
+    /// Card Type
+    pub card_type: Option<String>,
+}
+
+impl From<&TokenizeCardRequest> for MigrateCardDetail {
+    fn from(card: &TokenizeCardRequest) -> Self {
+        Self {
+            card_number: card.card_number.clone(),
+            card_exp_month: card.card_exp_month.clone(),
+            card_exp_year: card.card_exp_year.clone(),
+            card_holder_name: card.card_holder_name.clone(),
+            nick_name: card.nick_name.clone(),
+            card_issuing_country: card.card_issuing_country.clone(),
+            card_network: card.card_network.clone(),
+            card_issuer: card.card_issuer.clone(),
+            card_type: card.card_type.clone(),
+        }
+    }
+}
+
+impl common_utils::events::ApiEventMetric for CardNetworkTokenizeRequest {}

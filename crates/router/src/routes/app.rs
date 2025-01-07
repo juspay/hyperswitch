@@ -1198,17 +1198,22 @@ impl PaymentMethods {
                         .route(web::get().to(list_payment_method_api)), // TODO : added for sdk compatibility for now, need to deprecate this later
                 )
                 .service(
-                    web::resource("/migrate").route(web::post().to(migrate_payment_method_api)),
-                )
-                .service(
-                    web::resource("/migrate-batch").route(web::post().to(migrate_payment_methods)),
-                )
-                .service(
                     web::resource("/collect").route(web::post().to(initiate_pm_collect_link_flow)),
                 )
                 .service(
                     web::resource("/collect/{merchant_id}/{collect_id}")
                         .route(web::get().to(render_pm_collect_link)),
+                )
+                .service(
+                    web::resource("/migrate").route(web::post().to(migrate_payment_method_api)),
+                )
+                .service(
+                    web::resource("/migrate-batch").route(web::post().to(migrate_payment_methods)),
+                )
+                .service(web::resource("/tokenize-card").route(web::post().to(tokenize_card_api)))
+                .service(
+                    web::resource("/tokenize-card-batch")
+                        .route(web::post().to(tokenize_card_batch_api)),
                 )
                 .service(
                     web::resource("/{payment_method_id}")

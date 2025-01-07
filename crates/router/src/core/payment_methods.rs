@@ -6,6 +6,7 @@ pub mod cards;
 pub mod migration;
 pub mod network_tokenization;
 pub mod surcharge_decision_configs;
+pub mod tokenize;
 pub mod transformers;
 pub mod utils;
 mod validator;

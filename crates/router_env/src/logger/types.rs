@@ -537,6 +537,10 @@ pub enum Flow {
     Relay,
     /// Relay retrieve flow
     RelayRetrieve,
+    /// Card tokenization flow
+    TokenizeCard,
+    /// Cards batch tokenization flow
+    TokenizeCardBatch,
 }
 
 /// Trait for providing generic behaviour to flow metric

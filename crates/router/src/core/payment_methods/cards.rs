@@ -82,7 +82,7 @@ use crate::{
     },
     core::{
         errors::{self, StorageErrorExt},
-        payment_methods::{network_tokenization, transformers as payment_methods, vault},
+        payment_methods::{network_tokenization, tokenize, transformers as payment_methods, vault},
         payments::{
             helpers,
             routing::{self, SessionFlowRoutingInput},
@@ -6031,4 +6031,30 @@ pub async fn list_countries_currencies_for_connector_payment_method_util(
             })
             .collect(),
     }
+}
+
+pub async fn tokenize_card_flow(
+    state: routes::SessionState,
+    req: api::CardNetworkTokenizeRequest,
+    merchant_id: &id_type::MerchantId,
+    merchant_account: &domain::MerchantAccount,
+    key_store: &domain::MerchantKeyStore,
+) -> errors::RouterResponse<tokenize::CardNetworkTokenizeResponse> {
+    let response = match req.data {
+        api::TokenizeDataRequest::Card { ref card } => {
+            tokenize::CardNetworkTokenizeResponseBuilder::<
+                api::TokenizeCardRequest,
+                tokenize::TokenizeWithCard,
+            >::new(req, card.clone())
+            .validate_request(&state, merchant_account, key_store)
+            .await?
+            .tokenize_card(&state)
+            .await?
+            .create_payment_method(&state, merchant_account)
+            .await?
+            .build()
+        }
+        api::TokenizeDataRequest::PaymentMethodId { payment_method_id } => todo!(),
+    };
+    Ok(services::ApplicationResponse::Json(response))
 }

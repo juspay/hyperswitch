@@ -946,3 +946,65 @@ impl ParentPaymentMethodToken {
         }
     }
 }
+
+#[instrument(skip_all, fields(flow = ?Flow::TokenizeCard))]
+pub async fn tokenize_card_api(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<payment_methods::CardNetworkTokenizeRequest>,
+) -> HttpResponse {
+    let flow = Flow::TokenizeCard;
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        json_payload.into_inner(),
+        |state, _, req, _| async move {
+            let merchant_id = req.merchant_id.clone();
+            let (key_store, merchant_account) = get_merchant_account(&state, &merchant_id).await?;
+            Box::pin(cards::tokenize_card_flow(
+                state,
+                req,
+                &merchant_id,
+                &merchant_account,
+                &key_store,
+            ))
+            .await
+        },
+        &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[instrument(skip_all, fields(flow = ?Flow::TokenizeCardBatch))]
+pub async fn tokenize_card_batch_api(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<payment_methods::CardNetworkTokenizeRequest>,
+) -> HttpResponse {
+    let flow = Flow::TokenizeCardBatch;
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        json_payload.into_inner(),
+        |state, _, req, _| async move {
+            let merchant_id = req.merchant_id.clone();
+            let (key_store, merchant_account) = get_merchant_account(&state, &merchant_id).await?;
+            Box::pin(cards::tokenize_card_flow(
+                state,
+                req,
+                &merchant_id,
+                &merchant_account,
+                &key_store,
+            ))
+            .await
+        },
+        &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
