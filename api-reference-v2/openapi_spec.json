@@ -7971,27 +7971,6 @@
           "frictionless"
         ]
       },
-      "DefaultPaymentMethod": {
-        "type": "object",
-        "required": [
-          "customer_id",
-          "payment_method_id"
-        ],
-        "properties": {
-          "customer_id": {
-            "type": "string",
-            "example": "12345_cus_y3oqhf46pyzuxjbcn2giaqnb44",
-            "maxLength": 64,
-            "minLength": 1
-          },
-          "payment_method_id": {
-            "type": "string",
-            "example": "12345_pm_y3oqhf46pyzuxjbcn2giaqnb44",
-            "maxLength": 64,
-            "minLength": 1
-          }
-        }
-      },
       "DeviceChannel": {
         "type": "string",
         "description": "Device Channel indicating whether request is coming from App or Browser",
