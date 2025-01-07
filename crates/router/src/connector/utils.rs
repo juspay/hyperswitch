@@ -175,12 +175,12 @@ where
             }
             enums::AttemptStatus::Charged => {
                 let total_capturable_amount = payment_data.payment_attempt.get_total_amount();
-                let is_overcapture_applied = payment_data.payment_attempt.is_overcapture_applied();
+                let overcapture_status = payment_data.payment_attempt.overcapture_status;
                 types::Capturable::get_captured_amount(&self.request, payment_data)
                     .map(MinorUnit::new)
                     .map(|captured_amount| {
                         if total_capturable_amount == captured_amount
-                            || (is_overcapture_applied == Some(true)
+                            || (overcapture_status == Some(enums::OverCaptureStatus::Available)
                                 && captured_amount > total_capturable_amount)
                         {
                             enums::AttemptStatus::Charged

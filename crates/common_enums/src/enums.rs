@@ -3380,9 +3380,26 @@ pub enum External3dsAuthenticationRequest {
 }
 
 /// Whether overcapture is requested or not
-#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, Default, ToSchema)]
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    Hash,
+    PartialEq,
+    ToSchema,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumIter,
+    strum::EnumString,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 pub enum OverCaptureRequest {
-    /// Request for overcapture
+    /// Request for applying overcapture
     Enable,
     /// Skip overcapture
     #[default]
@@ -3390,13 +3407,30 @@ pub enum OverCaptureRequest {
 }
 
 /// Whether overcapture is allowed by the connector
-#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, Default, ToSchema)]
-pub enum OverCaptureApplied {
-    /// Request for overcapture
-    Applied,
-    /// Skip overcapture
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    Hash,
+    PartialEq,
+    ToSchema,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumIter,
+    strum::EnumString,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum OverCaptureStatus {
+    /// Overcapture is allowed
+    Applicable,
+    /// Overcapture is not allowed
     #[default]
-    NotApplied,
+    NotApplicable,
 }
 
 /// Whether payment link is requested to be enabled or not for this transaction

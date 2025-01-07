@@ -419,9 +419,9 @@ where
         .connector_response
         .as_ref()
         .and_then(|resp| resp.overcapture_data.clone());
-    let overcapture_applied = overcapture_data
+    let overcapture_status = overcapture_data
         .as_ref()
-        .map(|data| data.overcapture_applied);
+        .map(|data| data.overcapture_status);
     let maximum_capturable_amount = overcapture_data
         .as_ref()
         .map(|data| data.maximum_capturable_amount);
@@ -478,7 +478,7 @@ where
                 payment_method_data: additional_payment_method_data,
                 charge_id,
                 connector_mandate_detail: None,
-                overcapture_applied,
+                overcapture_status,
             };
 
             #[cfg(feature = "v1")]

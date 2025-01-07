@@ -1824,7 +1824,7 @@ impl TryFrom<(&types::PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntent
                                 &item.request,
                             )),
                             billing_address,
-                            item.request.request_overcapture,
+                            item.request.request_overcapture.map(|request_overcapture|request_overcapture.as_bool()),
                         )?;
 
                     validate_shipping_address_against_payment_method(
@@ -2295,13 +2295,13 @@ pub struct StripeAdditionalCardDetails {
 
 #[derive(Deserialize, Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct StripeOvercaptureResponse {
-    status: Option<StripeOvercaptureStatus>,
+    status: Option<StripeOverCaptureStatus>,
     maximum_amount_capturable: Option<MinorUnit>,
 }
 
 #[derive(Deserialize, Clone, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
-pub enum StripeOvercaptureStatus {
+pub enum StripeOverCaptureStatus {
     Available,
     Unavailable,
 }
@@ -4159,16 +4159,20 @@ fn get_transaction_metadata(
 fn extract_overcapture_response_from_latest_charge(
     latest_charge: &StripeChargeEnum,
 ) -> Option<types::OverCaptureData> {
-    let (overcapture_applied, maximum_overcapture_amount) = match latest_charge {
+    let (overcapture_status, maximum_overcapture_amount) = match latest_charge {
         StripeChargeEnum::ChargeObject(charge_object) => charge_object
             .payment_method_details
             .as_ref()
             .and_then(|payment_method_details| match payment_method_details {
                 StripePaymentMethodDetailsResponse::Card { card } => {
-                    let overcapture_applied = card.overcapture.as_ref().and_then(|overcapture| {
+                    let overcapture_status = card.overcapture.as_ref().and_then(|overcapture| {
                         match overcapture.status.clone() {
-                            Some(StripeOvercaptureStatus::Available) => Some(true),
-                            Some(StripeOvercaptureStatus::Unavailable) => Some(false),
+                            Some(StripeOverCaptureStatus::Available) => {
+                                Some(common_enums::OverCaptureStatus::Applicable)
+                            }
+                            Some(StripeOverCaptureStatus::Unavailable) => {
+                                Some(common_enums::OverCaptureStatus::NotApplicable)
+                            }
                             None => None,
                         }
                     });
@@ -4176,17 +4180,17 @@ fn extract_overcapture_response_from_latest_charge(
                         .overcapture
                         .as_ref()
                         .and_then(|overcapture| overcapture.maximum_amount_capturable);
-                    Some((overcapture_applied, maximum_capturable_amount))
+                    Some((overcapture_status, maximum_capturable_amount))
                 }
                 _ => None,
             })
             .unwrap_or((None, None)),
         _ => (None, None),
     };
-    overcapture_applied
+    overcapture_status
         .zip(maximum_overcapture_amount)
         .map(|overcapture_data| types::OverCaptureData {
-            overcapture_applied: overcapture_data.0,
+            overcapture_status: overcapture_data.0,
             maximum_capturable_amount: overcapture_data.1,
         })
 }

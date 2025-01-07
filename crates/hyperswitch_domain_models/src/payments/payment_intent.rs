@@ -196,7 +196,7 @@ pub struct PaymentIntentUpdateFields {
     pub shipping_details: Option<Encryptable<Secret<serde_json::Value>>>,
     pub is_payment_processor_token_flow: Option<bool>,
     pub tax_details: Option<diesel_models::TaxDetails>,
-    pub request_overcapture: Option<bool>,
+    pub request_overcapture: Option<common_enums::OverCaptureRequest>,
 }
 
 #[cfg(feature = "v1")]
@@ -352,7 +352,7 @@ pub struct PaymentIntentUpdateInternal {
     pub shipping_details: Option<Encryptable<Secret<serde_json::Value>>>,
     pub is_payment_processor_token_flow: Option<bool>,
     pub tax_details: Option<diesel_models::TaxDetails>,
-    pub request_overcapture: Option<bool>,
+    pub request_overcapture: Option<common_enums::OverCaptureRequest>,
 }
 
 // This conversion is used in the `update_payment_intent` function

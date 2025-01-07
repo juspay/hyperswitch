@@ -110,7 +110,7 @@ pub struct PaymentIntent {
     pub skip_external_tax_calculation: Option<bool>,
     pub psd2_sca_exemption_type: Option<storage_enums::ScaExemptionType>,
     pub platform_merchant_id: Option<id_type::MerchantId>,
-    pub request_overcapture: Option<bool>,
+    pub request_overcapture: Option<storage_enums::OverCaptureRequest>,
 }
 
 impl PaymentIntent {

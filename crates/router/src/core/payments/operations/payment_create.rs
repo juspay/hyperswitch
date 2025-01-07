@@ -1144,9 +1144,14 @@ impl PaymentCreate {
             .flatten();
 
         let request_overcapture = match (request.capture_method, request.confirm) {
-            (Some(api_models::enums::CaptureMethod::Manual), _) | (None, Some(false)) => request
-                .request_overcapture
-                .or(Some(business_profile.always_request_overcapture)),
+            (Some(api_models::enums::CaptureMethod::Manual), _) => {
+                request
+                    .request_overcapture
+                    .or(Some(api_models::enums::OverCaptureRequest::from(
+                        business_profile.always_request_overcapture,
+                    )))
+            }
+            (None, Some(false)) => None,
             _ => Err(errors::ApiErrorResponse::NotSupported {
                 message: "requesting overcapture is supported only via manual capture".to_owned(),
             })?,

@@ -2021,10 +2021,10 @@ impl super::External3dsAuthenticationRequest {
     }
 }
 
-impl From<Option<bool>> for super::OverCaptureRequest {
-    fn from(value: Option<bool>) -> Self {
+impl From<bool> for super::OverCaptureRequest {
+    fn from(value: bool) -> Self {
         match value {
-            Some(true) => Self::Enable,
+            true => Self::Enable,
             _ => Self::Skip,
         }
     }
@@ -2040,12 +2040,21 @@ impl super::OverCaptureRequest {
     }
 }
 
-/// Get the boolean value of the `OverCaptureApplied`.
-impl super::OverCaptureApplied {
+impl From<Option<bool>> for super::OverCaptureStatus {
+    fn from(value: Option<bool>) -> Self {
+        match value {
+            Some(true) => Self::Applicable,
+            _ => Self::NotApplicable,
+        }
+    }
+}
+
+/// Get the boolean value of the `OverCaptureStatus`.
+impl super::OverCaptureStatus {
     pub fn as_bool(&self) -> bool {
         match self {
-            Self::Applied => true,
-            Self::NotApplied => false,
+            Self::Applicable => true,
+            Self::NotApplicable => false,
         }
     }
 }

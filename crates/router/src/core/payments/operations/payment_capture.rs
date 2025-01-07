@@ -101,7 +101,9 @@ impl<F: Send + Clone + Sync> GetTracker<F, payments::PaymentData<F>, api::Paymen
             request
                 .amount_to_capture
                 .map(|capture_amount| capture_amount.get_amount_as_i64()),
-            payment_attempt.overcapture_applied,
+            payment_attempt
+                .request_overcapture
+                .map(|request_overcapture| request_overcapture.as_bool()),
         )?;
 
         helpers::validate_capture_method(capture_method)?;
@@ -114,7 +116,9 @@ impl<F: Send + Clone + Sync> GetTracker<F, payments::PaymentData<F>, api::Paymen
             helpers::validate_amount_to_capture(
                 payment_attempt.amount_capturable.get_amount_as_i64(),
                 Some(amount_to_capture.get_amount_as_i64()),
-                payment_attempt.overcapture_applied,
+                payment_attempt
+                    .overcapture_status
+                    .map(|overcapture_status| overcapture_status.as_bool()),
             )?;
 
             let previous_captures = db

@@ -343,7 +343,7 @@ impl ConnectorResponseData {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct OverCaptureData {
-    pub overcapture_applied: bool,
+    pub overcapture_status: common_enums::OverCaptureStatus,
     pub maximum_capturable_amount: MinorUnit,
 }
 

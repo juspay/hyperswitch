@@ -75,7 +75,7 @@ pub struct PaymentIntent {
     pub psd2_sca_exemption_type: Option<storage_enums::ScaExemptionType>,
     pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
     pub platform_merchant_id: Option<common_utils::id_type::MerchantId>,
-    pub request_overcapture: Option<bool>,
+    pub request_overcapture: Option<storage_enums::OverCaptureRequest>,
 }
 
 #[cfg(feature = "v1")]
@@ -143,7 +143,7 @@ pub struct PaymentIntent {
     pub psd2_sca_exemption_type: Option<storage_enums::ScaExemptionType>,
     pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
     pub platform_merchant_id: Option<common_utils::id_type::MerchantId>,
-    pub request_overcapture: Option<bool>,
+    pub request_overcapture: Option<storage_enums::OverCaptureRequest>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, diesel::AsExpression, PartialEq)]
@@ -305,7 +305,7 @@ pub struct PaymentIntentNew {
     pub apply_mit_exemption: Option<bool>,
     pub id: common_utils::id_type::GlobalPaymentId,
     pub platform_merchant_id: Option<common_utils::id_type::MerchantId>,
-    pub request_overcapture: Option<bool>,
+    pub request_overcapture: Option<storage_enums::OverCaptureRequest>,
 }
 
 #[cfg(feature = "v1")]
@@ -374,7 +374,7 @@ pub struct PaymentIntentNew {
     pub psd2_sca_exemption_type: Option<storage_enums::ScaExemptionType>,
     pub platform_merchant_id: Option<common_utils::id_type::MerchantId>,
     pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
-    pub request_overcapture: Option<bool>,
+    pub request_overcapture: Option<storage_enums::OverCaptureRequest>,
 }
 
 #[cfg(feature = "v2")]
@@ -530,7 +530,7 @@ pub struct PaymentIntentUpdateFields {
     pub shipping_details: Option<Encryption>,
     pub is_payment_processor_token_flow: Option<bool>,
     pub tax_details: Option<TaxDetails>,
-    pub request_overcapture: Option<bool>,
+    pub request_overcapture: Option<storage_enums::OverCaptureRequest>,
 }
 
 // TODO: uncomment fields as necessary
@@ -615,7 +615,7 @@ pub struct PaymentIntentUpdateInternal {
     pub shipping_details: Option<Encryption>,
     pub is_payment_processor_token_flow: Option<bool>,
     pub tax_details: Option<TaxDetails>,
-    pub request_overcapture: Option<bool>,
+    pub request_overcapture: Option<storage_enums::OverCaptureRequest>,
 }
 
 #[cfg(feature = "v1")]

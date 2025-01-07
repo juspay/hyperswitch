@@ -2290,7 +2290,7 @@ where
             order_tax_amount,
             connector_mandate_id,
             shipping_cost: payment_intent.shipping_cost,
-            overcapture_applied: payment_attempt.overcapture_applied,
+            overcapture_status: payment_attempt.overcapture_status,
         };
 
         services::ApplicationResponse::JsonWithHeaders((payments_response, headers))
@@ -2547,7 +2547,7 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             order_tax_amount: None,
             connector_mandate_id:None,
             shipping_cost: None,
-            overcapture_applied: pa.overcapture_applied,
+            overcapture_status: pa.overcapture_status,
         }
     }
 }

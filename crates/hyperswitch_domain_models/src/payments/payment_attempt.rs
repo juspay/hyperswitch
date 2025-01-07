@@ -405,7 +405,7 @@ pub struct PaymentAttempt {
     /// Whether to request for overcapture
     pub request_overcapture: Option<storage_enums::OverCaptureRequest>,
     /// Whether overcapture was applied
-    pub overcapture_applied: Option<storage_enums::OverCaptureApplied>,
+    pub overcapture_status: Option<storage_enums::OverCaptureStatus>,
 }
 
 impl PaymentAttempt {
@@ -449,16 +449,6 @@ impl PaymentAttempt {
     #[cfg(feature = "v2")]
     pub fn get_connector_payment_id(&self) -> Option<&str> {
         self.connector_payment_id.as_deref()
-    }
-
-    #[cfg(feature = "v1")]
-    pub fn is_overcapture_applied(&self) -> Option<bool> {
-        self.overcapture_applied
-    }
-
-    #[cfg(feature = "v2")]
-    pub fn is_overcapture_applied(&self) -> Option<bool> {
-        self.overcapture_applied.as_bool()
     }
 
     /// Construct the domain model from the ConfirmIntentRequest and PaymentIntent
@@ -604,8 +594,8 @@ pub struct PaymentAttempt {
     pub profile_id: id_type::ProfileId,
     pub organization_id: id_type::OrganizationId,
     pub connector_mandate_detail: Option<ConnectorMandateReferenceId>,
-    pub request_overcapture: Option<bool>,
-    pub overcapture_applied: Option<bool>,
+    pub request_overcapture: Option<storage_enums::OverCaptureRequest>,
+    pub overcapture_status: Option<storage_enums::OverCaptureStatus>,
 }
 
 #[cfg(feature = "v1")]
@@ -852,7 +842,7 @@ pub struct PaymentAttemptNew {
     pub profile_id: id_type::ProfileId,
     pub organization_id: id_type::OrganizationId,
     pub connector_mandate_detail: Option<ConnectorMandateReferenceId>,
-    pub request_overcapture: Option<bool>,
+    pub request_overcapture: Option<storage_enums::OverCaptureRequest>,
 }
 
 #[cfg(feature = "v1")]
@@ -874,7 +864,7 @@ pub enum PaymentAttemptUpdate {
         fingerprint_id: Option<String>,
         payment_method_billing_address_id: Option<String>,
         updated_by: String,
-        request_overcapture: Option<bool>,
+        request_overcapture: Option<storage_enums::OverCaptureRequest>,
     },
     UpdateTrackers {
         payment_token: Option<String>,
@@ -920,7 +910,7 @@ pub enum PaymentAttemptUpdate {
         client_version: Option<String>,
         customer_acceptance: Option<pii::SecretSerdeValue>,
         connector_mandate_detail: Option<ConnectorMandateReferenceId>,
-        request_overcapture: Option<bool>,
+        request_overcapture: Option<storage_enums::OverCaptureRequest>,
     },
     RejectUpdate {
         status: storage_enums::AttemptStatus,
@@ -969,7 +959,7 @@ pub enum PaymentAttemptUpdate {
         payment_method_data: Option<serde_json::Value>,
         charge_id: Option<String>,
         connector_mandate_detail: Option<ConnectorMandateReferenceId>,
-        overcapture_applied: Option<bool>,
+        overcapture_status: Option<storage_enums::OverCaptureStatus>,
     },
     UnresolvedResponseUpdate {
         status: storage_enums::AttemptStatus,
@@ -1244,7 +1234,7 @@ impl PaymentAttemptUpdate {
                 payment_method_data,
                 charge_id,
                 connector_mandate_detail,
-                overcapture_applied,
+                overcapture_status,
             } => DieselPaymentAttemptUpdate::ResponseUpdate {
                 status,
                 connector,
@@ -1267,7 +1257,7 @@ impl PaymentAttemptUpdate {
                 payment_method_data,
                 charge_id,
                 connector_mandate_detail,
-                overcapture_applied,
+                overcapture_status,
             },
             Self::UnresolvedResponseUpdate {
                 status,
@@ -1578,7 +1568,7 @@ impl behaviour::Conversion for PaymentAttempt {
             shipping_cost: self.net_amount.get_shipping_cost(),
             connector_mandate_detail: self.connector_mandate_detail,
             request_overcapture: self.request_overcapture,
-            overcapture_applied: self.overcapture_applied,
+            overcapture_status: self.overcapture_status,
         })
     }
 
@@ -1661,7 +1651,7 @@ impl behaviour::Conversion for PaymentAttempt {
                 organization_id: storage_model.organization_id,
                 connector_mandate_detail: storage_model.connector_mandate_detail,
                 request_overcapture: storage_model.request_overcapture,
-                overcapture_applied: storage_model.overcapture_applied,
+                overcapture_status: storage_model.overcapture_status,
             })
         }
         .await

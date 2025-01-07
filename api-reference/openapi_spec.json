@@ -15517,6 +15517,22 @@
           }
         }
       },
+      "OverCaptureRequest": {
+        "type": "string",
+        "description": "Whether overcapture is requested or not",
+        "enum": [
+          "enable",
+          "skip"
+        ]
+      },
+      "OverCaptureStatus": {
+        "type": "string",
+        "description": "Whether overcapture is allowed by the connector",
+        "enum": [
+          "applicable",
+          "not_applicable"
+        ]
+      },
       "PayLaterData": {
         "oneOf": [
           {
@@ -17906,8 +17922,11 @@
             "nullable": true
           },
           "request_overcapture": {
-            "type": "boolean",
-            "description": "Whether to request overcapture on this payment",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OverCaptureRequest"
+              }
+            ],
             "nullable": true
           }
         }
@@ -18304,8 +18323,11 @@
             "nullable": true
           },
           "request_overcapture": {
-            "type": "boolean",
-            "description": "Whether to request overcapture on this payment",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OverCaptureRequest"
+              }
+            ],
             "nullable": true
           }
         }
@@ -18847,9 +18869,12 @@
             "description": "Connector Identifier for the payment method",
             "nullable": true
           },
-          "overcapture_applied": {
-            "type": "boolean",
-            "description": "Whether the payment is overcaptureable or not",
+          "overcapture_status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OverCaptureStatus"
+              }
+            ],
             "nullable": true
           }
         }
@@ -19531,8 +19556,11 @@
             "nullable": true
           },
           "request_overcapture": {
-            "type": "boolean",
-            "description": "Whether to request overcapture on this payment",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OverCaptureRequest"
+              }
+            ],
             "nullable": true
           }
         },
@@ -20100,9 +20128,12 @@
             "description": "Connector Identifier for the payment method",
             "nullable": true
           },
-          "overcapture_applied": {
-            "type": "boolean",
-            "description": "Whether the payment is overcaptureable or not",
+          "overcapture_status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OverCaptureStatus"
+              }
+            ],
             "nullable": true
           }
         }
@@ -20597,8 +20628,11 @@
             "nullable": true
           },
           "request_overcapture": {
-            "type": "boolean",
-            "description": "Whether to request overcapture on this payment",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OverCaptureRequest"
+              }
+            ],
             "nullable": true
           }
         }

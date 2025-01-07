@@ -451,7 +451,7 @@ async fn payments_create_core() {
         order_tax_amount: None,
         connector_mandate_id: None,
         shipping_cost: None,
-        overcapture_applied: None,
+        overcapture_status: None,
     };
     let expected_response =
         services::ApplicationResponse::JsonWithHeaders((expected_response, vec![]));
@@ -716,7 +716,7 @@ async fn payments_create_core_adyen_no_redirect() {
             order_tax_amount: None,
             connector_mandate_id: None,
             shipping_cost: None,
-            overcapture_applied: None,
+            overcapture_status: None,
         },
         vec![],
     ));
