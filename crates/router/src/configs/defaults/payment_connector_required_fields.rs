@@ -13002,6 +13002,6 @@ pub fn get_worldpay_billing_required_fields() -> HashMap<String, RequiredFieldIn
                 field_type: enums::FieldType::UserAddressCity,
                 value: None,
             },
-        )
+        ),
     ])
 }
