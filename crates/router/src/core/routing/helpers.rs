@@ -773,6 +773,9 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
             payment_status: payment_attempt.status,
             conclusive_classification: outcome,
             created_at: common_utils::date_time::now(),
+            global_success_based_connector: Some(
+                first_global_success_based_connector.label.to_string(),
+            ),
         };
 
         core_metrics::DYNAMIC_SUCCESS_BASED_ROUTING.add(
