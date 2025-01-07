@@ -6295,7 +6295,7 @@ pub struct ApplePayRecurringPaymentRequest {
     pub billing_agreement: Option<String>,
     /// A URL to a web page where the user can update or delete the payment method for the recurring payment
     #[schema(value_type = String, example = "https://hyperswitch.io")]
-    pub management_url: common_utils::types::Url,
+    pub management_u_r_l: common_utils::types::Url,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]

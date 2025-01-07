@@ -139,7 +139,7 @@ pub struct Platform {
     pub enabled: bool,
 }
 
-#[derive(Debug, Deserialize, Clone, Default)]
+#[derive(Debug, Clone, Default, Deserialize)]
 pub struct Multitenancy {
     pub tenants: TenantConfig,
     pub enabled: bool,
@@ -197,8 +197,10 @@ impl storage_impl::config::TenantConfig for Tenant {
     }
 }
 
-#[derive(Debug, Deserialize, Clone, Default)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct GlobalTenant {
+    #[serde(default = "id_type::TenantId::get_default_global_tenant_id")]
+    pub tenant_id: id_type::TenantId,
     pub schema: String,
     pub redis_key_prefix: String,
     pub clickhouse_database: String,
