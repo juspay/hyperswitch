@@ -1567,9 +1567,15 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                 None
                             };
 
-                            let overcapture_data = router_data.connector_response.and_then(|resp| resp.overcapture_data);
-                            let overcapture_applied = overcapture_data.as_ref().map(|data| data.overcapture_applied);
-                            let maximum_capturable_amount = overcapture_data.as_ref().map(|data| data.maximum_capturable_amount);                    
+                            let overcapture_data = router_data
+                                .connector_response
+                                .and_then(|resp| resp.overcapture_data);
+                            let overcapture_applied = overcapture_data
+                                .as_ref()
+                                .map(|data| data.overcapture_applied);
+                            let maximum_capturable_amount = overcapture_data
+                                .as_ref()
+                                .map(|data| data.maximum_capturable_amount);
 
                             // incase of success, update error code and error message
                             let error_status =

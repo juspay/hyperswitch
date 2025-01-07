@@ -1143,12 +1143,13 @@ impl PaymentCreate {
             .transpose()?
             .flatten();
 
-        let request_overcapture =   match (request.capture_method, request.confirm) {
-            (Some(api_models::enums::CaptureMethod::Manual), _) | 
-            (None, Some(false)) => {
-                request.request_overcapture.or(Some(business_profile.always_request_overcapture))
-            }
-            _ => Err(errors::ApiErrorResponse::NotSupported{message: "requesting overcapture is supported only via manual capture".to_owned()})?
+        let request_overcapture = match (request.capture_method, request.confirm) {
+            (Some(api_models::enums::CaptureMethod::Manual), _) | (None, Some(false)) => request
+                .request_overcapture
+                .or(Some(business_profile.always_request_overcapture)),
+            _ => Err(errors::ApiErrorResponse::NotSupported {
+                message: "requesting overcapture is supported only via manual capture".to_owned(),
+            })?,
         };
 
         if additional_pm_data.is_none() {

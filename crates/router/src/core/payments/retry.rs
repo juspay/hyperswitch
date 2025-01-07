@@ -414,10 +414,17 @@ where
                 .clone()
                 .and_then(|connector_response| connector_response.additional_payment_method_data),
         )?;
-    
-        let overcapture_data = router_data.connector_response.as_ref().and_then(|resp| resp.overcapture_data.clone());
-        let overcapture_applied = overcapture_data.as_ref().map(|data| data.overcapture_applied);
-        let maximum_capturable_amount = overcapture_data.as_ref().map(|data| data.maximum_capturable_amount);
+
+    let overcapture_data = router_data
+        .connector_response
+        .as_ref()
+        .and_then(|resp| resp.overcapture_data.clone());
+    let overcapture_applied = overcapture_data
+        .as_ref()
+        .map(|data| data.overcapture_applied);
+    let maximum_capturable_amount = overcapture_data
+        .as_ref()
+        .map(|data| data.maximum_capturable_amount);
 
     match router_data.response {
         Ok(types::PaymentsResponseData::TransactionResponse {

@@ -2565,14 +2565,20 @@ impl<F, T>
             .latest_charge
             .as_ref()
             .and_then(extract_payment_method_connector_response_from_latest_charge);
-        let overcapture_data = item.response.latest_charge.as_ref().and_then(extract_overcapture_response_from_latest_charge);
-        let connector_response = if overcapture_data.is_some() || additional_payment_method_data.is_some() {
-        Some(types::ConnectorResponseData {
-            additional_payment_method_data,
-            overcapture_data,
-        })} else{
-            None
-        };
+        let overcapture_data = item
+            .response
+            .latest_charge
+            .as_ref()
+            .and_then(extract_overcapture_response_from_latest_charge);
+        let connector_response =
+            if overcapture_data.is_some() || additional_payment_method_data.is_some() {
+                Some(types::ConnectorResponseData {
+                    additional_payment_method_data,
+                    overcapture_data,
+                })
+            } else {
+                None
+            };
 
         Ok(Self {
             status,
@@ -2737,14 +2743,20 @@ impl<F, T>
             .latest_charge
             .as_ref()
             .and_then(extract_payment_method_connector_response_from_latest_charge);
-        let overcapture_data = item.response.latest_charge.as_ref().and_then(extract_overcapture_response_from_latest_charge);
-        let connector_response = if overcapture_data.is_some() || additional_payment_method_data.is_some() {
-        Some(types::ConnectorResponseData {
-            additional_payment_method_data,
-            overcapture_data,
-        })} else{
-            None
-        };
+        let overcapture_data = item
+            .response
+            .latest_charge
+            .as_ref()
+            .and_then(extract_overcapture_response_from_latest_charge);
+        let connector_response =
+            if overcapture_data.is_some() || additional_payment_method_data.is_some() {
+                Some(types::ConnectorResponseData {
+                    additional_payment_method_data,
+                    overcapture_data,
+                })
+            } else {
+                None
+            };
 
         let response = if connector_util::is_payment_failure(status) {
             types::PaymentsResponseData::foreign_try_from((
@@ -2764,7 +2776,6 @@ impl<F, T>
                     }),
                 _ => None,
             };
-
 
             let charge_id = item
                 .response
@@ -4147,7 +4158,7 @@ fn get_transaction_metadata(
 
 fn extract_overcapture_response_from_latest_charge(
     latest_charge: &StripeChargeEnum,
-) -> Option<types::OverCaptureData>{
+) -> Option<types::OverCaptureData> {
     let (overcapture_applied, maximum_overcapture_amount) = match latest_charge {
         StripeChargeEnum::ChargeObject(charge_object) => charge_object
             .payment_method_details
@@ -4172,10 +4183,12 @@ fn extract_overcapture_response_from_latest_charge(
             .unwrap_or((None, None)),
         _ => (None, None),
     };
-    overcapture_applied.zip(maximum_overcapture_amount).map(|overcapture_data| types::OverCaptureData {
-        overcapture_applied: overcapture_data.0,
-        maximum_capturable_amount: overcapture_data.1,
-    })
+    overcapture_applied
+        .zip(maximum_overcapture_amount)
+        .map(|overcapture_data| types::OverCaptureData {
+            overcapture_applied: overcapture_data.0,
+            maximum_capturable_amount: overcapture_data.1,
+        })
 }
 
 impl ForeignTryFrom<(&Option<ErrorDetails>, u16, String)> for types::PaymentsResponseData {
