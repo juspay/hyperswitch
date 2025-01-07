@@ -1,3 +1,5 @@
+import { getCustomExchange } from "./Commons";
+
 const billing = {
   address: {
     line1: "1467",
@@ -195,7 +197,7 @@ export const connectorDetails = {
         },
       },
     },
-    Void: {
+    Void: getCustomExchange({
       Request: {},
       Response: {
         status: 200,
@@ -211,7 +213,7 @@ export const connectorDetails = {
           code: "IR_16",
         },
       },
-    },
+    }),
     VoidAfterConfirm: {
       Request: {},
       Response: {

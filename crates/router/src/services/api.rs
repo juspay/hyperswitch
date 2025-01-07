@@ -79,6 +79,7 @@ use crate::{
         generic_link_response::build_generic_link_html,
     },
     types::{self, api, ErrorResponse},
+    utils,
 };
 
 pub type BoxedPaymentConnectorIntegrationInterface<T, Req, Resp> =
@@ -773,12 +774,14 @@ where
             )?
     };
 
-    let mut session_state = Arc::new(app_state.clone()).get_session_state(&tenant_id, || {
-        errors::ApiErrorResponse::InvalidTenant {
-            tenant_id: tenant_id.get_string_repr().to_string(),
-        }
-        .switch()
-    })?;
+    let locale = utils::get_locale_from_header(&incoming_request_header.clone());
+    let mut session_state =
+        Arc::new(app_state.clone()).get_session_state(&tenant_id, Some(locale), || {
+            errors::ApiErrorResponse::InvalidTenant {
+                tenant_id: tenant_id.get_string_repr().to_string(),
+            }
+            .switch()
+        })?;
     session_state.add_request_id(request_id);
     let mut request_state = session_state.get_req_state();
 

@@ -1,16 +1,13 @@
 use diesel_models::configs::ConfigUpdateInternal;
 use error_stack::{report, ResultExt};
 use router_env::{instrument, tracing};
-use storage_impl::redis::{
-    cache::{self, CacheKind, CONFIG_CACHE},
-    kv_store::RedisConnInterface,
-    pub_sub::PubSubInterface,
-};
+use storage_impl::redis::cache::{self, CacheKind, CONFIG_CACHE};
 
 use super::{MockDb, Store};
 use crate::{
     connection,
     core::errors::{self, CustomResult},
+    db::StorageInterface,
     types::storage,
 };
 
@@ -69,14 +66,11 @@ impl ConfigInterface for Store {
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))?;
 
-        self.get_redis_conn()
-            .map_err(Into::<errors::StorageError>::into)?
-            .publish(
-                cache::IMC_INVALIDATION_CHANNEL,
-                CacheKind::Config((&inserted.key).into()),
-            )
-            .await
-            .map_err(Into::<errors::StorageError>::into)?;
+        cache::redact_from_redis_and_publish(
+            self.get_cache_store().as_ref(),
+            [CacheKind::Config((&inserted.key).into())],
+        )
+        .await?;
 
         Ok(inserted)
     }
@@ -177,14 +171,11 @@ impl ConfigInterface for Store {
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))?;
 
-        self.get_redis_conn()
-            .map_err(Into::<errors::StorageError>::into)?
-            .publish(
-                cache::IMC_INVALIDATION_CHANNEL,
-                CacheKind::Config(key.into()),
-            )
-            .await
-            .map_err(Into::<errors::StorageError>::into)?;
+        cache::redact_from_redis_and_publish(
+            self.get_cache_store().as_ref(),
+            [CacheKind::Config((&deleted.key).into())],
+        )
+        .await?;
 
         Ok(deleted)
     }

@@ -3428,7 +3428,7 @@ impl
                                 email: item.get_billing_email().or(item.request.get_email())?,
                             },
                             amount: Some(amount),
-                            return_url: Some(item.get_return_url()?),
+                            return_url: Some(item.request.get_router_return_url()?),
                         }),
                     ),
                     domain::BankTransferData::AchBankTransfer { .. } => {

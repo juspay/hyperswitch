@@ -127,7 +127,6 @@ where
         payment_method: diesel_models::enums::PaymentMethod::default(),
         connector_auth_type: auth_type,
         description: None,
-        return_url: None,
         address: payment_data.address.clone(),
         auth_type: payment_data
             .payment_attempt
@@ -327,14 +326,6 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
             .as_ref()
             .map(|description| description.get_string_repr())
             .map(ToOwned::to_owned),
-        // TODO: evaluate why we need to send merchant's return url here
-        // This should be the return url of application, since application takes care of the redirection
-        return_url: payment_data
-            .payment_intent
-            .return_url
-            .as_ref()
-            .map(|description| description.get_string_repr())
-            .map(ToOwned::to_owned),
         // TODO: Create unified address
         address: payment_data.payment_address.clone(),
         auth_type: payment_data.payment_attempt.authentication_type,
@@ -495,14 +486,6 @@ pub async fn construct_payment_router_data_for_capture<'a>(
             .as_ref()
             .map(|description| description.get_string_repr())
             .map(ToOwned::to_owned),
-        // TODO: evaluate why we need to send merchant's return url here
-        // This should be the return url of application, since application takes care of the redirection
-        return_url: payment_data
-            .payment_intent
-            .return_url
-            .as_ref()
-            .map(|description| description.get_string_repr())
-            .map(ToOwned::to_owned),
         // TODO: Create unified address
         address: hyperswitch_domain_models::payment_address::PaymentAddress::default(),
         auth_type: payment_data.payment_attempt.authentication_type,
@@ -627,13 +610,6 @@ pub async fn construct_router_data_for_psync<'a>(
         connector_auth_type: auth_type,
         description: payment_intent
             .description
-            .as_ref()
-            .map(|description| description.get_string_repr())
-            .map(ToOwned::to_owned),
-        // TODO: evaluate why we need to send merchant's return url here
-        // This should be the return url of application, since application takes care of the redirection
-        return_url: payment_intent
-            .return_url
             .as_ref()
             .map(|description| description.get_string_repr())
             .map(ToOwned::to_owned),
@@ -791,14 +767,6 @@ pub async fn construct_payment_router_data_for_sdk_session<'a>(
         description: payment_data
             .payment_intent
             .description
-            .as_ref()
-            .map(|description| description.get_string_repr())
-            .map(ToOwned::to_owned),
-        // TODO: evaluate why we need to send merchant's return url here
-        // This should be the return url of application, since application takes care of the redirection
-        return_url: payment_data
-            .payment_intent
-            .return_url
             .as_ref()
             .map(|description| description.get_string_repr())
             .map(ToOwned::to_owned),
@@ -988,7 +956,6 @@ where
         payment_method,
         connector_auth_type: auth_type,
         description: payment_data.payment_intent.description.clone(),
-        return_url: payment_data.payment_intent.return_url.clone(),
         address: unified_address,
         auth_type: payment_data
             .payment_attempt
@@ -3520,7 +3487,7 @@ impl
                     .recurring_payment_interval_count,
             },
             billing_agreement: apple_pay_recurring_details.billing_agreement,
-            management_url: apple_pay_recurring_details.management_url,
+            management_u_r_l: apple_pay_recurring_details.management_url,
         }
     }
 }
