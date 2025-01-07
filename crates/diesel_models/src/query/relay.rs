@@ -1,4 +1,4 @@
-use diesel::{associations::HasTable, ExpressionMethods};
+use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
 
 use super::generics;
 use crate::{
@@ -50,10 +50,13 @@ impl Relay {
     pub async fn find_by_connector_reference_id(
         conn: &PgPooledConn,
         connector_reference_id: &str,
+        profile_id: &common_utils::id_type::ProfileId,
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
-            dsl::id.eq(connector_reference_id.to_owned()),
+            dsl::profile_id
+                .eq(profile_id.to_owned())
+                .and(dsl::connector_reference_id.eq(connector_reference_id.to_owned())),
         )
         .await
     }

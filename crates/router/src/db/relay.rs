@@ -41,6 +41,7 @@ pub trait RelayInterface {
         key_manager_state: &KeyManagerState,
         merchant_key_store: &domain::MerchantKeyStore,
         connector_reference_id: &str,
+        profile_id: &common_utils::id_type::ProfileId,
     ) -> CustomResult<hyperswitch_domain_models::relay::Relay, errors::StorageError>;
 }
 
@@ -118,9 +119,10 @@ impl RelayInterface for Store {
         key_manager_state: &KeyManagerState,
         merchant_key_store: &domain::MerchantKeyStore,
         connector_reference_id: &str,
+        profile_id: &common_utils::id_type::ProfileId,
     ) -> CustomResult<hyperswitch_domain_models::relay::Relay, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
-        diesel_models::relay::Relay::find_by_connector_reference_id(&conn, connector_reference_id)
+        diesel_models::relay::Relay::find_by_connector_reference_id(&conn, connector_reference_id, profile_id)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))?
             .convert(
@@ -168,6 +170,7 @@ impl RelayInterface for MockDb {
         _key_manager_state: &KeyManagerState,
         _merchant_key_store: &domain::MerchantKeyStore,
         _connector_reference_id: &str,
+        _profile_id: &common_utils::id_type::ProfileId,
     ) -> CustomResult<hyperswitch_domain_models::relay::Relay, errors::StorageError> {
         Err(errors::StorageError::MockDbError)?
     }
@@ -219,12 +222,14 @@ impl RelayInterface for KafkaStore {
         key_manager_state: &KeyManagerState,
         merchant_key_store: &domain::MerchantKeyStore,
         connector_reference_id: &str,
+        profile_id: &common_utils::id_type::ProfileId,
     ) -> CustomResult<hyperswitch_domain_models::relay::Relay, errors::StorageError> {
         self.diesel_store
             .find_relay_by_connector_reference_id(
                 key_manager_state,
                 merchant_key_store,
                 connector_reference_id,
+                profile_id,
             )
             .await
     }

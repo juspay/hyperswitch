@@ -1518,13 +1518,11 @@ pub struct RelayWebhooks;
 impl RelayWebhooks {
     pub fn server(state: AppState) -> Scope {
         use api_models::webhooks as webhook_type;
-        web::scope("/webhooks")
+        web::scope("/webhooks/relay")
             .app_data(web::Data::new(state))
-            .service(
-                web::resource("/relay/{merchant_id}/{connector_id}").route(
-                    web::post().to(receive_incoming_relay_webhook::<webhook_type::OutgoingWebhook>),
-                ),
-            )
+            .service(web::resource("/{merchant_id}/{connector_id}").route(
+                web::post().to(receive_incoming_relay_webhook::<webhook_type::OutgoingWebhook>),
+            ))
     }
 }
 
