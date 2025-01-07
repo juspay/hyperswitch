@@ -10,6 +10,7 @@ pub trait OrganizationBridge {
     fn get_organization_name(&self) -> Option<String>;
     fn set_organization_name(&mut self, organization_name: String);
     fn set_platform_merchant_id(&mut self, platform_merchant_id: id_type::MerchantId);
+    fn get_platform_merchant_id(&self) -> Option<id_type::MerchantId>;
 }
 #[cfg(feature = "v1")]
 #[derive(Clone, Debug, Identifiable, Queryable, Selectable)]
@@ -267,6 +268,9 @@ impl OrganizationBridge for Organization {
     fn set_platform_merchant_id(&mut self, platform_merchant_id: id_type::MerchantId) {
         self.platform_merchant_id = Some(platform_merchant_id);
     }
+    fn get_platform_merchant_id(&self) -> Option<id_type::MerchantId> {
+        self.platform_merchant_id.clone()
+    }
 }
 
 #[cfg(feature = "v1")]
@@ -282,6 +286,9 @@ impl OrganizationBridge for OrganizationNew {
     }
     fn set_platform_merchant_id(&mut self, platform_merchant_id: id_type::MerchantId) {
         self.platform_merchant_id = Some(platform_merchant_id);
+    }
+    fn get_platform_merchant_id(&self) -> Option<id_type::MerchantId> {
+        self.platform_merchant_id.clone()
     }
 }
 
@@ -299,6 +306,9 @@ impl OrganizationBridge for Organization {
     fn set_platform_merchant_id(&mut self, platform_merchant_id: id_type::MerchantId) {
         self.platform_merchant_id = Some(platform_merchant_id);
     }
+    fn get_platform_merchant_id(&self) -> Option<id_type::MerchantId> {
+        self.platform_merchant_id.clone()
+    }
 }
 
 #[cfg(feature = "v2")]
@@ -314,5 +324,8 @@ impl OrganizationBridge for OrganizationNew {
     }
     fn set_platform_merchant_id(&mut self, platform_merchant_id: id_type::MerchantId) {
         self.platform_merchant_id = Some(platform_merchant_id);
+    }
+    fn get_platform_merchant_id(&self) -> Option<id_type::MerchantId> {
+        self.platform_merchant_id.clone()
     }
 }
