@@ -36,6 +36,11 @@ pub trait UserAuthenticationMethodInterface {
         id: &str,
         user_authentication_method_update: storage::UserAuthenticationMethodUpdate,
     ) -> CustomResult<storage::UserAuthenticationMethod, errors::StorageError>;
+
+    async fn list_user_authentication_methods_for_email_domain(
+        &self,
+        email_domain: &str,
+    ) -> CustomResult<Vec<storage::UserAuthenticationMethod>, errors::StorageError>;
 }
 
 #[async_trait::async_trait]
@@ -57,7 +62,7 @@ impl UserAuthenticationMethodInterface for Store {
         &self,
         id: &str,
     ) -> CustomResult<storage::UserAuthenticationMethod, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = connection::pg_connection_read(self).await?;
         storage::UserAuthenticationMethod::get_user_authentication_method_by_id(&conn, id)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
@@ -68,7 +73,7 @@ impl UserAuthenticationMethodInterface for Store {
         &self,
         auth_id: &str,
     ) -> CustomResult<Vec<storage::UserAuthenticationMethod>, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = connection::pg_connection_read(self).await?;
         storage::UserAuthenticationMethod::list_user_authentication_methods_for_auth_id(
             &conn, auth_id,
         )
@@ -81,7 +86,7 @@ impl UserAuthenticationMethodInterface for Store {
         &self,
         owner_id: &str,
     ) -> CustomResult<Vec<storage::UserAuthenticationMethod>, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = connection::pg_connection_read(self).await?;
         storage::UserAuthenticationMethod::list_user_authentication_methods_for_owner_id(
             &conn, owner_id,
         )
@@ -100,6 +105,20 @@ impl UserAuthenticationMethodInterface for Store {
             &conn,
             id,
             user_authentication_method_update,
+        )
+        .await
+        .map_err(|error| report!(errors::StorageError::from(error)))
+    }
+
+    #[instrument(skip_all)]
+    async fn list_user_authentication_methods_for_email_domain(
+        &self,
+        email_domain: &str,
+    ) -> CustomResult<Vec<storage::UserAuthenticationMethod>, errors::StorageError> {
+        let conn = connection::pg_connection_read(self).await?;
+        storage::UserAuthenticationMethod::list_user_authentication_methods_for_email_domain(
+            &conn,
+            email_domain,
         )
         .await
         .map_err(|error| report!(errors::StorageError::from(error)))
@@ -130,6 +149,7 @@ impl UserAuthenticationMethodInterface for MockDb {
             allow_signup: user_authentication_method.allow_signup,
             created_at: user_authentication_method.created_at,
             last_modified_at: user_authentication_method.last_modified_at,
+            email_domain: user_authentication_method.email_domain,
         };
 
         user_authentication_methods.push(user_authentication_method.clone());
@@ -222,6 +242,13 @@ impl UserAuthenticationMethodInterface for MockDb {
                         last_modified_at: common_utils::date_time::now(),
                         ..auth_method_inner.to_owned()
                     },
+                    storage::UserAuthenticationMethodUpdate::EmailDomain { email_domain } => {
+                        storage::UserAuthenticationMethod {
+                            email_domain: email_domain.to_owned(),
+                            last_modified_at: common_utils::date_time::now(),
+                            ..auth_method_inner.to_owned()
+                        }
+                    }
                 };
                 auth_method_inner.to_owned()
             })
@@ -231,5 +258,21 @@ impl UserAuthenticationMethodInterface for MockDb {
                 ))
                 .into(),
             )
+    }
+
+    #[instrument(skip_all)]
+    async fn list_user_authentication_methods_for_email_domain(
+        &self,
+        email_domain: &str,
+    ) -> CustomResult<Vec<storage::UserAuthenticationMethod>, errors::StorageError> {
+        let user_authentication_methods = self.user_authentication_methods.lock().await;
+
+        let user_authentication_methods_list: Vec<_> = user_authentication_methods
+            .iter()
+            .filter(|auth_method_inner| auth_method_inner.email_domain == email_domain)
+            .cloned()
+            .collect();
+
+        Ok(user_authentication_methods_list)
     }
 }

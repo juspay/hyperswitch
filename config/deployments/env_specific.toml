@@ -303,7 +303,7 @@ region = "kms_region" # The AWS region used by the KMS SDK for decrypting data.
 
 [multitenancy]
 enabled = false
-global_tenant = { schema = "public", redis_key_prefix = "", clickhouse_database = "default"}
+global_tenant = { tenant_id = "global", schema = "public", redis_key_prefix = "", clickhouse_database = "default"}
 
 [multitenancy.tenants.public]
 base_url = "http://localhost:8080" 
