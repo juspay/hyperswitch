@@ -477,7 +477,6 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::PaymentMethodListResponseForPayments,
         api_models::payments::ResponsePaymentMethodTypesForPayments,
         api_models::payment_methods::RequiredFieldInfo,
-        api_models::payment_methods::DefaultPaymentMethod,
         api_models::payment_methods::MaskedBankDetails,
         api_models::payment_methods::SurchargeDetailsResponse,
         api_models::payment_methods::SurchargeResponse,

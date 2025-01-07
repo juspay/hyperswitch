@@ -14,11 +14,11 @@ use crate::payment_methods::CustomerPaymentMethodsListResponse;
 use crate::{events, payment_methods::CustomerPaymentMethodsListResponse};
 use crate::{
     payment_methods::{
-        self, DefaultPaymentMethod, ListCountriesCurrenciesRequest,
-        ListCountriesCurrenciesResponse, PaymentMethodCollectLinkRenderRequest,
-        PaymentMethodCollectLinkRequest, PaymentMethodCollectLinkResponse,
-        PaymentMethodDeleteResponse, PaymentMethodListRequest, PaymentMethodListResponse,
-        PaymentMethodMigrateResponse, PaymentMethodResponse, PaymentMethodUpdate,
+        self, ListCountriesCurrenciesRequest, ListCountriesCurrenciesResponse,
+        PaymentMethodCollectLinkRenderRequest, PaymentMethodCollectLinkRequest,
+        PaymentMethodCollectLinkResponse, PaymentMethodDeleteResponse, PaymentMethodListRequest,
+        PaymentMethodListResponse, PaymentMethodMigrateResponse, PaymentMethodResponse,
+        PaymentMethodUpdate,
     },
     payments::{
         self, ExtendedCardInfoResponse, PaymentIdType, PaymentListConstraints,
@@ -244,7 +244,7 @@ impl ApiEventMetric for PaymentMethodMigrateResponse {
 impl ApiEventMetric for PaymentMethodUpdate {}
 
 #[cfg(feature = "v1")]
-impl ApiEventMetric for DefaultPaymentMethod {
+impl ApiEventMetric for payment_methods::DefaultPaymentMethod {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::PaymentMethod {
             payment_method_id: self.payment_method_id.clone(),
