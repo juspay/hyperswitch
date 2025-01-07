@@ -402,7 +402,7 @@ pub struct PaymentAttempt {
     pub id: id_type::GlobalAttemptId,
     /// The connector mandate details which are stored temporarily
     pub connector_mandate_detail: Option<ConnectorMandateReferenceId>,
-    /// Whether to request for overcapture 
+    /// Whether to request for overcapture
     pub request_overcapture: Option<storage_enums::OverCaptureRequest>,
     /// Whether overcapture was applied
     pub overcapture_applied: Option<storage_enums::OverCaptureApplied>,
