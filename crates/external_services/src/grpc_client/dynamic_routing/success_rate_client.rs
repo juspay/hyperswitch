@@ -139,7 +139,6 @@ impl SuccessBasedDynamicRouting for SuccessRateCalculatorClient<Client> {
             params: params.clone(),
             labels_with_status,
             config,
-            global_params: params,
             global_labels_with_status,
         });
 
@@ -202,9 +201,8 @@ impl SuccessBasedDynamicRouting for SuccessRateCalculatorClient<Client> {
 
         let mut request = tonic::Request::new(CalGlobalSuccessRateRequest {
             entity_id: id,
-            entity_params: params.clone(),
+            entity_params: params,
             entity_labels: labels,
-            global_params: params,
             global_labels,
             config,
         });
