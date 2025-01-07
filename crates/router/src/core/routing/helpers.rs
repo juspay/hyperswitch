@@ -189,7 +189,7 @@ pub async fn update_merchant_active_algorithm_ref(
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to update routing algorithm ref in merchant account")?;
 
-    cache::publish_into_redact_channel(db.get_cache_store().as_ref(), [config_key])
+    cache::redact_from_redis_and_publish(db.get_cache_store().as_ref(), [config_key])
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to invalidate the config cache")?;
@@ -256,7 +256,7 @@ pub async fn update_profile_active_algorithm_ref(
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to update routing algorithm ref in business profile")?;
 
-    cache::publish_into_redact_channel(db.get_cache_store().as_ref(), [routing_cache_key])
+    cache::redact_from_redis_and_publish(db.get_cache_store().as_ref(), [routing_cache_key])
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to invalidate routing cache")?;
@@ -1031,7 +1031,7 @@ pub async fn disable_dynamic_routing_algorithm(
         };
 
     // redact cache for dynamic routing config
-    let _ = cache::publish_into_redact_channel(
+    let _ = cache::redact_from_redis_and_publish(
         state.store.get_cache_store().as_ref(),
         cache_entries_to_redact,
     )
