@@ -1984,12 +1984,10 @@ pub mod routes {
                         let state = Arc::clone(&state);
                         let role_id = user_role.role_id.clone();
                         let org_id = user_role.org_id.clone().unwrap_or_default();
+                        let tenant_id = &user_role.tenant_id;
                         async move {
                             RoleInfo::from_role_id_org_id_tenant_id(
-                                &state,
-                                &role_id,
-                                &org_id,
-                                &user_role.tenant_id,
+                                &state, &role_id, &org_id, tenant_id,
                             )
                             .await
                             .change_context(UserErrors::InternalServerError)
