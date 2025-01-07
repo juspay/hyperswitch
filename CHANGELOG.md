@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.01.07.0
+
+### Miscellaneous Tasks
+
+- **keymanager:** Add tenant-id to keymanager requests ([#6968](https://github.com/juspay/hyperswitch/pull/6968)) ([`7901302`](https://github.com/juspay/hyperswitch/commit/79013024ff371efc6062310564b8b56e9bb22701))
+
+**Full Changelog:** [`2025.01.06.0...2025.01.07.0`](https://github.com/juspay/hyperswitch/compare/2025.01.06.0...2025.01.07.0)
+
+- - -
+
 ## 2025.01.06.0
 
 ### Miscellaneous Tasks
