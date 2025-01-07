@@ -13,7 +13,7 @@ use common_utils::{type_name, types::keymanager::Identifier};
 use diesel_models::user_role::UserRoleUpdate;
 use diesel_models::{
     enums::{TotpStatus, UserRoleVersion, UserStatus},
-    organization::OrganizationBridge,
+    organization::{OrganizationBridge, OrganizationUpdate},
     user as storage_user,
     user_authentication_method::{UserAuthenticationMethodNew, UserAuthenticationMethodUpdate},
 };
@@ -1479,15 +1479,23 @@ pub async fn set_platform_account(
     let key_store = db
         .get_merchant_key_store_by_merchant_id(
             &kms,
-            &requested_merchant_id,
+            requested_merchant_id,
             &db.get_master_key().to_vec().into(),
         )
         .await
         .change_context(UserErrors::InternalServerError)?;
 
-    // TODO: Add check for Org level is_platform_enabled to check if the org already has a platform account.
+    let organization_account = db
+        .find_organization_by_org_id(&user_from_token.org_id)
+        .await
+        .change_context(UserErrors::InternalServerError)?;
+
+    if organization_account.platform_merchant_id.is_some() {
+        return Err(UserErrors::MerchantAlreadyPlatformAccount)?;
+    }
+
     let merchant_account = db
-        .find_merchant_account_by_merchant_id(&kms, &requested_merchant_id, &key_store)
+        .find_merchant_account_by_merchant_id(&kms, requested_merchant_id, &key_store)
         .await
         .change_context(UserErrors::MerchantIdNotFound)?;
 
@@ -1500,6 +1508,15 @@ pub async fn set_platform_account(
     .await
     .change_context(UserErrors::PlatformAccountCreationFailed)
     .attach_printable("Error while enabling platform merchant account")?;
+
+    let update = OrganizationUpdate::ToPlatformAccount {
+        platform_merchant_id: requested_merchant_id.clone(),
+    };
+
+    db.update_organization_by_org_id(&user_from_token.org_id, update)
+        .await
+        .change_context(UserErrors::PlatformAccountCreationFailed)
+        .attach_printable("Error while enabling platform merchant account")?;
 
     Ok(ApplicationResponse::StatusOk)
 }

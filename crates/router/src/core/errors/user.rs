@@ -114,7 +114,6 @@ pub enum UserErrors {
     PlatformAccountCreationFailed,
     #[error("Requested Merchant is already a platform account")]
     MerchantAlreadyPlatformAccount,
-
 }
 
 impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorResponse> for UserErrors {

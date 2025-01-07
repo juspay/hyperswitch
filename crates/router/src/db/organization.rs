@@ -127,6 +127,12 @@ impl OrganizationInterface for super::MockDb {
                     metadata.clone_into(&mut org.metadata);
                     org
                 }
+                storage::OrganizationUpdate::ToPlatformAccount {
+                    platform_merchant_id,
+                } => {
+                    org.set_platform_merchant_id(platform_merchant_id.to_owned());
+                    org
+                }
             })
             .ok_or(
                 errors::StorageError::ValueNotFound(format!(
