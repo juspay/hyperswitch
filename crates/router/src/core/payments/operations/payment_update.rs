@@ -794,7 +794,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
         let payment_experience = payment_data.payment_attempt.payment_experience;
         let amount_to_capture = payment_data.payment_attempt.amount_to_capture;
         let capture_method = payment_data.payment_attempt.capture_method;
-        let request_overcapture = payment_data.payment_attempt.request_overcapture.clone();
+        let request_overcapture = payment_data.payment_attempt.request_overcapture;
         let payment_method_billing_address_id = payment_data
             .payment_attempt
             .payment_method_billing_address_id

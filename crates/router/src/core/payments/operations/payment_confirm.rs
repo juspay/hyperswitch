@@ -1304,7 +1304,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
         let browser_info = payment_data.payment_attempt.browser_info.clone();
         let frm_message = payment_data.frm_message.clone();
         let capture_method = payment_data.payment_attempt.capture_method;
-        let request_overcapture = payment_data.payment_attempt.request_overcapture.clone();
+        let request_overcapture = payment_data.payment_attempt.request_overcapture;
 
         let default_status_result = (
             storage_enums::IntentStatus::Processing,

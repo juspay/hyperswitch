@@ -291,6 +291,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         integrity_object: None,
         shipping_cost: payment_data.payment_intent.amount_details.shipping_cost,
         additional_payment_method_data: None,
+        request_overcapture: None,
     };
     let connector_mandate_request_reference_id = payment_data
         .payment_attempt
@@ -375,7 +376,6 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         connector_mandate_request_reference_id,
         authentication_id: None,
         psd2_sca_exemption_type: None,
-        request_overcapture: None,
     };
 
     Ok(router_data)
@@ -544,7 +544,6 @@ pub async fn construct_payment_router_data_for_capture<'a>(
         connector_mandate_request_reference_id,
         psd2_sca_exemption_type: None,
         authentication_id: None,
-        request_overcapture: None,
     };
 
     Ok(router_data)
@@ -679,7 +678,6 @@ pub async fn construct_router_data_for_psync<'a>(
         connector_mandate_request_reference_id: None,
         authentication_id: None,
         psd2_sca_exemption_type: None,
-        request_overcapture: None,
     };
 
     Ok(router_data)
@@ -845,7 +843,6 @@ pub async fn construct_payment_router_data_for_sdk_session<'a>(
         connector_mandate_request_reference_id: None,
         psd2_sca_exemption_type: None,
         authentication_id: None,
-        request_overcapture: None,
     };
 
     Ok(router_data)

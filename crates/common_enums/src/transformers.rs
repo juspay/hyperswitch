@@ -2040,6 +2040,16 @@ impl super::OverCaptureRequest {
     }
 }
 
+/// Get the boolean value of the `OverCaptureApplied`.
+impl super::OverCaptureApplied {
+    pub fn as_bool(&self) -> bool {
+        match self {
+            Self::Applied => true,
+            Self::NotApplied => false,
+        }
+    }
+}
+
 impl super::EnablePaymentLinkRequest {
     pub fn as_bool(&self) -> bool {
         match self {

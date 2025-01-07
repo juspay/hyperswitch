@@ -402,6 +402,10 @@ pub struct PaymentAttempt {
     pub id: id_type::GlobalAttemptId,
     /// The connector mandate details which are stored temporarily
     pub connector_mandate_detail: Option<ConnectorMandateReferenceId>,
+    /// Whether to request for overcapture 
+    pub request_overcapture: Option<storage_enums::OverCaptureRequest>,
+    /// Whether overcapture was applied
+    pub overcapture_applied: Option<storage_enums::OverCaptureApplied>,
 }
 
 impl PaymentAttempt {
@@ -445,6 +449,16 @@ impl PaymentAttempt {
     #[cfg(feature = "v2")]
     pub fn get_connector_payment_id(&self) -> Option<&str> {
         self.connector_payment_id.as_deref()
+    }
+
+    #[cfg(feature = "v1")]
+    pub fn is_overcapture_applied(&self) -> Option<bool> {
+        self.overcapture_applied
+    }
+
+    #[cfg(feature = "v2")]
+    pub fn is_overcapture_applied(&self) -> Option<bool> {
+        self.overcapture_applied.as_bool()
     }
 
     /// Construct the domain model from the ConfirmIntentRequest and PaymentIntent

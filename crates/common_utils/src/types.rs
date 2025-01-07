@@ -1412,7 +1412,6 @@ pub struct BrowserInformation {
 
 #[cfg(feature = "v2")]
 crate::impl_to_sql_from_sql_json!(BrowserInformation);
-
 /// Domain type for connector_transaction_id
 /// Maximum length for connector's transaction_id can be 128 characters in HS DB.
 /// In case connector's use an identifier whose length exceeds 128 characters,
