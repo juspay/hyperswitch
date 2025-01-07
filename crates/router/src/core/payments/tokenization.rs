@@ -1212,8 +1212,12 @@ pub fn update_connector_mandate_details(
     mandate_metadata: Option<Secret<serde_json::Value>>,
     connector_mandate_request_reference_id: Option<String>,
 ) -> RouterResult<Option<serde_json::Value>> {
-    let mandate_reference = match mandate_details {
-        Some(mut common_mandate_reference) => {
+    let mandate_reference = match mandate_details
+        .as_ref()
+        .and_then(|common_mandate| common_mandate.payments.clone())
+    {
+        Some(mut payments_mandate_reference) => {
+            router_env::logger::info!("here : {:?}", payments_mandate_reference.clone());
             if let Some((mca_id, connector_mandate_id)) =
                 merchant_connector_id.clone().zip(connector_mandate_id)
             {
@@ -1228,22 +1232,25 @@ pub fn update_connector_mandate_details(
                         .clone(),
                 };
 
-                if let Some(payments_mandate_reference) = common_mandate_reference.payments.as_mut()
-                {
-                    payments_mandate_reference
-                        .entry(mca_id)
-                        .and_modify(|pm| *pm = updated_record)
-                        .or_insert(diesel_models::PaymentsMandateReferenceRecord {
-                            connector_mandate_id,
-                            payment_method_type,
-                            original_payment_authorized_amount: authorized_amount,
-                            original_payment_authorized_currency: authorized_currency,
-                            mandate_metadata: mandate_metadata.clone(),
-                            connector_mandate_status: Some(ConnectorMandateStatus::Active),
-                            connector_mandate_request_reference_id,
-                        });
-                }
-                Some(common_mandate_reference)
+                payments_mandate_reference
+                    .entry(mca_id)
+                    .and_modify(|pm| *pm = updated_record)
+                    .or_insert(diesel_models::PaymentsMandateReferenceRecord {
+                        connector_mandate_id,
+                        payment_method_type,
+                        original_payment_authorized_amount: authorized_amount,
+                        original_payment_authorized_currency: authorized_currency,
+                        mandate_metadata: mandate_metadata.clone(),
+                        connector_mandate_status: Some(ConnectorMandateStatus::Active),
+                        connector_mandate_request_reference_id,
+                    });
+
+                let payout_data = mandate_details.and_then(|common_mandate| common_mandate.payouts);
+
+                Some(diesel_models::CommonMandateReference {
+                    payments: Some(payments_mandate_reference),
+                    payouts: payout_data,
+                })
             } else {
                 None
             }
@@ -1263,6 +1270,5 @@ pub fn update_connector_mandate_details(
         .transpose()
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to serialize customer acceptance to value")?;
-
     Ok(connector_mandate_details)
 }
