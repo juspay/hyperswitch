@@ -306,17 +306,17 @@ pub struct PaymentsMandateReference(
     pub HashMap<id_type::MerchantConnectorAccountId, PaymentsMandateReferenceRecord>,
 );
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct PayoutsMandateReference(
     pub HashMap<id_type::MerchantConnectorAccountId, PayoutsMandateReferenceRecord>,
 );
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct PayoutsMandateReferenceRecord {
     pub transfer_method_id: Option<String>,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct PaymentsMandateReferenceRecord {
     pub connector_mandate_id: String,
     pub payment_method_type: Option<common_enums::PaymentMethodType>,
@@ -324,7 +324,7 @@ pub struct PaymentsMandateReferenceRecord {
     pub original_payment_authorized_currency: Option<common_enums::Currency>,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct CommonMandateReference {
     pub payments: Option<PaymentsMandateReference>,
     pub payouts: Option<PayoutsMandateReference>,
@@ -353,17 +353,17 @@ where
 {
     let value: Option<serde_json::Value> = Option::<serde_json::Value>::deserialize(deserializer)?;
     if let Some(connector_mandate_value) = value {
-        if let Ok(common_mandate) =
-            serde_json::from_value::<CommonMandateReference>(connector_mandate_value.clone())
-        {
-            Ok(Some(common_mandate))
-        } else if let Ok(payment_mandate_record) =
-            serde_json::from_value::<PaymentsMandateReference>(connector_mandate_value)
+        if let Ok(payment_mandate_record) =
+            serde_json::from_value::<PaymentsMandateReference>(connector_mandate_value.clone())
         {
             Ok(Some(CommonMandateReference {
                 payments: Some(payment_mandate_record),
                 payouts: None,
             }))
+        } else if let Ok(common_mandate) =
+            serde_json::from_value::<CommonMandateReference>(connector_mandate_value)
+        {
+            Ok(Some(common_mandate))
         } else {
             Err(de::Error::custom(
                 "Failed to deserialize connector_mandate_details",
