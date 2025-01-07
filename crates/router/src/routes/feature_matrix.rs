@@ -60,7 +60,7 @@ pub async fn generate_feature_matrix(
                         build_connector_feature_details(
                             &state,
                             connector,
-                            connector_name.to_string(),
+                            connector_name.to_string().to_uppercase(),
                         )
                     })
             })
