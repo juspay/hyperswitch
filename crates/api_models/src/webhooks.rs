@@ -149,6 +149,7 @@ impl WebhookResponseTracker {
             Self::NoEffect | Self::Mandate { .. } => None,
             #[cfg(feature = "payouts")]
             Self::Payout { .. } => None,
+            Self::Relay { .. } => None,
         }
     }
 }

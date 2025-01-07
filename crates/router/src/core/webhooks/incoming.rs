@@ -365,10 +365,11 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                 id: profile_id.get_string_repr().to_owned(),
             })?;
 
+        // If the incoming webhook is a relay webhook, then we need to trigger the relay webhook flow
         let result_response = if is_relay_webhook {
-            Box::pin(relay_incoming_webhook_flow(
+            let relay_webhook_response = Box::pin(relay_incoming_webhook_flow(
                 state.clone(),
-                merchant_account,
+                merchant_account.clone(),
                 business_profile,
                 key_store,
                 webhook_details,
@@ -376,7 +377,40 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                 source_verified,
             ))
             .await
-            .attach_printable("Incoming webhook flow for relay failed")
+            .attach_printable("Incoming webhook flow for relay failed");
+
+            // Using early return ensures unsupported webhooks are acknowledged to the connector
+            if let Some(error) = relay_webhook_response.as_ref().err() {
+                if let errors::ApiErrorResponse::NotSupported { .. } = error.current_context() {
+                    logger::error!(
+                        webhook_payload =? request_details.body,
+                        "Failed while identifying the event type",
+                    );
+
+                    metrics::WEBHOOK_EVENT_TYPE_IDENTIFICATION_FAILURE_COUNT.add(
+                        1,
+                        router_env::metric_attributes!(
+                            (MERCHANT_ID, merchant_account.get_id().clone()),
+                            ("connector", connector_name)
+                        ),
+                    );
+
+                    let response = connector
+                        .get_webhook_api_response(&request_details, None)
+                        .switch()
+                        .attach_printable(
+                            "Failed while early return in case of event type parsing",
+                        )?;
+
+                    return Ok((
+                        response,
+                        WebhookResponseTracker::NoEffect,
+                        serde_json::Value::Null,
+                    ));
+                };
+            };
+
+            relay_webhook_response
         } else {
             match flow_type {
                 api::WebhookFlow::Payment => Box::pin(payments_incoming_webhook_flow(
@@ -895,7 +929,7 @@ async fn relay_refunds_incoming_webhook_flow(
     };
 
     // if source_verified then update relay status else trigger relay force sync
-    if source_verified {
+    let relay_response = if source_verified {
         let relay_update = hyperswitch_domain_models::relay::RelayUpdate::StatusUpdate {
             connector_reference_id: None,
             status: common_enums::RelayStatus::foreign_try_from(event_type)
@@ -909,14 +943,15 @@ async fn relay_refunds_incoming_webhook_flow(
             relay_update,
         )
         .await
+        .map(api_models::relay::RelayResponse::from)
         .to_not_found_response(errors::ApiErrorResponse::WebhookResourceNotFound)
-        .attach_printable("Failed to update relay")?;
+        .attach_printable("Failed to update relay")?
     } else {
         let relay_retrieve_request = api_models::relay::RelayRetrieveRequest {
             force_sync: true,
             id: relay_record.id,
         };
-        Box::pin(relay::relay_retrieve(
+        let relay_force_sync_response = Box::pin(relay::relay_retrieve(
             state,
             merchant_account,
             Some(business_profile.get_id().clone()),
@@ -926,9 +961,21 @@ async fn relay_refunds_incoming_webhook_flow(
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to update relay")?;
+
+        if let hyperswitch_domain_models::api::ApplicationResponse::Json(response) =
+            relay_force_sync_response
+        {
+            response
+        } else {
+            Err(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to force sync relay")?
+        }
     };
 
-    Ok(WebhookResponseTracker::NoEffect)
+    Ok(WebhookResponseTracker::Relay {
+        relay_id: relay_response.id,
+        status: relay_response.status,
+    })
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -1064,7 +1111,9 @@ async fn relay_incoming_webhook_flow(
         | webhooks::WebhookFlow::BankTransfer
         | webhooks::WebhookFlow::Mandate
         | webhooks::WebhookFlow::ExternalAuthentication
-        | webhooks::WebhookFlow::FraudCheck => Err(errors::ApiErrorResponse::EventNotFound)?,
+        | webhooks::WebhookFlow::FraudCheck => Err(errors::ApiErrorResponse::NotSupported {
+            message: "Relay webhook flow types not supported".to_string(),
+        })?,
     };
     Ok(result_response)
 }
