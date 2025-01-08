@@ -17,7 +17,7 @@ email = ["external_services/email", "scheduler/email", "olap"]
 # keymanager_create, keymanager_mtls, encryption_service should not be removed or added to default feature. Once this features were enabled it can't be disabled as these are breaking changes.
 keymanager_create = []
 keymanager_mtls = ["reqwest/rustls-tls", "common_utils/keymanager_mtls"]
-encryption_service = ["keymanager_create","hyperswitch_domain_models/encryption_service", "common_utils/encryption_service"]
+encryption_service = ["keymanager_create", "hyperswitch_domain_models/encryption_service", "common_utils/encryption_service"]
 km_forward_x_request_id = ["common_utils/km_forward_x_request_id"]
 frm = ["api_models/frm", "hyperswitch_domain_models/frm", "hyperswitch_connectors/frm", "hyperswitch_interfaces/frm"]
 stripe = []
@@ -145,7 +145,6 @@ router_derive = { version = "0.1.0", path = "../router_derive" }
 router_env = { version = "0.1.0", path = "../router_env", features = ["log_extra_implicit_fields", "log_custom_entries_to_extra"] }
 scheduler = { version = "0.1.0", path = "../scheduler", default-features = false }
 storage_impl = { version = "0.1.0", path = "../storage_impl", default-features = false }
-toml = "0.8.19"
 
 [build-dependencies]
 router_env = { version = "0.1.0", path = "../router_env", default-features = false }
