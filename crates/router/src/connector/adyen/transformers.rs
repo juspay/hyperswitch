@@ -1538,9 +1538,7 @@ impl TryFrom<&types::ConnectorAuthType> for AdyenAuthType {
     }
 }
 
-impl TryFrom<&AdyenRouterData<&types::PaymentsAuthorizeRouterData>>
-    for AdyenPaymentRequest<'_>
-{
+impl TryFrom<&AdyenRouterData<&types::PaymentsAuthorizeRouterData>> for AdyenPaymentRequest<'_> {
     type Error = Error;
     fn try_from(
         item: &AdyenRouterData<&types::PaymentsAuthorizeRouterData>,
