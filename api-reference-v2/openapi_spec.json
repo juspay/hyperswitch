@@ -18106,8 +18106,7 @@
       "ProfileCreate": {
         "type": "object",
         "required": [
-          "profile_name",
-          "always_request_overcapture"
+          "profile_name"
         ],
         "properties": {
           "profile_name": {
@@ -18276,12 +18275,6 @@
             "type": "object",
             "description": "Product authentication ids",
             "nullable": true
-          },
-          "always_request_overcapture": {
-            "type": "boolean",
-            "description": "Indicates if the overcapture is always requested or not.",
-            "default": false,
-            "example": false
           }
         },
         "additionalProperties": false
@@ -18315,8 +18308,7 @@
           "is_tax_connector_enabled",
           "is_network_tokenization_enabled",
           "should_collect_cvv_during_payment",
-          "is_click_to_pay_enabled",
-          "always_request_overcapture"
+          "is_click_to_pay_enabled"
         ],
         "properties": {
           "merchant_id": {
@@ -18507,12 +18499,6 @@
             "type": "object",
             "description": "Product authentication ids",
             "nullable": true
-          },
-          "always_request_overcapture": {
-            "type": "boolean",
-            "description": "Indicates if the overcapture is always requested or not.",
-            "default": false,
-            "example": false
           }
         }
       },

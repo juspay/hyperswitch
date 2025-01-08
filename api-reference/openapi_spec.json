@@ -22603,7 +22603,8 @@
           },
           "always_request_overcapture": {
             "type": "boolean",
-            "description": "Indicates if the overcapture is always requested or not."
+            "description": "Indicates if the overcapture is always requested or not.",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -22637,8 +22638,7 @@
           "is_tax_connector_enabled",
           "is_network_tokenization_enabled",
           "is_auto_retries_enabled",
-          "is_click_to_pay_enabled",
-          "always_request_overcapture"
+          "is_click_to_pay_enabled"
         ],
         "properties": {
           "merchant_id": {
@@ -22851,7 +22851,8 @@
             "type": "boolean",
             "description": "Indicates if the overcapture is always requested or not.",
             "default": false,
-            "example": false
+            "example": false,
+            "nullable": true
           }
         }
       },
