@@ -102,6 +102,7 @@ where
     Ok(router_data)
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn construct_uas_router_data<F: Clone, Req, Res>(
     state: &SessionState,
     authentication_connector_name: String,

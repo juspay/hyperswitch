@@ -302,6 +302,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
     let router_data = types::RouterData {
         flow: PhantomData,
         merchant_id: merchant_account.get_id().clone(),
+        tenant_id: state.tenant.tenant_id.clone(),
         // TODO: evaluate why we need customer id at the connector level. We already have connector customer id.
         customer_id,
         connector: connector_id.to_owned(),
@@ -465,6 +466,7 @@ pub async fn construct_payment_router_data_for_capture<'a>(
         // TODO: evaluate why we need customer id at the connector level. We already have connector customer id.
         customer_id,
         connector: connector_id.to_owned(),
+        tenant_id: state.tenant.tenant_id.clone(),
         // TODO: evaluate why we need payment id at the connector level. We already have connector reference id
         payment_id: payment_data
             .payment_attempt
@@ -600,6 +602,7 @@ pub async fn construct_router_data_for_psync<'a>(
         merchant_id: merchant_account.get_id().clone(),
         // TODO: evaluate why we need customer id at the connector level. We already have connector customer id.
         customer_id,
+        tenant_id: state.tenant.tenant_id.clone(),
         connector: connector_id.to_owned(),
         // TODO: evaluate why we need payment id at the connector level. We already have connector reference id
         payment_id: payment_intent.id.get_string_repr().to_owned(),
@@ -663,7 +666,7 @@ pub async fn construct_router_data_for_psync<'a>(
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
 pub async fn construct_payment_router_data_for_sdk_session<'a>(
-    _state: &'a SessionState,
+    state: &'a SessionState,
     payment_data: hyperswitch_domain_models::payments::PaymentIntentData<api::Session>,
     connector_id: &str,
     merchant_account: &domain::MerchantAccount,
@@ -757,6 +760,7 @@ pub async fn construct_payment_router_data_for_sdk_session<'a>(
         // TODO: evaluate why we need customer id at the connector level. We already have connector customer id.
         customer_id,
         connector: connector_id.to_owned(),
+        tenant_id: state.tenant.tenant_id.clone(),
         // TODO: evaluate why we need payment id at the connector level. We already have connector reference id
         payment_id: payment_data.payment_intent.id.get_string_repr().to_owned(),
         // TODO: evaluate why we need attempt id at the connector level. We already have connector reference id
