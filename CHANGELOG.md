@@ -4,6 +4,55 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.01.08.0
+
+### Features
+
+- **connector:** [Fiuu] Consume transaction id for error cases for Fiuu ([#6998](https://github.com/juspay/hyperswitch/pull/6998)) ([`6b1e5b0`](https://github.com/juspay/hyperswitch/commit/6b1e5b0aec190b9563df83703efee9cbeaee59fd))
+- **core:** Add columns unified error code and error message in refund table ([#6933](https://github.com/juspay/hyperswitch/pull/6933)) ([`c4d36b5`](https://github.com/juspay/hyperswitch/commit/c4d36b506e159f39acff17e13f72b5c53edec184))
+
+### Bug Fixes
+
+- Consider status of payment method before filtering wallets in list pm ([#7004](https://github.com/juspay/hyperswitch/pull/7004)) ([`d2212cb`](https://github.com/juspay/hyperswitch/commit/d2212cb7eafa37c00ce3a8897a6ae4f1266f01cf))
+
+### Documentation
+
+- **cypress:** Update cypress documentation ([#6956](https://github.com/juspay/hyperswitch/pull/6956)) ([`099bd99`](https://github.com/juspay/hyperswitch/commit/099bd995851a3aa9688f5e160a744c6924f8ec7a))
+
+**Full Changelog:** [`2025.01.07.0...2025.01.08.0`](https://github.com/juspay/hyperswitch/compare/2025.01.07.0...2025.01.08.0)
+
+- - -
+
+## 2025.01.07.0
+
+### Miscellaneous Tasks
+
+- **keymanager:** Add tenant-id to keymanager requests ([#6968](https://github.com/juspay/hyperswitch/pull/6968)) ([`7901302`](https://github.com/juspay/hyperswitch/commit/79013024ff371efc6062310564b8b56e9bb22701))
+
+**Full Changelog:** [`2025.01.06.0...2025.01.07.0`](https://github.com/juspay/hyperswitch/compare/2025.01.06.0...2025.01.07.0)
+
+- - -
+
+## 2025.01.06.0
+
+### Miscellaneous Tasks
+
+- Add migrations for Currency type in DB ([#6980](https://github.com/juspay/hyperswitch/pull/6980)) ([`60ed69c`](https://github.com/juspay/hyperswitch/commit/60ed69c1cff706aaba248e1aba0219f70bb679bd))
+
+**Full Changelog:** [`2025.01.03.0...2025.01.06.0`](https://github.com/juspay/hyperswitch/compare/2025.01.03.0...2025.01.06.0)
+
+- - -
+
+## 2025.01.03.0
+
+### Bug Fixes
+
+- **cache:** Address in-memory cache invalidation using global tenant as `key_prefix` ([#6976](https://github.com/juspay/hyperswitch/pull/6976)) ([`fce5ffa`](https://github.com/juspay/hyperswitch/commit/fce5ffa4e06bc6b8e413b13ec550613617e05568))
+
+**Full Changelog:** [`2024.12.31.0...2025.01.03.0`](https://github.com/juspay/hyperswitch/compare/2024.12.31.0...2025.01.03.0)
+
+- - -
+
 ## 2024.12.31.0
 
 ### Features

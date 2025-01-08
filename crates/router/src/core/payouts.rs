@@ -317,7 +317,6 @@ pub async fn payouts_create_core(
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     req: payouts::PayoutCreateRequest,
-    locale: &str,
 ) -> RouterResponse<payouts::PayoutCreateResponse> {
     // Validate create request
     let (payout_id, payout_method_data, profile_id, customer) =
@@ -332,7 +331,7 @@ pub async fn payouts_create_core(
         &payout_id,
         &profile_id,
         payout_method_data.as_ref(),
-        locale,
+        &state.locale,
         customer.as_ref(),
     )
     .await?;
@@ -382,7 +381,6 @@ pub async fn payouts_confirm_core(
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     req: payouts::PayoutCreateRequest,
-    locale: &str,
 ) -> RouterResponse<payouts::PayoutCreateResponse> {
     let mut payout_data = make_payout_data(
         &state,
@@ -390,7 +388,7 @@ pub async fn payouts_confirm_core(
         None,
         &key_store,
         &payouts::PayoutRequest::PayoutCreateRequest(Box::new(req.to_owned())),
-        locale,
+        &state.locale,
     )
     .await?;
     let payout_attempt = payout_data.payout_attempt.to_owned();
@@ -454,7 +452,6 @@ pub async fn payouts_update_core(
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     req: payouts::PayoutCreateRequest,
-    locale: &str,
 ) -> RouterResponse<payouts::PayoutCreateResponse> {
     let payout_id = req.payout_id.clone().get_required_value("payout_id")?;
     let mut payout_data = make_payout_data(
@@ -463,7 +460,7 @@ pub async fn payouts_update_core(
         None,
         &key_store,
         &payouts::PayoutRequest::PayoutCreateRequest(Box::new(req.to_owned())),
-        locale,
+        &state.locale,
     )
     .await?;
 
@@ -539,7 +536,6 @@ pub async fn payouts_retrieve_core(
     profile_id: Option<common_utils::id_type::ProfileId>,
     key_store: domain::MerchantKeyStore,
     req: payouts::PayoutRetrieveRequest,
-    locale: &str,
 ) -> RouterResponse<payouts::PayoutCreateResponse> {
     let mut payout_data = make_payout_data(
         &state,
@@ -547,7 +543,7 @@ pub async fn payouts_retrieve_core(
         profile_id,
         &key_store,
         &payouts::PayoutRequest::PayoutRetrieveRequest(req.to_owned()),
-        locale,
+        &state.locale,
     )
     .await?;
     let payout_attempt = payout_data.payout_attempt.to_owned();
@@ -584,7 +580,6 @@ pub async fn payouts_cancel_core(
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     req: payouts::PayoutActionRequest,
-    locale: &str,
 ) -> RouterResponse<payouts::PayoutCreateResponse> {
     let mut payout_data = make_payout_data(
         &state,
@@ -592,7 +587,7 @@ pub async fn payouts_cancel_core(
         None,
         &key_store,
         &payouts::PayoutRequest::PayoutActionRequest(req.to_owned()),
-        locale,
+        &state.locale,
     )
     .await?;
 
@@ -678,7 +673,6 @@ pub async fn payouts_fulfill_core(
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     req: payouts::PayoutActionRequest,
-    locale: &str,
 ) -> RouterResponse<payouts::PayoutCreateResponse> {
     let mut payout_data = make_payout_data(
         &state,
@@ -686,7 +680,7 @@ pub async fn payouts_fulfill_core(
         None,
         &key_store,
         &payouts::PayoutRequest::PayoutActionRequest(req.to_owned()),
-        locale,
+        &state.locale,
     )
     .await?;
 
@@ -773,7 +767,6 @@ pub async fn payouts_list_core(
     _profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
     _key_store: domain::MerchantKeyStore,
     _constraints: payouts::PayoutListConstraints,
-    _locale: &str,
 ) -> RouterResponse<payouts::PayoutListResponse> {
     todo!()
 }
@@ -789,7 +782,6 @@ pub async fn payouts_list_core(
     profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
     key_store: domain::MerchantKeyStore,
     constraints: payouts::PayoutListConstraints,
-    _locale: &str,
 ) -> RouterResponse<payouts::PayoutListResponse> {
     validator::validate_payout_list_request(&constraints)?;
     let merchant_id = merchant_account.get_id();
@@ -910,7 +902,6 @@ pub async fn payouts_filtered_list_core(
     profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
     key_store: domain::MerchantKeyStore,
     filters: payouts::PayoutListFilterConstraints,
-    _locale: &str,
 ) -> RouterResponse<payouts::PayoutListResponse> {
     let limit = &filters.limit;
     validator::validate_payout_list_request_for_joins(*limit)?;
@@ -1014,7 +1005,6 @@ pub async fn payouts_list_available_filters_core(
     merchant_account: domain::MerchantAccount,
     profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
     time_range: common_utils::types::TimeRange,
-    _locale: &str,
 ) -> RouterResponse<api::PayoutListFilters> {
     let db = state.store.as_ref();
     let payouts = db
