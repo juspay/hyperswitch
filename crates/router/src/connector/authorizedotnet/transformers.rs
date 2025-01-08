@@ -139,6 +139,8 @@ struct TransactionRequest {
     profile: Option<ProfileDetails>,
     order: Order,
     #[serde(skip_serializing_if = "Option::is_none")]
+    line_items: Option<LineItems>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     customer: Option<CustomerDetails>,
     #[serde(skip_serializing_if = "Option::is_none")]
     bill_to: Option<BillTo>,
@@ -147,6 +149,22 @@ struct TransactionRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     subsequent_auth_information: Option<SubsequentAuthInformation>,
     authorization_indicator_type: Option<AuthorizationIndicator>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LineItems {
+    line_item: Option<LineItem>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LineItem {
+    item_id: String,
+    name: String,
+    description: String,
+    quantity: f64,
+    unit_price: f64,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -635,6 +653,15 @@ impl
                 }),
                 None => None,
             },
+            line_items: item.router_data.request.metadata.clone().map(|metadata| LineItems {
+                line_item: Some(LineItem {
+                    item_id: item.router_data.connector_request_reference_id.clone(),
+                    name: "Metadata".to_owned(),
+                    description: metadata.to_string(),
+                    quantity: 1.00,
+                    unit_price: 0.00,
+                })         
+            }), 
         })
     }
 }
@@ -685,6 +712,15 @@ impl
                 }),
                 None => None,
             },
+            line_items: item.router_data.request.metadata.clone().map(|metadata| LineItems {
+                line_item: Some(LineItem {
+                    item_id: item.router_data.connector_request_reference_id.clone(),
+                    name: "Metadata".to_owned(),
+                    description: metadata.to_string(),
+                    quantity: 1.00,
+                    unit_price: 0.00,
+                })         
+            }),    
         })
     }
 }
@@ -770,6 +806,15 @@ impl
                 }),
                 None => None,
             },
+            line_items: item.router_data.request.metadata.clone().map(|metadata| LineItems {
+                line_item: Some(LineItem {
+                    item_id: item.router_data.connector_request_reference_id.clone(),
+                    name: "Metadata".to_owned(),
+                    description: metadata.to_string(),
+                    quantity: 1.00,
+                    unit_price: 0.00,
+                })         
+            }),    
         })
     }
 }
@@ -821,6 +866,15 @@ impl
                 }),
                 None => None,
             },
+            line_items: item.router_data.request.metadata.clone().map(|metadata| LineItems {
+                line_item: Some(LineItem {
+                    item_id: item.router_data.connector_request_reference_id.clone(),
+                    name: "Metadata".to_owned(),
+                    description: metadata.to_string(),
+                    quantity: 1.00,
+                    unit_price: 0.00,
+                })         
+            }),    
         })
     }
 }
