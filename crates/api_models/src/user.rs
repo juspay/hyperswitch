@@ -11,6 +11,21 @@ pub mod sample_data;
 #[cfg(feature = "control_center_theme")]
 pub mod theme;
 
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum OrgAccountType {
+    Default,
+    Platform,
+}
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum MerchantAccountType {
+    Default,
+    Platform,
+    Connected,
+}
+
 #[derive(serde::Deserialize, Debug, Clone, serde::Serialize)]
 pub struct SignUpWithMerchantIdRequest {
     pub name: Secret<String>,
@@ -379,14 +394,14 @@ pub struct UserTransferKeyResponse {
 pub struct ListOrgsForUserResponse {
     pub org_id: id_type::OrganizationId,
     pub org_name: Option<String>,
-    pub platform_merchant_id: Option<id_type::MerchantId>,
+    pub org_type: OrgAccountType,
 }
 
 #[derive(Debug, serde::Serialize)]
 pub struct ListMerchantsForUserInOrgResponse {
     pub merchant_id: id_type::MerchantId,
     pub merchant_name: OptionalEncryptableName,
-    pub is_platform_account: bool,
+    pub merchant_type: MerchantAccountType,
 }
 
 #[derive(Debug, serde::Serialize)]
