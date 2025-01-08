@@ -909,7 +909,6 @@ pub async fn retrieve_default_fallback_algorithm_for_profile(
 }
 
 #[cfg(feature = "v1")]
-
 pub async fn retrieve_default_routing_config(
     state: SessionState,
     merchant_account: domain::MerchantAccount,

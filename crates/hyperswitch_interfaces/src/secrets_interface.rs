@@ -15,7 +15,6 @@ pub trait SecretManagementInterface: Send + Sync {
     //     &self,
     //     input: Secret<String>,
     // ) -> CustomResult<String, SecretsManagementError>;
-
     /// Given an input, decrypt/retrieve the secret
     async fn get_secret(
         &self,

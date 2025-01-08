@@ -66,7 +66,7 @@ impl<'a> KafkaRefund<'a> {
     }
 }
 
-impl<'a> super::KafkaMessage for KafkaRefund<'a> {
+impl super::KafkaMessage for KafkaRefund<'_> {
     fn key(&self) -> String {
         format!(
             "{}_{}_{}_{}",

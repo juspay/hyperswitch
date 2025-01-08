@@ -1913,7 +1913,7 @@ mod custom_serde {
 
         struct FieldVisitor;
 
-        impl<'de> Visitor<'de> for FieldVisitor {
+        impl Visitor<'_> for FieldVisitor {
             type Value = CountryAlpha2;
 
             fn expecting(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
@@ -1945,7 +1945,7 @@ mod custom_serde {
 
         struct FieldVisitor;
 
-        impl<'de> Visitor<'de> for FieldVisitor {
+        impl Visitor<'_> for FieldVisitor {
             type Value = CountryAlpha3;
 
             fn expecting(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
@@ -1977,7 +1977,7 @@ mod custom_serde {
 
         struct FieldVisitor;
 
-        impl<'de> Visitor<'de> for FieldVisitor {
+        impl Visitor<'_> for FieldVisitor {
             type Value = u32;
 
             fn expecting(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
