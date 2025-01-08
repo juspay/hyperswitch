@@ -305,7 +305,7 @@ impl Capturable for PaymentsAuthorizeData {
                     | common_enums::IntentStatus::PartiallyCapturedAndCapturable => None,
                 }
             },
-            common_enums::CaptureMethod::Manual => maximum_capturable_amount.or( Some(payment_data.payment_attempt.get_total_amount())).map(|amount_capturable|amount_capturable.get_amount_as_i64()),
+            common_enums::CaptureMethod::Manual => Some(maximum_capturable_amount.unwrap_or(payment_data.payment_attempt.get_total_amount()).get_amount_as_i64()),
             // In case of manual multiple, amount capturable must be inferred from all captures.
             common_enums::CaptureMethod::ManualMultiple |
             // Scheduled capture is not supported as of now
@@ -390,7 +390,7 @@ impl Capturable for CompleteAuthorizeData {
                     | common_enums::IntentStatus::PartiallyCapturedAndCapturable => None,
                 }
             },
-            common_enums::CaptureMethod::Manual => maximum_capturable_amount.or(Some(payment_data.payment_attempt.get_total_amount())).map(|amount_capturable| amount_capturable.get_amount_as_i64()),
+            common_enums::CaptureMethod::Manual => Some(maximum_capturable_amount.unwrap_or(payment_data.payment_attempt.get_total_amount()).get_amount_as_i64()),
             // In case of manual multiple, amount capturable must be inferred from all captures.
             common_enums::CaptureMethod::ManualMultiple |
             // Scheduled capture is not supported as of now
