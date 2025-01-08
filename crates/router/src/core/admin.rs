@@ -3821,7 +3821,7 @@ impl ProfileCreateBridge for api::ProfileCreate {
             is_tax_connector_enabled: self.is_tax_connector_enabled,
             is_network_tokenization_enabled: self.is_network_tokenization_enabled,
             is_click_to_pay_enabled: self.is_click_to_pay_enabled,
-            authentication_product_ids,      
+            authentication_product_ids,
         }))
     }
 }

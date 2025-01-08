@@ -993,9 +993,12 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentDat
                 .as_ref()
                 .and_then(|pmd| pmd.payment_method_data.clone()),
         )?;
-        
-        helpers::validate_overcapture_request_for_payments_create(request.capture_method, request.request_overcapture)?;
-        
+
+        helpers::validate_overcapture_request_for_payments_create(
+            request.capture_method,
+            request.request_overcapture,
+        )?;
+
         helpers::validate_payment_method_fields_present(request)?;
 
         let mandate_type =
@@ -1145,14 +1148,18 @@ impl PaymentCreate {
             .transpose()?
             .flatten();
 
-        
-            let request_overcapture = request.request_overcapture.or_else(|| {
-                if matches!(request.capture_method, Some(api_models::enums::CaptureMethod::Manual)) {
-                    business_profile.always_request_overcapture.map(api_models::enums::OverCaptureRequest::from)
-                } else {
-                    None
-                }
-            });
+        let request_overcapture = request.request_overcapture.or_else(|| {
+            if matches!(
+                request.capture_method,
+                Some(api_models::enums::CaptureMethod::Manual)
+            ) {
+                business_profile
+                    .always_request_overcapture
+                    .map(api_models::enums::OverCaptureRequest::from)
+            } else {
+                None
+            }
+        });
 
         if additional_pm_data.is_none() {
             // If recurring payment is made using payment_method_id, then fetch payment_method_data from retrieved payment_method object

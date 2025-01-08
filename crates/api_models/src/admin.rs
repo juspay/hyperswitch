@@ -1985,7 +1985,6 @@ pub struct ProfileCreate {
     /// Product authentication ids
     #[schema(value_type = Option<Object>, example = r#"{ "key1": "value-1", "key2": "value-2" }"#)]
     pub authentication_product_ids: Option<HashMap<String, id_type::MerchantConnectorAccountId>>,
-
 }
 
 #[cfg(feature = "v1")]
@@ -2249,7 +2248,6 @@ pub struct ProfileResponse {
     /// Product authentication ids
     #[schema(value_type = Option<Object>, example = r#"{ "key1": "value-1", "key2": "value-2" }"#)]
     pub authentication_product_ids: Option<serde_json::Value>,
-
 }
 
 #[cfg(feature = "v1")]
