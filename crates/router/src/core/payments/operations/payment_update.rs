@@ -393,10 +393,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .request_external_three_ds_authentication
             .or(payment_intent.request_external_three_ds_authentication);
 
-        payment_intent.request_overcapture = request
-            .request_overcapture
-            .or(payment_intent.request_overcapture);
-
         payment_intent.merchant_order_reference_id = request
             .merchant_order_reference_id
             .clone()
@@ -444,21 +440,15 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 id: profile_id.get_string_repr().to_owned(),
             })?;
 
-        match payment_attempt.capture_method {
-            Some(storage_enums::CaptureMethod::Manual) | None => {
-                payment_attempt.request_overcapture = request
-                    .request_overcapture
-                    .or(payment_attempt.request_overcapture);
-            }
-            _ => Err(errors::ApiErrorResponse::NotSupported {
-                message: "requesting overcapture is supported only via manual capture".to_owned(),
-            })?,
-        };
-
         let surcharge_details = request.surcharge_details.map(|request_surcharge_details| {
             payments::types::SurchargeDetails::from((&request_surcharge_details, &payment_attempt))
         });
 
+        payment_attempt.request_overcapture = helpers::get_overcapture_request_for_payments_update(&payment_attempt, &payment_intent, Some(&request), &business_profile)?;
+        payment_intent.request_overcapture = request
+        .request_overcapture
+        .or(payment_intent.request_overcapture);
+        
         let payment_data = PaymentData {
             flow: PhantomData,
             payment_intent,

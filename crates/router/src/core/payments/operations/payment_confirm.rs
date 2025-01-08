@@ -404,17 +404,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
 
         payment_attempt.capture_method = request.capture_method.or(payment_attempt.capture_method);
 
-        match payment_attempt.capture_method {
-            Some(storage_enums::CaptureMethod::Manual) => {
-                payment_attempt.request_overcapture = request
-                    .request_overcapture
-                    .or(payment_attempt.request_overcapture);
-            }
-            _ => Err(errors::ApiErrorResponse::NotSupported {
-                message: "requesting overcapture is supported only via manual capture".to_owned(),
-            })?,
-        };
-
         payment_attempt.customer_acceptance = request
             .customer_acceptance
             .clone()
@@ -792,6 +781,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 )), // connector_mandate_request_reference_id
             )),
         );
+        payment_attempt.request_overcapture = helpers::get_overcapture_request_for_payments_update(&payment_attempt, &payment_intent, None, &business_profile)?;
 
         let payment_data = PaymentData {
             flow: PhantomData,
@@ -1304,7 +1294,6 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
         let browser_info = payment_data.payment_attempt.browser_info.clone();
         let frm_message = payment_data.frm_message.clone();
         let capture_method = payment_data.payment_attempt.capture_method;
-        let request_overcapture = payment_data.payment_attempt.request_overcapture;
 
         let default_status_result = (
             storage_enums::IntentStatus::Processing,
@@ -1483,6 +1472,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
             ),
             None => (None, None, None),
         };
+        let request_overcapture = payment_data.payment_attempt.request_overcapture;
 
         let payment_attempt_fut = tokio::spawn(
             async move {
@@ -1531,7 +1521,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                         connector_mandate_detail: payment_data
                             .payment_attempt
                             .connector_mandate_detail,
-                        request_overcapture,
+                        request_overcapture
                     },
                     storage_scheme,
                 )

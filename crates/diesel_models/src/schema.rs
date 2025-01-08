@@ -216,7 +216,7 @@ diesel::table! {
         max_auto_retries_enabled -> Nullable<Int2>,
         is_click_to_pay_enabled -> Bool,
         authentication_product_ids -> Nullable<Jsonb>,
-        always_request_overcapture -> Bool,
+        always_request_overcapture -> Nullable<Bool>,
     }
 }
 
