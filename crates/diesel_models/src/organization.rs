@@ -198,7 +198,6 @@ impl From<OrganizationUpdate> for OrganizationUpdateInternal {
     }
 }
 #[cfg(feature = "v2")]
-
 impl From<OrganizationUpdate> for OrganizationUpdateInternal {
     fn from(value: OrganizationUpdate) -> Self {
         match value {
