@@ -369,6 +369,24 @@ pub(crate) fn convert_back_amount_to_minor_units<T>(
         .change_context(errors::ConnectorError::AmountConversionFailed)
 }
 
+pub(crate) fn validate_currency(
+    request_currency: enums::Currency,
+    merchant_config_currency: Option<enums::Currency>,
+) -> Result<(), errors::ConnectorError> {
+    let merchant_config_currency =
+        merchant_config_currency.ok_or(errors::ConnectorError::NoConnectorMetaData)?;
+    if request_currency != merchant_config_currency {
+        Err(errors::ConnectorError::NotSupported {
+            message: format!(
+                "currency {} is not supported for this merchant account",
+                request_currency
+            ),
+            connector: "Braintree",
+        })?
+    }
+    Ok(())
+}
+
 pub(crate) fn is_payment_failure(status: AttemptStatus) -> bool {
     match status {
         AttemptStatus::AuthenticationFailed

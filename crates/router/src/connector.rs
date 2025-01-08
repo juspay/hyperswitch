@@ -1,7 +1,6 @@
 pub mod adyen;
 pub mod adyenplatform;
 pub mod authorizedotnet;
-pub mod braintree;
 pub mod checkout;
 #[cfg(feature = "dummy_connector")]
 pub mod dummyconnector;
@@ -29,10 +28,10 @@ pub use hyperswitch_connectors::connectors::{
     aci, aci::Aci, airwallex, airwallex::Airwallex, amazonpay, amazonpay::Amazonpay, bambora,
     bambora::Bambora, bamboraapac, bamboraapac::Bamboraapac, bankofamerica,
     bankofamerica::Bankofamerica, billwerk, billwerk::Billwerk, bitpay, bitpay::Bitpay, bluesnap,
-    bluesnap::Bluesnap, boku, boku::Boku, cashtocode, cashtocode::Cashtocode, coinbase,
-    coinbase::Coinbase, cryptopay, cryptopay::Cryptopay, ctp_mastercard,
-    ctp_mastercard::CtpMastercard, cybersource, cybersource::Cybersource, datatrans,
-    datatrans::Datatrans, deutschebank, deutschebank::Deutschebank, digitalvirgo,
+    bluesnap::Bluesnap, boku, boku::Boku, braintree, braintree::Braintree, cashtocode,
+    cashtocode::Cashtocode, coinbase, coinbase::Coinbase, cryptopay, cryptopay::Cryptopay,
+    ctp_mastercard, ctp_mastercard::CtpMastercard, cybersource, cybersource::Cybersource,
+    datatrans, datatrans::Datatrans, deutschebank, deutschebank::Deutschebank, digitalvirgo,
     digitalvirgo::Digitalvirgo, dlocal, dlocal::Dlocal, ebanx, ebanx::Ebanx, elavon,
     elavon::Elavon, fiserv, fiserv::Fiserv, fiservemea, fiservemea::Fiservemea, fiuu, fiuu::Fiuu,
     forte, forte::Forte, globalpay, globalpay::Globalpay, globepay, globepay::Globepay, gocardless,
@@ -54,9 +53,9 @@ pub use hyperswitch_connectors::connectors::{
 pub use self::dummyconnector::DummyConnector;
 pub use self::{
     adyen::Adyen, adyenplatform::Adyenplatform, authorizedotnet::Authorizedotnet,
-    braintree::Braintree, checkout::Checkout, gpayments::Gpayments, netcetera::Netcetera, nmi::Nmi,
-    noon::Noon, nuvei::Nuvei, opayo::Opayo, opennode::Opennode, payme::Payme, payone::Payone,
-    paypal::Paypal, plaid::Plaid, riskified::Riskified, signifyd::Signifyd, stripe::Stripe,
+    checkout::Checkout, gpayments::Gpayments, netcetera::Netcetera, nmi::Nmi, noon::Noon,
+    nuvei::Nuvei, opayo::Opayo, opennode::Opennode, payme::Payme, payone::Payone, paypal::Paypal,
+    plaid::Plaid, riskified::Riskified, signifyd::Signifyd, stripe::Stripe,
     threedsecureio::Threedsecureio, trustpay::Trustpay, wellsfargopayout::Wellsfargopayout,
     wise::Wise,
 };

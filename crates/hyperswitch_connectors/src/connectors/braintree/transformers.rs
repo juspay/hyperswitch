@@ -1,19 +1,32 @@
+use api_models::webhooks::IncomingWebhookEvent;
+use common_enums::enums;
 use common_utils::{pii, types::StringMajorUnit};
 use error_stack::ResultExt;
+use hyperswitch_domain_models::{
+    payment_method_data::PaymentMethodData,
+    router_data::{ConnectorAuthType, PaymentMethodToken, RouterData},
+    router_flow_types::refunds::{Execute, RSync},
+    router_request_types::{CompleteAuthorizeData, PaymentsAuthorizeData, ResponseId},
+    router_response_types::{
+        MandateReference, PaymentsResponseData, RedirectForm, RefundsResponseData,
+    },
+    types::{self, RefundsRouterData},
+};
+use hyperswitch_interfaces::{
+    consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
+    errors,
+};
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
 use crate::{
-    connector::utils::{
-        self, PaymentsAuthorizeRequestData, PaymentsCompleteAuthorizeRequestData,
-        RefundsRequestData, RouterData,
-    },
-    consts,
-    core::errors,
-    services,
-    types::{self, api, domain, storage::enums, MandateReference},
+    types::{PaymentsCaptureResponseRouterData, RefundsResponseRouterData, ResponseRouterData},
     unimplemented_payment_method,
+    utils::{
+        self, PaymentsAuthorizeRequestData, PaymentsCompleteAuthorizeRequestData,
+        RefundsRequestData, RouterData as _,
+    },
 };
 pub const CHANNEL_CODE: &str = "HyperSwitchBT_Ecom";
 pub const CLIENT_TOKEN_MUTATION: &str = "mutation createClientToken($input: CreateClientTokenInput!) { createClientToken(input: $input) { clientToken}}";
@@ -135,11 +148,11 @@ pub struct BraintreeAuthType {
     pub(super) private_key: Secret<String>,
 }
 
-impl TryFrom<&types::ConnectorAuthType> for BraintreeAuthType {
+impl TryFrom<&ConnectorAuthType> for BraintreeAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
 
-    fn try_from(item: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
-        if let types::ConnectorAuthType::SignatureKey {
+    fn try_from(item: &ConnectorAuthType) -> Result<Self, Self::Error> {
+        if let ConnectorAuthType::SignatureKey {
             api_key,
             api_secret,
             key1: _merchant_id,
@@ -271,7 +284,7 @@ impl TryFrom<&BraintreeRouterData<&types::PaymentsAuthorizeRouterData>>
             Some(metadata.merchant_config_currency),
         )?;
         match item.router_data.request.payment_method_data.clone() {
-            domain::PaymentMethodData::Card(_) => {
+            PaymentMethodData::Card(_) => {
                 if item.router_data.is_three_ds() {
                     Ok(Self::CardThreeDs(BraintreeClientTokenRequest::try_from(
                         metadata,
@@ -280,7 +293,7 @@ impl TryFrom<&BraintreeRouterData<&types::PaymentsAuthorizeRouterData>>
                     Ok(Self::Card(CardPaymentRequest::try_from((item, metadata))?))
                 }
             }
-            domain::PaymentMethodData::MandatePayment => {
+            PaymentMethodData::MandatePayment => {
                 let connector_mandate_id = item.router_data.request.connector_mandate_id().ok_or(
                     errors::ConnectorError::MissingRequiredField {
                         field_name: "connector_mandate_id",
@@ -292,23 +305,23 @@ impl TryFrom<&BraintreeRouterData<&types::PaymentsAuthorizeRouterData>>
                     metadata,
                 ))?))
             }
-            domain::PaymentMethodData::CardRedirect(_)
-            | domain::PaymentMethodData::Wallet(_)
-            | domain::PaymentMethodData::PayLater(_)
-            | domain::PaymentMethodData::BankRedirect(_)
-            | domain::PaymentMethodData::BankDebit(_)
-            | domain::PaymentMethodData::BankTransfer(_)
-            | domain::PaymentMethodData::Crypto(_)
-            | domain::PaymentMethodData::Reward
-            | domain::PaymentMethodData::RealTimePayment(_)
-            | domain::PaymentMethodData::MobilePayment(_)
-            | domain::PaymentMethodData::Upi(_)
-            | domain::PaymentMethodData::Voucher(_)
-            | domain::PaymentMethodData::GiftCard(_)
-            | domain::PaymentMethodData::OpenBanking(_)
-            | domain::PaymentMethodData::CardToken(_)
-            | domain::PaymentMethodData::NetworkToken(_)
-            | domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+            PaymentMethodData::CardRedirect(_)
+            | PaymentMethodData::Wallet(_)
+            | PaymentMethodData::PayLater(_)
+            | PaymentMethodData::BankRedirect(_)
+            | PaymentMethodData::BankDebit(_)
+            | PaymentMethodData::BankTransfer(_)
+            | PaymentMethodData::Crypto(_)
+            | PaymentMethodData::Reward
+            | PaymentMethodData::RealTimePayment(_)
+            | PaymentMethodData::MobilePayment(_)
+            | PaymentMethodData::Upi(_)
+            | PaymentMethodData::Voucher(_)
+            | PaymentMethodData::GiftCard(_)
+            | PaymentMethodData::OpenBanking(_)
+            | PaymentMethodData::CardToken(_)
+            | PaymentMethodData::NetworkToken(_)
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("braintree"),
                 )
@@ -400,21 +413,16 @@ pub struct AuthChargeCreditCard {
 
 impl<F>
     TryFrom<
-        types::ResponseRouterData<
-            F,
-            BraintreeAuthResponse,
-            types::PaymentsAuthorizeData,
-            types::PaymentsResponseData,
-        >,
-    > for types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>
+        ResponseRouterData<F, BraintreeAuthResponse, PaymentsAuthorizeData, PaymentsResponseData>,
+    > for RouterData<F, PaymentsAuthorizeData, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<
+        item: ResponseRouterData<
             F,
             BraintreeAuthResponse,
-            types::PaymentsAuthorizeData,
-            types::PaymentsResponseData,
+            PaymentsAuthorizeData,
+            PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
         match item.response {
@@ -426,7 +434,7 @@ impl<F>
                 let transaction_data = auth_response.data.authorize_credit_card.transaction;
                 let status = enums::AttemptStatus::from(transaction_data.status.clone());
                 let response = if utils::is_payment_failure(status) {
-                    Err(types::ErrorResponse {
+                    Err(hyperswitch_domain_models::router_data::ErrorResponse {
                         code: transaction_data.status.to_string().clone(),
                         message: transaction_data.status.to_string().clone(),
                         reason: Some(transaction_data.status.to_string().clone()),
@@ -435,8 +443,8 @@ impl<F>
                         status_code: item.http_code,
                     })
                 } else {
-                    Ok(types::PaymentsResponseData::TransactionResponse {
-                        resource_id: types::ResponseId::ConnectorTransactionId(transaction_data.id),
+                    Ok(PaymentsResponseData::TransactionResponse {
+                        resource_id: ResponseId::ConnectorTransactionId(transaction_data.id),
                         redirection_data: Box::new(None),
                         mandate_reference: Box::new(transaction_data.payment_method.as_ref().map(
                             |pm| MandateReference {
@@ -461,8 +469,8 @@ impl<F>
             }
             BraintreeAuthResponse::ClientTokenResponse(client_token_data) => Ok(Self {
                 status: enums::AttemptStatus::AuthenticationPending,
-                response: Ok(types::PaymentsResponseData::TransactionResponse {
-                    resource_id: types::ResponseId::NoResponseId,
+                response: Ok(PaymentsResponseData::TransactionResponse {
+                    resource_id: ResponseId::NoResponseId,
                     redirection_data: Box::new(Some(get_braintree_redirect_form(
                         *client_token_data,
                         item.data.get_payment_method_token()?,
@@ -484,7 +492,7 @@ impl<F>
 fn build_error_response<T>(
     response: &[ErrorDetails],
     http_code: u16,
-) -> Result<T, types::ErrorResponse> {
+) -> Result<T, hyperswitch_domain_models::router_data::ErrorResponse> {
     let error_messages = response
         .iter()
         .map(|error| error.message.to_string())
@@ -513,10 +521,10 @@ fn get_error_response<T>(
     error_msg: Option<String>,
     error_reason: Option<String>,
     http_code: u16,
-) -> Result<T, types::ErrorResponse> {
-    Err(types::ErrorResponse {
-        code: error_code.unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
-        message: error_msg.unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
+) -> Result<T, hyperswitch_domain_models::router_data::ErrorResponse> {
+    Err(hyperswitch_domain_models::router_data::ErrorResponse {
+        code: error_code.unwrap_or_else(|| NO_ERROR_CODE.to_string()),
+        message: error_msg.unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
         reason: error_reason,
         status_code: http_code,
         attempt_status: None,
@@ -576,21 +584,21 @@ impl From<BraintreePaymentStatus> for enums::AttemptStatus {
 
 impl<F>
     TryFrom<
-        types::ResponseRouterData<
+        ResponseRouterData<
             F,
             BraintreePaymentsResponse,
-            types::PaymentsAuthorizeData,
-            types::PaymentsResponseData,
+            PaymentsAuthorizeData,
+            PaymentsResponseData,
         >,
-    > for types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>
+    > for RouterData<F, PaymentsAuthorizeData, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<
+        item: ResponseRouterData<
             F,
             BraintreePaymentsResponse,
-            types::PaymentsAuthorizeData,
-            types::PaymentsResponseData,
+            PaymentsAuthorizeData,
+            PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
         match item.response {
@@ -602,7 +610,7 @@ impl<F>
                 let transaction_data = payment_response.data.charge_credit_card.transaction;
                 let status = enums::AttemptStatus::from(transaction_data.status.clone());
                 let response = if utils::is_payment_failure(status) {
-                    Err(types::ErrorResponse {
+                    Err(hyperswitch_domain_models::router_data::ErrorResponse {
                         code: transaction_data.status.to_string().clone(),
                         message: transaction_data.status.to_string().clone(),
                         reason: Some(transaction_data.status.to_string().clone()),
@@ -611,8 +619,8 @@ impl<F>
                         status_code: item.http_code,
                     })
                 } else {
-                    Ok(types::PaymentsResponseData::TransactionResponse {
-                        resource_id: types::ResponseId::ConnectorTransactionId(transaction_data.id),
+                    Ok(PaymentsResponseData::TransactionResponse {
+                        resource_id: ResponseId::ConnectorTransactionId(transaction_data.id),
                         redirection_data: Box::new(None),
                         mandate_reference: Box::new(transaction_data.payment_method.as_ref().map(
                             |pm| MandateReference {
@@ -637,8 +645,8 @@ impl<F>
             }
             BraintreePaymentsResponse::ClientTokenResponse(client_token_data) => Ok(Self {
                 status: enums::AttemptStatus::AuthenticationPending,
-                response: Ok(types::PaymentsResponseData::TransactionResponse {
-                    resource_id: types::ResponseId::NoResponseId,
+                response: Ok(PaymentsResponseData::TransactionResponse {
+                    resource_id: ResponseId::NoResponseId,
                     redirection_data: Box::new(Some(get_braintree_redirect_form(
                         *client_token_data,
                         item.data.get_payment_method_token()?,
@@ -659,21 +667,21 @@ impl<F>
 
 impl<F>
     TryFrom<
-        types::ResponseRouterData<
+        ResponseRouterData<
             F,
             BraintreeCompleteChargeResponse,
-            types::CompleteAuthorizeData,
-            types::PaymentsResponseData,
+            CompleteAuthorizeData,
+            PaymentsResponseData,
         >,
-    > for types::RouterData<F, types::CompleteAuthorizeData, types::PaymentsResponseData>
+    > for RouterData<F, CompleteAuthorizeData, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<
+        item: ResponseRouterData<
             F,
             BraintreeCompleteChargeResponse,
-            types::CompleteAuthorizeData,
-            types::PaymentsResponseData,
+            CompleteAuthorizeData,
+            PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
         match item.response {
@@ -685,7 +693,7 @@ impl<F>
                 let transaction_data = payment_response.data.charge_credit_card.transaction;
                 let status = enums::AttemptStatus::from(transaction_data.status.clone());
                 let response = if utils::is_payment_failure(status) {
-                    Err(types::ErrorResponse {
+                    Err(hyperswitch_domain_models::router_data::ErrorResponse {
                         code: transaction_data.status.to_string().clone(),
                         message: transaction_data.status.to_string().clone(),
                         reason: Some(transaction_data.status.to_string().clone()),
@@ -694,8 +702,8 @@ impl<F>
                         status_code: item.http_code,
                     })
                 } else {
-                    Ok(types::PaymentsResponseData::TransactionResponse {
-                        resource_id: types::ResponseId::ConnectorTransactionId(transaction_data.id),
+                    Ok(PaymentsResponseData::TransactionResponse {
+                        resource_id: ResponseId::ConnectorTransactionId(transaction_data.id),
                         redirection_data: Box::new(None),
                         mandate_reference: Box::new(transaction_data.payment_method.as_ref().map(
                             |pm| MandateReference {
@@ -724,21 +732,21 @@ impl<F>
 
 impl<F>
     TryFrom<
-        types::ResponseRouterData<
+        ResponseRouterData<
             F,
             BraintreeCompleteAuthResponse,
-            types::CompleteAuthorizeData,
-            types::PaymentsResponseData,
+            CompleteAuthorizeData,
+            PaymentsResponseData,
         >,
-    > for types::RouterData<F, types::CompleteAuthorizeData, types::PaymentsResponseData>
+    > for RouterData<F, CompleteAuthorizeData, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<
+        item: ResponseRouterData<
             F,
             BraintreeCompleteAuthResponse,
-            types::CompleteAuthorizeData,
-            types::PaymentsResponseData,
+            CompleteAuthorizeData,
+            PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
         match item.response {
@@ -750,7 +758,7 @@ impl<F>
                 let transaction_data = auth_response.data.authorize_credit_card.transaction;
                 let status = enums::AttemptStatus::from(transaction_data.status.clone());
                 let response = if utils::is_payment_failure(status) {
-                    Err(types::ErrorResponse {
+                    Err(hyperswitch_domain_models::router_data::ErrorResponse {
                         code: transaction_data.status.to_string().clone(),
                         message: transaction_data.status.to_string().clone(),
                         reason: Some(transaction_data.status.to_string().clone()),
@@ -759,8 +767,8 @@ impl<F>
                         status_code: item.http_code,
                     })
                 } else {
-                    Ok(types::PaymentsResponseData::TransactionResponse {
-                        resource_id: types::ResponseId::ConnectorTransactionId(transaction_data.id),
+                    Ok(PaymentsResponseData::TransactionResponse {
+                        resource_id: ResponseId::ConnectorTransactionId(transaction_data.id),
                         redirection_data: Box::new(None),
                         mandate_reference: Box::new(transaction_data.payment_method.as_ref().map(
                             |pm| MandateReference {
@@ -835,11 +843,9 @@ pub struct BraintreeRefundInput {
     refund: RefundInputData,
 }
 
-impl<F> TryFrom<BraintreeRouterData<&types::RefundsRouterData<F>>> for BraintreeRefundRequest {
+impl<F> TryFrom<BraintreeRouterData<&RefundsRouterData<F>>> for BraintreeRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: BraintreeRouterData<&types::RefundsRouterData<F>>,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(item: BraintreeRouterData<&RefundsRouterData<F>>) -> Result<Self, Self::Error> {
         let metadata: BraintreeMeta =
             utils::to_connector_meta_from_secret(item.router_data.connector_meta_data.clone())
                 .change_context(errors::ConnectorError::InvalidConnectorConfig {
@@ -907,12 +913,12 @@ pub struct RefundResponse {
     pub data: BraintreeRefundResponseData,
 }
 
-impl TryFrom<types::RefundsResponseRouterData<api::Execute, BraintreeRefundResponse>>
-    for types::RefundsRouterData<api::Execute>
+impl TryFrom<RefundsResponseRouterData<Execute, BraintreeRefundResponse>>
+    for RefundsRouterData<Execute>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::RefundsResponseRouterData<api::Execute, BraintreeRefundResponse>,
+        item: RefundsResponseRouterData<Execute, BraintreeRefundResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: match item.response {
@@ -923,7 +929,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, BraintreeRefundRespo
                     let refund_data = refund_data.data.refund_transaction.refund;
                     let refund_status = enums::RefundStatus::from(refund_data.status.clone());
                     if utils::is_refund_failure(refund_status) {
-                        Err(types::ErrorResponse {
+                        Err(hyperswitch_domain_models::router_data::ErrorResponse {
                             code: refund_data.status.to_string().clone(),
                             message: refund_data.status.to_string().clone(),
                             reason: Some(refund_data.status.to_string().clone()),
@@ -932,7 +938,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, BraintreeRefundRespo
                             status_code: item.http_code,
                         })
                     } else {
-                        Ok(types::RefundsResponseData {
+                        Ok(RefundsResponseData {
                             connector_refund_id: refund_data.id.clone(),
                             refund_status,
                         })
@@ -1009,12 +1015,12 @@ pub enum BraintreeRSyncResponse {
     ErrorResponse(Box<ErrorResponse>),
 }
 
-impl TryFrom<types::RefundsResponseRouterData<api::RSync, BraintreeRSyncResponse>>
-    for types::RefundsRouterData<api::RSync>
+impl TryFrom<RefundsResponseRouterData<RSync, BraintreeRSyncResponse>>
+    for RefundsRouterData<RSync>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::RefundsResponseRouterData<api::RSync, BraintreeRSyncResponse>,
+        item: RefundsResponseRouterData<RSync, BraintreeRSyncResponse>,
     ) -> Result<Self, Self::Error> {
         match item.response {
             BraintreeRSyncResponse::ErrorResponse(error_response) => Ok(Self {
@@ -1030,7 +1036,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, BraintreeRSyncResponse
                     .first()
                     .ok_or(errors::ConnectorError::MissingConnectorRefundID)?;
                 let connector_refund_id = &edge_data.node.id;
-                let response = Ok(types::RefundsResponseData {
+                let response = Ok(RefundsResponseData {
                     connector_refund_id: connector_refund_id.to_string(),
                     refund_status: enums::RefundStatus::from(edge_data.node.status.clone()),
                 });
@@ -1075,7 +1081,7 @@ impl TryFrom<&types::TokenizationRouterData> for BraintreeTokenRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::TokenizationRouterData) -> Result<Self, Self::Error> {
         match item.request.payment_method_data.clone() {
-            domain::PaymentMethodData::Card(card_data) => Ok(Self {
+            PaymentMethodData::Card(card_data) => Ok(Self {
                 query: TOKENIZE_CREDIT_CARD.to_string(),
                 variables: VariableInput {
                     input: InputData {
@@ -1091,24 +1097,24 @@ impl TryFrom<&types::TokenizationRouterData> for BraintreeTokenRequest {
                     },
                 },
             }),
-            domain::PaymentMethodData::CardRedirect(_)
-            | domain::PaymentMethodData::Wallet(_)
-            | domain::PaymentMethodData::PayLater(_)
-            | domain::PaymentMethodData::BankRedirect(_)
-            | domain::PaymentMethodData::BankDebit(_)
-            | domain::PaymentMethodData::BankTransfer(_)
-            | domain::PaymentMethodData::Crypto(_)
-            | domain::PaymentMethodData::MandatePayment
-            | domain::PaymentMethodData::OpenBanking(_)
-            | domain::PaymentMethodData::Reward
-            | domain::PaymentMethodData::RealTimePayment(_)
-            | domain::PaymentMethodData::MobilePayment(_)
-            | domain::PaymentMethodData::Upi(_)
-            | domain::PaymentMethodData::Voucher(_)
-            | domain::PaymentMethodData::GiftCard(_)
-            | domain::PaymentMethodData::CardToken(_)
-            | domain::PaymentMethodData::NetworkToken(_)
-            | domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+            PaymentMethodData::CardRedirect(_)
+            | PaymentMethodData::Wallet(_)
+            | PaymentMethodData::PayLater(_)
+            | PaymentMethodData::BankRedirect(_)
+            | PaymentMethodData::BankDebit(_)
+            | PaymentMethodData::BankTransfer(_)
+            | PaymentMethodData::Crypto(_)
+            | PaymentMethodData::MandatePayment
+            | PaymentMethodData::OpenBanking(_)
+            | PaymentMethodData::Reward
+            | PaymentMethodData::RealTimePayment(_)
+            | PaymentMethodData::MobilePayment(_)
+            | PaymentMethodData::Upi(_)
+            | PaymentMethodData::Voucher(_)
+            | PaymentMethodData::GiftCard(_)
+            | PaymentMethodData::CardToken(_)
+            | PaymentMethodData::NetworkToken(_)
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("braintree"),
                 )
@@ -1169,13 +1175,12 @@ pub enum BraintreeTokenResponse {
     ErrorResponse(Box<ErrorResponse>),
 }
 
-impl<F, T>
-    TryFrom<types::ResponseRouterData<F, BraintreeTokenResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+impl<F, T> TryFrom<ResponseRouterData<F, BraintreeTokenResponse, T, PaymentsResponseData>>
+    for RouterData<F, T, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<F, BraintreeTokenResponse, T, types::PaymentsResponseData>,
+        item: ResponseRouterData<F, BraintreeTokenResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: match item.response {
@@ -1184,7 +1189,7 @@ impl<F, T>
                 }
 
                 BraintreeTokenResponse::TokenResponse(token_response) => {
-                    Ok(types::PaymentsResponseData::TokenizationResponse {
+                    Ok(PaymentsResponseData::TokenizationResponse {
                         token: token_response
                             .data
                             .tokenize_credit_card
@@ -1253,19 +1258,19 @@ pub struct CaptureResponse {
     data: CaptureResponseData,
 }
 
-impl TryFrom<types::PaymentsCaptureResponseRouterData<BraintreeCaptureResponse>>
+impl TryFrom<PaymentsCaptureResponseRouterData<BraintreeCaptureResponse>>
     for types::PaymentsCaptureRouterData
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::PaymentsCaptureResponseRouterData<BraintreeCaptureResponse>,
+        item: PaymentsCaptureResponseRouterData<BraintreeCaptureResponse>,
     ) -> Result<Self, Self::Error> {
         match item.response {
             BraintreeCaptureResponse::SuccessResponse(capture_data) => {
                 let transaction_data = capture_data.data.capture_transaction.transaction;
                 let status = enums::AttemptStatus::from(transaction_data.status.clone());
                 let response = if utils::is_payment_failure(status) {
-                    Err(types::ErrorResponse {
+                    Err(hyperswitch_domain_models::router_data::ErrorResponse {
                         code: transaction_data.status.to_string().clone(),
                         message: transaction_data.status.to_string().clone(),
                         reason: Some(transaction_data.status.to_string().clone()),
@@ -1274,8 +1279,8 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<BraintreeCaptureResponse>>
                         status_code: item.http_code,
                     })
                 } else {
-                    Ok(types::PaymentsResponseData::TransactionResponse {
-                        resource_id: types::ResponseId::ConnectorTransactionId(transaction_data.id),
+                    Ok(PaymentsResponseData::TransactionResponse {
+                        resource_id: ResponseId::ConnectorTransactionId(transaction_data.id),
                         redirection_data: Box::new(None),
                         mandate_reference: Box::new(None),
                         connector_metadata: None,
@@ -1358,13 +1363,12 @@ pub enum BraintreeCancelResponse {
     ErrorResponse(Box<ErrorResponse>),
 }
 
-impl<F, T>
-    TryFrom<types::ResponseRouterData<F, BraintreeCancelResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+impl<F, T> TryFrom<ResponseRouterData<F, BraintreeCancelResponse, T, PaymentsResponseData>>
+    for RouterData<F, T, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<F, BraintreeCancelResponse, T, types::PaymentsResponseData>,
+        item: ResponseRouterData<F, BraintreeCancelResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         match item.response {
             BraintreeCancelResponse::ErrorResponse(error_response) => Ok(Self {
@@ -1375,7 +1379,7 @@ impl<F, T>
                 let void_data = void_response.data.reverse_transaction.reversal;
                 let status = enums::AttemptStatus::from(void_data.status.clone());
                 let response = if utils::is_payment_failure(status) {
-                    Err(types::ErrorResponse {
+                    Err(hyperswitch_domain_models::router_data::ErrorResponse {
                         code: void_data.status.to_string().clone(),
                         message: void_data.status.to_string().clone(),
                         reason: Some(void_data.status.to_string().clone()),
@@ -1384,8 +1388,8 @@ impl<F, T>
                         status_code: item.http_code,
                     })
                 } else {
-                    Ok(types::PaymentsResponseData::TransactionResponse {
-                        resource_id: types::ResponseId::NoResponseId,
+                    Ok(PaymentsResponseData::TransactionResponse {
+                        resource_id: ResponseId::NoResponseId,
                         redirection_data: Box::new(None),
                         mandate_reference: Box::new(None),
                         connector_metadata: None,
@@ -1455,13 +1459,12 @@ pub struct PSyncResponse {
     data: PSyncResponseData,
 }
 
-impl<F, T>
-    TryFrom<types::ResponseRouterData<F, BraintreePSyncResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+impl<F, T> TryFrom<ResponseRouterData<F, BraintreePSyncResponse, T, PaymentsResponseData>>
+    for RouterData<F, T, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<F, BraintreePSyncResponse, T, types::PaymentsResponseData>,
+        item: ResponseRouterData<F, BraintreePSyncResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         match item.response {
             BraintreePSyncResponse::ErrorResponse(error_response) => Ok(Self {
@@ -1478,7 +1481,7 @@ impl<F, T>
                     .ok_or(errors::ConnectorError::MissingConnectorTransactionID)?;
                 let status = enums::AttemptStatus::from(edge_data.node.status.clone());
                 let response = if utils::is_payment_failure(status) {
-                    Err(types::ErrorResponse {
+                    Err(hyperswitch_domain_models::router_data::ErrorResponse {
                         code: edge_data.node.status.to_string().clone(),
                         message: edge_data.node.status.to_string().clone(),
                         reason: Some(edge_data.node.status.to_string().clone()),
@@ -1487,10 +1490,8 @@ impl<F, T>
                         status_code: item.http_code,
                     })
                 } else {
-                    Ok(types::PaymentsResponseData::TransactionResponse {
-                        resource_id: types::ResponseId::ConnectorTransactionId(
-                            edge_data.node.id.clone(),
-                        ),
+                    Ok(PaymentsResponseData::TransactionResponse {
+                        resource_id: ResponseId::ConnectorTransactionId(edge_data.node.id.clone()),
                         redirection_data: Box::new(None),
                         mandate_reference: Box::new(None),
                         connector_metadata: None,
@@ -1591,11 +1592,11 @@ impl
             variables: VariablePaymentInput {
                 input: PaymentInput {
                     payment_method_id: match item.router_data.get_payment_method_token()? {
-                        types::PaymentMethodToken::Token(token) => token,
-                        types::PaymentMethodToken::ApplePayDecrypt(_) => Err(
+                        PaymentMethodToken::Token(token) => token,
+                        PaymentMethodToken::ApplePayDecrypt(_) => Err(
                             unimplemented_payment_method!("Apple Pay", "Simplified", "Braintree"),
                         )?,
-                        types::PaymentMethodToken::PazeDecrypt(_) => {
+                        PaymentMethodToken::PazeDecrypt(_) => {
                             Err(unimplemented_payment_method!("Paze", "Braintree"))?
                         }
                     },
@@ -1680,48 +1681,46 @@ impl TryFrom<&BraintreeRouterData<&types::PaymentsCompleteAuthorizeRouterData>>
 
 fn get_braintree_redirect_form(
     client_token_data: ClientTokenResponse,
-    payment_method_token: types::PaymentMethodToken,
-    card_details: domain::PaymentMethodData,
-) -> Result<services::RedirectForm, error_stack::Report<errors::ConnectorError>> {
-    Ok(services::RedirectForm::Braintree {
+    payment_method_token: PaymentMethodToken,
+    card_details: PaymentMethodData,
+) -> Result<RedirectForm, error_stack::Report<errors::ConnectorError>> {
+    Ok(RedirectForm::Braintree {
         client_token: client_token_data
             .data
             .create_client_token
             .client_token
             .expose(),
         card_token: match payment_method_token {
-            types::PaymentMethodToken::Token(token) => token.expose(),
-            types::PaymentMethodToken::ApplePayDecrypt(_) => Err(unimplemented_payment_method!(
+            PaymentMethodToken::Token(token) => token.expose(),
+            PaymentMethodToken::ApplePayDecrypt(_) => Err(unimplemented_payment_method!(
                 "Apple Pay",
                 "Simplified",
                 "Braintree"
             ))?,
-            types::PaymentMethodToken::PazeDecrypt(_) => {
+            PaymentMethodToken::PazeDecrypt(_) => {
                 Err(unimplemented_payment_method!("Paze", "Braintree"))?
             }
         },
         bin: match card_details {
-            domain::PaymentMethodData::Card(card_details) => {
-                card_details.card_number.get_card_isin()
-            }
-            domain::PaymentMethodData::CardRedirect(_)
-            | domain::PaymentMethodData::Wallet(_)
-            | domain::PaymentMethodData::PayLater(_)
-            | domain::PaymentMethodData::BankRedirect(_)
-            | domain::PaymentMethodData::BankDebit(_)
-            | domain::PaymentMethodData::BankTransfer(_)
-            | domain::PaymentMethodData::Crypto(_)
-            | domain::PaymentMethodData::MandatePayment
-            | domain::PaymentMethodData::OpenBanking(_)
-            | domain::PaymentMethodData::Reward
-            | domain::PaymentMethodData::RealTimePayment(_)
-            | domain::PaymentMethodData::MobilePayment(_)
-            | domain::PaymentMethodData::Upi(_)
-            | domain::PaymentMethodData::Voucher(_)
-            | domain::PaymentMethodData::GiftCard(_)
-            | domain::PaymentMethodData::CardToken(_)
-            | domain::PaymentMethodData::NetworkToken(_)
-            | domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_) => Err(
+            PaymentMethodData::Card(card_details) => card_details.card_number.get_card_isin(),
+            PaymentMethodData::CardRedirect(_)
+            | PaymentMethodData::Wallet(_)
+            | PaymentMethodData::PayLater(_)
+            | PaymentMethodData::BankRedirect(_)
+            | PaymentMethodData::BankDebit(_)
+            | PaymentMethodData::BankTransfer(_)
+            | PaymentMethodData::Crypto(_)
+            | PaymentMethodData::MandatePayment
+            | PaymentMethodData::OpenBanking(_)
+            | PaymentMethodData::Reward
+            | PaymentMethodData::RealTimePayment(_)
+            | PaymentMethodData::MobilePayment(_)
+            | PaymentMethodData::Upi(_)
+            | PaymentMethodData::Voucher(_)
+            | PaymentMethodData::GiftCard(_)
+            | PaymentMethodData::CardToken(_)
+            | PaymentMethodData::NetworkToken(_)
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => Err(
                 errors::ConnectorError::NotImplemented("given payment method".to_owned()),
             )?,
         },
@@ -1741,17 +1740,16 @@ pub struct Notification {
     pub timestamp: String,
     pub dispute: Option<BraintreeDisputeData>,
 }
-impl types::transformers::ForeignFrom<&str> for api_models::webhooks::IncomingWebhookEvent {
-    fn foreign_from(status: &str) -> Self {
-        match status {
-            "dispute_opened" => Self::DisputeOpened,
-            "dispute_lost" => Self::DisputeLost,
-            "dispute_won" => Self::DisputeWon,
-            "dispute_accepted" | "dispute_auto_accepted" => Self::DisputeAccepted,
-            "dispute_expired" => Self::DisputeExpired,
-            "dispute_disputed" => Self::DisputeChallenged,
-            _ => Self::EventNotSupported,
-        }
+
+pub(crate) fn get_status(status: &str) -> IncomingWebhookEvent {
+    match status {
+        "dispute_opened" => IncomingWebhookEvent::DisputeOpened,
+        "dispute_lost" => IncomingWebhookEvent::DisputeLost,
+        "dispute_won" => IncomingWebhookEvent::DisputeWon,
+        "dispute_accepted" | "dispute_auto_accepted" => IncomingWebhookEvent::DisputeAccepted,
+        "dispute_expired" => IncomingWebhookEvent::DisputeExpired,
+        "dispute_disputed" => IncomingWebhookEvent::DisputeChallenged,
+        _ => IncomingWebhookEvent::EventNotSupported,
     }
 }
 
