@@ -653,15 +653,20 @@ impl
                 }),
                 None => None,
             },
-            line_items: item.router_data.request.metadata.clone().map(|metadata| LineItems {
-                line_item: Some(LineItem {
-                    item_id: item.router_data.connector_request_reference_id.clone(),
-                    name: "Metadata".to_owned(),
-                    description: metadata.to_string(),
-                    quantity: 1.00,
-                    unit_price: 0.00,
-                })         
-            }), 
+            line_items: item
+                .router_data
+                .request
+                .metadata
+                .clone()
+                .map(|metadata| LineItems {
+                    line_item: Some(LineItem {
+                        item_id: item.router_data.connector_request_reference_id.clone(),
+                        name: "Metadata".to_owned(),
+                        description: metadata.to_string(),
+                        quantity: 1.00,
+                        unit_price: 0.00,
+                    }),
+                }),
         })
     }
 }
@@ -712,15 +717,20 @@ impl
                 }),
                 None => None,
             },
-            line_items: item.router_data.request.metadata.clone().map(|metadata| LineItems {
-                line_item: Some(LineItem {
-                    item_id: item.router_data.connector_request_reference_id.clone(),
-                    name: "Metadata".to_owned(),
-                    description: metadata.to_string(),
-                    quantity: 1.00,
-                    unit_price: 0.00,
-                })         
-            }),    
+            line_items: item
+                .router_data
+                .request
+                .metadata
+                .clone()
+                .map(|metadata| LineItems {
+                    line_item: Some(LineItem {
+                        item_id: item.router_data.connector_request_reference_id.clone(),
+                        name: "Metadata".to_owned(),
+                        description: metadata.to_string(),
+                        quantity: 1.00,
+                        unit_price: 0.00,
+                    }),
+                }),
         })
     }
 }
@@ -806,15 +816,20 @@ impl
                 }),
                 None => None,
             },
-            line_items: item.router_data.request.metadata.clone().map(|metadata| LineItems {
-                line_item: Some(LineItem {
-                    item_id: item.router_data.connector_request_reference_id.clone(),
-                    name: "Metadata".to_owned(),
-                    description: metadata.to_string(),
-                    quantity: 1.00,
-                    unit_price: 0.00,
-                })         
-            }),    
+            line_items: item
+                .router_data
+                .request
+                .metadata
+                .clone()
+                .map(|metadata| LineItems {
+                    line_item: Some(LineItem {
+                        item_id: item.router_data.connector_request_reference_id.clone(),
+                        name: "Metadata".to_owned(),
+                        description: metadata.to_string(),
+                        quantity: 1.00,
+                        unit_price: 0.00,
+                    }),
+                }),
         })
     }
 }
@@ -866,15 +881,20 @@ impl
                 }),
                 None => None,
             },
-            line_items: item.router_data.request.metadata.clone().map(|metadata| LineItems {
-                line_item: Some(LineItem {
-                    item_id: item.router_data.connector_request_reference_id.clone(),
-                    name: "Metadata".to_owned(),
-                    description: metadata.to_string(),
-                    quantity: 1.00,
-                    unit_price: 0.00,
-                })         
-            }),    
+            line_items: item
+                .router_data
+                .request
+                .metadata
+                .clone()
+                .map(|metadata| LineItems {
+                    line_item: Some(LineItem {
+                        item_id: item.router_data.connector_request_reference_id.clone(),
+                        name: "Metadata".to_owned(),
+                        description: metadata.to_string(),
+                        quantity: 1.00,
+                        unit_price: 0.00,
+                    }),
+                }),
         })
     }
 }
