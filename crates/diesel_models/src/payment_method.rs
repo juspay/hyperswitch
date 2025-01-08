@@ -104,30 +104,6 @@ impl PaymentMethod {
         &self.payment_method_id
     }
 
-    pub fn get_common_mandate_reference(
-        connector_mandate_details: Option<serde_json::Value>,
-    ) -> Result<CommonMandateReference, ParsingError> {
-        if let Some(value) = connector_mandate_details {
-            match serde_json::from_value::<PaymentsMandateReference>(value.clone()) {
-                Ok(payment_mandate_reference) => Ok(CommonMandateReference {
-                    payments: Some(payment_mandate_reference),
-                    payouts: None,
-                }),
-                Err(_) => match serde_json::from_value::<CommonMandateReference>(value.clone()) {
-                    Ok(common_mandate_reference) => Ok(common_mandate_reference),
-                    Err(_) => Err(ParsingError::StructParseFailure(
-                        "Failed to deserialize PaymentMethod",
-                    ))?,
-                },
-            }
-        } else {
-            Ok(CommonMandateReference {
-                payments: None,
-                payouts: None,
-            })
-        }
-    }
-
     #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
     pub fn get_id(&self) -> &common_utils::id_type::GlobalPaymentMethodId {
         &self.id

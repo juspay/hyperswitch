@@ -5778,11 +5778,10 @@ pub async fn decide_connector_for_normal_or_recurring_payment<F: Clone, D>(
 where
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
 {
-    let connector_common_mandate_details = storage::PaymentMethod::get_common_mandate_reference(
-        payment_method_info.connector_mandate_details.clone(),
-    )
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Failed to get the common mandate reference")?;
+    let connector_common_mandate_details = payment_method_info
+        .get_common_mandate_reference()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to get the common mandate reference")?;
 
     let connector_mandate_details = connector_common_mandate_details.payments;
 
