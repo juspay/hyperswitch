@@ -258,6 +258,17 @@ pub(crate) fn to_currency_base_unit_asf64(
         .change_context(errors::ConnectorError::ParsingFailed)
 }
 
+pub(crate) fn to_boolean(string: String) -> bool {
+    let str = string.as_str();
+    match str {
+        "true" => true,
+        "false" => false,
+        "yes" => true,
+        "no" => false,
+        _ => false,
+    }
+}
+
 pub(crate) fn to_connector_meta_from_secret<T>(
     connector_meta: Option<Secret<Value>>,
 ) -> Result<T, Error>
