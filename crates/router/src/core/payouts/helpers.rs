@@ -203,11 +203,10 @@ pub fn should_create_connector_transfer_method(
             any(feature = "v1", feature = "v2"),
             not(feature = "payment_methods_v2")
         ))]
-        let common_mandate_reference = storage::PaymentMethod::get_common_mandate_reference(
-            pm.connector_mandate_details.clone(),
-        )
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("unable to deserialize connector mandate details")?;
+        let common_mandate_reference = pm
+            .get_common_mandate_reference()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("unable to deserialize connector mandate details")?;
 
         #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
         let common_mandate_reference = pm.connector_mandate_details.clone().unwrap_or_default();

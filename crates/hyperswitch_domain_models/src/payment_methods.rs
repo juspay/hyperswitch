@@ -2,7 +2,7 @@
 use common_utils::crypto::Encryptable;
 use common_utils::{
     crypto::OptionalEncryptableValue,
-    errors::{CustomResult, ValidationError},
+    errors::{CustomResult, ParsingError, ValidationError},
     pii, type_name,
     types::keymanager,
 };
@@ -137,6 +137,50 @@ impl PaymentMethod {
     #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
     pub fn get_payment_method_subtype(&self) -> Option<storage_enums::PaymentMethodType> {
         self.payment_method_subtype
+    }
+
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "payment_methods_v2")
+    ))]
+    pub fn get_common_mandate_reference(
+        &self,
+    ) -> Result<diesel_models::CommonMandateReference, ParsingError> {
+        if let Some(value) = &self.connector_mandate_details {
+            match serde_json::from_value::<diesel_models::PaymentsMandateReference>(value.clone()) {
+                Ok(payment_mandate_reference) => Ok(diesel_models::CommonMandateReference {
+                    payments: Some(payment_mandate_reference),
+                    payouts: None,
+                }),
+                Err(_) => match serde_json::from_value::<diesel_models::CommonMandateReference>(
+                    value.clone(),
+                ) {
+                    Ok(common_mandate_reference) => Ok(common_mandate_reference),
+                    Err(_) => Err(ParsingError::StructParseFailure(
+                        "Failed to deserialize PaymentMethod",
+                    ))?,
+                },
+            }
+        } else {
+            Ok(diesel_models::CommonMandateReference {
+                payments: None,
+                payouts: None,
+            })
+        }
+    }
+
+    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    pub fn get_common_mandate_reference(
+        &self,
+    ) -> Result<diesel_models::CommonMandateReference, ParsingError> {
+        if let Some(value) = &self.connector_mandate_details {
+            Ok(value.clone())
+        } else {
+            Ok(diesel_models::CommonMandateReference {
+                payments: None,
+                payouts: None,
+            })
+        }
     }
 }
 
