@@ -1348,7 +1348,7 @@ where
                 request_external_three_ds_authentication: payment_intent
                     .request_external_three_ds_authentication
                     .clone(),
-                request_overcapture: payment_intent.request_overcapture.clone(),
+                request_overcapture: payment_intent.request_overcapture,
             },
             vec![],
         )))

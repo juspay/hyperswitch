@@ -1153,7 +1153,7 @@ fn create_stripe_payment_method(
     payment_method_token: Option<types::PaymentMethodToken>,
     is_customer_initiated_mandate_payment: Option<bool>,
     billing_address: StripeBillingAddress,
-    is_request_overcapture: Option<bool>,
+    request_overcapture: Option<bool>,
 ) -> Result<
     (
         StripePaymentMethodData,
@@ -1172,7 +1172,7 @@ fn create_stripe_payment_method(
                 StripePaymentMethodData::try_from((
                     card_details,
                     payment_method_auth_type,
-                    is_request_overcapture,
+                    request_overcapture,
                 ))?,
                 Some(StripePaymentMethodType::Card),
                 billing_address,
