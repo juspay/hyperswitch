@@ -1129,12 +1129,12 @@ pub async fn payment_method_intent_confirm(
 }
 
 #[cfg(feature = "v2")]
-trait PerformFilteringOnPaymentMethodsEnabled {
+trait PerformFilteringOnEnabledPaymentMethods {
     fn perform_filtering(self) -> FilteredPaymentMethodsEnabled;
 }
 
 #[cfg(feature = "v2")]
-impl PerformFilteringOnPaymentMethodsEnabled
+impl PerformFilteringOnEnabledPaymentMethods
     for hyperswitch_domain_models::merchant_connector_account::FlattenedPaymentMethodsEnabled
 {
     fn perform_filtering(self) -> FilteredPaymentMethodsEnabled {

@@ -2050,14 +2050,6 @@ pub struct DefaultPaymentMethod {
     pub payment_method_id: String,
 }
 
-// #[cfg(feature = "v2")]
-// #[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
-// pub struct DefaultPaymentMethod {
-//     #[schema(value_type = String, max_length = 64, min_length = 1, example = "12345_cus_y3oqhf46pyzuxjbcn2giaqnb44")]
-//     pub customer_id: id_type::GlobalCustomerId,
-//     #[schema(value_type = String, max_length = 64, min_length = 1, example = "12345_pm_y3oqhf46pyzuxjbcn2giaqnb44")]
-//     pub payment_method_id: id_type::GlobalPaymentMethodId,
-// }
 //------------------------------------------------TokenizeService------------------------------------------------
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct TokenizePayloadEncrypted {

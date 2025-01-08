@@ -364,7 +364,7 @@ pub async fn list_customer_payment_method_api() {}
         (status = 404, description = "No payment method found with the given id")
     ),
     tag = "Payment Methods",
-    operation_id = "Retrieve Payment methods for a Payment Method Intent",
+    operation_id = "List Payment methods for a Payment Method Intent",
     security(("api_key" = [], "ephemeral_key" = []))
 )]
 pub fn list_payment_methods() {}

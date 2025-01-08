@@ -3330,7 +3330,6 @@ pub async fn delete_connector(
 
     let merchant_default_config_delete = DefaultFallbackRoutingConfigUpdate {
         routable_connector: &Some(
-            // TODO: check why we are converting connector to routable_connector
             common_enums::RoutableConnectors::from_str(&mca.connector_name.to_string()).map_err(
                 |_| errors::ApiErrorResponse::InvalidDataValue {
                     field_name: "connector_name",

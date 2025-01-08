@@ -2277,7 +2277,7 @@
         ],
         "summary": "Payment Methods - Payment Methods List",
         "description": "List the payment methods eligible for a payment. This endpoint also returns the saved payment methods for the customer.",
-        "operationId": "Retrieve Payment methods for a Payment Method Intent",
+        "operationId": "List Payment methods for a Payment Method Intent",
         "parameters": [
           {
             "name": "id",
@@ -2475,49 +2475,6 @@
           },
           "404": {
             "description": "Payment Method Not Found"
-          }
-        },
-        "security": [
-          {
-            "api_key": []
-          }
-        ]
-      }
-    },
-    "/v2/customers/{id}/saved-payment-methods": {
-      "get": {
-        "tags": [
-          "Payment Methods"
-        ],
-        "summary": "List saved payment methods for a Customer",
-        "description": "To filter and list the applicable payment methods for a particular Customer ID, to be used in a non-payments context",
-        "operationId": "List all Payment Methods for a Customer",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/PaymentMethodListRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Payment Methods retrieved",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CustomerPaymentMethodsListResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Invalid Data"
-          },
-          "404": {
-            "description": "Payment Methods does not exist in records"
           }
         },
         "security": [
