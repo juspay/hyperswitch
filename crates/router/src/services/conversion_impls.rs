@@ -1,3 +1,4 @@
+use common_utils::id_type;
 use error_stack::ResultExt;
 #[cfg(feature = "frm")]
 use hyperswitch_domain_models::router_data_v2::flow_common_types::FrmFlowData;
@@ -18,7 +19,6 @@ use hyperswitch_domain_models::{
 
 use super::connector_integration_interface::RouterDataConversion;
 use crate::errors;
-use common_utils::id_type;
 
 fn get_irrelevant_id_string(id_name: &str, flow_name: &str) -> String {
     format!("irrelevant {id_name} in {flow_name} flow")

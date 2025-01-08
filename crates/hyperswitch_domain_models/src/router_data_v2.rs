@@ -2,6 +2,7 @@ pub mod flow_common_types;
 
 use std::{marker::PhantomData, ops::Deref};
 
+use common_utils::id_type;
 #[cfg(feature = "frm")]
 pub use flow_common_types::FrmFlowData;
 #[cfg(feature = "payouts")]
@@ -12,7 +13,6 @@ pub use flow_common_types::{
 };
 
 use crate::router_data::{ConnectorAuthType, ErrorResponse};
-use common_utils::id_type;
 
 #[derive(Debug, Clone)]
 pub struct RouterDataV2<Flow, ResourceCommonData, FlowSpecificRequest, FlowSpecificResponse> {
