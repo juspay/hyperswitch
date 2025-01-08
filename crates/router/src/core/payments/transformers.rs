@@ -122,6 +122,7 @@ where
             .payment_id
             .get_string_repr()
             .to_owned(),
+        tenant_id: state.tenant.tenant_id.clone(),
         attempt_id: payment_data.payment_attempt.get_id().to_owned(),
         status: payment_data.payment_attempt.status,
         payment_method: diesel_models::enums::PaymentMethod::default(),
@@ -944,6 +945,7 @@ where
         flow: PhantomData,
         merchant_id: merchant_account.get_id().clone(),
         customer_id,
+        tenant_id: state.tenant.tenant_id.clone(),
         connector: connector_id.to_owned(),
         payment_id: payment_data
             .payment_attempt

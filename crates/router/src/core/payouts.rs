@@ -1226,9 +1226,13 @@ pub async fn create_recipient(
         );
     if should_call_connector {
         // 1. Form router data
-        let router_data =
-            core_utils::construct_payout_router_data(connector_data, merchant_account, payout_data)
-                .await?;
+        let router_data = core_utils::construct_payout_router_data(
+            state,
+            connector_data,
+            merchant_account,
+            payout_data,
+        )
+        .await?;
 
         // 2. Fetch connector integration details
         let connector_integration: services::BoxedPayoutConnectorIntegrationInterface<
@@ -1406,9 +1410,13 @@ pub async fn check_payout_eligibility(
     payout_data: &mut PayoutData,
 ) -> RouterResult<()> {
     // 1. Form Router data
-    let router_data =
-        core_utils::construct_payout_router_data(connector_data, merchant_account, payout_data)
-            .await?;
+    let router_data = core_utils::construct_payout_router_data(
+        state,
+        connector_data,
+        merchant_account,
+        payout_data,
+    )
+    .await?;
 
     // 2. Fetch connector integration details
     let connector_integration: services::BoxedPayoutConnectorIntegrationInterface<
@@ -1604,9 +1612,13 @@ pub async fn create_payout(
     payout_data: &mut PayoutData,
 ) -> RouterResult<()> {
     // 1. Form Router data
-    let mut router_data =
-        core_utils::construct_payout_router_data(connector_data, merchant_account, payout_data)
-            .await?;
+    let mut router_data = core_utils::construct_payout_router_data(
+        state,
+        connector_data,
+        merchant_account,
+        payout_data,
+    )
+    .await?;
 
     // 2. Get/Create access token
     access_token::create_access_token(
@@ -1818,9 +1830,13 @@ pub async fn create_payout_retrieve(
     payout_data: &mut PayoutData,
 ) -> RouterResult<()> {
     // 1. Form Router data
-    let mut router_data =
-        core_utils::construct_payout_router_data(connector_data, merchant_account, payout_data)
-            .await?;
+    let mut router_data = core_utils::construct_payout_router_data(
+        state,
+        connector_data,
+        merchant_account,
+        payout_data,
+    )
+    .await?;
 
     // 2. Get/Create access token
     access_token::create_access_token(
@@ -1974,9 +1990,13 @@ pub async fn create_recipient_disburse_account(
     payout_data: &mut PayoutData,
 ) -> RouterResult<()> {
     // 1. Form Router data
-    let router_data =
-        core_utils::construct_payout_router_data(connector_data, merchant_account, payout_data)
-            .await?;
+    let router_data = core_utils::construct_payout_router_data(
+        state,
+        connector_data,
+        merchant_account,
+        payout_data,
+    )
+    .await?;
 
     // 2. Fetch connector integration details
     let connector_integration: services::BoxedPayoutConnectorIntegrationInterface<
@@ -2077,9 +2097,13 @@ pub async fn cancel_payout(
     payout_data: &mut PayoutData,
 ) -> RouterResult<()> {
     // 1. Form Router data
-    let router_data =
-        core_utils::construct_payout_router_data(connector_data, merchant_account, payout_data)
-            .await?;
+    let router_data = core_utils::construct_payout_router_data(
+        state,
+        connector_data,
+        merchant_account,
+        payout_data,
+    )
+    .await?;
 
     // 2. Fetch connector integration details
     let connector_integration: services::BoxedPayoutConnectorIntegrationInterface<
@@ -2201,9 +2225,13 @@ pub async fn fulfill_payout(
     payout_data: &mut PayoutData,
 ) -> RouterResult<()> {
     // 1. Form Router data
-    let mut router_data =
-        core_utils::construct_payout_router_data(connector_data, merchant_account, payout_data)
-            .await?;
+    let mut router_data = core_utils::construct_payout_router_data(
+        state,
+        connector_data,
+        merchant_account,
+        payout_data,
+    )
+    .await?;
 
     // 2. Get/Create access token
     access_token::create_access_token(

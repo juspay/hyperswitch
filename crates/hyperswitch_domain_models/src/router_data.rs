@@ -22,6 +22,7 @@ pub struct RouterData<Flow, Request, Response> {
     // Make this change after all the connector dependency has been removed from connectors
     pub payment_id: String,
     pub attempt_id: String,
+    pub tenant_id: id_type::TenantId,
     pub status: common_enums::enums::AttemptStatus,
     pub payment_method: common_enums::enums::PaymentMethod,
     pub connector_auth_type: ConnectorAuthType,
