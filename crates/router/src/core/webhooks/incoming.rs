@@ -1842,19 +1842,18 @@ async fn update_connector_mandate_details(
             // Update connector's mandate details
             let updated_connector_mandate_details =
                 if let Some(webhook_mandate_details) = webhook_connector_mandate_details {
-                    let mandate_details = storage::PaymentMethod::get_common_mandate_reference(
-                        payment_method_info.connector_mandate_details.clone(),
-                    )
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed to deserialize to Payment Mandate Reference")?;
+                    let mandate_details = payment_method_info
+                        .get_common_mandate_reference()
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed to deserialize to Payment Mandate Reference")?;
 
                     let merchant_connector_account_id = payment_attempt
                         .merchant_connector_id
                         .clone()
                         .get_required_value("merchant_connector_id")?;
 
-                    if !mandate_details.payments.as_ref().map_or(false, |payments| {
-                        payments.0.contains_key(&merchant_connector_account_id)
+                    if mandate_details.payments.as_ref().map_or(true, |payments| {
+                        !payments.0.contains_key(&merchant_connector_account_id)
                     }) {
                         // Update the payment attempt to maintain consistency across tables.
                         let (mandate_metadata, connector_mandate_request_reference_id) =

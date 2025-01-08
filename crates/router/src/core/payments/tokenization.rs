@@ -1216,8 +1216,7 @@ pub fn update_connector_mandate_details(
         .as_ref()
         .and_then(|common_mandate| common_mandate.payments.clone())
     {
-        Some(mut payments_mandate_reference) => {
-            router_env::logger::info!("here : {:?}", payments_mandate_reference.clone());
+        Some(mut payment_mandate_reference) => {
             if let Some((mca_id, connector_mandate_id)) =
                 merchant_connector_id.clone().zip(connector_mandate_id)
             {
@@ -1232,7 +1231,7 @@ pub fn update_connector_mandate_details(
                         .clone(),
                 };
 
-                payments_mandate_reference
+                payment_mandate_reference
                     .entry(mca_id)
                     .and_modify(|pm| *pm = updated_record)
                     .or_insert(diesel_models::PaymentsMandateReferenceRecord {
@@ -1248,7 +1247,7 @@ pub fn update_connector_mandate_details(
                 let payout_data = mandate_details.and_then(|common_mandate| common_mandate.payouts);
 
                 Some(diesel_models::CommonMandateReference {
-                    payments: Some(payments_mandate_reference),
+                    payments: Some(payment_mandate_reference),
                     payouts: payout_data,
                 })
             } else {

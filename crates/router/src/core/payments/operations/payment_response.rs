@@ -1587,10 +1587,8 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                     payment_data.payment_method_info.clone()
                                 {
                                     // Parse value to check for mandates' existence
-                                    let mandate_details =
-                                        storage::PaymentMethod::get_common_mandate_reference(
-                                            payment_method.connector_mandate_details.clone(),
-                                        )
+                                    let mandate_details = payment_method
+                                        .get_common_mandate_reference()
                                         .change_context(
                                             errors::ApiErrorResponse::InternalServerError,
                                         )

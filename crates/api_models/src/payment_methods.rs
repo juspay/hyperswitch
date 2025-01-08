@@ -11,7 +11,7 @@ use common_utils::{
     id_type, link_utils, pii,
     types::{MinorUnit, Percentage, Surcharge},
 };
-use masking::{self, Deserialize, PeekInterface};
+use masking::PeekInterface;
 use serde::de;
 use utoipa::{schema, ToSchema};
 
@@ -351,7 +351,8 @@ fn deserialize_connector_mandate_details<'de, D>(
 where
     D: serde::Deserializer<'de>,
 {
-    let value: Option<serde_json::Value> = Option::<serde_json::Value>::deserialize(deserializer)?;
+    let value: Option<serde_json::Value> =
+        <Option<serde_json::Value> as de::Deserialize>::deserialize(deserializer)?;
     if let Some(connector_mandate_value) = value {
         if let Ok(payment_mandate_record) =
             serde_json::from_value::<PaymentsMandateReference>(connector_mandate_value.clone())
@@ -1539,7 +1540,7 @@ pub struct PaymentMethodListRequest {
     any(feature = "v1", feature = "v2"),
     not(feature = "payment_methods_v2")
 ))]
-impl<'de> Deserialize<'de> for PaymentMethodListRequest {
+impl<'de> serde::Deserialize<'de> for PaymentMethodListRequest {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
@@ -1655,7 +1656,7 @@ pub struct PaymentMethodListRequest {
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-impl<'de> Deserialize<'de> for PaymentMethodListRequest {
+impl<'de> serde::Deserialize<'de> for PaymentMethodListRequest {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
