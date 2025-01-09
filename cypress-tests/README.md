@@ -1,4 +1,4 @@
-# Hyperswitch Cypress Testing Framework
+# Hyperswitch Cypress Testing Framework <!-- omit in toc -->
 
 ## Overview
 
@@ -17,12 +17,12 @@ This is a comprehensive testing framework built with [Cypress](https://cypress.i
 - [Table of Contents](#table-of-contents)
 - [Quick Start](#quick-start)
 - [Getting Started](#getting-started)
-  - [Prerequisites](#prerequisites)
-  - [Installation](#installation)
-  - [Running Tests](#running-tests)
-    - [Development Mode (Interactive)](#development-mode-interactive)
-    - [CI Mode (Headless)](#ci-mode-headless)
-    - [Execute tests against multiple connectors or in parallel](#execute-tests-against-multiple-connectors-or-in-parallel)
+- [Prerequisites](#prerequisites)
+- [Installation](#installation)
+- [Running Tests](#running-tests)
+  - [Development Mode (Interactive)](#development-mode-interactive)
+  - [CI Mode (Headless)](#ci-mode-headless)
+  - [Execute tests against multiple connectors or in parallel](#execute-tests-against-multiple-connectors-or-in-parallel)
 - [Test reports](#test-reports)
 - [Folder structure](#folder-structure)
 - [Adding tests](#adding-tests)
