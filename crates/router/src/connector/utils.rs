@@ -818,7 +818,6 @@ pub trait PaymentsAuthorizeRequestData {
     fn get_metadata_as_object(&self) -> Option<pii::SecretSerdeValue>;
     fn get_authentication_data(&self) -> Result<AuthenticationData, Error>;
     fn get_connector_mandate_request_reference_id(&self) -> Result<String, Error>;
-    fn get_split_payment_request(&self) -> Option<&common_types::payments::SplitPaymentsRequest>;
 }
 
 pub trait PaymentMethodTokenizationRequestData {
@@ -1021,10 +1020,6 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
                 | Some(payments::MandateReferenceId::NetworkTokenWithNTI(_)) => None,
             })
             .ok_or_else(missing_field_err("connector_mandate_request_reference_id"))
-    }
-
-    fn get_split_payment_request(&self) -> Option<&common_types::payments::SplitPaymentsRequest> {
-        self.split_payments.as_ref()
     }
 }
 
