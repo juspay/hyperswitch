@@ -5,7 +5,16 @@ import * as utils from "../../configs/Routing/Utils";
 let globalState;
 
 describe("Auto Retries & Step Up 3DS", () => {
-  context("Login", () => {
+  beforeEach(() => {
+    // Restore the session if it exists
+    cy.session("login", () => {
+      cy.userLogin(globalState);
+      cy.terminate2Fa(globalState);
+      cy.userInfo(globalState);
+    });
+  });
+
+  context("Get merchant info", () => {
     before("seed global state", () => {
       cy.task("getGlobalState").then((state) => {
         globalState = new State(state);
@@ -14,12 +23,6 @@ describe("Auto Retries & Step Up 3DS", () => {
 
     afterEach("flush global state", () => {
       cy.task("setGlobalState", globalState.data);
-    });
-
-    it("User login", () => {
-      cy.userLogin(globalState);
-      cy.terminate2Fa(globalState);
-      cy.userInfo(globalState);
     });
 
     it("List MCA", () => {
