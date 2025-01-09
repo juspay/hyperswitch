@@ -6292,6 +6292,7 @@ pub fn validate_overcapture_request_for_payments_create(
     )
 }
 
+#[cfg(feature = "v1")]
 pub fn get_overcapture_request_for_payments_update(
     payment_attempt: &PaymentAttempt,
     payment_intent: &PaymentIntent,
