@@ -379,7 +379,7 @@ pub struct UserTransferKeyResponse {
 pub struct ListOrgsForUserResponse {
     pub org_id: id_type::OrganizationId,
     pub org_name: Option<String>,
-    pub platform_merchant_id: Option<id_type::MerchantId>,
+    pub is_platform: bool,
 }
 
 #[derive(Debug, serde::Serialize)]
