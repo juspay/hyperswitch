@@ -734,7 +734,7 @@ mod client_secret_type {
         {
             struct ClientSecretVisitor;
 
-            impl<'de> Visitor<'de> for ClientSecretVisitor {
+            impl Visitor<'_> for ClientSecretVisitor {
                 type Value = ClientSecret;
 
                 fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {

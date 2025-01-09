@@ -366,7 +366,6 @@ where
     ///
     /// Example: "[FN_WITHOUT_COLON - START]"
     ///
-
     fn span_message<S>(span: &SpanRef<'_, S>, ty: RecordType) -> String
     where
         S: Subscriber + for<'a> LookupSpan<'a>,
@@ -379,7 +378,6 @@ where
     ///
     /// Examples: "[FN_WITHOUT_COLON - EVENT] Message"
     ///
-
     fn event_message<S>(
         span: &Option<&SpanRef<'_, S>>,
         event: &Event<'_>,

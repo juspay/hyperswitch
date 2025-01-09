@@ -456,7 +456,6 @@ pub struct TsysCaptureRequest {
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "PascalCase")]
-
 pub struct TsysPaymentsCaptureRequest {
     capture: TsysCaptureRequest,
 }

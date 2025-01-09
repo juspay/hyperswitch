@@ -3251,12 +3251,14 @@ pub async fn list_payment_methods(
                 .any(|mca| mca.payment_method == enums::PaymentMethod::Wallet);
             if wallet_pm_exists {
                 match db
-                    .find_payment_method_by_customer_id_merchant_id_list(
+                    .find_payment_method_by_customer_id_merchant_id_status(
                         &((&state).into()),
                         &key_store,
-                       &customer.customer_id,
-                       merchant_account.get_id(),
+                        &customer.customer_id,
+                        merchant_account.get_id(),
+                        common_enums::PaymentMethodStatus::Active,
                         None,
+                        merchant_account.storage_scheme,
                     )
                     .await
                 {
@@ -3390,7 +3392,7 @@ pub async fn list_payment_methods(
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Invalid PaymentRoutingInfo format found in payment attempt")?
-            .unwrap_or_else(|| storage::PaymentRoutingInfo {
+            .unwrap_or(storage::PaymentRoutingInfo {
                 algorithm: None,
                 pre_routing_results: None,
             });

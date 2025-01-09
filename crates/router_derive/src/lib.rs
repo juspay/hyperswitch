@@ -166,7 +166,6 @@ pub fn diesel_enum(
 /// }
 /// ```
 ///
-
 /// # Panics
 ///
 /// Panics if a struct without named fields is provided as input to the macro
@@ -505,7 +504,6 @@ pub fn operation_derive(input: proc_macro::TokenStream) -> proc_macro::TokenStre
 ///     payment_method: String,
 /// }
 /// ```
-
 #[proc_macro_derive(
     PolymorphicSchema,
     attributes(mandatory_in, generate_schemas, remove_in)

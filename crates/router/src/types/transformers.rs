@@ -695,7 +695,7 @@ impl ForeignFrom<storage::Config> for api_types::Config {
     }
 }
 
-impl<'a> ForeignFrom<&'a api_types::ConfigUpdate> for storage::ConfigUpdate {
+impl ForeignFrom<&api_types::ConfigUpdate> for storage::ConfigUpdate {
     fn foreign_from(config: &api_types::ConfigUpdate) -> Self {
         Self::Update {
             config: Some(config.value.clone()),
@@ -703,7 +703,7 @@ impl<'a> ForeignFrom<&'a api_types::ConfigUpdate> for storage::ConfigUpdate {
     }
 }
 
-impl<'a> From<&'a domain::Address> for api_types::Address {
+impl From<&domain::Address> for api_types::Address {
     fn from(address: &domain::Address) -> Self {
         // If all the fields of address are none, then pass the address as None
         let address_details = if address.city.is_none()

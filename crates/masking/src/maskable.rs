@@ -79,10 +79,8 @@ impl<T: Eq + PartialEq + Clone> Maskable<T> {
 }
 
 /// Trait for providing a method on custom types for constructing `Maskable`
-
 pub trait Mask {
     /// The type returned by the `into_masked()` method. Must implement `PartialEq`, `Eq` and `Clone`
-
     type Output: Eq + Clone + PartialEq;
 
     ///
