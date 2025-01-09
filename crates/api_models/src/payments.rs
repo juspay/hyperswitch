@@ -528,7 +528,6 @@ pub struct PaymentsIntentResponse {
     /// Whether to perform external authentication (if applicable)
     #[schema(value_type = External3dsAuthenticationRequest)]
     pub request_external_three_ds_authentication: common_enums::External3dsAuthenticationRequest,
-
 }
 
 #[cfg(feature = "v2")]
