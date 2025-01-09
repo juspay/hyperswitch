@@ -50,6 +50,29 @@ function validateErrorMessage(response, resData) {
   }
 }
 
+Cypress.Commands.add("healthCheck", (globalState) => {
+  const baseUrl = globalState.get("baseUrl");
+  const url = `${baseUrl}/health`;
+
+  cy.request({
+    method: "GET",
+    url: url,
+    headers: {
+      Accept: "application/json",
+    },
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    if (response.status === 200) {
+      expect(response.body).to.equal("health is good");
+    } else {
+      throw new Error(
+        `Health Check failed with status: \`${response.status}\` and body: \`${response.body}\``
+      );
+    }
+  });
+});
+
 Cypress.Commands.add(
   "merchantCreateCallTest",
   (merchantCreateBody, globalState) => {
