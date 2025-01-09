@@ -23,7 +23,10 @@ use hyperswitch_domain_models::{
         PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
         RefundsData, SetupMandateRequestData,
     },
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    router_response_types::{
+        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
+        SupportedPaymentMethods, SupportedPaymentMethodsExt,
+    },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
         PaymentsSessionRouterData, PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData,
@@ -31,20 +34,23 @@ use hyperswitch_domain_models::{
     },
 };
 use hyperswitch_interfaces::{
-    api::{self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorValidation},
+    api::{
+        self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorSpecifications,
+        ConnectorValidation,
+    },
     configs::Connectors,
     errors,
     events::connector_api_logs::ConnectorEvent,
     types::{self, Response},
     webhooks::{IncomingWebhook, IncomingWebhookFlowError, IncomingWebhookRequestDetails},
 };
+use lazy_static::lazy_static;
 use masking::{ExposeInterface, Secret};
 use transformers::{self as zsl, get_status};
 
 use crate::{
     constants::headers,
     types::{RefreshTokenRouterData, ResponseRouterData},
-    utils::construct_not_supported_error_report,
 };
 
 #[derive(Debug, Clone)]
@@ -122,23 +128,6 @@ impl ConnectorCommon for Zsl {
 }
 
 impl ConnectorValidation for Zsl {
-    fn validate_capture_method(
-        &self,
-        capture_method: Option<enums::CaptureMethod>,
-        _pmt: Option<enums::PaymentMethodType>,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let capture_method = capture_method.unwrap_or_default();
-        match capture_method {
-            enums::CaptureMethod::Automatic | enums::CaptureMethod::SequentialAutomatic => Ok(()),
-            enums::CaptureMethod::Manual
-            | enums::CaptureMethod::ManualMultiple
-            | enums::CaptureMethod::Scheduled => Err(construct_not_supported_error_report(
-                capture_method,
-                self.id(),
-            )),
-        }
-    }
-
     fn is_webhook_source_verification_mandatory(&self) -> bool {
         true
     }
@@ -455,4 +444,47 @@ fn get_webhook_object_from_body(
         serde_urlencoded::from_bytes::<zsl::ZslWebhookResponse>(body)
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
     Ok(response)
+}
+
+lazy_static! {
+    static ref ZSL_SUPPORTED_PAYMENT_METHODS: SupportedPaymentMethods = {
+        let supported_capture_methods = vec![enums::CaptureMethod::Automatic];
+
+        let mut zsl_supported_payment_methods = SupportedPaymentMethods::new();
+        zsl_supported_payment_methods.add(
+            enums::PaymentMethod::BankTransfer,
+            enums::PaymentMethodType::LocalBankTransfer,
+            PaymentMethodDetails{
+                mandates: common_enums::FeatureStatus::NotSupported,
+                refunds: common_enums::FeatureStatus::NotSupported,
+                supported_capture_methods,
+            },
+        );
+
+        zsl_supported_payment_methods
+    };
+
+    static ref ZSL_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+        description:
+            "Zsl is a payment gateway operating in China, specializing in facilitating local bank transfers"
+                .to_string(),
+        connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+    };
+
+    static ref ZSL_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> = Vec::new();
+
+}
+
+impl ConnectorSpecifications for Zsl {
+    fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
+        Some(&*ZSL_CONNECTOR_INFO)
+    }
+
+    fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
+        Some(&*ZSL_SUPPORTED_PAYMENT_METHODS)
+    }
+
+    fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
+        Some(&*ZSL_SUPPORTED_WEBHOOK_FLOWS)
+    }
 }

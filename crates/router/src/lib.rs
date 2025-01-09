@@ -192,7 +192,8 @@ pub fn mk_app(
                 .service(routes::ConnectorOnboarding::server(state.clone()))
                 .service(routes::Verify::server(state.clone()))
                 .service(routes::Analytics::server(state.clone()))
-                .service(routes::WebhookEvents::server(state.clone()));
+                .service(routes::WebhookEvents::server(state.clone()))
+                .service(routes::FeatureMatrix::server(state.clone()));
         }
     }
 

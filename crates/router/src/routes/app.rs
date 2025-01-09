@@ -70,6 +70,8 @@ use crate::analytics::AnalyticsProvider;
 use crate::errors::RouterResult;
 #[cfg(feature = "v1")]
 use crate::routes::cards_info::card_iin_info;
+#[cfg(all(feature = "olap", feature = "v1"))]
+use crate::routes::feature_matrix;
 #[cfg(all(feature = "frm", feature = "oltp"))]
 use crate::routes::fraud_check as frm_routes;
 #[cfg(all(feature = "recon", feature = "olap"))]
@@ -110,6 +112,7 @@ pub struct SessionState {
     pub opensearch_client: Arc<OpenSearchClient>,
     pub grpc_client: Arc<GrpcClients>,
     pub theme_storage_client: Arc<dyn FileStorageInterface>,
+    pub locale: String,
 }
 impl scheduler::SchedulerSessionState for SessionState {
     fn get_db(&self) -> Box<dyn SchedulerInterface> {
@@ -456,6 +459,7 @@ impl AppState {
     pub fn get_session_state<E, F>(
         self: Arc<Self>,
         tenant: &id_type::TenantId,
+        locale: Option<String>,
         err: F,
     ) -> Result<SessionState, E>
     where
@@ -482,6 +486,7 @@ impl AppState {
             opensearch_client: Arc::clone(&self.opensearch_client),
             grpc_client: Arc::clone(&self.grpc_client),
             theme_storage_client: self.theme_storage_client.clone(),
+            locale: locale.unwrap_or(common_utils::consts::DEFAULT_LOCALE.to_string()),
         })
     }
 }
@@ -2252,5 +2257,17 @@ impl WebhookEvents {
                             .route(web::post().to(webhook_events::retry_webhook_delivery_attempt)),
                     ),
             )
+    }
+}
+
+#[cfg(feature = "olap")]
+pub struct FeatureMatrix;
+
+#[cfg(all(feature = "olap", feature = "v1"))]
+impl FeatureMatrix {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/feature_matrix")
+            .app_data(web::Data::new(state))
+            .service(web::resource("").route(web::get().to(feature_matrix::fetch_feature_matrix)))
     }
 }

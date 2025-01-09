@@ -459,6 +459,10 @@ pay_easy = { country = "JP", currency = "JPY" }
 pix = { country = "BR", currency = "BRL" }
 boleto = { country = "BR", currency = "BRL" }
 
+[pm_filters.bambora]
+credit = { country = "US,CA", currency = "USD" }
+debit = { country = "US,CA", currency = "USD" }
+
 [pm_filters.bankofamerica]
 credit = { currency = "USD" }
 debit = { currency = "USD" }
@@ -764,7 +768,7 @@ enabled = true
 file_storage_backend = "file_system"
 
 [unmasked_headers]
-keys = "accept-language,user-agent"
+keys = "accept-language,user-agent,x-profile-id"
 
 [opensearch]
 host = "https://localhost:9200"
@@ -790,7 +794,7 @@ sdk_eligible_payment_methods = "card"
 
 [multitenancy]
 enabled = false
-global_tenant = { schema = "public", redis_key_prefix = "", clickhouse_database = "default"}
+global_tenant = { tenant_id = "global" ,schema = "public", redis_key_prefix = "global", clickhouse_database = "default"}
 
 [multitenancy.tenants.public]
 base_url = "http://localhost:8080"

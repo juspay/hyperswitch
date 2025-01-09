@@ -3438,7 +3438,7 @@
         "required": [
           "payment_description",
           "regular_billing",
-          "management_url"
+          "management_u_r_l"
         ],
         "properties": {
           "payment_description": {
@@ -3453,7 +3453,7 @@
             "description": "A localized billing agreement that the payment sheet displays to the user before the user authorizes the payment",
             "nullable": true
           },
-          "management_url": {
+          "management_u_r_l": {
             "type": "string",
             "description": "A URL to a web page where the user can update or delete the payment method for the recurring payment",
             "example": "https://hyperswitch.io"
@@ -6700,6 +6700,43 @@
           "zsl"
         ]
       },
+      "ConnectorFeatureMatrixResponse": {
+        "type": "object",
+        "required": [
+          "name",
+          "supported_payment_methods"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "category": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentConnectorCategory"
+              }
+            ],
+            "nullable": true
+          },
+          "supported_payment_methods": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SupportedPaymentMethod"
+            }
+          },
+          "supported_webhook_flows": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EventClass"
+            },
+            "nullable": true
+          }
+        }
+      },
       "ConnectorMetadata": {
         "type": "object",
         "description": "Some connectors like Apple Pay, Airwallex and Noon might require some additional information, find specific details in the child attributes below.",
@@ -8672,6 +8709,38 @@
           }
         }
       },
+      "FeatureMatrixListResponse": {
+        "type": "object",
+        "required": [
+          "connector_count",
+          "connectors"
+        ],
+        "properties": {
+          "connector_count": {
+            "type": "integer",
+            "description": "The number of connectors included in the response",
+            "minimum": 0
+          },
+          "connectors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ConnectorFeatureMatrixResponse"
+            }
+          }
+        }
+      },
+      "FeatureMatrixRequest": {
+        "type": "object",
+        "properties": {
+          "connectors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Connector"
+            },
+            "nullable": true
+          }
+        }
+      },
       "FeatureMetadata": {
         "type": "object",
         "description": "additional data that might be required by hyperswitch",
@@ -8701,6 +8770,14 @@
             "nullable": true
           }
         }
+      },
+      "FeatureStatus": {
+        "type": "string",
+        "description": "The status of the feature",
+        "enum": [
+          "not_supported",
+          "supported"
+        ]
       },
       "FieldType": {
         "oneOf": [
@@ -12744,6 +12821,15 @@
               }
             }
           }
+        ]
+      },
+      "PaymentConnectorCategory": {
+        "type": "string",
+        "description": "Connector Access Method",
+        "enum": [
+          "payment_gateway",
+          "alternative_payment_method",
+          "bank_acquirer"
         ]
       },
       "PaymentCreatePaymentLinkConfig": {
@@ -20612,6 +20698,52 @@
           }
         },
         "additionalProperties": false
+      },
+      "SupportedPaymentMethod": {
+        "type": "object",
+        "required": [
+          "payment_method",
+          "payment_method_type",
+          "mandates",
+          "refunds",
+          "supported_capture_methods"
+        ],
+        "properties": {
+          "payment_method": {
+            "$ref": "#/components/schemas/PaymentMethod"
+          },
+          "payment_method_type": {
+            "$ref": "#/components/schemas/PaymentMethodType"
+          },
+          "mandates": {
+            "$ref": "#/components/schemas/FeatureStatus"
+          },
+          "refunds": {
+            "$ref": "#/components/schemas/FeatureStatus"
+          },
+          "supported_capture_methods": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CaptureMethod"
+            }
+          },
+          "supported_countries": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CountryAlpha2"
+            },
+            "uniqueItems": true,
+            "nullable": true
+          },
+          "supported_currencies": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Currency"
+            },
+            "uniqueItems": true,
+            "nullable": true
+          }
+        }
       },
       "SurchargeCalculationOverride": {
         "type": "string",
