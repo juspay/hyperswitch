@@ -467,16 +467,16 @@ function verifyReturnUrl(redirection_url, expected_url, forward_flow) {
           const payment_status = url_params.get("status");
 
           if (
-            payment_status !== "succeeded" &&
+            payment_status !== "failed" &&
             payment_status !== "processing" &&
-            payment_status !== "partially_captured" &&
-            payment_status !== "requires_capture"
+            payment_status !== "requires_capture" &&
+            payment_status !== "succeeded"
           ) {
             // Assert payment status before screenshot
             cy.wrap(payment_status).should("exist");
             cy.screenshot(`failed-payment-${payment_status}`);
             throw new Error(
-              `Payment failed after redirection with status: ${payment_status}`
+              `Redirection failed with payment status: ${payment_status}`
             );
           }
         });
