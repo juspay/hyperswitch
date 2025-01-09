@@ -14952,14 +14952,6 @@
               }
             ],
             "nullable": true
-          },
-          "request_overcapture": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/OverCaptureRequest"
-              }
-            ],
-            "nullable": true
           }
         },
         "additionalProperties": false
@@ -15682,8 +15674,7 @@
           "payment_link_enabled",
           "request_incremental_authorization",
           "expires_on",
-          "request_external_three_ds_authentication",
-          "request_overcapture"
+          "request_external_three_ds_authentication"
         ],
         "properties": {
           "id": {
@@ -15844,9 +15835,6 @@
           },
           "request_external_three_ds_authentication": {
             "$ref": "#/components/schemas/External3dsAuthenticationRequest"
-          },
-          "request_overcapture": {
-            "$ref": "#/components/schemas/OverCaptureRequest"
           }
         },
         "additionalProperties": false
@@ -16747,14 +16735,6 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/External3dsAuthenticationRequest"
-              }
-            ],
-            "nullable": true
-          },
-          "request_overcapture": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/OverCaptureRequest"
               }
             ],
             "nullable": true
