@@ -73,7 +73,7 @@ pub async fn receive_incoming_relay_webhook<W: types::OutgoingWebhookType>(
                 &req,
                 auth.merchant_account,
                 auth.key_store,
-                &connector_id.get_string_repr(),
+                connector_id.get_string_repr(),
                 body.clone(),
                 is_relay_webhook,
             )
