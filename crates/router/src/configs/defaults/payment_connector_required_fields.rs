@@ -10145,9 +10145,9 @@ impl Default for settings::RequiredFields {
                                     RequiredFieldFinal {
                                         mandate : HashMap::new(),
                                         non_mandate: HashMap::from([
-                                            ( "payment_method_data.pay_later.klarna.billing_country".to_string(),
+                                            ( "billing.address.country".to_string(),
                                                 RequiredFieldInfo {
-                                                required_field: "payment_method_data.pay_later.klarna.billing_country".to_string(),
+                                                required_field: "payment_method_data.billing.address.country".to_string(),
                                                 display_name: "billing_country".to_string(),
                                                 field_type: enums::FieldType::UserAddressCountry{
                                                     options:  vec![
@@ -10195,9 +10195,9 @@ impl Default for settings::RequiredFields {
                                         mandate : HashMap::new(),
                                         non_mandate: HashMap::new(),
                                         common : HashMap::from([
-                                            ( "payment_method_data.pay_later.klarna.billing_country".to_string(),
+                                            ( "billing.address.country".to_string(),
                                                 RequiredFieldInfo {
-                                                required_field: "payment_method_data.pay_later.klarna.billing_country".to_string(),
+                                                required_field: "payment_method_data.billing.address.country".to_string(),
                                                 display_name: "billing_country".to_string(),
                                                 field_type: enums::FieldType::UserAddressCountry{
                                                     options: vec![

@@ -45,10 +45,11 @@ impl DashboardRequestPayload {
                     Some(api_models::enums::PaymentExperience::RedirectToUrl)
                 }
                 (Connector::Paypal, Paypal) => payment_experience,
+                (Connector::Klarna, Klarna) => payment_experience,
                 (Connector::Zen, GooglePay) | (Connector::Zen, ApplePay) => {
                     Some(api_models::enums::PaymentExperience::RedirectToUrl)
                 }
-                (Connector::Braintree, Paypal) | (Connector::Klarna, Klarna) => {
+                (Connector::Braintree, Paypal) => {
                     Some(api_models::enums::PaymentExperience::InvokeSdkClient)
                 }
                 (Connector::Globepay, AliPay)
