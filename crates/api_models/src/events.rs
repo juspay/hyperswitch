@@ -180,7 +180,6 @@ impl<T> ApiEventMetric for DisputesMetricsResponse<T> {
     }
 }
 
-
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 impl ApiEventMetric for PaymentMethodIntentCreate {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
