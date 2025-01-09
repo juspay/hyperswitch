@@ -5,7 +5,7 @@ use std::{
 
 use api_models::{
     payments::RedirectionResponse,
-    user::{self as user_api, InviteMultipleUserResponse, MerchantAccountType, NameIdUnit, OrgAccountType},
+    user::{self as user_api, InviteMultipleUserResponse, NameIdUnit},
 };
 use common_enums::{EntityType, UserAuthType};
 use common_utils::{type_name, types::keymanager::Identifier};
@@ -2876,10 +2876,7 @@ pub async fn list_orgs_for_user(
     .map(|org| user_api::ListOrgsForUserResponse {
         org_id: org.get_organization_id(),
         org_name: org.get_organization_name(),
-        org_type: match org.get_platform_merchant_id() {
-            Some(_) => OrgAccountType::Platform,
-            None => OrgAccountType::Default,
-        },
+        platform_merchant_id: org.get_platform_merchant_id(),
     })
     .collect::<Vec<_>>();
 
@@ -2959,11 +2956,7 @@ pub async fn list_merchants_for_user_in_org(
                 |merchant_account| user_api::ListMerchantsForUserInOrgResponse {
                     merchant_name: merchant_account.merchant_name.clone(),
                     merchant_id: merchant_account.get_id().to_owned(),
-                    merchant_type: if merchant_account.is_platform_account {
-                        MerchantAccountType::Platform
-                    } else {
-                        MerchantAccountType::Default
-                    },
+                    is_platform_account: merchant_account.is_platform_account.to_owned(),
                 },
             )
             .collect::<Vec<_>>(),
