@@ -6285,8 +6285,8 @@ pub fn validate_overcapture_request_for_payments_create(
         request_overcapture == Some(api_enums::OverCaptureRequest::Enable)
             && capture_method != Some(api_enums::CaptureMethod::Manual),
         || {
-            Err(errors::ApiErrorResponse::InvalidRequestData {
-                message: "Overcapture is only supported for manual capture".to_string(),
+            Err(errors::ApiErrorResponse::PreconditionFailed {
+                message: "Requesting overcapture is only supported when the capture method is set to manual".to_string(),
             })
         },
     )
@@ -6313,8 +6313,8 @@ pub fn get_overcapture_request_for_payments_update(
                     if payment_intent.request_overcapture.is_none() {
                         Ok(Some(api_enums::OverCaptureRequest::Skip))
                     } else {
-                        Err(errors::ApiErrorResponse::InvalidRequestData {
-                        message: "Capture method cannot be changed. Overcapture is only supported for manual capture".to_string(),
+                        Err(errors::ApiErrorResponse::PreconditionFailed {
+                        message: "Requesting overcapture is only supported when the capture method is set to manual".to_string(),
                     })?
                     }
                 }
@@ -6326,8 +6326,8 @@ pub fn get_overcapture_request_for_payments_update(
                 req_request_overcapture,
                 Some(api_enums::OverCaptureRequest::Enable)
             ) {
-                Err(errors::ApiErrorResponse::InvalidRequestData {
-                    message: "Overcapture is only supported for manual capture".to_string(),
+                Err(errors::ApiErrorResponse::PreconditionFailed {
+                    message: "Requesting overcapture is only supported when the capture method is set to manual".to_string(),
                 })?
             } else {
                 Ok(None)
