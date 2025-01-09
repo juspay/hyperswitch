@@ -3369,3 +3369,95 @@ Cypress.Commands.add("incrementalAuth", (globalState, data) => {
     }
   });
 });
+
+Cypress.Commands.add("createConfigs", (globalState, key, value) => {
+  const base_url = globalState.get("baseUrl");
+  const api_key = globalState.get("adminApiKey");
+
+  cy.request({
+    method: "POST",
+    url: `${base_url}/configs/`,
+    headers: {
+      "Content-Type": "application/json",
+      "api-key": api_key,
+    },
+    body: {
+      key: key,
+      value: value,
+    },
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    expect(response.status).to.equal(200);
+    expect(response.body).to.have.property("key").to.equal(key);
+    expect(response.body).to.have.property("value").to.equal(value);
+  });
+});
+
+Cypress.Commands.add("fetchConfigs", (globalState, key, value) => {
+  const base_url = globalState.get("baseUrl");
+  const api_key = globalState.get("adminApiKey");
+
+  cy.request({
+    method: "GET",
+    url: `${base_url}/configs/${key}`,
+    headers: {
+      "Content-Type": "application/json",
+      "api-key": api_key,
+    },
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    expect(response.status).to.equal(200);
+    expect(response.body).to.have.property("key").to.equal(key);
+    expect(response.body).to.have.property("value").to.equal(value);
+  });
+});
+
+Cypress.Commands.add("updateConfigs", (globalState, key, value) => {
+  const base_url = globalState.get("baseUrl");
+  const api_key = globalState.get("adminApiKey");
+
+  cy.request({
+    method: "POST",
+    url: `${base_url}/configs/${key}`,
+    headers: {
+      "Content-Type": "application/json",
+      "api-key": api_key,
+    },
+    body: {
+      key: key,
+      value: value,
+    },
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    expect(response.status).to.equal(200);
+    expect(response.body).to.have.property("key").to.equal(key);
+    expect(response.body).to.have.property("value").to.equal(value);
+  });
+});
+
+Cypress.Commands.add("deleteConfigs", (globalState, key, value) => {
+  const base_url = globalState.get("baseUrl");
+  const api_key = globalState.get("adminApiKey");
+
+  cy.request({
+    method: "DELETE",
+    url: `${base_url}/configs/${key}`,
+    headers: {
+      "Content-Type": "application/json",
+      "api-key": api_key,
+    },
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    expect(response.status).to.equal(200);
+    expect(response.body).to.have.property("key").to.equal(key);
+    expect(response.body).to.have.property("value").to.equal(value);
+  });
+});
