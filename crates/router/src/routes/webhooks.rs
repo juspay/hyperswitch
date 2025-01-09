@@ -51,10 +51,13 @@ pub async fn receive_incoming_relay_webhook<W: types::OutgoingWebhookType>(
     state: web::Data<AppState>,
     req: HttpRequest,
     body: web::Bytes,
-    path: web::Path<(common_utils::id_type::MerchantId, String)>,
+    path: web::Path<(
+        common_utils::id_type::MerchantId,
+        common_utils::id_type::MerchantConnectorAccountId,
+    )>,
 ) -> impl Responder {
     let flow = Flow::IncomingWebhookReceive;
-    let (merchant_id, connector_id_or_name) = path.into_inner();
+    let (merchant_id, connector_id) = path.into_inner();
     let is_relay_webhook = true;
 
     Box::pin(api::server_wrap(
@@ -70,7 +73,7 @@ pub async fn receive_incoming_relay_webhook<W: types::OutgoingWebhookType>(
                 &req,
                 auth.merchant_account,
                 auth.key_store,
-                &connector_id_or_name,
+                &connector_id.get_string_repr(),
                 body.clone(),
                 is_relay_webhook,
             )

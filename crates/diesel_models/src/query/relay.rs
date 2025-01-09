@@ -47,10 +47,10 @@ impl Relay {
         .await
     }
 
-    pub async fn find_by_connector_reference_id(
+    pub async fn find_by_profile_id_connector_reference_id(
         conn: &PgPooledConn,
-        connector_reference_id: &str,
         profile_id: &common_utils::id_type::ProfileId,
+        connector_reference_id: &str,
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,

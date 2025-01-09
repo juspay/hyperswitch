@@ -909,11 +909,11 @@ async fn relay_refunds_incoming_webhook_flow(
                     .attach_printable("Failed to fetch the relay record")?
             }
             webhooks::RefundIdType::ConnectorRefundId(connector_refund_id) => db
-                .find_relay_by_connector_reference_id(
+                .find_relay_by_profile_id_connector_reference_id(
                     key_manager_state,
                     &merchant_key_store,
-                    &connector_refund_id,
                     business_profile.get_id(),
+                    &connector_refund_id,
                 )
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::WebhookResourceNotFound)
