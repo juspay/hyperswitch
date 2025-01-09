@@ -1278,7 +1278,7 @@ impl RequiredFieldsForEnabledPaymentMethodTypes {
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 #[instrument(skip_all)]
-pub async fn list_payment_methods(
+pub async fn list_payment_methods_enabled(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,

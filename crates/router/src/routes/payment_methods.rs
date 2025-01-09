@@ -214,7 +214,7 @@ pub async fn confirm_payment_method_intent_api(
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsList))]
-pub async fn list_payment_methods(
+pub async fn list_payment_methods_enabled(
     state: web::Data<AppState>,
     req: HttpRequest,
     path: web::Path<id_type::GlobalPaymentMethodId>,
@@ -233,7 +233,7 @@ pub async fn list_payment_methods(
         &req,
         payment_method_id,
         |state, auth: auth::AuthenticationData, payment_method_id, _| {
-            payment_methods_routes::list_payment_methods(
+            payment_methods_routes::list_payment_methods_enabled(
                 state,
                 auth.merchant_account,
                 auth.key_store,

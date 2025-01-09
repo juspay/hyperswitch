@@ -1168,8 +1168,8 @@ impl PaymentMethods {
                         .route(web::delete().to(payment_methods::payment_method_delete_api)),
                 )
                 .service(
-                    web::resource("/list-payment-methods")
-                        .route(web::get().to(payment_methods::list_payment_methods)),
+                    web::resource("/list-enabled-payment-methods")
+                        .route(web::get().to(payment_methods::list_payment_methods_enabled)),
                 )
                 .service(
                     web::resource("/confirm-intent")
