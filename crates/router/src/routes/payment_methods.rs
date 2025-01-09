@@ -129,6 +129,40 @@ pub async fn create_payment_method_intent_api(
     .await
 }
 
+/// This struct is used internally only
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
+pub struct PaymentMethodIntentConfirmInternal {
+    pub id: id_type::GlobalPaymentMethodId,
+    pub payment_method_type: common_enums::PaymentMethod,
+    pub payment_method_subtype: common_enums::PaymentMethodType,
+    pub customer_id: Option<id_type::CustomerId>,
+    pub payment_method_data: payment_methods::PaymentMethodCreateData,
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+impl From<PaymentMethodIntentConfirmInternal> for payment_methods::PaymentMethodIntentConfirm {
+    fn from(item: PaymentMethodIntentConfirmInternal) -> Self {
+        Self {
+            payment_method_type: item.payment_method_type,
+            payment_method_subtype: item.payment_method_subtype,
+            customer_id: item.customer_id,
+            payment_method_data: item.payment_method_data.clone(),
+        }
+    }
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+impl common_utils::events::ApiEventMetric for PaymentMethodIntentConfirmInternal {
+    fn get_api_event_type(&self) -> Option<common_utils::events::ApiEventsType> {
+        Some(common_utils::events::ApiEventsType::PaymentMethod {
+            payment_method_id: self.id.clone(),
+            payment_method_type: Some(self.payment_method_type),
+            payment_method_subtype: Some(self.payment_method_subtype),
+        })
+    }
+}
+
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsCreate))]
 pub async fn confirm_payment_method_intent_api(
@@ -146,7 +180,7 @@ pub async fn confirm_payment_method_intent_api(
         Err(e) => return api::log_and_return_error_response(e),
     };
 
-    let inner_payload = payment_methods::PaymentMethodIntentConfirmInternal {
+    let inner_payload = PaymentMethodIntentConfirmInternal {
         id: pm_id.to_owned(),
         payment_method_type: payload.payment_method_type,
         payment_method_subtype: payload.payment_method_subtype,

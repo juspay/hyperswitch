@@ -194,28 +194,6 @@ impl PaymentMethodIntentConfirm {
     }
 }
 
-/// This struct is used internally only
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
-pub struct PaymentMethodIntentConfirmInternal {
-    pub id: id_type::GlobalPaymentMethodId,
-    pub payment_method_type: api_enums::PaymentMethod,
-    pub payment_method_subtype: api_enums::PaymentMethodType,
-    pub customer_id: Option<id_type::CustomerId>,
-    pub payment_method_data: PaymentMethodCreateData,
-}
-
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-impl From<PaymentMethodIntentConfirmInternal> for PaymentMethodIntentConfirm {
-    fn from(item: PaymentMethodIntentConfirmInternal) -> Self {
-        Self {
-            payment_method_type: item.payment_method_type,
-            payment_method_subtype: item.payment_method_subtype,
-            customer_id: item.customer_id,
-            payment_method_data: item.payment_method_data.clone(),
-        }
-    }
-}
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
 /// This struct is only used by and internal api to migrate payment method
 pub struct PaymentMethodMigrate {
