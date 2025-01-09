@@ -5024,7 +5024,6 @@ pub struct AdyenSplitPaymentsResponse {
     pub reference: Option<String>,
     /// Description for the part of the payment that will be allocated to the specified account.
     pub description: Option<String>,
-
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, ToSchema)]

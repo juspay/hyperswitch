@@ -48,7 +48,6 @@ impl_to_sql_from_sql_json!(StripeSplitPaymentRequest);
 #[serde(deny_unknown_fields)]
 /// Fee information for Split Payments to be charged on the payment being collected for Adyen
 pub struct AdyenSplitPaymentRequest {
-  
     /// The amount of the split item
     #[schema(value_type = i64, example = 6540)]
     pub amount: MinorUnit,

@@ -2134,7 +2134,9 @@ where
                         },
                     ),
                 ),
-                common_types::payments::SplitPaymentsRequest::AdyenSplitPayment(adyen_split_payment) => todo!(), //todoooo
+                common_types::payments::SplitPaymentsRequest::AdyenSplitPayment(
+                    adyen_split_payment,
+                ) => todo!(), //todoooo
             },
         };
 
