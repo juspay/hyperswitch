@@ -5011,15 +5011,20 @@ pub struct StripeSplitPaymentsResponse {
 
 /// Fee information to be charged on the payment being collected via Adyen
 #[derive(Setter, Clone, Debug, PartialEq, serde::Serialize, ToSchema)]
-pub struct AdyenSplitPaymentResponse {
-    /// Unique Identifier for the split item
-    pub charge_id: String,
-    /// The amount of the split item.
+pub struct AdyenSplitPaymentsResponse {
+    /// The amount of the split item
     #[schema(value_type = i64, example = 6540)]
-    pub split_amount: MinorUnit,
-    /// The currency of the split item.
-    #[schema(example = "USD", value_type = Currency)]
-    pub split_currency: Option<common_enums::Currency>,
+    pub amount: MinorUnit,
+    /// Defines type of split item
+    #[schema(value_type = AdyenSplitType, example = "balance_account")]
+    pub split_type: enums::AdyenSplitType,
+    /// The unique identifier of the account to which the split amount is allocated.
+    pub account: Option<String>,
+    /// Unique Identifier for the split item
+    pub reference: Option<String>,
+    /// Description for the part of the payment that will be allocated to the specified account.
+    pub description: Option<String>,
+
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, ToSchema)]
@@ -5028,7 +5033,7 @@ pub enum SplitPaymentsResponse {
     /// StripeSplitPaymentsResponse
     StripeSplitPayment(StripeSplitPaymentsResponse),
     /// AdyenSplitPaymentsResponse
-    AdyenSplitPayment(AdyenSplitPaymentResponse),
+    AdyenSplitPayment(AdyenSplitPaymentsResponse),
 }
 
 /// Details of external authentication
