@@ -2876,7 +2876,7 @@ pub async fn list_orgs_for_user(
     .map(|org| user_api::ListOrgsForUserResponse {
         org_id: org.get_organization_id(),
         org_name: org.get_organization_name(),
-        is_platform: org.get_platform_merchant_id().is_some(),
+        is_platform_account: org.get_platform_merchant_id().is_some(),
     })
     .collect::<Vec<_>>();
 
