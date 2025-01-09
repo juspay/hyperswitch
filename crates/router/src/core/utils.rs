@@ -54,6 +54,7 @@ const IRRELEVANT_ATTEMPT_ID_IN_DISPUTE_FLOW: &str = "irrelevant_attempt_id_in_di
 #[cfg(all(feature = "payouts", feature = "v2", feature = "customer_v2"))]
 #[instrument(skip_all)]
 pub async fn construct_payout_router_data<'a, F>(
+    _state: &SessionState,
     _connector_data: &api::ConnectorData,
     _merchant_account: &domain::MerchantAccount,
     _payout_data: &mut PayoutData,
@@ -68,6 +69,7 @@ pub async fn construct_payout_router_data<'a, F>(
 ))]
 #[instrument(skip_all)]
 pub async fn construct_payout_router_data<'a, F>(
+    state: &SessionState,
     connector_data: &api::ConnectorData,
     merchant_account: &domain::MerchantAccount,
     payout_data: &mut PayoutData,
@@ -152,6 +154,7 @@ pub async fn construct_payout_router_data<'a, F>(
         flow: PhantomData,
         merchant_id: merchant_account.get_id().to_owned(),
         customer_id: customer_details.to_owned().map(|c| c.customer_id),
+        tenant_id: state.tenant.tenant_id.clone(),
         connector_customer: connector_customer_id,
         connector: connector_name.to_string(),
         payment_id: common_utils::id_type::PaymentId::get_irrelevant_id("payout")
@@ -330,6 +333,7 @@ pub async fn construct_refund_router_data<'a, F>(
         flow: PhantomData,
         merchant_id: merchant_account.get_id().clone(),
         customer_id: payment_intent.customer_id.to_owned(),
+        tenant_id: state.tenant.tenant_id.clone(),
         connector: connector_id.to_string(),
         payment_id: payment_attempt.payment_id.get_string_repr().to_owned(),
         attempt_id: payment_attempt.attempt_id.clone(),
@@ -652,6 +656,7 @@ pub async fn construct_accept_dispute_router_data<'a>(
         flow: PhantomData,
         merchant_id: merchant_account.get_id().clone(),
         connector: dispute.connector.to_string(),
+        tenant_id: state.tenant.tenant_id.clone(),
         payment_id: payment_attempt.payment_id.get_string_repr().to_owned(),
         attempt_id: payment_attempt.attempt_id.clone(),
         status: payment_attempt.status,
@@ -753,6 +758,7 @@ pub async fn construct_submit_evidence_router_data<'a>(
         merchant_id: merchant_account.get_id().clone(),
         connector: connector_id.to_string(),
         payment_id: payment_attempt.payment_id.get_string_repr().to_owned(),
+        tenant_id: state.tenant.tenant_id.clone(),
         attempt_id: payment_attempt.attempt_id.clone(),
         status: payment_attempt.status,
         payment_method,
@@ -851,6 +857,7 @@ pub async fn construct_upload_file_router_data<'a>(
         merchant_id: merchant_account.get_id().clone(),
         connector: connector_id.to_string(),
         payment_id: payment_attempt.payment_id.get_string_repr().to_owned(),
+        tenant_id: state.tenant.tenant_id.clone(),
         attempt_id: payment_attempt.attempt_id.clone(),
         status: payment_attempt.status,
         payment_method,
@@ -978,6 +985,7 @@ pub async fn construct_payments_dynamic_tax_calculation_router_data<'a, F: Clone
         connector: merchant_connector_account.connector_name.clone(),
         payment_id: payment_attempt.payment_id.get_string_repr().to_owned(),
         attempt_id: payment_attempt.attempt_id.clone(),
+        tenant_id: state.tenant.tenant_id.clone(),
         status: payment_attempt.status,
         payment_method: diesel_models::enums::PaymentMethod::default(),
         connector_auth_type,
@@ -1076,6 +1084,7 @@ pub async fn construct_defend_dispute_router_data<'a>(
         merchant_id: merchant_account.get_id().clone(),
         connector: connector_id.to_string(),
         payment_id: payment_attempt.payment_id.get_string_repr().to_owned(),
+        tenant_id: state.tenant.tenant_id.clone(),
         attempt_id: payment_attempt.attempt_id.clone(),
         status: payment_attempt.status,
         payment_method,
@@ -1169,6 +1178,7 @@ pub async fn construct_retrieve_file_router_data<'a>(
         flow: PhantomData,
         merchant_id: merchant_account.get_id().clone(),
         connector: connector_id.to_string(),
+        tenant_id: state.tenant.tenant_id.clone(),
         customer_id: None,
         connector_customer: None,
         payment_id: common_utils::id_type::PaymentId::get_irrelevant_id("dispute")

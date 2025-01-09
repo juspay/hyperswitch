@@ -110,6 +110,7 @@ pub async fn revoke_mandate(
             > = connector_data.connector.get_connector_integration();
 
             let router_data = utils::construct_mandate_revoke_router_data(
+                &state,
                 merchant_connector_account,
                 &merchant_account,
                 mandate.clone(),

@@ -15,6 +15,7 @@ use crate::{
         transformers::{ForeignFrom, ForeignTryFrom},
     },
     utils::ext_traits::OptionExt,
+    SessionState,
 };
 
 const IRRELEVANT_ATTEMPT_ID_IN_AUTHENTICATION_FLOW: &str =
@@ -24,6 +25,7 @@ const IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_AUTHENTICATION_FLOW: &str =
 
 #[allow(clippy::too_many_arguments)]
 pub fn construct_authentication_router_data(
+    state: &SessionState,
     merchant_id: common_utils::id_type::MerchantId,
     authentication_connector: String,
     payment_method_data: domain::PaymentMethodData,
@@ -65,6 +67,7 @@ pub fn construct_authentication_router_data(
         webhook_url,
     };
     construct_router_data(
+        state,
         authentication_connector,
         payment_method,
         merchant_id.clone(),
@@ -76,6 +79,7 @@ pub fn construct_authentication_router_data(
 }
 
 pub fn construct_post_authentication_router_data(
+    state: &SessionState,
     authentication_connector: String,
     business_profile: domain::Profile,
     merchant_connector_account: payments_helpers::MerchantConnectorAccountType,
@@ -90,6 +94,7 @@ pub fn construct_post_authentication_router_data(
         threeds_server_transaction_id,
     };
     construct_router_data(
+        state,
         authentication_connector,
         PaymentMethod::default(),
         business_profile.merchant_id.clone(),
@@ -101,6 +106,7 @@ pub fn construct_post_authentication_router_data(
 }
 
 pub fn construct_pre_authentication_router_data<F: Clone>(
+    state: &SessionState,
     authentication_connector: String,
     card_holder_account_number: cards::CardNumber,
     merchant_connector_account: &payments_helpers::MerchantConnectorAccountType,
@@ -116,6 +122,7 @@ pub fn construct_pre_authentication_router_data<F: Clone>(
         card_holder_account_number,
     };
     construct_router_data(
+        state,
         authentication_connector,
         PaymentMethod::default(),
         merchant_id,
@@ -126,7 +133,9 @@ pub fn construct_pre_authentication_router_data<F: Clone>(
     )
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn construct_router_data<F: Clone, Req, Res>(
+    state: &SessionState,
     authentication_connector_name: String,
     payment_method: PaymentMethod,
     merchant_id: common_utils::id_type::MerchantId,
@@ -144,6 +153,7 @@ pub fn construct_router_data<F: Clone, Req, Res>(
         flow: PhantomData,
         merchant_id,
         customer_id: None,
+        tenant_id: state.tenant.tenant_id.clone(),
         connector_customer: None,
         connector: authentication_connector_name,
         payment_id: common_utils::id_type::PaymentId::get_irrelevant_id("authentication")
