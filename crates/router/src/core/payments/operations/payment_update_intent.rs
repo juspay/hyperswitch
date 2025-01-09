@@ -170,7 +170,6 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentIntentData<F>, PaymentsUpda
             session_expiry,
             frm_metadata,
             request_external_three_ds_authentication,
-            request_overcapture,
         } = request.clone();
 
         let batch_encrypted_data = domain_types::crypto_operation(
@@ -269,7 +268,6 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentIntentData<F>, PaymentsUpda
             routing_algorithm_id: routing_algorithm_id.or(payment_intent.routing_algorithm_id),
             allowed_payment_method_types: allowed_payment_method_types
                 .or(payment_intent.allowed_payment_method_types),
-            request_overcapture: request_overcapture.unwrap_or(payment_intent.request_overcapture),
             ..payment_intent
         };
 

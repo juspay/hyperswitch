@@ -234,10 +234,6 @@ pub struct PaymentsCreateIntentRequest {
     #[schema(value_type = Option<External3dsAuthenticationRequest>)]
     pub request_external_three_ds_authentication:
         Option<common_enums::External3dsAuthenticationRequest>,
-
-    /// Whether to perform overcapture (if applicable)
-    #[schema(value_type = Option<OverCaptureRequest>)]
-    pub request_overcapture: Option<common_enums::OverCaptureRequest>,
 }
 
 #[cfg(feature = "v2")]
@@ -399,10 +395,6 @@ pub struct PaymentsUpdateIntentRequest {
     #[schema(value_type = Option<External3dsAuthenticationRequest>)]
     pub request_external_three_ds_authentication:
         Option<common_enums::External3dsAuthenticationRequest>,
-
-    /// Whether to perform overcapture (if applicable)
-    #[schema(value_type = Option<OverCaptureRequest>)]
-    pub request_overcapture: Option<common_enums::OverCaptureRequest>,
 }
 
 #[derive(Debug, serde::Serialize, Clone, ToSchema)]
@@ -537,9 +529,6 @@ pub struct PaymentsIntentResponse {
     #[schema(value_type = External3dsAuthenticationRequest)]
     pub request_external_three_ds_authentication: common_enums::External3dsAuthenticationRequest,
 
-    /// Whether to perform overcapture (if applicable)
-    #[schema(value_type = OverCaptureRequest)]
-    pub request_overcapture: common_enums::OverCaptureRequest,
 }
 
 #[cfg(feature = "v2")]

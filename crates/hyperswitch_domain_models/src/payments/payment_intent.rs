@@ -1401,7 +1401,7 @@ impl behaviour::Conversion for PaymentIntent {
             psd2_sca_exemption_type: None,
             platform_merchant_id,
             split_payments: None,
-            request_overcapture: Some(request_overcapture),
+            request_overcapture,
         })
     }
     async fn convert_back(
@@ -1528,7 +1528,7 @@ impl behaviour::Conversion for PaymentIntent {
                 payment_link_config: storage_model.payment_link_config,
                 routing_algorithm_id: storage_model.routing_algorithm_id,
                 platform_merchant_id: storage_model.platform_merchant_id,
-                request_overcapture: storage_model.request_overcapture.unwrap_or_default(),
+                request_overcapture: storage_model.request_overcapture,
             })
         }
         .await
@@ -1602,7 +1602,7 @@ impl behaviour::Conversion for PaymentIntent {
             enable_payment_link: Some(self.enable_payment_link.as_bool()),
             apply_mit_exemption: Some(self.apply_mit_exemption.as_bool()),
             platform_merchant_id: self.platform_merchant_id,
-            request_overcapture: Some(self.request_overcapture),
+            request_overcapture: self.request_overcapture,
         })
     }
 }
