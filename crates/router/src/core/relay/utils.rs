@@ -71,6 +71,7 @@ pub async fn construct_relay_refund_router_data<'a, F>(
         flow: std::marker::PhantomData,
         merchant_id: merchant_id.clone(),
         customer_id: None,
+        tenant_id: state.tenant.tenant_id.clone(),
         connector: connector_name.to_string(),
         payment_id: IRRELEVANT_PAYMENT_INTENT_ID.to_string(),
         attempt_id: IRRELEVANT_PAYMENT_ATTEMPT_ID.to_string(),

@@ -4035,6 +4035,7 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
         request,
         response,
         merchant_id: router_data.merchant_id,
+        tenant_id: router_data.tenant_id,
         address: router_data.address,
         amount_captured: router_data.amount_captured,
         minor_amount_captured: router_data.minor_amount_captured,

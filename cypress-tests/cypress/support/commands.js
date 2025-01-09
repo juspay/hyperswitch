@@ -1016,21 +1016,56 @@ Cypress.Commands.add(
   }
 );
 
-Cypress.Commands.add("sessionTokenCall", (globalState, sessionTokenBody) => {
-  cy.request({
-    method: "POST",
-    url: `${globalState.get("baseUrl")}/payments/session_tokens`,
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json",
-      "api-key": globalState.get("publishableKey"),
-    },
-    body: sessionTokenBody,
-    failOnStatusCode: false,
-  }).then((response) => {
-    logRequestId(response.headers["x-request-id"]);
-  });
-});
+Cypress.Commands.add(
+  "sessionTokenCall",
+  (sessionTokenBody, data, globalState) => {
+    const { Response: resData } = data || {};
+
+    sessionTokenBody.payment_id = globalState.get("paymentID");
+    sessionTokenBody.client_secret = globalState.get("clientSecret");
+
+    cy.request({
+      method: "POST",
+      url: `${globalState.get("baseUrl")}/payments/session_tokens`,
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        "api-key": globalState.get("publishableKey"),
+        "x-merchant-domain": "hyperswitch - demo - store.netlify.app",
+        "x-client-platform": "web",
+      },
+      body: sessionTokenBody,
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      if (response.status === 200) {
+        const expectedTokens = resData.body.session_token;
+        const actualTokens = response.body.session_token;
+
+        // Verifying length of array
+        expect(actualTokens.length, "arrayLength").to.equal(
+          expectedTokens.length
+        );
+
+        // Verify specific fields in each session_token object
+        expectedTokens.forEach((expectedToken, index) => {
+          const actualToken = actualTokens[index];
+
+          // Check specific fields only
+          expect(actualToken.wallet_name, "wallet_name").to.equal(
+            expectedToken.wallet_name
+          );
+          expect(actualToken.connector, "connector").to.equal(
+            expectedToken.connector
+          );
+        });
+      } else {
+        defaultErrorHandler(response, resData);
+      }
+    });
+  }
+);
 
 Cypress.Commands.add(
   "createPaymentIntentTest",
@@ -2970,14 +3005,13 @@ Cypress.Commands.add("retrievePayoutCallTest", (globalState) => {
 // User API calls
 // Below 3 commands should be called in sequence to login a user
 Cypress.Commands.add("userLogin", (globalState) => {
-  // Define the necessary variables and constant
-  const base_url = globalState.get("baseUrl");
-  const query_params = `token_only=true`;
-  const signin_body = {
-    email: `${globalState.get("email")}`,
-    password: `${globalState.get("password")}`,
+  const baseUrl = globalState.get("baseUrl");
+  const queryParams = `token_only=true`;
+  const signinBody = {
+    email: globalState.get("email"),
+    password: globalState.get("password"),
   };
-  const url = `${base_url}/user/v2/signin?${query_params}`;
+  const url = `${baseUrl}/user/v2/signin?${queryParams}`;
 
   cy.request({
     method: "POST",
@@ -2985,37 +3019,38 @@ Cypress.Commands.add("userLogin", (globalState) => {
     headers: {
       "Content-Type": "application/json",
     },
-    body: signin_body,
+    body: signinBody,
     failOnStatusCode: false,
   }).then((response) => {
     logRequestId(response.headers["x-request-id"]);
 
     if (response.status === 200) {
       if (response.body.token_type === "totp") {
-        expect(response.body).to.have.property("token").and.to.not.be.empty;
+        expect(response.body, "totp_token").to.have.property("token").and.to.not
+          .be.empty;
 
-        globalState.set("totpToken", response.body.token);
-        cy.task("setGlobalState", globalState.data);
+        const totpToken = response.body.token;
+        globalState.set("totpToken", totpToken);
       }
     } else {
       throw new Error(
-        `User login call failed to get totp token with status ${response.status} and message ${response.body.message}`
+        `User login call failed to get totp token with status: "${response.status}" and message: "${response.body.error.message}"`
       );
     }
   });
 });
 Cypress.Commands.add("terminate2Fa", (globalState) => {
   // Define the necessary variables and constant
-  const base_url = globalState.get("baseUrl");
-  const query_params = `skip_two_factor_auth=true`;
-  const api_key = globalState.get("totpToken");
-  const url = `${base_url}/user/2fa/terminate?${query_params}`;
+  const baseUrl = globalState.get("baseUrl");
+  const queryParams = `skip_two_factor_auth=true`;
+  const apiKey = globalState.get("totpToken");
+  const url = `${baseUrl}/user/2fa/terminate?${queryParams}`;
 
   cy.request({
     method: "GET",
     url: url,
     headers: {
-      Authorization: `Bearer ${api_key}`,
+      Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
     },
     failOnStatusCode: false,
@@ -3024,29 +3059,30 @@ Cypress.Commands.add("terminate2Fa", (globalState) => {
 
     if (response.status === 200) {
       if (response.body.token_type === "user_info") {
-        expect(response.body).to.have.property("token").and.to.not.be.empty;
+        expect(response.body, "user_info_token").to.have.property("token").and
+          .to.not.be.empty;
 
-        globalState.set("userInfoToken", response.body.token);
-        cy.task("setGlobalState", globalState.data);
+        const userInfoToken = response.body.token;
+        globalState.set("userInfoToken", userInfoToken);
       }
     } else {
       throw new Error(
-        `2FA terminate call failed with status ${response.status} and message ${response.body.message}`
+        `2FA terminate call failed with status: "${response.status}" and message: "${response.body.error.message}"`
       );
     }
   });
 });
 Cypress.Commands.add("userInfo", (globalState) => {
   // Define the necessary variables and constant
-  const base_url = globalState.get("baseUrl");
-  const api_key = globalState.get("userInfoToken");
-  const url = `${base_url}/user`;
+  const baseUrl = globalState.get("baseUrl");
+  const apiKey = globalState.get("userInfoToken");
+  const url = `${baseUrl}/user`;
 
   cy.request({
     method: "GET",
     url: url,
     headers: {
-      Authorization: `Bearer ${api_key}`,
+      Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
     },
     failOnStatusCode: false,
@@ -3054,16 +3090,21 @@ Cypress.Commands.add("userInfo", (globalState) => {
     logRequestId(response.headers["x-request-id"]);
 
     if (response.status === 200) {
-      expect(response.body).to.have.property("merchant_id").and.to.not.be.empty;
-      expect(response.body).to.have.property("org_id").and.to.not.be.empty;
-      expect(response.body).to.have.property("profile_id").and.to.not.be.empty;
+      expect(response.body, "merchant_id").to.have.property("merchant_id").and
+        .to.not.be.empty;
+      expect(response.body, "organization_id").to.have.property("org_id").and.to
+        .not.be.empty;
+      expect(response.body, "profile_id").to.have.property("profile_id").and.to
+        .not.be.empty;
 
       globalState.set("merchantId", response.body.merchant_id);
       globalState.set("organizationId", response.body.org_id);
       globalState.set("profileId", response.body.profile_id);
+
+      globalState.set("userInfoToken", apiKey);
     } else {
       throw new Error(
-        `User login call failed to fetch user info with status ${response.status} and message ${response.body.message}`
+        `User login call failed to fetch user info with status: "${response.status}" and message: "${response.body.error.message}"`
       );
     }
   });
@@ -3111,7 +3152,6 @@ Cypress.Commands.add(
       headers: {
         Authorization: `Bearer ${globalState.get("userInfoToken")}`,
         "Content-Type": "application/json",
-        Cookie: `${globalState.get("cookie")}`,
       },
       failOnStatusCode: false,
       body: routingBody,
@@ -3134,15 +3174,14 @@ Cypress.Commands.add(
 
 Cypress.Commands.add("activateRoutingConfig", (data, globalState) => {
   const { Response: resData } = data || {};
-
   const routing_config_id = globalState.get("routingConfigId");
+
   cy.request({
     method: "POST",
     url: `${globalState.get("baseUrl")}/routing/${routing_config_id}/activate`,
     headers: {
       Authorization: `Bearer ${globalState.get("userInfoToken")}`,
       "Content-Type": "application/json",
-      Cookie: `${globalState.get("cookie")}`,
     },
     failOnStatusCode: false,
   }).then((response) => {
@@ -3162,15 +3201,14 @@ Cypress.Commands.add("activateRoutingConfig", (data, globalState) => {
 
 Cypress.Commands.add("retrieveRoutingConfig", (data, globalState) => {
   const { Response: resData } = data || {};
-
   const routing_config_id = globalState.get("routingConfigId");
+
   cy.request({
     method: "GET",
     url: `${globalState.get("baseUrl")}/routing/${routing_config_id}`,
     headers: {
       Authorization: `Bearer ${globalState.get("userInfoToken")}`,
       "Content-Type": "application/json",
-      Cookie: `${globalState.get("cookie")}`,
     },
     failOnStatusCode: false,
   }).then((response) => {
@@ -3329,5 +3367,97 @@ Cypress.Commands.add("incrementalAuth", (globalState, data) => {
           .to.equal("success");
       }
     }
+  });
+});
+
+Cypress.Commands.add("createConfigs", (globalState, key, value) => {
+  const base_url = globalState.get("baseUrl");
+  const api_key = globalState.get("adminApiKey");
+
+  cy.request({
+    method: "POST",
+    url: `${base_url}/configs/`,
+    headers: {
+      "Content-Type": "application/json",
+      "api-key": api_key,
+    },
+    body: {
+      key: key,
+      value: value,
+    },
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    expect(response.status).to.equal(200);
+    expect(response.body).to.have.property("key").to.equal(key);
+    expect(response.body).to.have.property("value").to.equal(value);
+  });
+});
+
+Cypress.Commands.add("fetchConfigs", (globalState, key, value) => {
+  const base_url = globalState.get("baseUrl");
+  const api_key = globalState.get("adminApiKey");
+
+  cy.request({
+    method: "GET",
+    url: `${base_url}/configs/${key}`,
+    headers: {
+      "Content-Type": "application/json",
+      "api-key": api_key,
+    },
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    expect(response.status).to.equal(200);
+    expect(response.body).to.have.property("key").to.equal(key);
+    expect(response.body).to.have.property("value").to.equal(value);
+  });
+});
+
+Cypress.Commands.add("updateConfigs", (globalState, key, value) => {
+  const base_url = globalState.get("baseUrl");
+  const api_key = globalState.get("adminApiKey");
+
+  cy.request({
+    method: "POST",
+    url: `${base_url}/configs/${key}`,
+    headers: {
+      "Content-Type": "application/json",
+      "api-key": api_key,
+    },
+    body: {
+      key: key,
+      value: value,
+    },
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    expect(response.status).to.equal(200);
+    expect(response.body).to.have.property("key").to.equal(key);
+    expect(response.body).to.have.property("value").to.equal(value);
+  });
+});
+
+Cypress.Commands.add("deleteConfigs", (globalState, key, value) => {
+  const base_url = globalState.get("baseUrl");
+  const api_key = globalState.get("adminApiKey");
+
+  cy.request({
+    method: "DELETE",
+    url: `${base_url}/configs/${key}`,
+    headers: {
+      "Content-Type": "application/json",
+      "api-key": api_key,
+    },
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    expect(response.status).to.equal(200);
+    expect(response.body).to.have.property("key").to.equal(key);
+    expect(response.body).to.have.property("value").to.equal(value);
   });
 });
