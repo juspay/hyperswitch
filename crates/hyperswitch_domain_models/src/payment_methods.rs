@@ -144,25 +144,26 @@ impl PaymentMethod {
         not(feature = "payment_methods_v2")
     ))]
     pub fn get_common_mandate_reference(
-        // here
         &self,
     ) -> Result<diesel_models::CommonMandateReference, ParsingError> {
         if let Some(value) = &self.connector_mandate_details {
-            router_env::logger::info!("hereeee : {:?}", value.clone());
             let mut payments_data = None;
             let mut payouts_data = None;
 
-            if let Ok(payment_mandate_record) =
-                serde_json::from_value::<diesel_models::PaymentsMandateReference>(value.clone())
-            {
-                router_env::logger::info!("hereeee : {:?}", payment_mandate_record.clone());
-                payments_data = Some(payment_mandate_record);
+            if let Some(obj) = value.clone().as_object_mut() {
+                obj.remove("payouts");
+
+                if let Ok(payment_mandate_record) = serde_json::from_value::<
+                    diesel_models::PaymentsMandateReference,
+                >(serde_json::json!(obj))
+                {
+                    payments_data = Some(payment_mandate_record);
+                }
             }
-            if let Ok(payouts) =
-                serde_json::from_value::<diesel_models::PayoutsMandateReferenceStruct>(value.clone())
+            if let Ok(payment_mandate_record) =
+                serde_json::from_value::<diesel_models::CommonMandateReference>(value.clone())
             {
-                router_env::logger::info!("hereeee : {:?}", payouts.clone());
-                payouts_data = Some(payouts.payouts);
+                payouts_data = payment_mandate_record.payouts
             }
 
             if payments_data.is_none() && payouts_data.is_none() {
@@ -175,21 +176,6 @@ impl PaymentMethod {
                     payouts: payouts_data,
                 })
             }
-
-            // match serde_json::from_value::<diesel_models::PaymentsMandateReference>(value.clone()) {
-            //     Ok(payment_mandate_reference) => Ok(diesel_models::CommonMandateReference {
-            //         payments: Some(payment_mandate_reference),
-            //         payouts: None,
-            //     }),
-            //     Err(_) => match serde_json::from_value::<diesel_models::CommonMandateReference>(
-            //         value.clone(),
-            //     ) {
-            //         Ok(common_mandate_reference) => Ok(common_mandate_reference),
-            //         Err(_) => Err(ParsingError::StructParseFailure(
-            //             "Failed to deserialize PaymentMethod",
-            //         ))?,
-            //     },
-            // }
         } else {
             Ok(diesel_models::CommonMandateReference {
                 payments: None,

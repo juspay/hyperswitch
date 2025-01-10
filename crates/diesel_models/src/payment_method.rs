@@ -983,11 +983,6 @@ pub struct PayoutsMandateReference(
     pub HashMap<common_utils::id_type::MerchantConnectorAccountId, PayoutsMandateReferenceRecord>,
 );
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct PayoutsMandateReferenceStruct {
-    pub payouts: PayoutsMandateReference,
-}
-
 impl std::ops::Deref for PayoutsMandateReference {
     type Target =
         HashMap<common_utils::id_type::MerchantConnectorAccountId, PayoutsMandateReferenceRecord>;
@@ -1022,14 +1017,13 @@ impl diesel::serialize::ToSql<diesel::sql_types::Jsonb, diesel::pg::Pg> for Comm
             payments_object.insert("payouts".to_string(), payouts);
         }
 
-        router_env::logger::info!("here  : {:?}", payments.clone());
         <serde_json::Value as diesel::serialize::ToSql<
             diesel::sql_types::Jsonb,
             diesel::pg::Pg,
         >>::to_sql(&payments, &mut out.reborrow())
     }
 }
-// here
+
 impl<DB: diesel::backend::Backend> diesel::deserialize::FromSql<diesel::sql_types::Jsonb, DB>
     for CommonMandateReference
 where
@@ -1044,13 +1038,20 @@ where
         let mut payments_data = None;
         let mut payouts_data = None;
 
-        if let Ok(payment_mandate_record) =
-            serde_json::from_value::<PaymentsMandateReference>(value.clone())
-        {
-            payments_data = Some(payment_mandate_record);
+        if let Some(obj) = value.clone().as_object_mut() {
+            obj.remove("payouts");
+
+            if let Ok(payment_mandate_record) =
+                serde_json::from_value::<PaymentsMandateReference>(serde_json::json!(obj))
+            {
+                payments_data = Some(payment_mandate_record);
+            }
         }
-        if let Ok(payouts) = serde_json::from_value::<PayoutsMandateReferenceStruct>(value) {
-            payouts_data = Some(payouts.payouts);
+
+        if let Ok(payment_mandate_record) =
+            serde_json::from_value::<CommonMandateReference>(value.clone())
+        {
+            payouts_data = payment_mandate_record.payouts
         }
 
         if payments_data.is_none() && payouts_data.is_none() {
@@ -1066,21 +1067,6 @@ where
                 payouts: payouts_data,
             })
         }
-
-        // if let Ok(payment_reference) =
-        //     serde_json::from_value::<PaymentsMandateReference>(value.clone())
-        // {
-        //     return Ok(Self::from(payment_reference));
-        // }
-
-        // if let Ok(common_reference) = serde_json::from_value::<Self>(value) {
-        //     return Ok(common_reference);
-        // }
-        // Err(
-        //     report!(ParsingError::StructParseFailure("CommonMandateReference")).attach_printable(
-        //         "Failed to parse JSON into CommonMandateReference or PaymentsMandateReference",
-        //     ),
-        // )?
     }
 }
 

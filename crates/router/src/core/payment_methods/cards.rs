@@ -2858,8 +2858,6 @@ pub async fn update_payment_method_connector_mandate_details(
         connector_mandate_details_value = Some(payments)
     }
 
-    router_env::logger::info!("here  : {:?}", connector_mandate_details_value.clone());
-
     let pm_update = payment_method::PaymentMethodUpdate::ConnectorMandateDetailsUpdate {
         connector_mandate_details: connector_mandate_details_value,
     };
