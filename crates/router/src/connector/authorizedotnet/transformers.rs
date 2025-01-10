@@ -317,10 +317,12 @@ pub enum ValidationMode {
     LiveMode,
 }
 
-impl ForeignFrom<Value> for Vec<UserField> {
-    fn foreign_from(metadata: Value) -> Self {
-        let hashmap: BTreeMap<String, Value> =
-            serde_json::from_str(&metadata.to_string()).unwrap_or(BTreeMap::new());
+impl ForeignTryFrom<Value> for Vec<UserField> {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn foreign_try_from(metadata: Value) -> Result<Self, Self::Error> {
+        let hashmap: BTreeMap<String, Value> = serde_json::from_str(&metadata.to_string())
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)
+            .attach_printable("")?;
         let mut vector: Self = Self::new();
         for (key, value) in hashmap {
             vector.push(UserField {
@@ -328,7 +330,7 @@ impl ForeignFrom<Value> for Vec<UserField> {
                 value: value.to_string(),
             });
         }
-        vector
+        Ok(vector)
     }
 }
 
@@ -655,14 +657,12 @@ impl
                     zip: address.zip.clone(),
                     country: address.country,
                 }),
-            user_fields: item
-                .router_data
-                .request
-                .metadata
-                .clone()
-                .map(|metadata| UserFields {
-                    user_field: Vec::<UserField>::foreign_from(metadata),
+            user_fields: match item.router_data.request.metadata.clone() {
+                Some(metadata) => Some(UserFields {
+                    user_field: Vec::<UserField>::foreign_try_from(metadata)?,
                 }),
+                None => None,
+            },
             processing_options: Some(ProcessingOptions {
                 is_subsequent_auth: true,
             }),
@@ -716,14 +716,12 @@ impl
             },
             customer: None,
             bill_to: None,
-            user_fields: item
-                .router_data
-                .request
-                .metadata
-                .clone()
-                .map(|metadata| UserFields {
-                    user_field: Vec::<UserField>::foreign_from(metadata),
+            user_fields: match item.router_data.request.metadata.clone() {
+                Some(metadata) => Some(UserFields {
+                    user_field: Vec::<UserField>::foreign_try_from(metadata)?,
                 }),
+                None => None,
+            },
             processing_options: Some(ProcessingOptions {
                 is_subsequent_auth: true,
             }),
@@ -811,14 +809,12 @@ impl
                     zip: address.zip.clone(),
                     country: address.country,
                 }),
-            user_fields: item
-                .router_data
-                .request
-                .metadata
-                .clone()
-                .map(|metadata| UserFields {
-                    user_field: Vec::<UserField>::foreign_from(metadata),
+            user_fields: match item.router_data.request.metadata.clone() {
+                Some(metadata) => Some(UserFields {
+                    user_field: Vec::<UserField>::foreign_try_from(metadata)?,
                 }),
+                None => None,
+            },
             processing_options: None,
             subsequent_auth_information: None,
             authorization_indicator_type: match item.router_data.request.capture_method {
@@ -870,14 +866,12 @@ impl
                     zip: address.zip.clone(),
                     country: address.country,
                 }),
-            user_fields: item
-                .router_data
-                .request
-                .metadata
-                .clone()
-                .map(|metadata| UserFields {
-                    user_field: Vec::<UserField>::foreign_from(metadata),
+            user_fields: match item.router_data.request.metadata.clone() {
+                Some(metadata) => Some(UserFields {
+                    user_field: Vec::<UserField>::foreign_try_from(metadata)?,
                 }),
+                None => None,
+            },
             processing_options: None,
             subsequent_auth_information: None,
             authorization_indicator_type: match item.router_data.request.capture_method {
