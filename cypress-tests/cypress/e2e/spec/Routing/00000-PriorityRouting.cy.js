@@ -8,11 +8,29 @@ describe("Priority Based Routing Test", () => {
   let shouldContinue = true;
 
   beforeEach(() => {
-    // Restore the session if it exists
     cy.session("login", () => {
-      cy.userLogin(globalState);
-      cy.terminate2Fa(globalState);
-      cy.userInfo(globalState);
+      // Make sure we have credentials
+      if (!globalState.get("email") || !globalState.get("password")) {
+        throw new Error("Missing login credentials in global state");
+      }
+
+      cy.userLogin(globalState)
+        .then(() => cy.terminate2Fa(globalState))
+        .then(() => cy.userInfo(globalState))
+        .then(() => {
+          // Verify we have all necessary tokens and IDs
+          const requiredKeys = [
+            "userInfoToken",
+            "merchantId",
+            "organizationId",
+            "profileId",
+          ];
+          requiredKeys.forEach((key) => {
+            if (!globalState.get(key)) {
+              throw new Error(`Missing required key after login: ${key}`);
+            }
+          });
+        });
     });
   });
 

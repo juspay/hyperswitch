@@ -3098,6 +3098,9 @@ Cypress.Commands.add("userLogin", (globalState) => {
           .be.empty;
 
         const totpToken = response.body.token;
+        if (!totpToken) {
+          throw new Error("No token received from login");
+        }
         globalState.set("totpToken", totpToken);
       }
     } else {
@@ -3131,6 +3134,9 @@ Cypress.Commands.add("terminate2Fa", (globalState) => {
           .to.not.be.empty;
 
         const userInfoToken = response.body.token;
+        if (!userInfoToken) {
+          throw new Error("No user info token received");
+        }
         globalState.set("userInfoToken", userInfoToken);
       }
     } else {
@@ -3143,14 +3149,18 @@ Cypress.Commands.add("terminate2Fa", (globalState) => {
 Cypress.Commands.add("userInfo", (globalState) => {
   // Define the necessary variables and constant
   const baseUrl = globalState.get("baseUrl");
-  const apiKey = globalState.get("userInfoToken");
+  const userInfoToken = globalState.get("userInfoToken");
   const url = `${baseUrl}/user`;
+
+  if (!userInfoToken) {
+    throw new Error("No user info token available");
+  }
 
   cy.request({
     method: "GET",
     url: url,
     headers: {
-      Authorization: `Bearer ${apiKey}`,
+      Authorization: `Bearer ${userInfoToken}`,
       "Content-Type": "application/json",
     },
     failOnStatusCode: false,
@@ -3169,7 +3179,7 @@ Cypress.Commands.add("userInfo", (globalState) => {
       globalState.set("organizationId", response.body.org_id);
       globalState.set("profileId", response.body.profile_id);
 
-      globalState.set("userInfoToken", apiKey);
+      globalState.set("userInfoToken", userInfoToken);
     } else {
       throw new Error(
         `User login call failed to fetch user info with status: "${response.status}" and message: "${response.body.error.message}"`
