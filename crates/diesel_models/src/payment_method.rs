@@ -1014,7 +1014,9 @@ impl diesel::serialize::ToSql<diesel::sql_types::Jsonb, diesel::pg::Pg> for Comm
         let payouts = serde_json::to_value(self.payouts.as_ref())?;
 
         if let Some(payments_object) = payments.as_object_mut() {
-            payments_object.insert("payouts".to_string(), payouts);
+            if !payouts.is_null() {
+                payments_object.insert("payouts".to_string(), payouts);
+            }
         }
 
         <serde_json::Value as diesel::serialize::ToSql<
