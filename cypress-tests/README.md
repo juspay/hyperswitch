@@ -17,12 +17,12 @@ This is a comprehensive testing framework built with [Cypress](https://cypress.i
 - [Table of Contents](#table-of-contents)
 - [Quick Start](#quick-start)
 - [Getting Started](#getting-started)
-- [Prerequisites](#prerequisites)
-- [Installation](#installation)
-- [Running Tests](#running-tests)
-  - [Development Mode (Interactive)](#development-mode-interactive)
-  - [CI Mode (Headless)](#ci-mode-headless)
-  - [Execute tests against multiple connectors or in parallel](#execute-tests-against-multiple-connectors-or-in-parallel)
+  - [Prerequisites](#prerequisites)
+  - [Installation](#installation)
+  - [Running Tests](#running-tests)
+    - [Development Mode (Interactive)](#development-mode-interactive)
+    - [CI Mode (Headless)](#ci-mode-headless)
+    - [Execute tests against multiple connectors or in parallel](#execute-tests-against-multiple-connectors-or-in-parallel)
 - [Test reports](#test-reports)
 - [Folder structure](#folder-structure)
 - [Adding tests](#adding-tests)
@@ -61,7 +61,7 @@ CYPRESS_CONNECTOR="connector_id" npm run cypress:ci
 
 ## Getting Started
 
-## Prerequisites
+### Prerequisites
 
 - Node.js (18.x or above)
 - npm or yarn
@@ -70,7 +70,7 @@ CYPRESS_CONNECTOR="connector_id" npm run cypress:ci
 > [!NOTE]
 > To learn about the hardware requirements and software dependencies for running Cypress, refer to the [official documentation](https://docs.cypress.io/app/get-started/install-cypress).
 
-## Installation
+### Installation
 
 1. Clone the repository and switch to the project directory:
 
@@ -119,19 +119,19 @@ CYPRESS_CONNECTOR="connector_id" npm run cypress:ci
 > [!NOTE]
 > To learn about how `creds` file should be structured, refer to the [example.creds.json](#example-credsjson) section below.
 
-## Running Tests
+### Running Tests
 
 Execution of Cypress tests can be done in two modes: Development mode (Interactive) and CI mode (Headless). The tests can be executed against a single connector or multiple connectors in parallel. Time taken to execute the tests will vary based on the number of connectors and the number of tests. For a single connector, the tests will take approximately 07-12 minutes to execute (this also depends on the hardware configurations).
 
 For Development mode, the tests will run in the Cypress UI where execution of tests can be seen in real-time and provides a larger area for debugging based on the need. In CI mode (Headless), tests run in the terminal without UI interaction and generate reports automatically.
 
-### Development Mode (Interactive)
+#### Development Mode (Interactive)
 
 ```shell
 npm run cypress
 ```
 
-### CI Mode (Headless)
+#### CI Mode (Headless)
 
 ```shell
 # All tests
@@ -145,7 +145,7 @@ npm run cypress:payouts             # Payout tests
 npm run cypress:routing             # Routing tests
 ```
 
-### Execute tests against multiple connectors or in parallel
+#### Execute tests against multiple connectors or in parallel
 
 1. Set additional environment variables:
 
