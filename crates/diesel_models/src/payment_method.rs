@@ -1048,9 +1048,7 @@ where
             }
         }
 
-        if let Ok(payment_mandate_record) =
-            serde_json::from_value::<Self>(value.clone())
-        {
+        if let Ok(payment_mandate_record) = serde_json::from_value::<Self>(value.clone()) {
             payouts_data = payment_mandate_record.payouts
         }
 
