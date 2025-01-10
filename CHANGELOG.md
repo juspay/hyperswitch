@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.01.10.0
+
+### Testing
+
+- **cypress:** Add test for In Memory Cache ([#6961](https://github.com/juspay/hyperswitch/pull/6961)) ([`d8d8c40`](https://github.com/juspay/hyperswitch/commit/d8d8c400bbda49b9a0cd5edbe37e929ae6d38eb4))
+
+**Full Changelog:** [`2025.01.09.1...2025.01.10.0`](https://github.com/juspay/hyperswitch/compare/2025.01.09.1...2025.01.10.0)
+
+- - -
+
 ## 2025.01.09.1
 
 ### Bug Fixes

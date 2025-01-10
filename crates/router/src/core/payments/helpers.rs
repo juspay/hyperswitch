@@ -1241,17 +1241,18 @@ pub fn create_authorize_url(
 }
 
 pub fn create_webhook_url(
-    router_base_url: &String,
+    router_base_url: &str,
     merchant_id: &id_type::MerchantId,
-    connector_name: impl std::fmt::Display,
+    merchant_connector_id_or_connector_name: &str,
 ) -> String {
     format!(
         "{}/webhooks/{}/{}",
         router_base_url,
         merchant_id.get_string_repr(),
-        connector_name
+        merchant_connector_id_or_connector_name,
     )
 }
+
 pub fn create_complete_authorize_url(
     router_base_url: &String,
     payment_attempt: &PaymentAttempt,
