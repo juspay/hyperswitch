@@ -91,6 +91,8 @@ pub struct ConditionalConfigReq {
     pub name: Option<String>,
     pub algorithm: Option<Program<ConditionalConfigs>>,
 }
+
+#[cfg(feature = "v1")]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct DecisionManagerRequest {
     pub name: Option<String>,
@@ -111,3 +113,17 @@ impl events::ApiEventMetric for DecisionManager {
 }
 
 pub type DecisionManagerResponse = DecisionManagerRecord;
+
+#[cfg(feature = "v2")]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct DecisionManagerRequest {
+    pub name: String,
+    pub program: Program<common_types::payments::ConditionalConfigs>,
+}
+
+#[cfg(feature = "v2")]
+impl events::ApiEventMetric for DecisionManagerRequest {
+    fn get_api_event_type(&self) -> Option<events::ApiEventsType> {
+        Some(events::ApiEventsType::Routing)
+    }
+}

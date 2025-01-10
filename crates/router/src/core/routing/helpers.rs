@@ -199,13 +199,30 @@ pub async fn update_merchant_active_algorithm_ref(
 
 #[cfg(feature = "v2")]
 pub async fn update_merchant_active_algorithm_ref(
-    _state: &SessionState,
-    _key_store: &domain::MerchantKeyStore,
-    _config_key: cache::CacheKind<'_>,
-    _algorithm_id: routing_types::RoutingAlgorithmRef,
+    state: &SessionState,
+    key_store: &domain::MerchantKeyStore,
+    decision_manager_record: common_types::payments::DecisionManagerRecord,
+    profile: domain::Profile,
 ) -> RouterResult<()> {
-    // TODO: handle updating the active routing algorithm for v2 in merchant account
-    todo!()
+    let key_manager_state = &state.into();
+
+    let business_profile_update = domain::ProfileUpdate::DecisionManagerRecordUpdate {
+        three_ds_decision_manager_config: decision_manager_record,
+    };
+
+    let db = &*state.store;
+
+    db.update_profile_by_profile_id(
+        key_manager_state,
+        key_store,
+        profile,
+        business_profile_update,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to update routing algorithm ref in business profile")?;
+
+    Ok(())
 }
 
 #[cfg(feature = "v1")]

@@ -2033,8 +2033,10 @@ dependencies = [
  "common_enums",
  "common_utils",
  "diesel",
+ "euclid",
  "serde",
  "serde_json",
+ "strum 0.26.3",
  "utoipa",
 ]
 

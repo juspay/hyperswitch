@@ -1794,7 +1794,12 @@ impl Profile {
                                 &TransactionType::Payment,
                             )
                         },
-                    ))),
+                    )))
+                    .service(
+                        web::resource("/decision")
+                            .route(web::put().to(routing::upsert_decision_manager_config))
+                            .route(web::get().to(routing::retrieve_decision_manager_config)),
+                    ),
             )
     }
 }
