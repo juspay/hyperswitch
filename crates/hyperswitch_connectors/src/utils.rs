@@ -1338,9 +1338,7 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
     }
     fn is_mandate_payment(&self) -> bool {
         ((self.customer_acceptance.is_some() || self.setup_mandate_details.is_some())
-            && self.setup_future_usage.map_or(false, |setup_future_usage| {
-                setup_future_usage == FutureUsage::OffSession
-            }))
+            && (self.setup_future_usage == Some(FutureUsage::OffSession)))
             || self
                 .mandate_id
                 .as_ref()
@@ -1409,9 +1407,7 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
 
     fn is_customer_initiated_mandate_payment(&self) -> bool {
         (self.customer_acceptance.is_some() || self.setup_mandate_details.is_some())
-            && self.setup_future_usage.map_or(false, |setup_future_usage| {
-                setup_future_usage == FutureUsage::OffSession
-            })
+            && self.setup_future_usage == Some(FutureUsage::OffSession)
     }
 
     fn get_metadata_as_object(&self) -> Option<pii::SecretSerdeValue> {
@@ -1469,9 +1465,7 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
     }
     fn is_cit_mandate_payment(&self) -> bool {
         (self.customer_acceptance.is_some() || self.setup_mandate_details.is_some())
-            && self.setup_future_usage.map_or(false, |setup_future_usage| {
-                setup_future_usage == FutureUsage::OffSession
-            })
+            && self.setup_future_usage == Some(FutureUsage::OffSession)
     }
 }
 
@@ -1687,9 +1681,7 @@ impl PaymentsCompleteAuthorizeRequestData for CompleteAuthorizeData {
     }
     fn is_mandate_payment(&self) -> bool {
         ((self.customer_acceptance.is_some() || self.setup_mandate_details.is_some())
-            && self.setup_future_usage.map_or(false, |setup_future_usage| {
-                setup_future_usage == FutureUsage::OffSession
-            }))
+            && self.setup_future_usage == Some(FutureUsage::OffSession))
             || self
                 .mandate_id
                 .as_ref()
@@ -1712,9 +1704,7 @@ impl PaymentsCompleteAuthorizeRequestData for CompleteAuthorizeData {
     }
     fn is_cit_mandate_payment(&self) -> bool {
         (self.customer_acceptance.is_some() || self.setup_mandate_details.is_some())
-            && self.setup_future_usage.map_or(false, |setup_future_usage| {
-                setup_future_usage == FutureUsage::OffSession
-            })
+            && self.setup_future_usage == Some(FutureUsage::OffSession)
     }
 }
 pub trait AddressData {

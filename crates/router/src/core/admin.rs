@@ -1748,7 +1748,7 @@ struct PMAuthConfigValidation<'a> {
     key_manager_state: &'a KeyManagerState,
 }
 
-impl<'a> PMAuthConfigValidation<'a> {
+impl PMAuthConfigValidation<'_> {
     async fn validate_pm_auth(&self, val: &pii::SecretSerdeValue) -> RouterResponse<()> {
         let config = serde_json::from_value::<api_models::pm_auth::PaymentMethodAuthConfig>(
             val.clone().expose(),
@@ -1865,7 +1865,7 @@ struct MerchantDefaultConfigUpdate<'a> {
     transaction_type: &'a api_enums::TransactionType,
 }
 #[cfg(feature = "v1")]
-impl<'a> MerchantDefaultConfigUpdate<'a> {
+impl MerchantDefaultConfigUpdate<'_> {
     async fn retrieve_and_update_default_fallback_routing_algorithm_if_routable_connector_exists(
         &self,
     ) -> RouterResult<()> {
@@ -1938,11 +1938,7 @@ impl<'a> MerchantDefaultConfigUpdate<'a> {
             };
             if default_routing_config.contains(&choice) {
                 default_routing_config.retain(|mca| {
-                    mca.merchant_connector_id
-                        .as_ref()
-                        .map_or(true, |merchant_connector_id| {
-                            merchant_connector_id != self.merchant_connector_id
-                        })
+                    mca.merchant_connector_id.as_ref() != Some(self.merchant_connector_id)
                 });
                 routing::helpers::update_merchant_default_config(
                     self.store,
@@ -1954,11 +1950,7 @@ impl<'a> MerchantDefaultConfigUpdate<'a> {
             }
             if default_routing_config_for_profile.contains(&choice.clone()) {
                 default_routing_config_for_profile.retain(|mca| {
-                    mca.merchant_connector_id
-                        .as_ref()
-                        .map_or(true, |merchant_connector_id| {
-                            merchant_connector_id != self.merchant_connector_id
-                        })
+                    mca.merchant_connector_id.as_ref() != Some(self.merchant_connector_id)
                 });
                 routing::helpers::update_merchant_default_config(
                     self.store,
@@ -1982,7 +1974,7 @@ struct DefaultFallbackRoutingConfigUpdate<'a> {
     key_manager_state: &'a KeyManagerState,
 }
 #[cfg(feature = "v2")]
-impl<'a> DefaultFallbackRoutingConfigUpdate<'a> {
+impl DefaultFallbackRoutingConfigUpdate<'_> {
     async fn retrieve_and_update_default_fallback_routing_algorithm_if_routable_connector_exists(
         &self,
     ) -> RouterResult<()> {
@@ -2025,11 +2017,7 @@ impl<'a> DefaultFallbackRoutingConfigUpdate<'a> {
             };
             if default_routing_config_for_profile.contains(&choice.clone()) {
                 default_routing_config_for_profile.retain(|mca| {
-                    mca.merchant_connector_id
-                        .as_ref()
-                        .map_or(true, |merchant_connector_id| {
-                            merchant_connector_id != self.merchant_connector_id
-                        })
+                    (mca.merchant_connector_id.as_ref() != Some(self.merchant_connector_id))
                 });
 
                 profile_wrapper
