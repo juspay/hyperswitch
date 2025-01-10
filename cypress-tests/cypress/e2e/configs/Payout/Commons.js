@@ -1,5 +1,5 @@
 // This file is the default. To override, add to connector.js
-import { getCustomExchange } from "./_Reusable";
+import { getCustomExchange } from "./Modifiers";
 
 const card_data = {
   card_number: "4111111111111111",

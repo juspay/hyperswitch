@@ -1,5 +1,5 @@
-import { getCustomExchange } from "./_Reusable";
 import { connectorDetails as commonConnectorDetails } from "./Commons";
+import { getCustomExchange } from "./Modifiers";
 
 const successfulNo3DSCardDetails = {
   card_number: "4242424242424242",

@@ -1,4 +1,4 @@
-import { getCustomExchange } from "./_Reusable";
+import { getCustomExchange } from "./Modifiers";
 
 const successfulNo3DSCardDetails = {
   card_number: "4012000033330026",
