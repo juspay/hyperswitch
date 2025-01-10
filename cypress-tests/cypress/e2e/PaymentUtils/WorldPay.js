@@ -638,4 +638,305 @@ export const connectorDetails = {
       },
     },
   },
+  pm_list: {
+    PmListResponse: {
+      pmListDynamicFieldWithoutBilling: {
+        payment_methods: [
+          {
+            payment_method: "card",
+            payment_method_types: [
+              {
+                payment_method_type: "credit",
+                card_networks: [
+                  { eligible_connectors: ["worldpay"] },
+                ],
+                required_fields: {
+                  "payment_method_data.card.card_number": {
+                    required_field: "payment_method_data.card.card_number",
+                    display_name: "card_number",
+                    field_type: "user_card_number",
+                    value: null,
+                  },
+                  "payment_method_data.card.card_exp_month": {
+                    required_field: "payment_method_data.card.card_exp_month",
+                    display_name: "card_exp_month",
+                    field_type: "user_card_expiry_month",
+                    value: null,
+                  },
+                  "payment_method_data.card.card_exp_year": {
+                    required_field: "payment_method_data.card.card_exp_year",
+                    display_name: "card_exp_year",
+                    field_type: "user_card_expiry_year",
+                    value: null,
+                  },
+                }
+              }
+            ]
+          }
+        ]
+      },
+      pmListDynamicFieldWithBilling: {
+        payment_methods: [
+          {
+            payment_method: "card",
+            payment_method_types: [
+              {
+                payment_method_type: "credit",
+                card_networks: [
+                  { eligible_connectors: ["worldpay"] },
+                ],
+                required_fields: {
+                  "payment_method_data.card.card_number": {
+                    required_field: "payment_method_data.card.card_number",
+                    display_name: "card_number",
+                    field_type: "user_card_number",
+                    value: null,
+                  },
+                  "payment_method_data.card.card_exp_month": {
+                    required_field: "payment_method_data.card.card_exp_month",
+                    display_name: "card_exp_month",
+                    field_type: "user_card_expiry_month",
+                    value: null,
+                  },
+                  "payment_method_data.card.card_exp_year": {
+                    required_field: "payment_method_data.card.card_exp_year",
+                    display_name: "card_exp_year",
+                    field_type: "user_card_expiry_year",
+                    value: null,
+                  },
+                  "billing.address.line1": {
+                    required_field: "payment_method_data.billing.address.line1",
+                    display_name: "line1",
+                    field_type: "user_address_line1",
+                    value: "1467",
+                  },
+                  "billing.address.country": {
+                    required_field: "payment_method_data.billing.address.country",
+                    display_name: "country",
+                    field_type: {
+                      user_address_country: {
+                        options: ["AF",
+                          "AU",
+                          "AW",
+                          "AZ",
+                          "BS",
+                          "BH",
+                          "BD",
+                          "BB",
+                          "BZ",
+                          "BM",
+                          "BT",
+                          "BO",
+                          "BA",
+                          "BW",
+                          "BR",
+                          "BN",
+                          "BG",
+                          "BI",
+                          "KH",
+                          "CA",
+                          "CV",
+                          "KY",
+                          "CL",
+                          "CO",
+                          "KM",
+                          "CD",
+                          "CR",
+                          "CZ",
+                          "DZ",
+                          "DK",
+                          "DJ",
+                          "ST",
+                          "DO",
+                          "EC",
+                          "EG",
+                          "SV",
+                          "ER",
+                          "ET",
+                          "FK",
+                          "FJ",
+                          "GM",
+                          "GE",
+                          "GH",
+                          "GI",
+                          "GT",
+                          "GN",
+                          "GY",
+                          "HT",
+                          "HN",
+                          "HK",
+                          "HU",
+                          "IS",
+                          "IN",
+                          "ID",
+                          "IR",
+                          "IQ",
+                          "IE",
+                          "IL",
+                          "IT",
+                          "JM",
+                          "JP",
+                          "JO",
+                          "KZ",
+                          "KE",
+                          "KW",
+                          "LA",
+                          "LB",
+                          "LS",
+                          "LR",
+                          "LY",
+                          "LT",
+                          "MO",
+                          "MK",
+                          "MG",
+                          "MW",
+                          "MY",
+                          "MV",
+                          "MR",
+                          "MU",
+                          "MX",
+                          "MD",
+                          "MN",
+                          "MA",
+                          "MZ",
+                          "MM",
+                          "NA",
+                          "NZ",
+                          "NI",
+                          "NG",
+                          "KP",
+                          "NO",
+                          "AR",
+                          "PK",
+                          "PG",
+                          "PY",
+                          "PE",
+                          "UY",
+                          "PH",
+                          "PL",
+                          "GB",
+                          "QA",
+                          "OM",
+                          "RO",
+                          "RU",
+                          "RW",
+                          "WS",
+                          "SG",
+                          "ST",
+                          "ZA",
+                          "KR",
+                          "LK",
+                          "SH",
+                          "SD",
+                          "SR",
+                          "SZ",
+                          "SE",
+                          "CH",
+                          "SY",
+                          "TW",
+                          "TJ",
+                          "TZ",
+                          "TH",
+                          "TT",
+                          "TN",
+                          "TR",
+                          "UG",
+                          "UA",
+                          "US",
+                          "UZ",
+                          "VU",
+                          "VE",
+                          "VN",
+                          "ZM",
+                          "ZW",]
+                      }
+                    },
+                    value: "PL",
+                  },
+                  "billing.address.city": {
+                    required_field: "payment_method_data.billing.address.city",
+                    display_name: "city",
+                    field_type: "user_address_city",
+                    value: "San Fransico",
+                  },
+                  "billing.address.zip": {
+                    required_field: "payment_method_data.billing.address.zip",
+                    display_name: "zip",
+                    field_type: "user_address_pincode",
+                    value: "94122",
+                  },
+                }
+              }
+            ]
+          }
+        ]
+      },
+      pmListDynamicFieldWithNames: {
+        payment_methods: [
+          {
+            payment_method: "card",
+            payment_method_types: [
+              {
+                payment_method_type: "credit",
+                card_networks: [
+                  {
+                    eligible_connectors: ["worldpay"],
+                  },
+                ],
+                required_fields: {
+                  "billing.address.line1": {
+                    required_field:
+                      "payment_method_data.billing.address.line1",
+                    display_name: "line1",
+                    field_type: "user_address_line1",
+                    value: null,
+                  },
+                  "billing.address.city": {
+                    required_field:
+                      "payment_method_data.billing.address.city",
+                    display_name: "city",
+                    field_type: "user_address_city",
+                    value: null,
+                  },
+                },
+              },
+            ],
+          },
+        ],
+      },
+      pmListDynamicFieldWithEmail: {
+        payment_methods: [
+          {
+            payment_method: "card",
+            payment_method_types: [
+              {
+                payment_method_type: "credit",
+                card_networks: [
+                  {
+                    eligible_connectors: ["worldpay"],
+                  },
+                ],
+                required_fields: {
+                  "billing.address.line1": {
+                    required_field:
+                      "payment_method_data.billing.address.line1",
+                    display_name: "line1",
+                    field_type: "user_address_line1",
+                    value: null,
+                  },
+                  "billing.address.city": {
+                    required_field:
+                      "payment_method_data.billing.address.city",
+                    display_name: "city",
+                    field_type: "user_address_city",
+                    value: null,
+                  },
+                },
+              },
+            ],
+          },
+        ],
+      }
+    }
+  }
 };
