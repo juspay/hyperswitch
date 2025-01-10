@@ -7,7 +7,7 @@ use hyperswitch_domain_models::{
     },
     types::{
         UasAuthenticationConfirmationRouterData, UasPostAuthenticationRouterData,
-        UasPreAuthenticationRouterData,
+        UasPreAuthenticationRouterData, UasProcessWebhookRouterData,
     },
 };
 use hyperswitch_interfaces::errors;
@@ -370,6 +370,49 @@ pub struct UnifiedAuthenticationServicePostAuthenticateRequest {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UnifiedAuthenticationServicePostAuthenticateResponse {
     pub authentication_details: AuthenticationDetails,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ProcessWebhookRequest {
+    pub authenticate_by: String,
+    pub body: Vec<u8>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct WebhookResponse {
+    /// trans_status
+    pub trans_status: common_enums::TransactionStatus,
+    /// authentication_value
+    pub authentication_value: Option<String>,
+    /// eci
+    pub eci: Option<String>,
+}
+
+impl From<&UasProcessWebhookRouterData> for ProcessWebhookRequest {
+    fn from(item: &UasProcessWebhookRouterData) -> Self {
+        Self {
+            authenticate_by: item.connector.clone(),
+            body: item.request.body.clone(),
+        }
+    }
+}
+
+impl<F, T> TryFrom<ResponseRouterData<F, WebhookResponse, T, UasAuthenticationResponseData>>
+    for RouterData<F, T, UasAuthenticationResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<F, WebhookResponse, T, UasAuthenticationResponseData>,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            response: Ok(UasAuthenticationResponseData::Webhook {
+                trans_status: item.response.trans_status,
+                authentication_value: item.response.authentication_value,
+                eci: item.response.eci,
+            }),
+            ..item.data
+        })
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

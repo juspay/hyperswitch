@@ -23,7 +23,7 @@ use crate::{
         api_locking,
         errors::{self, ConnectorErrorExt, CustomResult, RouterResponse, StorageErrorExt},
         metrics, payments,
-        payments::tokenization,
+        payments::{helpers, tokenization},
         refunds, utils as core_utils,
         webhooks::utils::construct_webhook_router_data,
     },
@@ -157,6 +157,10 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
     )
     .await?;
 
+    let _is_eligible_for_uas =
+        helpers::is_merchant_eligible_authenthention_service(merchant_account.get_id(), &state)
+            .await?;
+
     let decoded_body = connector
         .decode_webhook_body(
             &request_details,
@@ -171,6 +175,25 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
         .await
         .switch()
         .attach_printable("There was an error in incoming webhook body decoding")?;
+    // let decoded_body = if is_eligible_for_uas {
+
+    // }
+    // else {
+    //     connector
+    //     .decode_webhook_body(
+    //         &request_details,
+    //         merchant_account.get_id(),
+    //         merchant_connector_account
+    //             .clone()
+    //             .and_then(|merchant_connector_account| {
+    //                 merchant_connector_account.connector_webhook_details
+    //             }),
+    //         connector_name.as_str(),
+    //     )
+    //     .await
+    //     .switch()
+    //     .attach_printable("There was an error in incoming webhook body decoding")?
+    // };
 
     request_details.body = &decoded_body;
 

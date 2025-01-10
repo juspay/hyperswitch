@@ -3,9 +3,10 @@ use hyperswitch_domain_models::{
     errors::api_error_response::ApiErrorResponse,
     router_request_types::unified_authentication_service::{
         CtpServiceDetails, ServiceSessionIds, TransactionDetails, UasConfirmationRequestData,
-        UasPreAuthenticationRequestData,
+        UasPreAuthenticationRequestData, UasWebhookRequestData,
     },
 };
+use hyperswitch_interfaces::webhooks::IncomingWebhookRequestDetails;
 
 use crate::core::payments::PaymentData;
 
@@ -101,3 +102,22 @@ fn get_checkout_event_status_and_reason(
         ),
     }
 }
+
+pub fn get_webhook_request_data_for_uas<'a>(
+    request: IncomingWebhookRequestDetails<'a>,
+) -> UasWebhookRequestData {
+    UasWebhookRequestData {
+        body: request.body.to_vec(),
+    }
+}
+
+// #[cfg(feature = "v1")]
+// impl<'a> TryFrom<IncomingWebhookRequestDetails<'a>> for UasWebhookRequestData {
+//     type Error = Report<ApiErrorResponse>;
+//     fn try_from( incoming_webhook_request: IncomingWebhookRequestDetails<'a>,
+//     ) -> Result<Self, Self::Error> {
+//         Ok(Self {
+//             body: incoming_webhook_request.body.to_vec()
+//         })
+//     }
+// }

@@ -14,12 +14,14 @@ pub mod setup_mandate_flow;
 use async_trait::async_trait;
 use hyperswitch_domain_models::{
     mandates::CustomerAcceptance,
-    router_flow_types::{AuthenticationConfirmation, PostAuthenticate, PreAuthenticate},
+    router_flow_types::{
+        AuthenticationConfirmation, PostAuthenticate, PreAuthenticate, ProcessIncomingWebhook,
+    },
     router_request_types::PaymentsCaptureData,
 };
 use hyperswitch_interfaces::api::{
     payouts::Payouts, UasAuthenticationConfirmation, UasPostAuthentication, UasPreAuthentication,
-    UnifiedAuthenticationService,
+    UasProcessWebhook, UnifiedAuthenticationService,
 };
 
 #[cfg(feature = "frm")]
@@ -2645,6 +2647,67 @@ impl<const T: u8>
 }
 
 default_imp_for_uas_authentication_confirmation!(
+    connector::Adyenplatform,
+    connector::Aci,
+    connector::Adyen,
+    connector::Authorizedotnet,
+    connector::Bankofamerica,
+    connector::Braintree,
+    connector::Checkout,
+    connector::Cybersource,
+    connector::Ebanx,
+    connector::Globalpay,
+    connector::Gpayments,
+    connector::Iatapay,
+    connector::Itaubank,
+    connector::Klarna,
+    connector::Mifinity,
+    connector::Netcetera,
+    connector::Nmi,
+    connector::Noon,
+    connector::Nuvei,
+    connector::Opayo,
+    connector::Opennode,
+    connector::Payme,
+    connector::Payone,
+    connector::Paypal,
+    connector::Plaid,
+    connector::Riskified,
+    connector::Signifyd,
+    connector::Stripe,
+    connector::Threedsecureio,
+    connector::Trustpay,
+    connector::Wellsfargo,
+    connector::Wellsfargopayout,
+    connector::Wise
+);
+
+macro_rules! default_imp_for_uas_webhook {
+    ($($path:ident::$connector:ident),*) => {
+        $( impl UasProcessWebhook for $path::$connector {}
+            impl
+            services::ConnectorIntegration<
+            ProcessIncomingWebhook,
+            types::UasWebhookRequestData,
+            types::UasAuthenticationResponseData
+        > for $path::$connector
+        {}
+    )*
+    };
+}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> UasProcessWebhook for connector::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    services::ConnectorIntegration<
+        ProcessIncomingWebhook,
+        types::UasWebhookRequestData,
+        types::UasAuthenticationResponseData,
+    > for connector::DummyConnector<T>
+{
+}
+
+default_imp_for_uas_webhook!(
     connector::Adyenplatform,
     connector::Aci,
     connector::Adyen,

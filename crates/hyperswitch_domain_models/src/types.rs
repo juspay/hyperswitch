@@ -6,12 +6,13 @@ use crate::{
         AccessTokenAuth, AuthenticationConfirmation, Authorize, AuthorizeSessionToken,
         CalculateTax, Capture, CompleteAuthorize, CreateConnectorCustomer, Execute, PSync,
         PaymentMethodToken, PostAuthenticate, PostSessionTokens, PreAuthenticate, PreProcessing,
-        RSync, Session, SetupMandate, Void,
+        ProcessIncomingWebhook, RSync, Session, SetupMandate, Void,
     },
     router_request_types::{
         unified_authentication_service::{
             UasAuthenticationResponseData, UasConfirmationRequestData,
             UasPostAuthenticationRequestData, UasPreAuthenticationRequestData,
+            UasWebhookRequestData,
         },
         AccessTokenRequestData, AuthorizeSessionTokenData, CompleteAuthorizeData,
         ConnectorCustomerData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
@@ -62,3 +63,6 @@ pub type UasAuthenticationConfirmationRouterData = RouterData<
     UasConfirmationRequestData,
     UasAuthenticationResponseData,
 >;
+
+pub type UasProcessWebhookRouterData =
+    RouterData<ProcessIncomingWebhook, UasWebhookRequestData, UasAuthenticationResponseData>;

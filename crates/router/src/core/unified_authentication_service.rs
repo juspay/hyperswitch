@@ -12,6 +12,7 @@ use hyperswitch_domain_models::{
         UasPreAuthenticationRequestData,
     },
 };
+use hyperswitch_interfaces::webhooks::IncomingWebhookRequestDetails;
 use masking::ExposeInterface;
 
 use super::errors::RouterResult;
@@ -211,4 +212,25 @@ pub async fn create_new_authentication(
                 authentication_id
             ),
         })
+}
+
+pub async fn process_incoming_webhook(
+    state: SessionState,
+    incoming_webhook_request: IncomingWebhookRequestDetails<'_>,
+    connector_name: &str,
+) -> RouterResult<Vec<u8>> {
+    let webhook_data = transformers::get_webhook_request_data_for_uas(incoming_webhook_request);
+    // UasWebhookRequestData::from(incoming_webhook_request);
+
+    let webhook_router_data: hyperswitch_domain_models::types::UasProcessWebhookRouterData =
+        utils::construct_uas_webhook_router_data(connector_name.to_string(), webhook_data)?;
+
+    let _response = utils::do_auth_connector_call(
+        &state,
+        UNIFIED_AUTHENTICATION_SERVICE.to_string(),
+        webhook_router_data,
+    )
+    .await?;
+
+    Ok(Vec::new())
 }

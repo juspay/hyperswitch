@@ -55,6 +55,23 @@ pub async fn update_trackers<F: Clone, Req>(
                     authentication_status: common_enums::AuthenticationStatus::Success,
                 }
             }
+            UasAuthenticationResponseData::Webhook {
+                trans_status,
+                authentication_value,
+                eci: _,
+            } => AuthenticationUpdate::AuthenticationUpdate {
+                trans_status,
+                authentication_status: common_enums::AuthenticationStatus::Success,
+                authentication_value,
+                authentication_type: common_enums::DecoupledAuthenticationType::Challenge,
+                acs_url: None,
+                challenge_request: None,
+                acs_reference_number: None,
+                acs_trans_id: None,
+                acs_signed_content: None,
+                connector_metadata: None,
+                ds_trans_id: None,
+            },
         },
         Err(error) => AuthenticationUpdate::ErrorUpdate {
             connector_authentication_id: error.connector_transaction_id,
@@ -168,6 +185,65 @@ pub fn construct_uas_router_data<F: Clone, Req, Res>(
         header_payload: None,
         connector_mandate_request_reference_id: None,
         authentication_id,
+        psd2_sca_exemption_type: None,
+    })
+}
+
+pub fn construct_uas_webhook_router_data<F: Clone, Req, Res>(
+    authentication_connector_name: String,
+    request_data: Req,
+) -> RouterResult<RouterData<F, Req, Res>> {
+    let merchant_id = common_utils::id_type::MerchantId::get_irrelevant_merchant_id();
+    Ok(RouterData {
+        flow: PhantomData,
+        merchant_id,
+        customer_id: None,
+        connector_customer: None,
+        connector: authentication_connector_name,
+        payment_id: common_utils::id_type::PaymentId::get_irrelevant_id("authentication")
+            .get_string_repr()
+            .to_owned(),
+        attempt_id: IRRELEVANT_ATTEMPT_ID_IN_AUTHENTICATION_FLOW.to_owned(),
+        status: common_enums::AttemptStatus::default(),
+        payment_method: PaymentMethod::default(),
+        connector_auth_type: ConnectorAuthType::NoKey,
+        description: None,
+        address: PaymentAddress::default(),
+        auth_type: common_enums::AuthenticationType::default(),
+        connector_meta_data: None,
+        connector_wallets_details: None,
+        amount_captured: None,
+        minor_amount_captured: None,
+        access_token: None,
+        session_token: None,
+        reference_id: None,
+        payment_method_token: None,
+        recurring_mandate_payment_data: None,
+        preprocessing_id: None,
+        payment_method_balance: None,
+        connector_api_version: None,
+        request: request_data,
+        response: Err(ErrorResponse::default()),
+        connector_request_reference_id:
+            IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_AUTHENTICATION_FLOW.to_owned(),
+        #[cfg(feature = "payouts")]
+        payout_method_data: None,
+        #[cfg(feature = "payouts")]
+        quote_id: None,
+        test_mode: None,
+        connector_http_status_code: None,
+        external_latency: None,
+        apple_pay_flow: None,
+        frm_metadata: None,
+        dispute_id: None,
+        refund_id: None,
+        payment_method_status: None,
+        connector_response: None,
+        integrity_check: Ok(()),
+        additional_merchant_data: None,
+        header_payload: None,
+        connector_mandate_request_reference_id: None,
+        authentication_id: None,
         psd2_sca_exemption_type: None,
     })
 }

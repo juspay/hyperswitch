@@ -36,6 +36,11 @@ pub enum UasAuthenticationResponseData {
         authentication_details: PostAuthenticationDetails,
     },
     Confirmation {},
+    Webhook {
+        trans_status: common_enums::TransactionStatus,
+        authentication_value: Option<String>,
+        eci: Option<String>,
+    },
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
@@ -74,4 +79,9 @@ pub struct UasConfirmationRequestData {
     pub network_transaction_identifier: Option<String>,
     pub correlation_id: Option<String>,
     pub merchant_transaction_id: Option<String>,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone)]
+pub struct UasWebhookRequestData {
+    pub body: Vec<u8>,
 }

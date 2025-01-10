@@ -15,7 +15,7 @@ use hyperswitch_domain_models::{
         },
         refunds::{Execute, RSync},
         unified_authentication_service::{
-            AuthenticationConfirmation, PostAuthenticate, PreAuthenticate,
+            AuthenticationConfirmation, PostAuthenticate, PreAuthenticate, ProcessIncomingWebhook,
         },
         webhooks::VerifyWebhookSource,
     },
@@ -23,6 +23,7 @@ use hyperswitch_domain_models::{
         unified_authentication_service::{
             UasAuthenticationResponseData, UasConfirmationRequestData,
             UasPostAuthenticationRequestData, UasPreAuthenticationRequestData,
+            UasWebhookRequestData,
         },
         AcceptDisputeRequestData, AccessTokenRequestData, AuthorizeSessionTokenData,
         CompleteAuthorizeData, ConnectorCustomerData, DefendDisputeRequestData,
@@ -212,5 +213,12 @@ pub type UasPostAuthenticationType = dyn ConnectorIntegration<
 pub type UasAuthenticationConfirmationType = dyn ConnectorIntegration<
     AuthenticationConfirmation,
     UasConfirmationRequestData,
+    UasAuthenticationResponseData,
+>;
+
+/// Type alias for `ConnectorIntegration<ProcessIncomingWebhook, UasWebhookRequestData, UasAuthenticationResponseData>`
+pub type UasProcessWebhookType = dyn ConnectorIntegration<
+    ProcessIncomingWebhook,
+    UasWebhookRequestData,
     UasAuthenticationResponseData,
 >;
