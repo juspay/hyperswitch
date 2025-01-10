@@ -63,9 +63,20 @@ use strum::IntoEnumIterator;
     not(feature = "payment_methods_v2")
 ))]
 use super::migration;
-use super::surcharge_decision_configs::{
-    perform_surcharge_decision_management_for_payment_method_list,
-    perform_surcharge_decision_management_for_saved_cards,
+use super::{
+    surcharge_decision_configs::{
+        perform_surcharge_decision_management_for_payment_method_list,
+        perform_surcharge_decision_management_for_saved_cards,
+    },
+    tokenize::CardNetworkTokenizeExecutor,
+};
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
+use crate::core::payment_methods::{
+    add_payment_method_status_update_task,
+    utils::{get_merchant_pm_filter_graph, make_pm_graph, refresh_pm_filters_cache},
 };
 #[cfg(all(
     any(feature = "v2", feature = "v1"),
@@ -97,7 +108,7 @@ use crate::{
         api::{self, routing as routing_types, PaymentMethodCreateExt},
         domain::{self, Profile},
         storage::{self, enums, PaymentMethodListContext, PaymentTokenData},
-        transformers::ForeignTryFrom,
+        transformers::{ForeignFrom, ForeignTryFrom},
     },
     utils,
     utils::OptionExt,
@@ -106,17 +117,6 @@ use crate::{
 use crate::{
     consts as router_consts, core::payment_methods as pm_core, headers,
     types::payment_methods as pm_types, utils::ConnectorResponseExt,
-};
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
-use crate::{
-    core::payment_methods::{
-        add_payment_method_status_update_task,
-        utils::{get_merchant_pm_filter_graph, make_pm_graph, refresh_pm_filters_cache},
-    },
-    types::transformers::ForeignFrom,
 };
 
 #[cfg(all(
@@ -6034,27 +6034,138 @@ pub async fn list_countries_currencies_for_connector_payment_method_util(
 }
 
 pub async fn tokenize_card_flow(
-    state: routes::SessionState,
-    req: api::CardNetworkTokenizeRequest,
+    state: &routes::SessionState,
+    req: domain::bulk_tokenization::CardNetworkTokenizeRequest,
     merchant_id: &id_type::MerchantId,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
-) -> errors::RouterResponse<tokenize::CardNetworkTokenizeResponse> {
+) -> errors::RouterResult<api::CardNetworkTokenizeResponse> {
+    use common_utils::transformers::ForeignFrom;
     let response = match req.data {
-        api::TokenizeDataRequest::Card { ref card } => {
-            tokenize::CardNetworkTokenizeResponseBuilder::<
-                api::TokenizeCardRequest,
+        domain::bulk_tokenization::TokenizeDataRequest::Card(ref card) => {
+            // Initialize builder and executor
+            let executor =
+                CardNetworkTokenizeExecutor::new(&req, &state, merchant_account, key_store);
+            let builder = tokenize::CardNetworkTokenizeResponseBuilder::<
+                domain::bulk_tokenization::TokenizeCardRequest,
                 tokenize::TokenizeWithCard,
-            >::new(req, card.clone())
-            .validate_request(&state, merchant_account, key_store)
-            .await?
-            .tokenize_card(&state)
-            .await?
-            .create_payment_method(&state, merchant_account)
-            .await?
-            .build()
+            >::new(&req, card.clone());
+
+            // Validate card number
+            let card_number = executor.validate_card_number(card.raw_card_number.clone())?;
+            let builder = builder.transition(|_| card.clone());
+
+            // Get or create customer
+            let customer_details = executor.get_or_create_customer().await?;
+            let builder = builder.set_customer_details(&customer_details);
+
+            // Get and populate BIN details
+            let card_bin_details = populate_bin_details_for_masked_card(
+                &api::MigrateCardDetail::foreign_from(card),
+                &*state.store,
+            )
+            .await?;
+            let builder = builder.set_card_details(card_number, card, &card_bin_details);
+            let card_details = &builder.get_data();
+
+            // Tokenize card
+            let network_token_details = executor
+                .tokenize_card(&customer_details.id, &card_details)
+                .await?;
+            let builder = builder
+                .set_tokenize_details(&network_token_details.0, network_token_details.1.as_ref());
+
+            // Store card in locker
+            let stored_card_resp = executor
+                .store_in_locker(
+                    &network_token_details,
+                    &customer_details.id,
+                    card.card_holder_name.clone(),
+                    card.nick_name.clone(),
+                )
+                .await?;
+            let builder = builder.set_locker_details(
+                &card_bin_details,
+                &stored_card_resp,
+                merchant_id.clone(),
+                customer_details.id.clone(),
+            );
+
+            // Create payment method entry
+            let payment_method = executor
+                .create_payment_method(
+                    &stored_card_resp,
+                    network_token_details,
+                    &card_details,
+                    &customer_details.id,
+                )
+                .await?;
+            let builder = builder.set_payment_method_response(payment_method);
+
+            // Build response
+            builder.build()
         }
-        api::TokenizeDataRequest::PaymentMethodId { payment_method_id } => todo!(),
+        domain::bulk_tokenization::TokenizeDataRequest::PaymentMethod(ref payment_method) => {
+            // Initialize builder and executor
+            let executor =
+                CardNetworkTokenizeExecutor::new(&req, &state, merchant_account, key_store);
+            let builder = tokenize::CardNetworkTokenizeResponseBuilder::<
+                domain::bulk_tokenization::TokenizePaymentMethodRequest,
+                tokenize::TokenizeWithPmId,
+            >::new(&req, payment_method.clone());
+
+            // Validate payment_method_id
+            let (payment_method_in_db, locker_id) = executor
+                .validate_payment_method_id(&payment_method.payment_method_id)
+                .await?;
+            let builder = builder.transition(|_| payment_method_in_db);
+            let data = builder.get_data();
+
+            // Fetch raw card details from locker
+            let card_details = get_card_from_locker(
+                &state,
+                &data.customer_id,
+                merchant_account.get_id(),
+                &locker_id,
+            )
+            .await?;
+            let builder = builder.transition(|_| card_details.clone());
+
+            // Get and populate BIN details
+            let card_bin_details = populate_bin_details_for_masked_card(
+                &api::MigrateCardDetail::from(&card_details),
+                &*state.store,
+            )
+            .await?;
+            let builder = builder.set_card_details(&payment_method.card_cvc, &card_bin_details);
+            let card = builder.get_data();
+
+            // Tokenize card
+            let network_token_details = executor.tokenize_card(&data.customer_id, &card).await?;
+            let builder = builder
+                .set_tokenize_details(&network_token_details.0, network_token_details.1.as_ref());
+
+            // Store in locker
+            let stored_card_resp = executor
+                .store_in_locker(
+                    &network_token_details,
+                    &data.customer_id,
+                    card_details.name_on_card,
+                    card_details.nick_name.map(|name| Secret::new(name)),
+                )
+                .await?;
+            let builder = builder.transition(|_| &stored_card_resp);
+
+            // Update payment method entry
+            let payment_method_in_db = executor
+                .update_payment_method(&stored_card_resp, data, network_token_details, &card)
+                .await?;
+            let builder =
+                builder.set_payment_method_response(payment_method_in_db, &card_bin_details);
+
+            // Build response
+            builder.build()
+        }
     };
-    Ok(services::ApplicationResponse::Json(response))
+    Ok(response)
 }

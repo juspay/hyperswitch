@@ -2273,3 +2273,34 @@ impl FeatureMatrix {
             .service(web::resource("").route(web::get().to(feature_matrix::fetch_feature_matrix)))
     }
 }
+
+pub struct AppleStuff;
+
+impl AppleStuff {
+    pub fn server(state: AppState) -> Scope {
+        let mut route = web::scope("/.well-known").app_data(web::Data::new(state));
+
+        route = route.service(
+            web::resource("/apple-developer-merchantid-domain-association.txt")
+                .route(web::get().to(apple_stuff)),
+        );
+        route
+    }
+}
+
+pub async fn apple_stuff(
+    state: web::Data<AppState>,
+    req: actix_web::HttpRequest,
+) -> actix_web::HttpResponse {
+    match std::fs::read_to_string(
+        "/Users/mohammed.kashif/codes/hyperswitch/.well-known/apple-developer-merchantid-domain-association.txt",
+    ) {
+        Ok(content) => actix_web::HttpResponse::Ok()
+            .content_type("text/plain")
+            .body(content),
+        Err(e) => {
+            router_env::logger::error!("Failed to read file: {:?}", e);
+            actix_web::HttpResponse::InternalServerError().body("Failed to read file")
+        }
+    }
+}

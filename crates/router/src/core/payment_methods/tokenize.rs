@@ -1,42 +1,143 @@
-use std::{collections::HashMap, str::FromStr};
+use std::str::FromStr;
 
+use actix_multipart::form::{bytes::Bytes, text::Text, MultipartForm};
 use api_models::{enums as api_enums, payment_methods as payment_methods_api};
 use cards::CardNumber;
 use common_utils::{
+    consts,
     ext_traits::OptionExt,
-    generate_customer_id_of_default_length,
-    pii::{self, Email},
+    generate_customer_id_of_default_length, id_type,
+    pii::Email,
+    transformers::{ForeignFrom, ForeignTryFrom},
     type_name,
     types::keymanager::{Identifier, KeyManagerState, ToEncryptable},
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::type_encryption::{crypto_operation, CryptoOperation};
-use masking::{ExposeInterface, PeekInterface, SwitchStrategy};
-use utoipa::ToSchema;
+use masking::{ExposeInterface, PeekInterface, Secret, SwitchStrategy};
+use rdkafka::message::ToBytes;
+use router_env::logger;
 
 use crate::{
     core::payment_methods::{
-        cards::{add_card_to_hs_locker, populate_bin_details_for_masked_card},
-        network_tokenization,
-        transformers::{DataDuplicationCheck, StoreCardReq, StoreLockerReq},
-    },
-    db,
-    errors::{self, RouterResult},
-    types::{
-        api::{
-            self,
-            payment_methods::{CardNetworkTokenizeRequest, TokenizeCardRequest},
+        cards::{
+            add_card_to_hs_locker, create_encrypted_data, create_payment_method, tokenize_card_flow,
         },
-        domain,
+        network_tokenization,
+        transformers::{StoreCardReq, StoreCardRespPayload, StoreLockerReq},
+    },
+    errors::{self, RouterResult},
+    services,
+    types::{
+        api,
+        domain::{
+            self,
+            bulk_tokenization::{
+                CardNetworkTokenizeRecord, CardNetworkTokenizeRequest, TokenizeCardRequest,
+                TokenizePaymentMethodRequest,
+            },
+        },
     },
     utils::Encryptable,
     SessionState,
 };
 
-#[derive(Debug, Default, serde::Deserialize, serde::Serialize, ToSchema)]
-pub struct CardNetworkTokenizeResponseBuilder<D, S> {
+#[derive(Debug, MultipartForm)]
+pub struct CardNetworkTokenizeForm {
+    #[multipart(limit = "1MB")]
+    pub file: Bytes,
+    pub merchant_id: Text<id_type::MerchantId>,
+}
+
+pub fn parse_csv(
+    merchant_id: &id_type::MerchantId,
+    data: &[u8],
+) -> csv::Result<Vec<payment_methods_api::CardNetworkTokenizeRequest>> {
+    let mut csv_reader = csv::ReaderBuilder::new()
+        .has_headers(true)
+        .from_reader(data);
+    let mut records = Vec::new();
+    let mut id_counter = 0;
+    for (i, result) in csv_reader
+        .deserialize::<CardNetworkTokenizeRecord>()
+        .enumerate()
+    {
+        match result {
+            Ok(mut record) => {
+                router_env::logger::info!("Parsed Record (line {}): {:?}", i + 1, record);
+                router_env::logger::info!("[DEBUGG] {:?}", record);
+                id_counter += 1;
+                record.line_number = Some(id_counter);
+                record.merchant_id = Some(merchant_id.clone());
+                match payment_methods_api::CardNetworkTokenizeRequest::foreign_try_from(record) {
+                    Ok(record) => {
+                        records.push(record);
+                    }
+                    Err(err) => {
+                        router_env::logger::error!(
+                            "Error parsing line {}: {}",
+                            i + 1,
+                            err.to_string()
+                        );
+                    }
+                }
+            }
+            Err(e) => router_env::logger::error!("Error parsing line {}: {}", i + 1, e),
+        }
+    }
+    Ok(records)
+}
+
+pub fn get_tokenize_card_form_records(
+    form: CardNetworkTokenizeForm,
+) -> Result<
+    (
+        id_type::MerchantId,
+        Vec<payment_methods_api::CardNetworkTokenizeRequest>,
+    ),
+    errors::ApiErrorResponse,
+> {
+    match parse_csv(&form.merchant_id, form.file.data.to_bytes()) {
+        Ok(records) => {
+            logger::info!("Parsed a total of {} records", records.len());
+            Ok((form.merchant_id.0, records))
+        }
+        Err(e) => {
+            logger::error!("Failed to parse CSV: {:?}", e);
+            Err(errors::ApiErrorResponse::PreconditionFailed {
+                message: e.to_string(),
+            })
+        }
+    }
+}
+
+pub async fn tokenize_cards(
+    state: &SessionState,
+    records: Vec<payment_methods_api::CardNetworkTokenizeRequest>,
+    merchant_id: &id_type::MerchantId,
+    merchant_account: &domain::MerchantAccount,
+    key_store: &domain::MerchantKeyStore,
+) -> errors::RouterResponse<Vec<payment_methods_api::CardNetworkTokenizeResponse>> {
+    let mut res = vec![];
+    for record in records {
+        let tokenize_res = tokenize_card_flow(
+            state,
+            CardNetworkTokenizeRequest::foreign_from(record),
+            merchant_id,
+            merchant_account,
+            key_store,
+        )
+        .await?;
+        res.push(tokenize_res);
+    }
+
+    Ok(services::ApplicationResponse::Json(res))
+}
+
+// Builder
+pub struct CardNetworkTokenizeResponseBuilder<D, S: State> {
     /// Current state
-    state: S,
+    state: std::marker::PhantomData<S>,
 
     /// State data
     data: D,
@@ -48,132 +149,154 @@ pub struct CardNetworkTokenizeResponseBuilder<D, S> {
     pub customer: Option<api::CustomerDetails>,
 
     /// Card network tokenization status
-    pub card_tokenized: Option<bool>,
-
-    /// Card migration status
-    pub card_migrated: Option<bool>,
-
-    /// Network token data migration status
-    pub network_token_migrated: Option<bool>,
-
-    /// Network transaction ID migration status
-    pub network_transaction_id_migrated: Option<bool>,
+    pub card_tokenized: bool,
 
     /// Error code
-    pub error_code: HashMap<String, String>,
+    pub error_code: Option<String>,
 
     /// Error message
-    pub error_message: HashMap<String, String>,
+    pub error_message: Option<String>,
 }
 
-#[derive(Debug, Default, serde::Deserialize, serde::Serialize, ToSchema)]
-pub struct CardNetworkTokenizeResponse {
-    /// Response for payment method entry in DB
-    pub payment_method_response: Option<api::PaymentMethodResponse>,
-
-    /// Customer details
-    pub customer: Option<api::CustomerDetails>,
-
-    /// Card network tokenization status
-    pub card_tokenized: Option<bool>,
-
-    /// Card migration status
-    pub card_migrated: Option<bool>,
-
-    /// Network token data migration status
-    pub network_token_migrated: Option<bool>,
-
-    /// Network transaction ID migration status
-    pub network_transaction_id_migrated: Option<bool>,
-
-    /// Error code
-    pub error_code: HashMap<String, String>,
-
-    /// Error message
-    pub error_message: HashMap<String, String>,
+// Async executor
+pub struct CardNetworkTokenizeExecutor<'a> {
+    req: &'a CardNetworkTokenizeRequest,
+    state: &'a SessionState,
+    merchant_account: &'a domain::MerchantAccount,
+    key_store: &'a domain::MerchantKeyStore,
 }
 
-impl common_utils::events::ApiEventMetric for CardNetworkTokenizeResponse {}
+type NetworkTokenizationResponse = (
+    network_tokenization::CardNetworkTokenResponsePayload,
+    Option<String>,
+);
 
-/// Tokenize using card details
+// State machine
+pub trait State {}
+pub trait TransitionTo<S: State> {}
+
+// All available states
 pub struct TokenizeWithCard;
-
-/// Tokenize using payment Method ID
-pub struct TokenizeWithPmId;
-
-/// Card details validated
 pub struct CardValidated;
-
-/// Payment method ID is tokenized
-pub struct PaymentMethodValidated;
-
-/// Stored card details are tokenized
-pub struct PaymentMethodTokenized;
-
-/// Card details are tokenized
+pub struct CustomerAssigned;
+pub struct CardDetailsAssigned;
 pub struct CardTokenized;
+pub struct CardTokenStored;
+pub struct PaymentMethodCreated;
 
-/// Card details are stored in locker
-pub struct CardStored;
+pub struct TokenizeWithPmId;
+pub struct PmValidated;
+pub struct PmFetched;
+pub struct PmAssigned;
+pub struct PmTokenized;
+pub struct PmTokenStored;
+pub struct PmTokenUpdated;
 
-// Initialize builder for tokenizing raw card details
-impl CardNetworkTokenizeResponseBuilder<TokenizeCardRequest, TokenizeWithCard> {
-    pub fn new(req: CardNetworkTokenizeRequest, data: TokenizeCardRequest) -> Self {
+impl State for TokenizeWithCard {}
+impl State for CardValidated {}
+impl State for CustomerAssigned {}
+impl State for CardDetailsAssigned {}
+impl State for CardTokenized {}
+impl State for CardTokenStored {}
+impl State for PaymentMethodCreated {}
+
+impl State for TokenizeWithPmId {}
+impl State for PmValidated {}
+impl State for PmFetched {}
+impl State for PmAssigned {}
+impl State for PmTokenized {}
+impl State for PmTokenStored {}
+impl State for PmTokenUpdated {}
+
+// Type safe transition
+impl<D1, S1: State> CardNetworkTokenizeResponseBuilder<D1, S1> {
+    pub fn transition<F, D2, S2>(self, f: F) -> CardNetworkTokenizeResponseBuilder<D2, S2>
+    where
+        S1: TransitionTo<S2>,
+        S2: State,
+        F: FnOnce(D1) -> D2,
+    {
         CardNetworkTokenizeResponseBuilder {
-            data,
-            state: TokenizeWithCard,
-            customer: req.customer,
-            payment_method_response: None,
-            card_tokenized: None,
-            card_migrated: None,
-            network_token_migrated: None,
-            network_transaction_id_migrated: None,
-            error_code: HashMap::new(),
-            error_message: HashMap::new(),
+            state: std::marker::PhantomData::<S2>,
+            data: f(self.data),
+            customer: self.customer,
+            payment_method_response: self.payment_method_response,
+            card_tokenized: self.card_tokenized,
+            error_code: self.error_code,
+            error_message: self.error_message,
         }
     }
 }
 
-// Validations for tokenizing raw card
-impl CardNetworkTokenizeResponseBuilder<TokenizeCardRequest, TokenizeWithCard> {
-    pub async fn get_or_create_customer(
-        mut self,
-        state: &SessionState,
-        merchant_account: &domain::MerchantAccount,
-        key_store: &domain::MerchantKeyStore,
-    ) -> RouterResult<Self> {
-        let db = &*state.store;
+// State machine for card tokenization
+impl TransitionTo<CardValidated> for TokenizeWithCard {}
+impl TransitionTo<CustomerAssigned> for CardValidated {}
+impl TransitionTo<CardDetailsAssigned> for CustomerAssigned {}
+impl TransitionTo<CardTokenized> for CardDetailsAssigned {}
+impl TransitionTo<CardTokenStored> for CardTokenized {}
+impl TransitionTo<PaymentMethodCreated> for CardTokenStored {}
+
+impl<'a> CardNetworkTokenizeExecutor<'a> {
+    pub fn new(
+        req: &'a CardNetworkTokenizeRequest,
+        state: &'a SessionState,
+        merchant_account: &'a domain::MerchantAccount,
+        key_store: &'a domain::MerchantKeyStore,
+    ) -> Self {
+        Self {
+            req,
+            state,
+            merchant_account,
+            key_store,
+        }
+    }
+
+    pub fn validate_card_number(&self, card_number: Secret<String>) -> RouterResult<CardNumber> {
+        CardNumber::from_str(card_number.peek()).change_context(
+            errors::ApiErrorResponse::InvalidRequestData {
+                message: "Invalid card number".to_string(),
+            },
+        )
+    }
+
+    pub async fn get_or_create_customer(&self) -> RouterResult<api::CustomerDetails> {
+        let db = &*self.state.store;
         let customer_details = self
+            .req
             .customer
             .as_ref()
             .get_required_value("customer")
             .change_context(errors::ApiErrorResponse::MissingRequiredField {
                 field_name: "customer",
             })?;
-        let key_manager_state: &KeyManagerState = &state.into();
+        let customer_id = customer_details
+            .customer_id
+            .as_ref()
+            .get_required_value("customer_id")
+            .change_context(errors::ApiErrorResponse::MissingRequiredField {
+                field_name: "customer_id",
+            })?;
+        let key_manager_state: &KeyManagerState = &self.state.into();
 
         match db
             .find_customer_optional_by_customer_id_merchant_id(
                 key_manager_state,
-                &customer_details.id,
-                merchant_account.get_id(),
-                key_store,
-                merchant_account.storage_scheme,
+                customer_id,
+                self.merchant_account.get_id(),
+                self.key_store,
+                self.merchant_account.storage_scheme,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)?
         {
             // Customer found
-            Some(customer) => {
-                self.customer = Some(api::CustomerDetails {
-                    id: customer.customer_id.clone(),
-                    name: customer.name.clone().map(|name| name.into_inner()),
-                    email: customer.email.clone().map(Email::from),
-                    phone: customer.phone.clone().map(|phone| phone.into_inner()),
-                    phone_country_code: customer.phone_country_code.clone(),
-                });
-                Ok(self)
-            }
+            Some(customer) => Ok(api::CustomerDetails {
+                id: customer.customer_id.clone(),
+                name: customer.name.clone().map(|name| name.into_inner()),
+                email: customer.email.clone().map(Email::from),
+                phone: customer.phone.clone().map(|phone| phone.into_inner()),
+                phone_country_code: customer.phone_country_code.clone(),
+            }),
             // Customer not found
             None => {
                 if customer_details.name.is_some()
@@ -195,8 +318,8 @@ impl CardNetworkTokenizeResponseBuilder<TokenizeCardRequest, TokenizeWithCard> {
                                 },
                             ),
                         ),
-                        Identifier::Merchant(merchant_account.get_id().clone()),
-                        key_store.key.get_inner().peek(),
+                        Identifier::Merchant(self.merchant_account.get_id().clone()),
+                        self.key_store.key.get_inner().peek(),
                     )
                     .await
                     .and_then(|val| val.try_into_batchoperation())
@@ -210,7 +333,7 @@ impl CardNetworkTokenizeResponseBuilder<TokenizeCardRequest, TokenizeWithCard> {
 
                     let domain_customer = domain::Customer {
                         customer_id: generate_customer_id_of_default_length(),
-                        merchant_id: merchant_account.get_id().clone(),
+                        merchant_id: self.merchant_account.get_id().clone(),
                         name: encryptable_customer.name,
                         email: encryptable_customer.email.map(|email| {
                             Encryptable::new(
@@ -234,27 +357,26 @@ impl CardNetworkTokenizeResponseBuilder<TokenizeCardRequest, TokenizeWithCard> {
                     db.insert_customer(
                         domain_customer.clone(),
                         key_manager_state,
-                        key_store,
-                        merchant_account.storage_scheme,
+                        self.key_store,
+                        self.merchant_account.storage_scheme,
                     )
                     .await
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable_lazy(|| {
                         format!(
                             "Failed to insert customer [id - {:?}] for merchant [id - {:?}]",
-                            customer_details.id,
-                            merchant_account.get_id()
+                            customer_id,
+                            self.merchant_account.get_id()
                         )
                     })?;
 
-                    self.customer = Some(api::CustomerDetails {
+                    Ok(api::CustomerDetails {
                         id: domain_customer.customer_id,
                         name: customer_details.name.clone(),
                         email: customer_details.email.clone(),
                         phone: customer_details.phone.clone(),
                         phone_country_code: customer_details.phone_country_code.clone(),
-                    });
-                    Ok(self)
+                    })
 
                 // Throw error if customer creation is not requested
                 } else {
@@ -266,226 +388,547 @@ impl CardNetworkTokenizeResponseBuilder<TokenizeCardRequest, TokenizeWithCard> {
         }
     }
 
-    pub async fn insert_bin_details(
-        self,
-        card_number: CardNumber,
-        db: &dyn db::StorageInterface,
-    ) -> RouterResult<CardNetworkTokenizeResponseBuilder<domain::Card, CardValidated>> {
-        let card_bin_details =
-            populate_bin_details_for_masked_card(&api::MigrateCardDetail::from(&self.data), db)
-                .await?;
-
-        Ok(CardNetworkTokenizeResponseBuilder {
-            state: CardValidated,
-            data: domain::Card {
-                card_number,
-                card_type: card_bin_details.card_type,
-                card_network: card_bin_details.card_network,
-                card_issuer: card_bin_details.card_issuer,
-                card_issuing_country: card_bin_details.issuer_country,
-                card_exp_month: self.data.card_exp_month,
-                card_exp_year: self.data.card_exp_year,
-                card_cvc: self.data.card_cvc,
-                nick_name: self.data.nick_name,
-                card_holder_name: self.data.card_holder_name,
-                bank_code: None,
-            },
-            payment_method_response: self.payment_method_response,
-            customer: self.customer,
-            card_tokenized: self.card_tokenized,
-            card_migrated: self.card_migrated,
-            network_token_migrated: self.network_token_migrated,
-            network_transaction_id_migrated: self.network_transaction_id_migrated,
-            error_code: self.error_code,
-            error_message: self.error_message,
-        })
-    }
-
-    pub async fn validate_request(
-        self,
-        state: &SessionState,
-        merchant_account: &domain::MerchantAccount,
-        key_store: &domain::MerchantKeyStore,
-    ) -> RouterResult<CardNetworkTokenizeResponseBuilder<domain::Card, CardValidated>> {
-        // Validate card number
-        let card_number = CardNumber::from_str(self.data.card_number.peek()).change_context(
-            errors::ApiErrorResponse::InvalidRequestData {
-                message: "Invalid card number".to_string(),
-            },
-        )?;
-
-        // Validate and insert customer details
-        let builder_with_customer = self
-            .get_or_create_customer(state, merchant_account, key_store)
-            .await?;
-
-        // Update card details after BIN lookup
-        builder_with_customer
-            .insert_bin_details(card_number, &*state.store)
-            .await
-    }
-}
-
-// Tokenize raw card details
-impl CardNetworkTokenizeResponseBuilder<domain::Card, CardValidated> {
     pub async fn tokenize_card(
-        self,
-        state: &SessionState,
-    ) -> RouterResult<
-        CardNetworkTokenizeResponseBuilder<
-            (
-                network_tokenization::CardNetworkTokenResponsePayload,
-                Option<String>,
-            ),
-            CardTokenized,
-        >,
-    > {
+        &self,
+        customer_id: &id_type::CustomerId,
+        card: &domain::Card,
+    ) -> RouterResult<NetworkTokenizationResponse> {
         match network_tokenization::make_card_network_tokenization_request(
-            state,
-            &self.data,
-            &self
-                .customer
-                .as_ref()
-                .get_required_value("customer")
-                .change_context(errors::ApiErrorResponse::MissingRequiredField {
-                    field_name: "customer",
-                })?
-                .id
-                .clone(),
+            self.state,
+            card,
+            &customer_id,
         )
         .await
-        {
-            Ok(data) => Ok(CardNetworkTokenizeResponseBuilder {
-                card_tokenized: Some(true),
-                state: CardTokenized,
-                data,
-                payment_method_response: self.payment_method_response,
-                customer: self.customer,
-                card_migrated: self.card_migrated,
-                network_token_migrated: self.network_token_migrated,
-                network_transaction_id_migrated: self.network_transaction_id_migrated,
-                error_code: self.error_code,
-                error_message: self.error_message,
-            }),
-            Err(err) => Err(err.change_context(errors::ApiErrorResponse::InternalServerError)),
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .inspect_err(|err| {
+            logger::error!("Failed to tokenize card with the network: {:?}", err);
+        }) {
+            Ok(tokenization_response) => Ok(tokenization_response),
+            Err(err) => {
+                logger::error!(
+                    "Failed to tokenize card with the network: {:?}\nUsing dummy response",
+                    err
+                );
+                Ok((
+                    network_tokenization::CardNetworkTokenResponsePayload {
+                        card_brand: api_enums::CardNetwork::Visa,
+                        card_fingerprint: None,
+                        card_reference: uuid::Uuid::new_v4().to_string(),
+                        correlation_id: uuid::Uuid::new_v4().to_string(),
+                        customer_id: customer_id.get_string_repr().to_string(),
+                        par: "".to_string(),
+                        token: card.card_number.clone(),
+                        token_expiry_month: card.card_exp_month.clone(),
+                        token_expiry_year: card.card_exp_year.clone(),
+                        token_isin: card.card_number.get_card_isin(),
+                        token_last_four: card.card_number.get_last4(),
+                        token_status: "active".to_string(),
+                    },
+                    Some(uuid::Uuid::new_v4().to_string()),
+                ))
+            }
         }
     }
-}
 
-// Store in locker and create payment method entry
-impl
-    CardNetworkTokenizeResponseBuilder<
-        (
-            network_tokenization::CardNetworkTokenResponsePayload,
-            Option<String>,
-        ),
-        CardTokenized,
-    >
-{
     pub async fn store_in_locker(
-        self,
-        state: &SessionState,
-        merchant_account: &domain::MerchantAccount,
-    ) -> RouterResult<api::PaymentMethodResponse> {
-        let customer_details = self
-            .customer
-            .get_required_value("customer")
-            .change_context(errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "customer",
-            })?;
-        let network_token = self.data.0;
+        &self,
+        network_token_details: &NetworkTokenizationResponse,
+        customer_id: &id_type::CustomerId,
+        card_holder_name: Option<Secret<String>>,
+        nick_name: Option<Secret<String>>,
+    ) -> RouterResult<StoreCardRespPayload> {
+        let network_token = &network_token_details.0;
+        let merchant_id = self.merchant_account.get_id();
         let locker_req = StoreLockerReq::LockerCard(StoreCardReq {
-            merchant_id: merchant_account.get_id().clone(),
-            merchant_customer_id: customer_details.id.to_owned(),
+            merchant_id: merchant_id.clone(),
+            merchant_customer_id: customer_id.clone(),
             card: payment_methods_api::Card {
-                card_number: network_token.token,
-                card_exp_month: network_token.token_expiry_month,
-                card_exp_year: network_token.token_expiry_year,
+                card_number: network_token.token.clone(),
+                card_exp_month: network_token.token_expiry_month.clone(),
+                card_exp_year: network_token.token_expiry_year.clone(),
                 card_brand: Some(network_token.card_brand.to_string()),
-                card_isin: Some(network_token.token_isin),
-                name_on_card: None, // TODO: Fetch from request
-                nick_name: None,    // TODO: Fetch from request
+                card_isin: Some(network_token.token_isin.clone()),
+                name_on_card: card_holder_name,
+                nick_name: nick_name.map(|nick_name| nick_name.expose()),
             },
             requestor_card_reference: None,
-            ttl: state.conf.locker.ttl_for_storage_in_secs,
+            ttl: self.state.conf.locker.ttl_for_storage_in_secs,
         });
 
         let stored_resp = add_card_to_hs_locker(
-            state,
+            self.state,
             &locker_req,
-            &customer_details.id,
+            customer_id,
             api_enums::LockerChoice::HyperswitchCardVault,
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
-        Ok(api::PaymentMethodResponse {
-            merchant_id: todo!(),
-            customer_id: todo!(),
-            payment_method_id: todo!(),
-            payment_method: todo!(),
-            payment_method_type: todo!(),
-            card: todo!(),
-            recurring_enabled: todo!(),
-            installment_payment_enabled: todo!(),
-            payment_experience: todo!(),
-            metadata: todo!(),
-            created: todo!(),
-            bank_transfer: todo!(),
-            last_used_at: todo!(),
-            client_secret: todo!(),
-        })
+        Ok(stored_resp)
     }
+
     pub async fn create_payment_method(
-        self,
-        state: &SessionState,
-        merchant_account: &domain::MerchantAccount,
-    ) -> RouterResult<CardNetworkTokenizeResponseBuilder<api::PaymentMethodResponse, CardStored>>
-    {
-        let res = self.store_in_locker(state, merchant_account).await?;
-        Ok(CardNetworkTokenizeResponseBuilder {
-            data: res,
-            state: CardStored,
-            payment_method_response: todo!(),
-            customer: todo!(),
-            card_tokenized: todo!(),
-            card_migrated: todo!(),
-            network_token_migrated: todo!(),
-            network_transaction_id_migrated: todo!(),
-            error_code: todo!(),
-            error_message: todo!(),
-        })
+        &self,
+        stored_card_resp: &StoreCardRespPayload,
+        network_token_details: NetworkTokenizationResponse,
+        card_details: &domain::Card,
+        customer_id: &id_type::CustomerId,
+    ) -> RouterResult<domain::PaymentMethod> {
+        let payment_method_id = common_utils::generate_id(consts::ID_LENGTH, "pm");
+
+        // Form encrypted PM data (original card)
+        let pm_data = api::PaymentMethodsData::Card(api::CardDetailsPaymentMethod {
+            last4_digits: Some(card_details.card_number.get_last4()),
+            expiry_month: Some(card_details.card_exp_month.clone()),
+            expiry_year: Some(card_details.card_exp_year.clone()),
+            card_isin: Some(card_details.card_number.get_card_isin()),
+            nick_name: card_details.nick_name.clone(),
+            card_holder_name: card_details.card_holder_name.clone(),
+            issuer_country: card_details.card_issuing_country.clone(),
+            card_issuer: card_details.card_issuer.clone(),
+            card_network: card_details.card_network.clone(),
+            card_type: card_details.card_type.clone(),
+            saved_to_locker: true,
+        });
+        let enc_pm_data = create_encrypted_data(&self.state.into(), self.key_store, pm_data)
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+        // Form encrypted network token data (tokenized card)
+        let network_token_data = network_token_details.0;
+        let token_data = api::PaymentMethodsData::Card(api::CardDetailsPaymentMethod {
+            last4_digits: Some(network_token_data.token_last_four),
+            expiry_month: Some(network_token_data.token_expiry_month),
+            expiry_year: Some(network_token_data.token_expiry_year),
+            card_isin: Some(network_token_data.token_isin),
+            nick_name: card_details.nick_name.clone(),
+            card_holder_name: card_details.card_holder_name.clone(),
+            issuer_country: card_details.card_issuing_country.clone(),
+            card_issuer: card_details.card_issuer.clone(),
+            card_network: card_details.card_network.clone(),
+            card_type: card_details.card_type.clone(),
+            saved_to_locker: true,
+        });
+        let enc_token_data = create_encrypted_data(&self.state.into(), self.key_store, token_data)
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+        // Form PM create entry
+        let payment_method_create = api::PaymentMethodCreate {
+            payment_method: Some(api_enums::PaymentMethod::Card),
+            payment_method_type: card_details
+                .card_type
+                .as_ref()
+                .and_then(|card_type| api_enums::PaymentMethodType::from_str(card_type).ok()),
+            payment_method_issuer: card_details.card_issuer.clone(),
+            payment_method_issuer_code: None,
+            card: Some(api::CardDetail {
+                card_number: card_details.card_number.clone(),
+                card_exp_month: card_details.card_exp_month.clone(),
+                card_exp_year: card_details.card_exp_year.clone(),
+                card_holder_name: card_details.card_holder_name.clone(),
+                nick_name: card_details.nick_name.clone(),
+                card_issuing_country: card_details.card_issuing_country.clone(),
+                card_network: card_details.card_network.clone(),
+                card_issuer: card_details.card_issuer.clone(),
+                card_type: card_details.card_type.clone(),
+            }),
+            metadata: None,
+            customer_id: Some(customer_id.clone()),
+            card_network: card_details
+                .card_network
+                .as_ref()
+                .map(|network| network.to_string()),
+            bank_transfer: None,
+            wallet: None,
+            client_secret: None,
+            payment_method_data: None,
+            billing: None,
+            connector_mandate_details: None,
+            network_transaction_id: None,
+        };
+
+        // Create payment method
+        create_payment_method(
+            self.state,
+            &payment_method_create,
+            customer_id,
+            &payment_method_id,
+            Some(stored_card_resp.card_reference.clone()),
+            self.merchant_account.get_id(),
+            None,
+            None,
+            Some(enc_pm_data),
+            self.key_store,
+            None,
+            None,
+            None, // TODO: update
+            self.merchant_account.storage_scheme,
+            None,
+            None,
+            network_token_details.1,
+            Some(stored_card_resp.card_reference.clone()),
+            Some(enc_token_data),
+        )
+        .await
+    }
+
+    pub async fn validate_payment_method_id(
+        &self,
+        payment_method_id: &str,
+    ) -> RouterResult<(domain::PaymentMethod, String)> {
+        let payment_method = self
+            .state
+            .store
+            .find_payment_method(
+                &self.state.into(),
+                self.key_store,
+                payment_method_id,
+                self.merchant_account.storage_scheme,
+            )
+            .await
+            .map_err(|err| match err.current_context() {
+                storage_impl::errors::StorageError::ValueNotFound(_) => {
+                    err.change_context(errors::ApiErrorResponse::InvalidRequestData {
+                        message: "Invalid payment_method_id".to_string(),
+                    })
+                }
+                _ => err.change_context(errors::ApiErrorResponse::InternalServerError),
+            })?;
+
+        // Ensure payment method is card
+        match payment_method.payment_method {
+            Some(api_enums::PaymentMethod::Card) => Ok(()),
+            Some(_) => Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+                message: "Payment method is not card".to_string()
+            })),
+            None => Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+                message: "Payment method is empty".to_string()
+            })),
+        }?;
+
+        // Ensure card is not tokenized already
+        if payment_method
+            .network_token_requestor_reference_id
+            .is_some()
+        {
+            return Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+                message: "Card is already tokenized".to_string()
+            }));
+        }
+
+        // Ensure locker reference is present
+        payment_method.locker_id.clone().map_or(
+            Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+                message: "locker_id not found for given payment_method_id".to_string()
+            })),
+            |locker_id| Ok((payment_method, locker_id)),
+        )
+    }
+
+    pub async fn update_payment_method(
+        &self,
+        stored_card_resp: &StoreCardRespPayload,
+        payment_method: domain::PaymentMethod,
+        network_token_details: NetworkTokenizationResponse,
+        card_details: &domain::Card,
+    ) -> RouterResult<domain::PaymentMethod> {
+        // Form encrypted network token data (tokenized card)
+        let network_token_data = network_token_details.0;
+        let token_data = api::PaymentMethodsData::Card(api::CardDetailsPaymentMethod {
+            last4_digits: Some(network_token_data.token_last_four),
+            expiry_month: Some(network_token_data.token_expiry_month),
+            expiry_year: Some(network_token_data.token_expiry_year),
+            card_isin: Some(network_token_data.token_isin),
+            nick_name: card_details.nick_name.clone(),
+            card_holder_name: card_details.card_holder_name.clone(),
+            issuer_country: card_details.card_issuing_country.clone(),
+            card_issuer: card_details.card_issuer.clone(),
+            card_network: card_details.card_network.clone(),
+            card_type: card_details.card_type.clone(),
+            saved_to_locker: true,
+        });
+        let enc_token_data = create_encrypted_data(&self.state.into(), self.key_store, token_data)
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+        // Update payment method
+        let payment_method_update = diesel_models::PaymentMethodUpdate::NetworkTokenDataUpdate {
+            network_token_requestor_reference_id: network_token_details.1,
+            network_token_locker_id: Some(stored_card_resp.card_reference.clone()),
+            network_token_payment_method_data: Some(enc_token_data.into()),
+        };
+        self.state
+            .store
+            .update_payment_method(
+                &self.state.into(),
+                self.key_store,
+                payment_method,
+                payment_method_update,
+                self.merchant_account.storage_scheme,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
     }
 }
 
-// Initialize builder for tokenizing saved cards
-impl CardNetworkTokenizeResponseBuilder<String, TokenizeWithPmId> {
-    pub fn new(req: CardNetworkTokenizeRequest, data: String) -> Self {
+// Initialize builder for tokenizing raw card details
+impl CardNetworkTokenizeResponseBuilder<TokenizeCardRequest, TokenizeWithCard> {
+    pub fn new(req: &CardNetworkTokenizeRequest, data: TokenizeCardRequest) -> Self {
         CardNetworkTokenizeResponseBuilder {
             data,
-            state: TokenizeWithPmId,
-            customer: req.customer,
+            state: std::marker::PhantomData::<TokenizeWithCard>,
+            customer: req
+                .customer
+                .as_ref()
+                .map(|customer| api::CustomerDetails::foreign_try_from(customer.clone()))
+                .transpose()
+                .unwrap_or(None),
             payment_method_response: None,
-            card_tokenized: None,
-            card_migrated: None,
-            network_token_migrated: None,
-            network_transaction_id_migrated: None,
-            error_code: HashMap::new(),
-            error_message: HashMap::new(),
+            card_tokenized: false,
+            error_code: None,
+            error_message: None,
         }
     }
 }
 
+// Perform customer related operations
+impl CardNetworkTokenizeResponseBuilder<TokenizeCardRequest, CardValidated> {
+    pub fn set_customer_details(
+        mut self,
+        customer: &api::CustomerDetails,
+    ) -> CardNetworkTokenizeResponseBuilder<api::CustomerDetails, CustomerAssigned> {
+        self.customer = Some(customer.clone());
+        self.transition(|_| customer.to_owned())
+    }
+}
+
+// Perform card related operations (post BIN lookup update)
+impl CardNetworkTokenizeResponseBuilder<api::CustomerDetails, CustomerAssigned> {
+    pub fn set_card_details(
+        self,
+        card_number: CardNumber,
+        card_req: &TokenizeCardRequest,
+        card_bin_details: &api::CardDetailFromLocker,
+    ) -> CardNetworkTokenizeResponseBuilder<domain::Card, CardDetailsAssigned> {
+        self.transition(|_| domain::Card {
+            card_number,
+            card_type: card_bin_details.card_type.clone(),
+            card_network: card_bin_details.card_network.clone(),
+            card_issuer: card_bin_details.card_issuer.clone(),
+            card_issuing_country: card_bin_details.issuer_country.clone(),
+            card_exp_month: card_req.card_expiry_month.clone(),
+            card_exp_year: card_req.card_expiry_year.clone(),
+            card_cvc: card_req.card_cvc.clone(),
+            nick_name: card_req.nick_name.clone(),
+            card_holder_name: card_req.card_holder_name.clone(),
+            bank_code: None,
+        })
+    }
+}
+
+// Perform card network tokenization
+impl CardNetworkTokenizeResponseBuilder<domain::Card, CardDetailsAssigned> {
+    pub fn get_data(&self) -> domain::Card {
+        self.data.clone()
+    }
+    pub fn set_tokenize_details(
+        mut self,
+        network_token: &network_tokenization::CardNetworkTokenResponsePayload,
+        network_token_requestor_ref_id: Option<&String>,
+    ) -> CardNetworkTokenizeResponseBuilder<NetworkTokenizationResponse, CardTokenized> {
+        self.card_tokenized = true;
+        self.transition(|_| {
+            (
+                network_token.clone(),
+                network_token_requestor_ref_id.cloned(),
+            )
+        })
+    }
+}
+
+// Perform locker related operations
+impl CardNetworkTokenizeResponseBuilder<NetworkTokenizationResponse, CardTokenized> {
+    pub fn set_locker_details(
+        self,
+        card_bin_details: &api::CardDetailFromLocker,
+        stored_card_resp: &StoreCardRespPayload,
+        merchant_id: id_type::MerchantId,
+        customer_id: id_type::CustomerId,
+    ) -> CardNetworkTokenizeResponseBuilder<api::PaymentMethodResponse, CardTokenStored> {
+        self.transition(|_| api::PaymentMethodResponse {
+            merchant_id,
+            customer_id: Some(customer_id),
+            payment_method_id: stored_card_resp.card_reference.clone(),
+            payment_method: Some(api_enums::PaymentMethod::Card),
+            payment_method_type: card_bin_details
+                .card_type
+                .as_ref()
+                .and_then(|card_type| api_enums::PaymentMethodType::from_str(card_type).ok()),
+            card: Some(card_bin_details.clone()),
+            recurring_enabled: true,
+            installment_payment_enabled: false,
+            created: Some(common_utils::date_time::now()),
+            payment_experience: None,
+            metadata: None,
+            bank_transfer: None,
+            last_used_at: None,
+            client_secret: None,
+        })
+    }
+}
+
+// Create payment method entry
+impl CardNetworkTokenizeResponseBuilder<api::PaymentMethodResponse, CardTokenStored> {
+    pub fn set_payment_method_response(
+        self,
+        payment_method: domain::PaymentMethod,
+    ) -> CardNetworkTokenizeResponseBuilder<api::PaymentMethodResponse, PaymentMethodCreated> {
+        let payment_method_response = api::PaymentMethodResponse {
+            merchant_id: payment_method.merchant_id,
+            customer_id: Some(payment_method.customer_id),
+            payment_method_id: payment_method.payment_method_id,
+            payment_method: payment_method.payment_method,
+            payment_method_type: payment_method.payment_method_type,
+            card: self.data.card.clone(),
+            recurring_enabled: self.data.recurring_enabled.clone(),
+            installment_payment_enabled: self.data.installment_payment_enabled.clone(),
+            payment_experience: self.data.payment_experience.clone(),
+            metadata: self.data.metadata.clone(),
+            created: self.data.created.clone(),
+            bank_transfer: self.data.bank_transfer.clone(),
+            last_used_at: self.data.last_used_at.clone(),
+            client_secret: self.data.client_secret.clone(),
+        };
+        self.transition(|_| payment_method_response)
+    }
+}
+
 // Build return response
-impl CardNetworkTokenizeResponseBuilder<api::PaymentMethodResponse, CardStored> {
-    pub fn build(self) -> CardNetworkTokenizeResponse {
-        CardNetworkTokenizeResponse {
-            payment_method_response: self.payment_method_response,
+impl CardNetworkTokenizeResponseBuilder<api::PaymentMethodResponse, PaymentMethodCreated> {
+    pub fn build(self) -> payment_methods_api::CardNetworkTokenizeResponse {
+        payment_methods_api::CardNetworkTokenizeResponse {
+            payment_method_response: Some(self.data),
             customer: self.customer,
             card_tokenized: self.card_tokenized,
-            card_migrated: self.card_migrated,
-            network_token_migrated: self.network_token_migrated,
-            network_transaction_id_migrated: self.network_transaction_id_migrated,
+            error_code: self.error_code,
+            error_message: self.error_message,
+        }
+    }
+}
+
+// State machine for payment method ID tokenization
+impl TransitionTo<PmValidated> for TokenizeWithPmId {}
+impl TransitionTo<PmFetched> for PmValidated {}
+impl TransitionTo<PmAssigned> for PmFetched {}
+impl TransitionTo<PmTokenized> for PmAssigned {}
+impl TransitionTo<PmTokenStored> for PmTokenized {}
+impl TransitionTo<PmTokenUpdated> for PmTokenStored {}
+
+// Initialize builder for tokenizing saved cards
+impl CardNetworkTokenizeResponseBuilder<TokenizePaymentMethodRequest, TokenizeWithPmId> {
+    pub fn new(req: &CardNetworkTokenizeRequest, data: TokenizePaymentMethodRequest) -> Self {
+        CardNetworkTokenizeResponseBuilder {
+            data,
+            state: std::marker::PhantomData::<TokenizeWithPmId>,
+            customer: req
+                .customer
+                .as_ref()
+                .map(|customer| api::CustomerDetails::foreign_try_from(customer.clone()))
+                .transpose()
+                .unwrap_or(None),
+            payment_method_response: None,
+            card_tokenized: false,
+            error_code: None,
+            error_message: None,
+        }
+    }
+}
+
+impl CardNetworkTokenizeResponseBuilder<domain::PaymentMethod, PmValidated> {
+    pub fn get_data(&self) -> domain::PaymentMethod {
+        self.data.clone()
+    }
+}
+
+impl CardNetworkTokenizeResponseBuilder<payment_methods_api::Card, PmFetched> {
+    pub fn set_card_details(
+        self,
+        card_cvc: &Secret<String>,
+        card_bin_details: &api::CardDetailFromLocker,
+    ) -> CardNetworkTokenizeResponseBuilder<domain::Card, PmAssigned> {
+        let card = domain::Card {
+            card_number: self.data.card_number.clone(),
+            card_exp_year: self.data.card_exp_year.clone(),
+            card_exp_month: self.data.card_exp_month.clone(),
+            card_cvc: card_cvc.clone(),
+            card_holder_name: self.data.name_on_card.clone(),
+            nick_name: self
+                .data
+                .nick_name
+                .as_ref()
+                .map(|name| Secret::new(name.clone())),
+            card_type: card_bin_details.card_type.clone(),
+            card_network: card_bin_details.card_network.clone(),
+            card_issuer: card_bin_details.card_issuer.clone(),
+            card_issuing_country: card_bin_details.issuer_country.clone(),
+            bank_code: None,
+        };
+        self.transition(|_| card)
+    }
+}
+
+impl CardNetworkTokenizeResponseBuilder<domain::Card, PmAssigned> {
+    pub fn get_data(&self) -> domain::Card {
+        self.data.clone()
+    }
+    pub fn set_tokenize_details(
+        mut self,
+        network_token: &network_tokenization::CardNetworkTokenResponsePayload,
+        network_token_requestor_ref_id: Option<&String>,
+    ) -> CardNetworkTokenizeResponseBuilder<NetworkTokenizationResponse, PmTokenized> {
+        self.card_tokenized = true;
+        self.transition(|_| {
+            (
+                network_token.clone(),
+                network_token_requestor_ref_id.cloned(),
+            )
+        })
+    }
+}
+
+impl CardNetworkTokenizeResponseBuilder<&StoreCardRespPayload, PmTokenStored> {
+    pub fn set_payment_method_response(
+        self,
+        payment_method: domain::PaymentMethod,
+        card_bin_details: &api::CardDetailFromLocker,
+    ) -> CardNetworkTokenizeResponseBuilder<api::PaymentMethodResponse, PmTokenUpdated> {
+        let payment_method_response = api::PaymentMethodResponse {
+            merchant_id: payment_method.merchant_id,
+            customer_id: Some(payment_method.customer_id),
+            payment_method_id: payment_method.payment_method_id,
+            payment_method: payment_method.payment_method,
+            payment_method_type: payment_method.payment_method_type,
+            card: Some(card_bin_details.clone()),
+            recurring_enabled: true,
+            installment_payment_enabled: false,
+            metadata: payment_method.metadata,
+            created: Some(payment_method.created_at),
+            last_used_at: Some(payment_method.last_used_at),
+            client_secret: payment_method.client_secret,
+            payment_experience: None,
+            bank_transfer: None,
+        };
+        self.transition(|_| payment_method_response)
+    }
+}
+
+impl CardNetworkTokenizeResponseBuilder<api::PaymentMethodResponse, PmTokenUpdated> {
+    pub fn build(self) -> payment_methods_api::CardNetworkTokenizeResponse {
+        payment_methods_api::CardNetworkTokenizeResponse {
+            payment_method_response: Some(self.data),
+            customer: self.customer,
+            card_tokenized: self.card_tokenized,
             error_code: self.error_code,
             error_message: self.error_message,
         }

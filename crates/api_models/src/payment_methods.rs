@@ -11,6 +11,7 @@ use common_utils::{
     id_type, link_utils, pii,
     types::{MinorUnit, Percentage, Surcharge},
 };
+use error_stack::report;
 use masking::PeekInterface;
 use serde::de;
 use utoipa::{schema, ToSchema};
@@ -2422,6 +2423,7 @@ impl From<(PaymentMethodRecord, id_type::MerchantId)> for customers::CustomerReq
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct CardNetworkTokenizeRequest {
+    /// Merchant ID associated with the tokenization request
     pub merchant_id: id_type::MerchantId,
 
     #[serde(flatten)]
@@ -2429,9 +2431,6 @@ pub struct CardNetworkTokenizeRequest {
 
     /// Card type
     pub card_type: Option<CardType>,
-
-    /// The CIT (customer initiated transaction) transaction id associated with the payment method
-    pub network_transaction_id: Option<String>,
 
     /// Customer details
     pub customer: Option<payments::CustomerDetails>,
@@ -2446,38 +2445,40 @@ pub struct CardNetworkTokenizeRequest {
     pub payment_method_issuer: Option<String>,
 }
 
-#[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema)]
-#[serde(untagged)]
+impl common_utils::events::ApiEventMetric for CardNetworkTokenizeRequest {}
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
 pub enum TokenizeDataRequest {
-    Card { card: TokenizeCardRequest },
-    PaymentMethodId { payment_method_id: String },
+    Card(TokenizeCardRequest),
+    PaymentMethod(TokenizePaymentMethodRequest),
 }
 
-#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct TokenizeCardRequest {
     /// Card Number
-    #[schema(value_type = String,example = "4111111145551142")]
-    pub card_number: masking::Secret<String>,
+    #[schema(value_type = String, example = "4111111145551142")]
+    pub raw_card_number: masking::Secret<String>,
 
     /// Card Expiry Month
-    #[schema(value_type = String,example = "10")]
-    pub card_exp_month: masking::Secret<String>,
+    #[schema(value_type = String, example = "10")]
+    pub card_expiry_month: masking::Secret<String>,
 
     /// Card Expiry Year
-    #[schema(value_type = String,example = "25")]
-    pub card_exp_year: masking::Secret<String>,
+    #[schema(value_type = String, example = "25")]
+    pub card_expiry_year: masking::Secret<String>,
 
     /// The CVC number for the card
-    #[schema(value_type = String, example = "242")]
+    #[schema(value_type = String,  example = "242")]
     pub card_cvc: masking::Secret<String>,
 
     /// Card Holder Name
-    #[schema(value_type = String,example = "John Doe")]
+    #[schema(value_type = Option<String>, example = "John Doe")]
     pub card_holder_name: Option<masking::Secret<String>>,
 
     /// Card Holder's Nick Name
-    #[schema(value_type = Option<String>,example = "John Doe")]
+    #[schema(value_type = Option<String>, example = "John Doe")]
     pub nick_name: Option<masking::Secret<String>>,
 
     /// Card Issuing Country
@@ -2491,23 +2492,55 @@ pub struct TokenizeCardRequest {
     pub card_issuer: Option<String>,
 
     /// Card Type
-    pub card_type: Option<String>,
+    pub card_type: Option<CardType>,
 }
 
-impl From<&TokenizeCardRequest> for MigrateCardDetail {
-    fn from(card: &TokenizeCardRequest) -> Self {
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct TokenizePaymentMethodRequest {
+    /// Payment method's ID
+    pub payment_method_id: String,
+
+    /// The CVC number for the card
+    pub card_cvc: masking::Secret<String>,
+}
+
+#[derive(Debug, Default, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct CardNetworkTokenizeResponse {
+    /// Response for payment method entry in DB
+    pub payment_method_response: Option<PaymentMethodResponse>,
+
+    /// Customer details
+    pub customer: Option<payments::CustomerDetails>,
+
+    /// Card network tokenization status
+    pub card_tokenized: bool,
+
+    /// Error code
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error_code: Option<String>,
+
+    /// Error message
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error_message: Option<String>,
+}
+
+impl common_utils::events::ApiEventMetric for CardNetworkTokenizeResponse {}
+
+impl From<&Card> for MigrateCardDetail {
+    fn from(card: &Card) -> Self {
         Self {
-            card_number: card.card_number.clone(),
+            card_number: masking::Secret::new(card.card_number.get_card_no()),
             card_exp_month: card.card_exp_month.clone(),
             card_exp_year: card.card_exp_year.clone(),
-            card_holder_name: card.card_holder_name.clone(),
-            nick_name: card.nick_name.clone(),
-            card_issuing_country: card.card_issuing_country.clone(),
-            card_network: card.card_network.clone(),
-            card_issuer: card.card_issuer.clone(),
-            card_type: card.card_type.clone(),
+            card_holder_name: card.name_on_card.clone(),
+            nick_name: card
+                .nick_name
+                .as_ref()
+                .map(|name| masking::Secret::new(name.clone())),
+            card_issuing_country: None,
+            card_network: None,
+            card_issuer: None,
+            card_type: None,
         }
     }
 }
-
-impl common_utils::events::ApiEventMetric for CardNetworkTokenizeRequest {}

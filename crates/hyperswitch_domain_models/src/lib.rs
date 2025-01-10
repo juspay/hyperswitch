@@ -1,6 +1,7 @@
 pub mod address;
 pub mod api;
 pub mod behaviour;
+pub mod bulk_tokenization;
 pub mod business_profile;
 pub mod consts;
 pub mod customer;

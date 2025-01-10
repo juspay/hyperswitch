@@ -143,7 +143,8 @@ pub fn mk_app(
             .service(routes::Configs::server(state.clone()))
             .service(routes::MerchantConnectorAccount::server(state.clone()))
             .service(routes::Webhooks::server(state.clone()))
-            .service(routes::Relay::server(state.clone()));
+            .service(routes::Relay::server(state.clone()))
+            .service(routes::AppleStuff::server(state.clone()));
 
         #[cfg(feature = "oltp")]
         {

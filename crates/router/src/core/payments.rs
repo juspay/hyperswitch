@@ -3961,6 +3961,10 @@ fn decide_apple_pay_flow(
     payment_method_type: Option<enums::PaymentMethodType>,
     merchant_connector_account: Option<&helpers::MerchantConnectorAccountType>,
 ) -> Option<domain::ApplePayFlow> {
+    router_env::logger::info!(
+        "[DEBUGG] decide_apple_pay_flow {:?}",
+        payment_method_type.clone()
+    );
     payment_method_type.and_then(|pmt| match pmt {
         enums::PaymentMethodType::ApplePay => {
             check_apple_pay_metadata(state, merchant_connector_account)
@@ -4000,6 +4004,11 @@ fn check_apple_pay_metadata(
                 .map_err(|error| {
                     logger::warn!(?error, "Failed to Parse Value to ApplepaySessionTokenData")
                 });
+
+            router_env::logger::info!(
+                "[DEBUGG] check_apple_pay_metadata {:?}",
+                parsed_metadata.clone()
+            );
 
             parsed_metadata.ok().map(|metadata| match metadata {
                 api_models::payments::ApplepaySessionTokenMetadata::ApplePayCombined(
