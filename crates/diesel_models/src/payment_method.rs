@@ -1049,7 +1049,7 @@ where
         }
 
         if let Ok(payment_mandate_record) =
-            serde_json::from_value::<CommonMandateReference>(value.clone())
+            serde_json::from_value::<Self>(value.clone())
         {
             payouts_data = payment_mandate_record.payouts
         }
@@ -1062,7 +1062,7 @@ where
                 ),
             )?
         } else {
-            Ok(CommonMandateReference {
+            Ok(Self {
                 payments: payments_data,
                 payouts: payouts_data,
             })
