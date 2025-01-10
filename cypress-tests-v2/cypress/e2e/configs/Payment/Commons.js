@@ -1,6 +1,6 @@
 // This file is the default. To override, add to connector.js
 
-import { getCustomExchange } from "./Modifiers";
+import { getCustomExchange } from "./_Reusable";
 
 const successfulNo3DSCardDetails = {
   card_number: "4111111111111111",
