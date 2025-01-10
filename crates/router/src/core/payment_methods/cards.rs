@@ -2854,7 +2854,9 @@ pub async fn update_payment_method_connector_mandate_details(
             .change_context(errors::VaultError::UpdateInPaymentMethodDataTableFailed)?;
 
         if let Some(payments_object) = payments.as_object_mut() {
-            payments_object.insert("payouts".to_string(), payouts);
+            if !payouts.is_null() {
+                payments_object.insert("payouts".to_string(), payouts);
+            }
         }
         connector_mandate_details_value = Some(payments)
     }
