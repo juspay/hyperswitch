@@ -864,3 +864,5 @@ pub trait ShouldCallConnector {
         force_sync: Option<bool>,
     ) -> bool;
 }
+
+pub const MERCHANT_ID: &str = "merchant_id";
