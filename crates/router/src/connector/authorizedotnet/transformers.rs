@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+
 use common_utils::{
     errors::CustomResult,
     ext_traits::{Encode, ValueExt},
@@ -6,6 +8,7 @@ use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface, Secret, StrongSecret};
 use rand::distributions::{Alphanumeric, DistString};
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
 use crate::{
     connector::utils::{
@@ -139,11 +142,11 @@ struct TransactionRequest {
     profile: Option<ProfileDetails>,
     order: Order,
     #[serde(skip_serializing_if = "Option::is_none")]
-    line_items: Option<LineItems>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     customer: Option<CustomerDetails>,
     #[serde(skip_serializing_if = "Option::is_none")]
     bill_to: Option<BillTo>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    user_fields: Option<UserFields>,
     #[serde(skip_serializing_if = "Option::is_none")]
     processing_options: Option<ProcessingOptions>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -153,18 +156,15 @@ struct TransactionRequest {
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct LineItems {
-    line_item: Option<LineItem>,
+pub struct UserFields {
+    user_field: Vec<UserField>,
 }
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct LineItem {
-    item_id: String,
+pub struct UserField {
     name: String,
-    description: String,
-    quantity: f64,
-    unit_price: f64,
+    value: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -315,6 +315,21 @@ pub enum ValidationMode {
     TestMode,
     // liveMode submits a zero-dollar or one-cent transaction (depending on card type and processor support) to confirm that the card number belongs to an active credit or debit account.
     LiveMode,
+}
+
+impl ForeignFrom<Value> for Vec<UserField> {
+    fn foreign_from(metadata: Value) -> Self {
+        let hashmap: BTreeMap<String, Value> =
+            serde_json::from_str(&metadata.to_string()).unwrap_or(BTreeMap::new());
+        let mut vector: Self = Self::new();
+        for (key, value) in hashmap {
+            vector.push(UserField {
+                name: key,
+                value: value.to_string(),
+            });
+        }
+        vector
+    }
 }
 
 impl TryFrom<&types::SetupMandateRouterData> for CreateCustomerProfileRequest {
@@ -640,6 +655,14 @@ impl
                     zip: address.zip.clone(),
                     country: address.country,
                 }),
+            user_fields: item
+                .router_data
+                .request
+                .metadata
+                .clone()
+                .map(|metadata| UserFields {
+                    user_field: Vec::<UserField>::foreign_from(metadata),
+                }),
             processing_options: Some(ProcessingOptions {
                 is_subsequent_auth: true,
             }),
@@ -653,20 +676,6 @@ impl
                 }),
                 None => None,
             },
-            line_items: item
-                .router_data
-                .request
-                .metadata
-                .clone()
-                .map(|metadata| LineItems {
-                    line_item: Some(LineItem {
-                        item_id: item.router_data.connector_request_reference_id.clone(),
-                        name: "Metadata".to_owned(),
-                        description: metadata.to_string(),
-                        quantity: 1.00,
-                        unit_price: 0.00,
-                    }),
-                }),
         })
     }
 }
@@ -707,6 +716,14 @@ impl
             },
             customer: None,
             bill_to: None,
+            user_fields: item
+                .router_data
+                .request
+                .metadata
+                .clone()
+                .map(|metadata| UserFields {
+                    user_field: Vec::<UserField>::foreign_from(metadata),
+                }),
             processing_options: Some(ProcessingOptions {
                 is_subsequent_auth: true,
             }),
@@ -717,20 +734,6 @@ impl
                 }),
                 None => None,
             },
-            line_items: item
-                .router_data
-                .request
-                .metadata
-                .clone()
-                .map(|metadata| LineItems {
-                    line_item: Some(LineItem {
-                        item_id: item.router_data.connector_request_reference_id.clone(),
-                        name: "Metadata".to_owned(),
-                        description: metadata.to_string(),
-                        quantity: 1.00,
-                        unit_price: 0.00,
-                    }),
-                }),
         })
     }
 }
@@ -808,6 +811,14 @@ impl
                     zip: address.zip.clone(),
                     country: address.country,
                 }),
+            user_fields: item
+                .router_data
+                .request
+                .metadata
+                .clone()
+                .map(|metadata| UserFields {
+                    user_field: Vec::<UserField>::foreign_from(metadata),
+                }),
             processing_options: None,
             subsequent_auth_information: None,
             authorization_indicator_type: match item.router_data.request.capture_method {
@@ -816,20 +827,6 @@ impl
                 }),
                 None => None,
             },
-            line_items: item
-                .router_data
-                .request
-                .metadata
-                .clone()
-                .map(|metadata| LineItems {
-                    line_item: Some(LineItem {
-                        item_id: item.router_data.connector_request_reference_id.clone(),
-                        name: "Metadata".to_owned(),
-                        description: metadata.to_string(),
-                        quantity: 1.00,
-                        unit_price: 0.00,
-                    }),
-                }),
         })
     }
 }
@@ -873,6 +870,14 @@ impl
                     zip: address.zip.clone(),
                     country: address.country,
                 }),
+            user_fields: item
+                .router_data
+                .request
+                .metadata
+                .clone()
+                .map(|metadata| UserFields {
+                    user_field: Vec::<UserField>::foreign_from(metadata),
+                }),
             processing_options: None,
             subsequent_auth_information: None,
             authorization_indicator_type: match item.router_data.request.capture_method {
@@ -881,20 +886,6 @@ impl
                 }),
                 None => None,
             },
-            line_items: item
-                .router_data
-                .request
-                .metadata
-                .clone()
-                .map(|metadata| LineItems {
-                    line_item: Some(LineItem {
-                        item_id: item.router_data.connector_request_reference_id.clone(),
-                        name: "Metadata".to_owned(),
-                        description: metadata.to_string(),
-                        quantity: 1.00,
-                        unit_price: 0.00,
-                    }),
-                }),
         })
     }
 }
