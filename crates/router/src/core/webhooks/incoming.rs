@@ -1925,8 +1925,6 @@ async fn update_connector_mandate_details(
                 connector_mandate_details_value = Some(payments)
             }
 
-            router_env::logger::info!("here : {:?}", connector_mandate_details_value);
-
             let pm_update = diesel_models::PaymentMethodUpdate::ConnectorNetworkTransactionIdAndMandateDetailsUpdate {
                 connector_mandate_details: connector_mandate_details_value.map(masking::Secret::new),
                 network_transaction_id: webhook_connector_network_transaction_id

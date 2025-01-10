@@ -1264,10 +1264,5 @@ pub fn update_connector_mandate_details(
             connector_mandate_request_reference_id,
         ),
     };
-    // let connector_mandate_details = mandate_reference
-    //     .map(|mand| mand.encode_to_value())
-    //     .transpose()
-    //     .change_context(errors::ApiErrorResponse::InternalServerError)
-    //     .attach_printable("Unable to serialize customer acceptance to value")?;
     Ok(mandate_reference)
 }
