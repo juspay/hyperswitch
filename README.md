@@ -57,6 +57,7 @@ Read more at [Hyperswitch docs](https://docs.hyperswitch.io/).
 ### 1. Local Setup
 
 You can run Hyperswitch on your system using Docker compose after cloning this repository. Check out the [local setup guide][local-setup-guide] for a more details on setting up the entire stack or component wise. This takes 15-mins and gives the following output 
+<img src="./docs/imgs/local-setup-output.png" />
 
 ### 2. Deployment on cloud
 
@@ -69,10 +70,10 @@ The fastest and easiest way to try Hyperswitch on AWS is via our CDK scripts
 
 2. Sign-in to your AWS console.
 
-3. Follow the instructions provided on the console to successfully deploy Hyperswitch. This takes 15-mins and gives the following output 
+3. Follow the instructions provided on the console to successfully deploy Hyperswitch. This takes 30-45mins and gives the following output 
 <img src="./docs/imgs/cdk-output.png" />
 
-We support deployment on GCP and Azure via Helm charts. You can read more at [Hyperswitch docs](https://docs.hyperswitch.io/hyperswitch-open-source/deploy-on-kubernetes-using-helm). 
+We support deployment on GCP and Azure via Helm charts which takes 30-45mins. You can read more at [Hyperswitch docs](https://docs.hyperswitch.io/hyperswitch-open-source/deploy-on-kubernetes-using-helm). 
 
 ### 3. Hosted Sandbox
 
