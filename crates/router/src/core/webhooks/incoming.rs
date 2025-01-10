@@ -1911,8 +1911,24 @@ async fn update_connector_mandate_details(
                     None
                 };
 
+            let mut connector_mandate_details_value = None;
+            if let Some(common_mandate) = updated_connector_mandate_details {
+                let mut payments = serde_json::to_value(common_mandate.payments.as_ref())
+                    .change_context(errors::ApiErrorResponse::MandateUpdateFailed)?;
+
+                let payouts = serde_json::to_value(common_mandate.payouts.as_ref())
+                    .change_context(errors::ApiErrorResponse::MandateUpdateFailed)?;
+
+                if let Some(payments_object) = payments.as_object_mut() {
+                    payments_object.insert("payouts".to_string(), payouts);
+                }
+                connector_mandate_details_value = Some(payments)
+            }
+
+            router_env::logger::info!("here : {:?}", connector_mandate_details_value);
+
             let pm_update = diesel_models::PaymentMethodUpdate::ConnectorNetworkTransactionIdAndMandateDetailsUpdate {
-                connector_mandate_details: updated_connector_mandate_details.map(masking::Secret::new),
+                connector_mandate_details: connector_mandate_details_value.map(masking::Secret::new),
                 network_transaction_id: webhook_connector_network_transaction_id
                     .map(|webhook_network_transaction_id| webhook_network_transaction_id.get_id().clone()),
             };
@@ -1938,7 +1954,7 @@ fn insert_mandate_details(
     payment_attempt: &PaymentAttempt,
     webhook_mandate_details: &hyperswitch_domain_models::router_flow_types::ConnectorMandateDetails,
     payment_method_mandate_details: Option<diesel_models::CommonMandateReference>,
-) -> CustomResult<Option<serde_json::Value>, errors::ApiErrorResponse> {
+) -> CustomResult<Option<diesel_models::CommonMandateReference>, errors::ApiErrorResponse> {
     let (mandate_metadata, connector_mandate_request_reference_id) = payment_attempt
         .connector_mandate_detail
         .clone()

@@ -306,7 +306,7 @@ pub struct PaymentsMandateReference(
     pub HashMap<id_type::MerchantConnectorAccountId, PaymentsMandateReferenceRecord>,
 );
 
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Default, Clone, serde::Deserialize, serde::Serialize)]
 pub struct PayoutsMandateReference(
     pub HashMap<id_type::MerchantConnectorAccountId, PayoutsMandateReferenceRecord>,
 );
@@ -330,6 +330,11 @@ pub struct CommonMandateReference {
     pub payouts: Option<PayoutsMandateReference>,
 }
 
+#[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize)]
+pub struct PayoutsMandateReferenceStruct {
+    pub payouts: PayoutsMandateReference,
+}
+
 impl From<CommonMandateReference> for PaymentsMandateReference {
     fn from(common_mandate: CommonMandateReference) -> Self {
         common_mandate.payments.unwrap_or_default()
@@ -344,7 +349,7 @@ impl From<PaymentsMandateReference> for CommonMandateReference {
         }
     }
 }
-
+// here
 fn deserialize_connector_mandate_details<'de, D>(
     deserializer: D,
 ) -> Result<Option<CommonMandateReference>, D::Error>
@@ -354,21 +359,29 @@ where
     let value: Option<serde_json::Value> =
         <Option<serde_json::Value> as de::Deserialize>::deserialize(deserializer)?;
     if let Some(connector_mandate_value) = value {
+        let mut payments_data = None;
+        let mut payouts_data = None;
+
         if let Ok(payment_mandate_record) =
             serde_json::from_value::<PaymentsMandateReference>(connector_mandate_value.clone())
         {
-            Ok(Some(CommonMandateReference {
-                payments: Some(payment_mandate_record),
-                payouts: None,
-            }))
-        } else if let Ok(common_mandate) =
-            serde_json::from_value::<CommonMandateReference>(connector_mandate_value)
+            payments_data = Some(payment_mandate_record);
+        }
+        if let Ok(payouts) =
+            serde_json::from_value::<PayoutsMandateReferenceStruct>(connector_mandate_value)
         {
-            Ok(Some(common_mandate))
-        } else {
+            payouts_data = Some(payouts.payouts);
+        }
+
+        if payments_data.is_none() && payouts_data.is_none() {
             Err(de::Error::custom(
                 "Failed to deserialize connector_mandate_details",
             ))
+        } else {
+            Ok(Some(CommonMandateReference {
+                payments: payments_data,
+                payouts: payouts_data,
+            }))
         }
     } else {
         Ok(None)

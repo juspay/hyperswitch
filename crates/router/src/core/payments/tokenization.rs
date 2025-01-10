@@ -1211,7 +1211,7 @@ pub fn update_connector_mandate_details(
     connector_mandate_id: Option<String>,
     mandate_metadata: Option<Secret<serde_json::Value>>,
     connector_mandate_request_reference_id: Option<String>,
-) -> RouterResult<Option<serde_json::Value>> {
+) -> RouterResult<Option<diesel_models::CommonMandateReference>> {
     let mandate_reference = match mandate_details
         .as_ref()
         .and_then(|common_mandate| common_mandate.payments.clone())
@@ -1264,10 +1264,10 @@ pub fn update_connector_mandate_details(
             connector_mandate_request_reference_id,
         ),
     };
-    let connector_mandate_details = mandate_reference
-        .map(|mand| mand.encode_to_value())
-        .transpose()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Unable to serialize customer acceptance to value")?;
-    Ok(connector_mandate_details)
+    // let connector_mandate_details = mandate_reference
+    //     .map(|mand| mand.encode_to_value())
+    //     .transpose()
+    //     .change_context(errors::ApiErrorResponse::InternalServerError)
+    //     .attach_printable("Unable to serialize customer acceptance to value")?;
+    Ok(mandate_reference)
 }

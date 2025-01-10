@@ -2842,11 +2842,27 @@ pub async fn update_payment_method_connector_mandate_details(
     key_store: &domain::MerchantKeyStore,
     db: &dyn db::StorageInterface,
     pm: domain::PaymentMethod,
-    connector_mandate_details: Option<serde_json::Value>,
+    connector_mandate_details: Option<diesel_models::CommonMandateReference>,
     storage_scheme: MerchantStorageScheme,
 ) -> errors::CustomResult<(), errors::VaultError> {
+    let mut connector_mandate_details_value = None;
+    if let Some(common_mandate) = connector_mandate_details {
+        let mut payments = serde_json::to_value(common_mandate.payments.as_ref())
+            .change_context(errors::VaultError::UpdateInPaymentMethodDataTableFailed)?;
+
+        let payouts = serde_json::to_value(common_mandate.payouts.as_ref())
+            .change_context(errors::VaultError::UpdateInPaymentMethodDataTableFailed)?;
+
+        if let Some(payments_object) = payments.as_object_mut() {
+            payments_object.insert("payouts".to_string(), payouts);
+        }
+        connector_mandate_details_value = Some(payments)
+    }
+
+    router_env::logger::info!("here  : {:?}", connector_mandate_details_value.clone());
+
     let pm_update = payment_method::PaymentMethodUpdate::ConnectorMandateDetailsUpdate {
-        connector_mandate_details,
+        connector_mandate_details: connector_mandate_details_value,
     };
 
     db.update_payment_method(&(state.into()), key_store, pm, pm_update, storage_scheme)
