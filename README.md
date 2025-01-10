@@ -46,7 +46,7 @@ Here are the key components of Hyperswitch that deliver the whole solution:
 
 Read more at [Hyperswitch docs](https://docs.hyperswitch.io/).
 
-<img src="./docs/imgs/switch-v1.jpg" />
+<img src="./docs/imgs/switch-v1.png" />
 
 <img src="./docs/imgs/hyperswitch-architecture-v1.png" />
 
@@ -70,6 +70,7 @@ The fastest and easiest way to try Hyperswitch on AWS is via our CDK scripts
 2. Sign-in to your AWS console.
 
 3. Follow the instructions provided on the console to successfully deploy Hyperswitch. This takes 15-mins and gives the following output 
+<img src="./docs/imgs/cdk-output.png" />
 
 We support deployment on GCP and Azure via Helm charts. You can read more at [Hyperswitch docs](https://docs.hyperswitch.io/hyperswitch-open-source/deploy-on-kubernetes-using-helm). 
 
