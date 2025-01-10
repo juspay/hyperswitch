@@ -647,9 +647,7 @@ export const connectorDetails = {
             payment_method_types: [
               {
                 payment_method_type: "credit",
-                card_networks: [
-                  { eligible_connectors: ["worldpay"] },
-                ],
+                card_networks: [{ eligible_connectors: ["worldpay"] }],
                 required_fields: {
                   "payment_method_data.card.card_number": {
                     required_field: "payment_method_data.card.card_number",
@@ -669,11 +667,11 @@ export const connectorDetails = {
                     field_type: "user_card_expiry_year",
                     value: null,
                   },
-                }
-              }
-            ]
-          }
-        ]
+                },
+              },
+            ],
+          },
+        ],
       },
       pmListDynamicFieldWithBilling: {
         payment_methods: [
@@ -682,9 +680,7 @@ export const connectorDetails = {
             payment_method_types: [
               {
                 payment_method_type: "credit",
-                card_networks: [
-                  { eligible_connectors: ["worldpay"] },
-                ],
+                card_networks: [{ eligible_connectors: ["worldpay"] }],
                 required_fields: {
                   "payment_method_data.card.card_number": {
                     required_field: "payment_method_data.card.card_number",
@@ -711,11 +707,13 @@ export const connectorDetails = {
                     value: "1467",
                   },
                   "billing.address.country": {
-                    required_field: "payment_method_data.billing.address.country",
+                    required_field:
+                      "payment_method_data.billing.address.country",
                     display_name: "country",
                     field_type: {
                       user_address_country: {
-                        options: ["AF",
+                        options: [
+                          "AF",
                           "AU",
                           "AW",
                           "AZ",
@@ -848,8 +846,9 @@ export const connectorDetails = {
                           "VE",
                           "VN",
                           "ZM",
-                          "ZW",]
-                      }
+                          "ZW",
+                        ],
+                      },
                     },
                     value: "PL",
                   },
@@ -865,11 +864,11 @@ export const connectorDetails = {
                     field_type: "user_address_pincode",
                     value: "94122",
                   },
-                }
-              }
-            ]
-          }
-        ]
+                },
+              },
+            ],
+          },
+        ],
       },
       pmListDynamicFieldWithNames: {
         payment_methods: [
@@ -885,15 +884,13 @@ export const connectorDetails = {
                 ],
                 required_fields: {
                   "billing.address.line1": {
-                    required_field:
-                      "payment_method_data.billing.address.line1",
+                    required_field: "payment_method_data.billing.address.line1",
                     display_name: "line1",
                     field_type: "user_address_line1",
                     value: null,
                   },
                   "billing.address.city": {
-                    required_field:
-                      "payment_method_data.billing.address.city",
+                    required_field: "payment_method_data.billing.address.city",
                     display_name: "city",
                     field_type: "user_address_city",
                     value: null,
@@ -918,15 +915,13 @@ export const connectorDetails = {
                 ],
                 required_fields: {
                   "billing.address.line1": {
-                    required_field:
-                      "payment_method_data.billing.address.line1",
+                    required_field: "payment_method_data.billing.address.line1",
                     display_name: "line1",
                     field_type: "user_address_line1",
                     value: null,
                   },
                   "billing.address.city": {
-                    required_field:
-                      "payment_method_data.billing.address.city",
+                    required_field: "payment_method_data.billing.address.city",
                     display_name: "city",
                     field_type: "user_address_city",
                     value: null,
@@ -936,7 +931,7 @@ export const connectorDetails = {
             ],
           },
         ],
-      }
-    }
-  }
+      },
+    },
+  },
 };
