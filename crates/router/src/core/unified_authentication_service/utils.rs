@@ -2,16 +2,13 @@ use std::marker::PhantomData;
 
 use common_enums::enums::PaymentMethod;
 use common_utils::ext_traits::ValueExt;
-use diesel_models::authentication::{Authentication, AuthenticationUpdate};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     errors::api_error_response::ApiErrorResponse,
     payment_address::PaymentAddress,
     router_data::{ConnectorAuthType, ErrorResponse, RouterData},
     router_data_v2::UasFlowData,
-    router_request_types::unified_authentication_service::UasAuthenticationResponseData,
 };
-use masking::ExposeOptionInterface;
 
 use super::types::{
     IRRELEVANT_ATTEMPT_ID_IN_AUTHENTICATION_FLOW,
@@ -27,52 +24,6 @@ use crate::{
     types::api,
     SessionState,
 };
-
-pub async fn update_trackers<F: Clone, Req>(
-    state: &SessionState,
-    router_data: RouterData<F, Req, UasAuthenticationResponseData>,
-    authentication: Authentication,
-) -> RouterResult<Authentication> {
-    let authentication_update = match router_data.response {
-        Ok(response) => match response {
-            UasAuthenticationResponseData::PreAuthentication {} => {
-                AuthenticationUpdate::AuthenticationStatusUpdate {
-                    trans_status: common_enums::TransactionStatus::InformationOnly,
-                    authentication_status: common_enums::AuthenticationStatus::Pending,
-                }
-            }
-            UasAuthenticationResponseData::PostAuthentication {
-                authentication_details,
-            } => AuthenticationUpdate::PostAuthenticationUpdate {
-                authentication_status: common_enums::AuthenticationStatus::Success,
-                trans_status: common_enums::TransactionStatus::Success,
-                authentication_value: authentication_details
-                    .dynamic_data_details
-                    .and_then(|data| data.dynamic_data_value.expose_option()),
-                eci: authentication_details.eci,
-            },
-        },
-        Err(error) => AuthenticationUpdate::ErrorUpdate {
-            connector_authentication_id: error.connector_transaction_id,
-            authentication_status: common_enums::AuthenticationStatus::Failed,
-            error_message: error
-                .reason
-                .map(|reason| format!("message: {}, reason: {}", error.message, reason))
-                .or(Some(error.message)),
-            error_code: Some(error.code),
-        },
-    };
-
-    state
-        .store
-        .update_authentication_by_merchant_id_authentication_id(
-            authentication,
-            authentication_update,
-        )
-        .await
-        .change_context(ApiErrorResponse::InternalServerError)
-        .attach_printable("Error while updating authentication for uas")
-}
 
 pub async fn do_auth_connector_call<F, Req, Res>(
     state: &SessionState,

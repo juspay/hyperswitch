@@ -1102,6 +1102,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     &connector_mca,
                     connector_name,
                     payment_method,
+                    None,
                 )
                 .await?;
 
@@ -1109,14 +1110,14 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     Ok(unified_authentication_service::UasAuthenticationResponseData::PostAuthentication {
                         authentication_details,
                     }) => {
+                        let token_details = authentication_details.token_details.ok_or(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable("Missing authentication_details.token_details")?;
                         (Some(
                             hyperswitch_domain_models::payment_method_data::NetworkTokenData {
-                                token_number: authentication_details.token_details.payment_token,
-                                token_exp_month: authentication_details
-                                    .token_details
+                                token_number: token_details.payment_token,
+                                token_exp_month: token_details
                                     .token_expiration_month,
-                                token_exp_year: authentication_details
-                                    .token_details
+                                token_exp_year: token_details
                                     .token_expiration_year,
                                 token_cryptogram: authentication_details
                                     .dynamic_data_details
@@ -1130,8 +1131,10 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                                 eci: authentication_details.eci,
                             }),common_enums::AuthenticationStatus::Success)
                     },
-                    Ok(unified_authentication_service::UasAuthenticationResponseData::PreAuthentication {}) => (None, common_enums::AuthenticationStatus::Started),
-                    Err(_) => (None, common_enums::AuthenticationStatus::Failed)
+                    Ok(unified_authentication_service::UasAuthenticationResponseData::Authentication { .. })
+                    | Ok(unified_authentication_service::UasAuthenticationResponseData::PreAuthentication { .. })
+                        => Err(errors::ApiErrorResponse::InternalServerError).attach_printable("unexpected response received")?,
+                    Err(_) => (None, common_enums::AuthenticationStatus::Failed),
                 };
 
                 payment_data.payment_attempt.payment_method =
