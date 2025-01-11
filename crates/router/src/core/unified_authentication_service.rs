@@ -210,6 +210,7 @@ impl<F: Clone + Sync> UnifiedAuthenticationService<F> for ExternalAuthentication
 
         let pre_auth_router_data: UasPreAuthenticationRouterData =
             utils::construct_uas_router_data(
+                state,
                 connector_name.to_string(),
                 payment_method,
                 payment_data.payment_attempt.merchant_id.clone(),
@@ -322,6 +323,7 @@ impl<F: Clone + Sync> UnifiedAuthenticationService<F> for ExternalAuthentication
                 three_ds_requestor_url,
             )?;
         let auth_router_data: UasAuthenticationRouterData = utils::construct_uas_router_data(
+            state,
             connector_name.to_string(),
             payment_method,
             business_profile.merchant_id.clone(),
@@ -369,6 +371,7 @@ impl<F: Clone + Sync> UnifiedAuthenticationService<F> for ExternalAuthentication
                 authentication.clone(),
             )?;
         let auth_router_data: UasPostAuthenticationRouterData = utils::construct_uas_router_data(
+            state,
             connector_name.to_string(),
             payment_method,
             business_profile.merchant_id.clone(),
