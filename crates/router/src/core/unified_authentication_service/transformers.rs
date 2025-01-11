@@ -103,21 +103,10 @@ fn get_checkout_event_status_and_reason(
     }
 }
 
-pub fn get_webhook_request_data_for_uas<'a>(
-    request: IncomingWebhookRequestDetails<'a>,
+pub fn get_webhook_request_data_for_uas(
+    request: &IncomingWebhookRequestDetails<'_>,
 ) -> UasWebhookRequestData {
     UasWebhookRequestData {
         body: request.body.to_vec(),
     }
 }
-
-// #[cfg(feature = "v1")]
-// impl<'a> TryFrom<IncomingWebhookRequestDetails<'a>> for UasWebhookRequestData {
-//     type Error = Report<ApiErrorResponse>;
-//     fn try_from( incoming_webhook_request: IncomingWebhookRequestDetails<'a>,
-//     ) -> Result<Self, Self::Error> {
-//         Ok(Self {
-//             body: incoming_webhook_request.body.to_vec()
-//         })
-//     }
-// }

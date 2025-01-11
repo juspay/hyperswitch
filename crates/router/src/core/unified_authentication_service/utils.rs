@@ -59,6 +59,7 @@ pub async fn update_trackers<F: Clone, Req>(
                 trans_status,
                 authentication_value,
                 eci: _,
+                three_ds_server_transaction_id,
             } => AuthenticationUpdate::AuthenticationUpdate {
                 trans_status,
                 authentication_status: common_enums::AuthenticationStatus::Success,
@@ -70,7 +71,7 @@ pub async fn update_trackers<F: Clone, Req>(
                 acs_trans_id: None,
                 acs_signed_content: None,
                 connector_metadata: None,
-                ds_trans_id: None,
+                ds_trans_id: three_ds_server_transaction_id,
             },
         },
         Err(error) => AuthenticationUpdate::ErrorUpdate {

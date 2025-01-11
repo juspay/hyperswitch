@@ -146,54 +146,79 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
         body: &body,
     };
 
-    // Fetch the merchant connector account to get the webhooks source secret
-    // `webhooks source secret` is a secret shared between the merchant and connector
-    // This is used for source verification and webhooks integrity
-    let (merchant_connector_account, connector, connector_name) = fetch_optional_mca_and_connector(
-        &state,
-        &merchant_account,
-        connector_name_or_mca_id,
-        &key_store,
-    )
-    .await?;
-
-    let _is_eligible_for_uas =
+    // function to check whether the webhook processing needs to go via `UNIFIED_AUTHENTICATION_SERVICE`
+    let is_eligible_for_uas =
         helpers::is_merchant_eligible_authenthention_service(merchant_account.get_id(), &state)
             .await?;
 
-    let decoded_body = connector
-        .decode_webhook_body(
-            &request_details,
-            merchant_account.get_id(),
-            merchant_connector_account
-                .clone()
-                .and_then(|merchant_connector_account| {
-                    merchant_connector_account.connector_webhook_details
-                }),
-            connector_name.as_str(),
-        )
-        .await
-        .switch()
-        .attach_printable("There was an error in incoming webhook body decoding")?;
-    // let decoded_body = if is_eligible_for_uas {
+    let (decoded_body, merchant_connector_account, connector, connector_name) =
+        if is_eligible_for_uas {
+            // fetching the connector name for `UNIFIED_AUTHENTICATION_SERVICE` to know which connector to proceed the webhook processing with
 
-    // }
-    // else {
-    //     connector
-    //     .decode_webhook_body(
-    //         &request_details,
-    //         merchant_account.get_id(),
-    //         merchant_connector_account
-    //             .clone()
-    //             .and_then(|merchant_connector_account| {
-    //                 merchant_connector_account.connector_webhook_details
-    //             }),
-    //         connector_name.as_str(),
-    //     )
-    //     .await
-    //     .switch()
-    //     .attach_printable("There was an error in incoming webhook body decoding")?
-    // };
+            let connector_name = get_connector_name_from_mca_id(
+                &state,
+                &merchant_account,
+                connector_name_or_mca_id,
+                &key_store,
+            )
+            .await?;
+
+            // if the flow is eligible for `UNIFIED_AUTHENTICATION_SERVICE` then the connector name shall change to `UNIFIED_AUTHENTICATION_SERVICE` from requested connector
+
+            let decoded_body =
+                crate::core::unified_authentication_service::process_incoming_webhook(
+                    &state,
+                    &request_details,
+                    &connector_name,
+                )
+                .await?;
+
+            // The connector name is being updated to `UNIFIED_AUTHENTICATION_SERVICE` to align with Hyperswitch's context.
+            // hyperswitch will directly interact with `UNIFIED_AUTHENTICATION_SERVICE` structs, rather than referencing the original webhook sender structs.
+            // This change ensures a unified handling mechanism and maintains consistency across the system.
+
+            let (connector_enum, connector_name) = get_connector_by_connector_name(
+                &state,
+                crate::core::unified_authentication_service::types::UNIFIED_AUTHENTICATION_SERVICE,
+                None,
+            )?;
+
+            (decoded_body, None, connector_enum, connector_name)
+        } else {
+            // Fetch the merchant connector account to get the webhooks source secret
+            // `webhooks source secret` is a secret shared between the merchant and connector
+            // This is used for source verification and webhooks integrity
+            let (merchant_connector_account, connector, connector_name) =
+                fetch_optional_mca_and_connector(
+                    &state,
+                    &merchant_account,
+                    connector_name_or_mca_id,
+                    &key_store,
+                )
+                .await?;
+
+            let decoded_body = connector
+                .decode_webhook_body(
+                    &request_details,
+                    merchant_account.get_id(),
+                    merchant_connector_account
+                        .clone()
+                        .and_then(|merchant_connector_account| {
+                            merchant_connector_account.connector_webhook_details
+                        }),
+                    connector_name.as_str(),
+                )
+                .await
+                .switch()
+                .attach_printable("There was an error in incoming webhook body decoding")?;
+
+            (
+                decoded_body,
+                merchant_connector_account,
+                connector,
+                connector_name,
+            )
+        };
 
     request_details.body = &decoded_body;
 
@@ -1706,6 +1731,41 @@ async fn verify_webhook_source_verification_call(
     match verification_result {
         Ok(VerifyWebhookStatus::SourceVerified) => Ok(true),
         _ => Ok(false),
+    }
+}
+
+async fn get_connector_name_from_mca_id(
+    state: &SessionState,
+    merchant_account: &domain::MerchantAccount,
+    connector_name_or_mca_id: &str,
+    key_store: &domain::MerchantKeyStore,
+) -> CustomResult<String, errors::ApiErrorResponse> {
+    let db = &state.store;
+    if connector_name_or_mca_id.starts_with("mca_") {
+        let mca = db
+            .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+                &state.into(),
+                merchant_account.get_id(),
+                &common_utils::id_type::MerchantConnectorAccountId::wrap(
+                    connector_name_or_mca_id.to_owned(),
+                )
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable(
+                    "Error while converting MerchanConnectorAccountId from string
+                    ",
+                )?,
+                key_store,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                id: connector_name_or_mca_id.to_string(),
+            })
+            .attach_printable(
+                "error while fetching merchant_connector_account from connector_id",
+            )?;
+        Ok(mca.connector_name)
+    } else {
+        Ok(connector_name_or_mca_id.to_owned())
     }
 }
 

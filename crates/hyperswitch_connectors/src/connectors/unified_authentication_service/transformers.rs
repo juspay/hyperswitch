@@ -386,6 +386,8 @@ pub struct WebhookResponse {
     pub authentication_value: Option<String>,
     /// eci
     pub eci: Option<String>,
+    /// three_ds server transaction id
+    pub three_ds_server_transaction_id: Option<String>,
 }
 
 impl From<&UasProcessWebhookRouterData> for ProcessWebhookRequest {
@@ -409,6 +411,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, WebhookResponse, T, UasAuthenticationRe
                 trans_status: item.response.trans_status,
                 authentication_value: item.response.authentication_value,
                 eci: item.response.eci,
+                three_ds_server_transaction_id: item.response.three_ds_server_transaction_id,
             }),
             ..item.data
         })

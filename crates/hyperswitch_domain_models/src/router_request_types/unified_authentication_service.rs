@@ -40,6 +40,7 @@ pub enum UasAuthenticationResponseData {
         trans_status: common_enums::TransactionStatus,
         authentication_value: Option<String>,
         eci: Option<String>,
+        three_ds_server_transaction_id: Option<String>,
     },
 }
 

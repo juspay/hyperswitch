@@ -2,7 +2,7 @@ pub mod transformers;
 
 use common_utils::{
     errors::CustomResult,
-    ext_traits::BytesExt,
+    ext_traits::{ByteSliceExt, BytesExt, OptionExt},
     request::{Method, Request, RequestBuilder, RequestContent},
     types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector},
 };
@@ -36,6 +36,7 @@ use hyperswitch_interfaces::{
         self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorSpecifications,
         ConnectorValidation,
     },
+    authentication::ExternalAuthenticationPayload,
     configs::Connectors,
     consts::NO_ERROR_MESSAGE,
     errors,
@@ -500,23 +501,62 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData>
 impl webhooks::IncomingWebhook for UnifiedAuthenticationService {
     fn get_webhook_object_reference_id(
         &self,
-        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        let webhook_body: unified_authentication_service::WebhookResponse = request
+            .body
+            .parse_struct("WebhookResponse")
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+
+        let three_ds_server_transaction_id = webhook_body
+            .three_ds_server_transaction_id
+            .get_required_value("three_ds_server_transaction_id")
+            .change_context(errors::ConnectorError::MissingRequiredField {
+                field_name: "three_ds_server_transaction_id",
+            })
+            .attach_printable("missing required field three_ds_server_transaction_id")?;
+
+        Ok(
+            api_models::webhooks::ObjectReferenceId::ExternalAuthenticationID(
+                api_models::webhooks::AuthenticationIdType::ConnectorAuthenticationId(
+                    three_ds_server_transaction_id,
+                ),
+            ),
+        )
     }
 
     fn get_webhook_event_type(
         &self,
         _request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        Ok(api_models::webhooks::IncomingWebhookEvent::ExternalAuthenticationARes)
     }
 
     fn get_webhook_resource_object(
         &self,
-        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        let webhook_body_value: unified_authentication_service::WebhookResponse = request
+            .body
+            .parse_struct("WebhookResponse")
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        Ok(Box::new(webhook_body_value))
+    }
+
+    fn get_external_authentication_details(
+        &self,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<ExternalAuthenticationPayload, errors::ConnectorError> {
+        let webhook_body: unified_authentication_service::WebhookResponse = request
+            .body
+            .parse_struct("WebhookResponse")
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+
+        Ok(ExternalAuthenticationPayload {
+            trans_status: webhook_body.trans_status,
+            authentication_value: webhook_body.authentication_value,
+            eci: webhook_body.eci,
+        })
     }
 }
 
