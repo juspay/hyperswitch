@@ -94,6 +94,7 @@ impl<F: Clone + Sync> UnifiedAuthenticationService<F> for ClickToPay {
 
         let pre_auth_router_data: UasPreAuthenticationRouterData =
             utils::construct_uas_router_data(
+                state,
                 connector_name.to_string(),
                 payment_method,
                 payment_data.payment_attempt.merchant_id.clone(),
@@ -132,16 +133,16 @@ impl<F: Clone + Sync> UnifiedAuthenticationService<F> for ClickToPay {
             threeds_server_transaction_id: None,
         };
 
-        let post_auth_router_data: UasPostAuthenticationRouterData =
-            utils::construct_uas_router_data(
-                connector_name.to_string(),
-                payment_method,
-                payment_data.payment_attempt.merchant_id.clone(),
-                None,
-                post_authentication_data,
-                merchant_connector_account,
-                Some(authentication_id.clone()),
-            )?;
+        let post_auth_router_data: UasPostAuthenticationRouterData = utils::construct_uas_router_data(
+            state,
+            connector_name.to_string(),
+            payment_method,
+            payment_data.payment_attempt.merchant_id.clone(),
+            None,
+            post_authentication_data,
+            merchant_connector_account,
+            Some(authentication_id.clone()),
+        )?;
 
         utils::do_auth_connector_call(
             state,
