@@ -69,7 +69,7 @@ pub async fn lambda_handler(
         .change_context(AnalyticsError::UnknownError)
         .attach_printable("Lambda invocation failed")?;
     let response = LambdaResponse {
-        s3_path: ss3_path.to_owned(),
+        s3_path: s3_path.to_owned(),
         invocation_status_code: invoke_lambda_status_code,
     };
     Ok(response)
