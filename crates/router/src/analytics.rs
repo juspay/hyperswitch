@@ -8,9 +8,14 @@ pub mod routes {
 
     use actix_web::{web, Responder, Scope};
     use analytics::{
-        api_event::api_events_core, connector_events::connector_events_core, enums::AuthInfo,
-        errors::AnalyticsError, lambda_utils::invoke_lambda, opensearch::OpenSearchError,
-        outgoing_webhook_event::outgoing_webhook_events_core, sdk_events::sdk_events_core,
+        api_event::api_events_core,
+        connector_events::connector_events_core,
+        enums::AuthInfo,
+        errors::AnalyticsError,
+        lambda_utils::{invoke_lambda, lambda_handler},
+        opensearch::OpenSearchError,
+        outgoing_webhook_event::outgoing_webhook_events_core,
+        sdk_events::sdk_events_core,
         AnalyticsFlow,
     };
     use api_models::analytics::{
@@ -18,17 +23,18 @@ pub mod routes {
         search::{
             GetGlobalSearchRequest, GetSearchRequest, GetSearchRequestWithIndex, SearchIndex,
         },
-        AnalyticsRequest, GenerateReportRequest, GetActivePaymentsMetricRequest,
-        GetApiEventFiltersRequest, GetApiEventMetricRequest, GetAuthEventMetricRequest,
-        GetDisputeMetricRequest, GetFrmFilterRequest, GetFrmMetricRequest,
-        GetPaymentFiltersRequest, GetPaymentIntentFiltersRequest, GetPaymentIntentMetricRequest,
-        GetPaymentMetricRequest, GetRefundFilterRequest, GetRefundMetricRequest,
-        GetSdkEventFiltersRequest, GetSdkEventMetricRequest, ReportRequest,
+        AnalyticsRequest, GenerateReportRequest, GenerateReportRequestOrderManagement,
+        GetActivePaymentsMetricRequest, GetApiEventFiltersRequest, GetApiEventMetricRequest,
+        GetAuthEventMetricRequest, GetDisputeMetricRequest, GetFrmFilterRequest,
+        GetFrmMetricRequest, GetPaymentFiltersRequest, GetPaymentIntentFiltersRequest,
+        GetPaymentIntentMetricRequest, GetPaymentMetricRequest, GetRefundFilterRequest,
+        GetRefundMetricRequest, GetSdkEventFiltersRequest, GetSdkEventMetricRequest, ReportRequest,
     };
     use common_enums::EntityType;
     use common_utils::types::TimeRange;
     use error_stack::{report, ResultExt};
     use futures::{stream::FuturesUnordered, StreamExt};
+    use time::macros::format_description;
 
     use crate::{
         analytics_validator::request_validator,
@@ -89,6 +95,10 @@ pub mod routes {
                         .service(
                             web::resource("report/payments")
                                 .route(web::post().to(generate_merchant_payment_report)),
+                        )
+                        .service(
+                            web::resource("report/order_management")
+                                .route(web::post().to(generate_merchant_order_management_report)),
                         )
                         .service(
                             web::resource("metrics/sdk_events")
@@ -186,6 +196,9 @@ pub mod routes {
                                     web::resource("report/payments")
                                         .route(web::post().to(generate_merchant_payment_report)),
                                 )
+                                .service(web::resource("report/order_management").route(
+                                    web::post().to(generate_merchant_order_management_report),
+                                ))
                                 .service(
                                     web::resource("metrics/api_events")
                                         .route(web::post().to(get_merchant_api_events_metrics)),
@@ -249,6 +262,11 @@ pub mod routes {
                                         .route(web::post().to(generate_org_payment_report)),
                                 )
                                 .service(
+                                    web::resource("report/order_management").route(
+                                        web::post().to(generate_org_order_management_report),
+                                    ),
+                                )
+                                .service(
                                     web::resource("metrics/sankey")
                                         .route(web::post().to(get_org_sankey)),
                                 ),
@@ -302,6 +320,9 @@ pub mod routes {
                                     web::resource("report/payments")
                                         .route(web::post().to(generate_profile_payment_report)),
                                 )
+                                .service(web::resource("report/order_management").route(
+                                    web::post().to(generate_merchant_order_management_report),
+                                ))
                                 .service(
                                     web::resource("api_event_logs")
                                         .route(web::get().to(get_profile_api_events)),
@@ -1715,6 +1736,87 @@ pub mod routes {
         ))
         .await
     }
+
+    #[cfg(feature = "v1")]
+    pub async fn generate_merchant_order_management_report(
+        state: web::Data<AppState>,
+        req: actix_web::HttpRequest,
+        json_payload: web::Json<ReportRequest>,
+    ) -> impl Responder {
+        let flow = AnalyticsFlow::GenerateOrderManagementReport;
+        Box::pin(api::server_wrap(
+            flow,
+            state.clone(),
+            &req,
+            json_payload.into_inner(),
+            |state, (auth, user_id): auth::AuthenticationDataWithUserId, payload, _| async move {
+                let user = UserInterface::find_user_by_id(&*state.global_store, &user_id)
+                    .await
+                    .change_context(AnalyticsError::UnknownError)?;
+
+                let user_email = UserEmail::from_pii_email(user.email)
+                    .change_context(AnalyticsError::UnknownError)?
+                    .get_secret();
+
+                let org_id = auth.merchant_account.get_org_id();
+                let merchant_id = auth.merchant_account.get_id();
+                let format = format_description!("[year]-[month]-[day]T[hour]:[minute]:[second]");
+                let start_time_str = payload
+                    .clone()
+                    .time_range
+                    .start_time
+                    .format(&format)
+                    .expect("Failed to format start_time");
+
+                let end_time_str = payload
+                    .clone()
+                    .time_range
+                    .end_time
+                    .map(|end_time| end_time.format(&format).expect("Failed to format end_time"))
+                    .unwrap_or_else(|| "".to_string());
+                let timestamp_str = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .ok()
+                    .ok_or(AnalyticsError::UnknownError)?
+                    .as_millis()
+                    .to_string();
+                let s3_path = format!(
+                    "{}/{}/order_management/{}_{}_{}_report.csv",
+                    org_id.get_string_repr(),
+                    merchant_id.get_string_repr(),
+                    start_time_str,
+                    end_time_str,
+                    timestamp_str
+                );
+                let lambda_req = GenerateReportRequestOrderManagement {
+                    request: payload.clone(),
+                    merchant_id: Some(merchant_id.clone()),
+                    auth: AuthInfo::MerchantLevel {
+                        org_id: org_id.clone(),
+                        merchant_ids: vec![merchant_id.clone()],
+                    },
+                    email: user_email,
+                    s3_path: s3_path.clone(),
+                };
+                let json_bytes =
+                    serde_json::to_vec(&lambda_req).map_err(|_| AnalyticsError::UnknownError)?;
+                lambda_handler(
+                    &state.conf.report_download_config.order_management_function,
+                    &state.conf.report_download_config.region,
+                    &json_bytes,
+                    &s3_path,
+                )
+                .await
+                .map(ApplicationResponse::Json)
+            },
+            &auth::JWTAuth {
+                permission: Permission::OrganizationReportRead,
+            },
+            api_locking::LockAction::NotApplicable,
+        ))
+        .await
+    }
+
     #[cfg(feature = "v1")]
     pub async fn generate_org_payment_report(
         state: web::Data<AppState>,
@@ -1752,6 +1854,85 @@ pub mod routes {
                     &state.conf.report_download_config.payment_function,
                     &state.conf.report_download_config.region,
                     &json_bytes,
+                )
+                .await
+                .map(ApplicationResponse::Json)
+            },
+            &auth::JWTAuth {
+                permission: Permission::OrganizationReportRead,
+            },
+            api_locking::LockAction::NotApplicable,
+        ))
+        .await
+    }
+
+    #[cfg(feature = "v1")]
+    pub async fn generate_org_order_management_report(
+        state: web::Data<AppState>,
+        req: actix_web::HttpRequest,
+        json_payload: web::Json<ReportRequest>,
+    ) -> impl Responder {
+        let flow = AnalyticsFlow::GenerateOrderManagementReport;
+        Box::pin(api::server_wrap(
+            flow,
+            state.clone(),
+            &req,
+            json_payload.into_inner(),
+            |state, (auth, user_id): auth::AuthenticationDataWithUserId, payload, _| async move {
+                let user = UserInterface::find_user_by_id(&*state.global_store, &user_id)
+                    .await
+                    .change_context(AnalyticsError::UnknownError)?;
+
+                let user_email = UserEmail::from_pii_email(user.email)
+                    .change_context(AnalyticsError::UnknownError)?
+                    .get_secret();
+                let org_id = auth.merchant_account.get_org_id();
+                let format = format_description!("[year]-[month]-[day]T[hour]:[minute]:[second]");
+                let start_time_str = payload
+                    .clone()
+                    .time_range
+                    .start_time
+                    .format(&format)
+                    .expect("Failed to format start_time");
+
+                let end_time_str = payload
+                    .clone()
+                    .time_range
+                    .end_time
+                    .map(|end_time| end_time.format(&format).expect("Failed to format end_time"))
+                    .unwrap_or_else(|| "".to_string());
+
+                let timestamp_str = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .ok()
+                    .ok_or(AnalyticsError::UnknownError)?
+                    .as_millis()
+                    .to_string();
+
+                let s3_path = format!(
+                    "{}/order_management/{}_{}_{}_report.csv",
+                    org_id.get_string_repr(),
+                    start_time_str,
+                    end_time_str,
+                    timestamp_str
+                );
+                let lambda_req = GenerateReportRequestOrderManagement {
+                    request: payload,
+                    merchant_id: None,
+                    auth: AuthInfo::OrgLevel {
+                        org_id: org_id.clone(),
+                    },
+                    email: user_email,
+                    s3_path: s3_path.clone(),
+                };
+
+                let json_bytes =
+                    serde_json::to_vec(&lambda_req).map_err(|_| AnalyticsError::UnknownError)?;
+                lambda_handler(
+                    &state.conf.report_download_config.order_management_function,
+                    &state.conf.report_download_config.region,
+                    &json_bytes,
+                    &s3_path,
                 )
                 .await
                 .map(ApplicationResponse::Json)
@@ -1813,6 +1994,96 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::ProfileReportRead,
+            },
+            api_locking::LockAction::NotApplicable,
+        ))
+        .await
+    }
+
+    #[cfg(feature = "v1")]
+    pub async fn generate_profile_order_management_report(
+        state: web::Data<AppState>,
+        req: actix_web::HttpRequest,
+        json_payload: web::Json<ReportRequest>,
+    ) -> impl Responder {
+        let flow = AnalyticsFlow::GenerateOrderManagementReport;
+        Box::pin(api::server_wrap(
+            flow,
+            state.clone(),
+            &req,
+            json_payload.into_inner(),
+            |state, (auth, user_id): auth::AuthenticationDataWithUserId, payload, _| async move {
+                let user = UserInterface::find_user_by_id(&*state.global_store, &user_id)
+                    .await
+                    .change_context(AnalyticsError::UnknownError)?;
+
+                let user_email = UserEmail::from_pii_email(user.email)
+                    .change_context(AnalyticsError::UnknownError)?
+                    .get_secret();
+                let org_id = auth.merchant_account.get_org_id();
+                let merchant_id = auth.merchant_account.get_id();
+                let profile_id = auth
+                    .profile_id
+                    .ok_or(report!(UserErrors::JwtProfileIdMissing))
+                    .change_context(AnalyticsError::AccessForbiddenError)?;
+
+                let format = format_description!("[year]-[month]-[day]T[hour]:[minute]:[second]");
+
+                let start_time_str = payload
+                    .clone()
+                    .time_range
+                    .start_time
+                    .format(&format)
+                    .expect("Failed to format start_time");
+
+                let end_time_str = payload
+                    .clone()
+                    .time_range
+                    .end_time
+                    .map(|end_time| end_time.format(&format).expect("Failed to format end_time"))
+                    .unwrap_or_else(|| "".to_string());
+
+                let timestamp_str = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .ok()
+                    .ok_or(AnalyticsError::UnknownError)?
+                    .as_millis()
+                    .to_string();
+
+                let s3_path = format!(
+                    "{}/{}/{}/order_management/{}_{}_{}_report.csv",
+                    org_id.get_string_repr(),
+                    merchant_id.get_string_repr(),
+                    profile_id.get_string_repr(),
+                    start_time_str,
+                    end_time_str,
+                    timestamp_str
+                );
+                let lambda_req = GenerateReportRequestOrderManagement {
+                    request: payload,
+                    merchant_id: Some(merchant_id.clone()),
+                    auth: AuthInfo::ProfileLevel {
+                        org_id: org_id.clone(),
+                        merchant_id: merchant_id.clone(),
+                        profile_ids: vec![profile_id.clone()],
+                    },
+                    email: user_email,
+                    s3_path: s3_path.clone(),
+                };
+
+                let json_bytes =
+                    serde_json::to_vec(&lambda_req).map_err(|_| AnalyticsError::UnknownError)?;
+                lambda_handler(
+                    &state.conf.report_download_config.order_management_function,
+                    &state.conf.report_download_config.region,
+                    &json_bytes,
+                    &s3_path,
+                )
+                .await
+                .map(ApplicationResponse::Json)
+            },
+            &auth::JWTAuth {
+                permission: Permission::OrganizationReportRead,
             },
             api_locking::LockAction::NotApplicable,
         ))
