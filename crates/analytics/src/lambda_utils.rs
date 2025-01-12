@@ -64,8 +64,7 @@ pub async fn lambda_handler(
     json_bytes: &[u8],
     s3_path: &String,
 ) -> CustomResult<LambdaResponse, AnalyticsError> {
-    let invoke_lambda_status_code =
-        invoke_lambda_get_status(function_name, region, json_bytes)
+    let invoke_lambda_status_code = invoke_lambda_get_status(function_name, region, json_bytes)
         .await
         .change_context(AnalyticsError::UnknownError)
         .attach_printable("Lambda invocation failed")?;
