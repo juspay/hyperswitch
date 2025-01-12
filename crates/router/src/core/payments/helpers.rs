@@ -2609,19 +2609,15 @@ pub(crate) fn validate_status_with_capture_method(
 pub(crate) fn validate_amount_to_capture(
     amount: i64,
     amount_to_capture: Option<i64>,
-    is_overcapture_applied: Option<bool>,
 ) -> RouterResult<()> {
-    if let Some(true) =
-        amount_to_capture.map(|req_amount_to_capture| (amount < req_amount_to_capture))
-    {
-        utils::when(is_overcapture_applied != Some(true), || {
+    utils::when(
+        amount_to_capture.is_some() && (Some(amount) < amount_to_capture),
+        || {
             Err(report!(errors::ApiErrorResponse::InvalidRequestData {
                 message: "amount_to_capture is greater than amount".to_string()
             }))
-        })
-    } else {
-        Ok(())
-    }
+        },
+    )
 }
 
 #[cfg(feature = "v1")]
@@ -4293,7 +4289,6 @@ impl AttemptType {
             organization_id: old_payment_attempt.organization_id,
             profile_id: old_payment_attempt.profile_id,
             connector_mandate_detail: None,
-            request_overcapture: old_payment_attempt.request_overcapture,
         }
     }
 
@@ -6277,7 +6272,7 @@ pub fn validate_platform_fees_for_marketplace(
     Ok(())
 }
 
-pub fn validate_overcapture_request_for_payments_create(
+pub fn validate_overcapture_request(
     capture_method: Option<api_enums::CaptureMethod>,
     request_overcapture: Option<api_enums::OverCaptureRequest>,
 ) -> Result<(), errors::ApiErrorResponse> {
@@ -6309,14 +6304,9 @@ pub fn get_overcapture_request_for_payments_update(
         Some(_) => {
             match payment_attempt.request_overcapture {
                 Some(api_enums::OverCaptureRequest::Enable) => {
-                    // case where we set the request_overcapture from the business profile
-                    if payment_intent.request_overcapture.is_none() {
-                        Ok(Some(api_enums::OverCaptureRequest::Skip))
-                    } else {
                         Err(errors::ApiErrorResponse::PreconditionFailed {
                         message: "Requesting overcapture is only supported when the capture method is set to manual".to_string(),
                     })?
-                    }
                 }
                 request_overcapture => Ok(request_overcapture),
             }

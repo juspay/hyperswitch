@@ -666,7 +666,6 @@ pub fn make_new_payment_attempt(
         charge_id: Default::default(),
         customer_acceptance: Default::default(),
         connector_mandate_detail: Default::default(),
-        request_overcapture: old_payment_attempt.request_overcapture,
     }
 }
 

@@ -444,15 +444,16 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             payments::types::SurchargeDetails::from((&request_surcharge_details, &payment_attempt))
         });
 
-        payment_attempt.request_overcapture = helpers::get_overcapture_request_for_payments_update(
-            &payment_attempt,
-            &payment_intent,
-            Some(request),
-            &business_profile,
-        )?;
-        payment_intent.request_overcapture = request
+        helpers::validate_overcapture_request(
+            payment_attempt.capture_method,
+            request
             .request_overcapture
-            .or(payment_intent.request_overcapture);
+            .or(payment_intent.request_overcapture),
+        )?;
+
+        payment_intent.request_overcapture = request
+        .request_overcapture
+        .or(payment_intent.request_overcapture);
 
         let payment_data = PaymentData {
             flow: PhantomData,
@@ -788,9 +789,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
         let payment_method_type = payment_data.payment_attempt.payment_method_type;
         let payment_experience = payment_data.payment_attempt.payment_experience;
         let amount_to_capture = payment_data.payment_attempt.amount_to_capture;
-        let capture_method = payment_data.payment_attempt.capture_method;
-        let request_overcapture = payment_data.payment_attempt.request_overcapture;
-        let payment_method_billing_address_id = payment_data
+        let capture_method = payment_data.payment_attempt.capture_method;        let payment_method_billing_address_id = payment_data
             .payment_attempt
             .payment_method_billing_address_id
             .clone();
@@ -830,7 +829,6 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                             surcharge_amount,
                             tax_amount,
                         ),
-                    request_overcapture,
                 },
                 storage_scheme,
             )

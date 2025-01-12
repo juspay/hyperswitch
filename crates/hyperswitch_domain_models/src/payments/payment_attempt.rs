@@ -844,7 +844,6 @@ pub struct PaymentAttemptNew {
     pub profile_id: id_type::ProfileId,
     pub organization_id: id_type::OrganizationId,
     pub connector_mandate_detail: Option<ConnectorMandateReferenceId>,
-    pub request_overcapture: Option<storage_enums::OverCaptureRequest>,
 }
 
 #[cfg(feature = "v1")]
@@ -866,7 +865,6 @@ pub enum PaymentAttemptUpdate {
         fingerprint_id: Option<String>,
         payment_method_billing_address_id: Option<String>,
         updated_by: String,
-        request_overcapture: Option<storage_enums::OverCaptureRequest>,
     },
     UpdateTrackers {
         payment_token: Option<String>,
@@ -1066,7 +1064,6 @@ impl PaymentAttemptUpdate {
                 fingerprint_id,
                 payment_method_billing_address_id,
                 updated_by,
-                request_overcapture,
             } => DieselPaymentAttemptUpdate::Update {
                 amount: net_amount.get_order_amount(),
                 currency,
@@ -1085,7 +1082,6 @@ impl PaymentAttemptUpdate {
                 fingerprint_id,
                 payment_method_billing_address_id,
                 updated_by,
-                request_overcapture,
             },
             Self::UpdateTrackers {
                 payment_token,
@@ -1736,7 +1732,6 @@ impl behaviour::Conversion for PaymentAttempt {
             order_tax_amount: self.net_amount.get_order_tax_amount(),
             shipping_cost: self.net_amount.get_shipping_cost(),
             connector_mandate_detail: self.connector_mandate_detail,
-            request_overcapture: self.request_overcapture,
         })
     }
 }

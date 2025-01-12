@@ -283,7 +283,6 @@ impl PaymentAttemptBatchNew {
             shipping_cost: self.shipping_cost,
             order_tax_amount: self.order_tax_amount,
             connector_mandate_detail: self.connector_mandate_detail,
-            request_overcapture: self.request_overcapture,
         }
     }
 }

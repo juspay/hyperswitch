@@ -325,7 +325,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             &payment_method_info,
             merchant_key_store,
             profile_id,
-            &business_profile,
             &customer_acceptance,
         )
         .await?;
@@ -994,7 +993,7 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentDat
                 .and_then(|pmd| pmd.payment_method_data.clone()),
         )?;
 
-        helpers::validate_overcapture_request_for_payments_create(
+        helpers::validate_overcapture_request(
             request.capture_method,
             request.request_overcapture,
         )?;
@@ -1112,7 +1111,6 @@ impl PaymentCreate {
         payment_method_info: &Option<domain::PaymentMethod>,
         _key_store: &domain::MerchantKeyStore,
         profile_id: common_utils::id_type::ProfileId,
-        business_profile: &domain::Profile,
         customer_acceptance: &Option<payments::CustomerAcceptance>,
     ) -> RouterResult<(
         storage::PaymentAttemptNew,
@@ -1147,19 +1145,6 @@ impl PaymentCreate {
             .await
             .transpose()?
             .flatten();
-
-        let request_overcapture = request.request_overcapture.or_else(|| {
-            if matches!(
-                request.capture_method,
-                Some(api_models::enums::CaptureMethod::Manual)
-            ) {
-                business_profile
-                    .always_request_overcapture
-                    .map(api_models::enums::OverCaptureRequest::from)
-            } else {
-                None
-            }
-        });
 
         if additional_pm_data.is_none() {
             // If recurring payment is made using payment_method_id, then fetch payment_method_data from retrieved payment_method object
@@ -1309,7 +1294,6 @@ impl PaymentCreate {
                 organization_id: organization_id.clone(),
                 profile_id,
                 connector_mandate_detail: None,
-                request_overcapture,
             },
             additional_pm_data,
 
