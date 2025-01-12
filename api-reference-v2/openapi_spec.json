@@ -1769,6 +1769,37 @@
         ]
       }
     },
+    "/v2/customers/{id}/saved-payment-methods": {
+      "get": {
+        "tags": [
+          "Customers"
+        ],
+        "summary": "Customers - List Saved Payment Methods",
+        "description": "To filter and list the applicable payment methods for a particular Customer ID, to be used in a non-payments context",
+        "operationId": "List all Saved Payment Methods for a Customer",
+        "responses": {
+          "200": {
+            "description": "Saved Payment Methods retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerPaymentMethodsListResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Customer id does not exist"
+          }
+        },
+        "security": [
+          {
+            "api_key": [],
+            "ephemeral_key": []
+          }
+        ]
+      }
+    },
     "/v2/payments/create-intent": {
       "post": {
         "tags": [
@@ -2475,49 +2506,6 @@
           },
           "404": {
             "description": "Payment Method Not Found"
-          }
-        },
-        "security": [
-          {
-            "api_key": []
-          }
-        ]
-      }
-    },
-    "/v2/customers/{id}/saved-payment-methods": {
-      "get": {
-        "tags": [
-          "Payment Methods"
-        ],
-        "summary": "List saved payment methods for a Customer",
-        "description": "To filter and list the applicable payment methods for a particular Customer ID, to be used in a non-payments context",
-        "operationId": "List all Payment Methods for a Customer",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/PaymentMethodListRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Payment Methods retrieved",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CustomerPaymentMethodsListResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Invalid Data"
-          },
-          "404": {
-            "description": "Payment Methods does not exist in records"
           }
         },
         "security": [
@@ -7600,25 +7588,20 @@
       "CustomerPaymentMethod": {
         "type": "object",
         "required": [
-          "payment_method_id",
+          "id",
           "customer_id",
           "payment_method_type",
+          "payment_method_subtype",
           "recurring_enabled",
           "created",
           "requires_cvv",
           "is_default"
         ],
         "properties": {
-          "payment_token": {
+          "id": {
             "type": "string",
-            "description": "Token for payment method in temporary card locker which gets refreshed often",
-            "example": "7ebf443f-a050-4067-84e5-e6f6d4800aef",
-            "nullable": true
-          },
-          "payment_method_id": {
-            "type": "string",
-            "description": "The unique identifier of the customer.",
-            "example": "pm_iouuy468iyuowqs"
+            "description": "The unique identifier of the payment method.",
+            "example": "12345_pm_01926c58bc6e77c09e809964e72af8c8"
           },
           "customer_id": {
             "type": "string",
@@ -7631,12 +7614,7 @@
             "$ref": "#/components/schemas/PaymentMethod"
           },
           "payment_method_subtype": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/PaymentMethodType"
-              }
-            ],
-            "nullable": true
+            "$ref": "#/components/schemas/PaymentMethodType"
           },
           "recurring_enabled": {
             "type": "boolean",
@@ -7665,14 +7643,6 @@
             "description": "A timestamp (ISO 8601 code) that determines when the payment method was created",
             "example": "2023-01-18T11:04:09.922Z"
           },
-          "surcharge_details": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/SurchargeDetailsResponse"
-              }
-            ],
-            "nullable": true
-          },
           "requires_cvv": {
             "type": "boolean",
             "description": "Whether this payment method requires CVV to be collected",
@@ -7682,8 +7652,7 @@
             "type": "string",
             "format": "date-time",
             "description": "A timestamp (ISO 8601 code) that determines when the payment method was last used",
-            "example": "2024-02-24T11:04:09.922Z",
-            "nullable": true
+            "example": "2024-02-24T11:04:09.922Z"
           },
           "is_default": {
             "type": "boolean",
@@ -7712,11 +7681,6 @@
               "$ref": "#/components/schemas/CustomerPaymentMethod"
             },
             "description": "List of payment methods for customer"
-          },
-          "is_guest_customer": {
-            "type": "boolean",
-            "description": "Returns whether a customer id is not tied to a payment intent (only when the request is made against a client secret)",
-            "nullable": true
           }
         }
       },
@@ -7880,7 +7844,7 @@
           "default_payment_method_id": {
             "type": "string",
             "description": "The identifier for the default payment method.",
-            "example": "pm_djh2837dwduh890123",
+            "example": "12345_pm_01926c58bc6e77c09e809964e72af8c8",
             "nullable": true,
             "maxLength": 64
           }
@@ -7958,7 +7922,7 @@
           "default_payment_method_id": {
             "type": "string",
             "description": "The unique identifier of the payment method",
-            "example": "card_rGK4Vi5iSW70MY7J2mIg",
+            "example": "12345_pm_01926c58bc6e77c09e809964e72af8c8",
             "nullable": true
           }
         },
@@ -7970,27 +7934,6 @@
           "challenge",
           "frictionless"
         ]
-      },
-      "DefaultPaymentMethod": {
-        "type": "object",
-        "required": [
-          "customer_id",
-          "payment_method_id"
-        ],
-        "properties": {
-          "customer_id": {
-            "type": "string",
-            "example": "12345_cus_y3oqhf46pyzuxjbcn2giaqnb44",
-            "maxLength": 64,
-            "minLength": 1
-          },
-          "payment_method_id": {
-            "type": "string",
-            "example": "12345_pm_y3oqhf46pyzuxjbcn2giaqnb44",
-            "maxLength": 64,
-            "minLength": 1
-          }
-        }
       },
       "DeviceChannel": {
         "type": "string",

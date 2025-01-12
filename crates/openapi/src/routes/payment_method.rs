@@ -322,28 +322,6 @@ pub async fn payment_method_update_api() {}
 #[cfg(feature = "v2")]
 pub async fn payment_method_delete_api() {}
 
-/// List saved payment methods for a Customer
-///
-/// To filter and list the applicable payment methods for a particular Customer ID, to be used in a non-payments context
-#[utoipa::path(
-    get,
-    path = "/v2/customers/{id}/saved-payment-methods",
-    request_body(
-    content = PaymentMethodListRequest,
-    // TODO: Add examples and add param for customer_id
-    ),
-    responses(
-        (status = 200, description = "Payment Methods retrieved", body = CustomerPaymentMethodsListResponse),
-        (status = 400, description = "Invalid Data"),
-        (status = 404, description = "Payment Methods does not exist in records")
-    ),
-    tag = "Payment Methods",
-    operation_id = "List all Payment Methods for a Customer",
-    security(("api_key" = []))
-)]
-#[cfg(feature = "v2")]
-pub async fn list_customer_payment_method_api() {}
-
 /// Payment Methods - Payment Methods List
 ///
 /// List the payment methods eligible for a payment. This endpoint also returns the saved payment methods for the customer.

@@ -74,7 +74,13 @@ pub struct PaymentMethod {
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 #[derive(Clone, Debug)]
 pub struct PaymentMethod {
+    /// The identifier for the payment method. Using this recurring payments can be made
+    pub id: common_utils::id_type::GlobalPaymentMethodId,
+
+    /// The customer id against which the payment method is saved
     pub customer_id: common_utils::id_type::GlobalCustomerId,
+
+    /// The merchant id against which the payment method is saved
     pub merchant_id: common_utils::id_type::MerchantId,
     pub created_at: PrimitiveDateTime,
     pub last_modified: PrimitiveDateTime,
@@ -92,7 +98,6 @@ pub struct PaymentMethod {
     pub payment_method_billing_address: OptionalEncryptableValue,
     pub updated_by: Option<String>,
     pub locker_fingerprint_id: Option<String>,
-    pub id: common_utils::id_type::GlobalPaymentMethodId,
     pub version: common_enums::ApiVersion,
     pub network_token_requestor_reference_id: Option<String>,
     pub network_token_locker_id: Option<String>,

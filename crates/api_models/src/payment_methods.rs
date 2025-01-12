@@ -1729,8 +1729,6 @@ pub struct CustomerPaymentMethodsListResponse {
 pub struct CustomerPaymentMethodsListResponse {
     /// List of payment methods for customer
     pub customer_payment_methods: Vec<CustomerPaymentMethod>,
-    /// Returns whether a customer id is not tied to a payment intent (only when the request is made against a client secret)
-    pub is_guest_customer: Option<bool>,
 }
 
 #[cfg(all(
@@ -1776,12 +1774,9 @@ pub struct CustomerDefaultPaymentMethodResponse {
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 #[derive(Debug, Clone, serde::Serialize, ToSchema)]
 pub struct CustomerPaymentMethod {
-    /// Token for payment method in temporary card locker which gets refreshed often
-    #[schema(example = "7ebf443f-a050-4067-84e5-e6f6d4800aef")]
-    pub payment_token: Option<String>,
-    /// The unique identifier of the customer.
-    #[schema(example = "pm_iouuy468iyuowqs")]
-    pub payment_method_id: String,
+    /// The unique identifier of the payment method.
+    #[schema(value_type = String, example = "12345_pm_01926c58bc6e77c09e809964e72af8c8")]
+    pub id: id_type::GlobalPaymentMethodId,
 
     /// The unique identifier of the customer.
     #[schema(
@@ -1797,8 +1792,8 @@ pub struct CustomerPaymentMethod {
     pub payment_method_type: api_enums::PaymentMethod,
 
     /// This is a sub-category of payment method.
-    #[schema(value_type = Option<PaymentMethodType>,example = "credit_card")]
-    pub payment_method_subtype: Option<api_enums::PaymentMethodType>,
+    #[schema(value_type = PaymentMethodType,example = "credit")]
+    pub payment_method_subtype: api_enums::PaymentMethodType,
 
     /// Indicates whether the payment method is eligible for recurring payments
     #[schema(example = true)]
@@ -1816,17 +1811,15 @@ pub struct CustomerPaymentMethod {
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created: time::PrimitiveDateTime,
 
-    /// Surcharge details for this saved card
-    pub surcharge_details: Option<SurchargeDetailsResponse>,
-
     /// Whether this payment method requires CVV to be collected
     #[schema(example = true)]
     pub requires_cvv: bool,
 
     ///  A timestamp (ISO 8601 code) that determines when the payment method was last used
-    #[schema(value_type = Option<PrimitiveDateTime>,example = "2024-02-24T11:04:09.922Z")]
-    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
-    pub last_used_at: Option<time::PrimitiveDateTime>,
+    #[schema(value_type = PrimitiveDateTime,example = "2024-02-24T11:04:09.922Z")]
+    #[serde(default, with = "common_utils::custom_serde::iso8601")]
+    pub last_used_at: time::PrimitiveDateTime,
+
     /// Indicates if the payment method has been set to default or not
     #[schema(example = true)]
     pub is_default: bool,

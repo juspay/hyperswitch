@@ -58,7 +58,7 @@ pub struct Customer {
     pub metadata: Option<pii::SecretSerdeValue>,
     pub connector_customer: Option<pii::SecretSerdeValue>,
     pub modified_at: PrimitiveDateTime,
-    pub default_payment_method_id: Option<String>,
+    pub default_payment_method_id: Option<id_type::GlobalPaymentMethodId>,
     pub updated_by: Option<String>,
     pub merchant_reference_id: Option<id_type::CustomerId>,
     pub default_billing_address: Option<Encryption>,
@@ -313,14 +313,14 @@ pub enum CustomerUpdate {
         connector_customer: Box<Option<pii::SecretSerdeValue>>,
         default_billing_address: Option<Encryption>,
         default_shipping_address: Option<Encryption>,
-        default_payment_method_id: Option<Option<String>>,
+        default_payment_method_id: Option<Option<id_type::GlobalPaymentMethodId>>,
         status: Option<DeleteStatus>,
     },
     ConnectorCustomer {
         connector_customer: Option<pii::SecretSerdeValue>,
     },
     UpdateDefaultPaymentMethod {
-        default_payment_method_id: Option<Option<String>>,
+        default_payment_method_id: Option<Option<id_type::GlobalPaymentMethodId>>,
     },
 }
 

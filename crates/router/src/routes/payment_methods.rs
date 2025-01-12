@@ -11,12 +11,6 @@ use hyperswitch_domain_models::merchant_key_store::MerchantKeyStore;
 use router_env::{instrument, logger, tracing, Flow};
 
 use super::app::{AppState, SessionState};
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-use crate::core::payment_methods::{
-    create_payment_method, delete_payment_method, list_customer_payment_method_util,
-    payment_method_intent_confirm, payment_method_intent_create, retrieve_payment_method,
-    update_payment_method,
-};
 use crate::{
     core::{
         api_locking,
@@ -86,7 +80,7 @@ pub async fn create_payment_method_api(
         &req,
         json_payload.into_inner(),
         |state, auth: auth::AuthenticationData, req, _| async move {
-            Box::pin(create_payment_method(
+            Box::pin(payment_methods_routes::create_payment_method(
                 &state,
                 req,
                 &auth.merchant_account,
@@ -115,7 +109,7 @@ pub async fn create_payment_method_intent_api(
         &req,
         json_payload.into_inner(),
         |state, auth: auth::AuthenticationData, req, _| async move {
-            Box::pin(payment_method_intent_create(
+            Box::pin(payment_methods_routes::payment_method_intent_create(
                 &state,
                 req,
                 &auth.merchant_account,
@@ -162,7 +156,7 @@ pub async fn confirm_payment_method_intent_api(
         |state, auth: auth::AuthenticationData, req, _| {
             let pm_id = pm_id.clone();
             async move {
-                Box::pin(payment_method_intent_confirm(
+                Box::pin(payment_methods_routes::payment_method_intent_confirm(
                     &state,
                     req.into(),
                     &auth.merchant_account,
@@ -236,7 +230,7 @@ pub async fn payment_method_update_api(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            update_payment_method(
+            payment_methods_routes::update_payment_method(
                 state,
                 auth.merchant_account,
                 req,
@@ -269,7 +263,12 @@ pub async fn payment_method_retrieve_api(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, pm, _| {
-            retrieve_payment_method(state, pm, auth.key_store, auth.merchant_account)
+            payment_methods_routes::retrieve_payment_method(
+                state,
+                pm,
+                auth.key_store,
+                auth.merchant_account,
+            )
         },
         &auth::HeaderAuth(auth::ApiKeyAuth),
         api_locking::LockAction::NotApplicable,
@@ -296,7 +295,12 @@ pub async fn payment_method_delete_api(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, pm, _| {
-            delete_payment_method(state, pm, auth.key_store, auth.merchant_account)
+            payment_methods_routes::delete_payment_method(
+                state,
+                pm,
+                auth.key_store,
+                auth.merchant_account,
+            )
         },
         &auth::HeaderAuth(auth::ApiKeyAuth),
         api_locking::LockAction::NotApplicable,
@@ -556,10 +560,8 @@ pub async fn list_customer_payment_method_api(
     state: web::Data<AppState>,
     customer_id: web::Path<id_type::GlobalCustomerId>,
     req: HttpRequest,
-    query_payload: web::Query<api_models::payment_methods::PaymentMethodListRequest>,
 ) -> HttpResponse {
     let flow = Flow::CustomerPaymentMethodsList;
-    let payload = query_payload.into_inner();
     let customer_id = customer_id.into_inner();
 
     let ephemeral_or_api_auth = match auth::is_ephemeral_auth(req.headers()) {
@@ -571,16 +573,14 @@ pub async fn list_customer_payment_method_api(
         flow,
         state,
         &req,
-        payload,
-        |state, auth: auth::AuthenticationData, req, _| {
-            list_customer_payment_method_util(
+        customer_id,
+        |state, auth: auth::AuthenticationData, customer_id, _| {
+            payment_methods_routes::list_customer_payment_method(
                 state,
                 auth.merchant_account,
                 auth.profile,
                 auth.key_store,
-                Some(req),
-                Some(customer_id.clone()),
-                false,
+                customer_id,
             )
         },
         &*ephemeral_or_api_auth,
