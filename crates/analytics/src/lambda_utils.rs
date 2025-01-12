@@ -62,16 +62,15 @@ pub async fn lambda_handler(
     function_name: &str,
     region: &str,
     json_bytes: &[u8],
-    s3_path: &String,
+    s3_path: &str,
 ) -> CustomResult<LambdaResponse, AnalyticsError> {
     let invoke_lambda_status_code = invoke_lambda_get_status(function_name, region, json_bytes)
         .await
         .change_context(AnalyticsError::UnknownError)
         .attach_printable("Lambda invocation failed")?;
     let response = LambdaResponse {
-        s3_path: s3_path.clone(),
+        s3_path: ss3_path.to_owned(),
         invocation_status_code: invoke_lambda_status_code,
     };
-    print!("Lambda invocation response: {:?}", response.clone());
     Ok(response)
 }
