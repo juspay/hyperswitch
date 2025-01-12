@@ -993,10 +993,7 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentDat
                 .and_then(|pmd| pmd.payment_method_data.clone()),
         )?;
 
-        helpers::validate_overcapture_request(
-            request.capture_method,
-            request.request_overcapture,
-        )?;
+        helpers::validate_overcapture_request(request.capture_method, request.request_overcapture)?;
 
         helpers::validate_payment_method_fields_present(request)?;
 

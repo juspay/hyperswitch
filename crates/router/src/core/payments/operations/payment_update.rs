@@ -447,13 +447,13 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         helpers::validate_overcapture_request(
             payment_attempt.capture_method,
             request
-            .request_overcapture
-            .or(payment_intent.request_overcapture),
+                .request_overcapture
+                .or(payment_intent.request_overcapture),
         )?;
 
         payment_intent.request_overcapture = request
-        .request_overcapture
-        .or(payment_intent.request_overcapture);
+            .request_overcapture
+            .or(payment_intent.request_overcapture);
 
         let payment_data = PaymentData {
             flow: PhantomData,
@@ -789,7 +789,8 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
         let payment_method_type = payment_data.payment_attempt.payment_method_type;
         let payment_experience = payment_data.payment_attempt.payment_experience;
         let amount_to_capture = payment_data.payment_attempt.amount_to_capture;
-        let capture_method = payment_data.payment_attempt.capture_method;        let payment_method_billing_address_id = payment_data
+        let capture_method = payment_data.payment_attempt.capture_method;
+        let payment_method_billing_address_id = payment_data
             .payment_attempt
             .payment_method_billing_address_id
             .clone();
