@@ -4,6 +4,17 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.01.13.0
+
+### Features
+
+- **connector:** [Novalnet] Add zero auth mandate ([#6631](https://github.com/juspay/hyperswitch/pull/6631)) ([`7b306a9`](https://github.com/juspay/hyperswitch/commit/7b306a9015a55b573731414c210d4c684c802f7a))
+- **router:** Add support for relay refund incoming webhooks ([#6974](https://github.com/juspay/hyperswitch/pull/6974)) ([`d850f17`](https://github.com/juspay/hyperswitch/commit/d850f17b87e4eedc66836925136ffbd513d09124))
+
+**Full Changelog:** [`2025.01.10.0...2025.01.13.0`](https://github.com/juspay/hyperswitch/compare/2025.01.10.0...2025.01.13.0)
+
+- - -
+
 ## 2025.01.10.0
 
 ### Testing
