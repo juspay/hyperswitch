@@ -105,6 +105,7 @@ impl Default for Mandates {
     }
 }
 
+#[cfg(feature = "v1")]
 impl Default for settings::RequiredFields {
     fn default() -> Self {
         Self(HashMap::from([
@@ -1019,7 +1020,7 @@ impl Default for settings::RequiredFields {
                                     common:HashMap::new(),
                                 }
                             ),
-                            #[cfg(feature = "dummy_connector")]                         
+                            #[cfg(feature = "dummy_connector")]
                             (
                                 enums::Connector::DummyConnector1,
                                 RequiredFieldFinal {
@@ -3224,7 +3225,8 @@ impl Default for settings::RequiredFields {
                                 enums::Connector::Worldpay,
                                 RequiredFieldFinal {
                                     mandate: HashMap::new(),
-                                    non_mandate: {
+                                    non_mandate: HashMap::new(),
+                                    common: {
                                         let mut pmd_fields = HashMap::from([
                                             (
                                                 "payment_method_data.card.card_number".to_string(),
@@ -3257,7 +3259,6 @@ impl Default for settings::RequiredFields {
                                         pmd_fields.extend(get_worldpay_billing_required_fields());
                                         pmd_fields
                                     },
-                                    common: HashMap::new(),
                                 }
                             ),
                             (
@@ -6420,7 +6421,8 @@ impl Default for settings::RequiredFields {
                                 enums::Connector::Worldpay,
                                 RequiredFieldFinal {
                                     mandate: HashMap::new(),
-                                    non_mandate: {
+                                    non_mandate: HashMap::new(),
+                                    common: {
                                         let mut pmd_fields = HashMap::from([
                                             (
                                                 "payment_method_data.card.card_number".to_string(),
@@ -6453,7 +6455,6 @@ impl Default for settings::RequiredFields {
                                         pmd_fields.extend(get_worldpay_billing_required_fields());
                                         pmd_fields
                                     },
-                                    common: HashMap::new(),
                                 }
                             ),
                             (
@@ -9750,7 +9751,7 @@ impl Default for settings::RequiredFields {
                                                                 "VI".to_string(),
                                                                 "WF".to_string(),
                                                                 "EH".to_string(),
-                                                                "ZM".to_string(), 
+                                                                "ZM".to_string(),
                                                             ]
                                                         },
                                                         value: None,
@@ -12528,7 +12529,7 @@ impl Default for settings::RequiredFields {
                                                                         "ES".to_string(),
                                                                         "FR".to_string(),
                                                                         "IE".to_string(),
-                                                                        "NL".to_string(),  
+                                                                        "NL".to_string(),
                                                                     ],
                                                                 },
                                                                 value: None,
@@ -12840,18 +12841,18 @@ impl Default for settings::RequiredFields {
 pub fn get_worldpay_billing_required_fields() -> HashMap<String, RequiredFieldInfo> {
     HashMap::from([
         (
-            "billing.address.zip".to_string(),
+            "billing.address.line1".to_string(),
             RequiredFieldInfo {
-                required_field: "billing.address.zip".to_string(),
-                display_name: "zip".to_string(),
-                field_type: enums::FieldType::UserAddressPincode,
+                required_field: "payment_method_data.billing.address.line1".to_string(),
+                display_name: "line1".to_string(),
+                field_type: enums::FieldType::UserAddressLine1,
                 value: None,
             },
         ),
         (
             "billing.address.country".to_string(),
             RequiredFieldInfo {
-                required_field: "billing.address.country".to_string(),
+                required_field: "payment_method_data.billing.address.country".to_string(),
                 display_name: "country".to_string(),
                 field_type: enums::FieldType::UserAddressCountry {
                     options: vec![
@@ -12991,6 +12992,15 @@ pub fn get_worldpay_billing_required_fields() -> HashMap<String, RequiredFieldIn
                         "ZW".to_string(),
                     ],
                 },
+                value: None,
+            },
+        ),
+        (
+            "billing.address.city".to_string(),
+            RequiredFieldInfo {
+                required_field: "payment_method_data.billing.address.city".to_string(),
+                display_name: "city".to_string(),
+                field_type: enums::FieldType::UserAddressCity,
                 value: None,
             },
         ),

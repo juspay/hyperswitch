@@ -9233,7 +9233,6 @@
       },
       "Connector": {
         "type": "string",
-        "description": "A connector is an integration to fulfill payments",
         "enum": [
           "adyenplatform",
           "phonypay",
@@ -23240,6 +23239,16 @@
             "description": "The code for the error",
             "nullable": true
           },
+          "unified_code": {
+            "type": "string",
+            "description": "Error code unified across the connectors is received here if there was an error while calling connector",
+            "nullable": true
+          },
+          "unified_message": {
+            "type": "string",
+            "description": "Error message unified across the connectors is received here if there was an error while calling connector",
+            "nullable": true
+          },
           "created_at": {
             "type": "string",
             "format": "date-time",
@@ -23887,7 +23896,7 @@
       },
       "RoutableConnectors": {
         "type": "string",
-        "description": "Connectors eligible for payments routing",
+        "description": "RoutableConnectors are the subset of Connectors that are eligible for payments routing",
         "enum": [
           "adyenplatform",
           "phonypay",
@@ -23965,7 +23974,6 @@
           "wise",
           "worldline",
           "worldpay",
-          "xendit",
           "zen",
           "plaid",
           "zsl"

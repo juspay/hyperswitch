@@ -1,5 +1,3 @@
-#[cfg(feature = "v2")]
-use api_models::admin;
 use common_utils::{
     crypto::Encryptable,
     date_time,
@@ -12,14 +10,10 @@ use common_utils::{
 use diesel_models::{enums, merchant_connector_account::MerchantConnectorAccountUpdateInternal};
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
-#[cfg(feature = "v2")]
-use router_env::logger;
 use rustc_hash::FxHashMap;
 use serde_json::Value;
 
 use super::behaviour;
-#[cfg(feature = "v2")]
-use crate::errors::api_error_response::ApiErrorResponse;
 use crate::{
     router_data,
     type_encryption::{crypto_operation, CryptoOperation},
@@ -86,7 +80,7 @@ impl MerchantConnectorAccount {
 pub struct MerchantConnectorAccount {
     pub id: id_type::MerchantConnectorAccountId,
     pub merchant_id: id_type::MerchantId,
-    pub connector_name: String,
+    pub connector_name: common_enums::connector_enums::Connector,
     #[encrypt]
     pub connector_account_details: Encryptable<Secret<Value>>,
     pub disabled: Option<bool>,
@@ -151,7 +145,7 @@ impl MerchantConnectorAccount {
 pub struct PaymentMethodsEnabledForConnector {
     pub payment_methods_enabled: common_types::payment_methods::RequestPaymentMethodTypes,
     pub payment_method: common_enums::PaymentMethod,
-    pub connector: String,
+    pub connector: common_enums::connector_enums::Connector,
 }
 
 #[cfg(feature = "v2")]
@@ -181,11 +175,8 @@ impl FlattenedPaymentMethodsEnabled {
                             payment_method.payment_method_subtypes.unwrap_or_default();
                         let length = request_payment_methods_enabled.len();
                         request_payment_methods_enabled.into_iter().zip(
-                            std::iter::repeat((
-                                connector_name.clone(),
-                                payment_method.payment_method_type,
-                            ))
-                            .take(length),
+                            std::iter::repeat((connector_name, payment_method.payment_method_type))
+                                .take(length),
                         )
                     })
             })
@@ -193,7 +184,7 @@ impl FlattenedPaymentMethodsEnabled {
                 |(request_payment_methods, (connector_name, payment_method))| {
                     PaymentMethodsEnabledForConnector {
                         payment_methods_enabled: request_payment_methods,
-                        connector: connector_name.clone(),
+                        connector: connector_name,
                         payment_method,
                     }
                 },

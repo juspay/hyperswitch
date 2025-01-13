@@ -44,6 +44,7 @@ impl<F: Clone + Sync> UnifiedAuthenticationService<F> for ClickToPay {
 
         let pre_auth_router_data: hyperswitch_domain_models::types::UasPreAuthenticationRouterData =
             utils::construct_uas_router_data(
+                state,
                 connector_name.to_string(),
                 payment_method,
                 payment_data.payment_attempt.merchant_id.clone(),
@@ -82,6 +83,7 @@ impl<F: Clone + Sync> UnifiedAuthenticationService<F> for ClickToPay {
         let post_authentication_data = UasPostAuthenticationRequestData {};
 
         let post_auth_router_data: hyperswitch_domain_models::types::UasPostAuthenticationRouterData = utils::construct_uas_router_data(
+            state,
             connector_name.to_string(),
             payment_method,
             payment_data.payment_attempt.merchant_id.clone(),

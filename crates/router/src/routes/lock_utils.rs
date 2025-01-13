@@ -171,6 +171,7 @@ impl From<Flow> for ApiIdentifier {
 
             Flow::FrmFulfillment
             | Flow::IncomingWebhookReceive
+            | Flow::IncomingRelayWebhookReceive
             | Flow::WebhookEventInitialDeliveryAttemptList
             | Flow::WebhookEventDeliveryAttemptList
             | Flow::WebhookEventDeliveryRetry => Self::Webhooks,
