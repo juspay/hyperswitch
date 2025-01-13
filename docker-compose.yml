@@ -62,7 +62,7 @@ services:
 
   ### Application services
   hyperswitch-server:
-    image: juspaydotin/hyperswitch-router:latest
+    image: juspaydotin/hyperswitch-router:standalone
     pull_policy: always
     command: /local/bin/router -f /local/config/docker_compose.toml
     ports:

@@ -13,7 +13,7 @@ mixpanel_token=""
 [default.features]
 test_live_toggle=false
 is_live_mode=false
-email=true
+email=false
 quick_start=false
 audit_trail=true
 system_metrics=false
