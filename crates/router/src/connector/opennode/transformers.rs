@@ -144,7 +144,7 @@ impl<F, T>
                 network_txn_id: None,
                 connector_response_reference_id: item.response.data.order_id,
                 incremental_authorization_allowed: None,
-                charge_id: None,
+                charges: None,
             })
         } else {
             Ok(types::PaymentsResponseData::TransactionUnresolvedResponse {

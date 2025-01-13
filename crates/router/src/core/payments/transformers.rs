@@ -906,7 +906,7 @@ where
         network_txn_id: None,
         connector_response_reference_id: None,
         incremental_authorization_allowed: None,
-        charge_id: None,
+        charges: None,
     });
 
     let additional_data = PaymentAdditionalData {
@@ -2127,7 +2127,7 @@ where
                 ) => Some(
                     api_models::payments::SplitPaymentsResponse::StripeSplitPayment(
                         api_models::payments::StripeSplitPaymentsResponse {
-                            charge_id: payment_attempt.charge_id.clone(),
+                            charge_id: None, //todoo payment_attempt.charges.clone(),
                             charge_type: stripe_split_payment.charge_type,
                             application_fees: stripe_split_payment.application_fees,
                             transfer_account_id: stripe_split_payment.transfer_account_id,

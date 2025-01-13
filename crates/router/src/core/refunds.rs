@@ -474,7 +474,7 @@ pub async fn refund_retrieve_core(
             SplitRefundsRequest::try_from(SplitRefundInput {
                 refund_request: split_refunds,
                 payment_charges: split_payments,
-                charge_id: payment_attempt.charge_id.clone(),
+                charge_id: None, //todoo payment_attempt.charge_id.clone(),
             })
         })
         .transpose()?;

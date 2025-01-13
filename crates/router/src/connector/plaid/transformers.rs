@@ -314,7 +314,7 @@ impl<F, T>
                     network_txn_id: None,
                     connector_response_reference_id: Some(item.response.payment_id),
                     incremental_authorization_allowed: None,
-                    charge_id: None,
+                    charges: None,
                 })
             },
             ..item.data
@@ -400,7 +400,7 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, PlaidSyncResponse, T, types::Pay
                     network_txn_id: None,
                     connector_response_reference_id: Some(item.response.payment_id),
                     incremental_authorization_allowed: None,
-                    charge_id: None,
+                    charges: None,
                 })
             },
             ..item.data

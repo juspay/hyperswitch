@@ -728,7 +728,7 @@ impl<F, T>
                 network_txn_id: None,
                 connector_response_reference_id: optional_correlation_id.clone(),
                 incremental_authorization_allowed: None,
-                charge_id: None,
+                charges: None,
             }),
             (Some(reason), _) => Err(ErrorResponse {
                 code: worldpay_status.to_string(),

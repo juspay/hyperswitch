@@ -26,7 +26,7 @@ pub enum PaymentsResponseData {
         network_txn_id: Option<String>,
         connector_response_reference_id: Option<String>,
         incremental_authorization_allowed: Option<bool>,
-        charge_id: Option<String>,
+        charges: Option<Vec<ConnectorChargeResponseData>>,
     },
     MultipleCaptureResponse {
         // pending_capture_id_list: Vec<String>,
@@ -163,7 +163,7 @@ impl PaymentsResponseData {
                     network_txn_id: auth_network_txn_id,
                     connector_response_reference_id: auth_connector_response_reference_id,
                     incremental_authorization_allowed: auth_incremental_auth_allowed,
-                    charge_id: auth_charge_id,
+                    charges: auth_charges,
                 },
                 Self::TransactionResponse {
                     resource_id: capture_resource_id,
@@ -173,7 +173,7 @@ impl PaymentsResponseData {
                     network_txn_id: capture_network_txn_id,
                     connector_response_reference_id: capture_connector_response_reference_id,
                     incremental_authorization_allowed: capture_incremental_auth_allowed,
-                    charge_id: capture_charge_id,
+                    charges: capture_charges,
                 },
             ) => Ok(Self::TransactionResponse {
                 resource_id: capture_resource_id.clone(),
@@ -198,7 +198,7 @@ impl PaymentsResponseData {
                     .or(auth_connector_response_reference_id.clone()),
                 incremental_authorization_allowed: (*capture_incremental_auth_allowed)
                     .or(*auth_incremental_auth_allowed),
-                charge_id: capture_charge_id.clone().or(auth_charge_id.clone()),
+                charges: auth_charges.clone().or(capture_charges.clone()),
             }),
             _ => Err(ApiErrorResponse::NotSupported {
                 message: "Invalid Flow ".to_owned(),
@@ -504,6 +504,34 @@ pub enum AuthenticationResponseData {
         authentication_value: Option<String>,
         eci: Option<String>,
     },
+}
+
+#[derive(Debug, Clone)]
+pub struct StripeChargeResponseData {
+    pub application_fee: MinorUnit,
+    pub charge_type: common_enums::StripeChargeType,
+    pub charge_id: Option<String>,
+    pub transfer_account_id: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct AdyenChargeResponseData {
+    pub store_id: Option<String>,
+    pub split_items: Vec<AdyenSplitItemResponse>,
+}
+
+#[derive(Debug, Clone)]
+pub struct AdyenSplitItemResponse {
+    pub amount: MinorUnit,
+    pub split_type: common_enums::AdyenSplitType,
+    pub refernce: Option<String>,
+    pub account: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+pub enum ConnectorChargeResponseData {
+    Stripe(StripeChargeResponseData),
+    Adyen(AdyenChargeResponseData),
 }
 
 #[derive(Debug, Clone)]
