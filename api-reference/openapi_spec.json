@@ -9233,7 +9233,6 @@
       },
       "Connector": {
         "type": "string",
-        "description": "A connector is an integration to fulfill payments",
         "enum": [
           "adyenplatform",
           "phonypay",
@@ -23898,7 +23897,7 @@
       },
       "RoutableConnectors": {
         "type": "string",
-        "description": "Connectors eligible for payments routing",
+        "description": "RoutableConnectors are the subset of Connectors that are eligible for payments routing",
         "enum": [
           "adyenplatform",
           "phonypay",
@@ -23976,7 +23975,6 @@
           "wise",
           "worldline",
           "worldpay",
-          "xendit",
           "zen",
           "plaid",
           "zsl"
