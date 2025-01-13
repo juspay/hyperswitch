@@ -34,6 +34,7 @@ pub mod routes {
     use common_utils::types::TimeRange;
     use error_stack::{report, ResultExt};
     use futures::{stream::FuturesUnordered, StreamExt};
+    use router_env::logger;
     use time::macros::format_description;
 
     use crate::{
@@ -1738,6 +1739,10 @@ pub mod routes {
     }
 
     #[cfg(feature = "v1")]
+    /// # Panics
+    ///
+    /// This function will panic if:
+    /// - `payload.time_range.start_time.format(&format)` fails to format the date.
     pub async fn generate_merchant_order_management_report(
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,
@@ -1766,14 +1771,21 @@ pub mod routes {
                     .time_range
                     .start_time
                     .format(&format)
-                    .expect("Failed to format start_time");
+                    .map_err(|e| {
+                        logger::error!("Failed to format start_time: {:?}", e);
+                        AnalyticsError::UnknownError
+                    })?;
 
                 let end_time_str = payload
                     .clone()
                     .time_range
                     .end_time
-                    .map(|end_time| end_time.format(&format).expect("Failed to format end_time"))
-                    .unwrap_or_else(|| "".to_string());
+                    .ok_or_else(|| AnalyticsError::UnknownError)?
+                    .format(&format)
+                    .map_err(|e| {
+                        logger::error!("Failed to format end_time: {:?}", e);
+                        AnalyticsError::UnknownError
+                    })?;
                 let timestamp_str = std::time::SystemTime::now()
                     .duration_since(std::time::UNIX_EPOCH)
                     .ok()
@@ -1867,6 +1879,10 @@ pub mod routes {
     }
 
     #[cfg(feature = "v1")]
+    /// # Panics
+    ///
+    /// This function will panic if:
+    /// - `payload.time_range.start_time.format(&format)` fails to format the date.
     pub async fn generate_org_order_management_report(
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,
@@ -1893,14 +1909,21 @@ pub mod routes {
                     .time_range
                     .start_time
                     .format(&format)
-                    .expect("Failed to format start_time");
+                    .map_err(|e| {
+                        logger::error!("Failed to format start_time: {:?}", e);
+                        AnalyticsError::UnknownError
+                    })?;
 
                 let end_time_str = payload
                     .clone()
                     .time_range
                     .end_time
-                    .map(|end_time| end_time.format(&format).expect("Failed to format end_time"))
-                    .unwrap_or_else(|| "".to_string());
+                    .ok_or_else(|| AnalyticsError::UnknownError)?
+                    .format(&format)
+                    .map_err(|e| {
+                        logger::error!("Failed to format end_time: {:?}", e);
+                        AnalyticsError::UnknownError
+                    })?;
 
                 let timestamp_str = std::time::SystemTime::now()
                     .duration_since(std::time::UNIX_EPOCH)
@@ -2001,6 +2024,10 @@ pub mod routes {
     }
 
     #[cfg(feature = "v1")]
+    /// # Panics
+    ///
+    /// This function will panic if:
+    /// - `payload.time_range.start_time.format(&format)` fails to format the date.
     pub async fn generate_profile_order_management_report(
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,
@@ -2034,14 +2061,21 @@ pub mod routes {
                     .time_range
                     .start_time
                     .format(&format)
-                    .expect("Failed to format start_time");
+                    .map_err(|e| {
+                        logger::error!("Failed to format start_time: {:?}", e);
+                        AnalyticsError::UnknownError
+                    })?;
 
                 let end_time_str = payload
                     .clone()
                     .time_range
                     .end_time
-                    .map(|end_time| end_time.format(&format).expect("Failed to format end_time"))
-                    .unwrap_or_else(|| "".to_string());
+                    .ok_or_else(|| AnalyticsError::UnknownError)?
+                    .format(&format)
+                    .map_err(|e| {
+                        logger::error!("Failed to format end_time: {:?}", e);
+                        AnalyticsError::UnknownError
+                    })?;
 
                 let timestamp_str = std::time::SystemTime::now()
                     .duration_since(std::time::UNIX_EPOCH)
