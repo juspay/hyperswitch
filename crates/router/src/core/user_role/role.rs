@@ -110,11 +110,11 @@ pub async fn create_role(
         &role_name,
         &user_from_token.merchant_id,
         &user_from_token.org_id,
-        &user_from_token.profile_id,
         user_from_token
             .tenant_id
             .as_ref()
             .unwrap_or(&state.tenant.tenant_id),
+        &user_from_token.profile_id,
         &role_entity_type,
     )
     .await?;
