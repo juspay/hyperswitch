@@ -6291,10 +6291,9 @@ pub fn validate_platform_request_for_marketplace(
                 }
             };
             adyen_split_payment
-            .split_items
-            .iter()
-            .try_for_each(|split_item| {
-                match split_item.split_type {
+                .split_items
+                .iter()
+                .try_for_each(|split_item| match split_item.split_type {
                     common_enums::AdyenSplitType::BalanceAccount => {
                         if split_item.account.is_none() {
                             return Err(errors::ApiErrorResponse::MissingRequiredField {
@@ -6347,9 +6346,7 @@ pub fn validate_platform_request_for_marketplace(
                     | enums::AdyenSplitType::AdyenMarkup
                     | enums::AdyenSplitType::Interchange
                     | enums::AdyenSplitType::SchemeFee => (),
-                }
-            })
-         
+                })
         }
         None => Ok(()),
     }
