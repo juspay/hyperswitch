@@ -453,7 +453,7 @@ impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaym
                     let transaction = NovalnetPaymentsRequestTransaction {
                         test_mode,
                         payment_type: NovalNetPaymentTypes::CREDITCARD,
-                        amount: item.amount.clone(),
+                        amount: NovalNetAmount::StringMinor(item.amount.clone()),
                         currency: item.router_data.request.currency,
                         order_no: item.router_data.connector_request_reference_id.clone(),
                         hook_url: Some(hook_url),
@@ -1518,6 +1518,7 @@ impl TryFrom<&SetupMandateRouterData> for NovalnetPaymentsRequest {
                     payment_data: Some(novalnet_card),
                     enforce_3d,
                     create_token,
+                    scheme_tid: None,
                 };
 
                 Ok(Self {
@@ -1547,6 +1548,7 @@ impl TryFrom<&SetupMandateRouterData> for NovalnetPaymentsRequest {
                         payment_data: Some(novalnet_google_pay),
                         enforce_3d,
                         create_token,
+                        scheme_tid: None,
                     };
 
                     Ok(Self {
@@ -1571,6 +1573,7 @@ impl TryFrom<&SetupMandateRouterData> for NovalnetPaymentsRequest {
                         })),
                         enforce_3d: None,
                         create_token,
+                        scheme_tid: None,
                     };
 
                     Ok(Self {
@@ -1611,7 +1614,9 @@ impl TryFrom<&SetupMandateRouterData> for NovalnetPaymentsRequest {
                         payment_data: None,
                         enforce_3d: None,
                         create_token,
+                        scheme_tid: None,
                     };
+
                     Ok(Self {
                         merchant,
                         transaction,
