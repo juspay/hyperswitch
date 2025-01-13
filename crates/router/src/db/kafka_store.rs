@@ -3209,6 +3209,16 @@ impl UserRoleInterface for KafkaStore {
         self.diesel_store.list_user_roles_by_user_id(payload).await
     }
 
+    async fn list_user_roles_by_user_id_across_tenants(
+        &self,
+        user_id: &str,
+        limit: Option<u32>,
+    ) -> CustomResult<Vec<storage::UserRole>, errors::StorageError> {
+        self.diesel_store
+            .list_user_roles_by_user_id_across_tenants(user_id, limit)
+            .await
+    }
+
     async fn list_user_roles_by_org_id<'a>(
         &self,
         payload: ListUserRolesByOrgIdPayload<'a>,
@@ -3606,19 +3616,21 @@ impl RoleInterface for KafkaStore {
         merchant_id: &id_type::MerchantId,
         org_id: &id_type::OrganizationId,
         profile_id: &id_type::ProfileId,
+        tenant_id: &id_type::TenantId,
     ) -> CustomResult<storage::Role, errors::StorageError> {
         self.diesel_store
-            .find_role_by_role_id_in_lineage(role_id, merchant_id, org_id, profile_id)
+            .find_role_by_role_id_in_lineage(role_id, merchant_id, org_id, profile_id, tenant_id)
             .await
     }
 
-    async fn find_by_role_id_and_org_id(
+    async fn find_by_role_id_org_id_tenant_id(
         &self,
         role_id: &str,
         org_id: &id_type::OrganizationId,
+        tenant_id: &id_type::TenantId,
     ) -> CustomResult<storage::Role, errors::StorageError> {
         self.diesel_store
-            .find_by_role_id_and_org_id(role_id, org_id)
+            .find_by_role_id_org_id_tenant_id(role_id, org_id, tenant_id)
             .await
     }
 
@@ -3642,13 +3654,14 @@ impl RoleInterface for KafkaStore {
     //TODO: Remove once generic_list_roles_by_entity_type is stable
     async fn list_roles_for_org_by_parameters(
         &self,
+        tenant_id: &id_type::TenantId,
         org_id: &id_type::OrganizationId,
         merchant_id: Option<&id_type::MerchantId>,
         entity_type: Option<enums::EntityType>,
         limit: Option<u32>,
     ) -> CustomResult<Vec<storage::Role>, errors::StorageError> {
         self.diesel_store
-            .list_roles_for_org_by_parameters(org_id, merchant_id, entity_type, limit)
+            .list_roles_for_org_by_parameters(tenant_id, org_id, merchant_id, entity_type, limit)
             .await
     }
 
@@ -3806,6 +3819,18 @@ impl UserAuthenticationMethodInterface for KafkaStore {
     ) -> CustomResult<storage::UserAuthenticationMethod, errors::StorageError> {
         self.diesel_store
             .update_user_authentication_method(id, user_authentication_method_update)
+            .await
+    }
+
+    async fn list_user_authentication_methods_for_email_domain(
+        &self,
+        email_domain: &str,
+    ) -> CustomResult<
+        Vec<diesel_models::user_authentication_method::UserAuthenticationMethod>,
+        errors::StorageError,
+    > {
+        self.diesel_store
+            .list_user_authentication_methods_for_email_domain(email_domain)
             .await
     }
 }

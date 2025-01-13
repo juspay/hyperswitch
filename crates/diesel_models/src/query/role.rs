@@ -47,11 +47,13 @@ impl Role {
         merchant_id: &id_type::MerchantId,
         org_id: &id_type::OrganizationId,
         profile_id: &id_type::ProfileId,
+        tenant_id: &id_type::TenantId,
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
             dsl::role_id
                 .eq(role_id.to_owned())
+                .and(dsl::tenant_id.eq(tenant_id.to_owned()))
                 .and(dsl::org_id.eq(org_id.to_owned()))
                 .and(
                     dsl::scope
@@ -67,15 +69,17 @@ impl Role {
         .await
     }
 
-    pub async fn find_by_role_id_and_org_id(
+    pub async fn find_by_role_id_org_id_tenant_id(
         conn: &PgPooledConn,
         role_id: &str,
         org_id: &id_type::OrganizationId,
+        tenant_id: &id_type::TenantId,
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
             dsl::role_id
                 .eq(role_id.to_owned())
+                .and(dsl::tenant_id.eq(tenant_id.to_owned()))
                 .and(dsl::org_id.eq(org_id.to_owned())),
         )
         .await
@@ -110,13 +114,14 @@ impl Role {
     //TODO: Remove once generic_list_roles_by_entity_type is stable
     pub async fn generic_roles_list_for_org(
         conn: &PgPooledConn,
+        tenant_id: id_type::TenantId,
         org_id: id_type::OrganizationId,
         merchant_id: Option<id_type::MerchantId>,
         entity_type: Option<EntityType>,
         limit: Option<u32>,
     ) -> StorageResult<Vec<Self>> {
         let mut query = <Self as HasTable>::table()
-            .filter(dsl::org_id.eq(org_id))
+            .filter(dsl::tenant_id.eq(tenant_id).and(dsl::org_id.eq(org_id)))
             .into_boxed();
 
         if let Some(merchant_id) = merchant_id {

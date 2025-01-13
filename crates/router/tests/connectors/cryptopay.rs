@@ -61,7 +61,6 @@ fn get_default_payment_info() -> Option<utils::PaymentInfo> {
             None,
             None,
         )),
-        return_url: Some(String::from("https://google.com")),
         ..Default::default()
     })
 }

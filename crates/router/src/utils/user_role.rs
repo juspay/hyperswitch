@@ -49,6 +49,7 @@ pub async fn validate_role_name(
     role_name: &domain::RoleName,
     merchant_id: &id_type::MerchantId,
     org_id: &id_type::OrganizationId,
+    tenant_id: &id_type::TenantId,
     profile_id: &id_type::ProfileId,
     entity_type: &EntityType,
 ) -> UserResult<()> {
@@ -103,18 +104,24 @@ pub async fn set_role_info_in_cache_by_user_role(
     let Some(ref org_id) = user_role.org_id else {
         return false;
     };
-    set_role_info_in_cache_if_required(state, user_role.role_id.as_str(), org_id)
-        .await
-        .map_err(|e| logger::error!("Error setting permissions in cache {:?}", e))
-        .is_ok()
+    set_role_info_in_cache_if_required(
+        state,
+        user_role.role_id.as_str(),
+        org_id,
+        &user_role.tenant_id,
+    )
+    .await
+    .map_err(|e| logger::error!("Error setting permissions in cache {:?}", e))
+    .is_ok()
 }
 
 pub async fn set_role_info_in_cache_by_role_id_org_id(
     state: &SessionState,
     role_id: &str,
     org_id: &id_type::OrganizationId,
+    tenant_id: &id_type::TenantId,
 ) -> bool {
-    set_role_info_in_cache_if_required(state, role_id, org_id)
+    set_role_info_in_cache_if_required(state, role_id, org_id, tenant_id)
         .await
         .map_err(|e| logger::error!("Error setting permissions in cache {:?}", e))
         .is_ok()
@@ -124,15 +131,17 @@ pub async fn set_role_info_in_cache_if_required(
     state: &SessionState,
     role_id: &str,
     org_id: &id_type::OrganizationId,
+    tenant_id: &id_type::TenantId,
 ) -> UserResult<()> {
     if roles::predefined_roles::PREDEFINED_ROLES.contains_key(role_id) {
         return Ok(());
     }
 
-    let role_info = roles::RoleInfo::from_role_id_and_org_id(state, role_id, org_id)
-        .await
-        .change_context(UserErrors::InternalServerError)
-        .attach_printable("Error getting role_info from role_id")?;
+    let role_info =
+        roles::RoleInfo::from_role_id_org_id_tenant_id(state, role_id, org_id, tenant_id)
+            .await
+            .change_context(UserErrors::InternalServerError)
+            .attach_printable("Error getting role_info from role_id")?;
 
     authz::set_role_info_in_cache(
         state,

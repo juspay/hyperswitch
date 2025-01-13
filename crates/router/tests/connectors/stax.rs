@@ -45,7 +45,6 @@ fn get_default_payment_info(
         auth_type: None,
         access_token: None,
         connector_meta_data: None,
-        return_url: None,
         connector_customer,
         payment_method_token,
         #[cfg(feature = "payouts")]

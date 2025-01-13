@@ -717,6 +717,7 @@ diesel::table! {
         payment_link_config -> Nullable<Jsonb>,
         pm_collect_link_config -> Nullable<Jsonb>,
         version -> ApiVersion,
+        is_platform_account -> Bool,
     }
 }
 
@@ -970,6 +971,8 @@ diesel::table! {
         skip_external_tax_calculation -> Nullable<Bool>,
         psd2_sca_exemption_type -> Nullable<ScaExemptionType>,
         split_payments -> Nullable<Jsonb>,
+        #[max_length = 64]
+        platform_merchant_id -> Nullable<Varchar>,
     }
 }
 
@@ -1232,6 +1235,10 @@ diesel::table! {
         #[max_length = 512]
         connector_transaction_data -> Nullable<Varchar>,
         split_refunds -> Nullable<Jsonb>,
+        #[max_length = 255]
+        unified_code -> Nullable<Varchar>,
+        #[max_length = 1024]
+        unified_message -> Nullable<Varchar>,
     }
 }
 
@@ -1307,6 +1314,8 @@ diesel::table! {
         entity_type -> Varchar,
         #[max_length = 64]
         profile_id -> Nullable<Varchar>,
+        #[max_length = 64]
+        tenant_id -> Varchar,
     }
 }
 
@@ -1404,6 +1413,8 @@ diesel::table! {
         allow_signup -> Bool,
         created_at -> Timestamp,
         last_modified_at -> Timestamp,
+        #[max_length = 64]
+        email_domain -> Varchar,
     }
 }
 

@@ -111,6 +111,10 @@ pub async fn create_role(
         &user_from_token.merchant_id,
         &user_from_token.org_id,
         &user_from_token.profile_id,
+        user_from_token
+            .tenant_id
+            .as_ref()
+            .unwrap_or(&state.tenant.tenant_id),
         &role_entity_type,
     )
     .await?;
@@ -142,6 +146,7 @@ pub async fn create_role(
             created_at: now,
             last_modified_at: now,
             profile_id,
+            tenant_id: user_from_token.tenant_id.unwrap_or(state.tenant.tenant_id),
         })
         .await
         .to_duplicate_response(UserErrors::RoleNameAlreadyExists)?;
@@ -162,10 +167,17 @@ pub async fn get_role_with_groups(
     user_from_token: UserFromToken,
     role: role_api::GetRoleRequest,
 ) -> UserResponse<role_api::RoleInfoWithGroupsResponse> {
-    let role_info =
-        roles::RoleInfo::from_role_id_and_org_id(&state, &role.role_id, &user_from_token.org_id)
-            .await
-            .to_not_found_response(UserErrors::InvalidRoleId)?;
+    let role_info = roles::RoleInfo::from_role_id_org_id_tenant_id(
+        &state,
+        &role.role_id,
+        &user_from_token.org_id,
+        user_from_token
+            .tenant_id
+            .as_ref()
+            .unwrap_or(&state.tenant.tenant_id),
+    )
+    .await
+    .to_not_found_response(UserErrors::InvalidRoleId)?;
 
     if role_info.is_internal() {
         return Err(UserErrors::InvalidRoleId.into());
@@ -187,10 +199,17 @@ pub async fn get_parent_info_for_role(
     user_from_token: UserFromToken,
     role: role_api::GetRoleRequest,
 ) -> UserResponse<role_api::RoleInfoWithParents> {
-    let role_info =
-        roles::RoleInfo::from_role_id_and_org_id(&state, &role.role_id, &user_from_token.org_id)
-            .await
-            .to_not_found_response(UserErrors::InvalidRoleId)?;
+    let role_info = roles::RoleInfo::from_role_id_org_id_tenant_id(
+        &state,
+        &role.role_id,
+        &user_from_token.org_id,
+        user_from_token
+            .tenant_id
+            .as_ref()
+            .unwrap_or(&state.tenant.tenant_id),
+    )
+    .await
+    .to_not_found_response(UserErrors::InvalidRoleId)?;
 
     if role_info.is_internal() {
         return Err(UserErrors::InvalidRoleId.into());
@@ -238,6 +257,10 @@ pub async fn update_role(
         &user_from_token.merchant_id,
         &user_from_token.org_id,
         &user_from_token.profile_id,
+        user_from_token
+            .tenant_id
+            .as_ref()
+            .unwrap_or(&state.tenant.tenant_id),
     )
     .await
     .to_not_found_response(UserErrors::InvalidRoleOperation)?;
@@ -264,6 +287,10 @@ pub async fn update_role(
             role_name,
             &user_from_token.merchant_id,
             &user_from_token.org_id,
+            user_from_token
+                .tenant_id
+                .as_ref()
+                .unwrap_or(&state.tenant.tenant_id),
             &user_from_token.profile_id,
             &role_info.get_entity_type(),
         )

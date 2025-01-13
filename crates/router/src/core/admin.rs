@@ -402,6 +402,7 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
                     payment_link_config: None,
                     pm_collect_link_config,
                     version: hyperswitch_domain_models::consts::API_VERSION,
+                    is_platform_account: false,
                 },
             )
         }
@@ -669,6 +670,7 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
                     modified_at: date_time::now(),
                     organization_id: organization.get_organization_id(),
                     recon_status: diesel_models::enums::ReconStatus::NotRequested,
+                    is_platform_account: false,
                 }),
             )
         }
@@ -4286,7 +4288,7 @@ impl ProfileWrapper {
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to update routing algorithm ref in business profile")?;
 
-        storage_impl::redis::cache::publish_into_redact_channel(
+        storage_impl::redis::cache::redact_from_redis_and_publish(
             db.get_cache_store().as_ref(),
             [routing_cache_key],
         )
@@ -4766,4 +4768,36 @@ async fn locker_recipient_create_call(
     .attach_printable("Failed to encrypt merchant bank account data")?;
 
     Ok(store_resp.card_reference)
+}
+
+pub async fn enable_platform_account(
+    state: SessionState,
+    merchant_id: id_type::MerchantId,
+) -> RouterResponse<()> {
+    let db = state.store.as_ref();
+    let key_manager_state = &(&state).into();
+    let key_store = db
+        .get_merchant_key_store_by_merchant_id(
+            key_manager_state,
+            &merchant_id,
+            &db.get_master_key().to_vec().into(),
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
+
+    let merchant_account = db
+        .find_merchant_account_by_merchant_id(key_manager_state, &merchant_id, &key_store)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
+
+    db.update_merchant(
+        key_manager_state,
+        merchant_account,
+        storage::MerchantAccountUpdate::ToPlatformAccount,
+        &key_store,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Error while enabling platform merchant account")
+    .map(|_| services::ApplicationResponse::StatusOk)
 }
