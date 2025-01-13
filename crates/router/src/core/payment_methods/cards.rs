@@ -62,7 +62,12 @@ use strum::IntoEnumIterator;
     not(feature = "payment_methods_v2")
 ))]
 use super::migration;
-use super::surcharge_decision_configs::perform_surcharge_decision_management_for_payment_method_list;
+#[cfg(feature = "v1")]
+use super::surcharge_decision_configs::{
+    perform_surcharge_decision_management_for_payment_method_list,
+    perform_surcharge_decision_management_for_saved_cards,
+};
+
 #[cfg(all(
     any(feature = "v2", feature = "v1"),
     not(feature = "payment_methods_v2"),
@@ -3466,12 +3471,14 @@ pub async fn list_payment_methods(
                 .any(|mca| mca.payment_method == enums::PaymentMethod::Wallet);
             if wallet_pm_exists {
                 match db
-                    .find_payment_method_by_customer_id_merchant_id_list(
+                    .find_payment_method_by_customer_id_merchant_id_status(
                         &((&state).into()),
                         &key_store,
-                       &customer.customer_id,
-                       merchant_account.get_id(),
+                        &customer.customer_id,
+                        merchant_account.get_id(),
+                        common_enums::PaymentMethodStatus::Active,
                         None,
+                        merchant_account.storage_scheme,
                     )
                     .await
                 {

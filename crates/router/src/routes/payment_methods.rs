@@ -123,6 +123,32 @@ pub async fn create_payment_method_intent_api(
     .await
 }
 
+/// This struct is used internally only
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
+pub struct PaymentMethodIntentConfirmInternal {
+    pub id: id_type::GlobalPaymentMethodId,
+    pub request: payment_methods::PaymentMethodIntentConfirm,
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+impl From<PaymentMethodIntentConfirmInternal> for payment_methods::PaymentMethodIntentConfirm {
+    fn from(item: PaymentMethodIntentConfirmInternal) -> Self {
+        item.request
+    }
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+impl common_utils::events::ApiEventMetric for PaymentMethodIntentConfirmInternal {
+    fn get_api_event_type(&self) -> Option<common_utils::events::ApiEventsType> {
+        Some(common_utils::events::ApiEventsType::PaymentMethod {
+            payment_method_id: self.id.clone(),
+            payment_method_type: Some(self.request.payment_method_type),
+            payment_method_subtype: Some(self.request.payment_method_subtype),
+        })
+    }
+}
+
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsCreate))]
 pub async fn confirm_payment_method_intent_api(
@@ -140,7 +166,7 @@ pub async fn confirm_payment_method_intent_api(
         Err(e) => return api::log_and_return_error_response(e),
     };
 
-    let inner_payload = payment_methods::PaymentMethodIntentConfirmInternal {
+    let inner_payload = PaymentMethodIntentConfirmInternal {
         id: pm_id.to_owned(),
         request: payload,
     };
@@ -171,7 +197,7 @@ pub async fn confirm_payment_method_intent_api(
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsList))]
-pub async fn list_payment_methods(
+pub async fn list_payment_methods_enabled(
     state: web::Data<AppState>,
     req: HttpRequest,
     path: web::Path<id_type::GlobalPaymentMethodId>,
@@ -190,7 +216,7 @@ pub async fn list_payment_methods(
         &req,
         payment_method_id,
         |state, auth: auth::AuthenticationData, payment_method_id, _| {
-            payment_methods_routes::list_payment_methods(
+            payment_methods_routes::list_payment_methods_enabled(
                 state,
                 auth.merchant_account,
                 auth.key_store,

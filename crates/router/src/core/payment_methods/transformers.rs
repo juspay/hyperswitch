@@ -912,6 +912,7 @@ pub fn mk_card_value2(
     Ok(value2_req)
 }
 
+#[cfg(feature = "v2")]
 impl transformers::ForeignTryFrom<domain::PaymentMethod> for api::CustomerPaymentMethod {
     type Error = error_stack::Report<errors::ValidationError>;
 

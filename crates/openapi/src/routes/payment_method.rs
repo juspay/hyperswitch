@@ -324,11 +324,11 @@ pub async fn payment_method_delete_api() {}
 
 /// Payment Methods - Payment Methods List
 ///
-/// List the payment methods eligible for a payment. This endpoint also returns the saved payment methods for the customer.
+/// List the payment methods eligible for a payment method.
 #[cfg(feature = "v2")]
 #[utoipa::path(
     get,
-    path = "/v2/payment-methods/{id}/list-payment-methods",
+    path = "/v2/payment-methods/{id}/list-enabled-payment-methods",
     params(
         ("id" = String, Path, description = "The global payment method id"),
         (
@@ -342,7 +342,7 @@ pub async fn payment_method_delete_api() {}
         (status = 404, description = "No payment method found with the given id")
     ),
     tag = "Payment Methods",
-    operation_id = "Retrieve Payment methods for a Payment Method Intent",
+    operation_id = "List Payment methods for a Payment Method Intent",
     security(("api_key" = [], "ephemeral_key" = []))
 )]
 pub fn list_payment_methods() {}

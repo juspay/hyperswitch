@@ -1119,17 +1119,62 @@ pub async fn payment_method_intent_confirm(
 }
 
 #[cfg(feature = "v2")]
-trait PerformFilteringOnPaymentMethodsEnabled {
+trait PerformFilteringOnEnabledPaymentMethods {
     fn perform_filtering(self) -> FilteredPaymentMethodsEnabled;
 }
 
 #[cfg(feature = "v2")]
-impl PerformFilteringOnPaymentMethodsEnabled
+impl PerformFilteringOnEnabledPaymentMethods
     for hyperswitch_domain_models::merchant_connector_account::FlattenedPaymentMethodsEnabled
 {
     fn perform_filtering(self) -> FilteredPaymentMethodsEnabled {
         FilteredPaymentMethodsEnabled(self.payment_methods_enabled)
     }
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[instrument(skip_all)]
+pub async fn list_payment_methods_enabled(
+    state: SessionState,
+    merchant_account: domain::MerchantAccount,
+    key_store: domain::MerchantKeyStore,
+    profile: domain::Profile,
+    payment_method_id: id_type::GlobalPaymentMethodId,
+) -> RouterResponse<api::PaymentMethodListResponse> {
+    let key_manager_state = &(&state).into();
+
+    let db = &*state.store;
+
+    db.find_payment_method(
+        key_manager_state,
+        &key_store,
+        &payment_method_id,
+        merchant_account.storage_scheme,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
+    .attach_printable("Unable to find payment method")?;
+
+    let payment_connector_accounts = db
+        .list_enabled_connector_accounts_by_profile_id(
+            key_manager_state,
+            profile.get_id(),
+            &key_store,
+            common_enums::ConnectorType::PaymentProcessor,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("error when fetching merchant connector accounts")?;
+
+    let response =
+        hyperswitch_domain_models::merchant_connector_account::FlattenedPaymentMethodsEnabled::from_payment_connectors_list(payment_connector_accounts)
+            .perform_filtering()
+            .get_required_fields(RequiredFieldsInput::new(state.conf.required_fields.clone()))
+            .generate_response();
+
+    Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
+        response,
+    ))
 }
 
 #[cfg(feature = "v2")]

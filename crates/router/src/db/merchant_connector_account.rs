@@ -1566,6 +1566,7 @@ mod merchant_connector_account_cache_tests {
         let state = &Arc::new(app_state)
             .get_session_state(
                 &common_utils::id_type::TenantId::try_from_string("public".to_string()).unwrap(),
+                None,
                 || {},
             )
             .unwrap();
@@ -1751,6 +1752,7 @@ mod merchant_connector_account_cache_tests {
         let state = &Arc::new(app_state)
             .get_session_state(
                 &common_utils::id_type::TenantId::try_from_string("public".to_string()).unwrap(),
+                None,
                 || {},
             )
             .unwrap();

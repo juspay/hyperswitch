@@ -814,9 +814,9 @@ impl Settings<SecuredSecret> {
 
         #[cfg(feature = "v2")]
         let config = {
-            let required_fields_path_buf =
+            let required_fields_config_file =
                 router_env::Config::get_config_directory().join(REQUIRED_FIELDS_CONFIG_FILE);
-            config.add_source(File::from(required_fields_path_buf).required(false))
+            config.add_source(File::from(required_fields_config_file).required(false))
         };
 
         let config = config
