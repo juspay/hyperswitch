@@ -66,6 +66,7 @@ pub trait RoleInterface {
         &self,
         payload: storage::ListRolesByEntityPayload,
         is_lineage_data_required: bool,
+        tenant_id: id_type::TenantId,
     ) -> CustomResult<Vec<storage::Role>, errors::StorageError>;
 }
 
@@ -179,11 +180,17 @@ impl RoleInterface for Store {
         &self,
         payload: storage::ListRolesByEntityPayload,
         is_lineage_data_required: bool,
+        tenant_id: id_type::TenantId,
     ) -> CustomResult<Vec<storage::Role>, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
-        storage::Role::generic_list_roles_by_entity_type(&conn, payload, is_lineage_data_required)
-            .await
-            .map_err(|error| report!(errors::StorageError::from(error)))
+        storage::Role::generic_list_roles_by_entity_type(
+            &conn,
+            payload,
+            is_lineage_data_required,
+            tenant_id,
+        )
+        .await
+        .map_err(|error| report!(errors::StorageError::from(error)))
     }
 }
 
@@ -381,6 +388,7 @@ impl RoleInterface for MockDb {
         &self,
         payload: storage::ListRolesByEntityPayload,
         is_lineage_data_required: bool,
+        tenant_id: id_type::TenantId,
     ) -> CustomResult<Vec<storage::Role>, errors::StorageError> {
         let roles = self.roles.lock().await;
         let roles_list: Vec<_> = roles
@@ -397,7 +405,9 @@ impl RoleInterface for MockDb {
                         vec![EntityType::Organization]
                     };
 
-                    role.org_id == *org_id && entity_in_vec.contains(&role.entity_type)
+                    role.tenant_id == tenant_id
+                        && role.org_id == *org_id
+                        && entity_in_vec.contains(&role.entity_type)
                 }
                 storage::ListRolesByEntityPayload::Merchant(org_id, merchant_id) => {
                     let entity_in_vec = if is_lineage_data_required {
@@ -406,7 +416,8 @@ impl RoleInterface for MockDb {
                         vec![EntityType::Merchant]
                     };
 
-                    role.org_id == *org_id
+                    role.tenant_id == tenant_id
+                        && role.org_id == *org_id
                         && (role.scope == RoleScope::Organization
                             || role.merchant_id == *merchant_id)
                         && entity_in_vec.contains(&role.entity_type)
@@ -425,7 +436,8 @@ impl RoleInterface for MockDb {
                                     && role.scope == RoleScope::Profile
                             });
 
-                    role.org_id == *org_id
+                    role.tenant_id == tenant_id
+                        && role.org_id == *org_id
                         && (role.scope == RoleScope::Organization
                             || matches_merchant
                             || matches_profile)

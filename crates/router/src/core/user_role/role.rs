@@ -352,6 +352,11 @@ pub async fn list_roles_with_info(
 
     let user_role_entity = user_role_info.get_entity_type();
     let is_lineage_data_required = request.entity_type.is_none();
+    let tenant_id = user_from_token
+        .tenant_id
+        .as_ref()
+        .unwrap_or(&state.tenant.tenant_id)
+        .to_owned();
     let custom_roles =
         match utils::user_role::get_min_entity(user_role_entity, request.entity_type)? {
             EntityType::Tenant | EntityType::Organization => state
@@ -359,6 +364,7 @@ pub async fn list_roles_with_info(
                 .generic_list_roles_by_entity_type(
                     ListRolesByEntityPayload::Organization(user_from_token.org_id),
                     is_lineage_data_required,
+                    tenant_id,
                 )
                 .await
                 .change_context(UserErrors::InternalServerError)
@@ -371,6 +377,7 @@ pub async fn list_roles_with_info(
                         user_from_token.merchant_id,
                     ),
                     is_lineage_data_required,
+                    tenant_id,
                 )
                 .await
                 .change_context(UserErrors::InternalServerError)
@@ -385,6 +392,7 @@ pub async fn list_roles_with_info(
                         user_from_token.profile_id,
                     ),
                     is_lineage_data_required,
+                    tenant_id,
                 )
                 .await
                 .change_context(UserErrors::InternalServerError)
@@ -437,6 +445,12 @@ pub async fn list_roles_at_entity_level(
         .map(|(_, role_info)| role_info.clone())
         .collect::<Vec<_>>();
 
+    let tenant_id = user_from_token
+        .tenant_id
+        .as_ref()
+        .unwrap_or(&state.tenant.tenant_id)
+        .to_owned();
+
     let is_lineage_data_required = false;
     let custom_roles = match req.entity_type {
         EntityType::Tenant | EntityType::Organization => state
@@ -444,6 +458,7 @@ pub async fn list_roles_at_entity_level(
             .generic_list_roles_by_entity_type(
                 ListRolesByEntityPayload::Organization(user_from_token.org_id),
                 is_lineage_data_required,
+                tenant_id,
             )
             .await
             .change_context(UserErrors::InternalServerError)
@@ -457,6 +472,7 @@ pub async fn list_roles_at_entity_level(
                     user_from_token.merchant_id,
                 ),
                 is_lineage_data_required,
+                tenant_id,
             )
             .await
             .change_context(UserErrors::InternalServerError)
@@ -471,6 +487,7 @@ pub async fn list_roles_at_entity_level(
                     user_from_token.profile_id,
                 ),
                 is_lineage_data_required,
+                tenant_id,
             )
             .await
             .change_context(UserErrors::InternalServerError)

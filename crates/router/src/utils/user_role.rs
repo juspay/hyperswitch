@@ -75,7 +75,7 @@ pub async fn validate_role_name(
 
     let is_present_in_custom_role = match state
         .global_store
-        .generic_list_roles_by_entity_type(entity_type_for_role, false)
+        .generic_list_roles_by_entity_type(entity_type_for_role, false, tenant_id.to_owned())
         .await
     {
         Ok(roles_list) => roles_list

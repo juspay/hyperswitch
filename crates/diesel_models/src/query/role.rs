@@ -163,6 +163,7 @@ impl Role {
         conn: &PgPooledConn,
         payload: ListRolesByEntityPayload,
         is_lineage_data_required: bool,
+        tenant_id: id_type::TenantId,
     ) -> StorageResult<Vec<Self>> {
         let mut query = <Self as HasTable>::table().into_boxed();
 
@@ -171,6 +172,7 @@ impl Role {
                 let entity_in_vec =
                     Self::get_entity_list(EntityType::Organization, is_lineage_data_required);
                 query = query
+                    .filter(dsl::tenant_id.eq(tenant_id))
                     .filter(dsl::org_id.eq(org_id))
                     .filter(dsl::entity_type.eq_any(entity_in_vec))
             }
@@ -179,6 +181,7 @@ impl Role {
                 let entity_in_vec =
                     Self::get_entity_list(EntityType::Merchant, is_lineage_data_required);
                 query = query
+                    .filter(dsl::tenant_id.eq(tenant_id))
                     .filter(dsl::org_id.eq(org_id))
                     .filter(
                         dsl::scope
@@ -192,6 +195,7 @@ impl Role {
                 let entity_in_vec =
                     Self::get_entity_list(EntityType::Profile, is_lineage_data_required);
                 query = query
+                    .filter(dsl::tenant_id.eq(tenant_id))
                     .filter(dsl::org_id.eq(org_id))
                     .filter(
                         dsl::scope
