@@ -3194,19 +3194,6 @@ fn get_val(str: String, val: &serde_json::Value) -> Option<String> {
         .and_then(|v| v.as_str())
         .map(|s| s.to_string())
 }
-#[cfg(all(
-    feature = "v2",
-    feature = "customer_v2",
-    feature = "payment_methods_v2"
-))]
-pub async fn list_payment_methods(
-    _state: routes::SessionState,
-    _merchant_account: domain::MerchantAccount,
-    _key_store: domain::MerchantKeyStore,
-    mut _req: api::PaymentMethodListRequest,
-) -> errors::RouterResponse<api::PaymentMethodListResponse> {
-    todo!()
-}
 
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
@@ -3483,12 +3470,14 @@ pub async fn list_payment_methods(
                 .any(|mca| mca.payment_method == enums::PaymentMethod::Wallet);
             if wallet_pm_exists {
                 match db
-                    .find_payment_method_by_customer_id_merchant_id_list(
+                    .find_payment_method_by_customer_id_merchant_id_status(
                         &((&state).into()),
                         &key_store,
-                       &customer.customer_id,
-                       merchant_account.get_id(),
+                        &customer.customer_id,
+                        merchant_account.get_id(),
+                        common_enums::PaymentMethodStatus::Active,
                         None,
+                        merchant_account.storage_scheme,
                     )
                     .await
                 {

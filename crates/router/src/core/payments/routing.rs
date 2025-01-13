@@ -554,6 +554,7 @@ pub fn perform_volume_split(
     Ok(splits.into_iter().map(|sp| sp.connector).collect())
 }
 
+#[cfg(feature = "v1")]
 pub async fn get_merchant_cgraph<'a>(
     state: &SessionState,
     key_store: &domain::MerchantKeyStore,
@@ -600,6 +601,7 @@ pub async fn get_merchant_cgraph<'a>(
     Ok(cgraph)
 }
 
+#[cfg(feature = "v1")]
 pub async fn refresh_cgraph_cache<'a>(
     state: &SessionState,
     key_store: &domain::MerchantKeyStore,
@@ -696,6 +698,21 @@ pub async fn refresh_cgraph_cache<'a>(
     Ok(cgraph)
 }
 
+#[cfg(feature = "v2")]
+#[allow(clippy::too_many_arguments)]
+pub async fn perform_cgraph_filtering(
+    state: &SessionState,
+    key_store: &domain::MerchantKeyStore,
+    chosen: Vec<routing_types::RoutableConnectorChoice>,
+    backend_input: dsl_inputs::BackendInput,
+    eligible_connectors: Option<&Vec<api_enums::RoutableConnectors>>,
+    profile_id: &common_utils::id_type::ProfileId,
+    transaction_type: &api_enums::TransactionType,
+) -> RoutingResult<Vec<routing_types::RoutableConnectorChoice>> {
+    todo!()
+}
+
+#[cfg(feature = "v1")]
 #[allow(clippy::too_many_arguments)]
 pub async fn perform_cgraph_filtering(
     state: &SessionState,
@@ -1125,80 +1142,78 @@ async fn perform_session_routing_for_pm_type(
     }
 }
 
-#[cfg(feature = "v2")]
-async fn perform_session_routing_for_pm_type(
-    session_pm_input: &SessionRoutingPmTypeInput<'_>,
-    transaction_type: &api_enums::TransactionType,
-    business_profile: &domain::Profile,
-) -> RoutingResult<Option<Vec<api_models::routing::RoutableConnectorChoice>>> {
-    let merchant_id = &session_pm_input.key_store.merchant_id;
+// async fn perform_session_routing_for_pm_type(
+//     session_pm_input: &SessionRoutingPmTypeInput<'_>,
+//     transaction_type: &api_enums::TransactionType,
+//     business_profile: &domain::Profile,
+// ) -> RoutingResult<Option<Vec<api_models::routing::RoutableConnectorChoice>>> {
+//     let merchant_id = &session_pm_input.key_store.merchant_id;
 
-    let MerchantAccountRoutingAlgorithm::V1(algorithm_id) = session_pm_input.routing_algorithm;
+//     let MerchantAccountRoutingAlgorithm::V1(algorithm_id) = session_pm_input.routing_algorithm;
 
-    let profile_wrapper = admin::ProfileWrapper::new(business_profile.clone());
-    let chosen_connectors = if let Some(ref algorithm_id) = algorithm_id {
-        let cached_algorithm = ensure_algorithm_cached_v1(
-            &session_pm_input.state.clone(),
-            merchant_id,
-            algorithm_id,
-            session_pm_input.profile_id,
-            transaction_type,
-        )
-        .await?;
+//     let profile_wrapper = admin::ProfileWrapper::new(business_profile.clone());
+//     let chosen_connectors = if let Some(ref algorithm_id) = algorithm_id {
+//         let cached_algorithm = ensure_algorithm_cached_v1(
+//             &session_pm_input.state.clone(),
+//             merchant_id,
+//             algorithm_id,
+//             session_pm_input.profile_id,
+//             transaction_type,
+//         )
+//         .await?;
 
-        match cached_algorithm.as_ref() {
-            CachedAlgorithm::Single(conn) => vec![(**conn).clone()],
-            CachedAlgorithm::Priority(plist) => plist.clone(),
-            CachedAlgorithm::VolumeSplit(splits) => {
-                perform_volume_split(splits.to_vec(), Some(session_pm_input.attempt_id))
-                    .change_context(errors::RoutingError::ConnectorSelectionFailed)?
-            }
-            CachedAlgorithm::Advanced(interpreter) => execute_dsl_and_get_connector_v1(
-                session_pm_input.backend_input.clone(),
-                interpreter,
-            )?,
-        }
-    } else {
-        profile_wrapper
-            .get_default_fallback_list_of_connector_under_profile()
-            .change_context(errors::RoutingError::FallbackConfigFetchFailed)?
-    };
+//         match cached_algorithm.as_ref() {
+//             CachedAlgorithm::Single(conn) => vec![(**conn).clone()],
+//             CachedAlgorithm::Priority(plist) => plist.clone(),
+//             CachedAlgorithm::VolumeSplit(splits) => {
+//                 perform_volume_split(splits.to_vec(), Some(session_pm_input.attempt_id))
+//                     .change_context(errors::RoutingError::ConnectorSelectionFailed)?
+//             }
+//             CachedAlgorithm::Advanced(interpreter) => execute_dsl_and_get_connector_v1(
+//                 session_pm_input.backend_input.clone(),
+//                 interpreter,
+//             )?,
+//         }
+//     } else {
+//         profile_wrapper
+//             .get_default_fallback_list_of_connector_under_profile()
+//             .change_context(errors::RoutingError::FallbackConfigFetchFailed)?
+//     };
 
-    let mut final_selection = perform_cgraph_filtering(
-        &session_pm_input.state.clone(),
-        session_pm_input.key_store,
-        chosen_connectors,
-        session_pm_input.backend_input.clone(),
-        None,
-        session_pm_input.profile_id,
-        transaction_type,
-    )
-    .await?;
+//     let mut final_selection = perform_cgraph_filtering(
+//         &session_pm_input.state.clone(),
+//         session_pm_input.key_store,
+//         chosen_connectors,
+//         session_pm_input.backend_input.clone(),
+//         None,
+//         session_pm_input.profile_id,
+//         transaction_type,
+//     )
+//     .await?;
 
-    if final_selection.is_empty() {
-        let fallback = profile_wrapper
-            .get_default_fallback_list_of_connector_under_profile()
-            .change_context(errors::RoutingError::FallbackConfigFetchFailed)?;
+//     if final_selection.is_empty() {
+//         let fallback = profile_wrapper
+//             .get_default_fallback_list_of_connector_under_profile()
+//             .change_context(errors::RoutingError::FallbackConfigFetchFailed)?;
 
-        final_selection = perform_cgraph_filtering(
-            &session_pm_input.state.clone(),
-            session_pm_input.key_store,
-            fallback,
-            session_pm_input.backend_input.clone(),
-            None,
-            session_pm_input.profile_id,
-            transaction_type,
-        )
-        .await?;
-    }
+//         final_selection = perform_cgraph_filtering(
+//             &session_pm_input.state.clone(),
+//             session_pm_input.key_store,
+//             fallback,
+//             session_pm_input.backend_input.clone(),
+//             None,
+//             session_pm_input.profile_id,
+//             transaction_type,
+//         )
+//         .await?;
+//     }
 
-    if final_selection.is_empty() {
-        Ok(None)
-    } else {
-        Ok(Some(final_selection))
-    }
-}
-
+//     if final_selection.is_empty() {
+//         Ok(None)
+//     } else {
+//         Ok(Some(final_selection))
+//     }
+// }
 #[cfg(feature = "v2")]
 pub fn make_dsl_input_for_surcharge(
     _payment_attempt: &oss_storage::PaymentAttempt,
@@ -1333,14 +1348,9 @@ pub async fn perform_success_based_routing(
                     .ok_or(errors::RoutingError::SuccessBasedRoutingParamsNotFoundError)?,
             );
 
-        let tenant_business_profile_id = routing::helpers::generate_tenant_business_profile_id(
-            &state.tenant.redis_key_prefix,
-            business_profile.get_id().get_string_repr(),
-        );
-
         let success_based_connectors: CalSuccessRateResponse = client
             .calculate_success_rate(
-                tenant_business_profile_id,
+                business_profile.get_id().get_string_repr().into(),
                 success_based_routing_configs,
                 success_based_routing_config_params,
                 routable_connectors,

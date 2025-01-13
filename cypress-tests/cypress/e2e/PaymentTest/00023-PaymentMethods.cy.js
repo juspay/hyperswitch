@@ -82,4 +82,23 @@ describe("Payment Methods Tests", () => {
       cy.setDefaultPaymentMethodTest(globalState);
     });
   });
+
+  context("Delete payment method for customer", () => {
+    it("Create customer", () => {
+      cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
+    });
+
+    it("Create Payment Method", () => {
+      const data = getConnectorDetails("commons")["card_pm"]["PaymentMethod"];
+      cy.createPaymentMethodTest(globalState, data);
+    });
+
+    it("List PM for customer", () => {
+      cy.listCustomerPMCallTest(globalState);
+    });
+
+    it("Delete Payment Method for a customer", () => {
+      cy.deletePaymentMethodTest(globalState);
+    });
+  });
 });

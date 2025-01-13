@@ -27,6 +27,8 @@ use time::{Date, PrimitiveDateTime};
 use url::Url;
 use utoipa::ToSchema;
 
+#[cfg(feature = "v2")]
+use crate::payment_methods;
 use crate::{
     admin::{self, MerchantConnectorInfo},
     disputes, enums as api_enums,
@@ -6293,7 +6295,7 @@ pub struct ApplePayRecurringPaymentRequest {
     pub billing_agreement: Option<String>,
     /// A URL to a web page where the user can update or delete the payment method for the recurring payment
     #[schema(value_type = String, example = "https://hyperswitch.io")]
-    pub management_url: common_utils::types::Url,
+    pub management_u_r_l: common_utils::types::Url,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -6546,6 +6548,23 @@ pub struct SdkInformation {
     pub sdk_reference_number: String,
     /// Indicates maximum amount of time in minutes
     pub sdk_max_timeout: u8,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
+pub struct PaymentMethodsListRequest {}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Serialize, ToSchema)]
+pub struct PaymentMethodListResponseForPayments {
+    /// The list of payment methods that are enabled for the business profile
+    #[schema(value_type = Vec<ResponsePaymentMethodTypes>)]
+    pub payment_methods_enabled: Vec<payment_methods::ResponsePaymentMethodTypes>,
+
+    /// The list of payment methods that are saved by the given customer
+    /// This field is only returned if the customer_id is provided in the request
+    #[schema(value_type = Option<Vec<CustomerPaymentMethod>>)]
+    pub customer_payment_methods: Option<Vec<payment_methods::CustomerPaymentMethod>>,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]

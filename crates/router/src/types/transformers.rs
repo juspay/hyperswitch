@@ -662,6 +662,22 @@ impl ForeignTryFrom<api_models::webhooks::IncomingWebhookEvent> for storage_enum
     }
 }
 
+impl ForeignTryFrom<api_models::webhooks::IncomingWebhookEvent> for api_enums::RelayStatus {
+    type Error = errors::ValidationError;
+
+    fn foreign_try_from(
+        value: api_models::webhooks::IncomingWebhookEvent,
+    ) -> Result<Self, Self::Error> {
+        match value {
+            api_models::webhooks::IncomingWebhookEvent::RefundSuccess => Ok(Self::Success),
+            api_models::webhooks::IncomingWebhookEvent::RefundFailure => Ok(Self::Failure),
+            _ => Err(errors::ValidationError::IncorrectValueProvided {
+                field_name: "incoming_webhook_event_type",
+            }),
+        }
+    }
+}
+
 #[cfg(feature = "payouts")]
 impl ForeignTryFrom<api_models::webhooks::IncomingWebhookEvent> for storage_enums::PayoutStatus {
     type Error = errors::ValidationError;
@@ -1000,6 +1016,7 @@ impl ForeignTryFrom<domain::MerchantConnectorAccount>
 {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
     fn foreign_try_from(item: domain::MerchantConnectorAccount) -> Result<Self, Self::Error> {
+        #[cfg(feature = "v1")]
         let payment_methods_enabled = match item.payment_methods_enabled {
             Some(secret_val) => {
                 let val = secret_val
@@ -1012,6 +1029,7 @@ impl ForeignTryFrom<domain::MerchantConnectorAccount>
             }
             None => None,
         };
+
         let frm_configs = match item.frm_configs {
             Some(frm_value) => {
                 let configs_for_frm : Vec<api_models::admin::FrmConfigs> = frm_value
@@ -1055,7 +1073,7 @@ impl ForeignTryFrom<domain::MerchantConnectorAccount>
             connector_name: item.connector_name,
             connector_label: item.connector_label,
             disabled: item.disabled,
-            payment_methods_enabled,
+            payment_methods_enabled: item.payment_methods_enabled,
             frm_configs,
             profile_id: item.profile_id,
             applepay_verified_domains: item.applepay_verified_domains,
@@ -1066,6 +1084,7 @@ impl ForeignTryFrom<domain::MerchantConnectorAccount>
     }
 }
 
+#[cfg(feature = "v1")]
 impl ForeignTryFrom<domain::MerchantConnectorAccount>
     for api_models::admin::MerchantConnectorResponse
 {
@@ -1183,6 +1202,103 @@ impl ForeignTryFrom<domain::MerchantConnectorAccount>
             business_country: item.business_country,
             business_label: item.business_label,
             business_sub_label: item.business_sub_label,
+            frm_configs,
+            connector_webhook_details: item
+                .connector_webhook_details
+                .map(|webhook_details| {
+                    serde_json::Value::parse_value(
+                        webhook_details.expose(),
+                        "MerchantConnectorWebhookDetails",
+                    )
+                    .attach_printable("Unable to deserialize connector_webhook_details")
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                })
+                .transpose()?,
+            profile_id: item.profile_id,
+            applepay_verified_domains: item.applepay_verified_domains,
+            pm_auth_config: item.pm_auth_config,
+            status: item.status,
+            additional_merchant_data: item
+                .additional_merchant_data
+                .map(|data| {
+                    let data = data.into_inner();
+                    serde_json::Value::parse_value::<router_types::AdditionalMerchantData>(
+                        data.expose(),
+                        "AdditionalMerchantData",
+                    )
+                    .attach_printable("Unable to deserialize additional_merchant_data")
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                })
+                .transpose()?
+                .map(api_models::admin::AdditionalMerchantData::foreign_from),
+            connector_wallets_details: item
+                .connector_wallets_details
+                .map(|data| {
+                    data.into_inner()
+                        .expose()
+                        .parse_value::<api_models::admin::ConnectorWalletDetails>(
+                            "ConnectorWalletDetails",
+                        )
+                        .attach_printable("Unable to deserialize connector_wallets_details")
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                })
+                .transpose()?,
+        };
+        Ok(response)
+    }
+}
+
+#[cfg(feature = "v2")]
+impl ForeignTryFrom<domain::MerchantConnectorAccount>
+    for api_models::admin::MerchantConnectorResponse
+{
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+    fn foreign_try_from(item: domain::MerchantConnectorAccount) -> Result<Self, Self::Error> {
+        let frm_configs = match item.frm_configs {
+            Some(ref frm_value) => {
+                let configs_for_frm : Vec<api_models::admin::FrmConfigs> = frm_value
+                    .iter()
+                    .map(|config| { config
+                        .peek()
+                        .clone()
+                        .parse_value("FrmConfigs")
+                        .change_context(errors::ApiErrorResponse::InvalidDataFormat {
+                            field_name: "frm_configs".to_string(),
+                            expected_format: r#"[{ "gateway": "stripe", "payment_methods": [{ "payment_method": "card","payment_method_types": [{"payment_method_type": "credit","card_networks": ["Visa"],"flow": "pre","action": "cancel_txn"}]}]}]"#.to_string(),
+                        })
+                    })
+                    .collect::<Result<Vec<_>, _>>()?;
+                Some(configs_for_frm)
+            }
+            None => None,
+        };
+
+        // parse the connector_account_details into ConnectorAuthType
+        let connector_account_details: hyperswitch_domain_models::router_data::ConnectorAuthType =
+            item.connector_account_details
+                .clone()
+                .into_inner()
+                .parse_value("ConnectorAuthType")
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed while parsing value for ConnectorAuthType")?;
+        // get the masked keys from the ConnectorAuthType and encode it to secret value
+        let masked_connector_account_details = Secret::new(
+            connector_account_details
+                .get_masked_keys()
+                .encode_to_value()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to encode ConnectorAuthType")?,
+        );
+
+        let response = Self {
+            id: item.get_id(),
+            connector_type: item.connector_type,
+            connector_name: item.connector_name,
+            connector_label: item.connector_label,
+            connector_account_details: masked_connector_account_details,
+            disabled: item.disabled,
+            payment_methods_enabled: item.payment_methods_enabled,
+            metadata: item.metadata,
             frm_configs,
             connector_webhook_details: item
                 .connector_webhook_details

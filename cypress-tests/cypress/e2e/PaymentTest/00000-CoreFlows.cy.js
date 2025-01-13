@@ -184,4 +184,20 @@ describe("Core flows", () => {
       cy.merchantDeleteCall(globalState);
     });
   });
+
+  context("List Connector Feature Matrix", () => {
+    before("seed global state", () => {
+      cy.task("getGlobalState").then((state) => {
+        globalState = new State(state);
+      });
+    });
+
+    after("flush global state", () => {
+      cy.task("setGlobalState", globalState.data);
+    });
+
+    it("List connector feature matrix call", () => {
+      cy.ListConnectorsFeatureMatrixCall(globalState);
+    });
+  });
 });

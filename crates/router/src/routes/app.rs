@@ -70,6 +70,8 @@ use crate::analytics::AnalyticsProvider;
 use crate::errors::RouterResult;
 #[cfg(feature = "v1")]
 use crate::routes::cards_info::card_iin_info;
+#[cfg(all(feature = "olap", feature = "v1"))]
+use crate::routes::feature_matrix;
 #[cfg(all(feature = "frm", feature = "oltp"))]
 use crate::routes::fraud_check as frm_routes;
 #[cfg(all(feature = "recon", feature = "olap"))]
@@ -110,6 +112,7 @@ pub struct SessionState {
     pub opensearch_client: Arc<OpenSearchClient>,
     pub grpc_client: Arc<GrpcClients>,
     pub theme_storage_client: Arc<dyn FileStorageInterface>,
+    pub locale: String,
 }
 impl scheduler::SchedulerSessionState for SessionState {
     fn get_db(&self) -> Box<dyn SchedulerInterface> {
@@ -456,6 +459,7 @@ impl AppState {
     pub fn get_session_state<E, F>(
         self: Arc<Self>,
         tenant: &id_type::TenantId,
+        locale: Option<String>,
         err: F,
     ) -> Result<SessionState, E>
     where
@@ -482,6 +486,7 @@ impl AppState {
             opensearch_client: Arc::clone(&self.opensearch_client),
             grpc_client: Arc::clone(&self.grpc_client),
             theme_storage_client: self.theme_storage_client.clone(),
+            locale: locale.unwrap_or(common_utils::consts::DEFAULT_LOCALE.to_string()),
         })
     }
 }
@@ -574,8 +579,8 @@ impl Payments {
                         .route(web::get().to(payments::payments_start_redirection)),
                 )
                 .service(
-                    web::resource("/saved-payment-methods")
-                        .route(web::get().to(list_customer_payment_method_for_payment)),
+                    web::resource("/payment-methods")
+                        .route(web::get().to(payments::list_payment_methods)),
                 )
                 .service(
                     web::resource("/finish-redirection/{publishable_key}/{profile_id}")
@@ -598,6 +603,7 @@ impl Relay {
         web::scope("/relay")
             .app_data(web::Data::new(state))
             .service(web::resource("").route(web::post().to(relay::relay)))
+            .service(web::resource("/{relay_id}").route(web::get().to(relay::relay_retrieve)))
     }
 }
 
@@ -1337,8 +1343,7 @@ impl MerchantAccount {
 #[cfg(all(feature = "olap", feature = "v1"))]
 impl MerchantAccount {
     pub fn server(state: AppState) -> Scope {
-        web::scope("/accounts")
-            .app_data(web::Data::new(state))
+        let mut routes = web::scope("/accounts")
             .service(web::resource("").route(web::post().to(admin::merchant_account_create)))
             .service(web::resource("/list").route(web::get().to(admin::merchant_account_list)))
             .service(
@@ -1358,7 +1363,14 @@ impl MerchantAccount {
                     .route(web::get().to(admin::retrieve_merchant_account))
                     .route(web::post().to(admin::update_merchant_account))
                     .route(web::delete().to(admin::delete_merchant_account)),
+            );
+        if state.conf.platform.enabled {
+            routes = routes.service(
+                web::resource("/{id}/platform")
+                    .route(web::post().to(admin::merchant_account_enable_platform_account)),
             )
+        }
+        routes.app_data(web::Data::new(state))
     }
 }
 
@@ -1500,6 +1512,20 @@ impl Webhooks {
         }
 
         route
+    }
+}
+
+pub struct RelayWebhooks;
+
+#[cfg(feature = "oltp")]
+impl RelayWebhooks {
+    pub fn server(state: AppState) -> Scope {
+        use api_models::webhooks as webhook_type;
+        web::scope("/webhooks/relay")
+            .app_data(web::Data::new(state))
+            .service(web::resource("/{merchant_id}/{connector_id}").route(
+                web::post().to(receive_incoming_relay_webhook::<webhook_type::OutgoingWebhook>),
+            ))
     }
 }
 
@@ -2245,5 +2271,17 @@ impl WebhookEvents {
                             .route(web::post().to(webhook_events::retry_webhook_delivery_attempt)),
                     ),
             )
+    }
+}
+
+#[cfg(feature = "olap")]
+pub struct FeatureMatrix;
+
+#[cfg(all(feature = "olap", feature = "v1"))]
+impl FeatureMatrix {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/feature_matrix")
+            .app_data(web::Data::new(state))
+            .service(web::resource("").route(web::get().to(feature_matrix::fetch_feature_matrix)))
     }
 }
