@@ -3624,7 +3624,6 @@ pub enum FeatureStatus {
     strum::Display,
     strum::EnumString,
     ToSchema,
-    Default,
 )]
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
@@ -3651,7 +3650,4 @@ pub enum AdyenSplitType {
     TopUp,
     /// The value-added tax charged on the payment, booked to your platforms liable balance account.
     Vat,
-    /// In very specific use cases, allows you to book the specified amount to the specified account.
-    #[default]
-    Default,
 }

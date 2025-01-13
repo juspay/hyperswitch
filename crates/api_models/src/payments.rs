@@ -5009,21 +5009,13 @@ pub struct StripeSplitPaymentsResponse {
     pub transfer_account_id: String,
 }
 
-/// Fee information to be charged on the payment being collected via Adyen
 #[derive(Setter, Clone, Debug, PartialEq, serde::Serialize, ToSchema)]
+/// Fee information to be charged on the payment being collected via Adyen
 pub struct AdyenSplitPaymentsResponse {
-    /// The amount of the split item
-    #[schema(value_type = i64, example = 6540)]
-    pub amount: MinorUnit,
-    /// Defines type of split item
-    #[schema(value_type = AdyenSplitType, example = "balance_account")]
-    pub split_type: enums::AdyenSplitType,
-    /// The unique identifier of the account to which the split amount is allocated.
-    pub account: Option<String>,
-    /// Unique Identifier for the split item
-    pub reference: Option<String>,
-    /// Description for the part of the payment that will be allocated to the specified account.
-    pub description: Option<String>,
+    /// The store identifier
+    pub store_id: Option<String>,
+    /// Data for the split items
+    pub split_items: Vec<common_types::payments::AdyenSplitItem>,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, ToSchema)]

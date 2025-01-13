@@ -6242,47 +6242,116 @@ pub async fn validate_merchant_connector_ids_in_connector_mandate_details(
     Ok(())
 }
 
-pub fn validate_platform_fees_for_marketplace(
+pub fn validate_platform_request_for_marketplace(
     amount: api::Amount,
     split_payments: Option<common_types::payments::SplitPaymentsRequest>,
 ) -> Result<(), errors::ApiErrorResponse> {
-    if let Some(split_payment) = split_payments {
-        let (field_name, split_amount_i64) = match split_payment {
-            common_types::payments::SplitPaymentsRequest::StripeSplitPayment(
-                stripe_split_payment,
-            ) => (
-                "split_payments.stripe_split_payment.application_fees",
-                stripe_split_payment.application_fees.get_amount_as_i64(),
-            ),
-            common_types::payments::SplitPaymentsRequest::AdyenSplitPayment(
-                adyen_split_payment,
-            ) => (
-                "split_payments.adyen_split_payment.split_amount",
-                adyen_split_payment.split_amount.get_amount_as_i64(),
-            ),
-        };
-
-        validate_split_amount(amount, split_amount_i64, field_name)?;
-    }
-    Ok(())
-}
-
-fn validate_split_amount(
-    amount: api::Amount,
-    split_amount_i64: i64,
-    field_name: &'static str,
-) -> Result<(), errors::ApiErrorResponse> {
-    match amount {
-        api::Amount::Zero => {
-            if split_amount_i64 != 0 {
-                return Err(errors::ApiErrorResponse::InvalidDataValue { field_name });
+    match split_payments {
+        Some(common_types::payments::SplitPaymentsRequest::StripeSplitPayment(
+            stripe_split_payment,
+        )) => match amount {
+            api::Amount::Zero => {
+                if stripe_split_payment.application_fees.get_amount_as_i64() != 0 {
+                    return Err(errors::ApiErrorResponse::InvalidDataValue {
+                        field_name: "split_payments.stripe_split_payment.application_fees",
+                    });
+                }
             }
-        }
-        api::Amount::Value(amount) => {
-            if split_amount_i64 > amount.into() {
-                return ErPr(errors::ApiErrorResponse::InvalidDataValue { field_name });
+            api::Amount::Value(amount) => {
+                if stripe_split_payment.application_fees.get_amount_as_i64() > amount.into() {
+                    return Err(errors::ApiErrorResponse::InvalidDataValue {
+                        field_name: "split_payments.stripe_split_payment.application_fees",
+                    });
+                }
             }
+        },
+        Some(common_types::payments::SplitPaymentsRequest::AdyenSplitPayment(
+            adyen_split_payment,
+        )) => {
+            let total_split_amount = adyen_split_payment
+                .split_items
+                .iter()
+                .map(|split_item| split_item.amount.unwrap_or(0).get_amount_as_i64())
+                .sum();
+            match amount {
+                api::Amount::Zero => {
+                    if total_split_amount != 0 {
+                        return Err(errors::ApiErrorResponse::InvalidDataValue {
+                            field_name: "split_payments.adyen_split_payment.application_fees",
+                        });
+                    }
+                }
+                api::Amount::Value(amount) => {
+                    if total_split_amount != amount.into() {
+                        return Err(errors::ApiErrorResponse::PreconditionFailed {
+                            message: "split_payments.adyen_split_payment.application_fees"
+                                .to_string(),
+                        });
+                    }
+                }
+            };
+            adyen_split_payment
+            .split_items
+            .iter()
+            .try_for_each(|split_item| {
+                match split_item.split_type {
+                    common_enums::AdyenSplitType::BalanceAccount => {
+                        if split_item.account.is_none() {
+                            return Err(errors::ApiErrorResponse::MissingRequiredField {
+                                field_name:
+                                    "split_payments.adyen_split_payment.split_items.account",
+                            });
+                        }
+                        if split_item.reference.is_none() {
+                            return Err(errors::ApiErrorResponse::MissingRequiredField {
+                                field_name:
+                                    "split_payments.adyen_split_payment.split_items.reference",
+                            });
+                        }
+                    }
+                    common_enums::AdyenSplitType::Commission => {
+                        if split_item.amount.is_none() {
+                            return Err(errors::ApiErrorResponse::MissingRequiredField {
+                                field_name: "split_payments.adyen_split_payment.split_items.amount",
+                            });
+                        }
+                    }
+                    enums::AdyenSplitType::Vat => {
+                        if split_item.amount.is_none() {
+                            return Err(errors::ApiErrorResponse::MissingRequiredField {
+                                field_name: "split_payments.adyen_split_payment.split_items.amount",
+                            });
+                        }
+                    }
+                    enums::AdyenSplitType::TopUp => {
+                        if split_item.amount.is_none() {
+                            return Err(errors::ApiErrorResponse::MissingRequiredField {
+                                field_name: "split_payments.adyen_split_payment.split_items.amount",
+                            });
+                        }
+                        if split_item.account.is_none() {
+                            return Err(errors::ApiErrorResponse::MissingRequiredField {
+                                field_name: "split_payments.adyen_split_payment.split_items.amount",
+                            });
+                        }
+                        if adyen_split_payment.store_id.is_some() {
+                            return Err(errors::ApiErrorResponse::PreconditionFailed {
+                                field_name: "Topup split is not available via Adyen plaform",
+                            });
+                        }
+                    }
+                    enums::AdyenSplitType::AcquiringFees
+                    | enums::AdyenSplitType::PaymentFee
+                    | enums::AdyenSplitType::AdyenFees
+                    | enums::AdyenSplitType::AdyenCommission
+                    | enums::AdyenSplitType::AdyenMarkup
+                    | enums::AdyenSplitType::Interchange
+                    | enums::AdyenSplitType::SchemeFee => (),
+                }
+            })
+         
         }
+        None => Ok(()),
     }
     Ok(())
 }
