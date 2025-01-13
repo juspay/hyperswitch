@@ -1455,6 +1455,8 @@ pub async fn vault_payment_method(
     Ok((resp_from_vault, fingerprint_id_from_vault))
 }
 
+// TODO: check if this function will be used for listing the customer payment methods for payments
+#[allow(unused)]
 #[cfg(all(
     feature = "v2",
     feature = "payment_methods_v2",
