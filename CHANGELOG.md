@@ -4,6 +4,55 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.01.13.0
+
+### Features
+
+- **connector:** [Novalnet] Add zero auth mandate ([#6631](https://github.com/juspay/hyperswitch/pull/6631)) ([`7b306a9`](https://github.com/juspay/hyperswitch/commit/7b306a9015a55b573731414c210d4c684c802f7a))
+- **router:** Add support for relay refund incoming webhooks ([#6974](https://github.com/juspay/hyperswitch/pull/6974)) ([`d850f17`](https://github.com/juspay/hyperswitch/commit/d850f17b87e4eedc66836925136ffbd513d09124))
+
+**Full Changelog:** [`2025.01.10.0...2025.01.13.0`](https://github.com/juspay/hyperswitch/compare/2025.01.10.0...2025.01.13.0)
+
+- - -
+
+## 2025.01.10.0
+
+### Testing
+
+- **cypress:** Add test for In Memory Cache ([#6961](https://github.com/juspay/hyperswitch/pull/6961)) ([`d8d8c40`](https://github.com/juspay/hyperswitch/commit/d8d8c400bbda49b9a0cd5edbe37e929ae6d38eb4))
+
+**Full Changelog:** [`2025.01.09.1...2025.01.10.0`](https://github.com/juspay/hyperswitch/compare/2025.01.09.1...2025.01.10.0)
+
+- - -
+
+## 2025.01.09.1
+
+### Bug Fixes
+
+- **dummyconnector:** Add tenant id in dummyconnector requests ([#7008](https://github.com/juspay/hyperswitch/pull/7008)) ([`9c983b6`](https://github.com/juspay/hyperswitch/commit/9c983b68bd834e33c5c57d1d050aa5d41cb10f56))
+
+**Full Changelog:** [`2025.01.09.0...2025.01.09.1`](https://github.com/juspay/hyperswitch/compare/2025.01.09.0...2025.01.09.1)
+
+- - -
+
+## 2025.01.09.0
+
+### Features
+
+- **users:** Handle edge features for users in tenancy ([#6990](https://github.com/juspay/hyperswitch/pull/6990)) ([`d04e840`](https://github.com/juspay/hyperswitch/commit/d04e840c958595d86590149d92b03cbd61fd69ed))
+
+### Bug Fixes
+
+- **cypress:** Backup and restore sessions when using user apis ([#6978](https://github.com/juspay/hyperswitch/pull/6978)) ([`0b54b37`](https://github.com/juspay/hyperswitch/commit/0b54b375ef42bc46830871db6d0f7b68e386c3f5))
+
+### Miscellaneous Tasks
+
+- **dynamic-fields:** [Worldpay] update dynamic fields for payments ([#7002](https://github.com/juspay/hyperswitch/pull/7002)) ([`b46a921`](https://github.com/juspay/hyperswitch/commit/b46a921ccb05dc194253659c12991d9df7abe71e))
+
+**Full Changelog:** [`2025.01.08.0...2025.01.09.0`](https://github.com/juspay/hyperswitch/compare/2025.01.08.0...2025.01.09.0)
+
+- - -
+
 ## 2025.01.08.0
 
 ### Features
