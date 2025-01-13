@@ -289,7 +289,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, VoltPaymentsResponse, T, PaymentsRespon
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.id),
                 incremental_authorization_allowed: None,
-                charge_id: None,
+                charges: None,
             }),
             ..item.data
         })
@@ -367,7 +367,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, VoltPaymentsResponseData, T, PaymentsRe
                                 .merchant_internal_reference
                                 .or(Some(payment_response.id)),
                             incremental_authorization_allowed: None,
-                            charge_id: None,
+                            charges: None,
                         })
                     },
                     ..item.data
@@ -408,7 +408,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, VoltPaymentsResponseData, T, PaymentsRe
                                 .merchant_internal_reference
                                 .or(Some(webhook_response.payment)),
                             incremental_authorization_allowed: None,
-                            charge_id: None,
+                            charges: None,
                         })
                     },
                     ..item.data

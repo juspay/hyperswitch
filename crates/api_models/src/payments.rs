@@ -4991,7 +4991,7 @@ pub struct PaymentStartRedirectionParams {
     pub profile_id: id_type::ProfileId,
 }
 
-/// Fee information to be charged on the payment being collected
+/// Fee information to be charged on the payment being collected via Stripe
 #[derive(Setter, Clone, Debug, PartialEq, serde::Serialize, ToSchema)]
 pub struct StripeSplitPaymentsResponse {
     /// Identifier for charge created for the payment
@@ -5009,11 +5009,22 @@ pub struct StripeSplitPaymentsResponse {
     pub transfer_account_id: String,
 }
 
+#[derive(Setter, Clone, Debug, PartialEq, serde::Serialize, ToSchema)]
+/// Fee information to be charged on the payment being collected via Adyen
+pub struct AdyenSplitPaymentsResponse {
+    /// The store identifier
+    pub store_id: Option<String>,
+    /// Data for the split items
+    pub split_items: Vec<common_types::payments::AdyenSplitItem>,
+}
+
 #[derive(Clone, Debug, PartialEq, serde::Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum SplitPaymentsResponse {
     /// StripeSplitPaymentsResponse
     StripeSplitPayment(StripeSplitPaymentsResponse),
+    /// AdyenSplitPaymentsResponse
+    AdyenSplitPayment(AdyenSplitPaymentsResponse),
 }
 
 /// Details of external authentication

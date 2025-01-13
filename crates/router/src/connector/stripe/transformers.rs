@@ -1953,6 +1953,7 @@ impl TryFrom<(&types::PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntent
                 };
                 (charges, None)
             }
+            Some(common_types::payments::SplitPaymentsRequest::AdyenSplitPayment(_)) => todo!(), //todooo
             None => (None, item.connector_customer.to_owned().map(Secret::new)),
         };
 
@@ -2504,12 +2505,12 @@ impl<F, T>
                 item.response.id.clone(),
             ))
         } else {
-            let charge_id = item
+            let charges = item
                 .response
                 .latest_charge
                 .as_ref()
                 .map(|charge| match charge {
-                    StripeChargeEnum::ChargeId(charge_id) => charge_id.clone(),
+                    StripeChargeEnum::ChargeId(charges) => charges.clone(),
                     StripeChargeEnum::ChargeObject(charge) => charge.id.clone(),
                 });
             Ok(types::PaymentsResponseData::TransactionResponse {
@@ -2520,7 +2521,7 @@ impl<F, T>
                 network_txn_id,
                 connector_response_reference_id: Some(item.response.id),
                 incremental_authorization_allowed: None,
-                charge_id,
+                charges: None, //todoo
             })
         };
 
@@ -2712,12 +2713,12 @@ impl<F, T>
                     }),
                 _ => None,
             };
-            let charge_id = item
+            let charges = item
                 .response
                 .latest_charge
                 .as_ref()
                 .map(|charge| match charge {
-                    StripeChargeEnum::ChargeId(charge_id) => charge_id.clone(),
+                    StripeChargeEnum::ChargeId(charges) => charges.clone(),
                     StripeChargeEnum::ChargeObject(charge) => charge.id.clone(),
                 });
             Ok(types::PaymentsResponseData::TransactionResponse {
@@ -2728,7 +2729,7 @@ impl<F, T>
                 network_txn_id: network_transaction_id,
                 connector_response_reference_id: Some(item.response.id.clone()),
                 incremental_authorization_allowed: None,
-                charge_id,
+                charges: None, //todoo
             })
         };
 
@@ -2808,7 +2809,7 @@ impl<F, T>
                 network_txn_id: network_transaction_id,
                 connector_response_reference_id: Some(item.response.id),
                 incremental_authorization_allowed: None,
-                charge_id: None,
+                charges: None,
             })
         };
 
@@ -3519,7 +3520,7 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, ChargesResponse, T, types::Payme
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.id.clone()),
                 incremental_authorization_allowed: None,
-                charge_id: Some(item.response.id),
+                charges: None, //todoo Some(item.response.id),
             })
         };
 

@@ -420,7 +420,7 @@ where
             resource_id,
             connector_metadata,
             redirection_data,
-            charge_id,
+            charges,
             ..
         }) => {
             let encoded_data = payment_data.get_payment_attempt().encoded_data.clone();
@@ -465,7 +465,7 @@ where
                 unified_code: None,
                 unified_message: None,
                 payment_method_data: additional_payment_method_data,
-                charge_id,
+                charge_id: None, //todooo
                 connector_mandate_detail: None,
             };
 

@@ -1029,7 +1029,7 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentDat
 
         if request.split_payments.is_some() {
             let amount = request.amount.get_required_value("amount")?;
-            helpers::validate_platform_fees_for_marketplace(
+            helpers::validate_platform_request_for_marketplace(
                 amount,
                 request.split_payments.clone(),
             )?;
