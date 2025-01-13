@@ -33,7 +33,7 @@ use super::dummy_connector::*;
 #[cfg(all(any(feature = "v1", feature = "v2"), feature = "oltp"))]
 use super::ephemeral_key::*;
 #[cfg(any(feature = "olap", feature = "oltp"))]
-use super::payment_methods::*;
+use super::payment_methods;
 #[cfg(feature = "payouts")]
 use super::payout_link::*;
 #[cfg(feature = "payouts")]
@@ -59,7 +59,7 @@ use super::{
 #[cfg(feature = "v1")]
 use super::{apple_pay_certificates_migration, blocklist, payment_link, webhook_events};
 #[cfg(any(feature = "olap", feature = "oltp"))]
-use super::{configs::*, customers::*, payments};
+use super::{configs::*, customers, payments};
 #[cfg(all(any(feature = "olap", feature = "oltp"), feature = "v1"))]
 use super::{mandates::*, refunds::*};
 #[cfg(feature = "olap")]
@@ -990,24 +990,25 @@ impl Customers {
         let mut route = web::scope("/v2/customers").app_data(web::Data::new(state));
         #[cfg(all(feature = "olap", feature = "v2", feature = "customer_v2"))]
         {
-            route = route.service(web::resource("/list").route(web::get().to(customers_list)))
+            route = route
+                .service(web::resource("/list").route(web::get().to(customers::customers_list)))
         }
         #[cfg(all(feature = "oltp", feature = "v2", feature = "customer_v2"))]
         {
             route = route
-                .service(web::resource("").route(web::post().to(customers_create)))
+                .service(web::resource("").route(web::post().to(customers::customers_create)))
                 .service(
                     web::resource("/{id}")
-                        .route(web::put().to(customers_update))
-                        .route(web::get().to(customers_retrieve))
-                        .route(web::delete().to(customers_delete)),
+                        .route(web::put().to(customers::customers_update))
+                        .route(web::get().to(customers::customers_retrieve))
+                        .route(web::delete().to(customers::customers_delete)),
                 )
         }
         #[cfg(all(feature = "oltp", feature = "v2", feature = "payment_methods_v2"))]
         {
             route = route.service(
                 web::resource("/{customer_id}/saved-payment-methods")
-                    .route(web::get().to(list_customer_payment_method_api)),
+                    .route(web::get().to(payment_methods::list_customer_payment_method_api)),
             );
         }
         route
@@ -1029,32 +1030,33 @@ impl Customers {
             route = route
                 .service(
                     web::resource("/{customer_id}/mandates")
-                        .route(web::get().to(get_customer_mandates)),
+                        .route(web::get().to(customers::get_customer_mandates)),
                 )
-                .service(web::resource("/list").route(web::get().to(customers_list)))
+                .service(web::resource("/list").route(web::get().to(customers::customers_list)))
         }
 
         #[cfg(feature = "oltp")]
         {
             route = route
-                .service(web::resource("").route(web::post().to(customers_create)))
+                .service(web::resource("").route(web::post().to(customers::customers_create)))
                 .service(
-                    web::resource("/payment_methods")
-                        .route(web::get().to(list_customer_payment_method_api_client)),
+                    web::resource("/payment_methods").route(
+                        web::get().to(payment_methods::list_customer_payment_method_api_client),
+                    ),
                 )
                 .service(
                     web::resource("/{customer_id}/payment_methods")
-                        .route(web::get().to(list_customer_payment_method_api)),
+                        .route(web::get().to(payment_methods::list_customer_payment_method_api)),
                 )
                 .service(
                     web::resource("/{customer_id}/payment_methods/{payment_method_id}/default")
-                        .route(web::post().to(default_payment_method_set_api)),
+                        .route(web::post().to(payment_methods::default_payment_method_set_api)),
                 )
                 .service(
                     web::resource("/{customer_id}")
-                        .route(web::get().to(customers_retrieve))
-                        .route(web::post().to(customers_update))
-                        .route(web::delete().to(customers_delete)),
+                        .route(web::get().to(customers::customers_retrieve))
+                        .route(web::post().to(customers::customers_update))
+                        .route(web::delete().to(customers::customers_delete)),
                 )
         }
 
@@ -1153,24 +1155,34 @@ impl PaymentMethods {
     pub fn server(state: AppState) -> Scope {
         let mut route = web::scope("/v2/payment-methods").app_data(web::Data::new(state));
         route = route
-            .service(web::resource("").route(web::post().to(create_payment_method_api)))
+            .service(
+                web::resource("").route(web::post().to(payment_methods::create_payment_method_api)),
+            )
             .service(
                 web::resource("/create-intent")
-                    .route(web::post().to(create_payment_method_intent_api)),
-            )
-            .service(
-                web::resource("/{id}/confirm-intent")
-                    .route(web::post().to(confirm_payment_method_intent_api)),
-            )
-            .service(
-                web::resource("/{id}/update-saved-payment-method")
-                    .route(web::patch().to(payment_method_update_api)),
-            )
-            .service(
-                web::resource("/{id}")
-                    .route(web::get().to(payment_method_retrieve_api))
-                    .route(web::delete().to(payment_method_delete_api)),
+                    .route(web::post().to(payment_methods::create_payment_method_intent_api)),
             );
+
+        route = route.service(
+            web::scope("/{id}")
+                .service(
+                    web::resource("")
+                        .route(web::get().to(payment_methods::payment_method_retrieve_api))
+                        .route(web::delete().to(payment_methods::payment_method_delete_api)),
+                )
+                .service(
+                    web::resource("/list-enabled-payment-methods")
+                        .route(web::get().to(payment_methods::list_payment_methods_enabled)),
+                )
+                .service(
+                    web::resource("/confirm-intent")
+                        .route(web::post().to(payment_methods::confirm_payment_method_intent_api)),
+                )
+                .service(
+                    web::resource("/update-saved-payment-method")
+                        .route(web::put().to(payment_methods::payment_method_update_api)),
+                ),
+        );
 
         route
     }
@@ -1187,44 +1199,49 @@ impl PaymentMethods {
         let mut route = web::scope("/payment_methods").app_data(web::Data::new(state));
         #[cfg(feature = "olap")]
         {
-            route = route.service(
-                web::resource("/filter")
-                    .route(web::get().to(list_countries_currencies_for_connector_payment_method)),
-            );
+            route =
+                route.service(web::resource("/filter").route(
+                    web::get().to(
+                        payment_methods::list_countries_currencies_for_connector_payment_method,
+                    ),
+                ));
         }
         #[cfg(feature = "oltp")]
         {
             route = route
                 .service(
                     web::resource("")
-                        .route(web::post().to(create_payment_method_api))
-                        .route(web::get().to(list_payment_method_api)), // TODO : added for sdk compatibility for now, need to deprecate this later
+                        .route(web::post().to(payment_methods::create_payment_method_api))
+                        .route(web::get().to(payment_methods::list_payment_method_api)), // TODO : added for sdk compatibility for now, need to deprecate this later
                 )
                 .service(
-                    web::resource("/migrate").route(web::post().to(migrate_payment_method_api)),
+                    web::resource("/migrate")
+                        .route(web::post().to(payment_methods::migrate_payment_method_api)),
                 )
                 .service(
-                    web::resource("/migrate-batch").route(web::post().to(migrate_payment_methods)),
+                    web::resource("/migrate-batch")
+                        .route(web::post().to(payment_methods::migrate_payment_methods)),
                 )
                 .service(
-                    web::resource("/collect").route(web::post().to(initiate_pm_collect_link_flow)),
+                    web::resource("/collect")
+                        .route(web::post().to(payment_methods::initiate_pm_collect_link_flow)),
                 )
                 .service(
                     web::resource("/collect/{merchant_id}/{collect_id}")
-                        .route(web::get().to(render_pm_collect_link)),
+                        .route(web::get().to(payment_methods::render_pm_collect_link)),
                 )
                 .service(
                     web::resource("/{payment_method_id}")
-                        .route(web::get().to(payment_method_retrieve_api))
-                        .route(web::delete().to(payment_method_delete_api)),
+                        .route(web::get().to(payment_methods::payment_method_retrieve_api))
+                        .route(web::delete().to(payment_methods::payment_method_delete_api)),
                 )
                 .service(
                     web::resource("/{payment_method_id}/update")
-                        .route(web::post().to(payment_method_update_api)),
+                        .route(web::post().to(payment_methods::payment_method_update_api)),
                 )
                 .service(
                     web::resource("/{payment_method_id}/save")
-                        .route(web::post().to(save_payment_method_api)),
+                        .route(web::post().to(payment_methods::save_payment_method_api)),
                 )
                 .service(
                     web::resource("/auth/link").route(web::post().to(pm_auth::link_token_create)),
@@ -1427,7 +1444,8 @@ impl MerchantConnectorAccount {
         #[cfg(feature = "oltp")]
         {
             route = route.service(
-                web::resource("/payment_methods").route(web::get().to(list_payment_method_api)),
+                web::resource("/payment_methods")
+                    .route(web::get().to(payment_methods::list_payment_method_api)),
             );
         }
         route
@@ -1512,6 +1530,20 @@ impl Webhooks {
         }
 
         route
+    }
+}
+
+pub struct RelayWebhooks;
+
+#[cfg(feature = "oltp")]
+impl RelayWebhooks {
+    pub fn server(state: AppState) -> Scope {
+        use api_models::webhooks as webhook_type;
+        web::scope("/webhooks/relay")
+            .app_data(web::Data::new(state))
+            .service(web::resource("/{merchant_id}/{connector_id}").route(
+                web::post().to(receive_incoming_relay_webhook::<webhook_type::OutgoingWebhook>),
+            ))
     }
 }
 

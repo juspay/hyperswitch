@@ -71,6 +71,7 @@ pub async fn construct_fulfillment_router_data<'a>(
     let router_data = RouterData {
         flow: std::marker::PhantomData,
         merchant_id: merchant_account.get_id().clone(),
+        tenant_id: state.tenant.tenant_id.clone(),
         connector,
         payment_id: payment_attempt.payment_id.get_string_repr().to_owned(),
         attempt_id: payment_attempt.attempt_id.clone(),
