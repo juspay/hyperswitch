@@ -1918,7 +1918,7 @@ pub mod routes {
                     .clone()
                     .time_range
                     .end_time
-                    .ok_or_else(|| AnalyticsError::UnknownError)?
+                    .ok_or(AnalyticsError::UnknownError)?
                     .format(&format)
                     .map_err(|e| {
                         logger::error!("Failed to format end_time: {:?}", e);
@@ -2070,7 +2070,7 @@ pub mod routes {
                     .clone()
                     .time_range
                     .end_time
-                    .ok_or_else(|| AnalyticsError::UnknownError)?
+                    .ok_or(AnalyticsError::UnknownError)?
                     .format(&format)
                     .map_err(|e| {
                         logger::error!("Failed to format end_time: {:?}", e);
