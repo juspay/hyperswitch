@@ -2087,21 +2087,22 @@ async fn update_connector_mandate_details(
                     None
                 };
 
-            let mut connector_mandate_details_value = None;
-            if let Some(common_mandate) = updated_connector_mandate_details {
-                let mut payments = serde_json::to_value(common_mandate.payments.as_ref())
-                    .change_context(errors::ApiErrorResponse::MandateUpdateFailed)?;
-
-                let payouts = serde_json::to_value(common_mandate.payouts.as_ref())
-                    .change_context(errors::ApiErrorResponse::MandateUpdateFailed)?;
-
-                if let Some(payments_object) = payments.as_object_mut() {
-                    if !payouts.is_null() {
-                        payments_object.insert("payouts".to_string(), payouts);
-                    }
-                }
-                connector_mandate_details_value = Some(payments)
-            }
+            let connector_mandate_details_value = updated_connector_mandate_details
+                .map(|common_mandate| {
+                    serde_json::to_value(common_mandate.payments.as_ref())
+                        .and_then(|mut payments| {
+                            serde_json::to_value(common_mandate.payouts.as_ref()).map(|payouts| {
+                                if let Some(payments_object) = payments.as_object_mut() {
+                                    if !payouts.is_null() {
+                                        payments_object.insert("payouts".to_string(), payouts);
+                                    }
+                                }
+                                payments
+                            })
+                        })
+                        .map_err(|_| errors::ApiErrorResponse::MandateUpdateFailed)
+                })
+                .transpose()?;
 
             let pm_update = diesel_models::PaymentMethodUpdate::ConnectorNetworkTransactionIdAndMandateDetailsUpdate {
                 connector_mandate_details: connector_mandate_details_value.map(masking::Secret::new),
