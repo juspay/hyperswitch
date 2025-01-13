@@ -209,7 +209,7 @@ pub async fn profile_update() {}
 ///
 /// Activates a routing algorithm under a profile
 #[utoipa::path(
-    patch,
+    put,
     path = "/v2/profiles/{id}/activate-routing-algorithm",
     request_body ( content = RoutingAlgorithmId,
       examples(  (
@@ -239,7 +239,7 @@ pub async fn routing_link_config() {}
 ///
 /// Deactivates a routing algorithm under a profile
 #[utoipa::path(
-    patch,
+    put,
     path = "/v2/profiles/{id}/deactivate-routing-algorithm",
     params(
         ("id" = String, Path, description = "The unique identifier for the profile"),
@@ -262,7 +262,7 @@ pub async fn routing_unlink_config() {}
 ///
 /// Update the default fallback routing algorithm for the profile
 #[utoipa::path(
-    patch,
+    put,
     path = "/v2/profiles/{id}/fallback-routing",
     request_body = Vec<RoutableConnectorChoice>,
     params(

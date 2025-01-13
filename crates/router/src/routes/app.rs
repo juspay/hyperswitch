@@ -1164,7 +1164,7 @@ impl PaymentMethods {
             )
             .service(
                 web::resource("/{id}/update-saved-payment-method")
-                    .route(web::patch().to(payment_method_update_api)),
+                    .route(web::put().to(payment_method_update_api)),
             )
             .service(
                 web::resource("/{id}")
@@ -1771,10 +1771,10 @@ impl Profile {
                     .service(
                         web::resource("/fallback-routing")
                             .route(web::get().to(routing::routing_retrieve_default_config))
-                            .route(web::patch().to(routing::routing_update_default_config)),
+                            .route(web::put().to(routing::routing_update_default_config)),
                     )
                     .service(
-                        web::resource("/activate-routing-algorithm").route(web::patch().to(
+                        web::resource("/activate-routing-algorithm").route(web::put().to(
                             |state, req, path, payload| {
                                 routing::routing_link_config(
                                     state,
@@ -1787,7 +1787,7 @@ impl Profile {
                         )),
                     )
                     .service(
-                        web::resource("/deactivate-routing-algorithm").route(web::patch().to(
+                        web::resource("/deactivate-routing-algorithm").route(web::put().to(
                             |state, req, path| {
                                 routing::routing_unlink_config(
                                     state,
