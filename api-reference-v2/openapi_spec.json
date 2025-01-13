@@ -3438,7 +3438,7 @@
         "required": [
           "payment_description",
           "regular_billing",
-          "management_url"
+          "management_u_r_l"
         ],
         "properties": {
           "payment_description": {
@@ -3453,7 +3453,7 @@
             "description": "A localized billing agreement that the payment sheet displays to the user before the user authorizes the payment",
             "nullable": true
           },
-          "management_url": {
+          "management_u_r_l": {
             "type": "string",
             "description": "A URL to a web page where the user can update or delete the payment method for the recurring payment",
             "example": "https://hyperswitch.io"

@@ -122,6 +122,7 @@ where
             .payment_id
             .get_string_repr()
             .to_owned(),
+        tenant_id: state.tenant.tenant_id.clone(),
         attempt_id: payment_data.payment_attempt.get_id().to_owned(),
         status: payment_data.payment_attempt.status,
         payment_method: diesel_models::enums::PaymentMethod::default(),
@@ -224,7 +225,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
     let webhook_url = Some(helpers::create_webhook_url(
         router_base_url,
         &attempt.merchant_id,
-        connector_id,
+        merchant_connector_account.get_id().get_string_repr(),
     ));
 
     let router_return_url = payment_data
@@ -301,6 +302,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
     let router_data = types::RouterData {
         flow: PhantomData,
         merchant_id: merchant_account.get_id().clone(),
+        tenant_id: state.tenant.tenant_id.clone(),
         // TODO: evaluate why we need customer id at the connector level. We already have connector customer id.
         customer_id,
         connector: connector_id.to_owned(),
@@ -464,6 +466,7 @@ pub async fn construct_payment_router_data_for_capture<'a>(
         // TODO: evaluate why we need customer id at the connector level. We already have connector customer id.
         customer_id,
         connector: connector_id.to_owned(),
+        tenant_id: state.tenant.tenant_id.clone(),
         // TODO: evaluate why we need payment id at the connector level. We already have connector reference id
         payment_id: payment_data
             .payment_attempt
@@ -599,6 +602,7 @@ pub async fn construct_router_data_for_psync<'a>(
         merchant_id: merchant_account.get_id().clone(),
         // TODO: evaluate why we need customer id at the connector level. We already have connector customer id.
         customer_id,
+        tenant_id: state.tenant.tenant_id.clone(),
         connector: connector_id.to_owned(),
         // TODO: evaluate why we need payment id at the connector level. We already have connector reference id
         payment_id: payment_intent.id.get_string_repr().to_owned(),
@@ -662,7 +666,7 @@ pub async fn construct_router_data_for_psync<'a>(
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
 pub async fn construct_payment_router_data_for_sdk_session<'a>(
-    _state: &'a SessionState,
+    state: &'a SessionState,
     payment_data: hyperswitch_domain_models::payments::PaymentIntentData<api::Session>,
     connector_id: &str,
     merchant_account: &domain::MerchantAccount,
@@ -756,6 +760,7 @@ pub async fn construct_payment_router_data_for_sdk_session<'a>(
         // TODO: evaluate why we need customer id at the connector level. We already have connector customer id.
         customer_id,
         connector: connector_id.to_owned(),
+        tenant_id: state.tenant.tenant_id.clone(),
         // TODO: evaluate why we need payment id at the connector level. We already have connector reference id
         payment_id: payment_data.payment_intent.id.get_string_repr().to_owned(),
         // TODO: evaluate why we need attempt id at the connector level. We already have connector reference id
@@ -944,6 +949,7 @@ where
         flow: PhantomData,
         merchant_id: merchant_account.get_id().clone(),
         customer_id,
+        tenant_id: state.tenant.tenant_id.clone(),
         connector: connector_id.to_owned(),
         payment_id: payment_data
             .payment_attempt
@@ -2745,11 +2751,17 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             attempt,
             connector_name,
         ));
+        let merchant_connector_account_id_or_connector_name = payment_data
+            .payment_attempt
+            .merchant_connector_id
+            .as_ref()
+            .map(|mca_id| mca_id.get_string_repr())
+            .unwrap_or(connector_name);
 
         let webhook_url = Some(helpers::create_webhook_url(
             router_base_url,
             &attempt.merchant_id,
-            connector_name,
+            merchant_connector_account_id_or_connector_name,
         ));
         let router_return_url = Some(helpers::create_redirect_url(
             router_base_url,
@@ -3480,7 +3492,7 @@ impl
                     .recurring_payment_interval_count,
             },
             billing_agreement: apple_pay_recurring_details.billing_agreement,
-            management_url: apple_pay_recurring_details.management_url,
+            management_u_r_l: apple_pay_recurring_details.management_url,
         }
     }
 }
@@ -3569,6 +3581,18 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
                     .map(|customer| customer.clone().into_inner())
             });
         let amount = payment_data.payment_attempt.get_total_amount();
+        let merchant_connector_account_id_or_connector_name = payment_data
+            .payment_attempt
+            .merchant_connector_id
+            .as_ref()
+            .map(|mca_id| mca_id.get_string_repr())
+            .unwrap_or(connector_name);
+        let webhook_url = Some(helpers::create_webhook_url(
+            router_base_url,
+            &attempt.merchant_id,
+            merchant_connector_account_id_or_connector_name,
+        ));
+
         Ok(Self {
             currency: payment_data.currency,
             confirm: true,
@@ -3598,6 +3622,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
             ),
             metadata: payment_data.payment_intent.metadata.clone().map(Into::into),
             shipping_cost: payment_data.payment_intent.shipping_cost,
+            webhook_url,
         })
     }
 }
@@ -3764,11 +3789,16 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPreProce
                     .collect::<Result<Vec<_>, _>>()
             })
             .transpose()?;
-
+        let merchant_connector_account_id_or_connector_name = payment_data
+            .payment_attempt
+            .merchant_connector_id
+            .as_ref()
+            .map(|mca_id| mca_id.get_string_repr())
+            .unwrap_or(connector_name);
         let webhook_url = Some(helpers::create_webhook_url(
             router_base_url,
             &attempt.merchant_id,
-            connector_name,
+            merchant_connector_account_id_or_connector_name,
         ));
         let router_return_url = Some(helpers::create_redirect_url(
             router_base_url,
