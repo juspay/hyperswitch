@@ -266,7 +266,6 @@ pub async fn retrieve_conditional_config(
 ) -> RouterResponse<common_types::payments::DecisionManagerResponse> {
     let db = state.store.as_ref();
     let key_manager_state: &KeyManagerState = &(&state).into();
-    // let algorithm_id = merchant_account.get_id().get_payment_config_routing_id();
     let profile_id = profile.get_id();
 
     let profile = db
