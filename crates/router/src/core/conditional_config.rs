@@ -18,7 +18,7 @@ use crate::{
 pub async fn upsert_conditional_config(
     state: SessionState,
     key_store: domain::MerchantKeyStore,
-    request: DecisionManagerRequest, //crete a v2 struct and make fields madatory
+    request: DecisionManagerRequest,
     profile: domain::Profile,
 ) -> RouterResponse<common_types::payments::DecisionManagerRecord> {
     use common_utils::ext_traits::OptionExt;
@@ -35,7 +35,7 @@ pub async fn upsert_conditional_config(
         .attach_printable("The Request has an Invalid Comparison")?;
 
     let new_algo = common_types::payments::DecisionManagerRecord {
-        name: name,
+        name,
         program: program.clone(),
         created_at: timestamp,
     };
