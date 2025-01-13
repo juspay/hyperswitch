@@ -321,7 +321,9 @@ impl ForeignTryFrom<Value> for Vec<UserField> {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn foreign_try_from(metadata: Value) -> Result<Self, Self::Error> {
         let hashmap: BTreeMap<String, Value> = serde_json::from_str(&metadata.to_string())
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)
+            .change_context(errors::ConnectorError::RequestEncodingFailedWithReason(
+                "Failed to serialize request metadata".to_owned(),
+            ))
             .attach_printable("")?;
         let mut vector: Self = Self::new();
         for (key, value) in hashmap {
