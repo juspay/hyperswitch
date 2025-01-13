@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use common_enums::MerchantStorageScheme;
 use common_utils::{encryption::Encryption, errors::ParsingError, pii};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
-use error_stack::report;
+use error_stack::ResultExt;
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
     not(feature = "payment_methods_v2")
@@ -1011,13 +1011,20 @@ impl diesel::serialize::ToSql<diesel::sql_types::Jsonb, diesel::pg::Pg> for Comm
         out: &mut diesel::serialize::Output<'b, '_, diesel::pg::Pg>,
     ) -> diesel::serialize::Result {
         let mut payments = serde_json::to_value(self.payments.as_ref())?;
-        let payouts = serde_json::to_value(self.payouts.as_ref())?;
 
-        if let Some(payments_object) = payments.as_object_mut() {
-            if !payouts.is_null() {
-                payments_object.insert("payouts".to_string(), payouts);
-            }
-        }
+        self.payouts
+            .as_ref()
+            .map(serde_json::to_value)
+            .transpose()?
+            .map(|payout_val| {
+                if !payout_val.is_null() {
+                    payments
+                        .as_object_mut()
+                        .map(|payment_val| payment_val.insert("payouts".to_string(), payout_val))
+                } else {
+                    None
+                }
+            });
 
         <serde_json::Value as diesel::serialize::ToSql<
             diesel::sql_types::Jsonb,
@@ -1037,36 +1044,40 @@ where
             DB,
         >>::from_sql(bytes)?;
 
-        let mut payments_data = None;
-        let mut payouts_data = None;
+        let payments_data = value
+            .clone()
+            .as_object_mut()
+            .map(|obj| {
+                obj.remove("payouts");
 
-        if let Some(obj) = value.clone().as_object_mut() {
-            obj.remove("payouts");
-
-            if let Ok(payment_mandate_record) =
-                serde_json::from_value::<PaymentsMandateReference>(serde_json::json!(obj))
-            {
-                payments_data = Some(payment_mandate_record);
-            }
-        }
-
-        if let Ok(payment_mandate_record) = serde_json::from_value::<Self>(value.clone()) {
-            payouts_data = payment_mandate_record.payouts
-        }
-
-        if payments_data.is_none() && payouts_data.is_none() {
-            Err(
-                report!(ParsingError::StructParseFailure("CommonMandateReference"))
-                    .attach_printable(
-                    "Failed to parse JSON into CommonMandateReference or PaymentsMandateReference",
-                ),
-            )?
-        } else {
-            Ok(Self {
-                payments: payments_data,
-                payouts: payouts_data,
+                serde_json::from_value::<PaymentsMandateReference>(serde_json::Value::Object(
+                    obj.clone(),
+                ))
+                .inspect_err(|err| {
+                    router_env::logger::error!("Failed to parse payments data: {}", err);
+                })
+                .change_context(ParsingError::StructParseFailure(
+                    "Failed to parse payments data",
+                ))
             })
-        }
+            .transpose()?;
+
+        let payouts_data = serde_json::from_value::<Option<Self>>(value)
+            .inspect_err(|err| {
+                router_env::logger::error!("Failed to parse payouts data: {}", err);
+            })
+            .change_context(ParsingError::StructParseFailure(
+                "Failed to parse payouts data",
+            ))
+            .map(|optional_common_mandate_details| {
+                optional_common_mandate_details
+                    .and_then(|common_mandate_details| common_mandate_details.payouts)
+            })?;
+
+        Ok(Self {
+            payments: payments_data,
+            payouts: payouts_data,
+        })
     }
 }
 

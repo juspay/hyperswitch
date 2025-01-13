@@ -320,38 +320,37 @@ where
 {
     let value: Option<serde_json::Value> =
         <Option<serde_json::Value> as de::Deserialize>::deserialize(deserializer)?;
-    if let Some(connector_mandate_value) = value {
-        let mut payments_data = None;
-        let mut payouts_data = None;
 
-        if let Some(obj) = connector_mandate_value.clone().as_object_mut() {
-            obj.remove("payouts");
+    let payments_data = value
+        .clone()
+        .map(|mut mandate_details| {
+            mandate_details
+                .as_object_mut()
+                .map(|obj| obj.remove("payouts"));
 
-            if let Ok(payment_mandate_record) =
-                serde_json::from_value::<PaymentsMandateReference>(serde_json::json!(obj))
-            {
-                payments_data = Some(payment_mandate_record);
-            }
-        }
-        if let Ok(payment_mandate_record) =
-            serde_json::from_value::<CommonMandateReference>(connector_mandate_value)
-        {
-            payouts_data = payment_mandate_record.payouts;
-        }
+            serde_json::from_value::<PaymentsMandateReference>(mandate_details)
+        })
+        .transpose()
+        .map_err(|_| de::Error::custom("Failed to deserialize paymentsMandateReference"))?;
 
-        if payments_data.is_none() && payouts_data.is_none() {
-            Err(de::Error::custom(
-                "Failed to deserialize connector_mandate_details",
-            ))
-        } else {
-            Ok(Some(CommonMandateReference {
-                payments: payments_data,
-                payouts: payouts_data,
-            }))
-        }
-    } else {
-        Ok(None)
-    }
+    let payouts_data = value
+        .clone()
+        .map(|mandate_details| {
+            serde_json::from_value::<Option<CommonMandateReference>>(mandate_details).map(
+                |optional_common_mandate_details| {
+                    optional_common_mandate_details
+                        .and_then(|common_mandate_details| common_mandate_details.payouts)
+                },
+            )
+        })
+        .transpose()
+        .map_err(|_| de::Error::custom("Failed to deserialize paymentsMandateReference"))?
+        .flatten();
+
+    Ok(Some(CommonMandateReference {
+        payments: payments_data,
+        payouts: payouts_data,
+    }))
 }
 
 #[cfg(all(

@@ -146,42 +146,45 @@ impl PaymentMethod {
     pub fn get_common_mandate_reference(
         &self,
     ) -> Result<diesel_models::CommonMandateReference, ParsingError> {
-        if let Some(value) = &self.connector_mandate_details {
-            let mut payments_data = None;
-            let mut payouts_data = None;
+        let payments_data = self
+            .connector_mandate_details
+            .clone()
+            .map(|mut mandate_details| {
+                mandate_details
+                    .as_object_mut()
+                    .map(|obj| obj.remove("payouts"));
 
-            if let Some(obj) = value.clone().as_object_mut() {
-                obj.remove("payouts");
-
-                if let Ok(payment_mandate_record) = serde_json::from_value::<
-                    diesel_models::PaymentsMandateReference,
-                >(serde_json::json!(obj))
-                {
-                    payments_data = Some(payment_mandate_record);
-                }
-            }
-            if let Ok(payment_mandate_record) =
-                serde_json::from_value::<diesel_models::CommonMandateReference>(value.clone())
-            {
-                payouts_data = payment_mandate_record.payouts
-            }
-
-            if payments_data.is_none() && payouts_data.is_none() {
-                Err(ParsingError::StructParseFailure(
-                    "Failed to deserialize PaymentMethod",
-                ))?
-            } else {
-                Ok(diesel_models::CommonMandateReference {
-                    payments: payments_data,
-                    payouts: payouts_data,
-                })
-            }
-        } else {
-            Ok(diesel_models::CommonMandateReference {
-                payments: None,
-                payouts: None,
+                serde_json::from_value::<diesel_models::PaymentsMandateReference>(mandate_details)
+                    .inspect_err(|err| {
+                        router_env::logger::error!("Failed to parse payments data: {}", err);
+                    })
             })
-        }
+            .transpose()
+            .map_err(|_| ParsingError::StructParseFailure("Failed to parse payments data"))?;
+
+        let payouts_data = self
+            .connector_mandate_details
+            .clone()
+            .map(|mandate_details| {
+                serde_json::from_value::<Option<diesel_models::CommonMandateReference>>(
+                    mandate_details,
+                )
+                .inspect_err(|err| {
+                    router_env::logger::error!("Failed to parse payouts data: {}", err);
+                })
+                .map(|optional_common_mandate_details| {
+                    optional_common_mandate_details
+                        .and_then(|common_mandate_details| common_mandate_details.payouts)
+                })
+            })
+            .transpose()
+            .map_err(|_| ParsingError::StructParseFailure("Failed to parse payouts data"))?
+            .flatten();
+
+        Ok(diesel_models::CommonMandateReference {
+            payments: payments_data,
+            payouts: payouts_data,
+        })
     }
 
     #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
