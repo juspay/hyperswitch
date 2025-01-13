@@ -51,11 +51,15 @@ pub struct Refund {
     pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub charges: Option<ChargeRefunds>,
     pub organization_id: common_utils::id_type::OrganizationId,
+    /// INFO: This field is deprecated and replaced by processor_refund_data
     pub connector_refund_data: Option<String>,
+    /// INFO: This field is deprecated and replaced by processor_transaction_data
     pub connector_transaction_data: Option<String>,
     pub split_refunds: Option<common_types::refunds::SplitRefund>,
     pub unified_code: Option<String>,
     pub unified_message: Option<String>,
+    pub processor_refund_data: Option<String>,
+    pub processor_transaction_data: Option<String>,
 }
 
 #[derive(
@@ -99,9 +103,9 @@ pub struct RefundNew {
     pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub charges: Option<ChargeRefunds>,
     pub organization_id: common_utils::id_type::OrganizationId,
-    pub connector_refund_data: Option<String>,
-    pub connector_transaction_data: Option<String>,
     pub split_refunds: Option<common_types::refunds::SplitRefund>,
+    pub processor_refund_data: Option<String>,
+    pub processor_transaction_data: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -113,7 +117,7 @@ pub enum RefundUpdate {
         refund_error_message: Option<String>,
         refund_arn: String,
         updated_by: String,
-        connector_refund_data: Option<String>,
+        processor_refund_data: Option<String>,
     },
     MetadataAndReasonUpdate {
         metadata: Option<pii::SecretSerdeValue>,
@@ -125,7 +129,7 @@ pub enum RefundUpdate {
         sent_to_gateway: bool,
         refund_status: storage_enums::RefundStatus,
         updated_by: String,
-        connector_refund_data: Option<String>,
+        processor_refund_data: Option<String>,
     },
     ErrorUpdate {
         refund_status: Option<storage_enums::RefundStatus>,
@@ -133,7 +137,7 @@ pub enum RefundUpdate {
         refund_error_code: Option<String>,
         updated_by: String,
         connector_refund_id: Option<ConnectorTransactionId>,
-        connector_refund_data: Option<String>,
+        processor_refund_data: Option<String>,
         unified_code: Option<String>,
         unified_message: Option<String>,
     },
@@ -158,7 +162,7 @@ pub struct RefundUpdateInternal {
     refund_error_code: Option<String>,
     updated_by: String,
     modified_at: PrimitiveDateTime,
-    connector_refund_data: Option<String>,
+    processor_refund_data: Option<String>,
     unified_code: Option<String>,
     unified_message: Option<String>,
 }
@@ -176,7 +180,7 @@ impl RefundUpdateInternal {
             refund_error_code: self.refund_error_code,
             updated_by: self.updated_by,
             modified_at: self.modified_at,
-            connector_refund_data: self.connector_refund_data,
+            processor_refund_data: self.processor_refund_data,
             unified_code: self.unified_code,
             unified_message: self.unified_message,
             ..source
@@ -194,7 +198,7 @@ impl From<RefundUpdate> for RefundUpdateInternal {
                 refund_error_message,
                 refund_arn,
                 updated_by,
-                connector_refund_data,
+                processor_refund_data,
             } => Self {
                 connector_refund_id: Some(connector_refund_id),
                 refund_status: Some(refund_status),
@@ -202,7 +206,7 @@ impl From<RefundUpdate> for RefundUpdateInternal {
                 refund_error_message,
                 refund_arn: Some(refund_arn),
                 updated_by,
-                connector_refund_data,
+                processor_refund_data,
                 metadata: None,
                 refund_reason: None,
                 refund_error_code: None,
@@ -225,7 +229,7 @@ impl From<RefundUpdate> for RefundUpdateInternal {
                 refund_arn: None,
                 refund_error_code: None,
                 modified_at: common_utils::date_time::now(),
-                connector_refund_data: None,
+                processor_refund_data: None,
                 unified_code: None,
                 unified_message: None,
             },
@@ -234,13 +238,13 @@ impl From<RefundUpdate> for RefundUpdateInternal {
                 sent_to_gateway,
                 refund_status,
                 updated_by,
-                connector_refund_data,
+                processor_refund_data,
             } => Self {
                 connector_refund_id,
                 sent_to_gateway: Some(sent_to_gateway),
                 refund_status: Some(refund_status),
                 updated_by,
-                connector_refund_data,
+                processor_refund_data,
                 refund_error_message: None,
                 refund_arn: None,
                 metadata: None,
@@ -258,14 +262,14 @@ impl From<RefundUpdate> for RefundUpdateInternal {
                 unified_message,
                 updated_by,
                 connector_refund_id,
-                connector_refund_data,
+                processor_refund_data,
             } => Self {
                 refund_status,
                 refund_error_message,
                 refund_error_code,
                 updated_by,
                 connector_refund_id,
-                connector_refund_data,
+                processor_refund_data,
                 sent_to_gateway: None,
                 refund_arn: None,
                 metadata: None,
@@ -290,7 +294,7 @@ impl From<RefundUpdate> for RefundUpdateInternal {
                 metadata: None,
                 refund_reason: None,
                 modified_at: common_utils::date_time::now(),
-                connector_refund_data: None,
+                processor_refund_data: None,
                 unified_code: None,
                 unified_message: None,
             },
@@ -311,7 +315,7 @@ impl RefundUpdate {
             refund_error_code,
             updated_by,
             modified_at: _,
-            connector_refund_data,
+            processor_refund_data,
             unified_code,
             unified_message,
         } = self.into();
@@ -326,7 +330,7 @@ impl RefundUpdate {
             refund_reason: refund_reason.or(source.refund_reason),
             updated_by,
             modified_at: common_utils::date_time::now(),
-            connector_refund_data: connector_refund_data.or(source.connector_refund_data),
+            processor_refund_data: processor_refund_data.or(source.processor_refund_data),
             unified_code: unified_code.or(source.unified_code),
             unified_message: unified_message.or(source.unified_message),
             ..source
@@ -340,7 +344,7 @@ pub struct RefundCoreWorkflow {
     pub connector_transaction_id: ConnectorTransactionId,
     pub merchant_id: common_utils::id_type::MerchantId,
     pub payment_id: common_utils::id_type::PaymentId,
-    pub connector_transaction_data: Option<String>,
+    pub processor_transaction_data: Option<String>,
 }
 
 #[cfg(feature = "v1")]
@@ -358,7 +362,7 @@ impl ConnectorTransactionIdTrait for Refund {
         match self
             .connector_refund_id
             .as_ref()
-            .map(|refund_id| refund_id.get_txn_id(self.connector_refund_data.as_ref()))
+            .map(|refund_id| refund_id.get_txn_id(self.processor_refund_data.as_ref()))
             .transpose()
         {
             Ok(refund_id) => refund_id,
@@ -374,7 +378,7 @@ impl ConnectorTransactionIdTrait for Refund {
     fn get_connector_transaction_id(&self) -> &String {
         match self
             .connector_transaction_id
-            .get_txn_id(self.connector_transaction_data.as_ref())
+            .get_txn_id(self.processor_transaction_data.as_ref())
         {
             Ok(txn_id) => txn_id,
 
@@ -418,6 +422,7 @@ mod tests {
     "connector_transaction_data": null
     "unified_code": null,
     "unified_message": null,
+    "processor_transaction_data": null,
 }"#;
         let deserialized = serde_json::from_str::<super::Refund>(serialized_refund);
 

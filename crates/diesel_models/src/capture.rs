@@ -30,7 +30,9 @@ pub struct Capture {
     pub capture_sequence: i16,
     // reference to the capture at connector side
     pub connector_response_reference_id: Option<String>,
+    /// INFO: This field is deprecated and replaced by processor_capture_data
     pub connector_capture_data: Option<String>,
+    pub processor_capture_data: Option<String>,
 }
 
 #[derive(Clone, Debug, Insertable, router_derive::DebugAsDisplay, Serialize, Deserialize)]
@@ -55,7 +57,9 @@ pub struct CaptureNew {
     pub connector_capture_id: Option<ConnectorTransactionId>,
     pub capture_sequence: i16,
     pub connector_response_reference_id: Option<String>,
+    /// INFO: This field is deprecated and replaced by processor_capture_data
     pub connector_capture_data: Option<String>,
+    pub processor_capture_data: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -64,7 +68,7 @@ pub enum CaptureUpdate {
         status: storage_enums::CaptureStatus,
         connector_capture_id: Option<ConnectorTransactionId>,
         connector_response_reference_id: Option<String>,
-        connector_capture_data: Option<String>,
+        processor_capture_data: Option<String>,
     },
     ErrorUpdate {
         status: storage_enums::CaptureStatus,
@@ -84,7 +88,7 @@ pub struct CaptureUpdateInternal {
     pub modified_at: Option<PrimitiveDateTime>,
     pub connector_capture_id: Option<ConnectorTransactionId>,
     pub connector_response_reference_id: Option<String>,
-    pub connector_capture_data: Option<String>,
+    pub processor_capture_data: Option<String>,
 }
 
 impl CaptureUpdate {
@@ -97,7 +101,7 @@ impl CaptureUpdate {
             modified_at: _,
             connector_capture_id,
             connector_response_reference_id,
-            connector_capture_data,
+            processor_capture_data,
         } = self.into();
         Capture {
             status: status.unwrap_or(source.status),
@@ -108,7 +112,7 @@ impl CaptureUpdate {
             connector_capture_id: connector_capture_id.or(source.connector_capture_id),
             connector_response_reference_id: connector_response_reference_id
                 .or(source.connector_response_reference_id),
-            connector_capture_data: connector_capture_data.or(source.connector_capture_data),
+            processor_capture_data: processor_capture_data.or(source.processor_capture_data),
             ..source
         }
     }
@@ -122,13 +126,13 @@ impl From<CaptureUpdate> for CaptureUpdateInternal {
                 status,
                 connector_capture_id: connector_transaction_id,
                 connector_response_reference_id,
-                connector_capture_data,
+                processor_capture_data,
             } => Self {
                 status: Some(status),
                 connector_capture_id: connector_transaction_id,
                 modified_at: now,
                 connector_response_reference_id,
-                connector_capture_data,
+                processor_capture_data,
                 ..Self::default()
             },
             CaptureUpdate::ErrorUpdate {

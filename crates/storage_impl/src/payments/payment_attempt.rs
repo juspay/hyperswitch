@@ -1432,7 +1432,7 @@ impl DataModelExt for PaymentAttempt {
     type StorageModel = DieselPaymentAttempt;
 
     fn to_storage_model(self) -> Self::StorageModel {
-        let (connector_transaction_id, connector_transaction_data) = self
+        let (connector_transaction_id, processor_transaction_data) = self
             .connector_transaction_id
             .map(ConnectorTransactionId::form_id_and_data)
             .map(|(txn_id, txn_data)| (Some(txn_id), txn_data))
@@ -1507,10 +1507,12 @@ impl DataModelExt for PaymentAttempt {
             customer_acceptance: self.customer_acceptance,
             organization_id: self.organization_id,
             profile_id: self.profile_id,
-            connector_transaction_data,
             shipping_cost: self.net_amount.get_shipping_cost(),
             order_tax_amount: self.net_amount.get_order_tax_amount(),
             connector_mandate_detail: self.connector_mandate_detail,
+            processor_transaction_data,
+            // Below fields are deprecated. Please add any new fields above this line.
+            connector_transaction_data: None,
         }
     }
 

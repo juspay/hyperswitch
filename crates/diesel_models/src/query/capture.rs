@@ -74,7 +74,7 @@ impl ConnectorTransactionIdTrait for Capture {
         match self
             .connector_capture_id
             .as_ref()
-            .map(|capture_id| capture_id.get_txn_id(self.connector_capture_data.as_ref()))
+            .map(|capture_id| capture_id.get_txn_id(self.processor_capture_data.as_ref()))
             .transpose()
         {
             Ok(capture_id) => capture_id,
