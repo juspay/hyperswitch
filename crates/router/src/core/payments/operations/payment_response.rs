@@ -1728,11 +1728,12 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                         authentication_data,
                                         encoded_data,
                                         payment_method_data: additional_payment_method_data,
-                                        charge_id: None, //todoo
+                                        charge_id: None, //depreciated
                                         connector_mandate_detail: payment_data
                                             .payment_attempt
                                             .connector_mandate_detail
                                             .clone(),
+                                        charges,
                                     }),
                                 ),
                             };

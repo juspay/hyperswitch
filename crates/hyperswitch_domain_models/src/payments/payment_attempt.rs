@@ -590,6 +590,7 @@ pub struct PaymentAttempt {
     pub profile_id: id_type::ProfileId,
     pub organization_id: id_type::OrganizationId,
     pub connector_mandate_detail: Option<ConnectorMandateReferenceId>,
+    pub charges: Option<common_types::payments::ConnectorChargeResponseData>,
 }
 
 #[cfg(feature = "v1")]
@@ -950,6 +951,7 @@ pub enum PaymentAttemptUpdate {
         payment_method_data: Option<serde_json::Value>,
         charge_id: Option<String>,
         connector_mandate_detail: Option<ConnectorMandateReferenceId>,
+        charges: Option<common_types::payments::ConnectorChargeResponseData>,
     },
     UnresolvedResponseUpdate {
         status: storage_enums::AttemptStatus,
@@ -1220,6 +1222,7 @@ impl PaymentAttemptUpdate {
                 payment_method_data,
                 charge_id,
                 connector_mandate_detail,
+                charges,
             } => DieselPaymentAttemptUpdate::ResponseUpdate {
                 status,
                 connector,
@@ -1242,6 +1245,7 @@ impl PaymentAttemptUpdate {
                 payment_method_data,
                 charge_id,
                 connector_mandate_detail,
+                charges,
             },
             Self::UnresolvedResponseUpdate {
                 status,
@@ -1551,6 +1555,7 @@ impl behaviour::Conversion for PaymentAttempt {
             order_tax_amount: self.net_amount.get_order_tax_amount(),
             shipping_cost: self.net_amount.get_shipping_cost(),
             connector_mandate_detail: self.connector_mandate_detail,
+            charges: self.charges,
         })
     }
 
@@ -1632,6 +1637,7 @@ impl behaviour::Conversion for PaymentAttempt {
                 profile_id: storage_model.profile_id,
                 organization_id: storage_model.organization_id,
                 connector_mandate_detail: storage_model.connector_mandate_detail,
+                charges: storage_model.charges,
             })
         }
         .await

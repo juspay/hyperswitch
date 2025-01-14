@@ -15447,7 +15447,7 @@
           "split_payments": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/SplitPaymentsResponse"
+                "$ref": "#/components/schemas/ConnectorChargeResponseData"
               }
             ],
             "nullable": true
@@ -16347,7 +16347,7 @@
           "split_payments": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/SplitPaymentsResponse"
+                "$ref": "#/components/schemas/ConnectorChargeResponseData"
               }
             ],
             "nullable": true
@@ -20498,7 +20498,7 @@
         ],
         "description": "Fee information for Split Payments to be charged on the payment being collected"
       },
-      "SplitPaymentsResponse": {
+      "ConnectorChargeResponseData": {
         "oneOf": [
           {
             "type": "object",
@@ -20507,7 +20507,7 @@
             ],
             "properties": {
               "stripe_split_payment": {
-                "$ref": "#/components/schemas/StripeSplitPaymentsResponse"
+                "$ref": "#/components/schemas/StripeChargeResponseData"
               }
             }
           }
@@ -20631,7 +20631,7 @@
         },
         "additionalProperties": false
       },
-      "StripeSplitPaymentsResponse": {
+      "StripeChargeResponseData": {
         "type": "object",
         "description": "Fee information to be charged on the payment being collected",
         "required": [

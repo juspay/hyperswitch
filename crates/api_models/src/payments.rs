@@ -4726,7 +4726,7 @@ pub struct PaymentsResponse {
     pub updated: Option<PrimitiveDateTime>,
 
     /// Fee information to be charged on the payment being collected
-    pub split_payments: Option<SplitPaymentsResponse>,
+    pub split_payments: Option<common_types::payments::ConnectorChargeResponseData>,
 
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. FRM Metadata is useful for storing additional, structured information on an object related to FRM.
     #[schema(value_type = Option<Object>, example = r#"{ "fulfillment_method" : "deliver", "coverage_request" : "fraud" }"#)]
@@ -4989,42 +4989,6 @@ pub struct PaymentStartRedirectionParams {
     pub publishable_key: String,
     /// The identifier for business profile
     pub profile_id: id_type::ProfileId,
-}
-
-/// Fee information to be charged on the payment being collected via Stripe
-#[derive(Setter, Clone, Debug, PartialEq, serde::Serialize, ToSchema)]
-pub struct StripeSplitPaymentsResponse {
-    /// Identifier for charge created for the payment
-    pub charge_id: Option<String>,
-
-    /// Type of charge (connector specific)
-    #[schema(value_type = PaymentChargeType, example = "direct")]
-    pub charge_type: api_enums::PaymentChargeType,
-
-    /// Platform fees collected on the payment
-    #[schema(value_type = i64, example = 6540)]
-    pub application_fees: MinorUnit,
-
-    /// Identifier for the reseller's account where the funds were transferred
-    pub transfer_account_id: String,
-}
-
-#[derive(Setter, Clone, Debug, PartialEq, serde::Serialize, ToSchema)]
-/// Fee information to be charged on the payment being collected via Adyen
-pub struct AdyenSplitPaymentsResponse {
-    /// The store identifier
-    pub store_id: Option<String>,
-    /// Data for the split items
-    pub split_items: Vec<common_types::payments::AdyenSplitItem>,
-}
-
-#[derive(Clone, Debug, PartialEq, serde::Serialize, ToSchema)]
-#[serde(rename_all = "snake_case")]
-pub enum SplitPaymentsResponse {
-    /// StripeSplitPaymentsResponse
-    StripeSplitPayment(StripeSplitPaymentsResponse),
-    /// AdyenSplitPaymentsResponse
-    AdyenSplitPayment(AdyenSplitPaymentsResponse),
 }
 
 /// Details of external authentication

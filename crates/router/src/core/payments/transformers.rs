@@ -2125,8 +2125,8 @@ where
                 common_types::payments::SplitPaymentsRequest::StripeSplitPayment(
                     stripe_split_payment,
                 ) => Some(
-                    api_models::payments::SplitPaymentsResponse::StripeSplitPayment(
-                        api_models::payments::StripeSplitPaymentsResponse {
+                    common_types::payments::ConnectorChargeResponseData::StripeSplitPayment(
+                        common_types::payments::StripeChargeResponseData {
                             charge_id: None, //todoo payment_attempt.charges.clone(),
                             charge_type: stripe_split_payment.charge_type,
                             application_fees: stripe_split_payment.application_fees,

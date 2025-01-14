@@ -26,7 +26,7 @@ pub enum PaymentsResponseData {
         network_txn_id: Option<String>,
         connector_response_reference_id: Option<String>,
         incremental_authorization_allowed: Option<bool>,
-        charges: Option<Vec<ConnectorChargeResponseData>>,
+        charges: Option<::common_types::payments::ConnectorChargeResponseData>,
     },
     MultipleCaptureResponse {
         // pending_capture_id_list: Vec<String>,
@@ -504,34 +504,6 @@ pub enum AuthenticationResponseData {
         authentication_value: Option<String>,
         eci: Option<String>,
     },
-}
-
-#[derive(Debug, Clone)]
-pub struct StripeChargeResponseData {
-    pub application_fee: MinorUnit,
-    pub charge_type: common_enums::StripeChargeType,
-    pub charge_id: Option<String>,
-    pub transfer_account_id: Option<String>,
-}
-
-#[derive(Debug, Clone)]
-pub struct AdyenChargeResponseData {
-    pub store_id: Option<String>,
-    pub split_items: Vec<AdyenSplitItemResponse>,
-}
-
-#[derive(Debug, Clone)]
-pub struct AdyenSplitItemResponse {
-    pub amount: MinorUnit,
-    pub split_type: common_enums::AdyenSplitType,
-    pub refernce: Option<String>,
-    pub account: Option<String>,
-}
-
-#[derive(Debug, Clone)]
-pub enum ConnectorChargeResponseData {
-    Stripe(StripeChargeResponseData),
-    Adyen(AdyenChargeResponseData),
 }
 
 #[derive(Debug, Clone)]

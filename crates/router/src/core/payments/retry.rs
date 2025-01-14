@@ -465,8 +465,9 @@ where
                 unified_code: None,
                 unified_message: None,
                 payment_method_data: additional_payment_method_data,
-                charge_id: None, //todooo
+                charge_id: None,
                 connector_mandate_detail: None,
+                charges,
             };
 
             #[cfg(feature = "v1")]
