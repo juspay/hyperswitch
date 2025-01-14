@@ -766,19 +766,15 @@ impl
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
 
-        if let Some(split_payments) = &req.request.split_payments {
-            match split_payments {
-                common_types::payments::SplitPaymentsRequest::StripeSplitPayment(
-                    stripe_split_payment,
-                ) => {
+        if let Some(common_types::payments::SplitPaymentsRequest::StripeSplitPayment(
+            stripe_split_payment,
+        )) = &req.request.split_payments {
+            
                     transformers::transform_headers_for_connect_platform(
                         stripe_split_payment.charge_type.clone(),
                         stripe_split_payment.transfer_account_id.clone(),
                         &mut header,
                     );
-                }
-                common_types::payments::SplitPaymentsRequest::AdyenSplitPayment(_) => todo!(), //todooo
-            }
         }
         Ok(header)
     }
@@ -944,11 +940,9 @@ impl
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
 
-        if let Some(split_payments) = &req.request.split_payments {
-            match split_payments {
-                common_types::payments::SplitPaymentsRequest::StripeSplitPayment(
-                    stripe_split_payment,
-                ) => {
+        if let Some(common_types::payments::SplitPaymentsRequest::StripeSplitPayment(
+            stripe_split_payment,
+        )) = &req.request.split_payments {
                     if stripe_split_payment.charge_type
                         == api::enums::PaymentChargeType::Stripe(
                             api::enums::StripeChargeType::Direct,
@@ -963,9 +957,6 @@ impl
                         )];
                         header.append(&mut customer_account_header);
                     }
-                }
-                common_types::payments::SplitPaymentsRequest::AdyenSplitPayment(_) => todo!(), //todooo
-            }
         }
         Ok(header)
     }

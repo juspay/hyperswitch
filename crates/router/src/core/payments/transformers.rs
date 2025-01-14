@@ -2119,26 +2119,6 @@ where
             )
         });
 
-        let split_payments_response = match payment_intent.split_payments {
-            None => None,
-            Some(split_payments) => match split_payments {
-                common_types::payments::SplitPaymentsRequest::StripeSplitPayment(
-                    stripe_split_payment,
-                ) => Some(
-                    common_types::payments::ConnectorChargeResponseData::StripeSplitPayment(
-                        common_types::payments::StripeChargeResponseData {
-                            charge_id: None, //todoo payment_attempt.charges.clone(),
-                            charge_type: stripe_split_payment.charge_type,
-                            application_fees: stripe_split_payment.application_fees,
-                            transfer_account_id: stripe_split_payment.transfer_account_id,
-                        },
-                    ),
-                ),
-                common_types::payments::SplitPaymentsRequest::AdyenSplitPayment(
-                    adyen_split_payment,
-                ) => todo!(), //todoooo
-            },
-        };
 
         let mandate_data = payment_data.get_setup_mandate().map(|d| api::MandateData {
             customer_acceptance: d
@@ -2318,7 +2298,7 @@ where
                 .get_payment_method_info()
                 .map(|info| info.status),
             updated: Some(payment_intent.modified_at),
-            split_payments: split_payments_response,
+            split_payments: payment_attempt.charges,
             frm_metadata: payment_intent.frm_metadata,
             merchant_order_reference_id: payment_intent.merchant_order_reference_id,
             order_tax_amount,

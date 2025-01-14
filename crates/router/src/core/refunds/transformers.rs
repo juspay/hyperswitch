@@ -6,7 +6,7 @@ use crate::core::errors;
 
 pub struct SplitRefundInput {
     pub refund_request: common_types::refunds::SplitRefund,
-    pub payment_charges: common_types::payments::SplitPaymentsRequest,
+    pub payment_charges: common_types::payments::ConnectorChargeResponseData,
     pub charge_id: Option<String>,
 }
 
@@ -23,10 +23,10 @@ impl TryFrom<SplitRefundInput> for router_request_types::SplitRefundsRequest {
         match refund_request {
             common_types::refunds::SplitRefund::StripeSplitRefund(stripe_refund) => {
                 match payment_charges {
-                    common_types::payments::SplitPaymentsRequest::StripeSplitPayment(
+                    common_types::payments::ConnectorChargeResponseData::StripeSplitPayment(
                         stripe_payment,
                     ) => {
-                        let charge_id = charge_id.ok_or_else(|| {
+                        let charge_id = stripe_payment.charge_id.or(charge_id).ok_or_else(|| {
                             report!(errors::ApiErrorResponse::InternalServerError)
                                 .attach_printable("Missing `charge_id` in PaymentAttempt.")
                         })?;

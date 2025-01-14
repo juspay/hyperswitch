@@ -466,15 +466,15 @@ pub async fn refund_retrieve_core(
         .await
         .transpose()?;
 
-    let split_refunds_req: Option<SplitRefundsRequest> = payment_intent
-        .split_payments
+    let split_refunds_req: Option<SplitRefundsRequest> = payment_attempt
+        .charges
         .clone()
         .zip(refund.split_refunds.clone())
         .map(|(split_payments, split_refunds)| {
             SplitRefundsRequest::try_from(SplitRefundInput {
                 refund_request: split_refunds,
                 payment_charges: split_payments,
-                charge_id: None, //todoo payment_attempt.charge_id.clone(),
+                charge_id: payment_attempt.charge_id.clone(),
             })
         })
         .transpose()?;
