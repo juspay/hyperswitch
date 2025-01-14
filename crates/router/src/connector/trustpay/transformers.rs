@@ -1,10 +1,9 @@
 use std::collections::HashMap;
 
-use cards::NameType;
 use common_utils::{
     errors::CustomResult,
     pii::{self, Email},
-    types::StringMajorUnit,
+    types::{NameType, StringMajorUnit},
 };
 use error_stack::{report, ResultExt};
 use masking::{ExposeInterface, PeekInterface, Secret};

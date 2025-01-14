@@ -1,4 +1,4 @@
-use cards::NameType;
+use common_utils::types::NameType;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;

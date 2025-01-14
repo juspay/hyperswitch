@@ -1,12 +1,12 @@
 use std::collections::HashMap;
 
-use cards::{CardNumber, NameType};
+use cards::CardNumber;
 use common_utils::{
     consts::default_payouts_list_limit,
     crypto, id_type, link_utils, payout_method_utils,
     pii::{self, Email},
     transformers::ForeignFrom,
-    types::{UnifiedCode, UnifiedMessage},
+    types::{NameType, UnifiedCode, UnifiedMessage},
 };
 use masking::Secret;
 use router_derive::FlatStruct;

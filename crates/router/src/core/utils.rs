@@ -72,7 +72,7 @@ pub async fn construct_payout_router_data<'a, F>(
     merchant_account: &domain::MerchantAccount,
     payout_data: &mut PayoutData,
 ) -> RouterResult<types::PayoutsRouterData<F>> {
-    use cards::NameType;
+    use common_utils::types::NameType;
 
     let merchant_connector_account = payout_data
         .merchant_connector_account

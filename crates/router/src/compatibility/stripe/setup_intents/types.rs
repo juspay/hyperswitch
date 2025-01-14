@@ -1,8 +1,7 @@
 use std::str::FromStr;
 
 use api_models::payments;
-use cards::NameType;
-use common_utils::{date_time, ext_traits::StringExt, id_type, pii as secret};
+use common_utils::{date_time, ext_traits::StringExt, id_type, pii as secret, types::NameType};
 use error_stack::ResultExt;
 use router_env::logger;
 use serde::{Deserialize, Serialize};

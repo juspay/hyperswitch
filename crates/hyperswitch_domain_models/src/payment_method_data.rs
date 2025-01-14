@@ -2,7 +2,6 @@ use api_models::{
     mandates, payment_methods,
     payments::{additional_info as payment_additional_types, ExtendedCardInfo},
 };
-use cards::NameType;
 use common_enums::enums as api_enums;
 use common_utils::{
     id_type,
@@ -10,6 +9,7 @@ use common_utils::{
         MaskedBankAccount, MaskedIban, MaskedRoutingNumber, MaskedSortCode, MaskedUpiVpaId,
     },
     pii::{self, Email},
+    types::NameType,
 };
 use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};

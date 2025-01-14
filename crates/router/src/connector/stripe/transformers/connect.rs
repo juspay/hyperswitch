@@ -1,6 +1,5 @@
 use api_models;
-use cards::NameType;
-use common_utils::pii::Email;
+use common_utils::{pii::Email, types::NameType};
 use error_stack::ResultExt;
 use masking::Secret;
 use serde::{Deserialize, Serialize};

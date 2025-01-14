@@ -1,4 +1,4 @@
-use cards::NameType;
+use common_utils::types::NameType;
 use masking::{PeekInterface, Secret};
 
 #[derive(Default, Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]

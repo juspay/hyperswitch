@@ -4,14 +4,13 @@ use api_models::{
     enums as api_enums, gsm as gsm_api_types, payment_methods, payments,
     routing::ConnectorSelection,
 };
-use cards::NameType;
 use common_utils::{
     consts::X_HS_LATENCY,
     crypto::Encryptable,
     ext_traits::{Encode, StringExt, ValueExt},
     fp_utils::when,
     pii,
-    types::ConnectorTransactionIdTrait,
+    types::{ConnectorTransactionIdTrait, NameType},
 };
 use diesel_models::enums as storage_enums;
 use error_stack::{report, ResultExt};

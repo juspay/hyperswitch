@@ -4,7 +4,7 @@ use std::{
     num::NonZeroI64,
 };
 pub mod additional_info;
-use cards::{CardNumber, NameType};
+use cards::CardNumber;
 use common_enums::ProductType;
 #[cfg(feature = "v2")]
 use common_utils::id_type::GlobalPaymentId;
@@ -16,7 +16,7 @@ use common_utils::{
     hashing::HashedString,
     id_type,
     pii::{self, Email},
-    types::{MinorUnit, StringMajorUnit},
+    types::{MinorUnit, NameType, StringMajorUnit},
 };
 use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface, Secret, WithType};

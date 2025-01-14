@@ -10,7 +10,7 @@ use std::{
     borrow::Cow,
     fmt::Display,
     iter::Sum,
-    ops::{Add, Mul, Sub},
+    ops::{Add, Deref, Mul, Sub},
     primitive::i64,
     str::{FromStr, SplitWhitespace},
 };
@@ -26,6 +26,7 @@ use diesel::{
     AsExpression, FromSqlRow, Queryable,
 };
 use error_stack::{report, ResultExt};
+use masking::{ExposeInterface, PeekInterface, Secret};
 use rust_decimal::{
     prelude::{FromPrimitive, ToPrimitive},
     Decimal,
@@ -41,6 +42,7 @@ use crate::{
         self, MAX_DESCRIPTION_LENGTH, MAX_STATEMENT_DESCRIPTOR_LENGTH, PUBLISHABLE_KEY_LENGTH,
     },
     errors::{CustomResult, ParsingError, PercentageError, ValidationError},
+    ext_traits::ConfigExt,
     fp_utils::when,
 };
 
@@ -1394,6 +1396,124 @@ where
 {
     fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, DB>) -> diesel::serialize::Result {
         self.0.to_sql(out)
+    }
+}
+
+#[derive(Clone, Default, Debug, Eq, PartialEq, Serialize)]
+/// NewType for validating Names
+pub struct NameType(Secret<LengthString<256, 1>>);
+
+impl TryFrom<String> for NameType {
+    type Error = error_stack::Report<ValidationError>;
+    fn try_from(card_holder_name: String) -> Result<Self, Self::Error> {
+        for char in card_holder_name.chars() {
+            validate_character_in_card_holder_name(char)?;
+        }
+        let valid_length_name =
+            LengthString::<256, 1>::from(card_holder_name.into()).map_err(|_| {
+                report!(ValidationError::InvalidValue {
+                    message: "invalid length for name".to_string()
+                })
+            })?;
+        Ok(Self(Secret::new(valid_length_name)))
+    }
+}
+
+impl TryFrom<Secret<String>> for NameType {
+    type Error = error_stack::Report<ValidationError>;
+    fn try_from(masked_card_holder_name: Secret<String>) -> Result<Self, Self::Error> {
+        Self::try_from(masked_card_holder_name.expose())
+    }
+}
+
+impl FromStr for NameType {
+    type Err = error_stack::Report<ValidationError>;
+
+    fn from_str(card_number: &str) -> Result<Self, Self::Err> {
+        Self::try_from(card_number.to_string())
+    }
+}
+
+impl From<NameType> for Secret<String> {
+    fn from(card_holder_name: NameType) -> Self {
+        Self::new(card_holder_name.peek().to_string())
+    }
+}
+
+impl From<&NameType> for Secret<String> {
+    fn from(card_holder_name: &NameType) -> Self {
+        Self::new(card_holder_name.peek().to_string())
+    }
+}
+
+fn validate_character_in_card_holder_name(
+    character: char,
+) -> Result<(), error_stack::Report<ValidationError>> {
+    if character.is_alphabetic()
+        || character == ' '
+        || character == '.'
+        || character == '-'
+        || character == '\''
+        || character == '~'
+        || character == '`'
+    {
+        Ok(())
+    } else {
+        Err(report!(ValidationError::InvalidValue {
+            message: format!("invalid character found in card holder name: {}", character)
+        }))
+    }
+}
+
+impl<'de> Deserialize<'de> for NameType {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let card_holder_name = String::deserialize(deserializer)?;
+        card_holder_name
+            .try_into()
+            .map_err(serde::de::Error::custom)
+    }
+}
+
+impl Deref for NameType {
+    type Target = Secret<LengthString<256, 1>>;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl ConfigExt for NameType {
+    fn is_empty_after_trim(&self) -> bool {
+        self.peek().trim().is_empty()
+    }
+}
+
+#[cfg(test)]
+mod name_type_test {
+    #![allow(clippy::unwrap_used)]
+    use super::*;
+    #[test]
+    fn test_card_holder_name() {
+        let valid_name = "Sakil Mostak".to_string();
+        // no panic
+        let card_holder_name = NameType::try_from("Sakil Mostak".to_string()).unwrap();
+
+        // will panic on unwrap
+        let invalid_card_holder_name = NameType::try_from("$@k!l M*$t@k".to_string());
+
+        assert_eq!(*card_holder_name.peek().to_string(), valid_name);
+        assert!(invalid_card_holder_name.is_err());
+
+        let serialized = serde_json::to_string(&card_holder_name).unwrap();
+        assert_eq!(&serialized, "\"Sakil Mostak\"");
+
+        let derialized = serde_json::from_str::<NameType>(&serialized).unwrap();
+        assert_eq!(derialized.peek().to_string(), valid_name);
+
+        let invalid_deserialization = serde_json::from_str::<NameType>("$@k!l M*$t@k");
+        assert!(invalid_deserialization.is_err());
     }
 }
 

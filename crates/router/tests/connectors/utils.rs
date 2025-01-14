@@ -80,8 +80,9 @@ impl PaymentInfo {
                 None,
                 Some(hyperswitch_domain_models::address::Address {
                     address: Some(hyperswitch_domain_models::address::AddressDetails {
-                        first_name: cards::NameType::try_from("John".to_string()).ok(),
-                        last_name: cards::NameType::try_from("Doe".to_string()).ok(),
+                        first_name: common_utils::types::NameType::try_from("John".to_string())
+                            .ok(),
+                        last_name: common_utils::types::NameType::try_from("Doe".to_string()).ok(),
                         ..Default::default()
                     }),
                     phone: None,
@@ -927,8 +928,11 @@ impl Default for CCardType {
             card_type: None,
             card_issuing_country: None,
             bank_code: None,
-            nick_name: cards::NameType::try_from("nick_name".to_string()).ok(),
-            card_holder_name: cards::NameType::try_from("card holder name".to_string()).ok(),
+            nick_name: common_utils::types::NameType::try_from("nick_name".to_string()).ok(),
+            card_holder_name: common_utils::types::NameType::try_from(
+                "card holder name".to_string(),
+            )
+            .ok(),
         })
     }
 }

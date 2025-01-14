@@ -1,11 +1,10 @@
 use std::{collections::HashMap, marker::PhantomData};
 
-use cards::NameType;
 use common_utils::{
     errors::IntegrityCheckError,
     ext_traits::{OptionExt, ValueExt},
     id_type,
-    types::MinorUnit,
+    types::{MinorUnit, NameType},
 };
 use error_stack::ResultExt;
 use masking::{ExposeInterface, Secret};

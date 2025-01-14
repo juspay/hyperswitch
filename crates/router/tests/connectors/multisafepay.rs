@@ -42,8 +42,8 @@ fn get_default_payment_info() -> Option<PaymentInfo> {
         None,
         Some(Address {
             address: Some(AddressDetails {
-                first_name: cards::NameType::try_from("John".to_string()).ok(),
-                last_name: cards::NameType::try_from("Doe".to_string()).ok(),
+                first_name: common_utils::types::NameType::try_from("John".to_string()).ok(),
+                last_name: common_utils::types::NameType::try_from("Doe".to_string()).ok(),
                 line1: Some(Secret::new("Kraanspoor".to_string())),
                 line2: Some(Secret::new("line2".to_string())),
                 line3: Some(Secret::new("line3".to_string())),

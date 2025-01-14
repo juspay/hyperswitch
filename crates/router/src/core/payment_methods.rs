@@ -17,7 +17,6 @@ use std::collections::HashSet;
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use std::str::FromStr;
 
-use ::cards::NameType;
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 pub use api_models::enums as api_enums;
 pub use api_models::enums::Connector;
@@ -26,7 +25,7 @@ use api_models::payment_methods;
 pub use api_models::{enums::PayoutConnectors, payouts as payout_types};
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use common_utils::ext_traits::Encode;
-use common_utils::{consts::DEFAULT_LOCALE, id_type};
+use common_utils::{consts::DEFAULT_LOCALE, id_type, types::NameType};
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use common_utils::{
     crypto::{self, Encryptable},

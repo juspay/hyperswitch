@@ -1,4 +1,3 @@
-use cards::NameType;
 use common_enums::PaymentMethodType;
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use common_utils::request;
@@ -7,6 +6,7 @@ use common_utils::{
     ext_traits::{BytesExt, Encode},
     generate_id_with_default_len, id_type,
     pii::Email,
+    types::NameType,
 };
 use error_stack::{report, ResultExt};
 use masking::PeekInterface;

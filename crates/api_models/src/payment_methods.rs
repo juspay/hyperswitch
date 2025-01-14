@@ -2,14 +2,14 @@ use std::collections::{HashMap, HashSet};
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use std::str::FromStr;
 
-use cards::{CardNumber, NameType};
+use cards::CardNumber;
 use common_utils::{
     consts::SURCHARGE_PERCENTAGE_PRECISION_LENGTH,
     crypto::OptionalEncryptableName,
     errors,
     ext_traits::OptionExt,
     id_type, link_utils, pii,
-    types::{MinorUnit, Percentage, Surcharge},
+    types::{MinorUnit, NameType, Percentage, Surcharge},
 };
 use masking::PeekInterface;
 use serde::de;

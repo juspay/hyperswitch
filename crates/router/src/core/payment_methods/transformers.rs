@@ -2,7 +2,6 @@
 use std::str::FromStr;
 
 use api_models::{enums as api_enums, payment_methods::Card};
-use cards::NameType;
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use common_utils::ext_traits::ValueExt;
 use common_utils::{
@@ -10,6 +9,7 @@ use common_utils::{
     id_type,
     pii::Email,
     request::RequestContent,
+    types::NameType,
 };
 use error_stack::{report, ResultExt};
 use josekit::jwe;

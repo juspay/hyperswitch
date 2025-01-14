@@ -1,9 +1,9 @@
 use api_models;
-use cards::NameType;
 use common_enums;
 use common_utils::{
     events::{ApiEventMetric, ApiEventsType},
     pii::Email,
+    types::NameType,
 };
 use diesel_models::types::OrderDetailsWithAmount;
 use masking::Secret;

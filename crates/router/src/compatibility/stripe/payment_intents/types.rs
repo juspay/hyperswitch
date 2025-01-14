@@ -1,14 +1,13 @@
 use std::str::FromStr;
 
 use api_models::payments;
-use cards::NameType;
 use common_utils::{
     crypto::Encryptable,
     date_time,
     ext_traits::StringExt,
     id_type,
     pii::{IpAddress, SecretSerdeValue, UpiVpaMaskingStrategy},
-    types::MinorUnit,
+    types::{MinorUnit, NameType},
 };
 use error_stack::ResultExt;
 use router_env::logger;

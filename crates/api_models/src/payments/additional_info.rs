@@ -1,6 +1,8 @@
-use cards::NameType;
-use common_utils::new_type::{
-    MaskedBankAccount, MaskedIban, MaskedRoutingNumber, MaskedSortCode, MaskedUpiVpaId,
+use common_utils::{
+    new_type::{
+        MaskedBankAccount, MaskedIban, MaskedRoutingNumber, MaskedSortCode, MaskedUpiVpaId,
+    },
+    types::NameType,
 };
 use masking::Secret;
 use utoipa::ToSchema;
