@@ -26,7 +26,7 @@ use diesel::{
     AsExpression, FromSqlRow, Queryable,
 };
 use error_stack::{report, ResultExt};
-use masking::{ExposeInterface, PeekInterface, Secret};
+use masking::{ExposeInterface, PeekInterface};
 use rust_decimal::{
     prelude::{FromPrimitive, ToPrimitive},
     Decimal,
@@ -1401,7 +1401,7 @@ where
 
 #[derive(Clone, Default, Debug, Eq, PartialEq, Serialize)]
 /// NewType for validating Names
-pub struct NameType(Secret<LengthString<256, 1>>);
+pub struct NameType(masking::Secret<LengthString<256, 1>>);
 
 impl TryFrom<String> for NameType {
     type Error = error_stack::Report<ValidationError>;
@@ -1415,13 +1415,13 @@ impl TryFrom<String> for NameType {
                     message: "invalid length for name".to_string()
                 })
             })?;
-        Ok(Self(Secret::new(valid_length_name)))
+        Ok(Self(masking::Secret::new(valid_length_name)))
     }
 }
 
-impl TryFrom<Secret<String>> for NameType {
+impl TryFrom<masking::Secret<String>> for NameType {
     type Error = error_stack::Report<ValidationError>;
-    fn try_from(masked_card_holder_name: Secret<String>) -> Result<Self, Self::Error> {
+    fn try_from(masked_card_holder_name: masking::Secret<String>) -> Result<Self, Self::Error> {
         Self::try_from(masked_card_holder_name.expose())
     }
 }
@@ -1434,13 +1434,13 @@ impl FromStr for NameType {
     }
 }
 
-impl From<NameType> for Secret<String> {
+impl From<NameType> for masking::Secret<String> {
     fn from(card_holder_name: NameType) -> Self {
         Self::new(card_holder_name.peek().to_string())
     }
 }
 
-impl From<&NameType> for Secret<String> {
+impl From<&NameType> for masking::Secret<String> {
     fn from(card_holder_name: &NameType) -> Self {
         Self::new(card_holder_name.peek().to_string())
     }
@@ -1478,7 +1478,7 @@ impl<'de> Deserialize<'de> for NameType {
 }
 
 impl Deref for NameType {
-    type Target = Secret<LengthString<256, 1>>;
+    type Target = masking::Secret<LengthString<256, 1>>;
     fn deref(&self) -> &Self::Target {
         &self.0
     }
