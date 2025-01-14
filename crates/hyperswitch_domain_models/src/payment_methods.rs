@@ -1,3 +1,5 @@
+#[cfg(feature = "v2")]
+use api_models::payment_methods::PaymentMethodsData;
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use common_utils::{crypto::Encryptable, encryption::Encryption, types::keymanager::ToEncryptable};
 use common_utils::{
@@ -9,21 +11,16 @@ use common_utils::{
 use diesel_models::enums as storage_enums;
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
+// specific imports because of using the macro
+#[cfg(feature = "v2")]
+use rustc_hash::FxHashMap;
+#[cfg(feature = "v2")]
+use serde_json::Value;
 use time::PrimitiveDateTime;
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use crate::address::Address;
 use crate::type_encryption::{crypto_operation, AsyncLift, CryptoOperation};
-
-// specific imports because of using the macro
-#[cfg(feature = "v2")]
-use rustc_hash::FxHashMap;
-
-#[cfg(feature = "v2")]
-use serde_json::Value;
-
-#[cfg(feature = "v2")]
-use api_models::payment_methods::PaymentMethodsData;
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
