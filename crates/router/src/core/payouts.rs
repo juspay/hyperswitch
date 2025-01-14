@@ -2118,7 +2118,23 @@ pub async fn create_recipient_disburse_account(
                 };
 
                 let connector_mandate_details_value =
-                    serde_json::to_value(common_connector_mandate.clone()).ok();
+                    serde_json::to_value(common_connector_mandate.payments.as_ref())
+                        .and_then(|mut payments| {
+                            if payments.is_null() {
+                                payments = serde_json::json!({});
+                            }
+                            serde_json::to_value(common_connector_mandate.payouts.as_ref()).map(
+                                |payouts| {
+                                    if let Some(payments_object) = payments.as_object_mut() {
+                                        if !payouts.is_null() {
+                                            payments_object.insert("payouts".to_string(), payouts);
+                                        }
+                                    }
+                                    payments
+                                },
+                            )
+                        })
+                        .map_err(|_| errors::ApiErrorResponse::MandateUpdateFailed)?;
 
                 if let Some(pm_method) = payout_data.payment_method.clone() {
                     let pm_update =
@@ -2127,7 +2143,7 @@ pub async fn create_recipient_disburse_account(
                                 any(feature = "v1", feature = "v2"),
                                 not(feature = "payment_methods_v2")
                             ))]
-                            connector_mandate_details: connector_mandate_details_value,
+                            connector_mandate_details: Some(connector_mandate_details_value),
 
                             #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
                             connector_mandate_details: Some(common_connector_mandate),
@@ -2158,7 +2174,7 @@ pub async fn create_recipient_disburse_account(
                             payout_data,
                             &customer_id,
                             payout_method_data,
-                            connector_mandate_details_value,
+                            Some(connector_mandate_details_value),
                             merchant_account,
                             key_store,
                         )

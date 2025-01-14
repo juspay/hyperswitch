@@ -1010,21 +1010,19 @@ impl diesel::serialize::ToSql<diesel::sql_types::Jsonb, diesel::pg::Pg> for Comm
         &'b self,
         out: &mut diesel::serialize::Output<'b, '_, diesel::pg::Pg>,
     ) -> diesel::serialize::Result {
-        let mut payments = serde_json::to_value(self.payments.as_ref())?;
-
-        self.payouts
-            .as_ref()
-            .map(serde_json::to_value)
-            .transpose()?
-            .map(|payout_val| {
-                if !payout_val.is_null() {
-                    payments
-                        .as_object_mut()
-                        .map(|payment_val| payment_val.insert("payouts".to_string(), payout_val))
-                } else {
-                    None
+        let payments = serde_json::to_value(self.payments.as_ref()).and_then(|mut payments| {
+            if payments.is_null() {
+                payments = serde_json::json!({});
+            }
+            serde_json::to_value(self.payouts.as_ref()).map(|payouts| {
+                if let Some(payments_object) = payments.as_object_mut() {
+                    if !payouts.is_null() {
+                        payments_object.insert("payouts".to_string(), payouts);
+                    }
                 }
-            });
+                payments
+            })
+        })?;
 
         <serde_json::Value as diesel::serialize::ToSql<
             diesel::sql_types::Jsonb,
