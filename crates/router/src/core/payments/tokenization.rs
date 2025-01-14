@@ -1307,7 +1307,7 @@ pub fn update_connector_mandate_details_status(
     merchant_connector_id: id_type::MerchantConnectorAccountId,
     mut payment_mandate_reference: diesel_models::PaymentsMandateReference,
     status: ConnectorMandateStatus,
-) -> RouterResult<Option<serde_json::Value>> {
+) -> RouterResult<Option<diesel_models::CommonMandateReference>> {
     let mandate_reference = {
         payment_mandate_reference
             .entry(merchant_connector_id)
@@ -1327,11 +1327,9 @@ pub fn update_connector_mandate_details_status(
             });
         Some(payment_mandate_reference)
     };
-    let connector_mandate_details = mandate_reference
-        .map(|mandate| mandate.encode_to_value())
-        .transpose()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Unable to serialize customer acceptance to value")?;
 
-    Ok(connector_mandate_details)
+    Ok(Some(diesel_models::CommonMandateReference {
+        payments: mandate_reference,
+        payouts: None,
+    }))
 }
