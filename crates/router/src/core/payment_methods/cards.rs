@@ -5433,10 +5433,7 @@ pub async fn get_masked_bank_details(
         .transpose()?;
 
     #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-    let payment_method_data = pm
-        .payment_method_data
-        .clone()
-        .map(|x| x.into_inner().expose().into_inner());
+    let payment_method_data = pm.payment_method_data.clone().map(|x| x.into_inner());
 
     match payment_method_data {
         Some(pmd) => match pmd {

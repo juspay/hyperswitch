@@ -556,7 +556,7 @@ pub fn generate_payment_method_response(
     let pmd = pm
         .payment_method_data
         .clone()
-        .map(|data| data.into_inner().expose().into_inner())
+        .map(|data| data.into_inner())
         .and_then(|data| match data {
             api::PaymentMethodsData::Card(card) => {
                 Some(api::PaymentMethodResponseData::Card(card.into()))
@@ -933,7 +933,7 @@ impl transformers::ForeignTryFrom<domain::PaymentMethod> for api::CustomerPaymen
 
         let payment_method_data = item
             .payment_method_data
-            .map(|payment_method_data| payment_method_data.into_inner().expose().into_inner())
+            .map(|payment_method_data| payment_method_data.into_inner())
             .map(|payment_method_data| match payment_method_data {
                 api_models::payment_methods::PaymentMethodsData::Card(
                     card_details_payment_method,
@@ -950,12 +950,8 @@ impl transformers::ForeignTryFrom<domain::PaymentMethod> for api::CustomerPaymen
         let payment_method_billing = item
             .payment_method_billing_address
             .clone()
-            .map(|decrypted_data| decrypted_data.into_inner().expose())
-            .map(|decrypted_value| decrypted_value.parse_value("payment_method_billing_address"))
-            .transpose()
-            .change_context(errors::ValidationError::InvalidValue {
-                message: "`payment_method_billing_address` contains invalid value".to_string(),
-            })?;
+            .map(|billing| billing.into_inner())
+            .map(From::from);
 
         // TODO: check how we can get this field
         let recurring_enabled = true;

@@ -847,6 +847,8 @@ pub async fn create_payment_method(
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
 ) -> RouterResponse<api::PaymentMethodResponse> {
+    use common_utils::ext_traits::ValueExt;
+
     req.validate()?;
 
     let db = &*state.store;
@@ -865,14 +867,20 @@ pub async fn create_payment_method(
     .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
     .attach_printable("Customer not found for the payment method")?;
 
-    let payment_method_billing_address: Option<Encryptable<Secret<serde_json::Value>>> = req
+    let payment_method_billing_address = req
         .billing
         .clone()
         .async_map(|billing| cards::create_encrypted_data(key_manager_state, key_store, billing))
         .await
         .transpose()
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Unable to encrypt Payment method billing address")?;
+        .attach_printable("Unable to encrypt Payment method billing address")?
+        .map(|encoded_address| {
+            encoded_address.deserialize_inner_value(|value| value.parse_value("Address"))
+        })
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to parse Payment method billing address")?;
 
     // create pm
     let payment_method_id =
@@ -984,14 +992,20 @@ pub async fn payment_method_intent_create(
     .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
     .attach_printable("Customer not found for the payment method")?;
 
-    let payment_method_billing_address: Option<Encryptable<Secret<serde_json::Value>>> = req
+    let payment_method_billing_address = req
         .billing
         .clone()
         .async_map(|billing| cards::create_encrypted_data(key_manager_state, key_store, billing))
         .await
         .transpose()
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Unable to encrypt Payment method billing address")?;
+        .attach_printable("Unable to encrypt Payment method billing address")?
+        .map(|encoded_address| {
+            encoded_address.deserialize_inner_value(|value| value.parse_value("Address"))
+        })
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to parse Payment method billing address")?;
 
     // create pm entry
 
@@ -1367,7 +1381,9 @@ pub async fn create_payment_method_for_intent(
     merchant_id: &id_type::MerchantId,
     key_store: &domain::MerchantKeyStore,
     storage_scheme: enums::MerchantStorageScheme,
-    payment_method_billing_address: crypto::OptionalEncryptableValue,
+    payment_method_billing_address: Option<
+        Encryptable<hyperswitch_domain_models::address::Address>,
+    >,
 ) -> errors::CustomResult<(domain::PaymentMethod, Secret<String>), errors::ApiErrorResponse> {
     let db = &*state.store;
     let ephemeral_key = payment_helpers::create_ephemeral_key(
@@ -1515,7 +1531,7 @@ fn get_pm_list_context(
     let payment_method_data = payment_method
         .payment_method_data
         .clone()
-        .map(|payment_method_data| payment_method_data.into_inner().expose().into_inner());
+        .map(|payment_method_data| payment_method_data.into_inner());
 
     let payment_method_retrieval_context = match payment_method_data {
         Some(payment_methods::PaymentMethodsData::Card(card)) => {
@@ -1672,7 +1688,7 @@ pub async fn retrieve_payment_method(
     let pmd = payment_method
         .payment_method_data
         .clone()
-        .map(|x| x.into_inner().expose().into_inner())
+        .map(|x| x.into_inner())
         .and_then(|pmd| match pmd {
             api::PaymentMethodsData::Card(card) => {
                 Some(api::PaymentMethodResponseData::Card(card.into()))
