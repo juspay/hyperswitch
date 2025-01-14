@@ -331,7 +331,7 @@ where
             serde_json::from_value::<PaymentsMandateReference>(mandate_details)
         })
         .transpose()
-        .map_err(|_| de::Error::custom("Failed to deserialize paymentsMandateReference"))?;
+        .map_err(|_| de::Error::custom("Failed to deserialize PaymentsMandateReference"))?;
 
     let payouts_data = value
         .clone()
@@ -344,7 +344,7 @@ where
             )
         })
         .transpose()
-        .map_err(|_| de::Error::custom("Failed to deserialize paymentsMandateReference"))?
+        .map_err(|_| de::Error::custom("Failed to deserialize CommonMandateReference"))?
         .flatten();
 
     Ok(Some(CommonMandateReference {

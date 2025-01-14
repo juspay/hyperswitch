@@ -2091,6 +2091,9 @@ async fn update_connector_mandate_details(
                 .map(|common_mandate| {
                     serde_json::to_value(common_mandate.payments.as_ref())
                         .and_then(|mut payments| {
+                            if payments.is_null() {
+                                payments = serde_json::json!({});
+                            }
                             serde_json::to_value(common_mandate.payouts.as_ref()).map(|payouts| {
                                 if let Some(payments_object) = payments.as_object_mut() {
                                     if !payouts.is_null() {
