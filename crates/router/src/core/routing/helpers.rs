@@ -725,22 +725,20 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
         let payment_status_attribute =
             get_desired_payment_status_for_success_routing_metrics(payment_attempt.status);
 
-        let first_merchant_success_based_connector_label = &success_based_connectors
+        let first_merchant_success_based_connector = &success_based_connectors
             .entity_scores_with_labels
             .first()
             .ok_or(errors::ApiErrorResponse::InternalServerError)
             .attach_printable(
                 "unable to fetch the first connector from list of connectors obtained from dynamic routing service",
-            )?
-            .label
-            .to_string();
+            )?;
 
-        let (first_merchant_success_based_connector, _) = first_merchant_success_based_connector_label
+        let (first_merchant_success_based_connector_label, _) = first_merchant_success_based_connector.label
             .split_once(':')
             .ok_or(errors::ApiErrorResponse::InternalServerError)
             .attach_printable(format!(
                 "unable to split connector_name and mca_id from the first connector {:?} obtained from dynamic routing service",
-                first_merchant_success_based_connector_label
+                first_merchant_success_based_connector.label
             ))?;
 
         let first_global_success_based_connector = &success_based_connectors
@@ -754,7 +752,7 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
         let outcome = get_success_based_metrics_outcome_for_payment(
             payment_status_attribute,
             payment_connector.to_string(),
-            first_merchant_success_based_connector.to_string(),
+            first_merchant_success_based_connector_label.to_string(),
         );
 
         let dynamic_routing_stats = DynamicRoutingStatsNew {
@@ -763,7 +761,8 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
             merchant_id: payment_attempt.merchant_id.to_owned(),
             profile_id: payment_attempt.profile_id.to_owned(),
             amount: payment_attempt.get_total_amount(),
-            success_based_routing_connector: first_merchant_success_based_connector.to_string(),
+            success_based_routing_connector: first_merchant_success_based_connector_label
+                .to_string(),
             payment_connector: payment_connector.to_string(),
             payment_method_type: payment_attempt.payment_method_type,
             currency: payment_attempt.currency,
@@ -795,7 +794,11 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
                 ),
                 (
                     "merchant_specific_success_based_routing_connector",
-                    first_merchant_success_based_connector.to_string(),
+                    first_merchant_success_based_connector_label.to_string(),
+                ),
+                (
+                    "merchant_specific_success_based_routing_connector_score",
+                    first_merchant_success_based_connector.score.to_string(),
                 ),
                 (
                     "global_success_based_routing_connector",
