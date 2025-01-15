@@ -554,17 +554,17 @@ impl TryFrom<&FiuuRouterData<&PaymentsAuthorizeRouterData>> for FiuuPaymentReque
                 }
             },
             // Card payments using network transaction ID
-            Some(payments::MandateReferenceId::NetworkMandateId(
-                network_transaction_id,
-            )) => match item.router_data.request.payment_method_data {
-                PaymentMethodData::CardDetailsForNetworkTransactionId(ref raw_card_details) => {
-                    FiuuPaymentMethodData::try_from((raw_card_details, network_transaction_id))
+            Some(payments::MandateReferenceId::NetworkMandateId(network_transaction_id)) => {
+                match item.router_data.request.payment_method_data {
+                    PaymentMethodData::CardDetailsForNetworkTransactionId(ref raw_card_details) => {
+                        FiuuPaymentMethodData::try_from((raw_card_details, network_transaction_id))
+                    }
+                    _ => Err(errors::ConnectorError::NotImplemented(
+                        utils::get_unimplemented_payment_method_error_message("fiuu"),
+                    )
+                    .into()),
                 }
-                _ => Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("fiuu"),
-                )
-                .into()),
-            },
+            }
             _ => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("fiuu"),
             )
