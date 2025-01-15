@@ -18,7 +18,7 @@ const customer_acceptance = {
   online: {
     ip_address: "127.0.0.1",
     user_agent: "amet irure esse",
-  }
+  },
 };
 const payment_method_data_3ds = {
   card: {
@@ -40,7 +40,7 @@ const payment_method_data_3ds = {
     email: "mauro.morandi@nexi.it",
     phone: {
       number: "8056594427",
-      country_code: "+91"
+      country_code: "+91",
     },
   },
 };
@@ -72,7 +72,7 @@ export const connectorDetails = {
         customer_acceptance: null,
         setup_future_usage: "on_session",
         amount: 6500000,
-        billing: billing_details
+        billing: billing_details,
       },
       Response: {
         status: 200,
@@ -151,7 +151,7 @@ export const connectorDetails = {
         amount: 6500000,
         payment_method_data: {
           card: successfulNo3DSCardDetails,
-          billing: billing_details
+          billing: billing_details,
         },
         currency: "IDR",
         customer_acceptance: null,
@@ -207,7 +207,7 @@ export const connectorDetails = {
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
-          billing: billing_details
+          billing: billing_details,
         },
         currency: "IDR",
         customer_acceptance: null,
@@ -233,7 +233,7 @@ export const connectorDetails = {
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
-          billing: billing_details
+          billing: billing_details,
         },
         currency: "IDR",
         mandate_data: multiUseMandateData,
@@ -304,7 +304,7 @@ export const connectorDetails = {
         payment_method_type: "debit",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
-          billing: billing_details
+          billing: billing_details,
         },
         setup_future_usage: "off_session",
         customer_acceptance: customer_acceptance,
@@ -327,7 +327,7 @@ export const connectorDetails = {
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
-          billing: billing_details
+          billing: billing_details,
         },
         setup_future_usage: "off_session",
         customer_acceptance: customer_acceptance,
@@ -384,7 +384,7 @@ export const connectorDetails = {
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
-          billing: billing_details
+          billing: billing_details,
         },
         currency: "IDR",
         setup_future_usage: "on_session",
@@ -409,7 +409,7 @@ export const connectorDetails = {
         amount: 6500000,
         payment_method_data: {
           card: successfulNo3DSCardDetails,
-          billing: billing_details
+          billing: billing_details,
         },
         currency: "IDR",
         mandate_data: singleUseMandateData,
@@ -427,7 +427,6 @@ export const connectorDetails = {
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
-
         },
         currency: "IDR",
         customer_acceptance: null,
@@ -454,7 +453,7 @@ export const connectorDetails = {
         amount: 6500000,
         payment_method_data: {
           card: successfulNo3DSCardDetails,
-          billing: billing_details
+          billing: billing_details,
         },
         currency: "IDR",
         mandate_data: singleUseMandateData,
