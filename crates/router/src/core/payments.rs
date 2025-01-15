@@ -381,7 +381,7 @@ where
             should_continue_capture,
         );
 
-        if helpers::is_merchant_eligible_authenthention_service(merchant_account.get_id(), state)
+        if helpers::is_merchant_eligible_authentication_service(merchant_account.get_id(), state)
             .await?
         {
             operation

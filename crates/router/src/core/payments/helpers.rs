@@ -6273,7 +6273,7 @@ pub fn validate_platform_fees_for_marketplace(
     Ok(())
 }
 
-pub async fn is_merchant_eligible_authenthention_service(
+pub async fn is_merchant_eligible_authentication_service(
     merchant_id: &id_type::MerchantId,
     state: &SessionState,
 ) -> RouterResult<bool> {
