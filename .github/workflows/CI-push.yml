@@ -186,7 +186,7 @@ jobs:
 
       - name: Run clippy
         shell: bash
-        run: just clippy
+        run: just clippy --jobs 2
 
       - name: Cargo hack
         if: ${{ github.event_name == 'push' }}
