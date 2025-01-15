@@ -127,6 +127,7 @@ pub async fn update_user_role(
         &req.role_id,
         &user_from_token.merchant_id,
         &user_from_token.org_id,
+        &user_from_token.profile_id,
         user_from_token
             .tenant_id
             .as_ref()
@@ -551,6 +552,7 @@ pub async fn delete_user_role(
             &role_to_be_deleted.role_id,
             &user_from_token.merchant_id,
             &user_from_token.org_id,
+            &user_from_token.profile_id,
             user_from_token
                 .tenant_id
                 .as_ref()
@@ -625,6 +627,7 @@ pub async fn delete_user_role(
             &role_to_be_deleted.role_id,
             &user_from_token.merchant_id,
             &user_from_token.org_id,
+            &user_from_token.profile_id,
             user_from_token
                 .tenant_id
                 .as_ref()

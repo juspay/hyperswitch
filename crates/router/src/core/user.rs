@@ -637,6 +637,7 @@ async fn handle_invitation(
         &request.role_id,
         &user_from_token.merchant_id,
         &user_from_token.org_id,
+        &user_from_token.profile_id,
         user_from_token
             .tenant_id
             .as_ref()
