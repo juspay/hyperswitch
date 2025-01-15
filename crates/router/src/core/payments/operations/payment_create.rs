@@ -30,9 +30,7 @@ use router_derive::PaymentOperation;
 use router_env::{instrument, logger, tracing};
 use time::PrimitiveDateTime;
 
-use super::{
-    BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest, MERCHANT_ID,
-};
+use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
     consts,
     core::{
@@ -183,6 +181,86 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         )
         .await?;
 
+        let allowed_payment_method_types = request.allowed_payment_method_types.clone();
+
+        if let Some(allowed_payment_method_types) = allowed_payment_method_types {
+            let all_connector_accounts = db
+                .find_merchant_connector_account_by_merchant_id_and_disabled_list(
+                    &state.into(),
+                    merchant_account.get_id(),
+                    false,
+                    merchant_key_store,
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Database error when querying for merchant connector accounts")?;
+
+            let filtered_connector_accounts =
+                helpers::filter_mca_based_on_profile_and_connector_type(
+                    all_connector_accounts,
+                    &profile_id,
+                    common_enums::ConnectorType::PaymentProcessor,
+                );
+
+            let supporting_payment_method_types: HashSet<_> = filtered_connector_accounts
+                .iter()
+                .flat_map(|connector_account| {
+                    connector_account
+                        .payment_methods_enabled
+                        .clone()
+                        .unwrap_or_default()
+                        .into_iter()
+                        .map(|payment_methods_enabled| {
+                            payment_methods_enabled
+                                .parse_value::<PaymentMethodsEnabled>("payment_methods_enabled")
+                        })
+                        .filter_map(|parsed_payment_method_result| {
+                            parsed_payment_method_result
+                                .inspect_err(|err| {
+                                    logger::error!(
+                                        "Unable to deserialize payment methods enabled: {:?}",
+                                        err
+                                    );
+                                })
+                                .ok()
+                        })
+                        .flat_map(|parsed_payment_methods_enabled| {
+                            parsed_payment_methods_enabled
+                                .payment_method_types
+                                .unwrap_or_default()
+                                .into_iter()
+                                .map(|payment_method_type| payment_method_type.payment_method_type)
+                        })
+                })
+                .collect();
+
+            let unsupported_payment_methods: Vec<_> = allowed_payment_method_types
+                .iter()
+                .filter(|allowed_pmt| !supporting_payment_method_types.contains(allowed_pmt))
+                .collect();
+
+            if !unsupported_payment_methods.is_empty() {
+                metrics::PAYMENT_METHOD_TYPES_MISCONFIGURATION_METRIC.add(
+                    1,
+                    router_env::metric_attributes!((
+                        "merchant_id",
+                        merchant_account.get_id().clone()
+                    )),
+                );
+            }
+
+            common_utils::fp_utils::when(
+                unsupported_payment_methods.len() == allowed_payment_method_types.len(),
+                || {
+                    Err(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)
+                        .attach_printable(format!(
+                            "None of the allowed payment method types {:?} are configured for this merchant connector account.",
+                            allowed_payment_method_types
+                        ))
+                },
+            )?;
+        }
+
         let customer_details = helpers::get_customer_details_from_request(request);
 
         let shipping_address = helpers::create_or_find_address_for_payment_by_request(
@@ -310,93 +388,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             platform_merchant_account,
         )
         .await?;
-
-        let allowed_payment_method_types = payment_intent_new
-            .allowed_payment_method_types
-            .clone()
-            .map(|val| {
-                val.parse_value::<Vec<enums::PaymentMethodType>>("allowed_payment_method_types")
-            })
-            .transpose()
-            .unwrap_or_else(|error| {
-                logger::error!(
-                    ?error,
-                    "Failed to deserialize PaymentIntent allowed_payment_method_types"
-                );
-                None
-            });
-
-        if let Some(allowed_payment_method_types) = allowed_payment_method_types {
-            let all_connector_accounts = db
-                .find_merchant_connector_account_by_merchant_id_and_disabled_list(
-                    &state.into(),
-                    merchant_account.get_id(),
-                    false,
-                    merchant_key_store,
-                )
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Database error when querying for merchant connector accounts")?;
-
-            let filtered_connector_accounts =
-                helpers::filter_mca_based_on_profile_and_connector_type(
-                    all_connector_accounts,
-                    &profile_id,
-                    common_enums::ConnectorType::PaymentProcessor,
-                );
-
-            let supporting_payment_method_types: HashSet<_> = filtered_connector_accounts
-                .iter()
-                .flat_map(|connector_account| {
-                    connector_account
-                        .payment_methods_enabled
-                        .clone()
-                        .unwrap_or_default()
-                        .into_iter()
-                        .map(|payment_methods_enabled| {
-                            payment_methods_enabled
-                                .parse_value::<PaymentMethodsEnabled>("payment_methods_enabled")
-                        })
-                        .filter_map(|parsed_payment_method_result| {
-                            parsed_payment_method_result
-                                .inspect_err(|err| {
-                                    logger::error!(session_token_parsing_error = ?err);
-                                })
-                                .ok()
-                        })
-                        .flat_map(|parsed_payment_methods_enabled| {
-                            parsed_payment_methods_enabled
-                                .payment_method_types
-                                .unwrap_or_default()
-                                .into_iter()
-                                .map(|payment_method_type| payment_method_type.payment_method_type)
-                        })
-                })
-                .collect();
-
-            let unsupported_payment_methods: Vec<_> = allowed_payment_method_types
-                .iter()
-                .filter(|allowed_pmt| !supporting_payment_method_types.contains(allowed_pmt))
-                .collect();
-
-            if !unsupported_payment_methods.is_empty() {
-                metrics::PAYMENT_METHOD_TYPES_MISCONFIGATION_METRIC.add(
-                    1,
-                    router_env::metric_attributes!((
-                        MERCHANT_ID,
-                        merchant_account.get_id().clone()
-                    )),
-                );
-            }
-
-            if unsupported_payment_methods.len() == allowed_payment_method_types.len() {
-                return Err(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)
-            .attach_printable(format!(
-                "None of the allowed payment method types {:?} are configured for this merchant connector account.",
-                allowed_payment_method_types
-            ));
-            }
-        }
 
         let (payment_attempt_new, additional_payment_data) = Self::make_payment_attempt(
             &payment_id,
