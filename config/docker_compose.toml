@@ -128,6 +128,7 @@ bluesnap.secondary_base_url = "https://sandpay.bluesnap.com/"
 boku.base_url = "https://$-api4-stage.boku.com"
 braintree.base_url = "https://payments.sandbox.braintree-api.com/graphql"
 cashtocode.base_url = "https://cluster05.api-test.cashtocode.com"
+chargebee.base_url = "https://$.chargebee.com/api/"
 checkout.base_url = "https://api.sandbox.checkout.com/"
 coinbase.base_url = "https://api.commerce.coinbase.com"
 cryptopay.base_url = "https://business-sandbox.cryptopay.me"
@@ -217,7 +218,8 @@ apple_pay = { country = "AU,CN,HK,JP,MO,MY,NZ,SG,TW,AM,AT,AZ,BY,BE,BG,HR,CY,CZ,D
 
 [connectors.supported]
 wallets = ["klarna", "mifinity", "braintree", "applepay"]
-rewards = ["cashtocode", "zen"]
+rewards = ["cashtocode",
+    "chargebee", "zen"]
 cards = [
     "aci",
     "adyen",

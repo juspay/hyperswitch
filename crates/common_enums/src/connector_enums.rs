@@ -62,6 +62,7 @@ pub enum RoutableConnectors {
     Boku,
     Braintree,
     Cashtocode,
+    // Chargebee,
     Checkout,
     Coinbase,
     Cryptopay,

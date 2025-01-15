@@ -65,6 +65,7 @@ pub enum Connector {
     Boku,
     Braintree,
     Cashtocode,
+    // Chargebee,
     Checkout,
     Coinbase,
     Cryptopay,
@@ -216,6 +217,7 @@ impl Connector {
             | Self::Boku
             | Self::Braintree
             | Self::Cashtocode
+            // | Self::Chargebee
             | Self::Coinbase
             | Self::Cryptopay
             | Self::Deutschebank
