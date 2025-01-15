@@ -557,7 +557,7 @@ pub fn perform_volume_split(
 }
 
 #[cfg(feature = "v1")]
-pub async fn get_merchant_cgraph<'a>(
+pub async fn get_merchant_cgraph(
     state: &SessionState,
     key_store: &domain::MerchantKeyStore,
     profile_id: &common_utils::id_type::ProfileId,
@@ -604,7 +604,7 @@ pub async fn get_merchant_cgraph<'a>(
 }
 
 #[cfg(feature = "v1")]
-pub async fn refresh_cgraph_cache<'a>(
+pub async fn refresh_cgraph_cache(
     state: &SessionState,
     key_store: &domain::MerchantKeyStore,
     key: String,
