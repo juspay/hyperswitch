@@ -4455,7 +4455,7 @@ impl<F: Clone> PaymentData<F> {
                 if self
                     .token_data
                     .as_ref()
-                    .map(storage::PaymentTokenData::is_permanant_card)
+                    .map(storage::PaymentTokenData::is_permanent_card)
                     .unwrap_or(false)
                 {
                     Some(common_enums::CardDiscovery::SavedCard)

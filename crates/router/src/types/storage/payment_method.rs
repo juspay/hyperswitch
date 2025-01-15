@@ -104,7 +104,7 @@ impl PaymentTokenData {
         Self::WalletToken(WalletTokenData { payment_method_id })
     }
 
-    pub fn is_permanant_card(&self) -> bool {
+    pub fn is_permanent_card(&self) -> bool {
         matches!(self, Self::PermanentCard(_) | Self::Permanent(_))
     }
 }
