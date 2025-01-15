@@ -65,7 +65,13 @@ impl super::RedisConnectionPool {
         V::Error: Into<fred::error::RedisError> + Send + Sync,
     {
         self.pool
-            .set(key, value, Some(Expiration::KEEPTTL), None, false)
+            .set(
+                self.add_prefix(key),
+                value,
+                Some(Expiration::KEEPTTL),
+                None,
+                false,
+            )
             .await
             .change_context(errors::RedisError::SetFailed)
     }
@@ -165,10 +171,19 @@ impl super::RedisConnectionPool {
     where
         V: FromRedis + Unpin + Send + 'static,
     {
-        self.pool
+        match self
+            .pool
             .get(self.add_prefix(key))
             .await
             .change_context(errors::RedisError::GetFailed)
+        {
+            Ok(v) => Ok(v),
+            Err(_) => self
+                .pool
+                .get(key)
+                .await
+                .change_context(errors::RedisError::GetFailed),
+        }
     }
 
     #[instrument(level = "DEBUG", skip(self))]
@@ -176,10 +191,19 @@ impl super::RedisConnectionPool {
     where
         V: Into<MultipleKeys> + Unpin + Send + 'static,
     {
-        self.pool
+        match self
+            .pool
             .exists(self.add_prefix(key))
             .await
             .change_context(errors::RedisError::GetFailed)
+        {
+            Ok(v) => Ok(v),
+            Err(_) => self
+                .pool
+                .exists(key)
+                .await
+                .change_context(errors::RedisError::GetFailed),
+        }
     }
 
     #[instrument(level = "DEBUG", skip(self))]
@@ -497,10 +521,19 @@ impl super::RedisConnectionPool {
     where
         V: FromRedis + Unpin + Send + 'static,
     {
-        self.pool
+        match self
+            .pool
             .hget(self.add_prefix(key), field)
             .await
             .change_context(errors::RedisError::GetHashFieldFailed)
+        {
+            Ok(v) => Ok(v),
+            Err(_) => self
+                .pool
+                .hget(key, field)
+                .await
+                .change_context(errors::RedisError::GetHashFieldFailed),
+        }
     }
 
     #[instrument(level = "DEBUG", skip(self))]
