@@ -564,7 +564,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     organization_id: payment_attempt.organization_id.clone(),
                     profile_id: payment_attempt.profile_id.clone(),
                     connector_mandate_detail: payment_attempt.connector_mandate_detail.clone(),
-                    card_discovery: payment_attempt.card_discovery.clone(),
+                    card_discovery: payment_attempt.card_discovery,
                 };
 
                 let field = format!("pa_{}", created_attempt.attempt_id);
