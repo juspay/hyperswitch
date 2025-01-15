@@ -922,8 +922,8 @@ pub async fn construct_upload_file_router_data<'a>(
 }
 
 #[cfg(feature = "v2")]
-pub async fn construct_payments_dynamic_tax_calculation_router_data<'a, F: Clone>(
-    state: &'a SessionState,
+pub async fn construct_payments_dynamic_tax_calculation_router_data<F: Clone>(
+    state: &SessionState,
     merchant_account: &domain::MerchantAccount,
     _key_store: &domain::MerchantKeyStore,
     payment_data: &mut PaymentData<F>,
@@ -933,8 +933,8 @@ pub async fn construct_payments_dynamic_tax_calculation_router_data<'a, F: Clone
 }
 
 #[cfg(feature = "v1")]
-pub async fn construct_payments_dynamic_tax_calculation_router_data<'a, F: Clone>(
-    state: &'a SessionState,
+pub async fn construct_payments_dynamic_tax_calculation_router_data<F: Clone>(
+    state: &SessionState,
     merchant_account: &domain::MerchantAccount,
     _key_store: &domain::MerchantKeyStore,
     payment_data: &mut PaymentData<F>,
