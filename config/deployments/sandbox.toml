@@ -191,7 +191,7 @@ card.credit = { connector_list = "cybersource" }            # Update Mandate sup
 card.debit = { connector_list = "cybersource" }             # Update Mandate supported payment method type and connector for card 
 
 [network_transaction_id_supported_connectors]
-connector_list = "adyen,cybersource,fiuu,novalnet,stripe,worldpay"
+connector_list = "adyen,cybersource,novalnet,stripe,worldpay"
 
 
 [payouts]

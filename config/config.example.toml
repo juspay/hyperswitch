@@ -802,7 +802,7 @@ check_token_status_url= ""    # base url to check token status from token servic
 connector_list = "cybersource" # Supported connectors for network tokenization
 
 [network_transaction_id_supported_connectors]
-connector_list = "adyen,cybersource,fiuu,novalnet,stripe,worldpay" # Supported connectors for network transaction id
+connector_list = "adyen,cybersource,novalnet,stripe,worldpay" # Supported connectors for network transaction id
 
 [grpc_client.dynamic_routing_client] # Dynamic Routing Client Configuration
 host = "localhost" # Client Host
