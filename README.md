@@ -46,7 +46,8 @@ Here are the key components of Hyperswitch that deliver the whole solution:
 
 Read more at [Hyperswitch docs](https://docs.hyperswitch.io/).
 
-<img src="./docs/imgs/switch-v1.png" />
+<img src="./docs/imgs/features.png" />
+<img src="./docs/imgs/non-functional-features.png" />
 
 <img src="./docs/imgs/hyperswitch-architecture-v1.png" />
 
