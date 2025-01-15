@@ -1124,6 +1124,11 @@ impl CardData for CardDetailsForNetworkTransactionId {
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)
             .map(Secret::new)
     }
+    fn get_cardholder_name(&self) -> Result<Secret<String>, Error> {
+        self.card_holder_name
+            .clone()
+            .ok_or_else(missing_field_err("card.card_holder_name"))
+    }
 }
 
 #[track_caller]
