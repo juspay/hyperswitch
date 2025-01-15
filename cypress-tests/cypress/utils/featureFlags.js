@@ -2,14 +2,6 @@
 const config_fields = ["CONNECTOR_CREDENTIAL", "DELAY", "TRIGGER_SKIP"];
 
 const DEFAULT_CONNECTOR = "connector_1";
-const DEFAULT_CREDENTIALS = {
-  profile_id: "profileId",
-  merchant_connector_id: "merchantConnectorId",
-};
-const CONNECTOR_2_CREDENTIALS = {
-  profile_id: "profile1Id",
-  merchant_connector_id: "merchantConnector1Id",
-};
 
 // Helper function for type and range validation
 function validateType(value, type) {
@@ -53,6 +45,23 @@ function validateConfigValue(key, value) {
           console.error("CONNECTOR_CREDENTIAL must be an object.");
           return false;
         }
+        // Validate nextConnector and multipleConnectors if present
+        if (
+          value?.nextConnector !== undefined &&
+          typeof value.nextConnector !== "boolean"
+        ) {
+          console.error("nextConnector must be a boolean");
+          return false;
+        }
+
+        if (
+          value?.multipleConnectors &&
+          typeof value.multipleConnectors.status !== "boolean"
+        ) {
+          console.error("multipleConnectors.status must be a boolean");
+          return false;
+        }
+
         // Validate structure
         if (
           !value.value ||
@@ -103,54 +112,78 @@ export function validateConfig(configObject) {
   return configObject;
 }
 
-export function execConfig(configs) {
-  // Handle delay if present
-  if (configs?.DELAY?.STATUS) {
-    cy.wait(configs.DELAY.TIMEOUT);
-  }
-  if (
-    typeof configs?.CONNECTOR_CREDENTIAL === "undefined" ||
-    configs?.CONNECTOR_CREDENTIAL.value === "null"
-  ) {
-    return DEFAULT_CREDENTIALS;
-  }
+export function getProfileAndConnectorId(connectorType) {
+  const credentials = {
+    connector_1: {
+      profileId: "profile",
+      connectorId: "merchantConnector",
+    },
+    connector_2: {
+      profileId: "profile1",
+      connectorId: "merchantConnector1",
+    },
+  };
 
-  // Get connector configuration
-  const connectorType = determineConnectorConfig(configs.CONNECTOR_CREDENTIAL);
-
-  // Return credentials based on connector type
-  return connectorType === "connector_2"
-    ? CONNECTOR_2_CREDENTIALS
-    : DEFAULT_CREDENTIALS;
+  return credentials[connectorType] || credentials.connector_1;
 }
 
-function determineConnectorConfig(connectorConfig) {
-  // Return default if config is undefined or null
+function getSpecName() {
+  return Cypress.spec.name.toLowerCase() === "__all"
+    ? String(
+        Cypress.mocha.getRunner().suite.ctx.test.invocationDetails.relativeFile
+      )
+        .split("/")
+        .pop()
+        .toLowerCase()
+    : Cypress.spec.name.toLowerCase();
+}
+
+function matchesSpecName(specName) {
+  if (!specName || !Array.isArray(specName) || specName.length === 0) {
+    return false;
+  }
+
+  const currentSpec = getSpecName();
+  return specName.some(
+    (name) => name && currentSpec.includes(name.toLowerCase())
+  );
+}
+
+export function determineConnectorConfig(connectorConfig) {
+  // Case 1: Multiple connectors configuration
+  if (
+    connectorConfig?.nextConnector &&
+    connectorConfig?.multipleConnectors?.status
+  ) {
+    return "connector_2";
+  }
+
+  // Case 2: Invalid or null configuration
   if (!connectorConfig || connectorConfig.value === "null") {
     return DEFAULT_CONNECTOR;
   }
 
-  const { specName = null, value } = connectorConfig;
+  const { specName, value } = connectorConfig;
 
-  // If value is not provided, return default
-  if (!value) {
-    return DEFAULT_CONNECTOR;
-  }
-
-  // If no specName or not an array, return value directly
-  if (!specName || !Array.isArray(specName) || specName.length === 0) {
+  // Case 3: No spec name matching needed
+  if (!specName) {
     return value;
   }
 
-  // Check if current spec matches any in specName
-  const currentSpec = Cypress.spec.name.toLowerCase();
-  try {
-    const matchesSpec = specName.some(
-      (name) => name && currentSpec.includes(name.toLowerCase())
-    );
-    return matchesSpec ? value : DEFAULT_CONNECTOR;
-  } catch (error) {
-    console.error("Error matching spec names:", error);
-    return DEFAULT_CONNECTOR;
+  // Case 4: Match spec name and return appropriate connector
+  return matchesSpecName(specName) ? value : DEFAULT_CONNECTOR;
+}
+
+export function execConfig(configs) {
+  if (configs?.DELAY?.STATUS) {
+    cy.wait(configs.DELAY.TIMEOUT);
   }
+
+  const connectorType = determineConnectorConfig(configs?.CONNECTOR_CREDENTIAL);
+  const { profileId, connectorId } = getProfileAndConnectorId(connectorType);
+
+  return {
+    profilePrefix: profileId,
+    merchantConnectorPrefix: connectorId,
+  };
 }

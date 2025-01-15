@@ -195,7 +195,7 @@ pub async fn update_merchant_active_algorithm_ref(
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to update routing algorithm ref in merchant account")?;
 
-    cache::publish_into_redact_channel(db.get_cache_store().as_ref(), [config_key])
+    cache::redact_from_redis_and_publish(db.get_cache_store().as_ref(), [config_key])
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to invalidate the config cache")?;
@@ -262,7 +262,7 @@ pub async fn update_profile_active_algorithm_ref(
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to update routing algorithm ref in business profile")?;
 
-    cache::publish_into_redact_channel(db.get_cache_store().as_ref(), [routing_cache_key])
+    cache::redact_from_redis_and_publish(db.get_cache_store().as_ref(), [routing_cache_key])
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to invalidate routing cache")?;
@@ -306,10 +306,13 @@ pub struct RoutingAlgorithmHelpers<'h> {
 
 #[derive(Clone, Debug)]
 pub struct ConnectNameAndMCAIdForProfile<'a>(
-    pub FxHashSet<(&'a String, id_type::MerchantConnectorAccountId)>,
+    pub  FxHashSet<(
+        &'a common_enums::connector_enums::Connector,
+        id_type::MerchantConnectorAccountId,
+    )>,
 );
 #[derive(Clone, Debug)]
-pub struct ConnectNameForProfile<'a>(pub FxHashSet<&'a String>);
+pub struct ConnectNameForProfile<'a>(pub FxHashSet<&'a common_enums::connector_enums::Connector>);
 
 #[cfg(feature = "v2")]
 #[derive(Clone, Debug)]
@@ -374,23 +377,25 @@ impl RoutingAlgorithmHelpers<'_> {
         choice: &routing_types::RoutableConnectorChoice,
     ) -> RouterResult<()> {
         if let Some(ref mca_id) = choice.merchant_connector_id {
+            let connector_choice = common_enums::connector_enums::Connector::from(choice.connector);
             error_stack::ensure!(
-                    self.name_mca_id_set.0.contains(&(&choice.connector.to_string(), mca_id.clone())),
-                    errors::ApiErrorResponse::InvalidRequestData {
-                        message: format!(
-                            "connector with name '{}' and merchant connector account id '{:?}' not found for the given profile",
-                            choice.connector,
-                            mca_id,
-                        )
-                    }
-                );
+                self.name_mca_id_set.0.contains(&(&connector_choice, mca_id.clone())),
+                errors::ApiErrorResponse::InvalidRequestData {
+                    message: format!(
+                        "connector with name '{}' and merchant connector account id '{:?}' not found for the given profile",
+                        connector_choice,
+                        mca_id,
+                    )
+                }
+            );
         } else {
+            let connector_choice = common_enums::connector_enums::Connector::from(choice.connector);
             error_stack::ensure!(
-                self.name_set.0.contains(&choice.connector.to_string()),
+                self.name_set.0.contains(&connector_choice),
                 errors::ApiErrorResponse::InvalidRequestData {
                     message: format!(
                         "connector with name '{}' not found for the given profile",
-                        choice.connector,
+                        connector_choice,
                     )
                 }
             );
@@ -777,11 +782,6 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("unable to retrieve success_rate based dynamic routing configs")?;
 
-        let tenant_business_profile_id = generate_tenant_business_profile_id(
-            &state.tenant.redis_key_prefix,
-            business_profile.get_id().get_string_repr(),
-        );
-
         let success_based_routing_config_params = dynamic_routing_config_params_interpolator
             .get_string_val(
                 success_based_routing_configs
@@ -793,7 +793,7 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
 
         let success_based_connectors = client
             .calculate_success_rate(
-                tenant_business_profile_id.clone(),
+                business_profile.get_id().get_string_repr().into(),
                 success_based_routing_configs.clone(),
                 success_based_routing_config_params.clone(),
                 routable_connectors.clone(),
@@ -919,7 +919,7 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
 
         client
             .update_success_rate(
-                tenant_business_profile_id,
+                business_profile.get_id().get_string_repr().into(),
                 success_based_routing_configs,
                 success_based_routing_config_params,
                 vec![routing_types::RoutableConnectorChoiceWithStatus::new(
@@ -1003,12 +1003,6 @@ pub async fn push_metrics_with_update_window_for_contract_based_routing(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("unable to retrieve contract based dynamic routing configs")?;
 
-        // check if this id is correct
-        let tenant_business_profile_id = generate_tenant_business_profile_id(
-            &state.tenant.redis_key_prefix,
-            business_profile.get_id().get_string_repr(),
-        );
-
         let mut existing_label_info = None;
 
         contract_based_routing_config
@@ -1048,7 +1042,7 @@ pub async fn push_metrics_with_update_window_for_contract_based_routing(
         if payment_status_attribute == common_enums::AttemptStatus::Charged {
             client
                 .update_contracts(
-                    tenant_business_profile_id.clone(),
+                    business_profile.get_id().get_string_repr().into(),
                     vec![request_label_info],
                     "".to_string(),
                     vec![],
@@ -1063,7 +1057,7 @@ pub async fn push_metrics_with_update_window_for_contract_based_routing(
 
         let contract_scores = client
             .calculate_contract_score(
-                tenant_business_profile_id,
+                business_profile.get_id().get_string_repr().into(),
                 contract_based_routing_config.clone(),
                 "".to_string(),
                 routable_connectors.clone(),
@@ -1239,14 +1233,6 @@ fn get_success_based_metrics_outcome_for_payment(
     }
 }
 
-/// generates cache key with tenant's redis key prefix and profile_id
-pub fn generate_tenant_business_profile_id(
-    redis_key_prefix: &str,
-    business_profile_id: &str,
-) -> String {
-    format!("{}:{}", redis_key_prefix, business_profile_id)
-}
-
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 pub async fn disable_dynamic_routing_algorithm(
     state: &SessionState,
@@ -1390,7 +1376,7 @@ pub async fn disable_dynamic_routing_algorithm(
         };
 
     // redact cache for dynamic routing config
-    let _ = cache::publish_into_redact_channel(
+    let _ = cache::redact_from_redis_and_publish(
         state.store.get_cache_store().as_ref(),
         cache_entries_to_redact,
     )
@@ -1480,7 +1466,7 @@ pub async fn enable_specific_routing_algorithm<A>(
     algo_type: Option<A>,
 ) -> RouterResult<ApplicationResponse<routing_types::RoutingDictionaryRecord>>
 where
-    A: routing_types::DynamicRoutingAlgoAccessor + Clone + std::fmt::Debug,
+    A: routing_types::DynamicRoutingAlgoAccessor + Clone + Debug,
 {
     // Algorithm wasn't created yet
     let Some(mut algo_type) = algo_type else {

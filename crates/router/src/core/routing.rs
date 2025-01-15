@@ -1427,7 +1427,7 @@ pub async fn success_based_routing_update_configs(
     let cache_entries_to_redact = vec![cache::CacheKind::SuccessBasedDynamicRoutingCache(
         cache_key.into(),
     )];
-    let _ = cache::publish_into_redact_channel(
+    let _ = cache::redact_from_redis_and_publish(
         state.store.get_cache_store().as_ref(),
         cache_entries_to_redact,
     )
@@ -1441,10 +1441,6 @@ pub async fn success_based_routing_update_configs(
         router_env::metric_attributes!(("profile_id", profile_id.clone())),
     );
 
-    let prefix_of_dynamic_routing_keys = helpers::generate_tenant_business_profile_id(
-        &state.tenant.redis_key_prefix,
-        profile_id.get_string_repr(),
-    );
     state
         .grpc_client
         .dynamic_routing
@@ -1453,7 +1449,7 @@ pub async fn success_based_routing_update_configs(
         .async_map(|sr_client| async {
             sr_client
                 .invalidate_success_rate_routing_keys(
-                    prefix_of_dynamic_routing_keys,
+                    profile_id.get_string_repr().into(),
                     state.get_grpc_headers(),
                 )
                 .await
@@ -1690,7 +1686,7 @@ pub async fn contract_based_routing_update_configs(
     let cache_entries_to_redact = vec![cache::CacheKind::ContractBasedDynamicRoutingCache(
         cache_key.into(),
     )];
-    let _ = cache::publish_into_redact_channel(
+    let _ = cache::redact_from_redis_and_publish(
         state.store.get_cache_store().as_ref(),
         cache_entries_to_redact,
     )
@@ -1704,10 +1700,6 @@ pub async fn contract_based_routing_update_configs(
         router_env::metric_attributes!(("profile_id", profile_id.get_string_repr().to_owned())),
     );
 
-    let prefix_of_dynamic_routing_keys = helpers::generate_tenant_business_profile_id(
-        &state.tenant.redis_key_prefix,
-        profile_id.get_string_repr(),
-    );
     state
         .grpc_client
         .clone()
@@ -1716,7 +1708,10 @@ pub async fn contract_based_routing_update_configs(
         .clone()
         .async_map(|ct_client| async move {
             ct_client
-                .invalidate_contracts(prefix_of_dynamic_routing_keys, state.get_grpc_headers())
+                .invalidate_contracts(
+                    profile_id.get_string_repr().into(),
+                    state.get_grpc_headers(),
+                )
                 .await
                 .change_context(errors::ApiErrorResponse::GenericNotFoundError {
                     message: "Failed to invalidate the contract based routing keys".to_string(),

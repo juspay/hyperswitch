@@ -102,7 +102,9 @@ where
     Ok(router_data)
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn construct_uas_router_data<F: Clone, Req, Res>(
+    state: &SessionState,
     authentication_connector_name: String,
     payment_method: PaymentMethod,
     merchant_id: common_utils::id_type::MerchantId,
@@ -125,12 +127,12 @@ pub fn construct_uas_router_data<F: Clone, Req, Res>(
         payment_id: common_utils::id_type::PaymentId::get_irrelevant_id("authentication")
             .get_string_repr()
             .to_owned(),
+        tenant_id: state.tenant.tenant_id.clone(),
         attempt_id: IRRELEVANT_ATTEMPT_ID_IN_AUTHENTICATION_FLOW.to_owned(),
         status: common_enums::AttemptStatus::default(),
         payment_method,
         connector_auth_type: auth_type,
         description: None,
-        return_url: None,
         address: address.unwrap_or_default(),
         auth_type: common_enums::AuthenticationType::default(),
         connector_meta_data: merchant_connector_account.get_metadata(),
