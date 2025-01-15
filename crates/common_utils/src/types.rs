@@ -1401,7 +1401,7 @@ where
 
 #[derive(Clone, Default, Debug, Eq, PartialEq, Serialize)]
 /// NewType for validating Names
-pub struct NameType(masking::Secret<LengthString<256, 1>>);
+pub struct NameType(masking::Secret<LengthString<256, 0>>);
 
 impl TryFrom<String> for NameType {
     type Error = error_stack::Report<ValidationError>;
@@ -1410,7 +1410,7 @@ impl TryFrom<String> for NameType {
             validate_character_in_card_holder_name(char)?;
         }
         let valid_length_name =
-            LengthString::<256, 1>::from(card_holder_name.into()).map_err(|_| {
+            LengthString::<256, 0>::from(card_holder_name.into()).map_err(|_| {
                 report!(ValidationError::InvalidValue {
                     message: "invalid length for name".to_string()
                 })
@@ -1478,7 +1478,7 @@ impl<'de> Deserialize<'de> for NameType {
 }
 
 impl Deref for NameType {
-    type Target = masking::Secret<LengthString<256, 1>>;
+    type Target = masking::Secret<LengthString<256, 0>>;
     fn deref(&self) -> &Self::Target {
         &self.0
     }
