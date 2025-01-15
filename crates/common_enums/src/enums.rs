@@ -3575,7 +3575,7 @@ pub enum StripeChargeType {
     Destination,
 }
 
-/// Connector Access Method
+/// Authentication Products
 #[derive(
     Clone,
     Copy,
@@ -3595,6 +3595,7 @@ pub enum AuthenticationProduct {
     ClickToPay,
 }
 
+/// Connector Access Method
 #[derive(
     Clone,
     Copy,
