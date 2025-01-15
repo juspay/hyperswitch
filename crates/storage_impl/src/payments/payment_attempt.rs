@@ -564,6 +564,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     organization_id: payment_attempt.organization_id.clone(),
                     profile_id: payment_attempt.profile_id.clone(),
                     connector_mandate_detail: payment_attempt.connector_mandate_detail.clone(),
+                    card_discovery: payment_attempt.card_discovery.clone(),
                 };
 
                 let field = format!("pa_{}", created_attempt.attempt_id);
@@ -1511,6 +1512,7 @@ impl DataModelExt for PaymentAttempt {
             shipping_cost: self.net_amount.get_shipping_cost(),
             order_tax_amount: self.net_amount.get_order_tax_amount(),
             connector_mandate_detail: self.connector_mandate_detail,
+            card_discovery: self.card_discovery,
         }
     }
 
@@ -1587,6 +1589,7 @@ impl DataModelExt for PaymentAttempt {
             organization_id: storage_model.organization_id,
             profile_id: storage_model.profile_id,
             connector_mandate_detail: storage_model.connector_mandate_detail,
+            card_discovery: storage_model.card_discovery,
         }
     }
 }
@@ -1670,6 +1673,7 @@ impl DataModelExt for PaymentAttemptNew {
             shipping_cost: self.net_amount.get_shipping_cost(),
             order_tax_amount: self.net_amount.get_order_tax_amount(),
             connector_mandate_detail: self.connector_mandate_detail,
+            card_discovery: self.card_discovery,
         }
     }
 
@@ -1742,6 +1746,7 @@ impl DataModelExt for PaymentAttemptNew {
             organization_id: storage_model.organization_id,
             profile_id: storage_model.profile_id,
             connector_mandate_detail: storage_model.connector_mandate_detail,
+            card_discovery: storage_model.card_discovery,
         }
     }
 }
