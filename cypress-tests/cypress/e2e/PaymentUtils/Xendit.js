@@ -72,7 +72,7 @@ export const connectorDetails = {
         customer_acceptance: null,
         setup_future_usage: "on_session",
         amount: 6500000,
-        billing: billingDetails
+        billing: billingDetails,
       },
       Response: {
         status: 200,
@@ -151,7 +151,7 @@ export const connectorDetails = {
         amount: 6500000,
         payment_method_data: {
           card: successfulNo3DSCardDetails,
-          billing: billingDetails
+          billing: billingDetails,
         },
         currency: "IDR",
         customer_acceptance: null,
@@ -207,7 +207,7 @@ export const connectorDetails = {
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
-          billing: billingDetails
+          billing: billingDetails,
         },
         currency: "IDR",
         customer_acceptance: null,
@@ -233,7 +233,7 @@ export const connectorDetails = {
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
-          billing: billingDetails
+          billing: billingDetails,
         },
         currency: "IDR",
         mandate_data: multiUseMandateData,
@@ -304,7 +304,7 @@ export const connectorDetails = {
         payment_method_type: "debit",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
-          billing: billingDetails
+          billing: billingDetails,
         },
         setup_future_usage: "off_session",
         customer_acceptance: customerAcceptance,
@@ -327,7 +327,7 @@ export const connectorDetails = {
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
-          billing: billingDetails
+          billing: billingDetails,
         },
         setup_future_usage: "off_session",
         customer_acceptance: customerAcceptance,
@@ -384,7 +384,7 @@ export const connectorDetails = {
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
-          billing: billingDetails
+          billing: billingDetails,
         },
         currency: "IDR",
         setup_future_usage: "on_session",
@@ -409,7 +409,7 @@ export const connectorDetails = {
         amount: 6500000,
         payment_method_data: {
           card: successfulNo3DSCardDetails,
-          billing: billingDetails
+          billing: billingDetails,
         },
         currency: "IDR",
         mandate_data: singleUseMandateData,
@@ -453,7 +453,7 @@ export const connectorDetails = {
         amount: 6500000,
         payment_method_data: {
           card: successfulNo3DSCardDetails,
-          billing: billingDetails
+          billing: billingDetails,
         },
         currency: "IDR",
         mandate_data: singleUseMandateData,
