@@ -254,9 +254,9 @@
   "api": {
     "maintainOrder": true
   }
-}
-"analytics": {
+  "analytics": {
     "gtm": {
         "tagId": "GTM-PLBNKQFQ"
     }
+  }
 }
