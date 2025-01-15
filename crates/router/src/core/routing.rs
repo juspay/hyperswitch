@@ -1383,7 +1383,7 @@ pub async fn success_based_routing_update_configs(
     let cache_entries_to_redact = vec![cache::CacheKind::SuccessBasedDynamicRoutingCache(
         cache_key.into(),
     )];
-    let _ = cache::publish_into_redact_channel(
+    let _ = cache::redact_from_redis_and_publish(
         state.store.get_cache_store().as_ref(),
         cache_entries_to_redact,
     )
