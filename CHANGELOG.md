@@ -4,6 +4,21 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.01.14.0
+
+### Features
+
+- **connector:** [Deutschebank] Implement Card 3ds ([#6844](https://github.com/juspay/hyperswitch/pull/6844)) ([`ac75335`](https://github.com/juspay/hyperswitch/commit/ac753352769a67003eedd183e957bee6eb83b103))
+- **payment_methods_v2:** Add payment methods list endpoint ([#6938](https://github.com/juspay/hyperswitch/pull/6938)) ([`6a1f5a8`](https://github.com/juspay/hyperswitch/commit/6a1f5a88750f0683d5e95814c349244ae9c483b0))
+
+### Refactors
+
+- **cypress:** Verify payment status after payment redirection ([#6187](https://github.com/juspay/hyperswitch/pull/6187)) ([`1d99305`](https://github.com/juspay/hyperswitch/commit/1d993055d221eba72c81e3ba0c0b0e6a7e1313a0))
+
+**Full Changelog:** [`2025.01.13.0...2025.01.14.0`](https://github.com/juspay/hyperswitch/compare/2025.01.13.0...2025.01.14.0)
+
+- - -
+
 ## 2025.01.13.0
 
 ### Features
