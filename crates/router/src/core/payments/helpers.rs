@@ -6291,12 +6291,10 @@ pub async fn is_merchant_eligible_authentication_service(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("unable to parse authentication service config")?,
         Err(err) => {
-            if !err.current_context().is_db_not_found() {
-                logger::error!(
-                    "Error fetching authentication service enabled merchant config {:?}",
-                    err
-                );
-            }
+            logger::error!(
+                "Error fetching authentication service enabled merchant config {:?}",
+                err
+            );
             Vec::new()
         }
     };
