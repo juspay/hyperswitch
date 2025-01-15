@@ -255,3 +255,8 @@
     "maintainOrder": true
   }
 }
+  "analytics": {
+      "gtm": {
+          "tagId": "GTM-PLBNKQFQ"
+      }
+  }
