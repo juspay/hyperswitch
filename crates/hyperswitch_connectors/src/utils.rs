@@ -946,6 +946,7 @@ pub trait CardData {
     fn get_expiry_month_as_i8(&self) -> Result<Secret<i8>, Error>;
     fn get_expiry_year_as_i32(&self) -> Result<Secret<i32>, Error>;
     fn get_expiry_year_as_4_digit_i32(&self) -> Result<Secret<i32>, Error>;
+    fn get_cardholder_name(&self) -> Result<Secret<String>, Error>;
 }
 
 impl CardData for Card {
@@ -1031,6 +1032,11 @@ impl CardData for Card {
             .parse::<i32>()
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)
             .map(Secret::new)
+    }
+    fn get_cardholder_name(&self) -> Result<Secret<String>, Error> {
+        self.card_holder_name
+            .clone()
+            .ok_or_else(missing_field_err("card.card_holder_name"))
     }
 }
 
@@ -1595,6 +1601,9 @@ pub trait PaymentsSetupMandateRequestData {
     fn get_email(&self) -> Result<Email, Error>;
     fn get_router_return_url(&self) -> Result<String, Error>;
     fn is_card(&self) -> bool;
+    fn get_return_url(&self) -> Result<String, Error>;
+    fn get_webhook_url(&self) -> Result<String, Error>;
+    fn get_optional_language_from_browser_info(&self) -> Option<String>;
 }
 
 impl PaymentsSetupMandateRequestData for SetupMandateRequestData {
@@ -1613,6 +1622,21 @@ impl PaymentsSetupMandateRequestData for SetupMandateRequestData {
     }
     fn is_card(&self) -> bool {
         matches!(self.payment_method_data, PaymentMethodData::Card(_))
+    }
+    fn get_return_url(&self) -> Result<String, Error> {
+        self.router_return_url
+            .clone()
+            .ok_or_else(missing_field_err("return_url"))
+    }
+    fn get_webhook_url(&self) -> Result<String, Error> {
+        self.webhook_url
+            .clone()
+            .ok_or_else(missing_field_err("webhook_url"))
+    }
+    fn get_optional_language_from_browser_info(&self) -> Option<String> {
+        self.browser_info
+            .clone()
+            .and_then(|browser_info| browser_info.language)
     }
 }
 

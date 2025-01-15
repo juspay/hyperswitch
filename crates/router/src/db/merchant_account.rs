@@ -801,7 +801,7 @@ async fn publish_and_redact_merchant_account_cache(
     cache_keys.extend(publishable_key.into_iter());
     cache_keys.extend(cgraph_key.into_iter());
 
-    cache::publish_into_redact_channel(store.get_cache_store().as_ref(), cache_keys).await?;
+    cache::redact_from_redis_and_publish(store.get_cache_store().as_ref(), cache_keys).await?;
     Ok(())
 }
 
@@ -822,6 +822,6 @@ async fn publish_and_redact_all_merchant_account_cache(
         .map(|s| CacheKind::Accounts(s.into()))
         .collect();
 
-    cache::publish_into_redact_channel(store.get_cache_store().as_ref(), cache_keys).await?;
+    cache::redact_from_redis_and_publish(store.get_cache_store().as_ref(), cache_keys).await?;
     Ok(())
 }

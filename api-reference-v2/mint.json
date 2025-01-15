@@ -49,13 +49,12 @@
       "group": "Payment Methods",
       "pages": [
         "api-reference/payment-methods/payment-method--create",
-        "api-reference/payment-methods/payment-method--retrieve",
-        "api-reference/payment-methods/payment-method--update",
-        "api-reference/payment-methods/payment-method--delete",
         "api-reference/payment-methods/payment-method--create-intent",
+        "api-reference/payment-methods/payment-method--payment-methods-list",
         "api-reference/payment-methods/payment-method--confirm-intent",
-        "api-reference/payment-methods/list-customer-saved-payment-methods-for-a-payment",
-        "api-reference/payment-methods/list-payment-methods-for-a-customer"
+        "api-reference/payment-methods/payment-method--update",
+        "api-reference/payment-methods/payment-method--retrieve",
+        "api-reference/payment-methods/payment-method--delete"
       ]
     },
     {

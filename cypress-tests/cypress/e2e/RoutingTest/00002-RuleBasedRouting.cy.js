@@ -5,7 +5,16 @@ import * as utils from "../RoutingUtils/Utils";
 let globalState;
 
 describe("Rule Based Routing Test", () => {
-  context("Login", () => {
+  beforeEach(() => {
+    // Restore the session if it exists
+    cy.session("login", () => {
+      cy.userLogin(globalState);
+      cy.terminate2Fa(globalState);
+      cy.userInfo(globalState);
+    });
+  });
+
+  context("Get merchant info", () => {
     before("seed global state", () => {
       cy.task("getGlobalState").then((state) => {
         globalState = new State(state);
@@ -14,12 +23,6 @@ describe("Rule Based Routing Test", () => {
 
     after("flush global state", () => {
       cy.task("setGlobalState", globalState.data);
-    });
-
-    it("User login", () => {
-      cy.userLogin(globalState);
-      cy.terminate2Fa(globalState);
-      cy.userInfo(globalState);
     });
 
     it("merchant retrieve call", () => {
