@@ -60,7 +60,7 @@ pub async fn generate_feature_matrix(
                         build_connector_feature_details(
                             &state,
                             connector,
-                            connector_name.to_string().to_uppercase(),
+                            connector_name.to_string(),
                         )
                     })
             })
@@ -98,7 +98,7 @@ fn build_connector_feature_details(
             .get_supported_webhook_flows()
             .map(|webhook_flows| webhook_flows.to_vec());
         feature_matrix::ConnectorFeatureMatrixResponse {
-            name: connector_name,
+            name: connector_name.to_uppercase(),
             description: connector_about.map(|about| about.description.clone()),
             category: connector_about.map(|about| about.connector_type),
             supported_webhook_flows,
