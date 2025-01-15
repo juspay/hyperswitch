@@ -13,10 +13,9 @@ use api_models::{
     enums as api_enums,
     payment_methods::{
         BankAccountTokenData, Card, CardDetailUpdate, CardDetailsPaymentMethod, CardNetworkTypes,
-        CountryCodeWithName, CustomerDefaultPaymentMethodResponse, ListCountriesCurrenciesRequest,
-        ListCountriesCurrenciesResponse, MaskedBankDetails, PaymentExperienceTypes,
-        PaymentMethodsData, RequestPaymentMethodTypes, RequiredFieldInfo,
-        ResponsePaymentMethodIntermediate, ResponsePaymentMethodTypes,
+        CountryCodeWithName, ListCountriesCurrenciesRequest, ListCountriesCurrenciesResponse,
+        MaskedBankDetails, PaymentExperienceTypes, PaymentMethodsData, RequestPaymentMethodTypes,
+        RequiredFieldInfo, ResponsePaymentMethodIntermediate, ResponsePaymentMethodTypes,
         ResponsePaymentMethodsEnabled,
     },
     payments::BankCodeResponse,
@@ -3470,12 +3469,14 @@ pub async fn list_payment_methods(
                 .any(|mca| mca.payment_method == enums::PaymentMethod::Wallet);
             if wallet_pm_exists {
                 match db
-                    .find_payment_method_by_customer_id_merchant_id_list(
+                    .find_payment_method_by_customer_id_merchant_id_status(
                         &((&state).into()),
                         &key_store,
-                       &customer.customer_id,
-                       merchant_account.get_id(),
+                        &customer.customer_id,
+                        merchant_account.get_id(),
+                        common_enums::PaymentMethodStatus::Active,
                         None,
+                        merchant_account.storage_scheme,
                     )
                     .await
                 {
@@ -5511,18 +5512,6 @@ pub async fn get_bank_account_connector_details(
     }
 }
 
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
-pub async fn set_default_payment_method(
-    _state: &routes::SessionState,
-    _merchant_id: &id_type::MerchantId,
-    _key_store: domain::MerchantKeyStore,
-    _customer_id: &id_type::CustomerId,
-    _payment_method_id: String,
-    _storage_scheme: MerchantStorageScheme,
-) -> errors::RouterResponse<CustomerDefaultPaymentMethodResponse> {
-    todo!()
-}
-
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 pub async fn set_default_payment_method(
     state: &routes::SessionState,
@@ -5531,7 +5520,7 @@ pub async fn set_default_payment_method(
     customer_id: &id_type::CustomerId,
     payment_method_id: String,
     storage_scheme: MerchantStorageScheme,
-) -> errors::RouterResponse<CustomerDefaultPaymentMethodResponse> {
+) -> errors::RouterResponse<api_models::payment_methods::CustomerDefaultPaymentMethodResponse> {
     let db = &*state.store;
     let key_manager_state = &state.into();
     // check for the customer
@@ -5599,7 +5588,7 @@ pub async fn set_default_payment_method(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to update the default payment method id for the customer")?;
 
-    let resp = CustomerDefaultPaymentMethodResponse {
+    let resp = api_models::payment_methods::CustomerDefaultPaymentMethodResponse {
         default_payment_method_id: updated_customer_details.default_payment_method_id,
         customer_id,
         payment_method_type: payment_method.get_payment_method_subtype(),
