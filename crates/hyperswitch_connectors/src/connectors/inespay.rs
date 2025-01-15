@@ -1,14 +1,14 @@
 pub mod transformers;
 
+use base64::Engine;
 use common_utils::{
+    consts::BASE64_ENGINE,
     crypto,
     errors::CustomResult,
     ext_traits::{ByteSliceExt, BytesExt},
     request::{Method, Request, RequestBuilder, RequestContent},
     types::{AmountConvertor, StringMinorUnit, StringMinorUnitForConnector},
 };
-use base64::Engine;
-use common_utils::consts::BASE64_ENGINE;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
@@ -40,8 +40,8 @@ use hyperswitch_interfaces::{
     webhooks,
 };
 use masking::{ExposeInterface, Mask, Secret};
-use transformers as inespay;
 use ring::hmac;
+use transformers as inespay;
 
 use crate::{constants::headers, types::ResponseRouterData, utils};
 
@@ -571,12 +571,15 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Inespay {
 fn get_webhook_body(
     body: &[u8],
 ) -> CustomResult<inespay::InespayWebhookEventData, errors::ConnectorError> {
-    let notif_item:inespay::InespayWebhookEvent = serde_urlencoded::from_bytes::<inespay::InespayWebhookEvent>(body)
-    .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+    let notif_item: inespay::InespayWebhookEvent =
+        serde_urlencoded::from_bytes::<inespay::InespayWebhookEvent>(body)
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
     let encoded_data_return = notif_item.data_return;
-    let decoded_data_return = BASE64_ENGINE.decode(encoded_data_return)
+    let decoded_data_return = BASE64_ENGINE
+        .decode(encoded_data_return)
         .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
-    let data_return:inespay::InespayWebhookEventData = decoded_data_return.parse_struct("inespay InespayWebhookEventData")
+    let data_return: inespay::InespayWebhookEventData = decoded_data_return
+        .parse_struct("inespay InespayWebhookEventData")
         .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
     Ok(data_return)
 }
@@ -609,7 +612,7 @@ impl webhooks::IncomingWebhook for Inespay {
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let notif_item = serde_urlencoded::from_bytes::<inespay::InespayWebhookEvent>(request.body)
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
-        
+
         Ok(notif_item.data_return.into_bytes())
     }
 
@@ -637,7 +640,7 @@ impl webhooks::IncomingWebhook for Inespay {
             &connector_webhook_secrets,
         )?;
         let secret = connector_webhook_secrets.secret;
-        
+
         let signing_key = hmac::Key::new(hmac::HMAC_SHA256, &secret);
         let signed_message = hmac::sign(&signing_key, &message);
         let computed_signature = hex::encode(signed_message.as_ref());
@@ -652,12 +655,18 @@ impl webhooks::IncomingWebhook for Inespay {
         let data_return = get_webhook_body(request.body)
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
         match data_return {
-            inespay::InespayWebhookEventData::Payment(data)=> Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
-                api_models::payments::PaymentIdType::ConnectorTransactionId(data.single_payin_id),
-            )),
-            inespay::InespayWebhookEventData::Refund(data)=> Ok(api_models::webhooks::ObjectReferenceId::RefundId(
-                api_models::webhooks::RefundIdType::ConnectorRefundId(data.refund_id),
-            ))
+            inespay::InespayWebhookEventData::Payment(data) => {
+                Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+                    api_models::payments::PaymentIdType::ConnectorTransactionId(
+                        data.single_payin_id,
+                    ),
+                ))
+            }
+            inespay::InespayWebhookEventData::Refund(data) => {
+                Ok(api_models::webhooks::ObjectReferenceId::RefundId(
+                    api_models::webhooks::RefundIdType::ConnectorRefundId(data.refund_id),
+                ))
+            }
         }
     }
 
@@ -667,7 +676,9 @@ impl webhooks::IncomingWebhook for Inespay {
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
         let data_return = get_webhook_body(request.body)
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
-        Ok(api_models::webhooks::IncomingWebhookEvent::from(data_return))
+        Ok(api_models::webhooks::IncomingWebhookEvent::from(
+            data_return,
+        ))
     }
 
     fn get_webhook_resource_object(
@@ -677,10 +688,13 @@ impl webhooks::IncomingWebhook for Inespay {
         let data_return = get_webhook_body(request.body)
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
         Ok(match data_return {
-            inespay::InespayWebhookEventData::Payment(payment_webhook_data)=> Box::new(payment_webhook_data),
-            inespay::InespayWebhookEventData::Refund(refund_webhook_data)=> Box::new(refund_webhook_data),
+            inespay::InespayWebhookEventData::Payment(payment_webhook_data) => {
+                Box::new(payment_webhook_data)
+            }
+            inespay::InespayWebhookEventData::Refund(refund_webhook_data) => {
+                Box::new(refund_webhook_data)
+            }
         })
-
     }
 }
 

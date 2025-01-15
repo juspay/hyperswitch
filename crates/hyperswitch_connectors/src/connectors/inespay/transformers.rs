@@ -1,9 +1,12 @@
 use common_enums::enums;
-use common_utils::{request::Method, types::{StringMinorUnit, StringMinorUnitForConnector, MinorUnit}};
+use common_utils::{
+    request::Method,
+    types::{MinorUnit, StringMinorUnit, StringMinorUnitForConnector},
+};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::{BankDebitData, PaymentMethodData},
-    router_data::{ErrorResponse, ConnectorAuthType, RouterData},
+    router_data::{ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::refunds::{Execute, RSync},
     router_request_types::ResponseId,
     router_response_types::{PaymentsResponseData, RedirectForm, RefundsResponseData},
@@ -107,11 +110,11 @@ impl<F, T> TryFrom<ResponseRouterData<F, InespayPaymentsResponse, T, PaymentsRes
         item: ResponseRouterData<F, InespayPaymentsResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let (status, response) = match item.response {
-            InespayPaymentsResponse::InespayPaymentsData(data)=>{
+            InespayPaymentsResponse::InespayPaymentsData(data) => {
                 let redirection_url = Url::parse(data.single_payin_link.as_str())
-                .change_context(errors::ConnectorError::ParsingFailed)?;
+                    .change_context(errors::ConnectorError::ParsingFailed)?;
                 let redirection_data = RedirectForm::from((redirection_url, Method::Get));
-                
+
                 (
                     common_enums::AttemptStatus::AuthenticationPending,
                     Ok(PaymentsResponseData::TransactionResponse {
@@ -125,22 +128,20 @@ impl<F, T> TryFrom<ResponseRouterData<F, InespayPaymentsResponse, T, PaymentsRes
                         connector_response_reference_id: None,
                         incremental_authorization_allowed: None,
                         charge_id: None,
-                    })
-                )
-                
-            }
-            InespayPaymentsResponse::InespayPaymentsError(data)=>{
-                (common_enums::AttemptStatus::Failure,
-                    Err(ErrorResponse {
-                        code: data.status.clone(),
-                        message: data.status_desc.clone(),
-                        reason: Some(data.status_desc.clone()),
-                        attempt_status: None,
-                        connector_transaction_id: None,
-                        status_code: item.http_code,
-                    })
+                    }),
                 )
             }
+            InespayPaymentsResponse::InespayPaymentsError(data) => (
+                common_enums::AttemptStatus::Failure,
+                Err(ErrorResponse {
+                    code: data.status.clone(),
+                    message: data.status_desc.clone(),
+                    reason: Some(data.status_desc.clone()),
+                    attempt_status: None,
+                    connector_transaction_id: None,
+                    status_code: item.http_code,
+                }),
+            ),
         };
         Ok(Self {
             status,
@@ -203,6 +204,7 @@ pub struct InespayPSyncResponseData {
 #[serde(untagged)]
 pub enum InespayPSyncResponse {
     InespayPSyncData(InespayPSyncResponseData),
+    InespayPSyncWebhook(InespayPaymentWebhookData),
     InespayPSyncError(InespayErrorResponse),
 }
 
@@ -236,21 +238,37 @@ impl<F, T> TryFrom<ResponseRouterData<F, InespayPSyncResponse, T, PaymentsRespon
                     ..item.data
                 })
             }
-            InespayPSyncResponse::InespayPSyncError(data) => {
+            InespayPSyncResponse::InespayPSyncWebhook(data) => {
+                let status = enums::AttemptStatus::from(data.cod_status);
                 Ok(Self {
-                    response: Err(ErrorResponse {
-                        code: data.status.clone(),
-                        message: data.status_desc.clone(),
-                        reason: Some(data.status_desc.clone()),
-                        attempt_status: None,
-                        connector_transaction_id: None,
-                        status_code: item.http_code,
+                    status,
+                    response: Ok(PaymentsResponseData::TransactionResponse {
+                        resource_id: ResponseId::ConnectorTransactionId(
+                            data.single_payin_id.clone(),
+                        ),
+                        redirection_data: Box::new(None),
+                        mandate_reference: Box::new(None),
+                        connector_metadata: None,
+                        network_txn_id: None,
+                        connector_response_reference_id: None,
+                        incremental_authorization_allowed: None,
+                        charge_id: None,
                     }),
                     ..item.data
                 })
             }
+            InespayPSyncResponse::InespayPSyncError(data) => Ok(Self {
+                response: Err(ErrorResponse {
+                    code: data.status.clone(),
+                    message: data.status_desc.clone(),
+                    reason: Some(data.status_desc.clone()),
+                    attempt_status: None,
+                    connector_transaction_id: None,
+                    status_code: item.http_code,
+                }),
+                ..item.data
+            }),
         }
-        
     }
 }
 
@@ -296,7 +314,7 @@ impl From<InespayRSyncStatus> for enums::RefundStatus {
             InespayRSyncStatus::Rejected
             | InespayRSyncStatus::Denied
             | InespayRSyncStatus::Reversed
-            | InespayRSyncStatus::Mistake => Self::Failure
+            | InespayRSyncStatus::Mistake => Self::Failure,
         }
     }
 }
@@ -316,34 +334,32 @@ pub enum InespayRefundsResponse {
     InespayRefundsError(InespayErrorResponse),
 }
 
-impl TryFrom<RefundsResponseRouterData<Execute, InespayRefundsResponse>> for RefundsRouterData<Execute> {
+impl TryFrom<RefundsResponseRouterData<Execute, InespayRefundsResponse>>
+    for RefundsRouterData<Execute>
+{
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: RefundsResponseRouterData<Execute, InespayRefundsResponse>,
     ) -> Result<Self, Self::Error> {
         match item.response {
-            InespayRefundsResponse::InespayRefundsData(data) => {
-                Ok(Self {
-                    response: Ok(RefundsResponseData {
-                        connector_refund_id: data.refund_id,
-                        refund_status: enums::RefundStatus::Pending,
-                    }),
-                    ..item.data
-                })
-            }
-            InespayRefundsResponse::InespayRefundsError(data) => {
-                Ok(Self {
-                    response: Err(ErrorResponse {
-                        code: data.status.clone(),
-                        message: data.status_desc.clone(),
-                        reason: Some(data.status_desc.clone()),
-                        attempt_status: None,
-                        connector_transaction_id: None,
-                        status_code: item.http_code,
-                    }),
-                    ..item.data
-                })
-            }
+            InespayRefundsResponse::InespayRefundsData(data) => Ok(Self {
+                response: Ok(RefundsResponseData {
+                    connector_refund_id: data.refund_id,
+                    refund_status: enums::RefundStatus::Pending,
+                }),
+                ..item.data
+            }),
+            InespayRefundsResponse::InespayRefundsError(data) => Ok(Self {
+                response: Err(ErrorResponse {
+                    code: data.status.clone(),
+                    message: data.status_desc.clone(),
+                    reason: Some(data.status_desc.clone()),
+                    attempt_status: None,
+                    connector_transaction_id: None,
+                    status_code: item.http_code,
+                }),
+                ..item.data
+            }),
         }
     }
 }
@@ -360,6 +376,7 @@ pub struct InespayRSyncResponseData {
 #[serde(untagged)]
 pub enum InespayRSyncResponse {
     InespayRSyncData(InespayRSyncResponseData),
+    InespayRSyncWebhook(InespayRefundWebhookData),
     InespayRSyncError(InespayErrorResponse),
 }
 
@@ -369,22 +386,22 @@ impl TryFrom<RefundsResponseRouterData<RSync, InespayRSyncResponse>> for Refunds
         item: RefundsResponseRouterData<RSync, InespayRSyncResponse>,
     ) -> Result<Self, Self::Error> {
         let response = match item.response {
-            InespayRSyncResponse::InespayRSyncData(data) => {
-                Ok(RefundsResponseData {
-                    connector_refund_id: data.refund_id,
-                    refund_status: enums::RefundStatus::from(data.cod_status),
-                })
-            }
-            InespayRSyncResponse::InespayRSyncError(data) => {
-                Err(ErrorResponse {
-                    code: data.status.clone(),
-                    message: data.status_desc.clone(),
-                    reason: Some(data.status_desc.clone()),
-                    attempt_status: None,
-                    connector_transaction_id: None,
-                    status_code: item.http_code,
-                })
-            }
+            InespayRSyncResponse::InespayRSyncData(data) => Ok(RefundsResponseData {
+                connector_refund_id: data.refund_id,
+                refund_status: enums::RefundStatus::from(data.cod_status),
+            }),
+            InespayRSyncResponse::InespayRSyncWebhook(data) => Ok(RefundsResponseData {
+                connector_refund_id: data.refund_id,
+                refund_status: enums::RefundStatus::from(data.cod_status),
+            }),
+            InespayRSyncResponse::InespayRSyncError(data) => Err(ErrorResponse {
+                code: data.status.clone(),
+                message: data.status_desc.clone(),
+                reason: Some(data.status_desc.clone()),
+                attempt_status: None,
+                connector_transaction_id: None,
+                status_code: item.http_code,
+            }),
         };
         Ok(Self {
             response,
@@ -443,10 +460,10 @@ impl From<InespayWebhookEventData> for api_models::webhooks::IncomingWebhookEven
     fn from(item: InespayWebhookEventData) -> Self {
         match item {
             InespayWebhookEventData::Payment(payment_data) => match payment_data.cod_status {
-                InespayPSyncStatus::Ok 
-                | InespayPSyncStatus::Settled => Self::PaymentIntentSuccess,
-                InespayPSyncStatus::Failed 
-                | InespayPSyncStatus::Rejected => Self::PaymentIntentFailure,
+                InespayPSyncStatus::Ok | InespayPSyncStatus::Settled => Self::PaymentIntentSuccess,
+                InespayPSyncStatus::Failed | InespayPSyncStatus::Rejected => {
+                    Self::PaymentIntentFailure
+                }
                 InespayPSyncStatus::Created
                 | InespayPSyncStatus::Opened
                 | InespayPSyncStatus::BankSelected
@@ -454,10 +471,10 @@ impl From<InespayWebhookEventData> for api_models::webhooks::IncomingWebhookEven
                 | InespayPSyncStatus::Pending
                 | InespayPSyncStatus::Unfinished
                 | InespayPSyncStatus::PartiallyAccepted => Self::PaymentIntentProcessing,
-                InespayPSyncStatus::Aborted  
+                InespayPSyncStatus::Aborted
                 | InespayPSyncStatus::Cancelled
-                | InespayPSyncStatus::PartRefunded 
-                | InespayPSyncStatus::Refunded => Self::EventNotSupported
+                | InespayPSyncStatus::PartRefunded
+                | InespayPSyncStatus::Refunded => Self::EventNotSupported,
             },
             InespayWebhookEventData::Refund(refund_data) => match refund_data.cod_status {
                 InespayRSyncStatus::Confirmed => Self::RefundSuccess,
