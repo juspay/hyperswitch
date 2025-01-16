@@ -211,15 +211,16 @@ impl SuccessBasedDynamicRouting for SuccessRateCalculatorClient<Client> {
             .map(ForeignTryFrom::foreign_try_from)
             .transpose()?;
 
-        let mut request = tonic::Request::new(CalGlobalSuccessRateRequest {
-            entity_id: id,
-            entity_params: params,
-            entity_labels: labels,
-            global_labels,
-            config,
-        });
-
-        request.add_headers_to_grpc_request(headers);
+        let request = grpc_client::create_grpc_request(
+            CalGlobalSuccessRateRequest {
+                entity_id: id,
+                entity_params: params,
+                entity_labels: labels,
+                global_labels,
+                config,
+            },
+            headers,
+        );
 
         let response = self
             .clone()
