@@ -116,8 +116,6 @@ The fastest and easiest way to try Hyperswitch on AWS is via our CDK scripts
 | Hyperswitch Demo Store running on            | http://hyperswitch-sdk-demo-<host-id.region>.elb.amazonaws.com |
 | Logs server running on                       | http://hyperswitch-logs-<host-id.region>.elb.amazonaws.com, Login with username: admin, password: admin |
 
-Use the Hyperswitch Control Center and [make a payment with test card](https://docs.hyperswitch.io/hyperswitch-open-source/account-setup/test-a-payment).
-
 We support deployment on GCP and Azure via Helm charts which takes 30-45mins. You can read more at [Hyperswitch docs](https://docs.hyperswitch.io/hyperswitch-open-source/deploy-on-kubernetes-using-helm). 
 
 ### 3. Hosted Sandbox
