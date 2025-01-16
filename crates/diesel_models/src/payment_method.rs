@@ -1,7 +1,11 @@
 use std::collections::HashMap;
 
 use common_enums::MerchantStorageScheme;
-use common_utils::{encryption::Encryption, errors::ParsingError, pii};
+use common_utils::{
+    encryption::Encryption,
+    errors::{CustomResult, ParsingError},
+    pii,
+};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use error_stack::ResultExt;
 #[cfg(all(
@@ -1005,24 +1009,36 @@ pub struct CommonMandateReference {
     pub payouts: Option<PayoutsMandateReference>,
 }
 
+impl CommonMandateReference {
+    pub fn get_mandate_details_value(&self) -> CustomResult<serde_json::Value, ParsingError> {
+        let mut payments = self
+            .payments
+            .as_ref()
+            .map_or_else(|| Ok(serde_json::json!({})), serde_json::to_value)
+            .change_context(ParsingError::StructParseFailure("payment mandate details"))?;
+
+        self.payouts
+            .as_ref()
+            .map(|payouts_mandate| {
+                serde_json::to_value(payouts_mandate).map(|payouts_mandate_value| {
+                    payments.as_object_mut().map(|payments_object| {
+                        payments_object.insert("payouts".to_string(), payouts_mandate_value);
+                    })
+                })
+            })
+            .transpose()
+            .change_context(ParsingError::StructParseFailure("payout mandate details"))?;
+
+        Ok(payments)
+    }
+}
+
 impl diesel::serialize::ToSql<diesel::sql_types::Jsonb, diesel::pg::Pg> for CommonMandateReference {
     fn to_sql<'b>(
         &'b self,
         out: &mut diesel::serialize::Output<'b, '_, diesel::pg::Pg>,
     ) -> diesel::serialize::Result {
-        let payments = serde_json::to_value(self.payments.as_ref()).and_then(|mut payments| {
-            if payments.is_null() {
-                payments = serde_json::json!({});
-            }
-            serde_json::to_value(self.payouts.as_ref()).map(|payouts| {
-                if let Some(payments_object) = payments.as_object_mut() {
-                    if !payouts.is_null() {
-                        payments_object.insert("payouts".to_string(), payouts);
-                    }
-                }
-                payments
-            })
-        })?;
+        let payments = self.get_mandate_details_value()?;
 
         <serde_json::Value as diesel::serialize::ToSql<
             diesel::sql_types::Jsonb,
