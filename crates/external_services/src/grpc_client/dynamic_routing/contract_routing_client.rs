@@ -13,6 +13,7 @@ pub use contract_routing::{
     UpdateContractRequest, UpdateContractResponse,
 };
 use error_stack::ResultExt;
+use router_env::logger;
 
 use crate::grpc_client::{AddHeaders, GrpcHeaders};
 #[allow(
@@ -93,6 +94,8 @@ impl ContractBasedDynamicRouting for ContractScoreCalculatorClient<Client> {
             ))?
             .into_inner();
 
+        logger::info!(dynamic_routing_response=?response);
+
         Ok(response)
     }
 
@@ -125,6 +128,8 @@ impl ContractBasedDynamicRouting for ContractScoreCalculatorClient<Client> {
                 "Failed to update the contracts".to_string(),
             ))?
             .into_inner();
+
+        logger::info!(dynamic_routing_response=?response);
 
         Ok(response)
     }
