@@ -602,47 +602,46 @@ impl
             Option<String>,
         ),
     ) -> Result<Self, Self::Error> {
-        let (action_list, action_token_types, authorization_options) = if item
-            .router_data
-            .request
-            .setup_future_usage
-            == Some(FutureUsage::OffSession)
-            && (item.router_data.request.customer_acceptance.is_some()
-                || item
+        let (action_list, action_token_types, authorization_options) =
+            if item.router_data.request.setup_future_usage == Some(FutureUsage::OffSession)
+                && (item.router_data.request.customer_acceptance.is_some()
+                    || item
+                        .router_data
+                        .request
+                        .setup_mandate_details
+                        .clone()
+                        .is_some_and(|mandate_details| {
+                            mandate_details.customer_acceptance.is_some()
+                        }))
+            {
+                get_boa_mandate_action_details()
+            } else if item.router_data.request.connector_mandate_id().is_some() {
+                let original_amount = item
                     .router_data
-                    .request
-                    .setup_mandate_details
-                    .clone()
-                    .is_some_and(|mandate_details| mandate_details.customer_acceptance.is_some()))
-        {
-            get_boa_mandate_action_details()
-        } else if item.router_data.request.connector_mandate_id().is_some() {
-            let original_amount = item
-                .router_data
-                .get_recurring_mandate_payment_data()?
-                .get_original_payment_amount()?;
-            let original_currency = item
-                .router_data
-                .get_recurring_mandate_payment_data()?
-                .get_original_payment_currency()?;
-            (
-                None,
-                None,
-                Some(BankOfAmericaAuthorizationOptions {
-                    initiator: None,
-                    merchant_intitiated_transaction: Some(MerchantInitiatedTransaction {
-                        reason: None,
-                        original_authorized_amount: Some(utils::get_amount_as_string(
-                            &api::CurrencyUnit::Base,
-                            original_amount,
-                            original_currency,
-                        )?),
+                    .get_recurring_mandate_payment_data()?
+                    .get_original_payment_amount()?;
+                let original_currency = item
+                    .router_data
+                    .get_recurring_mandate_payment_data()?
+                    .get_original_payment_currency()?;
+                (
+                    None,
+                    None,
+                    Some(BankOfAmericaAuthorizationOptions {
+                        initiator: None,
+                        merchant_intitiated_transaction: Some(MerchantInitiatedTransaction {
+                            reason: None,
+                            original_authorized_amount: Some(utils::get_amount_as_string(
+                                &api::CurrencyUnit::Base,
+                                original_amount,
+                                original_currency,
+                            )?),
+                        }),
                     }),
-                }),
-            )
-        } else {
-            (None, None, None)
-        };
+                )
+            } else {
+                (None, None, None)
+            };
 
         let commerce_indicator = get_commerce_indicator(network);
 
