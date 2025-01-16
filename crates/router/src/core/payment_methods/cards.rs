@@ -2844,20 +2844,8 @@ pub async fn update_payment_method_connector_mandate_details(
 ) -> errors::CustomResult<(), errors::VaultError> {
     let connector_mandate_details_value = connector_mandate_details
         .map(|common_mandate| {
-            serde_json::to_value(common_mandate.payments.as_ref())
-                .and_then(|mut payments| {
-                    if payments.is_null() {
-                        payments = serde_json::json!({});
-                    }
-                    serde_json::to_value(common_mandate.payouts.as_ref()).map(|payouts| {
-                        if let Some(payments_object) = payments.as_object_mut() {
-                            if !payouts.is_null() {
-                                payments_object.insert("payouts".to_string(), payouts);
-                            }
-                        }
-                        payments
-                    })
-                })
+            common_mandate
+                .get_mandate_details_value()
                 .map_err(|_| errors::VaultError::UpdateInPaymentMethodDataTableFailed)
         })
         .transpose()?;
