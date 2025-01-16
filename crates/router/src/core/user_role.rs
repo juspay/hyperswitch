@@ -675,21 +675,7 @@ pub async fn delete_user_role(
     // Check if user has any more role associations
     let remaining_roles = state
         .global_store
-        .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
-            user_id: user_from_db.get_user_id(),
-            tenant_id: user_from_token
-                .tenant_id
-                .as_ref()
-                .unwrap_or(&state.tenant.tenant_id),
-
-            org_id: None,
-            merchant_id: None,
-            profile_id: None,
-            entity_id: None,
-            version: None,
-            status: None,
-            limit: None,
-        })
+        .list_user_roles_by_user_id_across_tenants(user_from_db.get_user_id(), Some(1))
         .await
         .change_context(UserErrors::InternalServerError)?;
 
