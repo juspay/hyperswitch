@@ -38,11 +38,10 @@ Single API to access the payments ecosystem and its features
 
 1. [Introduction](#introduction)  
 2. [Try Hyperswitch](#try-hyperswitch)  
-3. [Support & Feature Requests](#support-feature-requests)  
+3. [Support, Feature requests & Bugs](#support-feature-requests)  
 4. [Our Vision](#our-vision)  
-5. [Bugs and Feature Requests](#bugs-and-feature-requests)  
-6. [Versioning](#versioning)  
-7. [Copyright and License](#copyright-and-license)
+5. [Versioning](#versioning)  
+6. [Copyright and License](#copyright-and-license)
 
 <a href="#introduction">
   <h2 id="introduction">Introduction</h2>
@@ -133,13 +132,17 @@ You can experience the product by signing up for our [hosted sandbox](https://ap
 
 
 <a href="support-feature-requests">
-  <h2 id="support-feature-requests">Support & Feature requests</h2>
+  <h2 id="support-feature-requests">Support, Feature requests & Bugs</h2>
 </a>
-
-For new product features, enhancements, roadmap discussions, or to share queries and ideas, visit our [GitHub Discussions](https://github.com/juspay/hyperswitch/discussions)
 
 For any support, join the conversation in [Slack](https://join.slack.com/t/hyperswitch-io/shared_invite/zt-2jqxmpsbm-WXUENx022HjNEy~Ark7Orw)
 
+For new product features, enhancements, roadmap discussions, or to share queries and ideas, visit our [GitHub Discussions](https://github.com/juspay/hyperswitch/discussions)
+
+For reporting a bug, please read the issue guidelines and search for [existing and closed issues]. If your problem or idea is not addressed yet, please [open a new issue].
+
+[existing and closed issues]: https://github.com/juspay/hyperswitch/issues
+[open a new issue]: https://github.com/juspay/hyperswitch/issues/new/choose
 
 <a href="our-vision">
   <h2 id="our-vision">Our Vision</h2>
@@ -163,16 +166,6 @@ Hyperswitch serves as a well-architected designed reference platform, built on b
 5. Maximise Value Creation: For developers, customers & partners.
 
 This project is being created and maintained by [Juspay](https://juspay.io)
-
-<a href="#bugs-and-feature-requests">
-  <h2 id="bugs-and-feature-requests">Bugs and feature requests</h2>
-</a>
-
-Please read the issue guidelines and search for [existing and closed issues].
-If your problem or idea is not addressed yet, please [open a new issue].
-
-[existing and closed issues]: https://github.com/juspay/hyperswitch/issues
-[open a new issue]: https://github.com/juspay/hyperswitch/issues/new/choose
 
 <a href="#versioning">
   <h2 id="versioning">Versioning</h2>
