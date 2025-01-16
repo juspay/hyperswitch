@@ -465,7 +465,7 @@ async fn release_redis_lock(
         .store
         .get_redis_conn()
         .change_context(ForexCacheError::RedisConnectionError)?
-        .delete_key(REDIX_FOREX_CACHE_KEY)
+        .delete_key(&REDIX_FOREX_CACHE_KEY.into())
         .await
         .change_context(ForexCacheError::RedisLockReleaseFailed)
         .attach_printable("Unable to release redis lock")
@@ -478,7 +478,7 @@ async fn acquire_redis_lock(state: &SessionState) -> CustomResult<bool, ForexCac
         .get_redis_conn()
         .change_context(ForexCacheError::RedisConnectionError)?
         .set_key_if_not_exists_with_expiry(
-            REDIX_FOREX_CACHE_KEY,
+            &REDIX_FOREX_CACHE_KEY.into(),
             "",
             Some(
                 i64::try_from(
@@ -502,7 +502,7 @@ async fn save_forex_to_redis(
         .store
         .get_redis_conn()
         .change_context(ForexCacheError::RedisConnectionError)?
-        .serialize_and_set_key(REDIX_FOREX_CACHE_DATA, forex_exchange_cache_entry)
+        .serialize_and_set_key(&REDIX_FOREX_CACHE_DATA.into(), forex_exchange_cache_entry)
         .await
         .change_context(ForexCacheError::RedisWriteError)
         .attach_printable("Unable to save forex data to redis")
@@ -515,7 +515,7 @@ async fn retrieve_forex_from_redis(
         .store
         .get_redis_conn()
         .change_context(ForexCacheError::RedisConnectionError)?
-        .get_and_deserialize_key(REDIX_FOREX_CACHE_DATA, "FxExchangeRatesCache")
+        .get_and_deserialize_key(&REDIX_FOREX_CACHE_DATA.into(), "FxExchangeRatesCache")
         .await
         .change_context(ForexCacheError::EntryNotFound)
         .attach_printable("Forex entry not found in redis")
