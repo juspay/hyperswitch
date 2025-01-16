@@ -715,28 +715,19 @@ impl DynamicRoutingAlgorithmRef {
         match dynamic_routing_type {
             DynamicRoutingType::SuccessRateBasedRouting => {
                 self.success_based_algorithm = Some(SuccessBasedAlgorithm {
-                    algorithm_id_with_timestamp: DynamicAlgorithmWithTimestamp {
-                        algorithm_id: Some(new_id),
-                        timestamp: common_utils::date_time::now_unix_timestamp(),
-                    },
+                    algorithm_id_with_timestamp: DynamicAlgorithmWithTimestamp::new(Some(new_id)),
                     enabled_feature,
                 })
             }
             DynamicRoutingType::EliminationRouting => {
                 self.elimination_routing_algorithm = Some(EliminationRoutingAlgorithm {
-                    algorithm_id_with_timestamp: DynamicAlgorithmWithTimestamp {
-                        algorithm_id: Some(new_id),
-                        timestamp: common_utils::date_time::now_unix_timestamp(),
-                    },
+                    algorithm_id_with_timestamp: DynamicAlgorithmWithTimestamp::new(Some(new_id)),
                     enabled_feature,
                 })
             }
             DynamicRoutingType::ContractBasedRouting => {
                 self.contract_based_routing = Some(ContractRoutingAlgorithm {
-                    algorithm_id_with_timestamp: DynamicAlgorithmWithTimestamp {
-                        algorithm_id: Some(new_id),
-                        timestamp: common_utils::date_time::now_unix_timestamp(),
-                    },
+                    algorithm_id_with_timestamp: DynamicAlgorithmWithTimestamp::new(Some(new_id)),
                     enabled_feature,
                 })
             }

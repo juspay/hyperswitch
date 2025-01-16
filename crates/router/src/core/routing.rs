@@ -1635,6 +1635,8 @@ pub async fn contract_based_dynamic_routing_setup(
 pub async fn contract_based_routing_update_configs(
     state: SessionState,
     request: routing_types::ContractBasedRoutingConfig,
+    merchant_account: domain::MerchantAccount,
+    key_store: domain::MerchantKeyStore,
     algorithm_id: common_utils::id_type::RoutingId,
     profile_id: common_utils::id_type::ProfileId,
 ) -> RouterResponse<routing_types::RoutingDictionaryRecord> {
@@ -1643,6 +1645,7 @@ pub async fn contract_based_routing_update_configs(
         router_env::metric_attributes!(("profile_id", profile_id.get_string_repr().to_owned())),
     );
     let db = state.store.as_ref();
+    let key_manager_state = &(&state).into();
 
     let dynamic_routing_algo_to_update = db
         .find_routing_algorithm_by_profile_id_algorithm_id(&profile_id, &algorithm_id)
@@ -1654,6 +1657,29 @@ pub async fn contract_based_routing_update_configs(
         .parse_value::<routing::ContractBasedRoutingConfig>("ContractBasedRoutingConfig")
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("unable to deserialize algorithm data from routing table into ContractBasedRoutingConfig")?;
+
+    // validate the contained mca_ids
+    if let Some(info_vec) = &request.label_info {
+        for info in info_vec {
+            let mca = db
+                .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+                    key_manager_state,
+                    merchant_account.get_id(),
+                    &info.mca_id,
+                    &key_store,
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                    id: info.mca_id.get_string_repr().to_owned(),
+                })?;
+
+            utils::when(mca.connector_name != info.label, || {
+                Err(errors::ApiErrorResponse::InvalidRequestData {
+                    message: "Incorrect mca configuration received".to_string(),
+                })
+            })?;
+        }
+    }
 
     config_to_update.update(request);
 

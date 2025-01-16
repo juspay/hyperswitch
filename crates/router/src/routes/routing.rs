@@ -1099,7 +1099,7 @@ pub async fn success_based_routing_update_configs(
 pub async fn contract_based_routing_setup_config(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<routing_types::ToggleDynamicRoutingPath>, // probably require new types
+    path: web::Path<routing_types::ToggleDynamicRoutingPath>,
     query: web::Query<api_models::routing::ToggleDynamicRoutingQuery>,
     json_payload: web::Json<routing_types::ContractBasedRoutingConfig>,
 ) -> impl Responder {
@@ -1160,10 +1160,15 @@ pub async fn contract_based_routing_update_configs(
         state,
         &req,
         routing_payload_wrapper.clone(),
-        |state, _, wrapper: routing_types::ContractBasedRoutingPayloadWrapper, _| async {
+        |state,
+         auth: auth::AuthenticationData,
+         wrapper: routing_types::ContractBasedRoutingPayloadWrapper,
+         _| async {
             Box::pin(routing::contract_based_routing_update_configs(
                 state,
                 wrapper.updated_config,
+                auth.merchant_account,
+                auth.key_store,
                 wrapper.algorithm_id,
                 wrapper.profile_id,
             ))

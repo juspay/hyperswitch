@@ -1307,9 +1307,7 @@ pub async fn perform_dynamic_routing(
             field: "dynamic_routing_algorithm".to_string(),
         })?;
 
-    let mut connector_list = routable_connectors.clone();
-
-    connector_list = dynamic_routing_algo_ref
+    let mut connector_list = dynamic_routing_algo_ref
         .success_based_algorithm
         .as_ref()
         .async_map(|algorithm| {
@@ -1323,6 +1321,7 @@ pub async fn perform_dynamic_routing(
         })
         .await
         .transpose()
+        .inspect_err(|e| logger::error!("Dynamic_routing error {:?}", e))
         .attach_printable("unable to perform success_based_routing")
         .ok()
         .flatten()
@@ -1342,6 +1341,7 @@ pub async fn perform_dynamic_routing(
         })
         .await
         .transpose()
+        .inspect_err(|e| logger::error!("Dynamic_routing error {:?}", e))
         .attach_printable("unable to perform contract_based_routing")
         .ok()
         .flatten()
