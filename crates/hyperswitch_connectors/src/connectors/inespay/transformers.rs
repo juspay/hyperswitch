@@ -41,6 +41,7 @@ pub struct InespayPaymentsRequest {
     description: String,
     amount: StringMinorUnit,
     reference: String,
+    debtor_account: Option<Secret<String>>,
     success_link_redirect: Option<String>,
     notif_url: Option<String>,
 }
@@ -51,7 +52,7 @@ impl TryFrom<&InespayRouterData<&PaymentsAuthorizeRouterData>> for InespayPaymen
         item: &InespayRouterData<&PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
         match item.router_data.request.payment_method_data.clone() {
-            PaymentMethodData::BankDebit(BankDebitData::SepaBankDebit { iban: _, .. }) => {
+            PaymentMethodData::BankDebit(BankDebitData::SepaBankDebit { iban, .. }) => {
                 let order_id = item.router_data.connector_request_reference_id.clone();
                 let webhook_url = item.router_data.request.get_webhook_url()?;
                 let return_url = item.router_data.request.get_router_return_url()?;
@@ -59,6 +60,7 @@ impl TryFrom<&InespayRouterData<&PaymentsAuthorizeRouterData>> for InespayPaymen
                     description: item.router_data.get_description()?,
                     amount: item.amount.clone(),
                     reference: order_id,
+                    debtor_account: Some(iban),
                     success_link_redirect: Some(return_url),
                     notif_url: Some(webhook_url),
                 })
