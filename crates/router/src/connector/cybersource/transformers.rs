@@ -473,9 +473,52 @@ pub struct SamsungPayFluidDataValue {
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BankDebitPaymentInformation {
+    bank: BankDebit,
+    payment_type: PaymentType,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BankDebit {
+    account: Account,
+    routing_number: Secret<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Account {
+    #[serde(rename = "type")]
+    bank_account_type: BankAccountType,
+    number: Secret<String>, //Account number.
+}
+
+#[derive(Debug, Serialize)]
+pub enum BankAccountType {
+    C, //Checking.
+    G, //General ledger. This value is supported only on Wells Fargo ACH.
+    S, //Savings (U.S. dollars only).
+    X, //Corporate checking (U.S. dollars only).
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PaymentType {
+    name: PaymentTypeName,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum PaymentTypeName {
+    Check,
+}
+
+#[derive(Debug, Serialize)]
 #[serde(untagged)]
 pub enum PaymentInformation {
     Cards(Box<CardPaymentInformation>),
+    BankDebit(Box<BankDebitPaymentInformation>),
     GooglePay(Box<GooglePayPaymentInformation>),
     ApplePay(Box<ApplePayPaymentInformation>),
     ApplePayToken(Box<ApplePayTokenPaymentInformation>),
@@ -1650,6 +1693,79 @@ impl
 impl
     TryFrom<(
         &CybersourceRouterData<&types::PaymentsAuthorizeRouterData>,
+        domain::BankDebitData,
+    )> for CybersourcePaymentsRequest
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        (item, bank_debit_data): (
+            &CybersourceRouterData<&types::PaymentsAuthorizeRouterData>,
+            domain::BankDebitData,
+        ),
+    ) -> Result<Self, Self::Error> {
+        match bank_debit_data {
+            hyperswitch_domain_models::payment_method_data::BankDebitData::AchBankDebit {
+                account_number,
+                routing_number,
+                ..
+            } => {
+                let email = item
+                    .router_data
+                    .get_billing_email()
+                    .or(item.router_data.request.get_email())?;
+                let bill_to = build_bill_to(item.router_data.get_optional_billing(), email)?;
+                let order_information = OrderInformationWithBill::from((item, Some(bill_to)));
+
+                let payment_information =
+                    PaymentInformation::BankDebit(Box::new(BankDebitPaymentInformation {
+                        bank: BankDebit {
+                            account: Account {
+                                number: account_number,
+                                bank_account_type: BankAccountType::C,
+                            },
+                            routing_number,
+                        },
+                        payment_type: PaymentType {
+                            name: PaymentTypeName::Check,
+                        },
+                    }));
+                let processing_information = ProcessingInformation::try_from((item, None, None))?;
+                let client_reference_information = ClientReferenceInformation::from(item);
+                let merchant_defined_information = item
+                    .router_data
+                    .request
+                    .metadata
+                    .clone()
+                    .map(Vec::<MerchantDefinedInformation>::foreign_from);
+
+                Ok(Self {
+                    processing_information,
+                    payment_information,
+                    order_information,
+                    client_reference_information,
+                    consumer_authentication_information: None,
+                    merchant_defined_information,
+                })
+            }
+            hyperswitch_domain_models::payment_method_data::BankDebitData::SepaBankDebit {
+                ..
+            }
+            | hyperswitch_domain_models::payment_method_data::BankDebitData::BecsBankDebit {
+                ..
+            }
+            | hyperswitch_domain_models::payment_method_data::BankDebitData::BacsBankDebit {
+                ..
+            } => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("Cybersource"),
+            )
+            .into()),
+        }
+    }
+}
+
+impl
+    TryFrom<(
+        &CybersourceRouterData<&types::PaymentsAuthorizeRouterData>,
         domain::GooglePayWalletData,
     )> for CybersourcePaymentsRequest
 {
@@ -1949,10 +2065,12 @@ impl TryFrom<&CybersourceRouterData<&types::PaymentsAuthorizeRouterData>>
                     domain::PaymentMethodData::CardDetailsForNetworkTransactionId(card) => {
                         Self::try_from((item, card))
                     }
+                    domain::PaymentMethodData::BankDebit(bank_debit_data) => {
+                        Self::try_from((item, bank_debit_data))
+                    }
                     domain::PaymentMethodData::CardRedirect(_)
                     | domain::PaymentMethodData::PayLater(_)
                     | domain::PaymentMethodData::BankRedirect(_)
-                    | domain::PaymentMethodData::BankDebit(_)
                     | domain::PaymentMethodData::BankTransfer(_)
                     | domain::PaymentMethodData::Crypto(_)
                     | domain::PaymentMethodData::Reward
