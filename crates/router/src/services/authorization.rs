@@ -33,7 +33,16 @@ where
         return Ok(role_info.clone());
     }
 
-    let role_info = get_role_info_from_db(state, &token.role_id, &token.org_id).await?;
+    let role_info = get_role_info_from_db(
+        state,
+        &token.role_id,
+        &token.org_id,
+        token
+            .tenant_id
+            .as_ref()
+            .unwrap_or(&state.session_state().tenant.tenant_id),
+    )
+    .await?;
 
     let token_expiry =
         i64::try_from(token.exp).change_context(ApiErrorResponse::InternalServerError)?;
@@ -68,6 +77,7 @@ async fn get_role_info_from_db<A>(
     state: &A,
     role_id: &str,
     org_id: &id_type::OrganizationId,
+    tenant_id: &id_type::TenantId,
 ) -> RouterResult<roles::RoleInfo>
 where
     A: SessionStateInfo + Sync,
@@ -75,7 +85,7 @@ where
     state
         .session_state()
         .global_store
-        .find_by_role_id_and_org_id(role_id, org_id)
+        .find_by_role_id_org_id_tenant_id(role_id, org_id, tenant_id)
         .await
         .map(roles::RoleInfo::from)
         .to_not_found_response(ApiErrorResponse::InvalidJwtToken)
