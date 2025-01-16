@@ -4,6 +4,26 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.01.16.0
+
+### Features
+
+- **connector:** [Xendit] ADD Cards & Mandates Flow ([#6966](https://github.com/juspay/hyperswitch/pull/6966)) ([`bbf8844`](https://github.com/juspay/hyperswitch/commit/bbf884460c010e6ebc5f93f6fe6ff079e2463d90))
+- **core:** Diesel models, domain models and db interface changes for callback_mapper table ([#6571](https://github.com/juspay/hyperswitch/pull/6571)) ([`043cf8e`](https://github.com/juspay/hyperswitch/commit/043cf8e0c14e1818ec8e931140f1694d10b7b837))
+
+### Refactors
+
+- **dynamic_routing:** Perform db operations for dynamic_routing_stats table only when payments are in terminal state ([#6900](https://github.com/juspay/hyperswitch/pull/6900)) ([`1ec91e5`](https://github.com/juspay/hyperswitch/commit/1ec91e54e2420d4bed10e82ba1e3da5a1f29251a))
+- **proxy:** Specify hosts for proxy exclusion instead of complete URLs ([#6957](https://github.com/juspay/hyperswitch/pull/6957)) ([`bd1f077`](https://github.com/juspay/hyperswitch/commit/bd1f07705747ebe915ddf88cf860f2ac7c65e9b5))
+
+### Miscellaneous Tasks
+
+- Address Rust 1.84.0 clippy lints ([#7021](https://github.com/juspay/hyperswitch/pull/7021)) ([`4664d4b`](https://github.com/juspay/hyperswitch/commit/4664d4bc4b7e685ab6dfb9176a3309026d3032e9))
+
+**Full Changelog:** [`2025.01.14.0...2025.01.16.0`](https://github.com/juspay/hyperswitch/compare/2025.01.14.0...2025.01.16.0)
+
+- - -
+
 ## 2025.01.14.0
 
 ### Features

@@ -40,6 +40,8 @@ use rand::{
     distributions::{self, Distribution},
     SeedableRng,
 };
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+use router_env::{instrument, tracing};
 use rustc_hash::FxHashMap;
 use storage_impl::redis::cache::{CacheKey, CGRAPH_CACHE, ROUTING_CACHE};
 
@@ -1352,6 +1354,7 @@ pub async fn perform_dynamic_routing(
 
 /// success based dynamic routing
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+#[instrument(skip_all)]
 pub async fn perform_success_based_routing(
     state: &SessionState,
     routable_connectors: Vec<api_routing::RoutableConnectorChoice>,
