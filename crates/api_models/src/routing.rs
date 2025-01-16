@@ -615,7 +615,7 @@ impl DynamicRoutingAlgorithmRef {
         }
     }
 
-    pub fn update_specific_ref(
+    pub fn update_enabled_features(
         &mut self,
         algo_type: DynamicRoutingType,
         feature_to_enable: DynamicRoutingFeatures,
@@ -970,7 +970,7 @@ pub struct LabelInformation {
 }
 
 impl LabelInformation {
-    pub fn update(&mut self, new: Self) {
+    pub fn update_target_time_and_count(&mut self, new: Self) {
         self.target_count = new.target_count;
         self.target_time = new.target_time;
     }
@@ -1005,7 +1005,8 @@ impl ContractBasedRoutingConfig {
                 if let Some(existing_label_infos) = &mut self.label_info {
                     for existing_label_info in existing_label_infos {
                         if existing_label_info.mca_id == new_label_info.mca_id {
-                            existing_label_info.update(new_label_info.clone());
+                            existing_label_info
+                                .update_target_time_and_count(new_label_info.clone());
                         }
                     }
                 } else {

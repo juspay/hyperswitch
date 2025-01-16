@@ -1508,7 +1508,7 @@ where
         .into());
     };
     *algo_type_enabled_features = feature_to_enable;
-    dynamic_routing_algo_ref.update_specific_ref(dynamic_routing_type, feature_to_enable);
+    dynamic_routing_algo_ref.update_enabled_features(dynamic_routing_type, feature_to_enable);
     update_business_profile_active_dynamic_algorithm_ref(
         db,
         &state.into(),
