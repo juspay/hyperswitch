@@ -2,9 +2,9 @@ use std::collections::HashMap;
 
 use api_models::webhooks::IncomingWebhookEvent;
 use cards::CardNumber;
-use common_enums::{enums, enums as api_enums};
+use common_enums::{enums, enums as api_enums,CaptureMethod};
 use common_utils::{
-    consts, ext_traits::OptionExt, pii::Email, request::Method, types::StringMinorUnit,
+    errors::CustomResult,consts, ext_traits::OptionExt, pii::Email, request::Method, types::StringMinorUnit,
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
@@ -725,7 +725,7 @@ pub struct NovalnetPSyncResponse {
 }
 
 #[derive(Debug, Copy, Serialize, Default, Deserialize, Clone)]
-pub enum CaptureType {
+pub enum NovalnetCaptureType {
     #[default]
     Partial,
     Final,
@@ -734,7 +734,7 @@ pub enum CaptureType {
 #[derive(Default, Debug, Serialize)]
 pub struct Capture {
     #[serde(rename = "type")]
-    cap_type: CaptureType,
+    cap_type: NovalnetCaptureType,
     reference: String,
 }
 #[derive(Default, Debug, Serialize)]
@@ -750,12 +750,26 @@ pub struct NovalnetCaptureRequest {
     pub custom: NovalnetCustom,
 }
 
+fn get_novalnet_capture_type(
+    item: Option<CaptureMethod>,
+) -> CustomResult<NovalnetCaptureType, errors::ConnectorError> {
+    match item {
+        Some(CaptureMethod::Manual) | Some(CaptureMethod::Automatic)| None => Ok(NovalnetCaptureType::Final),
+        Some(CaptureMethod::ManualMultiple) => 
+            Ok(NovalnetCaptureType::Partial),
+        Some(item) => Err(errors::ConnectorError::FlowNotSupported {
+            flow: item.to_string(),
+            connector: "Novalnet".to_string(),
+        }
+        .into()),
+    }
+}
 impl TryFrom<&NovalnetRouterData<&PaymentsCaptureRouterData>> for NovalnetCaptureRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: &NovalnetRouterData<&PaymentsCaptureRouterData>,
     ) -> Result<Self, Self::Error> {
-        let capture_type = CaptureType::Final;
+        let capture_type = get_novalnet_capture_type(item.router_data.request.capture_method)?;
         let reference = item.router_data.connector_request_reference_id.clone();
         let capture = Capture {
             cap_type: capture_type,
@@ -844,12 +858,12 @@ pub struct NovalnetRefundsTransactionData {
     pub date: Option<String>,
     pub currency: Option<common_enums::Currency>,
     pub order_no: Option<String>,
-    pub payment_type: String,
-    pub refund: RefundData,
-    pub refunded_amount: u64,
-    pub status: NovalnetTransactionStatus,
-    pub status_code: u64,
-    pub test_mode: u8,
+    pub payment_type: Option<String>,
+    pub refund: Option<RefundData>,
+    pub refunded_amount: Option<u64>,
+    pub status: Option<NovalnetTransactionStatus>,
+    pub status_code: Option<u64>,
+    pub test_mode: Option<u8>,
     pub tid: Option<Secret<i64>>,
 }
 
@@ -879,16 +893,21 @@ impl TryFrom<RefundsResponseRouterData<Execute, NovalnetRefundResponse>>
         match item.response.result.status {
             NovalnetAPIStatus::Success => {
                 let refund_id = item
-                    .response
-                    .transaction
-                    .clone()
-                    .and_then(|data| data.refund.tid.map(|tid| tid.expose().to_string()))
-                    .ok_or(errors::ConnectorError::ResponseHandlingFailed)?;
+    .response
+    .transaction
+    .clone()
+    .and_then(|data| {
+        data.refund
+            .as_ref() // Borrow the refund field
+            .and_then(|refund| refund.tid.clone().map(|tid| tid.expose().to_string())) // Clone tid to own it
+    })
+    .ok_or(errors::ConnectorError::ResponseHandlingFailed)?;
+
 
                 let transaction_status = item
                     .response
                     .transaction
-                    .map(|transaction| transaction.status)
+                    .and_then(|transaction| transaction.status)
                     .unwrap_or(NovalnetTransactionStatus::Pending);
 
                 Ok(Self {
@@ -1093,7 +1112,11 @@ impl<F>
                     .unwrap_or(NovalnetTransactionStatus::Pending);
 
                 Ok(Self {
-                    status: common_enums::AttemptStatus::from(transaction_status),
+                    status: if transaction_status == NovalnetTransactionStatus::OnHold  && item.data.request.capture_method ==  Some(CaptureMethod::ManualMultiple) {
+                        common_enums::AttemptStatus::PartialCharged
+                    }else{
+                        common_enums::AttemptStatus::from(transaction_status)
+                    },
                     response: Ok(PaymentsResponseData::TransactionResponse {
                         resource_id: transaction_id
                             .clone()

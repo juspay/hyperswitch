@@ -1,0 +1,16 @@
+import pandas as pd
+
+# Path to your Excel file
+file_path = "/Users/debaratighatak/Downloads/abc.xlsx"  # Replace with the path to your Excel file
+output_path = "/Users/debaratighatak/Downloads/cleaned.xlsx"  # Specify the output file name
+
+# Read the Excel file into a DataFrame
+df = pd.read_excel(file_path)
+
+# Remove duplicates based on 'PSP error code' and 'PSP error message'
+df_no_duplicates = df.drop_duplicates(subset=['PSP error code', 'PSP error message'], keep='first')
+
+# Save the cleaned DataFrame back to a new Excel file
+df_no_duplicates.to_excel(output_path, index=False)
+
+print(f"Duplicates removed. Cleaned file saved as '{output_path}'.")

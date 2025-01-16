@@ -48,7 +48,7 @@ use transformers as novalnet;
 use crate::{
     constants::headers,
     types::ResponseRouterData,
-    utils::{self, PaymentMethodDataType, PaymentsAuthorizeRequestData},
+    utils::{self, PaymentMethodDataType},
 };
 
 #[derive(Clone)]
@@ -165,11 +165,13 @@ impl ConnectorValidation for Novalnet {
         _pmt: Option<enums::PaymentMethodType>,
     ) -> CustomResult<(), errors::ConnectorError> {
         let capture_method = capture_method.unwrap_or_default();
+        println!("<<>>capture_method {:?}",capture_method);
         match capture_method {
             enums::CaptureMethod::Automatic
             | enums::CaptureMethod::Manual
-            | enums::CaptureMethod::SequentialAutomatic => Ok(()),
-            enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => Err(
+            | enums::CaptureMethod::SequentialAutomatic 
+            | enums::CaptureMethod::ManualMultiple => Ok(()),
+            enums::CaptureMethod::Scheduled => Err(
                 utils::construct_not_implemented_error_report(capture_method, self.id()),
             ),
         }
@@ -325,9 +327,9 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let endpoint = self.base_url(connectors);
-        match req.request.is_auto_capture()? {
-            true => Ok(format!("{}/payment", endpoint)),
-            false => Ok(format!("{}/authorize", endpoint)),
+        match utils::is_manual_capture(req.request.capture_method) {
+            true => Ok(format!("{}/authorize", endpoint)),
+            false => Ok(format!("{}/payment", endpoint)),
         }
     }
 
@@ -925,7 +927,7 @@ impl webhooks::IncomingWebhook for Novalnet {
             }
             novalnet::NovalnetWebhookTransactionData::CancelTransactionData(data) => data.status,
             novalnet::NovalnetWebhookTransactionData::RefundsTransactionData(data) => {
-                Some(data.status)
+                data.status
             }
             novalnet::NovalnetWebhookTransactionData::SyncTransactionData(data) => {
                 Some(data.status)

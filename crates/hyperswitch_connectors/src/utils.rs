@@ -1475,6 +1475,11 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
     }
 }
 
+pub fn is_manual_capture(capture_method: Option<enums::CaptureMethod>) -> bool {
+    capture_method == Some(enums::CaptureMethod::Manual)
+        || capture_method == Some(enums::CaptureMethod::ManualMultiple)
+}
+
 pub trait PaymentsCaptureRequestData {
     fn get_optional_language_from_browser_info(&self) -> Option<String>;
     fn is_multiple_capture(&self) -> bool;
