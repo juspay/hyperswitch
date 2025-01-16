@@ -4,6 +4,14 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.01.10.0-hotfix1
+
+### Bug Fixes
+
+- **multitenancy:** Add a fallback for get commands in redis ([#7044](https://github.com/juspay/hyperswitch/pull/7044)) ([`3cba4aa`](https://github.com/juspay/hyperswitch/commit/3cba4aade62cbe318a379fab738a8fc2ff7e008b))
+
+- - -
+
 ## 2025.01.10.0
 
 ### Testing
