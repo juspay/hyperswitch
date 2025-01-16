@@ -3,9 +3,10 @@ use hyperswitch_domain_models::{
     errors::api_error_response::ApiErrorResponse,
     router_request_types::unified_authentication_service::{
         CtpServiceDetails, ServiceSessionIds, TransactionDetails, UasConfirmationRequestData,
-        UasPreAuthenticationRequestData,
+        UasPreAuthenticationRequestData, UasWebhookRequestData,
     },
 };
+use hyperswitch_interfaces::webhooks::IncomingWebhookRequestDetails;
 
 use crate::core::payments::PaymentData;
 
@@ -99,5 +100,13 @@ fn get_checkout_event_status_and_reason(
             Some("03".to_string()),
             Some("No Approval Code received".to_string()),
         ),
+    }
+}
+
+pub fn get_webhook_request_data_for_uas(
+    request: &IncomingWebhookRequestDetails<'_>,
+) -> UasWebhookRequestData {
+    UasWebhookRequestData {
+        body: request.body.to_vec(),
     }
 }

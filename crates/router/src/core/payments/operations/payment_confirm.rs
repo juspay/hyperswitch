@@ -1157,6 +1157,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     },
                     Ok(unified_authentication_service::UasAuthenticationResponseData::PreAuthentication {}) => (None, common_enums::AuthenticationStatus::Started),
                     Ok(unified_authentication_service::UasAuthenticationResponseData::Confirmation {}) => (None, common_enums::AuthenticationStatus::Success),
+                    Ok(unified_authentication_service::UasAuthenticationResponseData::Webhook { trans_status: _, authentication_value: _, eci: _ , three_ds_server_transaction_id: _}) =>  (None, common_enums::AuthenticationStatus::Success),
                     Err(_) => (None, common_enums::AuthenticationStatus::Failed)
                 };
 

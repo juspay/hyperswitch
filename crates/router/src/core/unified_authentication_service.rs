@@ -5,14 +5,17 @@ pub mod utils;
 use api_models::payments::CtpServiceDetails;
 use diesel_models::authentication::{Authentication, AuthenticationNew};
 use error_stack::ResultExt;
+use hyperswitch_connectors::connectors::unified_authentication_service::transformers::WebhookResponse;
 use hyperswitch_domain_models::{
     errors::api_error_response::ApiErrorResponse,
     router_request_types::unified_authentication_service::{
-        UasConfirmationRequestData, UasPostAuthenticationRequestData,
-        UasPreAuthenticationRequestData,
+        UasAuthenticationResponseData, UasConfirmationRequestData,
+        UasPostAuthenticationRequestData, UasPreAuthenticationRequestData,
     },
 };
+use hyperswitch_interfaces::webhooks::IncomingWebhookRequestDetails;
 use masking::ExposeInterface;
+use router_env::logger;
 
 use super::errors::RouterResult;
 use crate::{
@@ -211,4 +214,52 @@ pub async fn create_new_authentication(
                 authentication_id
             ),
         })
+}
+
+pub async fn process_incoming_webhook(
+    state: &SessionState,
+    incoming_webhook_request: &IncomingWebhookRequestDetails<'_>,
+    connector_name: &str,
+) -> RouterResult<Vec<u8>> {
+    let webhook_data = transformers::get_webhook_request_data_for_uas(incoming_webhook_request);
+
+    let webhook_router_data: hyperswitch_domain_models::types::UasProcessWebhookRouterData =
+        utils::construct_uas_webhook_router_data(connector_name.to_string(), webhook_data)?;
+
+    let response = utils::do_auth_connector_call(
+        state,
+        UNIFIED_AUTHENTICATION_SERVICE.to_string(),
+        webhook_router_data,
+    )
+    .await?;
+
+    let response_body = match response.response {
+        Ok(resp) => match resp {
+            UasAuthenticationResponseData::Webhook {
+                trans_status,
+                authentication_value,
+                eci,
+                three_ds_server_transaction_id,
+            } => Ok(WebhookResponse {
+                trans_status,
+                authentication_value,
+                eci,
+                three_ds_server_transaction_id,
+            }),
+            _ => {
+                logger::error!("received unknown webhook response from uas");
+                Err(ApiErrorResponse::WebhookProcessingFailure)
+            }
+        },
+        Err(err) => {
+            logger::error!("error processing webhook {:?}", err);
+            Err(ApiErrorResponse::WebhookProcessingFailure)
+        }
+    }?;
+
+    let serialized = serde_json::to_vec(&response_body)
+        .change_context(ApiErrorResponse::InternalServerError)
+        .attach_printable("error converting uas webhook response to bytes")?;
+
+    Ok(serialized)
 }

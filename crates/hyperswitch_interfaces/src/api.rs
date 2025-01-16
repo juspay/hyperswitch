@@ -35,12 +35,13 @@ use hyperswitch_domain_models::{
     },
     router_flow_types::{
         mandate_revoke::MandateRevoke, AccessTokenAuth, AuthenticationConfirmation,
-        PostAuthenticate, PreAuthenticate, VerifyWebhookSource,
+        PostAuthenticate, PreAuthenticate, ProcessIncomingWebhook, VerifyWebhookSource,
     },
     router_request_types::{
         unified_authentication_service::{
             UasAuthenticationResponseData, UasConfirmationRequestData,
             UasPostAuthenticationRequestData, UasPreAuthenticationRequestData,
+            UasWebhookRequestData,
         },
         AccessTokenRequestData, MandateRevokeRequestData, VerifyWebhookSourceRequestData,
     },
@@ -371,7 +372,11 @@ pub trait ConnectorVerifyWebhookSourceV2:
 
 /// trait UnifiedAuthenticationService
 pub trait UnifiedAuthenticationService:
-    ConnectorCommon + UasPreAuthentication + UasPostAuthentication + UasAuthenticationConfirmation
+    ConnectorCommon
+    + UasPreAuthentication
+    + UasPostAuthentication
+    + UasAuthenticationConfirmation
+    + UasProcessWebhook
 {
 }
 
@@ -404,9 +409,20 @@ pub trait UasAuthenticationConfirmation:
 >
 {
 }
+
+///trait UasProcessWebhook
+pub trait UasProcessWebhook:
+    ConnectorIntegration<ProcessIncomingWebhook, UasWebhookRequestData, UasAuthenticationResponseData>
+{
+}
+
 /// trait UnifiedAuthenticationServiceV2
 pub trait UnifiedAuthenticationServiceV2:
-    ConnectorCommon + UasPreAuthenticationV2 + UasPostAuthenticationV2 + UasAuthenticationConfirmationV2
+    ConnectorCommon
+    + UasPreAuthenticationV2
+    + UasPostAuthenticationV2
+    + UasAuthenticationConfirmationV2
+    + UasProcessWebhookV2
 {
 }
 
@@ -438,6 +454,17 @@ pub trait UasAuthenticationConfirmationV2:
     AuthenticationConfirmation,
     UasFlowData,
     UasConfirmationRequestData,
+    UasAuthenticationResponseData,
+>
+{
+}
+
+///trait UasProcessWebhookV2
+pub trait UasProcessWebhookV2:
+    ConnectorIntegrationV2<
+    ProcessIncomingWebhook,
+    UasFlowData,
+    UasWebhookRequestData,
     UasAuthenticationResponseData,
 >
 {

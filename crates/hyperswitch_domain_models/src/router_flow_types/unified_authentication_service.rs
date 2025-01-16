@@ -6,3 +6,6 @@ pub struct PostAuthenticate;
 
 #[derive(Debug, Clone)]
 pub struct AuthenticationConfirmation;
+
+#[derive(Debug, Clone)]
+pub struct ProcessIncomingWebhook;

@@ -55,6 +55,7 @@ pub use hyperswitch_domain_models::{
         unified_authentication_service::{
             UasAuthenticationResponseData, UasConfirmationRequestData,
             UasPostAuthenticationRequestData, UasPreAuthenticationRequestData,
+            UasWebhookRequestData,
         },
         AcceptDisputeRequestData, AccessTokenRequestData, AuthorizeSessionTokenData,
         BrowserInformation, ChargeRefunds, ChargeRefundsOptions, CompleteAuthorizeData,
