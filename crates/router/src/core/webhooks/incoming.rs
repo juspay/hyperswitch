@@ -24,7 +24,7 @@ use crate::{
         errors::{self, ConnectorErrorExt, CustomResult, RouterResponse, StorageErrorExt},
         metrics, payments,
         payments::{helpers, tokenization},
-        refunds, utils as core_utils,
+        refunds, unified_authentication_service, utils as core_utils,
         webhooks::utils::construct_webhook_router_data,
     },
     db::StorageInterface,
@@ -165,13 +165,12 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
 
             // if the flow is eligible for `UNIFIED_AUTHENTICATION_SERVICE` then the connector name shall change to `UNIFIED_AUTHENTICATION_SERVICE` from requested connector
 
-            let decoded_body =
-                crate::core::unified_authentication_service::process_incoming_webhook(
-                    &state,
-                    &request_details,
-                    &connector_name,
-                )
-                .await?;
+            let decoded_body = unified_authentication_service::process_incoming_webhook(
+                &state,
+                &request_details,
+                &connector_name,
+            )
+            .await?;
 
             // The connector name is being updated to `UNIFIED_AUTHENTICATION_SERVICE` to align with Hyperswitch's context.
             // hyperswitch will directly interact with `UNIFIED_AUTHENTICATION_SERVICE` structs, rather than referencing the original webhook sender structs.
@@ -179,7 +178,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
 
             let (connector_enum, connector_name) = get_connector_by_connector_name(
                 &state,
-                crate::core::unified_authentication_service::types::UNIFIED_AUTHENTICATION_SERVICE,
+                unified_authentication_service::types::UNIFIED_AUTHENTICATION_SERVICE,
                 None,
             )?;
 

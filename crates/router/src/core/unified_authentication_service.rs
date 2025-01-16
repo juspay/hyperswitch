@@ -15,6 +15,7 @@ use hyperswitch_domain_models::{
 };
 use hyperswitch_interfaces::webhooks::IncomingWebhookRequestDetails;
 use masking::ExposeInterface;
+use router_env::logger;
 
 use super::errors::RouterResult;
 use crate::{
@@ -245,13 +246,20 @@ pub async fn process_incoming_webhook(
                 eci,
                 three_ds_server_transaction_id,
             }),
-            _ => Err(ApiErrorResponse::WebhookProcessingFailure),
+            _ => {
+                logger::error!("received unknown webhook response from uas");
+                Err(ApiErrorResponse::WebhookProcessingFailure)
+            }
         },
-        Err(err) => Err(ApiErrorResponse::WebhookProcessingFailure),
+        Err(err) => {
+            logger::error!("error processing webhook {:?}", err);
+            Err(ApiErrorResponse::WebhookProcessingFailure)
+        }
     }?;
 
-    let serialized =
-        serde_json::to_vec(&response_body).change_context(ApiErrorResponse::InternalServerError)?;
+    let serialized = serde_json::to_vec(&response_body)
+        .change_context(ApiErrorResponse::InternalServerError)
+        .attach_printable("error converting uas webhook response to bytes")?;
 
     Ok(serialized)
 }
