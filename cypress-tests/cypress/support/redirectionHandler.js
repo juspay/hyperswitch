@@ -309,7 +309,11 @@ function threeDsRedirection(redirection_url, expected_url, connectorId) {
             cy.get("#txtButton").click();
           });
       });
-  } else if (connectorId === "nmi" || connectorId === "noon") {
+  } else if (
+    connectorId === "nmi" ||
+    connectorId === "noon" ||
+    connectorId == "xendit"
+  ) {
     cy.get("iframe", { timeout: TIMEOUT })
       .its("0.contentDocument.body")
       .within(() => {
