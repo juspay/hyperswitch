@@ -1008,8 +1008,8 @@ impl ContractBasedRoutingConfig {
                 if let Some(existing_label_infos) = &mut self.label_info {
                     for existing_label_info in existing_label_infos {
                         if existing_label_info.mca_id == new_label_info.mca_id {
-                            existing_label_info.update_target_time(&new_label_info);
-                            existing_label_info.update_target_count(&new_label_info);
+                            existing_label_info.update_target_time(new_label_info);
+                            existing_label_info.update_target_count(new_label_info);
                         }
                     }
                 } else {
