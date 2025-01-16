@@ -3062,6 +3062,7 @@ version = "0.1.0"
 dependencies = [
  "api_models",
  "common_enums",
+ "common_types",
  "connector_configs",
  "currency_conversion",
  "euclid",

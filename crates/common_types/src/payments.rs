@@ -3,9 +3,13 @@
 use common_enums::enums;
 use common_utils::{events, impl_to_sql_from_sql_json, types::MinorUnit};
 use diesel::{sql_types::Jsonb, AsExpression, FromSqlRow};
-use euclid::frontend::{
-    ast::Program,
-    dir::{DirKeyKind, EuclidDirFilter},
+use euclid::{
+    dssa::types::EuclidAnalysable,
+    frontend::{
+        ast::Program,
+        dir::{DirKeyKind, DirValue, EuclidDirFilter},
+    },
+    types::Metadata,
 };
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -71,8 +75,35 @@ pub enum AuthenticationType {
 
 impl_to_sql_from_sql_json!(AuthenticationType);
 
+impl AuthenticationType {
+    /// Convert to DirValue
+    pub fn to_dir_value(&self) -> DirValue {
+        match self {
+            Self::ThreeDs => DirValue::AuthenticationType(enums::AuthenticationType::ThreeDs),
+            Self::NoThreeDs => DirValue::AuthenticationType(enums::AuthenticationType::NoThreeDs),
+        }
+    }
+}
+
+impl EuclidAnalysable for AuthenticationType {
+    fn get_dir_value_for_analysis(&self, rule_name: String) -> Vec<(DirValue, Metadata)> {
+        let auth = self.to_string();
+
+        vec![(
+            self.to_dir_value(),
+            std::collections::HashMap::from_iter([(
+                "AUTHENTICATION_TYPE".to_string(),
+                serde_json::json!({
+                    "rule_name":rule_name,
+                    "Authentication_type": auth,
+                }),
+            )]),
+        )]
+    }
+}
+
 #[derive(
-    Serialize, Deserialize, Debug, Clone, PartialEq, Eq, FromSqlRow, AsExpression, ToSchema,
+    Serialize, Default, Deserialize, Debug, Clone, PartialEq, Eq, FromSqlRow, AsExpression, ToSchema,
 )]
 #[diesel(sql_type = Jsonb)]
 /// ConditionalConfigs
