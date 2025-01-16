@@ -34,6 +34,19 @@ Single API to access the payments ecosystem and its features
 
 <hr>
 
+## Table of Contents
+
+1. [Introduction](#introduction)  
+2. [Try Hyperswitch](#try-hyperswitch)  
+3. [Support & Feature Requests](#support-feature-requests)  
+4. [Our Vision](#our-vision)  
+5. [Bugs and Feature Requests](#bugs-and-feature-requests)  
+6. [Versioning](#versioning)  
+7. [Copyright and License](#copyright-and-license)
+
+<a href="#introduction">
+  <h2 id="introduction">Introduction</h2>
+</a>
 Juspay, founded in 2012, is a global leader in payment orchestration and checkout solutions, trusted by 400+ leading enterprises and brands worldwide. Hyperswitch is Juspay's new generation of composable, commercial open-source payments platform for merchant and brands. It is an enterprise-grade, transparent and modular payments platform designed to provide digital businesses access to the best payments infrastructure.
 
 Here are the key components of Hyperswitch that deliver the whole solution:
@@ -51,14 +64,36 @@ Read more at [Hyperswitch docs](https://docs.hyperswitch.io/).
 
 <img src="./docs/imgs/hyperswitch-architecture-v1.png" />
 
-<a href="#Try Hyperswitch">
-  <h2 id="Try Hyperswitch">Try Hyperswitch</h2>
+<a href="#try-hyperswitch">
+  <h2 id="try-hyperswitch">Try Hyperswitch</h2>
 </a>
 
 ### 1. Local Setup
 
-You can run Hyperswitch on your system using Docker compose after cloning this repository. Check out the [local setup guide][local-setup-guide] for a more details on setting up the entire stack or component wise. This takes 15-mins and gives the following output 
-<img src="./docs/imgs/local-setup-output.png" />
+You can run Hyperswitch on your system using Docker compose after cloning this repository. 
+
+```shell
+git clone --depth 1 --branch latest https://github.com/juspay/hyperswitch
+cd hyperswitch
+docker compose up -d
+```
+
+Check out the [local setup guide][local-setup-guide] for a more details on setting up the entire stack or component wise. This takes 15-mins and gives the following output 
+```shell
+[+] Running 2/2
+✔ hyperswitch-control-center Pulled 2.9s
+✔ hyperswitch-server Pulled 3.0s
+[+] Running 6/0
+
+✔ Container hyperswitch-pg-1 Created 0.0s
+✔ Container hyperswitch-redis-standalone-1 Created 0.0s
+✔ Container hyperswitch-migration_runner-1 Created 0.0s
+✔ Container hyperswitch-hyperswitch-server-1 Created 0.0s
+✔ Container hyperswitch-hyperswitch-web-1 Created 0.0s
+✔ Container hyperswitch-hyperswitch-control-center-1 Created 0.0s
+
+Attaching to hyperswitch-control-center-1, hyperswitch-server-1, hyperswitch-web-1, migration_runner-1, pg-1, redis-standalone-1
+```
 
 ### 2. Deployment on cloud
 
@@ -72,7 +107,16 @@ The fastest and easiest way to try Hyperswitch on AWS is via our CDK scripts
 2. Sign-in to your AWS console.
 
 3. Follow the instructions provided on the console to successfully deploy Hyperswitch. This takes 30-45mins and gives the following output 
-<img src="./docs/imgs/cdk-output.png" />
+
+| Service| Host|
+|----------------------------------------------|----------------------------------------------|
+| App server running on                        | http://hyperswitch-<host-id.region>.elb.amazonaws.com|
+| HyperloaderJS Hosted at                      | http://<cloudfront.host-id>/0.103.1/v0/HyperLoader.js |
+| Control center server running on             | http://hyperswitch-control-center-<host-id.region>.elb.amazonaws.com, Login with Email: test@gmail.com |
+| Hyperswitch Demo Store running on            | http://hyperswitch-sdk-demo-<host-id.region>.elb.amazonaws.com |
+| Logs server running on                       | http://hyperswitch-logs-<host-id.region>.elb.amazonaws.com, Login with username: admin, password: admin |
+
+Use the Hyperswitch Control Center and [make a payment with test card](https://docs.hyperswitch.io/hyperswitch-open-source/account-setup/test-a-payment).
 
 We support deployment on GCP and Azure via Helm charts which takes 30-45mins. You can read more at [Hyperswitch docs](https://docs.hyperswitch.io/hyperswitch-open-source/deploy-on-kubernetes-using-helm). 
 
@@ -90,8 +134,8 @@ You can experience the product by signing up for our [hosted sandbox](https://ap
 [docker-compose-scheduler-monitoring]: /docs/try_local_system.md#running-additional-services
 
 
-<a href="Support & Feature requests">
-  <h2 id="Support & Feature requests">Support & Feature requests</h2>
+<a href="support-feature-requests">
+  <h2 id="support-feature-requests">Support & Feature requests</h2>
 </a>
 
 For new product features, enhancements, roadmap discussions, or to share queries and ideas, visit our [GitHub Discussions](https://github.com/juspay/hyperswitch/discussions)
@@ -99,8 +143,8 @@ For new product features, enhancements, roadmap discussions, or to share queries
 For any support, join the conversation in [Slack](https://join.slack.com/t/hyperswitch-io/shared_invite/zt-2jqxmpsbm-WXUENx022HjNEy~Ark7Orw)
 
 
-<a href="Our Vision">
-  <h2 id="Our Vision">Our Vision</h2>
+<a href="our-vision">
+  <h2 id="our-vision">Our Vision</h2>
 </a>
 
 > Linux for Payments
@@ -122,7 +166,7 @@ Hyperswitch serves as a well-architected designed reference platform, built on b
 
 This project is being created and maintained by [Juspay](https://juspay.io)
 
-<a href="#Bugs and feature requests">
+<a href="#bugs-and-feature-requests">
   <h2 id="bugs-and-feature-requests">Bugs and feature requests</h2>
 </a>
 
@@ -132,21 +176,21 @@ If your problem or idea is not addressed yet, please [open a new issue].
 [existing and closed issues]: https://github.com/juspay/hyperswitch/issues
 [open a new issue]: https://github.com/juspay/hyperswitch/issues/new/choose
 
-<a href="#Versioning">
+<a href="#versioning">
   <h2 id="versioning">Versioning</h2>
 </a>
 
 Check the [CHANGELOG.md](./CHANGELOG.md) file for details.
 
-<a href="#©Copyright and License">
+<a href="#copyright-and-license">
   <h2 id="copyright-and-license">Copyright and License</h2>
 </a>
 
 This product is licensed under the [Apache 2.0 License](LICENSE).
 
 
-<a href="Team behind Hyperswitch">
-  <h2 id="Team behind Hyperswitch">Team behind Hyperswitch</h2>
+<a href="team-behind-hyperswitch">
+  <h2 id="team-behind-hyperswitch">Team behind Hyperswitch</h2>
 </a>
 
 The core team of 150+ engineers building Hyperswitch. Keep up the great work! 🥂
