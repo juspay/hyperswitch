@@ -576,7 +576,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
         payment_data: &mut PaymentData<F>,
-        business_profile: &domain::Profile,
+        _business_profile: &domain::Profile,
     ) -> CustomResult<(), errors::ApiErrorResponse>
     where
         F: 'b + Clone + Send + Sync,
@@ -617,7 +617,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
             resp.status,
             resp.response.clone(),
             merchant_account.storage_scheme,
-            business_profile.is_connector_agnostic_mit_enabled,
         )
         .await?;
         Ok(())
@@ -1201,7 +1200,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
         payment_data: &mut PaymentData<F>,
-        business_profile: &domain::Profile,
+        _business_profile: &domain::Profile,
     ) -> CustomResult<(), errors::ApiErrorResponse>
     where
         F: 'b + Clone + Send + Sync,
@@ -1241,7 +1240,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
             resp.status,
             resp.response.clone(),
             merchant_account.storage_scheme,
-            business_profile.is_connector_agnostic_mit_enabled,
         )
         .await?;
         Ok(())
@@ -2077,7 +2075,6 @@ async fn update_payment_method_status_and_ntid<F: Clone>(
     attempt_status: common_enums::AttemptStatus,
     payment_response: Result<types::PaymentsResponseData, ErrorResponse>,
     storage_scheme: enums::MerchantStorageScheme,
-    is_connector_agnostic_mit_enabled: Option<bool>,
 ) -> RouterResult<()> {
     todo!()
 }
@@ -2093,7 +2090,6 @@ async fn update_payment_method_status_and_ntid<F: Clone>(
     attempt_status: common_enums::AttemptStatus,
     payment_response: Result<types::PaymentsResponseData, ErrorResponse>,
     storage_scheme: enums::MerchantStorageScheme,
-    is_connector_agnostic_mit_enabled: Option<bool>,
 ) -> RouterResult<()> {
     // If the payment_method is deleted then ignore the error related to retrieving payment method
     // This should be handled when the payment method is soft deleted
@@ -2128,20 +2124,18 @@ async fn update_payment_method_status_and_ntid<F: Clone>(
     })
     .ok()
     .flatten();
-        let network_transaction_id =
+        let network_transaction_id = if payment_data.payment_intent.setup_future_usage
+            == Some(diesel_models::enums::FutureUsage::OffSession)
+        {
             if let Some(network_transaction_id) = pm_resp_network_transaction_id {
-                if is_connector_agnostic_mit_enabled == Some(true)
-                    && payment_data.payment_intent.setup_future_usage
-                        == Some(diesel_models::enums::FutureUsage::OffSession)
-                {
-                    Some(network_transaction_id)
-                } else {
-                    logger::info!("Skip storing network transaction id");
-                    None
-                }
+                Some(network_transaction_id)
             } else {
+                logger::info!("Skip storing network transaction id");
                 None
-            };
+            }
+        } else {
+            None
+        };
 
         let pm_update = if payment_method.status != common_enums::PaymentMethodStatus::Active
             && payment_method.status != attempt_status.into()

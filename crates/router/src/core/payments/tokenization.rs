@@ -108,11 +108,10 @@ where
             };
 
             let network_transaction_id =
-                if let Some(network_transaction_id) = network_transaction_id {
-                    if business_profile.is_connector_agnostic_mit_enabled == Some(true)
-                        && save_payment_method_data.request.get_setup_future_usage()
-                            == Some(storage_enums::FutureUsage::OffSession)
-                    {
+                if save_payment_method_data.request.get_setup_future_usage()
+                    == Some(storage_enums::FutureUsage::OffSession)
+                {
+                    if let Some(network_transaction_id) = network_transaction_id {
                         Some(network_transaction_id)
                     } else {
                         logger::info!("Skip storing network transaction id");
