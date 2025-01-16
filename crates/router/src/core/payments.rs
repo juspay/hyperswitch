@@ -2353,7 +2353,7 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
                 .attach_printable("Failed to get redis connection")?;
             redis_conn
                 .set_key_with_expiry(
-                    &poll_id,
+                    &poll_id.into(),
                     api_models::poll::PollStatus::Pending.to_string(),
                     crate::consts::POLL_ID_TTL,
                 )
@@ -4116,7 +4116,7 @@ async fn decide_payment_method_tokenize_action(
                 );
 
                 let connector_token_option = redis_conn
-                    .get_key::<Option<String>>(&key)
+                    .get_key::<Option<String>>(&key.into())
                     .await
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed to fetch the token from redis")?;
@@ -6703,7 +6703,7 @@ pub async fn get_extended_card_info(
 
     let key = helpers::get_redis_key_for_extended_card_info(&merchant_id, &payment_id);
     let payload = redis_conn
-        .get_key::<String>(&key)
+        .get_key::<String>(&key.into())
         .await
         .change_context(errors::ApiErrorResponse::ExtendedCardInfoNotFound)?;
 
