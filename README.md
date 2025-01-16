@@ -36,12 +36,13 @@ Single API to access the payments ecosystem and its features
 
 ## Table of Contents
 
-1. [Introduction](#introduction)  
-2. [Try Hyperswitch](#try-hyperswitch)  
-3. [Support, Feature requests & Bugs](#support-feature-requests)  
-4. [Our Vision](#our-vision)  
-5. [Versioning](#versioning)  
-6. [Copyright and License](#copyright-and-license)
+1. [Introduction](#introduction)
+2. [Architectural Overview](#architectural-overview) 
+3. [Try Hyperswitch](#try-hyperswitch)  
+4. [Support, Feature requests & Bugs](#support-feature-requests)  
+5. [Our Vision](#our-vision)  
+6. [Versioning](#versioning)  
+7. [Copyright and License](#copyright-and-license)
 
 <a href="#introduction">
   <h2 id="introduction">Introduction</h2>
@@ -58,6 +59,9 @@ Here are the key components of Hyperswitch that deliver the whole solution:
 
 Read more at [Hyperswitch docs](https://docs.hyperswitch.io/).
 
+<a href="#architectural-overview">
+  <h2 id="architectural-overview">Architectural Overview</h2>
+</a>
 <img src="./docs/imgs/features.png" />
 <img src="./docs/imgs/non-functional-features.png" />
 
