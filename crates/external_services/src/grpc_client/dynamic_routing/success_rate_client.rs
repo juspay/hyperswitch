@@ -231,6 +231,8 @@ impl SuccessBasedDynamicRouting for SuccessRateCalculatorClient<Client> {
             ))?
             .into_inner();
 
+        logger::info!(dynamic_routing_response=?response);
+
         Ok(response)
     }
 }
