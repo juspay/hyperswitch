@@ -15,7 +15,7 @@ pub use contract_routing::{
 use error_stack::ResultExt;
 use router_env::logger;
 
-use crate::grpc_client::{AddHeaders, GrpcHeaders};
+use crate::grpc_client::{self, GrpcHeaders};
 #[allow(
     missing_docs,
     unused_qualifications,
@@ -76,14 +76,15 @@ impl ContractBasedDynamicRouting for ContractScoreCalculatorClient<Client> {
             .map(ForeignTryFrom::foreign_try_from)
             .transpose()?;
 
-        let mut request = tonic::Request::new(CalContractScoreRequest {
-            id,
-            params,
-            labels,
-            config,
-        });
-
-        request.add_headers_to_grpc_request(headers);
+        let request = grpc_client::create_grpc_request(
+            CalContractScoreRequest {
+                id,
+                params,
+                labels,
+                config,
+            },
+            headers,
+        );
 
         let response = self
             .clone()
@@ -112,13 +113,14 @@ impl ContractBasedDynamicRouting for ContractScoreCalculatorClient<Client> {
             .map(ProtoLabelInfo::foreign_from)
             .collect::<Vec<_>>();
 
-        let mut request = tonic::Request::new(UpdateContractRequest {
-            id,
-            params,
-            labels_information,
-        });
-
-        request.add_headers_to_grpc_request(headers);
+        let request = grpc_client::create_grpc_request(
+            UpdateContractRequest {
+                id,
+                params,
+                labels_information,
+            },
+            headers,
+        );
 
         let response = self
             .clone()
@@ -138,9 +140,7 @@ impl ContractBasedDynamicRouting for ContractScoreCalculatorClient<Client> {
         id: String,
         headers: GrpcHeaders,
     ) -> DynamicRoutingResult<InvalidateContractResponse> {
-        let mut request = tonic::Request::new(InvalidateContractRequest { id });
-
-        request.add_headers_to_grpc_request(headers);
+        let request = grpc_client::create_grpc_request(InvalidateContractRequest { id }, headers);
 
         let response = self
             .clone()
