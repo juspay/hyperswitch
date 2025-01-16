@@ -162,6 +162,12 @@ jobs:
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Install sccache
+        uses: taiki-e/install-action@v2.33.28
+        with:
+          tool: sccache
+          checksum: true
+
       - name: Install cargo-hack
         uses: baptiste0928/cargo-install@v2.2.0
         with:
