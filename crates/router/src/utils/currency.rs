@@ -171,16 +171,16 @@ pub async fn get_forex_rates(
         }
     } else {
         // No data in local
-        check_local_cache_expiry_and_call_api(state, call_delay).await
+        call_api_if_redis_forex_data_expired(state, call_delay).await
     }
 }
 
-async fn check_local_cache_expiry_and_call_api(
+async fn call_api_if_redis_forex_data_expired(
     state: &SessionState,
     call_delay: i64,
 ) -> CustomResult<FxExchangeRatesCacheEntry, ForexCacheError> {
     match retrieve_forex_data_from_redis(state).await {
-        Ok(Some(data)) => check_redis_data_expiry_and_call_api(state, data, call_delay).await,
+        Ok(Some(data)) => call_forex_api_if_redis_data_expired(state, data, call_delay).await,
         Ok(None) => {
             // No data in local as well as redis
             call_forex_api_and_save_data_to_cache_and_redis(state, None).await?;
@@ -259,7 +259,7 @@ async fn save_forex_data_to_cache_and_redis(
         .await
 }
 
-async fn check_redis_data_expiry_and_call_api(
+async fn call_forex_api_if_redis_data_expired(
     state: &SessionState,
     redis_data: FxExchangeRatesCacheEntry,
     call_delay: i64,
