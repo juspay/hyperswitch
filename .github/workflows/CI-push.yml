@@ -131,6 +131,8 @@ jobs:
     runs-on: ${{ matrix.runner }}
 
     env:
+      # Use `sccache` for caching compilation artifacts
+      RUSTC_WRAPPER: sccache
       RUSTFLAGS: "-D warnings"
 
     strategy:
