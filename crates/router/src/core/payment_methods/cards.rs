@@ -3719,7 +3719,7 @@ pub async fn list_payment_methods(
         let redis_expiry = state.conf.payment_method_auth.get_inner().redis_expiry;
 
         if let Some(rc) = redis_conn {
-            rc.serialize_and_set_key_with_expiry(pm_auth_key.as_str(), val, redis_expiry)
+            rc.serialize_and_set_key_with_expiry(&pm_auth_key.as_str().into(), val, redis_expiry)
                 .await
                 .attach_printable("Failed to store pm auth data in redis")
                 .unwrap_or_else(|error| {
@@ -5033,7 +5033,7 @@ pub async fn list_customer_payment_method(
                 );
 
                 redis_conn
-                    .set_key_with_expiry(&key, pm_metadata.1, intent_fulfillment_time)
+                    .set_key_with_expiry(&key.into(), pm_metadata.1, intent_fulfillment_time)
                     .await
                     .change_context(errors::StorageError::KVError)
                     .change_context(errors::ApiErrorResponse::InternalServerError)
