@@ -1980,14 +1980,9 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                     .clone()
                     .map(|val| val.parse_value("DynamicRoutingAlgorithmRef"))
                     .transpose()
-                    .change_context(errors::RoutingError::DeserializationError {
-                        from: "JSON".to_string(),
-                        to: "DynamicRoutingAlgorithmRef".to_string(),
-                    })
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("unable to deserialize DynamicRoutingAlgorithmRef from JSON")?
-                    .ok_or(errors::RoutingError::GenericNotFoundError {
-                        field: "dynamic_routing_algorithm".to_string(),
-                    })?;
+                    .ok_or(errors::ApiErrorResponse::InternalServerError)?;
 
             let state = state.clone();
             let business_profile = business_profile.clone();
