@@ -365,8 +365,6 @@ merchant_secret="Source verification key"
 [airwallex.connector_auth.BodyKey]
 api_key="API Key"
 key1="Client ID"
-[airwallex.connector_webhook_details]
-merchant_secret="Source verification key"
 
 [airwallex.connector_webhook_details]
 merchant_secret="Source verification key"
@@ -1680,6 +1678,42 @@ key1="Client Id"
 api_key="Client Secret"
 api_secret="Certificates"
 key2="Certificate Key"
+
+[jpmorgan]
+[[jpmorgan.credit]]
+  payment_method_type = "AmericanExpress"
+[[jpmorgan.credit]]
+  payment_method_type = "DinersClub"
+[[jpmorgan.credit]]
+  payment_method_type = "Discover"
+[[jpmorgan.credit]]
+  payment_method_type = "JCB"
+[[jpmorgan.credit]]
+  payment_method_type = "Mastercard"
+[[jpmorgan.credit]]
+  payment_method_type = "Discover"
+[[jpmorgan.credit]]
+  payment_method_type = "UnionPay"
+[[jpmorgan.credit]]
+  payment_method_type = "Visa"
+  [[jpmorgan.debit]]
+  payment_method_type = "AmericanExpress"
+[[jpmorgan.debit]]
+  payment_method_type = "DinersClub"
+[[jpmorgan.debit]]
+  payment_method_type = "Discover"
+[[jpmorgan.debit]]
+  payment_method_type = "JCB"
+[[jpmorgan.debit]]
+  payment_method_type = "Mastercard"
+[[jpmorgan.debit]]
+  payment_method_type = "Discover"
+[[jpmorgan.debit]]
+  payment_method_type = "UnionPay"
+[[jpmorgan.debit]]
+  payment_method_type = "Visa"
+[jpmorgan.connector_auth.BodyKey]
+api_key="Access Token"
 
 [klarna]
 [[klarna.pay_later]]
@@ -3941,11 +3975,6 @@ type="Toggle"
 [netcetera.connector_auth.CertificateAuth]
 certificate="Base64 encoded PEM formatted certificate chain"
 private_key="Base64 encoded PEM formatted private key"
-[netcetera.metadata]
-merchant_country_code="3 digit numeric country code"
-merchant_name="Name of the merchant"
-three_ds_requestor_name="ThreeDS requestor name"
-three_ds_requestor_id="ThreeDS request id"
 
 [netcetera.metadata.endpoint_prefix]
 name="endpoint_prefix"
@@ -4380,3 +4409,43 @@ label="Merchant Country Code"
 placeholder="Enter Merchant Country Code"
 required=true
 type="Text"
+
+[xendit]
+[[xendit.credit]]
+  payment_method_type = "Mastercard"
+[[xendit.credit]]
+  payment_method_type = "Visa"
+[[xendit.credit]]
+  payment_method_type = "Interac"
+[[xendit.credit]]
+  payment_method_type = "AmericanExpress"
+[[xendit.credit]]
+  payment_method_type = "JCB"
+[[xendit.credit]]
+  payment_method_type = "DinersClub"
+[[xendit.credit]]
+  payment_method_type = "Discover"
+[[xendit.credit]]
+  payment_method_type = "CartesBancaires"
+[[xendit.credit]]
+  payment_method_type = "UnionPay"
+[[xendit.debit]]
+  payment_method_type = "Mastercard"
+[[xendit.debit]]
+  payment_method_type = "Visa"
+[[xendit.debit]]
+  payment_method_type = "Interac"
+[[xendit.debit]]
+  payment_method_type = "AmericanExpress"
+[[xendit.debit]]
+  payment_method_type = "JCB"
+[[xendit.debit]]
+  payment_method_type = "DinersClub"
+[[xendit.debit]]
+  payment_method_type = "Discover"
+[[xendit.debit]]
+  payment_method_type = "CartesBancaires"
+[[xendit.debit]]
+  payment_method_type = "UnionPay"
+[xendit.connector_auth.HeaderKey]
+api_key="API Key"

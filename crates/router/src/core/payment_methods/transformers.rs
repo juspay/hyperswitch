@@ -552,6 +552,7 @@ pub fn generate_pm_vaulting_req_from_update_request(
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 pub fn generate_payment_method_response(
     pm: &domain::PaymentMethod,
+    ephemeral_key: Option<Secret<String>>,
 ) -> errors::RouterResult<api::PaymentMethodResponse> {
     let pmd = pm
         .payment_method_data
@@ -567,13 +568,13 @@ pub fn generate_payment_method_response(
     let resp = api::PaymentMethodResponse {
         merchant_id: pm.merchant_id.to_owned(),
         customer_id: pm.customer_id.to_owned(),
-        payment_method_id: pm.id.get_string_repr().to_owned(),
+        id: pm.id.to_owned(),
         payment_method_type: pm.get_payment_method_type(),
         payment_method_subtype: pm.get_payment_method_subtype(),
         created: Some(pm.created_at),
         recurring_enabled: false,
         last_used_at: Some(pm.last_used_at),
-        client_secret: pm.client_secret.clone(),
+        ephemeral_key,
         payment_method_data: pmd,
     };
 

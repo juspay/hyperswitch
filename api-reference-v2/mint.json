@@ -23,9 +23,7 @@
   "navigation": [
     {
       "group": "Get Started",
-      "pages": [
-        "introduction"
-      ]
+      "pages": ["introduction"]
     },
     {
       "group": "Essentials",
@@ -42,6 +40,7 @@
         "api-reference/payments/payments--get-intent",
         "api-reference/payments/payments--update-intent",
         "api-reference/payments/payments--session-token",
+        "api-reference/payments/payments--payment-methods-list",
         "api-reference/payments/payments--confirm-intent",
         "api-reference/payments/payments--get"
       ]
@@ -50,13 +49,12 @@
       "group": "Payment Methods",
       "pages": [
         "api-reference/payment-methods/payment-method--create",
-        "api-reference/payment-methods/payment-method--retrieve",
-        "api-reference/payment-methods/payment-method--update",
-        "api-reference/payment-methods/payment-method--delete",
         "api-reference/payment-methods/payment-method--create-intent",
+        "api-reference/payment-methods/payment-method--payment-methods-list",
         "api-reference/payment-methods/payment-method--confirm-intent",
-        "api-reference/payment-methods/list-customer-saved-payment-methods-for-a-payment",
-        "api-reference/payment-methods/list-payment-methods-for-a-customer"
+        "api-reference/payment-methods/payment-method--update",
+        "api-reference/payment-methods/payment-method--retrieve",
+        "api-reference/payment-methods/payment-method--delete"
       ]
     },
     {
@@ -135,9 +133,7 @@
     "github": "https://github.com/juspay/hyperswitch",
     "linkedin": "https://www.linkedin.com/company/hyperswitch"
   },
-  "openapi": [
-    "openapi_spec.json"
-  ],
+  "openapi": ["openapi_spec.json"],
   "api": {
     "maintainOrder": true
   }

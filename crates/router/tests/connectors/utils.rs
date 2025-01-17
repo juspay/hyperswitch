@@ -63,7 +63,6 @@ pub struct PaymentInfo {
     pub auth_type: Option<enums::AuthenticationType>,
     pub access_token: Option<AccessToken>,
     pub connector_meta_data: Option<serde_json::Value>,
-    pub return_url: Option<String>,
     pub connector_customer: Option<String>,
     pub payment_method_token: Option<String>,
     #[cfg(feature = "payouts")]
@@ -492,6 +491,8 @@ pub trait ConnectorActions: Connector {
             merchant_id,
             customer_id: Some(common_utils::generate_customer_id_of_default_length()),
             connector: self.get_name(),
+            tenant_id: common_utils::id_type::TenantId::try_from_string("public".to_string())
+                .unwrap(),
             payment_id: uuid::Uuid::new_v4().to_string(),
             attempt_id: uuid::Uuid::new_v4().to_string(),
             status: enums::AttemptStatus::default(),
@@ -504,7 +505,6 @@ pub trait ConnectorActions: Connector {
             payment_method: enums::PaymentMethod::Card,
             connector_auth_type: self.get_auth_token(),
             description: Some("This is a test".to_string()),
-            return_url: info.clone().and_then(|a| a.return_url),
             payment_method_status: None,
             request: req,
             response: Err(types::ErrorResponse::default()),
@@ -605,6 +605,7 @@ pub trait ConnectorActions: Connector {
         let state = Arc::new(app_state)
             .get_session_state(
                 &common_utils::id_type::TenantId::try_from_string("public".to_string()).unwrap(),
+                None,
                 || {},
             )
             .unwrap();
@@ -648,6 +649,7 @@ pub trait ConnectorActions: Connector {
         let state = Arc::new(app_state)
             .get_session_state(
                 &common_utils::id_type::TenantId::try_from_string("public".to_string()).unwrap(),
+                None,
                 || {},
             )
             .unwrap();
@@ -692,6 +694,7 @@ pub trait ConnectorActions: Connector {
         let state = Arc::new(app_state)
             .get_session_state(
                 &common_utils::id_type::TenantId::try_from_string("public".to_string()).unwrap(),
+                None,
                 || {},
             )
             .unwrap();
@@ -735,6 +738,7 @@ pub trait ConnectorActions: Connector {
         let state = Arc::new(app_state)
             .get_session_state(
                 &common_utils::id_type::TenantId::try_from_string("public".to_string()).unwrap(),
+                None,
                 || {},
             )
             .unwrap();
@@ -829,6 +833,7 @@ pub trait ConnectorActions: Connector {
         let state = Arc::new(app_state)
             .get_session_state(
                 &common_utils::id_type::TenantId::try_from_string("public".to_string()).unwrap(),
+                None,
                 || {},
             )
             .unwrap();
@@ -869,6 +874,7 @@ async fn call_connector<
     let state = Arc::new(app_state)
         .get_session_state(
             &common_utils::id_type::TenantId::try_from_string("public".to_string()).unwrap(),
+            None,
             || {},
         )
         .unwrap();
@@ -1017,6 +1023,9 @@ impl Default for BrowserInfoType {
             java_enabled: Some(true),
             java_script_enabled: Some(true),
             ip_address: Some("127.0.0.1".parse().unwrap()),
+            device_model: Some("Apple IPHONE 7".to_string()),
+            os_type: Some("IOS or ANDROID".to_string()),
+            os_version: Some("IOS 14.5".to_string()),
         };
         Self(data)
     }

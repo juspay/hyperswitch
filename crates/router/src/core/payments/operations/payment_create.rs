@@ -78,6 +78,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         merchant_key_store: &domain::MerchantKeyStore,
         _auth_flow: services::AuthFlow,
         header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
+        platform_merchant_account: Option<&domain::MerchantAccount>,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest, PaymentData<F>>>
     {
         let db = &*state.store;
@@ -304,6 +305,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             attempt_id,
             profile_id.clone(),
             session_expiry,
+            platform_merchant_account,
         )
         .await?;
 
@@ -1191,7 +1193,7 @@ impl PaymentCreate {
             payment_id.get_attempt_id(1)
         };
 
-        if request.mandate_data.as_ref().map_or(false, |mandate_data| {
+        if request.mandate_data.as_ref().is_some_and(|mandate_data| {
             mandate_data.update_mandate_id.is_some() && mandate_data.mandate_type.is_some()
         }) {
             Err(errors::ApiErrorResponse::InvalidRequestData {message:"Only one field out of 'mandate_type' and 'update_mandate_id' was expected, found both".to_string()})?
@@ -1308,6 +1310,7 @@ impl PaymentCreate {
         active_attempt_id: String,
         profile_id: common_utils::id_type::ProfileId,
         session_expiry: PrimitiveDateTime,
+        platform_merchant_account: Option<&domain::MerchantAccount>,
     ) -> RouterResult<storage::PaymentIntent> {
         let created_at @ modified_at @ last_synced = common_utils::date_time::now();
 
@@ -1494,6 +1497,8 @@ impl PaymentCreate {
             tax_details,
             skip_external_tax_calculation,
             psd2_sca_exemption_type: request.psd2_sca_exemption_type,
+            platform_merchant_id: platform_merchant_account
+                .map(|platform_merchant_account| platform_merchant_account.get_id().to_owned()),
         })
     }
 

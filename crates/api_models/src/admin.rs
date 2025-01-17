@@ -676,9 +676,11 @@ pub struct MerchantConnectorCreate {
     /// Type of the Connector for the financial use case. Could range from Payments to Accounting to Banking.
     #[schema(value_type = ConnectorType, example = "payment_processor")]
     pub connector_type: api_enums::ConnectorType,
+
     /// Name of the Connector
     #[schema(value_type = Connector, example = "stripe")]
     pub connector_name: api_enums::Connector,
+
     /// This is an unique label you can generate and pass in order to identify this connector account on your Hyperswitch dashboard and reports, If not passed then if will take `connector_name`_`profile_name`. Eg: if your profile label is `default`, connector label can be `stripe_default`
     #[schema(example = "stripe_US_travel")]
     pub connector_label: Option<String>,
@@ -692,36 +694,8 @@ pub struct MerchantConnectorCreate {
     pub connector_account_details: Option<pii::SecretSerdeValue>,
 
     /// An object containing the details about the payment methods that need to be enabled under this merchant connector account
-    #[schema(example = json!([
-        {
-            "payment_method": "wallet",
-            "payment_method_types": [
-                "upi_collect",
-                "upi_intent"
-            ],
-            "payment_method_issuers": [
-                "labore magna ipsum",
-                "aute"
-            ],
-            "payment_schemes": [
-                "Discover",
-                "Discover"
-            ],
-            "accepted_currencies": {
-                "type": "enable_only",
-                "list": ["USD", "EUR"]
-            },
-            "accepted_countries": {
-                "type": "disable_only",
-                "list": ["FR", "DE","IN"]
-            },
-            "minimum_amount": 1,
-            "maximum_amount": 68607706,
-            "recurring_enabled": true,
-            "installment_payment_enabled": true
-        }
-    ]))]
-    pub payment_methods_enabled: Option<Vec<PaymentMethodsEnabled>>,
+    #[schema(value_type = PaymentMethodsEnabled)]
+    pub payment_methods_enabled: Option<Vec<common_types::payment_methods::PaymentMethodsEnabled>>,
 
     /// Webhook details of this merchant connector
     #[schema(example = json!({
@@ -1035,9 +1009,10 @@ pub struct MerchantConnectorResponse {
     /// Type of the Connector for the financial use case. Could range from Payments to Accounting to Banking.
     #[schema(value_type = ConnectorType, example = "payment_processor")]
     pub connector_type: api_enums::ConnectorType,
+
     /// Name of the Connector
     #[schema(value_type = Connector, example = "stripe")]
-    pub connector_name: String,
+    pub connector_name: common_enums::connector_enums::Connector,
 
     /// A unique label to identify the connector account created under a profile
     #[schema(example = "stripe_US_travel")]
@@ -1056,36 +1031,8 @@ pub struct MerchantConnectorResponse {
     pub connector_account_details: pii::SecretSerdeValue,
 
     /// An object containing the details about the payment methods that need to be enabled under this merchant connector account
-    #[schema(example = json!([
-        {
-            "payment_method": "wallet",
-            "payment_method_types": [
-                "upi_collect",
-                "upi_intent"
-            ],
-            "payment_method_issuers": [
-                "labore magna ipsum",
-                "aute"
-            ],
-            "payment_schemes": [
-                "Discover",
-                "Discover"
-            ],
-            "accepted_currencies": {
-                "type": "enable_only",
-                "list": ["USD", "EUR"]
-            },
-            "accepted_countries": {
-                "type": "disable_only",
-                "list": ["FR", "DE","IN"]
-            },
-            "minimum_amount": 1,
-            "maximum_amount": 68607706,
-            "recurring_enabled": true,
-            "installment_payment_enabled": true
-        }
-    ]))]
-    pub payment_methods_enabled: Option<Vec<PaymentMethodsEnabled>>,
+    #[schema(value_type = Vec<PaymentMethodsEnabled>)]
+    pub payment_methods_enabled: Option<Vec<common_types::payment_methods::PaymentMethodsEnabled>>,
 
     /// Webhook details of this merchant connector
     #[schema(example = json!({
@@ -1364,9 +1311,10 @@ pub struct MerchantConnectorListResponse {
     /// Type of the Connector for the financial use case. Could range from Payments to Accounting to Banking.
     #[schema(value_type = ConnectorType, example = "payment_processor")]
     pub connector_type: api_enums::ConnectorType,
+
     /// Name of the Connector
     #[schema(value_type = Connector, example = "stripe")]
-    pub connector_name: String,
+    pub connector_name: common_enums::connector_enums::Connector,
 
     /// A unique label to identify the connector account created under a profile
     #[schema(example = "stripe_US_travel")]
@@ -1381,36 +1329,8 @@ pub struct MerchantConnectorListResponse {
     pub profile_id: id_type::ProfileId,
 
     /// An object containing the details about the payment methods that need to be enabled under this merchant connector account
-    #[schema(example = json!([
-        {
-            "payment_method": "wallet",
-            "payment_method_types": [
-                "upi_collect",
-                "upi_intent"
-            ],
-            "payment_method_issuers": [
-                "labore magna ipsum",
-                "aute"
-            ],
-            "payment_schemes": [
-                "Discover",
-                "Discover"
-            ],
-            "accepted_currencies": {
-                "type": "enable_only",
-                "list": ["USD", "EUR"]
-            },
-            "accepted_countries": {
-                "type": "disable_only",
-                "list": ["FR", "DE","IN"]
-            },
-            "minimum_amount": 1,
-            "maximum_amount": 68607706,
-            "recurring_enabled": true,
-            "installment_payment_enabled": true
-        }
-    ]))]
-    pub payment_methods_enabled: Option<Vec<PaymentMethodsEnabled>>,
+    #[schema(value_type = Vec<PaymentMethodsEnabled>)]
+    pub payment_methods_enabled: Option<Vec<common_types::payment_methods::PaymentMethodsEnabled>>,
 
     /// A boolean value to indicate if the connector is disabled. By default, its value is false.
     #[schema(default = false, example = false)]
@@ -1568,36 +1488,8 @@ pub struct MerchantConnectorUpdate {
     pub connector_account_details: Option<pii::SecretSerdeValue>,
 
     /// An object containing the details about the payment methods that need to be enabled under this merchant connector account
-    #[schema(example = json!([
-        {
-            "payment_method": "wallet",
-            "payment_method_types": [
-                "upi_collect",
-                "upi_intent"
-            ],
-            "payment_method_issuers": [
-                "labore magna ipsum",
-                "aute"
-            ],
-            "payment_schemes": [
-                "Discover",
-                "Discover"
-            ],
-            "accepted_currencies": {
-                "type": "enable_only",
-                "list": ["USD", "EUR"]
-            },
-            "accepted_countries": {
-                "type": "disable_only",
-                "list": ["FR", "DE","IN"]
-            },
-            "minimum_amount": 1,
-            "maximum_amount": 68607706,
-            "recurring_enabled": true,
-            "installment_payment_enabled": true
-        }
-    ]))]
-    pub payment_methods_enabled: Option<Vec<PaymentMethodsEnabled>>,
+    #[schema(value_type = Option<Vec<PaymentMethodsEnabled>>)]
+    pub payment_methods_enabled: Option<Vec<common_types::payment_methods::PaymentMethodsEnabled>>,
 
     /// Webhook details of this merchant connector
     #[schema(example = json!({
@@ -2085,6 +1977,7 @@ pub struct ProfileCreate {
 
     /// Indicates if click to pay is enabled or not.
     #[schema(default = false, example = false)]
+    #[serde(default)]
     pub is_click_to_pay_enabled: bool,
 
     /// Product authentication ids

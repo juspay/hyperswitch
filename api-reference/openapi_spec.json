@@ -950,6 +950,125 @@
         ]
       }
     },
+    "/relay": {
+      "post": {
+        "tags": [
+          "Relay"
+        ],
+        "summary": "Relay - Create",
+        "description": "Creates a relay request.",
+        "operationId": "Relay Request",
+        "parameters": [
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile ID for authentication",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Idempotency-Key",
+            "in": "header",
+            "description": "Idempotency Key for relay request",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RelayRequest"
+              },
+              "examples": {
+                "Create a relay request": {
+                  "value": {
+                    "connector_id": "mca_5apGeP94tMts6rg3U3kR",
+                    "connector_resource_id": "7256228702616471803954",
+                    "data": {
+                      "refund": {
+                        "amount": 6540,
+                        "currency": "USD"
+                      }
+                    },
+                    "type": "refund"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Relay request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RelayResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid data"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
+    "/relay/{relay_id}": {
+      "get": {
+        "tags": [
+          "Relay"
+        ],
+        "summary": "Relay - Retrieve",
+        "description": "Retrieves a relay details.",
+        "operationId": "Retrieve a Relay details",
+        "parameters": [
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile ID for authentication",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Relay Retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RelayResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Relay details was not found"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          },
+          {
+            "ephemeral_key": []
+          }
+        ]
+      }
+    },
     "/refunds": {
       "post": {
         "tags": [
@@ -5933,7 +6052,7 @@
         "required": [
           "payment_description",
           "regular_billing",
-          "management_url"
+          "management_u_r_l"
         ],
         "properties": {
           "payment_description": {
@@ -5948,7 +6067,7 @@
             "description": "A localized billing agreement that the payment sheet displays to the user before the user authorizes the payment",
             "nullable": true
           },
-          "management_url": {
+          "management_u_r_l": {
             "type": "string",
             "description": "A URL to a web page where the user can update or delete the payment method for the recurring payment",
             "example": "https://hyperswitch.io"
@@ -8208,6 +8327,21 @@
             "type": "string",
             "description": "User-agent of the browser",
             "nullable": true
+          },
+          "os_type": {
+            "type": "string",
+            "description": "The os type of the client device",
+            "nullable": true
+          },
+          "os_version": {
+            "type": "string",
+            "description": "The os version of the client device",
+            "nullable": true
+          },
+          "device_model": {
+            "type": "string",
+            "description": "The device model of the client",
+            "nullable": true
           }
         }
       },
@@ -9099,7 +9233,6 @@
       },
       "Connector": {
         "type": "string",
-        "description": "A connector is an integration to fulfill payments",
         "enum": [
           "adyenplatform",
           "phonypay",
@@ -9144,6 +9277,7 @@
           "helcim",
           "iatapay",
           "itaubank",
+          "jpmorgan",
           "klarna",
           "mifinity",
           "mollie",
@@ -9182,9 +9316,47 @@
           "signifyd",
           "plaid",
           "riskified",
+          "xendit",
           "zen",
           "zsl"
         ]
+      },
+      "ConnectorFeatureMatrixResponse": {
+        "type": "object",
+        "required": [
+          "name",
+          "supported_payment_methods"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "category": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentConnectorCategory"
+              }
+            ],
+            "nullable": true
+          },
+          "supported_payment_methods": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SupportedPaymentMethod"
+            }
+          },
+          "supported_webhook_flows": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EventClass"
+            },
+            "nullable": true
+          }
+        }
       },
       "ConnectorMetadata": {
         "type": "object",
@@ -11136,6 +11308,38 @@
           }
         }
       },
+      "FeatureMatrixListResponse": {
+        "type": "object",
+        "required": [
+          "connector_count",
+          "connectors"
+        ],
+        "properties": {
+          "connector_count": {
+            "type": "integer",
+            "description": "The number of connectors included in the response",
+            "minimum": 0
+          },
+          "connectors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ConnectorFeatureMatrixResponse"
+            }
+          }
+        }
+      },
+      "FeatureMatrixRequest": {
+        "type": "object",
+        "properties": {
+          "connectors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Connector"
+            },
+            "nullable": true
+          }
+        }
+      },
       "FeatureMetadata": {
         "type": "object",
         "description": "additional data that might be required by hyperswitch",
@@ -11165,6 +11369,14 @@
             "nullable": true
           }
         }
+      },
+      "FeatureStatus": {
+        "type": "string",
+        "description": "The status of the feature",
+        "enum": [
+          "not_supported",
+          "supported"
+        ]
       },
       "FieldType": {
         "oneOf": [
@@ -15649,6 +15861,15 @@
           }
         ]
       },
+      "PaymentConnectorCategory": {
+        "type": "string",
+        "description": "Connector Access Method",
+        "enum": [
+          "payment_gateway",
+          "alternative_payment_method",
+          "bank_acquirer"
+        ]
+      },
       "PaymentCreatePaymentLinkConfig": {
         "allOf": [
           {
@@ -17255,7 +17476,7 @@
           "amount_to_capture": {
             "type": "integer",
             "format": "int64",
-            "description": "The Amount to be captured/ debited from the user's payment method.",
+            "description": "The Amount to be captured/ debited from the user's payment method. If not passed the full amount will be captured.",
             "example": 6540
           },
           "refund_uncaptured_amount": {
@@ -23020,6 +23241,16 @@
             "description": "The code for the error",
             "nullable": true
           },
+          "unified_code": {
+            "type": "string",
+            "description": "Error code unified across the connectors is received here if there was an error while calling connector",
+            "nullable": true
+          },
+          "unified_message": {
+            "type": "string",
+            "description": "Error message unified across the connectors is received here if there was an error while calling connector",
+            "nullable": true
+          },
           "created_at": {
             "type": "string",
             "format": "date-time",
@@ -23092,6 +23323,170 @@
           }
         },
         "additionalProperties": false
+      },
+      "RelayData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "refund"
+            ],
+            "properties": {
+              "refund": {
+                "$ref": "#/components/schemas/RelayRefundRequest"
+              }
+            }
+          }
+        ]
+      },
+      "RelayError": {
+        "type": "object",
+        "required": [
+          "code",
+          "message"
+        ],
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "The error code"
+          },
+          "message": {
+            "type": "string",
+            "description": "The error message"
+          }
+        }
+      },
+      "RelayRefundRequest": {
+        "type": "object",
+        "required": [
+          "amount",
+          "currency"
+        ],
+        "properties": {
+          "amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The amount that is being refunded",
+            "example": 6540
+          },
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
+          },
+          "reason": {
+            "type": "string",
+            "description": "The reason for the refund",
+            "example": "Customer returned the product",
+            "nullable": true,
+            "maxLength": 255
+          }
+        }
+      },
+      "RelayRequest": {
+        "type": "object",
+        "required": [
+          "connector_resource_id",
+          "connector_id",
+          "type"
+        ],
+        "properties": {
+          "connector_resource_id": {
+            "type": "string",
+            "description": "The identifier that is associated to a resource at the connector reference to which the relay request is being made",
+            "example": "7256228702616471803954"
+          },
+          "connector_id": {
+            "type": "string",
+            "description": "Identifier of the connector ( merchant connector account ) which was chosen to make the payment",
+            "example": "mca_5apGeP94tMts6rg3U3kR"
+          },
+          "type": {
+            "$ref": "#/components/schemas/RelayType"
+          },
+          "data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RelayData"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "RelayResponse": {
+        "type": "object",
+        "required": [
+          "id",
+          "status",
+          "connector_resource_id",
+          "connector_id",
+          "profile_id",
+          "type"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The unique identifier for the Relay",
+            "example": "relay_mbabizu24mvu3mela5njyhpit4"
+          },
+          "status": {
+            "$ref": "#/components/schemas/RelayStatus"
+          },
+          "connector_resource_id": {
+            "type": "string",
+            "description": "The identifier that is associated to a resource at the connector reference to which the relay request is being made",
+            "example": "pi_3MKEivSFNglxLpam0ZaL98q9"
+          },
+          "error": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RelayError"
+              }
+            ],
+            "nullable": true
+          },
+          "connector_reference_id": {
+            "type": "string",
+            "description": "The identifier that is associated to a resource at the connector to which the relay request is being made",
+            "example": "re_3QY4TnEOqOywnAIx1Mm1p7GQ",
+            "nullable": true
+          },
+          "connector_id": {
+            "type": "string",
+            "description": "Identifier of the connector ( merchant connector account ) which was chosen to make the payment",
+            "example": "mca_5apGeP94tMts6rg3U3kR"
+          },
+          "profile_id": {
+            "type": "string",
+            "description": "The business profile that is associated with this relay request.",
+            "example": "pro_abcdefghijklmnopqrstuvwxyz"
+          },
+          "type": {
+            "$ref": "#/components/schemas/RelayType"
+          },
+          "data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RelayData"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "RelayStatus": {
+        "type": "string",
+        "enum": [
+          "created",
+          "pending",
+          "success",
+          "failure"
+        ]
+      },
+      "RelayType": {
+        "type": "string",
+        "enum": [
+          "refund"
+        ]
       },
       "RequestPaymentMethodTypes": {
         "type": "object",
@@ -23503,7 +23898,7 @@
       },
       "RoutableConnectors": {
         "type": "string",
-        "description": "Connectors eligible for payments routing",
+        "description": "RoutableConnectors are the subset of Connectors that are eligible for payments routing",
         "enum": [
           "adyenplatform",
           "phonypay",
@@ -23546,6 +23941,7 @@
           "helcim",
           "iatapay",
           "itaubank",
+          "jpmorgan",
           "klarna",
           "mifinity",
           "mollie",
@@ -24775,6 +25171,52 @@
                 "$ref": "#/components/schemas/CurrentBlockThreshold"
               }
             ],
+            "nullable": true
+          }
+        }
+      },
+      "SupportedPaymentMethod": {
+        "type": "object",
+        "required": [
+          "payment_method",
+          "payment_method_type",
+          "mandates",
+          "refunds",
+          "supported_capture_methods"
+        ],
+        "properties": {
+          "payment_method": {
+            "$ref": "#/components/schemas/PaymentMethod"
+          },
+          "payment_method_type": {
+            "$ref": "#/components/schemas/PaymentMethodType"
+          },
+          "mandates": {
+            "$ref": "#/components/schemas/FeatureStatus"
+          },
+          "refunds": {
+            "$ref": "#/components/schemas/FeatureStatus"
+          },
+          "supported_capture_methods": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CaptureMethod"
+            }
+          },
+          "supported_countries": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CountryAlpha2"
+            },
+            "uniqueItems": true,
+            "nullable": true
+          },
+          "supported_currencies": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Currency"
+            },
+            "uniqueItems": true,
             "nullable": true
           }
         }

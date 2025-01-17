@@ -4,6 +4,7 @@ use api_models::routing::{
 };
 use common_utils::{ext_traits::OptionExt, transformers::ForeignTryFrom};
 use error_stack::ResultExt;
+use router_env::{instrument, logger, tracing};
 pub use success_rate::{
     success_rate_calculator_client::SuccessRateCalculatorClient, CalSuccessRateConfig,
     CalSuccessRateRequest, CalSuccessRateResponse,
@@ -15,12 +16,14 @@ pub use success_rate::{
     missing_docs,
     unused_qualifications,
     clippy::unwrap_used,
-    clippy::as_conversions
+    clippy::as_conversions,
+    clippy::use_self
 )]
 pub mod success_rate {
     tonic::include_proto!("success_rate");
 }
 use super::{Client, DynamicRoutingError, DynamicRoutingResult};
+use crate::grpc_client::{self, GrpcHeaders};
 /// The trait Success Based Dynamic Routing would have the functions required to support the calculation and updation window
 #[async_trait::async_trait]
 pub trait SuccessBasedDynamicRouting: dyn_clone::DynClone + Send + Sync {
@@ -31,6 +34,7 @@ pub trait SuccessBasedDynamicRouting: dyn_clone::DynClone + Send + Sync {
         success_rate_based_config: SuccessBasedRoutingConfig,
         params: String,
         label_input: Vec<RoutableConnectorChoice>,
+        headers: GrpcHeaders,
     ) -> DynamicRoutingResult<CalSuccessRateResponse>;
     /// To update the success rate with the given label
     async fn update_success_rate(
@@ -39,22 +43,26 @@ pub trait SuccessBasedDynamicRouting: dyn_clone::DynClone + Send + Sync {
         success_rate_based_config: SuccessBasedRoutingConfig,
         params: String,
         response: Vec<RoutableConnectorChoiceWithStatus>,
+        headers: GrpcHeaders,
     ) -> DynamicRoutingResult<UpdateSuccessRateWindowResponse>;
     /// To invalidates the success rate routing keys
     async fn invalidate_success_rate_routing_keys(
         &self,
         id: String,
+        headers: GrpcHeaders,
     ) -> DynamicRoutingResult<InvalidateWindowsResponse>;
 }
 
 #[async_trait::async_trait]
 impl SuccessBasedDynamicRouting for SuccessRateCalculatorClient<Client> {
+    #[instrument(skip_all)]
     async fn calculate_success_rate(
         &self,
         id: String,
         success_rate_based_config: SuccessBasedRoutingConfig,
         params: String,
         label_input: Vec<RoutableConnectorChoice>,
+        headers: GrpcHeaders,
     ) -> DynamicRoutingResult<CalSuccessRateResponse> {
         let labels = label_input
             .into_iter()
@@ -66,12 +74,15 @@ impl SuccessBasedDynamicRouting for SuccessRateCalculatorClient<Client> {
             .map(ForeignTryFrom::foreign_try_from)
             .transpose()?;
 
-        let request = tonic::Request::new(CalSuccessRateRequest {
-            id,
-            params,
-            labels,
-            config,
-        });
+        let request = grpc_client::create_grpc_request(
+            CalSuccessRateRequest {
+                id,
+                params,
+                labels,
+                config,
+            },
+            headers,
+        );
 
         let response = self
             .clone()
@@ -82,15 +93,19 @@ impl SuccessBasedDynamicRouting for SuccessRateCalculatorClient<Client> {
             ))?
             .into_inner();
 
+        logger::info!(dynamic_routing_response=?response);
+
         Ok(response)
     }
 
+    #[instrument(skip_all)]
     async fn update_success_rate(
         &self,
         id: String,
         success_rate_based_config: SuccessBasedRoutingConfig,
         params: String,
         label_input: Vec<RoutableConnectorChoiceWithStatus>,
+        headers: GrpcHeaders,
     ) -> DynamicRoutingResult<UpdateSuccessRateWindowResponse> {
         let config = success_rate_based_config
             .config
@@ -105,12 +120,15 @@ impl SuccessBasedDynamicRouting for SuccessRateCalculatorClient<Client> {
             })
             .collect();
 
-        let request = tonic::Request::new(UpdateSuccessRateWindowRequest {
-            id,
-            params,
-            labels_with_status,
-            config,
-        });
+        let request = grpc_client::create_grpc_request(
+            UpdateSuccessRateWindowRequest {
+                id,
+                params,
+                labels_with_status,
+                config,
+            },
+            headers,
+        );
 
         let response = self
             .clone()
@@ -121,13 +139,18 @@ impl SuccessBasedDynamicRouting for SuccessRateCalculatorClient<Client> {
             ))?
             .into_inner();
 
+        logger::info!(dynamic_routing_response=?response);
+
         Ok(response)
     }
+
+    #[instrument(skip_all)]
     async fn invalidate_success_rate_routing_keys(
         &self,
         id: String,
+        headers: GrpcHeaders,
     ) -> DynamicRoutingResult<InvalidateWindowsResponse> {
-        let request = tonic::Request::new(InvalidateWindowsRequest { id });
+        let request = grpc_client::create_grpc_request(InvalidateWindowsRequest { id }, headers);
 
         let response = self
             .clone()
@@ -137,6 +160,9 @@ impl SuccessBasedDynamicRouting for SuccessRateCalculatorClient<Client> {
                 "Failed to invalidate the success rate routing keys".to_string(),
             ))?
             .into_inner();
+
+        logger::info!(dynamic_routing_response=?response);
+
         Ok(response)
     }
 }

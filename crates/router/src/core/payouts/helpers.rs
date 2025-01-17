@@ -49,8 +49,8 @@ use crate::{
 };
 
 #[allow(clippy::too_many_arguments)]
-pub async fn make_payout_method_data<'a>(
-    state: &'a SessionState,
+pub async fn make_payout_method_data(
+    state: &SessionState,
     payout_method_data: Option<&api::PayoutMethodData>,
     payout_token: Option<&str>,
     customer_id: &id_type::CustomerId,
@@ -769,6 +769,7 @@ pub(super) async fn get_or_create_customer_details(
     }
 }
 
+#[cfg(all(feature = "payouts", feature = "v1"))]
 pub async fn decide_payout_connector(
     state: &SessionState,
     merchant_account: &domain::MerchantAccount,

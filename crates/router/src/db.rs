@@ -6,6 +6,7 @@ pub mod blocklist;
 pub mod blocklist_fingerprint;
 pub mod blocklist_lookup;
 pub mod business_profile;
+pub mod callback_mapper;
 pub mod capture;
 pub mod cards_info;
 pub mod configs;
@@ -30,6 +31,7 @@ pub mod organization;
 pub mod payment_link;
 pub mod payment_method;
 pub mod refund;
+pub mod relay;
 pub mod reverse_lookup;
 pub mod role;
 pub mod routing_algorithm;
@@ -131,6 +133,7 @@ pub trait StorageInterface:
     + user_authentication_method::UserAuthenticationMethodInterface
     + authentication::AuthenticationInterface
     + generic_link::GenericLinkInterface
+    + relay::RelayInterface
     + user::theme::ThemeInterface
     + 'static
 {

@@ -55,9 +55,10 @@ use crate::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         payments as payments_core,
     },
+    headers::ACCEPT_LANGUAGE,
     logger,
     routes::{metrics, SessionState},
-    services,
+    services::{self, authentication::get_header_value_by_key},
     types::{
         self, domain,
         transformers::{ForeignFrom, ForeignInto},
@@ -1329,4 +1330,12 @@ pub async fn trigger_refund_outgoing_webhook(
     key_store: &domain::MerchantKeyStore,
 ) -> RouterResult<()> {
     todo!()
+}
+
+pub fn get_locale_from_header(headers: &actix_web::http::header::HeaderMap) -> String {
+    get_header_value_by_key(ACCEPT_LANGUAGE.into(), headers)
+        .ok()
+        .flatten()
+        .map(|val| val.to_string())
+        .unwrap_or(common_utils::consts::DEFAULT_LOCALE.to_string())
 }

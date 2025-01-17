@@ -838,11 +838,11 @@ impl<F>
                             reason: non_threeds_data.error_desc.clone(),
                             status_code: item.http_code,
                             attempt_status: None,
-                            connector_transaction_id: None,
+                            connector_transaction_id: Some(data.txn_id),
                         })
                     } else {
                         Ok(PaymentsResponseData::TransactionResponse {
-                            resource_id: ResponseId::ConnectorTransactionId(data.txn_id),
+                            resource_id: ResponseId::ConnectorTransactionId(data.txn_id.clone()),
                             redirection_data: Box::new(None),
                             mandate_reference: Box::new(mandate_reference),
                             connector_metadata: None,
@@ -1041,14 +1041,14 @@ impl TryFrom<RefundsResponseRouterData<Execute, FiuuRefundResponse>>
                             reason: refund_data.reason.clone(),
                             status_code: item.http_code,
                             attempt_status: None,
-                            connector_transaction_id: None,
+                            connector_transaction_id: Some(refund_data.refund_id.to_string()),
                         }),
                         ..item.data
                     })
                 } else {
                     Ok(Self {
                         response: Ok(RefundsResponseData {
-                            connector_refund_id: refund_data.refund_id.to_string(),
+                            connector_refund_id: refund_data.refund_id.clone().to_string(),
                             refund_status,
                         }),
                         ..item.data
@@ -1161,6 +1161,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<FiuuPaymentResponse>> for PaymentsSy
             FiuuPaymentResponse::FiuuPaymentSyncResponse(response) => {
                 let stat_name = response.stat_name;
                 let stat_code = response.stat_code.clone();
+                let txn_id = response.tran_id;
                 let status = enums::AttemptStatus::try_from(FiuuSyncStatus {
                     stat_name,
                     stat_code,
@@ -1168,17 +1169,17 @@ impl TryFrom<PaymentsSyncResponseRouterData<FiuuPaymentResponse>> for PaymentsSy
                 let error_response = if status == enums::AttemptStatus::Failure {
                     Some(ErrorResponse {
                         status_code: item.http_code,
-                        code: response.stat_code.to_string(),
-                        message: response.stat_name.clone().to_string(),
-                        reason: Some(response.stat_name.clone().to_string()),
+                        code: response.error_code.clone(),
+                        message: response.error_desc.clone(),
+                        reason: Some(response.error_desc),
                         attempt_status: Some(enums::AttemptStatus::Failure),
-                        connector_transaction_id: None,
+                        connector_transaction_id: Some(txn_id.clone()),
                     })
                 } else {
                     None
                 };
                 let payments_response_data = PaymentsResponseData::TransactionResponse {
-                    resource_id: item.data.request.connector_transaction_id.clone(),
+                    resource_id: ResponseId::ConnectorTransactionId(txn_id.clone().to_string()),
                     redirection_data: Box::new(None),
                     mandate_reference: Box::new(None),
                     connector_metadata: None,
@@ -1198,8 +1199,9 @@ impl TryFrom<PaymentsSyncResponseRouterData<FiuuPaymentResponse>> for PaymentsSy
                     capture_method: item.data.request.capture_method,
                     status: response.status,
                 })?;
+                let txn_id = response.tran_id;
                 let mandate_reference = response.extra_parameters.as_ref().and_then(|extra_p| {
-                    let mandate_token: Result<ExtraParameters, _> = serde_json::from_str(extra_p);
+                    let mandate_token: Result<ExtraParameters, _> = serde_json::from_str(&extra_p.clone().expose());
                     match mandate_token {
                         Ok(token) => {
                             token.token.as_ref().map(|token| MandateReference {
@@ -1212,7 +1214,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<FiuuPaymentResponse>> for PaymentsSy
                         Err(err) => {
                             router_env::logger::warn!(
                                 "Failed to convert 'extraP' from fiuu webhook response to fiuu::ExtraParameters. \
-                                 Input: '{}', Error: {}",
+                                 Input: '{:?}', Error: {}",
                                 extra_p,
                                 err
                             );
@@ -1228,18 +1230,18 @@ impl TryFrom<PaymentsSyncResponseRouterData<FiuuPaymentResponse>> for PaymentsSy
                             .clone()
                             .unwrap_or(consts::NO_ERROR_CODE.to_owned()),
                         message: response
-                            .error_code
+                            .error_desc
                             .clone()
                             .unwrap_or(consts::NO_ERROR_MESSAGE.to_owned()),
                         reason: response.error_desc.clone(),
                         attempt_status: Some(enums::AttemptStatus::Failure),
-                        connector_transaction_id: None,
+                        connector_transaction_id: Some(txn_id.clone()),
                     })
                 } else {
                     None
                 };
                 let payments_response_data = PaymentsResponseData::TransactionResponse {
-                    resource_id: item.data.request.connector_transaction_id.clone(),
+                    resource_id: ResponseId::ConnectorTransactionId(txn_id.clone().to_string()),
                     redirection_data: Box::new(None),
                     mandate_reference: Box::new(mandate_reference),
                     connector_metadata: None,
@@ -1402,13 +1404,15 @@ impl TryFrom<PaymentsCaptureResponseRouterData<PaymentCaptureResponse>>
                         .to_string(),
                 ),
                 attempt_status: None,
-                connector_transaction_id: None,
+                connector_transaction_id: Some(item.response.tran_id.clone()),
             })
         } else {
             None
         };
         let payments_response_data = PaymentsResponseData::TransactionResponse {
-            resource_id: ResponseId::ConnectorTransactionId(item.response.tran_id.to_string()),
+            resource_id: ResponseId::ConnectorTransactionId(
+                item.response.tran_id.clone().to_string(),
+            ),
             redirection_data: Box::new(None),
             mandate_reference: Box::new(None),
             connector_metadata: None,
@@ -1513,13 +1517,15 @@ impl TryFrom<PaymentsCancelResponseRouterData<FiuuPaymentCancelResponse>>
                         .to_string(),
                 ),
                 attempt_status: None,
-                connector_transaction_id: None,
+                connector_transaction_id: Some(item.response.tran_id.clone()),
             })
         } else {
             None
         };
         let payments_response_data = PaymentsResponseData::TransactionResponse {
-            resource_id: ResponseId::ConnectorTransactionId(item.response.tran_id.to_string()),
+            resource_id: ResponseId::ConnectorTransactionId(
+                item.response.tran_id.clone().to_string(),
+            ),
             redirection_data: Box::new(None),
             mandate_reference: Box::new(None),
             connector_metadata: None,
@@ -1697,7 +1703,7 @@ pub struct FiuuWebhooksPaymentResponse {
     pub error_desc: Option<String>,
     pub error_code: Option<String>,
     #[serde(rename = "extraP")]
-    pub extra_parameters: Option<String>,
+    pub extra_parameters: Option<Secret<String>>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]

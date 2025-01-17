@@ -27,6 +27,7 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
         flow: PhantomData,
         merchant_id,
         customer_id: Some(id_type::CustomerId::try_from(Cow::from("aci")).unwrap()),
+        tenant_id: id_type::TenantId::try_from_string("public".to_string()).unwrap(),
         connector: "aci".to_string(),
         payment_id: uuid::Uuid::new_v4().to_string(),
         attempt_id: uuid::Uuid::new_v4().to_string(),
@@ -35,7 +36,6 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
         payment_method: enums::PaymentMethod::Card,
         connector_auth_type: utils::to_connector_auth_type(auth.into()),
         description: Some("This is a test".to_string()),
-        return_url: None,
         payment_method_status: None,
         request: types::PaymentsAuthorizeData {
             amount: 1000,
@@ -149,6 +149,7 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
         flow: PhantomData,
         merchant_id,
         customer_id: Some(id_type::CustomerId::try_from(Cow::from("aci")).unwrap()),
+        tenant_id: id_type::TenantId::try_from_string("public".to_string()).unwrap(),
         connector: "aci".to_string(),
         payment_id: uuid::Uuid::new_v4().to_string(),
         attempt_id: uuid::Uuid::new_v4().to_string(),
@@ -158,7 +159,6 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
         auth_type: enums::AuthenticationType::NoThreeDs,
         connector_auth_type: utils::to_connector_auth_type(auth.into()),
         description: Some("This is a test".to_string()),
-        return_url: None,
         request: types::RefundsData {
             payment_amount: 1000,
             currency: enums::Currency::USD,
@@ -225,6 +225,7 @@ async fn payments_create_success() {
     let state = Arc::new(app_state)
         .get_session_state(
             &id_type::TenantId::try_from_string("public".to_string()).unwrap(),
+            None,
             || {},
         )
         .unwrap();
@@ -275,6 +276,7 @@ async fn payments_create_failure() {
         let state = Arc::new(app_state)
             .get_session_state(
                 &id_type::TenantId::try_from_string("public".to_string()).unwrap(),
+                None,
                 || {},
             )
             .unwrap();
@@ -344,6 +346,7 @@ async fn refund_for_successful_payments() {
     let state = Arc::new(app_state)
         .get_session_state(
             &id_type::TenantId::try_from_string("public".to_string()).unwrap(),
+            None,
             || {},
         )
         .unwrap();
@@ -417,6 +420,7 @@ async fn refunds_create_failure() {
     let state = Arc::new(app_state)
         .get_session_state(
             &id_type::TenantId::try_from_string("public".to_string()).unwrap(),
+            None,
             || {},
         )
         .unwrap();

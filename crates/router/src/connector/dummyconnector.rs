@@ -2,7 +2,7 @@ pub mod transformers;
 
 use std::fmt::Debug;
 
-use common_utils::request::RequestContent;
+use common_utils::{consts as common_consts, request::RequestContent};
 use diesel_models::enums;
 use error_stack::{report, ResultExt};
 
@@ -16,7 +16,7 @@ use crate::{
     services::{
         self,
         request::{self, Mask},
-        ConnectorIntegration, ConnectorValidation,
+        ConnectorIntegration, ConnectorSpecifications, ConnectorValidation,
     },
     types::{
         self,
@@ -62,12 +62,18 @@ where
         req: &types::RouterData<Flow, Request, Response>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        let mut header = vec![(
-            headers::CONTENT_TYPE.to_string(),
-            types::PaymentsAuthorizeType::get_content_type(self)
-                .to_string()
-                .into(),
-        )];
+        let mut header = vec![
+            (
+                headers::CONTENT_TYPE.to_string(),
+                types::PaymentsAuthorizeType::get_content_type(self)
+                    .to_string()
+                    .into(),
+            ),
+            (
+                common_consts::TENANT_HEADER.to_string(),
+                req.tenant_id.get_string_repr().to_string().into(),
+            ),
+        ];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
         Ok(header)
@@ -124,9 +130,10 @@ impl<const T: u8> ConnectorCommon for DummyConnector<T> {
 }
 
 impl<const T: u8> ConnectorValidation for DummyConnector<T> {
-    fn validate_capture_method(
+    fn validate_connector_against_payment_request(
         &self,
         capture_method: Option<enums::CaptureMethod>,
+        _payment_method: enums::PaymentMethod,
         _pmt: Option<enums::PaymentMethodType>,
     ) -> CustomResult<(), errors::ConnectorError> {
         let capture_method = capture_method.unwrap_or_default();
@@ -613,3 +620,5 @@ impl<const T: u8> api::IncomingWebhook for DummyConnector<T> {
         Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 }
+
+impl<const T: u8> ConnectorSpecifications for DummyConnector<T> {}
