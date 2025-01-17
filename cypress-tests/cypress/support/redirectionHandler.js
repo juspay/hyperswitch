@@ -272,7 +272,12 @@ function bankRedirectRedirection(
   }
 
   cy.then(() => {
-    verifyReturnUrl(redirection_url, expected_url, verifyUrl);
+    try {
+      verifyReturnUrl(redirection_url, expected_url, verifyUrl);
+    } catch (error) {
+      cy.log("Error during return URL verification:", error);
+      throw error;
+    }
   });
 }
 
@@ -291,25 +296,27 @@ function threeDsRedirection(redirection_url, expected_url, connectorId) {
     connectorId === "cybersource" ||
     connectorId === "wellsfargo"
   ) {
-    // Wait for iframe to be present and visible
+    // First wait for the main iframe to be present
     cy.get("iframe", { timeout: TIMEOUT })
       .should("be.visible")
-      .its("0.contentDocument.body")
-      .should("not.be.empty") // Ensure body has content
-      .within(() => {
-        // Add retry ability and multiple selector attempts
-        cy.get(
-          'input[type="text"], input[type="password"], input[name="challengeDataEntry"]',
-          { timeout: TIMEOUT }
-        )
+      .then($iframe => {
+        // Get iframe's content
+        const $body = $iframe.contents().find('body');
+        
+        // Retry strategy for finding the input field
+        const retryOptions = {
+          timeout: TIMEOUT,
+          interval: 1000, // Check every second
+        };
+  
+        cy.wrap($body, retryOptions)
+          .find('input[type="text"], input[type="password"], input[name="challengeDataEntry"]')
           .should("be.visible")
-          .should("be.enabled")
           .click()
           .type("1234");
-
-        cy.get('input[value="SUBMIT"], button[type="submit"]', {
-          timeout: TIMEOUT,
-        })
+  
+        cy.wrap($body, retryOptions)
+          .find('input[value="SUBMIT"], button[type="submit"]')
           .should("be.visible")
           .click();
       });
@@ -397,7 +404,12 @@ function threeDsRedirection(redirection_url, expected_url, connectorId) {
   }
 
   cy.then(() => {
-    verifyReturnUrl(redirection_url, expected_url, true);
+    try {
+      verifyReturnUrl(redirection_url, expected_url, true);
+    } catch (error) {
+      cy.log("Error during return URL verification:", error);
+      throw error;
+    }
   });
 }
 
@@ -438,7 +450,12 @@ function upiRedirection(
   }
 
   cy.then(() => {
-    verifyReturnUrl(redirection_url, expected_url, verifyUrl);
+    try {
+      verifyReturnUrl(redirection_url, expected_url, verifyUrl);
+    } catch (error) {
+      cy.log("Error during return URL verification:", error);
+      throw error;
+    }
   });
 }
 
