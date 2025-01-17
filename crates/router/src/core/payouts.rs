@@ -2119,7 +2119,13 @@ pub async fn create_recipient_disburse_account(
 
                 let connector_mandate_details_value = common_connector_mandate
                     .get_mandate_details_value()
-                    .map_err(|_| errors::ApiErrorResponse::MandateUpdateFailed)?;
+                    .map_err(|err| {
+                        router_env::logger::error!(
+                            "Failed to get get_mandate_details_value : {:?}",
+                            err
+                        );
+                        errors::ApiErrorResponse::MandateUpdateFailed
+                    })?;
 
                 if let Some(pm_method) = payout_data.payment_method.clone() {
                     let pm_update =

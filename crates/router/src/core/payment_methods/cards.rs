@@ -2844,9 +2844,10 @@ pub async fn update_payment_method_connector_mandate_details(
 ) -> errors::CustomResult<(), errors::VaultError> {
     let connector_mandate_details_value = connector_mandate_details
         .map(|common_mandate| {
-            common_mandate
-                .get_mandate_details_value()
-                .map_err(|_| errors::VaultError::UpdateInPaymentMethodDataTableFailed)
+            common_mandate.get_mandate_details_value().map_err(|err| {
+                router_env::logger::error!("Failed to get get_mandate_details_value : {:?}", err);
+                errors::VaultError::UpdateInPaymentMethodDataTableFailed
+            })
         })
         .transpose()?;
 

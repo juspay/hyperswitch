@@ -6242,6 +6242,8 @@ pub async fn validate_merchant_connector_ids_in_connector_mandate_details(
                 })?,
             }
         }
+    } else {
+        router_env::logger::error!("payment mandate reference not found");
     }
     Ok(())
 }
