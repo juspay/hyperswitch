@@ -8,6 +8,7 @@ use common_utils::{errors::ReportSwitchExt, events::ApiEventsType};
 use diesel_models::ConnectorMandateReferenceId;
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
+    mandates::CommonMandateReference,
     payments::{payment_attempt::PaymentAttempt, HeaderPayload},
     router_request_types::VerifyWebhookSourceRequestData,
     router_response_types::{VerifyWebhookSourceResponseData, VerifyWebhookStatus},
@@ -2125,8 +2126,8 @@ async fn update_connector_mandate_details(
 fn insert_mandate_details(
     payment_attempt: &PaymentAttempt,
     webhook_mandate_details: &hyperswitch_domain_models::router_flow_types::ConnectorMandateDetails,
-    payment_method_mandate_details: Option<diesel_models::CommonMandateReference>,
-) -> CustomResult<Option<diesel_models::CommonMandateReference>, errors::ApiErrorResponse> {
+    payment_method_mandate_details: Option<CommonMandateReference>,
+) -> CustomResult<Option<CommonMandateReference>, errors::ApiErrorResponse> {
     let (mandate_metadata, connector_mandate_request_reference_id) = payment_attempt
         .connector_mandate_detail
         .clone()

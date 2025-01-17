@@ -199,18 +199,11 @@ pub fn should_create_connector_transfer_method(
     connector_data: &api::ConnectorData,
 ) -> RouterResult<Option<String>> {
     let connector_transfer_method_id = payout_data.payment_method.as_ref().and_then(|pm| {
-        #[cfg(all(
-            any(feature = "v1", feature = "v2"),
-            not(feature = "payment_methods_v2")
-        ))]
         let common_mandate_reference = pm
             .get_common_mandate_reference()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("unable to deserialize connector mandate details")
             .ok()?;
-
-        #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-        let common_mandate_reference = pm.connector_mandate_details.clone().unwrap_or_default();
 
         connector_data
             .merchant_connector_id
