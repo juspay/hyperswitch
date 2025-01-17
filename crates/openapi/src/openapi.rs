@@ -216,7 +216,7 @@ Never share your secret api keys. Keep them guarded and secure.
         common_utils::payout_method_utils::VenmoAdditionalData,
         common_types::payments::SplitPaymentsRequest,
         common_types::payments::StripeSplitPaymentRequest,
-        common_types::payments::AdyenSplitPaymentsRequest,
+        common_types::payments::AdyenSplitData,
         common_types::payments::AdyenSplitItem,
         common_utils::types::ChargeRefunds,
         common_types::refunds::SplitRefund,

@@ -2,7 +2,7 @@ pub mod disputes;
 pub mod fraud_check;
 use std::collections::HashMap;
 
-use common_utils::{request::Method, types as common_types, types::MinorUnit};
+use common_utils::{request::Method, types::MinorUnit};
 pub use disputes::{AcceptDisputeResponse, DefendDisputeResponse, SubmitEvidenceResponse};
 
 use crate::{
@@ -26,7 +26,7 @@ pub enum PaymentsResponseData {
         network_txn_id: Option<String>,
         connector_response_reference_id: Option<String>,
         incremental_authorization_allowed: Option<bool>,
-        charges: Option<::common_types::payments::ConnectorChargeResponseData>,
+        charges: Option<common_types::payments::ConnectorChargeResponseData>,
     },
     MultipleCaptureResponse {
         // pending_capture_id_list: Vec<String>,
@@ -474,7 +474,7 @@ pub struct MandateRevokeResponseData {
 #[derive(Debug, Clone)]
 pub enum AuthenticationResponseData {
     PreAuthVersionCallResponse {
-        maximum_supported_3ds_version: common_types::SemanticVersion,
+        maximum_supported_3ds_version: common_utils::types::SemanticVersion,
     },
     PreAuthThreeDsMethodCallResponse {
         threeds_server_transaction_id: String,

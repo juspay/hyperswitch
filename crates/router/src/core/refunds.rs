@@ -745,29 +745,81 @@ pub async fn validate_and_create_refund(
 
     let split_refunds = match payment_intent.split_payments.as_ref() {
         Some(common_types::payments::SplitPaymentsRequest::StripeSplitPayment(stripe_payment)) => {
-            if let Some(charge_id) = payment_attempt.charge_id.clone() {
-                let refund_request = req
-                    .split_refunds
-                    .clone()
-                    .get_required_value("split_refunds")?;
-
-                let options = validator::validate_charge_refund(
-                    &refund_request,
-                    &stripe_payment.charge_type,
-                )?;
-
-                Some(SplitRefundsRequest::StripeSplitRefund(StripeSplitRefund {
-                    charge_id,
-                    charge_type: stripe_payment.charge_type.clone(),
-                    transfer_account_id: stripe_payment.transfer_account_id.clone(),
-                    options,
-                }))
-            } else {
-                None
+            match payment_attempt.charges {
+                Some(common_types::payments::ConnectorChargeResponseData::StripeSplitPayment(
+                    stripe_split_payment_response,
+                )) => {
+                    if let Some((charge_id, common_types::refunds::SplitRefund::StripeSplitRefund(refund_request))) =
+                        stripe_split_payment_response.charge_id.zip(req.split_refunds.clone())
+                    {
+                        let options = validator::validate_stripe_charge_refund(
+                            &refund_request,
+                            &stripe_payment.charge_type,
+                        )?;
+    
+                        Some(SplitRefundsRequest::StripeSplitRefund(StripeSplitRefund {
+                            charge_id,
+                            charge_type: stripe_payment.charge_type.clone(),
+                            transfer_account_id: stripe_payment.transfer_account_id.clone(),
+                            options,
+                        }))
+                    } else{
+                        req.split_refunds.check_value_present()?
+                    }
+                }
+                _ => {
+                    if let Some(charge_id) = payment_attempt.charge_id.clone() {
+                        let refund_request = req
+                            .split_refunds
+                            .clone()
+                            .get_required_value("split_refunds")?;
+    
+                        let options = validator::validate_stripe_charge_refund(
+                            &refund_request,
+                            &stripe_payment.charge_type,
+                        )?;
+    
+                        Some(SplitRefundsRequest::StripeSplitRefund(StripeSplitRefund {
+                            charge_id,
+                            charge_type: stripe_payment.charge_type.clone(),
+                            transfer_account_id: stripe_payment.transfer_account_id.clone(),
+                            options,
+                        }))
+                    } else {
+                        None
+                    }
+                }
             }
         }
+        // Handle AdyenSplitPayment case
+        Some(common_types::payments::SplitPaymentsRequest::AdyenSplitPayment(adyen_payment)) => {
+            match payment_attempt.charges {
+                // AdyenSplitPayment charge
+                Some(common_types::payments::ConnectorChargeResponseData::AdyenSplitPayment(
+                    adyen_split_payment_response,
+                )) => {
+                    if let Some((charge_id, common_types::refunds::SplitRefund::AdyenSplitRefund(split_refund_request))) =
+                        adyen_split_payment_response.charge_id.zip(req.split_refunds.clone())
+                    {
+                        // Validate Adyen refund
+                        validator::validate_adyen_charge_refund(
+                            &adyen_split_payment_response,
+                            &split_refund_request,
+                        )?;
+    
+                        Some(SplitRefundsRequest::AdyenSplitRefund(split_refund_request))
+                    } else {
+                        None
+                    }
+                }
+                // StripeSplitPayment charge or no charges
+                _ => None,
+            }
+        }
+        // Default case
         _ => None,
     };
+    
 
     // Only for initial dev and testing
     let refund_type = req.refund_type.unwrap_or_default();
@@ -1471,7 +1523,7 @@ pub async fn trigger_refund_execute_workflow(
                         .clone()
                         .get_required_value("split_refunds")?;
 
-                    let options = validator::validate_charge_refund(
+                    let options = validator::validate_stripe_charge_refund(
                         &refund_request,
                         &stripe_payment.charge_type,
                     )?;
@@ -1488,7 +1540,7 @@ pub async fn trigger_refund_execute_workflow(
                         transfer_account_id: stripe_payment.transfer_account_id.clone(),
                         options,
                     }))
-                }
+                } //todoo
                 _ => None,
             };
 

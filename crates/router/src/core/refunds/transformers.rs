@@ -31,10 +31,8 @@ impl TryFrom<SplitRefundInput> for router_request_types::SplitRefundsRequest {
                                 .attach_printable("Missing `charge_id` in PaymentAttempt.")
                         })?;
 
-                        let options = validator::validate_charge_refund(
-                            &common_types::refunds::SplitRefund::StripeSplitRefund(
-                                stripe_refund.clone(),
-                            ),
+                        let options = validator::validate_stripe_charge_refund(
+                            &stripe_refund,
                             &stripe_payment.charge_type,
                         )?;
 
@@ -47,7 +45,16 @@ impl TryFrom<SplitRefundInput> for router_request_types::SplitRefundsRequest {
                             },
                         ))
                     }
-                    common_types::payments::SplitPaymentsRequest::AdyenSplitPayment(_) => todo!(), // todooooo
+                    common_types::payments::ConnectorChargeResponseData::AdyenSplitPayment(adyen_refund_split_payment) => {
+                        adyen_refund_split_payment.split_items.iter().for_each(|split_item| {
+                            if let Some(account) = &split_item.account {
+                                if account.is_empty() {
+                                    return Err(report!(errors::ApiErrorResponse::InternalServerError)
+                                        .attach_printable("Empty `account` in AdyenSplitItem."));
+                                }
+                            }
+                        });
+                    }
                 }
             }
         }

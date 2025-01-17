@@ -5,3 +5,4 @@
 pub mod payment_methods;
 pub mod payments;
 pub mod refunds;
+pub mod domain;

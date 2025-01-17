@@ -146,35 +146,40 @@ pub fn validate_for_valid_refunds(
     }
 }
 
-pub fn validate_charge_refund(
-    charges: &common_types::refunds::SplitRefund,
+pub fn validate_stripe_charge_refund(
+    stripe_refund: &common_types::refunds::StripeSplitRefundRequest,
     charge_type: &api_enums::PaymentChargeType,
 ) -> RouterResult<types::ChargeRefundsOptions> {
     match charge_type {
         api_enums::PaymentChargeType::Stripe(api_enums::StripeChargeType::Direct) => {
-            let common_types::refunds::SplitRefund::StripeSplitRefund(stripe_charge) = charges;
-
             Ok(types::ChargeRefundsOptions::Direct(
                 types::DirectChargeRefund {
-                    revert_platform_fee: stripe_charge
+                    revert_platform_fee: stripe_refund
                         .revert_platform_fee
                         .get_required_value("revert_platform_fee")?,
                 },
             ))
         }
         api_enums::PaymentChargeType::Stripe(api_enums::StripeChargeType::Destination) => {
-            let common_types::refunds::SplitRefund::StripeSplitRefund(stripe_charge) = charges;
-
             Ok(types::ChargeRefundsOptions::Destination(
                 types::DestinationChargeRefund {
-                    revert_platform_fee: stripe_charge
+                    revert_platform_fee: stripe_refund
                         .revert_platform_fee
                         .get_required_value("revert_platform_fee")?,
-                    revert_transfer: stripe_charge
+                    revert_transfer: stripe_refund
                         .revert_transfer
                         .get_required_value("revert_transfer")?,
                 },
             ))
         }
+    }
+}
+
+pub fn validate_adyen_charge_refund(
+    adyen_charge: &common_types::domain::AdyenSplitData,
+    adyen_refund_charge: &common_types::domain::AdyenSplitData,
+) -> RouterResult<()> {
+    if adyen_charge.store_id != adyen_refund_charge.store_id {
+        Err(errors::ApiErrorResponse::InvalidDataValue { field_name: "store_id" })?
     }
 }
