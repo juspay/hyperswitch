@@ -47,6 +47,7 @@ use euclid::frontend::dir;
 use hyperswitch_constraint_graph as cgraph;
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use hyperswitch_domain_models::customer::CustomerUpdate;
+use hyperswitch_domain_models::mandates::CommonMandateReference;
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
     not(feature = "payment_methods_v2")
@@ -2817,11 +2818,11 @@ pub async fn update_payment_method_connector_mandate_details(
     key_store: &domain::MerchantKeyStore,
     db: &dyn db::StorageInterface,
     pm: domain::PaymentMethod,
-    connector_mandate_details: Option<diesel_models::CommonMandateReference>,
+    connector_mandate_details: Option<CommonMandateReference>,
     storage_scheme: MerchantStorageScheme,
 ) -> errors::CustomResult<(), errors::VaultError> {
     let pm_update = payment_method::PaymentMethodUpdate::ConnectorMandateDetailsUpdate {
-        connector_mandate_details,
+        connector_mandate_details: connector_mandate_details.map(|cmd| cmd.into()),
     };
 
     db.update_payment_method(&(state.into()), key_store, pm, pm_update, storage_scheme)
@@ -2839,7 +2840,7 @@ pub async fn update_payment_method_connector_mandate_details(
     key_store: &domain::MerchantKeyStore,
     db: &dyn db::StorageInterface,
     pm: domain::PaymentMethod,
-    connector_mandate_details: Option<diesel_models::CommonMandateReference>,
+    connector_mandate_details: Option<CommonMandateReference>,
     storage_scheme: MerchantStorageScheme,
 ) -> errors::CustomResult<(), errors::VaultError> {
     let connector_mandate_details_value = connector_mandate_details
@@ -5220,7 +5221,7 @@ pub async fn get_mca_status(
     profile_id: Option<id_type::ProfileId>,
     merchant_id: &id_type::MerchantId,
     is_connector_agnostic_mit_enabled: bool,
-    connector_mandate_details: Option<payment_method::CommonMandateReference>,
+    connector_mandate_details: Option<CommonMandateReference>,
     network_transaction_id: Option<&String>,
 ) -> errors::RouterResult<bool> {
     if is_connector_agnostic_mit_enabled && network_transaction_id.is_some() {
@@ -5258,7 +5259,7 @@ pub async fn get_mca_status(
     profile_id: Option<id_type::ProfileId>,
     merchant_id: &id_type::MerchantId,
     is_connector_agnostic_mit_enabled: bool,
-    connector_mandate_details: Option<&payment_method::CommonMandateReference>,
+    connector_mandate_details: Option<&CommonMandateReference>,
     network_transaction_id: Option<&String>,
     merchant_connector_accounts: &domain::MerchantConnectorAccounts,
 ) -> bool {

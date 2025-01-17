@@ -13,7 +13,10 @@ use time::PrimitiveDateTime;
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use crate::type_encryption::OptionalEncryptableJsonType;
-use crate::type_encryption::{crypto_operation, AsyncLift, CryptoOperation};
+use crate::{
+    mandates::{CommonMandateReference, PaymentsMandateReference},
+    type_encryption::{crypto_operation, AsyncLift, CryptoOperation},
+};
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
@@ -84,7 +87,7 @@ pub struct PaymentMethod {
         OptionalEncryptableJsonType<api_models::payment_methods::PaymentMethodsData>,
     pub locker_id: Option<VaultId>,
     pub last_used_at: PrimitiveDateTime,
-    pub connector_mandate_details: Option<diesel_models::CommonMandateReference>,
+    pub connector_mandate_details: Option<CommonMandateReference>,
     pub customer_acceptance: Option<pii::SecretSerdeValue>,
     pub status: storage_enums::PaymentMethodStatus,
     pub network_transaction_id: Option<String>,
@@ -143,9 +146,7 @@ impl PaymentMethod {
         any(feature = "v1", feature = "v2"),
         not(feature = "payment_methods_v2")
     ))]
-    pub fn get_common_mandate_reference(
-        &self,
-    ) -> Result<diesel_models::CommonMandateReference, ParsingError> {
+    pub fn get_common_mandate_reference(&self) -> Result<CommonMandateReference, ParsingError> {
         let payments_data = self
             .connector_mandate_details
             .clone()
@@ -154,10 +155,11 @@ impl PaymentMethod {
                     .as_object_mut()
                     .map(|obj| obj.remove("payouts"));
 
-                serde_json::from_value::<diesel_models::PaymentsMandateReference>(mandate_details)
-                    .inspect_err(|err| {
+                serde_json::from_value::<PaymentsMandateReference>(mandate_details).inspect_err(
+                    |err| {
                         router_env::logger::error!("Failed to parse payments data: {:?}", err);
-                    })
+                    },
+                )
             })
             .transpose()
             .map_err(|err| {
@@ -169,16 +171,14 @@ impl PaymentMethod {
             .connector_mandate_details
             .clone()
             .map(|mandate_details| {
-                serde_json::from_value::<Option<diesel_models::CommonMandateReference>>(
-                    mandate_details,
-                )
-                .inspect_err(|err| {
-                    router_env::logger::error!("Failed to parse payouts data: {:?}", err);
-                })
-                .map(|optional_common_mandate_details| {
-                    optional_common_mandate_details
-                        .and_then(|common_mandate_details| common_mandate_details.payouts)
-                })
+                serde_json::from_value::<Option<CommonMandateReference>>(mandate_details)
+                    .inspect_err(|err| {
+                        router_env::logger::error!("Failed to parse payouts data: {:?}", err);
+                    })
+                    .map(|optional_common_mandate_details| {
+                        optional_common_mandate_details
+                            .and_then(|common_mandate_details| common_mandate_details.payouts)
+                    })
             })
             .transpose()
             .map_err(|err| {
@@ -187,20 +187,18 @@ impl PaymentMethod {
             })?
             .flatten();
 
-        Ok(diesel_models::CommonMandateReference {
+        Ok(CommonMandateReference {
             payments: payments_data,
             payouts: payouts_data,
         })
     }
 
     #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-    pub fn get_common_mandate_reference(
-        &self,
-    ) -> Result<diesel_models::CommonMandateReference, ParsingError> {
+    pub fn get_common_mandate_reference(&self) -> Result<CommonMandateReference, ParsingError> {
         if let Some(value) = &self.connector_mandate_details {
             Ok(value.clone())
         } else {
-            Ok(diesel_models::CommonMandateReference {
+            Ok(CommonMandateReference {
                 payments: None,
                 payouts: None,
             })
@@ -412,7 +410,7 @@ impl super::behaviour::Conversion for PaymentMethod {
             payment_method_data: self.payment_method_data.map(|val| val.into()),
             locker_id: self.locker_id.map(|id| id.get_string_repr().clone()),
             last_used_at: self.last_used_at,
-            connector_mandate_details: self.connector_mandate_details,
+            connector_mandate_details: self.connector_mandate_details.map(|cmd| cmd.into()),
             customer_acceptance: self.customer_acceptance,
             status: self.status,
             network_transaction_id: self.network_transaction_id,
@@ -465,7 +463,7 @@ impl super::behaviour::Conversion for PaymentMethod {
                     .await?,
                 locker_id: item.locker_id.map(VaultId::generate),
                 last_used_at: item.last_used_at,
-                connector_mandate_details: item.connector_mandate_details,
+                connector_mandate_details: item.connector_mandate_details.map(|cmd| cmd.into()),
                 customer_acceptance: item.customer_acceptance,
                 status: item.status,
                 network_transaction_id: item.network_transaction_id,
@@ -523,7 +521,7 @@ impl super::behaviour::Conversion for PaymentMethod {
             payment_method_data: self.payment_method_data.map(|val| val.into()),
             locker_id: self.locker_id.map(|id| id.get_string_repr().clone()),
             last_used_at: self.last_used_at,
-            connector_mandate_details: self.connector_mandate_details,
+            connector_mandate_details: self.connector_mandate_details.map(|cmd| cmd.into()),
             customer_acceptance: self.customer_acceptance,
             status: self.status,
             network_transaction_id: self.network_transaction_id,
