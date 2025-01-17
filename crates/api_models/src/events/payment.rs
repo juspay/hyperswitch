@@ -14,11 +14,11 @@ use crate::payment_methods::CustomerPaymentMethodsListResponse;
 use crate::{events, payment_methods::CustomerPaymentMethodsListResponse};
 use crate::{
     payment_methods::{
-        CustomerDefaultPaymentMethodResponse, DefaultPaymentMethod, ListCountriesCurrenciesRequest,
-        ListCountriesCurrenciesResponse, PaymentMethodCollectLinkRenderRequest,
-        PaymentMethodCollectLinkRequest, PaymentMethodCollectLinkResponse,
-        PaymentMethodDeleteResponse, PaymentMethodListRequest, PaymentMethodListResponse,
-        PaymentMethodMigrateResponse, PaymentMethodResponse, PaymentMethodUpdate,
+        self, ListCountriesCurrenciesRequest, ListCountriesCurrenciesResponse,
+        PaymentMethodCollectLinkRenderRequest, PaymentMethodCollectLinkRequest,
+        PaymentMethodCollectLinkResponse, PaymentMethodDeleteResponse, PaymentMethodListRequest,
+        PaymentMethodListResponse, PaymentMethodMigrateResponse, PaymentMethodResponse,
+        PaymentMethodUpdate,
     },
     payments::{
         self, ExtendedCardInfoResponse, PaymentIdType, PaymentListConstraints,
@@ -211,9 +211,9 @@ impl ApiEventMetric for PaymentMethodResponse {
     #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::PaymentMethod {
-            payment_method_id: self.payment_method_id.clone(),
-            payment_method: self.payment_method_type,
-            payment_method_type: self.payment_method_subtype,
+            payment_method_id: self.id.clone(),
+            payment_method_type: self.payment_method_type,
+            payment_method_subtype: self.payment_method_subtype,
         })
     }
 }
@@ -234,16 +234,17 @@ impl ApiEventMetric for PaymentMethodMigrateResponse {
     #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::PaymentMethod {
-            payment_method_id: self.payment_method_response.payment_method_id.clone(),
-            payment_method: self.payment_method_response.payment_method_type,
-            payment_method_type: self.payment_method_response.payment_method_subtype,
+            payment_method_id: self.payment_method_response.id.clone(),
+            payment_method_type: self.payment_method_response.payment_method_type,
+            payment_method_subtype: self.payment_method_response.payment_method_subtype,
         })
     }
 }
 
 impl ApiEventMetric for PaymentMethodUpdate {}
 
-impl ApiEventMetric for DefaultPaymentMethod {
+#[cfg(feature = "v1")]
+impl ApiEventMetric for payment_methods::DefaultPaymentMethod {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::PaymentMethod {
             payment_method_id: self.payment_method_id.clone(),
@@ -253,6 +254,18 @@ impl ApiEventMetric for DefaultPaymentMethod {
     }
 }
 
+#[cfg(feature = "v2")]
+impl ApiEventMetric for PaymentMethodDeleteResponse {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::PaymentMethod {
+            payment_method_id: self.id.clone(),
+            payment_method_type: None,
+            payment_method_subtype: None,
+        })
+    }
+}
+
+#[cfg(feature = "v1")]
 impl ApiEventMetric for PaymentMethodDeleteResponse {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::PaymentMethod {
@@ -282,7 +295,8 @@ impl ApiEventMetric for ListCountriesCurrenciesRequest {}
 impl ApiEventMetric for ListCountriesCurrenciesResponse {}
 impl ApiEventMetric for PaymentMethodListResponse {}
 
-impl ApiEventMetric for CustomerDefaultPaymentMethodResponse {
+#[cfg(feature = "v1")]
+impl ApiEventMetric for payment_methods::CustomerDefaultPaymentMethodResponse {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::PaymentMethod {
             payment_method_id: self.default_payment_method_id.clone().unwrap_or_default(),

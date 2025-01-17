@@ -57,7 +57,7 @@ pub async fn is_webhook_event_disabled(
     }
 }
 
-pub async fn construct_webhook_router_data<'a>(
+pub async fn construct_webhook_router_data(
     state: &SessionState,
     connector_name: &str,
     merchant_connector_account: domain::MerchantConnectorAccount,
