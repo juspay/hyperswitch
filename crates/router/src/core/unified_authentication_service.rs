@@ -34,6 +34,7 @@ use crate::{
     },
     db::domain,
     routes::SessionState,
+    types::domain::MerchantConnectorAccount,
 };
 
 #[cfg(feature = "v1")]
@@ -85,7 +86,7 @@ impl<F: Clone + Sync> UnifiedAuthenticationService<F> for ClickToPay {
         _key_store: &domain::MerchantKeyStore,
         _business_profile: &domain::Profile,
         payment_data: &PaymentData<F>,
-        merchant_connector_account: &MerchantConnectorAccountType,
+        merchant_connector_account: &MerchantConnectorAccount,
         connector_name: &str,
         authentication_id: &str,
         payment_method: common_enums::PaymentMethod,
@@ -117,7 +118,7 @@ impl<F: Clone + Sync> UnifiedAuthenticationService<F> for ClickToPay {
         _key_store: &domain::MerchantKeyStore,
         _business_profile: &domain::Profile,
         payment_data: &PaymentData<F>,
-        merchant_connector_account: &MerchantConnectorAccountType,
+        merchant_connector_account: &MerchantConnectorAccount,
         connector_name: &str,
         payment_method: common_enums::PaymentMethod,
         _authentication: Option<Authentication>,
@@ -202,7 +203,7 @@ impl<F: Clone + Sync> UnifiedAuthenticationService<F> for ExternalAuthentication
         _key_store: &domain::MerchantKeyStore,
         _business_profile: &domain::Profile,
         payment_data: &PaymentData<F>,
-        merchant_connector_account: &MerchantConnectorAccountType,
+        merchant_connector_account: &MerchantConnectorAccount,
         connector_name: &str,
         authentication_id: &str,
         payment_method: common_enums::PaymentMethod,
@@ -302,7 +303,7 @@ impl<F: Clone + Sync> UnifiedAuthenticationService<F> for ExternalAuthentication
         email: Option<common_utils::pii::Email>,
         webhook_url: String,
         three_ds_requestor_url: String,
-        merchant_connector_account: &MerchantConnectorAccountType,
+        merchant_connector_account: &MerchantConnectorAccount,
         connector_name: &str,
     ) -> RouterResult<UasAuthenticationRouterData> {
         let authentication_data =
@@ -362,7 +363,7 @@ impl<F: Clone + Sync> UnifiedAuthenticationService<F> for ExternalAuthentication
         _key_store: &domain::MerchantKeyStore,
         business_profile: &domain::Profile,
         _payment_data: &PaymentData<F>,
-        merchant_connector_account: &MerchantConnectorAccountType,
+        merchant_connector_account: &MerchantConnectorAccount,
         connector_name: &str,
         payment_method: common_enums::PaymentMethod,
         authentication: Option<Authentication>,
