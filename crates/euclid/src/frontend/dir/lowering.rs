@@ -38,6 +38,7 @@ impl From<enums::WalletType> for global_enums::PaymentMethodType {
     fn from(value: enums::WalletType) -> Self {
         match value {
             enums::WalletType::GooglePay => Self::GooglePay,
+            enums::WalletType::AmazonPay => Self::AmazonPay,
             enums::WalletType::ApplePay => Self::ApplePay,
             enums::WalletType::Paypal => Self::Paypal,
             enums::WalletType::AliPay => Self::AliPay,
