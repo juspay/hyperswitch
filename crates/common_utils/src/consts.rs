@@ -146,3 +146,9 @@ pub const CONNECTOR_TRANSACTION_ID_HASH_BYTES: usize = 25;
 /// Apple Pay validation url
 pub const APPLEPAY_VALIDATION_URL: &str =
     "https://apple-pay-gateway-cert.apple.com/paymentservices/startSession";
+
+/// Request ID
+pub const X_REQUEST_ID: &str = "x-request-id";
+
+/// Default Tenant ID for the `Global` tenant
+pub const DEFAULT_GLOBAL_TENANT_ID: &str = "global";

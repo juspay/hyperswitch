@@ -13,10 +13,9 @@ use api_models::{
     enums as api_enums,
     payment_methods::{
         BankAccountTokenData, Card, CardDetailUpdate, CardDetailsPaymentMethod, CardNetworkTypes,
-        CountryCodeWithName, CustomerDefaultPaymentMethodResponse, ListCountriesCurrenciesRequest,
-        ListCountriesCurrenciesResponse, MaskedBankDetails, PaymentExperienceTypes,
-        PaymentMethodsData, RequestPaymentMethodTypes, RequiredFieldInfo,
-        ResponsePaymentMethodIntermediate, ResponsePaymentMethodTypes,
+        CountryCodeWithName, ListCountriesCurrenciesRequest, ListCountriesCurrenciesResponse,
+        MaskedBankDetails, PaymentExperienceTypes, PaymentMethodsData, RequestPaymentMethodTypes,
+        RequiredFieldInfo, ResponsePaymentMethodIntermediate, ResponsePaymentMethodTypes,
         ResponsePaymentMethodsEnabled,
     },
     payments::BankCodeResponse,
@@ -58,12 +57,14 @@ use router_env::{instrument, tracing};
 use serde_json::json;
 use strum::IntoEnumIterator;
 
-use super::{
-    migration::RecordMigrationStatusBuilder,
-    surcharge_decision_configs::{
-        perform_surcharge_decision_management_for_payment_method_list,
-        perform_surcharge_decision_management_for_saved_cards,
-    },
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
+use super::migration;
+use super::surcharge_decision_configs::{
+    perform_surcharge_decision_management_for_payment_method_list,
+    perform_surcharge_decision_management_for_saved_cards,
 };
 #[cfg(all(
     any(feature = "v2", feature = "v1"),
@@ -80,9 +81,7 @@ use crate::{
     },
     core::{
         errors::{self, StorageErrorExt},
-        payment_methods::{
-            migration, network_tokenization, transformers as payment_methods, vault,
-        },
+        payment_methods::{network_tokenization, transformers as payment_methods, vault},
         payments::{
             helpers,
             routing::{self, SessionFlowRoutingInput},
@@ -411,7 +410,7 @@ pub async fn migrate_payment_method(
 
     let should_require_connector_mandate_details = req.network_token.is_none();
 
-    let mut migration_status = RecordMigrationStatusBuilder::new();
+    let mut migration_status = migration::RecordMigrationStatusBuilder::new();
 
     let resp = match card_number_validation_result {
         Ok(card_number) => {
@@ -508,6 +507,10 @@ pub async fn migrate_payment_method(
     todo!()
 }
 
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
 pub async fn populate_bin_details_for_masked_card(
     card_details: &api_models::payment_methods::MigrateCardDetail,
     db: &dyn db::StorageInterface,
@@ -716,7 +719,7 @@ pub async fn skip_locker_call_and_migrate_payment_method(
     merchant_account: &domain::MerchantAccount,
     card: api_models::payment_methods::CardDetailFromLocker,
     should_require_connector_mandate_details: bool,
-    migration_status: &mut RecordMigrationStatusBuilder,
+    migration_status: &mut migration::RecordMigrationStatusBuilder,
 ) -> errors::RouterResponse<api::PaymentMethodResponse> {
     let db = &*state.store;
     let customer_id = req.customer_id.clone().get_required_value("customer_id")?;
@@ -1107,7 +1110,7 @@ pub async fn get_client_secret_or_add_payment_method_for_migration(
     req: api::PaymentMethodCreate,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
-    migration_status: &mut RecordMigrationStatusBuilder,
+    migration_status: &mut migration::RecordMigrationStatusBuilder,
 ) -> errors::RouterResponse<api::PaymentMethodResponse> {
     let merchant_id = merchant_account.get_id();
     let customer_id = req.customer_id.clone().get_required_value("customer_id")?;
@@ -1705,7 +1708,7 @@ pub async fn save_migration_payment_method(
     req: api::PaymentMethodCreate,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
-    migration_status: &mut RecordMigrationStatusBuilder,
+    migration_status: &mut migration::RecordMigrationStatusBuilder,
 ) -> errors::RouterResponse<api::PaymentMethodResponse> {
     req.validate()?;
     let db = &*state.store;
@@ -2300,40 +2303,38 @@ pub fn validate_payment_method_update(
     card_updation_obj
         .card_exp_month
         .map(|exp_month| exp_month.expose())
-        .map_or(false, |new_exp_month| {
+        .is_some_and(|new_exp_month| {
             existing_card_data
                 .expiry_month
                 .map(|exp_month| exp_month.expose())
-                .map_or(true, |old_exp_month| new_exp_month != old_exp_month)
+                != Some(new_exp_month)
         })
         || card_updation_obj
             .card_exp_year
             .map(|exp_year| exp_year.expose())
-            .map_or(false, |new_exp_year| {
+            .is_some_and(|new_exp_year| {
                 existing_card_data
                     .expiry_year
                     .map(|exp_year| exp_year.expose())
-                    .map_or(true, |old_exp_year| new_exp_year != old_exp_year)
+                    != Some(new_exp_year)
             })
         || card_updation_obj
             .card_holder_name
             .map(|name| name.expose())
-            .map_or(false, |new_card_holder_name| {
+            .is_some_and(|new_card_holder_name| {
                 existing_card_data
                     .card_holder_name
                     .map(|name| name.expose())
-                    .map_or(true, |old_card_holder_name| {
-                        new_card_holder_name != old_card_holder_name
-                    })
+                    != Some(new_card_holder_name)
             })
         || card_updation_obj
             .nick_name
             .map(|nick_name| nick_name.expose())
-            .map_or(false, |new_nick_name| {
+            .is_some_and(|new_nick_name| {
                 existing_card_data
                     .nick_name
                     .map(|nick_name| nick_name.expose())
-                    .map_or(true, |old_nick_name| new_nick_name != old_nick_name)
+                    != Some(new_nick_name)
             })
 }
 
@@ -2533,7 +2534,7 @@ pub async fn delete_card_from_locker(
 #[cfg(all(feature = "v2", feature = "customer_v2"))]
 pub async fn delete_card_by_locker_id(
     state: &routes::SessionState,
-    id: &str,
+    id: &id_type::GlobalCustomerId,
     merchant_id: &id_type::MerchantId,
 ) -> errors::RouterResult<payment_methods::DeleteCardResp> {
     todo!()
@@ -2796,9 +2797,11 @@ pub async fn update_payment_method_and_last_used(
     pm: domain::PaymentMethod,
     payment_method_update: Option<Encryption>,
     storage_scheme: MerchantStorageScheme,
+    card_scheme: Option<String>,
 ) -> errors::CustomResult<(), errors::VaultError> {
     let pm_update = payment_method::PaymentMethodUpdate::UpdatePaymentMethodDataAndLastUsed {
         payment_method_data: payment_method_update,
+        scheme: card_scheme,
         last_used_at: common_utils::date_time::now(),
     };
     db.update_payment_method(&(state.into()), key_store, pm, pm_update, storage_scheme)
@@ -3188,19 +3191,6 @@ fn get_val(str: String, val: &serde_json::Value) -> Option<String> {
         .and_then(|v| v.as_str())
         .map(|s| s.to_string())
 }
-#[cfg(all(
-    feature = "v2",
-    feature = "customer_v2",
-    feature = "payment_methods_v2"
-))]
-pub async fn list_payment_methods(
-    _state: routes::SessionState,
-    _merchant_account: domain::MerchantAccount,
-    _key_store: domain::MerchantKeyStore,
-    mut _req: api::PaymentMethodListRequest,
-) -> errors::RouterResponse<api::PaymentMethodListResponse> {
-    todo!()
-}
 
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
@@ -3477,12 +3467,14 @@ pub async fn list_payment_methods(
                 .any(|mca| mca.payment_method == enums::PaymentMethod::Wallet);
             if wallet_pm_exists {
                 match db
-                    .find_payment_method_by_customer_id_merchant_id_list(
+                    .find_payment_method_by_customer_id_merchant_id_status(
                         &((&state).into()),
                         &key_store,
-                       &customer.customer_id,
-                       merchant_account.get_id(),
+                        &customer.customer_id,
+                        merchant_account.get_id(),
+                        common_enums::PaymentMethodStatus::Active,
                         None,
+                        merchant_account.storage_scheme,
                     )
                     .await
                 {
@@ -4218,9 +4210,9 @@ pub async fn list_payment_methods(
             }
         });
 
-    let is_tax_connector_enabled = business_profile.as_ref().map_or(false, |business_profile| {
-        business_profile.get_is_tax_connector_enabled()
-    });
+    let is_tax_connector_enabled = business_profile
+        .as_ref()
+        .is_some_and(|business_profile| business_profile.get_is_tax_connector_enabled());
 
     Ok(services::ApplicationResponse::Json(
         api::PaymentMethodListResponse {
@@ -4589,7 +4581,7 @@ pub async fn filter_payment_methods(
                                     .map(|future_usage| {
                                         future_usage == common_enums::FutureUsage::OnSession
                                     })
-                                    .unwrap_or(false)
+                                    .unwrap_or(true)
                         })
                         .and_then(|res| {
                             res.then(|| {
@@ -5518,18 +5510,6 @@ pub async fn get_bank_account_connector_details(
     }
 }
 
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
-pub async fn set_default_payment_method(
-    _state: &routes::SessionState,
-    _merchant_id: &id_type::MerchantId,
-    _key_store: domain::MerchantKeyStore,
-    _customer_id: &id_type::CustomerId,
-    _payment_method_id: String,
-    _storage_scheme: MerchantStorageScheme,
-) -> errors::RouterResponse<CustomerDefaultPaymentMethodResponse> {
-    todo!()
-}
-
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 pub async fn set_default_payment_method(
     state: &routes::SessionState,
@@ -5538,7 +5518,7 @@ pub async fn set_default_payment_method(
     customer_id: &id_type::CustomerId,
     payment_method_id: String,
     storage_scheme: MerchantStorageScheme,
-) -> errors::RouterResponse<CustomerDefaultPaymentMethodResponse> {
+) -> errors::RouterResponse<api_models::payment_methods::CustomerDefaultPaymentMethodResponse> {
     let db = &*state.store;
     let key_manager_state = &state.into();
     // check for the customer
@@ -5606,7 +5586,7 @@ pub async fn set_default_payment_method(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to update the default payment method id for the customer")?;
 
-    let resp = CustomerDefaultPaymentMethodResponse {
+    let resp = api_models::payment_methods::CustomerDefaultPaymentMethodResponse {
         default_payment_method_id: updated_customer_details.default_payment_method_id,
         customer_id,
         payment_method_type: payment_method.get_payment_method_subtype(),

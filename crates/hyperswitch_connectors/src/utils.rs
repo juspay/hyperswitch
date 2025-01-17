@@ -358,7 +358,6 @@ pub trait RouterData {
     fn get_billing_country(&self) -> Result<api_models::enums::CountryAlpha2, Error>;
     fn get_billing_phone(&self) -> Result<&PhoneDetails, Error>;
     fn get_description(&self) -> Result<String, Error>;
-    fn get_return_url(&self) -> Result<String, Error>;
     fn get_billing_address(&self) -> Result<&AddressDetails, Error>;
     fn get_shipping_address(&self) -> Result<&AddressDetails, Error>;
     fn get_shipping_address_with_phone_number(&self) -> Result<&Address, Error>;
@@ -546,11 +545,6 @@ impl<Flow, Request, Response> RouterData
         self.description
             .clone()
             .ok_or_else(missing_field_err("description"))
-    }
-    fn get_return_url(&self) -> Result<String, Error> {
-        self.return_url
-            .clone()
-            .ok_or_else(missing_field_err("return_url"))
     }
     fn get_billing_address(&self) -> Result<&AddressDetails, Error> {
         self.address
@@ -952,6 +946,7 @@ pub trait CardData {
     fn get_expiry_month_as_i8(&self) -> Result<Secret<i8>, Error>;
     fn get_expiry_year_as_i32(&self) -> Result<Secret<i32>, Error>;
     fn get_expiry_year_as_4_digit_i32(&self) -> Result<Secret<i32>, Error>;
+    fn get_cardholder_name(&self) -> Result<Secret<String>, Error>;
 }
 
 impl CardData for Card {
@@ -1037,6 +1032,11 @@ impl CardData for Card {
             .parse::<i32>()
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)
             .map(Secret::new)
+    }
+    fn get_cardholder_name(&self) -> Result<Secret<String>, Error> {
+        self.card_holder_name
+            .clone()
+            .ok_or_else(missing_field_err("card.card_holder_name"))
     }
 }
 
@@ -1261,7 +1261,6 @@ pub trait PaymentsAuthorizeRequestData {
     fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
     fn get_order_details(&self) -> Result<Vec<OrderDetailsWithAmount>, Error>;
     fn get_card(&self) -> Result<Card, Error>;
-    fn get_return_url(&self) -> Result<String, Error>;
     fn connector_mandate_id(&self) -> Option<String>;
     fn is_mandate_payment(&self) -> bool;
     fn is_customer_initiated_mandate_payment(&self) -> bool;
@@ -1324,11 +1323,6 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
             _ => Err(missing_field_err("card")()),
         }
     }
-    fn get_return_url(&self) -> Result<String, Error> {
-        self.router_return_url
-            .clone()
-            .ok_or_else(missing_field_err("return_url"))
-    }
 
     fn get_complete_authorize_url(&self) -> Result<String, Error> {
         self.complete_authorize_url
@@ -1350,9 +1344,7 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
     }
     fn is_mandate_payment(&self) -> bool {
         ((self.customer_acceptance.is_some() || self.setup_mandate_details.is_some())
-            && self.setup_future_usage.map_or(false, |setup_future_usage| {
-                setup_future_usage == FutureUsage::OffSession
-            }))
+            && (self.setup_future_usage == Some(FutureUsage::OffSession)))
             || self
                 .mandate_id
                 .as_ref()
@@ -1421,9 +1413,7 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
 
     fn is_customer_initiated_mandate_payment(&self) -> bool {
         (self.customer_acceptance.is_some() || self.setup_mandate_details.is_some())
-            && self.setup_future_usage.map_or(false, |setup_future_usage| {
-                setup_future_usage == FutureUsage::OffSession
-            })
+            && self.setup_future_usage == Some(FutureUsage::OffSession)
     }
 
     fn get_metadata_as_object(&self) -> Option<pii::SecretSerdeValue> {
@@ -1481,9 +1471,7 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
     }
     fn is_cit_mandate_payment(&self) -> bool {
         (self.customer_acceptance.is_some() || self.setup_mandate_details.is_some())
-            && self.setup_future_usage.map_or(false, |setup_future_usage| {
-                setup_future_usage == FutureUsage::OffSession
-            })
+            && self.setup_future_usage == Some(FutureUsage::OffSession)
     }
 }
 
@@ -1607,6 +1595,9 @@ pub trait PaymentsSetupMandateRequestData {
     fn get_email(&self) -> Result<Email, Error>;
     fn get_router_return_url(&self) -> Result<String, Error>;
     fn is_card(&self) -> bool;
+    fn get_return_url(&self) -> Result<String, Error>;
+    fn get_webhook_url(&self) -> Result<String, Error>;
+    fn get_optional_language_from_browser_info(&self) -> Option<String>;
 }
 
 impl PaymentsSetupMandateRequestData for SetupMandateRequestData {
@@ -1625,6 +1616,21 @@ impl PaymentsSetupMandateRequestData for SetupMandateRequestData {
     }
     fn is_card(&self) -> bool {
         matches!(self.payment_method_data, PaymentMethodData::Card(_))
+    }
+    fn get_return_url(&self) -> Result<String, Error> {
+        self.router_return_url
+            .clone()
+            .ok_or_else(missing_field_err("return_url"))
+    }
+    fn get_webhook_url(&self) -> Result<String, Error> {
+        self.webhook_url
+            .clone()
+            .ok_or_else(missing_field_err("webhook_url"))
+    }
+    fn get_optional_language_from_browser_info(&self) -> Option<String> {
+        self.browser_info
+            .clone()
+            .and_then(|browser_info| browser_info.language)
     }
 }
 
@@ -1681,9 +1687,7 @@ impl PaymentsCompleteAuthorizeRequestData for CompleteAuthorizeData {
     }
     fn is_mandate_payment(&self) -> bool {
         ((self.customer_acceptance.is_some() || self.setup_mandate_details.is_some())
-            && self.setup_future_usage.map_or(false, |setup_future_usage| {
-                setup_future_usage == FutureUsage::OffSession
-            }))
+            && self.setup_future_usage == Some(FutureUsage::OffSession))
             || self
                 .mandate_id
                 .as_ref()
@@ -1706,9 +1710,7 @@ impl PaymentsCompleteAuthorizeRequestData for CompleteAuthorizeData {
     }
     fn is_cit_mandate_payment(&self) -> bool {
         (self.customer_acceptance.is_some() || self.setup_mandate_details.is_some())
-            && self.setup_future_usage.map_or(false, |setup_future_usage| {
-                setup_future_usage == FutureUsage::OffSession
-            })
+            && self.setup_future_usage == Some(FutureUsage::OffSession)
     }
 }
 pub trait AddressData {
@@ -1759,6 +1761,9 @@ pub trait BrowserInformationData {
     fn get_java_enabled(&self) -> Result<bool, Error>;
     fn get_java_script_enabled(&self) -> Result<bool, Error>;
     fn get_ip_address(&self) -> Result<Secret<String, IpAddress>, Error>;
+    fn get_os_type(&self) -> Result<String, Error>;
+    fn get_os_version(&self) -> Result<String, Error>;
+    fn get_device_model(&self) -> Result<String, Error>;
 }
 
 impl BrowserInformationData for BrowserInformation {
@@ -1806,6 +1811,21 @@ impl BrowserInformationData for BrowserInformation {
     fn get_java_script_enabled(&self) -> Result<bool, Error> {
         self.java_script_enabled
             .ok_or_else(missing_field_err("browser_info.java_script_enabled"))
+    }
+    fn get_os_type(&self) -> Result<String, Error> {
+        self.os_type
+            .clone()
+            .ok_or_else(missing_field_err("browser_info.os_type"))
+    }
+    fn get_os_version(&self) -> Result<String, Error> {
+        self.os_version
+            .clone()
+            .ok_or_else(missing_field_err("browser_info.os_version"))
+    }
+    fn get_device_model(&self) -> Result<String, Error> {
+        self.device_model
+            .clone()
+            .ok_or_else(missing_field_err("browser_info.device_model"))
     }
 }
 
@@ -2092,6 +2112,7 @@ pub enum PaymentMethodDataType {
     SwishQr,
     KlarnaRedirect,
     KlarnaSdk,
+    KlarnaCheckout,
     AffirmRedirect,
     AfterpayClearpayRedirect,
     PayBrightRedirect,
@@ -2216,6 +2237,7 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
             PaymentMethodData::PayLater(pay_later_data) => match pay_later_data {
                 payment_method_data::PayLaterData::KlarnaRedirect { .. } => Self::KlarnaRedirect,
                 payment_method_data::PayLaterData::KlarnaSdk { .. } => Self::KlarnaSdk,
+                payment_method_data::PayLaterData::KlarnaCheckout {} => Self::KlarnaCheckout,
                 payment_method_data::PayLaterData::AffirmRedirect {} => Self::AffirmRedirect,
                 payment_method_data::PayLaterData::AfterpayClearpayRedirect { .. } => {
                     Self::AfterpayClearpayRedirect

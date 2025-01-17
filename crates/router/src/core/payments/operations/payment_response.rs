@@ -200,6 +200,7 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
             payment_method_billing_address,
             business_profile,
             connector_mandate_reference_id.clone(),
+            merchant_connector_id.clone(),
         ));
 
         let is_connector_mandate = resp.request.customer_acceptance.is_some()
@@ -315,6 +316,7 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
                         payment_method_billing_address.as_ref(),
                         &business_profile,
                         connector_mandate_reference_id,
+                        merchant_connector_id.clone(),
                     ))
                     .await;
 
@@ -1099,6 +1101,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
             payment_method_billing_address,
             business_profile,
             connector_mandate_reference_id,
+            merchant_connector_id.clone(),
         ))
         .await?;
 
@@ -1902,7 +1905,6 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
             status: api_models::enums::IntentStatus::foreign_from(
                 payment_data.payment_attempt.status,
             ),
-            return_url: router_data.return_url.clone(),
             amount_captured,
             updated_by: storage_scheme.to_string(),
             fingerprint_id: payment_data.payment_attempt.fingerprint_id.clone(),
@@ -1969,7 +1971,9 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
 
     #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
     {
-        if business_profile.dynamic_routing_algorithm.is_some() {
+        if payment_intent.status.is_in_terminal_state()
+            && business_profile.dynamic_routing_algorithm.is_some()
+        {
             let state = state.clone();
             let business_profile = business_profile.clone();
             let payment_attempt = payment_attempt.clone();
@@ -2201,6 +2205,88 @@ impl<F: Send + Clone> Operation<F, types::PaymentsAuthorizeData> for PaymentResp
 }
 
 #[cfg(feature = "v2")]
+impl<F: Send + Clone> Operation<F, types::PaymentsCaptureData> for PaymentResponse {
+    type Data = hyperswitch_domain_models::payments::PaymentCaptureData<F>;
+    fn to_post_update_tracker(
+        &self,
+    ) -> RouterResult<
+        &(dyn PostUpdateTracker<F, Self::Data, types::PaymentsCaptureData> + Send + Sync),
+    > {
+        Ok(self)
+    }
+}
+
+#[cfg(feature = "v2")]
+#[async_trait]
+impl<F: Clone>
+    PostUpdateTracker<
+        F,
+        hyperswitch_domain_models::payments::PaymentCaptureData<F>,
+        types::PaymentsCaptureData,
+    > for PaymentResponse
+{
+    async fn update_tracker<'b>(
+        &'b self,
+        state: &'b SessionState,
+        mut payment_data: hyperswitch_domain_models::payments::PaymentCaptureData<F>,
+        response: types::RouterData<F, types::PaymentsCaptureData, types::PaymentsResponseData>,
+        key_store: &domain::MerchantKeyStore,
+        storage_scheme: enums::MerchantStorageScheme,
+    ) -> RouterResult<hyperswitch_domain_models::payments::PaymentCaptureData<F>>
+    where
+        F: 'b + Send + Sync,
+        types::RouterData<F, types::PaymentsCaptureData, types::PaymentsResponseData>:
+            hyperswitch_domain_models::router_data::TrackerPostUpdateObjects<
+                F,
+                types::PaymentsCaptureData,
+                hyperswitch_domain_models::payments::PaymentCaptureData<F>,
+            >,
+    {
+        use hyperswitch_domain_models::router_data::TrackerPostUpdateObjects;
+
+        let db = &*state.store;
+        let key_manager_state = &state.into();
+
+        let response_router_data = response;
+
+        let payment_intent_update =
+            response_router_data.get_payment_intent_update(&payment_data, storage_scheme);
+
+        let payment_attempt_update =
+            response_router_data.get_payment_attempt_update(&payment_data, storage_scheme);
+
+        let updated_payment_intent = db
+            .update_payment_intent(
+                key_manager_state,
+                payment_data.payment_intent,
+                payment_intent_update,
+                key_store,
+                storage_scheme,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to update payment intent")?;
+
+        let updated_payment_attempt = db
+            .update_payment_attempt(
+                key_manager_state,
+                key_store,
+                payment_data.payment_attempt,
+                payment_attempt_update,
+                storage_scheme,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to update payment attempt")?;
+
+        payment_data.payment_intent = updated_payment_intent;
+        payment_data.payment_attempt = updated_payment_attempt;
+
+        Ok(payment_data)
+    }
+}
+
+#[cfg(feature = "v2")]
 #[async_trait]
 impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthorizeData>
     for PaymentResponse
@@ -2219,6 +2305,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthor
             hyperswitch_domain_models::router_data::TrackerPostUpdateObjects<
                 F,
                 types::PaymentsAuthorizeData,
+                PaymentConfirmData<F>,
             >,
     {
         use hyperswitch_domain_models::router_data::TrackerPostUpdateObjects;
@@ -2228,9 +2315,10 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthor
 
         let response_router_data = response;
 
-        let payment_intent_update = response_router_data.get_payment_intent_update(storage_scheme);
+        let payment_intent_update =
+            response_router_data.get_payment_intent_update(&payment_data, storage_scheme);
         let payment_attempt_update =
-            response_router_data.get_payment_attempt_update(storage_scheme);
+            response_router_data.get_payment_attempt_update(&payment_data, storage_scheme);
 
         let updated_payment_intent = db
             .update_payment_intent(
@@ -2293,6 +2381,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentStatusData<F>, types::PaymentsSyncDat
             hyperswitch_domain_models::router_data::TrackerPostUpdateObjects<
                 F,
                 types::PaymentsSyncData,
+                PaymentStatusData<F>,
             >,
     {
         use hyperswitch_domain_models::router_data::TrackerPostUpdateObjects;
@@ -2302,9 +2391,10 @@ impl<F: Clone> PostUpdateTracker<F, PaymentStatusData<F>, types::PaymentsSyncDat
 
         let response_router_data = response;
 
-        let payment_intent_update = response_router_data.get_payment_intent_update(storage_scheme);
+        let payment_intent_update =
+            response_router_data.get_payment_intent_update(&payment_data, storage_scheme);
         let payment_attempt_update =
-            response_router_data.get_payment_attempt_update(storage_scheme);
+            response_router_data.get_payment_attempt_update(&payment_data, storage_scheme);
 
         let payment_attempt = payment_data
             .payment_attempt

@@ -754,7 +754,6 @@ pub enum PaymentAttemptUpdate {
 #[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay)]
 #[diesel(table_name = payment_attempt)]
 pub struct PaymentAttemptUpdateInternal {
-    // net_amount: Option<MinorUnit>,
     pub status: Option<storage_enums::AttemptStatus>,
     // authentication_type: Option<storage_enums::AuthenticationType>,
     pub error_message: Option<String>,
@@ -774,7 +773,8 @@ pub struct PaymentAttemptUpdateInternal {
     // multiple_capture_count: Option<i16>,
     // pub surcharge_amount: Option<MinorUnit>,
     // tax_on_surcharge: Option<MinorUnit>,
-    // amount_capturable: Option<MinorUnit>,
+    pub amount_capturable: Option<MinorUnit>,
+    pub amount_to_capture: Option<MinorUnit>,
     pub updated_by: String,
     pub merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
     pub connector: Option<String>,
@@ -3425,6 +3425,10 @@ pub enum RedirectForm {
     CybersourceConsumerAuth {
         access_token: String,
         step_up_url: String,
+    },
+    DeutschebankThreeDSChallengeFlow {
+        acs_url: String,
+        creq: String,
     },
     Payme,
     Braintree {

@@ -470,7 +470,7 @@ impl Capturable for PaymentsSyncData {
         payment_data
             .payment_attempt
             .amount_details
-            .amount_to_capture
+            .get_amount_to_capture()
             .or_else(|| Some(payment_data.payment_attempt.get_total_amount()))
             .map(|amt| amt.get_amount_as_i64())
     }
@@ -873,6 +873,7 @@ impl ForeignFrom<&SetupMandateRouterData> for PaymentsAuthorizeData {
             email: data.request.email.clone(),
             customer_name: data.request.customer_name.clone(),
             amount: 0,
+            order_tax_amount: Some(MinorUnit::zero()),
             minor_amount: MinorUnit::new(0),
             statement_descriptor: None,
             capture_method: None,
@@ -913,11 +914,11 @@ impl<F1, F2, T1, T2> ForeignFrom<(&RouterData<F1, T1, PaymentsResponseData>, T2)
             merchant_id: data.merchant_id.clone(),
             connector: data.connector.clone(),
             attempt_id: data.attempt_id.clone(),
+            tenant_id: data.tenant_id.clone(),
             status: data.status,
             payment_method: data.payment_method,
             connector_auth_type: data.connector_auth_type.clone(),
             description: data.description.clone(),
-            return_url: data.return_url.clone(),
             address: data.address.clone(),
             auth_type: data.auth_type,
             connector_meta_data: data.connector_meta_data.clone(),
@@ -983,11 +984,11 @@ impl<F1, F2>
             merchant_id: data.merchant_id.clone(),
             connector: data.connector.clone(),
             attempt_id: data.attempt_id.clone(),
+            tenant_id: data.tenant_id.clone(),
             status: data.status,
             payment_method: data.payment_method,
             connector_auth_type: data.connector_auth_type.clone(),
             description: data.description.clone(),
-            return_url: data.return_url.clone(),
             address: data.address.clone(),
             auth_type: data.auth_type,
             connector_meta_data: data.connector_meta_data.clone(),

@@ -499,7 +499,8 @@ pub struct BokuErrorResponse {
 }
 
 fn get_hosted_data(item: &types::PaymentsAuthorizeRouterData) -> Option<BokuHostedData> {
-    item.return_url
+    item.request
+        .router_return_url
         .clone()
         .map(|url| BokuHostedData { forward_url: url })
 }

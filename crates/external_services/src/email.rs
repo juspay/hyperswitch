@@ -47,6 +47,7 @@ pub trait EmailService: Sync + Send + dyn_clone::DynClone {
     /// Compose and send email using the email data
     async fn compose_and_send_email(
         &self,
+        base_url: &str,
         email_data: Box<dyn EmailData + Send>,
         proxy_url: Option<&String>,
     ) -> EmailResult<()>;
@@ -60,10 +61,11 @@ where
 {
     async fn compose_and_send_email(
         &self,
+        base_url: &str,
         email_data: Box<dyn EmailData + Send>,
         proxy_url: Option<&String>,
     ) -> EmailResult<()> {
-        let email_data = email_data.get_email_data();
+        let email_data = email_data.get_email_data(base_url);
         let email_data = email_data.await?;
 
         let EmailContents {
@@ -113,7 +115,7 @@ pub struct EmailContents {
 #[async_trait::async_trait]
 pub trait EmailData {
     /// Get the email contents
-    async fn get_email_data(&self) -> CustomResult<EmailContents, EmailError>;
+    async fn get_email_data(&self, base_url: &str) -> CustomResult<EmailContents, EmailError>;
 }
 
 dyn_clone::clone_trait_object!(EmailClient<RichText = Body>);

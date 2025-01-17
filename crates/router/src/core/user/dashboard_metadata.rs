@@ -34,6 +34,7 @@ pub async fn set_metadata(
     Ok(ApplicationResponse::StatusOk)
 }
 
+#[cfg(feature = "v1")]
 pub async fn get_multiple_metadata(
     state: SessionState,
     user: UserFromToken,
@@ -496,6 +497,7 @@ async fn insert_metadata(
                     let send_email_result = state
                         .email_client
                         .compose_and_send_email(
+                            email_types::get_base_url(state),
                             Box::new(email_contents),
                             state.conf.proxy.https_url.as_ref(),
                         )
@@ -621,6 +623,7 @@ async fn fetch_metadata(
     Ok(dashboard_metadata)
 }
 
+#[cfg(feature = "v1")]
 pub async fn backfill_metadata(
     state: &SessionState,
     user: &UserFromToken,

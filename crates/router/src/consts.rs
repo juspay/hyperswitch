@@ -171,19 +171,19 @@ pub const DEFAULT_SDK_LAYOUT: &str = "tabs";
 
 /// Vault Add request url
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-pub const ADD_VAULT_REQUEST_URL: &str = "/vault/add";
+pub const ADD_VAULT_REQUEST_URL: &str = "/api/v2/vault/add";
 
 /// Vault Get Fingerprint request url
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-pub const VAULT_FINGERPRINT_REQUEST_URL: &str = "/fingerprint";
+pub const VAULT_FINGERPRINT_REQUEST_URL: &str = "/api/v2/vault/fingerprint";
 
 /// Vault Retrieve request url
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-pub const VAULT_RETRIEVE_REQUEST_URL: &str = "/vault/retrieve";
+pub const VAULT_RETRIEVE_REQUEST_URL: &str = "/api/v2/vault/retrieve";
 
 /// Vault Delete request url
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-pub const VAULT_DELETE_REQUEST_URL: &str = "/vault/delete";
+pub const VAULT_DELETE_REQUEST_URL: &str = "/api/v2/vault/delete";
 
 /// Vault Header content type
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
@@ -210,3 +210,6 @@ pub const DYNAMIC_ROUTING_MAX_VOLUME: u8 = 100;
 
 /// Click To Pay
 pub const CLICK_TO_PAY: &str = "click_to_pay";
+
+/// Refund flow identifier used for performing GSM operations
+pub const REFUND_FLOW_STR: &str = "refund_flow";

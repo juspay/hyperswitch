@@ -204,7 +204,6 @@ pub enum PaymentIntentUpdate {
     ResponseUpdate {
         status: common_enums::IntentStatus,
         amount_captured: Option<MinorUnit>,
-        return_url: Option<String>,
         updated_by: String,
         fingerprint_id: Option<String>,
         incremental_authorization_allowed: Option<bool>,
@@ -292,11 +291,18 @@ pub enum PaymentIntentUpdate {
     /// PostUpdate tracker of ConfirmIntent
     ConfirmIntentPostUpdate {
         status: common_enums::IntentStatus,
+        amount_captured: Option<MinorUnit>,
         updated_by: String,
     },
     /// SyncUpdate of ConfirmIntent in PostUpdateTrackers
     SyncUpdate {
         status: common_enums::IntentStatus,
+        amount_captured: Option<MinorUnit>,
+        updated_by: String,
+    },
+    CaptureUpdate {
+        status: common_enums::IntentStatus,
+        amount_captured: Option<MinorUnit>,
         updated_by: String,
     },
     /// UpdateIntent
@@ -361,6 +367,7 @@ impl From<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal {
                 active_attempt_id: Some(active_attempt_id),
                 modified_at: common_utils::date_time::now(),
                 amount: None,
+                amount_captured: None,
                 currency: None,
                 shipping_cost: None,
                 tax_details: None,
@@ -392,10 +399,15 @@ impl From<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal {
                 updated_by,
             },
 
-            PaymentIntentUpdate::ConfirmIntentPostUpdate { status, updated_by } => Self {
+            PaymentIntentUpdate::ConfirmIntentPostUpdate {
+                status,
+                updated_by,
+                amount_captured,
+            } => Self {
                 status: Some(status),
                 active_attempt_id: None,
                 modified_at: common_utils::date_time::now(),
+                amount_captured,
                 amount: None,
                 currency: None,
                 shipping_cost: None,
@@ -427,8 +439,53 @@ impl From<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal {
                 request_external_three_ds_authentication: None,
                 updated_by,
             },
-            PaymentIntentUpdate::SyncUpdate { status, updated_by } => Self {
+            PaymentIntentUpdate::SyncUpdate {
+                status,
+                amount_captured,
+                updated_by,
+            } => Self {
                 status: Some(status),
+                active_attempt_id: None,
+                modified_at: common_utils::date_time::now(),
+                amount: None,
+                currency: None,
+                amount_captured,
+                shipping_cost: None,
+                tax_details: None,
+                skip_external_tax_calculation: None,
+                surcharge_applicable: None,
+                surcharge_amount: None,
+                tax_on_surcharge: None,
+                routing_algorithm_id: None,
+                capture_method: None,
+                authentication_type: None,
+                billing_address: None,
+                shipping_address: None,
+                customer_present: None,
+                description: None,
+                return_url: None,
+                setup_future_usage: None,
+                apply_mit_exemption: None,
+                statement_descriptor: None,
+                order_details: None,
+                allowed_payment_method_types: None,
+                metadata: None,
+                connector_metadata: None,
+                feature_metadata: None,
+                payment_link_config: None,
+                request_incremental_authorization: None,
+                session_expiry: None,
+                frm_metadata: None,
+                request_external_three_ds_authentication: None,
+                updated_by,
+            },
+            PaymentIntentUpdate::CaptureUpdate {
+                status,
+                amount_captured,
+                updated_by,
+            } => Self {
+                status: Some(status),
+                amount_captured,
                 active_attempt_id: None,
                 modified_at: common_utils::date_time::now(),
                 amount: None,
@@ -499,7 +556,7 @@ impl From<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal {
                     status: None,
                     active_attempt_id: None,
                     modified_at: common_utils::date_time::now(),
-
+                    amount_captured: None,
                     amount,
                     currency,
                     shipping_cost,
@@ -636,7 +693,6 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 amount_captured,
                 fingerprint_id,
                 // customer_id,
-                return_url,
                 updated_by,
                 incremental_authorization_allowed,
             } => Self {
@@ -646,7 +702,6 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 amount_captured,
                 fingerprint_id,
                 // customer_id,
-                return_url,
                 modified_at: Some(common_utils::date_time::now()),
                 updated_by,
                 incremental_authorization_allowed,
@@ -769,14 +824,12 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
                 status,
                 amount_captured,
                 fingerprint_id,
-                return_url,
                 updated_by,
                 incremental_authorization_allowed,
             } => Self::ResponseUpdate {
                 status,
                 amount_captured,
                 fingerprint_id,
-                return_url,
                 updated_by,
                 incremental_authorization_allowed,
             },
@@ -1268,6 +1321,7 @@ impl behaviour::Conversion for PaymentIntent {
             customer_present,
             routing_algorithm_id,
             payment_link_config,
+            platform_merchant_id,
         } = self;
         Ok(DieselPaymentIntent {
             skip_external_tax_calculation: Some(amount_details.get_external_tax_action_as_bool()),
@@ -1338,6 +1392,7 @@ impl behaviour::Conversion for PaymentIntent {
             payment_link_config,
             routing_algorithm_id,
             psd2_sca_exemption_type: None,
+            platform_merchant_id,
             split_payments: None,
         })
     }
@@ -1464,6 +1519,7 @@ impl behaviour::Conversion for PaymentIntent {
                 customer_present: storage_model.customer_present.into(),
                 payment_link_config: storage_model.payment_link_config,
                 routing_algorithm_id: storage_model.routing_algorithm_id,
+                platform_merchant_id: storage_model.platform_merchant_id,
             })
         }
         .await
@@ -1536,6 +1592,7 @@ impl behaviour::Conversion for PaymentIntent {
             tax_details: amount_details.tax_details,
             enable_payment_link: Some(self.enable_payment_link.as_bool()),
             apply_mit_exemption: Some(self.apply_mit_exemption.as_bool()),
+            platform_merchant_id: self.platform_merchant_id,
         })
     }
 }
@@ -1602,6 +1659,7 @@ impl behaviour::Conversion for PaymentIntent {
             tax_details: self.tax_details,
             skip_external_tax_calculation: self.skip_external_tax_calculation,
             psd2_sca_exemption_type: self.psd2_sca_exemption_type,
+            platform_merchant_id: self.platform_merchant_id,
         })
     }
 
@@ -1690,6 +1748,7 @@ impl behaviour::Conversion for PaymentIntent {
                 organization_id: storage_model.organization_id,
                 skip_external_tax_calculation: storage_model.skip_external_tax_calculation,
                 psd2_sca_exemption_type: storage_model.psd2_sca_exemption_type,
+                platform_merchant_id: storage_model.platform_merchant_id,
             })
         }
         .await
@@ -1754,6 +1813,7 @@ impl behaviour::Conversion for PaymentIntent {
             tax_details: self.tax_details,
             skip_external_tax_calculation: self.skip_external_tax_calculation,
             psd2_sca_exemption_type: self.psd2_sca_exemption_type,
+            platform_merchant_id: self.platform_merchant_id,
         })
     }
 }

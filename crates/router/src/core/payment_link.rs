@@ -6,7 +6,7 @@ use api_models::{
 };
 use common_utils::{
     consts::{DEFAULT_LOCALE, DEFAULT_SESSION_EXPIRY},
-    ext_traits::{AsyncExt, OptionExt, ValueExt},
+    ext_traits::{OptionExt, ValueExt},
     types::{AmountConvertor, StringMajorUnitForCore},
 };
 use error_stack::{report, ResultExt};
@@ -28,9 +28,8 @@ use crate::{
     },
     errors::RouterResponse,
     get_payment_link_config_value, get_payment_link_config_value_based_on_priority,
-    headers::ACCEPT_LANGUAGE,
     routes::SessionState,
-    services::{self, authentication::get_header_value_by_key},
+    services,
     types::{
         api::payment_link::PaymentLinkResponseExt,
         domain,
@@ -70,7 +69,6 @@ pub async fn form_payment_link_data(
     key_store: domain::MerchantKeyStore,
     merchant_id: common_utils::id_type::MerchantId,
     payment_id: common_utils::id_type::PaymentId,
-    locale: Option<String>,
 ) -> RouterResult<(PaymentLink, PaymentLinkData, PaymentLinkConfig)> {
     todo!()
 }
@@ -82,7 +80,6 @@ pub async fn form_payment_link_data(
     key_store: domain::MerchantKeyStore,
     merchant_id: common_utils::id_type::MerchantId,
     payment_id: common_utils::id_type::PaymentId,
-    locale: Option<String>,
 ) -> RouterResult<(PaymentLink, PaymentLinkData, PaymentLinkConfig)> {
     let db = &*state.store;
     let key_manager_state = &state.into();
@@ -132,6 +129,7 @@ pub async fn form_payment_link_data(
                 background_image: None,
                 details_layout: None,
                 branding_visibility: None,
+                payment_button_text: None,
             }
         };
 
@@ -241,7 +239,7 @@ pub async fn form_payment_link_data(
             redirect: false,
             theme: payment_link_config.theme.clone(),
             return_url: return_url.clone(),
-            locale: locale.clone(),
+            locale: Some(state.clone().locale),
             transaction_details: payment_link_config.transaction_details.clone(),
             unified_code: payment_attempt.unified_code,
             unified_message: payment_attempt.unified_message,
@@ -272,11 +270,12 @@ pub async fn form_payment_link_data(
         display_sdk_only: payment_link_config.display_sdk_only,
         hide_card_nickname_field: payment_link_config.hide_card_nickname_field,
         show_card_form_by_default: payment_link_config.show_card_form_by_default,
-        locale,
+        locale: Some(state.clone().locale),
         transaction_details: payment_link_config.transaction_details.clone(),
         background_image: payment_link_config.background_image.clone(),
         details_layout: payment_link_config.details_layout,
         branding_visibility: payment_link_config.branding_visibility,
+        payment_button_text: payment_link_config.payment_button_text.clone(),
     };
 
     Ok((
@@ -294,17 +293,9 @@ pub async fn initiate_secure_payment_link_flow(
     payment_id: common_utils::id_type::PaymentId,
     request_headers: &header::HeaderMap,
 ) -> RouterResponse<services::PaymentLinkFormData> {
-    let locale = get_header_value_by_key(ACCEPT_LANGUAGE.into(), request_headers)?
-        .map(|val| val.to_string());
-    let (payment_link, payment_link_details, payment_link_config) = form_payment_link_data(
-        &state,
-        merchant_account,
-        key_store,
-        merchant_id,
-        payment_id,
-        locale,
-    )
-    .await?;
+    let (payment_link, payment_link_details, payment_link_config) =
+        form_payment_link_data(&state, merchant_account, key_store, merchant_id, payment_id)
+            .await?;
 
     validator::validate_secure_payment_link_render_request(
         request_headers,
@@ -335,6 +326,7 @@ pub async fn initiate_secure_payment_link_flow(
                 hide_card_nickname_field: payment_link_config.hide_card_nickname_field,
                 show_card_form_by_default: payment_link_config.show_card_form_by_default,
                 payment_link_details: *link_details.to_owned(),
+                payment_button_text: payment_link_config.payment_button_text,
             };
             let js_script = format!(
                 "window.__PAYMENT_DETAILS = {}",
@@ -393,19 +385,10 @@ pub async fn initiate_payment_link_flow(
     key_store: domain::MerchantKeyStore,
     merchant_id: common_utils::id_type::MerchantId,
     payment_id: common_utils::id_type::PaymentId,
-    request_headers: &header::HeaderMap,
 ) -> RouterResponse<services::PaymentLinkFormData> {
-    let locale = get_header_value_by_key(ACCEPT_LANGUAGE.into(), request_headers)?
-        .map(|val| val.to_string());
-    let (_, payment_details, payment_link_config) = form_payment_link_data(
-        &state,
-        merchant_account,
-        key_store,
-        merchant_id,
-        payment_id,
-        locale,
-    )
-    .await?;
+    let (_, payment_details, payment_link_config) =
+        form_payment_link_data(&state, merchant_account, key_store, merchant_id, payment_id)
+            .await?;
 
     let css_script = get_color_scheme_css(&payment_link_config);
     let js_script = get_js_script(&payment_details)?;
@@ -680,6 +663,18 @@ pub fn get_payment_link_config_based_on_priority(
                                 .map(|background_image| background_image.clone().foreign_into())
                         })
                 }),
+            payment_button_text: payment_create_link_config
+                .as_ref()
+                .and_then(|payment_link_config| {
+                    payment_link_config.theme_config.payment_button_text.clone()
+                })
+                .or_else(|| {
+                    business_theme_configs
+                        .as_ref()
+                        .and_then(|business_theme_config| {
+                            business_theme_config.payment_button_text.clone()
+                        })
+                }),
         };
 
     Ok((payment_link_config, domain_name))
@@ -712,7 +707,6 @@ pub async fn get_payment_link_status(
     _key_store: domain::MerchantKeyStore,
     _merchant_id: common_utils::id_type::MerchantId,
     _payment_id: common_utils::id_type::PaymentId,
-    _request_headers: &header::HeaderMap,
 ) -> RouterResponse<services::PaymentLinkFormData> {
     todo!()
 }
@@ -724,10 +718,7 @@ pub async fn get_payment_link_status(
     key_store: domain::MerchantKeyStore,
     merchant_id: common_utils::id_type::MerchantId,
     payment_id: common_utils::id_type::PaymentId,
-    request_headers: &header::HeaderMap,
 ) -> RouterResponse<services::PaymentLinkFormData> {
-    let locale = get_header_value_by_key(ACCEPT_LANGUAGE.into(), request_headers)?
-        .map(|val| val.to_string());
     let db = &*state.store;
     let key_manager_state = &(&state).into();
 
@@ -786,6 +777,7 @@ pub async fn get_payment_link_status(
             background_image: None,
             details_layout: None,
             branding_visibility: None,
+            payment_button_text: None,
         }
     };
 
@@ -842,19 +834,14 @@ pub async fn get_payment_link_status(
             consts::DEFAULT_UNIFIED_ERROR_MESSAGE.to_owned(),
         )
     };
-    let unified_translated_message = locale
-        .as_ref()
-        .async_and_then(|locale_str| async {
-            helpers::get_unified_translation(
-                &state,
-                unified_code.to_owned(),
-                unified_message.to_owned(),
-                locale_str.to_owned(),
-            )
-            .await
-        })
-        .await
-        .or(Some(unified_message));
+    let unified_translated_message = helpers::get_unified_translation(
+        &state,
+        unified_code.to_owned(),
+        unified_message.to_owned(),
+        state.locale.clone(),
+    )
+    .await
+    .or(Some(unified_message));
 
     let payment_details = api_models::payments::PaymentLinkStatusDetails {
         amount,
@@ -869,7 +856,7 @@ pub async fn get_payment_link_status(
         redirect: true,
         theme: payment_link_config.theme.clone(),
         return_url,
-        locale,
+        locale: Some(state.locale.clone()),
         transaction_details: payment_link_config.transaction_details,
         unified_code: Some(unified_code),
         unified_message: unified_translated_message,

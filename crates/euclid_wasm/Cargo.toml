@@ -14,10 +14,10 @@ default = ["payouts"]
 release = ["payouts"]
 dummy_connector = ["kgraph_utils/dummy_connector", "connector_configs/dummy_connector"]
 production = ["connector_configs/production"]
-development = ["connector_configs/development"]
 sandbox = ["connector_configs/sandbox"]
 payouts = ["api_models/payouts", "euclid/payouts"]
-v1 = ["api_models/v1"]
+v1 = ["api_models/v1", "kgraph_utils/v1"]
+v2 = []
 
 [dependencies]
 api_models = { version = "0.1.0", path = "../api_models", package = "api_models" }
@@ -35,7 +35,7 @@ ron-parser = "0.1.4"
 serde = { version = "1.0", features = [] }
 serde-wasm-bindgen = "0.6.5"
 strum = { version = "0.26", features = ["derive"] }
-wasm-bindgen = { version = "0.2.92" }
+wasm-bindgen = { version = "0.2.99" }
 
 [lints]
 workspace = true

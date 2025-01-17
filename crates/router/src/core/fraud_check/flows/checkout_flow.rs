@@ -47,7 +47,7 @@ impl ConstructFlowSpecificData<frm_api::Checkout, FraudCheckCheckoutData, FraudC
     #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
     async fn construct_router_data<'a>(
         &self,
-        _state: &SessionState,
+        state: &SessionState,
         connector_id: &str,
         merchant_account: &domain::MerchantAccount,
         _key_store: &domain::MerchantKeyStore,
@@ -75,6 +75,7 @@ impl ConstructFlowSpecificData<frm_api::Checkout, FraudCheckCheckoutData, FraudC
             flow: std::marker::PhantomData,
             merchant_id: merchant_account.get_id().clone(),
             customer_id,
+            tenant_id: state.tenant.tenant_id.clone(),
             connector: connector_id.to_string(),
             payment_id: self.payment_intent.payment_id.get_string_repr().to_owned(),
             attempt_id: self.payment_attempt.attempt_id.clone(),
@@ -85,7 +86,6 @@ impl ConstructFlowSpecificData<frm_api::Checkout, FraudCheckCheckoutData, FraudC
                 .ok_or(errors::ApiErrorResponse::PaymentMethodNotFound)?,
             connector_auth_type: auth_type,
             description: None,
-            return_url: None,
             payment_method_status: None,
             address: self.address.clone(),
             auth_type: storage_enums::AuthenticationType::NoThreeDs,
@@ -200,9 +200,9 @@ impl FeatureFrm<frm_api::Checkout, FraudCheckCheckoutData> for FrmCheckoutRouter
     }
 }
 
-pub async fn decide_frm_flow<'a, 'b>(
-    router_data: &'b mut FrmCheckoutRouterData,
-    state: &'a SessionState,
+pub async fn decide_frm_flow(
+    router_data: &mut FrmCheckoutRouterData,
+    state: &SessionState,
     connector: &FraudCheckConnectorData,
     call_connector_action: payments::CallConnectorAction,
     _merchant_account: &domain::MerchantAccount,

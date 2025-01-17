@@ -156,6 +156,7 @@ impl Feature<api::Session, types::PaymentsSessionData> for types::PaymentsSessio
 
 /// This function checks if for a given connector, payment_method and payment_method_type,
 /// the list of required_field_type is present in dynamic fields
+#[cfg(feature = "v1")]
 fn is_dynamic_fields_required(
     required_fields: &settings::RequiredFields,
     payment_method: enums::PaymentMethod,
@@ -183,6 +184,43 @@ fn is_dynamic_fields_required(
                     .common
                     .iter()
                     .any(|(_, val)| required_field_type.contains(&val.field_type))
+        })
+        .unwrap_or(false)
+}
+
+/// This function checks if for a given connector, payment_method and payment_method_type,
+/// the list of required_field_type is present in dynamic fields
+#[cfg(feature = "v2")]
+fn is_dynamic_fields_required(
+    required_fields: &settings::RequiredFields,
+    payment_method: enums::PaymentMethod,
+    payment_method_type: enums::PaymentMethodType,
+    connector: types::Connector,
+    required_field_type: Vec<enums::FieldType>,
+) -> bool {
+    required_fields
+        .0
+        .get(&payment_method)
+        .and_then(|pm_type| pm_type.0.get(&payment_method_type))
+        .and_then(|required_fields_for_connector| {
+            required_fields_for_connector.fields.get(&connector)
+        })
+        .map(|required_fields_final| {
+            required_fields_final
+                .non_mandate
+                .iter()
+                .flatten()
+                .any(|field_info| required_field_type.contains(&field_info.field_type))
+                || required_fields_final
+                    .mandate
+                    .iter()
+                    .flatten()
+                    .any(|field_info| required_field_type.contains(&field_info.field_type))
+                || required_fields_final
+                    .common
+                    .iter()
+                    .flatten()
+                    .any(|field_info| required_field_type.contains(&field_info.field_type))
         })
         .unwrap_or(false)
 }
@@ -715,6 +753,7 @@ fn get_apple_pay_payment_request(
         merchant_identifier: Some(merchant_identifier.to_string()),
         required_billing_contact_fields,
         required_shipping_contact_fields,
+        recurring_payment_request: session_data.apple_pay_recurring_details,
     };
     Ok(applepay_payment_request)
 }

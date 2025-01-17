@@ -30,7 +30,7 @@ use crate::{
     services::{
         self,
         request::{self, Mask},
-        ConnectorValidation,
+        ConnectorSpecifications, ConnectorValidation,
     },
     types::{
         self,
@@ -134,9 +134,10 @@ impl ConnectorCommon for Stripe {
 }
 
 impl ConnectorValidation for Stripe {
-    fn validate_capture_method(
+    fn validate_connector_against_payment_request(
         &self,
         capture_method: Option<enums::CaptureMethod>,
+        _payment_method: enums::PaymentMethod,
         _pmt: Option<enums::PaymentMethodType>,
     ) -> CustomResult<(), errors::ConnectorError> {
         let capture_method = capture_method.unwrap_or_default();
@@ -2932,3 +2933,5 @@ impl
         self.build_error_response(res, event_builder)
     }
 }
+
+impl ConnectorSpecifications for Stripe {}

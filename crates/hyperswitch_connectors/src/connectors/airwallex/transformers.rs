@@ -1,5 +1,5 @@
 use common_enums::enums;
-use common_utils::{errors::ParsingError, request::Method};
+use common_utils::{errors::ParsingError, pii::IpAddress, request::Method};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::{PaymentMethodData, WalletData},
@@ -21,7 +21,7 @@ use uuid::Uuid;
 
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
-    utils::{self, CardData as _},
+    utils::{self, BrowserInformationData, CardData as _, PaymentsAuthorizeRequestData},
 };
 
 pub struct AirwallexAuthType {
@@ -124,6 +124,34 @@ pub struct AirwallexPaymentsRequest {
     payment_method: AirwallexPaymentMethod,
     payment_method_options: Option<AirwallexPaymentOptions>,
     return_url: Option<String>,
+    device_data: DeviceData,
+}
+
+#[derive(Debug, Serialize)]
+pub struct DeviceData {
+    accept_header: String,
+    browser: Browser,
+    ip_address: Secret<String, IpAddress>,
+    language: String,
+    mobile: Option<Mobile>,
+    screen_color_depth: u8,
+    screen_height: u32,
+    screen_width: u32,
+    timezone: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct Browser {
+    java_enabled: bool,
+    javascript_enabled: bool,
+    user_agent: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct Mobile {
+    device_model: Option<String>,
+    os_type: Option<String>,
+    os_version: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -242,14 +270,53 @@ impl TryFrom<&AirwallexRouterData<&types::PaymentsAuthorizeRouterData>>
                 ))
             }
         }?;
+        let device_data = get_device_data(item.router_data)?;
 
         Ok(Self {
             request_id: Uuid::new_v4().to_string(),
             payment_method,
             payment_method_options,
             return_url: request.complete_authorize_url.clone(),
+            device_data,
         })
     }
+}
+
+fn get_device_data(
+    item: &types::PaymentsAuthorizeRouterData,
+) -> Result<DeviceData, error_stack::Report<errors::ConnectorError>> {
+    let info = item.request.get_browser_info()?;
+    let browser = Browser {
+        java_enabled: info.get_java_enabled()?,
+        javascript_enabled: info.get_java_script_enabled()?,
+        user_agent: info.get_user_agent()?,
+    };
+    let mobile = {
+        let device_model = info.get_device_model().ok();
+        let os_type = info.get_os_type().ok();
+        let os_version = info.get_os_version().ok();
+
+        if device_model.is_some() || os_type.is_some() || os_version.is_some() {
+            Some(Mobile {
+                device_model,
+                os_type,
+                os_version,
+            })
+        } else {
+            None
+        }
+    };
+    Ok(DeviceData {
+        accept_header: info.get_accept_header()?,
+        browser,
+        ip_address: info.get_ip_address()?,
+        mobile,
+        screen_color_depth: info.get_color_depth()?,
+        screen_height: info.get_screen_height()?,
+        screen_width: info.get_screen_width()?,
+        timezone: info.get_time_zone()?.to_string(),
+        language: info.get_language()?,
+    })
 }
 
 fn get_wallet_details(

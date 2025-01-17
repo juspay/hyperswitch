@@ -29,6 +29,7 @@ impl VerifyConnectorData {
             amount: 1000,
             minor_amount: common_utils::types::MinorUnit::new(1000),
             confirm: true,
+            order_tax_amount: None,
             currency: storage_enums::Currency::USD,
             metadata: None,
             mandate_id: None,
@@ -64,6 +65,7 @@ impl VerifyConnectorData {
 
     fn get_router_data<F, R1, R2>(
         &self,
+        state: &SessionState,
         request_data: R1,
         access_token: Option<types::AccessToken>,
     ) -> types::RouterData<F, R1, R2> {
@@ -77,10 +79,10 @@ impl VerifyConnectorData {
             connector: self.connector.id().to_string(),
             auth_type: storage_enums::AuthenticationType::NoThreeDs,
             test_mode: None,
-            return_url: None,
             attempt_id: attempt_id.clone(),
             description: None,
             customer_id: None,
+            tenant_id: state.tenant.tenant_id.clone(),
             merchant_id: common_utils::id_type::MerchantId::default(),
             reference_id: None,
             access_token,
@@ -132,7 +134,7 @@ pub trait VerifyConnector {
     ) -> errors::RouterResponse<()> {
         let authorize_data = connector_data.get_payment_authorize_data();
         let access_token = Self::get_access_token(state, connector_data.clone()).await?;
-        let router_data = connector_data.get_router_data(authorize_data, access_token);
+        let router_data = connector_data.get_router_data(state, authorize_data, access_token);
 
         let request = connector_data
             .connector
