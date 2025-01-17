@@ -305,7 +305,7 @@ function threeDsRedirection(redirection_url, expected_url, connectorId) {
           .should("be.visible")
           .should("be.enabled")
           .click()
-          .type("1234", { force: true });
+          .type("1234");
 
         cy.get('input[value="SUBMIT"], button[type="submit"]', {
           timeout: TIMEOUT,
