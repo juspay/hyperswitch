@@ -1974,7 +1974,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
         if payment_intent.status.is_in_terminal_state()
             && business_profile.dynamic_routing_algorithm.is_some()
         {
-            let _dynamic_routing_algo_ref: api_models::routing::DynamicRoutingAlgorithmRef =
+            let dynamic_routing_algo_ref: api_models::routing::DynamicRoutingAlgorithmRef =
                 business_profile
                     .dynamic_routing_algorithm
                     .clone()
@@ -1982,7 +1982,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                     .transpose()
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("unable to deserialize DynamicRoutingAlgorithmRef from JSON")?
-                    .ok_or(errors::ApiErrorResponse::InternalServerError)?;
+                    .unwrap_or_default();
 
             let state = state.clone();
             let business_profile = business_profile.clone();
@@ -2023,7 +2023,8 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                         &state,
                         &payment_attempt,
                         routable_connectors.clone(),
-                        &business_profile,
+                        business_profile.get_id(),
+                        dynamic_routing_algo_ref.clone(),
                         dynamic_routing_config_params_interpolator.clone(),
                     )
                     .await
@@ -2034,7 +2035,8 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                         &state,
                         &payment_attempt,
                         routable_connectors,
-                        &business_profile,
+                        business_profile.get_id(),
+                        dynamic_routing_algo_ref,
                         dynamic_routing_config_params_interpolator,
                     )
                     .await

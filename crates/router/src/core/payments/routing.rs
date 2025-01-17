@@ -1381,7 +1381,7 @@ pub async fn perform_success_based_routing(
             api_routing::SuccessBasedRoutingConfig,
         >(
             state,
-            business_profile,
+            business_profile.get_id(),
             success_based_algo_ref
                 .algorithm_id_with_timestamp
                 .algorithm_id
@@ -1480,7 +1480,7 @@ pub async fn perform_contract_based_routing(
             api_routing::ContractBasedRoutingConfig,
         >(
             state,
-            business_profile,
+            business_profile.get_id(),
             contract_based_algo_ref
                 .algorithm_id_with_timestamp
                 .algorithm_id
