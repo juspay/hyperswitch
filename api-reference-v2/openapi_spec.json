@@ -3052,6 +3052,9 @@
       "AliPayRedirection": {
         "type": "object"
       },
+      "AmazonPayRedirectData": {
+        "type": "object"
+      },
       "AmountDetails": {
         "type": "object",
         "required": [

@@ -705,6 +705,7 @@ fn get_wallet_details(
         WalletData::AliPayQr(_)
         | WalletData::AliPayRedirect(_)
         | WalletData::AliPayHkRedirect(_)
+        | WalletData::AmazonPayRedirect(_)
         | WalletData::MomoRedirect(_)
         | WalletData::KakaoPayRedirect(_)
         | WalletData::GoPayRedirect(_)

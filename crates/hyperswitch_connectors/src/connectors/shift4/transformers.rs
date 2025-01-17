@@ -286,6 +286,7 @@ impl TryFrom<&WalletData> for Shift4PaymentMethod {
     fn try_from(wallet_data: &WalletData) -> Result<Self, Self::Error> {
         match wallet_data {
             WalletData::AliPayRedirect(_)
+            | WalletData::AmazonPayRedirect(_)
             | WalletData::ApplePay(_)
             | WalletData::WeChatPayRedirect(_)
             | WalletData::AliPayQr(_)

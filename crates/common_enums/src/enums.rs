@@ -1532,6 +1532,7 @@ pub enum PaymentMethodType {
     AliPay,
     AliPayHk,
     Alma,
+    AmazonPay,
     ApplePay,
     Atome,
     Bacs,

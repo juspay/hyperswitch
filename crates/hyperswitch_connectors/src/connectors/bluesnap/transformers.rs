@@ -368,6 +368,7 @@ impl TryFrom<&BluesnapRouterData<&types::PaymentsAuthorizeRouterData>> for Blues
                 WalletData::AliPayQr(_)
                 | WalletData::AliPayRedirect(_)
                 | WalletData::AliPayHkRedirect(_)
+                | WalletData::AmazonPayRedirect(_)
                 | WalletData::MomoRedirect(_)
                 | WalletData::KakaoPayRedirect(_)
                 | WalletData::GoPayRedirect(_)
