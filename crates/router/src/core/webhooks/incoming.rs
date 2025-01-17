@@ -2089,9 +2089,13 @@ async fn update_connector_mandate_details(
 
             let connector_mandate_details_value = updated_connector_mandate_details
                 .map(|common_mandate| {
-                    common_mandate
-                        .get_mandate_details_value()
-                        .map_err(|_| errors::ApiErrorResponse::MandateUpdateFailed)
+                    common_mandate.get_mandate_details_value().map_err(|err| {
+                        router_env::logger::error!(
+                            "Failed to get get_mandate_details_value : {:?}",
+                            err
+                        );
+                        errors::ApiErrorResponse::MandateUpdateFailed
+                    })
                 })
                 .transpose()?;
 

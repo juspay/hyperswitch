@@ -156,11 +156,14 @@ impl PaymentMethod {
 
                 serde_json::from_value::<diesel_models::PaymentsMandateReference>(mandate_details)
                     .inspect_err(|err| {
-                        router_env::logger::error!("Failed to parse payments data: {}", err);
+                        router_env::logger::error!("Failed to parse payments data: {:?}", err);
                     })
             })
             .transpose()
-            .map_err(|_| ParsingError::StructParseFailure("Failed to parse payments data"))?;
+            .map_err(|err| {
+                router_env::logger::error!("Failed to parse payments data: {:?}", err);
+                ParsingError::StructParseFailure("Failed to parse payments data")
+            })?;
 
         let payouts_data = self
             .connector_mandate_details
@@ -170,7 +173,7 @@ impl PaymentMethod {
                     mandate_details,
                 )
                 .inspect_err(|err| {
-                    router_env::logger::error!("Failed to parse payouts data: {}", err);
+                    router_env::logger::error!("Failed to parse payouts data: {:?}", err);
                 })
                 .map(|optional_common_mandate_details| {
                     optional_common_mandate_details
@@ -178,7 +181,10 @@ impl PaymentMethod {
                 })
             })
             .transpose()
-            .map_err(|_| ParsingError::StructParseFailure("Failed to parse payouts data"))?
+            .map_err(|err| {
+                router_env::logger::error!("Failed to parse payouts data: {:?}", err);
+                ParsingError::StructParseFailure("Failed to parse payouts data")
+            })?
             .flatten();
 
         Ok(diesel_models::CommonMandateReference {
