@@ -299,22 +299,24 @@ function threeDsRedirection(redirection_url, expected_url, connectorId) {
     // First wait for the main iframe to be present
     cy.get("iframe", { timeout: TIMEOUT })
       .should("be.visible")
-      .then($iframe => {
+      .then(($iframe) => {
         // Get iframe's content
-        const $body = $iframe.contents().find('body');
-        
+        const $body = $iframe.contents().find("body");
+
         // Retry strategy for finding the input field
         const retryOptions = {
           timeout: TIMEOUT,
           interval: 1000, // Check every second
         };
-  
+
         cy.wrap($body, retryOptions)
-          .find('input[type="text"], input[type="password"], input[name="challengeDataEntry"]')
+          .find(
+            'input[type="text"], input[type="password"], input[name="challengeDataEntry"]'
+          )
           .should("be.visible")
           .click()
           .type("1234");
-  
+
         cy.wrap($body, retryOptions)
           .find('input[value="SUBMIT"], button[type="submit"]')
           .should("be.visible")
