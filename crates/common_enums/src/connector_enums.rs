@@ -67,6 +67,7 @@ pub enum RoutableConnectors {
     Cashtocode,
     Checkout,
     Coinbase,
+    // Coingate,
     Cryptopay,
     Cybersource,
     Datatrans,
