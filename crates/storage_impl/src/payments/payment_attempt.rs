@@ -215,6 +215,28 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
         .map(PaymentAttempt::from_storage_model)
     }
 
+    #[cfg(feature = "v1")]
+    #[instrument(skip_all)]
+    async fn find_last_successful_attempt_by_payment_method_id_merchant_id_where_billing_address_is_present(
+        &self,
+        payment_method_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
+        _storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<PaymentAttempt, errors::StorageError> {
+        let conn = pg_connection_read(self).await?;
+        DieselPaymentAttempt::find_last_successful_attempt_by_payment_method_id_merchant_id_where_billing_address_is_present(
+            &conn,
+            payment_method_id,
+            merchant_id,
+        )
+        .await
+        .map_err(|er| {
+            let new_err = diesel_error_to_data_error(*er.current_context());
+            er.change_context(new_err)
+        })
+        .map(PaymentAttempt::from_storage_model)
+    }
+
     #[instrument(skip_all)]
     #[cfg(feature = "v1")]
     async fn find_payment_attempt_by_merchant_id_connector_txn_id(
@@ -900,6 +922,22 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                 .await
             }
         }
+    }
+
+    #[cfg(feature = "v1")]
+    #[instrument(skip_all)]
+    async fn find_last_successful_attempt_by_payment_method_id_merchant_id_where_billing_address_is_present(
+        &self,
+        payment_method_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<PaymentAttempt, errors::StorageError> {
+        self.router_store.find_last_successful_attempt_by_payment_method_id_merchant_id_where_billing_address_is_present(
+            payment_method_id,
+            merchant_id,
+            storage_scheme,
+        )
+        .await
     }
 
     #[cfg(feature = "v1")]

@@ -32,6 +32,10 @@ pub mod metrics;
 pub mod payment_link;
 pub mod payment_methods;
 pub mod payments;
+
+#[cfg(feature = "v1")]
+pub mod payment_method_billing_address_migration;
+
 #[cfg(feature = "payouts")]
 pub mod payout_link;
 #[cfg(feature = "payouts")]

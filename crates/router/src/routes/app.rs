@@ -57,7 +57,10 @@ use super::{
     relay, user, user_role,
 };
 #[cfg(feature = "v1")]
-use super::{apple_pay_certificates_migration, blocklist, payment_link, webhook_events};
+use super::{
+    apple_pay_certificates_migration, blocklist, payment_link,
+    payment_method_billing_address_migration, webhook_events,
+};
 #[cfg(any(feature = "olap", feature = "oltp"))]
 use super::{configs::*, customers, payments};
 #[cfg(all(any(feature = "olap", feature = "oltp"), feature = "v1"))]
@@ -1596,6 +1599,19 @@ impl ApplePayCertificatesMigration {
             .app_data(web::Data::new(state))
             .service(web::resource("").route(
                 web::post().to(apple_pay_certificates_migration::apple_pay_certificates_migration),
+            ))
+    }
+}
+
+pub struct PaymentMethodBillingAddressMigration;
+
+#[cfg(all(feature = "olap", feature = "v1"))]
+impl PaymentMethodBillingAddressMigration {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/payment_method_billing_address_migrate/{merchant_id}/payment_method/{payment_method_id}")
+            .app_data(web::Data::new(state))
+            .service(web::resource("").route(
+                web::post().to(payment_method_billing_address_migration::payment_method_billing_address_migration),
             ))
     }
 }

@@ -1634,6 +1634,22 @@ impl PaymentAttemptInterface for KafkaStore {
     }
 
     #[cfg(feature = "v1")]
+    async fn find_last_successful_attempt_by_payment_method_id_merchant_id_where_billing_address_is_present(
+        &self,
+        payment_method_id: &str,
+        merchant_id: &id_type::MerchantId,
+        storage_scheme: MerchantStorageScheme,
+    ) -> error_stack::Result<storage::PaymentAttempt, errors::DataStorageError> {
+        self.diesel_store
+            .find_last_successful_attempt_by_payment_method_id_merchant_id_where_billing_address_is_present(
+                payment_method_id,
+                merchant_id,
+                storage_scheme,
+            )
+            .await
+    }
+
+    #[cfg(feature = "v1")]
     async fn find_payment_attempt_last_successful_or_partially_captured_attempt_by_payment_id_merchant_id(
         &self,
         payment_id: &id_type::PaymentId,

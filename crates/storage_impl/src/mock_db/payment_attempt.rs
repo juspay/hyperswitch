@@ -69,6 +69,17 @@ impl PaymentAttemptInterface for MockDb {
         Err(StorageError::MockDbError)?
     }
 
+    #[cfg(feature = "v1")]
+    async fn find_last_successful_attempt_by_payment_method_id_merchant_id_where_billing_address_is_present(
+        &self,
+        _payment_method_id: &str,
+        _merchant_id: &common_utils::id_type::MerchantId,
+        _storage_scheme: storage_enums::MerchantStorageScheme,
+    ) -> CustomResult<PaymentAttempt, StorageError> {
+        // [#172]: Implement function for `MockDb`
+        Err(StorageError::MockDbError)?
+    }
+
     #[cfg(feature = "v2")]
     async fn find_payment_attempt_by_id(
         &self,
