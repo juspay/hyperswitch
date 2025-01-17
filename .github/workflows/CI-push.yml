@@ -77,7 +77,7 @@ jobs:
         uses: arduino/setup-protoc@v3
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
-
+          
       - name: Install sccache
         uses: taiki-e/install-action@v2.33.28
         with:
@@ -202,7 +202,7 @@ jobs:
 
       - name: Run clippy
         shell: bash
-        run: just clippy --jobs 1
+        run: just clippy --jobs 2
 
       - name: Cargo hack
         if: ${{ github.event_name == 'push' }}
