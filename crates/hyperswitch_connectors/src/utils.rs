@@ -1036,6 +1036,7 @@ impl CardData for Card {
     fn get_cardholder_name(&self) -> Result<Secret<String>, Error> {
         self.card_holder_name
             .clone()
+            .map(From::from)
             .ok_or_else(missing_field_err("card.card_holder_name"))
     }
 }

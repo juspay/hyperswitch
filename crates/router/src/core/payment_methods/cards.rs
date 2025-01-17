@@ -2320,20 +2320,20 @@ pub fn validate_payment_method_update(
             })
         || card_updation_obj
             .card_holder_name
-            .map(|name| name.expose())
+            .map(|name| name.peek().to_string())
             .is_some_and(|new_card_holder_name| {
                 existing_card_data
                     .card_holder_name
-                    .map(|name| name.expose())
+                    .map(|name| name.peek().to_string())
                     != Some(new_card_holder_name)
             })
         || card_updation_obj
             .nick_name
-            .map(|nick_name| nick_name.expose())
+            .map(|nick_name| nick_name.peek().to_string())
             .is_some_and(|new_nick_name| {
                 existing_card_data
                     .nick_name
-                    .map(|nick_name| nick_name.expose())
+                    .map(|nick_name| nick_name.peek().to_string())
                     != Some(new_nick_name)
             })
 }
