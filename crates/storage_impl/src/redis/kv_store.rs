@@ -288,10 +288,10 @@ impl std::fmt::Display for Op<'_> {
     }
 }
 
-pub async fn decide_storage_scheme<'a, T, D>(
+pub async fn decide_storage_scheme<T, D>(
     store: &KVRouterStore<T>,
     storage_scheme: MerchantStorageScheme,
-    operation: Op<'a>,
+    operation: Op<'_>,
 ) -> MerchantStorageScheme
 where
     D: de::DeserializeOwned

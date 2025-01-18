@@ -575,7 +575,7 @@ pub fn get_default_config_key(
 
 /// Retrieves cached success_based routing configs specific to tenant and profile
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-pub async fn get_cached_success_based_routing_config_for_profile<'a>(
+pub async fn get_cached_success_based_routing_config_for_profile(
     state: &SessionState,
     key: &str,
 ) -> Option<Arc<routing_types::SuccessBasedRoutingConfig>> {
