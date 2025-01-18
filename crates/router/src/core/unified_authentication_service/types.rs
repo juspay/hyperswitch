@@ -12,10 +12,12 @@ use hyperswitch_domain_models::{
 };
 
 use crate::{
-    core::{errors::RouterResult, payments::{helpers::MerchantConnectorAccountType, PaymentData}},
+    core::{
+        errors::RouterResult,
+        payments::{helpers::MerchantConnectorAccountType, PaymentData},
+    },
     db::domain,
     routes::SessionState,
-    types::domain::MerchantConnectorAccount,
 };
 
 pub const CTP_MASTERCARD: &str = "ctp_mastercard";
@@ -51,7 +53,7 @@ pub trait UnifiedAuthenticationService<F: Clone + Sync> {
         _key_store: &domain::MerchantKeyStore,
         _business_profile: &domain::Profile,
         _payment_data: &PaymentData<F>,
-        _merchant_connector_account: &MerchantConnectorAccount,
+        _merchant_connector_account: &MerchantConnectorAccountType,
         _connector_name: &str,
         _authentication_id: &str,
         _payment_method: common_enums::PaymentMethod,
@@ -108,7 +110,7 @@ pub trait UnifiedAuthenticationService<F: Clone + Sync> {
         _email: Option<common_utils::pii::Email>,
         _webhook_url: String,
         _three_ds_requestor_url: String,
-        _merchant_connector_account: &MerchantConnectorAccount,
+        _merchant_connector_account: &MerchantConnectorAccountType,
         _connector_name: &str,
     ) -> RouterResult<hyperswitch_domain_models::types::UasAuthenticationRouterData> {
         Err(errors::ApiErrorResponse::NotImplemented {
@@ -132,7 +134,7 @@ pub trait UnifiedAuthenticationService<F: Clone + Sync> {
         _key_store: &domain::MerchantKeyStore,
         _business_profile: &domain::Profile,
         _payment_data: &PaymentData<F>,
-        _merchant_connector_account: &MerchantConnectorAccount,
+        _merchant_connector_account: &MerchantConnectorAccountType,
         _connector_name: &str,
         _payment_method: common_enums::PaymentMethod,
         _authentication: Option<diesel_models::authentication::Authentication>,
