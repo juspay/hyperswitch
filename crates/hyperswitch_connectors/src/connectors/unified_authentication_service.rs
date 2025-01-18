@@ -13,12 +13,12 @@ use hyperswitch_domain_models::{
         access_token_auth::AccessTokenAuth,
         payments::{Authorize, Capture, PSync, PaymentMethodToken, Session, SetupMandate, Void},
         refunds::{Execute, RSync},
-        PostAuthenticate, PreAuthenticate,
+        Authenticate, PostAuthenticate, PreAuthenticate,
     },
     router_request_types::{
         unified_authentication_service::{
-            UasAuthenticationResponseData, UasPostAuthenticationRequestData,
-            UasPreAuthenticationRequestData,
+            UasAuthenticationRequestData, UasAuthenticationResponseData,
+            UasPostAuthenticationRequestData, UasPreAuthenticationRequestData,
         },
         AccessTokenRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
         PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
@@ -71,6 +71,7 @@ impl api::PaymentToken for UnifiedAuthenticationService {}
 impl api::UnifiedAuthenticationService for UnifiedAuthenticationService {}
 impl api::UasPreAuthentication for UnifiedAuthenticationService {}
 impl api::UasPostAuthentication for UnifiedAuthenticationService {}
+impl api::UasAuthentication for UnifiedAuthenticationService {}
 
 impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
     for UnifiedAuthenticationService
@@ -209,8 +210,16 @@ impl
         )?;
         let amount = utils::convert_amount(
             self.amount_converter,
-            transaction_details.amount,
-            transaction_details.currency,
+            transaction_details
+                .amount
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "amount",
+                })?,
+            transaction_details
+                .currency
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "currency",
+                })?,
         )?;
 
         let connector_router_data =
@@ -364,6 +373,11 @@ impl
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res, event_builder)
     }
+}
+
+impl ConnectorIntegration<Authenticate, UasAuthenticationRequestData, UasAuthenticationResponseData>
+    for UnifiedAuthenticationService
+{
 }
 
 impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData>

@@ -3,15 +3,15 @@ pub use diesel_models::types::OrderDetailsWithAmount;
 use crate::{
     router_data::{AccessToken, RouterData},
     router_flow_types::{
-        AccessTokenAuth, Authorize, AuthorizeSessionToken, CalculateTax, Capture,
+        AccessTokenAuth, Authenticate, Authorize, AuthorizeSessionToken, CalculateTax, Capture,
         CompleteAuthorize, CreateConnectorCustomer, Execute, PSync, PaymentMethodToken,
         PostAuthenticate, PostSessionTokens, PreAuthenticate, PreProcessing, RSync, Session,
         SetupMandate, Void,
     },
     router_request_types::{
         unified_authentication_service::{
-            UasAuthenticationResponseData, UasPostAuthenticationRequestData,
-            UasPreAuthenticationRequestData,
+            UasAuthenticationRequestData, UasAuthenticationResponseData,
+            UasPostAuthenticationRequestData, UasPreAuthenticationRequestData,
         },
         AccessTokenRequestData, AuthorizeSessionTokenData, CompleteAuthorizeData,
         ConnectorCustomerData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
@@ -53,6 +53,7 @@ pub type PaymentsSessionRouterData = RouterData<Session, PaymentsSessionData, Pa
 
 pub type UasPostAuthenticationRouterData =
     RouterData<PostAuthenticate, UasPostAuthenticationRequestData, UasAuthenticationResponseData>;
-
 pub type UasPreAuthenticationRouterData =
     RouterData<PreAuthenticate, UasPreAuthenticationRequestData, UasAuthenticationResponseData>;
+pub type UasAuthenticationRouterData =
+    RouterData<Authenticate, UasAuthenticationRequestData, UasAuthenticationResponseData>;
