@@ -229,7 +229,13 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
         payment_data: &mut D,
         merchant_key_store: &domain::MerchantKeyStore,
         storage_scheme: enums::MerchantStorageScheme,
-    ) -> CustomResult<(BoxedOperation<'a, F, R, D>, Option<domain::Customer>), errors::StorageError>;
+    ) -> CustomResult<
+        (
+            BoxedOperation<'a, F, R, D>,
+            Option<hyperswitch_domain_models::payments::Customer>,
+        ),
+        errors::StorageError,
+    >;
 
     #[allow(clippy::too_many_arguments)]
     async fn make_pm_data<'a>(

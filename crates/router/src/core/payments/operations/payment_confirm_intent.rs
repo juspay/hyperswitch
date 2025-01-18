@@ -269,24 +269,43 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
         payment_data: &mut PaymentConfirmData<F>,
         merchant_key_store: &domain::MerchantKeyStore,
         storage_scheme: storage_enums::MerchantStorageScheme,
-    ) -> CustomResult<(BoxedConfirmOperation<'a, F>, Option<domain::Customer>), errors::StorageError>
-    {
-        match payment_data.payment_intent.customer_id.clone() {
-            Some(id) => {
+    ) -> CustomResult<
+        (
+            BoxedConfirmOperation<'a, F>,
+            Option<hyperswitch_domain_models::payments::Customer>,
+        ),
+        errors::StorageError,
+    > {
+        match (
+            payment_data.payment_intent.customer_id.as_ref(),
+            payment_data.payment_intent.customer_details.as_ref(),
+        ) {
+            (Some(id), None) => {
                 let customer = state
                     .store
                     .find_customer_by_global_id(
                         &state.into(),
-                        &id,
+                        id,
                         &payment_data.payment_intent.merchant_id,
                         merchant_key_store,
                         storage_scheme,
                     )
                     .await?;
 
-                Ok((Box::new(self), Some(customer)))
+                Ok((
+                    Box::new(self),
+                    Some(hyperswitch_domain_models::payments::Customer::Existing(
+                        customer,
+                    )),
+                ))
             }
-            None => Ok((Box::new(self), None)),
+            (None, Some(guest_customer_details)) => Ok((
+                Box::new(self),
+                Some(hyperswitch_domain_models::payments::Customer::Guest(
+                    guest_customer_details.into_inner(),
+                )),
+            )),
+            _ => Ok((Box::new(self), None)),
         }
     }
 

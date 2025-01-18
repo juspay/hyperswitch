@@ -106,15 +106,45 @@ impl<F: Send + Clone + Sync>
 
         let storage_scheme = merchant_account.storage_scheme;
 
+        let guest_customer_details = match request.customer.as_ref() {
+            Some(api_models::payments::CustomerDetailsType::Guest(details)) => {
+                Some(details.clone())
+            }
+            _ => None,
+        }
+        .map(|guest_customer_details| guest_customer_details.encode_to_value())
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to encode billing address")?
+        .map(masking::Secret::new);
+
+        let shipping_address = request
+            .shipping
+            .clone()
+            .map(|address| address.encode_to_value())
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to encode shipping address")?
+            .map(masking::Secret::new);
+
+        let billing_address = request
+            .billing
+            .clone()
+            .map(|address| address.encode_to_value())
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to encode billing address")?
+            .map(masking::Secret::new);
+
         let batch_encrypted_data = domain_types::crypto_operation(
             key_manager_state,
             common_utils::type_name!(hyperswitch_domain_models::payments::PaymentIntent),
             domain_types::CryptoOperation::BatchEncrypt(
                 hyperswitch_domain_models::payments::FromRequestEncryptablePaymentIntent::to_encryptable(
                     hyperswitch_domain_models::payments::FromRequestEncryptablePaymentIntent {
-                        shipping_address: request.shipping.clone().map(|address| address.encode_to_value()).transpose().change_context(errors::ApiErrorResponse::InternalServerError).attach_printable("Failed to encode shipping address")?.map(masking::Secret::new),
-                        billing_address: request.billing.clone().map(|address| address.encode_to_value()).transpose().change_context(errors::ApiErrorResponse::InternalServerError).attach_printable("Failed to encode billing address")?.map(masking::Secret::new),
-                        customer_details: None,
+                        shipping_address,
+                        billing_address,
+                        customer_details: guest_customer_details,
                     },
                 ),
             ),

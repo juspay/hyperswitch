@@ -136,7 +136,7 @@ pub async fn payments_operation_core<F, Req, Op, FData, D>(
     get_tracker_response: operations::GetTrackerResponse<D>,
     call_connector_action: CallConnectorAction,
     header_payload: HeaderPayload,
-) -> RouterResult<(D, Req, Option<domain::Customer>, Option<u16>, Option<u128>)>
+) -> RouterResult<(D, Req, Option<u16>, Option<u128>)>
 where
     F: Send + Clone + Sync,
     Req: Send + Sync,
@@ -227,7 +227,7 @@ where
         ConnectorCallType::Skip => payment_data,
     };
 
-    Ok((payment_data, req, customer, None, None))
+    Ok((payment_data, req, None, None))
 }
 
 #[cfg(feature = "v1")]

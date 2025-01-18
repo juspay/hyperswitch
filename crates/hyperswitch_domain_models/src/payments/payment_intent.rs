@@ -1459,6 +1459,7 @@ impl behaviour::Conversion for PaymentIntent {
                 .transpose()
                 .change_context(common_utils::errors::CryptoError::DecodingFailed)
                 .attach_printable("Error while deserializing Address")?;
+
             let allowed_payment_method_types = storage_model
                 .allowed_payment_method_types
                 .map(|allowed_payment_method_types| {
@@ -1466,6 +1467,16 @@ impl behaviour::Conversion for PaymentIntent {
                 })
                 .transpose()
                 .change_context(common_utils::errors::CryptoError::DecodingFailed)?;
+
+            let customer_details = data
+                .customer_details
+                .map(|customer_details| {
+                    customer_details.deserialize_inner_value(|value| value.parse_value("Customer"))
+                })
+                .transpose()
+                .change_context(common_utils::errors::CryptoError::DecodingFailed)
+                .attach_printable("Error while deserializing Customer")?;
+
             Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(Self {
                 merchant_id: storage_model.merchant_id,
                 status: storage_model.status,
@@ -1505,7 +1516,7 @@ impl behaviour::Conversion for PaymentIntent {
                     .request_external_three_ds_authentication
                     .into(),
                 frm_metadata: storage_model.frm_metadata,
-                customer_details: data.customer_details,
+                customer_details,
                 billing_address,
                 shipping_address,
                 capture_method: storage_model.capture_method.unwrap_or_default(),

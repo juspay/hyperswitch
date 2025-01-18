@@ -124,6 +124,42 @@ pub struct CustomerDetailsResponse {
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
 #[cfg(feature = "v2")]
+pub struct GuestCustomerDetails {
+    /// The customer's name
+    #[schema(max_length = 255, value_type = Option<String>, example = "John Doe")]
+    pub name: Option<Secret<String>>,
+
+    /// The customer's email address
+    #[schema(max_length = 255, value_type = Option<String>, example = "example@example.com")]
+    pub email: Option<Email>,
+
+    /// The customer's phone number
+    #[schema(value_type = Option<String>, max_length = 10, example = "9123456789")]
+    pub phone: Option<Secret<String>>,
+
+    /// The country code for the customer's phone number
+    #[schema(max_length = 2, example = "+1")]
+    pub phone_country_code: Option<String>,
+}
+
+// Serialize is required because the api event requires Serialize to be implemented
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
+#[serde(rename_all = "snake_case")]
+#[cfg(feature = "v2")]
+pub enum CustomerDetailsType {
+    /// The identifier for the customer
+    #[schema(
+        example = "12345_cus_01926c58bc6e77c09e809964e72af8c8",
+        value_type = String
+    )]
+    Id(id_type::GlobalCustomerId),
+    Guest(GuestCustomerDetails),
+}
+
+// Serialize is required because the api event requires Serialize to be implemented
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
+#[serde(deny_unknown_fields)]
+#[cfg(feature = "v2")]
 pub struct PaymentsCreateIntentRequest {
     /// The amount details for the payment
     pub amount_details: AmountDetails,
@@ -137,6 +173,9 @@ pub struct PaymentsCreateIntentRequest {
         example = "pay_mbabizu24mvu3mela5njyhpit4"
     )]
     pub merchant_reference_id: Option<id_type::PaymentReferenceId>,
+
+    /// Guest customer details for the
+    pub customer: Option<CustomerDetailsType>,
 
     /// The routing algorithm id to be used for the payment
     #[schema(value_type = Option<String>)]
@@ -153,15 +192,6 @@ pub struct PaymentsCreateIntentRequest {
 
     /// The shipping address for the payment
     pub shipping: Option<Address>,
-
-    /// The identifier for the customer
-    #[schema(
-        min_length = 32,
-        max_length = 64,
-        example = "12345_cus_01926c58bc6e77c09e809964e72af8c8",
-        value_type = String
-    )]
-    pub customer_id: Option<id_type::GlobalCustomerId>,
 
     /// Set to `present` to indicate that the customer is in your checkout flow during this payment, and therefore is able to authenticate. This parameter should be `absent` when merchant's doing merchant initiated payments and customer is not present while doing the payment.
     #[schema(example = "present", value_type = Option<PresenceOfCustomerDuringPayment>)]
