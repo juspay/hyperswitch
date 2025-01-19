@@ -1580,10 +1580,9 @@ pub async fn contract_based_dynamic_routing_setup(
         algo
     } else {
         let contract_algo = routing_types::ContractRoutingAlgorithm {
-            algorithm_id_with_timestamp: routing_types::DynamicAlgorithmWithTimestamp {
-                algorithm_id: Some(algorithm_id.clone()),
-                timestamp: common_utils::date_time::now_unix_timestamp(),
-            },
+            algorithm_id_with_timestamp: routing_types::DynamicAlgorithmWithTimestamp::new(Some(
+                algorithm_id.clone(),
+            )),
             enabled_feature: feature_to_enable,
         };
         routing_types::DynamicRoutingAlgorithmRef {

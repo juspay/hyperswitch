@@ -1226,7 +1226,6 @@ pub async fn disable_dynamic_routing_algorithm(
 ) -> RouterResult<ApplicationResponse<routing_types::RoutingDictionaryRecord>> {
     let db = state.store.as_ref();
     let key_manager_state = &state.into();
-    let timestamp = common_utils::date_time::now_unix_timestamp();
     let profile_id = business_profile.get_id().clone();
     let (algorithm_id, dynamic_routing_algorithm, cache_entries_to_redact) =
         match dynamic_routing_type {
@@ -1257,10 +1256,7 @@ pub async fn disable_dynamic_routing_algorithm(
                     routing_types::DynamicRoutingAlgorithmRef {
                         success_based_algorithm: Some(routing_types::SuccessBasedAlgorithm {
                             algorithm_id_with_timestamp:
-                                routing_types::DynamicAlgorithmWithTimestamp {
-                                    algorithm_id: None,
-                                    timestamp,
-                                },
+                                routing_types::DynamicAlgorithmWithTimestamp::new(None),
                             enabled_feature: routing_types::DynamicRoutingFeatures::None,
                         }),
                         elimination_routing_algorithm: dynamic_routing_algo_ref
@@ -1303,10 +1299,7 @@ pub async fn disable_dynamic_routing_algorithm(
                         elimination_routing_algorithm: Some(
                             routing_types::EliminationRoutingAlgorithm {
                                 algorithm_id_with_timestamp:
-                                    routing_types::DynamicAlgorithmWithTimestamp {
-                                        algorithm_id: None,
-                                        timestamp,
-                                    },
+                                    routing_types::DynamicAlgorithmWithTimestamp::new(None),
                                 enabled_feature: routing_types::DynamicRoutingFeatures::None,
                             },
                         ),
@@ -1346,10 +1339,7 @@ pub async fn disable_dynamic_routing_algorithm(
                             .dynamic_routing_volume_split,
                         contract_based_routing: Some(routing_types::ContractRoutingAlgorithm {
                             algorithm_id_with_timestamp:
-                                routing_types::DynamicAlgorithmWithTimestamp {
-                                    algorithm_id: None,
-                                    timestamp,
-                                },
+                                routing_types::DynamicAlgorithmWithTimestamp::new(None),
                             enabled_feature: routing_types::DynamicRoutingFeatures::None,
                         }),
                     },

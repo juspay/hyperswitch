@@ -7,12 +7,12 @@ use common_utils::errors::CustomResult;
 use router_env::logger;
 use serde;
 /// Elimination Routing Client Interface Implementation
-pub mod elimination_rate_client;
+pub mod elimination_based_client;
 /// Success Routing Client Interface Implementation
 pub mod success_rate_client;
 
 pub use contract_routing_client::ContractScoreCalculatorClient;
-pub use elimination_rate_client::EliminationAnalyserClient;
+pub use elimination_based_client::EliminationAnalyserClient;
 pub use success_rate_client::SuccessRateCalculatorClient;
 
 use super::Client;
@@ -48,7 +48,7 @@ pub struct RoutingStrategy {
     /// contract based routing service for Dynamic Routing
     pub contract_based_client: Option<ContractScoreCalculatorClient<Client>>,
     /// elimination service for Dynamic Routing
-    pub elimination_rate_client: Option<EliminationAnalyserClient<Client>>,
+    pub elimination_based_client: Option<EliminationAnalyserClient<Client>>,
 }
 
 /// Contains the Dynamic Routing Client Config
@@ -96,7 +96,7 @@ impl DynamicRoutingClientConfig {
         Ok(RoutingStrategy {
             success_rate_client,
             contract_based_client,
-            elimination_rate_client: elimination_based_client,
+            elimination_based_client,
         })
     }
 }

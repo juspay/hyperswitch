@@ -1982,10 +1982,11 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                     .transpose()
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("unable to deserialize DynamicRoutingAlgorithmRef from JSON")?
-                    .unwrap_or_default();
+                    .ok_or(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("DynamicRoutingAlgorithmRef not found in profile")?;
 
             let state = state.clone();
-            let business_profile = business_profile.clone();
+            let profile_id = business_profile.get_id().to_owned();
             let payment_attempt = payment_attempt.clone();
             let dynamic_routing_config_params_interpolator =
                 routing_helpers::DynamicRoutingConfigParamsInterpolator::new(
@@ -2023,7 +2024,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                         &state,
                         &payment_attempt,
                         routable_connectors.clone(),
-                        business_profile.get_id(),
+                        &profile_id,
                         dynamic_routing_algo_ref.clone(),
                         dynamic_routing_config_params_interpolator.clone(),
                     )
@@ -2035,7 +2036,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                         &state,
                         &payment_attempt,
                         routable_connectors,
-                        business_profile.get_id(),
+                        &profile_id,
                         dynamic_routing_algo_ref,
                         dynamic_routing_config_params_interpolator,
                     )

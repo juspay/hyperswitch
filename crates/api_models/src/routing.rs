@@ -520,7 +520,7 @@ pub struct DynamicAlgorithmWithTimestamp<T> {
 }
 
 impl<T> DynamicAlgorithmWithTimestamp<T> {
-    fn new(algorithm_id: Option<T>) -> Self {
+    pub fn new(algorithm_id: Option<T>) -> Self {
         Self {
             algorithm_id,
             timestamp: common_utils::date_time::now_unix_timestamp(),

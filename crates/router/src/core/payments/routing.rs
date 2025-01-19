@@ -1316,15 +1316,14 @@ pub async fn perform_dynamic_routing(
             perform_success_based_routing(
                 state,
                 routable_connectors.clone(),
-                profile,
+                profile.get_id(),
                 dynamic_routing_config_params_interpolator.clone(),
                 algorithm.clone(),
             )
         })
         .await
         .transpose()
-        .inspect_err(|e| logger::error!("Dynamic_routing error {:?}", e))
-        .attach_printable("unable to perform success_based_routing")
+        .inspect_err(|e| logger::error!(dynamic_routing_error=?e))
         .ok()
         .flatten()
     {
@@ -1338,15 +1337,14 @@ pub async fn perform_dynamic_routing(
                     perform_contract_based_routing(
                         state,
                         routable_connectors.clone(),
-                        profile,
+                        profile.get_id(),
                         dynamic_routing_config_params_interpolator,
                         algorithm.clone(),
                     )
                 })
                 .await
                 .transpose()
-                .inspect_err(|e| logger::error!("Dynamic_routing error {:?}", e))
-                .attach_printable("unable to perform contract_based_routing")
+                .inspect_err(|e| logger::error!(dynamic_routing_error=?e))
                 .ok()
                 .flatten()
                 .unwrap_or(routable_connectors)
@@ -1362,7 +1360,7 @@ pub async fn perform_dynamic_routing(
 pub async fn perform_success_based_routing(
     state: &SessionState,
     routable_connectors: Vec<api_routing::RoutableConnectorChoice>,
-    business_profile: &domain::Profile,
+    profile_id: &common_utils::id_type::ProfileId,
     success_based_routing_config_params_interpolator: routing::helpers::DynamicRoutingConfigParamsInterpolator,
     success_based_algo_ref: api_routing::SuccessBasedAlgorithm,
 ) -> RoutingResult<Vec<api_routing::RoutableConnectorChoice>> {
@@ -1371,7 +1369,7 @@ pub async fn perform_success_based_routing(
     {
         logger::debug!(
             "performing success_based_routing for profile {}",
-            business_profile.get_id().get_string_repr()
+            profile_id.get_string_repr()
         );
         let client = state
             .grpc_client
@@ -1385,16 +1383,14 @@ pub async fn perform_success_based_routing(
             api_routing::SuccessBasedRoutingConfig,
         >(
             state,
-            business_profile.get_id(),
+            profile_id,
             success_based_algo_ref
                 .algorithm_id_with_timestamp
                 .algorithm_id
                 .ok_or(errors::RoutingError::GenericNotFoundError {
                     field: "success_based_routing_algorithm_id".to_string(),
                 })
-                .attach_printable(
-                    "success_based_routing_algorithm_id not found in business_profile",
-                )?,
+                .attach_printable("success_based_routing_algorithm_id not found in profile_id")?,
         )
         .await
         .change_context(errors::RoutingError::SuccessBasedRoutingConfigError)
@@ -1410,7 +1406,7 @@ pub async fn perform_success_based_routing(
 
         let success_based_connectors: CalSuccessRateResponse = client
             .calculate_success_rate(
-                business_profile.get_id().get_string_repr().into(),
+                profile_id.get_string_repr().into(),
                 success_based_routing_configs,
                 success_based_routing_config_params,
                 routable_connectors,
@@ -1461,7 +1457,7 @@ pub async fn perform_success_based_routing(
 pub async fn perform_contract_based_routing(
     state: &SessionState,
     routable_connectors: Vec<api_routing::RoutableConnectorChoice>,
-    business_profile: &domain::Profile,
+    profile_id: &common_utils::id_type::ProfileId,
     _dynamic_routing_config_params_interpolator: routing::helpers::DynamicRoutingConfigParamsInterpolator,
     contract_based_algo_ref: api_routing::ContractRoutingAlgorithm,
 ) -> RoutingResult<Vec<api_routing::RoutableConnectorChoice>> {
@@ -1470,7 +1466,7 @@ pub async fn perform_contract_based_routing(
     {
         logger::debug!(
             "performing contract_based_routing for profile {}",
-            business_profile.get_id().get_string_repr()
+            profile_id.get_string_repr()
         );
         let client = state
             .grpc_client
@@ -1484,16 +1480,14 @@ pub async fn perform_contract_based_routing(
             api_routing::ContractBasedRoutingConfig,
         >(
             state,
-            business_profile.get_id(),
+            profile_id,
             contract_based_algo_ref
                 .algorithm_id_with_timestamp
                 .algorithm_id
                 .ok_or(errors::RoutingError::GenericNotFoundError {
                     field: "contract_based_routing_algorithm_id".to_string(),
                 })
-                .attach_printable(
-                    "contract_based_routing_algorithm_id not found in business_profile",
-                )?,
+                .attach_printable("contract_based_routing_algorithm_id not found in profile_id")?,
         )
         .await
         .change_context(errors::RoutingError::ContractBasedRoutingConfigError)
@@ -1501,7 +1495,7 @@ pub async fn perform_contract_based_routing(
 
         let contract_based_connectors: CalContractScoreResponse = client
             .calculate_contract_score(
-                business_profile.get_id().get_string_repr().into(),
+                profile_id.get_string_repr().into(),
                 contract_based_routing_configs,
                 "".to_string(),
                 routable_connectors,
