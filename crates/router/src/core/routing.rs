@@ -1562,12 +1562,6 @@ pub async fn contract_based_dynamic_routing_setup(
         algorithm_for: common_enums::TransactionType::Payment,
     };
 
-    let record = db
-        .insert_routing_algorithm(algo)
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Unable to insert record in routing algorithm table")?;
-
     // 1. if dynamic_routing_algo_ref already present, insert contract based algo and disable success based
     // 2. if dynamic_routing_algo_ref is not present, create a new dynamic_routing_algo_ref with contract algo set up
     let final_algorithm = if let Some(mut algo) = dynamic_routing_algo_ref {
@@ -1576,7 +1570,9 @@ pub async fn contract_based_dynamic_routing_setup(
             feature_to_enable,
             routing_types::DynamicRoutingType::ContractBasedRouting,
         );
-        algo.disable_algorithm_id(routing_types::DynamicRoutingType::SuccessRateBasedRouting);
+        if feature_to_enable == routing::DynamicRoutingFeatures::DynamicConnectorSelection {
+            algo.disable_algorithm_id(routing_types::DynamicRoutingType::SuccessRateBasedRouting);
+        }
         algo
     } else {
         let contract_algo = routing_types::ContractRoutingAlgorithm {
@@ -1596,6 +1592,12 @@ pub async fn contract_based_dynamic_routing_setup(
     match feature_to_enable {
         routing::DynamicRoutingFeatures::Metrics
         | routing::DynamicRoutingFeatures::DynamicConnectorSelection => {
+            let record = db
+                .insert_routing_algorithm(algo)
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Unable to insert record in routing algorithm table")?;
+
             helpers::update_business_profile_active_dynamic_algorithm_ref(
                 db,
                 key_manager_state,

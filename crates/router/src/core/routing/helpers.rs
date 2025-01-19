@@ -675,7 +675,7 @@ impl DynamicRoutingCache for routing_types::ContractBasedRoutingConfig {
 pub async fn fetch_dynamic_routing_configs<T>(
     state: &SessionState,
     profile_id: &id_type::ProfileId,
-    success_based_routing_id: id_type::RoutingId,
+    routing_id: id_type::RoutingId,
 ) -> RouterResult<T>
 where
     T: serde::de::DeserializeOwned
@@ -688,7 +688,7 @@ where
     let key = format!(
         "{}_{}",
         profile_id.get_string_repr(),
-        success_based_routing_id.get_string_repr()
+        routing_id.get_string_repr()
     );
 
     if let Some(config) =
@@ -699,10 +699,7 @@ where
         let func = || async {
             let routing_algorithm = state
                 .store
-                .find_routing_algorithm_by_profile_id_algorithm_id(
-                    profile_id,
-                    &success_based_routing_id,
-                )
+                .find_routing_algorithm_by_profile_id_algorithm_id(profile_id, &routing_id)
                 .await
                 .change_context(errors::StorageError::ValueNotFound(
                     "RoutingAlgorithm".to_string(),
@@ -797,7 +794,7 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
             )?;
 
         let payment_status_attribute =
-            get_desired_payment_status_for_success_routing_metrics(payment_attempt.status);
+            get_desired_payment_status_for_dynamic_routing_metrics(payment_attempt.status);
 
         let first_success_based_connector_label = &success_based_connectors
             .labels_with_score
@@ -817,7 +814,7 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
                 first_success_based_connector_label
             ))?;
 
-        let outcome = get_success_based_metrics_outcome_for_payment(
+        let outcome = get_dynamic_routing_based_metrics_outcome_for_payment(
             payment_status_attribute,
             payment_connector.to_string(),
             first_success_based_connector.to_string(),
@@ -1020,7 +1017,7 @@ pub async fn push_metrics_with_update_window_for_contract_based_routing(
         };
 
         let payment_status_attribute =
-            get_desired_payment_status_for_success_routing_metrics(payment_attempt.status);
+            get_desired_payment_status_for_dynamic_routing_metrics(payment_attempt.status);
 
         if payment_status_attribute == common_enums::AttemptStatus::Charged {
             client
@@ -1069,7 +1066,7 @@ pub async fn push_metrics_with_update_window_for_contract_based_routing(
             ))?
             .0, first_contract_based_connector.score, first_contract_based_connector.current_count );
 
-        let outcome = get_success_based_metrics_outcome_for_payment(
+        let outcome = get_dynamic_routing_based_metrics_outcome_for_payment(
             payment_status_attribute,
             payment_connector.to_string(),
             first_contract_based_connector.to_string(),
@@ -1150,7 +1147,7 @@ pub async fn push_metrics_with_update_window_for_contract_based_routing(
 }
 
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-fn get_desired_payment_status_for_success_routing_metrics(
+fn get_desired_payment_status_for_dynamic_routing_metrics(
     attempt_status: common_enums::AttemptStatus,
 ) -> common_enums::AttemptStatus {
     match attempt_status {
@@ -1186,7 +1183,7 @@ fn get_desired_payment_status_for_success_routing_metrics(
 }
 
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-fn get_success_based_metrics_outcome_for_payment(
+fn get_dynamic_routing_based_metrics_outcome_for_payment(
     payment_status_attribute: common_enums::AttemptStatus,
     payment_connector: String,
     first_success_based_connector: String,
@@ -1401,7 +1398,7 @@ pub async fn enable_dynamic_routing_algorithm(
                 key_store,
                 business_profile,
                 feature_to_enable,
-                dynamic_routing.clone(), // check this in review
+                dynamic_routing.clone(),
                 dynamic_routing_type,
                 dynamic_routing.success_based_algorithm,
             )
@@ -1552,7 +1549,7 @@ pub async fn default_specific_dynamic_routing_setup(
                 algorithm_for: common_enums::TransactionType::Payment,
             }
         }
-        // Should we provide a default for this?
+
         routing_types::DynamicRoutingType::ContractBasedRouting => {
             return Err((errors::ApiErrorResponse::InvalidRequestData {
                 message: "Contract routing cannot be set as default".to_string(),
