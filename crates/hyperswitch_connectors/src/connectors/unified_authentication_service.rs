@@ -203,33 +203,39 @@ impl
         req: &UasPreAuthenticationRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let transaction_details = req.request.transaction_details.clone().ok_or(
-            errors::ConnectorError::MissingRequiredField {
-                field_name: "transaction_details",
-            },
-        )?;
-        let amount = utils::convert_amount(
-            self.amount_converter,
-            transaction_details
-                .amount
-                .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "amount",
-                })?,
-            transaction_details
-                .currency
-                .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "currency",
-                })?,
-        )?;
-
-        let connector_router_data =
-            unified_authentication_service::UnifiedAuthenticationServiceRouterData::from((
-                amount, req,
-            ));
-        let connector_req =
-            unified_authentication_service::UnifiedAuthenticationServicePreAuthenticateRequest::try_from(
-                &connector_router_data,
+        // Transaction details are mandatory if service details are present (For Click to Pay flow)
+        let connector_req = if req.request.service_details.is_some() {
+            let transaction_details = req.request.transaction_details.clone().ok_or(
+                errors::ConnectorError::MissingRequiredField {
+                    field_name: "transaction_details",
+                },
             )?;
+            let amount = utils::convert_amount(
+                self.amount_converter,
+                transaction_details
+                    .amount
+                    .ok_or(errors::ConnectorError::MissingRequiredField {
+                        field_name: "amount",
+                    })?,
+                transaction_details.currency.ok_or(
+                    errors::ConnectorError::MissingRequiredField {
+                        field_name: "currency",
+                    },
+                )?,
+            )?;
+
+            let connector_router_data =
+                unified_authentication_service::UnifiedAuthenticationServiceRouterData::from((
+                    amount, req,
+                ));
+            unified_authentication_service::UnifiedAuthenticationServicePreAuthenticateRequest::try_from(
+                        &connector_router_data,
+                    )?
+        } else {
+            unified_authentication_service::UnifiedAuthenticationServicePreAuthenticateRequest::try_from(
+                req,
+            )?
+        };
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
