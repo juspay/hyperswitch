@@ -10,8 +10,10 @@ license.workspace = true
 default = ["dummy_connector", "frm", "payouts"]
 dummy_connector = []
 v1 = ["hyperswitch_domain_models/v1", "api_models/v1", "common_utils/v1"]
+v2 = ["diesel_models/v2"]
 payouts = ["hyperswitch_domain_models/payouts"]
 frm = ["hyperswitch_domain_models/frm"]
+recovery= []
 
 [dependencies]
 actix-web = "4.5.1"
@@ -32,6 +34,7 @@ url = "2.5.0"
 
 # First party crates
 hyperswitch_domain_models = { version = "0.1.0", path = "../hyperswitch_domain_models", default-features = false }
+diesel_models = { version = "0.1.0", path = "../diesel_models", features = ["kv_store"], default-features = false }
 masking = { version = "0.1.0", path = "../masking" }
 api_models = { version = "0.1.0", path = "../api_models" }
 common_enums = { version = "0.1.0", path = "../common_enums" }

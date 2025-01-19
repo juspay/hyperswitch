@@ -57,6 +57,14 @@ pub enum IncomingWebhookEvent {
     PayoutExpired,
     #[cfg(feature = "payouts")]
     PayoutReversed,
+    #[cfg(feature = "recovery")]
+    RecoveryPaymentFailure, // rename events
+    #[cfg(feature = "recovery")]
+    RecoveryPaymentSuccess,
+    #[cfg(feature = "recovery")]
+    RecoveryPaymentPending,
+    #[cfg(feature = "recovery")]
+    RecoveryInvoiceCancel,
 }
 
 pub enum WebhookFlow {
@@ -71,6 +79,8 @@ pub enum WebhookFlow {
     Mandate,
     ExternalAuthentication,
     FraudCheck,
+    #[cfg(feature = "recovery")]
+    Recovery,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -197,6 +207,11 @@ impl From<IncomingWebhookEvent> for WebhookFlow {
             | IncomingWebhookEvent::PayoutCreated
             | IncomingWebhookEvent::PayoutExpired
             | IncomingWebhookEvent::PayoutReversed => Self::Payout,
+            #[cfg(feature = "recovery")]
+            IncomingWebhookEvent::RecoveryInvoiceCancel |
+            IncomingWebhookEvent::RecoveryPaymentFailure|
+            IncomingWebhookEvent::RecoveryPaymentPending|
+            IncomingWebhookEvent::RecoveryPaymentSuccess => Self::Recovery
         }
     }
 }

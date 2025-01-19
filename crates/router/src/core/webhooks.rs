@@ -2,6 +2,8 @@
 mod incoming;
 #[cfg(feature = "v2")]
 mod incoming_v2;
+#[cfg(feature= "recovery")]
+mod recovery_incoming;
 #[cfg(feature = "v1")]
 mod outgoing;
 pub mod types;

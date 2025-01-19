@@ -45,6 +45,9 @@ use crate::{
     },
 };
 
+#[cfg(feature= "recovery")]
+use crate::core::webhooks::recovery_incoming;
+
 #[allow(clippy::too_many_arguments)]
 pub async fn incoming_webhooks_wrapper<W: types::OutgoingWebhookType>(
     flow: &impl router_env::types::FlowMetric,
@@ -349,6 +352,20 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                     api::WebhookFlow::Payout => todo!(),
 
                     api::WebhookFlow::Subscription => todo!(),
+                    #[cfg(feature= "recovery")]
+                    api::WebhookFlow::Recovery => Box::pin(recovery_incoming::recovery_incoming_webhook_flow(
+                        state.clone(),
+                        merchant_account,
+                        profile,
+                        key_store,
+                        webhook_details,
+                        source_verified,
+                        &connector,
+                        &request_details,
+                        event_type,
+                    ))
+                    .await
+                    .attach_printable("Recovery incoming webhook flow for payments failed")?,
                 }
             }
         }

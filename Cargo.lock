@@ -4078,6 +4078,7 @@ dependencies = [
  "bytes 1.7.1",
  "common_enums",
  "common_utils",
+ "diesel_models",
  "dyn-clone",
  "error-stack",
  "http 0.2.12",

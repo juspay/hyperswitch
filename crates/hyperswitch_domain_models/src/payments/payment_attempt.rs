@@ -19,6 +19,10 @@ use diesel_models::{
     PaymentAttemptNew as DieselPaymentAttemptNew,
     PaymentAttemptUpdate as DieselPaymentAttemptUpdate,
 };
+
+#[cfg(feature = "v2")]
+use diesel_models::PaymentAttemptFeatureMetadata;
+
 use error_stack::ResultExt;
 #[cfg(feature = "v2")]
 use masking::PeekInterface;
@@ -402,6 +406,7 @@ pub struct PaymentAttempt {
     pub id: id_type::GlobalAttemptId,
     /// The connector mandate details which are stored temporarily
     pub connector_mandate_detail: Option<ConnectorMandateReferenceId>,
+    pub feature_metadata  :Option<PaymentAttemptFeatureMetadata>,
 }
 
 impl PaymentAttempt {
@@ -519,6 +524,7 @@ impl PaymentAttempt {
             payment_method_billing_address,
             error: None,
             connector_mandate_detail: None,
+            feature_metadata:None,
             id,
         })
     }
@@ -1781,6 +1787,7 @@ impl behaviour::Conversion for PaymentAttempt {
             payment_method_billing_address,
             connector,
             connector_mandate_detail,
+            feature_metadata,
         } = self;
 
         let AttemptAmountDetails {
@@ -1858,6 +1865,7 @@ impl behaviour::Conversion for PaymentAttempt {
             payment_method_billing_address: payment_method_billing_address.map(Encryption::from),
             connector_payment_data,
             connector_mandate_detail,
+            feature_metadata,
         })
     }
 
@@ -1969,6 +1977,7 @@ impl behaviour::Conversion for PaymentAttempt {
                 connector: storage_model.connector,
                 payment_method_billing_address,
                 connector_mandate_detail: storage_model.connector_mandate_detail,
+                feature_metadata: storage_model.feature_metadata,
             })
         }
         .await
@@ -2053,6 +2062,7 @@ impl behaviour::Conversion for PaymentAttempt {
             payment_method_type_v2: self.payment_method_type,
             id: self.id,
             connector_mandate_detail: self.connector_mandate_detail,
+            feature_metadata: self.feature_metadata,
         })
     }
 }
@@ -2083,6 +2093,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 connector_metadata: None,
                 amount_capturable: None,
                 amount_to_capture: None,
+                feature_metadata: None,
             },
             PaymentAttemptUpdate::ErrorUpdate {
                 status,
@@ -2107,6 +2118,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 connector_metadata: None,
                 amount_capturable,
                 amount_to_capture: None,
+                feature_metadata: None,
             },
             PaymentAttemptUpdate::ConfirmIntentResponse {
                 status,
@@ -2133,6 +2145,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                     .map(diesel_models::payment_attempt::RedirectForm::from),
                 connector_metadata,
                 amount_to_capture: None,
+                feature_metadata: None,
             },
             PaymentAttemptUpdate::SyncUpdate {
                 status,
@@ -2155,6 +2168,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 redirection_data: None,
                 connector_metadata: None,
                 amount_to_capture: None,
+                feature_metadata: None,
             },
             PaymentAttemptUpdate::CaptureUpdate {
                 status,
@@ -2177,6 +2191,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 connector: None,
                 redirection_data: None,
                 connector_metadata: None,
+                feature_metadata: None,
             },
             PaymentAttemptUpdate::PreCaptureUpdate {
                 amount_to_capture,
@@ -2198,6 +2213,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 status: None,
                 connector_metadata: None,
                 amount_capturable: None,
+                feature_metadata: None,
             },
         }
     }

@@ -9,6 +9,9 @@ use masking::{ExposeInterface, Secret};
 
 use crate::{api::ConnectorCommon, errors};
 
+#[cfg(feature = "recovery")]
+use crate::recovery::RecoveryPayload;
+
 /// struct IncomingWebhookRequestDetails
 #[derive(Debug)]
 pub struct IncomingWebhookRequestDetails<'a> {
@@ -274,5 +277,20 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
         errors::ConnectorError,
     > {
         Ok(None)
+    }
+
+    /// get passive churn recovery details
+    #[cfg(feature= "recovery")]
+    fn get_recovery_details(
+        &self,
+        _request: &IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<
+        RecoveryPayload,
+        errors::ConnectorError,
+    > {
+        Err(errors::ConnectorError::NotImplemented(
+            "get_recovery_details method".to_string(),
+        )
+        .into())
     }
 }

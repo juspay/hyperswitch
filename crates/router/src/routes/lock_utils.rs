@@ -307,6 +307,7 @@ impl From<Flow> for ApiIdentifier {
             Flow::RetrievePollStatus => Self::Poll,
 
             Flow::FeatureMatrix => Self::Documentation,
+            Flow::RecoveryIncomingWebhookReceive => Self::Webhooks,
         }
     }
 }
