@@ -304,11 +304,9 @@ impl TryFrom<&ConnectorAuthType> for UnifiedAuthenticationServiceAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            ConnectorAuthType::HeaderKey { api_key } => {
-                Ok(Self::HeaderKey {
-                    api_key: api_key.clone(),
-                })
-            }
+            ConnectorAuthType::HeaderKey { api_key } => Ok(Self::HeaderKey {
+                api_key: api_key.clone(),
+            }),
             ConnectorAuthType::CertificateAuth {
                 certificate,
                 private_key,
