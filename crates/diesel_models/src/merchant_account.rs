@@ -53,6 +53,9 @@ pub struct MerchantAccount {
     pub version: common_enums::ApiVersion,
     pub is_platform_account: bool,
     pub fingerprint_secret_key: Option<Encryption>,
+    pub card_ip_blocking: bool,
+    pub guest_user_card_blocking: bool,
+    pub customer_id_blocking: bool,
 }
 
 #[cfg(feature = "v1")]
@@ -87,6 +90,9 @@ pub struct MerchantAccountSetter {
     pub version: common_enums::ApiVersion,
     pub is_platform_account: bool,
     pub fingerprint_secret_key: Option<Encryption>,
+    pub card_ip_blocking: bool,
+    pub guest_user_card_blocking: bool,
+    pub customer_id_blocking: bool,
 }
 
 #[cfg(feature = "v1")]
@@ -123,6 +129,9 @@ impl From<MerchantAccountSetter> for MerchantAccount {
             version: item.version,
             is_platform_account: item.is_platform_account,
             fingerprint_secret_key: item.fingerprint_secret_key,
+            card_ip_blocking: item.card_ip_blocking,
+            guest_user_card_blocking: item.guest_user_card_blocking,
+            customer_id_blocking: item.customer_id_blocking,
         }
     }
 }
@@ -239,6 +248,9 @@ pub struct MerchantAccountNew {
     pub version: common_enums::ApiVersion,
     pub is_platform_account: bool,
     pub fingerprint_secret_key: Option<Encryption>,
+    pub card_ip_blocking: bool,
+    pub guest_user_card_blocking: bool,
+    pub customer_id_blocking: bool,
 }
 
 #[cfg(feature = "v2")]
@@ -336,6 +348,9 @@ pub struct MerchantAccountUpdateInternal {
     pub pm_collect_link_config: Option<serde_json::Value>,
     pub is_platform_account: Option<bool>,
     pub fingerprint_secret_key: Option<Encryption>,
+    pub card_ip_blocking: Option<bool>,
+    pub guest_user_card_blocking: Option<bool>,
+    pub customer_id_blocking: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -369,6 +384,9 @@ impl MerchantAccountUpdateInternal {
             pm_collect_link_config,
             is_platform_account,
             fingerprint_secret_key,
+            card_ip_blocking,
+            guest_user_card_blocking,
+            customer_id_blocking,
         } = self;
 
         MerchantAccount {
@@ -406,6 +424,9 @@ impl MerchantAccountUpdateInternal {
             version: source.version,
             is_platform_account: is_platform_account.unwrap_or(source.is_platform_account),
             fingerprint_secret_key,
+            card_ip_blocking: card_ip_blocking.unwrap_or(source.card_ip_blocking),
+            guest_user_card_blocking: guest_user_card_blocking.unwrap_or(source.guest_user_card_blocking),
+            customer_id_blocking: customer_id_blocking.unwrap_or(source.customer_id_blocking),
         }
     }
 }

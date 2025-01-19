@@ -33,6 +33,7 @@ use crate::{
     core::{
         authentication,
         blocklist::utils as blocklist_utils,
+        card_testing_guard::utils as card_testing_guard_utils,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         mandate::helpers as m_helpers,
         payments::{
@@ -44,17 +45,13 @@ use crate::{
             types::{ClickToPay, UnifiedAuthenticationService},
         },
         utils as core_utils,
-    },
-    routes::{app::ReqState, SessionState},
-    services,
-    types::{
+    }, routes::{app::ReqState, SessionState}, services, types::{
         self,
         api::{self, ConnectorCallType, PaymentIdTypeExt},
         domain::{self},
         storage::{self, enums as storage_enums},
         transformers::ForeignFrom,
-    },
-    utils::{self, OptionExt},
+    }, utils::{self, OptionExt}
 };
 
 #[derive(Debug, Clone, Copy, PaymentOperation)]
@@ -823,7 +820,9 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             tax_data: None,
             session_id: None,
             service_details: request.ctp_service_details.clone(),
-            payment_method_blocking_identifier: None,
+            card_ip_blocking_cache_key: None,
+            guest_user_card_blocking_cache_key: None,
+            customer_id_blocking_cache_key: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -858,8 +857,26 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
 
         match payment_method_data {
             Some(api_models::payments::PaymentMethodData::Card(_card)) => {
-                let payment_method_blocking_identifier = helpers::validate_card_testing_attack(state, request, merchant_account).await?;
-                payment_data.payment_method_blocking_identifier = Some(payment_method_blocking_identifier);
+
+                let fingerprint = card_testing_guard_utils::generate_fingerprint(state, payment_method_data, merchant_account).await?;
+
+                if merchant_account.card_ip_blocking {
+                    let card_ip_blocking_cache_key = helpers::validate_card_ip_blocking_for_merchant(state, request, fingerprint.clone()).await?;
+                    payment_data.card_ip_blocking_cache_key = Some(card_ip_blocking_cache_key);
+                }
+
+                if merchant_account.guest_user_card_blocking {
+                    let guest_user_card_blocking_cache_key = helpers::validate_guest_user_card_blocking_for_merchant(state, request, fingerprint.clone()).await?;
+                    payment_data.guest_user_card_blocking_cache_key = Some(guest_user_card_blocking_cache_key);
+                }
+
+                if merchant_account.customer_id_blocking {
+                    if let Some(customer_id) = &request.customer_id {
+                        let customer_id_blocking_cache_key = helpers::validate_customer_id_blocking_for_merchant(state, customer_id.clone(), merchant_account).await?;
+                        payment_data.customer_id_blocking_cache_key = Some(customer_id_blocking_cache_key);
+                    }
+                }
+                
                 Ok(())
             }
             _ => Ok(())

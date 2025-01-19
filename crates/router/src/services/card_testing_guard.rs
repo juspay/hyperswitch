@@ -4,15 +4,9 @@ use error_stack::ResultExt;
 use redis_interface::RedisConnectionPool;
 
 use crate::{
-    consts,
     core::errors::{ApiErrorResponse, RouterResult},
     routes::app::SessionStateInfo,
 };
-
-pub fn get_cache_key_from_fingerprint(fingerprint: &str) -> String {
-    format!("{}{}", consts::CARD_TESTING_GUARD_PREFIX, fingerprint)
-}
-
 
 fn get_redis_connection<A: SessionStateInfo>(state: &A) -> RouterResult<Arc<RedisConnectionPool>> {
     state
@@ -24,7 +18,7 @@ fn get_redis_connection<A: SessionStateInfo>(state: &A) -> RouterResult<Arc<Redi
 
 pub async fn set_blocked_count_in_cache<A>(
     state: &A,
-    fingerprint: &str,
+    cache_key: &str,
     value: u64,
     expiry: i64,
 ) -> RouterResult<()>
@@ -34,14 +28,14 @@ where
     let redis_conn = get_redis_connection(state)?;
 
     redis_conn
-        .set_key_with_expiry(&get_cache_key_from_fingerprint(fingerprint), value, expiry)
+        .set_key_with_expiry(cache_key, value, expiry)
         .await
         .change_context(ApiErrorResponse::InternalServerError)
 }
 
 pub async fn get_blocked_count_from_cache<A>(
     state: &A, 
-    fingerprint: &str
+    cache_key: &str
 ) -> RouterResult<Option<u64>>
 where
     A: SessionStateInfo + Sync,
@@ -49,7 +43,7 @@ where
     let redis_conn = get_redis_connection(state)?;
 
     let value: Option<u64> = redis_conn
-        .get_key(&get_cache_key_from_fingerprint(fingerprint))
+        .get_key(cache_key)
         .await
         .change_context(ApiErrorResponse::InternalServerError)?;
 
@@ -58,7 +52,7 @@ where
 
 pub async fn increment_blocked_count_in_cache<A>(
     state: &A, 
-    fingerprint: &str,
+    cache_key: &str,
     expiry: i64,
 ) -> RouterResult<()>
 where
@@ -67,7 +61,7 @@ where
     let redis_conn = get_redis_connection(state)?;
 
     let value: Option<u64> = redis_conn
-        .get_key(&get_cache_key_from_fingerprint(fingerprint))
+        .get_key(cache_key)
         .await
         .change_context(ApiErrorResponse::InternalServerError)?;
 
@@ -78,10 +72,9 @@ where
     } 
 
     redis_conn
-        .set_key_with_expiry(&get_cache_key_from_fingerprint(fingerprint), incremented_blocked_count, expiry)
+        .set_key_with_expiry(cache_key, incremented_blocked_count, expiry)
         .await
         .change_context(ApiErrorResponse::InternalServerError)
-
 }
 
 

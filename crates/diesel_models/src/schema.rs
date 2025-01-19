@@ -739,6 +739,9 @@ diesel::table! {
         version -> ApiVersion,
         is_platform_account -> Bool,
         fingerprint_secret_key -> Nullable<Bytea>,
+        card_ip_blocking -> Bool,
+        guest_user_card_blocking -> Bool,
+        customer_id_blocking -> Bool,
     }
 }
 

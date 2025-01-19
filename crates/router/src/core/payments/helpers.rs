@@ -73,7 +73,6 @@ use crate::{
         },
         payments,
         pm_auth::retrieve_payment_method_from_auth_service,
-        blocklist::utils as blocklist_utils
     },
     db::StorageInterface,
     routes::{metrics, payment_methods as payment_methods_handler, SessionState},
@@ -1479,10 +1478,10 @@ pub fn validate_customer_information(
 }
 
 #[cfg(feature = "v1")]
-pub async fn validate_card_testing_attack(
+pub async fn validate_card_ip_blocking_for_merchant(
     state: &SessionState,
     request: &api_models::payments::PaymentsRequest,
-    merchant_account: &domain::MerchantAccount
+    fingerprnt: masking::Secret<String>,
 ) -> RouterResult<String> {
     
     let mut ip: IpAddr = IpAddr::V4(Ipv4Addr::UNSPECIFIED);
@@ -1495,83 +1494,97 @@ pub async fn validate_card_testing_attack(
         }
     }
 
-    let payment_method_data: Option<&api_models::payments::PaymentMethodData> =
-        request.payment_method_data
-            .as_ref()
-            .and_then(|request_payment_method_data| {
-                request_payment_method_data.payment_method_data.as_ref()
-            });
-
-    let fingerprint_result = generate_fingerprint(state, payment_method_data, merchant_account).await;
-
-    let fingerprint = fingerprint_result?.expose();
-
-    let cache_key = format!("{}_{}", &fingerprint, ip);
+    let cache_key = format!("{}_{}_{}", consts::CARD_IP_BLOCKING_CACHE_KEY_PREFIX, fingerprnt.peek(), ip);
 
     let unsuccessful_payment_threshold = state.conf.card_test_guard.unsuccessful_payment_threshold;
-    let mut should_payment_be_blocked = false;
+    
+    match services::card_testing_guard::get_blocked_count_from_cache(state, &cache_key).await {
+        Ok(Some(unsuccessful_payment_count)) => {
+            if unsuccessful_payment_count >= unsuccessful_payment_threshold {
+                Err(errors::ApiErrorResponse::PreconditionFailed {
+                    message: format!(
+                        "Blocked due to suspicious activity"
+                    ),
+                })?
+            }
+            else {
+                Ok(cache_key)
+            }
+        }
+        Ok(None) => {
+            Ok(cache_key)
+        }
+        Err(_) => {
+            Err(errors::ApiErrorResponse::InternalServerError)?
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
+pub async fn validate_guest_user_card_blocking_for_merchant(
+    state: &SessionState,
+    request: &api_models::payments::PaymentsRequest,
+    fingerprnt: masking::Secret<String>,
+) -> RouterResult<String> {
+
+    let cache_key = format!("{}_{}", consts::GUEST_USER_CARD_BLOCKING_CACHE_KEY_PREFIX, fingerprnt.peek());
+
+    let unsuccessful_payment_threshold = 7;
+    
+    match services::card_testing_guard::get_blocked_count_from_cache(state, &cache_key).await {
+        Ok(Some(unsuccessful_payment_count)) => {
+            if unsuccessful_payment_count >= unsuccessful_payment_threshold && request.customer_id.is_none() {
+                Err(errors::ApiErrorResponse::PreconditionFailed {
+                    message: format!(
+                        "Blocked due to suspicious activity"
+                    ),
+                })?
+            }
+            else {
+                Ok(cache_key)
+            }
+        }
+        Ok(None) => {
+            Ok(cache_key)
+        }
+        Err(_) => {
+            Err(errors::ApiErrorResponse::InternalServerError)?
+        }
+    }
+}
+
+pub async fn validate_customer_id_blocking_for_merchant(
+    state: &SessionState,
+    customer_id: id_type::CustomerId,
+    merchant_account: &domain::MerchantAccount
+) -> RouterResult<String> {
+
+    let merchant_id = merchant_account.get_id();
+
+    let cache_key = format!("{}_{}_{}", consts::CUSTOMER_ID_BLOCKING_PREFIX, merchant_id.get_string_repr(), customer_id.get_string_repr());
+
+    let unsuccessful_payment_threshold = 5;
 
     match services::card_testing_guard::get_blocked_count_from_cache(state, &cache_key).await {
         Ok(Some(unsuccessful_payment_count)) => {
             if unsuccessful_payment_count >= unsuccessful_payment_threshold {
-                should_payment_be_blocked = true;
+                Err(errors::ApiErrorResponse::PreconditionFailed {
+                    message: format!(
+                        "Blocked due to suspicious activity"
+                    ),
+                })?
+            }
+            else {
+                Ok(cache_key)
             }
         }
         Ok(None) => {
-            logger::info!("Entry not found in cache");
+            Ok(cache_key)
         }
-        Err(err) => {
-            eprintln!("Failed to get blocked count: {:?}", err);
+        Err(_) => {
+            Err(errors::ApiErrorResponse::InternalServerError)?
         }
     }
-
-    if should_payment_be_blocked {
-        Err(errors::ApiErrorResponse::PreconditionFailed {
-            message: format!(
-                "Blocked due to suspicious activity"
-            ),
-        })?
-    } else {
-        Ok(cache_key)
-    }
-}
-
-pub async fn generate_fingerprint(
-    state: &SessionState,
-    payment_method_data: Option<&api_models::payments::PaymentMethodData>,
-    merchant_account: &domain::MerchantAccount,
-) -> RouterResult<masking::Secret<String>> {
-
-    let merchant_id = merchant_account.get_id();
-    let merchant_fingerprint_secret = blocklist_utils::get_merchant_fingerprint_secret(state, merchant_id).await?;
-    
-    let card_number_fingerprint = payment_method_data
-    .as_ref()
-    .and_then(|pm_data| match pm_data {
-        api_models::payments::PaymentMethodData::Card(card) => {
-            crypto::HmacSha512::sign_message(
-                &crypto::HmacSha512,
-                merchant_fingerprint_secret.as_bytes(),
-                card.card_number.clone().get_card_no().as_bytes(),
-            )
-            .attach_printable("error in pm fingerprint creation")
-            .map_or_else(
-                |err| {
-                    logger::error!(error=?err);
-                    None
-                },
-                Some,
-            )
-        }
-        _ => None,
-    })
-    .map(hex::encode);
-
-    card_number_fingerprint
-    .map(|fingerprint| masking::Secret::new(fingerprint))
-    .ok_or_else(|| {
-        todo!()
-    })
 }
 
 #[cfg(feature = "v1")]
