@@ -492,7 +492,30 @@ where
                     //add connector http status code metrics
                     add_connector_http_status_code_metrics(connector_http_status_code);
 
-                    operation
+
+                    let pmd = payment_data.get_payment_method_data();
+                    let customer_acceptance = payment_data.get_customer_acceptance();
+                    let cond1 = matches!(pmd, Some(domain::PaymentMethodData::NetworkToken(_)));
+                    let cond3 = payment_data.get_token_data().map(|data| data.is_permanent_or_permanent_card()).unwrap_or(false);
+                    let cond2 = customer_acceptance.is_some();
+                    let cond = cond1 && cond2 && cond3;
+
+                    
+
+                    if cond {
+                        operation
+                        .to_post_update_tracker()?
+                        .update_saved_payment_method(
+                            state,
+                            &router_data,
+                            &merchant_account,
+                            &key_store,
+                            &mut payment_data,
+                            &business_profile,
+                        )
+                        .await?;
+                    }else{
+                        operation
                         .to_post_update_tracker()?
                         .save_pm_and_mandate(
                             state,
@@ -503,6 +526,7 @@ where
                             &business_profile,
                         )
                         .await?;
+                    }
 
                     let mut payment_data = operation
                         .to_post_update_tracker()?
@@ -629,7 +653,30 @@ where
                     //add connector http status code metrics
                     add_connector_http_status_code_metrics(connector_http_status_code);
 
-                    operation
+                    let pmd = payment_data.get_payment_method_data();
+                    let customer_acceptance = payment_data.get_customer_acceptance();
+                    let cond1 = matches!(pmd, Some(domain::PaymentMethodData::NetworkToken(_)));
+                    let cond3 = payment_data.get_token_data().map(|token_data| {
+                        token_data.is_permanent_or_permanent_card()
+                    }).unwrap_or(false);
+                     let cond2 = customer_acceptance.is_some(); 
+
+                    if cond1 && cond2 && cond3 {
+                        operation
+                        .to_post_update_tracker()?
+                        .update_saved_payment_method(
+                            state,
+                            &router_data,
+                            &merchant_account,
+                            &key_store,
+                            &mut payment_data,
+                            &business_profile,
+                        )
+                        .await?;
+
+
+                    }else{
+                        operation
                         .to_post_update_tracker()?
                         .save_pm_and_mandate(
                             state,
@@ -640,7 +687,7 @@ where
                             &business_profile,
                         )
                         .await?;
-
+                    }
                     let mut payment_data = operation
                         .to_post_update_tracker()?
                         .update_tracker(
@@ -6869,6 +6916,16 @@ impl<F: Clone> PaymentMethodChecker<F> for PaymentData<F> {
     }
 }
 
+pub trait OperationSessionValidators<F>{
+    fn validate_for_saved_payment_method(&self) -> bool;
+}
+
+impl<F: Clone> OperationSessionValidators<F> for PaymentData<F> {
+    fn validate_for_saved_payment_method(&self) -> bool {
+        true
+    }
+}
+
 pub trait OperationSessionGetters<F> {
     fn get_payment_attempt(&self) -> &storage::PaymentAttempt;
     fn get_payment_intent(&self) -> &storage::PaymentIntent;
@@ -6901,6 +6958,7 @@ pub trait OperationSessionGetters<F> {
     fn get_mandate_connector(&self) -> Option<&MandateConnectorDetails>;
     fn get_force_sync(&self) -> Option<bool>;
     fn get_capture_method(&self) -> Option<enums::CaptureMethod>;
+    fn get_customer_acceptance(&self) -> Option<&CustomerAcceptance>;
 
     #[cfg(feature = "v2")]
     fn get_optional_payment_attempt(&self) -> Option<&storage::PaymentAttempt>;
@@ -7076,6 +7134,10 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentData<F> {
     #[cfg(feature = "v1")]
     fn get_capture_method(&self) -> Option<enums::CaptureMethod> {
         self.payment_attempt.capture_method
+    }
+
+    fn get_customer_acceptance(&self) -> Option<&CustomerAcceptance> {
+        self.customer_acceptance.as_ref()
     }
 
     // #[cfg(feature = "v2")]

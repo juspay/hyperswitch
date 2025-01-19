@@ -460,6 +460,21 @@ pub trait PostUpdateTracker<F, D, R: Send>: Send {
     {
         Ok(())
     }
+
+    async fn update_saved_payment_method<'b>(
+        &self,
+        _state: &SessionState,
+        _resp: &types::RouterData<F, R, PaymentsResponseData>,
+        _merchant_account: &domain::MerchantAccount,
+        _key_store: &domain::MerchantKeyStore,
+        _payment_data: &mut D,
+        _business_profile: &domain::Profile,
+    ) -> CustomResult<(), errors::ApiErrorResponse>
+    where
+        F: 'b + Clone + Send + Sync,
+    {
+        Ok(())
+    }
 }
 
 #[cfg(feature = "v1")]

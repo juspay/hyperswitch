@@ -83,6 +83,10 @@ impl PaymentTokenData {
         })
     }
 
+    pub fn is_permanent_or_permanent_card(&self) -> bool {
+        matches!(self, Self::Permanent(_) | Self::PermanentCard(_))
+    }
+
     #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
     pub fn permanent_card(
         payment_method_id: Option<common_utils::id_type::GlobalPaymentMethodId>,
