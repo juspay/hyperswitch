@@ -1212,16 +1212,16 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                         errors::ApiErrorResponse::InternalServerError
                     ).attach_printable("payment_method not found in payment_attempt")?,
                 ).await?;
-
-                payment_data.authentication = Some(uas_utils::utils::external_authentication_update_trackers(
+                let updated_authentication = uas_utils::utils::external_authentication_update_trackers(
                     state,
                     pre_auth_response,
                     authentication.clone(),
                     Some(acquirer_details),
-                ).await?);
+                ).await?;
+                payment_data.authentication = Some(updated_authentication.clone());
 
-                if authentication.is_separate_authn_required()
-                    || authentication.authentication_status.is_failed()
+                if updated_authentication.is_separate_authn_required()
+                    || updated_authentication.authentication_status.is_failed()
                 {
                     *should_continue_confirm_transaction = false;
                     let default_poll_config = types::PollConfig::default();
@@ -1233,7 +1233,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                         .store
                         .find_config_by_key_unwrap_or(
                             &types::PollConfig::get_poll_config_key(
-                                authentication.authentication_connector.clone(),
+                                updated_authentication.authentication_connector.clone(),
                             ),
                             Some(default_config_str),
                         )
