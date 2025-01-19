@@ -2035,10 +2035,21 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
             .map(|info| info.status = status)
     });
 
-    let payment_method_blocking_identifier = payment_data.payment_method_blocking_identifier.clone();
-    let redis_expiry = state.conf.card_test_guard.redis_expiry;
     if payment_data.payment_attempt.status == enums::AttemptStatus::Failure {
-        let _ = services::card_testing_guard::increment_blocked_count_in_cache(state, &payment_method_blocking_identifier.unwrap(), redis_expiry).await;
+        
+        let redis_expiry = state.conf.card_test_guard.redis_expiry;
+
+        if let Some(card_ip_blocking_cache_key) = payment_data.card_ip_blocking_cache_key.clone() {
+            let _ = services::card_testing_guard::increment_blocked_count_in_cache(state, &card_ip_blocking_cache_key, redis_expiry).await;
+        }
+
+        if let Some(guest_user_card_blocking_cache_key) = payment_data.guest_user_card_blocking_cache_key.clone() {
+            let _ = services::card_testing_guard::increment_blocked_count_in_cache(state, &guest_user_card_blocking_cache_key, redis_expiry).await;
+        }
+
+        if let Some(customer_id_blocking_cache_key) = payment_data.customer_id_blocking_cache_key.clone() {
+            let _ = services::card_testing_guard::increment_blocked_count_in_cache(state, &customer_id_blocking_cache_key, redis_expiry).await;
+        }
     }
 
     match router_data.integrity_check {

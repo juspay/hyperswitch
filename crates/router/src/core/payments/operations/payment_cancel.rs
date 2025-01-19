@@ -207,7 +207,9 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCancelRe
             tax_data: None,
             session_id: None,
             service_details: None,
-            payment_method_blocking_identifier: None,
+            card_ip_blocking_cache_key: None,
+            guest_user_card_blocking_cache_key: None,
+            customer_id_blocking_cache_key: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {

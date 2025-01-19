@@ -404,6 +404,9 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
                     version: hyperswitch_domain_models::consts::API_VERSION,
                     is_platform_account: false,
                     fingerprint_secret_key: None,
+                    card_ip_blocking: false,
+                    guest_user_card_blocking: false,
+                    customer_id_blocking: false,
                 },
             )
         }
