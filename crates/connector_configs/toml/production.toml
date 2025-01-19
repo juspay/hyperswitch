@@ -1443,6 +1443,42 @@ api_key="Client Secret"
 api_secret="Certificates"
 key2="Certificate Key"
 
+[jpmorgan]
+[[jpmorgan.credit]]
+  payment_method_type = "AmericanExpress"
+[[jpmorgan.credit]]
+  payment_method_type = "DinersClub"
+[[jpmorgan.credit]]
+  payment_method_type = "Discover"
+[[jpmorgan.credit]]
+  payment_method_type = "JCB"
+[[jpmorgan.credit]]
+  payment_method_type = "Mastercard"
+[[jpmorgan.credit]]
+  payment_method_type = "Discover"
+[[jpmorgan.credit]]
+  payment_method_type = "UnionPay"
+[[jpmorgan.credit]]
+  payment_method_type = "Visa"
+  [[jpmorgan.debit]]
+  payment_method_type = "AmericanExpress"
+[[jpmorgan.debit]]
+  payment_method_type = "DinersClub"
+[[jpmorgan.debit]]
+  payment_method_type = "Discover"
+[[jpmorgan.debit]]
+  payment_method_type = "JCB"
+[[jpmorgan.debit]]
+  payment_method_type = "Mastercard"
+[[jpmorgan.debit]]
+  payment_method_type = "Discover"
+[[jpmorgan.debit]]
+  payment_method_type = "UnionPay"
+[[jpmorgan.debit]]
+  payment_method_type = "Visa"
+[jpmorgan.connector_auth.BodyKey]
+api_key="Access Token"
+
 [klarna]
 [[klarna.pay_later]]
   payment_method_type = "klarna"
@@ -2546,8 +2582,8 @@ merchant_secret="Source verification key"
 [[worldpay.wallet]]
   payment_method_type = "apple_pay"
 [worldpay.connector_auth.SignatureKey]
-api_key="Username"
-key1="Password"
+key1="Username"
+api_key="Password"
 api_secret="Merchant Identifier"
 [worldpay.metadata.merchant_name]
 name="merchant_name"
@@ -2895,9 +2931,6 @@ merchant_secret="Source verification key"
 api_key="API Key"
 [zen.connector_webhook_details]
 merchant_secret="Source verification key"
-[zen.metadata.apple_pay]
-terminal_uuid="Terminal UUID"
-pay_wall_secret="Pay Wall Secret"
 
 [[zen.metadata.apple_pay]]
 name="terminal_uuid"
@@ -2936,11 +2969,6 @@ key1 = "Merchant ID"
 [netcetera.connector_auth.CertificateAuth]
 certificate="Base64 encoded PEM formatted certificate chain"
 private_key="Base64 encoded PEM formatted private key"
-[netcetera.metadata]
-merchant_country_code="3 digit numeric country code"
-merchant_name="Name of the merchant"
-three_ds_requestor_name="ThreeDS requestor name"
-three_ds_requestor_id="ThreeDS request id"
 
 [netcetera.metadata.endpoint_prefix]
 name="endpoint_prefix"
@@ -3271,3 +3299,85 @@ options=["Hyperswitch"]
 
 [fiuu.connector_webhook_details]
 merchant_secret="Source verification key"
+
+[elavon]
+[[elavon.credit]]
+  payment_method_type = "Mastercard"
+[[elavon.credit]]
+  payment_method_type = "Visa"
+[[elavon.credit]]
+  payment_method_type = "Interac"
+[[elavon.credit]]
+  payment_method_type = "AmericanExpress"
+[[elavon.credit]]
+  payment_method_type = "JCB"
+[[elavon.credit]]
+  payment_method_type = "DinersClub"
+[[elavon.credit]]
+  payment_method_type = "Discover"
+[[elavon.credit]]
+  payment_method_type = "CartesBancaires"
+[[elavon.credit]]
+  payment_method_type = "UnionPay"
+[[elavon.debit]]
+  payment_method_type = "Mastercard"
+[[elavon.debit]]
+  payment_method_type = "Visa"
+[[elavon.debit]]
+  payment_method_type = "Interac"
+[[elavon.debit]]
+  payment_method_type = "AmericanExpress"
+[[elavon.debit]]
+  payment_method_type = "JCB"
+[[elavon.debit]]
+  payment_method_type = "DinersClub"
+[[elavon.debit]]
+  payment_method_type = "Discover"
+[[elavon.debit]]
+  payment_method_type = "CartesBancaires"
+[[elavon.debit]]
+  payment_method_type = "UnionPay"
+[elavon.connector_auth.SignatureKey]
+api_key="Account Id"
+key1="User ID"
+api_secret="Pin"
+
+[xendit]
+[[xendit.credit]]
+  payment_method_type = "Mastercard"
+[[xendit.credit]]
+  payment_method_type = "Visa"
+[[xendit.credit]]
+  payment_method_type = "Interac"
+[[xendit.credit]]
+  payment_method_type = "AmericanExpress"
+[[xendit.credit]]
+  payment_method_type = "JCB"
+[[xendit.credit]]
+  payment_method_type = "DinersClub"
+[[xendit.credit]]
+  payment_method_type = "Discover"
+[[xendit.credit]]
+  payment_method_type = "CartesBancaires"
+[[xendit.credit]]
+  payment_method_type = "UnionPay"
+[[xendit.debit]]
+  payment_method_type = "Mastercard"
+[[xendit.debit]]
+  payment_method_type = "Visa"
+[[xendit.debit]]
+  payment_method_type = "Interac"
+[[xendit.debit]]
+  payment_method_type = "AmericanExpress"
+[[xendit.debit]]
+  payment_method_type = "JCB"
+[[xendit.debit]]
+  payment_method_type = "DinersClub"
+[[xendit.debit]]
+  payment_method_type = "Discover"
+[[xendit.debit]]
+  payment_method_type = "CartesBancaires"
+[[xendit.debit]]
+  payment_method_type = "UnionPay"
+[xendit.connector_auth.HeaderKey]
+api_key="API Key"

@@ -1,15 +1,21 @@
+import { execConfig, validateConfig } from "../../utils/featureFlags.js";
+
 import { connectorDetails as adyenConnectorDetails } from "./Adyen.js";
 import { connectorDetails as bankOfAmericaConnectorDetails } from "./BankOfAmerica.js";
 import { connectorDetails as bluesnapConnectorDetails } from "./Bluesnap.js";
+import { connectorDetails as checkoutConnectorDetails } from "./Checkout.js";
 import {
   connectorDetails as CommonConnectorDetails,
   updateDefaultStatusCode,
 } from "./Commons.js";
 import { connectorDetails as cybersourceConnectorDetails } from "./Cybersource.js";
 import { connectorDetails as datatransConnectorDetails } from "./Datatrans.js";
+import { connectorDetails as elavonConnectorDetails } from "./Elavon.js";
 import { connectorDetails as fiservemeaConnectorDetails } from "./Fiservemea.js";
+import { connectorDetails as fiuuConnectorDetails } from "./Fiuu.js";
 import { connectorDetails as iatapayConnectorDetails } from "./Iatapay.js";
 import { connectorDetails as itaubankConnectorDetails } from "./ItauBank.js";
+import { connectorDetails as jpmorganConnectorDetails } from "./Jpmorgan.js";
 import { connectorDetails as nexixpayConnectorDetails } from "./Nexixpay.js";
 import { connectorDetails as nmiConnectorDetails } from "./Nmi.js";
 import { connectorDetails as noonConnectorDetails } from "./Noon.js";
@@ -19,9 +25,9 @@ import { connectorDetails as paypalConnectorDetails } from "./Paypal.js";
 import { connectorDetails as stripeConnectorDetails } from "./Stripe.js";
 import { connectorDetails as trustpayConnectorDetails } from "./Trustpay.js";
 import { connectorDetails as wellsfargoConnectorDetails } from "./WellsFargo.js";
-import { connectorDetails as fiuuConnectorDetails } from "./Fiuu.js";
 import { connectorDetails as worldpayConnectorDetails } from "./WorldPay.js";
-import { connectorDetails as checkoutConnectorDetails } from "./Checkout.js";
+import { connectorDetails as deutschebankConnectorDetails } from "./Deutschebank.js";
+import { connectorDetails as xenditConnectorDetails } from "./Xendit.js";
 
 const connectorDetails = {
   adyen: adyenConnectorDetails,
@@ -30,15 +36,19 @@ const connectorDetails = {
   checkout: checkoutConnectorDetails,
   commons: CommonConnectorDetails,
   cybersource: cybersourceConnectorDetails,
+  deutschebank: deutschebankConnectorDetails,
   fiservemea: fiservemeaConnectorDetails,
   iatapay: iatapayConnectorDetails,
   itaubank: itaubankConnectorDetails,
+  jpmorgan: jpmorganConnectorDetails,
   nexixpay: nexixpayConnectorDetails,
   nmi: nmiConnectorDetails,
   novalnet: novalnetConnectorDetails,
   paybox: payboxConnectorDetails,
+  xendit: xenditConnectorDetails,
   paypal: paypalConnectorDetails,
   stripe: stripeConnectorDetails,
+  elavon: elavonConnectorDetails,
   trustpay: trustpayConnectorDetails,
   datatrans: datatransConnectorDetails,
   wellsfargo: wellsfargoConnectorDetails,
@@ -48,18 +58,22 @@ const connectorDetails = {
 };
 
 export default function getConnectorDetails(connectorId) {
-  let x = mergeDetails(connectorId);
+  const x = mergeDetails(connectorId);
   return x;
 }
 
 export function getConnectorFlowDetails(connectorData, commonData, key) {
-  let data = connectorData[key] === undefined ? commonData[key] : connectorData[key];
+  const data =
+    connectorData[key] === undefined ? commonData[key] : connectorData[key];
   return data;
 }
 
 function mergeDetails(connectorId) {
-  const connectorData = getValueByKey(connectorDetails, connectorId);
-  const fallbackData = getValueByKey(connectorDetails, "commons");
+  const connectorData = getValueByKey(
+    connectorDetails,
+    connectorId
+  ).authDetails;
+  const fallbackData = getValueByKey(connectorDetails, "commons").authDetails;
   // Merge data, prioritizing connectorData and filling missing data from fallbackData
   const mergedDetails = mergeConnectorDetails(connectorData, fallbackData);
   return mergedDetails;
@@ -92,26 +106,64 @@ function mergeConnectorDetails(source, fallback) {
   return merged;
 }
 
-export function getValueByKey(jsonObject, key) {
+export function handleMultipleConnectors(keys) {
+  return {
+    MULTIPLE_CONNECTORS: {
+      status: true,
+      count: keys.length,
+    },
+  };
+}
+
+export function getValueByKey(jsonObject, key, keyNumber = 0) {
   const data =
     typeof jsonObject === "string" ? JSON.parse(jsonObject) : jsonObject;
 
   if (data && typeof data === "object" && key in data) {
-    return data[key];
-  } else {
-    return null;
+    // Connector object has multiple keys
+    if (typeof data[key].connector_account_details === "undefined") {
+      const keys = Object.keys(data[key]);
+
+      for (let i = keyNumber; i < keys.length; i++) {
+        const currentItem = data[key][keys[i]];
+
+        if (
+          Object.prototype.hasOwnProperty.call(
+            currentItem,
+            "connector_account_details"
+          )
+        ) {
+          // Return state update instead of setting directly
+          return {
+            authDetails: currentItem,
+            stateUpdate: handleMultipleConnectors(keys),
+          };
+        }
+      }
+    }
+    return {
+      authDetails: data[key],
+      stateUpdate: null,
+    };
   }
+  return {
+    authDetails: null,
+    stateUpdate: null,
+  };
 }
 
-export const should_continue_further = (res_data) => {
-  if (res_data.trigger_skip !== undefined) {
-    return !res_data.trigger_skip;
+export const should_continue_further = (data) => {
+  const resData = data.Response || {};
+  const configData = validateConfig(data.Configs) || {};
+
+  if (typeof configData?.TRIGGER_SKIP !== "undefined") {
+    return !configData.TRIGGER_SKIP;
   }
 
   if (
-    res_data.body.error !== undefined ||
-    res_data.body.error_code !== undefined ||
-    res_data.body.error_message !== undefined
+    typeof resData.body.error !== "undefined" ||
+    typeof resData.body.error_code !== "undefined" ||
+    typeof resData.body.error_message !== "undefined"
   ) {
     return false;
   } else {
@@ -137,13 +189,127 @@ export function defaultErrorHandler(response, response_data) {
   if (typeof response.body.error === "object") {
     for (const key in response_data.body.error) {
       // Check if the error message is a Json deserialize error
-      let apiResponseContent = response.body.error[key];
-      let expectedContent = response_data.body.error[key];
-      if (typeof apiResponseContent === "string" && apiResponseContent.includes("Json deserialize error")) {
+      const apiResponseContent = response.body.error[key];
+      const expectedContent = response_data.body.error[key];
+      if (
+        typeof apiResponseContent === "string" &&
+        apiResponseContent.includes("Json deserialize error")
+      ) {
         expect(apiResponseContent).to.include(expectedContent);
       } else {
         expect(apiResponseContent).to.equal(expectedContent);
       }
     }
   }
+}
+
+export function extractIntegerAtEnd(str) {
+  // Match one or more digits at the end of the string
+  const match = str.match(/(\d+)$/);
+  return match ? parseInt(match[0], 10) : 0;
+}
+
+// Common helper function to check if operation should proceed
+function shouldProceedWithOperation(multipleConnector, multipleConnectors) {
+  return !(
+    multipleConnector?.nextConnector === true &&
+    (multipleConnectors?.status === false ||
+      typeof multipleConnectors === "undefined")
+  );
+}
+
+// Helper to get connector configuration
+function getConnectorConfig(
+  globalState,
+  multipleConnector = { nextConnector: false }
+) {
+  const multipleConnectors = globalState.get("MULTIPLE_CONNECTORS");
+  const mcaConfig = getConnectorDetails(globalState.get("connectorId"));
+
+  return {
+    config: {
+      CONNECTOR_CREDENTIAL:
+        multipleConnector?.nextConnector && multipleConnectors?.status
+          ? multipleConnector
+          : mcaConfig?.multi_credential_config || multipleConnector,
+    },
+    multipleConnectors,
+  };
+}
+
+// Simplified createBusinessProfile
+export function createBusinessProfile(
+  createBusinessProfileBody,
+  globalState,
+  multipleConnector = { nextConnector: false }
+) {
+  const { config, multipleConnectors } = getConnectorConfig(
+    globalState,
+    multipleConnector
+  );
+  const { profilePrefix } = execConfig(config);
+
+  if (shouldProceedWithOperation(multipleConnector, multipleConnectors)) {
+    cy.createBusinessProfileTest(
+      createBusinessProfileBody,
+      globalState,
+      profilePrefix
+    );
+  }
+}
+
+// Simplified createMerchantConnectorAccount
+export function createMerchantConnectorAccount(
+  paymentType,
+  createMerchantConnectorAccountBody,
+  globalState,
+  paymentMethodsEnabled,
+  multipleConnector = { nextConnector: false }
+) {
+  const { config, multipleConnectors } = getConnectorConfig(
+    globalState,
+    multipleConnector
+  );
+  const { profilePrefix, merchantConnectorPrefix } = execConfig(config);
+
+  if (shouldProceedWithOperation(multipleConnector, multipleConnectors)) {
+    cy.createConnectorCallTest(
+      paymentType,
+      createMerchantConnectorAccountBody,
+      paymentMethodsEnabled,
+      globalState,
+      profilePrefix,
+      merchantConnectorPrefix
+    );
+  }
+}
+
+export function updateBusinessProfile(
+  updateBusinessProfileBody,
+  is_connector_agnostic_enabled,
+  collect_billing_address_from_wallet_connector,
+  collect_shipping_address_from_wallet_connector,
+  always_collect_billing_address_from_wallet_connector,
+  always_collect_shipping_address_from_wallet_connector,
+  globalState
+) {
+  const multipleConnectors = globalState.get("MULTIPLE_CONNECTORS");
+  cy.log(`MULTIPLE_CONNECTORS: ${JSON.stringify(multipleConnectors)}`);
+
+  // Get MCA config
+  const mcaConfig = getConnectorDetails(globalState.get("connectorId"));
+  const { profilePrefix } = execConfig({
+    CONNECTOR_CREDENTIAL: mcaConfig?.multi_credential_config,
+  });
+
+  cy.UpdateBusinessProfileTest(
+    updateBusinessProfileBody,
+    is_connector_agnostic_enabled,
+    collect_billing_address_from_wallet_connector,
+    collect_shipping_address_from_wallet_connector,
+    always_collect_billing_address_from_wallet_connector,
+    always_collect_shipping_address_from_wallet_connector,
+    globalState,
+    profilePrefix
+  );
 }

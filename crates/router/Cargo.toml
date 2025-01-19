@@ -17,7 +17,7 @@ email = ["external_services/email", "scheduler/email", "olap"]
 # keymanager_create, keymanager_mtls, encryption_service should not be removed or added to default feature. Once this features were enabled it can't be disabled as these are breaking changes.
 keymanager_create = []
 keymanager_mtls = ["reqwest/rustls-tls", "common_utils/keymanager_mtls"]
-encryption_service = ["keymanager_create","hyperswitch_domain_models/encryption_service", "common_utils/encryption_service"]
+encryption_service = ["keymanager_create", "hyperswitch_domain_models/encryption_service", "common_utils/encryption_service"]
 km_forward_x_request_id = ["common_utils/km_forward_x_request_id"]
 frm = ["api_models/frm", "hyperswitch_domain_models/frm", "hyperswitch_connectors/frm", "hyperswitch_interfaces/frm"]
 stripe = []
@@ -37,7 +37,7 @@ v2 = ["customer_v2", "payment_methods_v2", "common_default", "api_models/v2", "d
 v1 = ["common_default", "api_models/v1", "diesel_models/v1", "hyperswitch_domain_models/v1", "storage_impl/v1", "hyperswitch_interfaces/v1", "kgraph_utils/v1", "common_utils/v1"]
 customer_v2 = ["api_models/customer_v2", "diesel_models/customer_v2", "hyperswitch_domain_models/customer_v2", "storage_impl/customer_v2"]
 payment_methods_v2 = ["api_models/payment_methods_v2", "diesel_models/payment_methods_v2", "hyperswitch_domain_models/payment_methods_v2", "storage_impl/payment_methods_v2", "common_utils/payment_methods_v2"]
-dynamic_routing = ["external_services/dynamic_routing", "storage_impl/dynamic_routing"]
+dynamic_routing = ["external_services/dynamic_routing", "storage_impl/dynamic_routing", "api_models/dynamic_routing"]
 
 # Partial Auth
 # The feature reduces the overhead of the router authenticating the merchant for every request, and trusts on `x-merchant-id` header to be present in the request.
@@ -91,7 +91,6 @@ rdkafka = "0.36.2"
 regex = "1.10.4"
 reqwest = { version = "0.11.27", features = ["json", "rustls-tls", "gzip", "multipart"] }
 ring = "0.17.8"
-roxmltree = "0.19.0"
 rust_decimal = { version = "1.35.0", features = ["serde-with-float", "serde-with-str"] }
 rust-i18n = { git = "https://github.com/kashif-m/rust-i18n", rev = "f2d8096aaaff7a87a847c35a5394c269f75e077a" }
 rustc-hash = "1.1.0"
@@ -124,10 +123,11 @@ x509-parser = "0.16.0"
 # First party crates
 
 analytics = { version = "0.1.0", path = "../analytics", optional = true, default-features = false }
-api_models = { version = "0.1.0", path = "../api_models", features = ["errors"] }
+api_models = { version = "0.1.0", path = "../api_models", features = ["errors", "control_center_theme"] }
 cards = { version = "0.1.0", path = "../cards" }
 common_enums = { version = "0.1.0", path = "../common_enums" }
 common_utils = { version = "0.1.0", path = "../common_utils", features = ["signals", "async_ext", "logs", "metrics", "keymanager", "encryption_service"] }
+common_types = { version = "0.1.0", path = "../common_types" }
 currency_conversion = { version = "0.1.0", path = "../currency_conversion" }
 diesel_models = { version = "0.1.0", path = "../diesel_models", features = ["kv_store"], default-features = false }
 euclid = { version = "0.1.0", path = "../euclid", features = ["valued_jit"] }

@@ -36,7 +36,8 @@ type PaymentSessionUpdateOperation<'b, F> =
     BoxedOperation<'b, F, api::PaymentsDynamicTaxCalculationRequest, PaymentData<F>>;
 
 #[async_trait]
-impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsDynamicTaxCalculationRequest>
+impl<F: Send + Clone + Sync>
+    GetTracker<F, PaymentData<F>, api::PaymentsDynamicTaxCalculationRequest>
     for PaymentSessionUpdate
 {
     #[instrument(skip_all)]
@@ -49,6 +50,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsDynamicTaxCalcu
         key_store: &domain::MerchantKeyStore,
         _auth_flow: services::AuthFlow,
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
+        _platform_merchant_account: Option<&domain::MerchantAccount>,
     ) -> RouterResult<
         operations::GetTrackerResponse<
             'a,
@@ -78,7 +80,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsDynamicTaxCalcu
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
         helpers::validate_payment_status_against_not_allowed_statuses(
-            &payment_intent.status,
+            payment_intent.status,
             &[
                 storage_enums::IntentStatus::Failed,
                 storage_enums::IntentStatus::Succeeded,
@@ -129,7 +131,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsDynamicTaxCalcu
             })?;
 
         let tax_data = payments::TaxData {
-            shipping_details: request.shipping.clone(),
+            shipping_details: request.shipping.clone().into(),
             payment_method_type: request.payment_method_type,
         };
 
@@ -178,6 +180,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsDynamicTaxCalcu
             poll_config: None,
             tax_data: Some(tax_data),
             session_id: request.session_id.clone(),
+            service_details: None,
         };
         let get_trackers_response = operations::GetTrackerResponse {
             operation: Box::new(self),
@@ -192,7 +195,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsDynamicTaxCalcu
 }
 
 #[async_trait]
-impl<F: Clone + Send> Domain<F, api::PaymentsDynamicTaxCalculationRequest, PaymentData<F>>
+impl<F: Clone + Send + Sync> Domain<F, api::PaymentsDynamicTaxCalculationRequest, PaymentData<F>>
     for PaymentSessionUpdate
 {
     #[instrument(skip_all)]
@@ -364,7 +367,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsDynamicTaxCalculationRequest, Payme
 }
 
 #[async_trait]
-impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsDynamicTaxCalculationRequest>
+impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsDynamicTaxCalculationRequest>
     for PaymentSessionUpdate
 {
     #[instrument(skip_all)]
@@ -403,7 +406,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsDynamicTaxCalculati
 
             let shipping_address = helpers::create_or_update_address_for_payment_by_request(
                 state,
-                shipping_address.as_ref(),
+                shipping_address.map(From::from).as_ref(),
                 payment_data.payment_intent.shipping_address_id.as_deref(),
                 &payment_data.payment_intent.merchant_id,
                 payment_data.payment_intent.customer_id.as_ref(),
@@ -442,7 +445,8 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsDynamicTaxCalculati
     }
 }
 
-impl<F: Send + Clone> ValidateRequest<F, api::PaymentsDynamicTaxCalculationRequest, PaymentData<F>>
+impl<F: Send + Clone + Sync>
+    ValidateRequest<F, api::PaymentsDynamicTaxCalculationRequest, PaymentData<F>>
     for PaymentSessionUpdate
 {
     #[instrument(skip_all)]

@@ -53,6 +53,9 @@ pub struct Refund {
     pub organization_id: common_utils::id_type::OrganizationId,
     pub connector_refund_data: Option<String>,
     pub connector_transaction_data: Option<String>,
+    pub split_refunds: Option<common_types::refunds::SplitRefund>,
+    pub unified_code: Option<String>,
+    pub unified_message: Option<String>,
 }
 
 #[derive(
@@ -98,6 +101,7 @@ pub struct RefundNew {
     pub organization_id: common_utils::id_type::OrganizationId,
     pub connector_refund_data: Option<String>,
     pub connector_transaction_data: Option<String>,
+    pub split_refunds: Option<common_types::refunds::SplitRefund>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -130,6 +134,8 @@ pub enum RefundUpdate {
         updated_by: String,
         connector_refund_id: Option<ConnectorTransactionId>,
         connector_refund_data: Option<String>,
+        unified_code: Option<String>,
+        unified_message: Option<String>,
     },
     ManualUpdate {
         refund_status: Option<storage_enums::RefundStatus>,
@@ -153,6 +159,8 @@ pub struct RefundUpdateInternal {
     updated_by: String,
     modified_at: PrimitiveDateTime,
     connector_refund_data: Option<String>,
+    unified_code: Option<String>,
+    unified_message: Option<String>,
 }
 
 impl RefundUpdateInternal {
@@ -169,6 +177,8 @@ impl RefundUpdateInternal {
             updated_by: self.updated_by,
             modified_at: self.modified_at,
             connector_refund_data: self.connector_refund_data,
+            unified_code: self.unified_code,
+            unified_message: self.unified_message,
             ..source
         }
     }
@@ -197,6 +207,8 @@ impl From<RefundUpdate> for RefundUpdateInternal {
                 refund_reason: None,
                 refund_error_code: None,
                 modified_at: common_utils::date_time::now(),
+                unified_code: None,
+                unified_message: None,
             },
             RefundUpdate::MetadataAndReasonUpdate {
                 metadata,
@@ -214,6 +226,8 @@ impl From<RefundUpdate> for RefundUpdateInternal {
                 refund_error_code: None,
                 modified_at: common_utils::date_time::now(),
                 connector_refund_data: None,
+                unified_code: None,
+                unified_message: None,
             },
             RefundUpdate::StatusUpdate {
                 connector_refund_id,
@@ -233,11 +247,15 @@ impl From<RefundUpdate> for RefundUpdateInternal {
                 refund_reason: None,
                 refund_error_code: None,
                 modified_at: common_utils::date_time::now(),
+                unified_code: None,
+                unified_message: None,
             },
             RefundUpdate::ErrorUpdate {
                 refund_status,
                 refund_error_message,
                 refund_error_code,
+                unified_code,
+                unified_message,
                 updated_by,
                 connector_refund_id,
                 connector_refund_data,
@@ -253,6 +271,8 @@ impl From<RefundUpdate> for RefundUpdateInternal {
                 metadata: None,
                 refund_reason: None,
                 modified_at: common_utils::date_time::now(),
+                unified_code,
+                unified_message,
             },
             RefundUpdate::ManualUpdate {
                 refund_status,
@@ -271,6 +291,8 @@ impl From<RefundUpdate> for RefundUpdateInternal {
                 refund_reason: None,
                 modified_at: common_utils::date_time::now(),
                 connector_refund_data: None,
+                unified_code: None,
+                unified_message: None,
             },
         }
     }
@@ -290,6 +312,8 @@ impl RefundUpdate {
             updated_by,
             modified_at: _,
             connector_refund_data,
+            unified_code,
+            unified_message,
         } = self.into();
         Refund {
             connector_refund_id: connector_refund_id.or(source.connector_refund_id),
@@ -303,6 +327,8 @@ impl RefundUpdate {
             updated_by,
             modified_at: common_utils::date_time::now(),
             connector_refund_data: connector_refund_data.or(source.connector_refund_data),
+            unified_code: unified_code.or(source.unified_code),
+            unified_message: unified_message.or(source.unified_message),
             ..source
         }
     }
@@ -390,6 +416,8 @@ mod tests {
     "merchant_connector_id": null,
     "charges": null,
     "connector_transaction_data": null
+    "unified_code": null,
+    "unified_message": null,
 }"#;
         let deserialized = serde_json::from_str::<super::Refund>(serialized_refund);
 

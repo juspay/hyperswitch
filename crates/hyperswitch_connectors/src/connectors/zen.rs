@@ -34,14 +34,14 @@ use hyperswitch_domain_models::{
 use hyperswitch_interfaces::{
     api::{
         self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorRedirectResponse,
-        ConnectorValidation,
+        ConnectorSpecifications, ConnectorValidation,
     },
     configs::Connectors,
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     errors,
     events::connector_api_logs::ConnectorEvent,
     types::{PaymentsAuthorizeType, PaymentsSyncType, RefundExecuteType, RefundSyncType, Response},
-    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
+    webhooks::{IncomingWebhook, IncomingWebhookFlowError, IncomingWebhookRequestDetails},
 };
 use masking::{Mask, PeekInterface, Secret};
 use transformers::{self as zen, ZenPaymentStatus, ZenWebhookTxnType};
@@ -671,6 +671,7 @@ impl IncomingWebhook for Zen {
     fn get_webhook_api_response(
         &self,
         _request: &IncomingWebhookRequestDetails<'_>,
+        _error_kind: Option<IncomingWebhookFlowError>,
     ) -> CustomResult<ApplicationResponse<serde_json::Value>, errors::ConnectorError> {
         Ok(ApplicationResponse::Json(serde_json::json!({
             "status": "ok"
@@ -694,3 +695,5 @@ impl ConnectorRedirectResponse for Zen {
         }
     }
 }
+
+impl ConnectorSpecifications for Zen {}

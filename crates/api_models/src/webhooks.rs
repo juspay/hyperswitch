@@ -124,6 +124,10 @@ pub enum WebhookResponseTracker {
         status: common_enums::PaymentMethodStatus,
     },
     NoEffect,
+    Relay {
+        relay_id: common_utils::id_type::RelayId,
+        status: common_enums::RelayStatus,
+    },
 }
 
 impl WebhookResponseTracker {
@@ -136,6 +140,7 @@ impl WebhookResponseTracker {
             Self::NoEffect | Self::Mandate { .. } | Self::PaymentMethod { .. } => None,
             #[cfg(feature = "payouts")]
             Self::Payout { .. } => None,
+            Self::Relay { .. } => None,
         }
     }
 
@@ -151,6 +156,7 @@ impl WebhookResponseTracker {
             | Self::Mandate { .. } => None,
             #[cfg(feature = "payouts")]
             Self::Payout { .. } => None,
+            Self::Relay { .. } => None,
         }
     }
 
@@ -163,6 +169,7 @@ impl WebhookResponseTracker {
             Self::NoEffect | Self::Mandate { .. } => None,
             #[cfg(feature = "payouts")]
             Self::Payout { .. } => None,
+            Self::Relay { .. } => None,
         }
     }
 }

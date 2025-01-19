@@ -5,7 +5,16 @@ import * as utils from "../RoutingUtils/Utils";
 let globalState;
 
 describe("Auto Retries & Step Up 3DS", () => {
-  context("Login", () => {
+  beforeEach(() => {
+    // Restore the session if it exists
+    cy.session("login", () => {
+      cy.userLogin(globalState);
+      cy.terminate2Fa(globalState);
+      cy.userInfo(globalState);
+    });
+  });
+
+  context("Get merchant info", () => {
     before("seed global state", () => {
       cy.task("getGlobalState").then((state) => {
         globalState = new State(state);
@@ -14,12 +23,6 @@ describe("Auto Retries & Step Up 3DS", () => {
 
     afterEach("flush global state", () => {
       cy.task("setGlobalState", globalState.data);
-    });
-
-    it("User login", () => {
-      cy.userLogin(globalState);
-      cy.terminate2Fa(globalState);
-      cy.userInfo(globalState);
     });
 
     it("List MCA", () => {
@@ -42,7 +45,7 @@ describe("Auto Retries & Step Up 3DS", () => {
   context("Auto Retries", () => {
     context("[Config: enable] Auto retries", () => {
       it("Enable auto retries", () => {
-        cy.updateConfig('autoRetry', fixtures.configs.gsm, globalState, "true");
+        cy.updateConfig("autoRetry", globalState, "true");
       });
 
       context("Max auto retries", () => {
@@ -59,11 +62,9 @@ describe("Auto Retries & Step Up 3DS", () => {
             });
 
             it("Add routing config", () => {
-              let data = utils.getConnectorDetails("common")["priorityRouting"];
-              let req_data = data["Request"];
-              let res_data = data["Response"];
-
-              let routing_data = [
+              const data =
+                utils.getConnectorDetails("common")["priorityRouting"];
+              const routing_data = [
                 {
                   connector: "adyen",
                   merchant_connector_id: globalState.get("adyenMcaId"),
@@ -79,8 +80,7 @@ describe("Auto Retries & Step Up 3DS", () => {
               ];
               cy.addRoutingConfig(
                 fixtures.routingConfigBody,
-                req_data,
-                res_data,
+                data,
                 "priority",
                 routing_data,
                 globalState
@@ -88,36 +88,29 @@ describe("Auto Retries & Step Up 3DS", () => {
             });
 
             it("Activate routing config", () => {
-              let data = utils.getConnectorDetails("common")["priorityRouting"];
-              let req_data = data["Request"];
-              let res_data = data["Response"];
-              cy.activateRoutingConfig(req_data, res_data, globalState);
+              const data =
+                utils.getConnectorDetails("common")["priorityRouting"];
+
+              cy.activateRoutingConfig(data, globalState);
             });
           });
 
           context("Max auto retries = 2", () => {
             const max_auto_retries = 2;
             it("Update max auto retries", () => {
-              cy.updateConfig(
-                'maxRetries',
-                fixtures.configs.max_auto_retries,
-                globalState,
-                `${max_auto_retries}`
-              );
+              cy.updateConfig("maxRetries", globalState, `${max_auto_retries}`);
             });
 
             context("Make payment", () => {
               it("Payment create call", () => {
-                let data =
+                const data =
                   utils.getConnectorDetails("autoretries")["card_pm"][
                     "PaymentIntent"
                   ];
-                let req_data = data["Request"];
-                let res_data = data["Response"];
+
                 cy.createPaymentIntentTest(
                   fixtures.createPaymentBody,
-                  req_data,
-                  res_data,
+                  data,
                   "no_three_ds",
                   "automatic",
                   globalState
@@ -125,16 +118,14 @@ describe("Auto Retries & Step Up 3DS", () => {
               });
 
               it("Payment confirm call", () => {
-                let data =
+                const data =
                   utils.getConnectorDetails("autoretries")["card_pm"][
                     "BluesnapConfirm"
                   ];
-                let req_data = data["Request"];
-                let res_data = data["Response"];
+
                 cy.confirmCallTest(
                   fixtures.confirmBody,
-                  req_data,
-                  res_data,
+                  data,
                   true,
                   globalState
                 );
@@ -143,6 +134,7 @@ describe("Auto Retries & Step Up 3DS", () => {
               it("Payment retrieve call", () => {
                 cy.retrievePaymentCallTest(
                   globalState,
+                  null,
                   true,
                   max_auto_retries + 1
                 );
@@ -153,26 +145,19 @@ describe("Auto Retries & Step Up 3DS", () => {
           context("Max auto retries = 1", () => {
             const max_auto_retries = 1;
             it("Update max auto retries", () => {
-              cy.updateConfig(
-                'maxRetries',
-                fixtures.configs.max_auto_retries,
-                globalState,
-                `${max_auto_retries}`
-              );
+              cy.updateConfig("maxRetries", globalState, `${max_auto_retries}`);
             });
 
             context("Make payment", () => {
               it("Payment create call", () => {
-                let data =
+                const data =
                   utils.getConnectorDetails("autoretries")["card_pm"][
                     "PaymentIntent"
                   ];
-                let req_data = data["Request"];
-                let res_data = data["Response"];
+
                 cy.createPaymentIntentTest(
                   fixtures.createPaymentBody,
-                  req_data,
-                  res_data,
+                  data,
                   "no_three_ds",
                   "automatic",
                   globalState
@@ -180,16 +165,14 @@ describe("Auto Retries & Step Up 3DS", () => {
               });
 
               it("Payment confirm call", () => {
-                let data =
+                const data =
                   utils.getConnectorDetails("autoretries")["card_pm"][
                     "StripeConfirmSuccess"
                   ];
-                let req_data = data["Request"];
-                let res_data = data["Response"];
+
                 cy.confirmCallTest(
                   fixtures.confirmBody,
-                  req_data,
-                  res_data,
+                  data,
                   true,
                   globalState
                 );
@@ -198,6 +181,7 @@ describe("Auto Retries & Step Up 3DS", () => {
               it("Payment retrieve call", () => {
                 cy.retrievePaymentCallTest(
                   globalState,
+                  null,
                   true,
                   max_auto_retries + 1
                 );
@@ -207,26 +191,19 @@ describe("Auto Retries & Step Up 3DS", () => {
           context("Max auto retries = 0", () => {
             const max_auto_retries = 0;
             it("Update max auto retries", () => {
-              cy.updateConfig(
-                'maxRetries',
-                fixtures.configs.max_auto_retries,
-                globalState,
-                `${max_auto_retries}`
-              );
+              cy.updateConfig("maxRetries", globalState, `${max_auto_retries}`);
             });
 
             context("Make payment", () => {
               it("Payment create call", () => {
-                let data =
+                const data =
                   utils.getConnectorDetails("autoretries")["card_pm"][
                     "PaymentIntent"
                   ];
-                let req_data = data["Request"];
-                let res_data = data["Response"];
+
                 cy.createPaymentIntentTest(
                   fixtures.createPaymentBody,
-                  req_data,
-                  res_data,
+                  data,
                   "no_three_ds",
                   "automatic",
                   globalState
@@ -234,16 +211,14 @@ describe("Auto Retries & Step Up 3DS", () => {
               });
 
               it("Payment confirm call", () => {
-                let data =
+                const data =
                   utils.getConnectorDetails("autoretries")["card_pm"][
                     "AdyenConfirmFail"
                   ];
-                let req_data = data["Request"];
-                let res_data = data["Response"];
+
                 cy.confirmCallTest(
                   fixtures.confirmBody,
-                  req_data,
-                  res_data,
+                  data,
                   true,
                   globalState
                 );
@@ -252,6 +227,7 @@ describe("Auto Retries & Step Up 3DS", () => {
               it("Payment retrieve call", () => {
                 cy.retrievePaymentCallTest(
                   globalState,
+                  null,
                   true,
                   max_auto_retries + 1
                 );
@@ -273,11 +249,9 @@ describe("Auto Retries & Step Up 3DS", () => {
             });
 
             it("Add routing config", () => {
-              let data = utils.getConnectorDetails("common")["priorityRouting"];
-              let req_data = data["Request"];
-              let res_data = data["Response"];
-
-              let routing_data = [
+              const data =
+                utils.getConnectorDetails("common")["priorityRouting"];
+              const routing_data = [
                 {
                   connector: "stripe",
                   merchant_connector_id: globalState.get("stripeMcaId"),
@@ -293,8 +267,7 @@ describe("Auto Retries & Step Up 3DS", () => {
               ];
               cy.addRoutingConfig(
                 fixtures.routingConfigBody,
-                req_data,
-                res_data,
+                data,
                 "priority",
                 routing_data,
                 globalState
@@ -302,36 +275,29 @@ describe("Auto Retries & Step Up 3DS", () => {
             });
 
             it("Activate routing config", () => {
-              let data = utils.getConnectorDetails("common")["priorityRouting"];
-              let req_data = data["Request"];
-              let res_data = data["Response"];
-              cy.activateRoutingConfig(req_data, res_data, globalState);
+              const data =
+                utils.getConnectorDetails("common")["priorityRouting"];
+
+              cy.activateRoutingConfig(data, globalState);
             });
           });
 
           context("Max auto retries = 2", () => {
             const max_auto_retries = 2;
             it("Update max auto retries", () => {
-              cy.updateConfig(
-                'maxRetries',
-                fixtures.configs.max_auto_retries,
-                globalState,
-                `${max_auto_retries}`
-              );
+              cy.updateConfig("maxRetries", globalState, `${max_auto_retries}`);
             });
 
             context("Make payment", () => {
               it("Payment create call", () => {
-                let data =
+                const data =
                   utils.getConnectorDetails("autoretries")["card_pm"][
                     "PaymentIntent"
                   ];
-                let req_data = data["Request"];
-                let res_data = data["Response"];
+
                 cy.createPaymentIntentTest(
                   fixtures.createPaymentBody,
-                  req_data,
-                  res_data,
+                  data,
                   "no_three_ds",
                   "automatic",
                   globalState
@@ -339,16 +305,14 @@ describe("Auto Retries & Step Up 3DS", () => {
               });
 
               it("Payment confirm call", () => {
-                let data =
+                const data =
                   utils.getConnectorDetails("autoretries")["card_pm"][
                     "BluesnapConfirm"
                   ];
-                let req_data = data["Request"];
-                let res_data = data["Response"];
+
                 cy.confirmCallTest(
                   fixtures.confirmBody,
-                  req_data,
-                  res_data,
+                  data,
                   true,
                   globalState
                 );
@@ -357,6 +321,7 @@ describe("Auto Retries & Step Up 3DS", () => {
               it("Payment retrieve call", () => {
                 cy.retrievePaymentCallTest(
                   globalState,
+                  null,
                   true,
                   max_auto_retries + 1
                 );
@@ -367,26 +332,19 @@ describe("Auto Retries & Step Up 3DS", () => {
           context("Max auto retries = 1", () => {
             const max_auto_retries = 1;
             it("Update max auto retries", () => {
-              cy.updateConfig(
-                'maxRetries',
-                fixtures.configs.max_auto_retries,
-                globalState,
-                `${max_auto_retries}`
-              );
+              cy.updateConfig("maxRetries", globalState, `${max_auto_retries}`);
             });
 
             context("Make payment", () => {
               it("Payment create call", () => {
-                let data =
+                const data =
                   utils.getConnectorDetails("autoretries")["card_pm"][
                     "PaymentIntent"
                   ];
-                let req_data = data["Request"];
-                let res_data = data["Response"];
+
                 cy.createPaymentIntentTest(
                   fixtures.createPaymentBody,
-                  req_data,
-                  res_data,
+                  data,
                   "no_three_ds",
                   "automatic",
                   globalState
@@ -394,16 +352,14 @@ describe("Auto Retries & Step Up 3DS", () => {
               });
 
               it("Payment confirm call", () => {
-                let data =
+                const data =
                   utils.getConnectorDetails("autoretries")["card_pm"][
                     "AdyenConfirm"
                   ];
-                let req_data = data["Request"];
-                let res_data = data["Response"];
+
                 cy.confirmCallTest(
                   fixtures.confirmBody,
-                  req_data,
-                  res_data,
+                  data,
                   true,
                   globalState
                 );
@@ -412,6 +368,7 @@ describe("Auto Retries & Step Up 3DS", () => {
               it("Payment retrieve call", () => {
                 cy.retrievePaymentCallTest(
                   globalState,
+                  null,
                   true,
                   max_auto_retries + 1
                 );
@@ -422,26 +379,19 @@ describe("Auto Retries & Step Up 3DS", () => {
           context("Max auto retries = 0", () => {
             const max_auto_retries = 0;
             it("Update max auto retries", () => {
-              cy.updateConfig(
-                'maxRetries',
-                fixtures.configs.max_auto_retries,
-                globalState,
-                `${max_auto_retries}`
-              );
+              cy.updateConfig("maxRetries", globalState, `${max_auto_retries}`);
             });
 
             context("Make payment", () => {
               it("Payment create call", () => {
-                let data =
+                const data =
                   utils.getConnectorDetails("autoretries")["card_pm"][
                     "PaymentIntent"
                   ];
-                let req_data = data["Request"];
-                let res_data = data["Response"];
+
                 cy.createPaymentIntentTest(
                   fixtures.createPaymentBody,
-                  req_data,
-                  res_data,
+                  data,
                   "no_three_ds",
                   "automatic",
                   globalState
@@ -449,16 +399,14 @@ describe("Auto Retries & Step Up 3DS", () => {
               });
 
               it("Payment confirm call", () => {
-                let data =
+                const data =
                   utils.getConnectorDetails("autoretries")["card_pm"][
                     "StripeConfirmFail"
                   ];
-                let req_data = data["Request"];
-                let res_data = data["Response"];
+
                 cy.confirmCallTest(
                   fixtures.confirmBody,
-                  req_data,
-                  res_data,
+                  data,
                   true,
                   globalState
                 );
@@ -467,6 +415,7 @@ describe("Auto Retries & Step Up 3DS", () => {
               it("Payment retrieve call", () => {
                 cy.retrievePaymentCallTest(
                   globalState,
+                  null,
                   true,
                   max_auto_retries + 1
                 );
@@ -483,32 +432,25 @@ describe("Auto Retries & Step Up 3DS", () => {
           });
 
           it("[Config: enable] Step up for Stripe", () => {
-            cy.updateConfig('stepUp',fixtures.configs.step_up, globalState, '["stripe"]');
+            cy.updateConfig("stepUp", globalState, '["stripe"]');
           });
         });
 
         context("Make Payment", () => {
           const max_auto_retries = 1;
           it("Update max auto retries", () => {
-            cy.updateConfig(
-              'maxRetries',
-              fixtures.configs.max_auto_retries,
-              globalState,
-              `${max_auto_retries}`
-            );
+            cy.updateConfig("maxRetries", globalState, `${max_auto_retries}`);
           });
 
           it("Payment create call", () => {
-            let data =
+            const data =
               utils.getConnectorDetails("autoretries")["card_pm"][
                 "PaymentIntent"
               ];
-            let req_data = data["Request"];
-            let res_data = data["Response"];
+
             cy.createPaymentIntentTest(
               fixtures.createPaymentBody,
-              req_data,
-              res_data,
+              data,
               "no_three_ds",
               "automatic",
               globalState
@@ -516,23 +458,21 @@ describe("Auto Retries & Step Up 3DS", () => {
           });
 
           it("Payment confirm call", () => {
-            let data =
+            const data =
               utils.getConnectorDetails("autoretries")["card_pm"][
                 "StripeConfirm3DS"
               ];
-            let req_data = data["Request"];
-            let res_data = data["Response"];
-            cy.confirmCallTest(
-              fixtures.confirmBody,
-              req_data,
-              res_data,
-              true,
-              globalState
-            );
+
+            cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
           });
 
           it("Payment retrieve call", () => {
-            cy.retrievePaymentCallTest(globalState, true, max_auto_retries + 1);
+            cy.retrievePaymentCallTest(
+              globalState,
+              null,
+              true,
+              max_auto_retries + 1
+            );
           });
         });
       });
@@ -540,8 +480,8 @@ describe("Auto Retries & Step Up 3DS", () => {
 
     context("[Config: disable] Auto retries", () => {
       it("[Config: disable] Auto retries", () => {
-        cy.updateConfig('autoRetry', fixtures.configs.gsm, globalState, "false");
-      });      
+        cy.updateConfig("autoRetry", globalState, "false");
+      });
 
       it("[Config: disable] Step up GSM", () => {
         cy.updateGsmConfig(fixtures.gsmBody.gsm_update, globalState, false);
@@ -550,16 +490,14 @@ describe("Auto Retries & Step Up 3DS", () => {
       context("Make payment", () => {
         context("[Failed] Make payment", () => {
           it("Payment create call", () => {
-            let data =
+            const data =
               utils.getConnectorDetails("autoretries")["card_pm"][
                 "PaymentIntent"
               ];
-            let req_data = data["Request"];
-            let res_data = data["Response"];
+
             cy.createPaymentIntentTest(
               fixtures.createPaymentBody,
-              req_data,
-              res_data,
+              data,
               "no_three_ds",
               "automatic",
               globalState
@@ -567,38 +505,29 @@ describe("Auto Retries & Step Up 3DS", () => {
           });
 
           it("Payment confirm call", () => {
-            let data =
+            const data =
               utils.getConnectorDetails("autoretries")["card_pm"][
                 "StripeConfirmFail"
               ];
-            let req_data = data["Request"];
-            let res_data = data["Response"];
-            cy.confirmCallTest(
-              fixtures.confirmBody,
-              req_data,
-              res_data,
-              true,
-              globalState
-            );
+
+            cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
           });
 
           it("Payment retrieve call", () => {
-            cy.retrievePaymentCallTest(globalState, true);
+            cy.retrievePaymentCallTest(globalState, null, true);
           });
         });
 
         context("[Succeeded] Make payment", () => {
           it("Payment create call", () => {
-            let data =
+            const data =
               utils.getConnectorDetails("autoretries")["card_pm"][
                 "PaymentIntent"
               ];
-            let req_data = data["Request"];
-            let res_data = data["Response"];
+
             cy.createPaymentIntentTest(
               fixtures.createPaymentBody,
-              req_data,
-              res_data,
+              data,
               "no_three_ds",
               "automatic",
               globalState
@@ -606,23 +535,16 @@ describe("Auto Retries & Step Up 3DS", () => {
           });
 
           it("Payment confirm call", () => {
-            let data =
+            const data =
               utils.getConnectorDetails("autoretries")["card_pm"][
                 "StripeConfirmSuccess"
               ];
-            let req_data = data["Request"];
-            let res_data = data["Response"];
-            cy.confirmCallTest(
-              fixtures.confirmBody,
-              req_data,
-              res_data,
-              true,
-              globalState
-            );
+
+            cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
           });
 
           it("Payment retrieve call", () => {
-            cy.retrievePaymentCallTest(globalState, true);
+            cy.retrievePaymentCallTest(globalState, null, true);
           });
         });
       });

@@ -549,8 +549,6 @@ pub fn payments_incremental_authorization() {}
 pub fn payments_external_authentication() {}
 
 /// Payments - Complete Authorize
-///
-///
 #[utoipa::path(
   post,
   path = "/{payment_id}/complete_authorize",
@@ -569,8 +567,6 @@ pub fn payments_external_authentication() {}
 pub fn payments_complete_authorize() {}
 
 /// Dynamic Tax Calculation
-///
-///
 #[utoipa::path(
     post,
     path = "/payments/{payment_id}/calculate_tax",
@@ -587,8 +583,6 @@ pub fn payments_complete_authorize() {}
 pub fn payments_dynamic_tax_calculation() {}
 
 /// Payments - Post Session Tokens
-///
-///
 #[utoipa::path(
     post,
     path = "/payments/{payment_id}/post_session_tokens",
@@ -652,6 +646,43 @@ pub fn payments_create_intent() {}
 )]
 #[cfg(feature = "v2")]
 pub fn payments_get_intent() {}
+
+/// Payments - Update Intent
+///
+/// **Update a payment intent object**
+///
+/// You will require the 'API - Key' from the Hyperswitch dashboard to make the call.
+#[utoipa::path(
+  put,
+  path = "/v2/payments/{id}/update-intent",
+  params (("id" = String, Path, description = "The unique identifier for the Payment Intent"),
+      (
+        "X-Profile-Id" = String, Header,
+        description = "Profile ID associated to the payment intent",
+        example = json!({"X-Profile-Id": "pro_abcdefghijklmnop"})
+      ),
+    ),
+  request_body(
+      content = PaymentsUpdateIntentRequest,
+      examples(
+          (
+              "Update a payment intent with minimal fields" = (
+                  value = json!({"amount_details": {"order_amount": 6540, "currency": "USD"}})
+              )
+          ),
+      ),
+  ),
+  responses(
+      (status = 200, description = "Payment Intent Updated", body = PaymentsIntentResponse),
+      (status = 404, description = "Payment Intent Not Found")
+  ),
+  tag = "Payments",
+  operation_id = "Update a Payment Intent",
+  security(("api_key" = [])),
+)]
+#[cfg(feature = "v2")]
+pub fn payments_update_intent() {}
+
 /// Payments - Confirm Intent
 ///
 /// **Confirms a payment intent object with the payment method data**
@@ -660,6 +691,18 @@ pub fn payments_get_intent() {}
 #[utoipa::path(
   post,
   path = "/v2/payments/{id}/confirm-intent",
+  params (("id" = String, Path, description = "The unique identifier for the Payment Intent"),
+      (
+        "X-Profile-Id" = String, Header,
+        description = "Profile ID associated to the payment intent",
+        example = json!({"X-Profile-Id": "pro_abcdefghijklmnop"})
+      ),
+      (
+        "X-Client-Secret" = String, Header,
+        description = "Client Secret Associated with the payment intent",
+        example = json!({"X-Client-Secret": "12345_pay_0193e41106e07e518940f8b51b9c8121_secret_0193e41107027a928d61d292e6a5dba9"})
+      ),
+    ),
   request_body(
       content = PaymentsConfirmIntentRequest,
       examples(
@@ -687,7 +730,7 @@ pub fn payments_get_intent() {}
   ),
   tag = "Payments",
   operation_id = "Confirm Payment Intent",
-  security(("publisable_key" = [])),
+  security(("publishable_key" = [])),
 )]
 #[cfg(feature = "v2")]
 pub fn payments_confirm_intent() {}
@@ -721,3 +764,33 @@ pub(crate) enum ForceSync {
     /// Do not force sync with the connector / processor. Get the status which is available in the database
     False,
 }
+
+/// Payments - Payment Methods List
+///
+/// List the payment methods eligible for a payment. This endpoint also returns the saved payment methods for the customer when the customer_id is passed when creating the payment
+#[cfg(feature = "v2")]
+#[utoipa::path(
+    get,
+    path = "/v2/payments/{id}/payment-methods",
+    params(
+        ("id" = String, Path, description = "The global payment id"),
+        (
+          "X-Profile-Id" = String, Header,
+          description = "Profile ID associated to the payment intent",
+          example = json!({"X-Profile-Id": "pro_abcdefghijklmnop"})
+        ),
+        (
+          "X-Client-Secret" = String, Header,
+          description = "Client Secret Associated with the payment intent",
+          example = json!({"X-Client-Secret": "12345_pay_0193e41106e07e518940f8b51b9c8121_secret_0193e41107027a928d61d292e6a5dba9"})
+        ),
+    ),
+    responses(
+        (status = 200, description = "Get the payment methods", body = PaymentMethodListResponseForPayments),
+        (status = 404, description = "No payment found with the given id")
+    ),
+    tag = "Payments",
+    operation_id = "Retrieve Payment methods for a Payment",
+    security(("publishable_key" = []))
+)]
+pub fn list_payment_methods() {}

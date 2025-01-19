@@ -46,7 +46,6 @@ pub async fn initiate_payout_link(
     key_store: domain::MerchantKeyStore,
     req: payouts::PayoutLinkInitiateRequest,
     request_headers: &header::HeaderMap,
-    locale: String,
 ) -> RouterResponse<services::GenericLinkFormData> {
     let db: &dyn StorageInterface = &*state.store;
     let merchant_id = merchant_account.get_id();
@@ -128,7 +127,7 @@ pub async fn initiate_payout_link(
                 GenericLinks {
                     allowed_domains,
                     data: GenericLinksData::ExpiredLink(expired_link_data),
-                    locale,
+                    locale: state.locale,
                 },
             )))
         }
@@ -214,7 +213,10 @@ pub async fn initiate_payout_link(
             });
 
             let required_field_override = api::RequiredFieldsOverrideRequest {
-                billing: address.as_ref().map(From::from),
+                billing: address
+                    .as_ref()
+                    .map(hyperswitch_domain_models::address::Address::from)
+                    .map(From::from),
             };
 
             let enabled_payment_methods_with_required_fields = ForeignFrom::foreign_from((
@@ -242,7 +244,7 @@ pub async fn initiate_payout_link(
                 enabled_payment_methods_with_required_fields,
                 amount,
                 currency: payout.destination_currency,
-                locale: locale.clone(),
+                locale: state.locale.clone(),
                 form_layout: link_data.form_layout,
                 test_mode: link_data.test_mode.unwrap_or(false),
             };
@@ -267,7 +269,7 @@ pub async fn initiate_payout_link(
                 GenericLinks {
                     allowed_domains,
                     data: GenericLinksData::PayoutLink(generic_form_data),
-                    locale,
+                    locale: state.locale.clone(),
                 },
             )))
         }
@@ -279,7 +281,7 @@ pub async fn initiate_payout_link(
                     &state,
                     payout_attempt.unified_code.as_ref(),
                     payout_attempt.unified_message.as_ref(),
-                    &locale,
+                    &state.locale.clone(),
                 )
                 .await?;
             let js_data = payouts::PayoutLinkStatusDetails {
@@ -319,14 +321,14 @@ pub async fn initiate_payout_link(
                 GenericLinks {
                     allowed_domains,
                     data: GenericLinksData::PayoutLinkStatus(generic_status_data),
-                    locale,
+                    locale: state.locale.clone(),
                 },
             )))
         }
     }
 }
 
-#[cfg(feature = "payouts")]
+#[cfg(all(feature = "payouts", feature = "v1"))]
 pub async fn filter_payout_methods(
     state: &SessionState,
     merchant_account: &domain::MerchantAccount,
@@ -385,7 +387,7 @@ pub async fn filter_payout_methods(
                     let currency_country_filter = check_currency_country_filters(
                         payout_filter,
                         request_payout_method_type,
-                        &payout.destination_currency,
+                        payout.destination_currency,
                         address
                             .as_ref()
                             .and_then(|address| address.country)
@@ -444,7 +446,7 @@ pub async fn filter_payout_methods(
 pub fn check_currency_country_filters(
     payout_method_filter: Option<&PaymentMethodFilters>,
     request_payout_method_type: &api_models::payment_methods::RequestPaymentMethodTypes,
-    currency: &common_enums::Currency,
+    currency: common_enums::Currency,
     country: Option<&common_enums::CountryAlpha2>,
 ) -> errors::RouterResult<Option<bool>> {
     if matches!(
@@ -473,7 +475,7 @@ pub fn check_currency_country_filters(
             currency_country_filter
                 .currency
                 .as_ref()
-                .map(|currency_hash_set| currency_hash_set.contains(currency))
+                .map(|currency_hash_set| currency_hash_set.contains(&currency))
         });
         Ok(currency_filter.or(country_filter))
     }

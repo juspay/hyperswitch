@@ -7,6 +7,7 @@ use common_utils::{
 };
 use diesel_models::{enums as storage_enums, enums};
 use error_stack::{report, ResultExt};
+use hyperswitch_interfaces::webhooks::IncomingWebhookFlowError;
 use masking::{ExposeInterface, Secret};
 use ring::hmac;
 use router_env::{instrument, tracing};
@@ -26,7 +27,7 @@ use crate::{
     services::{
         self,
         request::{self, Mask},
-        ConnectorValidation,
+        ConnectorSpecifications, ConnectorValidation,
     },
     types::{
         self,
@@ -97,9 +98,10 @@ impl ConnectorCommon for Adyen {
 }
 
 impl ConnectorValidation for Adyen {
-    fn validate_capture_method(
+    fn validate_connector_against_payment_request(
         &self,
         capture_method: Option<storage_enums::CaptureMethod>,
+        _payment_method: enums::PaymentMethod,
         pmt: Option<PaymentMethodType>,
     ) -> CustomResult<(), errors::ConnectorError> {
         let capture_method = capture_method.unwrap_or_default();
@@ -119,6 +121,7 @@ impl ConnectorValidation for Adyen {
                 | PaymentMethodType::Venmo
                 | PaymentMethodType::Paypal => match capture_method {
                     enums::CaptureMethod::Automatic
+                    | enums::CaptureMethod::SequentialAutomatic
                     | enums::CaptureMethod::Manual
                     | enums::CaptureMethod::ManualMultiple => Ok(()),
                     enums::CaptureMethod::Scheduled => {
@@ -138,7 +141,9 @@ impl ConnectorValidation for Adyen {
                 | PaymentMethodType::Klarna
                 | PaymentMethodType::Twint
                 | PaymentMethodType::Walley => match capture_method {
-                    enums::CaptureMethod::Automatic | enums::CaptureMethod::Manual => Ok(()),
+                    enums::CaptureMethod::Automatic
+                    | enums::CaptureMethod::Manual
+                    | enums::CaptureMethod::SequentialAutomatic => Ok(()),
                     enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => {
                         capture_method_not_supported!(
                             connector,
@@ -197,7 +202,9 @@ impl ConnectorValidation for Adyen {
                 | PaymentMethodType::OpenBankingUk
                 | PaymentMethodType::OnlineBankingCzechRepublic
                 | PaymentMethodType::PermataBankTransfer => match capture_method {
-                    enums::CaptureMethod::Automatic => Ok(()),
+                    enums::CaptureMethod::Automatic | enums::CaptureMethod::SequentialAutomatic => {
+                        Ok(())
+                    }
                     enums::CaptureMethod::Manual
                     | enums::CaptureMethod::ManualMultiple
                     | enums::CaptureMethod::Scheduled => {
@@ -238,6 +245,7 @@ impl ConnectorValidation for Adyen {
             },
             None => match capture_method {
                 enums::CaptureMethod::Automatic
+                | enums::CaptureMethod::SequentialAutomatic
                 | enums::CaptureMethod::Manual
                 | enums::CaptureMethod::ManualMultiple => Ok(()),
                 enums::CaptureMethod::Scheduled => {
@@ -1880,6 +1888,7 @@ impl api::IncomingWebhook for Adyen {
     fn get_webhook_api_response(
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
+        _error_kind: Option<IncomingWebhookFlowError>,
     ) -> CustomResult<services::api::ApplicationResponse<serde_json::Value>, errors::ConnectorError>
     {
         Ok(services::api::ApplicationResponse::TextPlain(
@@ -1905,6 +1914,48 @@ impl api::IncomingWebhook for Adyen {
             created_at: notif.event_date,
             updated_at: notif.event_date,
         })
+    }
+
+    fn get_mandate_details(
+        &self,
+        request: &api::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<
+        Option<hyperswitch_domain_models::router_flow_types::ConnectorMandateDetails>,
+        errors::ConnectorError,
+    > {
+        let notif = get_webhook_object_from_body(request.body)
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        let mandate_reference =
+            notif
+                .additional_data
+                .recurring_detail_reference
+                .map(|mandate_id| {
+                    hyperswitch_domain_models::router_flow_types::ConnectorMandateDetails {
+                        connector_mandate_id: mandate_id.clone(),
+                    }
+                });
+        Ok(mandate_reference)
+    }
+
+    fn get_network_txn_id(
+        &self,
+        request: &api::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<
+        Option<hyperswitch_domain_models::router_flow_types::ConnectorNetworkTxnId>,
+        errors::ConnectorError,
+    > {
+        let notif = get_webhook_object_from_body(request.body)
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        let optional_network_txn_id =
+            notif
+                .additional_data
+                .network_tx_reference
+                .map(|network_txn_id| {
+                    hyperswitch_domain_models::router_flow_types::ConnectorNetworkTxnId::new(
+                        network_txn_id,
+                    )
+                });
+        Ok(optional_network_txn_id)
     }
 }
 
@@ -2241,3 +2292,5 @@ impl api::FileUpload for Adyen {
         Ok(())
     }
 }
+
+impl ConnectorSpecifications for Adyen {}

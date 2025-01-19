@@ -746,6 +746,7 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                     email: Some(match paylater {
                         PayLaterData::KlarnaRedirect {} => item.router_data.get_billing_email()?,
                         PayLaterData::KlarnaSdk { token: _ }
+                        | PayLaterData::KlarnaCheckout {}
                         | PayLaterData::AffirmRedirect {}
                         | PayLaterData::AfterpayClearpayRedirect {}
                         | PayLaterData::PayBrightRedirect {}
@@ -916,7 +917,6 @@ pub struct Data {
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
-
 pub struct MultisafepayPaymentDetails {
     pub account_holder_name: Option<Secret<String>>,
     pub account_id: Option<Secret<String>>,

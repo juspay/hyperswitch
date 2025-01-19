@@ -21,7 +21,9 @@ impl PermissionGroupExt for PermissionGroup {
             | Self::AnalyticsView
             | Self::UsersView
             | Self::MerchantDetailsView
-            | Self::AccountView => PermissionScope::Read,
+            | Self::AccountView
+            | Self::ReconOpsView
+            | Self::ReconReportsView => PermissionScope::Read,
 
             Self::OperationsManage
             | Self::ConnectorsManage
@@ -29,8 +31,10 @@ impl PermissionGroupExt for PermissionGroup {
             | Self::UsersManage
             | Self::MerchantDetailsManage
             | Self::OrganizationManage
+            | Self::AccountManage
+            | Self::ReconOpsManage
             | Self::ReconOps
-            | Self::AccountManage => PermissionScope::Write,
+            | Self::ReconReportsManage => PermissionScope::Write,
         }
     }
 
@@ -41,12 +45,13 @@ impl PermissionGroupExt for PermissionGroup {
             Self::WorkflowsView | Self::WorkflowsManage => ParentGroup::Workflows,
             Self::AnalyticsView => ParentGroup::Analytics,
             Self::UsersView | Self::UsersManage => ParentGroup::Users,
-            Self::ReconOps => ParentGroup::Recon,
             Self::MerchantDetailsView
             | Self::OrganizationManage
             | Self::MerchantDetailsManage
             | Self::AccountView
             | Self::AccountManage => ParentGroup::Account,
+            Self::ReconOpsView | Self::ReconOpsManage | Self::ReconOps => ParentGroup::ReconOps,
+            Self::ReconReportsView | Self::ReconReportsManage => ParentGroup::ReconReports,
         }
     }
 
@@ -56,8 +61,12 @@ impl PermissionGroupExt for PermissionGroup {
 
     fn accessible_groups(&self) -> Vec<Self> {
         match self {
-            Self::OperationsView => vec![Self::OperationsView],
-            Self::OperationsManage => vec![Self::OperationsView, Self::OperationsManage],
+            Self::OperationsView => vec![Self::OperationsView, Self::ConnectorsView],
+            Self::OperationsManage => vec![
+                Self::OperationsView,
+                Self::OperationsManage,
+                Self::ConnectorsView,
+            ],
 
             Self::ConnectorsView => vec![Self::ConnectorsView],
             Self::ConnectorsManage => vec![Self::ConnectorsView, Self::ConnectorsManage],
@@ -76,7 +85,11 @@ impl PermissionGroupExt for PermissionGroup {
                 vec![Self::UsersView, Self::UsersManage]
             }
 
-            Self::ReconOps => vec![Self::ReconOps],
+            Self::ReconOpsView => vec![Self::ReconOpsView],
+            Self::ReconOpsManage | Self::ReconOps => vec![Self::ReconOpsView, Self::ReconOpsManage],
+
+            Self::ReconReportsView => vec![Self::ReconReportsView],
+            Self::ReconReportsManage => vec![Self::ReconReportsView, Self::ReconReportsManage],
 
             Self::MerchantDetailsView => vec![Self::MerchantDetailsView],
             Self::MerchantDetailsManage => {
@@ -108,7 +121,8 @@ impl ParentGroupExt for ParentGroup {
             Self::Analytics => ANALYTICS.to_vec(),
             Self::Users => USERS.to_vec(),
             Self::Account => ACCOUNT.to_vec(),
-            Self::Recon => RECON.to_vec(),
+            Self::ReconOps => RECON_OPS.to_vec(),
+            Self::ReconReports => RECON_REPORTS.to_vec(),
         }
     }
 
@@ -128,13 +142,13 @@ impl ParentGroupExt for ParentGroup {
                     .resources()
                     .iter()
                     .filter(|res| res.entities().iter().any(|entity| entity <= &entity_type))
-                    .map(|res| permissions::get_resource_name(res, &entity_type))
+                    .map(|res| permissions::get_resource_name(*res, entity_type))
                     .collect::<Vec<_>>()
                     .join(", ");
 
                 Some((
                     parent,
-                    format!("{} {}", permissions::get_scope_name(&scopes), resources),
+                    format!("{} {}", permissions::get_scope_name(scopes), resources),
                 ))
             })
             .collect()
@@ -167,4 +181,18 @@ pub static USERS: [Resource; 2] = [Resource::User, Resource::Account];
 
 pub static ACCOUNT: [Resource; 3] = [Resource::Account, Resource::ApiKey, Resource::WebhookEvent];
 
-pub static RECON: [Resource; 1] = [Resource::Recon];
+pub static RECON_OPS: [Resource; 7] = [
+    Resource::ReconToken,
+    Resource::ReconFiles,
+    Resource::ReconUpload,
+    Resource::RunRecon,
+    Resource::ReconConfig,
+    Resource::ReconAndSettlementAnalytics,
+    Resource::ReconReports,
+];
+
+pub static RECON_REPORTS: [Resource; 3] = [
+    Resource::ReconToken,
+    Resource::ReconAndSettlementAnalytics,
+    Resource::ReconReports,
+];

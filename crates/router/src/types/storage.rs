@@ -13,6 +13,7 @@ pub mod configs;
 pub mod customers;
 pub mod dashboard_metadata;
 pub mod dispute;
+pub mod dynamic_routing_stats;
 pub mod enums;
 pub mod ephemeral_key;
 pub mod events;
@@ -65,11 +66,11 @@ pub use self::{
     address::*, api_keys::*, authentication::*, authorization::*, blocklist::*,
     blocklist_fingerprint::*, blocklist_lookup::*, business_profile::*, callback_mapper::*,
     capture::*, cards_info::*, configs::*, customers::*, dashboard_metadata::*, dispute::*,
-    ephemeral_key::*, events::*, file::*, fraud_check::*, generic_link::*, gsm::*,
-    locker_mock_up::*, mandate::*, merchant_account::*, merchant_connector_account::*,
-    merchant_key_store::*, payment_link::*, payment_method::*, process_tracker::*, refund::*,
-    reverse_lookup::*, role::*, routing_algorithm::*, unified_translations::*, user::*,
-    user_authentication_method::*, user_role::*,
+    dynamic_routing_stats::*, ephemeral_key::*, events::*, file::*, fraud_check::*,
+    generic_link::*, gsm::*, locker_mock_up::*, mandate::*, merchant_account::*,
+    merchant_connector_account::*, merchant_key_store::*, payment_link::*, payment_method::*,
+    process_tracker::*, refund::*, reverse_lookup::*, role::*, routing_algorithm::*,
+    unified_translations::*, user::*, user_authentication_method::*, user_role::*,
 };
 use crate::types::api::routing;
 

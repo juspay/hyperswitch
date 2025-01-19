@@ -16,6 +16,14 @@ const successfulThreeDSTestCardDetails = {
   card_cvc: "737",
 };
 
+const failedNo3DSCardDetails = {
+  card_number: "4242424242424242",
+  card_exp_month: "01",
+  card_exp_year: "25",
+  card_holder_name: "joseph Doe",
+  card_cvc: "123",
+};
+
 const singleUseMandateData = {
   customer_acceptance: {
     acceptance_type: "offline",
@@ -77,6 +85,40 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_payment_method",
+        },
+      },
+    },
+    PaymentIntentWithShippingCost: {
+      Request: {
+        currency: "USD",
+        shipping_cost: 50,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+          shipping_cost: 50,
+          amount: 6500,
+        },
+      },
+    },
+    PaymentConfirmWithShippingCost: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          shipping_cost: 50,
+          amount_received: 6550,
+          amount: 6500,
+          net_amount: 6550,
         },
       },
     },
@@ -148,6 +190,26 @@ export const connectorDetails = {
         },
       },
     },
+    No3DSFailPayment: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: failedNo3DSCardDetails,
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_code: "2",
+          error_message: "Refused",
+          unified_code: "UE_9000",
+          unified_message: "Something went wrong",
+        },
+      },
+    },
     Capture: {
       Request: {
         payment_method: "card",
@@ -180,7 +242,7 @@ export const connectorDetails = {
         },
       },
     },
-    VoidAfterConfirm: {
+    VoidAfterConfirm: getCustomExchange({
       Request: {},
       Response: {
         status: 200,
@@ -194,7 +256,7 @@ export const connectorDetails = {
           status: "cancelled",
         },
       },
-    },
+    }),
     Refund: {
       Request: {
         currency: "USD",
@@ -391,6 +453,24 @@ export const connectorDetails = {
         currency: "USD",
         mandate_data: multiUseMandateData,
       },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
+        },
+      },
+    },
+    MITAutoCapture: {
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    MITManualCapture: {
+      Request: {},
       Response: {
         status: 200,
         body: {
@@ -709,7 +789,7 @@ export const connectorDetails = {
     },
   },
   bank_redirect_pm: {
-    PaymentIntent: getCustomExchange({
+    PaymentIntent: {
       Request: {
         currency: "EUR",
       },
@@ -719,7 +799,7 @@ export const connectorDetails = {
           status: "requires_payment_method",
         },
       },
-    }),
+    },
     Ideal: {
       Request: {
         payment_method: "bank_redirect",
@@ -829,7 +909,9 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "requires_customer_action",
+          status: "failed",
+          error_code: "14_006",
+          error_message: "Required object 'paymentMethod' is not provided.",
         },
       },
     },
@@ -961,6 +1043,217 @@ export const connectorDetails = {
             reason: "automatic for upi_intent is not supported by adyen",
           },
         },
+      },
+    },
+  },
+  pm_list: {
+    PmListResponse: {
+      PmListNull: {
+        payment_methods: [],
+      },
+      pmListDynamicFieldWithoutBilling: {
+        payment_methods: [
+          {
+            payment_method: "card",
+            payment_method_types: [
+              {
+                payment_method_type: "credit",
+                card_networks: [
+                  {
+                    eligible_connectors: ["adyen"],
+                  },
+                ],
+                required_fields: {
+                  "payment_method_data.card.card_number": {
+                    required_field: "payment_method_data.card.card_number",
+                    display_name: "card_number",
+                    field_type: "user_card_number",
+                    value: null,
+                  },
+                  "payment_method_data.card.card_exp_month": {
+                    required_field: "payment_method_data.card.card_exp_month",
+                    display_name: "card_exp_month",
+                    field_type: "user_card_expiry_month",
+                    value: null,
+                  },
+                  "payment_method_data.card.card_exp_year": {
+                    required_field: "payment_method_data.card.card_exp_year",
+                    display_name: "card_exp_year",
+                    field_type: "user_card_expiry_year",
+                    value: null,
+                  },
+                  "payment_method_data.card.card_cvc": {
+                    required_field: "payment_method_data.card.card_cvc",
+                    display_name: "card_cvc",
+                    field_type: "user_card_cvc",
+                    value: null,
+                  },
+                  "billing.address.first_name": {
+                    required_field:
+                      "payment_method_data.billing.address.first_name",
+                    display_name: "card_holder_name",
+                    field_type: "user_full_name",
+                    value: null,
+                  },
+                  "billing.address.last_name": {
+                    required_field:
+                      "payment_method_data.billing.address.last_name",
+                    display_name: "card_holder_name",
+                    field_type: "user_full_name",
+                    value: null,
+                  },
+                },
+              },
+            ],
+          },
+        ],
+      },
+      pmListDynamicFieldWithBilling: {
+        payment_methods: [
+          {
+            payment_method: "card",
+            payment_method_types: [
+              {
+                payment_method_type: "credit",
+                card_networks: [
+                  {
+                    eligible_connectors: ["adyen"],
+                  },
+                ],
+                required_fields: {
+                  "payment_method_data.card.card_exp_month": {
+                    required_field: "payment_method_data.card.card_exp_month",
+                    display_name: "card_exp_month",
+                    field_type: "user_card_expiry_month",
+                    value: null,
+                  },
+                  "payment_method_data.card.card_number": {
+                    required_field: "payment_method_data.card.card_number",
+                    display_name: "card_number",
+                    field_type: "user_card_number",
+                    value: null,
+                  },
+                  "payment_method_data.card.card_cvc": {
+                    required_field: "payment_method_data.card.card_cvc",
+                    display_name: "card_cvc",
+                    field_type: "user_card_cvc",
+                    value: null,
+                  },
+                  "payment_method_data.card.card_exp_year": {
+                    required_field: "payment_method_data.card.card_exp_year",
+                    display_name: "card_exp_year",
+                    field_type: "user_card_expiry_year",
+                    value: null,
+                  },
+                  "billing.address.first_name": {
+                    required_field:
+                      "payment_method_data.billing.address.first_name",
+                    display_name: "card_holder_name",
+                    field_type: "user_full_name",
+                    value: "joseph",
+                  },
+                  "billing.address.last_name": {
+                    required_field:
+                      "payment_method_data.billing.address.last_name",
+                    display_name: "card_holder_name",
+                    field_type: "user_full_name",
+                    value: "Doe",
+                  },
+                },
+              },
+            ],
+          },
+        ],
+      },
+      pmListDynamicFieldWithNames: {
+        payment_methods: [
+          {
+            payment_method: "card",
+            payment_method_types: [
+              {
+                payment_method_type: "credit",
+                card_networks: [
+                  {
+                    eligible_connectors: ["adyen"],
+                  },
+                ],
+                required_fields: {
+                  "billing.address.last_name": {
+                    required_field:
+                      "payment_method_data.billing.address.last_name",
+                    display_name: "card_holder_name",
+                    field_type: "user_full_name",
+                    value: "Doe",
+                  },
+                  "billing.address.first_name": {
+                    required_field:
+                      "payment_method_data.billing.address.first_name",
+                    display_name: "card_holder_name",
+                    field_type: "user_full_name",
+                    value: "joseph",
+                  },
+                },
+              },
+            ],
+          },
+        ],
+      },
+      pmListDynamicFieldWithEmail: {
+        payment_methods: [
+          {
+            payment_method: "card",
+            payment_method_types: [
+              {
+                payment_method_type: "credit",
+                card_networks: [
+                  {
+                    eligible_connectors: ["adyen"],
+                  },
+                ],
+                required_fields: {
+                  "payment_method_data.card.card_exp_month": {
+                    required_field: "payment_method_data.card.card_exp_month",
+                    display_name: "card_exp_month",
+                    field_type: "user_card_expiry_month",
+                    value: null,
+                  },
+                  "payment_method_data.card.card_number": {
+                    required_field: "payment_method_data.card.card_number",
+                    display_name: "card_number",
+                    field_type: "user_card_number",
+                    value: null,
+                  },
+                  "payment_method_data.card.card_cvc": {
+                    required_field: "payment_method_data.card.card_cvc",
+                    display_name: "card_cvc",
+                    field_type: "user_card_cvc",
+                    value: null,
+                  },
+                  "payment_method_data.card.card_exp_year": {
+                    required_field: "payment_method_data.card.card_exp_year",
+                    display_name: "card_exp_year",
+                    field_type: "user_card_expiry_year",
+                    value: null,
+                  },
+                  "billing.address.first_name": {
+                    required_field:
+                      "payment_method_data.billing.address.first_name",
+                    display_name: "card_holder_name",
+                    field_type: "user_full_name",
+                    value: "joseph",
+                  },
+                  "billing.address.last_name": {
+                    required_field:
+                      "payment_method_data.billing.address.last_name",
+                    display_name: "card_holder_name",
+                    field_type: "user_full_name",
+                    value: "Doe",
+                  },
+                },
+              },
+            ],
+          },
+        ],
       },
     },
   },

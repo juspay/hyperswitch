@@ -1,17 +1,17 @@
-const { defineConfig } = require("cypress");
-const fs = require("fs-extra");
-const path = require("path");
+import { defineConfig } from "cypress";
+import mochawesome from "cypress-mochawesome-reporter/plugin.js";
 
 let globalState;
+
 // Fetch from environment variable
 const connectorId = process.env.CYPRESS_CONNECTOR || "service";
 const screenshotsFolderName = `screenshots/${connectorId}`;
 const reportName = process.env.REPORT_NAME || `${connectorId}_report`;
 
-module.exports = defineConfig({
+export default defineConfig({
   e2e: {
     setupNodeEvents(on, config) {
-      require("cypress-mochawesome-reporter/plugin")(on);
+      mochawesome(on);
 
       on("task", {
         setGlobalState: (val) => {
@@ -21,11 +21,15 @@ module.exports = defineConfig({
           return globalState || {};
         },
         cli_log: (message) => {
+          // eslint-disable-next-line no-console
           console.log("Logging console message from task");
+          // eslint-disable-next-line no-console
           console.log(message);
           return null;
         },
       });
+
+      return config;
     },
     experimentalRunAllSpecs: true,
 
@@ -43,6 +47,5 @@ module.exports = defineConfig({
   chromeWebSecurity: false,
   defaultCommandTimeout: 10000,
   pageLoadTimeout: 20000,
-
   screenshotsFolder: screenshotsFolderName,
 });

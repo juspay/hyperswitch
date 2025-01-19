@@ -468,7 +468,9 @@ impl TryFrom<enums::CaptureMethod> for AuthorizationType {
     fn try_from(capture_method: enums::CaptureMethod) -> Result<Self, Self::Error> {
         match capture_method {
             enums::CaptureMethod::Manual => Ok(Self::Pre),
-            enums::CaptureMethod::Automatic => Ok(Self::Final),
+            enums::CaptureMethod::SequentialAutomatic | enums::CaptureMethod::Automatic => {
+                Ok(Self::Final)
+            }
             enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => Err(
                 utils::construct_not_supported_error_report(capture_method, "authorizedotnet"),
             )?,
@@ -700,39 +702,41 @@ impl
             &domain::Card,
         ),
     ) -> Result<Self, Self::Error> {
-        let (profile, customer) = if item
-            .router_data
-            .request
-            .setup_future_usage
-            .map_or(false, |future_usage| {
-                matches!(future_usage, common_enums::FutureUsage::OffSession)
-            })
-            && (item.router_data.request.customer_acceptance.is_some()
-                || item
-                    .router_data
-                    .request
-                    .setup_mandate_details
-                    .clone()
-                    .map_or(false, |mandate_details| {
-                        mandate_details.customer_acceptance.is_some()
-                    })) {
-            (
-                Some(ProfileDetails::CreateProfileDetails(CreateProfileDetails {
-                    create_profile: true,
-                })),
-                Some(CustomerDetails {
-                    //The payment ID is included in the customer details because the connector requires unique customer information with a length of fewer than 20 characters when creating a mandate.
-                    //If the length exceeds 20 characters, a random alphanumeric string is used instead.
-                    id: if item.router_data.payment_id.len() <= 20 {
-                        item.router_data.payment_id.clone()
-                    } else {
-                        Alphanumeric.sample_string(&mut rand::thread_rng(), 20)
-                    },
-                }),
-            )
-        } else {
-            (None, None)
-        };
+        let (profile, customer) =
+            if item
+                .router_data
+                .request
+                .setup_future_usage
+                .is_some_and(|future_usage| {
+                    matches!(future_usage, common_enums::FutureUsage::OffSession)
+                })
+                && (item.router_data.request.customer_acceptance.is_some()
+                    || item
+                        .router_data
+                        .request
+                        .setup_mandate_details
+                        .clone()
+                        .is_some_and(|mandate_details| {
+                            mandate_details.customer_acceptance.is_some()
+                        }))
+            {
+                (
+                    Some(ProfileDetails::CreateProfileDetails(CreateProfileDetails {
+                        create_profile: true,
+                    })),
+                    Some(CustomerDetails {
+                        //The payment ID is included in the customer details because the connector requires unique customer information with a length of fewer than 20 characters when creating a mandate.
+                        //If the length exceeds 20 characters, a random alphanumeric string is used instead.
+                        id: if item.router_data.payment_id.len() <= 20 {
+                            item.router_data.payment_id.clone()
+                        } else {
+                            Alphanumeric.sample_string(&mut rand::thread_rng(), 20)
+                        },
+                    }),
+                )
+            } else {
+                (None, None)
+            };
         Ok(Self {
             transaction_type: TransactionType::try_from(item.router_data.request.capture_method)?,
             amount: item.amount,
@@ -1579,7 +1583,9 @@ impl TryFrom<Option<enums::CaptureMethod>> for TransactionType {
     fn try_from(capture_method: Option<enums::CaptureMethod>) -> Result<Self, Self::Error> {
         match capture_method {
             Some(enums::CaptureMethod::Manual) => Ok(Self::Authorization),
-            Some(enums::CaptureMethod::Automatic) | None => Ok(Self::Payment),
+            Some(enums::CaptureMethod::SequentialAutomatic)
+            | Some(enums::CaptureMethod::Automatic)
+            | None => Ok(Self::Payment),
             Some(enums::CaptureMethod::ManualMultiple) => {
                 Err(utils::construct_not_supported_error_report(
                     enums::CaptureMethod::ManualMultiple,
@@ -1834,7 +1840,9 @@ impl TryFrom<&AuthorizedotnetRouterData<&types::PaymentsCompleteAuthorizeRouterD
                 .payer_id;
         let transaction_type = match item.router_data.request.capture_method {
             Some(enums::CaptureMethod::Manual) => Ok(TransactionType::ContinueAuthorization),
-            Some(enums::CaptureMethod::Automatic) | None => Ok(TransactionType::ContinueCapture),
+            Some(enums::CaptureMethod::SequentialAutomatic)
+            | Some(enums::CaptureMethod::Automatic)
+            | None => Ok(TransactionType::ContinueCapture),
             Some(enums::CaptureMethod::ManualMultiple) => {
                 Err(errors::ConnectorError::NotSupported {
                     message: enums::CaptureMethod::ManualMultiple.to_string(),

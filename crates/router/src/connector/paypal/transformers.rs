@@ -470,6 +470,21 @@ pub struct PaypalRedirectionResponse {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct EpsRedirectionResponse {
+    name: Option<Secret<String>>,
+    country_code: Option<enums::CountryAlpha2>,
+    bic: Option<Secret<String>>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct IdealRedirectionResponse {
+    name: Option<Secret<String>>,
+    country_code: Option<enums::CountryAlpha2>,
+    bic: Option<Secret<String>>,
+    iban_last_chars: Option<Secret<String>>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct AttributeResponse {
     vault: PaypalVaultResponse,
 }
@@ -518,6 +533,8 @@ pub struct CardVaultResponse {
 pub enum PaymentSourceItemResponse {
     Card(CardVaultResponse),
     Paypal(PaypalRedirectionResponse),
+    Eps(EpsRedirectionResponse),
+    Ideal(IdealRedirectionResponse),
 }
 
 #[derive(Debug, Serialize)]
@@ -597,7 +614,6 @@ impl<F, T>
         };
         Ok(Self {
             status,
-            return_url: None,
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(info_response.id.clone()),
                 redirection_data: Box::new(None),
@@ -653,7 +669,9 @@ impl TryFrom<&types::SetupMandateRouterData> for PaypalZeroMandateRequest {
     }
 }
 
-fn get_address_info(payment_address: Option<&api_models::payments::Address>) -> Option<Address> {
+fn get_address_info(
+    payment_address: Option<&hyperswitch_domain_models::address::Address>,
+) -> Option<Address> {
     let address = payment_address.and_then(|payment_address| payment_address.address.as_ref());
     match address {
         Some(address) => address.get_optional_country().map(|country| Address {
@@ -1254,6 +1272,7 @@ impl TryFrom<&domain::PayLaterData> for PaypalPaymentsRequest {
         match value {
             domain::PayLaterData::KlarnaRedirect { .. }
             | domain::PayLaterData::KlarnaSdk { .. }
+            | domain::PayLaterData::KlarnaCheckout {}
             | domain::PayLaterData::AffirmRedirect {}
             | domain::PayLaterData::AfterpayClearpayRedirect { .. }
             | domain::PayLaterData::PayBrightRedirect {}
@@ -1823,6 +1842,8 @@ impl<F, T>
                             PaymentSourceItemResponse::Card(card) => {
                                 card.attributes.map(|attr| attr.vault.id)
                             }
+                            PaymentSourceItemResponse::Eps(_)
+                            | PaymentSourceItemResponse::Ideal(_) => None,
                         },
                         None => None,
                     },
@@ -2970,7 +2991,6 @@ pub struct PaypalSourceVerificationRequest {
 }
 
 #[derive(Deserialize, Serialize, Debug)]
-
 pub struct PaypalSourceVerificationResponse {
     pub verification_status: PaypalSourceVerificationStatus,
 }

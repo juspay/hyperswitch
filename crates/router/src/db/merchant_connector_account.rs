@@ -189,6 +189,15 @@ where
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<domain::MerchantConnectorAccount>, errors::StorageError>;
 
+    #[cfg(all(feature = "oltp", feature = "v2"))]
+    async fn list_enabled_connector_accounts_by_profile_id(
+        &self,
+        state: &KeyManagerState,
+        profile_id: &common_utils::id_type::ProfileId,
+        key_store: &domain::MerchantKeyStore,
+        connector_type: common_enums::ConnectorType,
+    ) -> CustomResult<Vec<domain::MerchantConnectorAccount>, errors::StorageError>;
+
     async fn update_merchant_connector_account(
         &self,
         state: &KeyManagerState,
@@ -493,6 +502,41 @@ impl MerchantConnectorAccountInterface for Store {
             .await
     }
 
+    #[cfg(all(feature = "oltp", feature = "v2"))]
+    async fn list_enabled_connector_accounts_by_profile_id(
+        &self,
+        state: &KeyManagerState,
+        profile_id: &common_utils::id_type::ProfileId,
+        key_store: &domain::MerchantKeyStore,
+        connector_type: common_enums::ConnectorType,
+    ) -> CustomResult<Vec<domain::MerchantConnectorAccount>, errors::StorageError> {
+        let conn = connection::pg_connection_read(self).await?;
+
+        storage::MerchantConnectorAccount::list_enabled_by_profile_id(
+            &conn,
+            profile_id,
+            connector_type,
+        )
+        .await
+        .map_err(|error| report!(errors::StorageError::from(error)))
+        .async_and_then(|items| async {
+            let mut output = Vec::with_capacity(items.len());
+            for item in items.into_iter() {
+                output.push(
+                    item.convert(
+                        state,
+                        key_store.key.get_inner(),
+                        key_store.merchant_id.clone().into(),
+                    )
+                    .await
+                    .change_context(errors::StorageError::DecryptionError)?,
+                )
+            }
+            Ok(output)
+        })
+        .await
+    }
+
     #[instrument(skip_all)]
     async fn find_merchant_connector_account_by_merchant_id_and_disabled_list(
         &self,
@@ -583,7 +627,12 @@ impl MerchantConnectorAccountInterface for Store {
             for (merchant_connector_account, update_merchant_connector_account) in
                 merchant_connector_accounts
             {
+                #[cfg(feature = "v1")]
                 let _connector_name = merchant_connector_account.connector_name.clone();
+
+                #[cfg(feature = "v2")]
+                let _connector_name = merchant_connector_account.connector_name.to_string();
+
                 let _profile_id = merchant_connector_account.profile_id.clone();
 
                 let _merchant_id = merchant_connector_account.merchant_id.clone();
@@ -747,7 +796,7 @@ impl MerchantConnectorAccountInterface for Store {
         merchant_connector_account: storage::MerchantConnectorAccountUpdateInternal,
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::MerchantConnectorAccount, errors::StorageError> {
-        let _connector_name = this.connector_name.clone();
+        let _connector_name = this.connector_name;
         let _profile_id = this.profile_id.clone();
 
         let _merchant_id = this.merchant_id.clone();
@@ -1008,6 +1057,17 @@ impl MerchantConnectorAccountInterface for MockDb {
                 .into())
             }
         }
+    }
+
+    #[cfg(all(feature = "oltp", feature = "v2"))]
+    async fn list_enabled_connector_accounts_by_profile_id(
+        &self,
+        state: &KeyManagerState,
+        profile_id: &common_utils::id_type::ProfileId,
+        key_store: &domain::MerchantKeyStore,
+        connector_type: common_enums::ConnectorType,
+    ) -> CustomResult<Vec<domain::MerchantConnectorAccount>, errors::StorageError> {
+        todo!()
     }
 
     #[cfg(feature = "v1")]
@@ -1502,8 +1562,13 @@ mod merchant_connector_account_cache_tests {
             Box::new(services::MockApiClient),
         ))
         .await;
+
         let state = &Arc::new(app_state)
-            .get_session_state("public", || {})
+            .get_session_state(
+                &common_utils::id_type::TenantId::try_from_string("public".to_string()).unwrap(),
+                None,
+                || {},
+            )
             .unwrap();
         #[allow(clippy::expect_used)]
         let db = MockDb::new(&redis_interface::RedisSettings::default())
@@ -1685,7 +1750,11 @@ mod merchant_connector_account_cache_tests {
         ))
         .await;
         let state = &Arc::new(app_state)
-            .get_session_state("public", || {})
+            .get_session_state(
+                &common_utils::id_type::TenantId::try_from_string("public".to_string()).unwrap(),
+                None,
+                || {},
+            )
             .unwrap();
         #[allow(clippy::expect_used)]
         let db = MockDb::new(&redis_interface::RedisSettings::default())
@@ -1743,7 +1812,7 @@ mod merchant_connector_account_cache_tests {
         let mca = domain::MerchantConnectorAccount {
             id: id.clone(),
             merchant_id: merchant_id.clone(),
-            connector_name: "stripe".to_string(),
+            connector_name: common_enums::connector_enums::Connector::Stripe,
             connector_account_details: domain::types::crypto_operation(
                 key_manager_state,
                 type_name!(domain::MerchantConnectorAccount),

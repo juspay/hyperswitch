@@ -12,7 +12,6 @@ use api_models::routing as api_routing;
 use api_models::{
     admin as admin_api,
     enums::{self as api_enums, CountryAlpha2},
-    payments::Address,
     routing::ConnectorSelection,
 };
 use diesel_models::enums as storage_enums;
@@ -24,9 +23,10 @@ use euclid::{
     frontend::{ast, dir as euclid_dir},
 };
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-use external_services::grpc_client::dynamic_routing::{
-    success_rate::CalSuccessRateResponse, SuccessBasedDynamicRouting,
+use external_services::grpc_client::dynamic_routing::success_rate_client::{
+    CalSuccessRateResponse, SuccessBasedDynamicRouting,
 };
+use hyperswitch_domain_models::address::Address;
 use kgraph_utils::{
     mca as mca_graph,
     transformers::{IntoContext, IntoDirValue},
@@ -37,6 +37,8 @@ use rand::{
     distributions::{self, Distribution},
     SeedableRng,
 };
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+use router_env::{instrument, tracing};
 use rustc_hash::FxHashMap;
 use storage_impl::redis::cache::{CacheKey, CGRAPH_CACHE, ROUTING_CACHE};
 
@@ -489,6 +491,36 @@ pub async fn refresh_routing_cache_v1(
     Ok(arc_cached_algorithm)
 }
 
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+pub fn perform_dynamic_routing_volume_split(
+    splits: Vec<api_models::routing::RoutingVolumeSplit>,
+    rng_seed: Option<&str>,
+) -> RoutingResult<api_models::routing::RoutingVolumeSplit> {
+    let weights: Vec<u8> = splits.iter().map(|sp| sp.split).collect();
+    let weighted_index = distributions::WeightedIndex::new(weights)
+        .change_context(errors::RoutingError::VolumeSplitFailed)
+        .attach_printable("Error creating weighted distribution for volume split")?;
+
+    let idx = if let Some(seed) = rng_seed {
+        let mut hasher = hash_map::DefaultHasher::new();
+        seed.hash(&mut hasher);
+        let hash = hasher.finish();
+
+        let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(hash);
+        weighted_index.sample(&mut rng)
+    } else {
+        let mut rng = rand::thread_rng();
+        weighted_index.sample(&mut rng)
+    };
+
+    let routing_choice = *splits
+        .get(idx)
+        .ok_or(errors::RoutingError::VolumeSplitFailed)
+        .attach_printable("Volume split index lookup failed")?;
+
+    Ok(routing_choice)
+}
+
 pub fn perform_volume_split(
     mut splits: Vec<routing_types::ConnectorVolumeSplit>,
     rng_seed: Option<&str>,
@@ -523,7 +555,8 @@ pub fn perform_volume_split(
     Ok(splits.into_iter().map(|sp| sp.connector).collect())
 }
 
-pub async fn get_merchant_cgraph<'a>(
+#[cfg(feature = "v1")]
+pub async fn get_merchant_cgraph(
     state: &SessionState,
     key_store: &domain::MerchantKeyStore,
     profile_id: &common_utils::id_type::ProfileId,
@@ -569,7 +602,8 @@ pub async fn get_merchant_cgraph<'a>(
     Ok(cgraph)
 }
 
-pub async fn refresh_cgraph_cache<'a>(
+#[cfg(feature = "v1")]
+pub async fn refresh_cgraph_cache(
     state: &SessionState,
     key_store: &domain::MerchantKeyStore,
     key: String,
@@ -665,6 +699,21 @@ pub async fn refresh_cgraph_cache<'a>(
     Ok(cgraph)
 }
 
+#[cfg(feature = "v2")]
+#[allow(clippy::too_many_arguments)]
+pub async fn perform_cgraph_filtering(
+    state: &SessionState,
+    key_store: &domain::MerchantKeyStore,
+    chosen: Vec<routing_types::RoutableConnectorChoice>,
+    backend_input: dsl_inputs::BackendInput,
+    eligible_connectors: Option<&Vec<api_enums::RoutableConnectors>>,
+    profile_id: &common_utils::id_type::ProfileId,
+    transaction_type: &api_enums::TransactionType,
+) -> RoutingResult<Vec<routing_types::RoutableConnectorChoice>> {
+    todo!()
+}
+
+#[cfg(feature = "v1")]
 #[allow(clippy::too_many_arguments)]
 pub async fn perform_cgraph_filtering(
     state: &SessionState,
@@ -1094,80 +1143,78 @@ async fn perform_session_routing_for_pm_type(
     }
 }
 
-#[cfg(feature = "v2")]
-async fn perform_session_routing_for_pm_type(
-    session_pm_input: &SessionRoutingPmTypeInput<'_>,
-    transaction_type: &api_enums::TransactionType,
-    business_profile: &domain::Profile,
-) -> RoutingResult<Option<Vec<api_models::routing::RoutableConnectorChoice>>> {
-    let merchant_id = &session_pm_input.key_store.merchant_id;
+// async fn perform_session_routing_for_pm_type(
+//     session_pm_input: &SessionRoutingPmTypeInput<'_>,
+//     transaction_type: &api_enums::TransactionType,
+//     business_profile: &domain::Profile,
+// ) -> RoutingResult<Option<Vec<api_models::routing::RoutableConnectorChoice>>> {
+//     let merchant_id = &session_pm_input.key_store.merchant_id;
 
-    let MerchantAccountRoutingAlgorithm::V1(algorithm_id) = session_pm_input.routing_algorithm;
+//     let MerchantAccountRoutingAlgorithm::V1(algorithm_id) = session_pm_input.routing_algorithm;
 
-    let profile_wrapper = admin::ProfileWrapper::new(business_profile.clone());
-    let chosen_connectors = if let Some(ref algorithm_id) = algorithm_id {
-        let cached_algorithm = ensure_algorithm_cached_v1(
-            &session_pm_input.state.clone(),
-            merchant_id,
-            algorithm_id,
-            session_pm_input.profile_id,
-            transaction_type,
-        )
-        .await?;
+//     let profile_wrapper = admin::ProfileWrapper::new(business_profile.clone());
+//     let chosen_connectors = if let Some(ref algorithm_id) = algorithm_id {
+//         let cached_algorithm = ensure_algorithm_cached_v1(
+//             &session_pm_input.state.clone(),
+//             merchant_id,
+//             algorithm_id,
+//             session_pm_input.profile_id,
+//             transaction_type,
+//         )
+//         .await?;
 
-        match cached_algorithm.as_ref() {
-            CachedAlgorithm::Single(conn) => vec![(**conn).clone()],
-            CachedAlgorithm::Priority(plist) => plist.clone(),
-            CachedAlgorithm::VolumeSplit(splits) => {
-                perform_volume_split(splits.to_vec(), Some(session_pm_input.attempt_id))
-                    .change_context(errors::RoutingError::ConnectorSelectionFailed)?
-            }
-            CachedAlgorithm::Advanced(interpreter) => execute_dsl_and_get_connector_v1(
-                session_pm_input.backend_input.clone(),
-                interpreter,
-            )?,
-        }
-    } else {
-        profile_wrapper
-            .get_default_fallback_list_of_connector_under_profile()
-            .change_context(errors::RoutingError::FallbackConfigFetchFailed)?
-    };
+//         match cached_algorithm.as_ref() {
+//             CachedAlgorithm::Single(conn) => vec![(**conn).clone()],
+//             CachedAlgorithm::Priority(plist) => plist.clone(),
+//             CachedAlgorithm::VolumeSplit(splits) => {
+//                 perform_volume_split(splits.to_vec(), Some(session_pm_input.attempt_id))
+//                     .change_context(errors::RoutingError::ConnectorSelectionFailed)?
+//             }
+//             CachedAlgorithm::Advanced(interpreter) => execute_dsl_and_get_connector_v1(
+//                 session_pm_input.backend_input.clone(),
+//                 interpreter,
+//             )?,
+//         }
+//     } else {
+//         profile_wrapper
+//             .get_default_fallback_list_of_connector_under_profile()
+//             .change_context(errors::RoutingError::FallbackConfigFetchFailed)?
+//     };
 
-    let mut final_selection = perform_cgraph_filtering(
-        &session_pm_input.state.clone(),
-        session_pm_input.key_store,
-        chosen_connectors,
-        session_pm_input.backend_input.clone(),
-        None,
-        session_pm_input.profile_id,
-        transaction_type,
-    )
-    .await?;
+//     let mut final_selection = perform_cgraph_filtering(
+//         &session_pm_input.state.clone(),
+//         session_pm_input.key_store,
+//         chosen_connectors,
+//         session_pm_input.backend_input.clone(),
+//         None,
+//         session_pm_input.profile_id,
+//         transaction_type,
+//     )
+//     .await?;
 
-    if final_selection.is_empty() {
-        let fallback = profile_wrapper
-            .get_default_fallback_list_of_connector_under_profile()
-            .change_context(errors::RoutingError::FallbackConfigFetchFailed)?;
+//     if final_selection.is_empty() {
+//         let fallback = profile_wrapper
+//             .get_default_fallback_list_of_connector_under_profile()
+//             .change_context(errors::RoutingError::FallbackConfigFetchFailed)?;
 
-        final_selection = perform_cgraph_filtering(
-            &session_pm_input.state.clone(),
-            session_pm_input.key_store,
-            fallback,
-            session_pm_input.backend_input.clone(),
-            None,
-            session_pm_input.profile_id,
-            transaction_type,
-        )
-        .await?;
-    }
+//         final_selection = perform_cgraph_filtering(
+//             &session_pm_input.state.clone(),
+//             session_pm_input.key_store,
+//             fallback,
+//             session_pm_input.backend_input.clone(),
+//             None,
+//             session_pm_input.profile_id,
+//             transaction_type,
+//         )
+//         .await?;
+//     }
 
-    if final_selection.is_empty() {
-        Ok(None)
-    } else {
-        Ok(Some(final_selection))
-    }
-}
-
+//     if final_selection.is_empty() {
+//         Ok(None)
+//     } else {
+//         Ok(Some(final_selection))
+//     }
+// }
 #[cfg(feature = "v2")]
 pub fn make_dsl_input_for_surcharge(
     _payment_attempt: &oss_storage::PaymentAttempt,
@@ -1236,6 +1283,7 @@ pub fn make_dsl_input_for_surcharge(
 
 /// success based dynamic routing
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+#[instrument(skip_all)]
 pub async fn perform_success_based_routing(
     state: &SessionState,
     routable_connectors: Vec<api_routing::RoutableConnectorChoice>,
@@ -1263,7 +1311,7 @@ pub async fn perform_success_based_routing(
         )?;
 
     if success_based_algo_ref.enabled_feature
-        == api_routing::SuccessBasedRoutingFeatures::DynamicConnectorSelection
+        == api_routing::DynamicRoutingFeatures::DynamicConnectorSelection
     {
         logger::debug!(
             "performing success_based_routing for profile {}",
@@ -1302,17 +1350,13 @@ pub async fn perform_success_based_routing(
                     .ok_or(errors::RoutingError::SuccessBasedRoutingParamsNotFoundError)?,
             );
 
-        let tenant_business_profile_id = routing::helpers::generate_tenant_business_profile_id(
-            &state.tenant.redis_key_prefix,
-            business_profile.get_id().get_string_repr(),
-        );
-
         let success_based_connectors: CalSuccessRateResponse = client
             .calculate_success_rate(
-                tenant_business_profile_id,
+                business_profile.get_id().get_string_repr().into(),
                 success_based_routing_configs,
                 success_based_routing_config_params,
                 routable_connectors,
+                state.get_grpc_headers(),
             )
             .await
             .change_context(errors::RoutingError::SuccessRateCalculationError)

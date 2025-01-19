@@ -1,5 +1,5 @@
 use error_stack::report;
-use hyperswitch_domain_models::callback_mapper::{self as domain};
+use hyperswitch_domain_models::callback_mapper as domain;
 use router_env::{instrument, tracing};
 use storage_impl::{DataModelExt, MockDb};
 
@@ -11,56 +11,54 @@ use crate::{
 };
 
 #[async_trait::async_trait]
-pub trait CallBackMapperInterface {
+pub trait CallbackMapperInterface {
     async fn insert_call_back_mapper(
         &self,
-        call_back_mapper: domain::CallBackMapperNew,
-    ) -> CustomResult<domain::CallBackMapper, errors::StorageError>;
+        call_back_mapper: domain::CallbackMapper,
+    ) -> CustomResult<domain::CallbackMapper, errors::StorageError>;
 
     async fn find_call_back_mapper_by_id(
         &self,
         id: &str,
-    ) -> CustomResult<domain::CallBackMapper, errors::StorageError>;
+    ) -> CustomResult<domain::CallbackMapper, errors::StorageError>;
 }
 
 #[async_trait::async_trait]
-impl CallBackMapperInterface for Store {
+impl CallbackMapperInterface for Store {
     #[instrument(skip_all)]
     async fn insert_call_back_mapper(
         &self,
-        call_back_mapper: domain::CallBackMapperNew,
-    ) -> CustomResult<domain::CallBackMapper, errors::StorageError> {
+        call_back_mapper: domain::CallbackMapper,
+    ) -> CustomResult<domain::CallbackMapper, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        let storage_model = call_back_mapper
+        call_back_mapper
             .to_storage_model()
             .insert(&conn)
             .await
-            .map_err(|error| report!(errors::StorageError::from(error)))?;
-
-        Ok(domain::CallBackMapper::from_storage_model(storage_model))
+            .map_err(|error| report!(errors::StorageError::from(error)))
+            .map(domain::CallbackMapper::from_storage_model)
     }
 
     #[instrument(skip_all)]
     async fn find_call_back_mapper_by_id(
         &self,
         id: &str,
-    ) -> CustomResult<domain::CallBackMapper, errors::StorageError> {
+    ) -> CustomResult<domain::CallbackMapper, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
-        Ok(domain::CallBackMapper::from_storage_model(
-            storage::CallBackMapper::find_by_id(&conn, id)
-                .await
-                .map_err(|error| report!(errors::StorageError::from(error)))?,
-        ))
+        storage::CallbackMapper::find_by_id(&conn, id)
+            .await
+            .map_err(|error| report!(errors::StorageError::from(error)))
+            .map(domain::CallbackMapper::from_storage_model)
     }
 }
 
 #[async_trait::async_trait]
-impl CallBackMapperInterface for MockDb {
+impl CallbackMapperInterface for MockDb {
     #[instrument(skip_all)]
     async fn insert_call_back_mapper(
         &self,
-        _call_back_mapper: domain::CallBackMapperNew,
-    ) -> CustomResult<domain::CallBackMapper, errors::StorageError> {
+        _call_back_mapper: domain::CallbackMapper,
+    ) -> CustomResult<domain::CallbackMapper, errors::StorageError> {
         Err(errors::StorageError::MockDbError)?
     }
 
@@ -68,7 +66,7 @@ impl CallBackMapperInterface for MockDb {
     async fn find_call_back_mapper_by_id(
         &self,
         _id: &str,
-    ) -> CustomResult<domain::CallBackMapper, errors::StorageError> {
+    ) -> CustomResult<domain::CallbackMapper, errors::StorageError> {
         Err(errors::StorageError::MockDbError)?
     }
 }

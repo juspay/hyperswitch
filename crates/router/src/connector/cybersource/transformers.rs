@@ -1,17 +1,16 @@
 use api_models::payments;
 #[cfg(feature = "payouts")]
-use api_models::{
-    payments::{AddressDetails, PhoneDetails},
-    payouts::PayoutMethodData,
-};
+use api_models::payouts::PayoutMethodData;
 use base64::Engine;
 use common_enums::FutureUsage;
 use common_utils::{
     ext_traits::{OptionExt, ValueExt},
     pii,
-    types::SemanticVersion,
+    types::{SemanticVersion, StringMajorUnit},
 };
 use error_stack::ResultExt;
+#[cfg(feature = "payouts")]
+use hyperswitch_domain_models::address::{AddressDetails, PhoneDetails};
 use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -41,21 +40,16 @@ use crate::{
 
 #[derive(Debug, Serialize)]
 pub struct CybersourceRouterData<T> {
-    pub amount: String,
+    pub amount: StringMajorUnit,
     pub router_data: T,
 }
 
-impl<T> TryFrom<(&api::CurrencyUnit, enums::Currency, i64, T)> for CybersourceRouterData<T> {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        (currency_unit, currency, amount, item): (&api::CurrencyUnit, enums::Currency, i64, T),
-    ) -> Result<Self, Self::Error> {
-        // This conversion function is used at different places in the file, if updating this, keep a check for those
-        let amount = utils::get_amount_as_string(currency_unit, amount, currency)?;
-        Ok(Self {
+impl<T> From<(StringMajorUnit, T)> for CybersourceRouterData<T> {
+    fn from((amount, router_data): (StringMajorUnit, T)) -> Self {
+        Self {
             amount,
-            router_data: item,
-        })
+            router_data,
+        }
     }
 }
 
@@ -93,7 +87,7 @@ impl TryFrom<&types::SetupMandateRouterData> for CybersourceZeroMandateRequest {
 
         let order_information = OrderInformationWithBill {
             amount_details: Amount {
-                total_amount: "0".to_string(),
+                total_amount: StringMajorUnit::zero(),
                 currency: item.request.currency,
             },
             bill_to: Some(bill_to),
@@ -526,14 +520,14 @@ pub struct OrderInformation {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Amount {
-    total_amount: String,
+    total_amount: StringMajorUnit,
     currency: api_models::enums::Currency,
 }
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AdditionalAmount {
-    additional_amount: String,
+    additional_amount: StringMajorUnit,
     currency: String,
 }
 
@@ -620,7 +614,7 @@ impl
                     .as_ref()
                     .map(|card_network| match card_network.to_lowercase().as_str() {
                         "amex" => "internet",
-                        "discover" => "dipb",
+                        "discover" => "internet",
                         "mastercard" => "spa",
                         "visa" => "internet",
                         _ => "internet",
@@ -638,18 +632,15 @@ impl
             .router_data
             .request
             .setup_future_usage
-            .map_or(false, |future_usage| {
-                matches!(future_usage, FutureUsage::OffSession)
-            })
+            == Some(FutureUsage::OffSession)
             && (item.router_data.request.customer_acceptance.is_some()
                 || item
                     .router_data
                     .request
                     .setup_mandate_details
                     .clone()
-                    .map_or(false, |mandate_details| {
-                        mandate_details.customer_acceptance.is_some()
-                    })) {
+                    .is_some_and(|mandate_details| mandate_details.customer_acceptance.is_some()))
+        {
             (
                 Some(vec![CybersourceActionsList::TokenCreate]),
                 Some(vec![
@@ -966,35 +957,30 @@ impl
         let connector_merchant_config =
             CybersourceConnectorMetadataObject::try_from(&item.router_data.connector_meta_data)?;
 
-        let (action_list, action_token_types, authorization_options) = if item
-            .router_data
-            .request
-            .setup_future_usage
-            .map_or(false, |future_usage| {
-                matches!(future_usage, FutureUsage::OffSession)
-            })
-        //TODO check for customer acceptance also
-        {
-            (
-                Some(vec![CybersourceActionsList::TokenCreate]),
-                Some(vec![
-                    CybersourceActionsTokenType::PaymentInstrument,
-                    CybersourceActionsTokenType::Customer,
-                ]),
-                Some(CybersourceAuthorizationOptions {
-                    initiator: Some(CybersourcePaymentInitiator {
-                        initiator_type: Some(CybersourcePaymentInitiatorTypes::Customer),
-                        credential_stored_on_file: Some(true),
-                        stored_credential_used: None,
+        let (action_list, action_token_types, authorization_options) =
+            if item.router_data.request.setup_future_usage == Some(FutureUsage::OffSession)
+            //TODO check for customer acceptance also
+            {
+                (
+                    Some(vec![CybersourceActionsList::TokenCreate]),
+                    Some(vec![
+                        CybersourceActionsTokenType::PaymentInstrument,
+                        CybersourceActionsTokenType::Customer,
+                    ]),
+                    Some(CybersourceAuthorizationOptions {
+                        initiator: Some(CybersourcePaymentInitiator {
+                            initiator_type: Some(CybersourcePaymentInitiatorTypes::Customer),
+                            credential_stored_on_file: Some(true),
+                            stored_credential_used: None,
+                        }),
+                        merchant_intitiated_transaction: None,
+                        ignore_avs_result: connector_merchant_config.disable_avs,
+                        ignore_cv_result: connector_merchant_config.disable_cvn,
                     }),
-                    merchant_intitiated_transaction: None,
-                    ignore_avs_result: connector_merchant_config.disable_avs,
-                    ignore_cv_result: connector_merchant_config.disable_cvn,
-                }),
-            )
-        } else {
-            (None, None, None)
-        };
+                )
+            } else {
+                (None, None, None)
+            };
         Ok(Self {
             capture: Some(matches!(
                 item.router_data.request.capture_method,
@@ -1102,7 +1088,7 @@ impl
 // }
 
 fn build_bill_to(
-    address_details: Option<&payments::Address>,
+    address_details: Option<&hyperswitch_domain_models::address::Address>,
     email: pii::Email,
 ) -> Result<BillTo, error_stack::Report<errors::ConnectorError>> {
     let default_address = BillTo {

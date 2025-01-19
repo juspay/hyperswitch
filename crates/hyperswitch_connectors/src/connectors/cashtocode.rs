@@ -25,12 +25,15 @@ use hyperswitch_domain_models::{
     types::{PaymentsAuthorizeRouterData, PaymentsSyncRouterData},
 };
 use hyperswitch_interfaces::{
-    api::{self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorValidation},
+    api::{
+        self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorSpecifications,
+        ConnectorValidation,
+    },
     configs::Connectors,
     errors,
     events::connector_api_logs::ConnectorEvent,
     types::{PaymentsAuthorizeType, Response},
-    webhooks,
+    webhooks::{self, IncomingWebhookFlowError},
 };
 use masking::{Mask, PeekInterface, Secret};
 use transformers as cashtocode;
@@ -64,7 +67,7 @@ impl api::RefundExecute for Cashtocode {}
 impl api::RefundSync for Cashtocode {}
 
 fn get_b64_auth_cashtocode(
-    payment_method_type: &Option<enums::PaymentMethodType>,
+    payment_method_type: Option<enums::PaymentMethodType>,
     auth_type: &transformers::CashtocodeAuth,
 ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
     fn construct_basic_auth(
@@ -148,14 +151,17 @@ impl ConnectorCommon for Cashtocode {
 }
 
 impl ConnectorValidation for Cashtocode {
-    fn validate_capture_method(
+    fn validate_connector_against_payment_request(
         &self,
         capture_method: Option<enums::CaptureMethod>,
+        _payment_method: enums::PaymentMethod,
         _pmt: Option<enums::PaymentMethodType>,
     ) -> CustomResult<(), errors::ConnectorError> {
         let capture_method = capture_method.unwrap_or_default();
         match capture_method {
-            enums::CaptureMethod::Automatic | enums::CaptureMethod::Manual => Ok(()),
+            enums::CaptureMethod::Automatic
+            | enums::CaptureMethod::Manual
+            | enums::CaptureMethod::SequentialAutomatic => Ok(()),
             enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => Err(
                 utils::construct_not_supported_error_report(capture_method, self.id()),
             ),
@@ -202,7 +208,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             &req.request.currency,
         ))?;
 
-        let mut api_key = get_b64_auth_cashtocode(&req.request.payment_method_type, &auth_type)?;
+        let mut api_key = get_b64_auth_cashtocode(req.request.payment_method_type, &auth_type)?;
 
         header.append(&mut api_key);
         Ok(header)
@@ -420,6 +426,7 @@ impl webhooks::IncomingWebhook for Cashtocode {
     fn get_webhook_api_response(
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _error_kind: Option<IncomingWebhookFlowError>,
     ) -> CustomResult<ApplicationResponse<serde_json::Value>, errors::ConnectorError> {
         let status = "EXECUTED".to_string();
         let obj: transformers::CashtocodePaymentsSyncResponse = request
@@ -449,3 +456,5 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Cashtoc
 impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Cashtocode {
     // default implementation of build_request method will be executed
 }
+
+impl ConnectorSpecifications for Cashtocode {}

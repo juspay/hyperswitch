@@ -23,17 +23,28 @@ pub trait RoleInterface {
         role_id: &str,
     ) -> CustomResult<storage::Role, errors::StorageError>;
 
+    //TODO:Remove once find_by_role_id_in_lineage is stable
     async fn find_role_by_role_id_in_merchant_scope(
         &self,
         role_id: &str,
         merchant_id: &id_type::MerchantId,
         org_id: &id_type::OrganizationId,
+        tenant_id: &id_type::TenantId,
     ) -> CustomResult<storage::Role, errors::StorageError>;
 
-    async fn find_role_by_role_id_in_org_scope(
+    async fn find_role_by_role_id_in_lineage(
+        &self,
+        role_id: &str,
+        merchant_id: &id_type::MerchantId,
+        org_id: &id_type::OrganizationId,
+        tenant_id: &id_type::TenantId,
+    ) -> CustomResult<storage::Role, errors::StorageError>;
+
+    async fn find_by_role_id_org_id_tenant_id(
         &self,
         role_id: &str,
         org_id: &id_type::OrganizationId,
+        tenant_id: &id_type::TenantId,
     ) -> CustomResult<storage::Role, errors::StorageError>;
 
     async fn update_role_by_role_id(
@@ -51,10 +62,12 @@ pub trait RoleInterface {
         &self,
         merchant_id: &id_type::MerchantId,
         org_id: &id_type::OrganizationId,
+        tenant_id: &id_type::TenantId,
     ) -> CustomResult<Vec<storage::Role>, errors::StorageError>;
 
     async fn list_roles_for_org_by_parameters(
         &self,
+        tenant_id: &id_type::TenantId,
         org_id: &id_type::OrganizationId,
         merchant_id: Option<&id_type::MerchantId>,
         entity_type: Option<enums::EntityType>,
@@ -86,27 +99,50 @@ impl RoleInterface for Store {
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
+    //TODO:Remove once find_by_role_id_in_lineage is stable
     #[instrument(skip_all)]
     async fn find_role_by_role_id_in_merchant_scope(
         &self,
         role_id: &str,
         merchant_id: &id_type::MerchantId,
         org_id: &id_type::OrganizationId,
+        tenant_id: &id_type::TenantId,
     ) -> CustomResult<storage::Role, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
-        storage::Role::find_by_role_id_in_merchant_scope(&conn, role_id, merchant_id, org_id)
+        storage::Role::find_by_role_id_in_merchant_scope(
+            &conn,
+            role_id,
+            merchant_id,
+            org_id,
+            tenant_id,
+        )
+        .await
+        .map_err(|error| report!(errors::StorageError::from(error)))
+    }
+
+    #[instrument(skip_all)]
+    async fn find_role_by_role_id_in_lineage(
+        &self,
+        role_id: &str,
+        merchant_id: &id_type::MerchantId,
+        org_id: &id_type::OrganizationId,
+        tenant_id: &id_type::TenantId,
+    ) -> CustomResult<storage::Role, errors::StorageError> {
+        let conn = connection::pg_connection_read(self).await?;
+        storage::Role::find_by_role_id_in_lineage(&conn, role_id, merchant_id, org_id, tenant_id)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     #[instrument(skip_all)]
-    async fn find_role_by_role_id_in_org_scope(
+    async fn find_by_role_id_org_id_tenant_id(
         &self,
         role_id: &str,
         org_id: &id_type::OrganizationId,
+        tenant_id: &id_type::TenantId,
     ) -> CustomResult<storage::Role, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
-        storage::Role::find_by_role_id_in_org_scope(&conn, role_id, org_id)
+        storage::Role::find_by_role_id_org_id_tenant_id(&conn, role_id, org_id, tenant_id)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
@@ -139,9 +175,10 @@ impl RoleInterface for Store {
         &self,
         merchant_id: &id_type::MerchantId,
         org_id: &id_type::OrganizationId,
+        tenant_id: &id_type::TenantId,
     ) -> CustomResult<Vec<storage::Role>, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
-        storage::Role::list_roles(&conn, merchant_id, org_id)
+        storage::Role::list_roles(&conn, merchant_id, org_id, tenant_id)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
@@ -149,6 +186,7 @@ impl RoleInterface for Store {
     #[instrument(skip_all)]
     async fn list_roles_for_org_by_parameters(
         &self,
+        tenant_id: &id_type::TenantId,
         org_id: &id_type::OrganizationId,
         merchant_id: Option<&id_type::MerchantId>,
         entity_type: Option<enums::EntityType>,
@@ -157,6 +195,7 @@ impl RoleInterface for Store {
         let conn = connection::pg_connection_read(self).await?;
         storage::Role::generic_roles_list_for_org(
             &conn,
+            tenant_id.to_owned(),
             org_id.to_owned(),
             merchant_id.cloned(),
             entity_type,
@@ -195,6 +234,7 @@ impl RoleInterface for MockDb {
             created_at: role.created_at,
             last_modified_at: role.last_modified_at,
             last_modified_by: role.last_modified_by,
+            tenant_id: role.tenant_id,
         };
         roles.push(role.clone());
         Ok(role)
@@ -217,17 +257,20 @@ impl RoleInterface for MockDb {
             )
     }
 
+    // TODO: Remove once find_by_role_id_in_lineage is stable
     async fn find_role_by_role_id_in_merchant_scope(
         &self,
         role_id: &str,
         merchant_id: &id_type::MerchantId,
         org_id: &id_type::OrganizationId,
+        tenant_id: &id_type::TenantId,
     ) -> CustomResult<storage::Role, errors::StorageError> {
         let roles = self.roles.lock().await;
         roles
             .iter()
             .find(|role| {
                 role.role_id == role_id
+                    && (role.tenant_id == *tenant_id)
                     && (role.merchant_id == *merchant_id
                         || (role.org_id == *org_id && role.scope == enums::RoleScope::Organization))
             })
@@ -241,15 +284,46 @@ impl RoleInterface for MockDb {
             )
     }
 
-    async fn find_role_by_role_id_in_org_scope(
+    async fn find_role_by_role_id_in_lineage(
         &self,
         role_id: &str,
+        merchant_id: &id_type::MerchantId,
         org_id: &id_type::OrganizationId,
+        tenant_id: &id_type::TenantId,
     ) -> CustomResult<storage::Role, errors::StorageError> {
         let roles = self.roles.lock().await;
         roles
             .iter()
-            .find(|role| role.role_id == role_id && role.org_id == *org_id)
+            .find(|role| {
+                role.role_id == role_id
+                    && (role.tenant_id == *tenant_id)
+                    && role.org_id == *org_id
+                    && ((role.scope == enums::RoleScope::Organization)
+                        || (role.merchant_id == *merchant_id
+                            && role.scope == enums::RoleScope::Merchant))
+            })
+            .cloned()
+            .ok_or(
+                errors::StorageError::ValueNotFound(format!(
+                    "No role available in merchant scope for role_id = {role_id}, \
+                    merchant_id = {merchant_id:?} and org_id = {org_id:?}"
+                ))
+                .into(),
+            )
+    }
+
+    async fn find_by_role_id_org_id_tenant_id(
+        &self,
+        role_id: &str,
+        org_id: &id_type::OrganizationId,
+        tenant_id: &id_type::TenantId,
+    ) -> CustomResult<storage::Role, errors::StorageError> {
+        let roles = self.roles.lock().await;
+        roles
+            .iter()
+            .find(|role| {
+                role.role_id == role_id && role.org_id == *org_id && role.tenant_id == *tenant_id
+            })
             .cloned()
             .ok_or(
                 errors::StorageError::ValueNotFound(format!(
@@ -312,15 +386,17 @@ impl RoleInterface for MockDb {
         &self,
         merchant_id: &id_type::MerchantId,
         org_id: &id_type::OrganizationId,
+        tenant_id: &id_type::TenantId,
     ) -> CustomResult<Vec<storage::Role>, errors::StorageError> {
         let roles = self.roles.lock().await;
 
         let roles_list: Vec<_> = roles
             .iter()
             .filter(|role| {
-                role.merchant_id == *merchant_id
-                    || (role.org_id == *org_id
-                        && role.scope == diesel_models::enums::RoleScope::Organization)
+                role.tenant_id == *tenant_id
+                    && (role.merchant_id == *merchant_id
+                        || (role.org_id == *org_id
+                            && role.scope == diesel_models::enums::RoleScope::Organization))
             })
             .cloned()
             .collect();
@@ -339,6 +415,7 @@ impl RoleInterface for MockDb {
     #[instrument(skip_all)]
     async fn list_roles_for_org_by_parameters(
         &self,
+        tenant_id: &id_type::TenantId,
         org_id: &id_type::OrganizationId,
         merchant_id: Option<&id_type::MerchantId>,
         entity_type: Option<enums::EntityType>,
@@ -354,7 +431,10 @@ impl RoleInterface for MockDb {
                     None => true,
                 };
 
-                matches_merchant && role.org_id == *org_id && Some(role.entity_type) == entity_type
+                matches_merchant
+                    && role.org_id == *org_id
+                    && role.tenant_id == *tenant_id
+                    && Some(role.entity_type) == entity_type
             })
             .take(limit_usize)
             .cloned()

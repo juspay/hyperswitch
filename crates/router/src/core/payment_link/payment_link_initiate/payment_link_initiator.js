@@ -27,6 +27,7 @@ function initializeSDK() {
   // @ts-ignore
   hyper = window.Hyper(pub_key, {
     isPreloadEnabled: false,
+    shouldUseTopRedirection: true,
   });
   // @ts-ignore
   widgets = hyper.widgets({
@@ -39,7 +40,7 @@ function initializeSDK() {
     paymentDetails.sdk_layout === "accordion"
       ? "accordion"
       : paymentDetails.sdk_layout;
-
+  var hideCardNicknameField = paymentDetails.hide_card_nickname_field;
   var unifiedCheckoutOptions = {
     displaySavedPaymentMethodsCheckbox: false,
     displaySavedPaymentMethods: false,
@@ -56,7 +57,8 @@ function initializeSDK() {
         height: 55,
       },
     },
-    hideCardNicknameField: false,
+    showCardFormByDefault: paymentDetails.show_card_form_by_default,
+    hideCardNicknameField: hideCardNicknameField,
   };
   // @ts-ignore
   unifiedCheckout = widgets.create("payment", unifiedCheckoutOptions);
@@ -82,5 +84,10 @@ function redirectToStatus() {
   arr.splice(0, 2);
   arr.unshift("status");
   arr.unshift("payment_link");
-  window.location.href = window.location.origin + "/" + arr.join("/") + "?locale=" + paymentDetails.locale;
+  window.location.href =
+    window.location.origin +
+    "/" +
+    arr.join("/") +
+    "?locale=" +
+    paymentDetails.locale;
 }

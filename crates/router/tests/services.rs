@@ -18,7 +18,11 @@ async fn get_redis_conn_failure() {
     ))
     .await;
     let state = Arc::new(app_state)
-        .get_session_state("public", || {})
+        .get_session_state(
+            &common_utils::id_type::TenantId::try_from_string("public".to_string()).unwrap(),
+            None,
+            || {},
+        )
         .unwrap();
 
     let _ = state.store.get_redis_conn().map(|conn| {
@@ -46,7 +50,11 @@ async fn get_redis_conn_success() {
     ))
     .await;
     let state = Arc::new(app_state)
-        .get_session_state("public", || {})
+        .get_session_state(
+            &common_utils::id_type::TenantId::try_from_string("public".to_string()).unwrap(),
+            None,
+            || {},
+        )
         .unwrap();
 
     // Act

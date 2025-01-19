@@ -11,7 +11,7 @@ use common_utils::{
 use common_utils::{crypto::OptionalEncryptableName, ext_traits::ValueExt};
 #[cfg(feature = "v2")]
 use masking::ExposeInterface;
-use masking::Secret;
+use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use url;
 use utoipa::ToSchema;
@@ -676,9 +676,11 @@ pub struct MerchantConnectorCreate {
     /// Type of the Connector for the financial use case. Could range from Payments to Accounting to Banking.
     #[schema(value_type = ConnectorType, example = "payment_processor")]
     pub connector_type: api_enums::ConnectorType,
+
     /// Name of the Connector
     #[schema(value_type = Connector, example = "stripe")]
     pub connector_name: api_enums::Connector,
+
     /// This is an unique label you can generate and pass in order to identify this connector account on your Hyperswitch dashboard and reports, If not passed then if will take `connector_name`_`profile_name`. Eg: if your profile label is `default`, connector label can be `stripe_default`
     #[schema(example = "stripe_US_travel")]
     pub connector_label: Option<String>,
@@ -692,36 +694,8 @@ pub struct MerchantConnectorCreate {
     pub connector_account_details: Option<pii::SecretSerdeValue>,
 
     /// An object containing the details about the payment methods that need to be enabled under this merchant connector account
-    #[schema(example = json!([
-        {
-            "payment_method": "wallet",
-            "payment_method_types": [
-                "upi_collect",
-                "upi_intent"
-            ],
-            "payment_method_issuers": [
-                "labore magna ipsum",
-                "aute"
-            ],
-            "payment_schemes": [
-                "Discover",
-                "Discover"
-            ],
-            "accepted_currencies": {
-                "type": "enable_only",
-                "list": ["USD", "EUR"]
-            },
-            "accepted_countries": {
-                "type": "disable_only",
-                "list": ["FR", "DE","IN"]
-            },
-            "minimum_amount": 1,
-            "maximum_amount": 68607706,
-            "recurring_enabled": true,
-            "installment_payment_enabled": true
-        }
-    ]))]
-    pub payment_methods_enabled: Option<Vec<PaymentMethodsEnabled>>,
+    #[schema(value_type = PaymentMethodsEnabled)]
+    pub payment_methods_enabled: Option<Vec<common_types::payment_methods::PaymentMethodsEnabled>>,
 
     /// Webhook details of this merchant connector
     #[schema(example = json!({
@@ -1035,9 +1009,10 @@ pub struct MerchantConnectorResponse {
     /// Type of the Connector for the financial use case. Could range from Payments to Accounting to Banking.
     #[schema(value_type = ConnectorType, example = "payment_processor")]
     pub connector_type: api_enums::ConnectorType,
+
     /// Name of the Connector
     #[schema(value_type = Connector, example = "stripe")]
-    pub connector_name: String,
+    pub connector_name: common_enums::connector_enums::Connector,
 
     /// A unique label to identify the connector account created under a profile
     #[schema(example = "stripe_US_travel")]
@@ -1056,36 +1031,8 @@ pub struct MerchantConnectorResponse {
     pub connector_account_details: pii::SecretSerdeValue,
 
     /// An object containing the details about the payment methods that need to be enabled under this merchant connector account
-    #[schema(example = json!([
-        {
-            "payment_method": "wallet",
-            "payment_method_types": [
-                "upi_collect",
-                "upi_intent"
-            ],
-            "payment_method_issuers": [
-                "labore magna ipsum",
-                "aute"
-            ],
-            "payment_schemes": [
-                "Discover",
-                "Discover"
-            ],
-            "accepted_currencies": {
-                "type": "enable_only",
-                "list": ["USD", "EUR"]
-            },
-            "accepted_countries": {
-                "type": "disable_only",
-                "list": ["FR", "DE","IN"]
-            },
-            "minimum_amount": 1,
-            "maximum_amount": 68607706,
-            "recurring_enabled": true,
-            "installment_payment_enabled": true
-        }
-    ]))]
-    pub payment_methods_enabled: Option<Vec<PaymentMethodsEnabled>>,
+    #[schema(value_type = Vec<PaymentMethodsEnabled>)]
+    pub payment_methods_enabled: Option<Vec<common_types::payment_methods::PaymentMethodsEnabled>>,
 
     /// Webhook details of this merchant connector
     #[schema(example = json!({
@@ -1364,9 +1311,10 @@ pub struct MerchantConnectorListResponse {
     /// Type of the Connector for the financial use case. Could range from Payments to Accounting to Banking.
     #[schema(value_type = ConnectorType, example = "payment_processor")]
     pub connector_type: api_enums::ConnectorType,
+
     /// Name of the Connector
     #[schema(value_type = Connector, example = "stripe")]
-    pub connector_name: String,
+    pub connector_name: common_enums::connector_enums::Connector,
 
     /// A unique label to identify the connector account created under a profile
     #[schema(example = "stripe_US_travel")]
@@ -1381,36 +1329,8 @@ pub struct MerchantConnectorListResponse {
     pub profile_id: id_type::ProfileId,
 
     /// An object containing the details about the payment methods that need to be enabled under this merchant connector account
-    #[schema(example = json!([
-        {
-            "payment_method": "wallet",
-            "payment_method_types": [
-                "upi_collect",
-                "upi_intent"
-            ],
-            "payment_method_issuers": [
-                "labore magna ipsum",
-                "aute"
-            ],
-            "payment_schemes": [
-                "Discover",
-                "Discover"
-            ],
-            "accepted_currencies": {
-                "type": "enable_only",
-                "list": ["USD", "EUR"]
-            },
-            "accepted_countries": {
-                "type": "disable_only",
-                "list": ["FR", "DE","IN"]
-            },
-            "minimum_amount": 1,
-            "maximum_amount": 68607706,
-            "recurring_enabled": true,
-            "installment_payment_enabled": true
-        }
-    ]))]
-    pub payment_methods_enabled: Option<Vec<PaymentMethodsEnabled>>,
+    #[schema(value_type = Vec<PaymentMethodsEnabled>)]
+    pub payment_methods_enabled: Option<Vec<common_types::payment_methods::PaymentMethodsEnabled>>,
 
     /// A boolean value to indicate if the connector is disabled. By default, its value is false.
     #[schema(default = false, example = false)]
@@ -1531,7 +1451,6 @@ pub struct MerchantConnectorUpdate {
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
-
 pub struct ConnectorWalletDetails {
     /// This field contains the Apple Pay certificates and credentials for iOS and Web Apple Pay flow
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -1569,36 +1488,8 @@ pub struct MerchantConnectorUpdate {
     pub connector_account_details: Option<pii::SecretSerdeValue>,
 
     /// An object containing the details about the payment methods that need to be enabled under this merchant connector account
-    #[schema(example = json!([
-        {
-            "payment_method": "wallet",
-            "payment_method_types": [
-                "upi_collect",
-                "upi_intent"
-            ],
-            "payment_method_issuers": [
-                "labore magna ipsum",
-                "aute"
-            ],
-            "payment_schemes": [
-                "Discover",
-                "Discover"
-            ],
-            "accepted_currencies": {
-                "type": "enable_only",
-                "list": ["USD", "EUR"]
-            },
-            "accepted_countries": {
-                "type": "disable_only",
-                "list": ["FR", "DE","IN"]
-            },
-            "minimum_amount": 1,
-            "maximum_amount": 68607706,
-            "recurring_enabled": true,
-            "installment_payment_enabled": true
-        }
-    ]))]
-    pub payment_methods_enabled: Option<Vec<PaymentMethodsEnabled>>,
+    #[schema(value_type = Option<Vec<PaymentMethodsEnabled>>)]
+    pub payment_methods_enabled: Option<Vec<common_types::payment_methods::PaymentMethodsEnabled>>,
 
     /// Webhook details of this merchant connector
     #[schema(example = json!({
@@ -1967,6 +1858,14 @@ pub struct ProfileCreate {
 
     /// Maximum number of auto retries allowed for a payment
     pub max_auto_retries_enabled: Option<u8>,
+
+    /// Indicates if click to pay is enabled or not.
+    #[serde(default)]
+    pub is_click_to_pay_enabled: bool,
+
+    /// Product authentication ids
+    #[schema(value_type = Option<Object>, example = r#"{ "key1": "value-1", "key2": "value-2" }"#)]
+    pub authentication_product_ids: Option<HashMap<String, id_type::MerchantConnectorAccountId>>,
 }
 
 #[nutype::nutype(
@@ -2075,6 +1974,15 @@ pub struct ProfileCreate {
     /// Indicates if network tokenization is enabled or not.
     #[serde(default)]
     pub is_network_tokenization_enabled: bool,
+
+    /// Indicates if click to pay is enabled or not.
+    #[schema(default = false, example = false)]
+    #[serde(default)]
+    pub is_click_to_pay_enabled: bool,
+
+    /// Product authentication ids
+    #[schema(value_type = Option<Object>, example = r#"{ "key1": "value-1", "key2": "value-2" }"#)]
+    pub authentication_product_ids: Option<HashMap<String, id_type::MerchantConnectorAccountId>>,
 }
 
 #[cfg(feature = "v1")]
@@ -2183,7 +2091,7 @@ pub struct ProfileResponse {
 
     /// These key-value pairs are sent as additional custom headers in the outgoing webhook request.
     #[schema(value_type = Option<Object>, example = r#"{ "key1": "value-1", "key2": "value-2" }"#)]
-    pub outgoing_webhook_custom_http_headers: Option<HashMap<String, Secret<String>>>,
+    pub outgoing_webhook_custom_http_headers: Option<MaskedHeaders>,
 
     /// Merchant Connector id to be stored for tax_calculator connector
     #[schema(value_type = Option<String>)]
@@ -2203,6 +2111,14 @@ pub struct ProfileResponse {
 
     /// Maximum number of auto retries allowed for a payment
     pub max_auto_retries_enabled: Option<i16>,
+
+    /// Indicates if click to pay is enabled or not.
+    #[schema(default = false, example = false)]
+    pub is_click_to_pay_enabled: bool,
+
+    /// Product authentication ids
+    #[schema(value_type = Option<Object>, example = r#"{ "key1": "value-1", "key2": "value-2" }"#)]
+    pub authentication_product_ids: Option<serde_json::Value>,
 }
 
 #[cfg(feature = "v2")]
@@ -2294,7 +2210,7 @@ pub struct ProfileResponse {
 
     /// These key-value pairs are sent as additional custom headers in the outgoing webhook request.
     #[schema(value_type = Option<Object>, example = r#"{ "key1": "value-1", "key2": "value-2" }"#)]
-    pub outgoing_webhook_custom_http_headers: Option<HashMap<String, Secret<String>>>,
+    pub outgoing_webhook_custom_http_headers: Option<MaskedHeaders>,
 
     /// Will be used to determine the time till which your payment will be active once the payment session starts
     #[schema(value_type = Option<u32>, example = 900)]
@@ -2318,6 +2234,14 @@ pub struct ProfileResponse {
 
     /// Indicates if CVV should be collected during payment or not.
     pub should_collect_cvv_during_payment: bool,
+
+    /// Indicates if click to pay is enabled or not.
+    #[schema(default = false, example = false)]
+    pub is_click_to_pay_enabled: bool,
+
+    /// Product authentication ids
+    #[schema(value_type = Option<Object>, example = r#"{ "key1": "value-1", "key2": "value-2" }"#)]
+    pub authentication_product_ids: Option<serde_json::Value>,
 }
 
 #[cfg(feature = "v1")]
@@ -2440,6 +2364,14 @@ pub struct ProfileUpdate {
 
     /// Maximum number of auto retries allowed for a payment
     pub max_auto_retries_enabled: Option<u8>,
+
+    /// Indicates if click to pay is enabled or not.
+    #[schema(default = false, example = false)]
+    pub is_click_to_pay_enabled: Option<bool>,
+
+    /// Product authentication ids
+    #[schema(value_type = Option<Object>, example = r#"{ "key1": "value-1", "key2": "value-2" }"#)]
+    pub authentication_product_ids: Option<HashMap<String, id_type::MerchantConnectorAccountId>>,
 }
 
 #[cfg(feature = "v2")]
@@ -2543,6 +2475,14 @@ pub struct ProfileUpdate {
 
     /// Indicates if network tokenization is enabled or not.
     pub is_network_tokenization_enabled: Option<bool>,
+
+    /// Indicates if click to pay is enabled or not.
+    #[schema(default = false, example = false)]
+    pub is_click_to_pay_enabled: Option<bool>,
+
+    /// Product authentication ids
+    #[schema(value_type = Option<Object>, example = r#"{ "key1": "value-1", "key2": "value-2" }"#)]
+    pub authentication_product_ids: Option<HashMap<String, id_type::MerchantConnectorAccountId>>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -2567,6 +2507,43 @@ pub struct BusinessPayoutLinkConfig {
     /// Allows for removing any validations / pre-requisites which are necessary in a production environment
     #[schema(value_type = Option<bool>, default = false)]
     pub payout_test_mode: Option<bool>,
+}
+
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct MaskedHeaders(HashMap<String, String>);
+
+impl MaskedHeaders {
+    fn mask_value(value: &str) -> String {
+        let value_len = value.len();
+
+        let masked_value = if value_len <= 4 {
+            "*".repeat(value_len)
+        } else {
+            value
+                .char_indices()
+                .map(|(index, ch)| {
+                    if index < 2 || index >= value_len - 2 {
+                        // Show the first two and last two characters, mask the rest with '*'
+                        ch
+                    } else {
+                        // Mask the remaining characters
+                        '*'
+                    }
+                })
+                .collect::<String>()
+        };
+
+        masked_value
+    }
+
+    pub fn from_headers(headers: HashMap<String, Secret<String>>) -> Self {
+        let masked_headers = headers
+            .into_iter()
+            .map(|(key, value)| (key, Self::mask_value(value.peek())))
+            .collect();
+
+        Self(masked_headers)
+    }
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -2620,6 +2597,8 @@ pub struct BusinessPaymentLinkConfig {
     /// A list of allowed domains (glob patterns) where this link can be embedded / opened from
     #[schema(value_type = Option<HashSet<String>>)]
     pub allowed_domains: Option<HashSet<String>>,
+    /// Toggle for HyperSwitch branding visibility
+    pub branding_visibility: Option<bool>,
 }
 
 impl BusinessPaymentLinkConfig {
@@ -2673,8 +2652,18 @@ pub struct PaymentLinkConfigRequest {
     /// Hide card nickname field option for payment link
     #[schema(default = false, example = true)]
     pub hide_card_nickname_field: Option<bool>,
+    /// Show card form by default for payment link
+    #[schema(default = true, example = true)]
+    pub show_card_form_by_default: Option<bool>,
     /// Dynamic details related to merchant to be rendered in payment link
     pub transaction_details: Option<Vec<PaymentLinkTransactionDetails>>,
+    /// Configurations for the background image for details section
+    pub background_image: Option<PaymentLinkBackgroundImageConfig>,
+    /// Custom layout for details section
+    #[schema(value_type = Option<PaymentLinkDetailsLayout>, example = "layout1")]
+    pub details_layout: Option<api_enums::PaymentLinkDetailsLayout>,
+    /// Text for payment link's handle confirm button
+    pub payment_button_text: Option<String>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
@@ -2702,6 +2691,19 @@ pub struct TransactionDetailsUiConfiguration {
     pub is_value_bold: Option<bool>,
 }
 
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
+pub struct PaymentLinkBackgroundImageConfig {
+    /// URL of the image
+    #[schema(value_type = String, example = "https://hyperswitch.io/favicon.ico")]
+    pub url: common_utils::types::Url,
+    /// Position of the image in the UI
+    #[schema(value_type = Option<ElementPosition>, example = "top-left")]
+    pub position: Option<api_enums::ElementPosition>,
+    /// Size of the image in the UI
+    #[schema(value_type = Option<ElementSize>, example = "contain")]
+    pub size: Option<api_enums::ElementSize>,
+}
+
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq, ToSchema)]
 pub struct PaymentLinkConfig {
     /// custom theme for the payment link
@@ -2718,10 +2720,21 @@ pub struct PaymentLinkConfig {
     pub enabled_saved_payment_method: bool,
     /// Hide card nickname field option for payment link
     pub hide_card_nickname_field: bool,
+    /// Show card form by default for payment link
+    pub show_card_form_by_default: bool,
     /// A list of allowed domains (glob patterns) where this link can be embedded / opened from
     pub allowed_domains: Option<HashSet<String>>,
     /// Dynamic details related to merchant to be rendered in payment link
     pub transaction_details: Option<Vec<PaymentLinkTransactionDetails>>,
+    /// Configurations for the background image for details section
+    pub background_image: Option<PaymentLinkBackgroundImageConfig>,
+    /// Custom layout for details section
+    #[schema(value_type = Option<PaymentLinkDetailsLayout>, example = "layout1")]
+    pub details_layout: Option<api_enums::PaymentLinkDetailsLayout>,
+    /// Toggle for HyperSwitch branding visibility
+    pub branding_visibility: Option<bool>,
+    /// Text for payment link's handle confirm button
+    pub payment_button_text: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]

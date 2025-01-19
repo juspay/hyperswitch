@@ -567,18 +567,15 @@ impl
             .router_data
             .request
             .setup_future_usage
-            .map_or(false, |future_usage| {
-                matches!(future_usage, FutureUsage::OffSession)
-            })
+            == Some(FutureUsage::OffSession)
             && (item.router_data.request.customer_acceptance.is_some()
                 || item
                     .router_data
                     .request
                     .setup_mandate_details
                     .clone()
-                    .map_or(false, |mandate_details| {
-                        mandate_details.customer_acceptance.is_some()
-                    })) {
+                    .is_some_and(|mandate_details| mandate_details.customer_acceptance.is_some()))
+        {
             (
                 Some(vec![WellsfargoActionsList::TokenCreate]),
                 Some(vec![
@@ -717,7 +714,9 @@ impl
         Ok(Self {
             capture: Some(matches!(
                 item.router_data.request.capture_method,
-                Some(enums::CaptureMethod::Automatic) | None
+                Some(enums::CaptureMethod::Automatic)
+                    | Some(enums::CaptureMethod::SequentialAutomatic)
+                    | None
             )),
             payment_solution: solution.map(String::from),
             action_list,
@@ -802,7 +801,9 @@ impl
     }
 }
 
-fn get_phone_number(item: Option<&payments::Address>) -> Option<Secret<String>> {
+fn get_phone_number(
+    item: Option<&hyperswitch_domain_models::address::Address>,
+) -> Option<Secret<String>> {
     item.as_ref()
         .and_then(|billing| billing.phone.as_ref())
         .and_then(|phone| {
@@ -816,7 +817,7 @@ fn get_phone_number(item: Option<&payments::Address>) -> Option<Secret<String>> 
 }
 
 fn build_bill_to(
-    address_details: Option<&payments::Address>,
+    address_details: Option<&hyperswitch_domain_models::address::Address>,
     email: pii::Email,
 ) -> Result<BillTo, error_stack::Report<errors::ConnectorError>> {
     let phone_number = get_phone_number(address_details);

@@ -1,5 +1,5 @@
 use api_models::{
-    mandates,
+    mandates, payment_methods,
     payments::{additional_info as payment_additional_types, ExtendedCardInfo},
 };
 use common_enums::enums as api_enums;
@@ -82,6 +82,7 @@ pub struct Card {
     pub card_issuing_country: Option<String>,
     pub bank_code: Option<String>,
     pub nick_name: Option<Secret<String>>,
+    pub card_holder_name: Option<Secret<String>>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize, Default)]
@@ -95,6 +96,7 @@ pub struct CardDetailsForNetworkTransactionId {
     pub card_issuing_country: Option<String>,
     pub bank_code: Option<String>,
     pub nick_name: Option<Secret<String>>,
+    pub card_holder_name: Option<Secret<String>>,
 }
 
 impl CardDetailsForNetworkTransactionId {
@@ -136,6 +138,7 @@ impl From<mandates::NetworkTransactionIdAndCardDetails> for CardDetailsForNetwor
             card_issuing_country: card_details_for_nti.card_issuing_country,
             bank_code: card_details_for_nti.bank_code,
             nick_name: card_details_for_nti.nick_name,
+            card_holder_name: card_details_for_nti.card_holder_name,
         }
     }
 }
@@ -152,6 +155,7 @@ pub enum CardRedirectData {
 pub enum PayLaterData {
     KlarnaRedirect {},
     KlarnaSdk { token: String },
+    KlarnaCheckout {},
     AffirmRedirect {},
     AfterpayClearpayRedirect {},
     PayBrightRedirect {},
@@ -161,7 +165,6 @@ pub enum PayLaterData {
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
-
 pub enum WalletData {
     AliPayQr(Box<AliPayQr>),
     AliPayRedirect(AliPayRedirection),
@@ -234,7 +237,6 @@ pub struct SamsungPayTokenData {
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
-
 pub struct GooglePayWalletData {
     /// The type of payment method
     pub pm_type: String,
@@ -304,7 +306,6 @@ pub struct MobilePayRedirection {}
 pub struct MbWayRedirection {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
-
 pub struct GooglePayPaymentMethodInfo {
     /// The name of the card network
     pub card_network: String,
@@ -361,7 +362,6 @@ pub struct ApplepayPaymentMethod {
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
-
 pub enum RealTimePaymentData {
     DuitNow {},
     Fps {},
@@ -370,7 +370,6 @@ pub enum RealTimePaymentData {
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
-
 pub enum BankRedirectData {
     BancontactCard {
         card_number: Option<cards::CardNumber>,
@@ -598,6 +597,7 @@ pub struct NetworkTokenData {
     pub card_issuing_country: Option<String>,
     pub bank_code: Option<String>,
     pub nick_name: Option<Secret<String>>,
+    pub eci: Option<String>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize)]
@@ -671,7 +671,7 @@ impl From<api_models::payments::Card> for Card {
             card_number,
             card_exp_month,
             card_exp_year,
-            card_holder_name: _,
+            card_holder_name,
             card_cvc,
             card_issuer,
             card_network,
@@ -692,6 +692,7 @@ impl From<api_models::payments::Card> for Card {
             card_issuing_country,
             bank_code,
             nick_name,
+            card_holder_name,
         }
     }
 }
@@ -897,6 +898,7 @@ impl From<api_models::payments::PayLaterData> for PayLaterData {
         match value {
             api_models::payments::PayLaterData::KlarnaRedirect { .. } => Self::KlarnaRedirect {},
             api_models::payments::PayLaterData::KlarnaSdk { token } => Self::KlarnaSdk { token },
+            api_models::payments::PayLaterData::KlarnaCheckout {} => Self::KlarnaCheckout {},
             api_models::payments::PayLaterData::AffirmRedirect {} => Self::AffirmRedirect {},
             api_models::payments::PayLaterData::AfterpayClearpayRedirect { .. } => {
                 Self::AfterpayClearpayRedirect {}
@@ -1443,6 +1445,7 @@ pub struct TokenizedCardValue1 {
     pub nickname: Option<String>,
     pub card_last_four: Option<String>,
     pub card_token: Option<String>,
+    pub card_holder_name: Option<Secret<String>>,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
@@ -1549,6 +1552,7 @@ impl GetPaymentMethodType for PayLaterData {
         match self {
             Self::KlarnaRedirect { .. } => api_enums::PaymentMethodType::Klarna,
             Self::KlarnaSdk { .. } => api_enums::PaymentMethodType::Klarna,
+            Self::KlarnaCheckout {} => api_enums::PaymentMethodType::Klarna,
             Self::AffirmRedirect {} => api_enums::PaymentMethodType::Affirm,
             Self::AfterpayClearpayRedirect { .. } => api_enums::PaymentMethodType::AfterpayClearpay,
             Self::PayBrightRedirect {} => api_enums::PaymentMethodType::PayBright,
@@ -1705,6 +1709,16 @@ impl From<Card> for ExtendedCardInfo {
             card_type: value.card_type,
             card_issuing_country: value.card_issuing_country,
             bank_code: value.bank_code,
+        }
+    }
+}
+
+impl From<GooglePayWalletData> for payment_methods::PaymentMethodDataWalletInfo {
+    fn from(item: GooglePayWalletData) -> Self {
+        Self {
+            last4: item.info.card_details,
+            card_network: item.info.card_network,
+            card_type: item.pm_type,
         }
     }
 }

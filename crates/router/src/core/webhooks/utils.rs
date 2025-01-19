@@ -11,6 +11,7 @@ use crate::{
     db::{get_and_deserialize_key, StorageInterface},
     services::logger,
     types::{self, api, domain, PaymentAddress},
+    SessionState,
 };
 
 const IRRELEVANT_ATTEMPT_ID_IN_SOURCE_VERIFICATION_FLOW: &str =
@@ -56,7 +57,8 @@ pub async fn is_webhook_event_disabled(
     }
 }
 
-pub async fn construct_webhook_router_data<'a>(
+pub async fn construct_webhook_router_data(
+    state: &SessionState,
     connector_name: &str,
     merchant_connector_account: domain::MerchantConnectorAccount,
     merchant_account: &domain::MerchantAccount,
@@ -74,6 +76,7 @@ pub async fn construct_webhook_router_data<'a>(
         merchant_id: merchant_account.get_id().clone(),
         connector: connector_name.to_string(),
         customer_id: None,
+        tenant_id: state.tenant.tenant_id.clone(),
         payment_id: common_utils::id_type::PaymentId::get_irrelevant_id("source_verification_flow")
             .get_string_repr()
             .to_owned(),
@@ -82,7 +85,6 @@ pub async fn construct_webhook_router_data<'a>(
         payment_method: diesel_models::enums::PaymentMethod::default(),
         connector_auth_type: auth_type,
         description: None,
-        return_url: None,
         address: PaymentAddress::default(),
         auth_type: diesel_models::enums::AuthenticationType::default(),
         connector_meta_data: None,
@@ -123,6 +125,8 @@ pub async fn construct_webhook_router_data<'a>(
         additional_merchant_data: None,
         header_payload: None,
         connector_mandate_request_reference_id: None,
+        authentication_id: None,
+        psd2_sca_exemption_type: None,
     };
     Ok(router_data)
 }

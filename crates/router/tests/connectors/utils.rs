@@ -63,7 +63,6 @@ pub struct PaymentInfo {
     pub auth_type: Option<enums::AuthenticationType>,
     pub access_token: Option<AccessToken>,
     pub connector_meta_data: Option<serde_json::Value>,
-    pub return_url: Option<String>,
     pub connector_customer: Option<String>,
     pub payment_method_token: Option<String>,
     #[cfg(feature = "payouts")]
@@ -78,8 +77,8 @@ impl PaymentInfo {
             address: Some(PaymentAddress::new(
                 None,
                 None,
-                Some(types::api::Address {
-                    address: Some(types::api::AddressDetails {
+                Some(hyperswitch_domain_models::address::Address {
+                    address: Some(hyperswitch_domain_models::address::AddressDetails {
                         first_name: Some(Secret::new("John".to_string())),
                         last_name: Some(Secret::new("Doe".to_string())),
                         ..Default::default()
@@ -404,8 +403,9 @@ pub trait ConnectorActions: Connector {
                 reason: None,
                 connector_refund_id: Some(refund_id),
                 browser_info: None,
-                charges: None,
+                split_refunds: None,
                 integrity_object: None,
+                refund_status: enums::RefundStatus::Pending,
             }),
             payment_info,
         );
@@ -490,6 +490,8 @@ pub trait ConnectorActions: Connector {
             merchant_id,
             customer_id: Some(common_utils::generate_customer_id_of_default_length()),
             connector: self.get_name(),
+            tenant_id: common_utils::id_type::TenantId::try_from_string("public".to_string())
+                .unwrap(),
             payment_id: uuid::Uuid::new_v4().to_string(),
             attempt_id: uuid::Uuid::new_v4().to_string(),
             status: enums::AttemptStatus::default(),
@@ -502,7 +504,6 @@ pub trait ConnectorActions: Connector {
             payment_method: enums::PaymentMethod::Card,
             connector_auth_type: self.get_auth_token(),
             description: Some("This is a test".to_string()),
-            return_url: info.clone().and_then(|a| a.return_url),
             payment_method_status: None,
             request: req,
             response: Err(types::ErrorResponse::default()),
@@ -547,6 +548,8 @@ pub trait ConnectorActions: Connector {
             additional_merchant_data: None,
             header_payload: None,
             connector_mandate_request_reference_id: None,
+            psd2_sca_exemption_type: None,
+            authentication_id: None,
         }
     }
 
@@ -599,7 +602,11 @@ pub trait ConnectorActions: Connector {
         ))
         .await;
         let state = Arc::new(app_state)
-            .get_session_state("public", || {})
+            .get_session_state(
+                &common_utils::id_type::TenantId::try_from_string("public".to_string()).unwrap(),
+                None,
+                || {},
+            )
             .unwrap();
         let res = services::api::execute_connector_processing_step(
             &state,
@@ -639,7 +646,11 @@ pub trait ConnectorActions: Connector {
         ))
         .await;
         let state = Arc::new(app_state)
-            .get_session_state("public", || {})
+            .get_session_state(
+                &common_utils::id_type::TenantId::try_from_string("public".to_string()).unwrap(),
+                None,
+                || {},
+            )
             .unwrap();
         let res = services::api::execute_connector_processing_step(
             &state,
@@ -680,7 +691,11 @@ pub trait ConnectorActions: Connector {
         ))
         .await;
         let state = Arc::new(app_state)
-            .get_session_state("public", || {})
+            .get_session_state(
+                &common_utils::id_type::TenantId::try_from_string("public".to_string()).unwrap(),
+                None,
+                || {},
+            )
             .unwrap();
         let res = services::api::execute_connector_processing_step(
             &state,
@@ -720,7 +735,11 @@ pub trait ConnectorActions: Connector {
         ))
         .await;
         let state = Arc::new(app_state)
-            .get_session_state("public", || {})
+            .get_session_state(
+                &common_utils::id_type::TenantId::try_from_string("public".to_string()).unwrap(),
+                None,
+                || {},
+            )
             .unwrap();
         let res = services::api::execute_connector_processing_step(
             &state,
@@ -811,7 +830,11 @@ pub trait ConnectorActions: Connector {
         ))
         .await;
         let state = Arc::new(app_state)
-            .get_session_state("public", || {})
+            .get_session_state(
+                &common_utils::id_type::TenantId::try_from_string("public".to_string()).unwrap(),
+                None,
+                || {},
+            )
             .unwrap();
         let res = services::api::execute_connector_processing_step(
             &state,
@@ -848,7 +871,11 @@ async fn call_connector<
     ))
     .await;
     let state = Arc::new(app_state)
-        .get_session_state("public", || {})
+        .get_session_state(
+            &common_utils::id_type::TenantId::try_from_string("public".to_string()).unwrap(),
+            None,
+            || {},
+        )
         .unwrap();
     services::api::execute_connector_processing_step(
         &state,
@@ -907,6 +934,7 @@ impl Default for CCardType {
             card_issuing_country: None,
             bank_code: None,
             nick_name: Some(Secret::new("nick_name".into())),
+            card_holder_name: Some(Secret::new("card holder name".into())),
         })
     }
 }
@@ -917,6 +945,7 @@ impl Default for PaymentAuthorizeType {
             payment_method_data: types::domain::PaymentMethodData::Card(CCardType::default().0),
             amount: 100,
             minor_amount: MinorUnit::new(100),
+            order_tax_amount: Some(MinorUnit::zero()),
             currency: enums::Currency::USD,
             confirm: true,
             statement_descriptor_suffix: None,
@@ -945,7 +974,7 @@ impl Default for PaymentAuthorizeType {
             metadata: None,
             authentication_data: None,
             customer_acceptance: None,
-            charges: None,
+            split_payments: None,
             integrity_object: None,
             merchant_order_reference_id: None,
             additional_payment_method_data: None,
@@ -990,6 +1019,9 @@ impl Default for BrowserInfoType {
             java_enabled: Some(true),
             java_script_enabled: Some(true),
             ip_address: Some("127.0.0.1".parse().unwrap()),
+            device_model: Some("Apple IPHONE 7".to_string()),
+            os_type: Some("IOS or ANDROID".to_string()),
+            os_version: Some("IOS 14.5".to_string()),
         };
         Self(data)
     }
@@ -1032,8 +1064,9 @@ impl Default for PaymentRefundType {
             reason: Some("Customer returned product".to_string()),
             connector_refund_id: None,
             browser_info: None,
-            charges: None,
+            split_refunds: None,
             integrity_object: None,
+            refund_status: enums::RefundStatus::Pending,
         };
         Self(data)
     }

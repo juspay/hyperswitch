@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-pub use common_utils::types::{ChargeRefunds, MinorUnit};
+pub use common_utils::types::MinorUnit;
 use common_utils::{pii, types::TimeRange};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
@@ -57,8 +57,8 @@ pub struct RefundRequest {
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
 
     /// Charge specific fields for controlling the revert of funds from either platform or connected account
-    #[schema(value_type = Option<ChargeRefunds>)]
-    pub charges: Option<ChargeRefunds>,
+    #[schema(value_type = Option<SplitRefund>)]
+    pub split_refunds: Option<common_types::refunds::SplitRefund>,
 }
 
 #[cfg(feature = "v2")]
@@ -188,6 +188,10 @@ pub struct RefundResponse {
     pub error_message: Option<String>,
     /// The code for the error
     pub error_code: Option<String>,
+    /// Error code unified across the connectors is received here if there was an error while calling connector
+    pub unified_code: Option<String>,
+    /// Error message unified across the connectors is received here if there was an error while calling connector
+    pub unified_message: Option<String>,
     /// The timestamp at which refund is created
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
     pub created_at: Option<PrimitiveDateTime>,
@@ -204,8 +208,8 @@ pub struct RefundResponse {
     #[schema(value_type = Option<String>)]
     pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     /// Charge specific fields for controlling the revert of funds from either platform or connected account
-    #[schema(value_type = Option<ChargeRefunds>)]
-    pub charges: Option<ChargeRefunds>,
+    #[schema(value_type = Option<SplitRefund>,)]
+    pub split_refunds: Option<common_types::refunds::SplitRefund>,
 }
 
 #[cfg(feature = "v1")]

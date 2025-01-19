@@ -56,7 +56,7 @@ where
         dimensions: &[SdkEventDimensions],
         publishable_key: &str,
         filters: &SdkEventFilters,
-        granularity: &Option<Granularity>,
+        granularity: Option<Granularity>,
         time_range: &TimeRange,
         pool: &T,
     ) -> MetricsResult<HashSet<(SdkEventMetricsBucketIdentifier, SdkEventMetricRow)>>;
@@ -77,7 +77,7 @@ where
         dimensions: &[SdkEventDimensions],
         publishable_key: &str,
         filters: &SdkEventFilters,
-        granularity: &Option<Granularity>,
+        granularity: Option<Granularity>,
         time_range: &TimeRange,
         pool: &T,
     ) -> MetricsResult<HashSet<(SdkEventMetricsBucketIdentifier, SdkEventMetricRow)>> {

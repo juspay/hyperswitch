@@ -15,6 +15,7 @@ use crate::{
 
 pub struct ListUserRolesByOrgIdPayload<'a> {
     pub user_id: Option<&'a String>,
+    pub tenant_id: &'a id_type::TenantId,
     pub org_id: &'a id_type::OrganizationId,
     pub merchant_id: Option<&'a id_type::MerchantId>,
     pub profile_id: Option<&'a id_type::ProfileId>,
@@ -24,6 +25,7 @@ pub struct ListUserRolesByOrgIdPayload<'a> {
 
 pub struct ListUserRolesByUserIdPayload<'a> {
     pub user_id: &'a str,
+    pub tenant_id: &'a id_type::TenantId,
     pub org_id: Option<&'a id_type::OrganizationId>,
     pub merchant_id: Option<&'a id_type::MerchantId>,
     pub profile_id: Option<&'a id_type::ProfileId>,
@@ -43,15 +45,18 @@ pub trait UserRoleInterface {
     async fn find_user_role_by_user_id_and_lineage(
         &self,
         user_id: &str,
+        tenant_id: &id_type::TenantId,
         org_id: &id_type::OrganizationId,
         merchant_id: &id_type::MerchantId,
         profile_id: &id_type::ProfileId,
         version: enums::UserRoleVersion,
     ) -> CustomResult<storage::UserRole, errors::StorageError>;
 
+    #[allow(clippy::too_many_arguments)]
     async fn update_user_role_by_user_id_and_lineage(
         &self,
         user_id: &str,
+        tenant_id: &id_type::TenantId,
         org_id: &id_type::OrganizationId,
         merchant_id: Option<&id_type::MerchantId>,
         profile_id: Option<&id_type::ProfileId>,
@@ -62,6 +67,7 @@ pub trait UserRoleInterface {
     async fn delete_user_role_by_user_id_and_lineage(
         &self,
         user_id: &str,
+        tenant_id: &id_type::TenantId,
         org_id: &id_type::OrganizationId,
         merchant_id: &id_type::MerchantId,
         profile_id: &id_type::ProfileId,
@@ -71,6 +77,12 @@ pub trait UserRoleInterface {
     async fn list_user_roles_by_user_id<'a>(
         &self,
         payload: ListUserRolesByUserIdPayload<'a>,
+    ) -> CustomResult<Vec<storage::UserRole>, errors::StorageError>;
+
+    async fn list_user_roles_by_user_id_across_tenants(
+        &self,
+        user_id: &str,
+        limit: Option<u32>,
     ) -> CustomResult<Vec<storage::UserRole>, errors::StorageError>;
 
     async fn list_user_roles_by_org_id<'a>(
@@ -98,15 +110,17 @@ impl UserRoleInterface for Store {
     async fn find_user_role_by_user_id_and_lineage(
         &self,
         user_id: &str,
+        tenant_id: &id_type::TenantId,
         org_id: &id_type::OrganizationId,
         merchant_id: &id_type::MerchantId,
         profile_id: &id_type::ProfileId,
         version: enums::UserRoleVersion,
     ) -> CustomResult<storage::UserRole, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
-        storage::UserRole::find_by_user_id_org_id_merchant_id_profile_id(
+        storage::UserRole::find_by_user_id_tenant_id_org_id_merchant_id_profile_id(
             &conn,
             user_id.to_owned(),
+            tenant_id.to_owned(),
             org_id.to_owned(),
             merchant_id.to_owned(),
             profile_id.to_owned(),
@@ -120,6 +134,7 @@ impl UserRoleInterface for Store {
     async fn update_user_role_by_user_id_and_lineage(
         &self,
         user_id: &str,
+        tenant_id: &id_type::TenantId,
         org_id: &id_type::OrganizationId,
         merchant_id: Option<&id_type::MerchantId>,
         profile_id: Option<&id_type::ProfileId>,
@@ -127,9 +142,10 @@ impl UserRoleInterface for Store {
         version: enums::UserRoleVersion,
     ) -> CustomResult<storage::UserRole, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        storage::UserRole::update_by_user_id_org_id_merchant_id_profile_id(
+        storage::UserRole::update_by_user_id_tenant_id_org_id_merchant_id_profile_id(
             &conn,
             user_id.to_owned(),
+            tenant_id.to_owned(),
             org_id.to_owned(),
             merchant_id.cloned(),
             profile_id.cloned(),
@@ -144,15 +160,17 @@ impl UserRoleInterface for Store {
     async fn delete_user_role_by_user_id_and_lineage(
         &self,
         user_id: &str,
+        tenant_id: &id_type::TenantId,
         org_id: &id_type::OrganizationId,
         merchant_id: &id_type::MerchantId,
         profile_id: &id_type::ProfileId,
         version: enums::UserRoleVersion,
     ) -> CustomResult<storage::UserRole, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        storage::UserRole::delete_by_user_id_org_id_merchant_id_profile_id(
+        storage::UserRole::delete_by_user_id_tenant_id_org_id_merchant_id_profile_id(
             &conn,
             user_id.to_owned(),
+            tenant_id.to_owned(),
             org_id.to_owned(),
             merchant_id.to_owned(),
             profile_id.to_owned(),
@@ -170,6 +188,7 @@ impl UserRoleInterface for Store {
         storage::UserRole::generic_user_roles_list_for_user(
             &conn,
             payload.user_id.to_owned(),
+            payload.tenant_id.to_owned(),
             payload.org_id.cloned(),
             payload.merchant_id.cloned(),
             payload.profile_id.cloned(),
@@ -177,6 +196,21 @@ impl UserRoleInterface for Store {
             payload.status,
             payload.version,
             payload.limit,
+        )
+        .await
+        .map_err(|error| report!(errors::StorageError::from(error)))
+    }
+
+    async fn list_user_roles_by_user_id_across_tenants(
+        &self,
+        user_id: &str,
+        limit: Option<u32>,
+    ) -> CustomResult<Vec<storage::UserRole>, errors::StorageError> {
+        let conn = connection::pg_connection_read(self).await?;
+        storage::UserRole::list_user_roles_by_user_id_across_tenants(
+            &conn,
+            user_id.to_owned(),
+            limit,
         )
         .await
         .map_err(|error| report!(errors::StorageError::from(error)))
@@ -190,6 +224,7 @@ impl UserRoleInterface for Store {
         storage::UserRole::generic_user_roles_list_for_org_and_extra(
             &conn,
             payload.user_id.cloned(),
+            payload.tenant_id.to_owned(),
             payload.org_id.to_owned(),
             payload.merchant_id.cloned(),
             payload.profile_id.cloned(),
@@ -243,6 +278,7 @@ impl UserRoleInterface for MockDb {
     async fn find_user_role_by_user_id_and_lineage(
         &self,
         user_id: &str,
+        tenant_id: &id_type::TenantId,
         org_id: &id_type::OrganizationId,
         merchant_id: &id_type::MerchantId,
         profile_id: &id_type::ProfileId,
@@ -251,21 +287,32 @@ impl UserRoleInterface for MockDb {
         let user_roles = self.user_roles.lock().await;
 
         for user_role in user_roles.iter() {
-            let org_level_check = user_role.org_id.as_ref() == Some(org_id)
+            let tenant_level_check = user_role.tenant_id == *tenant_id
+                && user_role.org_id.is_none()
                 && user_role.merchant_id.is_none()
                 && user_role.profile_id.is_none();
 
-            let merchant_level_check = user_role.org_id.as_ref() == Some(org_id)
+            let org_level_check = user_role.tenant_id == *tenant_id
+                && user_role.org_id.as_ref() == Some(org_id)
+                && user_role.merchant_id.is_none()
+                && user_role.profile_id.is_none();
+
+            let merchant_level_check = user_role.tenant_id == *tenant_id
+                && user_role.org_id.as_ref() == Some(org_id)
                 && user_role.merchant_id.as_ref() == Some(merchant_id)
                 && user_role.profile_id.is_none();
 
-            let profile_level_check = user_role.org_id.as_ref() == Some(org_id)
+            let profile_level_check = user_role.tenant_id == *tenant_id
+                && user_role.org_id.as_ref() == Some(org_id)
                 && user_role.merchant_id.as_ref() == Some(merchant_id)
                 && user_role.profile_id.as_ref() == Some(profile_id);
 
             // Check if any condition matches and the version matches
             if user_role.user_id == user_id
-                && (org_level_check || merchant_level_check || profile_level_check)
+                && (tenant_level_check
+                    || org_level_check
+                    || merchant_level_check
+                    || profile_level_check)
                 && user_role.version == version
             {
                 return Ok(user_role.clone());
@@ -282,6 +329,7 @@ impl UserRoleInterface for MockDb {
     async fn update_user_role_by_user_id_and_lineage(
         &self,
         user_id: &str,
+        tenant_id: &id_type::TenantId,
         org_id: &id_type::OrganizationId,
         merchant_id: Option<&id_type::MerchantId>,
         profile_id: Option<&id_type::ProfileId>,
@@ -291,21 +339,32 @@ impl UserRoleInterface for MockDb {
         let mut user_roles = self.user_roles.lock().await;
 
         for user_role in user_roles.iter_mut() {
-            let org_level_check = user_role.org_id.as_ref() == Some(org_id)
+            let tenant_level_check = user_role.tenant_id == *tenant_id
+                && user_role.org_id.is_none()
                 && user_role.merchant_id.is_none()
                 && user_role.profile_id.is_none();
 
-            let merchant_level_check = user_role.org_id.as_ref() == Some(org_id)
+            let org_level_check = user_role.tenant_id == *tenant_id
+                && user_role.org_id.as_ref() == Some(org_id)
+                && user_role.merchant_id.is_none()
+                && user_role.profile_id.is_none();
+
+            let merchant_level_check = user_role.tenant_id == *tenant_id
+                && user_role.org_id.as_ref() == Some(org_id)
                 && user_role.merchant_id.as_ref() == merchant_id
                 && user_role.profile_id.is_none();
 
-            let profile_level_check = user_role.org_id.as_ref() == Some(org_id)
+            let profile_level_check = user_role.tenant_id == *tenant_id
+                && user_role.org_id.as_ref() == Some(org_id)
                 && user_role.merchant_id.as_ref() == merchant_id
                 && user_role.profile_id.as_ref() == profile_id;
 
-            // Check if the user role matches the conditions and the version matches
+            // Check if any condition matches and the version matches
             if user_role.user_id == user_id
-                && (org_level_check || merchant_level_check || profile_level_check)
+                && (tenant_level_check
+                    || org_level_check
+                    || merchant_level_check
+                    || profile_level_check)
                 && user_role.version == version
             {
                 match &update {
@@ -336,6 +395,7 @@ impl UserRoleInterface for MockDb {
     async fn delete_user_role_by_user_id_and_lineage(
         &self,
         user_id: &str,
+        tenant_id: &id_type::TenantId,
         org_id: &id_type::OrganizationId,
         merchant_id: &id_type::MerchantId,
         profile_id: &id_type::ProfileId,
@@ -345,21 +405,32 @@ impl UserRoleInterface for MockDb {
 
         // Find the position of the user role to delete
         let index = user_roles.iter().position(|role| {
-            let org_level_check = role.org_id.as_ref() == Some(org_id)
+            let tenant_level_check = role.tenant_id == *tenant_id
+                && role.org_id.is_none()
                 && role.merchant_id.is_none()
                 && role.profile_id.is_none();
 
-            let merchant_level_check = role.org_id.as_ref() == Some(org_id)
+            let org_level_check = role.tenant_id == *tenant_id
+                && role.org_id.as_ref() == Some(org_id)
+                && role.merchant_id.is_none()
+                && role.profile_id.is_none();
+
+            let merchant_level_check = role.tenant_id == *tenant_id
+                && role.org_id.as_ref() == Some(org_id)
                 && role.merchant_id.as_ref() == Some(merchant_id)
                 && role.profile_id.is_none();
 
-            let profile_level_check = role.org_id.as_ref() == Some(org_id)
+            let profile_level_check = role.tenant_id == *tenant_id
+                && role.org_id.as_ref() == Some(org_id)
                 && role.merchant_id.as_ref() == Some(merchant_id)
                 && role.profile_id.as_ref() == Some(profile_id);
 
             // Check if the user role matches the conditions and the version matches
             role.user_id == user_id
-                && (org_level_check || merchant_level_check || profile_level_check)
+                && (tenant_level_check
+                    || org_level_check
+                    || merchant_level_check
+                    || profile_level_check)
                 && role.version == version
         });
 
@@ -419,6 +490,26 @@ impl UserRoleInterface for MockDb {
         if let Some(Ok(limit)) = payload.limit.map(|val| val.try_into()) {
             filtered_roles = filtered_roles.into_iter().take(limit).collect();
         }
+        Ok(filtered_roles)
+    }
+
+    async fn list_user_roles_by_user_id_across_tenants(
+        &self,
+        user_id: &str,
+        limit: Option<u32>,
+    ) -> CustomResult<Vec<storage::UserRole>, errors::StorageError> {
+        let user_roles = self.user_roles.lock().await;
+
+        let filtered_roles: Vec<_> = user_roles
+            .iter()
+            .filter(|role| role.user_id == user_id)
+            .cloned()
+            .collect();
+
+        if let Some(Ok(limit)) = limit.map(|val| val.try_into()) {
+            return Ok(filtered_roles.into_iter().take(limit).collect());
+        }
+
         Ok(filtered_roles)
     }
 

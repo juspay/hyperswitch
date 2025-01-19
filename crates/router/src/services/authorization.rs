@@ -33,17 +33,27 @@ where
         return Ok(role_info.clone());
     }
 
-    let role_info =
-        get_role_info_from_db(state, &token.role_id, &token.merchant_id, &token.org_id).await?;
+    let role_info = get_role_info_from_db(
+        state,
+        &token.role_id,
+        &token.org_id,
+        token
+            .tenant_id
+            .as_ref()
+            .unwrap_or(&state.session_state().tenant.tenant_id),
+    )
+    .await?;
 
     let token_expiry =
         i64::try_from(token.exp).change_context(ApiErrorResponse::InternalServerError)?;
     let cache_ttl = token_expiry - common_utils::date_time::now_unix_timestamp();
 
-    set_role_info_in_cache(state, &token.role_id, &role_info, cache_ttl)
-        .await
-        .map_err(|e| logger::error!("Failed to set role info in cache {e:?}"))
-        .ok();
+    if cache_ttl > 0 {
+        set_role_info_in_cache(state, &token.role_id, &role_info, cache_ttl)
+            .await
+            .map_err(|e| logger::error!("Failed to set role info in cache {e:?}"))
+            .ok();
+    }
     Ok(role_info)
 }
 
@@ -66,15 +76,16 @@ pub fn get_cache_key_from_role_id(role_id: &str) -> String {
 async fn get_role_info_from_db<A>(
     state: &A,
     role_id: &str,
-    merchant_id: &id_type::MerchantId,
     org_id: &id_type::OrganizationId,
+    tenant_id: &id_type::TenantId,
 ) -> RouterResult<roles::RoleInfo>
 where
     A: SessionStateInfo + Sync,
 {
     state
-        .store()
-        .find_role_by_role_id_in_merchant_scope(role_id, merchant_id, org_id)
+        .session_state()
+        .global_store
+        .find_by_role_id_org_id_tenant_id(role_id, org_id, tenant_id)
         .await
         .map(roles::RoleInfo::from)
         .to_not_found_response(ApiErrorResponse::InvalidJwtToken)
@@ -98,7 +109,7 @@ where
 }
 
 pub fn check_permission(
-    required_permission: &permissions::Permission,
+    required_permission: permissions::Permission,
     role_info: &roles::RoleInfo,
 ) -> RouterResult<()> {
     role_info
@@ -112,12 +123,16 @@ pub fn check_permission(
         )
 }
 
-pub fn check_tenant(token_tenant_id: Option<String>, header_tenant_id: &str) -> RouterResult<()> {
+pub fn check_tenant(
+    token_tenant_id: Option<id_type::TenantId>,
+    header_tenant_id: &id_type::TenantId,
+) -> RouterResult<()> {
     if let Some(tenant_id) = token_tenant_id {
-        if tenant_id != header_tenant_id {
+        if tenant_id != *header_tenant_id {
             return Err(ApiErrorResponse::InvalidJwtToken).attach_printable(format!(
                 "Token tenant ID: '{}' does not match Header tenant ID: '{}'",
-                tenant_id, header_tenant_id
+                tenant_id.get_string_repr().to_owned(),
+                header_tenant_id.get_string_repr().to_owned()
             ));
         }
     }

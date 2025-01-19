@@ -1,13 +1,15 @@
 use std::{borrow::Cow, str::FromStr};
 
+#[cfg(feature = "v2")]
+use api_models::ephemeral_key::EphemeralKeyResponse;
 use api_models::{
     mandates::RecurringDetails,
-    payments::{
-        additional_info as payment_additional_types, PaymentChargeRequest, RequestSurchargeDetails,
-    },
+    payments::{additional_info as payment_additional_types, RequestSurchargeDetails},
 };
 use base64::Engine;
 use common_enums::ConnectorType;
+#[cfg(feature = "v2")]
+use common_utils::id_type::GenerateId;
 use common_utils::{
     crypto::Encryptable,
     ext_traits::{AsyncExt, ByteSliceExt, Encode, ValueExt},
@@ -19,7 +21,7 @@ use common_utils::{
         MinorUnit,
     },
 };
-use diesel_models::enums::{self};
+use diesel_models::enums;
 // TODO : Evaluate all the helper functions ()
 use error_stack::{report, ResultExt};
 use futures::future::Either;
@@ -42,7 +44,9 @@ use openssl::{
     pkey::PKey,
     symm::{decrypt_aead, Cipher},
 };
-use router_env::{instrument, logger, metrics::add_attributes, tracing};
+#[cfg(feature = "v2")]
+use redis_interface::errors::RedisError;
+use router_env::{instrument, logger, tracing};
 use uuid::Uuid;
 use x509_parser::parse_x509_certificate;
 
@@ -50,8 +54,6 @@ use super::{
     operations::{BoxedOperation, Operation, PaymentResponse},
     CustomerDetails, PaymentData,
 };
-#[cfg(feature = "v2")]
-use crate::core::admin as core_admin;
 use crate::{
     configs::settings::{ConnectorRequestReferenceIdConfig, TempLockerEnableConfig},
     connector,
@@ -86,6 +88,8 @@ use crate::{
         OptionExt, StringExt,
     },
 };
+#[cfg(feature = "v2")]
+use crate::{core::admin as core_admin, headers};
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use crate::{
     core::payment_methods::cards::create_encrypted_data, types::storage::CustomerUpdate::Update,
@@ -948,7 +952,10 @@ pub fn validate_amount_to_capture_and_capture_method(
         .or(payment_attempt
             .map(|payment_attempt| payment_attempt.capture_method.unwrap_or_default()))
         .unwrap_or_default();
-    if capture_method == api_enums::CaptureMethod::Automatic {
+    if matches!(
+        capture_method,
+        api_enums::CaptureMethod::Automatic | api_enums::CaptureMethod::SequentialAutomatic
+    ) {
         let total_capturable_amount =
             option_net_amount.map(|net_amount| net_amount.get_total_amount());
 
@@ -1049,7 +1056,7 @@ pub fn validate_card_expiry(
 }
 
 pub fn infer_payment_type(
-    amount: &api::Amount,
+    amount: api::Amount,
     mandate_type: Option<&api::MandateTransactionType>,
 ) -> api_enums::PaymentType {
     match mandate_type {
@@ -1234,17 +1241,18 @@ pub fn create_authorize_url(
 }
 
 pub fn create_webhook_url(
-    router_base_url: &String,
+    router_base_url: &str,
     merchant_id: &id_type::MerchantId,
-    connector_name: impl std::fmt::Display,
+    merchant_connector_id_or_connector_name: &str,
 ) -> String {
     format!(
         "{}/webhooks/{}/{}",
         router_base_url,
         merchant_id.get_string_repr(),
-        connector_name
+        merchant_connector_id_or_connector_name,
     )
 }
+
 pub fn create_complete_authorize_url(
     router_base_url: &String,
     payment_attempt: &PaymentAttempt,
@@ -1395,9 +1403,8 @@ where
                 if !requeue {
                     // Here, increment the count of added tasks every time a payment has been confirmed or PSync has been called
                     metrics::TASKS_ADDED_COUNT.add(
-                        &metrics::CONTEXT,
                         1,
-                        &add_attributes([("flow", format!("{:#?}", operation))]),
+                        router_env::metric_attributes!(("flow", format!("{:#?}", operation))),
                     );
                     super::add_process_sync_task(&*state.store, payment_attempt, stime)
                         .await
@@ -1406,9 +1413,8 @@ where
                 } else {
                     // When the requeue is true, we reset the tasks count as we reset the task every time it is requeued
                     metrics::TASKS_RESET_COUNT.add(
-                        &metrics::CONTEXT,
                         1,
-                        &add_attributes([("flow", format!("{:#?}", operation))]),
+                        router_env::metric_attributes!(("flow", format!("{:#?}", operation))),
                     );
                     super::reset_process_sync_task(&*state.store, payment_attempt, stime)
                         .await
@@ -1720,7 +1726,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                         updated_by: None,
                         version: hyperswitch_domain_models::consts::API_VERSION,
                     };
-                    metrics::CUSTOMER_CREATED.add(&metrics::CONTEXT, 1, &[]);
+                    metrics::CUSTOMER_CREATED.add(1, &[]);
                     db.insert_customer(new_customer, key_manager_state, key_store, storage_scheme)
                         .await
                 }
@@ -1915,6 +1921,7 @@ pub async fn retrieve_card_with_permanent_token(
     mandate_id: Option<api_models::payments::MandateIds>,
     payment_method_info: Option<domain::PaymentMethod>,
     business_profile: &domain::Profile,
+    connector: Option<String>,
 ) -> RouterResult<domain::PaymentMethodData> {
     let customer_id = payment_intent
         .customer_id
@@ -1960,6 +1967,7 @@ pub async fn retrieve_card_with_permanent_token(
                             card_issuing_country: None,
                             bank_code: None,
                             nick_name: card_details_from_locker.nick_name.map(masking::Secret::new),
+                            card_holder_name: card_details_from_locker.name_on_card.clone(),
                         };
 
             Ok(
@@ -1985,7 +1993,28 @@ pub async fn retrieve_card_with_permanent_token(
                 .attach_printable("Payment method data is not present"),
             (Some(ref pm_data), None) => {
                 // Regular (non-mandate) Payment flow
-                if let Some(token_ref) = pm_data.network_token_requestor_reference_id.clone() {
+                let network_tokenization_supported_connectors = &state
+                    .conf
+                    .network_tokenization_supported_connectors
+                    .connector_list;
+                let connector_variant = connector
+                    .as_ref()
+                    .map(|conn| {
+                        api_enums::Connector::from_str(conn.as_str())
+                            .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                                field_name: "connector",
+                            })
+                            .attach_printable_lazy(|| {
+                                format!("unable to parse connector name {connector:?}")
+                            })
+                    })
+                    .transpose()?;
+                if let (Some(_conn), Some(token_ref)) = (
+                    connector_variant
+                        .filter(|conn| network_tokenization_supported_connectors.contains(conn)),
+                    pm_data.network_token_requestor_reference_id.clone(),
+                ) {
+                    logger::info!("Fetching network token data from tokenization service");
                     match network_tokenization::get_token_from_tokenization_service(
                         state, token_ref, pm_data,
                     )
@@ -2015,6 +2044,8 @@ pub async fn retrieve_card_with_permanent_token(
                         }
                     }
                 } else {
+                    logger::info!("Either the connector is not in the NT supported list or token requestor reference ID is absent");
+                    logger::info!("Falling back to fetch card details from locker");
                     fetch_card_details_from_locker(
                         state,
                         customer_id,
@@ -2064,6 +2095,7 @@ pub async fn retrieve_card_with_permanent_token(
                                     card_type: None,
                                     card_issuing_country: None,
                                     bank_code: None,
+                                    eci: None,
                                 };
                                 Ok(domain::PaymentMethodData::NetworkToken(network_token_data))
                             } else {
@@ -2105,6 +2137,7 @@ pub async fn retrieve_card_with_permanent_token(
                             card_issuing_country: None,
                             bank_code: None,
                             nick_name: card_details_from_locker.nick_name.map(masking::Secret::new),
+                            card_holder_name: card_details_from_locker.name_on_card,
                         };
 
                         Ok(
@@ -2421,6 +2454,7 @@ pub async fn make_pm_data<'a, F: Clone, R, D>(
     Ok((operation, payment_method, pm_id))
 }
 
+#[cfg(feature = "v1")]
 pub async fn store_in_vault_and_generate_ppmt(
     state: &SessionState,
     payment_method_data: &domain::PaymentMethodData,
@@ -2623,13 +2657,15 @@ pub(crate) fn validate_payment_method_fields_present(
         req.payment_method.is_some()
             && payment_method_data.is_none()
             && req.payment_token.is_none()
-            && req.recurring_details.is_none(),
+            && req.recurring_details.is_none()
+            && req.ctp_service_details.is_none(),
         || {
             Err(errors::ApiErrorResponse::MissingRequiredField {
                 field_name: "payment_method_data",
             })
         },
     )?;
+
     utils::when(
         req.payment_method.is_some() && req.payment_method_type.is_some(),
         || {
@@ -2830,7 +2866,7 @@ pub fn validate_payment_method_type_against_payment_method(
     }
 }
 
-pub fn check_force_psync_precondition(status: &storage_enums::AttemptStatus) -> bool {
+pub fn check_force_psync_precondition(status: storage_enums::AttemptStatus) -> bool {
     !matches!(
         status,
         storage_enums::AttemptStatus::Charged
@@ -2948,11 +2984,13 @@ pub fn make_merchant_url_with_response(
         .ok_or(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Expected client secret to be `Some`")?;
 
+    let payment_id = redirection_response.payment_id.get_string_repr().to_owned();
     let merchant_url_with_response = if business_profile.redirect_to_merchant_with_http_post {
         url::Url::parse_with_params(
             url,
             &[
                 ("status", status_check.to_string()),
+                ("payment_id", payment_id),
                 (
                     "payment_intent_client_secret",
                     payment_client_secret.peek().to_string(),
@@ -2971,6 +3009,7 @@ pub fn make_merchant_url_with_response(
             url,
             &[
                 ("status", status_check.to_string()),
+                ("payment_id", payment_id),
                 (
                     "payment_intent_client_secret",
                     payment_client_secret.peek().to_string(),
@@ -2989,6 +3028,7 @@ pub fn make_merchant_url_with_response(
     Ok(merchant_url_with_response.to_string())
 }
 
+#[cfg(feature = "v1")]
 pub async fn make_ephemeral_key(
     state: SessionState,
     customer_id: id_type::CustomerId,
@@ -3011,6 +3051,80 @@ pub async fn make_ephemeral_key(
     Ok(services::ApplicationResponse::Json(ek))
 }
 
+#[cfg(feature = "v2")]
+pub async fn make_ephemeral_key(
+    state: SessionState,
+    customer_id: id_type::GlobalCustomerId,
+    merchant_account: domain::MerchantAccount,
+    key_store: domain::MerchantKeyStore,
+    headers: &actix_web::http::header::HeaderMap,
+) -> errors::RouterResponse<EphemeralKeyResponse> {
+    let db = &state.store;
+    let key_manager_state = &((&state).into());
+    db.find_customer_by_global_id(
+        key_manager_state,
+        &customer_id,
+        merchant_account.get_id(),
+        &key_store,
+        merchant_account.storage_scheme,
+    )
+    .await
+    .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
+
+    let resource_type = services::authentication::get_header_value_by_key(
+        headers::X_RESOURCE_TYPE.to_string(),
+        headers,
+    )?
+    .map(ephemeral_key::ResourceType::from_str)
+    .transpose()
+    .change_context(errors::ApiErrorResponse::InvalidRequestData {
+        message: format!("`{}` header is invalid", headers::X_RESOURCE_TYPE),
+    })?
+    .get_required_value("ResourceType")
+    .attach_printable("Failed to convert ResourceType from string")?;
+
+    let ephemeral_key = create_ephemeral_key(
+        &state,
+        &customer_id,
+        merchant_account.get_id(),
+        resource_type,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Unable to create ephemeral key")?;
+
+    let response = EphemeralKeyResponse::foreign_from(ephemeral_key);
+    Ok(services::ApplicationResponse::Json(response))
+}
+
+#[cfg(feature = "v2")]
+pub async fn create_ephemeral_key(
+    state: &SessionState,
+    customer_id: &id_type::GlobalCustomerId,
+    merchant_id: &id_type::MerchantId,
+    resource_type: ephemeral_key::ResourceType,
+) -> RouterResult<ephemeral_key::EphemeralKeyType> {
+    use common_utils::generate_time_ordered_id;
+
+    let store = &state.store;
+    let id = id_type::EphemeralKeyId::generate();
+    let secret = masking::Secret::new(generate_time_ordered_id("epk"));
+    let ephemeral_key = ephemeral_key::EphemeralKeyTypeNew {
+        id,
+        customer_id: customer_id.to_owned(),
+        merchant_id: merchant_id.to_owned(),
+        secret,
+        resource_type,
+    };
+    let ephemeral_key = store
+        .create_ephemeral_key(ephemeral_key, state.conf.eph_key.validity)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to create ephemeral key")?;
+    Ok(ephemeral_key)
+}
+
+#[cfg(feature = "v1")]
 pub async fn delete_ephemeral_key(
     state: SessionState,
     ek_id: String,
@@ -3022,6 +3136,29 @@ pub async fn delete_ephemeral_key(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to delete ephemeral key")?;
     Ok(services::ApplicationResponse::Json(ek))
+}
+
+#[cfg(feature = "v2")]
+pub async fn delete_ephemeral_key(
+    state: SessionState,
+    ephemeral_key_id: String,
+) -> errors::RouterResponse<EphemeralKeyResponse> {
+    let db = state.store.as_ref();
+    let ephemeral_key = db
+        .delete_ephemeral_key(&ephemeral_key_id)
+        .await
+        .map_err(|err| match err.current_context() {
+            errors::StorageError::ValueNotFound(_) => {
+                err.change_context(errors::ApiErrorResponse::GenericNotFoundError {
+                    message: "Ephemeral Key not found".to_string(),
+                })
+            }
+            _ => err.change_context(errors::ApiErrorResponse::InternalServerError),
+        })
+        .attach_printable("Unable to delete ephemeral key")?;
+
+    let response = EphemeralKeyResponse::foreign_from(ephemeral_key);
+    Ok(services::ApplicationResponse::Json(response))
 }
 
 pub fn make_pg_redirect_response(
@@ -3251,11 +3388,11 @@ pub fn authenticate_client_secret(
 }
 
 pub(crate) fn validate_payment_status_against_allowed_statuses(
-    intent_status: &storage_enums::IntentStatus,
+    intent_status: storage_enums::IntentStatus,
     allowed_statuses: &[storage_enums::IntentStatus],
     action: &'static str,
 ) -> Result<(), errors::ApiErrorResponse> {
-    fp_utils::when(!allowed_statuses.contains(intent_status), || {
+    fp_utils::when(!allowed_statuses.contains(&intent_status), || {
         Err(errors::ApiErrorResponse::PreconditionFailed {
             message: format!(
                 "You cannot {action} this payment because it has status {intent_status}",
@@ -3265,11 +3402,11 @@ pub(crate) fn validate_payment_status_against_allowed_statuses(
 }
 
 pub(crate) fn validate_payment_status_against_not_allowed_statuses(
-    intent_status: &storage_enums::IntentStatus,
+    intent_status: storage_enums::IntentStatus,
     not_allowed_statuses: &[storage_enums::IntentStatus],
     action: &'static str,
 ) -> Result<(), errors::ApiErrorResponse> {
-    fp_utils::when(not_allowed_statuses.contains(intent_status), || {
+    fp_utils::when(not_allowed_statuses.contains(&intent_status), || {
         Err(errors::ApiErrorResponse::PreconditionFailed {
             message: format!(
                 "You cannot {action} this payment because it has status {intent_status}",
@@ -3285,6 +3422,7 @@ pub(crate) fn validate_pm_or_token_given(
     payment_method_type: &Option<api_enums::PaymentMethodType>,
     mandate_type: &Option<api::MandateTransactionType>,
     token: &Option<String>,
+    ctp_service_details: &Option<api_models::payments::CtpServiceDetails>,
 ) -> Result<(), errors::ApiErrorResponse> {
     utils::when(
         !matches!(
@@ -3294,10 +3432,13 @@ pub(crate) fn validate_pm_or_token_given(
             mandate_type,
             Some(api::MandateTransactionType::RecurringMandateTransaction)
         ) && token.is_none()
-            && (payment_method_data.is_none() || payment_method.is_none()),
+            && (payment_method_data.is_none() || payment_method.is_none())
+            && ctp_service_details.is_none(),
         || {
             Err(errors::ApiErrorResponse::InvalidRequestData {
-                message: "A payment token or payment method data is required".to_string(),
+                message:
+                    "A payment token or payment method data or ctp service details is required"
+                        .to_string(),
             })
         },
     )
@@ -3462,7 +3603,7 @@ mod tests {
                     .saturating_add(time::Duration::seconds(consts::DEFAULT_SESSION_EXPIRY)),
             ),
             request_external_three_ds_authentication: None,
-            charges: None,
+            split_payments: None,
             frm_metadata: None,
             customer_details: None,
             billing_details: None,
@@ -3473,6 +3614,8 @@ mod tests {
             shipping_cost: None,
             tax_details: None,
             skip_external_tax_calculation: None,
+            psd2_sca_exemption_type: None,
+            platform_merchant_id: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_ok());
@@ -3531,7 +3674,7 @@ mod tests {
                 created_at.saturating_add(time::Duration::seconds(consts::DEFAULT_SESSION_EXPIRY)),
             ),
             request_external_three_ds_authentication: None,
-            charges: None,
+            split_payments: None,
             frm_metadata: None,
             customer_details: None,
             billing_details: None,
@@ -3542,6 +3685,8 @@ mod tests {
             shipping_cost: None,
             tax_details: None,
             skip_external_tax_calculation: None,
+            psd2_sca_exemption_type: None,
+            platform_merchant_id: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent,).is_err())
@@ -3598,7 +3743,7 @@ mod tests {
                     .saturating_add(time::Duration::seconds(consts::DEFAULT_SESSION_EXPIRY)),
             ),
             request_external_three_ds_authentication: None,
-            charges: None,
+            split_payments: None,
             frm_metadata: None,
             customer_details: None,
             billing_details: None,
@@ -3609,6 +3754,8 @@ mod tests {
             shipping_cost: None,
             tax_details: None,
             skip_external_tax_calculation: None,
+            psd2_sca_exemption_type: None,
+            platform_merchant_id: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_err())
@@ -3889,6 +4036,7 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
         request,
         response,
         merchant_id: router_data.merchant_id,
+        tenant_id: router_data.tenant_id,
         address: router_data.address,
         amount_captured: router_data.amount_captured,
         minor_amount_captured: router_data.minor_amount_captured,
@@ -3899,7 +4047,6 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
         description: router_data.description,
         payment_id: router_data.payment_id,
         payment_method: router_data.payment_method,
-        return_url: router_data.return_url,
         status: router_data.status,
         attempt_id: router_data.attempt_id,
         access_token: router_data.access_token,
@@ -3931,6 +4078,8 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
         additional_merchant_data: router_data.additional_merchant_data,
         header_payload: router_data.header_payload,
         connector_mandate_request_reference_id: router_data.connector_mandate_request_reference_id,
+        authentication_id: router_data.authentication_id,
+        psd2_sca_exemption_type: router_data.psd2_sca_exemption_type,
     }
 }
 
@@ -3949,12 +4098,11 @@ pub fn get_attempt_type(
                 Some(api_models::enums::RetryAction::ManualRetry)
             ) {
                 metrics::MANUAL_RETRY_REQUEST_COUNT.add(
-                    &metrics::CONTEXT,
                     1,
-                    &add_attributes([(
+                    router_env::metric_attributes!((
                         "merchant_id",
-                        payment_attempt.merchant_id.get_string_repr().to_owned(),
-                    )]),
+                        payment_attempt.merchant_id.clone(),
+                    )),
                 );
                 match payment_attempt.status {
                     enums::AttemptStatus::Started
@@ -3976,12 +4124,11 @@ pub fn get_attempt_type(
                     | enums::AttemptStatus::PaymentMethodAwaited
                     | enums::AttemptStatus::DeviceDataCollectionPending => {
                         metrics::MANUAL_RETRY_VALIDATION_FAILED.add(
-                            &metrics::CONTEXT,
                             1,
-                            &add_attributes([(
+                            router_env::metric_attributes!((
                                 "merchant_id",
-                                payment_attempt.merchant_id.get_string_repr().to_owned(),
-                            )]),
+                                payment_attempt.merchant_id.clone(),
+                            )),
                         );
                         Err(errors::ApiErrorResponse::InternalServerError)
                             .attach_printable("Payment Attempt unexpected state")
@@ -3991,12 +4138,11 @@ pub fn get_attempt_type(
                     | storage_enums::AttemptStatus::RouterDeclined
                     | storage_enums::AttemptStatus::CaptureFailed => {
                         metrics::MANUAL_RETRY_VALIDATION_FAILED.add(
-                            &metrics::CONTEXT,
                             1,
-                            &add_attributes([(
+                            router_env::metric_attributes!((
                                 "merchant_id",
-                                payment_attempt.merchant_id.get_string_repr().to_owned(),
-                            )]),
+                                payment_attempt.merchant_id.clone(),
+                            )),
                         );
                         Err(report!(errors::ApiErrorResponse::PreconditionFailed {
                             message:
@@ -4009,12 +4155,11 @@ pub fn get_attempt_type(
                     | storage_enums::AttemptStatus::AuthorizationFailed
                     | storage_enums::AttemptStatus::Failure => {
                         metrics::MANUAL_RETRY_COUNT.add(
-                            &metrics::CONTEXT,
                             1,
-                            &add_attributes([(
+                            router_env::metric_attributes!((
                                 "merchant_id",
-                                payment_attempt.merchant_id.get_string_repr().to_owned(),
-                            )]),
+                                payment_attempt.merchant_id.clone(),
+                            )),
                         );
                         Ok(AttemptType::New)
                     }
@@ -4380,7 +4525,7 @@ pub async fn get_additional_payment_data(
                         bank_code: card_data.bank_code.to_owned(),
                         card_exp_month: Some(card_data.card_exp_month.clone()),
                         card_exp_year: Some(card_data.card_exp_year.clone()),
-                        card_holder_name: card_data.nick_name.clone(), //todo!
+                        card_holder_name: card_data.card_holder_name.clone(),
                         last4: last4.clone(),
                         card_isin: card_isin.clone(),
                         card_extended_bin: card_extended_bin.clone(),
@@ -4404,7 +4549,7 @@ pub async fn get_additional_payment_data(
                         api_models::payments::AdditionalPaymentData::Card(Box::new(
                             api_models::payments::AdditionalCardInfo {
                                 card_issuer: card_info.card_issuer,
-                                card_network: card_info.card_network,
+                                card_network: card_network.clone().or(card_info.card_network),
                                 bank_code: card_info.bank_code,
                                 card_type: card_info.card_type,
                                 card_issuing_country: card_info.card_issuing_country,
@@ -4413,7 +4558,7 @@ pub async fn get_additional_payment_data(
                                 card_extended_bin: card_extended_bin.clone(),
                                 card_exp_month: Some(card_data.card_exp_month.clone()),
                                 card_exp_year: Some(card_data.card_exp_year.clone()),
-                                card_holder_name: card_data.nick_name.clone(), //todo!
+                                card_holder_name: card_data.card_holder_name.clone(),
                                 // These are filled after calling the processor / connector
                                 payment_checks: None,
                                 authentication_data: None,
@@ -4424,7 +4569,7 @@ pub async fn get_additional_payment_data(
                     api_models::payments::AdditionalPaymentData::Card(Box::new(
                         api_models::payments::AdditionalCardInfo {
                             card_issuer: None,
-                            card_network: None,
+                            card_network,
                             bank_code: None,
                             card_type: None,
                             card_issuing_country: None,
@@ -4433,7 +4578,7 @@ pub async fn get_additional_payment_data(
                             card_extended_bin,
                             card_exp_month: Some(card_data.card_exp_month.clone()),
                             card_exp_year: Some(card_data.card_exp_year.clone()),
-                            card_holder_name: card_data.nick_name.clone(), //todo!
+                            card_holder_name: card_data.card_holder_name.clone(),
                             // These are filled after calling the processor / connector
                             payment_checks: None,
                             authentication_data: None,
@@ -4643,7 +4788,7 @@ pub async fn get_additional_payment_data(
                         bank_code: card_data.bank_code.to_owned(),
                         card_exp_month: Some(card_data.card_exp_month.clone()),
                         card_exp_year: Some(card_data.card_exp_year.clone()),
-                        card_holder_name: card_data.nick_name.clone(), //todo!
+                        card_holder_name: card_data.card_holder_name.clone(),
                         last4: last4.clone(),
                         card_isin: card_isin.clone(),
                         card_extended_bin: card_extended_bin.clone(),
@@ -4667,7 +4812,7 @@ pub async fn get_additional_payment_data(
                         api_models::payments::AdditionalPaymentData::Card(Box::new(
                             api_models::payments::AdditionalCardInfo {
                                 card_issuer: card_info.card_issuer,
-                                card_network,
+                                card_network: card_network.clone().or(card_info.card_network),
                                 bank_code: card_info.bank_code,
                                 card_type: card_info.card_type,
                                 card_issuing_country: card_info.card_issuing_country,
@@ -4676,7 +4821,7 @@ pub async fn get_additional_payment_data(
                                 card_extended_bin: card_extended_bin.clone(),
                                 card_exp_month: Some(card_data.card_exp_month.clone()),
                                 card_exp_year: Some(card_data.card_exp_year.clone()),
-                                card_holder_name: card_data.nick_name.clone(), //todo!
+                                card_holder_name: card_data.card_holder_name.clone(),
                                 // These are filled after calling the processor / connector
                                 payment_checks: None,
                                 authentication_data: None,
@@ -4687,7 +4832,7 @@ pub async fn get_additional_payment_data(
                     api_models::payments::AdditionalPaymentData::Card(Box::new(
                         api_models::payments::AdditionalCardInfo {
                             card_issuer: None,
-                            card_network: None,
+                            card_network,
                             bank_code: None,
                             card_type: None,
                             card_issuing_country: None,
@@ -4696,7 +4841,7 @@ pub async fn get_additional_payment_data(
                             card_extended_bin,
                             card_exp_month: Some(card_data.card_exp_month.clone()),
                             card_exp_year: Some(card_data.card_exp_year.clone()),
-                            card_holder_name: card_data.nick_name.clone(), //todo!
+                            card_holder_name: card_data.card_holder_name.clone(),
                             // These are filled after calling the processor / connector
                             payment_checks: None,
                             authentication_data: None,
@@ -4965,7 +5110,7 @@ pub fn get_applepay_metadata(
         })
 }
 
-#[cfg(feature = "retry")]
+#[cfg(all(feature = "retry", feature = "v1"))]
 pub async fn get_apple_pay_retryable_connectors<F, D>(
     state: &SessionState,
     merchant_account: &domain::MerchantAccount,
@@ -5455,9 +5600,9 @@ pub async fn get_gsm_record(
                         error_code,
                         error_message
                     );
-                    metrics::AUTO_RETRY_GSM_MISS_COUNT.add(&metrics::CONTEXT, 1, &[]);
+                    metrics::AUTO_RETRY_GSM_MISS_COUNT.add( 1, &[]);
                 } else {
-                    metrics::AUTO_RETRY_GSM_FETCH_FAILURE_COUNT.add(&metrics::CONTEXT, 1, &[]);
+                    metrics::AUTO_RETRY_GSM_FETCH_FAILURE_COUNT.add( 1, &[]);
                 };
                 err.change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("failed to fetch decision from gsm")
@@ -5769,6 +5914,7 @@ pub async fn get_payment_method_details_from_payment_token(
             None,
             None,
             business_profile,
+            payment_attempt.connector.clone(),
         )
         .await
         .map(|card| Some((card, enums::PaymentMethod::Card))),
@@ -5787,6 +5933,7 @@ pub async fn get_payment_method_details_from_payment_token(
             None,
             None,
             business_profile,
+            payment_attempt.connector.clone(),
         )
         .await
         .map(|card| Some((card, enums::PaymentMethod::Card))),
@@ -6021,6 +6168,7 @@ where
     Ok(())
 }
 
+#[cfg(feature = "v1")]
 pub async fn validate_merchant_connector_ids_in_connector_mandate_details(
     state: &SessionState,
     key_store: &domain::MerchantKeyStore,
@@ -6098,26 +6246,28 @@ pub async fn validate_merchant_connector_ids_in_connector_mandate_details(
 
 pub fn validate_platform_fees_for_marketplace(
     amount: api::Amount,
-    charges: &PaymentChargeRequest,
+    split_payments: Option<common_types::payments::SplitPaymentsRequest>,
 ) -> Result<(), errors::ApiErrorResponse> {
-    match amount {
-        api::Amount::Zero => {
-            if charges.fees.get_amount_as_i64() != 0 {
-                Err(errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "charges.fees",
-                })
-            } else {
-                Ok(())
+    if let Some(common_types::payments::SplitPaymentsRequest::StripeSplitPayment(
+        stripe_split_payment,
+    )) = split_payments
+    {
+        match amount {
+            api::Amount::Zero => {
+                if stripe_split_payment.application_fees.get_amount_as_i64() != 0 {
+                    return Err(errors::ApiErrorResponse::InvalidDataValue {
+                        field_name: "split_payments.stripe_split_payment.application_fees",
+                    });
+                }
             }
-        }
-        api::Amount::Value(amount) => {
-            if charges.fees.get_amount_as_i64() > amount.into() {
-                Err(errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "charges.fees",
-                })
-            } else {
-                Ok(())
+            api::Amount::Value(amount) => {
+                if stripe_split_payment.application_fees.get_amount_as_i64() > amount.into() {
+                    return Err(errors::ApiErrorResponse::InvalidDataValue {
+                        field_name: "split_payments.stripe_split_payment.application_fees",
+                    });
+                }
             }
         }
     }
+    Ok(())
 }

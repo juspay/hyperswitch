@@ -194,11 +194,11 @@ impl cgraph::CheckingContext for AnalysisContext {
                     DataType::EnumVariant | DataType::StrValue | DataType::MetadataValue => {
                         value_set.contains(val)
                     }
-                    DataType::Number => val.get_num_value().map_or(false, |num_val| {
+                    DataType::Number => val.get_num_value().is_some_and(|num_val| {
                         value_set.iter().any(|ctx_val| {
                             ctx_val
                                 .get_num_value()
-                                .map_or(false, |ctx_num_val| num_val.fits(&ctx_num_val))
+                                .is_some_and(|ctx_num_val| num_val.fits(&ctx_num_val))
                         })
                     }),
                 }
@@ -421,7 +421,7 @@ impl CgraphExt for cgraph::ConstraintGraph<dir::DirValue> {
 
         for (key, negation_set) in keywise_negation {
             let all_metadata = keywise_metadata.remove(&key).unwrap_or_default();
-            let first_metadata = all_metadata.first().cloned().cloned().unwrap_or_default();
+            let first_metadata = all_metadata.first().copied().cloned().unwrap_or_default();
 
             self.key_analysis(key.clone(), analysis_ctx, memo, cycle_map, domains)
                 .map_err(|e| AnalysisError::assertion_from_graph_error(&first_metadata, e))?;

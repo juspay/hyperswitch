@@ -5,7 +5,9 @@ use std::collections::HashMap;
     not(feature = "payment_methods_v2")
 ))]
 use api_models::payment_methods::PaymentMethodsData;
-use api_models::payments::ConnectorMandateReferenceId;
+use api_models::{
+    payment_methods::PaymentMethodDataWalletInfo, payments::ConnectorMandateReferenceId,
+};
 use common_enums::{ConnectorMandateStatus, PaymentMethod};
 use common_utils::{
     crypto::Encryptable,
@@ -14,7 +16,7 @@ use common_utils::{
 };
 use error_stack::{report, ResultExt};
 use masking::{ExposeInterface, Secret};
-use router_env::{instrument, metrics::add_attributes, tracing};
+use router_env::{instrument, tracing};
 
 use super::helpers;
 use crate::{
@@ -78,9 +80,10 @@ pub async fn save_payment_method<FData>(
     payment_method_type: Option<storage_enums::PaymentMethodType>,
     key_store: &domain::MerchantKeyStore,
     billing_name: Option<Secret<String>>,
-    payment_method_billing_address: Option<&api::Address>,
+    payment_method_billing_address: Option<&hyperswitch_domain_models::address::Address>,
     business_profile: &domain::Profile,
     mut original_connector_mandate_reference_id: Option<ConnectorMandateReferenceId>,
+    merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
 ) -> RouterResult<SavePaymentMethodDataResponse>
 where
     FData: mandate::MandateBehaviour + Clone,
@@ -248,15 +251,26 @@ where
                     None => None,
                 };
 
-                let pm_card_details = resp.card.as_ref().map(|card| {
-                    PaymentMethodsData::Card(CardDetailsPaymentMethod::from(card.clone()))
-                });
+                let optional_pm_details = match (
+                    resp.card.as_ref(),
+                    save_payment_method_data.request.get_payment_method_data(),
+                ) {
+                    (Some(card), _) => Some(PaymentMethodsData::Card(
+                        CardDetailsPaymentMethod::from(card.clone()),
+                    )),
+                    (
+                        _,
+                        domain::PaymentMethodData::Wallet(domain::WalletData::GooglePay(googlepay)),
+                    ) => Some(PaymentMethodsData::WalletDetails(
+                        PaymentMethodDataWalletInfo::from(googlepay),
+                    )),
+                    _ => None,
+                };
+
                 let key_manager_state = state.into();
                 let pm_data_encrypted: Option<Encryptable<Secret<serde_json::Value>>> =
-                    pm_card_details
-                        .async_map(|pm_card| {
-                            create_encrypted_data(&key_manager_state, key_store, pm_card)
-                        })
+                    optional_pm_details
+                        .async_map(|pm| create_encrypted_data(&key_manager_state, key_store, pm))
                         .await
                         .transpose()
                         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -445,7 +459,41 @@ where
                                 resp.payment_method_id = payment_method_id;
 
                                 let existing_pm = match payment_method {
-                                    Ok(pm) => Ok(pm),
+                                    Ok(pm) => {
+                                        let mandate_details =    pm
+                                        .connector_mandate_details
+                                        .clone()
+                                        .map(|val| {
+                                            val.parse_value::<diesel_models::PaymentsMandateReference>(
+                                                "PaymentsMandateReference",
+                                            )
+                                        })
+                                        .transpose()
+                                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                                        .attach_printable("Failed to deserialize to Payment Mandate Reference ")?;
+                                        if let Some((mandate_details, merchant_connector_id)) =
+                                            mandate_details.zip(merchant_connector_id)
+                                        {
+                                            let connector_mandate_details =
+                                                update_connector_mandate_details_status(
+                                                    merchant_connector_id,
+                                                    mandate_details,
+                                                    ConnectorMandateStatus::Inactive,
+                                                )?;
+                                            payment_methods::cards::update_payment_method_connector_mandate_details(
+                                            state,
+                                            key_store,
+                                            db,
+                                            pm.clone(),
+                                            connector_mandate_details,
+                                            merchant_account.storage_scheme,
+                                        )
+                                        .await
+                                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                                        .attach_printable("Failed to add payment method in db")?;
+                                        }
+                                        Ok(pm)
+                                    }
                                     Err(err) => {
                                         if err.current_context().is_db_not_found() {
                                             payment_methods::cards::create_payment_method(
@@ -536,8 +584,15 @@ where
                                 let existing_pm_data = payment_methods::cards::get_card_details_without_locker_fallback(&existing_pm,state)
                                 .await?;
 
+                                // scheme should be updated in case of co-badged cards
+                                let card_scheme = card
+                                    .card_network
+                                    .clone()
+                                    .map(|card_network| card_network.to_string())
+                                    .or(existing_pm_data.scheme.clone());
+
                                 let updated_card = Some(CardDetailFromLocker {
-                                    scheme: existing_pm.scheme.clone(),
+                                    scheme: card_scheme.clone(),
                                     last4_digits: Some(card.card_number.get_last4()),
                                     issuer_country: card
                                         .card_issuing_country
@@ -583,6 +638,7 @@ where
                                     existing_pm,
                                     pm_data_encrypted.map(Into::into),
                                     merchant_account.storage_scheme,
+                                    card_scheme,
                                 )
                                 .await
                                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1077,12 +1133,11 @@ pub async fn add_payment_method_token<F: Clone, T: types::Tokenizable + Clone>(
                 .to_payment_failed_response()?;
 
                 metrics::CONNECTOR_PAYMENT_METHOD_TOKENIZATION.add(
-                    &metrics::CONTEXT,
                     1,
-                    &add_attributes([
+                    router_env::metric_attributes!(
                         ("connector", connector.connector_name.to_string()),
                         ("payment_method", router_data.payment_method.to_string()),
-                    ]),
+                    ),
                 );
 
                 let payment_token_resp = resp.response.map(|res| {
@@ -1234,6 +1289,40 @@ pub fn update_connector_mandate_details(
     };
     let connector_mandate_details = mandate_reference
         .map(|mand| mand.encode_to_value())
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to serialize customer acceptance to value")?;
+
+    Ok(connector_mandate_details)
+}
+
+#[cfg(feature = "v1")]
+pub fn update_connector_mandate_details_status(
+    merchant_connector_id: id_type::MerchantConnectorAccountId,
+    mut payment_mandate_reference: diesel_models::PaymentsMandateReference,
+    status: ConnectorMandateStatus,
+) -> RouterResult<Option<serde_json::Value>> {
+    let mandate_reference = {
+        payment_mandate_reference
+            .entry(merchant_connector_id)
+            .and_modify(|pm| {
+                let update_rec = diesel_models::PaymentsMandateReferenceRecord {
+                    connector_mandate_id: pm.connector_mandate_id.clone(),
+                    payment_method_type: pm.payment_method_type,
+                    original_payment_authorized_amount: pm.original_payment_authorized_amount,
+                    original_payment_authorized_currency: pm.original_payment_authorized_currency,
+                    mandate_metadata: pm.mandate_metadata.clone(),
+                    connector_mandate_status: Some(status),
+                    connector_mandate_request_reference_id: pm
+                        .connector_mandate_request_reference_id
+                        .clone(),
+                };
+                *pm = update_rec
+            });
+        Some(payment_mandate_reference)
+    };
+    let connector_mandate_details = mandate_reference
+        .map(|mandate| mandate.encode_to_value())
         .transpose()
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to serialize customer acceptance to value")?;

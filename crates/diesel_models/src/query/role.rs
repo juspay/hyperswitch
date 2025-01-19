@@ -26,32 +26,61 @@ impl Role {
         .await
     }
 
+    // TODO: Remove once find_by_role_id_in_lineage is stable
     pub async fn find_by_role_id_in_merchant_scope(
         conn: &PgPooledConn,
         role_id: &str,
         merchant_id: &id_type::MerchantId,
         org_id: &id_type::OrganizationId,
-    ) -> StorageResult<Self> {
-        generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
-            conn,
-            dsl::role_id.eq(role_id.to_owned()).and(
-                dsl::merchant_id.eq(merchant_id.to_owned()).or(dsl::org_id
-                    .eq(org_id.to_owned())
-                    .and(dsl::scope.eq(RoleScope::Organization))),
-            ),
-        )
-        .await
-    }
-
-    pub async fn find_by_role_id_in_org_scope(
-        conn: &PgPooledConn,
-        role_id: &str,
-        org_id: &id_type::OrganizationId,
+        tenant_id: &id_type::TenantId,
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
             dsl::role_id
                 .eq(role_id.to_owned())
+                .and(dsl::tenant_id.eq(tenant_id.to_owned()))
+                .and(
+                    dsl::merchant_id.eq(merchant_id.to_owned()).or(dsl::org_id
+                        .eq(org_id.to_owned())
+                        .and(dsl::scope.eq(RoleScope::Organization))),
+                ),
+        )
+        .await
+    }
+
+    pub async fn find_by_role_id_in_lineage(
+        conn: &PgPooledConn,
+        role_id: &str,
+        merchant_id: &id_type::MerchantId,
+        org_id: &id_type::OrganizationId,
+        tenant_id: &id_type::TenantId,
+    ) -> StorageResult<Self> {
+        generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
+            conn,
+            dsl::role_id
+                .eq(role_id.to_owned())
+                .and(dsl::tenant_id.eq(tenant_id.to_owned()))
+                .and(dsl::org_id.eq(org_id.to_owned()))
+                .and(
+                    dsl::scope.eq(RoleScope::Organization).or(dsl::merchant_id
+                        .eq(merchant_id.to_owned())
+                        .and(dsl::scope.eq(RoleScope::Merchant))),
+                ),
+        )
+        .await
+    }
+
+    pub async fn find_by_role_id_org_id_tenant_id(
+        conn: &PgPooledConn,
+        role_id: &str,
+        org_id: &id_type::OrganizationId,
+        tenant_id: &id_type::TenantId,
+    ) -> StorageResult<Self> {
+        generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
+            conn,
+            dsl::role_id
+                .eq(role_id.to_owned())
+                .and(dsl::tenant_id.eq(tenant_id.to_owned()))
                 .and(dsl::org_id.eq(org_id.to_owned())),
         )
         .await
@@ -87,10 +116,16 @@ impl Role {
         conn: &PgPooledConn,
         merchant_id: &id_type::MerchantId,
         org_id: &id_type::OrganizationId,
+        tenant_id: &id_type::TenantId,
     ) -> StorageResult<Vec<Self>> {
-        let predicate = dsl::merchant_id.eq(merchant_id.to_owned()).or(dsl::org_id
-            .eq(org_id.to_owned())
-            .and(dsl::scope.eq(RoleScope::Organization)));
+        let predicate = dsl::tenant_id
+            .eq(tenant_id.to_owned())
+            .and(dsl::org_id.eq(org_id.to_owned()))
+            .and(
+                dsl::scope.eq(RoleScope::Organization).or(dsl::merchant_id
+                    .eq(merchant_id.to_owned())
+                    .and(dsl::scope.eq(RoleScope::Merchant))),
+            );
 
         generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
             conn,
@@ -104,20 +139,22 @@ impl Role {
 
     pub async fn generic_roles_list_for_org(
         conn: &PgPooledConn,
+        tenant_id: id_type::TenantId,
         org_id: id_type::OrganizationId,
         merchant_id: Option<id_type::MerchantId>,
         entity_type: Option<common_enums::EntityType>,
         limit: Option<u32>,
     ) -> StorageResult<Vec<Self>> {
         let mut query = <Self as HasTable>::table()
-            .filter(dsl::org_id.eq(org_id))
+            .filter(dsl::tenant_id.eq(tenant_id).and(dsl::org_id.eq(org_id)))
             .into_boxed();
 
         if let Some(merchant_id) = merchant_id {
             query = query.filter(
-                dsl::merchant_id
+                (dsl::merchant_id
                     .eq(merchant_id)
-                    .or(dsl::scope.eq(RoleScope::Organization)),
+                    .and(dsl::scope.eq(RoleScope::Merchant)))
+                .or(dsl::scope.eq(RoleScope::Organization)),
             );
         }
 

@@ -87,6 +87,20 @@ where
         state: &KeyManagerState,
         merchant_ids: Vec<common_utils::id_type::MerchantId>,
     ) -> CustomResult<Vec<domain::MerchantAccount>, errors::StorageError>;
+
+    #[cfg(feature = "olap")]
+    async fn list_merchant_and_org_ids(
+        &self,
+        state: &KeyManagerState,
+        limit: u32,
+        offset: Option<u32>,
+    ) -> CustomResult<
+        Vec<(
+            common_utils::id_type::MerchantId,
+            common_utils::id_type::OrganizationId,
+        )>,
+        errors::StorageError,
+    >;
 }
 
 #[async_trait::async_trait]
@@ -411,6 +425,37 @@ impl MerchantAccountInterface for Store {
         Ok(merchant_accounts)
     }
 
+    #[cfg(feature = "olap")]
+    #[instrument(skip_all)]
+    async fn list_merchant_and_org_ids(
+        &self,
+        _state: &KeyManagerState,
+        limit: u32,
+        offset: Option<u32>,
+    ) -> CustomResult<
+        Vec<(
+            common_utils::id_type::MerchantId,
+            common_utils::id_type::OrganizationId,
+        )>,
+        errors::StorageError,
+    > {
+        let conn = connection::pg_connection_read(self).await?;
+        let encrypted_merchant_accounts =
+            storage::MerchantAccount::list_all_merchant_accounts(&conn, limit, offset)
+                .await
+                .map_err(|error| report!(errors::StorageError::from(error)))?;
+
+        let merchant_and_org_ids = encrypted_merchant_accounts
+            .into_iter()
+            .map(|merchant_account| {
+                let merchant_id = merchant_account.get_id().clone();
+                let org_id = merchant_account.organization_id;
+                (merchant_id, org_id)
+            })
+            .collect();
+        Ok(merchant_and_org_ids)
+    }
+
     async fn update_all_merchant_account(
         &self,
         merchant_account: storage::MerchantAccountUpdate,
@@ -694,6 +739,33 @@ impl MerchantAccountInterface for MockDb {
             .into_iter()
             .collect()
     }
+
+    #[cfg(feature = "olap")]
+    async fn list_merchant_and_org_ids(
+        &self,
+        _state: &KeyManagerState,
+        limit: u32,
+        offset: Option<u32>,
+    ) -> CustomResult<
+        Vec<(
+            common_utils::id_type::MerchantId,
+            common_utils::id_type::OrganizationId,
+        )>,
+        errors::StorageError,
+    > {
+        let accounts = self.merchant_accounts.lock().await;
+        let limit = limit.try_into().unwrap_or(accounts.len());
+        let offset = offset.unwrap_or(0).try_into().unwrap_or(0);
+
+        let merchant_and_org_ids = accounts
+            .iter()
+            .skip(offset)
+            .take(limit)
+            .map(|account| (account.get_id().clone(), account.organization_id.clone()))
+            .collect::<Vec<_>>();
+
+        Ok(merchant_and_org_ids)
+    }
 }
 
 #[cfg(feature = "accounts_cache")]
@@ -729,7 +801,7 @@ async fn publish_and_redact_merchant_account_cache(
     cache_keys.extend(publishable_key.into_iter());
     cache_keys.extend(cgraph_key.into_iter());
 
-    cache::publish_into_redact_channel(store.get_cache_store().as_ref(), cache_keys).await?;
+    cache::redact_from_redis_and_publish(store.get_cache_store().as_ref(), cache_keys).await?;
     Ok(())
 }
 
@@ -750,6 +822,6 @@ async fn publish_and_redact_all_merchant_account_cache(
         .map(|s| CacheKind::Accounts(s.into()))
         .collect();
 
-    cache::publish_into_redact_channel(store.get_cache_store().as_ref(), cache_keys).await?;
+    cache::redact_from_redis_and_publish(store.get_cache_store().as_ref(), cache_keys).await?;
     Ok(())
 }

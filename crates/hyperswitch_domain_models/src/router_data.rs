@@ -22,11 +22,11 @@ pub struct RouterData<Flow, Request, Response> {
     // Make this change after all the connector dependency has been removed from connectors
     pub payment_id: String,
     pub attempt_id: String,
+    pub tenant_id: id_type::TenantId,
     pub status: common_enums::enums::AttemptStatus,
     pub payment_method: common_enums::enums::PaymentMethod,
     pub connector_auth_type: ConnectorAuthType,
     pub description: Option<String>,
-    pub return_url: Option<String>,
     pub address: PaymentAddress,
     pub auth_type: common_enums::enums::AuthenticationType,
     pub connector_meta_data: Option<common_utils::pii::SecretSerdeValue>,
@@ -86,6 +86,10 @@ pub struct RouterData<Flow, Request, Response> {
     pub header_payload: Option<payments::HeaderPayload>,
 
     pub connector_mandate_request_reference_id: Option<String>,
+
+    pub authentication_id: Option<String>,
+    /// Contains the type of sca exemption required for the transaction
+    pub psd2_sca_exemption_type: Option<common_enums::ScaExemptionType>,
 }
 
 // Different patterns of authentication.
@@ -401,15 +405,30 @@ use crate::{
 
 /// Get updatable trakcer objects of payment intent and payment attempt
 #[cfg(feature = "v2")]
-pub trait TrackerPostUpdateObjects<Flow, FlowRequest> {
+pub trait TrackerPostUpdateObjects<Flow, FlowRequest, D> {
     fn get_payment_intent_update(
         &self,
+        payment_data: &D,
         storage_scheme: common_enums::MerchantStorageScheme,
     ) -> PaymentIntentUpdate;
+
     fn get_payment_attempt_update(
         &self,
+        payment_data: &D,
         storage_scheme: common_enums::MerchantStorageScheme,
     ) -> PaymentAttemptUpdate;
+
+    /// Get the amount that can be captured for the payment
+    fn get_amount_capturable(&self, payment_data: &D) -> Option<MinorUnit>;
+
+    /// Get the amount that has been captured for the payment
+    fn get_captured_amount(&self, payment_data: &D) -> Option<MinorUnit>;
+
+    /// Get the attempt status based on parameters like captured amount and amount capturable
+    fn get_attempt_status_for_db_update(
+        &self,
+        payment_data: &D,
+    ) -> common_enums::enums::AttemptStatus;
 }
 
 #[cfg(feature = "v2")]
@@ -417,6 +436,7 @@ impl
     TrackerPostUpdateObjects<
         router_flow_types::Authorize,
         router_request_types::PaymentsAuthorizeData,
+        payments::PaymentConfirmData<router_flow_types::Authorize>,
     >
     for RouterData<
         router_flow_types::Authorize,
@@ -426,11 +446,16 @@ impl
 {
     fn get_payment_intent_update(
         &self,
+        payment_data: &payments::PaymentConfirmData<router_flow_types::Authorize>,
         storage_scheme: common_enums::MerchantStorageScheme,
     ) -> PaymentIntentUpdate {
+        let amount_captured = self.get_captured_amount(payment_data);
         match self.response {
             Ok(ref _response) => PaymentIntentUpdate::ConfirmIntentPostUpdate {
-                status: common_enums::IntentStatus::from(self.status),
+                status: common_enums::IntentStatus::from(
+                    self.get_attempt_status_for_db_update(payment_data),
+                ),
+                amount_captured,
                 updated_by: storage_scheme.to_string(),
             },
             Err(ref error) => PaymentIntentUpdate::ConfirmIntentPostUpdate {
@@ -438,6 +463,7 @@ impl
                     .attempt_status
                     .map(common_enums::IntentStatus::from)
                     .unwrap_or(common_enums::IntentStatus::Failed),
+                amount_captured,
                 updated_by: storage_scheme.to_string(),
             },
         }
@@ -445,8 +471,11 @@ impl
 
     fn get_payment_attempt_update(
         &self,
+        payment_data: &payments::PaymentConfirmData<router_flow_types::Authorize>,
         storage_scheme: common_enums::MerchantStorageScheme,
     ) -> PaymentAttemptUpdate {
+        let amount_capturable = self.get_amount_capturable(payment_data);
+
         match self.response {
             Ok(ref response_router_data) => match response_router_data {
                 router_response_types::PaymentsResponseData::TransactionResponse {
@@ -459,7 +488,8 @@ impl
                     incremental_authorization_allowed,
                     charge_id,
                 } => {
-                    let attempt_status = self.status;
+                    let attempt_status = self.get_attempt_status_for_db_update(payment_data);
+
                     let connector_payment_id = match resource_id {
                         router_request_types::ResponseId::NoResponseId => None,
                         router_request_types::ResponseId::ConnectorTransactionId(id)
@@ -471,6 +501,7 @@ impl
                         connector_payment_id,
                         updated_by: storage_scheme.to_string(),
                         redirection_data: *redirection_data.clone(),
+                        amount_capturable,
                         connector_metadata: connector_metadata.clone().map(Secret::new),
                     }
                 }
@@ -524,36 +555,121 @@ impl
                 PaymentAttemptUpdate::ErrorUpdate {
                     status: attempt_status,
                     error: error_details,
+                    amount_capturable,
                     connector_payment_id: connector_transaction_id,
                     updated_by: storage_scheme.to_string(),
                 }
             }
         }
     }
+
+    fn get_attempt_status_for_db_update(
+        &self,
+        _payment_data: &payments::PaymentConfirmData<router_flow_types::Authorize>,
+    ) -> common_enums::AttemptStatus {
+        // For this step, consider whatever status was given by the connector module
+        // We do not need to check for amount captured or amount capturable here because we are authorizing the whole amount
+        self.status
+    }
+
+    fn get_amount_capturable(
+        &self,
+        payment_data: &payments::PaymentConfirmData<router_flow_types::Authorize>,
+    ) -> Option<MinorUnit> {
+        // Based on the status of the response, we can determine the amount capturable
+        let intent_status = common_enums::IntentStatus::from(self.status);
+        match intent_status {
+            // If the status is already succeeded / failed we cannot capture any more amount
+            // So set the amount capturable to zero
+            common_enums::IntentStatus::Succeeded
+            | common_enums::IntentStatus::Failed
+            | common_enums::IntentStatus::Cancelled => Some(MinorUnit::zero()),
+            // For these statuses, update the capturable amount when it reaches terminal / capturable state
+            common_enums::IntentStatus::RequiresCustomerAction
+            | common_enums::IntentStatus::RequiresMerchantAction
+            | common_enums::IntentStatus::Processing => None,
+            // Invalid states for this flow
+            common_enums::IntentStatus::RequiresPaymentMethod
+            | common_enums::IntentStatus::RequiresConfirmation => None,
+            // If status is requires capture, get the total amount that can be captured
+            // This is in cases where the capture method will be `manual` or `manual_multiple`
+            // We do not need to handle the case where amount_to_capture is provided here as it cannot be passed in authroize flow
+            common_enums::IntentStatus::RequiresCapture => {
+                let total_amount = payment_data.payment_attempt.amount_details.get_net_amount();
+                Some(total_amount)
+            }
+            // Invalid statues for this flow, after doing authorization this state is invalid
+            common_enums::IntentStatus::PartiallyCaptured
+            | common_enums::IntentStatus::PartiallyCapturedAndCapturable => None,
+        }
+    }
+
+    fn get_captured_amount(
+        &self,
+        payment_data: &payments::PaymentConfirmData<router_flow_types::Authorize>,
+    ) -> Option<MinorUnit> {
+        // Based on the status of the response, we can determine the amount that was captured
+        let intent_status = common_enums::IntentStatus::from(self.status);
+        match intent_status {
+            // If the status is succeeded then we have captured the whole amount
+            // we need not check for `amount_to_capture` here because passing `amount_to_capture` when authorizing is not supported
+            common_enums::IntentStatus::Succeeded => {
+                let total_amount = payment_data.payment_attempt.amount_details.get_net_amount();
+                Some(total_amount)
+            }
+            // No amount is captured
+            common_enums::IntentStatus::Cancelled | common_enums::IntentStatus::Failed => {
+                Some(MinorUnit::zero())
+            }
+            // For these statuses, update the amount captured when it reaches terminal state
+            common_enums::IntentStatus::RequiresCustomerAction
+            | common_enums::IntentStatus::RequiresMerchantAction
+            | common_enums::IntentStatus::Processing => None,
+            // Invalid states for this flow
+            common_enums::IntentStatus::RequiresPaymentMethod
+            | common_enums::IntentStatus::RequiresConfirmation => None,
+            // No amount has been captured yet
+            common_enums::IntentStatus::RequiresCapture => Some(MinorUnit::zero()),
+            // Invalid statues for this flow
+            common_enums::IntentStatus::PartiallyCaptured
+            | common_enums::IntentStatus::PartiallyCapturedAndCapturable => None,
+        }
+    }
 }
 
 #[cfg(feature = "v2")]
-impl TrackerPostUpdateObjects<router_flow_types::PSync, router_request_types::PaymentsSyncData>
+impl
+    TrackerPostUpdateObjects<
+        router_flow_types::Capture,
+        router_request_types::PaymentsCaptureData,
+        payments::PaymentCaptureData<router_flow_types::Capture>,
+    >
     for RouterData<
-        router_flow_types::PSync,
-        router_request_types::PaymentsSyncData,
+        router_flow_types::Capture,
+        router_request_types::PaymentsCaptureData,
         router_response_types::PaymentsResponseData,
     >
 {
     fn get_payment_intent_update(
         &self,
+        payment_data: &payments::PaymentCaptureData<router_flow_types::Capture>,
         storage_scheme: common_enums::MerchantStorageScheme,
     ) -> PaymentIntentUpdate {
+        let amount_captured = self.get_captured_amount(payment_data);
         match self.response {
-            Ok(ref _response) => PaymentIntentUpdate::SyncUpdate {
-                status: common_enums::IntentStatus::from(self.status),
+            Ok(ref _response) => PaymentIntentUpdate::CaptureUpdate {
+                status: common_enums::IntentStatus::from(
+                    self.get_attempt_status_for_db_update(payment_data),
+                ),
+                amount_captured,
                 updated_by: storage_scheme.to_string(),
             },
-            Err(ref error) => PaymentIntentUpdate::SyncUpdate {
+            Err(ref error) => PaymentIntentUpdate::CaptureUpdate {
                 status: error
                     .attempt_status
                     .map(common_enums::IntentStatus::from)
                     .unwrap_or(common_enums::IntentStatus::Failed),
+                amount_captured,
                 updated_by: storage_scheme.to_string(),
             },
         }
@@ -561,8 +677,11 @@ impl TrackerPostUpdateObjects<router_flow_types::PSync, router_request_types::Pa
 
     fn get_payment_attempt_update(
         &self,
+        payment_data: &payments::PaymentCaptureData<router_flow_types::Capture>,
         storage_scheme: common_enums::MerchantStorageScheme,
     ) -> PaymentAttemptUpdate {
+        let amount_capturable = self.get_amount_capturable(payment_data);
+
         match self.response {
             Ok(ref response_router_data) => match response_router_data {
                 router_response_types::PaymentsResponseData::TransactionResponse {
@@ -576,14 +695,10 @@ impl TrackerPostUpdateObjects<router_flow_types::PSync, router_request_types::Pa
                     charge_id,
                 } => {
                     let attempt_status = self.status;
-                    let connector_payment_id = match resource_id {
-                        router_request_types::ResponseId::NoResponseId => None,
-                        router_request_types::ResponseId::ConnectorTransactionId(id)
-                        | router_request_types::ResponseId::EncodedData(id) => Some(id.to_owned()),
-                    };
 
-                    PaymentAttemptUpdate::SyncUpdate {
+                    PaymentAttemptUpdate::CaptureUpdate {
                         status: attempt_status,
+                        amount_capturable,
                         updated_by: storage_scheme.to_string(),
                     }
                 }
@@ -637,10 +752,321 @@ impl TrackerPostUpdateObjects<router_flow_types::PSync, router_request_types::Pa
                 PaymentAttemptUpdate::ErrorUpdate {
                     status: attempt_status,
                     error: error_details,
+                    amount_capturable,
                     connector_payment_id: connector_transaction_id,
                     updated_by: storage_scheme.to_string(),
                 }
             }
+        }
+    }
+
+    fn get_attempt_status_for_db_update(
+        &self,
+        payment_data: &payments::PaymentCaptureData<router_flow_types::Capture>,
+    ) -> common_enums::AttemptStatus {
+        match self.status {
+            common_enums::AttemptStatus::Charged => {
+                let amount_captured = self
+                    .get_captured_amount(payment_data)
+                    .unwrap_or(MinorUnit::zero());
+                let total_amount = payment_data.payment_attempt.amount_details.get_net_amount();
+
+                if amount_captured == total_amount {
+                    common_enums::AttemptStatus::Charged
+                } else {
+                    common_enums::AttemptStatus::PartialCharged
+                }
+            }
+            _ => self.status,
+        }
+    }
+
+    fn get_amount_capturable(
+        &self,
+        payment_data: &payments::PaymentCaptureData<router_flow_types::Capture>,
+    ) -> Option<MinorUnit> {
+        // Based on the status of the response, we can determine the amount capturable
+        let intent_status = common_enums::IntentStatus::from(self.status);
+        match intent_status {
+            // If the status is already succeeded / failed we cannot capture any more amount
+            common_enums::IntentStatus::Succeeded
+            | common_enums::IntentStatus::Failed
+            | common_enums::IntentStatus::Cancelled => Some(MinorUnit::zero()),
+            // For these statuses, update the capturable amount when it reaches terminal / capturable state
+            common_enums::IntentStatus::RequiresCustomerAction
+            | common_enums::IntentStatus::RequiresMerchantAction
+            | common_enums::IntentStatus::Processing => None,
+            // Invalid states for this flow
+            common_enums::IntentStatus::RequiresPaymentMethod
+            | common_enums::IntentStatus::RequiresConfirmation => None,
+            common_enums::IntentStatus::RequiresCapture => {
+                let total_amount = payment_data.payment_attempt.amount_details.get_net_amount();
+                Some(total_amount)
+            }
+            // Invalid statues for this flow
+            common_enums::IntentStatus::PartiallyCaptured
+            | common_enums::IntentStatus::PartiallyCapturedAndCapturable => None,
+        }
+    }
+
+    fn get_captured_amount(
+        &self,
+        payment_data: &payments::PaymentCaptureData<router_flow_types::Capture>,
+    ) -> Option<MinorUnit> {
+        // Based on the status of the response, we can determine the amount capturable
+        let intent_status = common_enums::IntentStatus::from(self.status);
+        match intent_status {
+            // If the status is succeeded then we have captured the whole amount
+            common_enums::IntentStatus::Succeeded => {
+                let amount_to_capture = payment_data
+                    .payment_attempt
+                    .amount_details
+                    .get_amount_to_capture();
+
+                let amount_captured = amount_to_capture
+                    .unwrap_or(payment_data.payment_attempt.amount_details.get_net_amount());
+
+                Some(amount_captured)
+            }
+            // No amount is captured
+            common_enums::IntentStatus::Cancelled | common_enums::IntentStatus::Failed => {
+                Some(MinorUnit::zero())
+            }
+            common_enums::IntentStatus::RequiresCapture => {
+                let total_amount = payment_data.payment_attempt.amount_details.get_net_amount();
+                Some(total_amount)
+            }
+            // For these statuses, update the amount captured when it reaches terminal state
+            common_enums::IntentStatus::RequiresCustomerAction
+            | common_enums::IntentStatus::RequiresMerchantAction
+            | common_enums::IntentStatus::Processing => None,
+            // Invalid states for this flow
+            common_enums::IntentStatus::RequiresPaymentMethod
+            | common_enums::IntentStatus::RequiresConfirmation => None,
+            // Invalid statues for this flow
+            common_enums::IntentStatus::PartiallyCaptured
+            | common_enums::IntentStatus::PartiallyCapturedAndCapturable => {
+                todo!()
+            }
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
+impl
+    TrackerPostUpdateObjects<
+        router_flow_types::PSync,
+        router_request_types::PaymentsSyncData,
+        payments::PaymentStatusData<router_flow_types::PSync>,
+    >
+    for RouterData<
+        router_flow_types::PSync,
+        router_request_types::PaymentsSyncData,
+        router_response_types::PaymentsResponseData,
+    >
+{
+    fn get_payment_intent_update(
+        &self,
+        payment_data: &payments::PaymentStatusData<router_flow_types::PSync>,
+        storage_scheme: common_enums::MerchantStorageScheme,
+    ) -> PaymentIntentUpdate {
+        let amount_captured = self.get_captured_amount(payment_data);
+        match self.response {
+            Ok(ref _response) => PaymentIntentUpdate::SyncUpdate {
+                status: common_enums::IntentStatus::from(
+                    self.get_attempt_status_for_db_update(payment_data),
+                ),
+                amount_captured,
+                updated_by: storage_scheme.to_string(),
+            },
+            Err(ref error) => PaymentIntentUpdate::SyncUpdate {
+                status: error
+                    .attempt_status
+                    .map(common_enums::IntentStatus::from)
+                    .unwrap_or(common_enums::IntentStatus::Failed),
+                amount_captured,
+                updated_by: storage_scheme.to_string(),
+            },
+        }
+    }
+
+    fn get_payment_attempt_update(
+        &self,
+        payment_data: &payments::PaymentStatusData<router_flow_types::PSync>,
+        storage_scheme: common_enums::MerchantStorageScheme,
+    ) -> PaymentAttemptUpdate {
+        let amount_capturable = self.get_amount_capturable(payment_data);
+
+        match self.response {
+            Ok(ref response_router_data) => match response_router_data {
+                router_response_types::PaymentsResponseData::TransactionResponse {
+                    resource_id,
+                    redirection_data,
+                    mandate_reference,
+                    connector_metadata,
+                    network_txn_id,
+                    connector_response_reference_id,
+                    incremental_authorization_allowed,
+                    charge_id,
+                } => {
+                    let attempt_status = self.get_attempt_status_for_db_update(payment_data);
+
+                    PaymentAttemptUpdate::SyncUpdate {
+                        status: attempt_status,
+                        amount_capturable,
+                        updated_by: storage_scheme.to_string(),
+                    }
+                }
+                router_response_types::PaymentsResponseData::MultipleCaptureResponse { .. } => {
+                    todo!()
+                }
+                router_response_types::PaymentsResponseData::SessionResponse { .. } => todo!(),
+                router_response_types::PaymentsResponseData::SessionTokenResponse { .. } => todo!(),
+                router_response_types::PaymentsResponseData::TransactionUnresolvedResponse {
+                    ..
+                } => todo!(),
+                router_response_types::PaymentsResponseData::TokenizationResponse { .. } => todo!(),
+                router_response_types::PaymentsResponseData::ConnectorCustomerResponse {
+                    ..
+                } => todo!(),
+                router_response_types::PaymentsResponseData::ThreeDSEnrollmentResponse {
+                    ..
+                } => todo!(),
+                router_response_types::PaymentsResponseData::PreProcessingResponse { .. } => {
+                    todo!()
+                }
+                router_response_types::PaymentsResponseData::IncrementalAuthorizationResponse {
+                    ..
+                } => todo!(),
+                router_response_types::PaymentsResponseData::PostProcessingResponse { .. } => {
+                    todo!()
+                }
+                router_response_types::PaymentsResponseData::SessionUpdateResponse { .. } => {
+                    todo!()
+                }
+            },
+            Err(ref error_response) => {
+                let ErrorResponse {
+                    code,
+                    message,
+                    reason,
+                    status_code: _,
+                    attempt_status,
+                    connector_transaction_id,
+                } = error_response.clone();
+                let attempt_status = attempt_status.unwrap_or(self.status);
+
+                let error_details = ErrorDetails {
+                    code,
+                    message,
+                    reason,
+                    unified_code: None,
+                    unified_message: None,
+                };
+
+                PaymentAttemptUpdate::ErrorUpdate {
+                    status: attempt_status,
+                    error: error_details,
+                    amount_capturable,
+                    connector_payment_id: connector_transaction_id,
+                    updated_by: storage_scheme.to_string(),
+                }
+            }
+        }
+    }
+
+    fn get_attempt_status_for_db_update(
+        &self,
+        payment_data: &payments::PaymentStatusData<router_flow_types::PSync>,
+    ) -> common_enums::AttemptStatus {
+        match self.status {
+            common_enums::AttemptStatus::Charged => {
+                let amount_captured = self
+                    .get_captured_amount(payment_data)
+                    .unwrap_or(MinorUnit::zero());
+
+                let total_amount = payment_data
+                    .payment_attempt
+                    .as_ref()
+                    .map(|attempt| attempt.amount_details.get_net_amount())
+                    .unwrap_or(MinorUnit::zero());
+
+                if amount_captured == total_amount {
+                    common_enums::AttemptStatus::Charged
+                } else {
+                    common_enums::AttemptStatus::PartialCharged
+                }
+            }
+            _ => self.status,
+        }
+    }
+
+    fn get_amount_capturable(
+        &self,
+        payment_data: &payments::PaymentStatusData<router_flow_types::PSync>,
+    ) -> Option<MinorUnit> {
+        let payment_attempt = payment_data.payment_attempt.as_ref()?;
+
+        // Based on the status of the response, we can determine the amount capturable
+        let intent_status = common_enums::IntentStatus::from(self.status);
+        match intent_status {
+            // If the status is already succeeded / failed we cannot capture any more amount
+            common_enums::IntentStatus::Succeeded
+            | common_enums::IntentStatus::Failed
+            | common_enums::IntentStatus::Cancelled => Some(MinorUnit::zero()),
+            // For these statuses, update the capturable amount when it reaches terminal / capturable state
+            common_enums::IntentStatus::RequiresCustomerAction
+            | common_enums::IntentStatus::RequiresMerchantAction
+            | common_enums::IntentStatus::Processing => None,
+            // Invalid states for this flow
+            common_enums::IntentStatus::RequiresPaymentMethod
+            | common_enums::IntentStatus::RequiresConfirmation => None,
+            common_enums::IntentStatus::RequiresCapture => {
+                let total_amount = payment_attempt.amount_details.get_net_amount();
+                Some(total_amount)
+            }
+            // Invalid statues for this flow
+            common_enums::IntentStatus::PartiallyCaptured
+            | common_enums::IntentStatus::PartiallyCapturedAndCapturable => None,
+        }
+    }
+
+    fn get_captured_amount(
+        &self,
+        payment_data: &payments::PaymentStatusData<router_flow_types::PSync>,
+    ) -> Option<MinorUnit> {
+        let payment_attempt = payment_data.payment_attempt.as_ref()?;
+
+        // Based on the status of the response, we can determine the amount capturable
+        let intent_status = common_enums::IntentStatus::from(self.status);
+        match intent_status {
+            // If the status is succeeded then we have captured the whole amount or amount_to_capture
+            common_enums::IntentStatus::Succeeded => {
+                let amount_to_capture = payment_attempt.amount_details.get_amount_to_capture();
+
+                let amount_captured =
+                    amount_to_capture.unwrap_or(payment_attempt.amount_details.get_net_amount());
+
+                Some(amount_captured)
+            }
+            // No amount is captured
+            common_enums::IntentStatus::Cancelled | common_enums::IntentStatus::Failed => {
+                Some(MinorUnit::zero())
+            }
+            // For these statuses, update the amount captured when it reaches terminal state
+            common_enums::IntentStatus::RequiresCustomerAction
+            | common_enums::IntentStatus::RequiresMerchantAction
+            | common_enums::IntentStatus::Processing => None,
+            // Invalid states for this flow
+            common_enums::IntentStatus::RequiresPaymentMethod
+            | common_enums::IntentStatus::RequiresConfirmation => None,
+            common_enums::IntentStatus::RequiresCapture => {
+                let total_amount = payment_attempt.amount_details.get_net_amount();
+                Some(total_amount)
+            }
+            // Invalid statues for this flow
+            common_enums::IntentStatus::PartiallyCaptured
+            | common_enums::IntentStatus::PartiallyCapturedAndCapturable => None,
         }
     }
 }

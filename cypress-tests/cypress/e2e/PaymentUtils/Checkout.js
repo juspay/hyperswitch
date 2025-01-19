@@ -1,7 +1,7 @@
 const successfulNo3DSCardDetails = {
   card_number: "4242424242424242",
   card_exp_month: "01",
-  card_exp_year: "25",
+  card_exp_year: "50",
   card_holder_name: "joseph Doe",
   card_cvc: "123",
 };
@@ -9,7 +9,7 @@ const successfulNo3DSCardDetails = {
 const successfulThreeDSTestCardDetails = {
   card_number: "4242424242424242",
   card_exp_month: "01",
-  card_exp_year: "25",
+  card_exp_year: "50",
   card_holder_name: "joseph Doe",
   card_cvc: "123",
 };
@@ -35,6 +35,38 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_payment_method",
+        },
+      },
+    },
+    PaymentIntentWithShippingCost: {
+      Request: {
+        currency: "USD",
+        shipping_cost: 50,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+          shipping_cost: 50,
+          amount: 6500,
+        },
+      },
+    },
+    PaymentConfirmWithShippingCost: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
+          shipping_cost: 50,
+          amount: 6500,
         },
       },
     },

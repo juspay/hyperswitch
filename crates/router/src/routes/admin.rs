@@ -431,7 +431,10 @@ pub async fn connector_retrieve(
             &auth::AdminApiAuthWithMerchantIdFromHeader,
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
-                required_permission: Permission::ProfileConnectorRead,
+                // This should ideally be ProfileConnectorRead, but since this API responds with
+                // sensitive data, keeping this as ProfileConnectorWrite
+                // TODO: Convert this to ProfileConnectorRead once data is masked.
+                required_permission: Permission::ProfileConnectorWrite,
             },
             req.headers(),
         ),
@@ -902,6 +905,29 @@ pub async fn merchant_account_transfer_keys(
         &req,
         payload.into_inner(),
         |state, _, req, _| transfer_key_store_to_key_manager(state, req),
+        &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+/// Merchant Account - Platform Account
+///
+/// Enable platform account
+#[instrument(skip_all)]
+pub async fn merchant_account_enable_platform_account(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<common_utils::id_type::MerchantId>,
+) -> HttpResponse {
+    let flow = Flow::EnablePlatformAccount;
+    let merchant_id = path.into_inner();
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        merchant_id,
+        |state, _, req, _| enable_platform_account(state, req),
         &auth::AdminApiAuth,
         api_locking::LockAction::NotApplicable,
     ))

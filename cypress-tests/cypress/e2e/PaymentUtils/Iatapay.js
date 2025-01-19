@@ -88,6 +88,27 @@ export const connectorDetails = {
         },
       },
     },
+    No3DSFailPayment: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message:
+              "Selected payment method through iatapay is not implemented",
+            code: "IR_00",
+          },
+        },
+      },
+    },
   },
   upi_pm: {
     PaymentIntent: {

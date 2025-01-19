@@ -8,23 +8,21 @@ use api_models::analytics::{
     },
     GetPaymentIntentFiltersRequest, GetPaymentIntentMetricRequest, PaymentIntentFilterValue,
     PaymentIntentFiltersResponse, PaymentIntentsAnalyticsMetadata, PaymentIntentsMetricsResponse,
-    SankeyResponse,
 };
 use bigdecimal::ToPrimitive;
-use common_enums::{Currency, IntentStatus};
+use common_enums::Currency;
 use common_utils::{errors::CustomResult, types::TimeRange};
 use currency_conversion::{conversion::convert, types::ExchangeRates};
 use error_stack::ResultExt;
 use router_env::{
     instrument, logger,
-    metrics::add_attributes,
     tracing::{self, Instrument},
 };
 
 use super::{
     filters::{get_payment_intent_filter_for_dimension, PaymentIntentFilterRow},
     metrics::PaymentIntentMetricRow,
-    sankey::{get_sankey_data, SessionizerRefundStatus},
+    sankey::{get_sankey_data, SankeyRow},
     PaymentIntentMetricsAccumulator,
 };
 use crate::{
@@ -51,7 +49,7 @@ pub async fn get_sankey(
     pool: &AnalyticsProvider,
     auth: &AuthInfo,
     req: TimeRange,
-) -> AnalyticsResult<SankeyResponse> {
+) -> AnalyticsResult<Vec<SankeyRow>> {
     match pool {
         AnalyticsProvider::Sqlx(_) => Err(AnalyticsError::NotImplemented(
             "Sankey not implemented for sqlx",
@@ -62,69 +60,7 @@ pub async fn get_sankey(
             let sankey_rows = get_sankey_data(ckh_pool, auth, &req)
                 .await
                 .change_context(AnalyticsError::UnknownError)?;
-            let mut sankey_response = SankeyResponse::default();
-            for i in sankey_rows {
-                match (
-                    i.status.as_ref(),
-                    i.refunds_status.unwrap_or_default().as_ref(),
-                    i.attempt_count,
-                ) {
-                    (IntentStatus::Succeeded, SessionizerRefundStatus::FullRefunded, 1) => {
-                        sankey_response.refunded += i.count;
-                        sankey_response.normal_success += i.count
-                    }
-                    (IntentStatus::Succeeded, SessionizerRefundStatus::PartialRefunded, 1) => {
-                        sankey_response.partial_refunded += i.count;
-                        sankey_response.normal_success += i.count
-                    }
-                    (IntentStatus::Succeeded, SessionizerRefundStatus::FullRefunded, _) => {
-                        sankey_response.refunded += i.count;
-                        sankey_response.smart_retried_success += i.count
-                    }
-                    (IntentStatus::Succeeded, SessionizerRefundStatus::PartialRefunded, _) => {
-                        sankey_response.partial_refunded += i.count;
-                        sankey_response.smart_retried_success += i.count
-                    }
-                    (
-                        IntentStatus::Succeeded
-                        | IntentStatus::PartiallyCaptured
-                        | IntentStatus::PartiallyCapturedAndCapturable
-                        | IntentStatus::RequiresCapture,
-                        SessionizerRefundStatus::NotRefunded,
-                        1,
-                    ) => sankey_response.normal_success += i.count,
-                    (
-                        IntentStatus::Succeeded
-                        | IntentStatus::PartiallyCaptured
-                        | IntentStatus::PartiallyCapturedAndCapturable
-                        | IntentStatus::RequiresCapture,
-                        SessionizerRefundStatus::NotRefunded,
-                        _,
-                    ) => sankey_response.smart_retried_success += i.count,
-                    (IntentStatus::Failed, _, 1) => sankey_response.normal_failure += i.count,
-                    (IntentStatus::Failed, _, _) => {
-                        sankey_response.smart_retried_failure += i.count
-                    }
-                    (IntentStatus::Cancelled, _, _) => sankey_response.cancelled += i.count,
-                    (IntentStatus::Processing, _, _) => sankey_response.pending += i.count,
-                    (IntentStatus::RequiresCustomerAction, _, _) => {
-                        sankey_response.customer_awaited += i.count
-                    }
-                    (IntentStatus::RequiresMerchantAction, _, _) => {
-                        sankey_response.merchant_awaited += i.count
-                    }
-                    (IntentStatus::RequiresPaymentMethod, _, _) => {
-                        sankey_response.pm_awaited += i.count
-                    }
-                    (IntentStatus::RequiresConfirmation, _, _) => {
-                        sankey_response.confirmation_awaited += i.count
-                    }
-                    i @ (_, _, _) => {
-                        router_env::logger::error!(status=?i, "Unknown status in sankey data");
-                    }
-                }
-            }
-            Ok(sankey_response)
+            Ok(sankey_rows)
         }
     }
 }
@@ -132,7 +68,7 @@ pub async fn get_sankey(
 #[instrument(skip_all)]
 pub async fn get_metrics(
     pool: &AnalyticsProvider,
-    ex_rates: &ExchangeRates,
+    ex_rates: &Option<ExchangeRates>,
     auth: &AuthInfo,
     req: GetPaymentIntentMetricRequest,
 ) -> AnalyticsResult<PaymentIntentsMetricsResponse<MetricsBucketResponse>> {
@@ -161,7 +97,7 @@ pub async fn get_metrics(
                         &req.group_by_names.clone(),
                         &auth_scoped,
                         &req.filters,
-                        &req.time_series.map(|t| t.granularity),
+                        req.time_series.map(|t| t.granularity),
                         &req.time_range,
                     )
                     .await
@@ -181,14 +117,14 @@ pub async fn get_metrics(
         match task_type {
             TaskType::MetricTask(metric, data) => {
                 let data = data?;
-                let attributes = &add_attributes([
+                let attributes = router_env::metric_attributes!(
                     ("metric_type", metric.to_string()),
                     ("source", pool.to_string()),
-                ]);
+                );
 
                 let value = u64::try_from(data.len());
                 if let Ok(val) = value {
-                    metrics::BUCKETS_FETCHED.record(&metrics::CONTEXT, val, attributes);
+                    metrics::BUCKETS_FETCHED.record(val, attributes);
                     logger::debug!("Attributes: {:?}, Buckets fetched: {}", attributes, val);
                 }
 
@@ -265,22 +201,25 @@ pub async fn get_metrics(
                 total += total_count;
             }
             if let Some(retried_amount) = collected_values.smart_retried_amount {
-                let amount_in_usd = id
-                    .currency
-                    .and_then(|currency| {
-                        i64::try_from(retried_amount)
-                            .inspect_err(|e| logger::error!("Amount conversion error: {:?}", e))
-                            .ok()
-                            .and_then(|amount_i64| {
-                                convert(ex_rates, currency, Currency::USD, amount_i64)
-                                    .inspect_err(|e| {
-                                        logger::error!("Currency conversion error: {:?}", e)
-                                    })
-                                    .ok()
-                            })
-                    })
-                    .map(|amount| (amount * rust_decimal::Decimal::new(100, 0)).to_u64())
-                    .unwrap_or_default();
+                let amount_in_usd = if let Some(ex_rates) = ex_rates {
+                    id.currency
+                        .and_then(|currency| {
+                            i64::try_from(retried_amount)
+                                .inspect_err(|e| logger::error!("Amount conversion error: {:?}", e))
+                                .ok()
+                                .and_then(|amount_i64| {
+                                    convert(ex_rates, currency, Currency::USD, amount_i64)
+                                        .inspect_err(|e| {
+                                            logger::error!("Currency conversion error: {:?}", e)
+                                        })
+                                        .ok()
+                                })
+                        })
+                        .map(|amount| (amount * rust_decimal::Decimal::new(100, 0)).to_u64())
+                        .unwrap_or_default()
+                } else {
+                    None
+                };
                 collected_values.smart_retried_amount_in_usd = amount_in_usd;
                 total_smart_retried_amount += retried_amount;
                 total_smart_retried_amount_in_usd += amount_in_usd.unwrap_or(0);
@@ -288,44 +227,50 @@ pub async fn get_metrics(
             if let Some(retried_amount) =
                 collected_values.smart_retried_amount_without_smart_retries
             {
-                let amount_in_usd = id
-                    .currency
-                    .and_then(|currency| {
-                        i64::try_from(retried_amount)
-                            .inspect_err(|e| logger::error!("Amount conversion error: {:?}", e))
-                            .ok()
-                            .and_then(|amount_i64| {
-                                convert(ex_rates, currency, Currency::USD, amount_i64)
-                                    .inspect_err(|e| {
-                                        logger::error!("Currency conversion error: {:?}", e)
-                                    })
-                                    .ok()
-                            })
-                    })
-                    .map(|amount| (amount * rust_decimal::Decimal::new(100, 0)).to_u64())
-                    .unwrap_or_default();
+                let amount_in_usd = if let Some(ex_rates) = ex_rates {
+                    id.currency
+                        .and_then(|currency| {
+                            i64::try_from(retried_amount)
+                                .inspect_err(|e| logger::error!("Amount conversion error: {:?}", e))
+                                .ok()
+                                .and_then(|amount_i64| {
+                                    convert(ex_rates, currency, Currency::USD, amount_i64)
+                                        .inspect_err(|e| {
+                                            logger::error!("Currency conversion error: {:?}", e)
+                                        })
+                                        .ok()
+                                })
+                        })
+                        .map(|amount| (amount * rust_decimal::Decimal::new(100, 0)).to_u64())
+                        .unwrap_or_default()
+                } else {
+                    None
+                };
                 collected_values.smart_retried_amount_without_smart_retries_in_usd = amount_in_usd;
                 total_smart_retried_amount_without_smart_retries += retried_amount;
                 total_smart_retried_amount_without_smart_retries_in_usd +=
                     amount_in_usd.unwrap_or(0);
             }
             if let Some(amount) = collected_values.payment_processed_amount {
-                let amount_in_usd = id
-                    .currency
-                    .and_then(|currency| {
-                        i64::try_from(amount)
-                            .inspect_err(|e| logger::error!("Amount conversion error: {:?}", e))
-                            .ok()
-                            .and_then(|amount_i64| {
-                                convert(ex_rates, currency, Currency::USD, amount_i64)
-                                    .inspect_err(|e| {
-                                        logger::error!("Currency conversion error: {:?}", e)
-                                    })
-                                    .ok()
-                            })
-                    })
-                    .map(|amount| (amount * rust_decimal::Decimal::new(100, 0)).to_u64())
-                    .unwrap_or_default();
+                let amount_in_usd = if let Some(ex_rates) = ex_rates {
+                    id.currency
+                        .and_then(|currency| {
+                            i64::try_from(amount)
+                                .inspect_err(|e| logger::error!("Amount conversion error: {:?}", e))
+                                .ok()
+                                .and_then(|amount_i64| {
+                                    convert(ex_rates, currency, Currency::USD, amount_i64)
+                                        .inspect_err(|e| {
+                                            logger::error!("Currency conversion error: {:?}", e)
+                                        })
+                                        .ok()
+                                })
+                        })
+                        .map(|amount| (amount * rust_decimal::Decimal::new(100, 0)).to_u64())
+                        .unwrap_or_default()
+                } else {
+                    None
+                };
                 collected_values.payment_processed_amount_in_usd = amount_in_usd;
                 total_payment_processed_amount_in_usd += amount_in_usd.unwrap_or(0);
                 total_payment_processed_amount += amount;
@@ -334,22 +279,25 @@ pub async fn get_metrics(
                 total_payment_processed_count += count;
             }
             if let Some(amount) = collected_values.payment_processed_amount_without_smart_retries {
-                let amount_in_usd = id
-                    .currency
-                    .and_then(|currency| {
-                        i64::try_from(amount)
-                            .inspect_err(|e| logger::error!("Amount conversion error: {:?}", e))
-                            .ok()
-                            .and_then(|amount_i64| {
-                                convert(ex_rates, currency, Currency::USD, amount_i64)
-                                    .inspect_err(|e| {
-                                        logger::error!("Currency conversion error: {:?}", e)
-                                    })
-                                    .ok()
-                            })
-                    })
-                    .map(|amount| (amount * rust_decimal::Decimal::new(100, 0)).to_u64())
-                    .unwrap_or_default();
+                let amount_in_usd = if let Some(ex_rates) = ex_rates {
+                    id.currency
+                        .and_then(|currency| {
+                            i64::try_from(amount)
+                                .inspect_err(|e| logger::error!("Amount conversion error: {:?}", e))
+                                .ok()
+                                .and_then(|amount_i64| {
+                                    convert(ex_rates, currency, Currency::USD, amount_i64)
+                                        .inspect_err(|e| {
+                                            logger::error!("Currency conversion error: {:?}", e)
+                                        })
+                                        .ok()
+                                })
+                        })
+                        .map(|amount| (amount * rust_decimal::Decimal::new(100, 0)).to_u64())
+                        .unwrap_or_default()
+                } else {
+                    None
+                };
                 collected_values.payment_processed_amount_without_smart_retries_in_usd =
                     amount_in_usd;
                 total_payment_processed_amount_without_smart_retries_in_usd +=
@@ -386,14 +334,26 @@ pub async fn get_metrics(
             total_payment_processed_amount_without_smart_retries: Some(
                 total_payment_processed_amount_without_smart_retries,
             ),
-            total_smart_retried_amount_in_usd: Some(total_smart_retried_amount_in_usd),
-            total_smart_retried_amount_without_smart_retries_in_usd: Some(
-                total_smart_retried_amount_without_smart_retries_in_usd,
-            ),
-            total_payment_processed_amount_in_usd: Some(total_payment_processed_amount_in_usd),
-            total_payment_processed_amount_without_smart_retries_in_usd: Some(
-                total_payment_processed_amount_without_smart_retries_in_usd,
-            ),
+            total_smart_retried_amount_in_usd: if ex_rates.is_some() {
+                Some(total_smart_retried_amount_in_usd)
+            } else {
+                None
+            },
+            total_smart_retried_amount_without_smart_retries_in_usd: if ex_rates.is_some() {
+                Some(total_smart_retried_amount_without_smart_retries_in_usd)
+            } else {
+                None
+            },
+            total_payment_processed_amount_in_usd: if ex_rates.is_some() {
+                Some(total_payment_processed_amount_in_usd)
+            } else {
+                None
+            },
+            total_payment_processed_amount_without_smart_retries_in_usd: if ex_rates.is_some() {
+                Some(total_payment_processed_amount_without_smart_retries_in_usd)
+            } else {
+                None
+            },
             total_payment_processed_count: Some(total_payment_processed_count),
             total_payment_processed_count_without_smart_retries: Some(
                 total_payment_processed_count_without_smart_retries,

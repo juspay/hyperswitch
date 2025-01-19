@@ -263,7 +263,7 @@ pub async fn generate_sample_data(
             fingerprint_id: None,
             session_expiry: Some(session_expiry),
             request_external_three_ds_authentication: None,
-            charges: None,
+            split_payments: None,
             frm_metadata: Default::default(),
             customer_details: None,
             billing_details: None,
@@ -274,6 +274,8 @@ pub async fn generate_sample_data(
             shipping_cost: None,
             tax_details: None,
             skip_external_tax_calculation: None,
+            psd2_sca_exemption_type: None,
+            platform_merchant_id: None,
         };
         let (connector_transaction_id, connector_transaction_data) =
             ConnectorTransactionId::form_id_and_data(attempt_id.clone());
@@ -396,6 +398,7 @@ pub async fn generate_sample_data(
                 updated_by: merchant_from_db.storage_scheme.to_string(),
                 merchant_connector_id: payment_attempt.merchant_connector_id.clone(),
                 charges: None,
+                split_refunds: None,
                 organization_id: org_id.clone(),
                 connector_refund_data: None,
                 connector_transaction_data,

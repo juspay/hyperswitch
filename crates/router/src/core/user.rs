@@ -7,7 +7,7 @@ use api_models::{
     payments::RedirectionResponse,
     user::{self as user_api, InviteMultipleUserResponse, NameIdUnit},
 };
-use common_enums::EntityType;
+use common_enums::{EntityType, UserAuthType};
 use common_utils::{type_name, types::keymanager::Identifier};
 #[cfg(feature = "email")]
 use diesel_models::user_role::UserRoleUpdate;
@@ -22,12 +22,17 @@ use masking::{ExposeInterface, PeekInterface, Secret};
 #[cfg(feature = "email")]
 use router_env::env;
 use router_env::logger;
+use storage_impl::errors::StorageError;
 #[cfg(not(feature = "email"))]
 use user_api::dashboard_metadata::SetMetaDataRequest;
 
+#[cfg(feature = "v1")]
+use super::admin;
 use super::errors::{StorageErrorExt, UserErrors, UserResponse, UserResult};
 #[cfg(feature = "email")]
 use crate::services::email::types as email_types;
+#[cfg(feature = "v1")]
+use crate::types::transformers::ForeignFrom;
 use crate::{
     consts,
     core::encryption::send_request_to_key_service_for_user,
@@ -38,18 +43,23 @@ use crate::{
     routes::{app::ReqState, SessionState},
     services::{authentication as auth, authorization::roles, openidconnect, ApplicationResponse},
     types::{domain, transformers::ForeignInto},
-    utils::{self, user::two_factor_auth as tfa_utils},
+    utils::{
+        self,
+        user::{theme as theme_utils, two_factor_auth as tfa_utils},
+    },
 };
 
 pub mod dashboard_metadata;
 #[cfg(feature = "dummy_connector")]
 pub mod sample_data;
+pub mod theme;
 
 #[cfg(feature = "email")]
 pub async fn signup_with_merchant_id(
     state: SessionState,
     request: user_api::SignUpWithMerchantIdRequest,
     auth_id: Option<String>,
+    theme_id: Option<String>,
 ) -> UserResponse<user_api::SignUpWithMerchantIdResponse> {
     let new_user = domain::NewUser::try_from(request.clone())?;
     new_user
@@ -70,17 +80,24 @@ pub async fn signup_with_merchant_id(
         )
         .await?;
 
+    let theme = theme_utils::get_theme_using_optional_theme_id(&state, theme_id).await?;
+
     let email_contents = email_types::ResetPassword {
         recipient_email: user_from_db.get_email().try_into()?,
         user_name: domain::UserName::new(user_from_db.get_name())?,
         settings: state.conf.clone(),
         subject: consts::user::EMAIL_SUBJECT_RESET_PASSWORD,
         auth_id,
+        theme_id: theme.as_ref().map(|theme| theme.theme_id.clone()),
+        theme_config: theme
+            .map(|theme| theme.email_config())
+            .unwrap_or(state.conf.theme.email_config.clone()),
     };
 
     let send_email_result = state
         .email_client
         .compose_and_send_email(
+            email_types::get_base_url(&state),
             Box::new(email_contents),
             state.conf.proxy.https_url.as_ref(),
         )
@@ -99,14 +116,24 @@ pub async fn get_user_details(
 ) -> UserResponse<user_api::GetUserDetailsResponse> {
     let user = user_from_token.get_user_from_db(&state).await?;
     let verification_days_left = utils::user::get_verification_days_left(&state, &user)?;
-    let role_info = roles::RoleInfo::from_role_id_in_merchant_scope(
+    let role_info = roles::RoleInfo::from_role_id_org_id_tenant_id(
         &state,
         &user_from_token.role_id,
-        &user_from_token.merchant_id,
         &user_from_token.org_id,
+        user_from_token
+            .tenant_id
+            .as_ref()
+            .unwrap_or(&state.tenant.tenant_id),
     )
     .await
     .change_context(UserErrors::InternalServerError)?;
+
+    let theme = theme_utils::get_most_specific_theme_using_token_and_min_entity(
+        &state,
+        &user_from_token,
+        EntityType::Profile,
+    )
+    .await?;
 
     Ok(ApplicationResponse::Json(
         user_api::GetUserDetailsResponse {
@@ -121,6 +148,7 @@ pub async fn get_user_details(
             recovery_codes_left: user.get_recovery_codes().map(|codes| codes.len()),
             profile_id: user_from_token.profile_id,
             entity_type: role_info.get_entity_type(),
+            theme_id: theme.map(|theme| theme.theme_id),
         },
     ))
 }
@@ -129,6 +157,14 @@ pub async fn signup_token_only_flow(
     state: SessionState,
     request: user_api::SignUpRequest,
 ) -> UserResponse<user_api::TokenResponse> {
+    let user_email = domain::UserEmail::from_pii_email(request.email.clone())?;
+    utils::user::validate_email_domain_auth_type_using_db(
+        &state,
+        &user_email,
+        UserAuthType::Password,
+    )
+    .await?;
+
     let new_user = domain::NewUser::try_from(request)?;
     new_user
         .get_new_merchant()
@@ -164,9 +200,18 @@ pub async fn signin_token_only_flow(
     state: SessionState,
     request: user_api::SignInRequest,
 ) -> UserResponse<user_api::TokenResponse> {
+    let user_email = domain::UserEmail::from_pii_email(request.email)?;
+
+    utils::user::validate_email_domain_auth_type_using_db(
+        &state,
+        &user_email,
+        UserAuthType::Password,
+    )
+    .await?;
+
     let user_from_db: domain::UserFromStorage = state
         .global_store
-        .find_user_by_email(&request.email)
+        .find_user_by_email(&user_email)
         .await
         .to_not_found_response(UserErrors::InvalidCredentials)?
         .into();
@@ -190,11 +235,23 @@ pub async fn connect_account(
     state: SessionState,
     request: user_api::ConnectAccountRequest,
     auth_id: Option<String>,
+    theme_id: Option<String>,
 ) -> UserResponse<user_api::ConnectAccountResponse> {
-    let find_user = state.global_store.find_user_by_email(&request.email).await;
+    let user_email = domain::UserEmail::from_pii_email(request.email.clone())?;
+
+    utils::user::validate_email_domain_auth_type_using_db(
+        &state,
+        &user_email,
+        UserAuthType::MagicLink,
+    )
+    .await?;
+
+    let find_user = state.global_store.find_user_by_email(&user_email).await;
 
     if let Ok(found_user) = find_user {
         let user_from_db: domain::UserFromStorage = found_user.into();
+
+        let theme = theme_utils::get_theme_using_optional_theme_id(&state, theme_id).await?;
 
         let email_contents = email_types::MagicLink {
             recipient_email: domain::UserEmail::from_pii_email(user_from_db.get_email())?,
@@ -202,23 +259,28 @@ pub async fn connect_account(
             user_name: domain::UserName::new(user_from_db.get_name())?,
             subject: consts::user::EMAIL_SUBJECT_MAGIC_LINK,
             auth_id,
+            theme_id: theme.as_ref().map(|theme| theme.theme_id.clone()),
+            theme_config: theme
+                .map(|theme| theme.email_config())
+                .unwrap_or(state.conf.theme.email_config.clone()),
         };
 
         let send_email_result = state
             .email_client
             .compose_and_send_email(
+                email_types::get_base_url(&state),
                 Box::new(email_contents),
                 state.conf.proxy.https_url.as_ref(),
             )
             .await;
         logger::info!(?send_email_result);
 
-        return Ok(ApplicationResponse::Json(
+        Ok(ApplicationResponse::Json(
             user_api::ConnectAccountResponse {
                 is_email_sent: send_email_result.is_ok(),
                 user_id: user_from_db.get_user_id().to_string(),
             },
-        ));
+        ))
     } else if find_user
         .as_ref()
         .map_err(|e| e.current_context().is_db_not_found())
@@ -246,26 +308,51 @@ pub async fn connect_account(
             )
             .await?;
 
-        let email_contents = email_types::VerifyEmail {
+        let theme = theme_utils::get_theme_using_optional_theme_id(&state, theme_id).await?;
+
+        let magic_link_email = email_types::VerifyEmail {
             recipient_email: domain::UserEmail::from_pii_email(user_from_db.get_email())?,
             settings: state.conf.clone(),
             subject: consts::user::EMAIL_SUBJECT_SIGNUP,
             auth_id,
+            theme_id: theme.as_ref().map(|theme| theme.theme_id.clone()),
+            theme_config: theme
+                .map(|theme| theme.email_config())
+                .unwrap_or(state.conf.theme.email_config.clone()),
         };
 
-        let send_email_result = state
+        let magic_link_result = state
             .email_client
             .compose_and_send_email(
-                Box::new(email_contents),
+                email_types::get_base_url(&state),
+                Box::new(magic_link_email),
                 state.conf.proxy.https_url.as_ref(),
             )
             .await;
 
-        logger::info!(?send_email_result);
+        logger::info!(?magic_link_result);
+
+        if state.tenant.tenant_id.get_string_repr() == common_utils::consts::DEFAULT_TENANT {
+            let welcome_to_community_email = email_types::WelcomeToCommunity {
+                recipient_email: domain::UserEmail::from_pii_email(user_from_db.get_email())?,
+                subject: consts::user::EMAIL_SUBJECT_WELCOME_TO_COMMUNITY,
+            };
+
+            let welcome_email_result = state
+                .email_client
+                .compose_and_send_email(
+                    email_types::get_base_url(&state),
+                    Box::new(welcome_to_community_email),
+                    state.conf.proxy.https_url.as_ref(),
+                )
+                .await;
+
+            logger::info!(?welcome_email_result);
+        }
 
         return Ok(ApplicationResponse::Json(
             user_api::ConnectAccountResponse {
-                is_email_sent: send_email_result.is_ok(),
+                is_email_sent: magic_link_result.is_ok(),
                 user_id: user_from_db.get_user_id().to_string(),
             },
         ));
@@ -279,7 +366,7 @@ pub async fn connect_account(
 
 pub async fn signout(
     state: SessionState,
-    user_from_token: auth::UserFromToken,
+    user_from_token: auth::UserIdFromAuth,
 ) -> UserResponse<()> {
     tfa_utils::delete_totp_from_redis(&state, &user_from_token.user_id).await?;
     tfa_utils::delete_recovery_code_from_redis(&state, &user_from_token.user_id).await?;
@@ -349,12 +436,20 @@ pub async fn forgot_password(
     state: SessionState,
     request: user_api::ForgotPasswordRequest,
     auth_id: Option<String>,
+    theme_id: Option<String>,
 ) -> UserResponse<()> {
     let user_email = domain::UserEmail::from_pii_email(request.email)?;
 
+    utils::user::validate_email_domain_auth_type_using_db(
+        &state,
+        &user_email,
+        UserAuthType::Password,
+    )
+    .await?;
+
     let user_from_db = state
         .global_store
-        .find_user_by_email(&user_email.into_inner())
+        .find_user_by_email(&user_email)
         .await
         .map_err(|e| {
             if e.current_context().is_db_not_found() {
@@ -365,17 +460,24 @@ pub async fn forgot_password(
         })
         .map(domain::UserFromStorage::from)?;
 
+    let theme = theme_utils::get_theme_using_optional_theme_id(&state, theme_id).await?;
+
     let email_contents = email_types::ResetPassword {
         recipient_email: domain::UserEmail::from_pii_email(user_from_db.get_email())?,
         settings: state.conf.clone(),
         user_name: domain::UserName::new(user_from_db.get_name())?,
         subject: consts::user::EMAIL_SUBJECT_RESET_PASSWORD,
         auth_id,
+        theme_id: theme.as_ref().map(|theme| theme.theme_id.clone()),
+        theme_config: theme
+            .map(|theme| theme.email_config())
+            .unwrap_or(state.conf.theme.email_config.clone()),
     };
 
     state
         .email_client
         .compose_and_send_email(
+            email_types::get_base_url(&state),
             Box::new(email_contents),
             state.conf.proxy.https_url.as_ref(),
         )
@@ -438,11 +540,7 @@ pub async fn reset_password_token_only_flow(
 
     let user_from_db: domain::UserFromStorage = state
         .global_store
-        .find_user_by_email(
-            &email_token
-                .get_email()
-                .change_context(UserErrors::InternalServerError)?,
-        )
+        .find_user_by_email(&email_token.get_email()?)
         .await
         .change_context(UserErrors::InternalServerError)?
         .into();
@@ -534,11 +632,15 @@ async fn handle_invitation(
         .into());
     }
 
-    let role_info = roles::RoleInfo::from_role_id_in_merchant_scope(
+    let role_info = roles::RoleInfo::from_role_id_in_lineage(
         state,
         &request.role_id,
         &user_from_token.merchant_id,
         &user_from_token.org_id,
+        user_from_token
+            .tenant_id
+            .as_ref()
+            .unwrap_or(&state.tenant.tenant_id),
     )
     .await
     .to_not_found_response(UserErrors::InvalidRoleId)?;
@@ -549,10 +651,7 @@ async fn handle_invitation(
     }
 
     let invitee_email = domain::UserEmail::from_pii_email(request.email.clone())?;
-    let invitee_user = state
-        .global_store
-        .find_user_by_email(&invitee_email.into_inner())
-        .await;
+    let invitee_user = state.global_store.find_user_by_email(&invitee_email).await;
 
     if let Ok(invitee_user) = invitee_user {
         handle_existing_user_invitation(
@@ -599,6 +698,10 @@ async fn handle_existing_user_invitation(
         .global_store
         .find_user_role_by_user_id_and_lineage(
             invitee_user_from_db.get_user_id(),
+            user_from_token
+                .tenant_id
+                .as_ref()
+                .unwrap_or(&state.tenant.tenant_id),
             &user_from_token.org_id,
             &user_from_token.merchant_id,
             &user_from_token.profile_id,
@@ -615,6 +718,10 @@ async fn handle_existing_user_invitation(
         .global_store
         .find_user_role_by_user_id_and_lineage(
             invitee_user_from_db.get_user_id(),
+            user_from_token
+                .tenant_id
+                .as_ref()
+                .unwrap_or(&state.tenant.tenant_id),
             &user_from_token.org_id,
             &user_from_token.merchant_id,
             &user_from_token.profile_id,
@@ -623,6 +730,48 @@ async fn handle_existing_user_invitation(
         .await
         .is_err_and(|err| err.current_context().is_db_not_found())
         .not()
+    {
+        return Err(UserErrors::UserExists.into());
+    }
+
+    let (org_id, merchant_id, profile_id) = match role_info.get_entity_type() {
+        EntityType::Tenant => {
+            return Err(UserErrors::InvalidRoleOperationWithMessage(
+                "Tenant roles are not allowed for this operation".to_string(),
+            )
+            .into());
+        }
+        EntityType::Organization => (Some(&user_from_token.org_id), None, None),
+        EntityType::Merchant => (
+            Some(&user_from_token.org_id),
+            Some(&user_from_token.merchant_id),
+            None,
+        ),
+        EntityType::Profile => (
+            Some(&user_from_token.org_id),
+            Some(&user_from_token.merchant_id),
+            Some(&user_from_token.profile_id),
+        ),
+    };
+
+    if state
+        .global_store
+        .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
+            user_id: invitee_user_from_db.get_user_id(),
+            tenant_id: user_from_token
+                .tenant_id
+                .as_ref()
+                .unwrap_or(&state.tenant.tenant_id),
+            org_id,
+            merchant_id,
+            profile_id,
+            entity_id: None,
+            version: None,
+            status: None,
+            limit: Some(1),
+        })
+        .await
+        .is_ok_and(|data| data.is_empty().not())
     {
         return Err(UserErrors::UserExists.into());
     }
@@ -645,6 +794,12 @@ async fn handle_existing_user_invitation(
     };
 
     let _user_role = match role_info.get_entity_type() {
+        EntityType::Tenant => {
+            return Err(UserErrors::InvalidRoleOperationWithMessage(
+                "Tenant roles are not allowed for this operation".to_string(),
+            )
+            .into());
+        }
         EntityType::Organization => {
             user_role
                 .add_entity(domain::OrganizationLevel {
@@ -691,6 +846,12 @@ async fn handle_existing_user_invitation(
     {
         let invitee_email = domain::UserEmail::from_pii_email(request.email.clone())?;
         let entity = match role_info.get_entity_type() {
+            EntityType::Tenant => {
+                return Err(UserErrors::InvalidRoleOperationWithMessage(
+                    "Tenant roles are not allowed for this operation".to_string(),
+                )
+                .into());
+            }
             EntityType::Organization => email_types::Entity {
                 entity_id: user_from_token.org_id.get_string_repr().to_owned(),
                 entity_type: EntityType::Organization,
@@ -705,6 +866,13 @@ async fn handle_existing_user_invitation(
             },
         };
 
+        let theme = theme_utils::get_most_specific_theme_using_token_and_min_entity(
+            state,
+            user_from_token,
+            role_info.get_entity_type(),
+        )
+        .await?;
+
         let email_contents = email_types::InviteUser {
             recipient_email: invitee_email,
             user_name: domain::UserName::new(invitee_user_from_db.get_name())?,
@@ -712,11 +880,16 @@ async fn handle_existing_user_invitation(
             subject: consts::user::EMAIL_SUBJECT_INVITATION,
             entity,
             auth_id: auth_id.clone(),
+            theme_id: theme.as_ref().map(|theme| theme.theme_id.clone()),
+            theme_config: theme
+                .map(|theme| theme.email_config())
+                .unwrap_or(state.conf.theme.email_config.clone()),
         };
 
         is_email_sent = state
             .email_client
             .compose_and_send_email(
+                email_types::get_base_url(state),
                 Box::new(email_contents),
                 state.conf.proxy.https_url.as_ref(),
             )
@@ -774,6 +947,12 @@ async fn handle_new_user_invitation(
     };
 
     let _user_role = match role_info.get_entity_type() {
+        EntityType::Tenant => {
+            return Err(UserErrors::InvalidRoleOperationWithMessage(
+                "Tenant roles are not allowed for this operation".to_string(),
+            )
+            .into());
+        }
         EntityType::Organization => {
             user_role
                 .add_entity(domain::OrganizationLevel {
@@ -824,6 +1003,12 @@ async fn handle_new_user_invitation(
         let _ = req_state.clone();
         let invitee_email = domain::UserEmail::from_pii_email(request.email.clone())?;
         let entity = match role_info.get_entity_type() {
+            EntityType::Tenant => {
+                return Err(UserErrors::InvalidRoleOperationWithMessage(
+                    "Tenant roles are not allowed for this operation".to_string(),
+                )
+                .into());
+            }
             EntityType::Organization => email_types::Entity {
                 entity_id: user_from_token.org_id.get_string_repr().to_owned(),
                 entity_type: EntityType::Organization,
@@ -838,6 +1023,13 @@ async fn handle_new_user_invitation(
             },
         };
 
+        let theme = theme_utils::get_most_specific_theme_using_token_and_min_entity(
+            state,
+            user_from_token,
+            role_info.get_entity_type(),
+        )
+        .await?;
+
         let email_contents = email_types::InviteUser {
             recipient_email: invitee_email,
             user_name: domain::UserName::new(new_user.get_name())?,
@@ -845,10 +1037,15 @@ async fn handle_new_user_invitation(
             subject: consts::user::EMAIL_SUBJECT_INVITATION,
             entity,
             auth_id: auth_id.clone(),
+            theme_id: theme.as_ref().map(|theme| theme.theme_id.clone()),
+            theme_config: theme
+                .map(|theme| theme.email_config())
+                .unwrap_or(state.conf.theme.email_config.clone()),
         };
         let send_email_result = state
             .email_client
             .compose_and_send_email(
+                email_types::get_base_url(state),
                 Box::new(email_contents),
                 state.conf.proxy.https_url.as_ref(),
             )
@@ -899,7 +1096,7 @@ pub async fn resend_invite(
     let invitee_email = domain::UserEmail::from_pii_email(request.email)?;
     let user: domain::UserFromStorage = state
         .global_store
-        .find_user_by_email(&invitee_email.clone().into_inner())
+        .find_user_by_email(&invitee_email)
         .await
         .map_err(|e| {
             if e.current_context().is_db_not_found() {
@@ -915,6 +1112,10 @@ pub async fn resend_invite(
         .global_store
         .find_user_role_by_user_id_and_lineage(
             user.get_user_id(),
+            user_from_token
+                .tenant_id
+                .as_ref()
+                .unwrap_or(&state.tenant.tenant_id),
             &user_from_token.org_id,
             &user_from_token.merchant_id,
             &user_from_token.profile_id,
@@ -938,6 +1139,10 @@ pub async fn resend_invite(
             .global_store
             .find_user_role_by_user_id_and_lineage(
                 user.get_user_id(),
+                user_from_token
+                    .tenant_id
+                    .as_ref()
+                    .unwrap_or(&state.tenant.tenant_id),
                 &user_from_token.org_id,
                 &user_from_token.merchant_id,
                 &user_from_token.profile_id,
@@ -958,6 +1163,25 @@ pub async fn resend_invite(
         .get_entity_id_and_type()
         .ok_or(UserErrors::InternalServerError)?;
 
+    let invitee_role_info = roles::RoleInfo::from_role_id_org_id_tenant_id(
+        &state,
+        &user_role.role_id,
+        &user_from_token.org_id,
+        user_from_token
+            .tenant_id
+            .as_ref()
+            .unwrap_or(&state.tenant.tenant_id),
+    )
+    .await
+    .change_context(UserErrors::InternalServerError)?;
+
+    let theme = theme_utils::get_most_specific_theme_using_token_and_min_entity(
+        &state,
+        &user_from_token,
+        invitee_role_info.get_entity_type(),
+    )
+    .await?;
+
     let email_contents = email_types::InviteUser {
         recipient_email: invitee_email,
         user_name: domain::UserName::new(user.get_name())?,
@@ -968,11 +1192,16 @@ pub async fn resend_invite(
             entity_type,
         },
         auth_id: auth_id.clone(),
+        theme_id: theme.as_ref().map(|theme| theme.theme_id.clone()),
+        theme_config: theme
+            .map(|theme| theme.email_config())
+            .unwrap_or(state.conf.theme.email_config.clone()),
     };
 
     state
         .email_client
         .compose_and_send_email(
+            email_types::get_base_url(&state),
             Box::new(email_contents),
             state.conf.proxy.https_url.as_ref(),
         )
@@ -998,11 +1227,7 @@ pub async fn accept_invite_from_email_token_only_flow(
 
     let user_from_db: domain::UserFromStorage = state
         .global_store
-        .find_user_by_email(
-            &email_token
-                .get_email()
-                .change_context(UserErrors::InternalServerError)?,
-        )
+        .find_user_by_email(&email_token.get_email()?)
         .await
         .change_context(UserErrors::InternalServerError)?
         .into();
@@ -1017,6 +1242,10 @@ pub async fn accept_invite_from_email_token_only_flow(
         utils::user_role::get_lineage_for_user_id_and_entity_for_accepting_invite(
             &state,
             &user_token.user_id,
+            user_token
+                .tenant_id
+                .as_ref()
+                .unwrap_or(&state.tenant.tenant_id),
             entity.entity_id.clone(),
             entity.entity_type,
         )
@@ -1027,6 +1256,10 @@ pub async fn accept_invite_from_email_token_only_flow(
     let (update_v1_result, update_v2_result) = utils::user_role::update_v1_and_v2_user_roles_in_db(
         &state,
         user_from_db.get_user_id(),
+        user_token
+            .tenant_id
+            .as_ref()
+            .unwrap_or(&state.tenant.tenant_id),
         &org_id,
         merchant_id.as_ref(),
         profile_id.as_ref(),
@@ -1105,11 +1338,15 @@ pub async fn create_internal_user(
             }
         })?;
 
-    let default_tenant_id = common_utils::consts::DEFAULT_TENANT.to_string();
+    let default_tenant_id = common_utils::id_type::TenantId::try_from_string(
+        common_utils::consts::DEFAULT_TENANT.to_owned(),
+    )
+    .change_context(UserErrors::InternalServerError)
+    .attach_printable("Unable to parse default tenant id")?;
 
     if state.tenant.tenant_id != default_tenant_id {
         return Err(UserErrors::ForbiddenTenantId)
-            .attach_printable("Operation allowed only for the default tenant.");
+            .attach_printable("Operation allowed only for the default tenant");
     }
 
     let internal_merchant_id = common_utils::id_type::MerchantId::get_internal_user_merchant_id(
@@ -1163,6 +1400,83 @@ pub async fn create_internal_user(
     Ok(ApplicationResponse::StatusOk)
 }
 
+pub async fn create_tenant_user(
+    state: SessionState,
+    request: user_api::CreateTenantUserRequest,
+) -> UserResponse<()> {
+    let key_manager_state = &(&state).into();
+
+    let (merchant_id, org_id) = state
+        .store
+        .list_merchant_and_org_ids(key_manager_state, 1, None)
+        .await
+        .change_context(UserErrors::InternalServerError)
+        .attach_printable("Failed to get merchants list for org")?
+        .pop()
+        .ok_or(UserErrors::InvalidRoleOperation)
+        .attach_printable("No merchants found in the tenancy")?;
+
+    let new_user = domain::NewUser::try_from((
+        request,
+        domain::MerchantAccountIdentifier {
+            merchant_id,
+            org_id,
+        },
+    ))?;
+    let mut store_user: storage_user::UserNew = new_user.clone().try_into()?;
+    store_user.set_is_verified(true);
+
+    state
+        .global_store
+        .insert_user(store_user)
+        .await
+        .map_err(|e| {
+            if e.current_context().is_db_unique_violation() {
+                e.change_context(UserErrors::UserExists)
+            } else {
+                e.change_context(UserErrors::InternalServerError)
+            }
+        })
+        .map(domain::user::UserFromStorage::from)?;
+
+    new_user
+        .get_no_level_user_role(
+            common_utils::consts::ROLE_ID_TENANT_ADMIN.to_string(),
+            UserStatus::Active,
+        )
+        .add_entity(domain::TenantLevel {
+            tenant_id: state.tenant.tenant_id.clone(),
+        })
+        .insert_in_v2(&state)
+        .await
+        .change_context(UserErrors::InternalServerError)?;
+
+    Ok(ApplicationResponse::StatusOk)
+}
+
+#[cfg(feature = "v1")]
+pub async fn create_org_merchant_for_user(
+    state: SessionState,
+    req: user_api::UserOrgMerchantCreateRequest,
+) -> UserResponse<()> {
+    let db_organization = ForeignFrom::foreign_from(req.clone());
+    let org: diesel_models::organization::Organization = state
+        .store
+        .insert_organization(db_organization)
+        .await
+        .change_context(UserErrors::InternalServerError)?;
+
+    let merchant_account_create_request =
+        utils::user::create_merchant_account_request_for_org(req, org)?;
+
+    admin::create_merchant_account(state.clone(), merchant_account_create_request)
+        .await
+        .change_context(UserErrors::InternalServerError)
+        .attach_printable("Error while creating a merchant")?;
+
+    Ok(ApplicationResponse::StatusOk)
+}
+
 pub async fn create_merchant_account(
     state: SessionState,
     user_from_token: auth::UserFromToken,
@@ -1188,11 +1502,14 @@ pub async fn list_user_roles_details(
         .await
         .to_not_found_response(UserErrors::InvalidRoleOperation)?;
 
-    let requestor_role_info = roles::RoleInfo::from_role_id_in_merchant_scope(
+    let requestor_role_info = roles::RoleInfo::from_role_id_org_id_tenant_id(
         &state,
         &user_from_token.role_id,
-        &user_from_token.merchant_id,
         &user_from_token.org_id,
+        user_from_token
+            .tenant_id
+            .as_ref()
+            .unwrap_or(&state.tenant.tenant_id),
     )
     .await
     .to_not_found_response(UserErrors::InternalServerError)
@@ -1209,6 +1526,10 @@ pub async fn list_user_roles_details(
         .global_store
         .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
             user_id: required_user.get_user_id(),
+            tenant_id: user_from_token
+                .tenant_id
+                .as_ref()
+                .unwrap_or(&state.tenant.tenant_id),
             org_id: Some(&user_from_token.org_id),
             merchant_id: (requestor_role_info.get_entity_type() <= EntityType::Merchant)
                 .then_some(&user_from_token.merchant_id),
@@ -1276,7 +1597,7 @@ pub async fn list_user_roles_details(
                     merchant.push(merchant_id.clone());
                     merchant_profile.push((merchant_id, profile_id))
                 }
-                EntityType::Organization => (),
+                EntityType::Tenant | EntityType::Organization => (),
             };
 
             Ok::<_, error_stack::Report<UserErrors>>((merchant, merchant_profile))
@@ -1339,10 +1660,14 @@ pub async fn list_user_roles_details(
             .collect::<HashSet<_>>()
             .into_iter()
             .map(|role_id| async {
-                let role_info = roles::RoleInfo::from_role_id_in_org_scope(
+                let role_info = roles::RoleInfo::from_role_id_org_id_tenant_id(
                     &state,
                     &role_id,
                     &user_from_token.org_id,
+                    user_from_token
+                        .tenant_id
+                        .as_ref()
+                        .unwrap_or(&state.tenant.tenant_id),
                 )
                 .await
                 .change_context(UserErrors::InternalServerError)?;
@@ -1362,7 +1687,7 @@ pub async fn list_user_roles_details(
                 .ok_or(UserErrors::InternalServerError)?;
 
             let (merchant, profile) = match entity_type {
-                EntityType::Organization => (None, None),
+                EntityType::Tenant | EntityType::Organization => (None, None),
                 EntityType::Merchant => {
                     let merchant_id = &user_role
                         .merchant_id
@@ -1442,11 +1767,7 @@ pub async fn verify_email_token_only_flow(
 
     let user_from_email = state
         .global_store
-        .find_user_by_email(
-            &email_token
-                .get_email()
-                .change_context(UserErrors::InternalServerError)?,
-        )
+        .find_user_by_email(&email_token.get_email()?)
         .await
         .change_context(UserErrors::InternalServerError)?;
 
@@ -1485,11 +1806,20 @@ pub async fn send_verification_mail(
     state: SessionState,
     req: user_api::SendVerifyEmailRequest,
     auth_id: Option<String>,
+    theme_id: Option<String>,
 ) -> UserResponse<()> {
-    let user_email = domain::UserEmail::try_from(req.email)?;
+    let user_email = domain::UserEmail::from_pii_email(req.email)?;
+
+    utils::user::validate_email_domain_auth_type_using_db(
+        &state,
+        &user_email,
+        UserAuthType::MagicLink,
+    )
+    .await?;
+
     let user = state
         .global_store
-        .find_user_by_email(&user_email.into_inner())
+        .find_user_by_email(&user_email)
         .await
         .map_err(|e| {
             if e.current_context().is_db_not_found() {
@@ -1503,16 +1833,23 @@ pub async fn send_verification_mail(
         return Err(UserErrors::UserAlreadyVerified.into());
     }
 
+    let theme = theme_utils::get_theme_using_optional_theme_id(&state, theme_id).await?;
+
     let email_contents = email_types::VerifyEmail {
         recipient_email: domain::UserEmail::from_pii_email(user.email)?,
         settings: state.conf.clone(),
         subject: consts::user::EMAIL_SUBJECT_SIGNUP,
         auth_id,
+        theme_id: theme.as_ref().map(|theme| theme.theme_id.clone()),
+        theme_config: theme
+            .map(|theme| theme.email_config())
+            .unwrap_or(state.conf.theme.email_config.clone()),
     };
 
     state
         .email_client
         .compose_and_send_email(
+            email_types::get_base_url(&state),
             Box::new(email_contents),
             state.conf.proxy.https_url.as_ref(),
         )
@@ -1520,27 +1857,6 @@ pub async fn send_verification_mail(
         .change_context(UserErrors::InternalServerError)?;
 
     Ok(ApplicationResponse::StatusOk)
-}
-
-#[cfg(feature = "recon")]
-pub async fn verify_token(
-    state: SessionState,
-    user: auth::UserFromToken,
-) -> UserResponse<user_api::VerifyTokenResponse> {
-    let user_in_db = user
-        .get_user_from_db(&state)
-        .await
-        .attach_printable_lazy(|| {
-            format!(
-                "Failed to fetch the user from DB for user_id - {}",
-                user.user_id
-            )
-        })?;
-
-    Ok(ApplicationResponse::Json(user_api::VerifyTokenResponse {
-        merchant_id: user.merchant_id.to_owned(),
-        user_email: user_in_db.0.email,
-    }))
 }
 
 pub async fn update_user_details(
@@ -1586,11 +1902,7 @@ pub async fn user_from_email(
 
     let user_from_db: domain::UserFromStorage = state
         .global_store
-        .find_user_by_email(
-            &email_token
-                .get_email()
-                .change_context(UserErrors::InternalServerError)?,
-        )
+        .find_user_by_email(&email_token.get_email()?)
         .await
         .change_context(UserErrors::InternalServerError)?
         .into();
@@ -2064,10 +2376,30 @@ pub async fn create_user_authentication_method(
         .change_context(UserErrors::InternalServerError)
         .attach_printable("Failed to get list of auth methods for the owner id")?;
 
-    let auth_id = auth_methods
-        .first()
-        .map(|auth_method| auth_method.auth_id.clone())
-        .unwrap_or(uuid::Uuid::new_v4().to_string());
+    let (auth_id, email_domain) = if let Some(auth_method) = auth_methods.first() {
+        let email_domain = match req.email_domain {
+            Some(email_domain) => {
+                if email_domain != auth_method.email_domain {
+                    return Err(report!(UserErrors::InvalidAuthMethodOperationWithMessage(
+                        "Email domain mismatch".to_string()
+                    )));
+                }
+
+                email_domain
+            }
+            None => auth_method.email_domain.clone(),
+        };
+
+        (auth_method.auth_id.clone(), email_domain)
+    } else {
+        let email_domain =
+            req.email_domain
+                .ok_or(UserErrors::InvalidAuthMethodOperationWithMessage(
+                    "Email domain not found".to_string(),
+                ))?;
+
+        (uuid::Uuid::new_v4().to_string(), email_domain)
+    };
 
     for db_auth_method in auth_methods {
         let is_type_same = db_auth_method.auth_type == (&req.auth_method).foreign_into();
@@ -2107,6 +2439,7 @@ pub async fn create_user_authentication_method(
             allow_signup: req.allow_signup,
             created_at: now,
             last_modified_at: now,
+            email_domain,
         })
         .await
         .to_duplicate_response(UserErrors::UserAuthMethodAlreadyExists)?;
@@ -2130,25 +2463,71 @@ pub async fn update_user_authentication_method(
     .change_context(UserErrors::InternalServerError)
     .attach_printable("Failed to decode DEK")?;
 
-    let (private_config, public_config) = utils::user::construct_public_and_private_db_configs(
-        &state,
-        &req.auth_method,
-        &user_auth_encryption_key,
-        req.id.clone(),
-    )
-    .await?;
+    match req {
+        user_api::UpdateUserAuthenticationMethodRequest::AuthMethod {
+            id,
+            auth_config: auth_method,
+        } => {
+            let (private_config, public_config) =
+                utils::user::construct_public_and_private_db_configs(
+                    &state,
+                    &auth_method,
+                    &user_auth_encryption_key,
+                    id.clone(),
+                )
+                .await?;
 
-    state
-        .store
-        .update_user_authentication_method(
-            &req.id,
-            UserAuthenticationMethodUpdate::UpdateConfig {
-                private_config,
-                public_config,
-            },
-        )
-        .await
-        .change_context(UserErrors::InvalidUserAuthMethodOperation)?;
+            state
+                .store
+                .update_user_authentication_method(
+                    &id,
+                    UserAuthenticationMethodUpdate::UpdateConfig {
+                        private_config,
+                        public_config,
+                    },
+                )
+                .await
+                .map_err(|error| {
+                    let user_error = match error.current_context() {
+                        StorageError::ValueNotFound(_) => {
+                            UserErrors::InvalidAuthMethodOperationWithMessage(
+                                "Auth method not found".to_string(),
+                            )
+                        }
+                        StorageError::DuplicateValue { .. } => {
+                            UserErrors::UserAuthMethodAlreadyExists
+                        }
+                        _ => UserErrors::InternalServerError,
+                    };
+                    error.change_context(user_error)
+                })?;
+        }
+        user_api::UpdateUserAuthenticationMethodRequest::EmailDomain {
+            owner_id,
+            email_domain,
+        } => {
+            let auth_methods = state
+                .store
+                .list_user_authentication_methods_for_owner_id(&owner_id)
+                .await
+                .change_context(UserErrors::InternalServerError)?;
+
+            futures::future::try_join_all(auth_methods.iter().map(|auth_method| async {
+                state
+                    .store
+                    .update_user_authentication_method(
+                        &auth_method.id,
+                        UserAuthenticationMethodUpdate::EmailDomain {
+                            email_domain: email_domain.clone(),
+                        },
+                    )
+                    .await
+                    .to_duplicate_response(UserErrors::UserAuthMethodAlreadyExists)
+            }))
+            .await?;
+        }
+    }
+
     Ok(ApplicationResponse::StatusOk)
 }
 
@@ -2156,18 +2535,28 @@ pub async fn list_user_authentication_methods(
     state: SessionState,
     req: user_api::GetUserAuthenticationMethodsRequest,
 ) -> UserResponse<Vec<user_api::UserAuthenticationMethodResponse>> {
-    let user_authentication_methods = state
-        .store
-        .list_user_authentication_methods_for_auth_id(&req.auth_id)
-        .await
-        .change_context(UserErrors::InternalServerError)?;
+    let user_authentication_methods = match (req.auth_id, req.email_domain) {
+        (Some(auth_id), None) => state
+            .store
+            .list_user_authentication_methods_for_auth_id(&auth_id)
+            .await
+            .change_context(UserErrors::InternalServerError)?,
+        (None, Some(email_domain)) => state
+            .store
+            .list_user_authentication_methods_for_email_domain(&email_domain)
+            .await
+            .change_context(UserErrors::InternalServerError)?,
+        (Some(_), Some(_)) | (None, None) => {
+            return Err(UserErrors::InvalidUserAuthMethodOperation.into());
+        }
+    };
 
     Ok(ApplicationResponse::Json(
         user_authentication_methods
             .into_iter()
             .map(|auth_method| {
                 let auth_name = match (auth_method.auth_type, auth_method.public_config) {
-                    (common_enums::UserAuthType::OpenIdConnect, config) => {
+                    (UserAuthType::OpenIdConnect, config) => {
                         let open_id_public_config: Option<user_api::OpenIdConnectPublicConfig> =
                             config
                                 .map(|config| {
@@ -2293,13 +2682,31 @@ pub async fn sso_sign(
     )
     .await?;
 
+    utils::user::validate_email_domain_auth_type_using_db(
+        &state,
+        &email,
+        UserAuthType::OpenIdConnect,
+    )
+    .await?;
+
     // TODO: Use config to handle not found error
-    let user_from_db = state
+    let user_from_db: domain::UserFromStorage = state
         .global_store
-        .find_user_by_email(&email.into_inner())
+        .find_user_by_email(&email)
         .await
         .map(Into::into)
         .to_not_found_response(UserErrors::UserNotFound)?;
+
+    if !user_from_db.is_verified() {
+        state
+            .global_store
+            .update_user_by_user_id(
+                user_from_db.get_user_id(),
+                storage_user::UserUpdate::VerifyUser,
+            )
+            .await
+            .change_context(UserErrors::InternalServerError)?;
+    }
 
     let next_flow = if let Some(user_from_single_purpose_token) = user_from_single_purpose_token {
         let current_flow =
@@ -2330,14 +2737,20 @@ pub async fn terminate_auth_select(
         .change_context(UserErrors::InternalServerError)?
         .into();
 
-    let user_authentication_method = if let Some(id) = &req.id {
-        state
-            .store
-            .get_user_authentication_method_by_id(id)
-            .await
-            .to_not_found_response(UserErrors::InvalidUserAuthMethodOperation)?
-    } else {
-        DEFAULT_USER_AUTH_METHOD.clone()
+    let user_email = domain::UserEmail::from_pii_email(user_from_db.get_email())?;
+    let auth_methods = state
+        .store
+        .list_user_authentication_methods_for_email_domain(user_email.extract_domain()?)
+        .await
+        .change_context(UserErrors::InternalServerError)?;
+
+    let user_authentication_method = match (req.id, auth_methods.is_empty()) {
+        (Some(id), _) => auth_methods
+            .into_iter()
+            .find(|auth_method| auth_method.id == id)
+            .ok_or(UserErrors::InvalidUserAuthMethodOperation)?,
+        (None, true) => DEFAULT_USER_AUTH_METHOD.clone(),
+        (None, false) => return Err(UserErrors::InvalidUserAuthMethodOperation.into()),
     };
 
     let current_flow = domain::CurrentFlow::new(user_token, domain::SPTFlow::AuthSelect.into())?;
@@ -2345,7 +2758,7 @@ pub async fn terminate_auth_select(
 
     // Skip SSO if continue with password(TOTP)
     if next_flow.get_flow() == domain::UserFlow::SPTFlow(domain::SPTFlow::SSO)
-        && !utils::user::is_sso_auth_type(&user_authentication_method.auth_type)
+        && !utils::user::is_sso_auth_type(user_authentication_method.auth_type)
     {
         next_flow = next_flow.skip(user_from_db, &state).await?;
     }
@@ -2364,11 +2777,14 @@ pub async fn list_orgs_for_user(
     state: SessionState,
     user_from_token: auth::UserFromToken,
 ) -> UserResponse<Vec<user_api::ListOrgsForUserResponse>> {
-    let role_info = roles::RoleInfo::from_role_id_in_merchant_scope(
+    let role_info = roles::RoleInfo::from_role_id_org_id_tenant_id(
         &state,
         &user_from_token.role_id,
-        &user_from_token.merchant_id,
         &user_from_token.org_id,
+        user_from_token
+            .tenant_id
+            .as_ref()
+            .unwrap_or(&state.tenant.tenant_id),
     )
     .await
     .change_context(UserErrors::InternalServerError)?;
@@ -2379,24 +2795,44 @@ pub async fn list_orgs_for_user(
         )
         .into());
     }
-
-    let orgs = state
-        .global_store
-        .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
-            user_id: user_from_token.user_id.as_str(),
-            org_id: None,
-            merchant_id: None,
-            profile_id: None,
-            entity_id: None,
-            version: None,
-            status: Some(UserStatus::Active),
-            limit: None,
-        })
-        .await
-        .change_context(UserErrors::InternalServerError)?
-        .into_iter()
-        .filter_map(|user_role| user_role.org_id)
-        .collect::<HashSet<_>>();
+    let orgs = match role_info.get_entity_type() {
+        EntityType::Tenant => {
+            let key_manager_state = &(&state).into();
+            state
+                .store
+                .list_merchant_and_org_ids(
+                    key_manager_state,
+                    consts::user::ORG_LIST_LIMIT_FOR_TENANT,
+                    None,
+                )
+                .await
+                .change_context(UserErrors::InternalServerError)?
+                .into_iter()
+                .map(|(_, org_id)| org_id)
+                .collect::<HashSet<_>>()
+        }
+        EntityType::Organization | EntityType::Merchant | EntityType::Profile => state
+            .global_store
+            .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
+                user_id: user_from_token.user_id.as_str(),
+                tenant_id: user_from_token
+                    .tenant_id
+                    .as_ref()
+                    .unwrap_or(&state.tenant.tenant_id),
+                org_id: None,
+                merchant_id: None,
+                profile_id: None,
+                entity_id: None,
+                version: None,
+                status: Some(UserStatus::Active),
+                limit: None,
+            })
+            .await
+            .change_context(UserErrors::InternalServerError)?
+            .into_iter()
+            .filter_map(|user_role| user_role.org_id)
+            .collect::<HashSet<_>>(),
+    };
 
     let resp = futures::future::try_join_all(
         orgs.iter()
@@ -2422,11 +2858,14 @@ pub async fn list_merchants_for_user_in_org(
     state: SessionState,
     user_from_token: auth::UserFromToken,
 ) -> UserResponse<Vec<user_api::ListMerchantsForUserInOrgResponse>> {
-    let role_info = roles::RoleInfo::from_role_id_in_merchant_scope(
+    let role_info = roles::RoleInfo::from_role_id_org_id_tenant_id(
         &state,
         &user_from_token.role_id,
-        &user_from_token.merchant_id,
         &user_from_token.org_id,
+        user_from_token
+            .tenant_id
+            .as_ref()
+            .unwrap_or(&state.tenant.tenant_id),
     )
     .await
     .change_context(UserErrors::InternalServerError)?;
@@ -2439,7 +2878,7 @@ pub async fn list_merchants_for_user_in_org(
     }
 
     let merchant_accounts = match role_info.get_entity_type() {
-        EntityType::Organization => state
+        EntityType::Tenant | EntityType::Organization => state
             .store
             .list_merchant_accounts_by_organization_id(&(&state).into(), &user_from_token.org_id)
             .await
@@ -2449,6 +2888,10 @@ pub async fn list_merchants_for_user_in_org(
                 .global_store
                 .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
                     user_id: user_from_token.user_id.as_str(),
+                    tenant_id: user_from_token
+                        .tenant_id
+                        .as_ref()
+                        .unwrap_or(&state.tenant.tenant_id),
                     org_id: Some(&user_from_token.org_id),
                     merchant_id: None,
                     profile_id: None,
@@ -2494,11 +2937,14 @@ pub async fn list_profiles_for_user_in_org_and_merchant_account(
     state: SessionState,
     user_from_token: auth::UserFromToken,
 ) -> UserResponse<Vec<user_api::ListProfilesForUserInOrgAndMerchantAccountResponse>> {
-    let role_info = roles::RoleInfo::from_role_id_in_merchant_scope(
+    let role_info = roles::RoleInfo::from_role_id_org_id_tenant_id(
         &state,
         &user_from_token.role_id,
-        &user_from_token.merchant_id,
         &user_from_token.org_id,
+        user_from_token
+            .tenant_id
+            .as_ref()
+            .unwrap_or(&state.tenant.tenant_id),
     )
     .await
     .change_context(UserErrors::InternalServerError)?;
@@ -2514,7 +2960,7 @@ pub async fn list_profiles_for_user_in_org_and_merchant_account(
         .await
         .change_context(UserErrors::InternalServerError)?;
     let profiles = match role_info.get_entity_type() {
-        EntityType::Organization | EntityType::Merchant => state
+        EntityType::Tenant | EntityType::Organization | EntityType::Merchant => state
             .store
             .list_profile_by_merchant_id(
                 key_manager_state,
@@ -2528,6 +2974,10 @@ pub async fn list_profiles_for_user_in_org_and_merchant_account(
                 .global_store
                 .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
                     user_id: user_from_token.user_id.as_str(),
+                    tenant_id: user_from_token
+                        .tenant_id
+                        .as_ref()
+                        .unwrap_or(&state.tenant.tenant_id),
                     org_id: Some(&user_from_token.org_id),
                     merchant_id: Some(&user_from_token.merchant_id),
                     profile_id: None,
@@ -2583,11 +3033,14 @@ pub async fn switch_org_for_user(
         .into());
     }
 
-    let role_info = roles::RoleInfo::from_role_id_in_merchant_scope(
+    let role_info = roles::RoleInfo::from_role_id_org_id_tenant_id(
         &state,
         &user_from_token.role_id,
-        &user_from_token.merchant_id,
         &user_from_token.org_id,
+        user_from_token
+            .tenant_id
+            .as_ref()
+            .unwrap_or(&state.tenant.tenant_id),
     )
     .await
     .change_context(UserErrors::InternalServerError)
@@ -2600,45 +3053,93 @@ pub async fn switch_org_for_user(
         .into());
     }
 
-    let user_role = state
-        .global_store
-        .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
-            user_id: &user_from_token.user_id,
-            org_id: Some(&request.org_id),
-            merchant_id: None,
-            profile_id: None,
-            entity_id: None,
-            version: None,
-            status: Some(UserStatus::Active),
-            limit: Some(1),
-        })
-        .await
-        .change_context(UserErrors::InternalServerError)
-        .attach_printable("Failed to list user roles by user_id and org_id")?
-        .pop()
-        .ok_or(UserErrors::InvalidRoleOperationWithMessage(
-            "No user role found for the requested org_id".to_string(),
-        ))?;
+    let (merchant_id, profile_id, role_id) = match role_info.get_entity_type() {
+        EntityType::Tenant => {
+            let merchant_id = state
+                .store
+                .list_merchant_accounts_by_organization_id(&(&state).into(), &request.org_id)
+                .await
+                .change_context(UserErrors::InternalServerError)
+                .attach_printable("Failed to get merchant list for org")?
+                .pop()
+                .ok_or(UserErrors::InvalidRoleOperation)
+                .attach_printable("No merchants found for the org id")?
+                .get_id()
+                .to_owned();
 
-    let (merchant_id, profile_id) =
-        utils::user_role::get_single_merchant_id_and_profile_id(&state, &user_role).await?;
+            let key_store = state
+                .store
+                .get_merchant_key_store_by_merchant_id(
+                    &(&state).into(),
+                    &merchant_id,
+                    &state.store.get_master_key().to_vec().into(),
+                )
+                .await
+                .change_context(UserErrors::InternalServerError)?;
+
+            let profile_id = state
+                .store
+                .list_profile_by_merchant_id(&(&state).into(), &key_store, &merchant_id)
+                .await
+                .change_context(UserErrors::InternalServerError)?
+                .pop()
+                .ok_or(UserErrors::InternalServerError)?
+                .get_id()
+                .to_owned();
+
+            (merchant_id, profile_id, user_from_token.role_id)
+        }
+        EntityType::Organization | EntityType::Merchant | EntityType::Profile => {
+            let user_role = state
+                .global_store
+                .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
+                    user_id: &user_from_token.user_id,
+                    tenant_id: user_from_token
+                        .tenant_id
+                        .as_ref()
+                        .unwrap_or(&state.tenant.tenant_id),
+                    org_id: Some(&request.org_id),
+                    merchant_id: None,
+                    profile_id: None,
+                    entity_id: None,
+                    version: None,
+                    status: Some(UserStatus::Active),
+                    limit: Some(1),
+                })
+                .await
+                .change_context(UserErrors::InternalServerError)
+                .attach_printable("Failed to list user roles by user_id and org_id")?
+                .pop()
+                .ok_or(UserErrors::InvalidRoleOperationWithMessage(
+                    "No user role found for the requested org_id".to_string(),
+                ))?;
+
+            let (merchant_id, profile_id) =
+                utils::user_role::get_single_merchant_id_and_profile_id(&state, &user_role).await?;
+
+            (merchant_id, profile_id, user_role.role_id)
+        }
+    };
 
     let token = utils::user::generate_jwt_auth_token_with_attributes(
         &state,
         user_from_token.user_id,
         merchant_id.clone(),
         request.org_id.clone(),
-        user_role.role_id.clone(),
+        role_id.clone(),
         profile_id.clone(),
-        user_from_token.tenant_id,
+        user_from_token.tenant_id.clone(),
     )
     .await?;
 
-    utils::user_role::set_role_permissions_in_cache_by_role_id_merchant_id_org_id(
+    utils::user_role::set_role_info_in_cache_by_role_id_org_id(
         &state,
-        &user_role.role_id,
-        &merchant_id,
+        &role_id,
         &request.org_id,
+        user_from_token
+            .tenant_id
+            .as_ref()
+            .unwrap_or(&state.tenant.tenant_id),
     )
     .await;
 
@@ -2663,11 +3164,14 @@ pub async fn switch_merchant_for_user_in_org(
     }
 
     let key_manager_state = &(&state).into();
-    let role_info = roles::RoleInfo::from_role_id_in_merchant_scope(
+    let role_info = roles::RoleInfo::from_role_id_org_id_tenant_id(
         &state,
         &user_from_token.role_id,
-        &user_from_token.merchant_id,
         &user_from_token.org_id,
+        user_from_token
+            .tenant_id
+            .as_ref()
+            .unwrap_or(&state.tenant.tenant_id),
     )
     .await
     .change_context(UserErrors::InternalServerError)
@@ -2720,7 +3224,7 @@ pub async fn switch_merchant_for_user_in_org(
     } else {
         // Match based on the other entity types
         match role_info.get_entity_type() {
-            EntityType::Organization => {
+            EntityType::Tenant | EntityType::Organization => {
                 let merchant_key_store = state
                     .store
                     .get_merchant_key_store_by_merchant_id(
@@ -2777,6 +3281,10 @@ pub async fn switch_merchant_for_user_in_org(
                     .global_store
                     .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
                         user_id: &user_from_token.user_id,
+                        tenant_id: user_from_token
+                            .tenant_id
+                            .as_ref()
+                            .unwrap_or(&state.tenant.tenant_id),
                         org_id: Some(&user_from_token.org_id),
                         merchant_id: Some(&request.merchant_id),
                         profile_id: None,
@@ -2815,15 +3323,18 @@ pub async fn switch_merchant_for_user_in_org(
         org_id.clone(),
         role_id.clone(),
         profile_id,
-        user_from_token.tenant_id,
+        user_from_token.tenant_id.clone(),
     )
     .await?;
 
-    utils::user_role::set_role_permissions_in_cache_by_role_id_merchant_id_org_id(
+    utils::user_role::set_role_info_in_cache_by_role_id_org_id(
         &state,
         &role_id,
-        &merchant_id,
         &org_id,
+        user_from_token
+            .tenant_id
+            .as_ref()
+            .unwrap_or(&state.tenant.tenant_id),
     )
     .await;
 
@@ -2848,18 +3359,21 @@ pub async fn switch_profile_for_user_in_org_and_merchant(
     }
 
     let key_manager_state = &(&state).into();
-    let role_info = roles::RoleInfo::from_role_id_in_merchant_scope(
+    let role_info = roles::RoleInfo::from_role_id_org_id_tenant_id(
         &state,
         &user_from_token.role_id,
-        &user_from_token.merchant_id,
         &user_from_token.org_id,
+        user_from_token
+            .tenant_id
+            .as_ref()
+            .unwrap_or(&state.tenant.tenant_id),
     )
     .await
     .change_context(UserErrors::InternalServerError)
     .attach_printable("Failed to retrieve role information")?;
 
     let (profile_id, role_id) = match role_info.get_entity_type() {
-        EntityType::Organization | EntityType::Merchant => {
+        EntityType::Tenant | EntityType::Organization | EntityType::Merchant => {
             let merchant_key_store = state
                 .store
                 .get_merchant_key_store_by_merchant_id(
@@ -2893,6 +3407,10 @@ pub async fn switch_profile_for_user_in_org_and_merchant(
                 .global_store
                 .list_user_roles_by_user_id(ListUserRolesByUserIdPayload{
                     user_id:&user_from_token.user_id,
+                    tenant_id: user_from_token
+                        .tenant_id
+                        .as_ref()
+                        .unwrap_or(&state.tenant.tenant_id),
                     org_id: Some(&user_from_token.org_id),
                     merchant_id: Some(&user_from_token.merchant_id),
                     profile_id:Some(&request.profile_id),
@@ -2921,15 +3439,18 @@ pub async fn switch_profile_for_user_in_org_and_merchant(
         user_from_token.org_id.clone(),
         role_id.clone(),
         profile_id,
-        user_from_token.tenant_id,
+        user_from_token.tenant_id.clone(),
     )
     .await?;
 
-    utils::user_role::set_role_permissions_in_cache_by_role_id_merchant_id_org_id(
+    utils::user_role::set_role_info_in_cache_by_role_id_org_id(
         &state,
         &role_id,
-        &user_from_token.merchant_id,
         &user_from_token.org_id,
+        user_from_token
+            .tenant_id
+            .as_ref()
+            .unwrap_or(&state.tenant.tenant_id),
     )
     .await;
 

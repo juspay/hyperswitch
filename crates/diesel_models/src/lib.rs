@@ -13,6 +13,7 @@ pub mod blocklist_fingerprint;
 pub mod callback_mapper;
 pub mod customers;
 pub mod dispute;
+pub mod dynamic_routing_stats;
 pub mod enums;
 pub mod ephemeral_key;
 pub mod errors;
@@ -39,6 +40,7 @@ pub mod payouts;
 pub mod process_tracker;
 pub mod query;
 pub mod refund;
+pub mod relay;
 pub mod reverse_lookup;
 pub mod role;
 pub mod routing_algorithm;
@@ -76,7 +78,6 @@ pub use self::{
 /// `Option<T>` values.
 ///
 /// [diesel-2.0-array-nullability]: https://diesel.rs/guides/migration_guide.html#2-0-0-nullability-of-array-elements
-
 #[doc(hidden)]
 pub(crate) mod diesel_impl {
     use diesel::{
@@ -129,11 +130,10 @@ pub(crate) mod diesel_impl {
 }
 
 pub(crate) mod metrics {
-    use router_env::{counter_metric, global_meter, histogram_metric, metrics_context, once_cell};
+    use router_env::{counter_metric, global_meter, histogram_metric_f64, once_cell};
 
-    metrics_context!(CONTEXT);
     global_meter!(GLOBAL_METER, "ROUTER_API");
 
     counter_metric!(DATABASE_CALLS_COUNT, GLOBAL_METER);
-    histogram_metric!(DATABASE_CALL_TIME, GLOBAL_METER);
+    histogram_metric_f64!(DATABASE_CALL_TIME, GLOBAL_METER);
 }

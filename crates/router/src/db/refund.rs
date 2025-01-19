@@ -433,9 +433,12 @@ mod storage {
                         updated_by: new.updated_by.clone(),
                         merchant_connector_id: new.merchant_connector_id.clone(),
                         charges: new.charges.clone(),
+                        split_refunds: new.split_refunds.clone(),
                         organization_id: new.organization_id.clone(),
                         connector_refund_data: new.connector_refund_data.clone(),
                         connector_transaction_data: new.connector_transaction_data.clone(),
+                        unified_code: None,
+                        unified_message: None,
                     };
 
                     let field = format!(
@@ -927,9 +930,12 @@ impl RefundInterface for MockDb {
             updated_by: new.updated_by,
             merchant_connector_id: new.merchant_connector_id,
             charges: new.charges,
+            split_refunds: new.split_refunds,
             organization_id: new.organization_id,
             connector_refund_data: new.connector_refund_data,
             connector_transaction_data: new.connector_transaction_data,
+            unified_code: None,
+            unified_message: None,
         };
         refunds.push(refund.clone());
         Ok(refund)
@@ -1130,7 +1136,7 @@ impl RefundInterface for MockDb {
                     || refund
                         .merchant_connector_id
                         .as_ref()
-                        .map_or(false, |id| unique_merchant_connector_ids.contains(id))
+                        .is_some_and(|id| unique_merchant_connector_ids.contains(id))
             })
             .filter(|refund| {
                 unique_currencies.is_empty() || unique_currencies.contains(&refund.currency)
@@ -1336,7 +1342,7 @@ impl RefundInterface for MockDb {
                     || refund
                         .merchant_connector_id
                         .as_ref()
-                        .map_or(false, |id| unique_merchant_connector_ids.contains(id))
+                        .is_some_and(|id| unique_merchant_connector_ids.contains(id))
             })
             .filter(|refund| {
                 unique_currencies.is_empty() || unique_currencies.contains(&refund.currency)

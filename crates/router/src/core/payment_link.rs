@@ -6,7 +6,7 @@ use api_models::{
 };
 use common_utils::{
     consts::{DEFAULT_LOCALE, DEFAULT_SESSION_EXPIRY},
-    ext_traits::{AsyncExt, OptionExt, ValueExt},
+    ext_traits::{OptionExt, ValueExt},
     types::{AmountConvertor, StringMajorUnitForCore},
 };
 use error_stack::{report, ResultExt};
@@ -24,18 +24,17 @@ use crate::{
     consts::{
         self, DEFAULT_ALLOWED_DOMAINS, DEFAULT_BACKGROUND_COLOR, DEFAULT_DISPLAY_SDK_ONLY,
         DEFAULT_ENABLE_SAVED_PAYMENT_METHOD, DEFAULT_HIDE_CARD_NICKNAME_FIELD,
-        DEFAULT_MERCHANT_LOGO, DEFAULT_PRODUCT_IMG, DEFAULT_SDK_LAYOUT,
+        DEFAULT_MERCHANT_LOGO, DEFAULT_PRODUCT_IMG, DEFAULT_SDK_LAYOUT, DEFAULT_SHOW_CARD_FORM,
     },
     errors::RouterResponse,
     get_payment_link_config_value, get_payment_link_config_value_based_on_priority,
-    headers::ACCEPT_LANGUAGE,
     routes::SessionState,
-    services::{self, authentication::get_header_value_by_key},
+    services,
     types::{
         api::payment_link::PaymentLinkResponseExt,
         domain,
         storage::{enums as storage_enums, payment_link::PaymentLink},
-        transformers::ForeignFrom,
+        transformers::{ForeignFrom, ForeignInto},
     },
 };
 
@@ -70,7 +69,6 @@ pub async fn form_payment_link_data(
     key_store: domain::MerchantKeyStore,
     merchant_id: common_utils::id_type::MerchantId,
     payment_id: common_utils::id_type::PaymentId,
-    locale: Option<String>,
 ) -> RouterResult<(PaymentLink, PaymentLinkData, PaymentLinkConfig)> {
     todo!()
 }
@@ -82,7 +80,6 @@ pub async fn form_payment_link_data(
     key_store: domain::MerchantKeyStore,
     merchant_id: common_utils::id_type::MerchantId,
     payment_id: common_utils::id_type::PaymentId,
-    locale: Option<String>,
 ) -> RouterResult<(PaymentLink, PaymentLinkData, PaymentLinkConfig)> {
     let db = &*state.store;
     let key_manager_state = &state.into();
@@ -126,8 +123,13 @@ pub async fn form_payment_link_data(
                 display_sdk_only: DEFAULT_DISPLAY_SDK_ONLY,
                 enabled_saved_payment_method: DEFAULT_ENABLE_SAVED_PAYMENT_METHOD,
                 hide_card_nickname_field: DEFAULT_HIDE_CARD_NICKNAME_FIELD,
+                show_card_form_by_default: DEFAULT_SHOW_CARD_FORM,
                 allowed_domains: DEFAULT_ALLOWED_DOMAINS,
                 transaction_details: None,
+                background_image: None,
+                details_layout: None,
+                branding_visibility: None,
+                payment_button_text: None,
             }
         };
 
@@ -181,7 +183,7 @@ pub async fn form_payment_link_data(
     let payment_link_status = check_payment_link_status(session_expiry);
 
     let is_terminal_state = check_payment_link_invalid_conditions(
-        &payment_intent.status,
+        payment_intent.status,
         &[
             storage_enums::IntentStatus::Cancelled,
             storage_enums::IntentStatus::Failed,
@@ -237,7 +239,7 @@ pub async fn form_payment_link_data(
             redirect: false,
             theme: payment_link_config.theme.clone(),
             return_url: return_url.clone(),
-            locale: locale.clone(),
+            locale: Some(state.clone().locale),
             transaction_details: payment_link_config.transaction_details.clone(),
             unified_code: payment_attempt.unified_code,
             unified_message: payment_attempt.unified_message,
@@ -267,8 +269,13 @@ pub async fn form_payment_link_data(
         sdk_layout: payment_link_config.sdk_layout.clone(),
         display_sdk_only: payment_link_config.display_sdk_only,
         hide_card_nickname_field: payment_link_config.hide_card_nickname_field,
-        locale,
+        show_card_form_by_default: payment_link_config.show_card_form_by_default,
+        locale: Some(state.clone().locale),
         transaction_details: payment_link_config.transaction_details.clone(),
+        background_image: payment_link_config.background_image.clone(),
+        details_layout: payment_link_config.details_layout,
+        branding_visibility: payment_link_config.branding_visibility,
+        payment_button_text: payment_link_config.payment_button_text.clone(),
     };
 
     Ok((
@@ -286,17 +293,9 @@ pub async fn initiate_secure_payment_link_flow(
     payment_id: common_utils::id_type::PaymentId,
     request_headers: &header::HeaderMap,
 ) -> RouterResponse<services::PaymentLinkFormData> {
-    let locale = get_header_value_by_key(ACCEPT_LANGUAGE.into(), request_headers)?
-        .map(|val| val.to_string());
-    let (payment_link, payment_link_details, payment_link_config) = form_payment_link_data(
-        &state,
-        merchant_account,
-        key_store,
-        merchant_id,
-        payment_id,
-        locale,
-    )
-    .await?;
+    let (payment_link, payment_link_details, payment_link_config) =
+        form_payment_link_data(&state, merchant_account, key_store, merchant_id, payment_id)
+            .await?;
 
     validator::validate_secure_payment_link_render_request(
         request_headers,
@@ -325,7 +324,9 @@ pub async fn initiate_secure_payment_link_flow(
             let secure_payment_link_details = api_models::payments::SecurePaymentLinkDetails {
                 enabled_saved_payment_method: payment_link_config.enabled_saved_payment_method,
                 hide_card_nickname_field: payment_link_config.hide_card_nickname_field,
+                show_card_form_by_default: payment_link_config.show_card_form_by_default,
                 payment_link_details: *link_details.to_owned(),
+                payment_button_text: payment_link_config.payment_button_text,
             };
             let js_script = format!(
                 "window.__PAYMENT_DETAILS = {}",
@@ -384,19 +385,10 @@ pub async fn initiate_payment_link_flow(
     key_store: domain::MerchantKeyStore,
     merchant_id: common_utils::id_type::MerchantId,
     payment_id: common_utils::id_type::PaymentId,
-    request_headers: &header::HeaderMap,
 ) -> RouterResponse<services::PaymentLinkFormData> {
-    let locale = get_header_value_by_key(ACCEPT_LANGUAGE.into(), request_headers)?
-        .map(|val| val.to_string());
-    let (_, payment_details, payment_link_config) = form_payment_link_data(
-        &state,
-        merchant_account,
-        key_store,
-        merchant_id,
-        payment_id,
-        locale,
-    )
-    .await?;
+    let (_, payment_details, payment_link_config) =
+        form_payment_link_data(&state, merchant_account, key_store, merchant_id, payment_id)
+            .await?;
 
     let css_script = get_color_scheme_css(&payment_link_config);
     let js_script = get_js_script(&payment_details)?;
@@ -583,18 +575,16 @@ pub fn get_payment_link_config_based_on_priority(
     default_domain_name: String,
     payment_link_config_id: Option<String>,
 ) -> Result<(PaymentLinkConfig, String), error_stack::Report<errors::ApiErrorResponse>> {
-    let (domain_name, business_theme_configs, allowed_domains) =
+    let (domain_name, business_theme_configs, allowed_domains, branding_visibility) =
         if let Some(business_config) = business_link_config {
-            logger::info!(
-                "domain name set to custom domain https://{:?}",
-                business_config.domain_name
-            );
-
             (
                 business_config
                     .domain_name
                     .clone()
-                    .map(|d_name| format!("https://{}", d_name))
+                    .map(|d_name| {
+                        logger::info!("domain name set to custom domain https://{:?}", d_name);
+                        format!("https://{}", d_name)
+                    })
                     .unwrap_or_else(|| default_domain_name.clone()),
                 payment_link_config_id
                     .and_then(|id| {
@@ -605,9 +595,10 @@ pub fn get_payment_link_config_based_on_priority(
                     })
                     .or(business_config.default_config),
                 business_config.allowed_domains,
+                business_config.branding_visibility,
             )
         } else {
-            (default_domain_name, None, None)
+            (default_domain_name, None, None, None)
         };
 
     let (
@@ -618,6 +609,7 @@ pub fn get_payment_link_config_based_on_priority(
         display_sdk_only,
         enabled_saved_payment_method,
         hide_card_nickname_field,
+        show_card_form_by_default,
     ) = get_payment_link_config_value!(
         payment_create_link_config,
         business_theme_configs,
@@ -630,20 +622,60 @@ pub fn get_payment_link_config_based_on_priority(
             enabled_saved_payment_method,
             DEFAULT_ENABLE_SAVED_PAYMENT_METHOD
         ),
-        (hide_card_nickname_field, DEFAULT_HIDE_CARD_NICKNAME_FIELD)
+        (hide_card_nickname_field, DEFAULT_HIDE_CARD_NICKNAME_FIELD),
+        (show_card_form_by_default, DEFAULT_SHOW_CARD_FORM)
     );
-    let payment_link_config = PaymentLinkConfig {
-        theme,
-        logo,
-        seller_name,
-        sdk_layout,
-        display_sdk_only,
-        enabled_saved_payment_method,
-        hide_card_nickname_field,
-        allowed_domains,
-        transaction_details: payment_create_link_config
-            .and_then(|payment_link_config| payment_link_config.theme_config.transaction_details),
-    };
+    let payment_link_config =
+        PaymentLinkConfig {
+            theme,
+            logo,
+            seller_name,
+            sdk_layout,
+            display_sdk_only,
+            enabled_saved_payment_method,
+            hide_card_nickname_field,
+            show_card_form_by_default,
+            allowed_domains,
+            branding_visibility,
+            transaction_details: payment_create_link_config.as_ref().and_then(
+                |payment_link_config| payment_link_config.theme_config.transaction_details.clone(),
+            ),
+            details_layout: payment_create_link_config
+                .as_ref()
+                .and_then(|payment_link_config| payment_link_config.theme_config.details_layout)
+                .or_else(|| {
+                    business_theme_configs
+                        .as_ref()
+                        .and_then(|business_theme_config| business_theme_config.details_layout)
+                }),
+            background_image: payment_create_link_config
+                .as_ref()
+                .and_then(|payment_link_config| {
+                    payment_link_config.theme_config.background_image.clone()
+                })
+                .or_else(|| {
+                    business_theme_configs
+                        .as_ref()
+                        .and_then(|business_theme_config| {
+                            business_theme_config
+                                .background_image
+                                .as_ref()
+                                .map(|background_image| background_image.clone().foreign_into())
+                        })
+                }),
+            payment_button_text: payment_create_link_config
+                .as_ref()
+                .and_then(|payment_link_config| {
+                    payment_link_config.theme_config.payment_button_text.clone()
+                })
+                .or_else(|| {
+                    business_theme_configs
+                        .as_ref()
+                        .and_then(|business_theme_config| {
+                            business_theme_config.payment_button_text.clone()
+                        })
+                }),
+        };
 
     Ok((payment_link_config, domain_name))
 }
@@ -662,10 +694,10 @@ fn capitalize_first_char(s: &str) -> String {
 }
 
 fn check_payment_link_invalid_conditions(
-    intent_status: &storage_enums::IntentStatus,
+    intent_status: storage_enums::IntentStatus,
     not_allowed_statuses: &[storage_enums::IntentStatus],
 ) -> bool {
-    not_allowed_statuses.contains(intent_status)
+    not_allowed_statuses.contains(&intent_status)
 }
 
 #[cfg(feature = "v2")]
@@ -675,7 +707,6 @@ pub async fn get_payment_link_status(
     _key_store: domain::MerchantKeyStore,
     _merchant_id: common_utils::id_type::MerchantId,
     _payment_id: common_utils::id_type::PaymentId,
-    _request_headers: &header::HeaderMap,
 ) -> RouterResponse<services::PaymentLinkFormData> {
     todo!()
 }
@@ -687,10 +718,7 @@ pub async fn get_payment_link_status(
     key_store: domain::MerchantKeyStore,
     merchant_id: common_utils::id_type::MerchantId,
     payment_id: common_utils::id_type::PaymentId,
-    request_headers: &header::HeaderMap,
 ) -> RouterResponse<services::PaymentLinkFormData> {
-    let locale = get_header_value_by_key(ACCEPT_LANGUAGE.into(), request_headers)?
-        .map(|val| val.to_string());
     let db = &*state.store;
     let key_manager_state = &(&state).into();
 
@@ -743,8 +771,13 @@ pub async fn get_payment_link_status(
             display_sdk_only: DEFAULT_DISPLAY_SDK_ONLY,
             enabled_saved_payment_method: DEFAULT_ENABLE_SAVED_PAYMENT_METHOD,
             hide_card_nickname_field: DEFAULT_HIDE_CARD_NICKNAME_FIELD,
+            show_card_form_by_default: DEFAULT_SHOW_CARD_FORM,
             allowed_domains: DEFAULT_ALLOWED_DOMAINS,
             transaction_details: None,
+            background_image: None,
+            details_layout: None,
+            branding_visibility: None,
+            payment_button_text: None,
         }
     };
 
@@ -801,19 +834,14 @@ pub async fn get_payment_link_status(
             consts::DEFAULT_UNIFIED_ERROR_MESSAGE.to_owned(),
         )
     };
-    let unified_translated_message = locale
-        .as_ref()
-        .async_and_then(|locale_str| async {
-            helpers::get_unified_translation(
-                &state,
-                unified_code.to_owned(),
-                unified_message.to_owned(),
-                locale_str.to_owned(),
-            )
-            .await
-        })
-        .await
-        .or(Some(unified_message));
+    let unified_translated_message = helpers::get_unified_translation(
+        &state,
+        unified_code.to_owned(),
+        unified_message.to_owned(),
+        state.locale.clone(),
+    )
+    .await
+    .or(Some(unified_message));
 
     let payment_details = api_models::payments::PaymentLinkStatusDetails {
         amount,
@@ -828,7 +856,7 @@ pub async fn get_payment_link_status(
         redirect: true,
         theme: payment_link_config.theme.clone(),
         return_url,
-        locale,
+        locale: Some(state.locale.clone()),
         transaction_details: payment_link_config.transaction_details,
         unified_code: Some(unified_code),
         unified_message: unified_translated_message,

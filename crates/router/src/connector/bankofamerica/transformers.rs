@@ -1,4 +1,3 @@
-use api_models::payments;
 use base64::Engine;
 use common_utils::pii;
 use masking::{ExposeInterface, PeekInterface, Secret};
@@ -494,7 +493,7 @@ impl<F, T>
 // }
 
 fn build_bill_to(
-    address_details: Option<&payments::Address>,
+    address_details: Option<&hyperswitch_domain_models::address::Address>,
     email: pii::Email,
 ) -> Result<BillTo, error_stack::Report<errors::ConnectorError>> {
     let default_address = BillTo {
@@ -620,18 +619,15 @@ impl
             .router_data
             .request
             .setup_future_usage
-            .map_or(false, |future_usage| {
-                matches!(future_usage, common_enums::FutureUsage::OffSession)
-            })
+            == Some(common_enums::FutureUsage::OffSession)
             && (item.router_data.request.customer_acceptance.is_some()
                 || item
                     .router_data
                     .request
                     .setup_mandate_details
                     .clone()
-                    .map_or(false, |mandate_details| {
-                        mandate_details.customer_acceptance.is_some()
-                    })) {
+                    .is_some_and(|mandate_details| mandate_details.customer_acceptance.is_some()))
+        {
             get_boa_mandate_action_details()
         } else if item.router_data.request.connector_mandate_id().is_some() {
             let original_amount = item

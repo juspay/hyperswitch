@@ -96,6 +96,20 @@ pub enum UserErrors {
     MaxRecoveryCodeAttemptsReached,
     #[error("Forbidden tenant id")]
     ForbiddenTenantId,
+    #[error("Error Uploading file to Theme Storage")]
+    ErrorUploadingFile,
+    #[error("Error Retrieving file from Theme Storage")]
+    ErrorRetrievingFile,
+    #[error("Theme not found")]
+    ThemeNotFound,
+    #[error("Theme with lineage already exists")]
+    ThemeAlreadyExists,
+    #[error("Invalid field: {0} in lineage")]
+    InvalidThemeLineage(String),
+    #[error("Missing required field: email_config")]
+    MissingEmailConfig,
+    #[error("Invalid Auth Method Operation: {0}")]
+    InvalidAuthMethodOperationWithMessage(String),
 }
 
 impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorResponse> for UserErrors {
@@ -244,57 +258,103 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
             Self::ForbiddenTenantId => {
                 AER::BadRequest(ApiError::new(sub_code, 50, self.get_error_message(), None))
             }
+            Self::ErrorUploadingFile => AER::InternalServerError(ApiError::new(
+                sub_code,
+                51,
+                self.get_error_message(),
+                None,
+            )),
+            Self::ErrorRetrievingFile => AER::InternalServerError(ApiError::new(
+                sub_code,
+                52,
+                self.get_error_message(),
+                None,
+            )),
+            Self::ThemeNotFound => {
+                AER::NotFound(ApiError::new(sub_code, 53, self.get_error_message(), None))
+            }
+            Self::ThemeAlreadyExists => {
+                AER::BadRequest(ApiError::new(sub_code, 54, self.get_error_message(), None))
+            }
+            Self::InvalidThemeLineage(_) => {
+                AER::BadRequest(ApiError::new(sub_code, 55, self.get_error_message(), None))
+            }
+            Self::MissingEmailConfig => {
+                AER::BadRequest(ApiError::new(sub_code, 56, self.get_error_message(), None))
+            }
+            Self::InvalidAuthMethodOperationWithMessage(_) => {
+                AER::BadRequest(ApiError::new(sub_code, 57, self.get_error_message(), None))
+            }
         }
     }
 }
 
 impl UserErrors {
-    pub fn get_error_message(&self) -> &str {
+    pub fn get_error_message(&self) -> String {
         match self {
-            Self::InternalServerError => "Something went wrong",
-            Self::InvalidCredentials => "Incorrect email or password",
-            Self::UserNotFound => "Email doesn’t exist. Register",
-            Self::UserExists => "An account already exists with this email",
-            Self::LinkInvalid => "Invalid or expired link",
-            Self::UnverifiedUser => "Kindly verify your account",
-            Self::InvalidOldPassword => "Old password incorrect. Please enter the correct password",
-            Self::EmailParsingError => "Invalid Email",
-            Self::NameParsingError => "Invalid Name",
-            Self::PasswordParsingError => "Invalid Password",
-            Self::UserAlreadyVerified => "User already verified",
-            Self::CompanyNameParsingError => "Invalid Company Name",
-            Self::MerchantAccountCreationError(error_message) => error_message,
-            Self::InvalidEmailError => "Invalid Email",
-            Self::MerchantIdNotFound => "Invalid Merchant ID",
-            Self::MetadataAlreadySet => "Metadata already set",
-            Self::DuplicateOrganizationId => "An Organization with the id already exists",
-            Self::InvalidRoleId => "Invalid Role ID",
-            Self::InvalidRoleOperation => "User Role Operation Not Supported",
-            Self::IpAddressParsingFailed => "Something went wrong",
-            Self::InvalidMetadataRequest => "Invalid Metadata Request",
-            Self::MerchantIdParsingError => "Invalid Merchant Id",
-            Self::ChangePasswordError => "Old and new password cannot be same",
-            Self::InvalidDeleteOperation => "Delete Operation Not Supported",
-            Self::MaxInvitationsError => "Maximum invite count per request exceeded",
-            Self::RoleNotFound => "Role Not Found",
-            Self::InvalidRoleOperationWithMessage(error_message) => error_message,
-            Self::RoleNameParsingError => "Invalid Role Name",
-            Self::RoleNameAlreadyExists => "Role name already exists",
-            Self::TotpNotSetup => "TOTP not setup",
-            Self::InvalidTotp => "Invalid TOTP",
-            Self::TotpRequired => "TOTP required",
-            Self::InvalidRecoveryCode => "Invalid Recovery Code",
-            Self::MaxTotpAttemptsReached => "Maximum attempts reached for TOTP",
-            Self::MaxRecoveryCodeAttemptsReached => "Maximum attempts reached for Recovery Code",
-            Self::TwoFactorAuthRequired => "Two factor auth required",
-            Self::TwoFactorAuthNotSetup => "Two factor auth not setup",
-            Self::TotpSecretNotFound => "TOTP secret not found",
-            Self::UserAuthMethodAlreadyExists => "User auth method already exists",
-            Self::InvalidUserAuthMethodOperation => "Invalid user auth method operation",
-            Self::AuthConfigParsingError => "Auth config parsing error",
-            Self::SSOFailed => "Invalid SSO request",
-            Self::JwtProfileIdMissing => "profile_id missing in JWT",
-            Self::ForbiddenTenantId => "Forbidden tenant id",
+            Self::InternalServerError => "Something went wrong".to_string(),
+            Self::InvalidCredentials => "Incorrect email or password".to_string(),
+            Self::UserNotFound => "Email doesn’t exist. Register".to_string(),
+            Self::UserExists => "An account already exists with this email".to_string(),
+            Self::LinkInvalid => "Invalid or expired link".to_string(),
+            Self::UnverifiedUser => "Kindly verify your account".to_string(),
+            Self::InvalidOldPassword => {
+                "Old password incorrect. Please enter the correct password".to_string()
+            }
+            Self::EmailParsingError => "Invalid Email".to_string(),
+            Self::NameParsingError => "Invalid Name".to_string(),
+            Self::PasswordParsingError => "Invalid Password".to_string(),
+            Self::UserAlreadyVerified => "User already verified".to_string(),
+            Self::CompanyNameParsingError => "Invalid Company Name".to_string(),
+            Self::MerchantAccountCreationError(error_message) => error_message.to_string(),
+            Self::InvalidEmailError => "Invalid Email".to_string(),
+            Self::MerchantIdNotFound => "Invalid Merchant ID".to_string(),
+            Self::MetadataAlreadySet => "Metadata already set".to_string(),
+            Self::DuplicateOrganizationId => {
+                "An Organization with the id already exists".to_string()
+            }
+            Self::InvalidRoleId => "Invalid Role ID".to_string(),
+            Self::InvalidRoleOperation => "User Role Operation Not Supported".to_string(),
+            Self::IpAddressParsingFailed => "Something went wrong".to_string(),
+            Self::InvalidMetadataRequest => "Invalid Metadata Request".to_string(),
+            Self::MerchantIdParsingError => "Invalid Merchant Id".to_string(),
+            Self::ChangePasswordError => "Old and new password cannot be same".to_string(),
+            Self::InvalidDeleteOperation => "Delete Operation Not Supported".to_string(),
+            Self::MaxInvitationsError => "Maximum invite count per request exceeded".to_string(),
+            Self::RoleNotFound => "Role Not Found".to_string(),
+            Self::InvalidRoleOperationWithMessage(error_message) => error_message.to_string(),
+            Self::RoleNameParsingError => "Invalid Role Name".to_string(),
+            Self::RoleNameAlreadyExists => "Role name already exists".to_string(),
+            Self::TotpNotSetup => "TOTP not setup".to_string(),
+            Self::InvalidTotp => "Invalid TOTP".to_string(),
+            Self::TotpRequired => "TOTP required".to_string(),
+            Self::InvalidRecoveryCode => "Invalid Recovery Code".to_string(),
+            Self::MaxTotpAttemptsReached => "Maximum attempts reached for TOTP".to_string(),
+            Self::MaxRecoveryCodeAttemptsReached => {
+                "Maximum attempts reached for Recovery Code".to_string()
+            }
+            Self::TwoFactorAuthRequired => "Two factor auth required".to_string(),
+            Self::TwoFactorAuthNotSetup => "Two factor auth not setup".to_string(),
+            Self::TotpSecretNotFound => "TOTP secret not found".to_string(),
+            Self::UserAuthMethodAlreadyExists => "User auth method already exists".to_string(),
+            Self::InvalidUserAuthMethodOperation => {
+                "Invalid user auth method operation".to_string()
+            }
+            Self::AuthConfigParsingError => "Auth config parsing error".to_string(),
+            Self::SSOFailed => "Invalid SSO request".to_string(),
+            Self::JwtProfileIdMissing => "profile_id missing in JWT".to_string(),
+            Self::ForbiddenTenantId => "Forbidden tenant id".to_string(),
+            Self::ErrorUploadingFile => "Error Uploading file to Theme Storage".to_string(),
+            Self::ErrorRetrievingFile => "Error Retrieving file from Theme Storage".to_string(),
+            Self::ThemeNotFound => "Theme not found".to_string(),
+            Self::ThemeAlreadyExists => "Theme with lineage already exists".to_string(),
+            Self::InvalidThemeLineage(field_name) => {
+                format!("Invalid field: {} in lineage", field_name)
+            }
+            Self::MissingEmailConfig => "Missing required field: email_config".to_string(),
+            Self::InvalidAuthMethodOperationWithMessage(operation) => {
+                format!("Invalid Auth Method Operation: {}", operation)
+            }
         }
     }
 }
