@@ -492,40 +492,40 @@ where
                     //add connector http status code metrics
                     add_connector_http_status_code_metrics(connector_http_status_code);
 
-
                     let pmd = payment_data.get_payment_method_data();
                     let customer_acceptance = payment_data.get_customer_acceptance();
                     let cond1 = matches!(pmd, Some(domain::PaymentMethodData::NetworkToken(_)));
-                    let cond3 = payment_data.get_token_data().map(|data| data.is_permanent_or_permanent_card()).unwrap_or(false);
+                    let cond3 = payment_data
+                        .get_token_data()
+                        .map(|data| data.is_permanent_or_permanent_card())
+                        .unwrap_or(false);
                     let cond2 = customer_acceptance.is_some();
                     let cond = cond1 && cond2 && cond3;
 
-                    
-
                     if cond {
                         operation
-                        .to_post_update_tracker()?
-                        .update_saved_payment_method(
-                            state,
-                            &router_data,
-                            &merchant_account,
-                            &key_store,
-                            &mut payment_data,
-                            &business_profile,
-                        )
-                        .await?;
-                    }else{
+                            .to_post_update_tracker()?
+                            .update_saved_payment_method(
+                                state,
+                                &router_data,
+                                &merchant_account,
+                                &key_store,
+                                &mut payment_data,
+                                &business_profile,
+                            )
+                            .await?;
+                    } else {
                         operation
-                        .to_post_update_tracker()?
-                        .save_pm_and_mandate(
-                            state,
-                            &router_data,
-                            &merchant_account,
-                            &key_store,
-                            &mut payment_data,
-                            &business_profile,
-                        )
-                        .await?;
+                            .to_post_update_tracker()?
+                            .save_pm_and_mandate(
+                                state,
+                                &router_data,
+                                &merchant_account,
+                                &key_store,
+                                &mut payment_data,
+                                &business_profile,
+                            )
+                            .await?;
                     }
 
                     let mut payment_data = operation
@@ -656,37 +656,36 @@ where
                     let pmd = payment_data.get_payment_method_data();
                     let customer_acceptance = payment_data.get_customer_acceptance();
                     let cond1 = matches!(pmd, Some(domain::PaymentMethodData::NetworkToken(_)));
-                    let cond3 = payment_data.get_token_data().map(|token_data| {
-                        token_data.is_permanent_or_permanent_card()
-                    }).unwrap_or(false);
-                     let cond2 = customer_acceptance.is_some(); 
+                    let cond3 = payment_data
+                        .get_token_data()
+                        .map(|token_data| token_data.is_permanent_or_permanent_card())
+                        .unwrap_or(false);
+                    let cond2 = customer_acceptance.is_some();
 
                     if cond1 && cond2 && cond3 {
                         operation
-                        .to_post_update_tracker()?
-                        .update_saved_payment_method(
-                            state,
-                            &router_data,
-                            &merchant_account,
-                            &key_store,
-                            &mut payment_data,
-                            &business_profile,
-                        )
-                        .await?;
-
-
-                    }else{
+                            .to_post_update_tracker()?
+                            .update_saved_payment_method(
+                                state,
+                                &router_data,
+                                &merchant_account,
+                                &key_store,
+                                &mut payment_data,
+                                &business_profile,
+                            )
+                            .await?;
+                    } else {
                         operation
-                        .to_post_update_tracker()?
-                        .save_pm_and_mandate(
-                            state,
-                            &router_data,
-                            &merchant_account,
-                            &key_store,
-                            &mut payment_data,
-                            &business_profile,
-                        )
-                        .await?;
+                            .to_post_update_tracker()?
+                            .save_pm_and_mandate(
+                                state,
+                                &router_data,
+                                &merchant_account,
+                                &key_store,
+                                &mut payment_data,
+                                &business_profile,
+                            )
+                            .await?;
                     }
                     let mut payment_data = operation
                         .to_post_update_tracker()?
@@ -6916,7 +6915,7 @@ impl<F: Clone> PaymentMethodChecker<F> for PaymentData<F> {
     }
 }
 
-pub trait OperationSessionValidators<F>{
+pub trait OperationSessionValidators<F> {
     fn validate_for_saved_payment_method(&self) -> bool;
 }
 
