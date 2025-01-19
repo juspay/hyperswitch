@@ -5971,6 +5971,73 @@ pub fn validate_mandate_data_and_future_usage(
     }
 }
 
+#[derive(Debug, Clone)]
+pub enum UnifiedAuthenticationServiceFlow {
+    ClickToPayInitiate,
+    ExternalAuthenticationInitiate {
+        acquirer_details: authentication::types::AcquirerDetails,
+        card_number: ::cards::CardNumber,
+        token: String,
+    },
+    ExternalAuthenticationPostAuthenticate {
+        authentication_id: String,
+    },
+}
+
+#[cfg(feature = "v1")]
+pub async fn decide_action_for_unified_authentication_service<F: Clone>(
+    state: &SessionState,
+    key_store: &domain::MerchantKeyStore,
+    business_profile: &domain::Profile,
+    payment_data: &mut PaymentData<F>,
+    connector_call_type: &api::ConnectorCallType,
+    mandate_type: Option<api_models::payments::MandateTransactionType>,
+) -> RouterResult<Option<UnifiedAuthenticationServiceFlow>> {
+    let external_authentication_flow = get_payment_external_authentication_flow_during_confirm(
+        state,
+        key_store,
+        business_profile,
+        payment_data,
+        connector_call_type,
+        mandate_type,
+    )
+    .await?;
+    Ok(match external_authentication_flow {
+        Some(PaymentExternalAuthenticationFlow::PreAuthenticationFlow {
+            acquirer_details,
+            card_number,
+            token,
+        }) => Some(
+            UnifiedAuthenticationServiceFlow::ExternalAuthenticationInitiate {
+                acquirer_details,
+                card_number,
+                token,
+            },
+        ),
+        Some(PaymentExternalAuthenticationFlow::PostAuthenticationFlow { authentication_id }) => {
+            Some(
+                UnifiedAuthenticationServiceFlow::ExternalAuthenticationPostAuthenticate {
+                    authentication_id,
+                },
+            )
+        }
+        None => {
+            if let Some(payment_method) = payment_data.payment_attempt.payment_method {
+                if payment_method == storage_enums::PaymentMethod::Card
+                    && business_profile.is_click_to_pay_enabled
+                    && payment_data.service_details.is_some()
+                {
+                    Some(UnifiedAuthenticationServiceFlow::ClickToPayInitiate)
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        }
+    })
+}
+
 pub enum PaymentExternalAuthenticationFlow {
     PreAuthenticationFlow {
         acquirer_details: authentication::types::AcquirerDetails,
