@@ -127,7 +127,7 @@ pub async fn incoming_webhooks_wrapper<W: types::OutgoingWebhookType>(
     Ok(application_response)
 }
 
-#[allow(clippy::too_many_arguments)] 
+#[allow(clippy::too_many_arguments)]
 pub async fn network_token_incoming_webhooks_wrapper<W: types::OutgoingWebhookType>(
     flow: &impl router_env::types::FlowMetric,
     state: SessionState,
