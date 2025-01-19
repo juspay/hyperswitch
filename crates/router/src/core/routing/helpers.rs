@@ -973,7 +973,7 @@ pub async fn push_metrics_with_update_window_for_contract_based_routing(
         let contract_based_routing_config =
             fetch_dynamic_routing_configs::<routing_types::ContractBasedRoutingConfig>(
                 state,
-                business_profile,
+                profile_id,
                 contract_routing_algo_ref
                     .algorithm_id_with_timestamp
                     .algorithm_id

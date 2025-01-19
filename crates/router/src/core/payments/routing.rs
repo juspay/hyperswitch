@@ -1309,7 +1309,7 @@ pub async fn perform_dynamic_routing(
             field: "dynamic_routing_algorithm".to_string(),
         })?;
 
-    let mut connector_list = dynamic_routing_algo_ref
+    let connector_list = match dynamic_routing_algo_ref
         .success_based_algorithm
         .as_ref()
         .async_map(|algorithm| {
@@ -1327,27 +1327,31 @@ pub async fn perform_dynamic_routing(
         .attach_printable("unable to perform success_based_routing")
         .ok()
         .flatten()
-        .unwrap_or(routable_connectors.clone());
-
-    connector_list = dynamic_routing_algo_ref
-        .contract_based_routing
-        .as_ref()
-        .async_map(|algorithm| {
-            perform_contract_based_routing(
-                state,
-                routable_connectors.clone(),
-                profile,
-                dynamic_routing_config_params_interpolator,
-                algorithm.clone(),
-            )
-        })
-        .await
-        .transpose()
-        .inspect_err(|e| logger::error!("Dynamic_routing error {:?}", e))
-        .attach_printable("unable to perform contract_based_routing")
-        .ok()
-        .flatten()
-        .unwrap_or(routable_connectors);
+    {
+        Some(success_based_list) => success_based_list,
+        None => {
+            // Only run contract based if success based returns None
+            dynamic_routing_algo_ref
+                .contract_based_routing
+                .as_ref()
+                .async_map(|algorithm| {
+                    perform_contract_based_routing(
+                        state,
+                        routable_connectors.clone(),
+                        profile,
+                        dynamic_routing_config_params_interpolator,
+                        algorithm.clone(),
+                    )
+                })
+                .await
+                .transpose()
+                .inspect_err(|e| logger::error!("Dynamic_routing error {:?}", e))
+                .attach_printable("unable to perform contract_based_routing")
+                .ok()
+                .flatten()
+                .unwrap_or(routable_connectors)
+        }
+    };
 
     Ok(connector_list)
 }
