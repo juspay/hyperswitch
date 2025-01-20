@@ -175,18 +175,29 @@ impl Config {
         if let Some(explicit_config_path_val) = explicit_config_path {
             config_path.push(explicit_config_path_val);
         } else {
-            let config_directory =
-                std::env::var(crate::env::vars::CONFIG_DIR).unwrap_or_else(|_| "config".into());
             let config_file_name = match environment {
                 "production" => "production.toml",
                 "sandbox" => "sandbox.toml",
                 _ => "development.toml",
             };
 
-            config_path.push(crate::env::workspace_path());
+            let config_directory = Self::get_config_directory();
             config_path.push(config_directory);
             config_path.push(config_file_name);
         }
+        config_path
+    }
+
+    /// Get the Directory for the config file
+    /// Read the env variable `CONFIG_DIR` or fallback to `config`
+    pub fn get_config_directory() -> PathBuf {
+        let mut config_path = PathBuf::new();
+
+        let config_directory =
+            std::env::var(crate::env::vars::CONFIG_DIR).unwrap_or_else(|_| "config".into());
+
+        config_path.push(crate::env::workspace_path());
+        config_path.push(config_directory);
         config_path
     }
 }
