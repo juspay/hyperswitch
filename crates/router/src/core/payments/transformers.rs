@@ -537,6 +537,184 @@ pub async fn construct_payment_router_data_for_capture<'a>(
 #[cfg(feature = "v2")]
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
+pub async fn construct_payment_router_data_for_void<'a>(
+    state: &'a SessionState,
+    payment_data: hyperswitch_domain_models::payments::PaymentVoidData<api::Void>,
+    connector_id: &str,
+    merchant_account: &domain::MerchantAccount,
+    _key_store: &domain::MerchantKeyStore,
+    customer: &'a Option<domain::Customer>,
+    merchant_connector_account: &domain::MerchantConnectorAccount,
+    _merchant_recipient_data: Option<types::MerchantRecipientData>,
+    header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
+) -> RouterResult<types::PaymentsCancelRouterData> {
+    use masking::ExposeOptionInterface;
+
+    fp_utils::when(merchant_connector_account.is_disabled(), || {
+        Err(errors::ApiErrorResponse::MerchantConnectorAccountDisabled)
+    })?;
+
+    let auth_type = merchant_connector_account
+        .get_connector_account_details()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed while parsing value for ConnectorAuthType")?;
+
+    let customer_id = customer
+        .to_owned()
+        .map(|customer| common_utils::id_type::CustomerId::try_from(customer.id.clone()))
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable(
+            "Invalid global customer generated, not able to convert to reference id",
+        )?;
+
+    let payment_method = payment_data.payment_attempt.payment_method_type;
+
+    let connector_request_reference_id = payment_data
+        .payment_intent
+        .merchant_reference_id
+        .map(|id| id.get_string_repr().to_owned())
+        .unwrap_or(payment_data.payment_attempt.id.get_string_repr().to_owned());
+
+    let connector_mandate_request_reference_id = payment_data
+        .payment_attempt
+        .connector_mandate_detail
+        .as_ref()
+        .and_then(|detail| detail.get_connector_mandate_request_reference_id());
+
+    let connector = api::ConnectorData::get_connector_by_name(
+        &state.conf.connectors,
+        connector_id,
+        api::GetToken::Connector,
+        payment_data.payment_attempt.merchant_connector_id.clone(),
+    )?;
+
+    let amount_to_capture = payment_data
+        .payment_attempt
+        .amount_details
+        .get_amount_to_capture()
+        .unwrap_or(payment_data.payment_attempt.amount_details.get_net_amount());
+
+    let amount = payment_data.payment_attempt.amount_details.get_net_amount();
+    // let request = types::PaymentsCaptureData {
+    //     capture_method: Some(payment_data.payment_intent.capture_method),
+    //     amount_to_capture: amount_to_capture.get_amount_as_i64(), // This should be removed once we start moving to connector module
+    //     minor_amount_to_capture: amount_to_capture,
+    //     currency: payment_data.payment_intent.amount_details.currency,
+    //     connector_transaction_id: connector
+    //         .connector
+    //         .connector_transaction_id(payment_data.payment_attempt.clone())?
+    //         .ok_or(errors::ApiErrorResponse::ResourceIdNotFound)?,
+    //     payment_amount: amount.get_amount_as_i64(), // This should be removed once we start moving to connector module
+    //     minor_payment_amount: amount,
+    //     connector_meta: payment_data
+    //         .payment_attempt
+    //         .connector_metadata
+    //         .clone()
+    //         .expose_option(),
+    //     // TODO: add multiple capture data
+    //     multiple_capture_data: None,
+    //     // TODO: why do we need browser info during capture?
+    //     browser_info: None,
+    //     metadata: payment_data.payment_intent.metadata.expose_option(),
+    //     integrity_object: None,
+    // };
+    let request = types::PaymentsCancelData {
+        amount: Some(amount.get_amount_as_i64()),
+        currency: Some(payment_data.payment_intent.amount_details.currency),
+        connector_transaction_id: connector
+            .connector
+            .connector_transaction_id(payment_data.payment_attempt.clone())?
+            .ok_or(errors::ApiErrorResponse::ResourceIdNotFound)?,
+        cancellation_reason: Some("blu".to_string()),
+        connector_meta: payment_data
+            .payment_attempt
+            .connector_metadata
+            .clone()
+            .expose_option(),
+        browser_info: None,
+        metadata: payment_data.payment_intent.metadata.expose_option(),
+        minor_amount: Some(amount),
+    };
+
+    // TODO: evaluate the fields in router data, if they are required or not
+    let router_data = types::RouterData {
+        flow: PhantomData,
+        merchant_id: merchant_account.get_id().clone(),
+        tenant_id: state.tenant.tenant_id.clone(),
+        // TODO: evaluate why we need customer id at the connector level. We already have connector customer id.
+        customer_id,
+        connector: connector_id.to_owned(),
+        // TODO: evaluate why we need payment id at the connector level. We already have connector reference id
+        payment_id: payment_data
+            .payment_attempt
+            .payment_id
+            .get_string_repr()
+            .to_owned(),
+        // TODO: evaluate why we need attempt id at the connector level. We already have connector reference id
+        attempt_id: payment_data
+            .payment_attempt
+            .get_id()
+            .get_string_repr()
+            .to_owned(),
+        status: payment_data.payment_attempt.status,
+        payment_method,
+        connector_auth_type: auth_type,
+        description: payment_data
+            .payment_intent
+            .description
+            .as_ref()
+            .map(|description| description.get_string_repr())
+            .map(ToOwned::to_owned),
+        // TODO: Create unified address
+        address: hyperswitch_domain_models::payment_address::PaymentAddress::default(),
+        auth_type: payment_data.payment_attempt.authentication_type,
+        connector_meta_data: None,
+        connector_wallets_details: None,
+        request,
+        response: Err(hyperswitch_domain_models::router_data::ErrorResponse::default()),
+        amount_captured: None,
+        minor_amount_captured: None,
+        access_token: None,
+        session_token: None,
+        reference_id: None,
+        payment_method_status: None,
+        payment_method_token: None,
+        connector_customer: None,
+        recurring_mandate_payment_data: None,
+        // TODO: This has to be generated as the reference id based on the connector configuration
+        // Some connectros might not accept accept the global id. This has to be done when generating the reference id
+        connector_request_reference_id,
+        preprocessing_id: payment_data.payment_attempt.preprocessing_step_id,
+        #[cfg(feature = "payouts")]
+        payout_method_data: None,
+        #[cfg(feature = "payouts")]
+        quote_id: None,
+        // TODO: take this based on the env
+        test_mode: Some(true),
+        payment_method_balance: None,
+        connector_api_version: None,
+        connector_http_status_code: None,
+        external_latency: None,
+        apple_pay_flow: None,
+        frm_metadata: None,
+        refund_id: None,
+        dispute_id: None,
+        connector_response: None,
+        integrity_check: Ok(()),
+        additional_merchant_data: None,
+        header_payload,
+        connector_mandate_request_reference_id,
+        psd2_sca_exemption_type: None,
+        authentication_id: None,
+    };
+
+    Ok(router_data)
+}
+
+#[cfg(feature = "v2")]
+#[instrument(skip_all)]
+#[allow(clippy::too_many_arguments)]
 pub async fn construct_router_data_for_psync<'a>(
     state: &'a SessionState,
     payment_data: hyperswitch_domain_models::payments::PaymentStatusData<api::PSync>,
@@ -1522,6 +1700,94 @@ where
             browser_info: None,
             error,
         };
+
+        Ok(services::ApplicationResponse::JsonWithHeaders((
+            response,
+            vec![],
+        )))
+    }
+}
+
+#[cfg(feature = "v2")]
+impl<F> GenerateResponse<api_models::payments::PaymentsVoidResponse>
+    for hyperswitch_domain_models::payments::PaymentVoidData<F>
+where
+    F: Clone,
+{
+    fn generate_response(
+        self,
+        state: &SessionState,
+        connector_http_status_code: Option<u16>,
+        external_latency: Option<u128>,
+        is_latency_header_enabled: Option<bool>,
+        merchant_account: &domain::MerchantAccount,
+    ) -> RouterResponse<api_models::payments::PaymentsVoidResponse> {
+        let payment_intent = &self.payment_intent;
+        let payment_attempt = &self.payment_attempt;
+
+        let amount = api_models::payments::PaymentAmountDetailsResponse::foreign_from((
+            &payment_intent.amount_details,
+            &payment_attempt.amount_details,
+        ));
+
+        let response = api_models::payments::PaymentsVoidResponse {
+            id: payment_intent.id.clone(),
+            amount,
+            status: payment_intent.status,
+        };
+
+        // let connector =
+        //     optional_payment_attempt.and_then(|payment_attempt| payment_attempt.connector.clone());
+
+        // let merchant_connector_id = optional_payment_attempt
+        //     .and_then(|payment_attempt| payment_attempt.merchant_connector_id.clone());
+
+        // let error = optional_payment_attempt
+        //     .and_then(|payment_attempt| payment_attempt.error.clone())
+        //     .map(api_models::payments::ErrorDetails::foreign_from);
+
+        // let payment_method_data =
+        //     Some(api_models::payments::PaymentMethodDataResponseWithBilling {
+        //         payment_method_data: None,
+        //         billing: self
+        //             .payment_address
+        //             .get_request_payment_method_billing()
+        //             .cloned()
+        //             .map(From::from),
+        //     });
+
+        // let response = api_models::payments::PaymentsRetrieveResponse {
+        //     id: payment_intent.id.clone(),
+        //     status: payment_intent.status,
+        //     amount,c
+        //     customer_id: payment_intent.customer_id.clone(),
+        //     connector,
+        //     billing: self
+        //         .payment_address
+        //         .get_payment_billing()
+        //         .cloned()
+        //         .map(From::from),
+        //     shipping: self.payment_address.get_shipping().cloned().map(From::from),
+        //     client_secret: payment_intent.client_secret.clone(),
+        //     created: payment_intent.created_at,
+        //     payment_method_data,
+        //     payment_method_type: self
+        //         .payment_attempt
+        //         .as_ref()
+        //         .map(|attempt| attempt.payment_method_type),
+        //     payment_method_subtype: self
+        //         .payment_attempt
+        //         .as_ref()
+        //         .map(|attempt| attempt.payment_method_subtype),
+        //     connector_transaction_id: self
+        //         .payment_attempt
+        //         .as_ref()
+        //         .and_then(|attempt| attempt.connector_payment_id.clone()),
+        //     connector_reference_id: None,
+        //     merchant_connector_id,
+        //     browser_info: None,
+        //     error,
+        // };
 
         Ok(services::ApplicationResponse::JsonWithHeaders((
             response,

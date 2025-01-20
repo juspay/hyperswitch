@@ -1,4 +1,6 @@
 use async_trait::async_trait;
+#[cfg(feature = "v2")]
+use hyperswitch_domain_models::payments::PaymentVoidData;
 
 use super::{ConstructFlowSpecificData, Feature};
 use crate::{
@@ -28,6 +30,77 @@ impl ConstructFlowSpecificData<api::Void, types::PaymentsCancelData, types::Paym
         _header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
     ) -> RouterResult<types::PaymentsCancelRouterData> {
         todo!()
+    }
+
+    #[cfg(feature = "v1")]
+    async fn construct_router_data<'a>(
+        &self,
+        state: &SessionState,
+        connector_id: &str,
+        merchant_account: &domain::MerchantAccount,
+        key_store: &domain::MerchantKeyStore,
+        customer: &Option<domain::Customer>,
+        merchant_connector_account: &helpers::MerchantConnectorAccountType,
+        merchant_recipient_data: Option<types::MerchantRecipientData>,
+        header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
+    ) -> RouterResult<types::PaymentsCancelRouterData> {
+        Box::pin(transformers::construct_payment_router_data::<
+            api::Void,
+            types::PaymentsCancelData,
+        >(
+            state,
+            self.clone(),
+            connector_id,
+            merchant_account,
+            key_store,
+            customer,
+            merchant_connector_account,
+            merchant_recipient_data,
+            header_payload,
+        ))
+        .await
+    }
+
+    async fn get_merchant_recipient_data<'a>(
+        &self,
+        _state: &SessionState,
+        _merchant_account: &domain::MerchantAccount,
+        _key_store: &domain::MerchantKeyStore,
+        _merchant_connector_account: &helpers::MerchantConnectorAccountType,
+        _connector: &api::ConnectorData,
+    ) -> RouterResult<Option<types::MerchantRecipientData>> {
+        Ok(None)
+    }
+}
+
+#[cfg(feature = "v2")]
+#[async_trait]
+impl ConstructFlowSpecificData<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>
+    for PaymentVoidData<api::Void>
+{
+    async fn construct_router_data<'a>(
+        &self,
+        state: &SessionState,
+        connector_id: &str,
+        merchant_account: &domain::MerchantAccount,
+        key_store: &domain::MerchantKeyStore,
+        customer: &Option<domain::Customer>,
+        merchant_connector_account: &domain::MerchantConnectorAccount,
+        merchant_recipient_data: Option<types::MerchantRecipientData>,
+        header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
+    ) -> RouterResult<types::PaymentsCancelRouterData> {
+        Box::pin(transformers::construct_payment_router_data_for_void(
+            state,
+            self.clone(),
+            connector_id,
+            merchant_account,
+            key_store,
+            customer,
+            merchant_connector_account,
+            merchant_recipient_data,
+            header_payload,
+        ))
+        .await
     }
 
     #[cfg(feature = "v1")]

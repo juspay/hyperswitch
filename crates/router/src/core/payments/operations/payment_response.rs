@@ -2434,6 +2434,88 @@ impl<F: Clone> PostUpdateTracker<F, PaymentStatusData<F>, types::PaymentsSyncDat
     }
 }
 
+#[cfg(feature = "v2")]
+impl<F: Send + Clone> Operation<F, types::PaymentsCancelData> for PaymentResponse {
+    type Data = hyperswitch_domain_models::payments::PaymentVoidData<F>;
+    fn to_post_update_tracker(
+        &self,
+    ) -> RouterResult<
+        &(dyn PostUpdateTracker<F, Self::Data, types::PaymentsCancelData> + Send + Sync),
+    > {
+        Ok(self)
+    }
+}
+
+#[cfg(feature = "v2")]
+#[async_trait]
+impl<F: Clone>
+    PostUpdateTracker<
+        F,
+        hyperswitch_domain_models::payments::PaymentVoidData<F>,
+        types::PaymentsCancelData,
+    > for PaymentResponse
+{
+    async fn update_tracker<'b>(
+        &'b self,
+        state: &'b SessionState,
+        mut payment_data: hyperswitch_domain_models::payments::PaymentVoidData<F>,
+        response: types::RouterData<F, types::PaymentsCancelData, types::PaymentsResponseData>,
+        key_store: &domain::MerchantKeyStore,
+        storage_scheme: enums::MerchantStorageScheme,
+    ) -> RouterResult<hyperswitch_domain_models::payments::PaymentVoidData<F>>
+    where
+        F: 'b + Send + Sync,
+        types::RouterData<F, types::PaymentsCancelData, types::PaymentsResponseData>:
+            hyperswitch_domain_models::router_data::TrackerPostUpdateObjects<
+                F,
+                types::PaymentsCancelData,
+                hyperswitch_domain_models::payments::PaymentVoidData<F>,
+            >,
+    {
+        use hyperswitch_domain_models::router_data::TrackerPostUpdateObjects;
+
+        let db = &*state.store;
+        let key_manager_state = &state.into();
+
+        let response_router_data = response;
+
+        let payment_intent_update =
+            response_router_data.get_payment_intent_update(&payment_data, storage_scheme);
+
+        let payment_attempt_update =
+            response_router_data.get_payment_attempt_update(&payment_data, storage_scheme);
+
+        let updated_payment_intent = db
+            .update_payment_intent(
+                key_manager_state,
+                payment_data.payment_intent,
+                payment_intent_update,
+                key_store,
+                storage_scheme,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to update payment intent")?;
+
+        let updated_payment_attempt = db
+            .update_payment_attempt(
+                key_manager_state,
+                key_store,
+                payment_data.payment_attempt,
+                payment_attempt_update,
+                storage_scheme,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to update payment attempt")?;
+
+        payment_data.payment_intent = updated_payment_intent;
+        payment_data.payment_attempt = updated_payment_attempt;
+
+        Ok(payment_data)
+    }
+}
+
 #[cfg(feature = "v1")]
 fn update_connector_mandate_details_for_the_flow<F: Clone>(
     connector_mandate_id: Option<String>,

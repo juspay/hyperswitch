@@ -4133,6 +4133,20 @@ pub struct PaymentsCaptureResponse {
     pub amount: PaymentAmountDetailsResponse,
 }
 
+#[cfg(feature = "v2")]
+#[derive(Debug, Clone, serde::Serialize, ToSchema)]
+pub struct PaymentsVoidResponse {
+    /// The unique identifier for the payment
+    pub id: id_type::GlobalPaymentId,
+
+    /// Status of the payment
+    #[schema(value_type = IntentStatus, example = "succeeded")]
+    pub status: common_enums::IntentStatus,
+
+    /// Amount details related to the payment
+    pub amount: PaymentAmountDetailsResponse,
+}
+
 #[derive(Default, Clone, Debug, Eq, PartialEq, serde::Serialize)]
 pub struct UrlDetails {
     pub url: String,
@@ -4895,7 +4909,6 @@ pub struct PaymentsConfirmIntentResponse {
 }
 
 // TODO: have a separate response for detailed, summarized
-/// Response for Payment Intent Confirm
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Serialize, Clone, ToSchema)]
 pub struct PaymentsRetrieveResponse {
@@ -6437,6 +6450,18 @@ pub struct PaymentsCancelRequest {
     /// Merchant connector details used to make payments.
     #[schema(value_type = Option<MerchantConnectorDetailsWrap>, deprecated)]
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+pub struct PaymentsVoidRequest {
+    /// The identifier for the payment
+    #[serde(skip)]
+    pub payment_id: id_type::PaymentId,
+    /// The reason for the payment cancel
+    pub cancellation_reason: Option<String>, //  Merchant connector details used to make payments.
+                                             // #[schema(value_type = Option<MerchantConnectorDetailsWrap>, deprecated)]
+                                             // pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
 }
 
 #[derive(Default, Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]

@@ -186,6 +186,15 @@ impl ApiEventMetric for super::PaymentsRetrieveResponse {
     }
 }
 
+#[cfg(feature = "v2")]
+impl ApiEventMetric for super::PaymentsVoidResponse {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Payment {
+            payment_id: self.id.clone(),
+        })
+    }
+}
+
 #[cfg(feature = "v1")]
 impl ApiEventMetric for PaymentsResponse {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {

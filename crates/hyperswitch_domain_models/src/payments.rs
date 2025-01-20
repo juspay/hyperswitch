@@ -620,6 +620,17 @@ where
 }
 
 #[cfg(feature = "v2")]
+#[derive(Clone)]
+pub struct PaymentVoidData<F>
+where
+    F: Clone,
+{
+    pub flow: PhantomData<F>,
+    pub payment_intent: PaymentIntent,
+    pub payment_attempt: PaymentAttempt,
+}
+
+#[cfg(feature = "v2")]
 impl<F> PaymentStatusData<F>
 where
     F: Clone,
