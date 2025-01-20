@@ -1,7 +1,3 @@
-use crate::{
-    address::{Address, AddressDetails, PhoneDetails},
-    router_request_types::CustomerDetails,
-};
 use api_models::{payment_methods as payment_methods_api, payments as payments_api};
 use common_enums as enums;
 use common_utils::{
@@ -11,6 +7,11 @@ use common_utils::{
     transformers::{ForeignFrom, ForeignTryFrom},
 };
 use error_stack::report;
+
+use crate::{
+    address::{Address, AddressDetails, PhoneDetails},
+    router_request_types::CustomerDetails,
+};
 
 #[derive(Debug)]
 pub struct CardNetworkTokenizeRequest {
