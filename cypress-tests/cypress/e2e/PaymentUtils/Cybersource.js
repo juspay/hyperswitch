@@ -1,3 +1,8 @@
+import {
+  connectorDetails as commonConnectorDetails,
+  getCustomExchange,
+} from "./Commons";
+
 const successfulNo3DSCardDetails = {
   card_number: "4242424242424242",
   card_exp_month: "01",
@@ -143,6 +148,23 @@ export const connectorDetails = {
         body: {
           status: "requires_payment_method",
           setup_future_usage: "off_session",
+        },
+      },
+    },
+    SessionToken: {
+      Response: {
+        status: 200,
+        body: {
+          session_token: [
+            {
+              wallet_name: "apple_pay",
+              connector: "cybersource",
+            },
+            {
+              wallet_name: "google_pay",
+              connector: "cybersource",
+            },
+          ],
         },
       },
     },
@@ -631,20 +653,14 @@ export const connectorDetails = {
         },
       },
     },
-    MITAutoCapture: {
+    MITAutoCapture: getCustomExchange({
       Configs: {
         CONNECTOR_CREDENTIAL: {
           value: "connector_1",
         },
       },
-      Request: {},
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
-      },
-    },
+      ...commonConnectorDetails.card_pm.MITAutoCapture,
+    }),
     MITManualCapture: {
       Configs: {
         CONNECTOR_CREDENTIAL: {

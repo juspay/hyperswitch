@@ -276,6 +276,7 @@ pub async fn generate_sample_data(
             skip_external_tax_calculation: None,
             request_extended_authorization: None,
             psd2_sca_exemption_type: None,
+            platform_merchant_id: None,
         };
         let (connector_transaction_id, connector_transaction_data) =
             ConnectorTransactionId::form_id_and_data(attempt_id.clone());

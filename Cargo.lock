@@ -4003,6 +4003,7 @@ dependencies = [
  "hyperswitch_domain_models",
  "hyperswitch_interfaces",
  "image",
+ "lazy_static",
  "masking",
  "mime",
  "once_cell",
@@ -7090,9 +7091,8 @@ dependencies = [
 
 [[package]]
 name = "scylla"
-version = "0.14.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8139623d3fb0c8205b15e84fa587f3aa0ba61f876c19a9157b688f7c1763a7c5"
+version = "0.15.0"
+source = "git+https://github.com/juspay/scylla-rust-driver.git?rev=5700aa2847b25437cdd4fcf34d707aa90dca8b89#5700aa2847b25437cdd4fcf34d707aa90dca8b89"
 dependencies = [
  "arc-swap",
  "async-trait",
@@ -7121,9 +7121,8 @@ dependencies = [
 
 [[package]]
 name = "scylla-cql"
-version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "de7020bcd1f6fdbeaed356cd426bf294b2071bd7120d48d2e8e319295e2acdcd"
+version = "0.4.0"
+source = "git+https://github.com/juspay/scylla-rust-driver.git?rev=5700aa2847b25437cdd4fcf34d707aa90dca8b89#5700aa2847b25437cdd4fcf34d707aa90dca8b89"
 dependencies = [
  "async-trait",
  "byteorder",
@@ -7131,16 +7130,17 @@ dependencies = [
  "lz4_flex",
  "scylla-macros",
  "snap",
+ "stable_deref_trait",
  "thiserror",
  "tokio 1.40.0",
  "uuid",
+ "yoke",
 ]
 
 [[package]]
 name = "scylla-macros"
-version = "0.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3859b6938663fc5062e3b26f3611649c9bd26fb252e85f6fdfa581e0d2ce74b6"
+version = "0.7.0"
+source = "git+https://github.com/juspay/scylla-rust-driver.git?rev=5700aa2847b25437cdd4fcf34d707aa90dca8b89#5700aa2847b25437cdd4fcf34d707aa90dca8b89"
 dependencies = [
  "darling 0.20.10",
  "proc-macro2",
@@ -9266,9 +9266,9 @@ checksum = "b8dad83b4f25e74f184f64c43b150b91efe7647395b42289f38e50566d82855b"
 
 [[package]]
 name = "wasm-bindgen"
-version = "0.2.93"
+version = "0.2.99"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a82edfc16a6c469f5f44dc7b571814045d60404b55a0ee849f9bcfa2e63dd9b5"
+checksum = "a474f6281d1d70c17ae7aa6a613c87fce69a127e2624002df63dcb39d6cf6396"
 dependencies = [
  "cfg-if 1.0.0",
  "once_cell",
@@ -9277,13 +9277,12 @@ dependencies = [
 
 [[package]]
 name = "wasm-bindgen-backend"
-version = "0.2.93"
+version = "0.2.99"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9de396da306523044d3302746f1208fa71d7532227f15e347e2d93e4145dd77b"
+checksum = "5f89bb38646b4f81674e8f5c3fb81b562be1fd936d84320f3264486418519c79"
 dependencies = [
  "bumpalo",
  "log",
- "once_cell",
  "proc-macro2",
  "quote",
  "syn 2.0.77",
@@ -9304,9 +9303,9 @@ dependencies = [
 
 [[package]]
 name = "wasm-bindgen-macro"
-version = "0.2.93"
+version = "0.2.99"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "585c4c91a46b072c92e908d99cb1dcdf95c5218eeb6f3bf1efa991ee7a68cccf"
+checksum = "2cc6181fd9a7492eef6fef1f33961e3695e4579b9872a6f7c83aee556666d4fe"
 dependencies = [
  "quote",
  "wasm-bindgen-macro-support",
@@ -9314,9 +9313,9 @@ dependencies = [
 
 [[package]]
 name = "wasm-bindgen-macro-support"
-version = "0.2.93"
+version = "0.2.99"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "afc340c74d9005395cf9dd098506f7f44e38f2b4a21c6aaacf9a105ea5e1e836"
+checksum = "30d7a95b763d3c45903ed6c81f156801839e5ee968bb07e534c44df0fcd330c2"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -9327,9 +9326,9 @@ dependencies = [
 
 [[package]]
 name = "wasm-bindgen-shared"
-version = "0.2.93"
+version = "0.2.99"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c62a0a307cb4a311d3a07867860911ca130c3494e8c2719593806c08bc5d0484"
+checksum = "943aab3fdaaa029a6e0271b35ea10b72b943135afe9bffca82384098ad0e06a6"
 
 [[package]]
 name = "web-sys"

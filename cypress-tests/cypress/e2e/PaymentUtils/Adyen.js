@@ -242,7 +242,7 @@ export const connectorDetails = {
         },
       },
     },
-    VoidAfterConfirm: {
+    VoidAfterConfirm: getCustomExchange({
       Request: {},
       Response: {
         status: 200,
@@ -256,7 +256,7 @@ export const connectorDetails = {
           status: "cancelled",
         },
       },
-    },
+    }),
     Refund: {
       Request: {
         currency: "USD",
@@ -789,7 +789,7 @@ export const connectorDetails = {
     },
   },
   bank_redirect_pm: {
-    PaymentIntent: getCustomExchange({
+    PaymentIntent: {
       Request: {
         currency: "EUR",
       },
@@ -799,7 +799,7 @@ export const connectorDetails = {
           status: "requires_payment_method",
         },
       },
-    }),
+    },
     Ideal: {
       Request: {
         payment_method: "bank_redirect",
@@ -909,7 +909,9 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "requires_customer_action",
+          status: "failed",
+          error_code: "14_006",
+          error_message: "Required object 'paymentMethod' is not provided.",
         },
       },
     },

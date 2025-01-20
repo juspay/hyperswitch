@@ -106,6 +106,10 @@ pub enum UserErrors {
     ThemeAlreadyExists,
     #[error("Invalid field: {0} in lineage")]
     InvalidThemeLineage(String),
+    #[error("Missing required field: email_config")]
+    MissingEmailConfig,
+    #[error("Invalid Auth Method Operation: {0}")]
+    InvalidAuthMethodOperationWithMessage(String),
 }
 
 impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorResponse> for UserErrors {
@@ -275,6 +279,12 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
             Self::InvalidThemeLineage(_) => {
                 AER::BadRequest(ApiError::new(sub_code, 55, self.get_error_message(), None))
             }
+            Self::MissingEmailConfig => {
+                AER::BadRequest(ApiError::new(sub_code, 56, self.get_error_message(), None))
+            }
+            Self::InvalidAuthMethodOperationWithMessage(_) => {
+                AER::BadRequest(ApiError::new(sub_code, 57, self.get_error_message(), None))
+            }
         }
     }
 }
@@ -340,6 +350,10 @@ impl UserErrors {
             Self::ThemeAlreadyExists => "Theme with lineage already exists".to_string(),
             Self::InvalidThemeLineage(field_name) => {
                 format!("Invalid field: {} in lineage", field_name)
+            }
+            Self::MissingEmailConfig => "Missing required field: email_config".to_string(),
+            Self::InvalidAuthMethodOperationWithMessage(operation) => {
+                format!("Invalid Auth Method Operation: {}", operation)
             }
         }
     }

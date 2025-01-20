@@ -19,7 +19,6 @@ use crate::{
     types::{
         self,
         api::{
-            customers,
             mandates::{self, MandateResponseExt},
             ConnectorData, GetToken,
         },
@@ -111,6 +110,7 @@ pub async fn revoke_mandate(
             > = connector_data.connector.get_connector_integration();
 
             let router_data = utils::construct_mandate_revoke_router_data(
+                &state,
                 merchant_connector_account,
                 &merchant_account,
                 mandate.clone(),
@@ -224,27 +224,24 @@ pub async fn update_connector_mandate_id(
     }
     Ok(services::ApplicationResponse::StatusOk)
 }
-
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 #[instrument(skip(state))]
 pub async fn get_customer_mandates(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
-    req: customers::CustomerId,
+    customer_id: id_type::CustomerId,
 ) -> RouterResponse<Vec<mandates::MandateResponse>> {
     let mandates = state
         .store
-        .find_mandate_by_merchant_id_customer_id(
-            merchant_account.get_id(),
-            &req.get_merchant_reference_id(),
-        )
+        .find_mandate_by_merchant_id_customer_id(merchant_account.get_id(), &customer_id)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable_lazy(|| {
             format!(
                 "Failed while finding mandate: merchant_id: {:?}, customer_id: {:?}",
                 merchant_account.get_id(),
-                req.get_merchant_reference_id()
+                customer_id,
             )
         })?;
 

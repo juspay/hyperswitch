@@ -36,9 +36,6 @@ pub mod payments_v2;
 pub mod payouts_v2;
 pub mod refunds_v2;
 
-pub mod unified_authentication_service;
-pub mod unified_authentication_service_v2;
-
 use std::{fmt::Debug, str::FromStr};
 
 use api_models::routing::{self as api_routing, RoutableConnectorChoice};
@@ -53,6 +50,7 @@ pub use hyperswitch_interfaces::api::{
     ConnectorMandateRevoke, ConnectorMandateRevokeV2, ConnectorVerifyWebhookSource,
     ConnectorVerifyWebhookSourceV2, CurrencyUnit,
 };
+use hyperswitch_interfaces::api::{UnifiedAuthenticationService, UnifiedAuthenticationServiceV2};
 
 #[cfg(feature = "frm")]
 pub use self::fraud_check::*;
@@ -61,7 +59,7 @@ pub use self::payouts::*;
 pub use self::{
     admin::*, api_keys::*, authentication::*, configs::*, customers::*, disputes::*, files::*,
     payment_link::*, payment_methods::*, payments::*, poll::*, refunds::*, refunds_v2::*,
-    unified_authentication_service::*, webhooks::*,
+    webhooks::*,
 };
 use super::transformers::ForeignTryFrom;
 use crate::{
@@ -280,12 +278,12 @@ pub enum ConnectorChoice {
 
 impl ConnectorData {
     pub fn get_connector_by_name(
-        connectors: &Connectors,
+        _connectors: &Connectors,
         name: &str,
         connector_type: GetToken,
         connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     ) -> CustomResult<Self, errors::ApiErrorResponse> {
-        let connector = Self::convert_connector(connectors, name)?;
+        let connector = Self::convert_connector(name)?;
         let connector_name = api_enums::Connector::from_str(name)
             .change_context(errors::ConnectorError::InvalidConnectorName)
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -300,12 +298,12 @@ impl ConnectorData {
 
     #[cfg(feature = "payouts")]
     pub fn get_payout_connector_by_name(
-        connectors: &Connectors,
+        _connectors: &Connectors,
         name: &str,
         connector_type: GetToken,
         connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     ) -> CustomResult<Self, errors::ApiErrorResponse> {
-        let connector = Self::convert_connector(connectors, name)?;
+        let connector = Self::convert_connector(name)?;
         let payout_connector_name = api_enums::PayoutConnectors::from_str(name)
             .change_context(errors::ConnectorError::InvalidConnectorName)
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -320,7 +318,6 @@ impl ConnectorData {
     }
 
     pub fn convert_connector(
-        _connectors: &Connectors,
         connector_name: &str,
     ) -> CustomResult<ConnectorEnum, errors::ApiErrorResponse> {
         match enums::Connector::from_str(connector_name) {
@@ -372,6 +369,9 @@ impl ConnectorData {
                 }
                 enums::Connector::Cryptopay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Cryptopay::new())))
+                }
+                enums::Connector::CtpMastercard => {
+                    Ok(ConnectorEnum::Old(Box::new(&connector::CtpMastercard)))
                 }
                 enums::Connector::Cybersource => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Cybersource::new())))
@@ -445,8 +445,10 @@ impl ConnectorData {
                 //     Ok(ConnectorEnum::Old(Box::new(connector::Inespay::new())))
                 // }
                 enums::Connector::Itaubank => {
-                    //enums::Connector::Jpmorgan => Ok(ConnectorEnum::Old(Box::new(connector::Jpmorgan))),
                     Ok(ConnectorEnum::Old(Box::new(connector::Itaubank::new())))
+                }
+                enums::Connector::Jpmorgan => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Jpmorgan::new())))
                 }
                 enums::Connector::Klarna => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Klarna::new())))
@@ -509,9 +511,9 @@ impl ConnectorData {
                 enums::Connector::Worldpay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Worldpay::new())))
                 }
-                // enums::Connector::Xendit => {
-                //     Ok(ConnectorEnum::Old(Box::new(connector::Xendit::new())))
-                // }
+                enums::Connector::Xendit => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Xendit::new())))
+                }
                 enums::Connector::Mifinity => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Mifinity::new())))
                 }

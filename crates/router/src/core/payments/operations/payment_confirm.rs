@@ -16,6 +16,7 @@ use error_stack::{report, ResultExt};
 use futures::FutureExt;
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdateFields;
+use hyperswitch_domain_models::router_request_types::unified_authentication_service;
 use masking::{ExposeInterface, PeekInterface};
 use router_derive::PaymentOperation;
 use router_env::{instrument, logger, tracing};
@@ -39,7 +40,7 @@ use crate::{
             PaymentData,
         },
         unified_authentication_service::{
-            self,
+            self as uas_utils,
             types::{ClickToPay, UnifiedAuthenticationService, CTP_MASTERCARD},
         },
         utils as core_utils,
@@ -76,6 +77,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         key_store: &domain::MerchantKeyStore,
         auth_flow: services::AuthFlow,
         header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
+        _platform_merchant_account: Option<&domain::MerchantAccount>,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest, PaymentData<F>>>
     {
         let key_manager_state = &state.into();
@@ -597,6 +599,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             &request.payment_method_type,
             &mandate_type,
             &token,
+            &request.ctp_service_details,
         )?;
 
         let (token_data, payment_method_info) = if let Some(token) = token.clone() {
@@ -778,6 +781,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 )), // connector_mandate_request_reference_id
             )),
         );
+
         let payment_data = PaymentData {
             flow: PhantomData,
             payment_intent,
@@ -818,7 +822,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             poll_config: None,
             tax_data: None,
             session_id: None,
-            service_details: None,
+            service_details: request.ctp_service_details.clone(),
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -883,7 +887,6 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
             business_profile,
         ))
         .await?;
-
         utils::when(payment_method_data.is_none(), || {
             Err(errors::ApiErrorResponse::PaymentMethodNotFound)
         })?;
@@ -1055,10 +1058,10 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         business_profile: &domain::Profile,
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
-        let is_click_to_pay_enabled = true; // fetch from business profile
-
         if let Some(payment_method) = payment_data.payment_attempt.payment_method {
-            if payment_method == storage_enums::PaymentMethod::Card && is_click_to_pay_enabled {
+            if payment_method == storage_enums::PaymentMethod::Card
+                && business_profile.is_click_to_pay_enabled
+            {
                 let connector_name = CTP_MASTERCARD; // since the above checks satisfies the connector should be click to pay hence hardcoded the connector name
                 let connector_mca = helpers::get_merchant_connector_account(
                     state,
@@ -1102,7 +1105,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
 
                 payment_data.payment_attempt.authentication_id = Some(authentication_id.clone());
 
-                let network_token = ClickToPay::post_authentication(
+                let response = ClickToPay::post_authentication(
                     state,
                     key_store,
                     business_profile,
@@ -1113,10 +1116,43 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                 )
                 .await?;
 
-                payment_data.payment_method_data =
-                    network_token.map(domain::PaymentMethodData::NetworkToken);
+                let (network_token, authentication_status) = match response.response.clone() {
+                    Ok(unified_authentication_service::UasAuthenticationResponseData::PostAuthentication {
+                        authentication_details,
+                    }) => {
+                        (Some(
+                            hyperswitch_domain_models::payment_method_data::NetworkTokenData {
+                                token_number: authentication_details.token_details.payment_token,
+                                token_exp_month: authentication_details
+                                    .token_details
+                                    .token_expiration_month,
+                                token_exp_year: authentication_details
+                                    .token_details
+                                    .token_expiration_year,
+                                token_cryptogram: authentication_details
+                                    .dynamic_data_details
+                                    .and_then(|data| data.dynamic_data_value),
+                                card_issuer: None,
+                                card_network: None,
+                                card_type: None,
+                                card_issuing_country: None,
+                                bank_code: None,
+                                nick_name: None,
+                                eci: authentication_details.eci,
+                            }),common_enums::AuthenticationStatus::Success)
+                    },
+                    Ok(unified_authentication_service::UasAuthenticationResponseData::PreAuthentication {}) => (None, common_enums::AuthenticationStatus::Started),
+                    Err(_) => (None, common_enums::AuthenticationStatus::Failed)
+                };
 
-                unified_authentication_service::create_new_authentication(
+                payment_data.payment_attempt.payment_method =
+                    Some(common_enums::PaymentMethod::Card);
+
+                payment_data.payment_method_data = network_token
+                    .clone()
+                    .map(domain::PaymentMethodData::NetworkToken);
+
+                uas_utils::create_new_authentication(
                     state,
                     payment_data.payment_attempt.merchant_id.clone(),
                     connector_name.to_string(),
@@ -1124,6 +1160,8 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     Some(payment_data.payment_intent.get_id().clone()),
                     connector_transaction_id,
                     &authentication_id,
+                    payment_data.service_details.clone(),
+                    authentication_status,
                 )
                 .await?;
             }
@@ -1488,6 +1526,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                                 surcharge_amount,
                                 tax_amount,
                             ),
+
                         connector_mandate_detail: payment_data
                             .payment_attempt
                             .connector_mandate_detail,

@@ -29,7 +29,10 @@ pub mod payment_intent;
 
 use common_enums as storage_enums;
 #[cfg(feature = "v2")]
-use diesel_models::types::{FeatureMetadata, OrderDetailsWithAmount};
+use diesel_models::{
+    ephemeral_key,
+    types::{FeatureMetadata, OrderDetailsWithAmount},
+};
 
 use self::payment_attempt::PaymentAttempt;
 #[cfg(feature = "v1")]
@@ -107,6 +110,7 @@ pub struct PaymentIntent {
     pub skip_external_tax_calculation: Option<bool>,
     pub request_extended_authorization: Option<RequestExtendedAuthorizationBool>,
     pub psd2_sca_exemption_type: Option<storage_enums::ScaExemptionType>,
+    pub platform_merchant_id: Option<id_type::MerchantId>,
 }
 
 impl PaymentIntent {
@@ -227,7 +231,7 @@ impl AmountDetails {
             common_enums::TaxCalculationOverride::Calculate => None,
         };
 
-        payment_attempt::AttemptAmountDetails {
+        payment_attempt::AttemptAmountDetails::from(payment_attempt::AttemptAmountDetailsSetter {
             net_amount,
             amount_to_capture: None,
             surcharge_amount,
@@ -236,7 +240,7 @@ impl AmountDetails {
             amount_capturable: MinorUnit::zero(),
             shipping_cost: self.shipping_cost,
             order_tax_amount,
-        }
+        })
     }
 
     pub fn update_from_request(self, req: &api_models::payments::AmountDetailsUpdate) -> Self {
@@ -282,7 +286,7 @@ pub struct PaymentIntent {
     /// The total amount captured for the order. This is the sum of all the captured amounts for the order.
     pub amount_captured: Option<MinorUnit>,
     /// The identifier for the customer. This is the identifier for the customer in the merchant's system.
-    pub customer_id: Option<id_type::CustomerId>,
+    pub customer_id: Option<id_type::GlobalCustomerId>,
     /// The description of the order. This will be passed to connectors which support description.
     pub description: Option<common_utils::types::Description>,
     /// The return url for the payment. This is the url to which the user will be redirected after the payment is completed.
@@ -363,6 +367,8 @@ pub struct PaymentIntent {
     pub payment_link_config: Option<diesel_models::PaymentLinkConfigRequestForPayments>,
     /// The straight through routing algorithm id that is used for this payment. This overrides the default routing algorithm that is configured in business profile.
     pub routing_algorithm_id: Option<id_type::RoutingId>,
+    /// Identifier for the platform merchant.
+    pub platform_merchant_id: Option<id_type::MerchantId>,
 }
 
 #[cfg(feature = "v2")]
@@ -409,6 +415,7 @@ impl PaymentIntent {
         profile: &business_profile::Profile,
         request: api_models::payments::PaymentsCreateIntentRequest,
         decrypted_payment_intent: DecryptedPaymentIntent,
+        platform_merchant_id: Option<&merchant_account::MerchantAccount>,
     ) -> CustomResult<Self, errors::api_error_response::ApiErrorResponse> {
         let connector_metadata = request
             .get_connector_metadata_as_value()
@@ -502,6 +509,8 @@ impl PaymentIntent {
                 .payment_link_config
                 .map(ApiModelToDieselModelConvertor::convert_from),
             routing_algorithm_id: request.routing_algorithm_id,
+            platform_merchant_id: platform_merchant_id
+                .map(|merchant_account| merchant_account.get_id().to_owned()),
         })
     }
 }
@@ -522,7 +531,6 @@ pub struct HeaderPayload {
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct ClickToPayMetaData {
     pub dpa_id: String,
     pub dpa_name: String,
@@ -599,6 +607,17 @@ where
     /// Should the payment status be synced with connector
     /// This will depend on the payment status and the force sync flag in the request
     pub should_sync_with_connector: bool,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Clone)]
+pub struct PaymentCaptureData<F>
+where
+    F: Clone,
+{
+    pub flow: PhantomData<F>,
+    pub payment_intent: PaymentIntent,
+    pub payment_attempt: PaymentAttempt,
 }
 
 #[cfg(feature = "v2")]

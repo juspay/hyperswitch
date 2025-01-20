@@ -6,6 +6,7 @@ pub mod blocklist;
 pub mod blocklist_fingerprint;
 pub mod blocklist_lookup;
 pub mod business_profile;
+pub mod callback_mapper;
 pub mod capture;
 pub mod cards_info;
 pub mod configs;
@@ -30,6 +31,7 @@ pub mod organization;
 pub mod payment_link;
 pub mod payment_method;
 pub mod refund;
+pub mod relay;
 pub mod reverse_lookup;
 pub mod role;
 pub mod routing_algorithm;
@@ -128,10 +130,11 @@ pub trait StorageInterface:
     + authorization::AuthorizationInterface
     + user::sample_data::BatchSampleDataInterface
     + health_check::HealthCheckDbInterface
-    + role::RoleInterface
     + user_authentication_method::UserAuthenticationMethodInterface
     + authentication::AuthenticationInterface
     + generic_link::GenericLinkInterface
+    + relay::RelayInterface
+    + user::theme::ThemeInterface
     + 'static
 {
     fn get_scheduler_db(&self) -> Box<dyn scheduler::SchedulerInterface>;
@@ -147,7 +150,7 @@ pub trait GlobalStorageInterface:
     + user::UserInterface
     + user_role::UserRoleInterface
     + user_key_store::UserKeyStoreInterface
-    + user::theme::ThemeInterface
+    + role::RoleInterface
     + 'static
 {
 }

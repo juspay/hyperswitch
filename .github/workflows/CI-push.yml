@@ -79,6 +79,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2.7.0
         with:
           save-if: ${{ github.event_name == 'push' }}
+          cache-bin: "false"
 
       - name: Install cargo-hack
         uses: baptiste0928/cargo-install@v2.2.0
@@ -183,6 +184,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2.7.0
         with:
           save-if: ${{ github.event_name == 'push' }}
+          cache-bin: "false"
 
       - name: Run clippy
         shell: bash

@@ -1,4 +1,6 @@
 use api_models::user::dashboard_metadata::{self as api, GetMultipleMetaDataPayload};
+#[cfg(feature = "email")]
+use common_enums::EntityType;
 use diesel_models::{
     enums::DashboardMetadata as DBEnum, user::dashboard_metadata::DashboardMetadata,
 };
@@ -8,8 +10,6 @@ use masking::ExposeInterface;
 #[cfg(feature = "email")]
 use router_env::logger;
 
-#[cfg(feature = "email")]
-use crate::services::email::types as email_types;
 use crate::{
     core::errors::{UserErrors, UserResponse, UserResult},
     routes::{app::ReqState, SessionState},
@@ -17,6 +17,8 @@ use crate::{
     types::domain::{self, user::dashboard_metadata as types, MerchantKeyStore},
     utils::user::dashboard_metadata as utils,
 };
+#[cfg(feature = "email")]
+use crate::{services::email::types as email_types, utils::user::theme as theme_utils};
 
 pub async fn set_metadata(
     state: SessionState,
@@ -32,6 +34,7 @@ pub async fn set_metadata(
     Ok(ApplicationResponse::StatusOk)
 }
 
+#[cfg(feature = "v1")]
 pub async fn get_multiple_metadata(
     state: SessionState,
     user: UserFromToken,
@@ -476,10 +479,25 @@ async fn insert_metadata(
                     .expose();
 
                 if utils::is_prod_email_required(&data, user_email) {
-                    let email_contents = email_types::BizEmailProd::new(state, data)?;
+                    let theme = theme_utils::get_most_specific_theme_using_token_and_min_entity(
+                        state,
+                        &user,
+                        EntityType::Merchant,
+                    )
+                    .await?;
+
+                    let email_contents = email_types::BizEmailProd::new(
+                        state,
+                        data,
+                        theme.as_ref().map(|theme| theme.theme_id.clone()),
+                        theme
+                            .map(|theme| theme.email_config())
+                            .unwrap_or(state.conf.theme.email_config.clone()),
+                    )?;
                     let send_email_result = state
                         .email_client
                         .compose_and_send_email(
+                            email_types::get_base_url(state),
                             Box::new(email_contents),
                             state.conf.proxy.https_url.as_ref(),
                         )
@@ -605,6 +623,7 @@ async fn fetch_metadata(
     Ok(dashboard_metadata)
 }
 
+#[cfg(feature = "v1")]
 pub async fn backfill_metadata(
     state: &SessionState,
     user: &UserFromToken,

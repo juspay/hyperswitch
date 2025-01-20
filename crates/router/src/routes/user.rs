@@ -41,18 +41,23 @@ pub async fn user_signup_with_merchant_id(
     state: web::Data<AppState>,
     http_req: HttpRequest,
     json_payload: web::Json<user_api::SignUpWithMerchantIdRequest>,
-    query: web::Query<user_api::AuthIdQueryParam>,
+    query: web::Query<user_api::AuthIdAndThemeIdQueryParam>,
 ) -> HttpResponse {
     let flow = Flow::UserSignUpWithMerchantId;
     let req_payload = json_payload.into_inner();
-    let auth_id = query.into_inner().auth_id;
+    let query_params = query.into_inner();
     Box::pin(api::server_wrap(
         flow.clone(),
         state,
         &http_req,
         req_payload.clone(),
         |state, _, req_body, _| {
-            user_core::signup_with_merchant_id(state, req_body, auth_id.clone())
+            user_core::signup_with_merchant_id(
+                state,
+                req_body,
+                query_params.auth_id.clone(),
+                query_params.theme_id.clone(),
+            )
         },
         &auth::AdminApiAuth,
         api_locking::LockAction::NotApplicable,
@@ -107,17 +112,24 @@ pub async fn user_connect_account(
     state: web::Data<AppState>,
     http_req: HttpRequest,
     json_payload: web::Json<user_api::ConnectAccountRequest>,
-    query: web::Query<user_api::AuthIdQueryParam>,
+    query: web::Query<user_api::AuthIdAndThemeIdQueryParam>,
 ) -> HttpResponse {
     let flow = Flow::UserConnectAccount;
     let req_payload = json_payload.into_inner();
-    let auth_id = query.into_inner().auth_id;
+    let query_params = query.into_inner();
     Box::pin(api::server_wrap(
         flow.clone(),
         state,
         &http_req,
         req_payload.clone(),
-        |state, _: (), req_body, _| user_core::connect_account(state, req_body, auth_id.clone()),
+        |state, _: (), req_body, _| {
+            user_core::connect_account(
+                state,
+                req_body,
+                query_params.auth_id.clone(),
+                query_params.theme_id.clone(),
+            )
+        },
         &auth::NoAuth,
         api_locking::LockAction::NotApplicable,
     ))
@@ -185,6 +197,7 @@ pub async fn set_dashboard_metadata(
     .await
 }
 
+#[cfg(feature = "v1")]
 pub async fn get_multiple_dashboard_metadata(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -381,16 +394,23 @@ pub async fn forgot_password(
     state: web::Data<AppState>,
     req: HttpRequest,
     payload: web::Json<user_api::ForgotPasswordRequest>,
-    query: web::Query<user_api::AuthIdQueryParam>,
+    query: web::Query<user_api::AuthIdAndThemeIdQueryParam>,
 ) -> HttpResponse {
     let flow = Flow::ForgotPassword;
-    let auth_id = query.into_inner().auth_id;
+    let query_params = query.into_inner();
     Box::pin(api::server_wrap(
         flow,
         state.clone(),
         &req,
         payload.into_inner(),
-        |state, _: (), payload, _| user_core::forgot_password(state, payload, auth_id.clone()),
+        |state, _: (), payload, _| {
+            user_core::forgot_password(
+                state,
+                payload,
+                query_params.auth_id.clone(),
+                query_params.theme_id.clone(),
+            )
+        },
         &auth::NoAuth,
         api_locking::LockAction::NotApplicable,
     ))
@@ -420,7 +440,7 @@ pub async fn invite_multiple_user(
     state: web::Data<AppState>,
     req: HttpRequest,
     payload: web::Json<Vec<user_api::InviteUserRequest>>,
-    auth_id_query_param: web::Query<user_api::AuthIdQueryParam>,
+    auth_id_query_param: web::Query<user_api::AuthIdAndThemeIdQueryParam>,
 ) -> HttpResponse {
     let flow = Flow::InviteMultipleUser;
     let auth_id = auth_id_query_param.into_inner().auth_id;
@@ -445,7 +465,7 @@ pub async fn resend_invite(
     state: web::Data<AppState>,
     req: HttpRequest,
     payload: web::Json<user_api::ReInviteUserRequest>,
-    query: web::Query<user_api::AuthIdQueryParam>,
+    query: web::Query<user_api::AuthIdAndThemeIdQueryParam>,
 ) -> HttpResponse {
     let flow = Flow::ReInviteUser;
     let auth_id = query.into_inner().auth_id;
@@ -512,17 +532,22 @@ pub async fn verify_email_request(
     state: web::Data<AppState>,
     http_req: HttpRequest,
     json_payload: web::Json<user_api::SendVerifyEmailRequest>,
-    query: web::Query<user_api::AuthIdQueryParam>,
+    query: web::Query<user_api::AuthIdAndThemeIdQueryParam>,
 ) -> HttpResponse {
     let flow = Flow::VerifyEmailRequest;
-    let auth_id = query.into_inner().auth_id;
+    let query_params = query.into_inner();
     Box::pin(api::server_wrap(
         flow,
         state.clone(),
         &http_req,
         json_payload.into_inner(),
         |state, _: (), req_body, _| {
-            user_core::send_verification_mail(state, req_body, auth_id.clone())
+            user_core::send_verification_mail(
+                state,
+                req_body,
+                query_params.auth_id.clone(),
+                query_params.theme_id.clone(),
+            )
         },
         &auth::NoAuth,
         api_locking::LockAction::NotApplicable,

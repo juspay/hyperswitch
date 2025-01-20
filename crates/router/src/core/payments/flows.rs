@@ -13,9 +13,13 @@ pub mod setup_mandate_flow;
 
 use async_trait::async_trait;
 use hyperswitch_domain_models::{
-    mandates::CustomerAcceptance, router_request_types::PaymentsCaptureData,
+    mandates::CustomerAcceptance,
+    router_flow_types::{PostAuthenticate, PreAuthenticate},
+    router_request_types::PaymentsCaptureData,
 };
-use hyperswitch_interfaces::api::payouts::Payouts;
+use hyperswitch_interfaces::api::{
+    payouts::Payouts, UasPostAuthentication, UasPreAuthentication, UnifiedAuthenticationService,
+};
 
 #[cfg(feature = "frm")]
 use crate::types::fraud_check as frm_types;
@@ -503,8 +507,10 @@ default_imp_for_connector_request_id!(
     connector::Wise,
     connector::Worldline,
     connector::Worldpay,
+    connector::Xendit,
     connector::Zen,
-    connector::Zsl
+    connector::Zsl,
+    connector::CtpMastercard
 );
 
 macro_rules! default_imp_for_accept_dispute {
@@ -1639,8 +1645,10 @@ default_imp_for_fraud_check!(
     connector::Wise,
     connector::Worldline,
     connector::Worldpay,
+    connector::Xendit,
     connector::Zen,
-    connector::Zsl
+    connector::Zsl,
+    connector::CtpMastercard
 );
 
 #[cfg(feature = "frm")]
@@ -2242,8 +2250,10 @@ default_imp_for_connector_authentication!(
     connector::Wise,
     connector::Worldline,
     connector::Worldpay,
+    connector::Xendit,
     connector::Zen,
-    connector::Zsl
+    connector::Zsl,
+    connector::CtpMastercard
 );
 
 macro_rules! default_imp_for_authorize_session_token {
@@ -2488,11 +2498,11 @@ default_imp_for_post_session_tokens!(
 
 macro_rules! default_imp_for_uas_pre_authentication {
     ($($path:ident::$connector:ident),*) => {
-        $( impl api::UnifiedAuthenticationService for $path::$connector {}
-            impl api::UasPreAuthentication for $path::$connector {}
+        $( impl UnifiedAuthenticationService for $path::$connector {}
+            impl UasPreAuthentication for $path::$connector {}
             impl
             services::ConnectorIntegration<
-            api::PreAuthenticate,
+            PreAuthenticate,
             types::UasPreAuthenticationRequestData,
             types::UasAuthenticationResponseData
         > for $path::$connector
@@ -2501,13 +2511,13 @@ macro_rules! default_imp_for_uas_pre_authentication {
     };
 }
 #[cfg(feature = "dummy_connector")]
-impl<const T: u8> api::UasPreAuthentication for connector::DummyConnector<T> {}
+impl<const T: u8> UasPreAuthentication for connector::DummyConnector<T> {}
 #[cfg(feature = "dummy_connector")]
-impl<const T: u8> api::UnifiedAuthenticationService for connector::DummyConnector<T> {}
+impl<const T: u8> UnifiedAuthenticationService for connector::DummyConnector<T> {}
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8>
     services::ConnectorIntegration<
-        api::PreAuthenticate,
+        PreAuthenticate,
         types::UasPreAuthenticationRequestData,
         types::UasAuthenticationResponseData,
     > for connector::DummyConnector<T>
@@ -2518,95 +2528,44 @@ default_imp_for_uas_pre_authentication!(
     connector::Adyenplatform,
     connector::Aci,
     connector::Adyen,
-    connector::Airwallex,
-    connector::Amazonpay,
     connector::Authorizedotnet,
-    connector::Bambora,
-    connector::Bamboraapac,
     connector::Bankofamerica,
-    connector::Billwerk,
-    connector::Bitpay,
-    connector::Bluesnap,
-    connector::Boku,
     connector::Braintree,
-    connector::Cashtocode,
     connector::Checkout,
-    connector::Cryptopay,
-    connector::Coinbase,
     connector::Cybersource,
-    connector::Datatrans,
-    connector::Deutschebank,
-    connector::Digitalvirgo,
-    connector::Dlocal,
     connector::Ebanx,
-    connector::Elavon,
-    connector::Fiserv,
-    connector::Fiservemea,
-    connector::Fiuu,
-    connector::Forte,
     connector::Globalpay,
-    connector::Globepay,
-    connector::Gocardless,
     connector::Gpayments,
-    connector::Helcim,
     connector::Iatapay,
     connector::Itaubank,
-    connector::Jpmorgan,
     connector::Klarna,
     connector::Mifinity,
     connector::Netcetera,
-    connector::Mollie,
-    connector::Multisafepay,
-    connector::Nexinets,
-    connector::Nexixpay,
     connector::Nmi,
-    connector::Nomupay,
     connector::Noon,
-    connector::Novalnet,
     connector::Nuvei,
     connector::Opayo,
     connector::Opennode,
-    connector::Paybox,
-    connector::Payeezy,
     connector::Payme,
     connector::Payone,
     connector::Paypal,
-    connector::Payu,
-    connector::Placetopay,
     connector::Plaid,
-    connector::Powertranz,
-    connector::Prophetpay,
-    connector::Rapyd,
-    connector::Razorpay,
     connector::Riskified,
-    connector::Shift4,
     connector::Signifyd,
-    connector::Square,
-    connector::Stax,
     connector::Stripe,
     connector::Threedsecureio,
-    connector::Taxjar,
     connector::Trustpay,
-    connector::Tsys,
-    connector::Volt,
     connector::Wellsfargo,
     connector::Wellsfargopayout,
-    connector::Wise,
-    connector::Worldline,
-    connector::Worldpay,
-    connector::Zen,
-    connector::Zsl,
-    connector::Inespay,
-    connector::Redsys,
-    connector::UnifiedAuthenticationService
+    connector::Wise
 );
 
 macro_rules! default_imp_for_uas_post_authentication {
     ($($path:ident::$connector:ident),*) => {
-        $( impl api::UasPostAuthentication for $path::$connector {}
+        $( impl UasPostAuthentication for $path::$connector {}
             impl
             services::ConnectorIntegration<
-                api::PostAuthenticate,
+                PostAuthenticate,
                 types::UasPostAuthenticationRequestData,
                 types::UasAuthenticationResponseData
         > for $path::$connector
@@ -2615,11 +2574,11 @@ macro_rules! default_imp_for_uas_post_authentication {
     };
 }
 #[cfg(feature = "dummy_connector")]
-impl<const T: u8> api::UasPostAuthentication for connector::DummyConnector<T> {}
+impl<const T: u8> UasPostAuthentication for connector::DummyConnector<T> {}
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8>
     services::ConnectorIntegration<
-        api::PostAuthenticate,
+        PostAuthenticate,
         types::UasPostAuthenticationRequestData,
         types::UasAuthenticationResponseData,
     > for connector::DummyConnector<T>
@@ -2630,87 +2589,36 @@ default_imp_for_uas_post_authentication!(
     connector::Adyenplatform,
     connector::Aci,
     connector::Adyen,
-    connector::Airwallex,
-    connector::Amazonpay,
     connector::Authorizedotnet,
-    connector::Bambora,
-    connector::Bamboraapac,
     connector::Bankofamerica,
-    connector::Billwerk,
-    connector::Bitpay,
-    connector::Bluesnap,
-    connector::Boku,
     connector::Braintree,
-    connector::Cashtocode,
     connector::Checkout,
-    connector::Cryptopay,
-    connector::Coinbase,
     connector::Cybersource,
-    connector::Datatrans,
-    connector::Deutschebank,
-    connector::Digitalvirgo,
-    connector::Dlocal,
     connector::Ebanx,
-    connector::Elavon,
-    connector::Fiserv,
-    connector::Fiservemea,
-    connector::Fiuu,
-    connector::Forte,
     connector::Globalpay,
-    connector::Globepay,
     connector::Gpayments,
-    connector::Gocardless,
-    connector::Helcim,
     connector::Iatapay,
     connector::Itaubank,
-    connector::Jpmorgan,
     connector::Klarna,
     connector::Mifinity,
     connector::Netcetera,
-    connector::Mollie,
-    connector::Multisafepay,
-    connector::Nexinets,
-    connector::Nexixpay,
     connector::Nmi,
-    connector::Nomupay,
     connector::Noon,
-    connector::Novalnet,
     connector::Nuvei,
     connector::Opayo,
     connector::Opennode,
-    connector::Paybox,
-    connector::Payeezy,
     connector::Payme,
     connector::Payone,
     connector::Paypal,
-    connector::Payu,
-    connector::Placetopay,
     connector::Plaid,
-    connector::Powertranz,
-    connector::Prophetpay,
-    connector::Rapyd,
-    connector::Razorpay,
     connector::Riskified,
-    connector::Shift4,
     connector::Signifyd,
-    connector::Square,
-    connector::Stax,
     connector::Stripe,
     connector::Threedsecureio,
-    connector::Taxjar,
     connector::Trustpay,
-    connector::Tsys,
-    connector::Volt,
     connector::Wellsfargo,
     connector::Wellsfargopayout,
-    connector::Wise,
-    connector::Worldline,
-    connector::Worldpay,
-    connector::Zen,
-    connector::Zsl,
-    connector::Inespay,
-    connector::Redsys,
-    connector::UnifiedAuthenticationService
+    connector::Wise
 );
 /// Determines whether a capture API call should be made for a payment attempt
 /// This function evaluates whether an authorized payment should proceed with a capture API call

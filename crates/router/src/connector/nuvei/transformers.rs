@@ -71,7 +71,7 @@ impl NuveiAuthorizePreprocessingCommon for types::PaymentsAuthorizeData {
     fn get_return_url_required(
         &self,
     ) -> Result<String, error_stack::Report<errors::ConnectorError>> {
-        self.get_return_url()
+        self.get_router_return_url()
     }
 
     fn get_capture_method(&self) -> Option<enums::CaptureMethod> {
@@ -122,7 +122,7 @@ impl NuveiAuthorizePreprocessingCommon for types::PaymentsPreProcessingData {
     fn get_return_url_required(
         &self,
     ) -> Result<String, error_stack::Report<errors::ConnectorError>> {
-        self.get_return_url()
+        self.get_router_return_url()
     }
 
     fn get_capture_method(&self) -> Option<enums::CaptureMethod> {
@@ -977,6 +977,7 @@ where
                     get_pay_later_info(AlternativePaymentMethodType::AfterPay, item)
                 }
                 domain::PayLaterData::KlarnaSdk { .. }
+                | domain::PayLaterData::KlarnaCheckout {}
                 | domain::PayLaterData::AffirmRedirect {}
                 | domain::PayLaterData::PayBrightRedirect {}
                 | domain::PayLaterData::WalleyRedirect {}
@@ -1129,7 +1130,7 @@ where
             browser_details,
             v2_additional_params: additional_params,
             notification_url: item.request.get_complete_authorize_url().clone(),
-            merchant_url: item.return_url.clone(),
+            merchant_url: Some(item.request.get_return_url_required()?),
             platform_type: Some(PlatformType::Browser),
             method_completion_ind: Some(MethodCompletion::Unavailable),
             ..Default::default()

@@ -16,7 +16,11 @@ pub mod payouts;
 pub mod payouts_v2;
 pub mod refunds;
 pub mod refunds_v2;
-use common_enums::enums::{CallConnectorAction, CaptureMethod, PaymentAction, PaymentMethodType};
+
+use common_enums::{
+    enums::{CallConnectorAction, CaptureMethod, EventClass, PaymentAction, PaymentMethodType},
+    PaymentMethod,
+};
 use common_utils::{
     errors::CustomResult,
     request::{Method, Request, RequestContent},
@@ -27,12 +31,23 @@ use hyperswitch_domain_models::{
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_data_v2::{
         flow_common_types::WebhookSourceVerifyData, AccessTokenFlowData, MandateRevokeFlowData,
+        UasFlowData,
     },
-    router_flow_types::{mandate_revoke::MandateRevoke, AccessTokenAuth, VerifyWebhookSource},
+    router_flow_types::{
+        mandate_revoke::MandateRevoke, AccessTokenAuth, PostAuthenticate, PreAuthenticate,
+        VerifyWebhookSource,
+    },
     router_request_types::{
+        unified_authentication_service::{
+            UasAuthenticationResponseData, UasPostAuthenticationRequestData,
+            UasPreAuthenticationRequestData,
+        },
         AccessTokenRequestData, MandateRevokeRequestData, VerifyWebhookSourceRequestData,
     },
-    router_response_types::{MandateRevokeResponseData, VerifyWebhookSourceResponseData},
+    router_response_types::{
+        ConnectorInfo, MandateRevokeResponseData, PaymentMethodDetails, SupportedPaymentMethods,
+        VerifyWebhookSourceResponseData,
+    },
 };
 use masking::Maskable;
 use serde_json::json;
@@ -272,6 +287,24 @@ pub trait ConnectorCommon {
     }
 }
 
+/// The trait that provides specifications about the connector
+pub trait ConnectorSpecifications {
+    /// Details related to payment method supported by the connector
+    fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
+        None
+    }
+
+    /// Supported webhooks flows
+    fn get_supported_webhook_flows(&self) -> Option<&'static [EventClass]> {
+        None
+    }
+
+    /// About the connector
+    fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
+        None
+    }
+}
+
 /// Extended trait for connector common to allow functions with generic type
 pub trait ConnectorCommonExt<Flow, Req, Resp>:
     ConnectorCommon + ConnectorIntegration<Flow, Req, Resp>
@@ -336,24 +369,101 @@ pub trait ConnectorVerifyWebhookSourceV2:
 {
 }
 
+/// trait UnifiedAuthenticationService
+pub trait UnifiedAuthenticationService:
+    ConnectorCommon + UasPreAuthentication + UasPostAuthentication
+{
+}
+
+/// trait UasPreAuthentication
+pub trait UasPreAuthentication:
+    ConnectorIntegration<
+    PreAuthenticate,
+    UasPreAuthenticationRequestData,
+    UasAuthenticationResponseData,
+>
+{
+}
+
+/// trait UasPostAuthentication
+pub trait UasPostAuthentication:
+    ConnectorIntegration<
+    PostAuthenticate,
+    UasPostAuthenticationRequestData,
+    UasAuthenticationResponseData,
+>
+{
+}
+
+/// trait UnifiedAuthenticationServiceV2
+pub trait UnifiedAuthenticationServiceV2:
+    ConnectorCommon + UasPreAuthenticationV2 + UasPostAuthenticationV2
+{
+}
+
+///trait UasPreAuthenticationV2
+pub trait UasPreAuthenticationV2:
+    ConnectorIntegrationV2<
+    PreAuthenticate,
+    UasFlowData,
+    UasPreAuthenticationRequestData,
+    UasAuthenticationResponseData,
+>
+{
+}
+
+/// trait UasPostAuthenticationV2
+pub trait UasPostAuthenticationV2:
+    ConnectorIntegrationV2<
+    PostAuthenticate,
+    UasFlowData,
+    UasPostAuthenticationRequestData,
+    UasAuthenticationResponseData,
+>
+{
+}
+
 /// trait ConnectorValidation
-pub trait ConnectorValidation: ConnectorCommon {
-    /// fn validate_capture_method
-    fn validate_capture_method(
+pub trait ConnectorValidation: ConnectorCommon + ConnectorSpecifications {
+    /// Validate, the payment request against the connector supported features
+    fn validate_connector_against_payment_request(
         &self,
         capture_method: Option<CaptureMethod>,
-        _pmt: Option<PaymentMethodType>,
+        payment_method: PaymentMethod,
+        pmt: Option<PaymentMethodType>,
     ) -> CustomResult<(), errors::ConnectorError> {
         let capture_method = capture_method.unwrap_or_default();
-        match capture_method {
-            CaptureMethod::Automatic | CaptureMethod::SequentialAutomatic => Ok(()),
-            CaptureMethod::Manual | CaptureMethod::ManualMultiple | CaptureMethod::Scheduled => {
-                Err(errors::ConnectorError::NotSupported {
-                    message: capture_method.to_string(),
-                    connector: self.id(),
-                }
-                .into())
+        let is_default_capture_method =
+            [CaptureMethod::Automatic, CaptureMethod::SequentialAutomatic]
+                .contains(&capture_method);
+        let is_feature_supported = match self.get_supported_payment_methods() {
+            Some(supported_payment_methods) => {
+                let connector_payment_method_type_info = get_connector_payment_method_type_info(
+                    supported_payment_methods,
+                    payment_method,
+                    pmt,
+                    self.id(),
+                )?;
+
+                connector_payment_method_type_info
+                    .map(|payment_method_type_info| {
+                        payment_method_type_info
+                            .supported_capture_methods
+                            .contains(&capture_method)
+                    })
+                    .unwrap_or_else(|| is_default_capture_method)
             }
+            None => is_default_capture_method,
+        };
+
+        if is_feature_supported {
+            Ok(())
+        } else {
+            Err(errors::ConnectorError::NotSupported {
+                message: capture_method.to_string(),
+                connector: self.id(),
+            }
+            .into())
         }
     }
 
@@ -414,3 +524,30 @@ pub trait ConnectorRedirectResponse {
 /// Empty trait for when payouts feature is disabled
 #[cfg(not(feature = "payouts"))]
 pub trait Payouts {}
+
+fn get_connector_payment_method_type_info(
+    supported_payment_method: &SupportedPaymentMethods,
+    payment_method: PaymentMethod,
+    payment_method_type: Option<PaymentMethodType>,
+    connector: &'static str,
+) -> CustomResult<Option<PaymentMethodDetails>, errors::ConnectorError> {
+    let payment_method_details =
+        supported_payment_method
+            .get(&payment_method)
+            .ok_or_else(|| errors::ConnectorError::NotSupported {
+                message: payment_method.to_string(),
+                connector,
+            })?;
+
+    payment_method_type
+        .map(|pmt| {
+            payment_method_details.get(&pmt).cloned().ok_or_else(|| {
+                errors::ConnectorError::NotSupported {
+                    message: format!("{} {}", payment_method, pmt),
+                    connector,
+                }
+                .into()
+            })
+        })
+        .transpose()
+}

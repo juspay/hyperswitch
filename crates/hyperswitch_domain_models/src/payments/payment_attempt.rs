@@ -191,6 +191,27 @@ pub trait PaymentAttemptInterface {
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize)]
 pub struct AttemptAmountDetails {
     /// The total amount for this payment attempt. This includes all the surcharge and tax amounts.
+    net_amount: MinorUnit,
+    /// The amount that has to be captured,
+    amount_to_capture: Option<MinorUnit>,
+    /// Surcharge amount for the payment attempt.
+    /// This is either derived by surcharge rules, or sent by the merchant
+    surcharge_amount: Option<MinorUnit>,
+    /// Tax amount for the payment attempt
+    /// This is either derived by surcharge rules, or sent by the merchant
+    tax_on_surcharge: Option<MinorUnit>,
+    /// The total amount that can be captured for this payment attempt.
+    amount_capturable: MinorUnit,
+    /// Shipping cost for the payment attempt.
+    shipping_cost: Option<MinorUnit>,
+    /// Tax amount for the order.
+    /// This is either derived by calling an external tax processor, or sent by the merchant
+    order_tax_amount: Option<MinorUnit>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize)]
+pub struct AttemptAmountDetailsSetter {
+    /// The total amount for this payment attempt. This includes all the surcharge and tax amounts.
     pub net_amount: MinorUnit,
     /// The amount that has to be captured,
     pub amount_to_capture: Option<MinorUnit>,
@@ -207,6 +228,67 @@ pub struct AttemptAmountDetails {
     /// Tax amount for the order.
     /// This is either derived by calling an external tax processor, or sent by the merchant
     pub order_tax_amount: Option<MinorUnit>,
+}
+
+/// Set the fields of amount details, since the fields are not public
+impl From<AttemptAmountDetailsSetter> for AttemptAmountDetails {
+    fn from(setter: AttemptAmountDetailsSetter) -> Self {
+        Self {
+            net_amount: setter.net_amount,
+            amount_to_capture: setter.amount_to_capture,
+            surcharge_amount: setter.surcharge_amount,
+            tax_on_surcharge: setter.tax_on_surcharge,
+            amount_capturable: setter.amount_capturable,
+            shipping_cost: setter.shipping_cost,
+            order_tax_amount: setter.order_tax_amount,
+        }
+    }
+}
+
+impl AttemptAmountDetails {
+    pub fn get_net_amount(&self) -> MinorUnit {
+        self.net_amount
+    }
+
+    pub fn get_amount_to_capture(&self) -> Option<MinorUnit> {
+        self.amount_to_capture
+    }
+
+    pub fn get_surcharge_amount(&self) -> Option<MinorUnit> {
+        self.surcharge_amount
+    }
+
+    pub fn get_tax_on_surcharge(&self) -> Option<MinorUnit> {
+        self.tax_on_surcharge
+    }
+
+    pub fn get_amount_capturable(&self) -> MinorUnit {
+        self.amount_capturable
+    }
+
+    pub fn get_shipping_cost(&self) -> Option<MinorUnit> {
+        self.shipping_cost
+    }
+
+    pub fn get_order_tax_amount(&self) -> Option<MinorUnit> {
+        self.order_tax_amount
+    }
+
+    pub fn set_amount_to_capture(&mut self, amount_to_capture: MinorUnit) {
+        self.amount_to_capture = Some(amount_to_capture);
+    }
+
+    /// Validate the amount to capture that is sent in the request
+    pub fn validate_amount_to_capture(
+        &self,
+        request_amount_to_capture: MinorUnit,
+    ) -> Result<(), ValidationError> {
+        common_utils::fp_utils::when(request_amount_to_capture > self.get_net_amount(), || {
+            Err(ValidationError::IncorrectValueProvided {
+                field_name: "amount_to_capture",
+            })
+        })
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize)]
@@ -661,6 +743,7 @@ impl NetAmount {
 
 #[cfg(feature = "v2")]
 impl PaymentAttempt {
+    #[track_caller]
     pub fn get_total_amount(&self) -> MinorUnit {
         todo!();
     }
@@ -1352,15 +1435,28 @@ pub enum PaymentAttemptUpdate {
         updated_by: String,
         redirection_data: Option<router_response_types::RedirectForm>,
         connector_metadata: Option<pii::SecretSerdeValue>,
+        amount_capturable: Option<MinorUnit>,
     },
     /// Update the payment attempt after force syncing with the connector
     SyncUpdate {
         status: storage_enums::AttemptStatus,
+        amount_capturable: Option<MinorUnit>,
+        updated_by: String,
+    },
+    PreCaptureUpdate {
+        amount_to_capture: Option<MinorUnit>,
+        updated_by: String,
+    },
+    /// Update the payment after attempting capture with the connector
+    CaptureUpdate {
+        status: storage_enums::AttemptStatus,
+        amount_capturable: Option<MinorUnit>,
         updated_by: String,
     },
     /// Update the payment attempt on confirming the intent, after calling the connector on error response
     ErrorUpdate {
         status: storage_enums::AttemptStatus,
+        amount_capturable: Option<MinorUnit>,
         error: ErrorDetails,
         updated_by: String,
         connector_payment_id: Option<String>,
@@ -2055,11 +2151,14 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 connector: Some(connector),
                 redirection_data: None,
                 connector_metadata: None,
+                amount_capturable: None,
+                amount_to_capture: None,
             },
             PaymentAttemptUpdate::ErrorUpdate {
                 status,
                 error,
                 connector_payment_id,
+                amount_capturable,
                 updated_by,
             } => Self {
                 status: Some(status),
@@ -2076,6 +2175,8 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 connector: None,
                 redirection_data: None,
                 connector_metadata: None,
+                amount_capturable,
+                amount_to_capture: None,
             },
             PaymentAttemptUpdate::ConfirmIntentResponse {
                 status,
@@ -2083,8 +2184,10 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 updated_by,
                 redirection_data,
                 connector_metadata,
+                amount_capturable,
             } => Self {
                 status: Some(status),
+                amount_capturable,
                 error_message: None,
                 error_code: None,
                 modified_at: common_utils::date_time::now(),
@@ -2099,9 +2202,15 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 redirection_data: redirection_data
                     .map(diesel_models::payment_attempt::RedirectForm::from),
                 connector_metadata,
+                amount_to_capture: None,
             },
-            PaymentAttemptUpdate::SyncUpdate { status, updated_by } => Self {
+            PaymentAttemptUpdate::SyncUpdate {
+                status,
+                amount_capturable,
+                updated_by,
+            } => Self {
                 status: Some(status),
+                amount_capturable,
                 error_message: None,
                 error_code: None,
                 modified_at: common_utils::date_time::now(),
@@ -2115,6 +2224,50 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 connector: None,
                 redirection_data: None,
                 connector_metadata: None,
+                amount_to_capture: None,
+            },
+            PaymentAttemptUpdate::CaptureUpdate {
+                status,
+                amount_capturable,
+                updated_by,
+            } => Self {
+                status: Some(status),
+                amount_capturable,
+                amount_to_capture: None,
+                error_message: None,
+                error_code: None,
+                modified_at: common_utils::date_time::now(),
+                browser_info: None,
+                error_reason: None,
+                updated_by,
+                merchant_connector_id: None,
+                unified_code: None,
+                unified_message: None,
+                connector_payment_id: None,
+                connector: None,
+                redirection_data: None,
+                connector_metadata: None,
+            },
+            PaymentAttemptUpdate::PreCaptureUpdate {
+                amount_to_capture,
+                updated_by,
+            } => Self {
+                amount_to_capture,
+                error_message: None,
+                modified_at: common_utils::date_time::now(),
+                browser_info: None,
+                error_code: None,
+                error_reason: None,
+                updated_by,
+                merchant_connector_id: None,
+                unified_code: None,
+                unified_message: None,
+                connector_payment_id: None,
+                connector: None,
+                redirection_data: None,
+                status: None,
+                connector_metadata: None,
+                amount_capturable: None,
             },
         }
     }

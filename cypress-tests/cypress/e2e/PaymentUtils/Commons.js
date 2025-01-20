@@ -149,9 +149,7 @@ with `getCustomExchange`, if 501 response is expected, there is no need to pass 
 
 // Const to get default PaymentExchange object
 const getDefaultExchange = () => ({
-  Request: {
-    currency: "EUR",
-  },
+  Request: {},
   Response: {
     status: 501,
     body: {
@@ -397,6 +395,27 @@ export const payment_methods_enabled = [
         recurring_enabled: true,
         installment_payment_enabled: true,
         payment_experience: "redirect_to_url",
+      },
+    ],
+  },
+  {
+    payment_method: "wallet",
+    payment_method_types: [
+      {
+        payment_method_type: "apple_pay",
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: true,
+        installment_payment_enabled: true,
+        payment_experience: "invoke_sdk_client",
+      },
+      {
+        payment_method_type: "google_pay",
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: true,
+        installment_payment_enabled: true,
+        payment_experience: "invoke_sdk_client",
       },
     ],
   },
@@ -686,6 +705,14 @@ export const connectorDetails = {
         setup_future_usage: "on_session",
       },
     }),
+    SessionToken: {
+      Response: {
+        status: 200,
+        body: {
+          session_token: [],
+        },
+      },
+    },
     No3DSManualCapture: getCustomExchange({
       Request: {
         payment_method: "card",
@@ -1011,6 +1038,16 @@ export const connectorDetails = {
     SaveCardConfirmAutoCaptureOffSession: getCustomExchange({
       Request: {
         setup_future_usage: "off_session",
+      },
+      ResponseCustom: {
+        status: 400,
+        body: {
+          error: {
+            message:
+              "No eligible connector was found for the current payment method configuration",
+            type: "invalid_request",
+          },
+        },
       },
     }),
     SaveCardConfirmManualCaptureOffSession: getCustomExchange({
@@ -1392,7 +1429,8 @@ export const connectorDetails = {
         body: {
           error: {
             type: "invalid_request",
-            message: "A payment token or payment method data is required",
+            message:
+              "A payment token or payment method data or ctp service details is required",
             code: "IR_06",
           },
         },
@@ -1460,6 +1498,25 @@ export const connectorDetails = {
             message:
               "You cannot confirm this payment because it has status succeeded",
             code: "IR_16",
+          },
+        },
+      },
+    }),
+    MITAutoCapture: getCustomExchange({
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+      ResponseCustom: {
+        status: 400,
+        body: {
+          error: {
+            message:
+              "No eligible connector was found for the current payment method configuration",
+            type: "invalid_request",
           },
         },
       },

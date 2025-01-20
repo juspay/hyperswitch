@@ -78,6 +78,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         merchant_key_store: &domain::MerchantKeyStore,
         _auth_flow: services::AuthFlow,
         header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
+        platform_merchant_account: Option<&domain::MerchantAccount>,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest, PaymentData<F>>>
     {
         let db = &*state.store;
@@ -304,6 +305,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             attempt_id,
             profile_id.clone(),
             session_expiry,
+            platform_merchant_account,
         )
         .await?;
 
@@ -1012,6 +1014,7 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentDat
                 &request.payment_method_type,
                 &mandate_type,
                 &request.payment_token,
+                &request.ctp_service_details,
             )?;
 
             helpers::validate_customer_id_mandatory_cases(
@@ -1190,7 +1193,7 @@ impl PaymentCreate {
             payment_id.get_attempt_id(1)
         };
 
-        if request.mandate_data.as_ref().map_or(false, |mandate_data| {
+        if request.mandate_data.as_ref().is_some_and(|mandate_data| {
             mandate_data.update_mandate_id.is_some() && mandate_data.mandate_type.is_some()
         }) {
             Err(errors::ApiErrorResponse::InvalidRequestData {message:"Only one field out of 'mandate_type' and 'update_mandate_id' was expected, found both".to_string()})?
@@ -1310,6 +1313,7 @@ impl PaymentCreate {
         active_attempt_id: String,
         profile_id: common_utils::id_type::ProfileId,
         session_expiry: PrimitiveDateTime,
+        platform_merchant_account: Option<&domain::MerchantAccount>,
     ) -> RouterResult<storage::PaymentIntent> {
         let created_at @ modified_at @ last_synced = common_utils::date_time::now();
 
@@ -1430,6 +1434,15 @@ impl PaymentCreate {
 
         let skip_external_tax_calculation = request.skip_external_tax_calculation;
 
+        let tax_details = request
+            .order_tax_amount
+            .map(|tax_amount| diesel_models::TaxDetails {
+                default: Some(diesel_models::DefaultTax {
+                    order_tax_amount: tax_amount,
+                }),
+                payment_method_type: None,
+            });
+
         Ok(storage::PaymentIntent {
             payment_id: payment_id.to_owned(),
             merchant_id: merchant_account.get_id().to_owned(),
@@ -1484,10 +1497,12 @@ impl PaymentCreate {
             is_payment_processor_token_flow,
             organization_id: merchant_account.organization_id.clone(),
             shipping_cost: request.shipping_cost,
-            tax_details: None,
+            tax_details,
             skip_external_tax_calculation,
             request_extended_authorization: request.request_extended_authorization,
             psd2_sca_exemption_type: request.psd2_sca_exemption_type,
+            platform_merchant_id: platform_merchant_account
+                .map(|platform_merchant_account| platform_merchant_account.get_id().to_owned()),
         })
     }
 
