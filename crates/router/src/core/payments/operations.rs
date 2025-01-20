@@ -148,7 +148,7 @@ pub trait ValidateRequest<F, R, D> {
     fn validate_request<'b>(
         &'b self,
         request: &R,
-        merchant_account: &domain::MerchantAccount,
+        merchant_context: &domain::MerchantContext,
     ) -> RouterResult<(BoxedOperation<'b, F, R, D>, ValidateResult)>;
 }
 

@@ -6,7 +6,7 @@ pub mod helpers;
 
 use actix_web::{web, Responder};
 use error_stack::report;
-use hyperswitch_domain_models::payments::HeaderPayload;
+use hyperswitch_domain_models::{merchant_context::MerchantContext, payments::HeaderPayload};
 use masking::PeekInterface;
 use router_env::{env, instrument, logger, tracing, types, Flow};
 
@@ -75,17 +75,20 @@ pub async fn payments_create(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, req_state| {
+            let merchant_context = MerchantContext::new_from_merchant_accounts(
+                auth.merchant_account,
+                auth.platform_merchant_account,
+            );
             authorize_verify_select::<_>(
                 payments::PaymentCreate,
                 state,
                 req_state,
-                auth.merchant_account,
                 auth.profile_id,
                 auth.key_store,
                 header_payload.clone(),
                 req,
                 api::AuthFlow::Merchant,
-                auth.platform_merchant_account,
+                merchant_context,
             )
         },
         match env::which() {
@@ -509,17 +512,20 @@ pub async fn payments_update(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, req_state| {
+            let merchant_context = MerchantContext::new_from_merchant_accounts(
+                auth.merchant_account,
+                auth.platform_merchant_account,
+            );
             authorize_verify_select::<_>(
                 payments::PaymentUpdate,
                 state,
                 req_state,
-                auth.merchant_account,
                 auth.profile_id,
                 auth.key_store,
                 HeaderPayload::default(),
                 req,
                 auth_flow,
-                auth.platform_merchant_account,
+                merchant_context,
             )
         },
         &*auth_type,
@@ -631,17 +637,20 @@ pub async fn payments_confirm(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, req_state| {
+            let merchant_context = MerchantContext::new_from_merchant_accounts(
+                auth.merchant_account,
+                auth.platform_merchant_account,
+            );
             authorize_verify_select::<_>(
                 payments::PaymentConfirm,
                 state,
                 req_state,
-                auth.merchant_account,
                 auth.profile_id,
                 auth.key_store,
                 header_payload.clone(),
                 req,
                 auth_flow,
-                auth.platform_merchant_account,
+                merchant_context,
             )
         },
         &*auth_type,
@@ -1514,13 +1523,12 @@ async fn authorize_verify_select<Op>(
     operation: Op,
     state: app::SessionState,
     req_state: ReqState,
-    merchant_account: domain::MerchantAccount,
     profile_id: Option<common_utils::id_type::ProfileId>,
     key_store: domain::MerchantKeyStore,
     header_payload: HeaderPayload,
     req: api_models::payments::PaymentsRequest,
     auth_flow: api::AuthFlow,
-    platform_merchant_account: Option<domain::MerchantAccount>,
+    merchant_context: MerchantContext,
 ) -> errors::RouterResponse<api_models::payments::PaymentsResponse>
 where
     Op: Sync
@@ -1541,7 +1549,8 @@ where
     // After analyzing the code structure,
     // the operation are flow agnostic, and the flow is only required in the post_update_tracker
     // Thus the flow can be generated just before calling the connector instead of explicitly passing it here.
-
+    let merchant_account = merchant_context.get_tracker_merchant_account().clone();
+    let platform_merchant_account = None;
     let is_recurring_details_type_nti_and_card_details = req
         .recurring_details
         .clone()
@@ -1562,7 +1571,6 @@ where
         >(
             state,
             req_state,
-            merchant_account,
             profile_id,
             key_store,
             operation,
@@ -1570,7 +1578,7 @@ where
             auth_flow,
             payments::CallConnectorAction::Trigger,
             header_payload,
-            platform_merchant_account,
+            merchant_context,
         )
         .await
     } else {

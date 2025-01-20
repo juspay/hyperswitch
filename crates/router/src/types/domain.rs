@@ -6,6 +6,10 @@ mod merchant_account {
     pub use hyperswitch_domain_models::merchant_account::*;
 }
 
+mod merchant_context {
+    pub use hyperswitch_domain_models::merchant_context::MerchantContext;
+}
+
 mod business_profile {
     pub use hyperswitch_domain_models::business_profile::{
         Profile, ProfileGeneralUpdate, ProfileSetter, ProfileUpdate,
@@ -18,6 +22,7 @@ mod customers {
 
 pub use customers::*;
 pub use merchant_account::*;
+pub use merchant_context::MerchantContext;
 
 mod address;
 mod event;

@@ -453,7 +453,7 @@ impl<F: Send + Clone + Sync>
     fn validate_request<'a, 'b>(
         &'b self,
         request: &api::PaymentsDynamicTaxCalculationRequest,
-        merchant_account: &'a domain::MerchantAccount,
+        merchant_context: &'a domain::MerchantContext,
     ) -> RouterResult<(
         PaymentSessionUpdateOperation<'b, F>,
         operations::ValidateResult,
@@ -464,9 +464,9 @@ impl<F: Send + Clone + Sync>
         Ok((
             Box::new(self),
             operations::ValidateResult {
-                merchant_id: merchant_account.get_id().to_owned(),
+                merchant_id: merchant_context.get_tracker_merchant_account().get_id().to_owned(),
                 payment_id: api::PaymentIdType::PaymentIntentId(given_payment_id),
-                storage_scheme: merchant_account.storage_scheme,
+                storage_scheme: merchant_context.get_tracker_merchant_account().storage_scheme,
                 requeue: false,
             },
         ))

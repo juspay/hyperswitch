@@ -516,7 +516,7 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentDat
     fn validate_request<'a, 'b>(
         &'b self,
         request: &api::PaymentsRequest,
-        merchant_account: &'a domain::MerchantAccount,
+        merchant_context: &'a domain::MerchantContext,
     ) -> RouterResult<(
         CompleteAuthorizeOperation<'b, F>,
         operations::ValidateResult,
@@ -527,7 +527,7 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentDat
             .ok_or(report!(errors::ApiErrorResponse::PaymentNotFound))?;
 
         let request_merchant_id = request.merchant_id.as_ref();
-        helpers::validate_merchant_id(merchant_account.get_id(), request_merchant_id)
+        helpers::validate_merchant_id(merchant_context.get_tracker_merchant_account().get_id(), request_merchant_id)
             .change_context(errors::ApiErrorResponse::InvalidDataFormat {
                 field_name: "merchant_id".to_string(),
                 expected_format: "merchant_id from merchant account".to_string(),
@@ -547,9 +547,9 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentDat
         Ok((
             Box::new(self),
             operations::ValidateResult {
-                merchant_id: merchant_account.get_id().to_owned(),
+                merchant_id: merchant_context.get_tracker_merchant_account().get_id().to_owned(),
                 payment_id,
-                storage_scheme: merchant_account.storage_scheme,
+                storage_scheme: merchant_context.get_tracker_merchant_account().storage_scheme,
                 requeue: matches!(
                     request.retry_action,
                     Some(api_models::enums::RetryAction::Requeue)

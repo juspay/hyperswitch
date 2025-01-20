@@ -49,6 +49,7 @@ use hyperswitch_domain_models::payments::{
 use hyperswitch_domain_models::router_response_types::RedirectForm;
 pub use hyperswitch_domain_models::{
     mandates::{CustomerAcceptance, MandateData},
+    merchant_context::MerchantContext,
     payment_address::PaymentAddress,
     payments::HeaderPayload,
     router_data::{PaymentMethodToken, RouterData},
@@ -270,7 +271,7 @@ where
     tracing::Span::current().record("merchant_id", merchant_account.get_id().get_string_repr());
     let (operation, validate_result) = operation
         .to_validate_request()?
-        .validate_request(&req, &merchant_account)?;
+        .validate_request(&req, todo!())?;
 
     tracing::Span::current().record("payment_id", format!("{}", validate_result.payment_id));
     // get profile from headers
@@ -822,7 +823,6 @@ where
 pub async fn proxy_for_payments_operation_core<F, Req, Op, FData, D>(
     state: &SessionState,
     req_state: ReqState,
-    merchant_account: domain::MerchantAccount,
     profile_id_from_auth_layer: Option<id_type::ProfileId>,
     key_store: domain::MerchantKeyStore,
     operation: Op,
@@ -830,7 +830,7 @@ pub async fn proxy_for_payments_operation_core<F, Req, Op, FData, D>(
     call_connector_action: CallConnectorAction,
     auth_flow: services::AuthFlow,
     header_payload: HeaderPayload,
-    platform_merchant_account: Option<domain::MerchantAccount>,
+    merchant_context: MerchantContext,
 ) -> RouterResult<(D, Req, Option<domain::Customer>, Option<u16>, Option<u128>)>
 where
     F: Send + Clone + Sync,
@@ -851,11 +851,13 @@ where
     FData: Send + Sync + Clone,
 {
     let operation: BoxedOperation<'_, F, Req, D> = Box::new(operation);
+    let merchant_account = merchant_context.get_tracker_merchant_account().clone();
+    let platform_merchant_account = None;
 
     tracing::Span::current().record("merchant_id", merchant_account.get_id().get_string_repr());
     let (operation, validate_result) = operation
         .to_validate_request()?
-        .validate_request(&req, &merchant_account)?;
+        .validate_request(&req, &merchant_context)?;
 
     tracing::Span::current().record("payment_id", format!("{}", validate_result.payment_id));
 
@@ -1409,7 +1411,6 @@ where
 pub async fn proxy_for_payments_core<F, Res, Req, Op, FData, D>(
     state: SessionState,
     req_state: ReqState,
-    merchant_account: domain::MerchantAccount,
     profile_id: Option<id_type::ProfileId>,
     key_store: domain::MerchantKeyStore,
     operation: Op,
@@ -1417,7 +1418,7 @@ pub async fn proxy_for_payments_core<F, Res, Req, Op, FData, D>(
     auth_flow: services::AuthFlow,
     call_connector_action: CallConnectorAction,
     header_payload: HeaderPayload,
-    platform_merchant_account: Option<domain::MerchantAccount>,
+    merchant_context: MerchantContext,
 ) -> RouterResponse<Res>
 where
     F: Send + Clone + Sync,
@@ -1441,7 +1442,6 @@ where
         proxy_for_payments_operation_core::<_, _, _, _, _>(
             &state,
             req_state,
-            merchant_account,
             profile_id,
             key_store,
             operation.clone(),
@@ -1449,7 +1449,7 @@ where
             call_connector_action,
             auth_flow,
             header_payload.clone(),
-            platform_merchant_account,
+            merchant_context,
         )
         .await?;
 
