@@ -262,7 +262,7 @@ jobs:
 
   runner_v2:
     name: Run Cypress tests on v2 and generate coverage report
-    runs-on: ubuntu-latest
+    runs-on: hyperswitch-runners
     env:
       CODECOV_FILE: "lcov.info"
 
