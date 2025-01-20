@@ -14,7 +14,7 @@ use utoipa::ToSchema;
 /// Fee information for Split Payments to be charged on the payment being collected for Adyen
 pub struct AdyenSplitData {
     /// The store identifier
-    pub store_id: Option<String>,
+    pub store: Option<String>,
     /// Data for the split items
     pub split_items: Vec<AdyenSplitItem>,
 }

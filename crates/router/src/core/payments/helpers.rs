@@ -6333,7 +6333,7 @@ pub fn validate_platform_request_for_marketplace(
                                             "split_payments.adyen_split_payment.split_items.account",
                                     });
                                 }
-                                if adyen_split_payment.store_id.is_some() {
+                                if adyen_split_payment.store.is_some() {
                                     return Err(errors::ApiErrorResponse::PreconditionFailed {
                                         message: "Topup split payment is not available via Adyen Platform"
                                             .to_string(),

@@ -191,9 +191,9 @@ pub fn validate_adyen_charge_refund(
     adyen_split_payment_response: &common_types::domain::AdyenSplitData,
     adyen_split_refund_request: &common_types::domain::AdyenSplitData,
 ) -> RouterResult<()> {
-    if adyen_split_refund_request.store_id != adyen_split_payment_response.store_id {
+    if adyen_split_refund_request.store != adyen_split_payment_response.store {
         return Err(report!(errors::ApiErrorResponse::InvalidDataValue {
-            field_name: "store_id",
+            field_name: "store",
         }));
     }
 

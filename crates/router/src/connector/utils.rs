@@ -24,8 +24,7 @@ use hyperswitch_domain_models::{
     mandates,
     payments::payment_attempt::PaymentAttempt,
     router_request_types::{
-        AuthoriseIntegrityObject, CaptureIntegrityObject, RefundIntegrityObject,
-        SyncIntegrityObject,
+        AuthoriseIntegrityObject, CaptureIntegrityObject, RefundIntegrityObject, SyncIntegrityObject
     },
 };
 use masking::{Deserialize, ExposeInterface, Secret};
@@ -782,6 +781,12 @@ impl SplitPaymentData for types::PaymentsSyncData {
 }
 
 impl SplitPaymentData for PaymentsCancelData {
+    fn get_split_payment_data(&self) -> Option<common_types::payments::SplitPaymentsRequest> {
+        None
+    }
+}
+
+impl SplitPaymentData for types::SetupMandateRequestData {
     fn get_split_payment_data(&self) -> Option<common_types::payments::SplitPaymentsRequest> {
         None
     }
