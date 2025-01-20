@@ -194,11 +194,11 @@ impl cgraph::CheckingContext for AnalysisContext {
                     DataType::EnumVariant | DataType::StrValue | DataType::MetadataValue => {
                         value_set.contains(val)
                     }
-                    DataType::Number => val.get_num_value().map_or(false, |num_val| {
+                    DataType::Number => val.get_num_value().is_some_and(|num_val| {
                         value_set.iter().any(|ctx_val| {
                             ctx_val
                                 .get_num_value()
-                                .map_or(false, |ctx_num_val| num_val.fits(&ctx_num_val))
+                                .is_some_and(|ctx_num_val| num_val.fits(&ctx_num_val))
                         })
                     }),
                 }

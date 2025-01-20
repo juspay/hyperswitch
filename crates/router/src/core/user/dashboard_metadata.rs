@@ -34,6 +34,7 @@ pub async fn set_metadata(
     Ok(ApplicationResponse::StatusOk)
 }
 
+#[cfg(feature = "v1")]
 pub async fn get_multiple_metadata(
     state: SessionState,
     user: UserFromToken,
@@ -622,6 +623,7 @@ async fn fetch_metadata(
     Ok(dashboard_metadata)
 }
 
+#[cfg(feature = "v1")]
 pub async fn backfill_metadata(
     state: &SessionState,
     user: &UserFromToken,

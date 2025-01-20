@@ -6592,8 +6592,17 @@ pub async fn payment_external_authentication(
         &payment_attempt.clone(),
         payment_connector_name,
     ));
-    let webhook_url =
-        helpers::create_webhook_url(&state.base_url, merchant_id, &authentication_connector);
+    let mca_id_option = merchant_connector_account.get_mca_id(); // Bind temporary value
+    let merchant_connector_account_id_or_connector_name = mca_id_option
+        .as_ref()
+        .map(|mca_id| mca_id.get_string_repr())
+        .unwrap_or(&authentication_connector);
+
+    let webhook_url = helpers::create_webhook_url(
+        &state.base_url,
+        merchant_id,
+        merchant_connector_account_id_or_connector_name,
+    );
 
     let authentication_details = business_profile
         .authentication_connector_details

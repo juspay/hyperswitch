@@ -909,7 +909,9 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "requires_customer_action",
+          status: "failed",
+          error_code: "14_006",
+          error_message: "Required object 'paymentMethod' is not provided.",
         },
       },
     },

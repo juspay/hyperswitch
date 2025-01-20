@@ -35,6 +35,8 @@ use masking::PeekInterface;
 use rand::distributions::{self, Distribution};
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use rand::SeedableRng;
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+use router_env::{instrument, tracing};
 use rustc_hash::FxHashMap;
 use storage_impl::redis::cache::{CacheKey, CGRAPH_CACHE, ROUTING_CACHE};
 
@@ -565,7 +567,7 @@ pub fn perform_volume_split(
 }
 
 #[cfg(feature = "v1")]
-pub async fn get_merchant_cgraph<'a>(
+pub async fn get_merchant_cgraph(
     state: &SessionState,
     key_store: &domain::MerchantKeyStore,
     profile_id: &common_utils::id_type::ProfileId,
@@ -612,7 +614,7 @@ pub async fn get_merchant_cgraph<'a>(
 }
 
 #[cfg(feature = "v1")]
-pub async fn refresh_cgraph_cache<'a>(
+pub async fn refresh_cgraph_cache(
     state: &SessionState,
     key_store: &domain::MerchantKeyStore,
     key: String,
@@ -1385,6 +1387,7 @@ pub fn make_dsl_input_for_surcharge(
 
 /// success based dynamic routing
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+#[instrument(skip_all)]
 pub async fn perform_success_based_routing(
     state: &SessionState,
     routable_connectors: Vec<api_routing::RoutableConnectorChoice>,

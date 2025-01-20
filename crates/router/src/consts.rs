@@ -231,3 +231,6 @@ pub const DYNAMIC_ROUTING_MAX_VOLUME: u8 = 100;
 
 /// Click To Pay
 pub const CLICK_TO_PAY: &str = "click_to_pay";
+
+/// Refund flow identifier used for performing GSM operations
+pub const REFUND_FLOW_STR: &str = "refund_flow";
