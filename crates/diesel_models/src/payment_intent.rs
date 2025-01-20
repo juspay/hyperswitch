@@ -161,6 +161,7 @@ pub struct PaymentLinkConfigRequestForPayments {
     pub enabled_saved_payment_method: Option<bool>,
     /// Hide card nickname field option for payment link
     pub hide_card_nickname_field: Option<bool>,
+    pub display_billing_details: Option<bool>,
     /// Show card form by default for payment link
     pub show_card_form_by_default: Option<bool>,
     /// Dynamic details related to merchant to be rendered in payment link

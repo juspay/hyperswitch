@@ -23,7 +23,7 @@ use super::{
 use crate::{
     consts::{
         self, DEFAULT_ALLOWED_DOMAINS, DEFAULT_BACKGROUND_COLOR, DEFAULT_DISPLAY_SDK_ONLY,
-        DEFAULT_ENABLE_SAVED_PAYMENT_METHOD, DEFAULT_HIDE_CARD_NICKNAME_FIELD,
+        DEFAULT_ENABLE_SAVED_PAYMENT_METHOD, DEFAULT_HIDE_CARD_NICKNAME_FIELD, DEFAULT_DISPLAY_BILLING_DETAILS,
         DEFAULT_MERCHANT_LOGO, DEFAULT_PRODUCT_IMG, DEFAULT_SDK_LAYOUT, DEFAULT_SHOW_CARD_FORM,
     },
     errors::RouterResponse,
@@ -123,6 +123,7 @@ pub async fn form_payment_link_data(
                 display_sdk_only: DEFAULT_DISPLAY_SDK_ONLY,
                 enabled_saved_payment_method: DEFAULT_ENABLE_SAVED_PAYMENT_METHOD,
                 hide_card_nickname_field: DEFAULT_HIDE_CARD_NICKNAME_FIELD,
+                display_billing_details: DEFAULT_DISPLAY_BILLING_DETAILS,
                 show_card_form_by_default: DEFAULT_SHOW_CARD_FORM,
                 allowed_domains: DEFAULT_ALLOWED_DOMAINS,
                 transaction_details: None,
@@ -269,6 +270,7 @@ pub async fn form_payment_link_data(
         sdk_layout: payment_link_config.sdk_layout.clone(),
         display_sdk_only: payment_link_config.display_sdk_only,
         hide_card_nickname_field: payment_link_config.hide_card_nickname_field,
+        display_billing_details: payment_link_config.display_billing_details,
         show_card_form_by_default: payment_link_config.show_card_form_by_default,
         locale: Some(state.clone().locale),
         transaction_details: payment_link_config.transaction_details.clone(),
@@ -324,6 +326,7 @@ pub async fn initiate_secure_payment_link_flow(
             let secure_payment_link_details = api_models::payments::SecurePaymentLinkDetails {
                 enabled_saved_payment_method: payment_link_config.enabled_saved_payment_method,
                 hide_card_nickname_field: payment_link_config.hide_card_nickname_field,
+                display_billing_details: payment_link_config.display_billing_details,
                 show_card_form_by_default: payment_link_config.show_card_form_by_default,
                 payment_link_details: *link_details.to_owned(),
                 payment_button_text: payment_link_config.payment_button_text,
@@ -609,6 +612,7 @@ pub fn get_payment_link_config_based_on_priority(
         display_sdk_only,
         enabled_saved_payment_method,
         hide_card_nickname_field,
+        display_billing_details,
         show_card_form_by_default,
     ) = get_payment_link_config_value!(
         payment_create_link_config,
@@ -623,6 +627,7 @@ pub fn get_payment_link_config_based_on_priority(
             DEFAULT_ENABLE_SAVED_PAYMENT_METHOD
         ),
         (hide_card_nickname_field, DEFAULT_HIDE_CARD_NICKNAME_FIELD),
+        (display_billing_details, DEFAULT_DISPLAY_BILLING_DETAILS),
         (show_card_form_by_default, DEFAULT_SHOW_CARD_FORM)
     );
     let payment_link_config =
@@ -634,6 +639,7 @@ pub fn get_payment_link_config_based_on_priority(
             display_sdk_only,
             enabled_saved_payment_method,
             hide_card_nickname_field,
+            display_billing_details,
             show_card_form_by_default,
             allowed_domains,
             branding_visibility,
@@ -771,6 +777,7 @@ pub async fn get_payment_link_status(
             display_sdk_only: DEFAULT_DISPLAY_SDK_ONLY,
             enabled_saved_payment_method: DEFAULT_ENABLE_SAVED_PAYMENT_METHOD,
             hide_card_nickname_field: DEFAULT_HIDE_CARD_NICKNAME_FIELD,
+            display_billing_details: DEFAULT_DISPLAY_BILLING_DETAILS,
             show_card_form_by_default: DEFAULT_SHOW_CARD_FORM,
             allowed_domains: DEFAULT_ALLOWED_DOMAINS,
             transaction_details: None,

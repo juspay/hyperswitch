@@ -146,6 +146,8 @@ pub const DEFAULT_ALLOWED_DOMAINS: Option<HashSet<String>> = None;
 /// Default hide card nickname field
 pub const DEFAULT_HIDE_CARD_NICKNAME_FIELD: bool = false;
 
+pub const DEFAULT_DISPLAY_BILLING_DETAILS: bool = true;
+
 /// Show card form by default for payment links
 pub const DEFAULT_SHOW_CARD_FORM: bool = true;
 
