@@ -1473,7 +1473,7 @@ pub async fn perform_elimination_routing(
                 state.get_grpc_headers(),
             )
             .await
-            .change_context(errors::RoutingError::ElimintaionRoutingCalculationError)
+            .change_context(errors::RoutingError::EliminationRoutingCalculationError)
             .attach_printable(
                 "unable to analyze/fetch elimintaion routing from dynamic routing service",
             )?;
