@@ -23,7 +23,8 @@ pub async fn upsert_conditional_config(
 ) -> RouterResponse<common_types::payments::DecisionManagerRecord> {
     use common_utils::ext_traits::OptionExt;
 
-    use super::routing::helpers::update_merchant_active_algorithm_ref;
+    let key_manager_state: &KeyManagerState = &(&state).into();
+    let db = &*state.store;
     let name = request.name;
     let program = request.program;
     let timestamp = common_utils::date_time::now_unix_timestamp();
@@ -34,18 +35,28 @@ pub async fn upsert_conditional_config(
         })
         .attach_printable("The Request has an Invalid Comparison")?;
 
-    let new_algo = common_types::payments::DecisionManagerRecord {
+    let decision_manager_record = common_types::payments::DecisionManagerRecord {
         name,
-        program: program.clone(),
+        program,
         created_at: timestamp,
     };
 
-    update_merchant_active_algorithm_ref(&state, &key_store, new_algo.clone(), profile)
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to update routing algorithm ref")?;
+    let business_profile_update = domain::ProfileUpdate::DecisionManagerRecordUpdate {
+        three_ds_decision_manager_config: decision_manager_record.clone(),
+    };
+    db.update_profile_by_profile_id(
+        key_manager_state,
+        &key_store,
+        profile,
+        business_profile_update,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to update routing algorithm ref in business profile")?;
 
-    Ok(service_api::ApplicationResponse::Json(new_algo))
+    Ok(service_api::ApplicationResponse::Json(
+        decision_manager_record,
+    ))
 }
 
 #[cfg(feature = "v1")]

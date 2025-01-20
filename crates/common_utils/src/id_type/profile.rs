@@ -39,11 +39,3 @@ impl From<ProfileId> for router_env::opentelemetry::Value {
         Self::from(val.0 .0 .0)
     }
 }
-
-impl ProfileId {
-    #[cfg(feature = "v2")]
-    /// get_payment_config_routing_id
-    pub fn get_payment_config_routing_id(&self) -> String {
-        format!("payment_config_id_{}", self.get_string_repr())
-    }
-}

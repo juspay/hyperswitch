@@ -118,7 +118,7 @@ impl EuclidAnalysable for AuthenticationType {
 
         vec![(
             self.to_dir_value(),
-            std::collections::HashMap::from_iter([(
+            HashMap::from_iter([(
                 "AUTHENTICATION_TYPE".to_string(),
                 serde_json::json!({
                     "rule_name":rule_name,
