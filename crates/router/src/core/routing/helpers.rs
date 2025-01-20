@@ -300,10 +300,13 @@ pub struct RoutingAlgorithmHelpers<'h> {
 
 #[derive(Clone, Debug)]
 pub struct ConnectNameAndMCAIdForProfile<'a>(
-    pub FxHashSet<(&'a String, id_type::MerchantConnectorAccountId)>,
+    pub  FxHashSet<(
+        &'a common_enums::connector_enums::Connector,
+        id_type::MerchantConnectorAccountId,
+    )>,
 );
 #[derive(Clone, Debug)]
-pub struct ConnectNameForProfile<'a>(pub FxHashSet<&'a String>);
+pub struct ConnectNameForProfile<'a>(pub FxHashSet<&'a common_enums::connector_enums::Connector>);
 
 #[cfg(feature = "v2")]
 #[derive(Clone, Debug)]
@@ -368,23 +371,25 @@ impl RoutingAlgorithmHelpers<'_> {
         choice: &routing_types::RoutableConnectorChoice,
     ) -> RouterResult<()> {
         if let Some(ref mca_id) = choice.merchant_connector_id {
+            let connector_choice = common_enums::connector_enums::Connector::from(choice.connector);
             error_stack::ensure!(
-                    self.name_mca_id_set.0.contains(&(&choice.connector.to_string(), mca_id.clone())),
-                    errors::ApiErrorResponse::InvalidRequestData {
-                        message: format!(
-                            "connector with name '{}' and merchant connector account id '{:?}' not found for the given profile",
-                            choice.connector,
-                            mca_id,
-                        )
-                    }
-                );
+                self.name_mca_id_set.0.contains(&(&connector_choice, mca_id.clone())),
+                errors::ApiErrorResponse::InvalidRequestData {
+                    message: format!(
+                        "connector with name '{}' and merchant connector account id '{:?}' not found for the given profile",
+                        connector_choice,
+                        mca_id,
+                    )
+                }
+            );
         } else {
+            let connector_choice = common_enums::connector_enums::Connector::from(choice.connector);
             error_stack::ensure!(
-                self.name_set.0.contains(&choice.connector.to_string()),
+                self.name_set.0.contains(&connector_choice),
                 errors::ApiErrorResponse::InvalidRequestData {
                     message: format!(
                         "connector with name '{}' not found for the given profile",
-                        choice.connector,
+                        connector_choice,
                     )
                 }
             );
@@ -570,7 +575,7 @@ pub fn get_default_config_key(
 
 /// Retrieves cached success_based routing configs specific to tenant and profile
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-pub async fn get_cached_success_based_routing_config_for_profile<'a>(
+pub async fn get_cached_success_based_routing_config_for_profile(
     state: &SessionState,
     key: &str,
 ) -> Option<Arc<routing_types::SuccessBasedRoutingConfig>> {

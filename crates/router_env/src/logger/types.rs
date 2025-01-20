@@ -541,6 +541,8 @@ pub enum Flow {
     TokenizeCard,
     /// Cards batch tokenization flow
     TokenizeCardBatch,
+    /// Incoming Relay Webhook Receive
+    IncomingRelayWebhookReceive,
 }
 
 /// Trait for providing generic behaviour to flow metric

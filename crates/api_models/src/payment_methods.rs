@@ -195,39 +195,6 @@ impl PaymentMethodIntentConfirm {
     }
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
-#[serde(deny_unknown_fields)]
-pub struct PaymentMethodIntentConfirmInternal {
-    #[schema(value_type = Option<String>, max_length = 64, min_length = 1, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
-    pub id: String,
-    /// The type of payment method use for the payment.
-    #[schema(value_type = PaymentMethod,example = "card")]
-    pub payment_method_type: api_enums::PaymentMethod,
-
-    /// This is a sub-category of payment method.
-    #[schema(value_type = PaymentMethodType,example = "credit")]
-    pub payment_method_subtype: api_enums::PaymentMethodType,
-
-    /// The unique identifier of the customer.
-    #[schema(value_type = Option<String>, max_length = 64, min_length = 1, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
-    pub customer_id: Option<id_type::CustomerId>,
-
-    /// Payment method data to be passed
-    pub payment_method_data: PaymentMethodCreateData,
-}
-
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-impl From<PaymentMethodIntentConfirmInternal> for PaymentMethodIntentConfirm {
-    fn from(item: PaymentMethodIntentConfirmInternal) -> Self {
-        Self {
-            payment_method_type: item.payment_method_type,
-            payment_method_subtype: item.payment_method_subtype,
-            customer_id: item.customer_id,
-            payment_method_data: item.payment_method_data.clone(),
-        }
-    }
-}
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
 /// This struct is only used by and internal api to migrate payment method
 pub struct PaymentMethodMigrate {
@@ -776,6 +743,10 @@ pub struct PaymentMethodResponse {
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 #[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema, Clone)]
 pub struct PaymentMethodResponse {
+    /// The unique identifier of the Payment method
+    #[schema(value_type = String, example = "12345_pm_01926c58bc6e77c09e809964e72af8c8")]
+    pub id: id_type::GlobalPaymentMethodId,
+
     /// Unique identifier for a merchant
     #[schema(value_type = String, example = "merchant_1671528864")]
     pub merchant_id: id_type::MerchantId,
@@ -788,10 +759,6 @@ pub struct PaymentMethodResponse {
         value_type = String
     )]
     pub customer_id: id_type::GlobalCustomerId,
-
-    /// The unique identifier of the Payment method
-    #[schema(example = "card_rGK4Vi5iSW70MY7J2mIg")]
-    pub payment_method_id: String,
 
     /// The type of payment method use for the payment.
     #[schema(value_type = PaymentMethod, example = "card")]
@@ -1043,6 +1010,13 @@ impl From<CardDetailFromLocker> for payments::AdditionalCardInfo {
     }
 }
 
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Serialize, ToSchema)]
+pub struct PaymentMethodListResponse {
+    /// The list of payment methods that are enabled for the business profile
+    pub payment_methods_enabled: Vec<ResponsePaymentMethodTypes>,
+}
+
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
     not(feature = "payment_methods_v2")
@@ -1246,19 +1220,19 @@ pub struct ResponsePaymentMethodTypes {
 #[derive(Debug, Clone, serde::Serialize, ToSchema, PartialEq)]
 #[serde(untagged)] // Untagged used for serialization only
 pub enum PaymentMethodSubtypeSpecificData {
+    #[schema(title = "card")]
     Card {
         card_networks: Vec<CardNetworkTypes>,
     },
-    Bank {
-        bank_names: Vec<BankCodeResponse>,
-    },
+    #[schema(title = "bank")]
+    Bank { bank_names: Vec<BankCodeResponse> },
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 #[derive(Debug, Clone, serde::Serialize, ToSchema, PartialEq)]
 pub struct ResponsePaymentMethodTypes {
     /// The payment method type enabled
-    #[schema(example = "klarna", value_type = PaymentMethodType)]
+    #[schema(example = "pay_later", value_type = PaymentMethod)]
     pub payment_method_type: common_enums::PaymentMethod,
 
     /// The payment method subtype enabled
@@ -1271,10 +1245,7 @@ pub struct ResponsePaymentMethodTypes {
 
     /// Required fields for the payment_method_type.
     /// This is the union of all the required fields for the payment method type enabled in all the connectors.
-    pub required_fields: Option<HashMap<String, RequiredFieldInfo>>,
-
-    /// surcharge details for this payment method type if exists
-    pub surcharge_details: Option<SurchargeDetailsResponse>,
+    pub required_fields: Vec<RequiredFieldInfo>,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, ToSchema)]
@@ -1678,6 +1649,7 @@ fn set_or_reject_duplicate<T, E: de::Error>(
     }
 }
 
+#[cfg(feature = "v1")]
 #[derive(Debug, serde::Serialize, ToSchema)]
 pub struct PaymentMethodListResponse {
     /// Redirect URL of the merchant
@@ -1758,9 +1730,11 @@ pub struct PaymentMethodDeleteResponse {
 #[derive(Debug, serde::Serialize, ToSchema)]
 pub struct PaymentMethodDeleteResponse {
     /// The unique identifier of the Payment method
-    #[schema(example = "card_rGK4Vi5iSW70MY7J2mIg")]
-    pub payment_method_id: String,
+    #[schema(value_type = String, example = "12345_pm_01926c58bc6e77c09e809964e72af8c8")]
+    pub id: id_type::GlobalPaymentMethodId,
 }
+
+#[cfg(feature = "v1")]
 #[derive(Debug, serde::Serialize, ToSchema)]
 pub struct CustomerDefaultPaymentMethodResponse {
     /// The unique identifier of the Payment method
@@ -2046,12 +2020,14 @@ pub struct PaymentMethodId {
     pub payment_method_id: String,
 }
 
+#[cfg(feature = "v1")]
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
 pub struct DefaultPaymentMethod {
     #[schema(value_type = String, max_length = 64, min_length = 1, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
     pub customer_id: id_type::CustomerId,
     pub payment_method_id: String,
 }
+
 //------------------------------------------------TokenizeService------------------------------------------------
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct TokenizePayloadEncrypted {
