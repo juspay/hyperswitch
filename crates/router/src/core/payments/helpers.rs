@@ -3054,67 +3054,76 @@ pub async fn make_ephemeral_key(
 #[cfg(feature = "v2")]
 pub async fn make_ephemeral_key(
     state: SessionState,
-    customer_id: id_type::GlobalCustomerId,
+    resource_id: api_models::ephemeral_key::ResourceId,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     headers: &actix_web::http::header::HeaderMap,
 ) -> errors::RouterResponse<EphemeralKeyResponse> {
     let db = &state.store;
     let key_manager_state = &((&state).into());
-    db.find_customer_by_global_id(
-        key_manager_state,
-        &customer_id,
-        merchant_account.get_id(),
-        &key_store,
-        merchant_account.storage_scheme,
-    )
-    .await
-    .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
 
-    let resource_type = services::authentication::get_header_value_by_key(
-        headers::X_RESOURCE_TYPE.to_string(),
-        headers,
-    )?
-    .map(ephemeral_key::ResourceType::from_str)
-    .transpose()
-    .change_context(errors::ApiErrorResponse::InvalidRequestData {
-        message: format!("`{}` header is invalid", headers::X_RESOURCE_TYPE),
-    })?
-    .get_required_value("ResourceType")
-    .attach_printable("Failed to convert ResourceType from string")?;
+    match &resource_id {
+        api_models::ephemeral_key::ResourceId::Customer(global_customer_id) => {
+            db.find_customer_by_global_id(
+                key_manager_state,
+                global_customer_id,
+                merchant_account.get_id(),
+                &key_store,
+                merchant_account.storage_scheme,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
+        }
+    }
 
-    let ephemeral_key = create_ephemeral_key(
-        &state,
-        &customer_id,
-        merchant_account.get_id(),
-        resource_type,
-    )
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Unable to create ephemeral key")?;
+    // TODO: Supersede in V2Auth
+    // services::authentication::get_header_value_by_key(
+    //     headers::X_RESOURCE_TYPE.to_string(),
+    //     headers,
+    // )?
+    // .map(diesel_models::ResourceId::validate_enum_str)
+    // .transpose()
+    // .change_context(errors::ApiErrorResponse::InvalidRequestData {
+    //     message: format!("`{}` header is invalid", headers::X_RESOURCE_TYPE),
+    // })?
+    // .get_required_value("ResourceType")
+    // .attach_printable("Failed to convert ResourceType from string")?;
 
-    let response = EphemeralKeyResponse::foreign_from(ephemeral_key);
+    let resource_id = match resource_id {
+        api_models::ephemeral_key::ResourceId::Customer(global_customer_id) => {
+            diesel_models::ResourceId::Customer(global_customer_id)
+        }
+    };
+
+    let resource_id = vec![resource_id];
+
+    let ephemeral_key = create_ephemeral_key(&state, merchant_account.get_id(), resource_id)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to create ephemeral key")?;
+
+    let response = EphemeralKeyResponse::foreign_try_from(ephemeral_key)
+        .attach_printable("Only customer is supported as resource_id in response")?;
     Ok(services::ApplicationResponse::Json(response))
 }
 
 #[cfg(feature = "v2")]
 pub async fn create_ephemeral_key(
     state: &SessionState,
-    customer_id: &id_type::GlobalCustomerId,
     merchant_id: &id_type::MerchantId,
-    resource_type: ephemeral_key::ResourceType,
+    resource_id: Vec<diesel_models::ephemeral_key::ResourceId>,
 ) -> RouterResult<ephemeral_key::EphemeralKeyType> {
     use common_utils::generate_time_ordered_id;
 
     let store = &state.store;
     let id = id_type::EphemeralKeyId::generate();
     let secret = masking::Secret::new(generate_time_ordered_id("epk"));
+
     let ephemeral_key = ephemeral_key::EphemeralKeyTypeNew {
         id,
-        customer_id: customer_id.to_owned(),
         merchant_id: merchant_id.to_owned(),
         secret,
-        resource_type,
+        resource_id,
     };
     let ephemeral_key = store
         .create_ephemeral_key(ephemeral_key, state.conf.eph_key.validity)
@@ -3157,10 +3166,12 @@ pub async fn delete_ephemeral_key(
         })
         .attach_printable("Unable to delete ephemeral key")?;
 
-    let response = EphemeralKeyResponse::foreign_from(ephemeral_key);
+    let response = EphemeralKeyResponse::foreign_try_from(ephemeral_key)
+        .attach_printable("Only customer is supported as resource_id in response")?;
     Ok(services::ApplicationResponse::Json(response))
 }
 
+#[cfg(feature = "v1")]
 pub fn make_pg_redirect_response(
     payment_id: id_type::PaymentId,
     response: &api::PaymentsResponse,
