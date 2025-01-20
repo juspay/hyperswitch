@@ -244,6 +244,58 @@ pub enum PazeDecryptionError {
     CertificateParsingFailed,
 }
 
+#[derive(Debug, thiserror::Error)]
+pub enum GooglePayDecryptionError {
+    #[error("Failed to fetch time delta for expiration")]
+    SystemTimeError,
+    #[error("Failed to base64 decode input data")]
+    Base64DecodingFailed,
+    #[error("Failed to decrypt input data")]
+    DecryptionFailed,
+    #[error("Failed to deserialize input data")]
+    DeserializationFailed,
+    #[error("Certificate parsing failed")]
+    CertificateParsingFailed,
+    #[error("Key deserialization failure")]
+    KeyDeserializationFailed,
+    #[error("Failed to derive a shared ephimeral key")]
+    DerivingSharedEphimeralKeyFailed,
+    #[error("Failed to derive a shared secret key")]
+    DerivingSharedSecretKeyFailed,
+    #[error("Failed to parse the tag")]
+    ParsingTagError,
+    #[error("HMAC verification failed")]
+    HmacVerificationFailed,
+    #[error("Failed to derive Elliptic Curve key")]
+    DerivingEcKeyFailied,
+    #[error("Failed to Derive Public key")]
+    DerivingPublicKeyFailed,
+    #[error("Failed to Derive Elliptic Curve group")]
+    DerivingEcGroupFailied,
+    #[error("Failed to allocate memory for big number")]
+    BigNumAllocationFailed,
+    #[error("Failed to get the ECDSA signature")]
+    EcdsaSignatureFailed,
+    #[error("Failed to verify the signature")]
+    SignatureVerificationFailed,
+    #[error("Invalid signature is provided")]
+    InvalidSignature,
+    #[error("Failed to parse the Signed Key")]
+    SignedKeyParsingFailure,
+    #[error("The Signed Key is expired")]
+    SignedKeyExpired,
+    #[error("Failed to parse the ECDSA signature")]
+    EcdsaSignatureParsingFailed,
+    #[error("Invalid intermediate signature is provided")]
+    InvalidIntermediateSignature,
+    #[error("Invalid protocol version")]
+    InvalidProtocolVersion,
+    #[error("Decrypted Token has expired")]
+    DecryptedTokenExpired,
+    #[error("Failed to parse the given value")]
+    ParsingFailed,
+}
+
 #[cfg(feature = "detailed_errors")]
 pub mod error_stack_parsing {
 
