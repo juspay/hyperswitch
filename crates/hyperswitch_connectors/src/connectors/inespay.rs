@@ -202,14 +202,16 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         match req.request.currency {
             common_enums::Currency::EUR => {
                 let connector_router_data = inespay::InespayRouterData::from((amount, req));
-                let connector_req = inespay::InespayPaymentsRequest::try_from(&connector_router_data)?;
+                let connector_req =
+                    inespay::InespayPaymentsRequest::try_from(&connector_router_data)?;
                 Ok(RequestContent::Json(Box::new(connector_req)))
             }
             _ => Err(errors::ConnectorError::CurrencyNotSupported {
                 message: req.request.currency.to_string(),
                 connector: "Inespay",
-            }.into())
-        }   
+            }
+            .into()),
+        }
     }
 
     fn build_request(
