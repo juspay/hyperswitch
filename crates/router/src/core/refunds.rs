@@ -426,7 +426,7 @@ where
 
 // ********************************************** REFUND SYNC **********************************************
 
-pub async fn refund_response_wrapper<'a, F, Fut, T, Req>(
+pub async fn refund_response_wrapper<F, Fut, T, Req>(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
     profile_id: Option<common_utils::id_type::ProfileId>,
