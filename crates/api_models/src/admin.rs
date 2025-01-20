@@ -1460,6 +1460,10 @@ pub struct ConnectorWalletDetails {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[schema(value_type = Option<Object>)]
     pub apple_pay: Option<pii::SecretSerdeValue>,
+    /// This field contains the Amazon Pay certificates and credentials
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[schema(value_type = Option<Object>)]
+    pub amazon_pay: Option<pii::SecretSerdeValue>,
     /// This field contains the Samsung Pay certificates and credentials
     #[serde(skip_serializing_if = "Option::is_none")]
     #[schema(value_type = Option<Object>)]
