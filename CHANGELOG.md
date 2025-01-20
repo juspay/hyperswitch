@@ -4,6 +4,14 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.12.04.0-hotfix6
+
+### Bug Fixes
+
+- Consider status of payment method before filtering wallets in list pm ([#7012](https://github.com/juspay/hyperswitch/pull/7012)) ([`df67b9d`](https://github.com/juspay/hyperswitch/commit/df67b9d72264cf34cf7186db0b51946ec9bba17f))
+
+- - -
+
 ## 2024.12.04.0-hotfix5
 
 ### Bug Fixes
