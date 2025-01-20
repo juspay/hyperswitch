@@ -60,6 +60,7 @@ pub struct Profile {
     pub max_auto_retries_enabled: Option<i16>,
     pub is_click_to_pay_enabled: bool,
     pub authentication_product_ids: Option<serde_json::Value>,
+    pub always_request_overcapture: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -102,6 +103,7 @@ pub struct ProfileSetter {
     pub max_auto_retries_enabled: Option<i16>,
     pub is_click_to_pay_enabled: bool,
     pub authentication_product_ids: Option<serde_json::Value>,
+    pub always_request_overcapture: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -151,6 +153,7 @@ impl From<ProfileSetter> for Profile {
             max_auto_retries_enabled: value.max_auto_retries_enabled,
             is_click_to_pay_enabled: value.is_click_to_pay_enabled,
             authentication_product_ids: value.authentication_product_ids,
+            always_request_overcapture: value.always_request_overcapture,
         }
     }
 }
@@ -202,6 +205,7 @@ pub struct ProfileGeneralUpdate {
     pub max_auto_retries_enabled: Option<i16>,
     pub is_click_to_pay_enabled: Option<bool>,
     pub authentication_product_ids: Option<serde_json::Value>,
+    pub always_request_overcapture: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -266,6 +270,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     max_auto_retries_enabled,
                     is_click_to_pay_enabled,
                     authentication_product_ids,
+                    always_request_overcapture,
                 } = *update;
 
                 Self {
@@ -305,6 +310,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     max_auto_retries_enabled,
                     is_click_to_pay_enabled,
                     authentication_product_ids,
+                    always_request_overcapture,
                 }
             }
             ProfileUpdate::RoutingAlgorithmUpdate {
@@ -346,6 +352,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 max_auto_retries_enabled: None,
                 is_click_to_pay_enabled: None,
                 authentication_product_ids: None,
+                always_request_overcapture: None,
             },
             ProfileUpdate::DynamicRoutingAlgorithmUpdate {
                 dynamic_routing_algorithm,
@@ -385,6 +392,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 max_auto_retries_enabled: None,
                 is_click_to_pay_enabled: None,
                 authentication_product_ids: None,
+                always_request_overcapture: None,
             },
             ProfileUpdate::ExtendedCardInfoUpdate {
                 is_extended_card_info_enabled,
@@ -424,6 +432,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 max_auto_retries_enabled: None,
                 is_click_to_pay_enabled: None,
                 authentication_product_ids: None,
+                always_request_overcapture: None,
             },
             ProfileUpdate::ConnectorAgnosticMitUpdate {
                 is_connector_agnostic_mit_enabled,
@@ -463,6 +472,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 max_auto_retries_enabled: None,
                 is_click_to_pay_enabled: None,
                 authentication_product_ids: None,
+                always_request_overcapture: None,
             },
             ProfileUpdate::NetworkTokenizationUpdate {
                 is_network_tokenization_enabled,
@@ -502,6 +512,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 max_auto_retries_enabled: None,
                 is_click_to_pay_enabled: None,
                 authentication_product_ids: None,
+                always_request_overcapture: None,
             },
         }
     }
@@ -560,6 +571,7 @@ impl super::behaviour::Conversion for Profile {
             max_auto_retries_enabled: self.max_auto_retries_enabled,
             is_click_to_pay_enabled: self.is_click_to_pay_enabled,
             authentication_product_ids: self.authentication_product_ids,
+            always_request_overcapture: self.always_request_overcapture,
         })
     }
 
@@ -630,6 +642,7 @@ impl super::behaviour::Conversion for Profile {
                 max_auto_retries_enabled: item.max_auto_retries_enabled,
                 is_click_to_pay_enabled: item.is_click_to_pay_enabled,
                 authentication_product_ids: item.authentication_product_ids,
+                always_request_overcapture: item.always_request_overcapture,
             })
         }
         .await
@@ -684,6 +697,7 @@ impl super::behaviour::Conversion for Profile {
             max_auto_retries_enabled: self.max_auto_retries_enabled,
             is_click_to_pay_enabled: self.is_click_to_pay_enabled,
             authentication_product_ids: self.authentication_product_ids,
+            always_request_overcapture: self.always_request_overcapture,
         })
     }
 }
@@ -730,6 +744,7 @@ pub struct Profile {
     pub is_network_tokenization_enabled: bool,
     pub is_click_to_pay_enabled: bool,
     pub authentication_product_ids: Option<serde_json::Value>,
+    pub always_request_overcapture: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -821,6 +836,7 @@ impl From<ProfileSetter> for Profile {
             is_network_tokenization_enabled: value.is_network_tokenization_enabled,
             is_click_to_pay_enabled: value.is_click_to_pay_enabled,
             authentication_product_ids: value.authentication_product_ids,
+            always_request_overcapture: None,
         }
     }
 }
@@ -1282,6 +1298,7 @@ impl super::behaviour::Conversion for Profile {
             max_auto_retries_enabled: None,
             is_click_to_pay_enabled: self.is_click_to_pay_enabled,
             authentication_product_ids: self.authentication_product_ids,
+            always_request_overcapture: self.always_request_overcapture,
         })
     }
 
@@ -1352,6 +1369,7 @@ impl super::behaviour::Conversion for Profile {
                 is_network_tokenization_enabled: item.is_network_tokenization_enabled,
                 is_click_to_pay_enabled: item.is_click_to_pay_enabled,
                 authentication_product_ids: item.authentication_product_ids,
+                always_request_overcapture: item.always_request_overcapture,
             })
         }
         .await

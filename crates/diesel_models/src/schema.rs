@@ -216,6 +216,7 @@ diesel::table! {
         max_auto_retries_enabled -> Nullable<Int2>,
         is_click_to_pay_enabled -> Bool,
         authentication_product_ids -> Nullable<Jsonb>,
+        always_request_overcapture -> Nullable<Bool>,
     }
 }
 
@@ -905,6 +906,10 @@ diesel::table! {
         #[max_length = 512]
         connector_transaction_data -> Nullable<Varchar>,
         connector_mandate_detail -> Nullable<Jsonb>,
+        #[max_length = 32]
+        request_overcapture -> Nullable<Varchar>,
+        #[max_length = 32]
+        overcapture_status -> Nullable<Varchar>,
     }
 }
 
@@ -989,6 +994,8 @@ diesel::table! {
         split_payments -> Nullable<Jsonb>,
         #[max_length = 64]
         platform_merchant_id -> Nullable<Varchar>,
+        #[max_length = 32]
+        request_overcapture -> Nullable<Varchar>,
     }
 }
 

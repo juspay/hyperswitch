@@ -1866,6 +1866,10 @@ pub struct ProfileCreate {
     /// Product authentication ids
     #[schema(value_type = Option<Object>, example = r#"{ "key1": "value-1", "key2": "value-2" }"#)]
     pub authentication_product_ids: Option<HashMap<String, id_type::MerchantConnectorAccountId>>,
+
+    /// Indicates if the overcapture is always requested or not.
+    #[serde(default)]
+    pub always_request_overcapture: Option<bool>,
 }
 
 #[nutype::nutype(
@@ -2119,6 +2123,10 @@ pub struct ProfileResponse {
     /// Product authentication ids
     #[schema(value_type = Option<Object>, example = r#"{ "key1": "value-1", "key2": "value-2" }"#)]
     pub authentication_product_ids: Option<serde_json::Value>,
+
+    /// Indicates if the overcapture is always requested or not.
+    #[schema(default = false, example = false)]
+    pub always_request_overcapture: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -2372,6 +2380,10 @@ pub struct ProfileUpdate {
     /// Product authentication ids
     #[schema(value_type = Option<Object>, example = r#"{ "key1": "value-1", "key2": "value-2" }"#)]
     pub authentication_product_ids: Option<HashMap<String, id_type::MerchantConnectorAccountId>>,
+
+    /// Indicates if the overcapture is always requested or not.
+    #[schema(default = false, example = false)]
+    pub always_request_overcapture: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
