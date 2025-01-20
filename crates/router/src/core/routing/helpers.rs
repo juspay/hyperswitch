@@ -1066,12 +1066,6 @@ pub async fn push_metrics_with_update_window_for_contract_based_routing(
             ))?
             .0, first_contract_based_connector.score, first_contract_based_connector.current_count );
 
-        let outcome = get_dynamic_routing_based_metrics_outcome_for_payment(
-            payment_status_attribute,
-            payment_connector.to_string(),
-            first_contract_based_connector.to_string(),
-        );
-
         core_metrics::DYNAMIC_CONTRACT_BASED_ROUTING.add(
             1,
             router_env::metric_attributes!(
@@ -1134,8 +1128,6 @@ pub async fn push_metrics_with_update_window_for_contract_based_routing(
                         |authentication_type| authentication_type.to_string(),
                     ),
                 ),
-                ("payment_status", payment_attempt.status.to_string()),
-                ("conclusive_classification", outcome.to_string()),
             ),
         );
         logger::debug!("successfully pushed contract_based_routing metrics");

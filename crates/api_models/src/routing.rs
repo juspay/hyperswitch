@@ -893,7 +893,7 @@ pub struct ContractBasedRoutingPayloadWrapper {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ContractBasedRoutingSetupPayloadWrapper {
-    pub config: ContractBasedRoutingConfig,
+    pub config: Option<ContractBasedRoutingConfig>,
     pub profile_id: common_utils::id_type::ProfileId,
     pub features_to_enable: DynamicRoutingFeatures,
 }

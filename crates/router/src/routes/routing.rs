@@ -1101,11 +1101,11 @@ pub async fn contract_based_routing_setup_config(
     req: HttpRequest,
     path: web::Path<routing_types::ToggleDynamicRoutingPath>,
     query: web::Query<api_models::routing::ToggleDynamicRoutingQuery>,
-    json_payload: web::Json<routing_types::ContractBasedRoutingConfig>,
+    json_payload: Option<web::Json<routing_types::ContractBasedRoutingConfig>>,
 ) -> impl Responder {
     let flow = Flow::ToggleDynamicRouting;
     let routing_payload_wrapper = routing_types::ContractBasedRoutingSetupPayloadWrapper {
-        config: json_payload.into_inner(),
+        config: json_payload.map(|json| json.into_inner()),
         profile_id: path.into_inner().profile_id,
         features_to_enable: query.into_inner().enable,
     };

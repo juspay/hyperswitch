@@ -1470,7 +1470,7 @@ pub async fn contract_based_dynamic_routing_setup(
     merchant_account: domain::MerchantAccount,
     profile_id: common_utils::id_type::ProfileId,
     feature_to_enable: routing_types::DynamicRoutingFeatures,
-    config: routing_types::ContractBasedRoutingConfig,
+    config: Option<routing_types::ContractBasedRoutingConfig>,
 ) -> RouterResult<service_api::ApplicationResponse<routing_types::RoutingDictionaryRecord>> {
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
@@ -1487,29 +1487,6 @@ pub async fn contract_based_dynamic_routing_setup(
     .change_context(errors::ApiErrorResponse::ProfileNotFound {
         id: profile_id.get_string_repr().to_owned(),
     })?;
-
-    // validate the contained mca_ids
-    if let Some(info_vec) = &config.label_info {
-        for info in info_vec {
-            let mca = db
-                .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-                    key_manager_state,
-                    merchant_account.get_id(),
-                    &info.mca_id,
-                    &key_store,
-                )
-                .await
-                .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                    id: info.mca_id.get_string_repr().to_owned(),
-                })?;
-
-            utils::when(mca.connector_name != info.label, || {
-                Err(errors::ApiErrorResponse::InvalidRequestData {
-                    message: "Incorrect mca configuration received".to_string(),
-                })
-            })?;
-        }
-    }
 
     let mut dynamic_routing_algo_ref: Option<routing_types::DynamicRoutingAlgorithmRef> =
         business_profile
@@ -1544,6 +1521,25 @@ pub async fn contract_based_dynamic_routing_setup(
             })
         },
     )?;
+
+    if feature_to_enable == routing::DynamicRoutingFeatures::None {
+        let algorithm = dynamic_routing_algo_ref
+            .clone()
+            .get_required_value("dynamic_routing_algo_ref")
+            .attach_printable("Failed to get dynamic_routing_algo_ref")?;
+        return helpers::disable_dynamic_routing_algorithm(
+            &state,
+            key_store,
+            business_profile,
+            algorithm,
+            routing_types::DynamicRoutingType::ContractBasedRouting,
+        )
+        .await;
+    }
+
+    let config = config
+        .get_required_value("ContractBasedRoutingConfig")
+        .attach_printable("Failed to get ContractBasedRoutingConfig from request")?;
 
     let merchant_id = business_profile.merchant_id.clone();
     let algorithm_id = common_utils::generate_routing_id_of_default_length();
@@ -1589,47 +1585,63 @@ pub async fn contract_based_dynamic_routing_setup(
         }
     };
 
-    match feature_to_enable {
-        routing::DynamicRoutingFeatures::Metrics
-        | routing::DynamicRoutingFeatures::DynamicConnectorSelection => {
-            let record = db
-                .insert_routing_algorithm(algo)
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Unable to insert record in routing algorithm table")?;
+    // validate the contained mca_ids
+    if let Some(info_vec) = &config.label_info {
+        let validation_futures: Vec<_> = info_vec
+            .iter()
+            .map(|info| async {
+                let mca_id = info.mca_id.clone();
+                let label = info.label.clone();
+                let mca = db
+                    .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+                        key_manager_state,
+                        merchant_account.get_id(),
+                        &mca_id,
+                        &key_store,
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                        id: mca_id.get_string_repr().to_owned(),
+                    })?;
 
-            helpers::update_business_profile_active_dynamic_algorithm_ref(
-                db,
-                key_manager_state,
-                &key_store,
-                business_profile,
-                final_algorithm,
-            )
-            .await?;
+                utils::when(mca.connector_name != label, || {
+                    Err(error_stack::Report::new(
+                        errors::ApiErrorResponse::InvalidRequestData {
+                            message: "Incorrect mca configuration received".to_string(),
+                        },
+                    ))
+                })?;
 
-            // Should we also update at dynamic routing service?
-            let new_record = record.foreign_into();
+                Ok::<_, error_stack::Report<errors::ApiErrorResponse>>(())
+            })
+            .collect();
 
-            metrics::ROUTING_CREATE_SUCCESS_RESPONSE.add(
-                1,
-                router_env::metric_attributes!((
-                    "profile_id",
-                    profile_id.get_string_repr().to_string()
-                )),
-            );
-            Ok(service_api::ApplicationResponse::Json(new_record))
-        }
-        routing::DynamicRoutingFeatures::None => {
-            helpers::disable_dynamic_routing_algorithm(
-                &state,
-                key_store,
-                business_profile,
-                final_algorithm,
-                routing_types::DynamicRoutingType::ContractBasedRouting,
-            )
-            .await
-        }
+        futures::future::try_join_all(validation_futures).await?;
     }
+
+    let record = db
+        .insert_routing_algorithm(algo)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to insert record in routing algorithm table")?;
+
+    helpers::update_business_profile_active_dynamic_algorithm_ref(
+        db,
+        key_manager_state,
+        &key_store,
+        business_profile,
+        final_algorithm,
+    )
+    .await?;
+
+    // Should we also update at dynamic routing service?
+    let new_record = record.foreign_into();
+
+    metrics::ROUTING_CREATE_SUCCESS_RESPONSE.add(
+        1,
+        router_env::metric_attributes!(("profile_id", profile_id.get_string_repr().to_string())),
+    );
+    Ok(service_api::ApplicationResponse::Json(new_record))
 }
 
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
