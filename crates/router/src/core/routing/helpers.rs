@@ -1128,6 +1128,7 @@ pub async fn push_metrics_with_update_window_for_contract_based_routing(
                         |authentication_type| authentication_type.to_string(),
                     ),
                 ),
+                ("payment_status", payment_attempt.status.to_string()),
             ),
         );
         logger::debug!("successfully pushed contract_based_routing metrics");

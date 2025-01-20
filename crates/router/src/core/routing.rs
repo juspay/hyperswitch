@@ -1634,7 +1634,6 @@ pub async fn contract_based_dynamic_routing_setup(
     )
     .await?;
 
-    // Should we also update at dynamic routing service?
     let new_record = record.foreign_into();
 
     metrics::ROUTING_CREATE_SUCCESS_RESPONSE.add(
