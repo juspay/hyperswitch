@@ -673,15 +673,14 @@ async fn network_token_incoming_webhooks_core<W: types::OutgoingWebhookType>(
     serde_json::Value,
     common_utils::id_type::MerchantId,
 )> {
+    let serialized_request =
+        network_tokenization::get_network_token_resource_object(&request_details)
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Network Token Requestor Webhook deserialization failed")?
+            .masked_serialize()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Could not convert webhook effect to string")?;
 
-    let serialized_request = network_tokenization::get_network_token_resource_object(&request_details)
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Network Token Requestor Webhook deserialization failed")?
-    .masked_serialize()
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Could not convert webhook effect to string")?;
-
-    
     // let nt_sevice = get_mandate_value(&state.conf.network_tokenization_service)?;
     let nt_service = match &state.conf.network_tokenization_service {
         Some(nt_service) => Ok(nt_service.get_inner()),
@@ -691,7 +690,7 @@ async fn network_token_incoming_webhooks_core<W: types::OutgoingWebhookType>(
         .change_context(errors::ApiErrorResponse::InternalServerError)),
     }?;
 
-    //source verification 
+    //source verification
     Authorization::new(request_details.headers.get("Authorization"))
         .verify_webhook_source(nt_service)
         .await?;
@@ -718,7 +717,6 @@ async fn network_token_incoming_webhooks_core<W: types::OutgoingWebhookType>(
             &payment_method_id,
         )
         .await?; //move it to diff func
-
 
     let webhook_resp_tracker = match response {
         network_tokenization::NetworkTokenWebhookResponse::PanMetadataUpdate(ref data) => {

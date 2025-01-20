@@ -26,11 +26,7 @@ use api_models::{payment_methods, webhooks::WebhookResponseTracker};
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use common_utils::ext_traits::Encode;
 use common_utils::{
-    consts::DEFAULT_LOCALE,
-    crypto::Encryptable,
-    ext_traits::AsyncExt,
-    fp_utils::when,
-    id_type,
+    consts::DEFAULT_LOCALE, crypto::Encryptable, ext_traits::AsyncExt, fp_utils::when, id_type,
 };
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use common_utils::{
