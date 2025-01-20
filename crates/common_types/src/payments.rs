@@ -1,7 +1,9 @@
 //! Payment related types
 
+use std::collections::HashMap;
+
 use common_enums::enums;
-use common_utils::{events, impl_to_sql_from_sql_json, types::MinorUnit};
+use common_utils::{errors, events, impl_to_sql_from_sql_json, types::MinorUnit};
 use diesel::{sql_types::Jsonb, AsExpression, FromSqlRow};
 use euclid::{
     dssa::types::EuclidAnalysable,
@@ -26,6 +28,31 @@ pub enum SplitPaymentsRequest {
     StripeSplitPayment(StripeSplitPaymentRequest),
 }
 impl_to_sql_from_sql_json!(SplitPaymentsRequest);
+
+#[derive(
+    Serialize, Deserialize, Debug, Clone, PartialEq, Eq, FromSqlRow, AsExpression, ToSchema,
+)]
+#[diesel(sql_type = Jsonb)]
+#[serde(deny_unknown_fields)]
+/// Hashmap to store mca_id's with product names
+pub struct AuthenticationConnectorAccountMap(
+    HashMap<enums::AuthenticationProduct, common_utils::id_type::MerchantConnectorAccountId>,
+);
+impl_to_sql_from_sql_json!(AuthenticationConnectorAccountMap);
+
+impl AuthenticationConnectorAccountMap {
+    /// fn to get click to pay connector_account_id
+    pub fn get_click_to_pay_connector_account_id(
+        &self,
+    ) -> Result<common_utils::id_type::MerchantConnectorAccountId, errors::ValidationError> {
+        self.0
+            .get(&enums::AuthenticationProduct::ClickToPay)
+            .ok_or(errors::ValidationError::MissingRequiredField {
+                field_name: "authentication_product_id.click_to_pay".to_string(),
+            })
+            .cloned()
+    }
+}
 
 #[derive(
     Serialize, Deserialize, Debug, Clone, PartialEq, Eq, FromSqlRow, AsExpression, ToSchema,
