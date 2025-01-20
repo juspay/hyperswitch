@@ -1953,8 +1953,9 @@ impl TryFrom<(&types::PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntent
                 };
                 (charges, None)
             }
-            Some(common_types::payments::SplitPaymentsRequest::AdyenSplitPayment(_)) 
-            | None => (None, item.connector_customer.to_owned().map(Secret::new)),
+            Some(common_types::payments::SplitPaymentsRequest::AdyenSplitPayment(_)) | None => {
+                (None, item.connector_customer.to_owned().map(Secret::new))
+            }
         };
 
         Ok(Self {
@@ -2452,7 +2453,7 @@ fn extract_payment_method_connector_response_from_latest_attempt(
 impl<F, T>
     TryFrom<types::ResponseRouterData<F, PaymentIntentResponse, T, types::PaymentsResponseData>>
     for types::RouterData<F, T, types::PaymentsResponseData>
-    where
+where
     T: connector_util::SplitPaymentData,
 {
     type Error = error_stack::Report<errors::ConnectorError>;
@@ -2516,7 +2517,7 @@ impl<F, T>
                     StripeChargeEnum::ChargeObject(charge) => charge.id.clone(),
                 })
                 .and_then(|charge_id| construct_charge_response(charge_id, &item.data.request));
-            
+
             Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.id.clone()),
                 redirection_data: Box::new(redirection_data),
@@ -2614,7 +2615,7 @@ pub fn get_connector_metadata(
 impl<F, T>
     TryFrom<types::ResponseRouterData<F, PaymentIntentSyncResponse, T, types::PaymentsResponseData>>
     for types::RouterData<F, T, types::PaymentsResponseData>
-    where
+where
     T: connector_util::SplitPaymentData,
 {
     type Error = error_stack::Report<errors::ConnectorError>;
@@ -3067,6 +3068,11 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for ChargeRefundRequest {
                             is_refund_id_as_reference: Some("true".to_string()),
                         },
                     })
+                }
+                types::SplitRefundsRequest::AdyenSplitRefund(_) => {
+                    Err(errors::ConnectorError::MissingRequiredField {
+                        field_name: "stripe_split_refund",
+                    })?
                 }
             },
         }
@@ -4327,17 +4333,24 @@ pub fn construct_charge_response<T>(
 ) -> Option<common_types::payments::ConnectorChargeResponseData>
 where
     T: connector_util::SplitPaymentData,
-  {
+{
     let charge_request = request.get_split_payment_data();
-    if let Some(common_types::payments::SplitPaymentsRequest::StripeSplitPayment(stripe_split_payment)) = charge_request {
-    let stripe_charge_response = common_types::payments::StripeChargeResponseData{
-        charge_id: Some(charge_id),
-        charge_type: stripe_split_payment.charge_type,
-        application_fees: stripe_split_payment.application_fees,
-        transfer_account_id: stripe_split_payment.transfer_account_id,
-    };
-    Some(common_types::payments::ConnectorChargeResponseData::StripeSplitPayment(stripe_charge_response))
-} else {
-    None
-}
+    if let Some(common_types::payments::SplitPaymentsRequest::StripeSplitPayment(
+        stripe_split_payment,
+    )) = charge_request
+    {
+        let stripe_charge_response = common_types::payments::StripeChargeResponseData {
+            charge_id: Some(charge_id),
+            charge_type: stripe_split_payment.charge_type,
+            application_fees: stripe_split_payment.application_fees,
+            transfer_account_id: stripe_split_payment.transfer_account_id,
+        };
+        Some(
+            common_types::payments::ConnectorChargeResponseData::StripeSplitPayment(
+                stripe_charge_response,
+            ),
+        )
+    } else {
+        None
+    }
 }

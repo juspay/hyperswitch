@@ -1,62 +1,47 @@
-use error_stack::{report, Report};
-use hyperswitch_domain_models::router_request_types;
-
-use super::validator;
-use crate::core::errors;
-
 pub struct SplitRefundInput {
-    pub refund_request: common_types::refunds::SplitRefund,
-    pub payment_charges: common_types::payments::ConnectorChargeResponseData,
+    pub refund_request: Option<common_types::refunds::SplitRefund>,
+    pub payment_charges: Option<common_types::payments::ConnectorChargeResponseData>,
+    pub split_payment_request: Option<common_types::payments::SplitPaymentsRequest>,
     pub charge_id: Option<String>,
 }
 
-impl TryFrom<SplitRefundInput> for router_request_types::SplitRefundsRequest {
-    type Error = Report<errors::ApiErrorResponse>;
+// impl TryFrom<SplitRefundInput> for router_request_types::SplitRefundsRequest {
+//     type Error = Report<errors::ApiErrorResponse>;
 
-    fn try_from(value: SplitRefundInput) -> Result<Self, Self::Error> {
-        let SplitRefundInput {
-            refund_request,
-            payment_charges,
-            charge_id,
-        } = value;
+//     fn try_from(value: SplitRefundInput) -> Result<Self, Self::Error> {
+//         let SplitRefundInput {
+//             refund_request,
+//             payment_charges,
+//             charge_id,
+//         } = value;
 
-        match refund_request {
-            common_types::refunds::SplitRefund::StripeSplitRefund(stripe_refund) => {
-                match payment_charges {
-                    common_types::payments::ConnectorChargeResponseData::StripeSplitPayment(
-                        stripe_payment,
-                    ) => {
-                        let charge_id = stripe_payment.charge_id.or(charge_id).ok_or_else(|| {
-                            report!(errors::ApiErrorResponse::InternalServerError)
-                                .attach_printable("Missing `charge_id` in PaymentAttempt.")
-                        })?;
+//         match refund_request {
+//             common_types::refunds::SplitRefund::StripeSplitRefund(stripe_refund) => {
+//                 if let Some((split_charge_id, options)) =
+//                  validator::validate_stripe_charge_refund(
+//                     &charge_id,
+//                     &Some(refund_request),
+//                     None,
+//                     &Some(payment_charges),
+//                 )? {
 
-                        let options = validator::validate_stripe_charge_refund(
-                            &stripe_refund,
-                            &stripe_payment.charge_type,
-                        )?;
-
-                        Ok(Self::StripeSplitRefund(
-                            router_request_types::StripeSplitRefund {
-                                charge_id, // Use `charge_id` from `PaymentAttempt`
-                                transfer_account_id: stripe_payment.transfer_account_id,
-                                charge_type: stripe_payment.charge_type,
-                                options,
-                            },
-                        ))
-                    }
-                    common_types::payments::ConnectorChargeResponseData::AdyenSplitPayment(adyen_refund_split_payment) => {
-                        adyen_refund_split_payment.split_items.iter().for_each(|split_item| {
-                            if let Some(account) = &split_item.account {
-                                if account.is_empty() {
-                                    return Err(report!(errors::ApiErrorResponse::InternalServerError)
-                                        .attach_printable("Empty `account` in AdyenSplitItem."));
-                                }
-                            }
-                        });
-                    }
-                }
-            }
-        }
-    }
-}
+//                 Ok(Self::StripeSplitRefund(
+//                     router_request_types::StripeSplitRefund {
+//                         charge_id: split_charge_id.clone(),
+//                         transfer_account_id: stripe_refund.transfer_account_id.clone(),
+//                         charge_type: stripe_refund.charge_type.clone(),
+//                         options,
+//                     },
+//                 ))
+//             } else {
+//                 None
+//             }
+//             }
+//             common_types::refunds::SplitRefund::AdyenSplitRefund(adyen_refund) => {
+//                         Ok(Self::AdyenSplitRefund(
+//                                 adyen_refund,
+//                         ))
+//                     }
+//         }
+//     }
+// }

@@ -171,6 +171,19 @@ pub struct AdyenPaymentRequest<'a> {
     channel: Option<Channel>,
     metadata: Option<pii::SecretSerdeValue>,
     merchant_order_reference: Option<String>,
+    splits: Option<Vec<AdyenSplitData>>,
+    store_id: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct AdyenSplitData {
+    amount: Option<Amount>,
+    #[serde(rename = "type")]
+    split_type: common_enums::AdyenSplitType,
+    account: Option<String>,
+    reference: Option<String>,
+    description: Option<String>,
 }
 
 #[serde_with::skip_serializing_none]
@@ -2754,6 +2767,17 @@ impl
                 }
             } //
         }?;
+
+        let (store_id, splits) = item
+            .router_data
+            .request
+            .split_payments
+            .as_ref()
+            .and_then(|split_payment_data| {
+                get_adyen_split_request(split_payment_data, item.router_data.request.currency)
+            })
+            .unwrap_or((None, None));
+
         Ok(AdyenPaymentRequest {
             amount,
             merchant_account: auth_type.merchant_account,
@@ -2781,6 +2805,8 @@ impl
             shopper_ip: item.router_data.request.get_ip_address_as_optional(),
             metadata: item.router_data.request.metadata.clone().map(Into::into),
             merchant_order_reference: item.router_data.request.merchant_order_reference_id.clone(),
+            store_id,
+            splits,
         })
     }
 }
@@ -2817,6 +2843,15 @@ impl
         let payment_method = AdyenPaymentMethod::try_from((card_data, card_holder_name))?;
         let shopper_email = item.router_data.get_optional_billing_email();
         let shopper_name = get_shopper_name(item.router_data.get_optional_billing());
+        let (store_id, splits) = item
+            .router_data
+            .request
+            .split_payments
+            .as_ref()
+            .and_then(|split_payment_data| {
+                get_adyen_split_request(split_payment_data, item.router_data.request.currency)
+            })
+            .unwrap_or((None, None));
 
         Ok(AdyenPaymentRequest {
             amount,
@@ -2845,6 +2880,8 @@ impl
             shopper_ip: item.router_data.request.get_ip_address_as_optional(),
             metadata: item.router_data.request.metadata.clone().map(Into::into),
             merchant_order_reference: item.router_data.request.merchant_order_reference_id.clone(),
+            store_id,
+            splits,
         })
     }
 }
@@ -2874,6 +2911,15 @@ impl
         let return_url = item.router_data.request.get_return_url()?;
         let payment_method = AdyenPaymentMethod::try_from((bank_debit_data, item.router_data))?;
         let country_code = get_country_code(item.router_data.get_optional_billing());
+        let (store_id, splits) = item
+            .router_data
+            .request
+            .split_payments
+            .as_ref()
+            .and_then(|split_payment_data| {
+                get_adyen_split_request(split_payment_data, item.router_data.request.currency)
+            })
+            .unwrap_or((None, None));
         let request = AdyenPaymentRequest {
             amount,
             merchant_account: auth_type.merchant_account,
@@ -2901,6 +2947,8 @@ impl
             shopper_ip: item.router_data.request.get_ip_address_as_optional(),
             metadata: item.router_data.request.metadata.clone().map(Into::into),
             merchant_order_reference: item.router_data.request.merchant_order_reference_id.clone(),
+            store_id,
+            splits,
         };
         Ok(request)
     }
@@ -2933,6 +2981,15 @@ impl
         let billing_address =
             get_address_info(item.router_data.get_optional_billing()).and_then(Result::ok);
         let shopper_name = get_shopper_name(item.router_data.get_optional_billing());
+        let (store_id, splits) = item
+            .router_data
+            .request
+            .split_payments
+            .as_ref()
+            .and_then(|split_payment_data| {
+                get_adyen_split_request(split_payment_data, item.router_data.request.currency)
+            })
+            .unwrap_or((None, None));
 
         let request = AdyenPaymentRequest {
             amount,
@@ -2961,6 +3018,8 @@ impl
             shopper_ip: item.router_data.request.get_ip_address_as_optional(),
             metadata: item.router_data.request.metadata.clone().map(Into::into),
             merchant_order_reference: item.router_data.request.merchant_order_reference_id.clone(),
+            store_id,
+            splits,
         };
         Ok(request)
     }
@@ -2986,6 +3045,15 @@ impl
         let shopper_interaction = AdyenShopperInteraction::from(item.router_data);
         let payment_method = AdyenPaymentMethod::try_from((bank_transfer_data, item.router_data))?;
         let return_url = item.router_data.request.get_return_url()?;
+        let (store_id, splits) = item
+            .router_data
+            .request
+            .split_payments
+            .as_ref()
+            .and_then(|split_payment_data| {
+                get_adyen_split_request(split_payment_data, item.router_data.request.currency)
+            })
+            .unwrap_or((None, None));
         let request = AdyenPaymentRequest {
             amount,
             merchant_account: auth_type.merchant_account,
@@ -3013,6 +3081,8 @@ impl
             shopper_ip: item.router_data.request.get_ip_address_as_optional(),
             metadata: item.router_data.request.metadata.clone().map(Into::into),
             merchant_order_reference: item.router_data.request.merchant_order_reference_id.clone(),
+            store_id,
+            splits,
         };
         Ok(request)
     }
@@ -3038,6 +3108,16 @@ impl
         let shopper_interaction = AdyenShopperInteraction::from(item.router_data);
         let return_url = item.router_data.request.get_router_return_url()?;
         let payment_method = AdyenPaymentMethod::try_from(gift_card_data)?;
+        let (store_id, splits) = item
+            .router_data
+            .request
+            .split_payments
+            .as_ref()
+            .and_then(|split_payment_data| {
+                get_adyen_split_request(split_payment_data, item.router_data.request.currency)
+            })
+            .unwrap_or((None, None));
+
         let request = AdyenPaymentRequest {
             amount,
             merchant_account: auth_type.merchant_account,
@@ -3065,6 +3145,8 @@ impl
             shopper_ip: item.router_data.request.get_ip_address_as_optional(),
             metadata: item.router_data.request.metadata.clone().map(Into::into),
             merchant_order_reference: item.router_data.request.merchant_order_reference_id.clone(),
+            store_id,
+            splits,
         };
         Ok(request)
     }
@@ -3101,6 +3183,15 @@ impl
         let line_items = Some(get_line_items(item));
         let billing_address =
             get_address_info(item.router_data.get_optional_billing()).and_then(Result::ok);
+        let (store_id, splits) = item
+            .router_data
+            .request
+            .split_payments
+            .as_ref()
+            .and_then(|split_payment_data| {
+                get_adyen_split_request(split_payment_data, item.router_data.request.currency)
+            })
+            .unwrap_or((None, None));
 
         Ok(AdyenPaymentRequest {
             amount,
@@ -3129,6 +3220,8 @@ impl
             shopper_ip: item.router_data.request.get_ip_address_as_optional(),
             metadata: item.router_data.request.metadata.clone().map(Into::into),
             merchant_order_reference: item.router_data.request.merchant_order_reference_id.clone(),
+            store_id,
+            splits,
         })
     }
 }
@@ -3219,6 +3312,15 @@ impl
         } else {
             None
         };
+        let (store_id, splits) = item
+            .router_data
+            .request
+            .split_payments
+            .as_ref()
+            .and_then(|split_payment_data| {
+                get_adyen_split_request(split_payment_data, item.router_data.request.currency)
+            })
+            .unwrap_or((None, None));
         Ok(AdyenPaymentRequest {
             amount,
             merchant_account: auth_type.merchant_account,
@@ -3246,6 +3348,8 @@ impl
             shopper_ip: item.router_data.request.get_ip_address_as_optional(),
             metadata: item.router_data.request.metadata.clone().map(Into::into),
             merchant_order_reference: item.router_data.request.merchant_order_reference_id.clone(),
+            store_id,
+            splits,
         })
     }
 }
@@ -3295,6 +3399,16 @@ impl
             &billing_address,
             &delivery_address,
         ))?;
+        let (store_id, splits) = item
+            .router_data
+            .request
+            .split_payments
+            .as_ref()
+            .and_then(|split_payment_data| {
+                get_adyen_split_request(split_payment_data, item.router_data.request.currency)
+            })
+            .unwrap_or((None, None));
+
         Ok(AdyenPaymentRequest {
             amount,
             merchant_account: auth_type.merchant_account,
@@ -3322,6 +3436,8 @@ impl
             shopper_ip: item.router_data.request.get_ip_address_as_optional(),
             metadata: item.router_data.request.metadata.clone().map(Into::into),
             merchant_order_reference: item.router_data.request.merchant_order_reference_id.clone(),
+            store_id,
+            splits,
         })
     }
 }
@@ -3355,6 +3471,16 @@ impl
             })?
             .number
             .to_owned();
+        let (store_id, splits) = item
+            .router_data
+            .request
+            .split_payments
+            .as_ref()
+            .and_then(|split_payment_data| {
+                get_adyen_split_request(split_payment_data, item.router_data.request.currency)
+            })
+            .unwrap_or((None, None));
+
         Ok(AdyenPaymentRequest {
             amount,
             merchant_account: auth_type.merchant_account,
@@ -3382,6 +3508,8 @@ impl
             shopper_ip: item.router_data.request.get_ip_address_as_optional(),
             metadata: item.router_data.request.metadata.clone().map(Into::into),
             merchant_order_reference: item.router_data.request.merchant_order_reference_id.clone(),
+            store_id,
+            splits,
         })
     }
 }
@@ -3394,6 +3522,33 @@ impl TryFrom<&types::PaymentsCancelRouterData> for AdyenCancelRequest {
             merchant_account: auth_type.merchant_account,
             reference: item.connector_request_reference_id.clone(),
         })
+    }
+}
+
+fn get_adyen_split_request(
+    item: &common_types::payments::SplitPaymentsRequest,
+    currency: common_enums::enums::Currency,
+) -> Option<(Option<String>, Option<Vec<AdyenSplitData>>)> {
+    match item {
+        common_types::payments::SplitPaymentsRequest::AdyenSplitPayment(split_payment_data) => {
+            let splits: Vec<AdyenSplitData> = split_payment_data
+                .split_items
+                .iter()
+                .map(|split_item| {
+                    let amount = split_item.amount.map(|value| Amount { currency, value });
+                    AdyenSplitData {
+                        amount,
+                        reference: split_item.reference.clone(),
+                        split_type: split_item.split_type.clone(),
+                        account: split_item.account.clone(),
+                        description: split_item.description.clone(),
+                    }
+                })
+                .collect();
+
+            Some((split_payment_data.store_id.clone(), Some(splits)))
+        }
+        _ => None,
     }
 }
 
@@ -5458,6 +5613,15 @@ impl
                 .unwrap_or_default(),
             eci: Some("02".to_string()),
         };
+        let (store_id, splits) = item
+            .router_data
+            .request
+            .split_payments
+            .as_ref()
+            .and_then(|split_payment_data| {
+                get_adyen_split_request(split_payment_data, item.router_data.request.currency)
+            })
+            .unwrap_or((None, None));
 
         Ok(AdyenPaymentRequest {
             amount,
@@ -5486,6 +5650,8 @@ impl
             metadata: item.router_data.request.metadata.clone().map(Into::into),
             merchant_order_reference: item.router_data.request.merchant_order_reference_id.clone(),
             mpi_data: Some(mpi_data),
+            store_id,
+            splits,
         })
     }
 }

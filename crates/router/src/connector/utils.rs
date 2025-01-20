@@ -783,7 +783,7 @@ impl SplitPaymentData for types::PaymentsSyncData {
 
 impl SplitPaymentData for PaymentsCancelData {
     fn get_split_payment_data(&self) -> Option<common_types::payments::SplitPaymentsRequest> {
-       None
+        None
     }
 }
 

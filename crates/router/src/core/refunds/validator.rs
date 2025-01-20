@@ -147,39 +147,111 @@ pub fn validate_for_valid_refunds(
 }
 
 pub fn validate_stripe_charge_refund(
-    stripe_refund: &common_types::refunds::StripeSplitRefundRequest,
-    charge_type: &api_enums::PaymentChargeType,
+    charge_type_option: Option<api_enums::PaymentChargeType>,
+    split_refund_request: &Option<common_types::refunds::SplitRefund>,
 ) -> RouterResult<types::ChargeRefundsOptions> {
-    match charge_type {
+    let charge_type = charge_type_option.ok_or_else(|| {
+        report!(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Missing `charge_type` in PaymentAttempt.")
+    })?;
+
+    let refund_request = match split_refund_request {
+        Some(common_types::refunds::SplitRefund::StripeSplitRefund(stripe_split_refund)) => {
+            stripe_split_refund
+        }
+        _ => Err(errors::ApiErrorResponse::MissingRequiredField {
+            field_name: "stripe_split_refund",
+        })?,
+    };
+
+    let options = match charge_type {
         api_enums::PaymentChargeType::Stripe(api_enums::StripeChargeType::Direct) => {
-            Ok(types::ChargeRefundsOptions::Direct(
-                types::DirectChargeRefund {
-                    revert_platform_fee: stripe_refund
-                        .revert_platform_fee
-                        .get_required_value("revert_platform_fee")?,
-                },
-            ))
+            types::ChargeRefundsOptions::Direct(types::DirectChargeRefund {
+                revert_platform_fee: refund_request
+                    .revert_platform_fee
+                    .get_required_value("revert_platform_fee")?,
+            })
         }
         api_enums::PaymentChargeType::Stripe(api_enums::StripeChargeType::Destination) => {
-            Ok(types::ChargeRefundsOptions::Destination(
-                types::DestinationChargeRefund {
-                    revert_platform_fee: stripe_refund
-                        .revert_platform_fee
-                        .get_required_value("revert_platform_fee")?,
-                    revert_transfer: stripe_refund
-                        .revert_transfer
-                        .get_required_value("revert_transfer")?,
-                },
-            ))
+            types::ChargeRefundsOptions::Destination(types::DestinationChargeRefund {
+                revert_platform_fee: refund_request
+                    .revert_platform_fee
+                    .get_required_value("revert_platform_fee")?,
+                revert_transfer: refund_request
+                    .revert_transfer
+                    .get_required_value("revert_transfer")?,
+            })
         }
-    }
+    };
+
+    Ok(options)
 }
 
 pub fn validate_adyen_charge_refund(
-    adyen_charge: &common_types::domain::AdyenSplitData,
-    adyen_refund_charge: &common_types::domain::AdyenSplitData,
+    adyen_split_payment_response: &common_types::domain::AdyenSplitData,
+    adyen_split_refund_request: &common_types::domain::AdyenSplitData,
 ) -> RouterResult<()> {
-    if adyen_charge.store_id != adyen_refund_charge.store_id {
-        Err(errors::ApiErrorResponse::InvalidDataValue { field_name: "store_id" })?
+    if adyen_split_refund_request.store_id != adyen_split_payment_response.store_id {
+        return Err(report!(errors::ApiErrorResponse::InvalidDataValue {
+            field_name: "store_id",
+        }));
     }
+
+    for refund_split_item in adyen_split_refund_request.split_items.iter() {
+        match &refund_split_item.reference {
+            Some(refund_split_reference) => {
+                let matching_payment_split_item = adyen_split_payment_response
+                    .split_items
+                    .iter()
+                    .find(|payment_split_item| {
+                        Some(refund_split_reference.clone()) == payment_split_item.reference
+                    });
+
+                if let Some(payment_split_item) = matching_payment_split_item {
+                    if let Some(refund_amount) = refund_split_item.amount {
+                        if let Some(payment_amount) = payment_split_item.amount {
+                            if refund_amount > payment_amount {
+                                return Err(report!(
+                                    errors::ApiErrorResponse::InvalidRequestData {
+                                        message: format!(
+                                            "Invalid refund amount for split item, reference: {}",
+                                            refund_split_reference
+                                        ),
+                                    }
+                                ));
+                            }
+                        }
+                    }
+
+                    if refund_split_item.account != payment_split_item.account {
+                        return Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+                            message: format!(
+                                "Invalid refund account for split item, reference: {}",
+                                refund_split_reference
+                            ),
+                        }));
+                    }
+
+                    if refund_split_item.split_type != payment_split_item.split_type {
+                        return Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+                            message: format!(
+                                "Invalid refund split_type for split item, reference: {}",
+                                refund_split_reference
+                            ),
+                        }));
+                    }
+                } else {
+                    return Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+                        message: format!(
+                            "No matching payment split item found for reference: {}",
+                            refund_split_reference
+                        ),
+                    }));
+                }
+            }
+            None => (),
+        }
+    }
+
+    Ok(())
 }

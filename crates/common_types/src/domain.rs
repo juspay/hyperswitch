@@ -31,7 +31,7 @@ pub struct AdyenSplitItem {
     #[schema(value_type = i64, example = 6540)]
     pub amount: Option<MinorUnit>,
     /// Defines type of split item
-    #[schema(value_type = AdyenSplitType, example = "balance_account")]
+    #[schema(value_type = AdyenSplitType, example = "BalanceAccount")]
     pub split_type: enums::AdyenSplitType,
     /// The unique identifier of the account to which the split amount is allocated.
     pub account: Option<String>,

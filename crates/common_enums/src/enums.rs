@@ -3625,8 +3625,8 @@ pub enum FeatureStatus {
     strum::EnumString,
     ToSchema,
 )]
-#[strum(serialize_all = "snake_case")]
-#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "camelCase")]
+#[serde(rename_all = "camelCase")]
 pub enum AdyenSplitType {
     /// Books split amount to the specified account.
     BalanceAccount,
