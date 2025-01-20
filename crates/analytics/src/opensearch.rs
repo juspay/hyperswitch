@@ -456,7 +456,7 @@ pub struct OpenSearchQueryBuilder {
     pub query: String,
     pub offset: Option<i64>,
     pub count: Option<i64>,
-    pub filters: Vec<(String, Vec<String>)>,
+    pub filters: Vec<(String, Vec<Value>)>,
     pub time_range: Option<OpensearchTimeRange>,
     search_params: Vec<AuthInfo>,
     case_sensitive_fields: HashSet<&'static str>,
@@ -493,7 +493,7 @@ impl OpenSearchQueryBuilder {
         Ok(())
     }
 
-    pub fn add_filter_clause(&mut self, lhs: String, rhs: Vec<String>) -> QueryResult<()> {
+    pub fn add_filter_clause(&mut self, lhs: String, rhs: Vec<Value>) -> QueryResult<()> {
         self.filters.push((lhs, rhs));
         Ok(())
     }
@@ -516,7 +516,7 @@ impl OpenSearchQueryBuilder {
 
     pub fn build_filter_array(
         &self,
-        case_sensitive_filters: Vec<&(String, Vec<String>)>,
+        case_sensitive_filters: Vec<&(String, Vec<Value>)>,
         index: SearchIndex,
     ) -> Vec<Value> {
         let mut filter_array = Vec::new();
@@ -559,7 +559,7 @@ impl OpenSearchQueryBuilder {
     pub fn build_case_insensitive_filters(
         &self,
         mut payload: Value,
-        case_insensitive_filters: &[&(String, Vec<String>)],
+        case_insensitive_filters: &[&(String, Vec<Value>)],
         auth_array: Vec<Value>,
         index: SearchIndex,
     ) -> Value {
