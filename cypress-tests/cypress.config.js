@@ -1,5 +1,6 @@
 import { defineConfig } from "cypress";
 import mochawesome from "cypress-mochawesome-reporter/plugin.js";
+import fs from "fs";
 
 let globalState;
 
@@ -28,7 +29,18 @@ export default defineConfig({
           return null;
         },
       });
-
+      on("after:spec", (spec, results) => {
+        if (results && results.video) {
+          // Do we have failures for any retry attempts?
+          const failures = results.tests.some((test) =>
+            test.attempts.some((attempt) => attempt.state === "failed")
+          );
+          if (!failures) {
+            // delete the video if the spec passed and no tests retried
+            fs.unlinkSync(results.video);
+          }
+        }
+      });
       return config;
     },
     experimentalRunAllSpecs: true,
@@ -48,4 +60,6 @@ export default defineConfig({
   defaultCommandTimeout: 10000,
   pageLoadTimeout: 20000,
   screenshotsFolder: screenshotsFolderName,
+  video: true,
+  videoCompression: 32,
 });
