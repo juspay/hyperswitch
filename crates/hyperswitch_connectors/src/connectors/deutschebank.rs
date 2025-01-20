@@ -1000,6 +1000,16 @@ lazy_static! {
             }
         );
 
+        deutschebank_supported_payment_methods.add(
+            enums::PaymentMethod::Card,
+            enums::PaymentMethodType::Debit,
+            PaymentMethodDetails{
+                mandates: enums::FeatureStatus::NotSupported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
+            }
+        );
+
         deutschebank_supported_payment_methods
     };
 
