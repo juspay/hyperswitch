@@ -1012,9 +1012,10 @@ pub struct MerchantConnectorResponse {
     /// Type of the Connector for the financial use case. Could range from Payments to Accounting to Banking.
     #[schema(value_type = ConnectorType, example = "payment_processor")]
     pub connector_type: api_enums::ConnectorType,
+
     /// Name of the Connector
     #[schema(value_type = Connector, example = "stripe")]
-    pub connector_name: String,
+    pub connector_name: common_enums::connector_enums::Connector,
 
     /// A unique label to identify the connector account created under a profile
     #[schema(example = "stripe_US_travel")]
@@ -1313,9 +1314,10 @@ pub struct MerchantConnectorListResponse {
     /// Type of the Connector for the financial use case. Could range from Payments to Accounting to Banking.
     #[schema(value_type = ConnectorType, example = "payment_processor")]
     pub connector_type: api_enums::ConnectorType,
+
     /// Name of the Connector
     #[schema(value_type = Connector, example = "stripe")]
-    pub connector_name: String,
+    pub connector_name: common_enums::connector_enums::Connector,
 
     /// A unique label to identify the connector account created under a profile
     #[schema(example = "stripe_US_travel")]

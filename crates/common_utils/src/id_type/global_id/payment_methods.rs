@@ -1,9 +1,8 @@
 use error_stack::ResultExt;
 
 use crate::{
-    errors,
     errors::CustomResult,
-    id_type::global_id::{CellId, GlobalEntity, GlobalId, GlobalIdError},
+    id_type::global_id::{CellId, GlobalEntity, GlobalId},
 };
 
 /// A global id that can be used to identify a payment method
@@ -24,6 +23,16 @@ pub struct GlobalPaymentMethodId(GlobalId);
 pub enum GlobalPaymentMethodIdError {
     #[error("Failed to construct GlobalPaymentMethodId")]
     ConstructionError,
+}
+
+impl crate::events::ApiEventMetric for GlobalPaymentMethodId {
+    fn get_api_event_type(&self) -> Option<crate::events::ApiEventsType> {
+        Some(
+            crate::events::ApiEventsType::PaymentMethodListForPaymentMethods {
+                payment_method_id: self.clone(),
+            },
+        )
+    }
 }
 
 impl GlobalPaymentMethodId {
