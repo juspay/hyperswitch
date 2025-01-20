@@ -293,7 +293,7 @@ function threeDsRedirection(redirection_url, expected_url, connectorId) {
       return;
     }
     cy.log("Challenge flow detected - proceeding with 3DS authentication");
-    
+
     if (connectorId === "adyen") {
       cy.get("iframe")
         .its("0.contentDocument.body")
