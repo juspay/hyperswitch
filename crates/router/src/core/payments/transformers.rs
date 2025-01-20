@@ -3649,7 +3649,7 @@ impl ForeignTryFrom<types::CaptureSyncResponse> for storage::CaptureUpdate {
                 connector_response_reference_id,
                 ..
             } => {
-                let (connector_capture_id, connector_capture_data) = match resource_id {
+                let (connector_capture_id, processor_capture_data) = match resource_id {
                     types::ResponseId::EncodedData(_) | types::ResponseId::NoResponseId => {
                         (None, None)
                     }
@@ -3663,7 +3663,7 @@ impl ForeignTryFrom<types::CaptureSyncResponse> for storage::CaptureUpdate {
                     status: enums::CaptureStatus::foreign_try_from(status)?,
                     connector_capture_id,
                     connector_response_reference_id,
-                    connector_capture_data,
+                    processor_capture_data,
                 })
             }
             types::CaptureSyncResponse::Error {
