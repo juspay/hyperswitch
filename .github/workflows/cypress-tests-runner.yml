@@ -265,5 +265,4 @@ jobs:
           name: cypress-test-results
           path: |
             cypress-tests/cypress/reports/
-            cypress-tests/cypress/videos/
           retention-days: 1

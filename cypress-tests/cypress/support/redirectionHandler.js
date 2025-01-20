@@ -296,28 +296,35 @@ function threeDsRedirection(redirection_url, expected_url, connectorId) {
     connectorId === "cybersource" ||
     connectorId === "wellsfargo"
   ) {
-    // Wait for iframe to be present and visible
-    cy.get("iframe", { timeout: TIMEOUT })
-      .should("be.visible")
-      .its("0.contentDocument.body")
-      .should("not.be.empty") // Ensure body has content
-      .within(() => {
-        // Add retry ability and multiple selector attempts
-        cy.get(
-          'input[type="text"], input[type="password"], input[name="challengeDataEntry"]',
-          { timeout: TIMEOUT }
-        )
-          .should("be.visible")
-          .should("be.enabled")
-          .click()
-          .type("1234");
+    if (
+      !(
+        connectorId === "cybersource" &&
+        redirection_url.host.endsWith(expected_url.host)
+      )
+    ) {
+      // Wait for iframe to be present and visible
+      cy.get("iframe", { timeout: TIMEOUT })
+        .should("be.visible")
+        .its("0.contentDocument.body")
+        .should("not.be.empty") // Ensure body has content
+        .within(() => {
+          // Add retry ability and multiple selector attempts
+          cy.get(
+            'input[type="text"], input[type="password"], input[name="challengeDataEntry"]',
+            { timeout: TIMEOUT }
+          )
+            .should("be.visible")
+            .should("be.enabled")
+            .click()
+            .type("1234");
 
-        cy.get('input[value="SUBMIT"], button[type="submit"]', {
-          timeout: TIMEOUT,
-        })
-          .should("be.visible")
-          .click();
-      });
+          cy.get('input[value="SUBMIT"], button[type="submit"]', {
+            timeout: TIMEOUT,
+          })
+            .should("be.visible")
+            .click();
+        });
+    }
   } else if (connectorId === "checkout") {
     cy.get("iframe", { timeout: TIMEOUT })
       .its("0.contentDocument.body")
