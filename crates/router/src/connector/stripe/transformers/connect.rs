@@ -1,5 +1,5 @@
 use api_models;
-use common_utils::{pii::Email, types::NameType};
+use common_utils::pii::Email;
 use error_stack::ResultExt;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
@@ -124,9 +124,9 @@ pub struct StripeConnectRecipientCreateRequest {
     #[serde(rename = "company[owners_provided]")]
     company_owners_provided: Option<bool>,
     #[serde(rename = "individual[first_name]")]
-    individual_first_name: Option<NameType>,
+    individual_first_name: Option<common_utils::types::NameType>,
     #[serde(rename = "individual[last_name]")]
-    individual_last_name: Option<NameType>,
+    individual_last_name: Option<common_utils::types::NameType>,
     #[serde(rename = "individual[dob][day]")]
     individual_dob_day: Option<Secret<String>>,
     #[serde(rename = "individual[dob][month]")]

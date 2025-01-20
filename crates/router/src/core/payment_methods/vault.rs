@@ -6,7 +6,6 @@ use common_utils::{
     ext_traits::{BytesExt, Encode},
     generate_id_with_default_len, id_type,
     pii::Email,
-    types::NameType,
 };
 use error_stack::{report, ResultExt};
 use masking::PeekInterface;
@@ -120,9 +119,13 @@ impl Vaultable for domain::Card {
             bank_code: None,
             card_issuing_country: None,
             card_type: None,
-            nick_name: value1
-                .nickname
-                .and_then(|name| NameType::try_from(name).ok()),
+            nick_name: value1.nickname.and_then(|name| {
+                common_utils::types::NameType::try_from(name)
+                    .map_err(|err| {
+                        router_env::logger::error!("Invalid Nick Name: {}", err);
+                    })
+                    .ok()
+            }),
             card_holder_name: value1.card_holder_name,
         };
 
@@ -517,9 +520,13 @@ impl Vaultable for api::CardPayout {
                 .map_err(|_| errors::VaultError::FetchCardFailed)?,
             expiry_month: value1.exp_month.into(),
             expiry_year: value1.exp_year.into(),
-            card_holder_name: value1
-                .name_on_card
-                .and_then(|name| NameType::try_from(name).ok()),
+            card_holder_name: value1.name_on_card.and_then(|name| {
+                common_utils::types::NameType::try_from(name)
+                    .map_err(|err| {
+                        router_env::logger::error!("Invalid Nick Name: {}", err);
+                    })
+                    .ok()
+            }),
         };
 
         let supp_data = SupplementaryVaultData {

@@ -1,4 +1,3 @@
-use common_utils::types::NameType;
 use masking::{PeekInterface, Secret};
 
 #[derive(Default, Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -41,8 +40,8 @@ pub struct AddressDetails {
     pub line3: Option<Secret<String>>,
     pub zip: Option<Secret<String>>,
     pub state: Option<Secret<String>>,
-    pub first_name: Option<NameType>,
-    pub last_name: Option<NameType>,
+    pub first_name: Option<common_utils::types::NameType>,
+    pub last_name: Option<common_utils::types::NameType>,
 }
 
 impl AddressDetails {

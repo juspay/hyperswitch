@@ -4,7 +4,7 @@ use common_utils::{
     errors::IntegrityCheckError,
     ext_traits::{OptionExt, ValueExt},
     id_type,
-    types::{MinorUnit, NameType},
+    types::MinorUnit,
 };
 use error_stack::ResultExt;
 use masking::{ExposeInterface, Secret};
@@ -281,7 +281,7 @@ pub struct PazeDynamicData {
 #[derive(Debug, Clone, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PazeAddress {
-    pub name: Option<NameType>,
+    pub name: Option<common_utils::types::NameType>,
     pub line1: Option<Secret<String>>,
     pub line2: Option<Secret<String>>,
     pub line3: Option<Secret<String>>,

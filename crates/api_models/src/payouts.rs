@@ -6,7 +6,7 @@ use common_utils::{
     crypto, id_type, link_utils, payout_method_utils,
     pii::{self, Email},
     transformers::ForeignFrom,
-    types::{NameType, UnifiedCode, UnifiedMessage},
+    types::{UnifiedCode, UnifiedMessage},
 };
 use masking::Secret;
 use router_derive::FlatStruct;
@@ -251,7 +251,7 @@ pub struct CardPayout {
 
     /// The card holder's name
     #[schema(value_type = String, example = "John Doe")]
-    pub card_holder_name: Option<NameType>,
+    pub card_holder_name: Option<common_utils::types::NameType>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]

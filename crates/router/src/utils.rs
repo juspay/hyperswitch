@@ -36,7 +36,7 @@ pub use hyperswitch_connectors::utils::QrImage;
 use hyperswitch_domain_models::payments::PaymentIntent;
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use hyperswitch_domain_models::type_encryption::{crypto_operation, CryptoOperation};
-use masking::{ExposeInterface, PeekInterface, SwitchStrategy};
+use masking::{ExposeInterface, SwitchStrategy};
 use nanoid::nanoid;
 use serde::de::DeserializeOwned;
 use serde_json::Value;
@@ -840,14 +840,8 @@ impl CustomerAddress for api_models::customers::CustomerRequest {
                     line2: address_details.line2.clone(),
                     line3: address_details.line3.clone(),
                     state: address_details.state.clone(),
-                    first_name: address_details
-                        .first_name
-                        .clone()
-                        .map(|name| masking::Secret::new(name.peek().to_string())),
-                    last_name: address_details
-                        .last_name
-                        .clone()
-                        .map(|name| masking::Secret::new(name.peek().to_string())),
+                    first_name: address_details.first_name.clone().map(From::from),
+                    last_name: address_details.last_name.clone().map(From::from),
                     zip: address_details.zip.clone(),
                     phone_number: self.phone.clone(),
                     email: self

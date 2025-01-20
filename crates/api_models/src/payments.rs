@@ -16,7 +16,7 @@ use common_utils::{
     hashing::HashedString,
     id_type,
     pii::{self, Email},
-    types::{MinorUnit, NameType, StringMajorUnit},
+    types::{MinorUnit, StringMajorUnit},
 };
 use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface, Secret, WithType};
@@ -1683,7 +1683,7 @@ pub struct Card {
 
     /// The card holder's name
     #[schema(value_type = String, example = "John Test")]
-    pub card_holder_name: Option<NameType>,
+    pub card_holder_name: Option<common_utils::types::NameType>,
 
     /// The CVC number for the card
     #[schema(value_type = String, example = "242")]
@@ -1707,7 +1707,7 @@ pub struct Card {
     pub bank_code: Option<String>,
     /// The card holder's nick name
     #[schema(value_type = Option<String>, example = "John Test")]
-    pub nick_name: Option<NameType>,
+    pub nick_name: Option<common_utils::types::NameType>,
 }
 
 #[derive(Default, Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -1726,7 +1726,7 @@ pub struct ExtendedCardInfo {
 
     /// The card holder's name
     #[schema(value_type = String, example = "John Test")]
-    pub card_holder_name: Option<NameType>,
+    pub card_holder_name: Option<common_utils::types::NameType>,
 
     /// The CVC number for the card
     #[schema(value_type = String, example = "242")]
@@ -1785,13 +1785,23 @@ impl GetAddressFromPaymentMethodData for Card {
                 let first_name = card_holder_name_iter
                     .next()
                     .map(ToOwned::to_owned)
-                    .and_then(|name| NameType::try_from(name).ok());
+                    .and_then(|name| {
+                        common_utils::types::NameType::try_from(name)
+                            .map_err(|err| {
+                                router_env::logger::error!("Invalid First Name: {}", err);
+                            })
+                            .ok()
+                    });
 
                 let last_name = card_holder_name_iter.collect::<Vec<_>>().join(" ");
                 let last_name = if last_name.is_empty_after_trim() {
                     None
                 } else {
-                    NameType::try_from(last_name).ok()
+                    common_utils::types::NameType::try_from(last_name)
+                        .map_err(|err| {
+                            router_env::logger::error!("Invalid Last Name: {}", err);
+                        })
+                        .ok()
                 };
 
                 AddressDetails {
@@ -1843,7 +1853,7 @@ impl Card {
 pub struct CardToken {
     /// The card holder's name
     #[schema(value_type = String, example = "John Test")]
-    pub card_holder_name: Option<NameType>,
+    pub card_holder_name: Option<common_utils::types::NameType>,
 
     /// The CVC number for the card
     #[schema(value_type = Option<String>)]
@@ -1886,7 +1896,7 @@ pub enum PayLaterData {
         billing_email: Option<Email>,
         /// The billing name
         #[schema(value_type = Option<String>)]
-        billing_name: Option<NameType>,
+        billing_name: Option<common_utils::types::NameType>,
     },
     /// For PayBright Redirect as PayLater Option
     PayBrightRedirect {},
@@ -1956,10 +1966,10 @@ pub enum BankDebitData {
         routing_number: Secret<String>,
 
         #[schema(value_type = String, example = "John Test")]
-        card_holder_name: Option<NameType>,
+        card_holder_name: Option<common_utils::types::NameType>,
 
         #[schema(value_type = String, example = "John Doe")]
-        bank_account_holder_name: Option<NameType>,
+        bank_account_holder_name: Option<common_utils::types::NameType>,
 
         #[schema(value_type = String, example = "ACH")]
         bank_name: Option<common_enums::BankNames>,
@@ -1978,7 +1988,7 @@ pub enum BankDebitData {
         iban: Secret<String>,
         /// Owner name for bank debit
         #[schema(value_type = String, example = "A. Schneider")]
-        bank_account_holder_name: Option<NameType>,
+        bank_account_holder_name: Option<common_utils::types::NameType>,
     },
     BecsBankDebit {
         /// Billing details for bank debit
@@ -1991,7 +2001,7 @@ pub enum BankDebitData {
         bsb_number: Secret<String>,
         /// Owner name for bank debit
         #[schema(value_type = Option<String>, example = "A. Schneider")]
-        bank_account_holder_name: Option<NameType>,
+        bank_account_holder_name: Option<common_utils::types::NameType>,
     },
     BacsBankDebit {
         /// Billing details for bank debit
@@ -2004,7 +2014,7 @@ pub enum BankDebitData {
         sort_code: Secret<String>,
         /// holder name for bank debit
         #[schema(value_type = String, example = "A. Schneider")]
-        bank_account_holder_name: Option<NameType>,
+        bank_account_holder_name: Option<common_utils::types::NameType>,
     },
 }
 
@@ -2012,7 +2022,7 @@ impl GetAddressFromPaymentMethodData for BankDebitData {
     fn get_billing_address(&self) -> Option<Address> {
         fn get_billing_address_inner(
             bank_debit_billing: Option<&BankDebitBilling>,
-            bank_account_holder_name: Option<&NameType>,
+            bank_account_holder_name: Option<&common_utils::types::NameType>,
         ) -> Option<Address> {
             // We will always have address here
             let mut address = bank_debit_billing
@@ -2142,7 +2152,16 @@ mod payment_method_data_serde {
                                         card.card_holder_name = billing_address_details
                                             .get_optional_full_name()
                                             .and_then(|name| {
-                                                NameType::try_from(name.expose()).ok()
+                                                common_utils::types::NameType::try_from(
+                                                    name.expose(),
+                                                )
+                                                .map_err(|err| {
+                                                    router_env::logger::error!(
+                                                        "Invalid Card Holder Name: {}",
+                                                        err
+                                                    );
+                                                })
+                                                .ok()
                                             });
                                     }
                                     Some(PaymentMethodData::Card(card.clone()))
@@ -2581,7 +2600,7 @@ pub struct AdditionalCardInfo {
 
     pub card_exp_year: Option<Secret<String>>,
 
-    pub card_holder_name: Option<NameType>,
+    pub card_holder_name: Option<common_utils::types::NameType>,
 
     /// Additional payment checks done on the cvv and billing address by the processors.
     /// This is a free form field and the structure varies from processor to processor
@@ -2678,7 +2697,7 @@ pub enum BankRedirectData {
 
         /// The card holder's name
         #[schema(value_type = String, example = "John Test")]
-        card_holder_name: Option<NameType>,
+        card_holder_name: Option<common_utils::types::NameType>,
 
         //Required by Stripes
         billing_details: Option<BankRedirectBilling>,
@@ -2923,10 +2942,10 @@ impl GetAddressFromPaymentMethodData for BankRedirectData {
 pub struct AlfamartVoucherData {
     /// The billing first name for Alfamart
     #[schema(value_type = Option<String>, example = "Jane")]
-    pub first_name: Option<NameType>,
+    pub first_name: Option<common_utils::types::NameType>,
     /// The billing second name for Alfamart
     #[schema(value_type = Option<String>, example = "Doe")]
-    pub last_name: Option<NameType>,
+    pub last_name: Option<common_utils::types::NameType>,
     /// The Email ID for Alfamart
     #[schema(value_type = Option<String>, example = "example@me.com")]
     pub email: Option<Email>,
@@ -2936,10 +2955,10 @@ pub struct AlfamartVoucherData {
 pub struct IndomaretVoucherData {
     /// The billing first name for Alfamart
     #[schema(value_type = Option<String>, example = "Jane")]
-    pub first_name: Option<NameType>,
+    pub first_name: Option<common_utils::types::NameType>,
     /// The billing second name for Alfamart
     #[schema(value_type = Option<String>, example = "Doe")]
-    pub last_name: Option<NameType>,
+    pub last_name: Option<common_utils::types::NameType>,
     /// The Email ID for Alfamart
     #[schema(value_type = Option<String>, example = "example@me.com")]
     pub email: Option<Email>,
@@ -2949,10 +2968,10 @@ pub struct IndomaretVoucherData {
 pub struct JCSVoucherData {
     /// The billing first name for Japanese convenience stores
     #[schema(value_type = Option<String>, example = "Jane")]
-    pub first_name: Option<NameType>,
+    pub first_name: Option<common_utils::types::NameType>,
     /// The billing second name Japanese convenience stores
     #[schema(value_type = Option<String>, example = "Doe")]
-    pub last_name: Option<NameType>,
+    pub last_name: Option<common_utils::types::NameType>,
     /// The Email ID for Japanese convenience stores
     #[schema(value_type = Option<String>, example = "example@me.com")]
     pub email: Option<Email>,
@@ -2972,10 +2991,10 @@ pub struct AchBillingDetails {
 pub struct DokuBillingDetails {
     /// The billing first name for Doku
     #[schema(value_type = Option<String>, example = "Jane")]
-    pub first_name: Option<NameType>,
+    pub first_name: Option<common_utils::types::NameType>,
     /// The billing second name for Doku
     #[schema(value_type = Option<String>, example = "Doe")]
-    pub last_name: Option<NameType>,
+    pub last_name: Option<common_utils::types::NameType>,
     /// The Email ID for Doku billing
     #[schema(value_type = Option<String>, example = "example@me.com")]
     pub email: Option<Email>,
@@ -2994,7 +3013,7 @@ pub struct SepaAndBacsBillingDetails {
     pub email: Option<Email>,
     /// The billing name for SEPA and BACS billing
     #[schema(value_type = Option<String>, example = "Jane Doe")]
-    pub name: Option<NameType>,
+    pub name: Option<common_utils::types::NameType>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -3032,7 +3051,7 @@ pub struct SofortBilling {
 pub struct BankRedirectBilling {
     /// The name for which billing is issued
     #[schema(value_type = String, example = "John Doe")]
-    pub billing_name: Option<NameType>,
+    pub billing_name: Option<common_utils::types::NameType>,
     /// The billing email for bank redirect
     #[schema(value_type = String, example = "example@example.com")]
     pub email: Option<Email>,
@@ -3202,7 +3221,7 @@ impl GetAddressFromPaymentMethodData for BankTransferData {
 pub struct BankDebitBilling {
     /// The billing name for bank debits
     #[schema(value_type = Option<String>, example = "John Doe")]
-    pub name: Option<NameType>,
+    pub name: Option<common_utils::types::NameType>,
     /// The billing email for bank debits
     #[schema(value_type = Option<String>, example = "example@example.com")]
     pub email: Option<Email>,
@@ -3626,7 +3645,7 @@ pub struct CardResponse {
     #[schema(value_type = Option<String>)]
     pub card_exp_year: Option<Secret<String>>,
     #[schema(value_type = Option<String>)]
-    pub card_holder_name: Option<NameType>,
+    pub card_holder_name: Option<common_utils::types::NameType>,
     pub payment_checks: Option<serde_json::Value>,
     pub authentication_data: Option<serde_json::Value>,
 }
@@ -4014,11 +4033,11 @@ pub struct AddressDetails {
 
     /// The first name for the address
     #[schema(value_type = Option<String>, max_length = 255, example = "John")]
-    pub first_name: Option<NameType>,
+    pub first_name: Option<common_utils::types::NameType>,
 
     /// The last name for the address
     #[schema(value_type = Option<String>, max_length = 255, example = "Doe")]
-    pub last_name: Option<NameType>,
+    pub last_name: Option<common_utils::types::NameType>,
 }
 
 impl AddressDetails {
@@ -7367,7 +7386,8 @@ mod billing_from_payment_method_data {
     #[test]
     fn test_bank_redirect_payment_method_data_eps() {
         let test_email = Email::try_from("example@example.com".to_string()).unwrap();
-        let test_first_name = NameType::try_from(String::from("Chaser")).unwrap();
+        let test_first_name =
+            common_utils::types::NameType::try_from(String::from("Chaser")).unwrap();
 
         let bank_redirect_billing = BankRedirectBilling {
             billing_name: Some(test_first_name.clone()),
@@ -7418,7 +7438,8 @@ mod billing_from_payment_method_data {
     #[test]
     fn test_bank_debit_payment_method_data_ach() {
         let test_email = Email::try_from("example@example.com".to_string()).unwrap();
-        let test_first_name = NameType::try_from(String::from("Chaser")).unwrap();
+        let test_first_name =
+            common_utils::types::NameType::try_from(String::from("Chaser")).unwrap();
 
         let bank_redirect_billing = BankDebitBilling {
             name: Some(test_first_name.clone()),
@@ -7452,7 +7473,10 @@ mod billing_from_payment_method_data {
     #[test]
     fn test_card_payment_method_data() {
         let card_payment_method_data = PaymentMethodData::Card(Card {
-            card_holder_name: Some(NameType::try_from(TEST_FIRST_NAME_SINGLE.to_string()).unwrap()),
+            card_holder_name: Some(
+                common_utils::types::NameType::try_from(TEST_FIRST_NAME_SINGLE.to_string())
+                    .unwrap(),
+            ),
             ..Default::default()
         });
 
@@ -7482,7 +7506,9 @@ mod billing_from_payment_method_data {
     #[test]
     fn test_card_payment_method_data_full_name() {
         let card_payment_method_data = PaymentMethodData::Card(Card {
-            card_holder_name: Some(NameType::try_from(TEST_FULL_NAME.to_string()).unwrap()),
+            card_holder_name: Some(
+                common_utils::types::NameType::try_from(TEST_FULL_NAME.to_string()).unwrap(),
+            ),
             ..Default::default()
         });
 
@@ -7507,7 +7533,9 @@ mod billing_from_payment_method_data {
     #[test]
     fn test_card_payment_method_data_empty_string() {
         let card_payment_method_data = PaymentMethodData::Card(Card {
-            card_holder_name: Some(NameType::try_from("".to_string()).unwrap()),
+            card_holder_name: Some(
+                common_utils::types::NameType::try_from("".to_string()).unwrap(),
+            ),
             ..Default::default()
         });
 

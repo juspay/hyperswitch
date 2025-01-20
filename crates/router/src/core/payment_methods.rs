@@ -25,7 +25,7 @@ use api_models::payment_methods;
 pub use api_models::{enums::PayoutConnectors, payouts as payout_types};
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use common_utils::ext_traits::Encode;
-use common_utils::{consts::DEFAULT_LOCALE, id_type, types::NameType};
+use common_utils::{consts::DEFAULT_LOCALE, id_type};
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use common_utils::{
     crypto::{self, Encryptable},
@@ -693,12 +693,9 @@ pub(crate) async fn get_payment_method_create_request(
                         card_exp_month: card.card_exp_month.clone(),
                         card_exp_year: card.card_exp_year.clone(),
                         card_holder_name: billing_name.and_then(|name| {
-                            NameType::try_from(name)
+                            common_utils::types::NameType::try_from(name)
                                 .map_err(|err| {
-                                    logger::error!(
-                                        "Failed to convert billing name to NameType: {}",
-                                        err
-                                    );
+                                    logger::error!("Invalid Card Holder Name: {}", err);
                                 })
                                 .ok()
                         }),
@@ -780,12 +777,9 @@ pub(crate) async fn get_payment_method_create_request(
                         card_exp_month: card.card_exp_month.clone(),
                         card_exp_year: card.card_exp_year.clone(),
                         card_holder_name: billing_name.and_then(|name| {
-                            NameType::try_from(name)
+                            common_utils::types::NameType::try_from(name)
                                 .map_err(|err| {
-                                    logger::error!(
-                                        "Failed to convert billing name to NameType: {}",
-                                        err
-                                    );
+                                    logger::error!("Invalid Card Holder Name: {}", err);
                                 })
                                 .ok()
                         }),

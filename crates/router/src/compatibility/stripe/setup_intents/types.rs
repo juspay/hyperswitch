@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use api_models::payments;
-use common_utils::{date_time, ext_traits::StringExt, id_type, pii as secret, types::NameType};
+use common_utils::{date_time, ext_traits::StringExt, id_type, pii as secret};
 use error_stack::ResultExt;
 use router_env::logger;
 use serde::{Deserialize, Serialize};
@@ -96,7 +96,8 @@ impl From<StripeCard> for payments::Card {
             card_number: card.number,
             card_exp_month: card.exp_month,
             card_exp_year: card.exp_year,
-            card_holder_name: NameType::try_from("Stripe_cust".to_string()).ok(),
+            card_holder_name: common_utils::types::NameType::try_from("Stripe_cust".to_string())
+                .ok(),
             card_cvc: card.cvc,
             card_issuer: None,
             card_network: None,

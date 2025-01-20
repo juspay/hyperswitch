@@ -10,13 +10,12 @@ use common_utils::{
     ext_traits::{Encode, StringExt, ValueExt},
     fp_utils::when,
     pii,
-    types::{ConnectorTransactionIdTrait, NameType},
+    types::ConnectorTransactionIdTrait,
 };
 use diesel_models::enums as storage_enums;
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::payments::payment_intent::CustomerData;
 use masking::{ExposeInterface, PeekInterface, Secret};
-use router_env::logger;
 
 use super::domain;
 use crate::{
@@ -754,9 +753,9 @@ impl From<&domain::Address> for hyperswitch_domain_models::address::Address {
                 .clone()
                 .map(Encryptable::into_inner)
                 .and_then(|name| {
-                    NameType::try_from(name.expose())
+                    common_utils::types::NameType::try_from(name.expose())
                         .map_err(|err| {
-                            logger::error!("Invalid first name: {err}");
+                            router_env::logger::error!("Invalid First Name: {}", err);
                         })
                         .ok()
                 });
@@ -765,9 +764,9 @@ impl From<&domain::Address> for hyperswitch_domain_models::address::Address {
                 .clone()
                 .map(Encryptable::into_inner)
                 .and_then(|name| {
-                    NameType::try_from(name.expose())
+                    common_utils::types::NameType::try_from(name.expose())
                         .map_err(|err| {
-                            logger::error!("Invalid last name {err}");
+                            router_env::logger::error!("Invalid Last Name {}", err);
                         })
                         .ok()
                 });
@@ -822,9 +821,9 @@ impl ForeignFrom<domain::Address> for api_types::Address {
                 .clone()
                 .map(Encryptable::into_inner)
                 .and_then(|name| {
-                    NameType::try_from(name.expose())
+                    common_utils::types::NameType::try_from(name.expose())
                         .map_err(|err| {
-                            logger::error!("Invalid first name: {err}");
+                            router_env::logger::error!("Invalid First Name: {}", err);
                         })
                         .ok()
                 });
@@ -833,9 +832,9 @@ impl ForeignFrom<domain::Address> for api_types::Address {
                 .clone()
                 .map(Encryptable::into_inner)
                 .and_then(|name| {
-                    NameType::try_from(name.expose())
+                    common_utils::types::NameType::try_from(name.expose())
                         .map_err(|err| {
-                            logger::error!("Invalid last name {err}");
+                            router_env::logger::error!("Invalid Last Name {}", err);
                         })
                         .ok()
                 });
@@ -1802,9 +1801,9 @@ impl From<domain::Address> for payments::AddressDetails {
             .clone()
             .map(Encryptable::into_inner)
             .and_then(|name| {
-                NameType::try_from(name.expose())
+                common_utils::types::NameType::try_from(name.expose())
                     .map_err(|err| {
-                        logger::error!("Invalid first name: {err}");
+                        router_env::logger::error!("Invalid First Name: {}", err);
                     })
                     .ok()
             });
@@ -1813,9 +1812,9 @@ impl From<domain::Address> for payments::AddressDetails {
             .clone()
             .map(Encryptable::into_inner)
             .and_then(|name| {
-                NameType::try_from(name.expose())
+                common_utils::types::NameType::try_from(name.expose())
                     .map_err(|err| {
-                        logger::error!("Invalid last name {err}");
+                        router_env::logger::error!("Invalid Last Name {}", err);
                     })
                     .ok()
             });

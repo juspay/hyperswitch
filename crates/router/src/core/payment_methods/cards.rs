@@ -3041,9 +3041,13 @@ pub async fn mock_get_card<'a>(
             .map(Some)?,
         card_exp_year: Some(locker_mock_up.card_exp_year.into()),
         card_exp_month: Some(locker_mock_up.card_exp_month.into()),
-        name_on_card: locker_mock_up
-            .name_on_card
-            .and_then(|card| card.try_into().ok()),
+        name_on_card: locker_mock_up.name_on_card.and_then(|card| {
+            card.try_into()
+                .map_err(|_| {
+                    router_env::logger::error!("Failed to convert name to NameType");
+                })
+                .ok()
+        }),
         nickname: locker_mock_up.nickname,
         customer_id: locker_mock_up.customer_id,
         duplicate: locker_mock_up.duplicate,

@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use common_utils::{
     errors::CustomResult,
     pii::{self, Email},
-    types::{NameType, StringMajorUnit},
+    types::StringMajorUnit,
 };
 use error_stack::{report, ResultExt};
 use masking::{ExposeInterface, PeekInterface, Secret};
@@ -276,7 +276,7 @@ fn get_card_request_data(
         .get_billing()?
         .address
         .as_ref()
-        .and_then(|address| address.last_name.clone());
+        .and_then(|address| address.last_name.clone().map(From::from));
     Ok(TrustpayPaymentsRequest::CardsPaymentRequest(Box::new(
         PaymentRequestCards {
             amount,
@@ -312,7 +312,7 @@ fn get_card_request_data(
 
 fn get_full_name(
     billing_first_name: Secret<String>,
-    billing_last_name: Option<NameType>,
+    billing_last_name: Option<Secret<String>>,
 ) -> Secret<String> {
     match billing_last_name {
         Some(last_name) => format!("{} {}", billing_first_name.peek(), last_name.peek()).into(),
@@ -329,7 +329,7 @@ fn get_debtor_info(
         .get_billing()?
         .address
         .as_ref()
-        .and_then(|address| address.last_name.clone());
+        .and_then(|address| address.last_name.clone().map(From::from));
     Ok(match pm {
         TrustpayPaymentMethod::Blik => Some(DebtorInformation {
             name: get_full_name(params.billing_first_name, billing_last_name),

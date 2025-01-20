@@ -1,4 +1,3 @@
-use common_utils::types::NameType;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
@@ -58,7 +57,7 @@ pub struct MandateCardDetails {
     pub card_exp_year: Option<Secret<String>>,
     /// The card holder name
     #[schema(value_type = Option<String>)]
-    pub card_holder_name: Option<NameType>,
+    pub card_holder_name: Option<common_utils::types::NameType>,
     /// The token from card locker
     #[schema(value_type = Option<String>)]
     pub card_token: Option<Secret<String>>,
@@ -80,7 +79,7 @@ pub struct MandateCardDetails {
     pub card_type: Option<String>,
     /// The nick_name of the card holder
     #[schema(value_type = Option<String>)]
-    pub nick_name: Option<NameType>,
+    pub nick_name: Option<common_utils::types::NameType>,
 }
 
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
@@ -152,7 +151,7 @@ pub struct NetworkTransactionIdAndCardDetails {
 
     /// The card holder's name
     #[schema(value_type = String, example = "John Test")]
-    pub card_holder_name: Option<NameType>,
+    pub card_holder_name: Option<common_utils::types::NameType>,
 
     /// The name of the issuer of card
     #[schema(example = "chase")]
@@ -173,7 +172,7 @@ pub struct NetworkTransactionIdAndCardDetails {
 
     /// The card holder's nick name
     #[schema(value_type = Option<String>, example = "John Test")]
-    pub nick_name: Option<NameType>,
+    pub nick_name: Option<common_utils::types::NameType>,
 
     /// The network transaction ID provided by the card network during a CIT (Customer Initiated Transaction),
     /// where `setup_future_usage` is set to `off_session`.

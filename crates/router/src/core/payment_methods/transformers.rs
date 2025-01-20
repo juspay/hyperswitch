@@ -9,9 +9,8 @@ use common_utils::{
     id_type,
     pii::Email,
     request::RequestContent,
-    types::NameType,
 };
-use error_stack::{report, ResultExt};
+use error_stack::ResultExt;
 use josekit::jwe;
 use router_env::tracing_actix_web::RequestId;
 use serde::{Deserialize, Serialize};
@@ -145,7 +144,7 @@ pub struct AddCardResponse {
     pub card_number: Option<cards::CardNumber>,
     pub card_exp_year: Option<Secret<String>>,
     pub card_exp_month: Option<Secret<String>>,
-    pub name_on_card: Option<NameType>,
+    pub name_on_card: Option<common_utils::types::NameType>,
     pub nickname: Option<String>,
     pub customer_id: Option<id_type::CustomerId>,
     pub duplicate: Option<bool>,
@@ -664,12 +663,9 @@ pub fn mk_get_card_response(card: GetCardResponse) -> errors::RouterResult<Card>
         card_brand: None,
         card_isin: None,
         nick_name: card.card.nickname.and_then(|name| {
-            NameType::try_from(name)
-                .map_err(|_| {
-                    report!(errors::ApiErrorResponse::InvalidDataFormat {
-                        field_name: "nick_name".to_string(),
-                        expected_format: "NameType".to_string()
-                    })
+            common_utils::types::NameType::try_from(name)
+                .map_err(|err| {
+                    router_env::logger::error!("Invalid Nick Name: {}", err);
                 })
                 .ok()
         }),

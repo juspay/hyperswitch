@@ -7,10 +7,9 @@ use common_utils::{
     ext_traits::StringExt,
     id_type,
     pii::{IpAddress, SecretSerdeValue, UpiVpaMaskingStrategy},
-    types::{MinorUnit, NameType},
+    types::MinorUnit,
 };
 use error_stack::ResultExt;
-use router_env::logger;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
@@ -65,7 +64,7 @@ pub struct StripeCard {
     pub exp_month: masking::Secret<String>,
     pub exp_year: masking::Secret<String>,
     pub cvc: masking::Secret<String>,
-    pub holder_name: Option<NameType>,
+    pub holder_name: Option<common_utils::types::NameType>,
 }
 
 // ApplePay wallet param is not available in stripe Docs
@@ -170,7 +169,7 @@ impl From<StripePaymentMethodDetails> for payments::PaymentMethodData {
 #[derive(Default, Serialize, PartialEq, Eq, Deserialize, Clone, Debug)]
 pub struct Shipping {
     pub address: AddressDetails,
-    pub name: Option<NameType>,
+    pub name: Option<common_utils::types::NameType>,
     pub carrier: Option<String>,
     pub phone: Option<masking::Secret<String>>,
     pub tracking_number: Option<masking::Secret<String>>,
@@ -944,12 +943,9 @@ fn get_pmd_based_on_payment_method_type(
                 billing_details: billing_details.as_ref().map(|billing_data| {
                     payments::BankRedirectBilling {
                         billing_name: billing_data.get_optional_full_name().and_then(|name| {
-                            NameType::try_from(name)
+                            common_utils::types::NameType::try_from(name)
                                 .map_err(|err| {
-                                    logger::error!(
-                                        "Error while converting name to NameType: {}",
-                                        err
-                                    );
+                                    router_env::logger::error!("Invalid Billing Name: {}", err);
                                 })
                                 .ok()
                         }),

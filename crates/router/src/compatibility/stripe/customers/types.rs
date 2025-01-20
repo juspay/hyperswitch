@@ -11,7 +11,7 @@ use common_utils::{crypto::Encryptable, date_time};
 use common_utils::{
     id_type,
     pii::{self, Email},
-    types::{Description, NameType},
+    types::Description,
 };
 use serde::{Deserialize, Serialize};
 
@@ -42,7 +42,7 @@ pub struct StripeAddressDetails {
 pub struct CreateCustomerRequest {
     pub email: Option<Email>,
     pub invoice_prefix: Option<String>,
-    pub name: Option<NameType>,
+    pub name: Option<common_utils::types::NameType>,
     pub phone: Option<masking::Secret<String>>,
     pub address: Option<StripeAddressDetails>,
     pub metadata: Option<pii::SecretSerdeValue>,
