@@ -2078,6 +2078,7 @@ impl ForeignFrom<api_models::admin::PaymentLinkConfigRequest>
             display_sdk_only: item.display_sdk_only,
             enabled_saved_payment_method: item.enabled_saved_payment_method,
             hide_card_nickname_field: item.hide_card_nickname_field,
+            display_billing_details: item.display_billing_details,
             show_card_form_by_default: item.show_card_form_by_default,
             details_layout: item.details_layout,
             background_image: item
@@ -2100,6 +2101,7 @@ impl ForeignFrom<diesel_models::business_profile::PaymentLinkConfigRequest>
             display_sdk_only: item.display_sdk_only,
             enabled_saved_payment_method: item.enabled_saved_payment_method,
             hide_card_nickname_field: item.hide_card_nickname_field,
+            display_billing_details: item.display_billing_details,
             show_card_form_by_default: item.show_card_form_by_default,
             transaction_details: None,
             details_layout: item.details_layout,

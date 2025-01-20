@@ -12845,6 +12845,7 @@
           "display_sdk_only",
           "enabled_saved_payment_method",
           "hide_card_nickname_field",
+          "display_billing_details",
           "show_card_form_by_default"
         ],
         "properties": {
@@ -12875,6 +12876,10 @@
           "hide_card_nickname_field": {
             "type": "boolean",
             "description": "Hide card nickname field option for payment link"
+          },
+          "display_billing_details": {
+            "type": "boolean",
+            "description": "Display billing details for payment link"
           },
           "show_card_form_by_default": {
             "type": "boolean",
@@ -12974,6 +12979,13 @@
             "type": "boolean",
             "description": "Hide card nickname field option for payment link",
             "default": false,
+            "example": true,
+            "nullable": true
+          },
+          "display_billing_details": {
+            "type": "boolean",
+            "description": "Display billing details for payment link",
+            "default": true,
             "example": true,
             "nullable": true
           },

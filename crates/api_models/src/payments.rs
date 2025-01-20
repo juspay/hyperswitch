@@ -7035,6 +7035,7 @@ pub struct PaymentLinkDetails {
     pub sdk_layout: String,
     pub display_sdk_only: bool,
     pub hide_card_nickname_field: bool,
+    pub display_billing_details: bool,
     pub show_card_form_by_default: bool,
     pub locale: Option<String>,
     pub transaction_details: Option<Vec<admin::PaymentLinkTransactionDetails>>,
@@ -7048,6 +7049,7 @@ pub struct PaymentLinkDetails {
 pub struct SecurePaymentLinkDetails {
     pub enabled_saved_payment_method: bool,
     pub hide_card_nickname_field: bool,
+    pub display_billing_details: bool,
     pub show_card_form_by_default: bool,
     #[serde(flatten)]
     pub payment_link_details: PaymentLinkDetails,

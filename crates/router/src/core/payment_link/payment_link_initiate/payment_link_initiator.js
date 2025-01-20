@@ -41,6 +41,7 @@ function initializeSDK() {
       ? "accordion"
       : paymentDetails.sdk_layout;
   var hideCardNicknameField = paymentDetails.hide_card_nickname_field;
+  var displayBillingDetails = paymentDetails.display_billing_details;
   var unifiedCheckoutOptions = {
     displaySavedPaymentMethodsCheckbox: false,
     displaySavedPaymentMethods: false,
@@ -59,6 +60,7 @@ function initializeSDK() {
     },
     showCardFormByDefault: paymentDetails.show_card_form_by_default,
     hideCardNicknameField: hideCardNicknameField,
+    displayBillingDetails: displayBillingDetails,
   };
   // @ts-ignore
   unifiedCheckout = widgets.create("payment", unifiedCheckoutOptions);
