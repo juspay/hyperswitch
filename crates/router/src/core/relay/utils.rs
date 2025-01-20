@@ -86,7 +86,7 @@ pub async fn construct_relay_refund_router_data<F>(
         description: None,
         address: hyperswitch_domain_models::payment_address::PaymentAddress::default(),
         auth_type: common_enums::AuthenticationType::default(),
-        connector_meta_data: None,
+        connector_meta_data: connector_account.metadata.clone(),
         connector_wallets_details: None,
         amount_captured: None,
         payment_method_status: None,
