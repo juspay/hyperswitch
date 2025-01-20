@@ -28,7 +28,7 @@ use common_utils::ext_traits::Encode;
 use common_utils::{
     consts::DEFAULT_LOCALE,
     crypto::Encryptable,
-    ext_traits::{AsyncExt, ValueExt},
+    ext_traits::AsyncExt,
     fp_utils::when,
     id_type,
 };
@@ -2240,42 +2240,7 @@ pub fn get_network_token_payment_method_create_request(
     }
 }
 
-pub async fn fetch_merchant_id_payment_method_id_customer_id_from_callback_mapper(
-    state: &SessionState,
-    response: &network_tokenization::NetworkTokenWebhookResponse,
-) -> RouterResult<(id_type::MerchantId, String, id_type::CustomerId)> {
-    let network_token_requestor_ref_id = match response {
-        network_tokenization::NetworkTokenWebhookResponse::PanMetadataUpdate(ref data) => {
-            &data.card.card_reference
-        }
-        network_tokenization::NetworkTokenWebhookResponse::NetworkTokenMetadataUpdate(ref data) => {
-            &data.token.card_reference
-        }
-    };
-
-    let db = &*state.store;
-    let callback_mapper_data = db
-        .find_call_back_mapper_by_id(network_token_requestor_ref_id)
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
-
-    let callback_data: domain::callback_mapper::CallBackMapperData = callback_mapper_data
-        .data
-        .parse_value("CallBackMapperData")
-        .change_context(errors::ApiErrorResponse::InvalidDataValue {
-            field_name: "callback mapper data",
-        })?;
-
-    match callback_data {
-        domain::callback_mapper::CallBackMapperData::NetworkTokenWebhook {
-            merchant_id,
-            payment_method_id,
-            customer_id,
-        } => Ok((merchant_id, payment_method_id, customer_id)),
-    }
-}
-
-pub async fn fetch_payment_method_for_network_token_webhooks(
+pub async fn fetch_payment_method_and_merchant_account_for_network_token_webhooks(
     state: &SessionState,
     merchant_id: &id_type::MerchantId,
     payment_method_id: &str,
@@ -2340,7 +2305,7 @@ pub async fn handle_metadata_update(
             _ => None,
         })
         .ok_or(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to obtain decrypted token object from db")?;
+        .attach_printable("Failed to obtain decrypted token object from db")?; //decrypted data should be payment method data if card else network token payment method data
 
     when(
         decrypted_data.expiry_year.unwrap_or_default() == metadata.expiry_year,
@@ -2350,15 +2315,6 @@ pub async fn handle_metadata_update(
             ))
         },
     )?;
-    // if decrypted_data.expiry_year.unwrap_or_default() == metadata.expiry_year {
-    //     return Err(errors::ApiErrorResponse::WebhookUnprocessableEntity.into());
-    // }
-
-    // let mut locker_id = if is_pan_update {
-    //     payment_method.locker_id.clone()
-    // } else {
-    //     payment_method.network_token_locker_id.clone()
-    // };
 
     let mut card = match locker_id.as_ref() {
         Some(locker_id) => cards::get_card_from_locker(state, customer_id, merchant_id, locker_id)
@@ -2370,13 +2326,6 @@ pub async fn handle_metadata_update(
 
     card.card_exp_year = metadata.expiry_year.clone();
     card.card_exp_month = metadata.expiry_month.clone();
-
-    // if let Some(locker_id) = locker_id.take() {
-    //     cards::delete_card_from_locker(state, customer_id, merchant_id, &locker_id)
-    //         .await
-    //         .change_context(errors::ApiErrorResponse::InternalServerError)
-    //         .attach_printable("Failed to delete token information from the locker")?;
-    // }
 
     locker_id
         .as_ref()
