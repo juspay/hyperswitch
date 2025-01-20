@@ -1718,6 +1718,10 @@ api_key="Access Token"
 [klarna]
 [[klarna.pay_later]]
   payment_method_type = "klarna"
+  payment_experience = "invoke_sdk_client"
+[[klarna.pay_later]]
+  payment_method_type = "klarna"
+  payment_experience = "redirect_to_url"
 [klarna.connector_auth.BodyKey]
 key1="Klarna Merchant Username"
 api_key="Klarna Merchant ID Password"
