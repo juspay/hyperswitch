@@ -337,7 +337,7 @@ pub enum RoutingError {
     #[error("Success rate client from dynamic routing gRPC service not initialized")]
     SuccessRateClientInitializationError,
     #[error("Elimination client from dynamic routing gRPC service not initialized")]
-    ElimintaionClientInitializationError,
+    EliminationClientInitializationError,
     #[error("Unable to analyze elimination routing config from dynamic routing service")]
     EliminationRoutingCalculationError,
     #[error("Params not found in elimination based routing config")]

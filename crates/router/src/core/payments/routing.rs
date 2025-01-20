@@ -1436,7 +1436,7 @@ pub async fn perform_elimination_routing(
             .dynamic_routing
             .elimination_rate_client
             .as_ref()
-            .ok_or(errors::RoutingError::ElimintaionClientInitializationError)
+            .ok_or(errors::RoutingError::EliminationClientInitializationError)
             .attach_printable("elimintaion routing's gRPC client not found")?;
 
         let elimination_routing_config = routing::helpers::fetch_elimintaion_routing_configs(
