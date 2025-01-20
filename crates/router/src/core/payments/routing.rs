@@ -1511,7 +1511,14 @@ pub async fn perform_elimination_routing(
                 ),
             };
 
-            if labels_with_status.elimination_information.is_some_and(|elimination_info| elimination_info.entity.is_some_and(|entity_info| entity_info.is_eliminated)) {
+            if labels_with_status
+                .elimination_information
+                .is_some_and(|elimination_info| {
+                    elimination_info
+                        .entity
+                        .is_some_and(|entity_info| entity_info.is_eliminated)
+                })
+            {
                 eliminated_connectors.push(routable_connector);
             } else {
                 non_eliminated_connectors.push(routable_connector);
