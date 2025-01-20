@@ -1464,14 +1464,9 @@ pub async fn perform_elimination_routing(
                     .ok_or(errors::RoutingError::EliminationBasedRoutingParamsNotFoundError)?,
             );
 
-        let tenant_business_profile_id = routing::helpers::generate_tenant_business_profile_id(
-            &state.tenant.redis_key_prefix,
-            business_profile.get_id().get_string_repr(),
-        );
-
         let elimination_based_connectors: EliminationResponse = client
             .perform_elimination_routing(
-                tenant_business_profile_id,
+                business_profile.get_id().get_string_repr().to_string(),
                 elimination_routing_config_params,
                 routable_connectors.clone(),
                 elimination_routing_config.elimination_analyser_config,
@@ -1516,7 +1511,7 @@ pub async fn perform_elimination_routing(
                 ),
             };
 
-            if labels_with_status.is_eliminated {
+            if labels_with_status.elimination_information.is_some_and(|elimination_info| elimination_info.entity.is_some_and(|entity_info| entity_info.is_eliminated)) {
                 eliminated_connectors.push(routable_connector);
             } else {
                 non_eliminated_connectors.push(routable_connector);

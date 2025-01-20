@@ -800,11 +800,6 @@ pub async fn update_window_for_elimination_routing(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("unable to retrieve elimination based dynamic routing configs")?;
 
-        let tenant_business_profile_id = generate_tenant_business_profile_id(
-            &state.tenant.redis_key_prefix,
-            business_profile.get_id().get_string_repr(),
-        );
-
         let elimination_routing_config_params = elimination_routing_configs_params_interpolator
             .get_string_val(
                 elimination_routing_configs
@@ -816,7 +811,7 @@ pub async fn update_window_for_elimination_routing(
 
         client
             .update_elimination_bucket_config(
-                tenant_business_profile_id,
+                business_profile.get_id().get_string_repr().to_string(),
                 elimination_routing_config_params,
                 vec![routing_types::RoutableConnectorChoiceWithBucketName::new(
                     routing_types::RoutableConnectorChoice {
