@@ -1372,6 +1372,14 @@ pub struct Browser {
     accept_language: Option<Vec<String>>,
 }
 
+// Split by comma and return the list of accept languages
+pub fn get_list_of_accept_languages(accept_language: String) -> Vec<String> {
+    accept_language
+        .split(',')
+        .map(|lang| lang.trim().to_string())
+        .collect()
+}
+
 impl From<crate::types::BrowserInformation> for Browser {
     fn from(value: crate::types::BrowserInformation) -> Self {
         Self {
@@ -1388,8 +1396,7 @@ impl From<crate::types::BrowserInformation> for Browser {
             browser_user_agent: value.user_agent,
             challenge_window_size: Some(ChallengeWindowSizeEnum::FullScreen),
             browser_javascript_enabled: value.java_script_enabled,
-            // Hardcoding to "en" for now, as there's no accept_language in BrowserInformation
-            accept_language: Some(vec!["en".to_string()]),
+            accept_language: value.accept_language.map(get_list_of_accept_languages),
         }
     }
 }

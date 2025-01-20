@@ -401,6 +401,7 @@ impl TryFrom<&TrustpayRouterData<&types::PaymentsAuthorizeRouterData>> for Trust
             os_type: None,
             os_version: None,
             device_model: None,
+            accept_language: None,
         };
         let params = get_mandatory_fields(item.router_data)?;
         let amount = item.amount.to_owned();
