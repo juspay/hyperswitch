@@ -1373,10 +1373,11 @@ pub struct Browser {
 }
 
 // Split by comma and return the list of accept languages
+// If Accept-Language is : fr-CH, fr;q=0.9, en;q=0.8, de;q=0.7, List should be [fr-CH, fr, en, de]
 pub fn get_list_of_accept_languages(accept_language: String) -> Vec<String> {
     accept_language
         .split(',')
-        .map(|lang| lang.trim().to_string())
+        .map(|lang| lang.split(';').next().unwrap_or(lang).trim().to_string())
         .collect()
 }
 
@@ -1396,7 +1397,11 @@ impl From<crate::types::BrowserInformation> for Browser {
             browser_user_agent: value.user_agent,
             challenge_window_size: Some(ChallengeWindowSizeEnum::FullScreen),
             browser_javascript_enabled: value.java_script_enabled,
-            accept_language: value.accept_language.map(get_list_of_accept_languages),
+            // Default to ["en"] locale if accept_language is not provided
+            accept_language: value
+                .accept_language
+                .map(get_list_of_accept_languages)
+                .or(Some(vec!["en".to_string()])),
         }
     }
 }
