@@ -1608,9 +1608,9 @@ pub struct PaymentMethodBillingAddressMigration;
 #[cfg(all(feature = "olap", feature = "v1"))]
 impl PaymentMethodBillingAddressMigration {
     pub fn server(state: AppState) -> Scope {
-        web::scope("/payment_method_billing_address_migrate/{merchant_id}/payment_method/{payment_method_id}")
+        web::scope("/payment_method_billing_address_migrate")
             .app_data(web::Data::new(state))
-            .service(web::resource("").route(
+            .service(web::resource("/{merchant_id}/payment_method/{payment_method_id}").route(
                 web::post().to(payment_method_billing_address_migration::payment_method_billing_address_migration),
             ))
     }
