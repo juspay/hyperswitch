@@ -1845,40 +1845,37 @@ where
                 {
                     return Err(errors::ApiErrorResponse::Unauthorized.into());
                 }
-                    let profile_id = get_id_type_by_key_from_headers(
-                        headers::X_PROFILE_ID.to_string(),
-                        request_headers,
-                    )?
-                    .get_required_value(headers::X_PROFILE_ID)?;
+                let profile_id = get_id_type_by_key_from_headers(
+                    headers::X_PROFILE_ID.to_string(),
+                    request_headers,
+                )?
+                .get_required_value(headers::X_PROFILE_ID)?;
 
-                    let (merchant_account, key_store) = state
-                        .store()
-                        .find_merchant_account_by_publishable_key(
-                            key_manager_state,
-                            publishable_key,
-                        )
-                        .await
-                        .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
-                    let merchant_id = merchant_account.get_id().clone();
-                    let profile = state
-                        .store()
-                        .find_business_profile_by_merchant_id_profile_id(
-                            key_manager_state,
-                            &key_store,
-                            &merchant_id,
-                            &profile_id,
-                        )
-                        .await
-                        .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
-                    Ok((
-                        AuthenticationData {
-                            merchant_account,
-                            key_store,
-                            profile,
-                            platform_merchant_account: None,
-                        },
-                        AuthenticationType::PublishableKey { merchant_id },
-                    ))
+                let (merchant_account, key_store) = state
+                    .store()
+                    .find_merchant_account_by_publishable_key(key_manager_state, publishable_key)
+                    .await
+                    .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
+                let merchant_id = merchant_account.get_id().clone();
+                let profile = state
+                    .store()
+                    .find_business_profile_by_merchant_id_profile_id(
+                        key_manager_state,
+                        &key_store,
+                        &merchant_id,
+                        &profile_id,
+                    )
+                    .await
+                    .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
+                Ok((
+                    AuthenticationData {
+                        merchant_account,
+                        key_store,
+                        profile,
+                        platform_merchant_account: None,
+                    },
+                    AuthenticationType::PublishableKey { merchant_id },
+                ))
             }
             Self::DashboardAuth => Err(errors::ApiErrorResponse::Unauthorized.into()),
         }

@@ -13,7 +13,9 @@ impl ForeignTryFrom<EphemeralKeyType> for api_models::ephemeral_key::EphemeralKe
         let result = from.resource_id.iter().find_map(|item| {
             if let diesel_models::ResourceId::Customer(customer_id) = item {
                 Some(Self {
-                    resource_id: api_models::ephemeral_key::ResourceId::Customer(customer_id.clone()),
+                    resource_id: api_models::ephemeral_key::ResourceId::Customer(
+                        customer_id.clone(),
+                    ),
                     created_at: from.created_at,
                     expires: from.expires,
                     secret: from.secret.clone(),

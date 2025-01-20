@@ -1404,7 +1404,10 @@ pub async fn create_payment_method_for_intent(
     let ephemeral_key = payment_helpers::create_ephemeral_key(
         state,
         merchant_id,
-        vec![diesel_models::ResourceId::Customer(customer_id.clone()), diesel_models::ResourceId::PaymentMethod(payment_method_id.clone())],
+        vec![
+            diesel_models::ResourceId::Customer(customer_id.clone()),
+            diesel_models::ResourceId::PaymentMethod(payment_method_id.clone()),
+        ],
     )
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)
