@@ -70,14 +70,6 @@ use super::{
     tokenize::CardNetworkTokenizeExecutor,
 };
 #[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
-use crate::core::payment_methods::{
-    add_payment_method_status_update_task,
-    utils::{get_merchant_pm_filter_graph, make_pm_graph, refresh_pm_filters_cache},
-};
-#[cfg(all(
     any(feature = "v2", feature = "v1"),
     not(feature = "payment_methods_v2"),
     not(feature = "customer_v2")
@@ -116,6 +108,14 @@ use crate::{
 use crate::{
     consts as router_consts, core::payment_methods as pm_core, headers,
     types::payment_methods as pm_types, utils::ConnectorResponseExt,
+};
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
+use crate::core::payment_methods::{
+    add_payment_method_status_update_task,
+    utils::{get_merchant_pm_filter_graph, make_pm_graph, refresh_pm_filters_cache},
 };
 
 #[cfg(all(
