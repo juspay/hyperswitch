@@ -28,6 +28,8 @@ pub mod locker_migration;
 pub mod mandate;
 pub mod metrics;
 pub mod payment_link;
+#[cfg(feature = "v1")]
+pub mod payment_method_billing_address_migration;
 pub mod payment_methods;
 pub mod payments;
 #[cfg(feature = "payouts")]

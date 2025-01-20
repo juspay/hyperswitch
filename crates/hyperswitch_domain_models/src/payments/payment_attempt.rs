@@ -104,6 +104,14 @@ pub trait PaymentAttemptInterface {
     ) -> error_stack::Result<PaymentAttempt, errors::StorageError>;
 
     #[cfg(feature = "v1")]
+    async fn find_last_successful_attempt_by_payment_method_id_merchant_id_where_billing_address_is_present(
+        &self,
+        payment_method_id: &str,
+        merchant_id: &id_type::MerchantId,
+        storage_scheme: storage_enums::MerchantStorageScheme,
+    ) -> error_stack::Result<PaymentAttempt, errors::StorageError>;
+
+    #[cfg(feature = "v1")]
     async fn find_payment_attempt_by_merchant_id_connector_txn_id(
         &self,
         merchant_id: &id_type::MerchantId,

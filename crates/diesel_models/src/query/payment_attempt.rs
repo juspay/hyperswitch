@@ -162,6 +162,33 @@ impl PaymentAttempt {
     }
 
     #[cfg(feature = "v1")]
+    pub async fn find_last_successful_attempt_by_payment_method_id_merchant_id_where_billing_address_is_present(
+        conn: &PgPooledConn,
+        payment_method_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
+    ) -> StorageResult<Self> {
+        generics::generic_filter::<<Self as HasTable>::Table, _, _, Self>(
+            conn,
+            dsl::payment_method_id
+                .eq(Some(payment_method_id.to_owned()))
+                .and(dsl::merchant_id.eq(merchant_id.to_owned()))
+                .and(dsl::payment_method_billing_address_id.is_not_null())
+                .and(
+                    dsl::status
+                        .eq(enums::AttemptStatus::Charged)
+                        .or(dsl::status.eq(enums::AttemptStatus::PartialCharged)),
+                ),
+            Some(1),
+            None,
+            Some(dsl::modified_at.desc()),
+        )
+        .await?
+        .into_iter()
+        .nth(0)
+        .ok_or(report!(DatabaseError::NotFound))
+    }
+
+    #[cfg(feature = "v1")]
     pub async fn find_by_merchant_id_connector_txn_id(
         conn: &PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
