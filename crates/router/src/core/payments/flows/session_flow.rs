@@ -1065,10 +1065,6 @@ impl RouterDataSession for types::PaymentsSessionRouterData {
         business_profile: &domain::Profile,
         header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<Self> {
-        router_env::logger::info!(
-            "[DEBUGG] Deciding flow for session token creation: {:?}",
-            connector.get_token.clone()
-        );
         match connector.get_token {
             api::GetToken::GpayMetadata => {
                 create_gpay_session_token(state, self, connector, business_profile)

@@ -65,7 +65,6 @@ pub fn parse_csv(
         match result {
             Ok(mut record) => {
                 router_env::logger::info!("Parsed Record (line {}): {:?}", i + 1, record);
-                router_env::logger::info!("[DEBUGG] {:?}", record);
                 id_counter += 1;
                 record.line_number = Some(id_counter);
                 record.merchant_id = Some(merchant_id.clone());
@@ -120,15 +119,14 @@ pub async fn tokenize_cards(
 ) -> errors::RouterResponse<Vec<payment_methods_api::CardNetworkTokenizeResponse>> {
     let mut res = vec![];
     for record in records {
-        let tokenize_res = tokenize_card_flow(
+        let tokenize_res = Box::pin(tokenize_card_flow(
             state,
             CardNetworkTokenizeRequest::foreign_from(record),
             merchant_id,
             merchant_account,
             key_store,
-        )
-        .await?;
-        res.push(tokenize_res);
+        ));
+        res.push(tokenize_res.await?);
     }
 
     Ok(services::ApplicationResponse::Json(res))
@@ -396,15 +394,13 @@ impl<'a> CardNetworkTokenizeExecutor<'a> {
         match network_tokenization::make_card_network_tokenization_request(
             self.state,
             card,
-            &customer_id,
+            customer_id,
         )
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .inspect_err(|err| {
-            logger::error!("Failed to tokenize card with the network: {:?}", err);
-        }) {
+        {
             Ok(tokenization_response) => Ok(tokenization_response),
             Err(err) => {
+                // TODO: revert this
                 logger::error!(
                     "Failed to tokenize card with the network: {:?}\nUsing dummy response",
                     err
@@ -675,7 +671,7 @@ impl<'a> CardNetworkTokenizeExecutor<'a> {
 // Initialize builder for tokenizing raw card details
 impl CardNetworkTokenizeResponseBuilder<TokenizeCardRequest, TokenizeWithCard> {
     pub fn new(req: &CardNetworkTokenizeRequest, data: TokenizeCardRequest) -> Self {
-        CardNetworkTokenizeResponseBuilder {
+        Self {
             data,
             state: std::marker::PhantomData::<TokenizeWithCard>,
             customer: req
@@ -791,13 +787,13 @@ impl CardNetworkTokenizeResponseBuilder<api::PaymentMethodResponse, CardTokenSto
             payment_method: payment_method.payment_method,
             payment_method_type: payment_method.payment_method_type,
             card: self.data.card.clone(),
-            recurring_enabled: self.data.recurring_enabled.clone(),
-            installment_payment_enabled: self.data.installment_payment_enabled.clone(),
+            recurring_enabled: self.data.recurring_enabled,
+            installment_payment_enabled: self.data.installment_payment_enabled,
             payment_experience: self.data.payment_experience.clone(),
             metadata: self.data.metadata.clone(),
-            created: self.data.created.clone(),
+            created: self.data.created,
             bank_transfer: self.data.bank_transfer.clone(),
-            last_used_at: self.data.last_used_at.clone(),
+            last_used_at: self.data.last_used_at,
             client_secret: self.data.client_secret.clone(),
         };
         self.transition(|_| payment_method_response)
@@ -828,7 +824,7 @@ impl TransitionTo<PmTokenUpdated> for PmTokenStored {}
 // Initialize builder for tokenizing saved cards
 impl CardNetworkTokenizeResponseBuilder<TokenizePaymentMethodRequest, TokenizeWithPmId> {
     pub fn new(req: &CardNetworkTokenizeRequest, data: TokenizePaymentMethodRequest) -> Self {
-        CardNetworkTokenizeResponseBuilder {
+        Self {
             data,
             state: std::marker::PhantomData::<TokenizeWithPmId>,
             customer: req

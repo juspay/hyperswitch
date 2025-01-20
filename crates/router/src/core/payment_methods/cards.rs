@@ -6032,7 +6032,7 @@ pub async fn tokenize_card_flow(
         domain::bulk_tokenization::TokenizeDataRequest::Card(ref card) => {
             // Initialize builder and executor
             let executor =
-                CardNetworkTokenizeExecutor::new(&req, &state, merchant_account, key_store);
+                CardNetworkTokenizeExecutor::new(&req, state, merchant_account, key_store);
             let builder = tokenize::CardNetworkTokenizeResponseBuilder::<
                 domain::bulk_tokenization::TokenizeCardRequest,
                 tokenize::TokenizeWithCard,
@@ -6057,7 +6057,7 @@ pub async fn tokenize_card_flow(
 
             // Tokenize card
             let network_token_details = executor
-                .tokenize_card(&customer_details.id, &card_details)
+                .tokenize_card(&customer_details.id, card_details)
                 .await?;
             let builder = builder
                 .set_tokenize_details(&network_token_details.0, network_token_details.1.as_ref());
@@ -6083,7 +6083,7 @@ pub async fn tokenize_card_flow(
                 .create_payment_method(
                     &stored_card_resp,
                     network_token_details,
-                    &card_details,
+                    card_details,
                     &customer_details.id,
                 )
                 .await?;
@@ -6095,7 +6095,7 @@ pub async fn tokenize_card_flow(
         domain::bulk_tokenization::TokenizeDataRequest::PaymentMethod(ref payment_method) => {
             // Initialize builder and executor
             let executor =
-                CardNetworkTokenizeExecutor::new(&req, &state, merchant_account, key_store);
+                CardNetworkTokenizeExecutor::new(&req, state, merchant_account, key_store);
             let builder = tokenize::CardNetworkTokenizeResponseBuilder::<
                 domain::bulk_tokenization::TokenizePaymentMethodRequest,
                 tokenize::TokenizeWithPmId,
@@ -6110,7 +6110,7 @@ pub async fn tokenize_card_flow(
 
             // Fetch raw card details from locker
             let card_details = get_card_from_locker(
-                &state,
+                state,
                 &data.customer_id,
                 merchant_account.get_id(),
                 &locker_id,
@@ -6138,7 +6138,7 @@ pub async fn tokenize_card_flow(
                     &network_token_details,
                     &data.customer_id,
                     card_details.name_on_card,
-                    card_details.nick_name.map(|name| Secret::new(name)),
+                    card_details.nick_name.map(Secret::new),
                 )
                 .await?;
             let builder = builder.transition(|_| &stored_card_resp);

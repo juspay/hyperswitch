@@ -33,14 +33,14 @@ pub struct CardData {
     card_security_code: Secret<String>,
 }
 
-#[derive(Debug, Serialize, Clone)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct OrderData {
     consent_id: String,
     customer_id: id_type::CustomerId,
 }
 
-#[derive(Debug, Serialize, Clone)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ApiPayload {
     service: String,
@@ -179,7 +179,6 @@ pub async fn mk_tokenization_req(
         customer_id,
     };
 
-    logger::info!("JWT: {:?}", jwt.clone());
     let api_payload = ApiPayload {
         service: NETWORK_TOKEN_SERVICE.to_string(),
         card_data: Secret::new(jwt),
@@ -203,7 +202,6 @@ pub async fn mk_tokenization_req(
     );
     request.add_default_headers();
 
-    logger::info!("Payload: {:?}", api_payload.clone());
     request.set_body(RequestContent::Json(Box::new(api_payload)));
 
     logger::info!("Request to generate token: {:?}", request);
@@ -358,8 +356,8 @@ pub async fn get_network_token(
                         errors::NetworkTokenizationError::ResponseDeserializationFailed,
                     )?;
                 logger::error!(
-                    // error_code = %parsed_error.error_info.code,
-                    // developer_message = %parsed_error.error_info.developer_message,
+                    error_code = %parsed_error.error_info.code,
+                    developer_message = %parsed_error.error_info.developer_message,
                     "Network tokenization error: {}",
                     parsed_error.error_message
                 );
@@ -554,8 +552,8 @@ pub async fn check_token_status_with_tokenization_service(
                         errors::NetworkTokenizationError::ResponseDeserializationFailed,
                     )?;
                 logger::error!(
-                    // error_code = %parsed_error.error_info.code,
-                    // developer_message = %parsed_error.error_info.developer_message,
+                    error_code = %parsed_error.error_info.code,
+                    developer_message = %parsed_error.error_info.developer_message,
                     "Network tokenization error: {}",
                     parsed_error.error_message
                 );
@@ -672,8 +670,8 @@ pub async fn delete_network_token_from_tokenization_service(
                         errors::NetworkTokenizationError::ResponseDeserializationFailed,
                     )?;
                 logger::error!(
-                    // error_code = %parsed_error.error_info.code,
-                    // developer_message = %parsed_error.error_info.developer_message,
+                    error_code = %parsed_error.error_info.code,
+                    developer_message = %parsed_error.error_info.developer_message,
                     "Network tokenization error: {}",
                     parsed_error.error_message
                 );

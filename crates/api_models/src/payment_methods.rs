@@ -11,7 +11,6 @@ use common_utils::{
     id_type, link_utils, pii,
     types::{MinorUnit, Percentage, Surcharge},
 };
-use error_stack::report;
 use masking::PeekInterface;
 use serde::de;
 use utoipa::{schema, ToSchema};

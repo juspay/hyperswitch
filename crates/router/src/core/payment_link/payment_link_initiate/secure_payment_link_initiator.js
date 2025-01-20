@@ -48,10 +48,7 @@ if (!isFramed) {
     // @ts-ignore
     hyper = window.Hyper(pub_key, {
       isPreloadEnabled: false,
-      redirectionFlags: {
-        shouldUseTopRedirection: true,
-        shouldRemoveBeforeUnloadEvents: true
-      }
+      shouldUseTopRedirection: isFramed,
     });
     // @ts-ignore
     widgets = hyper.widgets({

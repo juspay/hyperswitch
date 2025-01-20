@@ -122,7 +122,7 @@ impl ForeignFrom<&CardNetworkTokenizeRecord> for payments_api::Address {
                 city: record.billing_address_city.clone(),
                 zip: record.billing_address_zip.clone(),
                 state: record.billing_address_state.clone(),
-                country: record.billing_address_country.clone(),
+                country: record.billing_address_country,
             }),
             phone: Some(payments_api::PhoneDetails {
                 number: record.billing_phone_number.clone(),
