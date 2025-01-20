@@ -4,6 +4,14 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.01.14.0-hotfix1
+
+### Refactors
+
+- **router:** Refactor ctp flow to fetch mca_id and get the connector creds instead of connector_name ([#7078](https://github.com/juspay/hyperswitch/pull/7078)) ([`9adb425`](https://github.com/juspay/hyperswitch/commit/9adb42573b3418edc381dba1d38ccc5675ee6f97))
+
+- - -
+
 ## 2025.01.14.0
 
 ### Features
