@@ -283,24 +283,29 @@ function bankRedirectRedirection(
 
 function threeDsRedirection(redirection_url, expected_url, connectorId) {
   cy.visit(redirection_url.href);
-  if (connectorId === "adyen") {
-    cy.get("iframe")
-      .its("0.contentDocument.body")
-      .within(() => {
-        cy.get('input[type="password"]').click();
-        cy.get('input[type="password"]').type("password");
-        cy.get("#buttonSubmit").click();
-      });
-  } else if (
-    connectorId === "bankofamerica" ||
-    connectorId === "cybersource" ||
-    connectorId === "wellsfargo"
-  ) {
-    if (
-      !(
-        connectorId === "cybersource" &&
-        redirection_url.host.endsWith(expected_url.host)
-      )
+
+  // First check if we're already at the expected URL (frictionless flow)
+  cy.url({ timeout: 5000 }).then((currentUrl) => {
+    const url = new URL(currentUrl);
+    if (url.origin === expected_url.origin) {
+      // We're already at the return URL - frictionless flow occurred
+      cy.log("Frictionless flow detected - skipping 3DS challenge");
+      return;
+    }
+    cy.log("Challenge flow detected - proceeding with 3DS authentication");
+    
+    if (connectorId === "adyen") {
+      cy.get("iframe")
+        .its("0.contentDocument.body")
+        .within(() => {
+          cy.get('input[type="password"]').click();
+          cy.get('input[type="password"]').type("password");
+          cy.get("#buttonSubmit").click();
+        });
+    } else if (
+      connectorId === "bankofamerica" ||
+      connectorId === "cybersource" ||
+      connectorId === "wellsfargo"
     ) {
       // Wait for iframe to be present and visible
       cy.get("iframe", { timeout: TIMEOUT })
@@ -324,89 +329,91 @@ function threeDsRedirection(redirection_url, expected_url, connectorId) {
             .should("be.visible")
             .click();
         });
+    } else if (connectorId === "checkout") {
+      cy.get("iframe", { timeout: TIMEOUT })
+        .its("0.contentDocument.body")
+        .within(() => {
+          cy.get('form[id="form"]', { timeout: WAIT_TIME })
+            .should("exist")
+            .then(() => {
+              cy.get('input[id="password"]').click();
+              cy.get('input[id="password"]').type("Checkout1!");
+              cy.get("#txtButton").click();
+            });
+        });
+    } else if (
+      connectorId === "nmi" ||
+      connectorId === "noon" ||
+      connectorId == "xendit"
+    ) {
+      cy.get("iframe", { timeout: TIMEOUT })
+        .its("0.contentDocument.body")
+        .within(() => {
+          cy.get("iframe", { timeout: TIMEOUT })
+            .its("0.contentDocument.body")
+            .within(() => {
+              cy.get('form[name="cardholderInput"]', { timeout: TIMEOUT })
+                .should("exist")
+                .then(() => {
+                  cy.get('input[name="challengeDataEntry"]')
+                    .click()
+                    .type("1234");
+                  cy.get('input[value="SUBMIT"]').click();
+                });
+            });
+        });
+    } else if (connectorId === "novalnet") {
+      cy.get("form", { timeout: WAIT_TIME })
+        .should("exist")
+        .then(() => {
+          cy.get('input[id="submit"]').click();
+        });
+    } else if (connectorId === "stripe") {
+      cy.get("iframe", { timeout: TIMEOUT })
+        .its("0.contentDocument.body")
+        .within(() => {
+          cy.get("iframe")
+            .its("0.contentDocument.body")
+            .within(() => {
+              cy.get("#test-source-authorize-3ds").click();
+            });
+        });
+    } else if (connectorId === "trustpay") {
+      cy.get('form[name="challengeForm"]', { timeout: WAIT_TIME })
+        .should("exist")
+        .then(() => {
+          cy.get("#outcomeSelect").select("Approve").should("have.value", "Y");
+          cy.get('button[type="submit"]').click();
+        });
+    } else if (connectorId === "worldpay") {
+      cy.get("iframe", { timeout: WAIT_TIME })
+        .its("0.contentDocument.body")
+        .within(() => {
+          cy.get('form[name="cardholderInput"]', { timeout: WAIT_TIME })
+            .should("exist")
+            .then(() => {
+              cy.get('input[name="challengeDataEntry"]').click().type("1234");
+              cy.get('input[value="SUBMIT"]').click();
+            });
+        });
+    } else if (connectorId === "fiuu") {
+      cy.get('form[id="cc_form"]', { timeout: TIMEOUT })
+        .should("exist")
+        .then(() => {
+          cy.get('button.pay-btn[name="pay"]').click();
+          cy.get("div.otp")
+            .invoke("text")
+            .then((otpText) => {
+              const otp = otpText.match(/\d+/)[0]; // Extract the numeric OTP
+              cy.get("input#otp-input").should("not.be.disabled").type(otp);
+              cy.get("button.pay-btn").click();
+            });
+        });
+    } else {
+      // If connectorId is neither of adyen, trustpay, nmi, stripe, bankofamerica or cybersource, wait for 10 seconds
+      cy.wait(WAIT_TIME);
     }
-  } else if (connectorId === "checkout") {
-    cy.get("iframe", { timeout: TIMEOUT })
-      .its("0.contentDocument.body")
-      .within(() => {
-        cy.get('form[id="form"]', { timeout: WAIT_TIME })
-          .should("exist")
-          .then(() => {
-            cy.get('input[id="password"]').click();
-            cy.get('input[id="password"]').type("Checkout1!");
-            cy.get("#txtButton").click();
-          });
-      });
-  } else if (
-    connectorId === "nmi" ||
-    connectorId === "noon" ||
-    connectorId == "xendit"
-  ) {
-    cy.get("iframe", { timeout: TIMEOUT })
-      .its("0.contentDocument.body")
-      .within(() => {
-        cy.get("iframe", { timeout: TIMEOUT })
-          .its("0.contentDocument.body")
-          .within(() => {
-            cy.get('form[name="cardholderInput"]', { timeout: TIMEOUT })
-              .should("exist")
-              .then(() => {
-                cy.get('input[name="challengeDataEntry"]').click().type("1234");
-                cy.get('input[value="SUBMIT"]').click();
-              });
-          });
-      });
-  } else if (connectorId === "novalnet") {
-    cy.get("form", { timeout: WAIT_TIME })
-      .should("exist")
-      .then(() => {
-        cy.get('input[id="submit"]').click();
-      });
-  } else if (connectorId === "stripe") {
-    cy.get("iframe", { timeout: TIMEOUT })
-      .its("0.contentDocument.body")
-      .within(() => {
-        cy.get("iframe")
-          .its("0.contentDocument.body")
-          .within(() => {
-            cy.get("#test-source-authorize-3ds").click();
-          });
-      });
-  } else if (connectorId === "trustpay") {
-    cy.get('form[name="challengeForm"]', { timeout: WAIT_TIME })
-      .should("exist")
-      .then(() => {
-        cy.get("#outcomeSelect").select("Approve").should("have.value", "Y");
-        cy.get('button[type="submit"]').click();
-      });
-  } else if (connectorId === "worldpay") {
-    cy.get("iframe", { timeout: WAIT_TIME })
-      .its("0.contentDocument.body")
-      .within(() => {
-        cy.get('form[name="cardholderInput"]', { timeout: WAIT_TIME })
-          .should("exist")
-          .then(() => {
-            cy.get('input[name="challengeDataEntry"]').click().type("1234");
-            cy.get('input[value="SUBMIT"]').click();
-          });
-      });
-  } else if (connectorId === "fiuu") {
-    cy.get('form[id="cc_form"]', { timeout: TIMEOUT })
-      .should("exist")
-      .then(() => {
-        cy.get('button.pay-btn[name="pay"]').click();
-        cy.get("div.otp")
-          .invoke("text")
-          .then((otpText) => {
-            const otp = otpText.match(/\d+/)[0]; // Extract the numeric OTP
-            cy.get("input#otp-input").should("not.be.disabled").type(otp);
-            cy.get("button.pay-btn").click();
-          });
-      });
-  } else {
-    // If connectorId is neither of adyen, trustpay, nmi, stripe, bankofamerica or cybersource, wait for 10 seconds
-    cy.wait(WAIT_TIME);
-  }
+  });
 
   cy.then(() => {
     try {
