@@ -130,6 +130,13 @@ pub async fn msearch_results(
                     .switch()?;
             }
         };
+        if let Some(amount) = filters.amount {
+            if !amount.is_empty() {
+                query_builder
+                    .add_filter_clause("amount".to_string(), amount.clone())
+                    .switch()?;
+            }
+        };
     };
 
     if let Some(time_range) = req.time_range {
@@ -300,6 +307,13 @@ pub async fn search_results(
             if !payment_id.is_empty() {
                 query_builder
                     .add_filter_clause("payment_id.keyword".to_string(), payment_id.clone())
+                    .switch()?;
+            }
+        };
+        if let Some(amount) = filters.amount {
+            if !amount.is_empty() {
+                query_builder
+                    .add_filter_clause("amount".to_string(), amount.clone())
                     .switch()?;
             }
         };
