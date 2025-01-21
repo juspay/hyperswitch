@@ -1,12 +1,13 @@
 pub mod transformers;
 
+use base64::Engine;
 use common_utils::{
     errors::CustomResult,
-    ext_traits::BytesExt,
+    ext_traits::{ByteSliceExt, BytesExt},
     request::{Method, Request, RequestBuilder, RequestContent},
     types::{AmountConvertor, StringMinorUnit, StringMinorUnitForConnector},
 };
-use error_stack::{report, ResultExt};
+use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
@@ -36,8 +37,9 @@ use hyperswitch_interfaces::{
     types::{self, Response},
     webhooks,
 };
-use masking::{ExposeInterface, Mask};
-use transformers as chargebee;
+use masking::{ExposeInterface, Mask, PeekInterface, Secret};
+use transformers::{self as chargebee, ChargebeeWebhookBody};
+use hyperswitch_interfaces::recovery::RecoveryPayload;
 
 use crate::{constants::headers, types::ResponseRouterData, utils};
 
@@ -543,25 +545,104 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Chargebee
 
 #[async_trait::async_trait]
 impl webhooks::IncomingWebhook for Chargebee {
+    fn get_webhook_source_verification_signature(
+        &self,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
+    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
+        let base64_signature = utils::get_header_key_value("authorization", request.headers)?;
+        let signature = base64_signature.as_bytes().to_owned();
+        Ok(signature)
+    }
+    async fn verify_webhook_source(
+        &self,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        merchant_id: &common_utils::id_type::MerchantId,
+        connector_webhook_details: Option<common_utils::pii::SecretSerdeValue>,
+        _connector_account_details: common_utils::crypto::Encryptable<Secret<serde_json::Value>>,
+        connector_label: &str,
+    ) -> CustomResult<bool, errors::ConnectorError> {
+        let connector_webhook_secrets = self
+            .get_webhook_source_verification_merchant_secret(
+                merchant_id,
+                connector_label,
+                connector_webhook_details,
+            )
+            .await
+            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+
+        let signature = self
+            .get_webhook_source_verification_signature(request, &connector_webhook_secrets)
+            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+
+        let password = connector_webhook_secrets
+            .additional_secret
+            .ok_or(errors::ConnectorError::WebhookSourceVerificationFailed)
+            .attach_printable("Failed to get additional secrets")?;
+        let username = String::from_utf8(connector_webhook_secrets.secret.to_vec())
+            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
+            .attach_printable("Could not convert secret to UTF-8")?;
+        let secret_auth = format!(
+            "Basic {}",
+            base64::engine::general_purpose::STANDARD.encode(format!(
+                "{}:{}",
+                username,
+                password.peek()
+            ))
+        );
+        let signature_auth = String::from_utf8(signature.to_vec())
+            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
+            .attach_printable("Could not convert secret to UTF-8")?;
+        Ok(signature_auth == secret_auth)
+    }
     fn get_webhook_object_reference_id(
         &self,
-        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        let webhook = ChargebeeWebhookBody::get_webhook_object_from_body(request.body)
+            .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
+        Ok(api_models::webhooks::ObjectReferenceId::InvoiceId(
+            api_models::webhooks::InvoiceIdType::ConnectorInvoiceId(webhook.content.invoice.id),
+        ))
     }
 
     fn get_webhook_event_type(
         &self,
-        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        router_env::logger::debug!("$$$$$$ webhook request {:?}",request);
+        let webhook = ChargebeeWebhookBody::get_webhook_object_from_body(request.body)
+            .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
+        let event = match webhook.event_type {
+            transformers::ChargebeeEventType::PaymentSucceeded => {
+                api_models::webhooks::IncomingWebhookEvent::RecoveryPaymentSuccess
+            }
+            transformers::ChargebeeEventType::PaymentFailed => {
+                api_models::webhooks::IncomingWebhookEvent::RecoveryPaymentFailure
+            }
+            transformers::ChargebeeEventType::InvoiceDeleted => {
+                api_models::webhooks::IncomingWebhookEvent::RecoveryInvoiceCancel
+            }
+        };
+        println!("event ");
+        Ok(event)
     }
 
     fn get_webhook_resource_object(
         &self,
-        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        let webhook = ChargebeeWebhookBody::get_webhook_object_from_body(request.body)
+            .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
+        Ok(Box::new(webhook))
+    }
+    fn get_recovery_details(
+        &self,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<RecoveryPayload, errors::ConnectorError>
+    {
+        let webhook = ChargebeeWebhookBody::get_webhook_object_from_body(request.body)?;
+        Ok(RecoveryPayload::try_from(webhook)?)
     }
 }
 

@@ -4,13 +4,14 @@ use hyperswitch_domain_models::{
     errors::api_error_response::ApiErrorResponse,
     payments::{payment_attempt::PaymentAttempt, PaymentIntent},
 };
+use common_utils::types::MinorUnit;
 use time::PrimitiveDateTime;
 
 /// Recovery payload is unified struct constructed from billing connectors
 #[derive(Default, Debug)]
 pub struct RecoveryPayload {
     /// amount
-    pub amount: String,
+    pub amount: MinorUnit,
     /// currency
     pub currency: common_enums::enums::Currency,
     /// merchant reference id ex: invoice_id
