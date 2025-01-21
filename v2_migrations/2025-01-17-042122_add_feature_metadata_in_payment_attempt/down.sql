@@ -1,2 +1,2 @@
--- ALTER TABLE payment_attempt
--- DROP COLUMN IF EXISTS feature_metadata;
+ALTER TABLE payment_attempt
+DROP COLUMN IF EXISTS feature_metadata;
