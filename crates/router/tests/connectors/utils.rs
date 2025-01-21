@@ -490,6 +490,8 @@ pub trait ConnectorActions: Connector {
             merchant_id,
             customer_id: Some(common_utils::generate_customer_id_of_default_length()),
             connector: self.get_name(),
+            tenant_id: common_utils::id_type::TenantId::try_from_string("public".to_string())
+                .unwrap(),
             payment_id: uuid::Uuid::new_v4().to_string(),
             attempt_id: uuid::Uuid::new_v4().to_string(),
             status: enums::AttemptStatus::default(),

@@ -66,6 +66,7 @@ impl VerifyConnectorData {
 
     fn get_router_data<F, R1, R2>(
         &self,
+        state: &SessionState,
         request_data: R1,
         access_token: Option<types::AccessToken>,
     ) -> types::RouterData<F, R1, R2> {
@@ -82,6 +83,7 @@ impl VerifyConnectorData {
             attempt_id: attempt_id.clone(),
             description: None,
             customer_id: None,
+            tenant_id: state.tenant.tenant_id.clone(),
             merchant_id: common_utils::id_type::MerchantId::default(),
             reference_id: None,
             access_token,
@@ -133,7 +135,7 @@ pub trait VerifyConnector {
     ) -> errors::RouterResponse<()> {
         let authorize_data = connector_data.get_payment_authorize_data();
         let access_token = Self::get_access_token(state, connector_data.clone()).await?;
-        let router_data = connector_data.get_router_data(authorize_data, access_token);
+        let router_data = connector_data.get_router_data(state, authorize_data, access_token);
 
         let request = connector_data
             .connector

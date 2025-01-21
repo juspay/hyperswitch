@@ -1009,9 +1009,10 @@ pub struct MerchantConnectorResponse {
     /// Type of the Connector for the financial use case. Could range from Payments to Accounting to Banking.
     #[schema(value_type = ConnectorType, example = "payment_processor")]
     pub connector_type: api_enums::ConnectorType,
+
     /// Name of the Connector
     #[schema(value_type = Connector, example = "stripe")]
-    pub connector_name: String,
+    pub connector_name: common_enums::connector_enums::Connector,
 
     /// A unique label to identify the connector account created under a profile
     #[schema(example = "stripe_US_travel")]
@@ -1310,9 +1311,10 @@ pub struct MerchantConnectorListResponse {
     /// Type of the Connector for the financial use case. Could range from Payments to Accounting to Banking.
     #[schema(value_type = ConnectorType, example = "payment_processor")]
     pub connector_type: api_enums::ConnectorType,
+
     /// Name of the Connector
     #[schema(value_type = Connector, example = "stripe")]
-    pub connector_name: String,
+    pub connector_name: common_enums::connector_enums::Connector,
 
     /// A unique label to identify the connector account created under a profile
     #[schema(example = "stripe_US_travel")]
@@ -1862,8 +1864,9 @@ pub struct ProfileCreate {
     pub is_click_to_pay_enabled: bool,
 
     /// Product authentication ids
-    #[schema(value_type = Option<Object>, example = r#"{ "key1": "value-1", "key2": "value-2" }"#)]
-    pub authentication_product_ids: Option<HashMap<String, id_type::MerchantConnectorAccountId>>,
+    #[schema(value_type = Option<Object>, example = r#"{ "click_to_pay": "mca_ushduqwhdohwd", "netcetera": "mca_kwqhudqwd" }"#)]
+    pub authentication_product_ids:
+        Option<common_types::payments::AuthenticationConnectorAccountMap>,
 
     /// Indicates if the overcapture is always requested or not.
     #[serde(default)]
@@ -1983,8 +1986,9 @@ pub struct ProfileCreate {
     pub is_click_to_pay_enabled: bool,
 
     /// Product authentication ids
-    #[schema(value_type = Option<Object>, example = r#"{ "key1": "value-1", "key2": "value-2" }"#)]
-    pub authentication_product_ids: Option<HashMap<String, id_type::MerchantConnectorAccountId>>,
+    #[schema(value_type = Option<Object>, example = r#"{ "click_to_pay": "mca_ushduqwhdohwd", "netcetera": "mca_kwqhudqwd" }"#)]
+    pub authentication_product_ids:
+        Option<common_types::payments::AuthenticationConnectorAccountMap>,
 }
 
 #[cfg(feature = "v1")]
@@ -2119,8 +2123,9 @@ pub struct ProfileResponse {
     pub is_click_to_pay_enabled: bool,
 
     /// Product authentication ids
-    #[schema(value_type = Option<Object>, example = r#"{ "key1": "value-1", "key2": "value-2" }"#)]
-    pub authentication_product_ids: Option<serde_json::Value>,
+    #[schema(value_type = Option<Object>, example = r#"{ "click_to_pay": "mca_ushduqwhdohwd", "netcetera": "mca_kwqhudqwd" }"#)]
+    pub authentication_product_ids:
+        Option<common_types::payments::AuthenticationConnectorAccountMap>,
 
     /// Indicates if the overcapture is always requested or not.
     #[schema(default = false, example = false)]
@@ -2246,8 +2251,9 @@ pub struct ProfileResponse {
     pub is_click_to_pay_enabled: bool,
 
     /// Product authentication ids
-    #[schema(value_type = Option<Object>, example = r#"{ "key1": "value-1", "key2": "value-2" }"#)]
-    pub authentication_product_ids: Option<serde_json::Value>,
+    #[schema(value_type = Option<Object>, example = r#"{ "click_to_pay": "mca_ushduqwhdohwd", "netcetera": "mca_kwqhudqwd" }"#)]
+    pub authentication_product_ids:
+        Option<common_types::payments::AuthenticationConnectorAccountMap>,
 }
 
 #[cfg(feature = "v1")]
@@ -2376,8 +2382,9 @@ pub struct ProfileUpdate {
     pub is_click_to_pay_enabled: Option<bool>,
 
     /// Product authentication ids
-    #[schema(value_type = Option<Object>, example = r#"{ "key1": "value-1", "key2": "value-2" }"#)]
-    pub authentication_product_ids: Option<HashMap<String, id_type::MerchantConnectorAccountId>>,
+    #[schema(value_type = Option<Object>, example = r#"{ "click_to_pay": "mca_ushduqwhdohwd", "netcetera": "mca_kwqhudqwd" }"#)]
+    pub authentication_product_ids:
+        Option<common_types::payments::AuthenticationConnectorAccountMap>,
 
     /// Indicates if the overcapture is always requested or not.
     #[schema(example = false)]
@@ -2491,8 +2498,9 @@ pub struct ProfileUpdate {
     pub is_click_to_pay_enabled: Option<bool>,
 
     /// Product authentication ids
-    #[schema(value_type = Option<Object>, example = r#"{ "key1": "value-1", "key2": "value-2" }"#)]
-    pub authentication_product_ids: Option<HashMap<String, id_type::MerchantConnectorAccountId>>,
+    #[schema(value_type = Option<Object>, example = r#"{ "click_to_pay": "mca_ushduqwhdohwd", "netcetera": "mca_kwqhudqwd" }"#)]
+    pub authentication_product_ids:
+        Option<common_types::payments::AuthenticationConnectorAccountMap>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]

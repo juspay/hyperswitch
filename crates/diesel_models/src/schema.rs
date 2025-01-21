@@ -224,6 +224,22 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
+    callback_mapper (id, type_) {
+        #[max_length = 128]
+        id -> Varchar,
+        #[sql_name = "type"]
+        #[max_length = 64]
+        type_ -> Varchar,
+        data -> Jsonb,
+        created_at -> Timestamp,
+        last_modified_at -> Timestamp,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::enums::diesel_exports::*;
+
     captures (capture_id) {
         #[max_length = 64]
         capture_id -> Varchar,
@@ -1319,6 +1335,8 @@ diesel::table! {
         last_modified_by -> Varchar,
         #[max_length = 64]
         entity_type -> Varchar,
+        #[max_length = 64]
+        tenant_id -> Varchar,
     }
 }
 
@@ -1497,6 +1515,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     blocklist_fingerprint,
     blocklist_lookup,
     business_profile,
+    callback_mapper,
     captures,
     cards_info,
     configs,
