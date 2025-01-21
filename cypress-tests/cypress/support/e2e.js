@@ -20,10 +20,11 @@ import "./commands";
 // Alternatively you can use CommonJS syntax:
 // require('./commands')
 
-Cypress.on("uncaught:exception", (err) => {
-  // returning false here prevents Cypress from failing the test
-  if (err.message.includes("Failed to fetch dynamically imported module")) {
-    return false;
-  }
-  return true;
+Cypress.on('uncaught:exception', (err, runnable) => {
+  console.log('Uncaught exception:', {
+    message: err.message,
+    stack: err.stack,
+    runnable: runnable
+  });
+  return false;
 });

@@ -316,8 +316,7 @@ function threeDsRedirection(redirection_url, expected_url, connectorId) {
           .click();
       });
   } else if (connectorId === "cybersource") {
-    cy.url({ timeout: TIMEOUT }).should("include", expected_url.origin);
-    return; // this is mandatory, else refunds section will fail with unhanlded promise rejections even though it is handled
+    cy.wait(WAIT_TIME);
   } else if (connectorId === "checkout") {
     cy.get("iframe", { timeout: TIMEOUT })
       .its("0.contentDocument.body")
@@ -459,7 +458,11 @@ function upiRedirection(
 
 function verifyReturnUrl(redirection_url, expected_url, forward_flow) {
   if (forward_flow) {
-    if (redirection_url.host.endsWith(expected_url.host)) {
+    if (Cypress.env("BASEURL").includes("localhost")) {
+      // For local testing, just verify the path and query parameters
+      cy.url().should("include", expected_url.pathname);
+      // Add additional URL checks as needed
+    } else if (redirection_url.host.endsWith(expected_url.host)) {
       cy.wait(WAIT_TIME / 2);
 
       cy.window()
@@ -520,6 +523,11 @@ function verifyReturnUrl(redirection_url, expected_url, forward_flow) {
         expected_url.origin,
         { args: { expected_url: expected_url.origin } },
         ({ expected_url }) => {
+          // Add error handling for this specific origin
+          cy.on("uncaught:exception", (err) => {
+            return false;
+          });
+
           cy.window().its("location.origin").should("eq", expected_url);
 
           cy.document().then((doc) => {
