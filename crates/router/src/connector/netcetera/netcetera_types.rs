@@ -1388,7 +1388,8 @@ impl From<crate::types::BrowserInformation> for Browser {
             browser_user_agent: value.user_agent,
             challenge_window_size: Some(ChallengeWindowSizeEnum::FullScreen),
             browser_javascript_enabled: value.java_script_enabled,
-            accept_language: None,
+            // Hardcoding to "en" for now, as there's no accept_language in BrowserInformation
+            accept_language: Some(vec!["en".to_string()]),
         }
     }
 }

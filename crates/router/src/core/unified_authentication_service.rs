@@ -12,7 +12,7 @@ use hyperswitch_domain_models::{
     },
 };
 
-use super::{errors::RouterResult, payments::helpers::MerchantConnectorAccountType};
+use super::errors::RouterResult;
 use crate::{
     core::{
         errors::utils::StorageErrorExt,
@@ -23,6 +23,7 @@ use crate::{
     },
     db::domain,
     routes::SessionState,
+    types::domain::MerchantConnectorAccount,
 };
 
 #[cfg(feature = "v1")]
@@ -33,7 +34,7 @@ impl<F: Clone + Sync> UnifiedAuthenticationService<F> for ClickToPay {
         _key_store: &domain::MerchantKeyStore,
         _business_profile: &domain::Profile,
         payment_data: &PaymentData<F>,
-        merchant_connector_account: &MerchantConnectorAccountType,
+        merchant_connector_account: &MerchantConnectorAccount,
         connector_name: &str,
         authentication_id: &str,
         payment_method: common_enums::PaymentMethod,
@@ -68,7 +69,7 @@ impl<F: Clone + Sync> UnifiedAuthenticationService<F> for ClickToPay {
         _key_store: &domain::MerchantKeyStore,
         _business_profile: &domain::Profile,
         payment_data: &PaymentData<F>,
-        merchant_connector_account: &MerchantConnectorAccountType,
+        merchant_connector_account: &MerchantConnectorAccount,
         connector_name: &str,
         payment_method: common_enums::PaymentMethod,
     ) -> RouterResult<hyperswitch_domain_models::types::UasPostAuthenticationRouterData> {
@@ -106,7 +107,7 @@ impl<F: Clone + Sync> UnifiedAuthenticationService<F> for ClickToPay {
         _state: &SessionState,
         _key_store: &domain::MerchantKeyStore,
         _business_profile: &domain::Profile,
-        _merchant_connector_account: &MerchantConnectorAccountType,
+        _merchant_connector_account: &MerchantConnectorAccount,
     ) -> RouterResult<()> {
         Ok(())
     }

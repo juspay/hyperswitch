@@ -1,7 +1,6 @@
 use std::marker::PhantomData;
 
 use common_enums::enums::PaymentMethod;
-use common_utils::ext_traits::ValueExt;
 use diesel_models::authentication::{Authentication, AuthenticationUpdate};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
@@ -21,10 +20,9 @@ use crate::{
     core::{
         errors::{utils::ConnectorErrorExt, RouterResult},
         payments,
-        unified_authentication_service::MerchantConnectorAccountType,
     },
     services::{self, execute_connector_processing_step},
-    types::api,
+    types::{api, domain::MerchantConnectorAccount},
     SessionState,
 };
 
@@ -110,13 +108,11 @@ pub fn construct_uas_router_data<F: Clone, Req, Res>(
     merchant_id: common_utils::id_type::MerchantId,
     address: Option<PaymentAddress>,
     request_data: Req,
-    merchant_connector_account: &MerchantConnectorAccountType,
+    merchant_connector_account: &MerchantConnectorAccount,
     authentication_id: Option<String>,
 ) -> RouterResult<RouterData<F, Req, Res>> {
-    let test_mode: Option<bool> = merchant_connector_account.is_test_mode_on();
     let auth_type: ConnectorAuthType = merchant_connector_account
         .get_connector_account_details()
-        .parse_value("ConnectorAuthType")
         .change_context(ApiErrorResponse::InternalServerError)?;
     Ok(RouterData {
         flow: PhantomData,
@@ -135,7 +131,7 @@ pub fn construct_uas_router_data<F: Clone, Req, Res>(
         description: None,
         address: address.unwrap_or_default(),
         auth_type: common_enums::AuthenticationType::default(),
-        connector_meta_data: merchant_connector_account.get_metadata(),
+        connector_meta_data: merchant_connector_account.metadata.clone(),
         connector_wallets_details: merchant_connector_account.get_connector_wallets_details(),
         amount_captured: None,
         minor_amount_captured: None,
@@ -155,7 +151,7 @@ pub fn construct_uas_router_data<F: Clone, Req, Res>(
         payout_method_data: None,
         #[cfg(feature = "payouts")]
         quote_id: None,
-        test_mode,
+        test_mode: None,
         connector_http_status_code: None,
         external_latency: None,
         apple_pay_flow: None,
