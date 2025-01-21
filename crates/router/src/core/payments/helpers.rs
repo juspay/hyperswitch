@@ -6283,7 +6283,7 @@ pub fn validate_platform_request_for_marketplace(
                 api::Amount::Zero => {
                     if total_split_amount != 0 {
                         return Err(errors::ApiErrorResponse::InvalidDataValue {
-                            field_name: "split_payments.adyen_split_payment.amount",
+                            field_name: "Sum of split amounts should be equal to the total amount",
                         });
                     }
                 }
@@ -6293,7 +6293,7 @@ pub fn validate_platform_request_for_marketplace(
                         && i64_amount != total_split_amount
                     {
                         return Err(errors::ApiErrorResponse::PreconditionFailed {
-                            message: "split_payments.adyen_split_payment.amount".to_string(),
+                            message: "Sum of split amounts should be equal to the total amount".to_string(),
                         });
                     }
                 }

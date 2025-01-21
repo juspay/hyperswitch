@@ -378,6 +378,8 @@ pub struct Response {
     refusal_reason: Option<String>,
     refusal_reason_code: Option<String>,
     additional_data: Option<AdditionalData>,
+    splits: Option<Vec<AdyenSplitData>>,
+    store: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -424,6 +426,8 @@ pub struct RedirectionResponse {
     refusal_reason_code: Option<String>,
     psp_reference: Option<String>,
     merchant_reference: Option<String>,
+    store: Option<String>,
+    splits: Option<Vec<AdyenSplitData>>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -435,6 +439,8 @@ pub struct PresentToShopperResponse {
     refusal_reason: Option<String>,
     refusal_reason_code: Option<String>,
     merchant_reference: Option<String>,
+    store: Option<String>,
+    splits: Option<Vec<AdyenSplitData>>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -447,6 +453,8 @@ pub struct QrCodeResponseResponse {
     additional_data: Option<QrCodeAdditionalData>,
     psp_reference: Option<String>,
     merchant_reference: Option<String>,
+    store: Option<String>,
+    splits: Option<Vec<AdyenSplitData>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1260,8 +1268,8 @@ pub struct AdyenRefundRequest {
     amount: Amount,
     merchant_refund_reason: Option<String>,
     reference: String,
-    store: Option<String>,
     splits: Option<Vec<AdyenSplitData>>,
+    store: Option<String>,
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
@@ -1272,7 +1280,6 @@ pub struct AdyenRefundResponse {
     payment_psp_reference: String,
     reference: String,
     status: String,
-    splits: Option<Vec<AdyenSplitData>>,
 }
 
 pub struct AdyenAuthType {
@@ -3619,7 +3626,6 @@ pub fn get_adyen_response(
     is_capture_manual: bool,
     status_code: u16,
     pmt: Option<enums::PaymentMethodType>,
-    split_request: Option<common_types::payments::SplitPaymentsRequest>,
 ) -> errors::CustomResult<
     (
         storage_enums::AttemptStatus,
@@ -3666,13 +3672,10 @@ pub fn get_adyen_response(
             .map(|network_tx_id| network_tx_id.expose())
     });
 
-    let charges = 
-        match split_request {
-            Some(common_types::payments::SplitPaymentsRequest::AdyenSplitPayment(adyen_split_data)) => {
-                Some(common_types::payments::ConnectorChargeResponseData::AdyenSplitPayment(adyen_split_data))
-            },
-            _ => None
-        };
+    let charges = match &response.splits {
+        Some(split_items) => Some(construct_charge_response(response.store, split_items)),
+        None => None,
+    };
 
     let payments_response_data = types::PaymentsResponseData::TransactionResponse {
         resource_id: types::ResponseId::ConnectorTransactionId(response.psp_reference),
@@ -3760,7 +3763,6 @@ pub fn get_redirection_response(
     is_manual_capture: bool,
     status_code: u16,
     pmt: Option<enums::PaymentMethodType>,
-    split_request: Option<common_types::payments::SplitPaymentsRequest>,
 ) -> errors::CustomResult<
     (
         storage_enums::AttemptStatus,
@@ -3812,12 +3814,9 @@ pub fn get_redirection_response(
 
     let connector_metadata = get_wait_screen_metadata(&response)?;
 
-    let charges = 
-    match split_request {
-        Some(common_types::payments::SplitPaymentsRequest::AdyenSplitPayment(adyen_split_data)) => {
-            Some(common_types::payments::ConnectorChargeResponseData::AdyenSplitPayment(adyen_split_data))
-        },
-        _ => None
+    let charges = match &response.splits {
+        Some(split_items) => Some(construct_charge_response(response.store, split_items)),
+        None => None,
     };
 
     let payments_response_data = types::PaymentsResponseData::TransactionResponse {
@@ -3844,7 +3843,6 @@ pub fn get_present_to_shopper_response(
     is_manual_capture: bool,
     status_code: u16,
     pmt: Option<enums::PaymentMethodType>,
-    split_request: Option<common_types::payments::SplitPaymentsRequest>,
 ) -> errors::CustomResult<
     (
         storage_enums::AttemptStatus,
@@ -3880,12 +3878,9 @@ pub fn get_present_to_shopper_response(
         None
     };
 
-    let charges = 
-    match split_request {
-        Some(common_types::payments::SplitPaymentsRequest::AdyenSplitPayment(adyen_split_data)) => {
-            Some(common_types::payments::ConnectorChargeResponseData::AdyenSplitPayment(adyen_split_data))
-        },
-        _ => None
+    let charges = match &response.splits {
+        Some(split_items) => Some(construct_charge_response(response.store.clone(), split_items)),
+        None => None,
     };
 
     let connector_metadata = get_present_to_shopper_metadata(&response)?;
@@ -3915,7 +3910,6 @@ pub fn get_qr_code_response(
     is_manual_capture: bool,
     status_code: u16,
     pmt: Option<enums::PaymentMethodType>,
-    split_request: Option<common_types::payments::SplitPaymentsRequest>,
 ) -> errors::CustomResult<
     (
         storage_enums::AttemptStatus,
@@ -3951,12 +3945,9 @@ pub fn get_qr_code_response(
         None
     };
 
-    let charges = 
-    match split_request {
-        Some(common_types::payments::SplitPaymentsRequest::AdyenSplitPayment(adyen_split_data)) => {
-            Some(common_types::payments::ConnectorChargeResponseData::AdyenSplitPayment(adyen_split_data))
-        },
-        _ => None
+    let charges = match &response.splits {
+        Some(split_items) => Some(construct_charge_response(response.store.clone(), split_items)),
+        None => None,
     };
 
     let connector_metadata = get_qr_metadata(&response)?;
@@ -4273,7 +4264,6 @@ impl<F, Req>
         bool,
         Option<enums::PaymentMethodType>,
     )> for types::RouterData<F, Req, types::PaymentsResponseData>
-    where Req : utils::SplitPaymentData,
 {
     type Error = Error;
     fn foreign_try_from(
@@ -4285,19 +4275,18 @@ impl<F, Req>
         ),
     ) -> Result<Self, Self::Error> {
         let is_manual_capture = utils::is_manual_capture(capture_method);
-        let split_request = item.data.request.get_split_payment_data();
         let (status, error, payment_response_data) = match item.response {
             AdyenPaymentResponse::Response(response) => {
-                get_adyen_response(*response, is_manual_capture, item.http_code, pmt, split_request)?
+                get_adyen_response(*response, is_manual_capture, item.http_code, pmt)?
             }
             AdyenPaymentResponse::PresentToShopper(response) => {
-                get_present_to_shopper_response(*response, is_manual_capture, item.http_code, pmt, split_request)?
+                get_present_to_shopper_response(*response, is_manual_capture, item.http_code, pmt)?
             }
             AdyenPaymentResponse::QrCodeResponse(response) => {
-                get_qr_code_response(*response, is_manual_capture, item.http_code, pmt, split_request)?
+                get_qr_code_response(*response, is_manual_capture, item.http_code, pmt)?
             }
             AdyenPaymentResponse::RedirectionResponse(response) => {
-                get_redirection_response(*response, is_manual_capture, item.http_code, pmt, split_request)?
+                get_redirection_response(*response, is_manual_capture, item.http_code, pmt)?
             }
             AdyenPaymentResponse::RedirectionErrorResponse(response) => {
                 get_redirection_error_response(*response, is_manual_capture, item.http_code, pmt)?
@@ -4359,6 +4348,8 @@ pub struct AdyenCaptureResponse {
     status: String,
     amount: Amount,
     merchant_reference: Option<String>,
+    store: Option<String>,
+    splits: Option<Vec<AdyenSplitData>>,
 }
 
 impl TryFrom<types::PaymentsCaptureResponseRouterData<AdyenCaptureResponse>>
@@ -4373,6 +4364,11 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<AdyenCaptureResponse>>
         } else {
             item.response.payment_psp_reference
         };
+        let charges = match &item.response.splits {
+            Some(split_items) => Some(construct_charge_response(item.response.store, split_items)),
+            None => None,
+        };
+        
         Ok(Self {
             // From the docs, the only value returned is "received", outcome of refund is available
             // through refund notification webhook
@@ -4386,7 +4382,7 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<AdyenCaptureResponse>>
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.reference),
                 incremental_authorization_allowed: None,
-                charges: None,
+                charges,
             }),
             amount_captured: Some(0),
             ..item.data
@@ -4394,6 +4390,27 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<AdyenCaptureResponse>>
     }
 }
 
+
+fn construct_charge_response(store: Option<String>, split_item: &Vec<AdyenSplitData>) -> common_types::payments::ConnectorChargeResponseData {
+        let splits: Vec<common_types::domain::AdyenSplitItem> = split_item
+            .iter()
+            .map(|split_item| common_types::domain::AdyenSplitItem {
+                amount: split_item.amount.as_ref().map(|amount| amount.value.clone()),
+                reference: split_item.reference.clone(),
+                split_type: split_item.split_type.clone(),
+                account: split_item.account.clone(),
+                description: split_item.description.clone(),
+            })
+            .collect();
+
+        common_types::payments::ConnectorChargeResponseData::AdyenSplitPayment(
+            common_types::domain::AdyenSplitData {
+                store,
+                split_items: splits,
+            },
+        )
+}
+ 
 /*
 // This is a repeated code block from Stripe inegration. Can we avoid the repetition in every integration
 #[derive(Debug, Serialize, Deserialize)]
