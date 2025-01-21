@@ -4289,6 +4289,7 @@ impl AttemptType {
             organization_id: old_payment_attempt.organization_id,
             profile_id: old_payment_attempt.profile_id,
             connector_mandate_detail: None,
+            card_discovery: None,
         }
     }
 
