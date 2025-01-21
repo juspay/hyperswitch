@@ -714,7 +714,7 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
             );
 
         let success_based_connectors = client
-            .calculate_success_rate(
+            .calculate_entity_and_global_success_rate(
                 business_profile.get_id().get_string_repr().into(),
                 success_based_routing_configs.clone(),
                 success_based_routing_config_params.clone(),
@@ -730,28 +730,34 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
         let payment_status_attribute =
             get_desired_payment_status_for_success_routing_metrics(payment_attempt.status);
 
-        let first_success_based_connector_label = &success_based_connectors
-            .labels_with_score
+        let first_merchant_success_based_connector = &success_based_connectors
+            .entity_scores_with_labels
             .first()
             .ok_or(errors::ApiErrorResponse::InternalServerError)
             .attach_printable(
                 "unable to fetch the first connector from list of connectors obtained from dynamic routing service",
-            )?
-            .label
-            .to_string();
+            )?;
 
-        let (first_success_based_connector, _) = first_success_based_connector_label
+        let (first_merchant_success_based_connector_label, _) = first_merchant_success_based_connector.label
             .split_once(':')
             .ok_or(errors::ApiErrorResponse::InternalServerError)
             .attach_printable(format!(
                 "unable to split connector_name and mca_id from the first connector {:?} obtained from dynamic routing service",
-                first_success_based_connector_label
+                first_merchant_success_based_connector.label
             ))?;
+
+        let first_global_success_based_connector = &success_based_connectors
+            .global_scores_with_labels
+            .first()
+            .ok_or(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable(
+                "unable to fetch the first global connector from list of connectors obtained from dynamic routing service",
+            )?;
 
         let outcome = get_success_based_metrics_outcome_for_payment(
             payment_status_attribute,
             payment_connector.to_string(),
-            first_success_based_connector.to_string(),
+            first_merchant_success_based_connector_label.to_string(),
         );
 
         let dynamic_routing_stats = DynamicRoutingStatsNew {
@@ -760,7 +766,8 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
             merchant_id: payment_attempt.merchant_id.to_owned(),
             profile_id: payment_attempt.profile_id.to_owned(),
             amount: payment_attempt.get_total_amount(),
-            success_based_routing_connector: first_success_based_connector.to_string(),
+            success_based_routing_connector: first_merchant_success_based_connector_label
+                .to_string(),
             payment_connector: payment_connector.to_string(),
             payment_method_type: payment_attempt.payment_method_type,
             currency: payment_attempt.currency,
@@ -770,6 +777,9 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
             payment_status: payment_attempt.status,
             conclusive_classification: outcome,
             created_at: common_utils::date_time::now(),
+            global_success_based_connector: Some(
+                first_global_success_based_connector.label.to_string(),
+            ),
         };
 
         core_metrics::DYNAMIC_SUCCESS_BASED_ROUTING.add(
@@ -788,8 +798,20 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
                     ),
                 ),
                 (
-                    "success_based_routing_connector",
-                    first_success_based_connector.to_string(),
+                    "merchant_specific_success_based_routing_connector",
+                    first_merchant_success_based_connector_label.to_string(),
+                ),
+                (
+                    "merchant_specific_success_based_routing_connector_score",
+                    first_merchant_success_based_connector.score.to_string(),
+                ),
+                (
+                    "global_success_based_routing_connector",
+                    first_global_success_based_connector.label.to_string(),
+                ),
+                (
+                    "global_success_based_routing_connector_score",
+                    first_global_success_based_connector.score.to_string(),
                 ),
                 ("payment_connector", payment_connector.to_string()),
                 (
