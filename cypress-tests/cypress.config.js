@@ -59,6 +59,7 @@ export default defineConfig({
   chromeWebSecurity: false,
   defaultCommandTimeout: 10000,
   pageLoadTimeout: 20000,
+  responseTimeout: 30000,
   screenshotsFolder: screenshotsFolderName,
   video: true,
   videoCompression: 32,
