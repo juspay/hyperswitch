@@ -54,7 +54,8 @@
         "api-reference/payment-methods/payment-method--confirm-intent",
         "api-reference/payment-methods/payment-method--update",
         "api-reference/payment-methods/payment-method--retrieve",
-        "api-reference/payment-methods/payment-method--delete"
+        "api-reference/payment-methods/payment-method--delete",
+        "api-reference/payment-methods/list-saved-payment-methods-for-a-customer"
       ]
     },
     {
@@ -121,7 +122,8 @@
         "api-reference/customers/customers--retrieve",
         "api-reference/customers/customers--update",
         "api-reference/customers/customers--delete",
-        "api-reference/customers/customers--list"
+        "api-reference/customers/customers--list",
+        "api-reference/customers/customers--list-saved-payment-methods"
       ]
     },
     {
