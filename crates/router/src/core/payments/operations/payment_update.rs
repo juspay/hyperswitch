@@ -444,16 +444,14 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             payments::types::SurchargeDetails::from((&request_surcharge_details, &payment_attempt))
         });
 
+        payment_intent.request_overcapture = request
+        .request_overcapture
+        .or(payment_intent.request_overcapture);
+
         helpers::validate_overcapture_request(
             payment_attempt.capture_method,
-            request
-                .request_overcapture
-                .or(payment_intent.request_overcapture),
+            payment_intent.request_overcapture,
         )?;
-
-        payment_intent.request_overcapture = request
-            .request_overcapture
-            .or(payment_intent.request_overcapture);
 
         let payment_data = PaymentData {
             flow: PhantomData,

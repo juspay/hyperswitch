@@ -2032,7 +2032,7 @@ impl From<bool> for super::OverCaptureRequest {
 
 /// Get the boolean value of the `OverCaptureRequest`.
 impl super::OverCaptureRequest {
-    pub fn as_bool(&self) -> bool {
+    pub fn is_enabled(&self) -> bool {
         match self {
             Self::Enable => true,
             Self::Skip => false,
@@ -2040,22 +2040,19 @@ impl super::OverCaptureRequest {
     }
 }
 
-impl From<Option<bool>> for super::OverCaptureStatus {
-    fn from(value: Option<bool>) -> Self {
-        match value {
-            Some(true) => Self::Applicable,
-            _ => Self::NotApplicable,
-        }
-    }
-}
-
 /// Get the boolean value of the `OverCaptureStatus`.
 impl super::OverCaptureStatus {
-    pub fn as_bool(&self) -> bool {
+    pub fn is_applicable(&self) -> bool {
         match self {
             Self::Applicable => true,
             Self::NotApplicable => false,
         }
+    }
+}
+
+impl super::CaptureMethod {
+    pub fn is_manual(&self) -> bool {
+        matches!(self, Self::Manual)
     }
 }
 

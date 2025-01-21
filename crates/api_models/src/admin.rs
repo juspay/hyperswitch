@@ -2380,7 +2380,7 @@ pub struct ProfileUpdate {
     pub authentication_product_ids: Option<HashMap<String, id_type::MerchantConnectorAccountId>>,
 
     /// Indicates if the overcapture is always requested or not.
-    #[schema(default = false, example = false)]
+    #[schema(example = false)]
     pub always_request_overcapture: Option<bool>,
 }
 

@@ -1160,7 +1160,7 @@ impl PaymentCreate {
                             })
                             .ok()
                     })
-                    .and_then(|pmd: PaymentMethodsData| match pmd {
+                    .and_then(|pmd| match pmd {
                         PaymentMethodsData::Card(card) => {
                             Some(api_models::payments::AdditionalPaymentData::Card(Box::new(
                                 api::CardDetailFromLocker::from(card).into(),

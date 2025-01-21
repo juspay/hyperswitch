@@ -6277,8 +6277,8 @@ pub fn validate_overcapture_request(
     request_overcapture: Option<api_enums::OverCaptureRequest>,
 ) -> Result<(), errors::ApiErrorResponse> {
     utils::when(
-        request_overcapture == Some(api_enums::OverCaptureRequest::Enable)
-            && capture_method != Some(api_enums::CaptureMethod::Manual),
+        request_overcapture.unwrap_or(api_enums::OverCaptureRequest::Skip).is_enabled()
+            && capture_method.unwrap_or(api_enums::CaptureMethod::Automatic).is_manual(),
         || {
             Err(errors::ApiErrorResponse::PreconditionFailed {
                 message: "Requesting overcapture is only supported when the capture method is set to manual".to_string(),
@@ -6291,36 +6291,22 @@ pub fn validate_overcapture_request(
 pub fn get_overcapture_request_for_payments_update(
     payment_attempt: &PaymentAttempt,
     payment_intent: &PaymentIntent,
-    request: Option<&api_models::payments::PaymentsRequest>,
     profile: &domain::Profile,
 ) -> Result<Option<api_enums::OverCaptureRequest>, errors::ApiErrorResponse> {
-    let req_request_overcapture = request.and_then(|req| req.request_overcapture);
     match payment_attempt.capture_method {
-        Some(api_enums::CaptureMethod::Manual) => Ok(req_request_overcapture
-            .or(payment_intent.request_overcapture)
+        Some(api_enums::CaptureMethod::Manual) => Ok(
+            payment_intent.request_overcapture
             .or(profile
                 .always_request_overcapture
                 .map(api_enums::OverCaptureRequest::from))),
-        Some(_) => {
-            match payment_attempt.request_overcapture {
+        Some(_) | None => {
+            match payment_intent.request_overcapture {
                 Some(api_enums::OverCaptureRequest::Enable) => {
                         Err(errors::ApiErrorResponse::PreconditionFailed {
                         message: "Requesting overcapture is only supported when the capture method is set to manual".to_string(),
                     })?
                 }
                 request_overcapture => Ok(request_overcapture),
-            }
-        }
-        None => {
-            if matches!(
-                req_request_overcapture,
-                Some(api_enums::OverCaptureRequest::Enable)
-            ) {
-                Err(errors::ApiErrorResponse::PreconditionFailed {
-                    message: "Requesting overcapture is only supported when the capture method is set to manual".to_string(),
-                })?
-            } else {
-                Ok(None)
             }
         }
     }

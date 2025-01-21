@@ -245,6 +245,7 @@ pub struct StripePayLaterData {
 #[serde(rename_all = "snake_case")]
 pub enum StripeOvercaptureRequest {
     IfAvailable,
+    Never,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -1413,7 +1414,8 @@ impl TryFrom<(&domain::Card, Auth3ds, Option<bool>)> for StripePaymentMethodData
                 .and_then(get_stripe_card_network),
             payment_method_data_card_request_overcapture: match is_request_overcapture {
                 Some(true) => Some(StripeOvercaptureRequest::IfAvailable),
-                _ => None,
+                Some(false) => Some(StripeOvercaptureRequest::Never),
+                None => None,
             },
         }))
     }
@@ -1824,7 +1826,7 @@ impl TryFrom<(&types::PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntent
                                 &item.request,
                             )),
                             billing_address,
-                            item.request.request_overcapture.map(|request_overcapture|request_overcapture.as_bool()),
+                            item.request.request_overcapture.map(|request_overcapture|request_overcapture.is_enabled()),
                         )?;
 
                     validate_shipping_address_against_payment_method(
