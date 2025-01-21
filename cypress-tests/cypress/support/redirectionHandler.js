@@ -461,7 +461,6 @@ function verifyReturnUrl(redirection_url, expected_url, forward_flow) {
     if (Cypress.env("BASEURL").includes("localhost")) {
       // For local testing, just verify the path and query parameters
       cy.url().should("include", expected_url.pathname);
-      // Add additional URL checks as needed
     } else if (redirection_url.host.endsWith(expected_url.host)) {
       cy.wait(WAIT_TIME / 2);
 
@@ -525,6 +524,7 @@ function verifyReturnUrl(redirection_url, expected_url, forward_flow) {
         ({ expected_url }) => {
           // Add error handling for this specific origin
           cy.on("uncaught:exception", (err) => {
+            cy.log(`Error: ${err}`);
             return false;
           });
 
