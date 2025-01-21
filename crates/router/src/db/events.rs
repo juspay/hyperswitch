@@ -725,7 +725,7 @@ mod tests {
         let event_id = "test_event_id";
         let (tx, _) = tokio::sync::oneshot::channel();
         let app_state = Box::pin(routes::AppState::with_storage(
-            Settings::default(),
+            Settings::new().unwrap(),
             StorageImpl::PostgresqlTest,
             tx,
             Box::new(services::MockApiClient),
