@@ -6301,7 +6301,7 @@ where
                         dynamic_routing_config_params_interpolator,
                     )
                     .await
-                    .map_err(|e| logger::error!(success_rate_routing_error=?e))
+                    .map_err(|e| logger::error!(elimination_routing_error=?e))
                     .unwrap_or(connectors)
                 } else {
                     connectors

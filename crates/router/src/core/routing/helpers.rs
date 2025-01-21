@@ -642,7 +642,7 @@ pub async fn refresh_elimination_routing_cache(
 /// Checked fetch of elimination based routing configs
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 #[instrument(skip_all)]
-pub async fn fetch_elimintaion_routing_configs(
+pub async fn fetch_elimination_routing_configs(
     state: &SessionState,
     business_profile: &domain::Profile,
     elimination_routing_id: id_type::RoutingId,
@@ -763,7 +763,7 @@ pub async fn update_window_for_elimination_routing(
                 message: "elimination_rate gRPC client not found".to_string(),
             })?;
 
-        let elimination_routing_config = fetch_elimintaion_routing_configs(
+        let elimination_routing_config = fetch_elimination_routing_configs(
             state,
             business_profile,
             elimination_algo_ref
@@ -785,24 +785,9 @@ pub async fn update_window_for_elimination_routing(
             },
         )?;
 
-        let elimination_routing_configs = fetch_elimintaion_routing_configs(
-            state,
-            business_profile,
-            elimination_algo_ref
-                .algorithm_id_with_timestamp
-                .algorithm_id
-                .ok_or(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable(
-                    "elimination_routing_algorithm_id not found in business_profile",
-                )?,
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("unable to retrieve elimination based dynamic routing configs")?;
-
         let elimination_routing_config_params = elimination_routing_configs_params_interpolator
             .get_string_val(
-                elimination_routing_configs
+                elimination_routing_config
                     .params
                     .as_ref()
                     .ok_or(errors::RoutingError::EliminationBasedRoutingParamsNotFoundError)
@@ -831,7 +816,7 @@ pub async fn update_window_for_elimination_routing(
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable(
-                "unable to update success based routing window in dynamic routing service",
+                "unable to update elimination based routing buckets in dynamic routing service",
             )?;
         Ok(())
     } else {

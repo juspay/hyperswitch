@@ -1419,16 +1419,16 @@ pub async fn perform_elimination_routing(
 
     let elimination_algo_ref = dynamic_routing_algo_ref
         .elimination_routing_algorithm
-        .ok_or(errors::RoutingError::GenericNotFoundError { field: "elimintaion_algorithm".to_string() })
+        .ok_or(errors::RoutingError::GenericNotFoundError { field: "elimination_algorithm".to_string() })
         .attach_printable(
-            "elimintaion_algorithm not found in dynamic_routing_algorithm from business_profile table",
+            "elimination_algorithm not found in dynamic_routing_algorithm from business_profile table",
         )?;
 
     if elimination_algo_ref.enabled_feature
         == api_routing::DynamicRoutingFeatures::DynamicConnectorSelection
     {
         logger::debug!(
-            "performing elimintaion_routing for profile {}",
+            "performing elimination_routing for profile {}",
             business_profile.get_id().get_string_repr()
         );
         let client = state
@@ -1437,9 +1437,9 @@ pub async fn perform_elimination_routing(
             .elimination_rate_client
             .as_ref()
             .ok_or(errors::RoutingError::EliminationClientInitializationError)
-            .attach_printable("elimintaion routing's gRPC client not found")?;
+            .attach_printable("elimination routing's gRPC client not found")?;
 
-        let elimination_routing_config = routing::helpers::fetch_elimintaion_routing_configs(
+        let elimination_routing_config = routing::helpers::fetch_elimination_routing_configs(
             state,
             business_profile,
             elimination_algo_ref
@@ -1449,7 +1449,7 @@ pub async fn perform_elimination_routing(
                     field: "elimination_routing_algorithm_id".to_string(),
                 })
                 .attach_printable(
-                    "elimintaion_routing_algorithm_id not found in business_profile",
+                    "elimination_routing_algorithm_id not found in business_profile",
                 )?,
         )
         .await
@@ -1475,7 +1475,7 @@ pub async fn perform_elimination_routing(
             .await
             .change_context(errors::RoutingError::EliminationRoutingCalculationError)
             .attach_printable(
-                "unable to analyze/fetch elimintaion routing from dynamic routing service",
+                "unable to analyze/fetch elimination routing from dynamic routing service",
             )?;
         let mut connectors =
             Vec::with_capacity(elimination_based_connectors.labels_with_status.len());
@@ -1526,8 +1526,8 @@ pub async fn perform_elimination_routing(
             connectors.extend(non_eliminated_connectors.clone());
             connectors.extend(eliminated_connectors.clone());
         }
-        logger::debug!(eliminated_connectors=?eliminated_connectors);
-        logger::debug!(elimination_based_routing_connectors=?connectors);
+        logger::debug!(dynamic_eliminated_connectors=?eliminated_connectors);
+        logger::debug!(dynamic_elimination_based_routing_connectors=?connectors);
         Ok(connectors)
     } else {
         Ok(routable_connectors)
