@@ -3,10 +3,10 @@ pub use diesel_models::types::OrderDetailsWithAmount;
 use crate::{
     router_data::{AccessToken, RouterData},
     router_flow_types::{
-        AccessTokenAuth, Authorize, AuthorizeSessionToken, CalculateTax, Capture,
-        CompleteAuthorize, CreateConnectorCustomer, Execute, PSync, PaymentMethodToken,
-        PostAuthenticate, PostSessionTokens, PreAuthenticate, PreProcessing, RSync, Session,
-        SetupMandate, Void,
+        mandate_revoke::MandateRevoke, AccessTokenAuth, Authorize, AuthorizeSessionToken,
+        CalculateTax, Capture, CompleteAuthorize, CreateConnectorCustomer, Execute,
+        IncrementalAuthorization, PSync, PaymentMethodToken, PostAuthenticate, PostSessionTokens,
+        PreAuthenticate, PreProcessing, RSync, Session, SetupMandate, Void,
     },
     router_request_types::{
         unified_authentication_service::{
@@ -14,15 +14,19 @@ use crate::{
             UasPreAuthenticationRequestData,
         },
         AccessTokenRequestData, AuthorizeSessionTokenData, CompleteAuthorizeData,
-        ConnectorCustomerData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
-        PaymentsCancelData, PaymentsCaptureData, PaymentsPostSessionTokensData,
+        ConnectorCustomerData, MandateRevokeRequestData, PaymentMethodTokenizationData,
+        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData,
+        PaymentsIncrementalAuthorizationData, PaymentsPostSessionTokensData,
         PaymentsPreProcessingData, PaymentsSessionData, PaymentsSyncData,
         PaymentsTaxCalculationData, RefundsData, SetupMandateRequestData,
     },
     router_response_types::{
-        PaymentsResponseData, RefundsResponseData, TaxCalculationResponseData,
+        MandateRevokeResponseData, PaymentsResponseData, RefundsResponseData,
+        TaxCalculationResponseData,
     },
 };
+#[cfg(feature = "payouts")]
+pub use crate::{router_request_types::PayoutsData, router_response_types::PayoutsResponseData};
 
 pub type PaymentsAuthorizeRouterData =
     RouterData<Authorize, PaymentsAuthorizeData, PaymentsResponseData>;
@@ -56,3 +60,14 @@ pub type UasPostAuthenticationRouterData =
 
 pub type UasPreAuthenticationRouterData =
     RouterData<PreAuthenticate, UasPreAuthenticationRequestData, UasAuthenticationResponseData>;
+
+pub type MandateRevokeRouterData =
+    RouterData<MandateRevoke, MandateRevokeRequestData, MandateRevokeResponseData>;
+pub type PaymentsIncrementalAuthorizationRouterData = RouterData<
+    IncrementalAuthorization,
+    PaymentsIncrementalAuthorizationData,
+    PaymentsResponseData,
+>;
+
+#[cfg(feature = "payouts")]
+pub type PayoutsRouterData<F> = RouterData<F, PayoutsData, PayoutsResponseData>;
