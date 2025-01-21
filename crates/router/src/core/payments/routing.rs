@@ -1249,16 +1249,15 @@ async fn perform_session_routing_for_pm_type(
 }
 
 #[cfg(feature = "v2")]
-async fn perform_session_routing_for_pm_type(
+async fn get_chosen_connectors(
     session_pm_input: &SessionRoutingPmTypeInput<'_>,
     transaction_type: &api_enums::TransactionType,
-    business_profile: &domain::Profile,
-) -> RoutingResult<Option<Vec<api_models::routing::RoutableConnectorChoice>>> {
+    profile_wrapper: &admin::ProfileWrapper,
+) -> RoutingResult<Vec<api_models::routing::RoutableConnectorChoice>> {
     let merchant_id = &session_pm_input.key_store.merchant_id;
 
     let MerchantAccountRoutingAlgorithm::V1(algorithm_id) = session_pm_input.routing_algorithm;
 
-    let profile_wrapper = admin::ProfileWrapper::new(business_profile.clone());
     let chosen_connectors = if let Some(ref algorithm_id) = algorithm_id {
         let cached_algorithm = ensure_algorithm_cached_v1(
             &session_pm_input.state.clone(),
@@ -1284,6 +1283,18 @@ async fn perform_session_routing_for_pm_type(
             .get_default_fallback_list_of_connector_under_profile()
             .change_context(errors::RoutingError::FallbackConfigFetchFailed)?
     };
+    Ok(chosen_connectors)
+}
+
+#[cfg(feature = "v2")]
+async fn perform_session_routing_for_pm_type(
+    session_pm_input: &SessionRoutingPmTypeInput<'_>,
+    transaction_type: &api_enums::TransactionType,
+    business_profile: &domain::Profile,
+) -> RoutingResult<Option<Vec<api_models::routing::RoutableConnectorChoice>>> {
+    let profile_wrapper = admin::ProfileWrapper::new(business_profile.clone());
+    let chosen_connectors =
+        get_chosen_connectors(session_pm_input, transaction_type, &profile_wrapper).await?;
 
     let mut final_selection = perform_cgraph_filtering(
         &session_pm_input.state.clone(),
