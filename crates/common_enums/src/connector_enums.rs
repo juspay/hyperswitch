@@ -131,7 +131,7 @@ pub enum RoutableConnectors {
     Wise,
     Worldline,
     Worldpay,
-    // Xendit,
+    Xendit,
     Zen,
     Plaid,
     Zsl,
@@ -270,7 +270,7 @@ pub enum Connector {
     Signifyd,
     Plaid,
     Riskified,
-    // Xendit,
+    Xendit,
     Zen,
     Zsl,
 }
@@ -407,7 +407,7 @@ impl Connector {
             | Self::Wise
             | Self::Worldline
             | Self::Worldpay
-            // | Self::Xendit
+            | Self::Xendit
             | Self::Zen
             | Self::Zsl
             | Self::Signifyd
@@ -539,6 +539,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Zen => Self::Zen,
             RoutableConnectors::Plaid => Self::Plaid,
             RoutableConnectors::Zsl => Self::Zsl,
+            RoutableConnectors::Xendit => Self::Xendit,
         }
     }
 }
