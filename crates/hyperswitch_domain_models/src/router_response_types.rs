@@ -531,6 +531,8 @@ pub struct PaymentMethodDetails {
     pub refunds: common_enums::FeatureStatus,
     /// List of supported capture methods
     pub supported_capture_methods: Vec<common_enums::CaptureMethod>,
+    /// Payment method specific features
+    pub specific_features: Option<api_models::feature_matrix::PaymentMethodSpecificFeatures>,
 }
 
 /// list of payment method types and metadata related to them

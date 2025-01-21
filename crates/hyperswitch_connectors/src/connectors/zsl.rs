@@ -458,6 +458,7 @@ lazy_static! {
                 mandates: common_enums::FeatureStatus::NotSupported,
                 refunds: common_enums::FeatureStatus::NotSupported,
                 supported_capture_methods,
+                specific_features: None,
             },
         );
 
