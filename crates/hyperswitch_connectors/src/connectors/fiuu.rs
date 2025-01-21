@@ -254,16 +254,23 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         req: &PaymentsAuthorizeRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let url = if req.request.off_session == Some(true) {
-            format!(
+        let optional_is_mit_flow = req.request.off_session;
+        let optional_is_nti_flow = req
+            .request
+            .mandate_id
+            .as_ref()
+            .map(|mandate_id| mandate_id.is_network_transaction_id_flow());
+        let url = match (optional_is_mit_flow, optional_is_nti_flow) {
+            (Some(true), Some(false)) => format!(
                 "{}/RMS/API/Recurring/input_v7.php",
                 self.base_url(connectors)
-            )
-        } else {
-            format!(
-                "{}RMS/API/Direct/1.4.0/index.php",
-                self.base_url(connectors)
-            )
+            ),
+            _ => {
+                format!(
+                    "{}RMS/API/Direct/1.4.0/index.php",
+                    self.base_url(connectors)
+                )
+            }
         };
         Ok(url)
     }
@@ -280,14 +287,24 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         )?;
 
         let connector_router_data = fiuu::FiuuRouterData::from((amount, req));
-        let connector_req = if req.request.off_session == Some(true) {
-            let recurring_request = fiuu::FiuuMandateRequest::try_from(&connector_router_data)?;
-            build_form_from_struct(recurring_request)
-                .change_context(errors::ConnectorError::ParsingFailed)?
-        } else {
-            let payment_request = fiuu::FiuuPaymentRequest::try_from(&connector_router_data)?;
-            build_form_from_struct(payment_request)
-                .change_context(errors::ConnectorError::ParsingFailed)?
+        let optional_is_mit_flow = req.request.off_session;
+        let optional_is_nti_flow = req
+            .request
+            .mandate_id
+            .as_ref()
+            .map(|mandate_id| mandate_id.is_network_transaction_id_flow());
+
+        let connector_req = match (optional_is_mit_flow, optional_is_nti_flow) {
+            (Some(true), Some(false)) => {
+                let recurring_request = fiuu::FiuuMandateRequest::try_from(&connector_router_data)?;
+                build_form_from_struct(recurring_request)
+                    .change_context(errors::ConnectorError::ParsingFailed)?
+            }
+            _ => {
+                let payment_request = fiuu::FiuuPaymentRequest::try_from(&connector_router_data)?;
+                build_form_from_struct(payment_request)
+                    .change_context(errors::ConnectorError::ParsingFailed)?
+            }
         };
         Ok(RequestContent::FormData(connector_req))
     }

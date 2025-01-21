@@ -14,8 +14,8 @@ use common_utils::{
 use error_stack::{Report, ResultExt};
 use hyperswitch_domain_models::{
     payment_method_data::{
-        BankRedirectData, Card, GooglePayWalletData, PaymentMethodData, RealTimePaymentData,
-        WalletData,
+        BankRedirectData, Card, CardDetailsForNetworkTransactionId, GooglePayWalletData,
+        PaymentMethodData, RealTimePaymentData, WalletData,
     },
     router_data::{
         ApplePayPredecryptData, ConnectorAuthType, ErrorResponse, PaymentMethodToken, RouterData,
@@ -287,6 +287,7 @@ pub struct FiuuPaymentRequest {
 pub enum FiuuPaymentMethodData {
     FiuuQRData(Box<FiuuQRData>),
     FiuuCardData(Box<FiuuCardData>),
+    FiuuCardWithNTI(Box<FiuuCardWithNTI>),
     FiuuFpxData(Box<FiuuFPXData>),
     FiuuGooglePayData(Box<FiuuGooglePayData>),
     FiuuApplePayData(Box<FiuuApplePayData>),
@@ -320,6 +321,18 @@ pub struct FiuuCardData {
     mps_token_status: Option<i32>,
     #[serde(rename = "CustEmail")]
     customer_email: Option<Email>,
+}
+
+#[derive(Serialize, Debug, Clone)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub struct FiuuCardWithNTI {
+    #[serde(rename = "TxnChannel")]
+    txn_channel: TxnChannel,
+    cc_pan: CardNumber,
+    cc_month: Secret<String>,
+    cc_year: Secret<String>,
+    #[serde(rename = "OriginalSchemeID")]
+    original_scheme_id: Secret<String>,
 }
 
 #[derive(Serialize, Debug, Clone)]
@@ -412,125 +425,150 @@ impl TryFrom<&FiuuRouterData<&PaymentsAuthorizeRouterData>> for FiuuPaymentReque
             Url::parse(&item.router_data.request.get_webhook_url()?)
                 .change_context(errors::ConnectorError::RequestEncodingFailed)?,
         );
-        let payment_method_data = match item.router_data.request.payment_method_data {
-            PaymentMethodData::Card(ref card) => {
-                FiuuPaymentMethodData::try_from((card, item.router_data))
-            }
-            PaymentMethodData::RealTimePayment(ref real_time_payment_data) => {
-                match *real_time_payment_data.clone() {
-                    RealTimePaymentData::DuitNow {} => {
-                        Ok(FiuuPaymentMethodData::FiuuQRData(Box::new(FiuuQRData {
-                            txn_channel: TxnChannel::RppDuitNowQr,
+        let payment_method_data = match item
+            .router_data
+            .request
+            .mandate_id
+            .clone()
+            .and_then(|mandate_id| mandate_id.mandate_reference_id)
+        {
+            None => match item.router_data.request.payment_method_data {
+                PaymentMethodData::Card(ref card) => {
+                    FiuuPaymentMethodData::try_from((card, item.router_data))
+                }
+                PaymentMethodData::RealTimePayment(ref real_time_payment_data) => {
+                    match *real_time_payment_data.clone() {
+                        RealTimePaymentData::DuitNow {} => {
+                            Ok(FiuuPaymentMethodData::FiuuQRData(Box::new(FiuuQRData {
+                                txn_channel: TxnChannel::RppDuitNowQr,
+                            })))
+                        }
+                        RealTimePaymentData::Fps {}
+                        | RealTimePaymentData::PromptPay {}
+                        | RealTimePaymentData::VietQr {} => {
+                            Err(errors::ConnectorError::NotImplemented(
+                                utils::get_unimplemented_payment_method_error_message("fiuu"),
+                            )
+                            .into())
+                        }
+                    }
+                }
+                PaymentMethodData::BankRedirect(ref bank_redirect_data) => match bank_redirect_data
+                {
+                    BankRedirectData::OnlineBankingFpx { ref issuer } => {
+                        Ok(FiuuPaymentMethodData::FiuuFpxData(Box::new(FiuuFPXData {
+                            txn_channel: FPXTxnChannel::try_from(*issuer)?,
+                            non_3ds,
                         })))
                     }
-                    RealTimePaymentData::Fps {}
-                    | RealTimePaymentData::PromptPay {}
-                    | RealTimePaymentData::VietQr {} => {
+                    BankRedirectData::BancontactCard { .. }
+                    | BankRedirectData::Bizum {}
+                    | BankRedirectData::Blik { .. }
+                    | BankRedirectData::Eps { .. }
+                    | BankRedirectData::Giropay { .. }
+                    | BankRedirectData::Ideal { .. }
+                    | BankRedirectData::Interac { .. }
+                    | BankRedirectData::OnlineBankingCzechRepublic { .. }
+                    | BankRedirectData::OnlineBankingFinland { .. }
+                    | BankRedirectData::OnlineBankingPoland { .. }
+                    | BankRedirectData::OnlineBankingSlovakia { .. }
+                    | BankRedirectData::OpenBankingUk { .. }
+                    | BankRedirectData::Przelewy24 { .. }
+                    | BankRedirectData::Sofort { .. }
+                    | BankRedirectData::Trustly { .. }
+                    | BankRedirectData::OnlineBankingThailand { .. }
+                    | BankRedirectData::LocalBankRedirect {} => {
                         Err(errors::ConnectorError::NotImplemented(
                             utils::get_unimplemented_payment_method_error_message("fiuu"),
                         )
                         .into())
                     }
-                }
-            }
-            PaymentMethodData::BankRedirect(ref bank_redirect_data) => match bank_redirect_data {
-                BankRedirectData::OnlineBankingFpx { ref issuer } => {
-                    Ok(FiuuPaymentMethodData::FiuuFpxData(Box::new(FiuuFPXData {
-                        txn_channel: FPXTxnChannel::try_from(*issuer)?,
-                        non_3ds,
-                    })))
-                }
-                BankRedirectData::BancontactCard { .. }
-                | BankRedirectData::Bizum {}
-                | BankRedirectData::Blik { .. }
-                | BankRedirectData::Eps { .. }
-                | BankRedirectData::Giropay { .. }
-                | BankRedirectData::Ideal { .. }
-                | BankRedirectData::Interac { .. }
-                | BankRedirectData::OnlineBankingCzechRepublic { .. }
-                | BankRedirectData::OnlineBankingFinland { .. }
-                | BankRedirectData::OnlineBankingPoland { .. }
-                | BankRedirectData::OnlineBankingSlovakia { .. }
-                | BankRedirectData::OpenBankingUk { .. }
-                | BankRedirectData::Przelewy24 { .. }
-                | BankRedirectData::Sofort { .. }
-                | BankRedirectData::Trustly { .. }
-                | BankRedirectData::OnlineBankingThailand { .. }
-                | BankRedirectData::LocalBankRedirect {} => {
+                },
+                PaymentMethodData::Wallet(ref wallet_data) => match wallet_data {
+                    WalletData::GooglePay(google_pay_data) => {
+                        FiuuPaymentMethodData::try_from(google_pay_data)
+                    }
+                    WalletData::ApplePay(_apple_pay_data) => {
+                        let payment_method_token = item.router_data.get_payment_method_token()?;
+                        match payment_method_token {
+                            PaymentMethodToken::Token(_) => {
+                                Err(unimplemented_payment_method!("Apple Pay", "Manual", "Fiuu"))?
+                            }
+                            PaymentMethodToken::ApplePayDecrypt(decrypt_data) => {
+                                FiuuPaymentMethodData::try_from(decrypt_data)
+                            }
+                            PaymentMethodToken::PazeDecrypt(_) => {
+                                Err(unimplemented_payment_method!("Paze", "Fiuu"))?
+                            }
+                        }
+                    }
+                    WalletData::AliPayQr(_)
+                    | WalletData::AliPayRedirect(_)
+                    | WalletData::AliPayHkRedirect(_)
+                    | WalletData::MomoRedirect(_)
+                    | WalletData::KakaoPayRedirect(_)
+                    | WalletData::GoPayRedirect(_)
+                    | WalletData::GcashRedirect(_)
+                    | WalletData::ApplePayRedirect(_)
+                    | WalletData::ApplePayThirdPartySdk(_)
+                    | WalletData::DanaRedirect {}
+                    | WalletData::GooglePayRedirect(_)
+                    | WalletData::GooglePayThirdPartySdk(_)
+                    | WalletData::MbWayRedirect(_)
+                    | WalletData::MobilePayRedirect(_)
+                    | WalletData::PaypalRedirect(_)
+                    | WalletData::PaypalSdk(_)
+                    | WalletData::Paze(_)
+                    | WalletData::SamsungPay(_)
+                    | WalletData::TwintRedirect {}
+                    | WalletData::VippsRedirect {}
+                    | WalletData::TouchNGoRedirect(_)
+                    | WalletData::WeChatPayRedirect(_)
+                    | WalletData::WeChatPayQr(_)
+                    | WalletData::CashappQr(_)
+                    | WalletData::SwishQr(_)
+                    | WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
+                        utils::get_unimplemented_payment_method_error_message("fiuu"),
+                    )
+                    .into()),
+                },
+                PaymentMethodData::CardRedirect(_)
+                | PaymentMethodData::PayLater(_)
+                | PaymentMethodData::BankDebit(_)
+                | PaymentMethodData::BankTransfer(_)
+                | PaymentMethodData::Crypto(_)
+                | PaymentMethodData::MandatePayment
+                | PaymentMethodData::MobilePayment(_)
+                | PaymentMethodData::Reward
+                | PaymentMethodData::Upi(_)
+                | PaymentMethodData::Voucher(_)
+                | PaymentMethodData::GiftCard(_)
+                | PaymentMethodData::CardToken(_)
+                | PaymentMethodData::OpenBanking(_)
+                | PaymentMethodData::NetworkToken(_)
+                | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                     Err(errors::ConnectorError::NotImplemented(
                         utils::get_unimplemented_payment_method_error_message("fiuu"),
                     )
                     .into())
                 }
             },
-            PaymentMethodData::Wallet(ref wallet_data) => match wallet_data {
-                WalletData::GooglePay(google_pay_data) => {
-                    FiuuPaymentMethodData::try_from(google_pay_data)
-                }
-                WalletData::ApplePay(_apple_pay_data) => {
-                    let payment_method_token = item.router_data.get_payment_method_token()?;
-                    match payment_method_token {
-                        PaymentMethodToken::Token(_) => {
-                            Err(unimplemented_payment_method!("Apple Pay", "Manual", "Fiuu"))?
-                        }
-                        PaymentMethodToken::ApplePayDecrypt(decrypt_data) => {
-                            FiuuPaymentMethodData::try_from(decrypt_data)
-                        }
-                        PaymentMethodToken::PazeDecrypt(_) => {
-                            Err(unimplemented_payment_method!("Paze", "Fiuu"))?
-                        }
+            // Card payments using network transaction ID
+            Some(payments::MandateReferenceId::NetworkMandateId(network_transaction_id)) => {
+                match item.router_data.request.payment_method_data {
+                    PaymentMethodData::CardDetailsForNetworkTransactionId(ref raw_card_details) => {
+                        FiuuPaymentMethodData::try_from((raw_card_details, network_transaction_id))
                     }
+                    _ => Err(errors::ConnectorError::NotImplemented(
+                        utils::get_unimplemented_payment_method_error_message("fiuu"),
+                    )
+                    .into()),
                 }
-                WalletData::AliPayQr(_)
-                | WalletData::AliPayRedirect(_)
-                | WalletData::AliPayHkRedirect(_)
-                | WalletData::MomoRedirect(_)
-                | WalletData::KakaoPayRedirect(_)
-                | WalletData::GoPayRedirect(_)
-                | WalletData::GcashRedirect(_)
-                | WalletData::ApplePayRedirect(_)
-                | WalletData::ApplePayThirdPartySdk(_)
-                | WalletData::DanaRedirect {}
-                | WalletData::GooglePayRedirect(_)
-                | WalletData::GooglePayThirdPartySdk(_)
-                | WalletData::MbWayRedirect(_)
-                | WalletData::MobilePayRedirect(_)
-                | WalletData::PaypalRedirect(_)
-                | WalletData::PaypalSdk(_)
-                | WalletData::Paze(_)
-                | WalletData::SamsungPay(_)
-                | WalletData::TwintRedirect {}
-                | WalletData::VippsRedirect {}
-                | WalletData::TouchNGoRedirect(_)
-                | WalletData::WeChatPayRedirect(_)
-                | WalletData::WeChatPayQr(_)
-                | WalletData::CashappQr(_)
-                | WalletData::SwishQr(_)
-                | WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("fiuu"),
-                )
-                .into()),
-            },
-            PaymentMethodData::CardRedirect(_)
-            | PaymentMethodData::PayLater(_)
-            | PaymentMethodData::BankDebit(_)
-            | PaymentMethodData::BankTransfer(_)
-            | PaymentMethodData::Crypto(_)
-            | PaymentMethodData::MandatePayment
-            | PaymentMethodData::MobilePayment(_)
-            | PaymentMethodData::Reward
-            | PaymentMethodData::Upi(_)
-            | PaymentMethodData::Voucher(_)
-            | PaymentMethodData::GiftCard(_)
-            | PaymentMethodData::CardToken(_)
-            | PaymentMethodData::OpenBanking(_)
-            | PaymentMethodData::NetworkToken(_)
-            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
-                Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("fiuu"),
-                )
-                .into())
             }
+            _ => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("fiuu"),
+            )
+            .into()),
         }?;
 
         Ok(Self {
@@ -556,7 +594,7 @@ impl TryFrom<(&Card, &PaymentsAuthorizeRouterData)> for FiuuPaymentMethodData {
             if item.request.is_customer_initiated_mandate_payment() {
                 (Some(1), Some(item.get_billing_email()?))
             } else {
-                (None, None)
+                (Some(3), None)
             };
         let non_3ds = match item.is_three_ds() {
             false => 1,
@@ -571,6 +609,21 @@ impl TryFrom<(&Card, &PaymentsAuthorizeRouterData)> for FiuuPaymentMethodData {
             cc_year: req_card.card_exp_year.clone(),
             mps_token_status,
             customer_email,
+        })))
+    }
+}
+
+impl TryFrom<(&CardDetailsForNetworkTransactionId, String)> for FiuuPaymentMethodData {
+    type Error = Report<errors::ConnectorError>;
+    fn try_from(
+        (raw_card_data, network_transaction_id): (&CardDetailsForNetworkTransactionId, String),
+    ) -> Result<Self, Self::Error> {
+        Ok(Self::FiuuCardWithNTI(Box::new(FiuuCardWithNTI {
+            txn_channel: TxnChannel::Creditan,
+            cc_pan: raw_card_data.card_number.clone(),
+            cc_month: raw_card_data.card_exp_month.clone(),
+            cc_year: raw_card_data.card_exp_year.clone(),
+            original_scheme_id: Secret::new(network_transaction_id),
         })))
     }
 }
@@ -1092,6 +1145,8 @@ pub struct FiuuPaymentSyncResponse {
     error_desc: String,
     #[serde(rename = "miscellaneous")]
     miscellaneous: Option<HashMap<String, Secret<String>>>,
+    #[serde(rename = "SchemeTransactionID")]
+    scheme_transaction_id: Option<Secret<String>>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Display, Clone, PartialEq)]
@@ -1183,7 +1238,10 @@ impl TryFrom<PaymentsSyncResponseRouterData<FiuuPaymentResponse>> for PaymentsSy
                     redirection_data: Box::new(None),
                     mandate_reference: Box::new(None),
                     connector_metadata: None,
-                    network_txn_id: None,
+                    network_txn_id: response
+                        .scheme_transaction_id
+                        .as_ref()
+                        .map(|id| id.clone().expose()),
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
                     charge_id: None,
