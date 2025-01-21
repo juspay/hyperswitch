@@ -950,20 +950,23 @@ impl super::RedisConnectionPool {
     }
 
     #[instrument(level = "DEBUG", skip(self))]
-    pub async fn incr_keys_using_script<V>(
+    pub async fn evaluate_redis_script<V, T>(
         &self,
         lua_script: &'static str,
         key: Vec<String>,
         values: V,
-    ) -> CustomResult<(), errors::RedisError>
+    ) -> CustomResult<T, errors::RedisError>
     where
         V: TryInto<MultipleValues> + Debug + Send + Sync,
         V::Error: Into<fred::error::RedisError> + Send + Sync,
+        T: serde::de::DeserializeOwned + FromRedis,
     {
-        self.pool
+        let val: T = self
+            .pool
             .eval(lua_script, key, values)
             .await
-            .change_context(errors::RedisError::IncrementHashFieldFailed)
+            .change_context(errors::RedisError::IncrementHashFieldFailed)?;
+        Ok(val)
     }
 }
 
@@ -1060,11 +1063,10 @@ mod tests {
                     .await
                     .expect("failed to create redis connection pool");
                 let lua_script = r#"
-                local results = {}
                 for i = 1, #KEYS do
-                    results[i] = redis.call("INCRBY", KEYS[i], ARGV[i])
+                    redis.call("INCRBY", KEYS[i], ARGV[i])
                 end
-                return results
+                return
                 "#;
                 let mut keys_and_values = HashMap::new();
                 for i in 0..10 {
@@ -1078,7 +1080,45 @@ mod tests {
                     .collect::<Vec<String>>();
 
                 // Act
-                let result = pool.incr_keys_using_script(lua_script, key, values).await;
+                let result = pool
+                    .evaluate_redis_script::<_, ()>(lua_script, key, values)
+                    .await;
+
+                // Assert Setup
+                result.is_ok()
+            })
+        })
+        .await
+        .expect("Spawn block failure");
+
+        assert!(is_success);
+    }
+    #[tokio::test]
+    async fn test_getting_keys_using_scripts() {
+        let is_success = tokio::task::spawn_blocking(move || {
+            futures::executor::block_on(async {
+                // Arrange
+                let pool = RedisConnectionPool::new(&RedisSettings::default())
+                    .await
+                    .expect("failed to create redis connection pool");
+                let lua_script = r#"
+                local results = {}
+                for i = 1, #KEYS do
+                    results[i] = redis.call("GET", KEYS[i])
+                end
+                return results
+                "#;
+                let mut keys_and_values = HashMap::new();
+                for i in 0..10 {
+                    keys_and_values.insert(format!("key{}", i), i);
+                }
+
+                let key = keys_and_values.keys().cloned().collect::<Vec<_>>();
+
+                // Act
+                let result = pool
+                    .evaluate_redis_script::<_, String>(lua_script, key, 0)
+                    .await;
 
                 // Assert Setup
                 result.is_ok()
