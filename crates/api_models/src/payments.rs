@@ -27,12 +27,13 @@ use time::{Date, PrimitiveDateTime};
 use url::Url;
 use utoipa::ToSchema;
 
+#[cfg(feature = "v1")]
+use crate::ephemeral_key::EphemeralKeyCreateResponse;
 #[cfg(feature = "v2")]
 use crate::payment_methods;
 use crate::{
     admin::{self, MerchantConnectorInfo},
     disputes, enums as api_enums,
-    ephemeral_key::EphemeralKeyCreateResponse,
     mandates::RecurringDetails,
     refunds,
 };
@@ -4411,6 +4412,7 @@ pub struct ReceiverDetails {
     amount_remaining: Option<i64>,
 }
 
+#[cfg(feature = "v1")]
 #[derive(Clone, Debug, PartialEq, serde::Serialize, ToSchema, router_derive::PolymorphicSchema)]
 #[generate_schemas(PaymentsCreateResponseOpenApi)]
 pub struct PaymentsResponse {
@@ -5101,6 +5103,7 @@ pub struct PaymentListConstraints {
     pub created_gte: Option<PrimitiveDateTime>,
 }
 
+#[cfg(feature = "v1")]
 #[derive(Clone, Debug, serde::Serialize, ToSchema)]
 pub struct PaymentListResponse {
     /// The number of payments included in the list
@@ -5127,6 +5130,7 @@ pub struct IncrementalAuthorizationResponse {
     pub previously_authorized_amount: MinorUnit,
 }
 
+#[cfg(feature = "v1")]
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct PaymentListResponseV2 {
     /// The number of payments included in the list for given constraints

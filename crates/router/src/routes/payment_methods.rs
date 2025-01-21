@@ -222,16 +222,11 @@ pub async fn list_payment_methods_enabled(
     let flow = Flow::PaymentMethodsList;
     let payment_method_id = path.into_inner();
 
-    let auth = match auth::is_ephemeral_or_publishible_auth(req.headers()) {
-        Ok(auth) => auth,
-        Err(e) => return api::log_and_return_error_response(e),
-    };
-
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
-        payment_method_id,
+        payment_method_id.clone(),
         |state, auth: auth::AuthenticationData, payment_method_id, _| {
             payment_methods_routes::list_payment_methods_enabled(
                 state,
@@ -241,7 +236,7 @@ pub async fn list_payment_methods_enabled(
                 payment_method_id,
             )
         },
-        &*auth,
+        &auth::V2Auth::ClientAuth(diesel_models::ResourceId::PaymentMethod(payment_method_id)),
         api_locking::LockAction::NotApplicable,
     ))
     .await

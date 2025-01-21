@@ -285,7 +285,7 @@ pub enum OutgoingWebhookContent {
 #[serde(tag = "type", content = "object", rename_all = "snake_case")]
 #[cfg(feature = "v2")]
 pub enum OutgoingWebhookContent {
-    #[schema(value_type = PaymentsResponse, title = "PaymentsResponse")]
+    #[schema(value_type = PaymentsRetrieveResponse, title = "PaymentsResponse")]
     PaymentDetails(Box<payments::PaymentsRetrieveResponse>),
     #[schema(value_type = RefundResponse, title = "RefundResponse")]
     RefundDetails(Box<refunds::RefundResponse>),

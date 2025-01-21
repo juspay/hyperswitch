@@ -1403,9 +1403,11 @@ pub async fn create_payment_method_for_intent(
     let db = &*state.store;
     let ephemeral_key = payment_helpers::create_ephemeral_key(
         state,
-        customer_id,
         merchant_id,
-        ephemeral_key::ResourceType::PaymentMethod,
+        vec![
+            diesel_models::ResourceId::Customer(customer_id.clone()),
+            diesel_models::ResourceId::PaymentMethod(payment_method_id.clone()),
+        ],
     )
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)

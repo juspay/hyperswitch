@@ -3,7 +3,7 @@ use common_utils::id_type;
 use time::ext::NumericalDuration;
 
 #[cfg(feature = "v2")]
-use crate::types::storage::ephemeral_key::{EphemeralKeyType, EphemeralKeyTypeNew, ResourceType};
+use crate::types::storage::ephemeral_key::{EphemeralKeyType, EphemeralKeyTypeNew};
 use crate::{
     core::errors::{self, CustomResult},
     db::MockDb,
@@ -67,9 +67,7 @@ mod storage {
 
     use super::EphemeralKeyInterface;
     #[cfg(feature = "v2")]
-    use crate::types::storage::ephemeral_key::{
-        EphemeralKeyType, EphemeralKeyTypeNew, ResourceType,
-    };
+    use crate::types::storage::ephemeral_key::{EphemeralKeyType, EphemeralKeyTypeNew};
     use crate::{
         core::errors::{self, CustomResult},
         services::Store,
@@ -149,10 +147,9 @@ mod storage {
                 id: new.id,
                 created_at,
                 expires,
-                customer_id: new.customer_id,
                 merchant_id: new.merchant_id,
                 secret: new.secret,
-                resource_type: new.resource_type,
+                resource_id: new.resource_id,
             };
             let secret_key = created_ephemeral_key.generate_secret_key();
 

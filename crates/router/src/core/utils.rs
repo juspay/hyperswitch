@@ -1415,6 +1415,7 @@ pub fn get_external_authentication_request_poll_id(
     payment_id.get_external_authentication_request_poll_id()
 }
 
+#[cfg(feature = "v1")]
 pub fn get_html_redirect_response_for_external_authentication(
     return_url_with_query_params: String,
     payment_response: &api_models::payments::PaymentsResponse,

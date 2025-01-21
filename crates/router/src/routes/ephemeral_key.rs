@@ -51,7 +51,7 @@ pub async fn ephemeral_key_create(
         |state, auth: auth::AuthenticationData, payload, _| {
             helpers::make_ephemeral_key(
                 state,
-                payload.customer_id.to_owned(),
+                payload.resource_id.to_owned(),
                 auth.merchant_account,
                 auth.key_store,
                 req.headers(),

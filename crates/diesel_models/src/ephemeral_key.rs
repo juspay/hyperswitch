@@ -4,9 +4,8 @@ use masking::{PeekInterface, Secret};
 pub struct EphemeralKeyTypeNew {
     pub id: common_utils::id_type::EphemeralKeyId,
     pub merchant_id: common_utils::id_type::MerchantId,
-    pub customer_id: common_utils::id_type::GlobalCustomerId,
     pub secret: Secret<String>,
-    pub resource_type: ResourceType,
+    pub resource_id: Vec<ResourceId>,
 }
 
 #[cfg(feature = "v2")]
@@ -14,8 +13,7 @@ pub struct EphemeralKeyTypeNew {
 pub struct EphemeralKeyType {
     pub id: common_utils::id_type::EphemeralKeyId,
     pub merchant_id: common_utils::id_type::MerchantId,
-    pub customer_id: common_utils::id_type::GlobalCustomerId,
-    pub resource_type: ResourceType,
+    pub resource_id: Vec<ResourceId>,
     pub created_at: time::PrimitiveDateTime,
     pub expires: time::PrimitiveDateTime,
     pub secret: Secret<String>,
@@ -51,20 +49,11 @@ impl common_utils::events::ApiEventMetric for EphemeralKey {
     }
 }
 
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    serde::Serialize,
-    serde::Deserialize,
-    strum::Display,
-    strum::EnumString,
-    PartialEq,
-    Eq,
-)]
+#[cfg(feature = "v2")]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "snake_case")]
-pub enum ResourceType {
-    Payment,
-    PaymentMethod,
+pub enum ResourceId {
+    Payment(common_utils::id_type::GlobalPaymentId),
+    PaymentMethod(common_utils::id_type::GlobalPaymentMethodId),
+    Customer(common_utils::id_type::GlobalCustomerId),
 }

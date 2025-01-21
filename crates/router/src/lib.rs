@@ -91,7 +91,6 @@ pub mod headers {
     pub const X_TENANT_ID: &str = "x-tenant-id";
     pub const X_CLIENT_SECRET: &str = "X-Client-Secret";
     pub const X_CONNECTED_MERCHANT_ID: &str = "x-connected-merchant-id";
-    pub const X_RESOURCE_TYPE: &str = "X-Resource-Type";
 }
 
 pub mod pii {
