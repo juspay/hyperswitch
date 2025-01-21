@@ -2652,7 +2652,7 @@ impl
             get_recurring_processing_model(item.router_data)?;
         let browser_info = None;
         let additional_data = get_additional_data(item.router_data);
-        let return_url = item.router_data.request.get_return_url()?;
+        let return_url = item.router_data.request.get_router_return_url()?;
         let payment_method_type = item.router_data.request.payment_method_type;
         let payment_method = match mandate_ref_id {
             payments::MandateReferenceId::ConnectorMandateId(connector_mandate_ids) => {
@@ -2848,7 +2848,7 @@ impl
             get_address_info(item.router_data.get_optional_billing()).and_then(Result::ok);
         let country_code = get_country_code(item.router_data.get_optional_billing());
         let additional_data = get_additional_data(item.router_data);
-        let return_url = item.router_data.request.get_return_url()?;
+        let return_url = item.router_data.request.get_router_return_url()?;
         let card_holder_name = item.router_data.get_optional_billing_full_name();
         let payment_method = AdyenPaymentMethod::try_from((card_data, card_holder_name))?;
         let shopper_email = item.router_data.get_optional_billing_email();
@@ -2918,7 +2918,7 @@ impl
             get_recurring_processing_model(item.router_data)?;
         let browser_info = get_browser_info(item.router_data)?;
         let additional_data = get_additional_data(item.router_data);
-        let return_url = item.router_data.request.get_return_url()?;
+        let return_url = item.router_data.request.get_router_return_url()?;
         let payment_method = AdyenPaymentMethod::try_from((bank_debit_data, item.router_data))?;
         let country_code = get_country_code(item.router_data.get_optional_billing());
         let (store, splits) = match item
@@ -2986,7 +2986,7 @@ impl
         let browser_info = get_browser_info(item.router_data)?;
         let additional_data = get_additional_data(item.router_data);
         let payment_method = AdyenPaymentMethod::try_from((voucher_data, item.router_data))?;
-        let return_url = item.router_data.request.get_return_url()?;
+        let return_url = item.router_data.request.get_router_return_url()?;
         let social_security_number = get_social_security_number(voucher_data);
         let billing_address =
             get_address_info(item.router_data.get_optional_billing()).and_then(Result::ok);
@@ -3054,7 +3054,7 @@ impl
         let auth_type = AdyenAuthType::try_from(&item.router_data.connector_auth_type)?;
         let shopper_interaction = AdyenShopperInteraction::from(item.router_data);
         let payment_method = AdyenPaymentMethod::try_from((bank_transfer_data, item.router_data))?;
-        let return_url = item.router_data.request.get_return_url()?;
+        let return_url = item.router_data.request.get_router_return_url()?;
         let (store, splits) = match item
         .router_data
         .request
@@ -3183,7 +3183,7 @@ impl
             get_recurring_processing_model(item.router_data)?;
         let browser_info = get_browser_info(item.router_data)?;
         let additional_data = get_additional_data(item.router_data);
-        let return_url = item.router_data.request.get_return_url()?;
+        let return_url = item.router_data.request.get_router_return_url()?;
         let payment_method = AdyenPaymentMethod::try_from((
             bank_redirect_data,
             item.router_data.test_mode,
@@ -3390,7 +3390,7 @@ impl
         );
         let (recurring_processing_model, store_payment_method, _) =
             get_recurring_processing_model(item.router_data)?;
-        let return_url = item.router_data.request.get_return_url()?;
+        let return_url = item.router_data.request.get_router_return_url()?;
         let shopper_name = get_shopper_name(item.router_data.get_optional_billing());
         let shopper_email = item.router_data.get_optional_billing_email();
         let billing_address =
@@ -3470,7 +3470,7 @@ impl
         let auth_type = AdyenAuthType::try_from(&item.router_data.connector_auth_type)?;
         let payment_method = AdyenPaymentMethod::try_from(card_redirect_data)?;
         let shopper_interaction = AdyenShopperInteraction::from(item.router_data);
-        let return_url = item.router_data.request.get_return_url()?;
+        let return_url = item.router_data.request.get_router_return_url()?;
         let shopper_name = get_shopper_name(item.router_data.get_optional_billing());
         let shopper_email = item.router_data.get_optional_billing_email();
         let telephone_number = item
@@ -5664,7 +5664,7 @@ impl
             get_address_info(item.router_data.get_optional_billing()).transpose()?;
         let country_code = get_country_code(item.router_data.get_optional_billing());
         let additional_data = get_additional_data(item.router_data);
-        let return_url = item.router_data.request.get_return_url()?;
+        let return_url = item.router_data.request.get_router_return_url()?;
         let card_holder_name = item.router_data.get_optional_billing_full_name();
         let payment_method = AdyenPaymentMethod::try_from((token_data, card_holder_name))?;
         let shopper_email = item.router_data.request.email.clone();

@@ -191,7 +191,7 @@ card.credit = { connector_list = "cybersource" }            # Update Mandate sup
 card.debit = { connector_list = "cybersource" }             # Update Mandate supported payment method type and connector for card 
 
 [network_transaction_id_supported_connectors]
-connector_list = "stripe,adyen,cybersource"
+connector_list = "adyen,cybersource,novalnet,stripe,worldpay"
 
 
 [payouts]
@@ -437,7 +437,7 @@ outgoing_enabled = true
 connectors_with_webhook_source_verification_call = "paypal"        # List of connectors which has additional source verification api-call
 
 [unmasked_headers]
-keys = "accept-language,user-agent"
+keys = "accept-language,user-agent,x-profile-id"
 
 [saved_payment_methods]
 sdk_eligible_payment_methods = "card"

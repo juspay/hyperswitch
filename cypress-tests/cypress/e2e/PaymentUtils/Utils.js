@@ -1,4 +1,4 @@
-import { validateConfig } from "../../utils/featureFlags.js";
+import { execConfig, validateConfig } from "../../utils/featureFlags.js";
 
 import { connectorDetails as adyenConnectorDetails } from "./Adyen.js";
 import { connectorDetails as bankOfAmericaConnectorDetails } from "./BankOfAmerica.js";
@@ -26,6 +26,8 @@ import { connectorDetails as stripeConnectorDetails } from "./Stripe.js";
 import { connectorDetails as trustpayConnectorDetails } from "./Trustpay.js";
 import { connectorDetails as wellsfargoConnectorDetails } from "./WellsFargo.js";
 import { connectorDetails as worldpayConnectorDetails } from "./WorldPay.js";
+import { connectorDetails as deutschebankConnectorDetails } from "./Deutschebank.js";
+import { connectorDetails as xenditConnectorDetails } from "./Xendit.js";
 
 const connectorDetails = {
   adyen: adyenConnectorDetails,
@@ -34,6 +36,7 @@ const connectorDetails = {
   checkout: checkoutConnectorDetails,
   commons: CommonConnectorDetails,
   cybersource: cybersourceConnectorDetails,
+  deutschebank: deutschebankConnectorDetails,
   fiservemea: fiservemeaConnectorDetails,
   iatapay: iatapayConnectorDetails,
   itaubank: itaubankConnectorDetails,
@@ -42,6 +45,7 @@ const connectorDetails = {
   nmi: nmiConnectorDetails,
   novalnet: novalnetConnectorDetails,
   paybox: payboxConnectorDetails,
+  xendit: xenditConnectorDetails,
   paypal: paypalConnectorDetails,
   stripe: stripeConnectorDetails,
   elavon: elavonConnectorDetails,
@@ -65,8 +69,11 @@ export function getConnectorFlowDetails(connectorData, commonData, key) {
 }
 
 function mergeDetails(connectorId) {
-  const connectorData = getValueByKey(connectorDetails, connectorId);
-  const fallbackData = getValueByKey(connectorDetails, "commons");
+  const connectorData = getValueByKey(
+    connectorDetails,
+    connectorId
+  ).authDetails;
+  const fallbackData = getValueByKey(connectorDetails, "commons").authDetails;
   // Merge data, prioritizing connectorData and filling missing data from fallbackData
   const mergedDetails = mergeConnectorDetails(connectorData, fallbackData);
   return mergedDetails;
@@ -99,7 +106,16 @@ function mergeConnectorDetails(source, fallback) {
   return merged;
 }
 
-export function getValueByKey(jsonObject, key) {
+export function handleMultipleConnectors(keys) {
+  return {
+    MULTIPLE_CONNECTORS: {
+      status: true,
+      count: keys.length,
+    },
+  };
+}
+
+export function getValueByKey(jsonObject, key, keyNumber = 0) {
   const data =
     typeof jsonObject === "string" ? JSON.parse(jsonObject) : jsonObject;
 
@@ -108,7 +124,7 @@ export function getValueByKey(jsonObject, key) {
     if (typeof data[key].connector_account_details === "undefined") {
       const keys = Object.keys(data[key]);
 
-      for (let i = 0; i < keys.length; i++) {
+      for (let i = keyNumber; i < keys.length; i++) {
         const currentItem = data[key][keys[i]];
 
         if (
@@ -117,20 +133,23 @@ export function getValueByKey(jsonObject, key) {
             "connector_account_details"
           )
         ) {
-          Cypress.env("MULTIPLE_CONNECTORS", {
-            status: true,
-            count: keys.length,
-          });
-
-          return currentItem;
+          // Return state update instead of setting directly
+          return {
+            authDetails: currentItem,
+            stateUpdate: handleMultipleConnectors(keys),
+          };
         }
       }
     }
-
-    return data[key];
-  } else {
-    return null;
+    return {
+      authDetails: data[key],
+      stateUpdate: null,
+    };
   }
+  return {
+    authDetails: null,
+    stateUpdate: null,
+  };
 }
 
 export const should_continue_further = (data) => {
@@ -182,4 +201,115 @@ export function defaultErrorHandler(response, response_data) {
       }
     }
   }
+}
+
+export function extractIntegerAtEnd(str) {
+  // Match one or more digits at the end of the string
+  const match = str.match(/(\d+)$/);
+  return match ? parseInt(match[0], 10) : 0;
+}
+
+// Common helper function to check if operation should proceed
+function shouldProceedWithOperation(multipleConnector, multipleConnectors) {
+  return !(
+    multipleConnector?.nextConnector === true &&
+    (multipleConnectors?.status === false ||
+      typeof multipleConnectors === "undefined")
+  );
+}
+
+// Helper to get connector configuration
+function getConnectorConfig(
+  globalState,
+  multipleConnector = { nextConnector: false }
+) {
+  const multipleConnectors = globalState.get("MULTIPLE_CONNECTORS");
+  const mcaConfig = getConnectorDetails(globalState.get("connectorId"));
+
+  return {
+    config: {
+      CONNECTOR_CREDENTIAL:
+        multipleConnector?.nextConnector && multipleConnectors?.status
+          ? multipleConnector
+          : mcaConfig?.multi_credential_config || multipleConnector,
+    },
+    multipleConnectors,
+  };
+}
+
+// Simplified createBusinessProfile
+export function createBusinessProfile(
+  createBusinessProfileBody,
+  globalState,
+  multipleConnector = { nextConnector: false }
+) {
+  const { config, multipleConnectors } = getConnectorConfig(
+    globalState,
+    multipleConnector
+  );
+  const { profilePrefix } = execConfig(config);
+
+  if (shouldProceedWithOperation(multipleConnector, multipleConnectors)) {
+    cy.createBusinessProfileTest(
+      createBusinessProfileBody,
+      globalState,
+      profilePrefix
+    );
+  }
+}
+
+// Simplified createMerchantConnectorAccount
+export function createMerchantConnectorAccount(
+  paymentType,
+  createMerchantConnectorAccountBody,
+  globalState,
+  paymentMethodsEnabled,
+  multipleConnector = { nextConnector: false }
+) {
+  const { config, multipleConnectors } = getConnectorConfig(
+    globalState,
+    multipleConnector
+  );
+  const { profilePrefix, merchantConnectorPrefix } = execConfig(config);
+
+  if (shouldProceedWithOperation(multipleConnector, multipleConnectors)) {
+    cy.createConnectorCallTest(
+      paymentType,
+      createMerchantConnectorAccountBody,
+      paymentMethodsEnabled,
+      globalState,
+      profilePrefix,
+      merchantConnectorPrefix
+    );
+  }
+}
+
+export function updateBusinessProfile(
+  updateBusinessProfileBody,
+  is_connector_agnostic_enabled,
+  collect_billing_address_from_wallet_connector,
+  collect_shipping_address_from_wallet_connector,
+  always_collect_billing_address_from_wallet_connector,
+  always_collect_shipping_address_from_wallet_connector,
+  globalState
+) {
+  const multipleConnectors = globalState.get("MULTIPLE_CONNECTORS");
+  cy.log(`MULTIPLE_CONNECTORS: ${JSON.stringify(multipleConnectors)}`);
+
+  // Get MCA config
+  const mcaConfig = getConnectorDetails(globalState.get("connectorId"));
+  const { profilePrefix } = execConfig({
+    CONNECTOR_CREDENTIAL: mcaConfig?.multi_credential_config,
+  });
+
+  cy.UpdateBusinessProfileTest(
+    updateBusinessProfileBody,
+    is_connector_agnostic_enabled,
+    collect_billing_address_from_wallet_connector,
+    collect_shipping_address_from_wallet_connector,
+    always_collect_billing_address_from_wallet_connector,
+    always_collect_shipping_address_from_wallet_connector,
+    globalState,
+    profilePrefix
+  );
 }

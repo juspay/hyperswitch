@@ -22,11 +22,11 @@ pub struct RouterData<Flow, Request, Response> {
     // Make this change after all the connector dependency has been removed from connectors
     pub payment_id: String,
     pub attempt_id: String,
+    pub tenant_id: id_type::TenantId,
     pub status: common_enums::enums::AttemptStatus,
     pub payment_method: common_enums::enums::PaymentMethod,
     pub connector_auth_type: ConnectorAuthType,
     pub description: Option<String>,
-    pub return_url: Option<String>,
     pub address: PaymentAddress,
     pub auth_type: common_enums::enums::AuthenticationType,
     pub connector_meta_data: Option<common_utils::pii::SecretSerdeValue>,

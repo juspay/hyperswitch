@@ -990,8 +990,10 @@
                     "connector_id": "mca_5apGeP94tMts6rg3U3kR",
                     "connector_resource_id": "7256228702616471803954",
                     "data": {
-                      "amount": 6540,
-                      "currency": "USD"
+                      "refund": {
+                        "amount": 6540,
+                        "currency": "USD"
+                      }
                     },
                     "type": "refund"
                   }
@@ -6050,7 +6052,7 @@
         "required": [
           "payment_description",
           "regular_billing",
-          "management_url"
+          "management_u_r_l"
         ],
         "properties": {
           "payment_description": {
@@ -6065,7 +6067,7 @@
             "description": "A localized billing agreement that the payment sheet displays to the user before the user authorizes the payment",
             "nullable": true
           },
-          "management_url": {
+          "management_u_r_l": {
             "type": "string",
             "description": "A URL to a web page where the user can update or delete the payment method for the recurring payment",
             "example": "https://hyperswitch.io"
@@ -9231,7 +9233,6 @@
       },
       "Connector": {
         "type": "string",
-        "description": "A connector is an integration to fulfill payments",
         "enum": [
           "adyenplatform",
           "phonypay",
@@ -9315,6 +9316,7 @@
           "signifyd",
           "plaid",
           "riskified",
+          "xendit",
           "zen",
           "zsl"
         ]
@@ -23239,6 +23241,16 @@
             "description": "The code for the error",
             "nullable": true
           },
+          "unified_code": {
+            "type": "string",
+            "description": "Error code unified across the connectors is received here if there was an error while calling connector",
+            "nullable": true
+          },
+          "unified_message": {
+            "type": "string",
+            "description": "Error message unified across the connectors is received here if there was an error while calling connector",
+            "nullable": true
+          },
           "created_at": {
             "type": "string",
             "format": "date-time",
@@ -23886,7 +23898,7 @@
       },
       "RoutableConnectors": {
         "type": "string",
-        "description": "Connectors eligible for payments routing",
+        "description": "RoutableConnectors are the subset of Connectors that are eligible for payments routing",
         "enum": [
           "adyenplatform",
           "phonypay",

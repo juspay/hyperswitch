@@ -1,3 +1,5 @@
+import { getCustomExchange } from "./Commons";
+
 const billing = {
   address: {
     line1: "1467",
@@ -54,14 +56,14 @@ const paymentMethodDataNoThreeDsResponse = {
     card_extended_bin: null,
     card_exp_month: "10",
     card_exp_year: "30",
-    card_holder_name: null,
+    card_holder_name: "morino",
     payment_checks: null,
     authentication_data: null,
   },
   billing: null,
 };
 
-const payment_method_data_3ds = {
+const paymentMethodDataThreeDsResponse = {
   card: {
     last4: "1091",
     card_type: "CREDIT",
@@ -72,7 +74,7 @@ const payment_method_data_3ds = {
     card_extended_bin: null,
     card_exp_month: "10",
     card_exp_year: "30",
-    card_holder_name: null,
+    card_holder_name: "morino",
     payment_checks: null,
     authentication_data: null,
   },
@@ -195,7 +197,7 @@ export const connectorDetails = {
         },
       },
     },
-    Void: {
+    Void: getCustomExchange({
       Request: {},
       Response: {
         status: 200,
@@ -211,7 +213,7 @@ export const connectorDetails = {
           code: "IR_16",
         },
       },
-    },
+    }),
     VoidAfterConfirm: {
       Request: {},
       Response: {
@@ -326,7 +328,7 @@ export const connectorDetails = {
         body: {
           status: "requires_customer_action",
           setup_future_usage: "on_session",
-          payment_method_data: payment_method_data_3ds,
+          payment_method_data: paymentMethodDataThreeDsResponse,
         },
       },
     },
@@ -347,7 +349,7 @@ export const connectorDetails = {
         body: {
           status: "requires_customer_action",
           setup_future_usage: "on_session",
-          payment_method_data: payment_method_data_3ds,
+          payment_method_data: paymentMethodDataThreeDsResponse,
         },
       },
     },
@@ -507,6 +509,73 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_capture",
+        },
+      },
+    },
+    PaymentIntentOffSession: {
+      Request: {
+        amount: 6500,
+        authentication_type: "no_three_ds",
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "off_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    },
+    MITAutoCapture: {
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    MITManualCapture: {
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
+        },
+      },
+    },
+    PaymentIntentWithShippingCost: {
+      Request: {
+        currency: "USD",
+        shipping_cost: 50,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+          shipping_cost: 50,
+          amount: 6500,
+        },
+      },
+    },
+    PaymentConfirmWithShippingCost: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNoThreeDsCardDetailsRequest,
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          shipping_cost: 50,
+          amount_received: 6550,
+          amount: 6500,
+          net_amount: 6550,
         },
       },
     },

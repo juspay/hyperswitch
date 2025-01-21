@@ -148,12 +148,6 @@ pub struct Browser {
 }
 
 #[derive(Debug, Serialize)]
-pub struct Location {
-    lat: String,
-    lon: String,
-}
-
-#[derive(Debug, Serialize)]
 pub struct Mobile {
     device_model: Option<String>,
     os_type: Option<String>,

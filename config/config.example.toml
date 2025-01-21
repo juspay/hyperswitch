@@ -23,11 +23,10 @@ certificate = "/path/to/certificate.pem"
 # Proxy server configuration for connecting to payment gateways.
 # Don't define the fields if a Proxy isn't needed. Empty strings will cause failure.
 [proxy]
-# http_url = "http proxy url"   # Proxy all HTTP traffic via this proxy
-# https_url = "https proxy url" # Proxy all HTTPS traffic via this proxy
-idle_pool_connection_timeout = 90 # Timeout for idle pool connections (defaults to 90s)
-bypass_proxy_urls = []            # A list of URLs that should bypass the proxy
-
+# http_url = "http proxy url"                   # Proxy all HTTP traffic via this proxy
+# https_url = "https proxy url"                 # Proxy all HTTPS traffic via this proxy
+idle_pool_connection_timeout = 90               # Timeout for idle pool connections (defaults to 90s)
+bypass_proxy_hosts = "localhost, cluster.local" # A comma-separated list of domains or IP addresses that should not use the proxy. Whitespace between entries would be ignored.
 
 # Configuration for the Key Manager Service
 [key_manager]
@@ -468,8 +467,8 @@ bank_redirect.giropay = { connector_list = "adyen,globalpay" }
 
 
 [mandates.update_mandate_supported]
-card.credit = { connector_list = "cybersource" } # Update Mandate supported payment method type and connector for card 
-card.debit = { connector_list = "cybersource" }  # Update Mandate supported payment method type and connector for card 
+card.credit = { connector_list = "cybersource" } # Update Mandate supported payment method type and connector for card
+card.debit = { connector_list = "cybersource" }  # Update Mandate supported payment method type and connector for card
 
 # Required fields info used while listing the payment_method_data
 [required_fields.pay_later] # payment_method = "pay_later"
@@ -762,7 +761,7 @@ sdk_eligible_payment_methods = "card"
 
 [multitenancy]
 enabled = false
-global_tenant = { schema = "public", redis_key_prefix = "", clickhouse_database = "default"}
+global_tenant = { tenant_id = "global", schema = "public", redis_key_prefix = "", clickhouse_database = "default"}
 
 [multitenancy.tenants.public]
 base_url = "http://localhost:8080"               # URL of the tenant
@@ -803,7 +802,7 @@ check_token_status_url= ""    # base url to check token status from token servic
 connector_list = "cybersource" # Supported connectors for network tokenization
 
 [network_transaction_id_supported_connectors]
-connector_list = "stripe,adyen,cybersource" # Supported connectors for network transaction id
+connector_list = "adyen,cybersource,novalnet,stripe,worldpay" # Supported connectors for network transaction id
 
 [grpc_client.dynamic_routing_client] # Dynamic Routing Client Configuration
 host = "localhost" # Client Host

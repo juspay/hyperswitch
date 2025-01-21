@@ -879,7 +879,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundSyncResponse>>
                 transaction
                     .transaction_reference
                     .clone()
-                    .map_or(false, |transaction_instance| {
+                    .is_some_and(|transaction_instance| {
                         transaction_instance == item.data.request.refund_id
                     })
             })

@@ -2190,92 +2190,6 @@
         ]
       }
     },
-    "/v2/payments/{id}/saved-payment-methods": {
-      "get": {
-        "tags": [
-          "Payment Methods"
-        ],
-        "summary": "List customer saved payment methods for a payment",
-        "description": "To filter and list the applicable payment methods for a particular Customer ID, is to be associated with a payment",
-        "operationId": "List all Payment Methods for a Customer",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/PaymentMethodListRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Payment Methods retrieved for customer tied to its respective client-secret passed in the param",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CustomerPaymentMethodsListResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Invalid Data"
-          },
-          "404": {
-            "description": "Payment Methods does not exist in records"
-          }
-        },
-        "security": [
-          {
-            "publishable_key": []
-          }
-        ]
-      }
-    },
-    "/v2/customers/{id}/saved-payment-methods": {
-      "get": {
-        "tags": [
-          "Payment Methods"
-        ],
-        "summary": "List saved payment methods for a Customer",
-        "description": "To filter and list the applicable payment methods for a particular Customer ID, to be used in a non-payments context",
-        "operationId": "List all Payment Methods for a Customer",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/PaymentMethodListRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Payment Methods retrieved",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CustomerPaymentMethodsListResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Invalid Data"
-          },
-          "404": {
-            "description": "Payment Methods does not exist in records"
-          }
-        },
-        "security": [
-          {
-            "api_key": []
-          }
-        ]
-      }
-    },
     "/v2/payment-methods": {
       "post": {
         "tags": [
@@ -2352,6 +2266,60 @@
         "security": [
           {
             "api_key": []
+          }
+        ]
+      }
+    },
+    "/v2/payment-methods/{id}/list-enabled-payment-methods": {
+      "get": {
+        "tags": [
+          "Payment Methods"
+        ],
+        "summary": "Payment Methods - Payment Methods List",
+        "description": "List the payment methods eligible for a payment method.",
+        "operationId": "List Payment methods for a Payment Method Intent",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The global payment method id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile ID associated to the payment method intent",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": {
+              "X-Profile-Id": "pro_abcdefghijklmnop"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Get the payment methods",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentMethodListResponseForPayments"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No payment method found with the given id"
+          }
+        },
+        "security": [
+          {
+            "api_key": [],
+            "ephemeral_key": []
           }
         ]
       }
@@ -3438,7 +3406,7 @@
         "required": [
           "payment_description",
           "regular_billing",
-          "management_url"
+          "management_u_r_l"
         ],
         "properties": {
           "payment_description": {
@@ -3453,7 +3421,7 @@
             "description": "A localized billing agreement that the payment sheet displays to the user before the user authorizes the payment",
             "nullable": true
           },
-          "management_url": {
+          "management_u_r_l": {
             "type": "string",
             "description": "A URL to a web page where the user can update or delete the payment method for the recurring payment",
             "example": "https://hyperswitch.io"
@@ -6612,7 +6580,6 @@
       },
       "Connector": {
         "type": "string",
-        "description": "A connector is an integration to fulfill payments",
         "enum": [
           "adyenplatform",
           "phonypay",
@@ -6696,6 +6663,7 @@
           "signifyd",
           "plaid",
           "riskified",
+          "xendit",
           "zen",
           "zsl"
         ]
@@ -7461,39 +7429,6 @@
         },
         "additionalProperties": false
       },
-      "CustomerDefaultPaymentMethodResponse": {
-        "type": "object",
-        "required": [
-          "customer_id",
-          "payment_method"
-        ],
-        "properties": {
-          "default_payment_method_id": {
-            "type": "string",
-            "description": "The unique identifier of the Payment method",
-            "example": "card_rGK4Vi5iSW70MY7J2mIg",
-            "nullable": true
-          },
-          "customer_id": {
-            "type": "string",
-            "description": "The unique identifier of the customer.",
-            "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
-            "maxLength": 64,
-            "minLength": 1
-          },
-          "payment_method": {
-            "$ref": "#/components/schemas/PaymentMethod"
-          },
-          "payment_method_type": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/PaymentMethodType"
-              }
-            ],
-            "nullable": true
-          }
-        }
-      },
       "CustomerDeleteResponse": {
         "type": "object",
         "required": [
@@ -7993,24 +7928,6 @@
           "challenge",
           "frictionless"
         ]
-      },
-      "DefaultPaymentMethod": {
-        "type": "object",
-        "required": [
-          "customer_id",
-          "payment_method_id"
-        ],
-        "properties": {
-          "customer_id": {
-            "type": "string",
-            "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
-            "maxLength": 64,
-            "minLength": 1
-          },
-          "payment_method_id": {
-            "type": "string"
-          }
-        }
       },
       "DeviceChannel": {
         "type": "string",
@@ -13896,13 +13813,13 @@
       "PaymentMethodDeleteResponse": {
         "type": "object",
         "required": [
-          "payment_method_id"
+          "id"
         ],
         "properties": {
-          "payment_method_id": {
+          "id": {
             "type": "string",
             "description": "The unique identifier of the Payment method",
-            "example": "card_rGK4Vi5iSW70MY7J2mIg"
+            "example": "12345_pm_01926c58bc6e77c09e809964e72af8c8"
           }
         }
       },
@@ -14079,67 +13996,15 @@
       "PaymentMethodListResponse": {
         "type": "object",
         "required": [
-          "currency",
-          "payment_methods",
-          "mandate_payment",
-          "show_surcharge_breakup_screen",
-          "request_external_three_ds_authentication",
-          "is_tax_calculation_enabled"
+          "payment_methods_enabled"
         ],
         "properties": {
-          "redirect_url": {
-            "type": "string",
-            "description": "Redirect URL of the merchant",
-            "example": "https://www.google.com",
-            "nullable": true
-          },
-          "currency": {
-            "$ref": "#/components/schemas/Currency"
-          },
-          "payment_methods": {
+          "payment_methods_enabled": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/ResponsePaymentMethodsEnabled"
+              "$ref": "#/components/schemas/ResponsePaymentMethodTypes"
             },
-            "description": "Information about the payment method"
-          },
-          "mandate_payment": {
-            "$ref": "#/components/schemas/MandateType"
-          },
-          "merchant_name": {
-            "type": "string",
-            "nullable": true
-          },
-          "show_surcharge_breakup_screen": {
-            "type": "boolean",
-            "description": "flag to indicate if surcharge and tax breakup screen should be shown or not"
-          },
-          "payment_type": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/PaymentType"
-              }
-            ],
-            "nullable": true
-          },
-          "request_external_three_ds_authentication": {
-            "type": "boolean",
-            "description": "flag to indicate whether to perform external 3ds authentication",
-            "example": true
-          },
-          "collect_shipping_details_from_wallets": {
-            "type": "boolean",
-            "description": "flag that indicates whether to collect shipping details from wallets or from the customer",
-            "nullable": true
-          },
-          "collect_billing_details_from_wallets": {
-            "type": "boolean",
-            "description": "flag that indicates whether to collect billing details from wallets or from the customer",
-            "nullable": true
-          },
-          "is_tax_calculation_enabled": {
-            "type": "boolean",
-            "description": "flag that indicates whether to calculate tax on the order amount"
+            "description": "The list of payment methods that are enabled for the business profile"
           }
         }
       },
@@ -14152,7 +14017,7 @@
           "payment_methods_enabled": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/ResponsePaymentMethodTypes"
+              "$ref": "#/components/schemas/ResponsePaymentMethodTypesForPayments"
             },
             "description": "The list of payment methods that are enabled for the business profile"
           },
@@ -14169,13 +14034,18 @@
       "PaymentMethodResponse": {
         "type": "object",
         "required": [
+          "id",
           "merchant_id",
           "customer_id",
-          "payment_method_id",
           "payment_method_type",
           "recurring_enabled"
         ],
         "properties": {
+          "id": {
+            "type": "string",
+            "description": "The unique identifier of the Payment method",
+            "example": "12345_pm_01926c58bc6e77c09e809964e72af8c8"
+          },
           "merchant_id": {
             "type": "string",
             "description": "Unique identifier for a merchant",
@@ -14187,11 +14057,6 @@
             "example": "12345_cus_01926c58bc6e77c09e809964e72af8c8",
             "maxLength": 64,
             "minLength": 32
-          },
-          "payment_method_id": {
-            "type": "string",
-            "description": "The unique identifier of the Payment method",
-            "example": "card_rGK4Vi5iSW70MY7J2mIg"
           },
           "payment_method_type": {
             "$ref": "#/components/schemas/PaymentMethod"
@@ -14266,6 +14131,7 @@
         "oneOf": [
           {
             "type": "object",
+            "title": "card",
             "required": [
               "card_networks"
             ],
@@ -14280,6 +14146,7 @@
           },
           {
             "type": "object",
+            "title": "bank",
             "required": [
               "bank_names"
             ],
@@ -19194,21 +19061,56 @@
             "type": "object",
             "required": [
               "payment_method_type",
-              "payment_method_subtype"
+              "payment_method_subtype",
+              "required_fields"
             ],
             "properties": {
               "payment_method_type": {
-                "$ref": "#/components/schemas/PaymentMethodType"
+                "$ref": "#/components/schemas/PaymentMethod"
               },
               "payment_method_subtype": {
                 "$ref": "#/components/schemas/PaymentMethodType"
               },
               "required_fields": {
-                "type": "object",
-                "description": "Required fields for the payment_method_type.\nThis is the union of all the required fields for the payment method type enabled in all the connectors.",
-                "additionalProperties": {
+                "type": "array",
+                "items": {
                   "$ref": "#/components/schemas/RequiredFieldInfo"
                 },
+                "description": "Required fields for the payment_method_type.\nThis is the union of all the required fields for the payment method type enabled in all the connectors."
+              }
+            }
+          }
+        ]
+      },
+      "ResponsePaymentMethodTypesForPayments": {
+        "allOf": [
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodSubtypeSpecificData"
+              }
+            ],
+            "nullable": true
+          },
+          {
+            "type": "object",
+            "required": [
+              "payment_method_type",
+              "payment_method_subtype"
+            ],
+            "properties": {
+              "payment_method_type": {
+                "$ref": "#/components/schemas/PaymentMethod"
+              },
+              "payment_method_subtype": {
+                "$ref": "#/components/schemas/PaymentMethodType"
+              },
+              "required_fields": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/RequiredFieldInfo"
+                  }
+                ],
                 "nullable": true
               },
               "surcharge_details": {
@@ -19441,7 +19343,7 @@
       },
       "RoutableConnectors": {
         "type": "string",
-        "description": "Connectors eligible for payments routing",
+        "description": "RoutableConnectors are the subset of Connectors that are eligible for payments routing",
         "enum": [
           "adyenplatform",
           "phonypay",

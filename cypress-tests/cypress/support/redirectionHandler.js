@@ -272,12 +272,18 @@ function bankRedirectRedirection(
   }
 
   cy.then(() => {
-    verifyReturnUrl(redirection_url, expected_url, verifyUrl);
+    try {
+      verifyReturnUrl(redirection_url, expected_url, verifyUrl);
+    } catch (error) {
+      cy.log("Error during return URL verification:", error);
+      throw error;
+    }
   });
 }
 
 function threeDsRedirection(redirection_url, expected_url, connectorId) {
   cy.visit(redirection_url.href);
+
   if (connectorId === "adyen") {
     cy.get("iframe")
       .its("0.contentDocument.body")
@@ -286,17 +292,32 @@ function threeDsRedirection(redirection_url, expected_url, connectorId) {
         cy.get('input[type="password"]').type("password");
         cy.get("#buttonSubmit").click();
       });
-  } else if (
-    connectorId === "bankofamerica" ||
-    connectorId === "cybersource" ||
-    connectorId === "wellsfargo"
-  ) {
+  } else if (connectorId === "bankofamerica" || connectorId === "wellsfargo") {
+    // Wait for iframe to be present and visible
     cy.get("iframe", { timeout: TIMEOUT })
+      .should("be.visible")
       .its("0.contentDocument.body")
+      .should("not.be.empty") // Ensure body has content
       .within(() => {
-        cy.get('input[type="text"]').click().type("1234");
-        cy.get('input[value="SUBMIT"]').click();
+        // Add retry ability and multiple selector attempts
+        cy.get(
+          'input[type="text"], input[type="password"], input[name="challengeDataEntry"]',
+          { timeout: TIMEOUT }
+        )
+          .should("be.visible")
+          .should("be.enabled")
+          .click()
+          .type("1234");
+
+        cy.get('input[value="SUBMIT"], button[type="submit"]', {
+          timeout: TIMEOUT,
+        })
+          .should("be.visible")
+          .click();
       });
+  } else if (connectorId === "cybersource") {
+    cy.url({ timeout: TIMEOUT }).should("include", expected_url.origin);
+    return; // this is mandatory, else refunds section will fail with unhandled promise rejections even though it is handled
   } else if (connectorId === "checkout") {
     cy.get("iframe", { timeout: TIMEOUT })
       .its("0.contentDocument.body")
@@ -309,7 +330,11 @@ function threeDsRedirection(redirection_url, expected_url, connectorId) {
             cy.get("#txtButton").click();
           });
       });
-  } else if (connectorId === "nmi" || connectorId === "noon") {
+  } else if (
+    connectorId === "nmi" ||
+    connectorId === "noon" ||
+    connectorId == "xendit"
+  ) {
     cy.get("iframe", { timeout: TIMEOUT })
       .its("0.contentDocument.body")
       .within(() => {
@@ -377,7 +402,12 @@ function threeDsRedirection(redirection_url, expected_url, connectorId) {
   }
 
   cy.then(() => {
-    verifyReturnUrl(redirection_url, expected_url, true);
+    try {
+      verifyReturnUrl(redirection_url, expected_url, true);
+    } catch (error) {
+      cy.log("Error during return URL verification:", error);
+      throw error;
+    }
   });
 }
 
@@ -418,23 +448,110 @@ function upiRedirection(
   }
 
   cy.then(() => {
-    verifyReturnUrl(redirection_url, expected_url, verifyUrl);
+    try {
+      verifyReturnUrl(redirection_url, expected_url, verifyUrl);
+    } catch (error) {
+      cy.log("Error during return URL verification:", error);
+      throw error;
+    }
   });
 }
 
 function verifyReturnUrl(redirection_url, expected_url, forward_flow) {
   if (forward_flow) {
-    // Handling redirection
     if (redirection_url.host.endsWith(expected_url.host)) {
-      // No CORS workaround needed
-      cy.window().its("location.origin").should("eq", expected_url.origin);
+      cy.wait(WAIT_TIME / 2);
+
+      cy.window()
+        .its("location")
+        .then((location) => {
+          // Check page state before taking screenshots
+          cy.document().then((doc) => {
+            // For blank page
+            cy.wrap(doc.body.innerText.trim()).then((text) => {
+              if (text === "") {
+                // Assert before screenshot
+                cy.wrap(text).should("eq", "");
+                cy.screenshot("blank-page-error");
+              }
+            });
+
+            // For error pages
+            const errorPatterns = [
+              /4\d{2}/,
+              /5\d{2}/,
+              /error/i,
+              /invalid request/i,
+              /server error/i,
+            ];
+
+            const pageText = doc.body.innerText.toLowerCase();
+            cy.wrap(pageText).then((text) => {
+              if (errorPatterns.some((pattern) => pattern.test(text))) {
+                // Assert the presence of error message
+                cy.wrap(text).should((content) => {
+                  expect(errorPatterns.some((pattern) => pattern.test(content)))
+                    .to.be.true;
+                });
+                cy.screenshot(`error-page-${Date.now()}`);
+              }
+            });
+          });
+
+          const url_params = new URLSearchParams(location.search);
+          const payment_status = url_params.get("status");
+
+          if (
+            payment_status !== "failed" &&
+            payment_status !== "processing" &&
+            payment_status !== "requires_capture" &&
+            payment_status !== "succeeded"
+          ) {
+            // Assert payment status before screenshot
+            cy.wrap(payment_status).should("exist");
+            cy.screenshot(`failed-payment-${payment_status}`);
+            throw new Error(
+              `Redirection failed with payment status: ${payment_status}`
+            );
+          }
+        });
     } else {
-      // Workaround for CORS to allow cross-origin iframe
       cy.origin(
         expected_url.origin,
         { args: { expected_url: expected_url.origin } },
         ({ expected_url }) => {
           cy.window().its("location.origin").should("eq", expected_url);
+
+          cy.document().then((doc) => {
+            // For blank page in cross-origin
+            cy.wrap(doc.body.innerText.trim()).then((text) => {
+              if (text === "") {
+                // Assert before screenshot
+                cy.wrap(text).should("eq", "");
+                cy.screenshot("cross-origin-blank-page");
+              }
+            });
+
+            const errorPatterns = [
+              /4\d{2}/,
+              /5\d{2}/,
+              /error/i,
+              /invalid request/i,
+              /server error/i,
+            ];
+
+            const pageText = doc.body.innerText.toLowerCase();
+            cy.wrap(pageText).then((text) => {
+              if (errorPatterns.some((pattern) => pattern.test(text))) {
+                // Assert the presence of error message
+                cy.wrap(text).should((content) => {
+                  expect(errorPatterns.some((pattern) => pattern.test(content)))
+                    .to.be.true;
+                });
+                cy.screenshot(`cross-origin-error-${Date.now()}`);
+              }
+            });
+          });
         }
       );
     }

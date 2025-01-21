@@ -1199,6 +1199,42 @@ impl IncomingWebhook for Worldpay {
         let psync_body = WorldpayEventResponse::try_from(body)?;
         Ok(Box::new(psync_body))
     }
+
+    fn get_mandate_details(
+        &self,
+        request: &IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<
+        Option<hyperswitch_domain_models::router_flow_types::ConnectorMandateDetails>,
+        errors::ConnectorError,
+    > {
+        let body: WorldpayWebhookTransactionId = request
+            .body
+            .parse_struct("WorldpayWebhookTransactionId")
+            .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
+        let mandate_reference = body.event_details.token.map(|mandate_token| {
+            hyperswitch_domain_models::router_flow_types::ConnectorMandateDetails {
+                connector_mandate_id: mandate_token.href,
+            }
+        });
+        Ok(mandate_reference)
+    }
+
+    fn get_network_txn_id(
+        &self,
+        request: &IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<
+        Option<hyperswitch_domain_models::router_flow_types::ConnectorNetworkTxnId>,
+        errors::ConnectorError,
+    > {
+        let body: WorldpayWebhookTransactionId = request
+            .body
+            .parse_struct("WorldpayWebhookTransactionId")
+            .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
+        let optional_network_txn_id = body.event_details.scheme_reference.map(|network_txn_id| {
+            hyperswitch_domain_models::router_flow_types::ConnectorNetworkTxnId::new(network_txn_id)
+        });
+        Ok(optional_network_txn_id)
+    }
 }
 
 impl ConnectorRedirectResponse for Worldpay {

@@ -236,7 +236,7 @@ impl TryFrom<&KlarnaRouterData<&types::PaymentsAuthorizeRouterData>> for KlarnaP
     ) -> Result<Self, Self::Error> {
         let request = &item.router_data.request;
         let payment_method_data = request.payment_method_data.clone();
-        let return_url = item.router_data.request.get_return_url()?;
+        let return_url = item.router_data.request.get_router_return_url()?;
         let webhook_url = item.router_data.request.get_webhook_url()?;
         match payment_method_data {
             domain::PaymentMethodData::PayLater(domain::PayLaterData::KlarnaSdk { .. }) => {

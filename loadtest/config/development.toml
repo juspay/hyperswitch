@@ -370,7 +370,7 @@ card.credit ={connector_list ="cybersource"}
 card.debit = {connector_list ="cybersource"}
 
 [network_transaction_id_supported_connectors]
-connector_list = "stripe,adyen,cybersource"
+connector_list = "adyen,cybersource,novalnet,stripe,worldpay"
 
 [analytics]
 source = "sqlx"
@@ -396,11 +396,11 @@ client_secret = ""
 partner_id = ""
 
 [unmasked_headers]
-keys = "accept-language,user-agent"
+keys = "accept-language,user-agent,x-profile-id"
 
 [multitenancy]
 enabled = false
-global_tenant = { schema = "public", redis_key_prefix = "" }
+global_tenant = { tenant_id = "global", schema = "public", redis_key_prefix = "" }
 
 [multitenancy.tenants.public]
 base_url = "http://localhost:8080" 
