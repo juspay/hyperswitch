@@ -1291,10 +1291,6 @@ pub async fn perform_dynamic_routing(
     profile: &domain::Profile,
     dynamic_routing_config_params_interpolator: routing::helpers::DynamicRoutingConfigParamsInterpolator,
 ) -> RoutingResult<Vec<api_routing::RoutableConnectorChoice>> {
-    logger::debug!(
-        "performing dynamic_routing for profile {}",
-        profile.get_id().get_string_repr()
-    );
     let dynamic_routing_algo_ref: api_routing::DynamicRoutingAlgorithmRef = profile
         .dynamic_routing_algorithm
         .clone()
@@ -1308,6 +1304,11 @@ pub async fn perform_dynamic_routing(
         .ok_or(errors::RoutingError::GenericNotFoundError {
             field: "dynamic_routing_algorithm".to_string(),
         })?;
+
+    logger::debug!(
+        "performing dynamic_routing for profile {}",
+        profile.get_id().get_string_repr()
+    );
 
     let connector_list = match dynamic_routing_algo_ref
         .success_based_algorithm
