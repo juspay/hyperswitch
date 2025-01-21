@@ -23,8 +23,23 @@ use crate::{
     transformers::{ForeignFrom, ForeignTryFrom},
 };
 
+macro_rules! impl_get_tenant_for_request {
+    ($ty:ident) => {
+        impl GetKeymanagerTenant for $ty {
+            fn get_tenant_id(&self, state: &KeyManagerState) -> id_type::TenantId {
+                match self.identifier {
+                    Identifier::User(_) | Identifier::UserAuth(_) => state.global_tenant_id.clone(),
+                    Identifier::Merchant(_) => state.tenant_id.clone(),
+                }
+            }
+        }
+    };
+}
+
 #[derive(Debug, Clone)]
 pub struct KeyManagerState {
+    pub tenant_id: id_type::TenantId,
+    pub global_tenant_id: id_type::TenantId,
     pub enabled: bool,
     pub url: String,
     pub client_idle_timeout: Option<u64>,
@@ -35,6 +50,11 @@ pub struct KeyManagerState {
     #[cfg(feature = "keymanager_mtls")]
     pub cert: Secret<String>,
 }
+
+pub trait GetKeymanagerTenant {
+    fn get_tenant_id(&self, state: &KeyManagerState) -> id_type::TenantId;
+}
+
 #[derive(Serialize, Deserialize, Debug, Eq, PartialEq, Clone)]
 #[serde(tag = "data_identifier", content = "key_identifier")]
 pub enum Identifier {
@@ -69,6 +89,10 @@ pub struct BatchEncryptDataRequest {
     pub identifier: Identifier,
     pub data: DecryptedDataGroup,
 }
+
+impl_get_tenant_for_request!(EncryptionCreateRequest);
+impl_get_tenant_for_request!(EncryptionTransferRequest);
+impl_get_tenant_for_request!(BatchEncryptDataRequest);
 
 impl<S> From<(Secret<Vec<u8>, S>, Identifier)> for EncryptDataRequest
 where
@@ -218,6 +242,12 @@ pub struct DecryptDataRequest {
     pub identifier: Identifier,
     pub data: StrongSecret<String>,
 }
+
+impl_get_tenant_for_request!(EncryptDataRequest);
+impl_get_tenant_for_request!(TransientBatchDecryptDataRequest);
+impl_get_tenant_for_request!(TransientDecryptDataRequest);
+impl_get_tenant_for_request!(BatchDecryptDataRequest);
+impl_get_tenant_for_request!(DecryptDataRequest);
 
 impl<T, S> ForeignFrom<(FxHashMap<String, Secret<T, S>>, BatchEncryptDataResponse)>
     for FxHashMap<String, Encryptable<Secret<T, S>>>

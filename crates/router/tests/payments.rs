@@ -297,6 +297,7 @@ async fn payments_create_core() {
     let state = Arc::new(app_state)
         .get_session_state(
             &id_type::TenantId::try_from_string("public".to_string()).unwrap(),
+            None,
             || {},
         )
         .unwrap();
@@ -558,6 +559,7 @@ async fn payments_create_core_adyen_no_redirect() {
     let state = Arc::new(app_state)
         .get_session_state(
             &id_type::TenantId::try_from_string("public".to_string()).unwrap(),
+            None,
             || {},
         )
         .unwrap();

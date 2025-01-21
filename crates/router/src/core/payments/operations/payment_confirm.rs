@@ -1057,6 +1057,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         if let Some(payment_method) = payment_data.payment_attempt.payment_method {
             if payment_method == storage_enums::PaymentMethod::Card
                 && business_profile.is_click_to_pay_enabled
+                && payment_data.service_details.is_some()
             {
                 let click_to_pay_mca_id = authentication_product_ids
                     .get_click_to_pay_connector_account_id()
@@ -1183,7 +1184,11 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                 payment_data.authentication = Some(authentication);
             }
         }
-        logger::info!("skipping unified authentication service call since payment conditions {:?}, {:?} are not satisfied", payment_data.payment_attempt.payment_method, business_profile.is_click_to_pay_enabled);
+        logger::info!(
+            payment_method=?payment_data.payment_attempt.payment_method,
+            click_to_pay_enabled=?business_profile.is_click_to_pay_enabled,
+            "skipping unified authentication service call since payment conditions are not satisfied"
+        );
         Ok(())
     }
 

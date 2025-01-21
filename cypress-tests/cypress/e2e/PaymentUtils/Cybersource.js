@@ -12,7 +12,7 @@ const successfulNo3DSCardDetails = {
 };
 
 const successfulThreeDSTestCardDetails = {
-  card_number: "4000000000001091",
+  card_number: "4000000000002701",
   card_exp_month: "01",
   card_exp_year: "50",
   card_holder_name: "joseph Doe",
@@ -79,7 +79,7 @@ const payment_method_data_no3ds = {
 
 const payment_method_data_3ds = {
   card: {
-    last4: "1091",
+    last4: "2701",
     card_type: "CREDIT",
     card_network: "Visa",
     card_issuer: "INTL HDQTRS-CENTER OWNED",
@@ -148,6 +148,23 @@ export const connectorDetails = {
         body: {
           status: "requires_payment_method",
           setup_future_usage: "off_session",
+        },
+      },
+    },
+    SessionToken: {
+      Response: {
+        status: 200,
+        body: {
+          session_token: [
+            {
+              wallet_name: "apple_pay",
+              connector: "cybersource",
+            },
+            {
+              wallet_name: "google_pay",
+              connector: "cybersource",
+            },
+          ],
         },
       },
     },

@@ -63,6 +63,8 @@ pub enum ApiClientError {
     #[error("Unexpected state reached/Invariants conflicted")]
     UnexpectedState,
 
+    #[error("Failed to parse URL")]
+    UrlParsingFailed,
     #[error("URL encoding of request payload failed")]
     UrlEncodingFailed,
     #[error("Failed to send request to connector {0}")]
@@ -1304,6 +1306,20 @@ pub enum IntentStatus {
 }
 
 impl IntentStatus {
+    /// Indicates whether the payment intent is in terminal state or not
+    pub fn is_in_terminal_state(self) -> bool {
+        match self {
+            Self::Succeeded | Self::Failed | Self::Cancelled | Self::PartiallyCaptured => true,
+            Self::Processing
+            | Self::RequiresCustomerAction
+            | Self::RequiresMerchantAction
+            | Self::RequiresPaymentMethod
+            | Self::RequiresConfirmation
+            | Self::RequiresCapture
+            | Self::PartiallyCapturedAndCapturable => false,
+        }
+    }
+
     /// Indicates whether the syncing with the connector should be allowed or not
     pub fn should_force_sync_with_connector(self) -> bool {
         match self {
@@ -3575,7 +3591,7 @@ pub enum StripeChargeType {
     Destination,
 }
 
-/// Connector Access Method
+/// Authentication Products
 #[derive(
     Clone,
     Copy,
@@ -3595,6 +3611,7 @@ pub enum AuthenticationProduct {
     ClickToPay,
 }
 
+/// Connector Access Method
 #[derive(
     Clone,
     Copy,
