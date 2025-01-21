@@ -2184,3 +2184,16 @@ impl ForeignFrom<diesel_models::business_profile::BusinessGenericLinkConfig>
         }
     }
 }
+
+impl ForeignFrom<api_models::payments::GuestCustomerDetails>
+    for hyperswitch_domain_models::payments::GuestCustomerDetails
+{
+    fn foreign_from(item: api_models::payments::GuestCustomerDetails) -> Self {
+        Self {
+            email: item.email,
+            phone: item.phone,
+            name: item.name,
+            phone_country_code: item.phone_country_code,
+        }
+    }
+}

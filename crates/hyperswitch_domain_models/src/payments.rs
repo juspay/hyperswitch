@@ -281,9 +281,9 @@ pub struct GuestCustomerDetails {
 
 #[cfg(feature = "v2")]
 #[derive(Clone, Debug)]
-pub enum Customer {
-    Existing(customer::Customer),
-    Guest(GuestCustomerDetails),
+pub enum CustomerType {
+    Existing(Box<customer::Customer>),
+    Guest(Box<GuestCustomerDetails>),
 }
 
 #[cfg(feature = "v2")]
@@ -423,7 +423,7 @@ impl PaymentIntent {
         Ok(())
     }
 
-    pub async fn create_domain_model_from_request(
+    pub fn create_domain_model_from_request(
         payment_id: &id_type::GlobalPaymentId,
         merchant_account: &merchant_account::MerchantAccount,
         profile: &business_profile::Profile,
@@ -496,7 +496,16 @@ impl PaymentIntent {
                 .request_external_three_ds_authentication
                 .unwrap_or_default(),
             frm_metadata: request.frm_metadata,
-            customer_details: None,
+            customer_details: decrypted_payment_intent
+                .customer_details
+                .as_ref()
+                .map(|data| {
+                    data.clone()
+                        .deserialize_inner_value(|value| value.parse_value("Address"))
+                })
+                .transpose()
+                .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
+                .attach_printable("Unable to decode customer details")?,
             merchant_reference_id: request.merchant_reference_id,
             billing_address: decrypted_payment_intent
                 .billing_address

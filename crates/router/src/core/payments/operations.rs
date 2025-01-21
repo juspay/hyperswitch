@@ -232,7 +232,7 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
     ) -> CustomResult<
         (
             BoxedOperation<'a, F, R, D>,
-            Option<hyperswitch_domain_models::payments::Customer>,
+            Option<hyperswitch_domain_models::payments::CustomerType>,
         ),
         errors::StorageError,
     >;

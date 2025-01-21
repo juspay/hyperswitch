@@ -23,6 +23,7 @@ use crate::{
         api,
         domain::{self, types as domain_types},
         storage::{self, enums},
+        transformers::ForeignFrom,
     },
 };
 
@@ -112,6 +113,7 @@ impl<F: Send + Clone + Sync>
             }
             _ => None,
         }
+        .map(hyperswitch_domain_models::payments::GuestCustomerDetails::foreign_from)
         .map(|guest_customer_details| guest_customer_details.encode_to_value())
         .transpose()
         .change_context(errors::ApiErrorResponse::InternalServerError)

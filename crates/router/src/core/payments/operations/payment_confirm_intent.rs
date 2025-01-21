@@ -272,7 +272,7 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
     ) -> CustomResult<
         (
             BoxedConfirmOperation<'a, F>,
-            Option<hyperswitch_domain_models::payments::Customer>,
+            Option<hyperswitch_domain_models::payments::CustomerType>,
         ),
         errors::StorageError,
     > {
@@ -294,14 +294,14 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
 
                 Ok((
                     Box::new(self),
-                    Some(hyperswitch_domain_models::payments::Customer::Existing(
+                    Some(hyperswitch_domain_models::payments::CustomerType::Existing(
                         customer,
                     )),
                 ))
             }
             (None, Some(guest_customer_details)) => Ok((
                 Box::new(self),
-                Some(hyperswitch_domain_models::payments::Customer::Guest(
+                Some(hyperswitch_domain_models::payments::CustomerType::Guest(
                     guest_customer_details.into_inner(),
                 )),
             )),
