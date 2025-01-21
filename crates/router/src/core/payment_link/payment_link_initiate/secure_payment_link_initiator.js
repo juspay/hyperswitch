@@ -48,7 +48,12 @@ if (!isFramed) {
     // @ts-ignore
     hyper = window.Hyper(pub_key, {
       isPreloadEnabled: false,
+      // TODO: Remove in next deployment
       shouldUseTopRedirection: true,
+      redirectionFlags: {
+        shouldRemoveBeforeUnloadEvents: true,
+        shouldUseTopRedirection: true,
+      }
     });
     // @ts-ignore
     widgets = hyper.widgets({
