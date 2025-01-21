@@ -2778,13 +2778,10 @@ impl
             } //
         }?;
 
-        let (store, splits) = match item
-        .router_data
-        .request
-        .split_payments
-        .as_ref()
-        {
-            Some(common_types::payments::SplitPaymentsRequest::AdyenSplitPayment(adyen_split_payment)) =>  get_adyen_split_request(&adyen_split_payment, item.router_data.request.currency),
+        let (store, splits) = match item.router_data.request.split_payments.as_ref() {
+            Some(common_types::payments::SplitPaymentsRequest::AdyenSplitPayment(
+                adyen_split_payment,
+            )) => get_adyen_split_request(&adyen_split_payment, item.router_data.request.currency),
             _ => (None, None),
         };
 
@@ -2853,13 +2850,10 @@ impl
         let payment_method = AdyenPaymentMethod::try_from((card_data, card_holder_name))?;
         let shopper_email = item.router_data.get_optional_billing_email();
         let shopper_name = get_shopper_name(item.router_data.get_optional_billing());
-        let (store, splits) = match item
-        .router_data
-        .request
-        .split_payments
-        .as_ref()
-        {
-            Some(common_types::payments::SplitPaymentsRequest::AdyenSplitPayment(adyen_split_payment)) =>  get_adyen_split_request(&adyen_split_payment, item.router_data.request.currency),
+        let (store, splits) = match item.router_data.request.split_payments.as_ref() {
+            Some(common_types::payments::SplitPaymentsRequest::AdyenSplitPayment(
+                adyen_split_payment,
+            )) => get_adyen_split_request(&adyen_split_payment, item.router_data.request.currency),
             _ => (None, None),
         };
 
@@ -2921,13 +2915,10 @@ impl
         let return_url = item.router_data.request.get_router_return_url()?;
         let payment_method = AdyenPaymentMethod::try_from((bank_debit_data, item.router_data))?;
         let country_code = get_country_code(item.router_data.get_optional_billing());
-        let (store, splits) = match item
-        .router_data
-        .request
-        .split_payments
-        .as_ref()
-        {
-            Some(common_types::payments::SplitPaymentsRequest::AdyenSplitPayment(adyen_split_payment)) =>  get_adyen_split_request(&adyen_split_payment, item.router_data.request.currency),
+        let (store, splits) = match item.router_data.request.split_payments.as_ref() {
+            Some(common_types::payments::SplitPaymentsRequest::AdyenSplitPayment(
+                adyen_split_payment,
+            )) => get_adyen_split_request(&adyen_split_payment, item.router_data.request.currency),
             _ => (None, None),
         };
         let request = AdyenPaymentRequest {
@@ -2991,13 +2982,10 @@ impl
         let billing_address =
             get_address_info(item.router_data.get_optional_billing()).and_then(Result::ok);
         let shopper_name = get_shopper_name(item.router_data.get_optional_billing());
-        let (store, splits) = match item
-        .router_data
-        .request
-        .split_payments
-        .as_ref()
-        {
-            Some(common_types::payments::SplitPaymentsRequest::AdyenSplitPayment(adyen_split_payment)) =>  get_adyen_split_request(&adyen_split_payment, item.router_data.request.currency),
+        let (store, splits) = match item.router_data.request.split_payments.as_ref() {
+            Some(common_types::payments::SplitPaymentsRequest::AdyenSplitPayment(
+                adyen_split_payment,
+            )) => get_adyen_split_request(&adyen_split_payment, item.router_data.request.currency),
             _ => (None, None),
         };
 
@@ -3055,13 +3043,10 @@ impl
         let shopper_interaction = AdyenShopperInteraction::from(item.router_data);
         let payment_method = AdyenPaymentMethod::try_from((bank_transfer_data, item.router_data))?;
         let return_url = item.router_data.request.get_router_return_url()?;
-        let (store, splits) = match item
-        .router_data
-        .request
-        .split_payments
-        .as_ref()
-        {
-            Some(common_types::payments::SplitPaymentsRequest::AdyenSplitPayment(adyen_split_payment)) =>  get_adyen_split_request(&adyen_split_payment, item.router_data.request.currency),
+        let (store, splits) = match item.router_data.request.split_payments.as_ref() {
+            Some(common_types::payments::SplitPaymentsRequest::AdyenSplitPayment(
+                adyen_split_payment,
+            )) => get_adyen_split_request(&adyen_split_payment, item.router_data.request.currency),
             _ => (None, None),
         };
         let request = AdyenPaymentRequest {
@@ -3118,13 +3103,10 @@ impl
         let shopper_interaction = AdyenShopperInteraction::from(item.router_data);
         let return_url = item.router_data.request.get_router_return_url()?;
         let payment_method = AdyenPaymentMethod::try_from(gift_card_data)?;
-        let (store, splits) = match item
-        .router_data
-        .request
-        .split_payments
-        .as_ref()
-        {
-            Some(common_types::payments::SplitPaymentsRequest::AdyenSplitPayment(adyen_split_payment)) =>  get_adyen_split_request(&adyen_split_payment, item.router_data.request.currency),
+        let (store, splits) = match item.router_data.request.split_payments.as_ref() {
+            Some(common_types::payments::SplitPaymentsRequest::AdyenSplitPayment(
+                adyen_split_payment,
+            )) => get_adyen_split_request(&adyen_split_payment, item.router_data.request.currency),
             _ => (None, None),
         };
 
@@ -3193,15 +3175,12 @@ impl
         let line_items = Some(get_line_items(item));
         let billing_address =
             get_address_info(item.router_data.get_optional_billing()).and_then(Result::ok);
-            let (store, splits) = match item
-            .router_data
-            .request
-            .split_payments
-            .as_ref()
-            {
-                Some(common_types::payments::SplitPaymentsRequest::AdyenSplitPayment(adyen_split_payment)) =>  get_adyen_split_request(&adyen_split_payment, item.router_data.request.currency),
-                _ => (None, None),
-            };
+        let (store, splits) = match item.router_data.request.split_payments.as_ref() {
+            Some(common_types::payments::SplitPaymentsRequest::AdyenSplitPayment(
+                adyen_split_payment,
+            )) => get_adyen_split_request(&adyen_split_payment, item.router_data.request.currency),
+            _ => (None, None),
+        };
 
         Ok(AdyenPaymentRequest {
             amount,
@@ -3322,13 +3301,10 @@ impl
         } else {
             None
         };
-        let (store, splits) = match item
-        .router_data
-        .request
-        .split_payments
-        .as_ref()
-        {
-            Some(common_types::payments::SplitPaymentsRequest::AdyenSplitPayment(adyen_split_payment)) =>  get_adyen_split_request(&adyen_split_payment, item.router_data.request.currency),
+        let (store, splits) = match item.router_data.request.split_payments.as_ref() {
+            Some(common_types::payments::SplitPaymentsRequest::AdyenSplitPayment(
+                adyen_split_payment,
+            )) => get_adyen_split_request(&adyen_split_payment, item.router_data.request.currency),
             _ => (None, None),
         };
         Ok(AdyenPaymentRequest {
@@ -3409,13 +3385,10 @@ impl
             &billing_address,
             &delivery_address,
         ))?;
-        let (store, splits) = match item
-        .router_data
-        .request
-        .split_payments
-        .as_ref()
-        {
-            Some(common_types::payments::SplitPaymentsRequest::AdyenSplitPayment(adyen_split_payment)) =>  get_adyen_split_request(&adyen_split_payment, item.router_data.request.currency),
+        let (store, splits) = match item.router_data.request.split_payments.as_ref() {
+            Some(common_types::payments::SplitPaymentsRequest::AdyenSplitPayment(
+                adyen_split_payment,
+            )) => get_adyen_split_request(&adyen_split_payment, item.router_data.request.currency),
             _ => (None, None),
         };
 
@@ -3481,13 +3454,10 @@ impl
             })?
             .number
             .to_owned();
-        let (store, splits) = match item
-        .router_data
-        .request
-        .split_payments
-        .as_ref()
-        {
-            Some(common_types::payments::SplitPaymentsRequest::AdyenSplitPayment(adyen_split_payment)) =>  get_adyen_split_request(&adyen_split_payment, item.router_data.request.currency),
+        let (store, splits) = match item.router_data.request.split_payments.as_ref() {
+            Some(common_types::payments::SplitPaymentsRequest::AdyenSplitPayment(
+                adyen_split_payment,
+            )) => get_adyen_split_request(&adyen_split_payment, item.router_data.request.currency),
             _ => (None, None),
         };
 
@@ -3540,20 +3510,20 @@ fn get_adyen_split_request(
     currency: common_enums::enums::Currency,
 ) -> (Option<String>, Option<Vec<AdyenSplitData>>) {
     let splits = split_request
-                .split_items
-                .iter()
-                .map(|split_item| {
-                    let amount = split_item.amount.map(|value| Amount { currency, value });
-                    AdyenSplitData {
-                        amount,
-                        reference: split_item.reference.clone(),
-                        split_type: split_item.split_type.clone(),
-                        account: split_item.account.clone(),
-                        description: split_item.description.clone(),
-                    }
-                })
-                .collect();
-            (split_request.store.clone(), Some(splits))
+        .split_items
+        .iter()
+        .map(|split_item| {
+            let amount = split_item.amount.map(|value| Amount { currency, value });
+            AdyenSplitData {
+                amount,
+                reference: split_item.reference.clone(),
+                split_type: split_item.split_type.clone(),
+                account: split_item.account.clone(),
+                description: split_item.description.clone(),
+            }
+        })
+        .collect();
+    (split_request.store.clone(), Some(splits))
 }
 
 impl TryFrom<types::PaymentsCancelResponseRouterData<AdyenCancelResponse>>
@@ -3879,7 +3849,10 @@ pub fn get_present_to_shopper_response(
     };
 
     let charges = match &response.splits {
-        Some(split_items) => Some(construct_charge_response(response.store.clone(), split_items)),
+        Some(split_items) => Some(construct_charge_response(
+            response.store.clone(),
+            split_items,
+        )),
         None => None,
     };
 
@@ -3903,7 +3876,6 @@ pub fn get_present_to_shopper_response(
     };
     Ok((status, error, payments_response_data))
 }
-
 
 pub fn get_qr_code_response(
     response: QrCodeResponseResponse,
@@ -3946,7 +3918,10 @@ pub fn get_qr_code_response(
     };
 
     let charges = match &response.splits {
-        Some(split_items) => Some(construct_charge_response(response.store.clone(), split_items)),
+        Some(split_items) => Some(construct_charge_response(
+            response.store.clone(),
+            split_items,
+        )),
         None => None,
     };
 
@@ -4368,7 +4343,7 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<AdyenCaptureResponse>>
             Some(split_items) => Some(construct_charge_response(item.response.store, split_items)),
             None => None,
         };
-        
+
         Ok(Self {
             // From the docs, the only value returned is "received", outcome of refund is available
             // through refund notification webhook
@@ -4390,27 +4365,32 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<AdyenCaptureResponse>>
     }
 }
 
+fn construct_charge_response(
+    store: Option<String>,
+    split_item: &Vec<AdyenSplitData>,
+) -> common_types::payments::ConnectorChargeResponseData {
+    let splits: Vec<common_types::domain::AdyenSplitItem> = split_item
+        .iter()
+        .map(|split_item| common_types::domain::AdyenSplitItem {
+            amount: split_item
+                .amount
+                .as_ref()
+                .map(|amount| amount.value.clone()),
+            reference: split_item.reference.clone(),
+            split_type: split_item.split_type.clone(),
+            account: split_item.account.clone(),
+            description: split_item.description.clone(),
+        })
+        .collect();
 
-fn construct_charge_response(store: Option<String>, split_item: &Vec<AdyenSplitData>) -> common_types::payments::ConnectorChargeResponseData {
-        let splits: Vec<common_types::domain::AdyenSplitItem> = split_item
-            .iter()
-            .map(|split_item| common_types::domain::AdyenSplitItem {
-                amount: split_item.amount.as_ref().map(|amount| amount.value.clone()),
-                reference: split_item.reference.clone(),
-                split_type: split_item.split_type.clone(),
-                account: split_item.account.clone(),
-                description: split_item.description.clone(),
-            })
-            .collect();
-
-        common_types::payments::ConnectorChargeResponseData::AdyenSplitPayment(
-            common_types::domain::AdyenSplitData {
-                store,
-                split_items: splits,
-            },
-        )
+    common_types::payments::ConnectorChargeResponseData::AdyenSplitPayment(
+        common_types::domain::AdyenSplitData {
+            store,
+            split_items: splits,
+        },
+    )
 }
- 
+
 /*
 // This is a repeated code block from Stripe inegration. Can we avoid the repetition in every integration
 #[derive(Debug, Serialize, Deserialize)]
@@ -4458,7 +4438,7 @@ impl<F> TryFrom<&AdyenRouterData<&types::RefundsRouterData<F>>> for AdyenRefundR
                 Some(hyperswitch_domain_models::router_request_types::SplitRefundsRequest::AdyenSplitRefund(adyen_split_data)) =>  get_adyen_split_request(&adyen_split_data, item.router_data.request.currency),
                 _ => (None, None),
         };
-    
+
         Ok(Self {
             merchant_account: auth_type.merchant_account,
             amount: Amount {
@@ -5678,13 +5658,10 @@ impl
                 .unwrap_or_default(),
             eci: Some("02".to_string()),
         };
-        let (store, splits) = match item
-        .router_data
-        .request
-        .split_payments
-        .as_ref()
-        {
-            Some(common_types::payments::SplitPaymentsRequest::AdyenSplitPayment(adyen_split_payment)) =>  get_adyen_split_request(&adyen_split_payment, item.router_data.request.currency),
+        let (store, splits) = match item.router_data.request.split_payments.as_ref() {
+            Some(common_types::payments::SplitPaymentsRequest::AdyenSplitPayment(
+                adyen_split_payment,
+            )) => get_adyen_split_request(&adyen_split_payment, item.router_data.request.currency),
             _ => (None, None),
         };
 

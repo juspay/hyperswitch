@@ -6296,7 +6296,8 @@ pub fn validate_platform_request_for_marketplace(
                         && i64_amount != total_split_amount
                     {
                         return Err(errors::ApiErrorResponse::PreconditionFailed {
-                            message: "Sum of split amounts should be equal to the total amount".to_string(),
+                            message: "Sum of split amounts should be equal to the total amount"
+                                .to_string(),
                         });
                     }
                 }

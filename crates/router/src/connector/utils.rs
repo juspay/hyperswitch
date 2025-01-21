@@ -24,7 +24,8 @@ use hyperswitch_domain_models::{
     mandates,
     payments::payment_attempt::PaymentAttempt,
     router_request_types::{
-        AuthoriseIntegrityObject, CaptureIntegrityObject, RefundIntegrityObject, SyncIntegrityObject
+        AuthoriseIntegrityObject, CaptureIntegrityObject, RefundIntegrityObject,
+        SyncIntegrityObject,
     },
 };
 use masking::{Deserialize, ExposeInterface, Secret};

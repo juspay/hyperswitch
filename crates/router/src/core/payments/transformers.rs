@@ -2103,7 +2103,6 @@ where
             )
         });
 
-
         let mandate_data = payment_data.get_setup_mandate().map(|d| api::MandateData {
             customer_acceptance: d
                 .customer_acceptance
