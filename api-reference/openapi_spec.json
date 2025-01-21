@@ -15863,6 +15863,7 @@
       },
       "PaymentConnectorCategory": {
         "type": "string",
+        "description": "Connector Access Method",
         "enum": [
           "payment_gateway",
           "alternative_payment_method",
