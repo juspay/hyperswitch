@@ -4,6 +4,14 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.01.14.0-hotfix2
+
+### Refactors
+
+- **payment-link:** Use shouldRemoveBeforeUnloadEvents flag for handling removal of beforeunload events through SDK ([#7079](https://github.com/juspay/hyperswitch/pull/7079)) ([`69544cc`](https://github.com/juspay/hyperswitch/commit/69544cc7e0202b933d81196599c0bff4856625a3))
+
+- - -
+
 ## 2025.01.14.0-hotfix1
 
 ### Refactors
