@@ -56,7 +56,6 @@ impl MerchantConnectorAccount {
     pub fn get_id(&self) -> id_type::MerchantConnectorAccountId {
         self.merchant_connector_id.clone()
     }
-
     pub fn get_connector_account_details(
         &self,
     ) -> error_stack::Result<router_data::ConnectorAuthType, common_utils::errors::ParsingError>
@@ -66,6 +65,11 @@ impl MerchantConnectorAccount {
             .clone()
             .parse_value("ConnectorAuthType")
     }
+
+    pub fn get_connector_wallets_details(&self) -> Option<Secret<Value>> {
+        self.connector_wallets_details.as_deref().cloned()
+    }
+
     pub fn get_connector_test_mode(&self) -> Option<bool> {
         self.test_mode
     }
@@ -124,6 +128,11 @@ impl MerchantConnectorAccount {
             .clone()
             .parse_value("ConnectorAuthType")
     }
+
+    pub fn get_connector_wallets_details(&self) -> Option<Secret<Value>> {
+        self.connector_wallets_details.as_deref().cloned()
+    }
+
     pub fn get_connector_test_mode(&self) -> Option<bool> {
         todo!()
     }
