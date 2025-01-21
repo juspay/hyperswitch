@@ -19,6 +19,10 @@ Single API to access the payments ecosystem and its features
   <a href="https://github.com/juspay/hyperswitch/blob/main/LICENSE">
     <img src="https://img.shields.io/badge/Made_in-Rust-orange" />
   </a>
+  <!-- Uncomment when we reach >50% coverage -->
+  <!-- <a href="https://codecov.io/github/juspay/hyperswitch" >
+    <img src="https://codecov.io/github/juspay/hyperswitch/graph/badge.svg"/>
+  </a> -->
 </p>
 <p align="center">
   <a href="https://www.linkedin.com/company/hyperswitch/">

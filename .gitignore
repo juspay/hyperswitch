@@ -241,6 +241,7 @@ $RECYCLE.BIN/
 # hyperswitch Project specific excludes
 # code coverage report
 *.profraw
+lcov.info
 html/
 coverage.json
 # other
