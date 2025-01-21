@@ -4,6 +4,17 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.01.21.0
+
+### Refactors
+
+- **payment-link:** Use shouldRemoveBeforeUnloadEvents flag for handling removal of beforeunload events through SDK ([#7072](https://github.com/juspay/hyperswitch/pull/7072)) ([`776ed9a`](https://github.com/juspay/hyperswitch/commit/776ed9a2eb0e5ad8125112fe01bb3ea4b34195bc))
+- **router:** Refactor ctp flow to fetch mca_id and get the connector creds instead of connector_name ([#6859](https://github.com/juspay/hyperswitch/pull/6859)) ([`e9fcfc4`](https://github.com/juspay/hyperswitch/commit/e9fcfc4560321ea494afc9a01c06613240592371))
+
+**Full Changelog:** [`2025.01.20.0...2025.01.21.0`](https://github.com/juspay/hyperswitch/compare/2025.01.20.0...2025.01.21.0)
+
+- - -
+
 ## 2025.01.20.0
 
 ### Bug Fixes
