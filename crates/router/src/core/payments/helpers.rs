@@ -2739,7 +2739,8 @@ pub fn validate_payment_method_type_against_payment_method(
         ),
         api_enums::PaymentMethod::Wallet => matches!(
             payment_method_type,
-            api_enums::PaymentMethodType::ApplePay
+            api_enums::PaymentMethodType::AmazonPay
+                | api_enums::PaymentMethodType::ApplePay
                 | api_enums::PaymentMethodType::GooglePay
                 | api_enums::PaymentMethodType::Paypal
                 | api_enums::PaymentMethodType::AliPay

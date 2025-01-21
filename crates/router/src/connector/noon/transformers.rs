@@ -314,6 +314,7 @@ impl TryFrom<&NoonRouterData<&types::PaymentsAuthorizeRouterData>> for NoonPayme
                         domain::WalletData::AliPayQr(_)
                         | domain::WalletData::AliPayRedirect(_)
                         | domain::WalletData::AliPayHkRedirect(_)
+                        | domain::WalletData::AmazonPayRedirect(_)
                         | domain::WalletData::MomoRedirect(_)
                         | domain::WalletData::KakaoPayRedirect(_)
                         | domain::WalletData::GoPayRedirect(_)

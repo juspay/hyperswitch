@@ -2211,6 +2211,7 @@ impl TryFrom<(&domain::WalletData, &types::PaymentsAuthorizeRouterData)>
             domain::WalletData::DanaRedirect { .. } => Ok(AdyenPaymentMethod::Dana),
             domain::WalletData::SwishQr(_) => Ok(AdyenPaymentMethod::Swish),
             domain::WalletData::AliPayQr(_)
+            | domain::WalletData::AmazonPayRedirect(_)
             | domain::WalletData::ApplePayRedirect(_)
             | domain::WalletData::ApplePayThirdPartySdk(_)
             | domain::WalletData::GooglePayRedirect(_)
