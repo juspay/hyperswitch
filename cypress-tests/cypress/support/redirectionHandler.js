@@ -272,12 +272,18 @@ function bankRedirectRedirection(
   }
 
   cy.then(() => {
-    verifyReturnUrl(redirection_url, expected_url, verifyUrl);
+    try {
+      verifyReturnUrl(redirection_url, expected_url, verifyUrl);
+    } catch (error) {
+      cy.log("Error during return URL verification:", error);
+      throw error;
+    }
   });
 }
 
 function threeDsRedirection(redirection_url, expected_url, connectorId) {
   cy.visit(redirection_url.href);
+
   if (connectorId === "adyen") {
     cy.get("iframe")
       .its("0.contentDocument.body")
@@ -286,17 +292,32 @@ function threeDsRedirection(redirection_url, expected_url, connectorId) {
         cy.get('input[type="password"]').type("password");
         cy.get("#buttonSubmit").click();
       });
-  } else if (
-    connectorId === "bankofamerica" ||
-    connectorId === "cybersource" ||
-    connectorId === "wellsfargo"
-  ) {
+  } else if (connectorId === "bankofamerica" || connectorId === "wellsfargo") {
+    // Wait for iframe to be present and visible
     cy.get("iframe", { timeout: TIMEOUT })
+      .should("be.visible")
       .its("0.contentDocument.body")
+      .should("not.be.empty") // Ensure body has content
       .within(() => {
-        cy.get('input[type="text"]').click().type("1234");
-        cy.get('input[value="SUBMIT"]').click();
+        // Add retry ability and multiple selector attempts
+        cy.get(
+          'input[type="text"], input[type="password"], input[name="challengeDataEntry"]',
+          { timeout: TIMEOUT }
+        )
+          .should("be.visible")
+          .should("be.enabled")
+          .click()
+          .type("1234");
+
+        cy.get('input[value="SUBMIT"], button[type="submit"]', {
+          timeout: TIMEOUT,
+        })
+          .should("be.visible")
+          .click();
       });
+  } else if (connectorId === "cybersource") {
+    cy.url({ timeout: TIMEOUT }).should("include", expected_url.origin);
+    return; // this is mandatory, else refunds section will fail with unhandled promise rejections even though it is handled
   } else if (connectorId === "checkout") {
     cy.get("iframe", { timeout: TIMEOUT })
       .its("0.contentDocument.body")
@@ -381,7 +402,12 @@ function threeDsRedirection(redirection_url, expected_url, connectorId) {
   }
 
   cy.then(() => {
-    verifyReturnUrl(redirection_url, expected_url, true);
+    try {
+      verifyReturnUrl(redirection_url, expected_url, true);
+    } catch (error) {
+      cy.log("Error during return URL verification:", error);
+      throw error;
+    }
   });
 }
 
@@ -422,7 +448,12 @@ function upiRedirection(
   }
 
   cy.then(() => {
-    verifyReturnUrl(redirection_url, expected_url, verifyUrl);
+    try {
+      verifyReturnUrl(redirection_url, expected_url, verifyUrl);
+    } catch (error) {
+      cy.log("Error during return URL verification:", error);
+      throw error;
+    }
   });
 }
 

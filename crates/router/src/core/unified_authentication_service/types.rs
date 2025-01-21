@@ -12,10 +12,7 @@ use hyperswitch_domain_models::{
 };
 
 use crate::{
-    core::{
-        errors::RouterResult,
-        payments::{helpers::MerchantConnectorAccountType, PaymentData},
-    },
+    core::{errors::RouterResult, payments::{helpers::MerchantConnectorAccountType, PaymentData}},
     db::domain,
     routes::SessionState,
 };
