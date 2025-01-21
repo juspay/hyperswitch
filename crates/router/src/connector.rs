@@ -38,9 +38,9 @@ pub mod wise;
 pub use hyperswitch_connectors::connectors::{
     airwallex, airwallex::Airwallex, amazonpay, amazonpay::Amazonpay, bambora, bambora::Bambora,
     bamboraapac, bamboraapac::Bamboraapac, billwerk, billwerk::Billwerk, bitpay, bitpay::Bitpay,
-    bluesnap, bluesnap::Bluesnap, boku, boku::Boku, cashtocode, cashtocode::Cashtocode, coinbase,
-    coinbase::Coinbase, cryptopay, cryptopay::Cryptopay, ctp_mastercard,
-    ctp_mastercard::CtpMastercard, datatrans, datatrans::Datatrans, deutschebank,
+    bluesnap, bluesnap::Bluesnap, boku, boku::Boku, cashtocode, cashtocode::Cashtocode,
+    chargebee::Chargebee, coinbase, coinbase::Coinbase, cryptopay, cryptopay::Cryptopay,
+    ctp_mastercard, ctp_mastercard::CtpMastercard, datatrans, datatrans::Datatrans, deutschebank,
     deutschebank::Deutschebank, digitalvirgo, digitalvirgo::Digitalvirgo, dlocal, dlocal::Dlocal,
     elavon, elavon::Elavon, fiserv, fiserv::Fiserv, fiservemea, fiservemea::Fiservemea, fiuu,
     fiuu::Fiuu, forte, forte::Forte, globepay, globepay::Globepay, gocardless,
