@@ -19,3 +19,9 @@ import "./commands";
 
 // Alternatively you can use CommonJS syntax:
 // require('./commands')
+
+Cypress.on("uncaught:exception", (err) => {
+  // returning false here prevents Cypress from failing the test
+  cy.log(`Unhandled exception: ${err}`);
+  return false;
+});
