@@ -5799,26 +5799,7 @@ where
             .as_ref()
             .ok_or(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to find the merchant connector id")?;
-        if is_network_transaction_id_flow(
-            state,
-            is_connector_agnostic_mit_enabled,
-            connector_data.connector_name,
-            payment_method_info,
-        ) {
-            logger::info!("using network_transaction_id for MIT flow");
-            let network_transaction_id = payment_method_info
-                .network_transaction_id
-                .as_ref()
-                .ok_or(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to fetch the network transaction id")?;
-
-            let mandate_reference_id = Some(payments_api::MandateReferenceId::NetworkMandateId(
-                network_transaction_id.to_string(),
-            ));
-
-            connector_choice = Some((connector_data, mandate_reference_id.clone()));
-            break;
-        } else if connector_mandate_details
+        if connector_mandate_details
             .clone()
             .map(|connector_mandate_details| {
                 connector_mandate_details.contains_key(merchant_connector_id)
@@ -5868,6 +5849,25 @@ where
                             break;
                         }
             }
+        } else if is_network_transaction_id_flow(
+            state,
+            is_connector_agnostic_mit_enabled,
+            connector_data.connector_name,
+            payment_method_info,
+        ) {
+            logger::info!("using network_transaction_id for MIT flow");
+            let network_transaction_id = payment_method_info
+                .network_transaction_id
+                .as_ref()
+                .ok_or(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to fetch the network transaction id")?;
+
+            let mandate_reference_id = Some(payments_api::MandateReferenceId::NetworkMandateId(
+                network_transaction_id.to_string(),
+            ));
+
+            connector_choice = Some((connector_data, mandate_reference_id.clone()));
+            break;
         } else {
             continue;
         }
