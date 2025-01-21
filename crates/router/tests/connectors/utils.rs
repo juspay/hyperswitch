@@ -1022,6 +1022,7 @@ impl Default for BrowserInfoType {
             device_model: Some("Apple IPHONE 7".to_string()),
             os_type: Some("IOS or ANDROID".to_string()),
             os_version: Some("IOS 14.5".to_string()),
+            accept_language: Some("en".to_string()),
         };
         Self(data)
     }

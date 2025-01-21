@@ -489,6 +489,7 @@ pub struct BrowserInformation {
     pub os_type: Option<String>,
     pub os_version: Option<String>,
     pub device_model: Option<String>,
+    pub accept_language: Option<String>,
 }
 
 #[derive(Debug, Clone, Default, Serialize)]
