@@ -10,6 +10,7 @@ use common_utils::{
     crypto::Encryptable,
     encryption::Encryption,
     errors::CustomResult,
+    ext_traits::OptionExt,
     id_type, pii,
     types::{keymanager::ToEncryptable, MinorUnit},
 };
@@ -158,6 +159,19 @@ impl PaymentIntent {
         url::Url::parse(&finish_redirection_url)
             .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
             .attach_printable("Error creating finish redirection url")
+    }
+
+    pub fn parse_and_get_metadata<T>(
+        &self,
+        type_name: &'static str,
+    ) -> CustomResult<Option<T>, common_utils::errors::ParsingError>
+    where
+        T: for<'de> masking::Deserialize<'de>,
+    {
+        self.metadata
+            .clone()
+            .map(|metadata| metadata.parse_value(type_name))
+            .transpose()
     }
 }
 

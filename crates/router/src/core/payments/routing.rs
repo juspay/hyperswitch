@@ -292,10 +292,7 @@ pub fn make_dsl_input(
 
     let metadata = payments_dsl_input
         .payment_intent
-        .metadata
-        .clone()
-        .map(|val| val.parse_value("routing_parameters"))
-        .transpose()
+        .parse_and_get_metadata("routing_parameters")
         .change_context(errors::RoutingError::MetadataParsingError)
         .attach_printable("Unable to parse routing_parameters from metadata of payment_intent")
         .unwrap_or(None);
@@ -933,10 +930,7 @@ pub async fn perform_session_flow_routing(
 
     let metadata = session_input
         .payment_intent
-        .metadata
-        .clone()
-        .map(|val| val.parse_value("routing_parameters"))
-        .transpose()
+        .parse_and_get_metadata("routing_parameters")
         .change_context(errors::RoutingError::MetadataParsingError)
         .attach_printable("Unable to parse routing_parameters from metadata of payment_intent")
         .unwrap_or(None);
@@ -1080,9 +1074,7 @@ pub async fn perform_session_flow_routing(
 
     let metadata = session_input
         .payment_intent
-        .metadata
-        .clone()
-        .map(|val| val.parse_value("routing_parameters"))
+        .parse_and_get_metadata("routing_parameters")
         .transpose()
         .change_context(errors::RoutingError::MetadataParsingError)
         .attach_printable("Unable to parse routing_parameters from metadata of payment_intent")
@@ -1375,9 +1367,7 @@ pub fn make_dsl_input_for_surcharge(
     };
 
     let metadata = payment_intent
-        .metadata
-        .clone()
-        .map(|val| val.parse_value("routing_parameters"))
+        .parse_and_get_metadata("routing_parameters")
         .transpose()
         .change_context(errors::RoutingError::MetadataParsingError)
         .attach_printable("Unable to parse routing_parameters from metadata of payment_intent")
