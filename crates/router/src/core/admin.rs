@@ -1395,10 +1395,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 iatapay::transformers::IatapayAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
-            // api_enums::Connector::Inespay => {
-            //     inespay::transformers::InespayAuthType::try_from(self.auth_type)?;
-            //     Ok(())
-            // }
+            api_enums::Connector::Inespay => {
+                inespay::transformers::InespayAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Itaubank => {
                 itaubank::transformers::ItaubankAuthType::try_from(self.auth_type)?;
                 Ok(())

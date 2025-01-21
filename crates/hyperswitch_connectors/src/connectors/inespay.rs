@@ -1,12 +1,15 @@
 pub mod transformers;
 
+use base64::Engine;
 use common_utils::{
+    consts::BASE64_ENGINE,
+    crypto,
     errors::CustomResult,
-    ext_traits::BytesExt,
+    ext_traits::{ByteSliceExt, BytesExt},
     request::{Method, Request, RequestBuilder, RequestContent},
     types::{AmountConvertor, StringMinorUnit, StringMinorUnitForConnector},
 };
-use error_stack::{report, ResultExt};
+use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
@@ -36,7 +39,8 @@ use hyperswitch_interfaces::{
     types::{self, Response},
     webhooks,
 };
-use masking::{ExposeInterface, Mask};
+use masking::{ExposeInterface, Mask, Secret};
+use ring::hmac;
 use transformers as inespay;
 
 use crate::{constants::headers, types::ResponseRouterData, utils};
@@ -86,8 +90,8 @@ where
             headers::CONTENT_TYPE.to_string(),
             self.get_content_type().to_string().into(),
         )];
-        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
-        header.append(&mut api_key);
+        let mut auth_headers = self.get_auth_header(&req.connector_auth_type)?;
+        header.append(&mut auth_headers);
         Ok(header)
     }
 }
@@ -98,10 +102,7 @@ impl ConnectorCommon for Inespay {
     }
 
     fn get_currency_unit(&self) -> api::CurrencyUnit {
-        api::CurrencyUnit::Base
-        //    TODO! Check connector documentation, on which unit they are processing the currency.
-        //    If the connector accepts amount in lower unit ( i.e cents for USD) then return api::CurrencyUnit::Minor,
-        //    if connector accepts amount in base unit (i.e dollars for USD) then return api::CurrencyUnit::Base
+        api::CurrencyUnit::Minor
     }
 
     fn common_get_content_type(&self) -> &'static str {
@@ -118,10 +119,16 @@ impl ConnectorCommon for Inespay {
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         let auth = inespay::InespayAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        Ok(vec![(
-            headers::AUTHORIZATION.to_string(),
-            auth.api_key.expose().into_masked(),
-        )])
+        Ok(vec![
+            (
+                headers::AUTHORIZATION.to_string(),
+                auth.authorization.expose().into_masked(),
+            ),
+            (
+                headers::X_API_KEY.to_string(),
+                auth.api_key.expose().into_masked(),
+            ),
+        ])
     }
 
     fn build_error_response(
@@ -139,9 +146,9 @@ impl ConnectorCommon for Inespay {
 
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.code,
-            message: response.message,
-            reason: response.reason,
+            code: response.status,
+            message: response.status_desc,
+            reason: None,
             attempt_status: None,
             connector_transaction_id: None,
         })
@@ -176,9 +183,9 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
     fn get_url(
         &self,
         _req: &PaymentsAuthorizeRouterData,
-        _connectors: &Connectors,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        Ok(format!("{}/payins/single/init", self.base_url(connectors)))
     }
 
     fn get_request_body(
@@ -192,9 +199,19 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             req.request.currency,
         )?;
 
-        let connector_router_data = inespay::InespayRouterData::from((amount, req));
-        let connector_req = inespay::InespayPaymentsRequest::try_from(&connector_router_data)?;
-        Ok(RequestContent::Json(Box::new(connector_req)))
+        match req.request.currency {
+            common_enums::Currency::EUR => {
+                let connector_router_data = inespay::InespayRouterData::from((amount, req));
+                let connector_req =
+                    inespay::InespayPaymentsRequest::try_from(&connector_router_data)?;
+                Ok(RequestContent::Json(Box::new(connector_req)))
+            }
+            _ => Err(errors::ConnectorError::CurrencyNotSupported {
+                message: req.request.currency.to_string(),
+                connector: "Inespay",
+            }
+            .into()),
+        }
     }
 
     fn build_request(
@@ -262,10 +279,20 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Ine
 
     fn get_url(
         &self,
-        _req: &PaymentsSyncRouterData,
-        _connectors: &Connectors,
+        req: &PaymentsSyncRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        let connector_payment_id = req
+            .request
+            .connector_transaction_id
+            .get_connector_transaction_id()
+            .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
+        Ok(format!(
+            "{}{}{}",
+            self.base_url(connectors),
+            "/payins/single/",
+            connector_payment_id,
+        ))
     }
 
     fn build_request(
@@ -289,7 +316,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Ine
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsSyncRouterData, errors::ConnectorError> {
-        let response: inespay::InespayPaymentsResponse = res
+        let response: inespay::InespayPSyncResponse = res
             .response
             .parse_struct("inespay PaymentsSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
@@ -406,9 +433,9 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Inespay
     fn get_url(
         &self,
         _req: &RefundsRouterData<Execute>,
-        _connectors: &Connectors,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        Ok(format!("{}/refunds/init", self.base_url(connectors)))
     }
 
     fn get_request_body(
@@ -452,9 +479,9 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Inespay
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<RefundsRouterData<Execute>, errors::ConnectorError> {
-        let response: inespay::RefundResponse = res
+        let response: inespay::InespayRefundsResponse = res
             .response
-            .parse_struct("inespay RefundResponse")
+            .parse_struct("inespay InespayRefundsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -489,10 +516,20 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Inespay {
 
     fn get_url(
         &self,
-        _req: &RefundSyncRouterData,
-        _connectors: &Connectors,
+        req: &RefundSyncRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        let connector_refund_id = req
+            .request
+            .connector_refund_id
+            .clone()
+            .ok_or(errors::ConnectorError::MissingConnectorRefundID)?;
+        Ok(format!(
+            "{}{}{}",
+            self.base_url(connectors),
+            "/refunds/",
+            connector_refund_id,
+        ))
     }
 
     fn build_request(
@@ -519,7 +556,7 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Inespay {
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<RefundSyncRouterData, errors::ConnectorError> {
-        let response: inespay::RefundResponse = res
+        let response: inespay::InespayRSyncResponse = res
             .response
             .parse_struct("inespay RefundSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
@@ -541,27 +578,133 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Inespay {
     }
 }
 
+fn get_webhook_body(
+    body: &[u8],
+) -> CustomResult<inespay::InespayWebhookEventData, errors::ConnectorError> {
+    let notif_item: inespay::InespayWebhookEvent =
+        serde_urlencoded::from_bytes::<inespay::InespayWebhookEvent>(body)
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+    let encoded_data_return = notif_item.data_return;
+    let decoded_data_return = BASE64_ENGINE
+        .decode(encoded_data_return)
+        .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+    let data_return: inespay::InespayWebhookEventData = decoded_data_return
+        .parse_struct("inespay InespayWebhookEventData")
+        .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+    Ok(data_return)
+}
+
 #[async_trait::async_trait]
 impl webhooks::IncomingWebhook for Inespay {
-    fn get_webhook_object_reference_id(
+    fn get_webhook_source_verification_algorithm(
         &self,
         _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<Box<dyn crypto::VerifySignature + Send>, errors::ConnectorError> {
+        Ok(Box::new(crypto::HmacSha256))
+    }
+
+    fn get_webhook_source_verification_signature(
+        &self,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
+    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
+        let notif_item = serde_urlencoded::from_bytes::<inespay::InespayWebhookEvent>(request.body)
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+
+        Ok(notif_item.signature_data_return.as_bytes().to_owned())
+    }
+
+    fn get_webhook_source_verification_message(
+        &self,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _merchant_id: &common_utils::id_type::MerchantId,
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
+    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
+        let notif_item = serde_urlencoded::from_bytes::<inespay::InespayWebhookEvent>(request.body)
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+
+        Ok(notif_item.data_return.into_bytes())
+    }
+
+    async fn verify_webhook_source(
+        &self,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        merchant_id: &common_utils::id_type::MerchantId,
+        connector_webhook_details: Option<common_utils::pii::SecretSerdeValue>,
+        _connector_account_details: crypto::Encryptable<Secret<serde_json::Value>>,
+        connector_label: &str,
+    ) -> CustomResult<bool, errors::ConnectorError> {
+        let connector_webhook_secrets = self
+            .get_webhook_source_verification_merchant_secret(
+                merchant_id,
+                connector_label,
+                connector_webhook_details,
+            )
+            .await?;
+        let signature =
+            self.get_webhook_source_verification_signature(request, &connector_webhook_secrets)?;
+
+        let message = self.get_webhook_source_verification_message(
+            request,
+            merchant_id,
+            &connector_webhook_secrets,
+        )?;
+        let secret = connector_webhook_secrets.secret;
+
+        let signing_key = hmac::Key::new(hmac::HMAC_SHA256, &secret);
+        let signed_message = hmac::sign(&signing_key, &message);
+        let computed_signature = hex::encode(signed_message.as_ref());
+        let payload_sign = BASE64_ENGINE.encode(computed_signature);
+        Ok(payload_sign.as_bytes().eq(&signature))
+    }
+
+    fn get_webhook_object_reference_id(
+        &self,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        let data_return = get_webhook_body(request.body)
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        match data_return {
+            inespay::InespayWebhookEventData::Payment(data) => {
+                Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+                    api_models::payments::PaymentIdType::ConnectorTransactionId(
+                        data.single_payin_id,
+                    ),
+                ))
+            }
+            inespay::InespayWebhookEventData::Refund(data) => {
+                Ok(api_models::webhooks::ObjectReferenceId::RefundId(
+                    api_models::webhooks::RefundIdType::ConnectorRefundId(data.refund_id),
+                ))
+            }
+        }
     }
 
     fn get_webhook_event_type(
         &self,
-        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        let data_return = get_webhook_body(request.body)
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        Ok(api_models::webhooks::IncomingWebhookEvent::from(
+            data_return,
+        ))
     }
 
     fn get_webhook_resource_object(
         &self,
-        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        let data_return = get_webhook_body(request.body)
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        Ok(match data_return {
+            inespay::InespayWebhookEventData::Payment(payment_webhook_data) => {
+                Box::new(payment_webhook_data)
+            }
+            inespay::InespayWebhookEventData::Refund(refund_webhook_data) => {
+                Box::new(refund_webhook_data)
+            }
+        })
     }
 }
 
