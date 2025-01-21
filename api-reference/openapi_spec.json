@@ -25202,8 +25202,18 @@
               }
             ],
             "nullable": true
+          },
+          "specificity_level": {
+            "$ref": "#/components/schemas/SuccessRateSpecificityLevel"
           }
         }
+      },
+      "SuccessRateSpecificityLevel": {
+        "type": "string",
+        "enum": [
+          "merchant",
+          "global"
+        ]
       },
       "SupportedPaymentMethod": {
         "allOf": [
