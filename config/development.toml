@@ -78,12 +78,9 @@ ttl_for_storage_in_secs = 220752000
 
 [forex_api]
 call_delay = 21600
-local_fetch_retry_count = 5
-local_fetch_retry_delay = 1000
-api_timeout = 20000
-api_key = "YOUR API KEY HERE"
-fallback_api_key = "YOUR API KEY HERE"
-redis_lock_timeout = 26000
+api_key = ""
+fallback_api_key = ""
+redis_lock_timeout = 100
 
 [jwekey]
 vault_encryption_key = ""
