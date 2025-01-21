@@ -317,7 +317,7 @@ function threeDsRedirection(redirection_url, expected_url, connectorId) {
       });
   } else if (connectorId === "cybersource") {
     cy.url({ timeout: TIMEOUT }).should("include", expected_url.origin);
-    return; // this is mandatory, else refunds section will fail with unhanlded promise rejections even though it is handled
+    return; // this is mandatory, else refunds section will fail with unhandled promise rejections even though it is handled
   } else if (connectorId === "checkout") {
     cy.get("iframe", { timeout: TIMEOUT })
       .its("0.contentDocument.body")

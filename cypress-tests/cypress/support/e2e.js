@@ -22,8 +22,6 @@ import "./commands";
 
 Cypress.on("uncaught:exception", (err) => {
   // returning false here prevents Cypress from failing the test
-  if (err.message.includes("Failed to fetch dynamically imported module")) {
-    return false;
-  }
-  return true;
+  cy.log(`Unhandled exception: ${err}`);
+  return false;
 });
