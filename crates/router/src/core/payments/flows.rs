@@ -508,6 +508,7 @@ default_imp_for_connector_request_id!(
     connector::Wise,
     connector::Worldline,
     connector::Worldpay,
+    connector::Xendit,
     connector::Zen,
     connector::Zsl,
     connector::CtpMastercard
@@ -1646,6 +1647,7 @@ default_imp_for_fraud_check!(
     connector::Wise,
     connector::Worldline,
     connector::Worldpay,
+    connector::Xendit,
     connector::Zen,
     connector::Zsl,
     connector::CtpMastercard
@@ -2251,6 +2253,7 @@ default_imp_for_connector_authentication!(
     connector::Wise,
     connector::Worldline,
     connector::Worldpay,
+    connector::Xendit,
     connector::Zen,
     connector::Zsl,
     connector::CtpMastercard
