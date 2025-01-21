@@ -79,7 +79,7 @@ impl LockAction {
                 for _retry in 0..lock_retries {
                     let redis_lock_result = redis_conn
                         .set_key_if_not_exists_with_expiry(
-                            redis_locking_key.as_str(),
+                            &redis_locking_key.as_str().into(),
                             state.get_request_id(),
                             Some(i64::from(redis_lock_expiry_seconds)),
                         )
@@ -134,12 +134,15 @@ impl LockAction {
                 let redis_locking_key = input.get_redis_locking_key(merchant_id);
 
                 match redis_conn
-                    .get_key::<Option<String>>(&redis_locking_key)
+                    .get_key::<Option<String>>(&redis_locking_key.as_str().into())
                     .await
                 {
                     Ok(val) => {
                         if val == state.get_request_id() {
-                            match redis_conn.delete_key(redis_locking_key.as_str()).await {
+                            match redis_conn
+                                .delete_key(&redis_locking_key.as_str().into())
+                                .await
+                            {
                                 Ok(redis::types::DelReply::KeyDeleted) => {
                                     logger::info!("Lock freed for locking input {:?}", input);
                                     tracing::Span::current()

@@ -4,7 +4,7 @@
 use common_utils::errors::CustomResult;
 use fred::types::RedisValue as FredRedisValue;
 
-use crate::errors;
+use crate::{errors, RedisConnectionPool};
 
 pub struct RedisValue {
     inner: FredRedisValue,
@@ -291,5 +291,26 @@ impl fred::types::FromRedis for SaddReply {
                 "Unexpected sadd command reply",
             )),
         }
+    }
+}
+
+#[derive(Debug)]
+pub struct RedisKey(String);
+
+impl RedisKey {
+    pub fn tenant_aware_key(&self, pool: &RedisConnectionPool) -> String {
+        pool.add_prefix(&self.0)
+    }
+
+    pub fn tenant_unaware_key(&self, _pool: &RedisConnectionPool) -> String {
+        self.0.clone()
+    }
+}
+
+impl<T: AsRef<str>> From<T> for RedisKey {
+    fn from(value: T) -> Self {
+        let value = value.as_ref();
+
+        Self(value.to_string())
     }
 }

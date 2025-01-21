@@ -23,7 +23,7 @@ pub async fn retrieve_poll_status(
     // prepend 'poll_{merchant_id}_' to restrict access to only fetching Poll IDs, as this is a freely passed string in the request
     let poll_id = super::utils::get_poll_id(merchant_account.get_id(), request_poll_id.clone());
     let redis_value = redis_conn
-        .get_key::<Option<String>>(poll_id.as_str())
+        .get_key::<Option<String>>(&poll_id.as_str().into())
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable_lazy(|| {

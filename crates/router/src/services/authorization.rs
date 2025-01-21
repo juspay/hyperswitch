@@ -64,7 +64,7 @@ where
     let redis_conn = get_redis_connection(state)?;
 
     redis_conn
-        .get_and_deserialize_key(&get_cache_key_from_role_id(role_id), "RoleInfo")
+        .get_and_deserialize_key(&get_cache_key_from_role_id(role_id).into(), "RoleInfo")
         .await
         .change_context(ApiErrorResponse::InternalServerError)
 }
@@ -103,7 +103,11 @@ where
     let redis_conn = get_redis_connection(state)?;
 
     redis_conn
-        .serialize_and_set_key_with_expiry(&get_cache_key_from_role_id(role_id), role_info, expiry)
+        .serialize_and_set_key_with_expiry(
+            &get_cache_key_from_role_id(role_id).into(),
+            role_info,
+            expiry,
+        )
         .await
         .change_context(ApiErrorResponse::InternalServerError)
 }

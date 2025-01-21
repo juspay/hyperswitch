@@ -1357,7 +1357,7 @@ async fn external_authentication_incoming_webhook_flow(
                             .attach_printable("Failed to get redis connection")?;
                         redis_conn
                             .set_key_without_modifying_ttl(
-                                &poll_id,
+                                &poll_id.into(),
                                 api_models::poll::PollStatus::Completed.to_string(),
                             )
                             .await

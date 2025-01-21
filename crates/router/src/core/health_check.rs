@@ -52,21 +52,21 @@ impl HealthCheckInterface for app::SessionState {
             .change_context(errors::HealthCheckRedisError::RedisConnectionError)?;
 
         redis_conn
-            .serialize_and_set_key_with_expiry("test_key", "test_value", 30)
+            .serialize_and_set_key_with_expiry(&"test_key".into(), "test_value", 30)
             .await
             .change_context(errors::HealthCheckRedisError::SetFailed)?;
 
         logger::debug!("Redis set_key was successful");
 
         redis_conn
-            .get_key::<()>("test_key")
+            .get_key::<()>(&"test_key".into())
             .await
             .change_context(errors::HealthCheckRedisError::GetFailed)?;
 
         logger::debug!("Redis get_key was successful");
 
         redis_conn
-            .delete_key("test_key")
+            .delete_key(&"test_key".into())
             .await
             .change_context(errors::HealthCheckRedisError::DeleteFailed)?;
 
