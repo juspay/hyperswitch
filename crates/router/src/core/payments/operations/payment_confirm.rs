@@ -1042,10 +1042,9 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         &'a self,
         state: &SessionState,
         payment_data: &mut PaymentData<F>,
-        _should_continue_confirm_transaction: &mut bool,
-        _connector_call_type: &ConnectorCallType,
         business_profile: &domain::Profile,
         key_store: &domain::MerchantKeyStore,
+        do_authorisation_confirmation: &bool,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
         let authentication_product_ids = business_profile
             .authentication_product_ids
@@ -1092,6 +1091,20 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                         field_name: "payment_method",
                     },
                 )?;
+
+                if *do_authorisation_confirmation {
+                    ClickToPay::confirmation(
+                        state,
+                        key_store,
+                        business_profile,
+                        payment_data,
+                        &connector_mca,
+                        &connector_mca.connector_name,
+                        payment_method,
+                    )
+                    .await?;
+                    return Ok(());
+                };
 
                 ClickToPay::pre_authentication(
                     state,
@@ -1144,6 +1157,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                             }),common_enums::AuthenticationStatus::Success)
                     },
                     Ok(unified_authentication_service::UasAuthenticationResponseData::PreAuthentication {}) => (None, common_enums::AuthenticationStatus::Started),
+                    Ok(unified_authentication_service::UasAuthenticationResponseData::Confirmation {}) => (None, common_enums::AuthenticationStatus::Success),
                     Err(_) => (None, common_enums::AuthenticationStatus::Failed)
                 };
 
@@ -1154,7 +1168,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     .clone()
                     .map(domain::PaymentMethodData::NetworkToken);
 
-                uas_utils::create_new_authentication(
+                let authentication = uas_utils::create_new_authentication(
                     state,
                     payment_data.payment_attempt.merchant_id.clone(),
                     connector_mca.connector_name.to_string(),
@@ -1164,8 +1178,10 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     &authentication_id,
                     payment_data.service_details.clone(),
                     authentication_status,
+                    network_token,
                 )
                 .await?;
+                payment_data.authentication = Some(authentication);
             }
         }
         logger::info!(
@@ -1173,7 +1189,6 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
             click_to_pay_enabled=?business_profile.is_click_to_pay_enabled,
             "skipping unified authentication service call since payment conditions are not satisfied"
         );
-
         Ok(())
     }
 
