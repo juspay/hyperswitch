@@ -1,7 +1,11 @@
+#[cfg(feature = "v2")]
+use api_models::conditional_configs::DecisionManagerRequest;
 use api_models::conditional_configs::{
     DecisionManager, DecisionManagerRecord, DecisionManagerResponse,
 };
 use common_utils::ext_traits::StringExt;
+#[cfg(feature = "v2")]
+use common_utils::types::keymanager::KeyManagerState;
 use error_stack::ResultExt;
 
 use crate::{
@@ -10,15 +14,49 @@ use crate::{
     services::api as service_api,
     types::domain,
 };
-
 #[cfg(feature = "v2")]
 pub async fn upsert_conditional_config(
-    _state: SessionState,
-    _key_store: domain::MerchantKeyStore,
-    _merchant_account: domain::MerchantAccount,
-    _request: DecisionManager,
-) -> RouterResponse<DecisionManagerRecord> {
-    todo!()
+    state: SessionState,
+    key_store: domain::MerchantKeyStore,
+    request: DecisionManagerRequest,
+    profile: domain::Profile,
+) -> RouterResponse<common_types::payments::DecisionManagerRecord> {
+    use common_utils::ext_traits::OptionExt;
+
+    let key_manager_state: &KeyManagerState = &(&state).into();
+    let db = &*state.store;
+    let name = request.name;
+    let program = request.program;
+    let timestamp = common_utils::date_time::now_unix_timestamp();
+
+    euclid::frontend::ast::lowering::lower_program(program.clone())
+        .change_context(errors::ApiErrorResponse::InvalidRequestData {
+            message: "Invalid Request Data".to_string(),
+        })
+        .attach_printable("The Request has an Invalid Comparison")?;
+
+    let decision_manager_record = common_types::payments::DecisionManagerRecord {
+        name,
+        program,
+        created_at: timestamp,
+    };
+
+    let business_profile_update = domain::ProfileUpdate::DecisionManagerRecordUpdate {
+        three_ds_decision_manager_config: decision_manager_record.clone(),
+    };
+    db.update_profile_by_profile_id(
+        key_manager_state,
+        &key_store,
+        profile,
+        business_profile_update,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to update routing algorithm ref in business profile")?;
+
+    Ok(service_api::ApplicationResponse::Json(
+        decision_manager_record,
+    ))
 }
 
 #[cfg(feature = "v1")]
@@ -204,6 +242,7 @@ pub async fn delete_conditional_config(
     Ok(service_api::ApplicationResponse::StatusOk)
 }
 
+#[cfg(feature = "v1")]
 pub async fn retrieve_conditional_config(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
@@ -226,6 +265,36 @@ pub async fn retrieve_conditional_config(
         program: record.program,
         created_at: record.created_at,
         modified_at: record.modified_at,
+    };
+    Ok(service_api::ApplicationResponse::Json(response))
+}
+
+#[cfg(feature = "v2")]
+pub async fn retrieve_conditional_config(
+    state: SessionState,
+    key_store: domain::MerchantKeyStore,
+    profile: domain::Profile,
+) -> RouterResponse<common_types::payments::DecisionManagerResponse> {
+    let db = state.store.as_ref();
+    let key_manager_state: &KeyManagerState = &(&state).into();
+    let profile_id = profile.get_id();
+
+    let profile = db
+        .find_business_profile_by_profile_id(key_manager_state, &key_store, profile_id)
+        .await
+        .change_context(errors::ApiErrorResponse::ProfileNotFound {
+            id: profile_id.get_string_repr().to_owned(),
+        })?;
+    let record = profile
+        .three_ds_decision_manager_config
+        .clone()
+        .ok_or_else(|| errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("The Conditional Config Record was not found")?;
+
+    let response = common_types::payments::DecisionManagerRecord {
+        name: record.name,
+        program: record.program,
+        created_at: record.created_at,
     };
     Ok(service_api::ApplicationResponse::Json(response))
 }

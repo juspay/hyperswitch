@@ -7,7 +7,7 @@ use std::{
 };
 
 use api_models::{
-    conditional_configs::ConditionalConfigs, enums as api_model_enums, routing::ConnectorSelection,
+    enums as api_model_enums, routing::ConnectorSelection,
     surcharge_decision_configs::SurchargeDecisionConfigs,
 };
 use common_enums::RoutableConnectors;
@@ -221,7 +221,7 @@ pub fn get_key_type(key: &str) -> Result<String, String> {
 
 #[wasm_bindgen(js_name = getThreeDsKeys)]
 pub fn get_three_ds_keys() -> JsResult {
-    let keys = <ConditionalConfigs as EuclidDirFilter>::ALLOWED;
+    let keys = <common_types::payments::ConditionalConfigs as EuclidDirFilter>::ALLOWED;
     Ok(serde_wasm_bindgen::to_value(keys)?)
 }
 

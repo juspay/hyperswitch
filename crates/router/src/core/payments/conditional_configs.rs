@@ -1,9 +1,6 @@
 mod transformers;
 
-use api_models::{
-    conditional_configs::{ConditionalConfigs, DecisionManagerRecord},
-    routing,
-};
+use api_models::{conditional_configs::DecisionManagerRecord, routing};
 use common_utils::ext_traits::StringExt;
 use error_stack::ResultExt;
 use euclid::backend::{self, inputs as dsl_inputs, EuclidBackend};
@@ -23,11 +20,11 @@ pub async fn perform_decision_management(
     algorithm_ref: routing::RoutingAlgorithmRef,
     merchant_id: &common_utils::id_type::MerchantId,
     payment_data: &core_routing::PaymentsDslInput<'_>,
-) -> ConditionalConfigResult<ConditionalConfigs> {
+) -> ConditionalConfigResult<common_types::payments::ConditionalConfigs> {
     let algorithm_id = if let Some(id) = algorithm_ref.config_algo_id {
         id
     } else {
-        return Ok(ConditionalConfigs::default());
+        return Ok(common_types::payments::ConditionalConfigs::default());
     };
     let db = &*state.store;
 
@@ -64,8 +61,8 @@ pub async fn perform_decision_management(
 
 pub fn execute_dsl_and_get_conditional_config(
     backend_input: dsl_inputs::BackendInput,
-    interpreter: &backend::VirInterpreterBackend<ConditionalConfigs>,
-) -> ConditionalConfigResult<ConditionalConfigs> {
+    interpreter: &backend::VirInterpreterBackend<common_types::payments::ConditionalConfigs>,
+) -> ConditionalConfigResult<common_types::payments::ConditionalConfigs> {
     let routing_output = interpreter
         .execute(backend_input)
         .map(|out| out.connector_selection)

@@ -1,9 +1,8 @@
-use api_models::{self, conditional_configs};
 use diesel_models::enums as storage_enums;
 use euclid::enums as dsl_enums;
 
 use crate::types::transformers::ForeignFrom;
-impl ForeignFrom<dsl_enums::AuthenticationType> for conditional_configs::AuthenticationType {
+impl ForeignFrom<dsl_enums::AuthenticationType> for common_types::payments::AuthenticationType {
     fn foreign_from(from: dsl_enums::AuthenticationType) -> Self {
         match from {
             dsl_enums::AuthenticationType::ThreeDs => Self::ThreeDs,
@@ -12,11 +11,11 @@ impl ForeignFrom<dsl_enums::AuthenticationType> for conditional_configs::Authent
     }
 }
 
-impl ForeignFrom<conditional_configs::AuthenticationType> for storage_enums::AuthenticationType {
-    fn foreign_from(from: conditional_configs::AuthenticationType) -> Self {
+impl ForeignFrom<common_types::payments::AuthenticationType> for storage_enums::AuthenticationType {
+    fn foreign_from(from: common_types::payments::AuthenticationType) -> Self {
         match from {
-            conditional_configs::AuthenticationType::ThreeDs => Self::ThreeDs,
-            conditional_configs::AuthenticationType::NoThreeDs => Self::NoThreeDs,
+            common_types::payments::AuthenticationType::ThreeDs => Self::ThreeDs,
+            common_types::payments::AuthenticationType::NoThreeDs => Self::NoThreeDs,
         }
     }
 }
