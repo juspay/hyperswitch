@@ -759,7 +759,7 @@ pub struct PaymentAttemptUpdateInternal {
     pub error_message: Option<String>,
     pub connector_payment_id: Option<String>,
     // payment_method_id: Option<String>,
-    // cancellation_reason: Option<String>,
+    pub cancellation_reason: Option<String>,
     pub modified_at: PrimitiveDateTime,
     pub browser_info: Option<serde_json::Value>,
     // payment_token: Option<String>,

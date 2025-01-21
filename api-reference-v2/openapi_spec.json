@@ -16263,7 +16263,6 @@
       },
       "PaymentsRetrieveResponse": {
         "type": "object",
-        "description": "Response for Payment Intent Confirm",
         "required": [
           "id",
           "status",
