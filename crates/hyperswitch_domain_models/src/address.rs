@@ -40,8 +40,8 @@ pub struct AddressDetails {
     pub line3: Option<Secret<String>>,
     pub zip: Option<Secret<String>>,
     pub state: Option<Secret<String>>,
-    pub first_name: Option<Secret<String>>,
-    pub last_name: Option<Secret<String>>,
+    pub first_name: Option<common_utils::types::NameType>,
+    pub last_name: Option<common_utils::types::NameType>,
 }
 
 impl AddressDetails {
@@ -52,7 +52,7 @@ impl AddressDetails {
                 first_name.peek(),
                 last_name.peek()
             ))),
-            (Some(name), None) | (None, Some(name)) => Some(name.to_owned()),
+            (Some(name), None) | (None, Some(name)) => Some(Secret::from(name)),
             _ => None,
         }
     }

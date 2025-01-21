@@ -96,7 +96,8 @@ impl From<StripeCard> for payments::Card {
             card_number: card.number,
             card_exp_month: card.exp_month,
             card_exp_year: card.exp_year,
-            card_holder_name: Some(masking::Secret::new("stripe_cust".to_owned())),
+            card_holder_name: common_utils::types::NameType::try_from("Stripe_cust".to_string())
+                .ok(),
             card_cvc: card.cvc,
             card_issuer: None,
             card_network: None,

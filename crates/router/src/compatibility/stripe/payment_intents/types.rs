@@ -64,7 +64,7 @@ pub struct StripeCard {
     pub exp_month: masking::Secret<String>,
     pub exp_year: masking::Secret<String>,
     pub cvc: masking::Secret<String>,
-    pub holder_name: Option<masking::Secret<String>>,
+    pub holder_name: Option<common_utils::types::NameType>,
 }
 
 // ApplePay wallet param is not available in stripe Docs
@@ -169,7 +169,7 @@ impl From<StripePaymentMethodDetails> for payments::PaymentMethodData {
 #[derive(Default, Serialize, PartialEq, Eq, Deserialize, Clone, Debug)]
 pub struct Shipping {
     pub address: AddressDetails,
-    pub name: Option<masking::Secret<String>>,
+    pub name: Option<common_utils::types::NameType>,
     pub carrier: Option<String>,
     pub phone: Option<masking::Secret<String>>,
     pub tracking_number: Option<masking::Secret<String>>,
@@ -942,7 +942,13 @@ fn get_pmd_based_on_payment_method_type(
             payments::PaymentMethodData::BankRedirect(payments::BankRedirectData::Ideal {
                 billing_details: billing_details.as_ref().map(|billing_data| {
                     payments::BankRedirectBilling {
-                        billing_name: billing_data.get_optional_full_name(),
+                        billing_name: billing_data.get_optional_full_name().and_then(|name| {
+                            common_utils::types::NameType::try_from(name)
+                                .map_err(|err| {
+                                    router_env::logger::error!("Invalid Billing Name: {}", err);
+                                })
+                                .ok()
+                        }),
                         email: billing_data.email.clone(),
                     }
                 }),

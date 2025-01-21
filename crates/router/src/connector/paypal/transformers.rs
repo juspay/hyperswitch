@@ -320,7 +320,7 @@ impl From<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for ShippingAd
                     .router_data
                     .get_optional_shipping()
                     .and_then(|inner_data| inner_data.address.as_ref())
-                    .and_then(|inner_data| inner_data.first_name.clone()),
+                    .and_then(|inner_data| inner_data.first_name.clone().map(From::from)),
             }),
         }
     }
@@ -335,7 +335,7 @@ impl From<&PaypalRouterData<&types::PaymentsPostSessionTokensRouterData>> for Sh
                     .router_data
                     .get_optional_shipping()
                     .and_then(|inner_data| inner_data.address.as_ref())
-                    .and_then(|inner_data| inner_data.first_name.clone()),
+                    .and_then(|inner_data| inner_data.first_name.clone().map(From::from)),
             }),
         }
     }

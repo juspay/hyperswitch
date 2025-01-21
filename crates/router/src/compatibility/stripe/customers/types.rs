@@ -42,7 +42,7 @@ pub struct StripeAddressDetails {
 pub struct CreateCustomerRequest {
     pub email: Option<Email>,
     pub invoice_prefix: Option<String>,
-    pub name: Option<masking::Secret<String>>,
+    pub name: Option<common_utils::types::NameType>,
     pub phone: Option<masking::Secret<String>>,
     pub address: Option<StripeAddressDetails>,
     pub metadata: Option<pii::SecretSerdeValue>,

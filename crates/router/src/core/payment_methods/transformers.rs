@@ -144,7 +144,7 @@ pub struct AddCardResponse {
     pub card_number: Option<cards::CardNumber>,
     pub card_exp_year: Option<Secret<String>>,
     pub card_exp_month: Option<Secret<String>>,
-    pub name_on_card: Option<Secret<String>>,
+    pub name_on_card: Option<common_utils::types::NameType>,
     pub nickname: Option<String>,
     pub customer_id: Option<id_type::CustomerId>,
     pub duplicate: Option<bool>,
@@ -662,7 +662,13 @@ pub fn mk_get_card_response(card: GetCardResponse) -> errors::RouterResult<Card>
             .get_required_value("card_exp_year")?,
         card_brand: None,
         card_isin: None,
-        nick_name: card.card.nickname,
+        nick_name: card.card.nickname.and_then(|name| {
+            common_utils::types::NameType::try_from(name)
+                .map_err(|err| {
+                    router_env::logger::error!("Invalid Nick Name: {}", err);
+                })
+                .ok()
+        }),
     })
 }
 
@@ -794,7 +800,7 @@ pub fn get_card_detail(
         card_token: None,
         card_fingerprint: None,
         card_holder_name: response.name_on_card,
-        nick_name: response.nick_name.map(Secret::new),
+        nick_name: response.nick_name,
         card_isin: None,
         card_issuer: None,
         card_network: None,
@@ -821,7 +827,7 @@ pub fn get_card_detail(
         expiry_year: Some(response.card_exp_year),
         card_fingerprint: None,
         card_holder_name: response.name_on_card,
-        nick_name: response.nick_name.map(Secret::new),
+        nick_name: response.nick_name,
         card_isin: None,
         card_issuer: None,
         card_network: None,
