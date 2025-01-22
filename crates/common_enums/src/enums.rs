@@ -3737,4 +3737,3 @@ impl CaptureMethod {
         matches!(self, Self::Manual)
     }
 }
-
