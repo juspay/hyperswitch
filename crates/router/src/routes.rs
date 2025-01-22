@@ -7,6 +7,7 @@ pub mod apple_pay_certificates_migration;
 pub mod blocklist;
 pub mod cache;
 pub mod cards_info;
+pub mod card_testing_guard;
 pub mod configs;
 #[cfg(feature = "olap")]
 pub mod connector_onboarding;
@@ -72,7 +73,7 @@ pub use self::app::{
     Profile, ProfileNew, Refunds, Relay, RelayWebhooks, SessionState, User, Webhooks,
 };
 #[cfg(feature = "olap")]
-pub use self::app::{Blocklist, Organization, Routing, Verify, WebhookEvents};
+pub use self::app::{Blocklist, CardTestingGuard, Organization, Routing, Verify, WebhookEvents};
 #[cfg(feature = "payouts")]
 pub use self::app::{PayoutLink, Payouts};
 #[cfg(all(

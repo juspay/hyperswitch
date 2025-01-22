@@ -57,7 +57,7 @@ use super::{
     relay, user, user_role,
 };
 #[cfg(feature = "v1")]
-use super::{apple_pay_certificates_migration, blocklist, payment_link, webhook_events};
+use super::{apple_pay_certificates_migration, blocklist, card_testing_guard, payment_link, webhook_events};
 #[cfg(any(feature = "olap", feature = "oltp"))]
 use super::{configs::*, customers, payments};
 #[cfg(all(any(feature = "olap", feature = "oltp"), feature = "v1"))]
@@ -1305,6 +1305,21 @@ impl Blocklist {
             )
             .service(
                 web::resource("/toggle").route(web::post().to(blocklist::toggle_blocklist_guard)),
+            )
+    }
+}
+
+#[cfg(feature = "olap")]
+pub struct CardTestingGuard;
+
+#[cfg(all(feature = "olap", feature = "v1"))]
+impl CardTestingGuard {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/cardtestingguard")
+            .app_data(web::Data::new(state))
+            .service(
+                web::resource("/update")
+                .route(web::post().to(card_testing_guard::update_card_testing_guard)),
             )
     }
 }

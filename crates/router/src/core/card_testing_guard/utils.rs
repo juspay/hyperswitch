@@ -1,3 +1,4 @@
+use api_models::card_testing_guard;
 use common_utils::errors::CustomResult;
 use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface, Secret};
@@ -111,5 +112,51 @@ pub async fn get_merchant_fingerprint_secret(
 
             Ok(new_fingerprint)
         }
+    }
+}
+
+pub async fn update_card_testing_guard_for_merchant(
+    state: &SessionState,
+    merchant_id: &common_utils::id_type::MerchantId,
+    payload: card_testing_guard::UpdateCardTestingGuardRequest,
+) -> CustomResult<card_testing_guard::UpdateCardTestingGuardResponse, errors::ApiErrorResponse> {
+
+    let db = state.store.as_ref();
+    let key_manager_state = &(&*state).into();
+    let key_store = db
+        .get_merchant_key_store_by_merchant_id(
+            key_manager_state,
+            merchant_id,
+            &db.get_master_key().to_vec().into(),
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
+
+    let _ = db.update_specific_fields_in_merchant(
+        key_manager_state, 
+        merchant_id, 
+        storage::MerchantAccountUpdate::CardTestingGuardUpdate { 
+            card_ip_blocking: payload.card_ip_blocking, 
+            guest_user_card_blocking: payload.guest_user_card_blocking,
+            customer_id_blocking: payload.customer_id_blocking,
+        },
+        &key_store)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("error updating the merchant account when creating payment connector")?;
+
+    Ok(card_testing_guard::UpdateCardTestingGuardResponse {
+        card_ip_blocking_status: get_card_testing_guard_status(payload.card_ip_blocking)?,
+        guest_user_card_blocking_status: get_card_testing_guard_status(payload.guest_user_card_blocking)?,
+        customer_id_blocking_status: get_card_testing_guard_status(payload.customer_id_blocking)?,
+    })
+}
+
+pub fn get_card_testing_guard_status(
+    status: bool
+) -> RouterResult<String> {
+    match status {
+        true => Ok("Enabled".to_owned()),
+        false => Ok("Disabled".to_owned()),
     }
 }
