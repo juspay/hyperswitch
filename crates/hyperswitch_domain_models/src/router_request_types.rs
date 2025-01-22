@@ -509,6 +509,7 @@ impl From<common_utils::types::BrowserInformation> for BrowserInformation {
             os_type: value.os_type,
             os_version: value.os_version,
             device_model: value.device_model,
+            accept_language: value.accept_language,
         }
     }
 }
