@@ -1,15 +1,17 @@
 use api_models::routing::{
     CurrentBlockThreshold, RoutableConnectorChoice, RoutableConnectorChoiceWithStatus,
-    SuccessBasedRoutingConfig, SuccessBasedRoutingConfigBody,
+    SuccessBasedRoutingConfig, SuccessBasedRoutingConfigBody, SuccessRateSpecificityLevel,
 };
 use common_utils::{ext_traits::OptionExt, transformers::ForeignTryFrom};
 use error_stack::ResultExt;
 use router_env::{instrument, logger, tracing};
 pub use success_rate::{
-    success_rate_calculator_client::SuccessRateCalculatorClient, CalSuccessRateConfig,
+    success_rate_calculator_client::SuccessRateCalculatorClient, CalGlobalSuccessRateConfig,
+    CalGlobalSuccessRateRequest, CalGlobalSuccessRateResponse, CalSuccessRateConfig,
     CalSuccessRateRequest, CalSuccessRateResponse,
     CurrentBlockThreshold as DynamicCurrentThreshold, InvalidateWindowsRequest,
-    InvalidateWindowsResponse, LabelWithStatus, UpdateSuccessRateWindowConfig,
+    InvalidateWindowsResponse, LabelWithStatus,
+    SuccessRateSpecificityLevel as ProtoSpecificityLevel, UpdateSuccessRateWindowConfig,
     UpdateSuccessRateWindowRequest, UpdateSuccessRateWindowResponse,
 };
 #[allow(
@@ -51,6 +53,15 @@ pub trait SuccessBasedDynamicRouting: dyn_clone::DynClone + Send + Sync {
         id: String,
         headers: GrpcHeaders,
     ) -> DynamicRoutingResult<InvalidateWindowsResponse>;
+    /// To calculate both global and merchant specific success rate for the list of chosen connectors
+    async fn calculate_entity_and_global_success_rate(
+        &self,
+        id: String,
+        success_rate_based_config: SuccessBasedRoutingConfig,
+        params: String,
+        label_input: Vec<RoutableConnectorChoice>,
+        headers: GrpcHeaders,
+    ) -> DynamicRoutingResult<CalGlobalSuccessRateResponse>;
 }
 
 #[async_trait::async_trait]
@@ -113,9 +124,18 @@ impl SuccessBasedDynamicRouting for SuccessRateCalculatorClient<Client> {
             .transpose()?;
 
         let labels_with_status = label_input
+            .clone()
             .into_iter()
             .map(|conn_choice| LabelWithStatus {
                 label: conn_choice.routable_connector_choice.to_string(),
+                status: conn_choice.status,
+            })
+            .collect();
+
+        let global_labels_with_status = label_input
+            .into_iter()
+            .map(|conn_choice| LabelWithStatus {
+                label: conn_choice.routable_connector_choice.connector.to_string(),
                 status: conn_choice.status,
             })
             .collect();
@@ -126,6 +146,7 @@ impl SuccessBasedDynamicRouting for SuccessRateCalculatorClient<Client> {
                 params,
                 labels_with_status,
                 config,
+                global_labels_with_status,
             },
             headers,
         );
@@ -158,6 +179,55 @@ impl SuccessBasedDynamicRouting for SuccessRateCalculatorClient<Client> {
             .await
             .change_context(DynamicRoutingError::SuccessRateBasedRoutingFailure(
                 "Failed to invalidate the success rate routing keys".to_string(),
+            ))?
+            .into_inner();
+
+        logger::info!(dynamic_routing_response=?response);
+
+        Ok(response)
+    }
+
+    async fn calculate_entity_and_global_success_rate(
+        &self,
+        id: String,
+        success_rate_based_config: SuccessBasedRoutingConfig,
+        params: String,
+        label_input: Vec<RoutableConnectorChoice>,
+        headers: GrpcHeaders,
+    ) -> DynamicRoutingResult<CalGlobalSuccessRateResponse> {
+        let labels = label_input
+            .clone()
+            .into_iter()
+            .map(|conn_choice| conn_choice.to_string())
+            .collect::<Vec<_>>();
+
+        let global_labels = label_input
+            .into_iter()
+            .map(|conn_choice| conn_choice.connector.to_string())
+            .collect::<Vec<_>>();
+
+        let config = success_rate_based_config
+            .config
+            .map(ForeignTryFrom::foreign_try_from)
+            .transpose()?;
+
+        let request = grpc_client::create_grpc_request(
+            CalGlobalSuccessRateRequest {
+                entity_id: id,
+                entity_params: params,
+                entity_labels: labels,
+                global_labels,
+                config,
+            },
+            headers,
+        );
+
+        let response = self
+            .clone()
+            .fetch_entity_and_global_success_rate(request)
+            .await
+            .change_context(DynamicRoutingError::SuccessRateBasedRoutingFailure(
+                "Failed to fetch the entity and global success rate".to_string(),
             ))?
             .into_inner();
 
@@ -211,6 +281,30 @@ impl ForeignTryFrom<SuccessBasedRoutingConfigBody> for CalSuccessRateConfig {
                     field: "min_aggregates_size".to_string(),
                 })?,
             default_success_rate: config
+                .default_success_rate
+                .get_required_value("default_success_rate")
+                .change_context(DynamicRoutingError::MissingRequiredField {
+                    field: "default_success_rate".to_string(),
+                })?,
+            specificity_level: match config.specificity_level {
+                SuccessRateSpecificityLevel::Merchant => Some(ProtoSpecificityLevel::Entity.into()),
+                SuccessRateSpecificityLevel::Global => Some(ProtoSpecificityLevel::Global.into()),
+            },
+        })
+    }
+}
+
+impl ForeignTryFrom<SuccessBasedRoutingConfigBody> for CalGlobalSuccessRateConfig {
+    type Error = error_stack::Report<DynamicRoutingError>;
+    fn foreign_try_from(config: SuccessBasedRoutingConfigBody) -> Result<Self, Self::Error> {
+        Ok(Self {
+            entity_min_aggregates_size: config
+                .min_aggregates_size
+                .get_required_value("min_aggregate_size")
+                .change_context(DynamicRoutingError::MissingRequiredField {
+                    field: "min_aggregates_size".to_string(),
+                })?,
+            entity_default_success_rate: config
                 .default_success_rate
                 .get_required_value("default_success_rate")
                 .change_context(DynamicRoutingError::MissingRequiredField {
