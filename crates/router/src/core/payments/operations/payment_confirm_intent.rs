@@ -17,9 +17,10 @@ use crate::{
         admin,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         payments::{
-            self, helpers,
+            self, call_decision_manager, helpers,
             operations::{self, ValidateStatusForOperation},
-            populate_surcharge_details, CustomerDetails, PaymentAddress, PaymentData,
+            populate_surcharge_details, CustomerDetails, OperationSessionSetters, PaymentAddress,
+            PaymentData,
         },
         utils as core_utils,
     },
@@ -290,6 +291,33 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
         }
     }
 
+    async fn run_decision_manager<'a>(
+        &'a self,
+        state: &SessionState,
+        payment_data: &mut PaymentConfirmData<F>,
+        merchant_key_store: &domain::MerchantKeyStore,
+        storage_scheme: storage_enums::MerchantStorageScheme,
+        business_profile: &domain::Profile,
+    ) -> CustomResult<(), errors::ApiErrorResponse>  {
+        // Check if authentication type is already present in the request
+        let authentication_type = payment_data.payment_intent.authentication_type;
+
+
+        // If not present, run the decision manager if configured
+        let authentication_type = if authentication_type.is_none() && business_profile.three_ds_decision_manager_config.is_some() {
+            call_decision_manager(state, business_profile, payment_data).await?
+        } else {
+            authentication_type
+        };
+
+        if let Some(auth_type) = authentication_type {
+            payment_data
+                .set_authentication_type_in_attempt(auth_type);
+        }
+
+        Ok(())
+    }
+
     #[instrument(skip_all)]
     async fn make_pm_data<'a>(
         &'a self,
@@ -397,11 +425,14 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, PaymentsConfirmInt
                 active_attempt_id: payment_data.payment_attempt.id.clone(),
             };
 
+        let authentication_type = payment_data.payment_attempt.authentication_type;
+
         let payment_attempt_update = hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptUpdate::ConfirmIntent {
             status: attempt_status,
             updated_by: storage_scheme.to_string(),
             connector,
             merchant_connector_id,
+            authentication_type,
         };
 
         let updated_payment_intent = db

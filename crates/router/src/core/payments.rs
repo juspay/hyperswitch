@@ -176,6 +176,19 @@ where
         .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
         .attach_printable("Failed while fetching/creating customer")?;
 
+    operation
+        .to_domain()?
+        .run_decision_manager(
+            state,
+            &mut payment_data,
+            &key_store,
+            merchant_account.storage_scheme,
+            &profile,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to run decision manager")?;
+
     let connector = operation
         .to_domain()?
         .perform_routing(
@@ -1153,15 +1166,32 @@ where
 #[cfg(feature = "v2")]
 pub async fn call_decision_manager<F, D>(
     state: &SessionState,
-    merchant_account: &domain::MerchantAccount,
-    _business_profile: &domain::Profile,
+    // _merchant_account: &domain::MerchantAccount,
+    business_profile: &domain::Profile,
     payment_data: &D,
 ) -> RouterResult<Option<enums::AuthenticationType>>
 where
     F: Clone,
     D: OperationSessionGetters<F>,
 {
-    todo!()
+    let payment_method_data = payment_data.get_payment_method_data();
+    let payment_dsl_data = core_routing::PaymentsDslInput::new(
+        None,
+        payment_data.get_payment_attempt(),
+        payment_data.get_payment_intent(),
+        payment_method_data,
+        payment_data.get_address(),
+        None,
+        payment_data.get_currency(),
+    );
+
+    let output =
+        perform_decision_management(business_profile, &payment_dsl_data)
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Could not decode the conditional config")?;
+
+    ////
+    Ok(output.override_3ds.map(ForeignInto::foreign_into))
 }
 
 #[cfg(feature = "v2")]
@@ -6936,9 +6966,15 @@ pub trait OperationSessionSetters<F> {
     fn set_capture_method_in_attempt(&mut self, capture_method: enums::CaptureMethod);
     fn set_frm_message(&mut self, frm_message: FraudCheck);
     fn set_payment_intent_status(&mut self, status: storage_enums::IntentStatus);
+    #[cfg(feature = "v1")]
     fn set_authentication_type_in_attempt(
         &mut self,
         authentication_type: Option<enums::AuthenticationType>,
+    );
+    #[cfg(feature = "v2")]
+    fn set_authentication_type_in_attempt(
+        &mut self,
+        authentication_type: enums::AuthenticationType,
     );
     fn set_recurring_mandate_payment_data(
         &mut self,
@@ -7391,7 +7427,7 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentIntentData<F> {
 
     fn set_authentication_type_in_attempt(
         &mut self,
-        _authentication_type: Option<enums::AuthenticationType>,
+        _authentication_type: enums::AuthenticationType,
     ) {
         todo!()
     }
@@ -7604,9 +7640,9 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentConfirmData<F> {
 
     fn set_authentication_type_in_attempt(
         &mut self,
-        _authentication_type: Option<enums::AuthenticationType>,
+        authentication_type: enums::AuthenticationType,
     ) {
-        todo!()
+        self.payment_attempt.authentication_type = authentication_type;
     }
 
     fn set_recurring_mandate_payment_data(
@@ -7817,7 +7853,7 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentStatusData<F> {
 
     fn set_authentication_type_in_attempt(
         &mut self,
-        _authentication_type: Option<enums::AuthenticationType>,
+        _authentication_type: enums::AuthenticationType,
     ) {
         todo!()
     }
@@ -8032,7 +8068,7 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentCaptureData<F> {
 
     fn set_authentication_type_in_attempt(
         &mut self,
-        _authentication_type: Option<enums::AuthenticationType>,
+        _authentication_type: enums::AuthenticationType,
     ) {
         todo!()
     }
