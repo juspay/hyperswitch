@@ -233,7 +233,10 @@ pub fn make_dsl_input(
     };
 
     let payment_input = dsl_inputs::PaymentInput {
-        amount: payments_dsl_input.payment_attempt.amount_details.get_net_amount(),
+        amount: payments_dsl_input
+            .payment_attempt
+            .amount_details
+            .get_net_amount(),
         card_bin: payments_dsl_input.payment_method_data.as_ref().and_then(
             |pm_data| match pm_data {
                 domain::PaymentMethodData::Card(card) => {

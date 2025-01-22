@@ -1325,8 +1325,7 @@ where
                 merchant_reference_id: payment_intent.merchant_reference_id.clone(),
                 routing_algorithm_id: payment_intent.routing_algorithm_id.clone(),
                 capture_method: payment_intent.capture_method,
-                authentication_type: payment_intent
-                    .authentication_type,
+                authentication_type: payment_intent.authentication_type,
                 billing: payment_intent
                     .billing_address
                     .clone()

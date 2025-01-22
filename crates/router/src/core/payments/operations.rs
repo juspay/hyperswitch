@@ -240,7 +240,7 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
         merchant_key_store: &domain::MerchantKeyStore,
         storage_scheme: enums::MerchantStorageScheme,
         business_profile: &domain::Profile,
-    ) -> CustomResult<(), errors::ApiErrorResponse>  {
+    ) -> CustomResult<(), errors::ApiErrorResponse> {
         Ok(())
     }
 

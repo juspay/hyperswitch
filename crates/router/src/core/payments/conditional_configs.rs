@@ -8,13 +8,13 @@ use router_env::{instrument, tracing};
 use storage_impl::redis::cache::{self, DECISION_MANAGER_CACHE};
 
 use super::routing::make_dsl_input;
+#[cfg(feature = "v2")]
+use crate::{core::errors::RouterResult, types::domain};
 use crate::{
     core::{errors, errors::ConditionalConfigError as ConfigError, routing as core_routing},
     routes,
     // types::domain,
 };
-#[cfg(feature = "v2")]
-use crate::{core::errors::RouterResult, types::domain};
 pub type ConditionalConfigResult<O> = errors::CustomResult<O, ConfigError>;
 
 #[instrument(skip_all)]
@@ -79,9 +79,12 @@ pub fn perform_decision_management(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Error initializing DSL interpreter backend")?;
 
-    let backend_input =
-        make_dsl_input(payment_data).change_context(errors::ApiErrorResponse::InternalServerError).attach_printable("Error constructing DSL input")?;
-    execute_dsl_and_get_conditional_config(backend_input, &interpreter).change_context(errors::ApiErrorResponse::InternalServerError).attach_printable("Error executing DSL")
+    let backend_input = make_dsl_input(payment_data)
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Error constructing DSL input")?;
+    execute_dsl_and_get_conditional_config(backend_input, &interpreter)
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Error executing DSL")
 }
 
 pub fn execute_dsl_and_get_conditional_config(

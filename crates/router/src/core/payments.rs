@@ -1185,10 +1185,9 @@ where
         payment_data.get_currency(),
     );
 
-    let output =
-        perform_decision_management(business_profile, &payment_dsl_data)
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Could not decode the conditional config")?;
+    let output = perform_decision_management(business_profile, &payment_dsl_data)
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Could not decode the conditional config")?;
 
     ////
     Ok(output.override_3ds.map(ForeignInto::foreign_into))
