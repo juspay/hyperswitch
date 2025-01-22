@@ -62,11 +62,13 @@ pub async fn verify_hypersense_token(
         })?;
 
     let email = user_in_db.email.clone();
+    let name = user_in_db.name.into();
 
     Ok(service_api::ApplicationResponse::Json(
         hypersense_api::HypersenseVerifyTokenResponse {
             user_id: user_in_db.user_id,
             merchant_id: token.merchant_id,
+            name,
             email,
         },
     ))

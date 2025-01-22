@@ -14,5 +14,6 @@ pub struct HypersenseVerifyTokenRequest {
 pub struct HypersenseVerifyTokenResponse {
     pub user_id: String,
     pub merchant_id: id_type::MerchantId,
+    pub name: Secret<String>,
     pub email: pii::Email,
 }
