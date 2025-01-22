@@ -16,7 +16,7 @@ use crate::{
     core::errors::{StorageError, UserErrors, UserResult},
     routes::SessionState,
     services::{
-        authentication::{AuthToken, UserFromToken},
+        authentication::{AuthToken, ExternalToken, UserFromToken},
         authorization::roles::RoleInfo,
     },
     types::{
@@ -85,6 +85,17 @@ impl UserFromToken {
         )
         .await
         .change_context(UserErrors::InternalServerError)
+    }
+}
+
+impl ExternalToken {
+    pub async fn get_user_from_db(&self, state: &SessionState) -> UserResult<UserFromStorage> {
+        let user = state
+            .global_store
+            .find_user_by_id(&self.user_id)
+            .await
+            .change_context(UserErrors::InternalServerError)?;
+        Ok(user.into())
     }
 }
 

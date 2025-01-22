@@ -23,6 +23,7 @@ pub mod files;
 pub mod fraud_check;
 pub mod gsm;
 pub mod health_check;
+pub mod hypersense;
 #[cfg(feature = "v1")]
 pub mod locker_migration;
 pub mod mandate;

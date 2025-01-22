@@ -539,6 +539,10 @@ pub enum Flow {
     RelayRetrieve,
     /// Incoming Relay Webhook Receive
     IncomingRelayWebhookReceive,
+    /// Generate Hypersense Token
+    HypersenseTokenRequest,
+    /// Verify Hypersense Token
+    HypersenseVerifyToken,
 }
 
 /// Trait for providing generic behaviour to flow metric

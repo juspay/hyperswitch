@@ -85,6 +85,7 @@ pub use crate::{
 use crate::{
     configs::{secrets_transformers, Settings},
     db::kafka_store::{KafkaStore, TenantID},
+    routes::hypersense as hypersense_routes,
 };
 
 #[derive(Clone)]
@@ -1273,6 +1274,23 @@ impl Recon {
             .service(
                 web::resource("/verify_token")
                     .route(web::get().to(recon_routes::verify_recon_token)),
+            )
+    }
+}
+
+pub struct Hypersense;
+
+impl Hypersense {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/hypersense")
+            .app_data(web::Data::new(state))
+            .service(
+                web::resource("/token")
+                    .route(web::get().to(hypersense_routes::get_hypersense_token)),
+            )
+            .service(
+                web::resource("/verify_token")
+                    .route(web::get().to(hypersense_routes::verify_hypersense_token)),
             )
     }
 }

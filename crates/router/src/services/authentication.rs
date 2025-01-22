@@ -1,4 +1,4 @@
-use std::str::FromStr;
+use std::{fmt, str::FromStr};
 
 use actix_web::http::header::HeaderMap;
 #[cfg(all(
@@ -193,6 +193,19 @@ impl AuthenticationType {
     }
 }
 
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ExternalServiceType {
+    Hypersense,
+}
+
+impl fmt::Display for ExternalServiceType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Hypersense => write!(f, "hypersense"),
+        }
+    }
+}
 #[cfg(feature = "olap")]
 #[derive(Clone, Debug)]
 pub struct UserFromSinglePurposeToken {
@@ -3647,5 +3660,46 @@ impl ReconToken {
             acl: optional_acl_str,
         };
         jwt::generate_jwt(&token_payload, settings).await
+    }
+}
+#[derive(serde::Serialize, serde::Deserialize)]
+pub struct ExternalToken {
+    pub user_id: String,
+    pub merchant_id: id_type::MerchantId,
+    pub exp: u64,
+    pub external_service_type: ExternalServiceType,
+}
+
+impl ExternalToken {
+    pub async fn new_token(
+        user_id: String,
+        merchant_id: id_type::MerchantId,
+        settings: &Settings,
+        external_service_type: ExternalServiceType,
+    ) -> UserResult<String> {
+        let exp_duration = std::time::Duration::from_secs(consts::JWT_TOKEN_TIME_IN_SECS);
+        let exp = jwt::generate_exp(exp_duration)?.as_secs();
+
+        let token_payload = Self {
+            user_id,
+            merchant_id,
+            exp,
+            external_service_type,
+        };
+        jwt::generate_jwt(&token_payload, settings).await
+    }
+
+    pub fn check_service_type(
+        &self,
+        required_service_type: &ExternalServiceType,
+    ) -> RouterResult<()> {
+        if &self.external_service_type == required_service_type {
+            Ok(())
+        } else {
+            Err(errors::ApiErrorResponse::AccessForbidden {
+                resource: required_service_type.to_string(),
+            }
+            .into())
+        }
     }
 }
