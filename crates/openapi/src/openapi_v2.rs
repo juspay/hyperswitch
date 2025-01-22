@@ -645,6 +645,8 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::feature_matrix::FeatureMatrixListResponse,
         api_models::feature_matrix::FeatureMatrixRequest,
         api_models::feature_matrix::ConnectorFeatureMatrixResponse,
+        api_models::feature_matrix::PaymentMethodSpecificFeatures,
+        api_models::feature_matrix::CardSpecificFeatures,
         api_models::feature_matrix::SupportedPaymentMethod,
         common_utils::types::BrowserInformation,
         api_models::payments::PaymentAmountDetailsResponse,
