@@ -2129,8 +2129,8 @@ async fn update_payment_method_status_and_ntid<F: Clone>(
         let network_transaction_id = if payment_data.payment_intent.setup_future_usage
             == Some(diesel_models::enums::FutureUsage::OffSession)
         {
-            if let Some(network_transaction_id) = pm_resp_network_transaction_id {
-                Some(network_transaction_id)
+            if pm_resp_network_transaction_id.is_some() {
+                pm_resp_network_transaction_id
             } else {
                 logger::info!("Skip storing network transaction id");
                 None
