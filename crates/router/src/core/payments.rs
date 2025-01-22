@@ -1167,7 +1167,8 @@ where
 pub async fn call_decision_manager<F, D>(
     state: &SessionState,
     // _merchant_account: &domain::MerchantAccount,
-    business_profile: &domain::Profile,
+    // business_profile: &domain::Profile,
+    record: common_types::payments::DecisionManagerRecord,
     payment_data: &D,
 ) -> RouterResult<Option<enums::AuthenticationType>>
 where
@@ -1185,7 +1186,7 @@ where
         payment_data.get_currency(),
     );
 
-    let output = perform_decision_management(business_profile, &payment_dsl_data)
+    let output = perform_decision_management(record, &payment_dsl_data)
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Could not decode the conditional config")?;
 

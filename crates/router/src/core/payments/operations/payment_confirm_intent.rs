@@ -306,7 +306,15 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
         let authentication_type = if authentication_type.is_none()
             && business_profile.three_ds_decision_manager_config.is_some()
         {
-            call_decision_manager(state, business_profile, payment_data).await?
+            call_decision_manager(
+                state,
+                business_profile
+                    .three_ds_decision_manager_config
+                    .clone()
+                    .ok_or_else(|| errors::ApiErrorResponse::InternalServerError)?,
+                payment_data,
+            )
+            .await?
         } else {
             authentication_type
         };
