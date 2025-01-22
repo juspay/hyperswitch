@@ -818,7 +818,7 @@ impl<T, F> TryFrom<ResponseRouterData<F, Shift4NonThreeDsResponse, T, PaymentsRe
 #[derive(Default, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Shift4RefundRequest {
-    charges: String,
+    charge_id: String,
     amount: MinorUnit,
 }
 
@@ -826,7 +826,7 @@ impl<F> TryFrom<&Shift4RouterData<&RefundsRouterData<F>>> for Shift4RefundReques
     type Error = Error;
     fn try_from(item: &Shift4RouterData<&RefundsRouterData<F>>) -> Result<Self, Self::Error> {
         Ok(Self {
-            charges: item.router_data.request.connector_transaction_id.clone(),
+            charge_id: item.router_data.request.connector_transaction_id.clone(),
             amount: item.amount.to_owned(),
         })
     }

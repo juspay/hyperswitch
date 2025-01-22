@@ -264,7 +264,7 @@ pub enum BokuResponse {
 #[serde(rename_all = "kebab-case")]
 pub struct BokuPaymentsResponse {
     charge_status: String, // xml parse only string to fields
-    charges: String,
+    charge_id: String,
     hosted: Option<HostedUrlResponse>,
 }
 
@@ -291,7 +291,7 @@ pub struct ChargeResponseData {
 #[serde(rename_all = "kebab-case")]
 pub struct SingleChargeResponseData {
     charge_status: String,
-    charges: String,
+    charge_id: String,
 }
 
 impl<F, T> TryFrom<ResponseRouterData<F, BokuResponse, T, PaymentsResponseData>>
@@ -344,7 +344,7 @@ fn get_authorize_response(
         }),
     }?;
 
-    Ok((status, response.charges, redirection_data))
+    Ok((status, response.charge_id, redirection_data))
 }
 
 fn get_psync_response(
@@ -352,7 +352,7 @@ fn get_psync_response(
 ) -> Result<(enums::AttemptStatus, String, Option<RedirectForm>), errors::ConnectorError> {
     let status = get_response_status(response.charges.charge.charge_status);
 
-    Ok((status, response.charges.charge.charges, None))
+    Ok((status, response.charges.charge.charge_id, None))
 }
 
 // REFUND :
@@ -363,7 +363,7 @@ pub struct BokuRefundRequest {
     merchant_id: Secret<String>,
     merchant_request_id: String,
     merchant_refund_id: Secret<String>,
-    charges: String,
+    charge_id: String,
     reason_code: String,
 }
 
@@ -389,7 +389,7 @@ impl<F> TryFrom<&BokuRouterData<&RefundsRouterData<F>>> for BokuRefundRequest {
             merchant_id: auth_type.merchant_id,
             merchant_refund_id: Secret::new(item.router_data.request.refund_id.to_string()),
             merchant_request_id: Uuid::new_v4().to_string(),
-            charges: item
+            charge_id: item
                 .router_data
                 .request
                 .connector_transaction_id
@@ -404,7 +404,7 @@ impl<F> TryFrom<&BokuRouterData<&RefundsRouterData<F>>> for BokuRefundRequest {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename = "refund-charge-response")]
 pub struct RefundResponse {
-    charges: String,
+    charge_id: String,
     refund_status: String,
 }
 
@@ -423,7 +423,7 @@ impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>> for RefundsRout
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(RefundsResponseData {
-                connector_refund_id: item.response.charges,
+                connector_refund_id: item.response.charge_id,
                 refund_status: get_refund_status(item.response.refund_status),
             }),
             ..item.data
