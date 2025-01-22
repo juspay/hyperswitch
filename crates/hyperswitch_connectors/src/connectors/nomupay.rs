@@ -106,7 +106,7 @@ fn get_signature(
     metadata: Option<pii::SecretSerdeValue>,
     auth: nomupay::NomupayAuthType,
     body: RequestContent,
-    method: String,
+    method: &str,
     path: String,
 ) -> CustomResult<String, errors::ConnectorError> {
     match body {
@@ -126,11 +126,11 @@ fn get_signature(
             let header = JwsHeader::from_map(option_map)
                 .change_context(errors::ConnectorError::ProcessingStepFailed(None))?;
 
-            let mut sample_payload = JwtPayload::new();
-            sample_payload.set_subject("subject");
-
-            let payload = box_to_jwt_payload(masked_json)
-                .change_context(errors::ConnectorError::ProcessingStepFailed(None))?;
+            let payload = match method {
+                "GET" => JwtPayload::new(),
+                _ => box_to_jwt_payload(masked_json)
+                    .change_context(errors::ConnectorError::ProcessingStepFailed(None))?,
+            };
 
             let private_key = get_private_key(metadata.to_owned())?;
 
@@ -194,11 +194,7 @@ where
             .chars()
             .skip(base_url.len())
             .collect();
-        let req_method = if is_post_req {
-            "POST".to_string()
-        } else {
-            "GET".to_string()
-        };
+        let req_method = if is_post_req { "POST" } else { "GET" };
 
         let sign = get_signature(
             req.connector_meta_data.to_owned(),
@@ -417,15 +413,11 @@ impl ConnectorIntegration<PoSync, PayoutsData, PayoutsResponseData> for Nomupay 
             .url(&types::PayoutSyncType::get_url(self, req, connectors)?)
             .attach_default_headers()
             .headers(types::PayoutSyncType::get_headers(self, req, connectors)?)
-            .set_body(types::PayoutSyncType::get_request_body(
-                self, req, connectors,
-            )?)
             .build();
 
         Ok(Some(request))
     }
 
-    // #[instrument(skip_all)]
     fn handle_response(
         &self,
         data: &PayoutsRouterData<PoSync>,

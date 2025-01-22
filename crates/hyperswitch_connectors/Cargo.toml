@@ -21,7 +21,7 @@ error-stack = "0.4.1"
 hex = "0.4.3"
 http = "0.2.12"
 image = { version = "0.25.1", default-features = false, features = ["png"] }
-josekit = "0.8.6"
+josekit = { git = "https://github.com/sumanmaji4/josekit-rs.git", rev = "7ad7eae5a2241f9b75c87157da56b3d64830474a"}
 mime = "0.3.17"
 once_cell = "1.19.0"
 qrcode = "0.14.0"

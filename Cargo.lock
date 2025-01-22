@@ -4003,7 +4003,7 @@ dependencies = [
  "hyperswitch_domain_models",
  "hyperswitch_interfaces",
  "image",
- "josekit",
+ "josekit 0.8.6",
  "lazy_static",
  "masking",
  "mime",
@@ -4480,6 +4480,23 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "48d1dbcbbeb6a7fec7e059840aa538bd62aaccf972c7346c4d9d2059312853d0"
 dependencies = [
  "libc",
+]
+
+[[package]]
+name = "josekit"
+version = "0.8.6"
+source = "git+https://github.com/sumanmaji4/josekit-rs.git?rev=7ad7eae5a2241f9b75c87157da56b3d64830474a#7ad7eae5a2241f9b75c87157da56b3d64830474a"
+dependencies = [
+ "anyhow",
+ "base64 0.21.7",
+ "flate2",
+ "once_cell",
+ "openssl",
+ "regex",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "time",
 ]
 
 [[package]]
@@ -6590,7 +6607,7 @@ dependencies = [
  "infer",
  "iso_currency",
  "isocountry",
- "josekit",
+ "josekit 0.8.7",
  "jsonwebtoken",
  "kgraph_utils",
  "masking",

@@ -133,7 +133,7 @@ pub struct OnboardTransferMethodRequest {
 pub struct NomupayPaymentRequest {
     pub source_id: Secret<String>,
     pub destination_id: Secret<String>,
-    pub payment_reference: Option<String>,
+    pub payment_reference: String,
     pub amount: FloatMajorUnit,
     pub currency_code: Currency,
     pub purpose: String,
@@ -523,7 +523,7 @@ impl<F> TryFrom<(&PayoutsRouterData<F>, FloatMajorUnit)> for NomupayPaymentReque
         Ok(Self {
             source_id: nomupay_auth_type.eid,
             destination_id: Secret::new(destination),
-            payment_reference: item.request.clone().connector_payout_id,
+            payment_reference: item.request.clone().payout_id,
             amount,
             currency_code: item.request.destination_currency,
             purpose: OTHER.to_string(),
