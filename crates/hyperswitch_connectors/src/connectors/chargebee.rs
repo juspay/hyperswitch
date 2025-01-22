@@ -610,7 +610,6 @@ impl webhooks::IncomingWebhook for Chargebee {
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
-        router_env::logger::debug!("$$$$$$ webhook request {:?}",request);
         let webhook = ChargebeeWebhookBody::get_webhook_object_from_body(request.body)
             .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
         let event = match webhook.event_type {
@@ -624,7 +623,6 @@ impl webhooks::IncomingWebhook for Chargebee {
                 api_models::webhooks::IncomingWebhookEvent::RecoveryInvoiceCancel
             }
         };
-        println!("event ");
         Ok(event)
     }
 

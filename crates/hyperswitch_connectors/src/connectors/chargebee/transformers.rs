@@ -245,6 +245,7 @@ pub struct ChargebeeWebhookContent {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "snake_case")]
 pub enum ChargebeeEventType {
     PaymentSucceeded,
     PaymentFailed,
@@ -271,11 +272,12 @@ pub struct ChargebeeTransactionData {
     gateway_account_id: Option<String>,
     currency_code: enums::Currency,
     amount: MinorUnit,
-    // #[serde(with = "common_utils::custom_serde::timestamp")]
-    // date: PrimitiveDateTime,
+    #[serde(with = "common_utils::custom_serde::timestamp")]
+    date: PrimitiveDateTime,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "snake_case")]
 pub enum ChargebeeTranasactionStatus {
     InProgress,
     Success,
@@ -297,6 +299,7 @@ pub struct ChargebeePaymentMethod{
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "snake_case")]
 pub enum ChargebeeGateway{
     Stripe,
     Braintree,
@@ -306,10 +309,9 @@ impl ChargebeeWebhookBody {
     pub fn get_webhook_object_from_body(
         body: &[u8],
     ) -> CustomResult<ChargebeeWebhookBody, errors::ConnectorError> {
-        let webhook_body: ChargebeeWebhookBody = body
-            .parse_struct("ChargebeeWebhookBody")
+        let webhook_body = body
+            .parse_struct::<ChargebeeWebhookBody>("ChargebeeWebhookBody")
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
-        router_env::logger::debug!("$$$$$$ webhook_body {:?}",webhook_body);
         Ok(webhook_body)
     }
 }
@@ -353,8 +355,7 @@ impl TryFrom<ChargebeeWebhookBody> for hyperswitch_interfaces::recovery::Recover
             None => (None, None),
         };
         let connector_account_reference_id = item.content.transaction.as_ref().and_then(|trans|trans.gateway_account_id.clone());
-        // let created_at = item.content.transaction.as_ref().map(|trans| trans.date.clone());
-        let created_at = Some(common_utils::date_time::now());
+        let created_at = item.content.transaction.as_ref().map(|trans| trans.date.clone());
         Ok(hyperswitch_interfaces::recovery::RecoveryPayload{
             amount,
             currency,
