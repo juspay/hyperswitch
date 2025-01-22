@@ -3704,3 +3704,37 @@ pub enum FeatureStatus {
     NotSupported,
     Supported,
 }
+
+impl From<bool> for OverCaptureRequest {
+    fn from(value: bool) -> Self {
+        match value {
+            true => Self::Enable,
+            _ => Self::Skip,
+        }
+    }
+}
+
+impl OverCaptureRequest {
+    pub fn is_enabled(&self) -> bool {
+        match self {
+            Self::Enable => true,
+            Self::Skip => false,
+        }
+    }
+}
+
+impl OverCaptureStatus {
+    pub fn is_applicable(&self) -> bool {
+        match self {
+            Self::Applicable => true,
+            Self::NotApplicable => false,
+        }
+    }
+}
+
+impl CaptureMethod {
+    pub fn is_manual(&self) -> bool {
+        matches!(self, Self::Manual)
+    }
+}
+
