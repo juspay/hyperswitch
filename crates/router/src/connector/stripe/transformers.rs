@@ -4168,7 +4168,7 @@ pub fn construct_charge_response<T>(
     request: &T,
 ) -> Option<common_types::payments::ConnectorChargeResponseData>
 where
-    T: connector_util::SplitPaymentData
+    T: connector_util::SplitPaymentData,
 {
     let charge_request = request.get_split_payment_data();
     if let Some(common_types::payments::SplitPaymentsRequest::StripeSplitPayment(
@@ -4190,7 +4190,6 @@ where
         None
     }
 }
-
 
 #[cfg(test)]
 mod test_validate_shipping_address_against_payment_method {

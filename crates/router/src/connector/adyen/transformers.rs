@@ -4372,10 +4372,7 @@ fn construct_charge_response(
     let splits: Vec<common_types::domain::AdyenSplitItem> = split_item
         .iter()
         .map(|split_item| common_types::domain::AdyenSplitItem {
-            amount: split_item
-                .amount
-                .as_ref()
-                .map(|amount| amount.value),
+            amount: split_item.amount.as_ref().map(|amount| amount.value),
             reference: split_item.reference.clone(),
             split_type: split_item.split_type.clone(),
             account: split_item.account.clone(),
