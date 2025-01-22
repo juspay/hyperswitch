@@ -14551,7 +14551,8 @@
           "created",
           "payment_method_type",
           "payment_method_subtype",
-          "merchant_connector_id"
+          "merchant_connector_id",
+          "authentication_type"
         ],
         "properties": {
           "id": {
@@ -14642,6 +14643,14 @@
               }
             ],
             "nullable": true
+          },
+          "authentication_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AuthenticationType"
+              }
+            ],
+            "default": "three_ds"
           }
         }
       },
