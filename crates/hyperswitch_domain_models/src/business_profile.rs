@@ -60,7 +60,8 @@ pub struct Profile {
     pub max_auto_retries_enabled: Option<i16>,
     pub always_request_extended_authorization: Option<AlwaysRequestExtendedAuthorization>,
     pub is_click_to_pay_enabled: bool,
-    pub authentication_product_ids: Option<serde_json::Value>,
+    pub authentication_product_ids:
+        Option<common_types::payments::AuthenticationConnectorAccountMap>,
 }
 
 #[cfg(feature = "v1")]
@@ -103,7 +104,8 @@ pub struct ProfileSetter {
     pub max_auto_retries_enabled: Option<i16>,
     pub always_request_extended_authorization: Option<AlwaysRequestExtendedAuthorization>,
     pub is_click_to_pay_enabled: bool,
-    pub authentication_product_ids: Option<serde_json::Value>,
+    pub authentication_product_ids:
+        Option<common_types::payments::AuthenticationConnectorAccountMap>,
 }
 
 #[cfg(feature = "v1")]
@@ -204,7 +206,8 @@ pub struct ProfileGeneralUpdate {
     pub is_auto_retries_enabled: Option<bool>,
     pub max_auto_retries_enabled: Option<i16>,
     pub is_click_to_pay_enabled: Option<bool>,
-    pub authentication_product_ids: Option<serde_json::Value>,
+    pub authentication_product_ids:
+        Option<common_types::payments::AuthenticationConnectorAccountMap>,
 }
 
 #[cfg(feature = "v1")]
@@ -740,7 +743,8 @@ pub struct Profile {
     pub version: common_enums::ApiVersion,
     pub is_network_tokenization_enabled: bool,
     pub is_click_to_pay_enabled: bool,
-    pub authentication_product_ids: Option<serde_json::Value>,
+    pub authentication_product_ids:
+        Option<common_types::payments::AuthenticationConnectorAccountMap>,
 }
 
 #[cfg(feature = "v2")]
@@ -782,7 +786,8 @@ pub struct ProfileSetter {
     pub is_tax_connector_enabled: bool,
     pub is_network_tokenization_enabled: bool,
     pub is_click_to_pay_enabled: bool,
-    pub authentication_product_ids: Option<serde_json::Value>,
+    pub authentication_product_ids:
+        Option<common_types::payments::AuthenticationConnectorAccountMap>,
 }
 
 #[cfg(feature = "v2")]
@@ -883,7 +888,8 @@ pub struct ProfileGeneralUpdate {
     pub order_fulfillment_time_origin: Option<common_enums::OrderFulfillmentTimeOrigin>,
     pub is_network_tokenization_enabled: Option<bool>,
     pub is_click_to_pay_enabled: Option<bool>,
-    pub authentication_product_ids: Option<serde_json::Value>,
+    pub authentication_product_ids:
+        Option<common_types::payments::AuthenticationConnectorAccountMap>,
 }
 
 #[cfg(feature = "v2")]

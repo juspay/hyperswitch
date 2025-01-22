@@ -181,6 +181,15 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         )
         .await?;
 
+        helpers::validate_allowed_payment_method_types_request(
+            state,
+            &profile_id,
+            merchant_account,
+            merchant_key_store,
+            request.allowed_payment_method_types.clone(),
+        )
+        .await?;
+
         let customer_details = helpers::get_customer_details_from_request(request);
 
         let shipping_address = helpers::create_or_find_address_for_payment_by_request(
