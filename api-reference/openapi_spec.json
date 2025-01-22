@@ -5840,6 +5840,63 @@
         },
         "additionalProperties": false
       },
+      "AdyenSplitData": {
+        "type": "object",
+        "description": "Fee information for Split Payments to be charged on the payment being collected for Adyen",
+        "required": [
+          "split_items"
+        ],
+        "properties": {
+          "store": {
+            "type": "string",
+            "description": "The store identifier",
+            "nullable": true
+          },
+          "split_items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdyenSplitItem"
+            },
+            "description": "Data for the split items"
+          }
+        },
+        "additionalProperties": false
+      },
+      "AdyenSplitItem": {
+        "type": "object",
+        "description": "Data for the split items",
+        "required": [
+          "amount",
+          "split_type"
+        ],
+        "properties": {
+          "amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The amount of the split item",
+            "example": 6540
+          },
+          "split_type": {
+            "$ref": "#/components/schemas/AdyenSplitType"
+          },
+          "account": {
+            "type": "string",
+            "description": "The unique identifier of the account to which the split amount is allocated.",
+            "nullable": true
+          },
+          "reference": {
+            "type": "string",
+            "description": "Unique Identifier for the split item",
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "description": "Description for the part of the payment that will be allocated to the specified account.",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
       "AirwallexData": {
         "type": "object",
         "properties": {
@@ -9320,6 +9377,33 @@
           "zen",
           "zsl"
         ]
+      },
+      "ConnectorChargeResponseData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "StripeSplitPayment"
+            ],
+            "properties": {
+              "StripeSplitPayment": {
+                "$ref": "#/components/schemas/StripeChargeResponseData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "AdyenSplitPayment"
+            ],
+            "properties": {
+              "AdyenSplitPayment": {
+                "$ref": "#/components/schemas/domain_types.AdyenSplitData"
+              }
+            }
+          }
+        ],
+        "description": "Charge Information"
       },
       "ConnectorFeatureMatrixResponse": {
         "type": "object",
@@ -18807,7 +18891,7 @@
           "split_payments": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/ConnectorChargeResponseData"
+                "$ref": "#/components/schemas/common_types.payments.ConnectorChargeResponseData"
               }
             ],
             "nullable": true
@@ -20050,7 +20134,7 @@
           "split_payments": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/ConnectorChargeResponseData"
+                "$ref": "#/components/schemas/common_types.payments.ConnectorChargeResponseData"
               }
             ],
             "nullable": true
@@ -24942,24 +25026,20 @@
                 "$ref": "#/components/schemas/StripeSplitPaymentRequest"
               }
             }
-          }
-        ],
-        "description": "Fee information for Split Payments to be charged on the payment being collected"
-      },
-      "ConnectorChargeResponseData": {
-        "oneOf": [
+          },
           {
             "type": "object",
             "required": [
-              "stripe_split_payment"
+              "adyen_split_payment"
             ],
             "properties": {
-              "stripe_split_payment": {
-                "$ref": "#/components/schemas/StripeChargeResponseData"
+              "adyen_split_payment": {
+                "$ref": "#/components/schemas/domain_types.AdyenSplitData"
               }
             }
           }
-        ]
+        ],
+        "description": "Fee information for Split Payments to be charged on the payment being collected"
       },
       "SplitRefund": {
         "oneOf": [
@@ -24971,6 +25051,17 @@
             "properties": {
               "stripe_split_refund": {
                 "$ref": "#/components/schemas/StripeSplitRefundRequest"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "adyen_split_refund"
+            ],
+            "properties": {
+              "adyen_split_refund": {
+                "$ref": "#/components/schemas/domain_types.AdyenSplitData"
               }
             }
           }
@@ -25047,6 +25138,36 @@
           "propertyName": "type"
         }
       },
+      "StripeChargeResponseData": {
+        "type": "object",
+        "description": "Fee information to be charged on the payment being collected via Stripe",
+        "required": [
+          "charge_type",
+          "application_fees",
+          "transfer_account_id"
+        ],
+        "properties": {
+          "charge_id": {
+            "type": "string",
+            "description": "Identifier for charge created for the payment",
+            "nullable": true
+          },
+          "charge_type": {
+            "$ref": "#/components/schemas/PaymentChargeType"
+          },
+          "application_fees": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Platform fees collected on the payment",
+            "example": 6540
+          },
+          "transfer_account_id": {
+            "type": "string",
+            "description": "Identifier for the reseller's account where the funds were transferred"
+          }
+        },
+        "additionalProperties": false
+      },
       "StripeChargeType": {
         "type": "string",
         "enum": [
@@ -25078,35 +25199,6 @@
           }
         },
         "additionalProperties": false
-      },
-      "StripeChargeResponseData": {
-        "type": "object",
-        "description": "Fee information to be charged on the payment being collected",
-        "required": [
-          "charge_type",
-          "application_fees",
-          "transfer_account_id"
-        ],
-        "properties": {
-          "charge_id": {
-            "type": "string",
-            "description": "Identifier for charge created for the payment",
-            "nullable": true
-          },
-          "charge_type": {
-            "$ref": "#/components/schemas/PaymentChargeType"
-          },
-          "application_fees": {
-            "type": "integer",
-            "format": "int64",
-            "description": "Platform fees collected on the payment",
-            "example": 6540
-          },
-          "transfer_account_id": {
-            "type": "string",
-            "description": "Identifier for the reseller's account where the funds were transferred"
-          }
-        }
       },
       "StripeSplitRefundRequest": {
         "type": "object",
