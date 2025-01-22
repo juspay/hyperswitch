@@ -3463,6 +3463,8 @@ mod tests {
         let serialized_payment_attempt = r#"{
     "payment_id": "PMT123456789",
     "merchant_id": "M123456789",
+    "profile_id": "PRO123456789",
+    "organization_id": "ORG123456789",
     "attempt_id": "ATMPT123456789",
     "status": "pending",
     "amount": 10000,

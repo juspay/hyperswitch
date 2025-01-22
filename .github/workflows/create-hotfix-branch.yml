@@ -9,7 +9,6 @@ jobs:
 
     steps:
       - name: Generate a token
-        if: ${{ github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name }}
         id: generate_token
         uses: actions/create-github-app-token@v1
         with:
