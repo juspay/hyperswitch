@@ -2867,7 +2867,6 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
                 .transpose()?,
             customer_acceptance: payment_data.customer_acceptance,
             request_extended_authorization: attempt.request_extended_authorization,
-            charges,
             split_payments,
             merchant_order_reference_id,
             integrity_object: None,

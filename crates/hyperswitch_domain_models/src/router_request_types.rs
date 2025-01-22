@@ -59,8 +59,8 @@ pub struct PaymentsAuthorizeData {
     pub request_incremental_authorization: bool,
     pub metadata: Option<serde_json::Value>,
     pub authentication_data: Option<AuthenticationData>,
-    pub charges: Option<PaymentCharges>,
-    pub request_extended_authorization: Option<common_types::RequestExtendedAuthorizationBool>,
+    pub request_extended_authorization:
+        Option<common_types::primitive_wrappers::RequestExtendedAuthorizationBool>,
     pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
 
     // New amount for amount frame work

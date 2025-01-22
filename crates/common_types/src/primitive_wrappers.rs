@@ -1,4 +1,6 @@
-pub(crate) mod bool_wrappers {
+pub use bool_wrappers::*;
+
+mod bool_wrappers {
     use std::ops::Deref;
 
     use serde::{Deserialize, Serialize};

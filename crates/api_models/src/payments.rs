@@ -7,6 +7,9 @@ pub mod additional_info;
 pub mod trait_impls;
 use cards::CardNumber;
 use common_enums::ProductType;
+use common_types::primitive_wrappers::{
+    ExtendedAuthorizationAppliedBool, RequestExtendedAuthorizationBool,
+};
 #[cfg(feature = "v2")]
 use common_utils::id_type::GlobalPaymentId;
 use common_utils::{
@@ -17,10 +20,7 @@ use common_utils::{
     hashing::HashedString,
     id_type,
     pii::{self, Email},
-    types::{
-        ExtendedAuthorizationAppliedBool, MinorUnit, RequestExtendedAuthorizationBool,
-        StringMajorUnit,
-    },
+    types::{MinorUnit, StringMajorUnit},
 };
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret, WithType};

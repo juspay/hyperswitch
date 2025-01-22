@@ -3,6 +3,9 @@ use std::marker::PhantomData;
 
 #[cfg(feature = "v2")]
 use api_models::payments::SessionToken;
+use common_types::primitive_wrappers::{
+    AlwaysRequestExtendedAuthorization, RequestExtendedAuthorizationBool,
+};
 #[cfg(feature = "v2")]
 use common_utils::ext_traits::ValueExt;
 use common_utils::{
@@ -11,7 +14,7 @@ use common_utils::{
     encryption::Encryption,
     errors::CustomResult,
     id_type, pii,
-    types::{keymanager::ToEncryptable, MinorUnit, RequestExtendedAuthorizationBool},
+    types::{keymanager::ToEncryptable, MinorUnit},
 };
 use diesel_models::payment_intent::TaxDetails;
 #[cfg(feature = "v2")]
@@ -141,6 +144,44 @@ impl PaymentIntent {
         url::Url::parse(start_redirection_url)
             .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
             .attach_printable("Error creating start redirection url")
+    }
+    #[cfg(feature = "v1")]
+    pub fn get_request_extended_authorization_bool_if_connector_supports(
+        &self,
+        connector: common_enums::connector_enums::Connector,
+        always_request_extended_authorization_optional: Option<AlwaysRequestExtendedAuthorization>,
+        payment_method_optional: Option<common_enums::PaymentMethod>,
+        payment_method_type_optional: Option<common_enums::PaymentMethodType>,
+    ) -> Option<RequestExtendedAuthorizationBool> {
+        let intent_request_extended_authorization_optional = self.request_extended_authorization;
+        if always_request_extended_authorization_optional.is_some_and(
+            |always_request_extended_authorization| *always_request_extended_authorization,
+        ) {
+            Some(true)
+        } else if intent_request_extended_authorization_optional.is_some_and(
+            |intent_request_extended_authorization| *intent_request_extended_authorization,
+        ) {
+            let supported_pms = connector.get_payment_methods_supporting_extended_authorization();
+            let supported_pmts =
+                connector.get_payment_method_types_supporting_extended_authorization();
+            // check if payment method or payment method type is supported by the connector
+            Some(
+                match (payment_method_optional, payment_method_type_optional) {
+                    (Some(payment_method), Some(payment_method_type)) => {
+                        supported_pms.contains(&payment_method)
+                            && supported_pmts.contains(&payment_method_type)
+                    }
+                    (Some(payment_method), None) => supported_pms.contains(&payment_method),
+                    (None, Some(payment_method_type)) => {
+                        supported_pmts.contains(&payment_method_type)
+                    }
+                    (None, None) => false,
+                },
+            )
+        } else {
+            None
+        }
+        .map(RequestExtendedAuthorizationBool::from)
     }
 
     #[cfg(feature = "v2")]

@@ -1,10 +1,11 @@
 use std::{collections::HashMap, marker::PhantomData};
 
+use common_types::primitive_wrappers;
 use common_utils::{
     errors::IntegrityCheckError,
     ext_traits::{OptionExt, ValueExt},
     id_type,
-    types::{self, MinorUnit},
+    types::MinorUnit,
 };
 use error_stack::ResultExt;
 use masking::{ExposeInterface, Secret};
@@ -362,7 +363,8 @@ pub enum AdditionalPaymentMethodConnectorResponse {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ExtendedAuthorizationResponseData {
-    pub extended_authentication_applied: Option<types::ExtendedAuthorizationAppliedBool>,
+    pub extended_authentication_applied:
+        Option<primitive_wrappers::ExtendedAuthorizationAppliedBool>,
     pub capture_before: Option<time::PrimitiveDateTime>,
 }
 

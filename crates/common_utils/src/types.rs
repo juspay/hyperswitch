@@ -6,9 +6,6 @@ pub mod authentication;
 /// Enum for Theme Lineage
 pub mod theme;
 
-/// types that are wrappers around primitive types
-pub mod primitive_wrappers;
-
 use std::{
     borrow::Cow,
     fmt::Display,
@@ -29,10 +26,6 @@ use diesel::{
     AsExpression, FromSqlRow, Queryable,
 };
 use error_stack::{report, ResultExt};
-pub use primitive_wrappers::bool_wrappers::{
-    AlwaysRequestExtendedAuthorization, ExtendedAuthorizationAppliedBool,
-    RequestExtendedAuthorizationBool,
-};
 use rust_decimal::{
     prelude::{FromPrimitive, ToPrimitive},
     Decimal,

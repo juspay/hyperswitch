@@ -948,10 +948,10 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         connector_data: &api::ConnectorData,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
         populate_surcharge_details(state, payment_data).await?;
-        payment_data.payment_attempt.request_extended_authorization = connector_data
-            .connector_name
-            .get_request_extended_authorization(
-                payment_data.payment_intent.request_extended_authorization,
+        payment_data.payment_attempt.request_extended_authorization = payment_data
+            .payment_intent
+            .get_request_extended_authorization_bool_if_connector_supports(
+                connector_data.connector_name,
                 business_profile.always_request_extended_authorization,
                 payment_data.payment_attempt.payment_method,
                 payment_data.payment_attempt.payment_method_type,
