@@ -6398,8 +6398,12 @@ pub fn validate_overcapture_request(
     request_overcapture: Option<api_enums::OverCaptureRequest>,
 ) -> Result<(), errors::ApiErrorResponse> {
     utils::when(
-        request_overcapture.unwrap_or(api_enums::OverCaptureRequest::Skip).is_enabled()
-            && capture_method.unwrap_or(api_enums::CaptureMethod::Automatic).is_manual(),
+        request_overcapture
+            .unwrap_or(api_enums::OverCaptureRequest::Skip)
+            .is_enabled()
+            && capture_method
+                .unwrap_or(api_enums::CaptureMethod::Automatic)
+                .is_manual(),
         || {
             Err(errors::ApiErrorResponse::PreconditionFailed {
                 message: "Requesting overcapture is only supported when the capture method is set to manual".to_string(),
