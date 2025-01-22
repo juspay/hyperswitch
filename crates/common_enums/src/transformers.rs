@@ -2030,16 +2030,6 @@ impl From<bool> for super::OverCaptureRequest {
     }
 }
 
-/// Get the boolean value of the `OverCaptureRequest`.
-impl super::OverCaptureRequest {
-    pub fn is_enabled(&self) -> bool {
-        match self {
-            Self::Enable => true,
-            Self::Skip => false,
-        }
-    }
-}
-
 /// Get the boolean value of the `OverCaptureStatus`.
 impl super::OverCaptureStatus {
     pub fn is_applicable(&self) -> bool {
