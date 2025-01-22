@@ -4163,6 +4163,35 @@ pub(super) fn transform_headers_for_connect_platform(
     }
 }
 
+pub fn construct_charge_response<T>(
+    charge_id: String,
+    request: &T,
+) -> Option<common_types::payments::ConnectorChargeResponseData>
+where
+    T: connector_util::SplitPaymentData
+{
+    let charge_request = request.get_split_payment_data();
+    if let Some(common_types::payments::SplitPaymentsRequest::StripeSplitPayment(
+        stripe_split_payment,
+    )) = charge_request
+    {
+        let stripe_charge_response = common_types::payments::StripeChargeResponseData {
+            charge_id: Some(charge_id),
+            charge_type: stripe_split_payment.charge_type,
+            application_fees: stripe_split_payment.application_fees,
+            transfer_account_id: stripe_split_payment.transfer_account_id,
+        };
+        Some(
+            common_types::payments::ConnectorChargeResponseData::StripeSplitPayment(
+                stripe_charge_response,
+            ),
+        )
+    } else {
+        None
+    }
+}
+
+
 #[cfg(test)]
 mod test_validate_shipping_address_against_payment_method {
     #![allow(clippy::unwrap_used)]
@@ -4324,33 +4353,5 @@ mod test_validate_shipping_address_against_payment_method {
             state: Some(Secret::new(String::from("state"))),
             phone: Some(Secret::new(String::from("pbone number"))),
         }
-    }
-}
-
-pub fn construct_charge_response<T>(
-    charge_id: String,
-    request: &T,
-) -> Option<common_types::payments::ConnectorChargeResponseData>
-where
-    T: connector_util::SplitPaymentData,
-{
-    let charge_request = request.get_split_payment_data();
-    if let Some(common_types::payments::SplitPaymentsRequest::StripeSplitPayment(
-        stripe_split_payment,
-    )) = charge_request
-    {
-        let stripe_charge_response = common_types::payments::StripeChargeResponseData {
-            charge_id: Some(charge_id),
-            charge_type: stripe_split_payment.charge_type,
-            application_fees: stripe_split_payment.application_fees,
-            transfer_account_id: stripe_split_payment.transfer_account_id,
-        };
-        Some(
-            common_types::payments::ConnectorChargeResponseData::StripeSplitPayment(
-                stripe_charge_response,
-            ),
-        )
-    } else {
-        None
     }
 }

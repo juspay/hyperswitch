@@ -517,7 +517,7 @@ pub fn get_split_refunds(
                     )) = split_refund_input.refund_request.clone()
                     {
                         super::refunds::validator::validate_adyen_charge_refund(
-                            &adyen_split_payment_response,
+                            adyen_split_payment_response,
                             &split_refund_request,
                         )?;
 
