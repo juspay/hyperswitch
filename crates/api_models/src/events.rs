@@ -3,6 +3,7 @@ pub mod connector_onboarding;
 pub mod customer;
 pub mod dispute;
 pub mod gsm;
+pub mod hypersense;
 mod locker_migration;
 pub mod payment;
 #[cfg(feature = "payouts")]
