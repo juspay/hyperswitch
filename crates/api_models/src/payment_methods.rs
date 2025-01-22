@@ -2497,6 +2497,9 @@ pub struct CardNetworkTokenizeResponse {
     /// Error message
     #[serde(skip_serializing_if = "Option::is_none")]
     pub error_message: Option<String>,
+
+    /// Details that were sent for tokenization
+    pub req: Option<TokenizeDataRequest>,
 }
 
 impl common_utils::events::ApiEventMetric for CardNetworkTokenizeResponse {}

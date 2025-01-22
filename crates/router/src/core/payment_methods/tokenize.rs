@@ -64,7 +64,7 @@ pub fn parse_csv(
     {
         match result {
             Ok(mut record) => {
-                router_env::logger::info!("Parsed Record (line {}): {:?}", i + 1, record);
+                logger::info!("Parsed Record (line {}): {:?}", i + 1, record);
                 id_counter += 1;
                 record.line_number = Some(id_counter);
                 record.merchant_id = Some(merchant_id.clone());
@@ -73,15 +73,11 @@ pub fn parse_csv(
                         records.push(record);
                     }
                     Err(err) => {
-                        router_env::logger::error!(
-                            "Error parsing line {}: {}",
-                            i + 1,
-                            err.to_string()
-                        );
+                        logger::error!("Error parsing line {}: {}", i + 1, err.to_string());
                     }
                 }
             }
-            Err(e) => router_env::logger::error!("Error parsing line {}: {}", i + 1, e),
+            Err(e) => logger::error!("Error parsing line {}: {}", i + 1, e),
         }
     }
     Ok(records)
@@ -117,19 +113,38 @@ pub async fn tokenize_cards(
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
 ) -> errors::RouterResponse<Vec<payment_methods_api::CardNetworkTokenizeResponse>> {
-    let mut res = vec![];
-    for record in records {
-        let tokenize_res = Box::pin(tokenize_card_flow(
-            state,
-            CardNetworkTokenizeRequest::foreign_from(record),
-            merchant_id,
-            merchant_account,
-            key_store,
-        ));
-        res.push(tokenize_res.await?);
-    }
+    use futures::stream::StreamExt;
 
-    Ok(services::ApplicationResponse::Json(res))
+    // Process all records in parallel
+    let responses = futures::stream::iter(records.into_iter())
+        .map(|record| async move {
+            let tokenize_request = record.data.clone();
+            tokenize_card_flow(
+                &state,
+                CardNetworkTokenizeRequest::foreign_from(record),
+                &merchant_id,
+                &merchant_account,
+                &key_store,
+            )
+            .await
+            .unwrap_or_else(|e| {
+                let err = e.current_context();
+                payment_methods_api::CardNetworkTokenizeResponse {
+                    req: Some(tokenize_request),
+                    error_code: Some(err.error_code()),
+                    error_message: Some(err.error_message()),
+                    card_tokenized: false,
+                    payment_method_response: None,
+                    customer: None,
+                }
+            })
+        })
+        .buffer_unordered(10)
+        .collect()
+        .await;
+
+    // Return the final response
+    Ok(services::ApplicationResponse::Json(responses))
 }
 
 // Builder
@@ -171,7 +186,7 @@ type NetworkTokenizationResponse = (
 
 // State machine
 pub trait State {}
-pub trait TransitionTo<S: State> {}
+pub trait TransitionTo<D, S: State> {}
 
 // All available states
 pub struct TokenizeWithCard;
@@ -210,7 +225,7 @@ impl State for PmTokenUpdated {}
 impl<D1, S1: State> CardNetworkTokenizeResponseBuilder<D1, S1> {
     pub fn transition<F, D2, S2>(self, f: F) -> CardNetworkTokenizeResponseBuilder<D2, S2>
     where
-        S1: TransitionTo<S2>,
+        S1: TransitionTo<D2, S2>,
         S2: State,
         F: FnOnce(D1) -> D2,
     {
@@ -227,12 +242,12 @@ impl<D1, S1: State> CardNetworkTokenizeResponseBuilder<D1, S1> {
 }
 
 // State machine for card tokenization
-impl TransitionTo<CardValidated> for TokenizeWithCard {}
-impl TransitionTo<CustomerAssigned> for CardValidated {}
-impl TransitionTo<CardDetailsAssigned> for CustomerAssigned {}
-impl TransitionTo<CardTokenized> for CardDetailsAssigned {}
-impl TransitionTo<CardTokenStored> for CardTokenized {}
-impl TransitionTo<PaymentMethodCreated> for CardTokenStored {}
+impl TransitionTo<&TokenizeCardRequest, CardValidated> for TokenizeWithCard {}
+impl TransitionTo<api::CustomerDetails, CustomerAssigned> for CardValidated {}
+impl TransitionTo<domain::Card, CardDetailsAssigned> for CustomerAssigned {}
+impl TransitionTo<NetworkTokenizationResponse, CardTokenized> for CardDetailsAssigned {}
+impl TransitionTo<api::PaymentMethodResponse, CardTokenStored> for CardTokenized {}
+impl TransitionTo<api::PaymentMethodResponse, PaymentMethodCreated> for CardTokenStored {}
 
 impl<'a> CardNetworkTokenizeExecutor<'a> {
     pub fn new(
@@ -285,6 +300,7 @@ impl<'a> CardNetworkTokenizeExecutor<'a> {
                 self.merchant_account.storage_scheme,
             )
             .await
+            .inspect_err(|err| logger::info!("Error fetching customer: {:?}", err))
             .change_context(errors::ApiErrorResponse::InternalServerError)?
         {
             // Customer found
@@ -320,6 +336,7 @@ impl<'a> CardNetworkTokenizeExecutor<'a> {
                         self.key_store.key.get_inner().peek(),
                     )
                     .await
+                    .inspect_err(|err| logger::info!("Error encrypting customer: {:?}", err))
                     .and_then(|val| val.try_into_batchoperation())
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed to encrypt customer")?;
@@ -359,6 +376,7 @@ impl<'a> CardNetworkTokenizeExecutor<'a> {
                         self.merchant_account.storage_scheme,
                     )
                     .await
+                    .inspect_err(|err| logger::info!("Error creating a customer: {:?}", err))
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable_lazy(|| {
                         format!(
@@ -458,6 +476,7 @@ impl<'a> CardNetworkTokenizeExecutor<'a> {
             api_enums::LockerChoice::HyperswitchCardVault,
         )
         .await
+        .inspect_err(|err| logger::info!("Error adding card in locker: {:?}", err))
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
         Ok(stored_resp)
@@ -488,6 +507,7 @@ impl<'a> CardNetworkTokenizeExecutor<'a> {
         });
         let enc_pm_data = create_encrypted_data(&self.state.into(), self.key_store, pm_data)
             .await
+            .inspect_err(|err| logger::info!("Error encrypting payment method data: {:?}", err))
             .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
         // Form encrypted network token data (tokenized card)
@@ -507,6 +527,7 @@ impl<'a> CardNetworkTokenizeExecutor<'a> {
         });
         let enc_token_data = create_encrypted_data(&self.state.into(), self.key_store, token_data)
             .await
+            .inspect_err(|err| logger::info!("Error encrypting network token data: {:?}", err))
             .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
         // Form PM create entry
@@ -589,7 +610,10 @@ impl<'a> CardNetworkTokenizeExecutor<'a> {
                         message: "Invalid payment_method_id".to_string(),
                     })
                 }
-                _ => err.change_context(errors::ApiErrorResponse::InternalServerError),
+                e => {
+                    logger::info!("Error fetching customer: {:?}", e);
+                    err.change_context(errors::ApiErrorResponse::InternalServerError)
+                }
             })?;
 
         // Ensure payment method is card
@@ -646,6 +670,7 @@ impl<'a> CardNetworkTokenizeExecutor<'a> {
         });
         let enc_token_data = create_encrypted_data(&self.state.into(), self.key_store, token_data)
             .await
+            .inspect_err(|err| logger::info!("Error encrypting network token data: {:?}", err))
             .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
         // Update payment method
@@ -664,13 +689,14 @@ impl<'a> CardNetworkTokenizeExecutor<'a> {
                 self.merchant_account.storage_scheme,
             )
             .await
+            .inspect_err(|err| logger::info!("Error updating payment method: {:?}", err))
             .change_context(errors::ApiErrorResponse::InternalServerError)
     }
 }
 
 // Initialize builder for tokenizing raw card details
-impl CardNetworkTokenizeResponseBuilder<TokenizeCardRequest, TokenizeWithCard> {
-    pub fn new(req: &CardNetworkTokenizeRequest, data: TokenizeCardRequest) -> Self {
+impl<'a> CardNetworkTokenizeResponseBuilder<&'a TokenizeCardRequest, TokenizeWithCard> {
+    pub fn new(req: &CardNetworkTokenizeRequest, data: &'a TokenizeCardRequest) -> Self {
         Self {
             data,
             state: std::marker::PhantomData::<TokenizeWithCard>,
@@ -689,7 +715,7 @@ impl CardNetworkTokenizeResponseBuilder<TokenizeCardRequest, TokenizeWithCard> {
 }
 
 // Perform customer related operations
-impl CardNetworkTokenizeResponseBuilder<TokenizeCardRequest, CardValidated> {
+impl CardNetworkTokenizeResponseBuilder<&TokenizeCardRequest, CardValidated> {
     pub fn set_customer_details(
         mut self,
         customer: &api::CustomerDetails,
@@ -809,17 +835,18 @@ impl CardNetworkTokenizeResponseBuilder<api::PaymentMethodResponse, PaymentMetho
             card_tokenized: self.card_tokenized,
             error_code: self.error_code,
             error_message: self.error_message,
+            req: None,
         }
     }
 }
 
 // State machine for payment method ID tokenization
-impl TransitionTo<PmValidated> for TokenizeWithPmId {}
-impl TransitionTo<PmFetched> for PmValidated {}
-impl TransitionTo<PmAssigned> for PmFetched {}
-impl TransitionTo<PmTokenized> for PmAssigned {}
-impl TransitionTo<PmTokenStored> for PmTokenized {}
-impl TransitionTo<PmTokenUpdated> for PmTokenStored {}
+impl TransitionTo<domain::PaymentMethod, PmValidated> for TokenizeWithPmId {}
+impl TransitionTo<payment_methods_api::Card, PmFetched> for PmValidated {}
+impl TransitionTo<domain::Card, PmAssigned> for PmFetched {}
+impl TransitionTo<NetworkTokenizationResponse, PmTokenized> for PmAssigned {}
+impl TransitionTo<&StoreCardRespPayload, PmTokenStored> for PmTokenized {}
+impl TransitionTo<api::PaymentMethodResponse, PmTokenUpdated> for PmTokenStored {}
 
 // Initialize builder for tokenizing saved cards
 impl CardNetworkTokenizeResponseBuilder<TokenizePaymentMethodRequest, TokenizeWithPmId> {
@@ -927,6 +954,7 @@ impl CardNetworkTokenizeResponseBuilder<api::PaymentMethodResponse, PmTokenUpdat
             card_tokenized: self.card_tokenized,
             error_code: self.error_code,
             error_message: self.error_message,
+            req: None,
         }
     }
 }

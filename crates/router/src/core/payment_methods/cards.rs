@@ -6034,13 +6034,13 @@ pub async fn tokenize_card_flow(
             let executor =
                 CardNetworkTokenizeExecutor::new(&req, state, merchant_account, key_store);
             let builder = tokenize::CardNetworkTokenizeResponseBuilder::<
-                domain::bulk_tokenization::TokenizeCardRequest,
+                &domain::bulk_tokenization::TokenizeCardRequest,
                 tokenize::TokenizeWithCard,
-            >::new(&req, card.clone());
+            >::new(&req, card);
 
             // Validate card number
             let card_number = executor.validate_card_number(card.raw_card_number.clone())?;
-            let builder = builder.transition(|_| card.clone());
+            let builder = builder.transition(|_| card);
 
             // Get or create customer
             let customer_details = executor.get_or_create_customer().await?;
