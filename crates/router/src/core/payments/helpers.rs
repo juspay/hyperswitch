@@ -1,4 +1,4 @@
-use std::{borrow::Cow, str::FromStr};
+use std::{borrow::Cow, collections::HashSet, str::FromStr};
 
 #[cfg(feature = "v2")]
 use api_models::ephemeral_key::EphemeralKeyResponse;
@@ -6303,6 +6303,94 @@ pub async fn is_merchant_eligible_authentication_service(
     };
 
     Ok(auth_eligible_array.contains(&merchant_id.get_string_repr().to_owned()))
+}
+
+#[cfg(feature = "v1")]
+pub async fn validate_allowed_payment_method_types_request(
+    state: &SessionState,
+    profile_id: &id_type::ProfileId,
+    merchant_account: &domain::MerchantAccount,
+    merchant_key_store: &domain::MerchantKeyStore,
+    allowed_payment_method_types: Option<Vec<common_enums::PaymentMethodType>>,
+) -> CustomResult<(), errors::ApiErrorResponse> {
+    if let Some(allowed_payment_method_types) = allowed_payment_method_types {
+        let db = &*state.store;
+        let all_connector_accounts = db
+            .find_merchant_connector_account_by_merchant_id_and_disabled_list(
+                &state.into(),
+                merchant_account.get_id(),
+                false,
+                merchant_key_store,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to fetch merchant connector account for given merchant id")?;
+
+        let filtered_connector_accounts = filter_mca_based_on_profile_and_connector_type(
+            all_connector_accounts,
+            profile_id,
+            ConnectorType::PaymentProcessor,
+        );
+
+        let supporting_payment_method_types: HashSet<_> = filtered_connector_accounts
+            .iter()
+            .flat_map(|connector_account| {
+                connector_account
+                    .payment_methods_enabled
+                    .clone()
+                    .unwrap_or_default()
+                    .into_iter()
+                    .map(|payment_methods_enabled| {
+                        payment_methods_enabled
+                            .parse_value::<api_models::admin::PaymentMethodsEnabled>(
+                                "payment_methods_enabled",
+                            )
+                    })
+                    .filter_map(|parsed_payment_method_result| {
+                        parsed_payment_method_result
+                            .inspect_err(|err| {
+                                logger::error!(
+                                    "Unable to deserialize payment methods enabled: {:?}",
+                                    err
+                                );
+                            })
+                            .ok()
+                    })
+                    .flat_map(|parsed_payment_methods_enabled| {
+                        parsed_payment_methods_enabled
+                            .payment_method_types
+                            .unwrap_or_default()
+                            .into_iter()
+                            .map(|payment_method_type| payment_method_type.payment_method_type)
+                    })
+            })
+            .collect();
+
+        let unsupported_payment_methods: Vec<_> = allowed_payment_method_types
+            .iter()
+            .filter(|allowed_pmt| !supporting_payment_method_types.contains(allowed_pmt))
+            .collect();
+
+        if !unsupported_payment_methods.is_empty() {
+            metrics::PAYMENT_METHOD_TYPES_MISCONFIGURATION_METRIC.add(
+                1,
+                router_env::metric_attributes!(("merchant_id", merchant_account.get_id().clone())),
+            );
+        }
+
+        fp_utils::when(
+            unsupported_payment_methods.len() == allowed_payment_method_types.len(),
+            || {
+                Err(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)
+                    .attach_printable(format!(
+                        "None of the allowed payment method types {:?} are configured for this merchant connector account.",
+                        allowed_payment_method_types
+                    ))
+            },
+        )?;
+    }
+
+    Ok(())
 }
 
 pub fn validate_overcapture_request(
