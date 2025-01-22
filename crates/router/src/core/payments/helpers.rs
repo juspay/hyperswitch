@@ -6311,11 +6311,11 @@ pub async fn validate_allowed_payment_method_types_request(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to fetch merchant connector account for given merchant id")?;
 
-        let filtered_connector_accounts = filter_mca_based_on_profile_and_connector_type(
-            all_connector_accounts,
-            profile_id,
-            ConnectorType::PaymentProcessor,
-        );
+        let filtered_connector_accounts = all_connector_accounts
+            .filter_based_on_profile_and_connector_type(
+                profile_id,
+                ConnectorType::PaymentProcessor,
+            );
 
         let supporting_payment_method_types: HashSet<_> = filtered_connector_accounts
             .iter()
