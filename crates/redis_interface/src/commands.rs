@@ -262,7 +262,7 @@ impl super::RedisConnectionPool {
                     self.pool
                         .del(key.tenant_unaware_key(self))
                         .await
-                        .change_context(errors::RedisError::GetFailed)
+                        .change_context(errors::RedisError::DeleteFailed)
                 }
             }
         }
@@ -273,9 +273,7 @@ impl super::RedisConnectionPool {
         &self,
         keys: &[RedisKey],
     ) -> CustomResult<Vec<DelReply>, errors::RedisError> {
-        let futures = keys
-            .iter()
-            .map(|key| self.pool.del(key.tenant_aware_key(self)));
+        let futures = keys.iter().map(|key| self.delete_key(key));
 
         let del_result = futures::future::try_join_all(futures)
             .await
