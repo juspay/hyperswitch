@@ -10,6 +10,11 @@ pub struct HypersenseVerifyTokenRequest {
     pub token: Secret<String>,
 }
 
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct HypersenseLogoutTokenRequest {
+    pub token: Secret<String>,
+}
+
 #[derive(serde::Serialize, Debug)]
 pub struct HypersenseVerifyTokenResponse {
     pub user_id: String,

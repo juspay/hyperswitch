@@ -1,7 +1,7 @@
 use common_utils::events::{ApiEventMetric, ApiEventsType};
 
 use crate::hypersense::{
-    HypersenseTokenResponse, HypersenseVerifyTokenRequest, HypersenseVerifyTokenResponse,
+    HypersenseLogoutTokenRequest, HypersenseTokenResponse, HypersenseVerifyTokenRequest, HypersenseVerifyTokenResponse
 };
 
 impl ApiEventMetric for HypersenseTokenResponse {
@@ -21,5 +21,11 @@ impl ApiEventMetric for HypersenseVerifyTokenResponse {
         Some(ApiEventsType::User {
             user_id: self.user_id.clone(),
         })
+    }
+}
+
+impl ApiEventMetric for HypersenseLogoutTokenRequest {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Hypersense)
     }
 }

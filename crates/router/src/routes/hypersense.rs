@@ -22,6 +22,20 @@ pub async fn get_hypersense_token(state: web::Data<AppState>, req: HttpRequest) 
     .await
 }
 
+pub async fn logout_hypersense_token(state: web::Data<AppState>, http_req: HttpRequest, json_payload: web::Json<hypersense_api::HypersenseLogoutTokenRequest>) -> HttpResponse {
+    let flow = Flow::HypersenseLogoutToken;
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &http_req,
+        json_payload.into_inner(),
+        |state, _: (), json_payload, _| hypersense::logout_hypersense_token(state, json_payload),
+        &authentication::NoAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
 pub async fn verify_hypersense_token(
     state: web::Data<AppState>,
     http_req: HttpRequest,
