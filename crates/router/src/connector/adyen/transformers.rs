@@ -182,7 +182,7 @@ struct AdyenSplitData {
     #[serde(rename = "type")]
     split_type: common_enums::AdyenSplitType,
     account: Option<String>,
-    reference: Option<String>,
+    reference: String,
     description: Option<String>,
 }
 

@@ -36,7 +36,7 @@ pub struct AdyenSplitItem {
     /// The unique identifier of the account to which the split amount is allocated.
     pub account: Option<String>,
     /// Unique Identifier for the split item
-    pub reference: Option<String>,
+    pub reference: String,
     /// Description for the part of the payment that will be allocated to the specified account.
     pub description: Option<String>,
 }

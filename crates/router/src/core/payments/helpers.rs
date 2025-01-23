@@ -6313,12 +6313,6 @@ pub fn validate_platform_request_for_marketplace(
                                         "split_payments.adyen_split_payment.split_items.account",
                                 });
                             }
-                            if split_item.reference.is_none() {
-                                return Err(errors::ApiErrorResponse::MissingRequiredField {
-                                    field_name:
-                                        "split_payments.adyen_split_payment.split_items.reference",
-                                });
-                            }
                         }
                         common_enums::AdyenSplitType::Commission
                         | enums::AdyenSplitType::Vat
