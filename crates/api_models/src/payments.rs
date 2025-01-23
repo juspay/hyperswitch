@@ -5436,7 +5436,7 @@ impl From<AdditionalPaymentData> for PaymentMethodDataResponse {
                 (_, Some(google_pay_pm), _) => Self::Wallet(Box::new(WalletResponse {
                     details: Some(WalletResponseData::GooglePay(Box::new(google_pay_pm))),
                 })),
-                (_, _,Some(samsung_pay_pm)) => Self::Wallet(Box::new(WalletResponse {
+                (_, _, Some(samsung_pay_pm)) => Self::Wallet(Box::new(WalletResponse {
                     details: Some(WalletResponseData::SamsungPay(Box::new(samsung_pay_pm))),
                 })),
                 _ => Self::Wallet(Box::new(WalletResponse { details: None })),
