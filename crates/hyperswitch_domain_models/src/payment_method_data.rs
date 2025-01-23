@@ -1442,7 +1442,7 @@ pub struct TokenizedCardValue1 {
     pub card_number: String,
     pub exp_year: String,
     pub exp_month: String,
-    pub nickname: Option<String>,
+    pub nickname: Option<common_utils::types::NameType>,
     pub card_last_four: Option<String>,
     pub card_token: Option<String>,
     pub card_holder_name: Option<common_utils::types::NameType>,

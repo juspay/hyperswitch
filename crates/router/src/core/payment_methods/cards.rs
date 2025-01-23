@@ -3041,14 +3041,22 @@ pub async fn mock_get_card<'a>(
             .map(Some)?,
         card_exp_year: Some(locker_mock_up.card_exp_year.into()),
         card_exp_month: Some(locker_mock_up.card_exp_month.into()),
-        name_on_card: locker_mock_up.name_on_card.and_then(|card| {
-            card.try_into()
-                .map_err(|_| {
-                    router_env::logger::error!("Failed to convert name to NameType");
-                })
-                .ok()
-        }),
-        nickname: locker_mock_up.nickname,
+        name_on_card: locker_mock_up
+            .name_on_card
+            .map(|card| {
+                common_utils::types::NameType::try_from(card)
+                    .change_context(errors::VaultError::ResponseDeserializationFailed)
+                    .attach_printable("Invalid card holder name format from the mock locker")
+            })
+            .transpose()?,
+        nickname: locker_mock_up
+            .nickname
+            .map(|card| {
+                common_utils::types::NameType::try_from(card)
+                    .change_context(errors::VaultError::ResponseDeserializationFailed)
+                    .attach_printable("Invalid nick name format from the mock locker")
+            })
+            .transpose()?,
         customer_id: locker_mock_up.customer_id,
         duplicate: locker_mock_up.duplicate,
     };
@@ -5717,16 +5725,12 @@ impl TempLockerCardSupport {
             .clone()
             .expose_option()
             .get_required_value("expiry_year")?;
-        let card_holder_name = card
-            .card_holder_name
-            .clone()
-            .map(|name| name.peek().to_string())
-            .unwrap_or_default();
+        let card_holder_name = card.card_holder_name.clone();
         let value1 = payment_methods::mk_card_value1(
             card_number,
             card_exp_year,
             card_exp_month,
-            Some(card_holder_name),
+            card_holder_name,
             None,
             None,
             None,

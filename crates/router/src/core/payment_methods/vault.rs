@@ -63,7 +63,7 @@ impl Vaultable for domain::Card {
             card_number: self.card_number.peek().clone(),
             exp_year: self.card_exp_year.peek().clone(),
             exp_month: self.card_exp_month.peek().clone(),
-            nickname: self.nick_name.as_ref().map(|name| name.peek().to_string()),
+            nickname: self.nick_name.clone(),
             card_last_four: None,
             card_token: None,
             card_holder_name: self.card_holder_name.clone(),
@@ -119,13 +119,7 @@ impl Vaultable for domain::Card {
             bank_code: None,
             card_issuing_country: None,
             card_type: None,
-            nick_name: value1.nickname.and_then(|name| {
-                common_utils::types::NameType::try_from(name)
-                    .map_err(|err| {
-                        router_env::logger::error!("Invalid Nick Name: {}", err);
-                    })
-                    .ok()
-            }),
+            nick_name: value1.nickname,
             card_holder_name: value1.card_holder_name,
         };
 
@@ -469,7 +463,7 @@ impl Vaultable for api::CardPayout {
             card_number: self.card_number.peek().clone(),
             exp_year: self.expiry_year.peek().clone(),
             exp_month: self.expiry_month.peek().clone(),
-            name_on_card: self.card_holder_name.clone().map(|n| n.peek().to_string()),
+            name_on_card: self.card_holder_name.clone(),
             nickname: None,
             card_last_four: None,
             card_token: None,
@@ -520,13 +514,7 @@ impl Vaultable for api::CardPayout {
                 .map_err(|_| errors::VaultError::FetchCardFailed)?,
             expiry_month: value1.exp_month.into(),
             expiry_year: value1.exp_year.into(),
-            card_holder_name: value1.name_on_card.and_then(|name| {
-                common_utils::types::NameType::try_from(name)
-                    .map_err(|err| {
-                        router_env::logger::error!("Invalid Nick Name: {}", err);
-                    })
-                    .ok()
-            }),
+            card_holder_name: value1.name_on_card,
         };
 
         let supp_data = SupplementaryVaultData {

@@ -145,7 +145,7 @@ pub struct AddCardResponse {
     pub card_exp_year: Option<Secret<String>>,
     pub card_exp_month: Option<Secret<String>>,
     pub name_on_card: Option<common_utils::types::NameType>,
-    pub nickname: Option<String>,
+    pub nickname: Option<common_utils::types::NameType>,
     pub customer_id: Option<id_type::CustomerId>,
     pub duplicate: Option<bool>,
 }
@@ -662,13 +662,7 @@ pub fn mk_get_card_response(card: GetCardResponse) -> errors::RouterResult<Card>
             .get_required_value("card_exp_year")?,
         card_brand: None,
         card_isin: None,
-        nick_name: card.card.nickname.and_then(|name| {
-            common_utils::types::NameType::try_from(name)
-                .map_err(|err| {
-                    router_env::logger::error!("Invalid Nick Name: {}", err);
-                })
-                .ok()
-        }),
+        nick_name: card.card.nickname,
     })
 }
 
@@ -878,8 +872,8 @@ pub fn mk_card_value1(
     card_number: cards::CardNumber,
     exp_year: String,
     exp_month: String,
-    name_on_card: Option<String>,
-    nickname: Option<String>,
+    name_on_card: Option<common_utils::types::NameType>,
+    nickname: Option<common_utils::types::NameType>,
     card_last_four: Option<String>,
     card_token: Option<String>,
 ) -> CustomResult<String, errors::VaultError> {

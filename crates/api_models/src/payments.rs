@@ -19,7 +19,7 @@ use common_utils::{
     types::{MinorUnit, StringMajorUnit},
 };
 use error_stack::ResultExt;
-use masking::{ExposeInterface, PeekInterface, Secret, WithType};
+use masking::{PeekInterface, Secret, WithType};
 use router_derive::Setter;
 use serde::{de, ser::Serializer, Deserialize, Deserializer, Serialize};
 use strum::Display;
@@ -2151,18 +2151,13 @@ mod payment_method_data_serde {
                                     if card.card_holder_name.is_none() {
                                         card.card_holder_name = billing_address_details
                                             .get_optional_full_name()
-                                            .and_then(|name| {
-                                                common_utils::types::NameType::try_from(
-                                                    name.expose(),
-                                                )
-                                                .map_err(|err| {
-                                                    router_env::logger::error!(
-                                                        "Invalid Card Holder Name: {}",
-                                                        err
-                                                    );
-                                                })
-                                                .ok()
-                                            });
+                                            .map(|name| {
+                                                common_utils::types::NameType::try_from(name)
+                                                    .map_err(|err| {
+                                                        de::Error::custom(err.to_string())
+                                                    })
+                                            })
+                                            .transpose()?;
                                     }
                                     Some(PaymentMethodData::Card(card.clone()))
                                 }

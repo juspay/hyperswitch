@@ -45,7 +45,7 @@ use hyperswitch_domain_models::payments::{payment_attempt::PaymentAttempt, Payme
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use masking::ExposeInterface;
 use masking::{PeekInterface, Secret};
-use router_env::{instrument, logger, tracing};
+use router_env::{instrument, tracing};
 use time::Duration;
 
 use super::{
@@ -56,7 +56,7 @@ use super::{
 use crate::{
     configs::settings,
     core::{payment_methods::transformers as pm_transforms, utils as core_utils},
-    headers,
+    headers, logger,
     routes::payment_methods as pm_routes,
     services::encryption,
     types::{
@@ -692,13 +692,15 @@ pub(crate) async fn get_payment_method_create_request(
                         card_number: card.card_number.clone(),
                         card_exp_month: card.card_exp_month.clone(),
                         card_exp_year: card.card_exp_year.clone(),
-                        card_holder_name: billing_name.and_then(|name| {
-                            common_utils::types::NameType::try_from(name)
-                                .map_err(|err| {
-                                    logger::error!("Invalid Card Holder Name: {}", err);
+                        card_holder_name: billing_name
+                            .map(|name| {
+                                common_utils::types::NameType::try_from(name).map_err(|_| {
+                                    errors::ApiErrorResponse::InvalidDataValue {
+                                        field_name: "card_holder_name",
+                                    }
                                 })
-                                .ok()
-                        }),
+                            })
+                            .transpose()?,
                         nick_name: card.nick_name.clone(),
                         card_issuing_country: card
                             .card_issuing_country
@@ -776,13 +778,15 @@ pub(crate) async fn get_payment_method_create_request(
                         card_number: card.card_number.clone(),
                         card_exp_month: card.card_exp_month.clone(),
                         card_exp_year: card.card_exp_year.clone(),
-                        card_holder_name: billing_name.and_then(|name| {
-                            common_utils::types::NameType::try_from(name)
-                                .map_err(|err| {
-                                    logger::error!("Invalid Card Holder Name: {}", err);
+                        card_holder_name: billing_name
+                            .map(|name| {
+                                common_utils::types::NameType::try_from(name).map_err(|_| {
+                                    errors::ApiErrorResponse::InvalidDataValue {
+                                        field_name: "card_holder_name",
+                                    }
                                 })
-                                .ok()
-                        }),
+                            })
+                            .transpose()?,
                         nick_name: card.nick_name.clone(),
                         card_issuing_country: card.card_issuing_country.clone(),
                         card_network: card.card_network.clone(),
