@@ -1,4 +1,3 @@
-pub mod transformers;
 pub mod types;
 pub mod utils;
 
@@ -57,7 +56,7 @@ impl<F: Clone + Sync> UnifiedAuthenticationService<F> for ClickToPay {
                     .as_ref()
                     .and_then(|details| details.x_src_flow_id.clone()),
             }),
-            pmt_details: None,
+            payment_details: None,
         };
         let currency = payment_data.payment_attempt.currency.ok_or(
             ApiErrorResponse::MissingRequiredField {
@@ -76,7 +75,7 @@ impl<F: Clone + Sync> UnifiedAuthenticationService<F> for ClickToPay {
         Ok(UasPreAuthenticationRequestData {
             service_details: Some(service_details),
             transaction_details: Some(transaction_details),
-            pmt_details: None,
+            payment_details: None,
         })
     }
 
@@ -174,7 +173,7 @@ impl<F: Clone + Sync> UnifiedAuthenticationService<F> for ExternalAuthentication
             .as_ref()
             .ok_or(ApiErrorResponse::InternalServerError)
             .attach_printable("payment_data.payment_method_data is missing")?;
-        let pmt_details =
+        let payment_details =
             if let payment_method_data::PaymentMethodData::Card(card) = payment_method_data {
                 Some(PaymentDetails {
                     pan: card.card_number.clone(),
@@ -192,7 +191,7 @@ impl<F: Clone + Sync> UnifiedAuthenticationService<F> for ExternalAuthentication
         Ok(UasPreAuthenticationRequestData {
             service_details: None,
             transaction_details: None,
-            pmt_details,
+            payment_details,
         })
     }
 

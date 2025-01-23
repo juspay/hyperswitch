@@ -7,7 +7,7 @@ use crate::{address::Address, payment_method_data::PaymentMethodData};
 pub struct UasPreAuthenticationRequestData {
     pub service_details: Option<CtpServiceDetails>,
     pub transaction_details: Option<TransactionDetails>,
-    pub pmt_details: Option<PaymentDetails>,
+    pub payment_details: Option<PaymentDetails>,
 }
 
 #[derive(Clone, Debug)]
@@ -29,7 +29,7 @@ pub struct UasAuthenticationRequestData {
 #[derive(Clone, Debug)]
 pub struct CtpServiceDetails {
     pub service_session_ids: Option<ServiceSessionIds>,
-    pub pmt_details: Option<PaymentDetails>,
+    pub payment_details: Option<PaymentDetails>,
 }
 
 #[derive(Debug, Clone)]

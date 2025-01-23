@@ -1280,11 +1280,11 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                         Some(authentication.clone()),
                     ).await?;
                     uas_utils::utils::external_authentication_update_trackers(
-                    state,
-                    post_auth_response,
-                    authentication,
-                    None,
-                ).await?
+                        state,
+                        post_auth_response,
+                        authentication,
+                        None,
+                    ).await?
                 } else {
                     authentication
                 };
