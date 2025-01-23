@@ -3,11 +3,12 @@
 use std::collections::HashMap;
 
 use common_enums::enums;
-use crate::domain::AdyenSplitData;
 use common_utils::{errors, impl_to_sql_from_sql_json, types::MinorUnit};
 use diesel::{sql_types::Jsonb, AsExpression, FromSqlRow};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
+
+use crate::domain::AdyenSplitData;
 
 #[derive(
     Serialize, Deserialize, Debug, Clone, PartialEq, Eq, FromSqlRow, AsExpression, ToSchema,
