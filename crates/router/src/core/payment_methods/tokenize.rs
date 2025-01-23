@@ -119,13 +119,13 @@ pub async fn tokenize_cards(
     let responses = futures::stream::iter(records.into_iter())
         .map(|record| async move {
             let tokenize_request = record.data.clone();
-            tokenize_card_flow(
-                &state,
+            Box::pin(tokenize_card_flow(
+                state,
                 CardNetworkTokenizeRequest::foreign_from(record),
-                &merchant_id,
-                &merchant_account,
-                &key_store,
-            )
+                merchant_id,
+                merchant_account,
+                key_store,
+            ))
             .await
             .unwrap_or_else(|e| {
                 let err = e.current_context();
@@ -564,8 +564,6 @@ impl<'a> CardNetworkTokenizeExecutor<'a> {
             connector_mandate_details: None,
             network_transaction_id: None,
         };
-
-        // Create payment method
         create_payment_method(
             self.state,
             &payment_method_create,

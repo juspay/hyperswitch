@@ -6,6 +6,10 @@ pub mod cards;
 pub mod migration;
 pub mod network_tokenization;
 pub mod surcharge_decision_configs;
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
 pub mod tokenize;
 pub mod transformers;
 pub mod utils;

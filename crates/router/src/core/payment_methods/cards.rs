@@ -62,19 +62,21 @@ use strum::IntoEnumIterator;
     not(feature = "payment_methods_v2")
 ))]
 use super::migration;
-use super::{
-    surcharge_decision_configs::{
-        perform_surcharge_decision_management_for_payment_method_list,
-        perform_surcharge_decision_management_for_saved_cards,
-    },
-    tokenize::CardNetworkTokenizeExecutor,
+use super::surcharge_decision_configs::{
+    perform_surcharge_decision_management_for_payment_method_list,
+    perform_surcharge_decision_management_for_saved_cards,
 };
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
     not(feature = "payment_methods_v2")
 ))]
+use super::tokenize::CardNetworkTokenizeExecutor;
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
 use crate::core::payment_methods::{
-    add_payment_method_status_update_task,
+    add_payment_method_status_update_task, tokenize,
     utils::{get_merchant_pm_filter_graph, make_pm_graph, refresh_pm_filters_cache},
 };
 #[cfg(all(
@@ -92,7 +94,7 @@ use crate::{
     },
     core::{
         errors::{self, StorageErrorExt},
-        payment_methods::{network_tokenization, tokenize, transformers as payment_methods, vault},
+        payment_methods::{network_tokenization, transformers as payment_methods, vault},
         payments::{
             helpers,
             routing::{self, SessionFlowRoutingInput},
@@ -6020,6 +6022,10 @@ pub async fn list_countries_currencies_for_connector_payment_method_util(
     }
 }
 
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
 pub async fn tokenize_card_flow(
     state: &routes::SessionState,
     req: domain::bulk_tokenization::CardNetworkTokenizeRequest,

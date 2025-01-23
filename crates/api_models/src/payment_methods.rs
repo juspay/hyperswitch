@@ -2499,6 +2499,7 @@ pub struct CardNetworkTokenizeResponse {
     pub error_message: Option<String>,
 
     /// Details that were sent for tokenization
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub req: Option<TokenizeDataRequest>,
 }
 

@@ -1,6 +1,6 @@
 #[cfg(all(
     any(feature = "v1", feature = "v2", feature = "olap", feature = "oltp"),
-    not(feature = "customer_v2")
+    all(not(feature = "customer_v2"), not(feature = "payment_methods_v2"))
 ))]
 use actix_multipart::form::MultipartForm;
 use actix_web::{web, HttpRequest, HttpResponse};
@@ -13,6 +13,11 @@ use hyperswitch_domain_models::{
 use router_env::{instrument, logger, tracing, Flow};
 
 use super::app::{AppState, SessionState};
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
+use crate::core::payment_methods::tokenize;
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use crate::core::payment_methods::{
     create_payment_method, delete_payment_method, list_customer_payment_method_util,
@@ -23,7 +28,7 @@ use crate::{
     core::{
         api_locking,
         errors::{self, utils::StorageErrorExt},
-        payment_methods::{self as payment_methods_routes, cards, tokenize},
+        payment_methods::{self as payment_methods_routes, cards},
     },
     services::{self, api, authentication as auth, authorization::permissions::Permission},
     types::{
@@ -1018,6 +1023,10 @@ impl ParentPaymentMethodToken {
     }
 }
 
+#[cfg(all(
+    any(feature = "v1", feature = "v2", feature = "olap", feature = "oltp"),
+    not(feature = "payment_methods_v2")
+))]
 #[instrument(skip_all, fields(flow = ?Flow::TokenizeCard))]
 pub async fn tokenize_card_api(
     state: web::Data<AppState>,
@@ -1050,6 +1059,10 @@ pub async fn tokenize_card_api(
     .await
 }
 
+#[cfg(all(
+    any(feature = "v1", feature = "v2", feature = "olap", feature = "oltp"),
+    not(feature = "payment_methods_v2")
+))]
 #[instrument(skip_all, fields(flow = ?Flow::TokenizeCardBatch))]
 pub async fn tokenize_card_batch_api(
     state: web::Data<AppState>,
