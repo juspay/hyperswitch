@@ -1,3 +1,18 @@
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+pub use api_models::payment_methods::{
+    CardDetail, CardDetailFromLocker, CardDetailsPaymentMethod, CardNetworkTokenizeRequest,
+    CardNetworkTokenizeResponse, CardType, CustomerPaymentMethod,
+    CustomerPaymentMethodsListResponse, DeleteTokenizeByTokenRequest, GetTokenizePayloadRequest,
+    GetTokenizePayloadResponse, ListCountriesCurrenciesRequest, MigrateCardDetail,
+    PaymentMethodCollectLinkRenderRequest, PaymentMethodCollectLinkRequest, PaymentMethodCreate,
+    PaymentMethodCreateData, PaymentMethodDeleteResponse, PaymentMethodId,
+    PaymentMethodIntentConfirm, PaymentMethodIntentCreate, PaymentMethodListData,
+    PaymentMethodListRequest, PaymentMethodListResponse, PaymentMethodMigrate,
+    PaymentMethodMigrateResponse, PaymentMethodResponse, PaymentMethodResponseData,
+    PaymentMethodUpdate, PaymentMethodUpdateData, PaymentMethodsData, TokenizePayloadEncrypted,
+    TokenizePayloadRequest, TokenizedCardValue1, TokenizedCardValue2, TokenizedWalletValue1,
+    TokenizedWalletValue2,
+};
 #[cfg(all(
     any(feature = "v2", feature = "v1"),
     not(feature = "payment_methods_v2")
@@ -13,21 +28,6 @@ pub use api_models::payment_methods::{
     PaymentMethodMigrateResponse, PaymentMethodResponse, PaymentMethodUpdate, PaymentMethodsData,
     TokenizeCardRequest, TokenizeDataRequest, TokenizePayloadEncrypted, TokenizePayloadRequest,
     TokenizePaymentMethodRequest, TokenizedCardValue1, TokenizedCardValue2, TokenizedWalletValue1,
-    TokenizedWalletValue2,
-};
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-pub use api_models::payment_methods::{
-    CardDetail, CardDetailFromLocker, CardDetailsPaymentMethod, CardNetworkTokenizeRequest,
-    CardNetworkTokenizeResponse, CardType, CustomerPaymentMethod,
-    CustomerPaymentMethodsListResponse, DeleteTokenizeByTokenRequest, GetTokenizePayloadRequest,
-    GetTokenizePayloadResponse, ListCountriesCurrenciesRequest, MigrateCardDetail,
-    PaymentMethodCollectLinkRenderRequest, PaymentMethodCollectLinkRequest, PaymentMethodCreate,
-    PaymentMethodCreateData, PaymentMethodDeleteResponse, PaymentMethodId,
-    PaymentMethodIntentConfirm, PaymentMethodIntentCreate, PaymentMethodListData,
-    PaymentMethodListRequest, PaymentMethodListResponse, PaymentMethodMigrate,
-    PaymentMethodMigrateResponse, PaymentMethodResponse, PaymentMethodResponseData,
-    PaymentMethodUpdate, PaymentMethodUpdateData, PaymentMethodsData, TokenizePayloadEncrypted,
-    TokenizePayloadRequest, TokenizedCardValue1, TokenizedCardValue2, TokenizedWalletValue1,
     TokenizedWalletValue2,
 };
 use error_stack::report;
