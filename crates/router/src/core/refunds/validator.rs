@@ -199,27 +199,28 @@ pub fn validate_adyen_charge_refund(
 
     for refund_split_item in adyen_split_refund_request.split_items.iter() {
         if let Some(refund_split_reference) = &refund_split_item.reference {
-            let matching_payment_split_item = adyen_split_payment_response
-                .split_items
-                .iter()
-                .find(|payment_split_item| {
-                    Some(refund_split_reference.clone()) == payment_split_item.reference
-                });
-        
+            let matching_payment_split_item =
+                adyen_split_payment_response
+                    .split_items
+                    .iter()
+                    .find(|payment_split_item| {
+                        Some(refund_split_reference.clone()) == payment_split_item.reference
+                    });
+
             if let Some(payment_split_item) = matching_payment_split_item {
-                if let Some((refund_amount, payment_amount)) = refund_split_item.amount.zip(payment_split_item.amount) {
-                        if refund_amount > payment_amount {
-                            return Err(report!(
-                                errors::ApiErrorResponse::InvalidRequestData {
-                                    message: format!(
-                                        "Invalid refund amount for split item, reference: {}",
-                                        refund_split_reference
-                                    ),
-                                }
-                            ));
+                if let Some((refund_amount, payment_amount)) =
+                    refund_split_item.amount.zip(payment_split_item.amount)
+                {
+                    if refund_amount > payment_amount {
+                        return Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+                            message: format!(
+                                "Invalid refund amount for split item, reference: {}",
+                                refund_split_reference
+                            ),
+                        }));
                     }
                 }
-        
+
                 if refund_split_item.account != payment_split_item.account {
                     return Err(report!(errors::ApiErrorResponse::InvalidRequestData {
                         message: format!(
@@ -228,7 +229,7 @@ pub fn validate_adyen_charge_refund(
                         ),
                     }));
                 }
-        
+
                 if refund_split_item.split_type != payment_split_item.split_type {
                     return Err(report!(errors::ApiErrorResponse::InvalidRequestData {
                         message: format!(
