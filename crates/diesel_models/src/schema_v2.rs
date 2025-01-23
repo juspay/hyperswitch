@@ -867,7 +867,7 @@ diesel::table! {
         tax_on_surcharge -> Nullable<Int8>,
         payment_method_billing_address -> Nullable<Bytea>,
         redirection_data -> Nullable<Jsonb>,
-        processor_payment_data -> Nullable<Text>,
+        connector_payment_data -> Nullable<Text>,
         #[max_length = 64]
         id -> Varchar,
         shipping_cost -> Nullable<Int8>,

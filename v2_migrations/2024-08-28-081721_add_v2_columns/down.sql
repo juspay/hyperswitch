@@ -42,7 +42,7 @@ ALTER TABLE payment_attempt DROP COLUMN payment_method_type_v2,
     DROP COLUMN tax_on_surcharge,
     DROP COLUMN payment_method_billing_address,
     DROP COLUMN redirection_data,
-    DROP COLUMN processor_payment_data;
+    DROP COLUMN connector_payment_data;
 
 ALTER TABLE merchant_connector_account
 ALTER COLUMN payment_methods_enabled TYPE JSON [ ];
