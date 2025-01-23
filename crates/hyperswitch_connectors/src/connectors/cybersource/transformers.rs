@@ -2144,10 +2144,10 @@ impl TryFrom<&CybersourceRouterData<&PaymentsCaptureRouterData>>
             .map(convert_metadata_to_merchant_defined_info);
 
         let is_final = matches!(
-                item.router_data.request.capture_method,
-                Some(enums::CaptureMethod::Manual)
-            )
-            .then_some(true);
+            item.router_data.request.capture_method,
+            Some(enums::CaptureMethod::Manual)
+        )
+        .then_some(true);
 
         Ok(Self {
             processing_information: ProcessingInformation {
@@ -2575,7 +2575,7 @@ impl
             .processor_information
             .as_ref()
             .map(AdditionalPaymentMethodConnectorResponse::from)
-            .map(ConnectorResponseData::with_additional_payment_method_data);  
+            .map(ConnectorResponseData::with_additional_payment_method_data);
 
         Ok(Self {
             status,
