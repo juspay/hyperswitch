@@ -56,9 +56,7 @@ impl Default for Mandates {
                         (
                             enums::PaymentMethodType::SamsungPay,
                             SupportedConnectorsForMandate {
-                                connector_list: HashSet::from([
-                                    enums::Connector::Cybersource,
-                                ]),
+                                connector_list: HashSet::from([enums::Connector::Cybersource]),
                             },
                         ),
                     ])),
