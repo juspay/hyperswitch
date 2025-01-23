@@ -7,6 +7,8 @@ service SuccessRateCalculator {
     rpc UpdateSuccessRateWindow (UpdateSuccessRateWindowRequest) returns (UpdateSuccessRateWindowResponse);
 
     rpc InvalidateWindows (InvalidateWindowsRequest) returns (InvalidateWindowsResponse);
+
+    rpc FetchEntityAndGlobalSuccessRate (CalGlobalSuccessRateRequest) returns (CalGlobalSuccessRateResponse);
 }
 
 // API-1 types
@@ -20,6 +22,12 @@ message CalSuccessRateRequest {
 message CalSuccessRateConfig {
     uint32 min_aggregates_size = 1;
     double default_success_rate = 2;
+    optional SuccessRateSpecificityLevel specificity_level = 3;
+}
+
+enum SuccessRateSpecificityLevel {
+    ENTITY = 0;
+    GLOBAL = 1;
 }
 
 message CalSuccessRateResponse {
@@ -31,12 +39,13 @@ message LabelWithScore {
     string label = 2;
 }
 
- // API-2 types
+// API-2 types
 message UpdateSuccessRateWindowRequest {
     string id = 1;
     string params = 2;
     repeated LabelWithStatus labels_with_status = 3;
     UpdateSuccessRateWindowConfig config = 4;
+    repeated LabelWithStatus global_labels_with_status = 5;
 }
 
 message LabelWithStatus {
@@ -68,9 +77,28 @@ message InvalidateWindowsRequest {
 }
 
 message InvalidateWindowsResponse {
-   enum InvalidationStatus {
+    enum InvalidationStatus {
       WINDOW_INVALIDATION_SUCCEEDED = 0;
       WINDOW_INVALIDATION_FAILED = 1;
    }
    InvalidationStatus status = 1;
+}
+
+// API-4 types
+message CalGlobalSuccessRateRequest {
+    string entity_id = 1;
+    string entity_params = 2;
+    repeated string entity_labels = 3;
+    repeated string global_labels = 4;
+    CalGlobalSuccessRateConfig config = 5;
+}
+
+message CalGlobalSuccessRateConfig {
+    uint32 entity_min_aggregates_size = 1;
+    double entity_default_success_rate = 2;
+}
+
+message CalGlobalSuccessRateResponse {
+    repeated LabelWithScore entity_scores_with_labels = 1;
+    repeated LabelWithScore global_scores_with_labels = 2;
 }
