@@ -294,4 +294,34 @@ impl UserRole {
             },
         }
     }
+
+    pub async fn list_user_roles_by_user_id_across_tenants(
+        conn: &PgPooledConn,
+        user_id: String,
+        limit: Option<u32>,
+    ) -> StorageResult<Vec<Self>> {
+        let mut query = <Self as HasTable>::table()
+            .filter(dsl::user_id.eq(user_id))
+            .into_boxed();
+        if let Some(limit) = limit {
+            query = query.limit(limit.into());
+        }
+
+        router_env::logger::debug!(query = %debug_query::<Pg,_>(&query).to_string());
+
+        match generics::db_metrics::track_database_call::<Self, _, _>(
+            query.get_results_async(conn),
+            generics::db_metrics::DatabaseOperation::Filter,
+        )
+        .await
+        {
+            Ok(value) => Ok(value),
+            Err(err) => match err {
+                DieselError::NotFound => {
+                    Err(report!(err)).change_context(errors::DatabaseError::NotFound)
+                }
+                _ => Err(report!(err)).change_context(errors::DatabaseError::Others),
+            },
+        }
+    }
 }
