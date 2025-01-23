@@ -525,12 +525,9 @@ function verifyReturnUrl(redirection_url, expected_url, forward_flow) {
 
           Cypress.on("uncaught:exception", (err, runnable) => {
             // Log the error details
-
-            cy.task(
-              "cli_log",
-              `Error: ${err.message}\n
-              Error occurred in: ${runnable.title}\n
-              Stack trace: ${err.stack}`
+            // eslint-disable-next-line no-console
+            console.log(
+              `Error: ${err.message}\nError occurred in: ${runnable.title}\nStack trace: ${err.stack}`
             );
             // Return false to prevent the error from failing the test
             return false;
