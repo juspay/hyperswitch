@@ -1,6 +1,7 @@
 use std::{
     collections::{HashMap, HashSet},
     path::PathBuf,
+    sync::Arc,
 };
 
 #[cfg(feature = "olap")]
@@ -32,11 +33,14 @@ use serde::Deserialize;
 use storage_impl::config::QueueStrategy;
 
 #[cfg(feature = "olap")]
-use crate::analytics::AnalyticsConfig;
+use crate::analytics::{AnalyticsConfig, AnalyticsProvider};
 use crate::{
+    configs,
     core::errors::{ApplicationError, ApplicationResult},
     env::{self, Env},
     events::EventsConfig,
+    routes::app,
+    AppState,
 };
 
 pub const REQUIRED_FIELDS_CONFIG_FILE: &str = "payment_required_fields_v2.toml";
@@ -139,9 +143,20 @@ pub struct Platform {
     pub enabled: bool,
 }
 
+#[cfg(feature = "v1")]
 #[derive(Debug, Clone, Default, Deserialize)]
 pub struct Multitenancy {
     pub tenants: TenantConfig,
+    pub enabled: bool,
+    pub global_tenant: GlobalTenant,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, Clone, Default, Deserialize)]
+pub struct Multitenancy {
+    pub tenants: TenantConfig,
+    // TODO: instead of using v1 schema, new global schema must be created for accounts
+    pub v1_tenants: TenantConfig,
     pub enabled: bool,
     pub global_tenant: GlobalTenant,
 }
@@ -169,6 +184,90 @@ pub struct DecisionConfig {
 
 #[derive(Debug, Clone, Default)]
 pub struct TenantConfig(pub HashMap<id_type::TenantId, Tenant>);
+
+impl TenantConfig {
+    /// # Panics
+    ///
+    /// Panics if Failed to create event handler
+    pub async fn get_store_interface_map(
+        &self,
+        storage_impl: &app::StorageImpl,
+        conf: &configs::Settings,
+        cache_store: Arc<storage_impl::redis::RedisStore>,
+        testable: bool,
+    ) -> HashMap<id_type::TenantId, Box<dyn app::StorageInterface>> {
+        #[allow(clippy::expect_used)]
+        let event_handler = conf
+            .events
+            .get_event_handler()
+            .await
+            .expect("Failed to create event handler");
+        futures::future::join_all(self.0.iter().map(|(tenant_name, tenant)| async {
+            let store = AppState::get_store_interface(
+                storage_impl,
+                &event_handler,
+                conf,
+                tenant,
+                cache_store.clone(),
+                testable,
+            )
+            .await
+            .get_storage_interface();
+            (tenant_name.clone(), store)
+        }))
+        .await
+        .into_iter()
+        .collect()
+    }
+    /// # Panics
+    ///
+    /// Panics if Failed to create event handler
+    pub async fn get_accounts_store_interface_map(
+        &self,
+        storage_impl: &app::StorageImpl,
+        conf: &configs::Settings,
+        cache_store: Arc<storage_impl::redis::RedisStore>,
+        testable: bool,
+    ) -> HashMap<id_type::TenantId, Box<dyn app::AccountsStorageInterface>> {
+        #[allow(clippy::expect_used)]
+        let event_handler = conf
+            .events
+            .get_event_handler()
+            .await
+            .expect("Failed to create event handler");
+        futures::future::join_all(self.0.iter().map(|(tenant_name, tenant)| async {
+            let store = AppState::get_store_interface(
+                storage_impl,
+                &event_handler,
+                conf,
+                tenant,
+                cache_store.clone(),
+                testable,
+            )
+            .await
+            .get_accounts_storage_interface();
+            (tenant_name.clone(), store)
+        }))
+        .await
+        .into_iter()
+        .collect()
+    }
+    #[cfg(feature = "olap")]
+    pub async fn get_pools_map(
+        &self,
+        analytics_config: &AnalyticsConfig,
+    ) -> HashMap<id_type::TenantId, AnalyticsProvider> {
+        futures::future::join_all(self.0.iter().map(|(tenant_name, tenant)| async {
+            (
+                tenant_name.clone(),
+                AnalyticsProvider::from_conf(analytics_config, tenant).await,
+            )
+        }))
+        .await
+        .into_iter()
+        .collect()
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct Tenant {
