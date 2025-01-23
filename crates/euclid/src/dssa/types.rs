@@ -1,4 +1,4 @@
-use std::fmt;
+use std::{collections::HashMap, fmt};
 
 use serde::Serialize;
 
@@ -158,4 +158,26 @@ pub enum AnalysisErrorType {
 pub enum ValueType {
     EnumVariants(Vec<EuclidValue>),
     Number,
+}
+
+impl EuclidAnalysable for common_enums::AuthenticationType {
+    fn get_dir_value_for_analysis(&self, rule_name: String) -> Vec<(dir::DirValue, Metadata)> {
+        let auth = self.to_string();
+
+        let dir_value = match self {
+            Self::ThreeDs => dir::DirValue::AuthenticationType(Self::ThreeDs),
+            Self::NoThreeDs => dir::DirValue::AuthenticationType(Self::NoThreeDs),
+        };
+
+        vec![(
+            dir_value,
+            HashMap::from_iter([(
+                "AUTHENTICATION_TYPE".to_string(),
+                serde_json::json!({
+                    "rule_name": rule_name,
+                    "Authentication_type": auth,
+                }),
+            )]),
+        )]
+    }
 }

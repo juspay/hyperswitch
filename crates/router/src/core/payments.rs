@@ -109,7 +109,7 @@ use crate::{
         api::{self, ConnectorCallType, ConnectorCommon},
         domain,
         storage::{self, enums as storage_enums, payment_attempt::PaymentAttemptExt},
-        transformers::{ForeignInto, ForeignTryInto},
+        transformers::ForeignTryInto,
     },
     utils::{
         self, add_apple_pay_flow_metrics, add_connector_http_status_code_metrics, Encode,
@@ -1144,7 +1144,7 @@ where
     Ok(payment_dsl_data
         .payment_attempt
         .authentication_type
-        .or(output.override_3ds.map(ForeignInto::foreign_into))
+        .or(output.override_3ds)
         .or(Some(storage_enums::AuthenticationType::NoThreeDs)))
 }
 

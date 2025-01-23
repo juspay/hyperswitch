@@ -1,5 +1,3 @@
-mod transformers;
-
 use api_models::{conditional_configs::DecisionManagerRecord, routing};
 use common_utils::ext_traits::StringExt;
 use error_stack::ResultExt;
