@@ -962,10 +962,9 @@ impl TryFrom<&BankOfAmericaRouterData<&PaymentsAuthorizeRouterData>>
                                     PaymentMethodToken::PazeDecrypt(_) => Err(
                                         unimplemented_payment_method!("Paze", "Bank Of America"),
                                     )?,
-                                    types::PaymentMethodToken::GooglePayDecrypt(_) => {
+                                    PaymentMethodToken::GooglePayDecrypt(_) => {
                                         Err(unimplemented_payment_method!(
                                             "Google Pay",
-                                            "Simplified",
                                             "Bank Of America"
                                         ))?
                                     }
@@ -2286,9 +2285,10 @@ impl TryFrom<(&SetupMandateRouterData, ApplePayWalletData)> for BankOfAmericaPay
                 PaymentMethodToken::PazeDecrypt(_) => {
                     Err(unimplemented_payment_method!("Paze", "Bank Of America"))?
                 }
-                types::PaymentMethodToken::GooglePayDecrypt(_) => Err(
-                    unimplemented_payment_method!("Google Pay", "Simplified", "Bank Of America"),
-                )?,
+                PaymentMethodToken::GooglePayDecrypt(_) => Err(unimplemented_payment_method!(
+                    "Google Pay",
+                    "Bank Of America"
+                ))?,
             },
             None => PaymentInformation::from(&apple_pay_data),
         };

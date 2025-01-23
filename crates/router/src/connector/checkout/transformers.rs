@@ -307,9 +307,9 @@ impl TryFrom<&CheckoutRouterData<&types::PaymentsAuthorizeRouterData>> for Payme
                         types::PaymentMethodToken::PazeDecrypt(_) => {
                             Err(unimplemented_payment_method!("Paze", "Checkout"))?
                         }
-                        types::PaymentMethodToken::GooglePayDecrypt(_) => Err(
-                            unimplemented_payment_method!("Google Pay", "Simplified", "Checkout"),
-                        )?,
+                        types::PaymentMethodToken::GooglePayDecrypt(_) => {
+                            Err(unimplemented_payment_method!("Google Pay", "Checkout"))?
+                        }
                     },
                 })),
                 domain::WalletData::ApplePay(_) => {
@@ -339,9 +339,9 @@ impl TryFrom<&CheckoutRouterData<&types::PaymentsAuthorizeRouterData>> for Payme
                         types::PaymentMethodToken::PazeDecrypt(_) => {
                             Err(unimplemented_payment_method!("Paze", "Checkout"))?
                         }
-                        types::PaymentMethodToken::GooglePayDecrypt(_) => Err(
-                            unimplemented_payment_method!("Google Pay", "Simplified", "Checkout"),
-                        )?,
+                        types::PaymentMethodToken::GooglePayDecrypt(_) => {
+                            Err(unimplemented_payment_method!("Google Pay", "Checkout"))?
+                        }
                     }
                 }
                 domain::WalletData::AliPayQr(_)

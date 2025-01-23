@@ -24,7 +24,8 @@ use hyperswitch_domain_models::{
     },
     router_data::{
         AdditionalPaymentMethodConnectorResponse, ApplePayPredecryptData, ConnectorAuthType,
-        ConnectorResponseData, ErrorResponse, PaymentMethodToken, RouterData,
+        ConnectorResponseData, ErrorResponse, GooglePayDecryptedData, PaymentMethodToken,
+        RouterData,
     },
     router_flow_types::{
         payments::Authorize,
@@ -216,6 +217,9 @@ impl TryFrom<&SetupMandateRouterData> for CybersourceZeroMandateRequest {
                         PaymentMethodToken::PazeDecrypt(_) => {
                             Err(unimplemented_payment_method!("Paze", "Cybersource"))?
                         }
+                        PaymentMethodToken::GooglePayDecrypt(_) => {
+                            Err(unimplemented_payment_method!("Google Pay", "Cybersource"))?
+                        }
                     },
                     None => (
                         PaymentInformation::ApplePayToken(Box::new(
@@ -233,15 +237,17 @@ impl TryFrom<&SetupMandateRouterData> for CybersourceZeroMandateRequest {
                     ),
                 },
                 WalletData::GooglePay(google_pay_data) => (
-                    PaymentInformation::GooglePay(Box::new(GooglePayPaymentInformation {
-                        fluid_data: FluidData {
-                            value: Secret::from(
-                                consts::BASE64_ENGINE
-                                    .encode(google_pay_data.tokenization_data.token),
-                            ),
-                            descriptor: None,
+                    PaymentInformation::GooglePayToken(Box::new(
+                        GooglePayTokenPaymentInformation {
+                            fluid_data: FluidData {
+                                value: Secret::from(
+                                    consts::BASE64_ENGINE
+                                        .encode(google_pay_data.tokenization_data.token),
+                                ),
+                                descriptor: None,
+                            },
                         },
-                    })),
+                    )),
                     Some(PaymentSolution::GooglePay),
                 ),
                 WalletData::AliPayQr(_)
@@ -490,8 +496,14 @@ pub const FLUID_DATA_DESCRIPTOR_FOR_SAMSUNG_PAY: &str = "FID=COMMON.SAMSUNG.INAP
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct GooglePayPaymentInformation {
+pub struct GooglePayTokenPaymentInformation {
     fluid_data: FluidData,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GooglePayPaymentInformation {
+    tokenized_card: TokenizedCard,
 }
 
 #[derive(Debug, Serialize)]
@@ -519,6 +531,7 @@ pub struct SamsungPayFluidDataValue {
 #[serde(untagged)]
 pub enum PaymentInformation {
     Cards(Box<CardPaymentInformation>),
+    GooglePayToken(Box<GooglePayTokenPaymentInformation>),
     GooglePay(Box<GooglePayPaymentInformation>),
     ApplePay(Box<ApplePayPaymentInformation>),
     ApplePayToken(Box<ApplePayTokenPaymentInformation>),
@@ -587,6 +600,8 @@ pub enum TransactionType {
     ApplePay,
     #[serde(rename = "1")]
     SamsungPay,
+    #[serde(rename = "1")]
+    GooglePay,
 }
 
 impl From<PaymentSolution> for String {
@@ -1706,7 +1721,7 @@ impl
         let order_information = OrderInformationWithBill::from((item, Some(bill_to)));
 
         let payment_information =
-            PaymentInformation::GooglePay(Box::new(GooglePayPaymentInformation {
+            PaymentInformation::GooglePayToken(Box::new(GooglePayTokenPaymentInformation {
                 fluid_data: FluidData {
                     value: Secret::from(
                         consts::BASE64_ENGINE.encode(google_pay_data.tokenization_data.token),
@@ -1716,6 +1731,71 @@ impl
             }));
         let processing_information =
             ProcessingInformation::try_from((item, Some(PaymentSolution::GooglePay), None))?;
+        let client_reference_information = ClientReferenceInformation::from(item);
+        let merchant_defined_information = item
+            .router_data
+            .request
+            .metadata
+            .clone()
+            .map(convert_metadata_to_merchant_defined_info);
+
+        Ok(Self {
+            processing_information,
+            payment_information,
+            order_information,
+            client_reference_information,
+            consumer_authentication_information: None,
+            merchant_defined_information,
+        })
+    }
+}
+
+impl
+    TryFrom<(
+        &CybersourceRouterData<&PaymentsAuthorizeRouterData>,
+        Box<GooglePayDecryptedData>,
+        GooglePayWalletData,
+    )> for CybersourcePaymentsRequest
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        (item, google_pay_decrypted_data, google_pay_data): (
+            &CybersourceRouterData<&PaymentsAuthorizeRouterData>,
+            Box<GooglePayDecryptedData>,
+            GooglePayWalletData,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let email = item
+            .router_data
+            .get_billing_email()
+            .or(item.router_data.request.get_email())?;
+        let bill_to = build_bill_to(item.router_data.get_optional_billing(), email)?;
+        let order_information = OrderInformationWithBill::from((item, Some(bill_to)));
+
+        let payment_information =
+            PaymentInformation::ApplePay(Box::new(ApplePayPaymentInformation {
+                tokenized_card: TokenizedCard {
+                    number: google_pay_decrypted_data.payment_method_details.pan,
+                    cryptogram: google_pay_decrypted_data
+                        .payment_method_details
+                        .cryptogram
+                        .ok_or(errors::ConnectorError::MissingRequiredField {
+                            field_name: "cryptogram",
+                        })?,
+                    transaction_type: TransactionType::GooglePay,
+                    expiration_year: google_pay_decrypted_data
+                        .payment_method_details
+                        .expiration_year,
+                    expiration_month: google_pay_decrypted_data
+                        .payment_method_details
+                        .expiration_month,
+                },
+            }));
+        let processing_information = ProcessingInformation::try_from((
+            item,
+            Some(PaymentSolution::GooglePay),
+            Some(google_pay_data.info.card_network),
+        ))?;
         let client_reference_information = ClientReferenceInformation::from(item);
         let merchant_defined_information = item
             .router_data
@@ -1849,6 +1929,9 @@ impl TryFrom<&CybersourceRouterData<&PaymentsAuthorizeRouterData>> for Cybersour
                                     PaymentMethodToken::PazeDecrypt(_) => {
                                         Err(unimplemented_payment_method!("Paze", "Cybersource"))?
                                     }
+                                    PaymentMethodToken::GooglePayDecrypt(_) => Err(
+                                        unimplemented_payment_method!("Google Pay", "Cybersource"),
+                                    )?,
                                 },
                                 None => {
                                     let email = item
@@ -1916,7 +1999,31 @@ impl TryFrom<&CybersourceRouterData<&PaymentsAuthorizeRouterData>> for Cybersour
                             }
                         }
                         WalletData::GooglePay(google_pay_data) => {
-                            Self::try_from((item, google_pay_data))
+                            match item.router_data.payment_method_token.clone() {
+                                Some(payment_method_token) => match payment_method_token {
+                                    PaymentMethodToken::GooglePayDecrypt(decrypt_data) => {
+                                        Self::try_from((item, decrypt_data, google_pay_data))
+                                    }
+                                    PaymentMethodToken::Token(_) => {
+                                        Err(unimplemented_payment_method!(
+                                            "Apple Pay",
+                                            "Manual",
+                                            "Cybersource"
+                                        ))?
+                                    }
+                                    PaymentMethodToken::PazeDecrypt(_) => {
+                                        Err(unimplemented_payment_method!("Paze", "Cybersource"))?
+                                    }
+                                    PaymentMethodToken::ApplePayDecrypt(_) => {
+                                        Err(unimplemented_payment_method!(
+                                            "Apple Pay",
+                                            "Simplified",
+                                            "Cybersource"
+                                        ))?
+                                    }
+                                },
+                                None => Self::try_from((item, google_pay_data)),
+                            }
                         }
                         WalletData::SamsungPay(samsung_pay_data) => {
                             Self::try_from((item, samsung_pay_data))

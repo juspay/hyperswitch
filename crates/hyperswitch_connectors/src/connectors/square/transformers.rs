@@ -272,9 +272,9 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for SquarePaymentsRequest {
                         PaymentMethodToken::PazeDecrypt(_) => {
                             Err(unimplemented_payment_method!("Paze", "Square"))?
                         }
-                        PaymentMethodToken::GooglePayDecrypt(_) => Err(
-                            unimplemented_payment_method!("Google Pay", "Simplified", "Square"),
-                        )?,
+                        PaymentMethodToken::GooglePayDecrypt(_) => {
+                            Err(unimplemented_payment_method!("Google Pay", "Square"))?
+                        }
                     },
                     amount_money: SquarePaymentsAmountData {
                         amount: item.request.amount,

@@ -1,4 +1,9 @@
-use std::{borrow::Cow, collections::HashSet, str::FromStr, time::{SystemTime, UNIX_EPOCH},};
+use std::{
+    borrow::Cow,
+    collections::HashSet,
+    str::FromStr,
+    time::{SystemTime, UNIX_EPOCH},
+};
 
 #[cfg(feature = "v2")]
 use api_models::ephemeral_key::EphemeralKeyResponse;
@@ -5527,7 +5532,7 @@ impl GooglePayTokenDecryptor {
     ) -> CustomResult<Self, errors::GooglePayDecryptionError> {
         // base64 decode the private key
         let decoded_key = BASE64_ENGINE
-            .decode(&private_key.expose())
+            .decode(private_key.expose())
             .change_context(errors::GooglePayDecryptionError::Base64DecodingFailed)?;
         // create a private key from the decoded key
         let private_key = PKey::private_key_from_pkcs8(&decoded_key)
