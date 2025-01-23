@@ -3067,6 +3067,22 @@
         },
         "additionalProperties": false
       },
+      "AdyenSplitType": {
+        "type": "string",
+        "enum": [
+          "BalanceAccount",
+          "AcquiringFees",
+          "PaymentFee",
+          "AdyenFees",
+          "AdyenCommission",
+          "AdyenMarkup",
+          "Interchange",
+          "SchemeFee",
+          "Commission",
+          "TopUp",
+          "Vat"
+        ]
+      },
       "AirwallexData": {
         "type": "object",
         "properties": {

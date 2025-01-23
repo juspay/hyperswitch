@@ -457,6 +457,7 @@ pub fn validate_uuid(uuid: String, key: &str) -> Result<String, errors::ApiError
     }
 }
 
+#[cfg(feature = "v1")]
 pub fn get_split_refunds(
     split_refund_input: super::refunds::transformers::SplitRefundInput,
 ) -> RouterResult<Option<router_request_types::SplitRefundsRequest>> {

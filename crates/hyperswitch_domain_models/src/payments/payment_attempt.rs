@@ -374,7 +374,6 @@ pub struct PaymentAttempt {
     /// The foreign key reference to the authentication details
     pub authentication_id: Option<String>,
     pub fingerprint_id: Option<String>,
-    pub charge_id: Option<String>,
     pub client_source: Option<String>,
     pub client_version: Option<String>,
     // TODO: use a type here instead of value
@@ -402,6 +401,8 @@ pub struct PaymentAttempt {
     pub id: id_type::GlobalAttemptId,
     /// The connector mandate details which are stored temporarily
     pub connector_mandate_detail: Option<ConnectorMandateReferenceId>,
+    /// Split payment data
+    pub charges: Option<common_types::payments::ConnectorChargeResponseData>,
 }
 
 impl PaymentAttempt {
@@ -504,7 +505,7 @@ impl PaymentAttempt {
             authentication_connector: None,
             authentication_id: None,
             fingerprint_id: None,
-            charge_id: None,
+            charges: None,
             client_source: None,
             client_version: None,
             customer_acceptance: None,
@@ -1771,7 +1772,6 @@ impl behaviour::Conversion for PaymentAttempt {
             authentication_connector,
             authentication_id,
             fingerprint_id,
-            charge_id,
             client_source,
             client_version,
             customer_acceptance,
@@ -1787,6 +1787,7 @@ impl behaviour::Conversion for PaymentAttempt {
             payment_method_billing_address,
             connector,
             connector_mandate_detail,
+            charges,
         } = self;
 
         let AttemptAmountDetails {
@@ -1846,7 +1847,6 @@ impl behaviour::Conversion for PaymentAttempt {
             authentication_connector,
             authentication_id,
             fingerprint_id,
-            charge_id,
             client_source,
             client_version,
             customer_acceptance,
@@ -1864,6 +1864,7 @@ impl behaviour::Conversion for PaymentAttempt {
             payment_method_billing_address: payment_method_billing_address.map(Encryption::from),
             connector_payment_data,
             connector_mandate_detail,
+            charges,
         })
     }
 
@@ -1963,7 +1964,7 @@ impl behaviour::Conversion for PaymentAttempt {
                 authentication_connector: storage_model.authentication_connector,
                 authentication_id: storage_model.authentication_id,
                 fingerprint_id: storage_model.fingerprint_id,
-                charge_id: storage_model.charge_id,
+                charges: storage_model.charges,
                 client_source: storage_model.client_source,
                 client_version: storage_model.client_version,
                 customer_acceptance: storage_model.customer_acceptance,
@@ -2042,7 +2043,6 @@ impl behaviour::Conversion for PaymentAttempt {
             authentication_connector: self.authentication_connector,
             authentication_id: self.authentication_id,
             fingerprint_id: self.fingerprint_id,
-            charge_id: self.charge_id,
             client_source: self.client_source,
             client_version: self.client_version,
             customer_acceptance: self.customer_acceptance,
@@ -2059,6 +2059,7 @@ impl behaviour::Conversion for PaymentAttempt {
             payment_method_type_v2: self.payment_method_type,
             id: self.id,
             connector_mandate_detail: self.connector_mandate_detail,
+            charges: self.charges
         })
     }
 }

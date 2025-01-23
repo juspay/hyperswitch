@@ -846,8 +846,6 @@ diesel::table! {
         #[max_length = 64]
         fingerprint_id -> Nullable<Varchar>,
         #[max_length = 64]
-        charge_id -> Nullable<Varchar>,
-        #[max_length = 64]
         client_source -> Nullable<Varchar>,
         #[max_length = 64]
         client_version -> Nullable<Varchar>,

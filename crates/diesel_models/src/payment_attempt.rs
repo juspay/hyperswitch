@@ -73,7 +73,6 @@ pub struct PaymentAttempt {
     pub authentication_connector: Option<String>,
     pub authentication_id: Option<String>,
     pub fingerprint_id: Option<String>,
-    pub charge_id: Option<String>,
     pub client_source: Option<String>,
     pub client_version: Option<String>,
     pub customer_acceptance: Option<pii::SecretSerdeValue>,
@@ -267,7 +266,6 @@ pub struct PaymentAttemptNew {
     pub authentication_id: Option<String>,
     pub fingerprint_id: Option<String>,
     pub payment_method_billing_address: Option<common_utils::encryption::Encryption>,
-    pub charge_id: Option<String>,
     pub client_source: Option<String>,
     pub client_version: Option<String>,
     pub customer_acceptance: Option<pii::SecretSerdeValue>,
@@ -280,6 +278,7 @@ pub struct PaymentAttemptNew {
     pub payment_method_subtype: storage_enums::PaymentMethodType,
     pub id: id_type::GlobalAttemptId,
     pub connector_mandate_detail: Option<ConnectorMandateReferenceId>,
+    pub charges: Option<common_types::payments::ConnectorChargeResponseData>,
 }
 
 #[cfg(feature = "v1")]
@@ -343,7 +342,6 @@ pub struct PaymentAttemptNew {
     pub mandate_data: Option<storage_enums::MandateDetails>,
     pub fingerprint_id: Option<String>,
     pub payment_method_billing_address_id: Option<String>,
-    pub charge_id: Option<String>,
     pub client_source: Option<String>,
     pub client_version: Option<String>,
     pub customer_acceptance: Option<pii::SecretSerdeValue>,
