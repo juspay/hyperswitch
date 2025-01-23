@@ -1718,7 +1718,7 @@ impl From<GooglePayWalletData> for payment_methods::PaymentMethodDataWalletInfo 
         Self {
             last4: item.info.card_details,
             card_network: item.info.card_network,
-            card_type: item.pm_type,
+            card_type: Some(item.pm_type),
         }
     }
 }

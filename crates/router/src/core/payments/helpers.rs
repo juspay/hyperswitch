@@ -4671,6 +4671,7 @@ pub async fn get_additional_payment_data(
                         pm_type: apple_pay_wallet_data.payment_method.pm_type.clone(),
                     }),
                     google_pay: None,
+                    samsung_pay: None,
                 }))
             }
             domain::WalletData::GooglePay(google_pay_pm_data) => {
@@ -4679,13 +4680,32 @@ pub async fn get_additional_payment_data(
                     google_pay: Some(payment_additional_types::WalletAdditionalDataForCard {
                         last4: google_pay_pm_data.info.card_details.clone(),
                         card_network: google_pay_pm_data.info.card_network.clone(),
-                        card_type: google_pay_pm_data.pm_type.clone(),
+                        card_type: Some(google_pay_pm_data.pm_type.clone()),
+                    }),
+                    samsung_pay: None,
+                }))
+            }
+            domain::WalletData::SamsungPay(samsung_pay_pm_data) => {
+                Ok(Some(api_models::payments::AdditionalPaymentData::Wallet {
+                    apple_pay: None,
+                    google_pay: None,
+                    samsung_pay: Some(payment_additional_types::WalletAdditionalDataForCard {
+                        last4: samsung_pay_pm_data
+                            .payment_credential
+                            .card_last_four_digits
+                            .clone(),
+                        card_network: samsung_pay_pm_data
+                            .payment_credential
+                            .card_brand
+                            .to_string(),
+                        card_type: None,
                     }),
                 }))
             }
             _ => Ok(Some(api_models::payments::AdditionalPaymentData::Wallet {
                 apple_pay: None,
                 google_pay: None,
+                samsung_pay: None,
             })),
         },
         domain::PaymentMethodData::PayLater(_) => Ok(Some(
