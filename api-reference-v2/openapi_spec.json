@@ -6768,7 +6768,7 @@
             ],
             "properties": {
               "AdyenSplitPayment": {
-                "$ref": "#/components/schemas/domain_types.AdyenSplitData"
+                "$ref": "#/components/schemas/AdyenSplitData"
               }
             }
           }
@@ -20518,7 +20518,7 @@
             ],
             "properties": {
               "adyen_split_payment": {
-                "$ref": "#/components/schemas/domain_types.AdyenSplitData"
+                "$ref": "#/components/schemas/AdyenSplitData"
               }
             }
           }
@@ -20545,7 +20545,7 @@
             ],
             "properties": {
               "adyen_split_refund": {
-                "$ref": "#/components/schemas/domain_types.AdyenSplitData"
+                "$ref": "#/components/schemas/AdyenSplitData"
               }
             }
           }

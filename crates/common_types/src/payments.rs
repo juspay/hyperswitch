@@ -3,12 +3,11 @@
 use std::collections::HashMap;
 
 use common_enums::enums;
+use crate::domain::AdyenSplitData;
 use common_utils::{errors, impl_to_sql_from_sql_json, types::MinorUnit};
 use diesel::{sql_types::Jsonb, AsExpression, FromSqlRow};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
-
-use crate::domain as domain_types;
 
 #[derive(
     Serialize, Deserialize, Debug, Clone, PartialEq, Eq, FromSqlRow, AsExpression, ToSchema,
@@ -21,7 +20,7 @@ pub enum SplitPaymentsRequest {
     /// StripeSplitPayment
     StripeSplitPayment(StripeSplitPaymentRequest),
     /// AdyenSplitPayment
-    AdyenSplitPayment(domain_types::AdyenSplitData),
+    AdyenSplitPayment(AdyenSplitData),
 }
 impl_to_sql_from_sql_json!(SplitPaymentsRequest);
 
@@ -103,7 +102,7 @@ pub enum ConnectorChargeResponseData {
     /// StripeChargeResponseData
     StripeSplitPayment(StripeChargeResponseData),
     /// AdyenChargeResponseData
-    AdyenSplitPayment(domain_types::AdyenSplitData),
+    AdyenSplitPayment(AdyenSplitData),
 }
 
 impl_to_sql_from_sql_json!(ConnectorChargeResponseData);
