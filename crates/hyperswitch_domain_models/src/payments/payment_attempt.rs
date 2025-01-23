@@ -2059,7 +2059,7 @@ impl behaviour::Conversion for PaymentAttempt {
             payment_method_type_v2: self.payment_method_type,
             id: self.id,
             connector_mandate_detail: self.connector_mandate_detail,
-            charges: self.charges
+            charges: self.charges,
         })
     }
 }
