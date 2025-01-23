@@ -18937,7 +18937,7 @@
           "split_payments": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/common_types.payments.ConnectorChargeResponseData"
+                "$ref": "#/components/schemas/ConnectorChargeResponseData"
               }
             ],
             "nullable": true
@@ -20180,7 +20180,7 @@
           "split_payments": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/common_types.payments.ConnectorChargeResponseData"
+                "$ref": "#/components/schemas/ConnectorChargeResponseData"
               }
             ],
             "nullable": true
