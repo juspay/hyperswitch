@@ -52,18 +52,22 @@ pub enum TokenCreationType {
     Worldpay,
 }
 
+#[serde_with::skip_serializing_none]
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CustomerAgreement {
     #[serde(rename = "type")]
     pub agreement_type: CustomerAgreementType,
-    pub stored_card_usage: StoredCardUsageType,
+    pub stored_card_usage: Option<StoredCardUsageType>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub scheme_reference: Option<Secret<String>>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum CustomerAgreementType {
     Subscription,
+    Unscheduled,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
@@ -78,6 +82,7 @@ pub enum StoredCardUsageType {
 pub enum PaymentInstrument {
     Card(CardPayment),
     CardToken(CardToken),
+    RawCardForNTI(RawCardDetails),
     Googlepay(WalletPayment),
     Applepay(WalletPayment),
 }
@@ -85,15 +90,22 @@ pub enum PaymentInstrument {
 #[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CardPayment {
-    #[serde(rename = "type")]
-    pub payment_type: PaymentType,
+    #[serde(flatten)]
+    pub raw_card_details: RawCardDetails,
+    pub cvc: Secret<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub card_holder_name: Option<Secret<String>>,
-    pub card_number: cards::CardNumber,
-    pub expiry_date: ExpiryDate,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub billing_address: Option<BillingAddress>,
-    pub cvc: Secret<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RawCardDetails {
+    #[serde(rename = "type")]
+    pub payment_type: PaymentType,
+    pub card_number: cards::CardNumber,
+    pub expiry_date: ExpiryDate,
 }
 
 #[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]

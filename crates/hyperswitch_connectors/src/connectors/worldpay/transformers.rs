@@ -76,12 +76,14 @@ fn fetch_payment_instrument(
 ) -> CustomResult<PaymentInstrument, errors::ConnectorError> {
     match payment_method {
         PaymentMethodData::Card(card) => Ok(PaymentInstrument::Card(CardPayment {
-            payment_type: PaymentType::Plain,
-            expiry_date: ExpiryDate {
-                month: card.get_expiry_month_as_i8()?,
-                year: card.get_expiry_year_as_4_digit_i32()?,
+            raw_card_details: RawCardDetails {
+                payment_type: PaymentType::Plain,
+                expiry_date: ExpiryDate {
+                    month: card.get_expiry_month_as_i8()?,
+                    year: card.get_expiry_year_as_4_digit_i32()?,
+                },
+                card_number: card.card_number,
             },
-            card_number: card.card_number,
             cvc: card.card_cvc,
             card_holder_name: billing_address.and_then(|address| address.get_optional_full_name()),
             billing_address: if let Some(address) =
@@ -113,6 +115,16 @@ fn fetch_payment_instrument(
                 None
             },
         })),
+        PaymentMethodData::CardDetailsForNetworkTransactionId(raw_card_details) => {
+            Ok(PaymentInstrument::RawCardForNTI(RawCardDetails {
+                payment_type: PaymentType::Plain,
+                expiry_date: ExpiryDate {
+                    month: raw_card_details.get_expiry_month_as_i8()?,
+                    year: raw_card_details.get_expiry_year_as_4_digit_i32()?,
+                },
+                card_number: raw_card_details.card_number,
+            }))
+        }
         PaymentMethodData::MandatePayment => mandate_ids
             .and_then(|mandate_ids| {
                 mandate_ids
@@ -191,13 +203,10 @@ fn fetch_payment_instrument(
         | PaymentMethodData::GiftCard(_)
         | PaymentMethodData::OpenBanking(_)
         | PaymentMethodData::CardToken(_)
-        | PaymentMethodData::NetworkToken(_)
-        | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
-            Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("worldpay"),
-            )
-            .into())
-        }
+        | PaymentMethodData::NetworkToken(_) => Err(errors::ConnectorError::NotImplemented(
+            utils::get_unimplemented_payment_method_error_message("worldpay"),
+        )
+        .into()),
     }
 }
 
@@ -445,6 +454,7 @@ fn get_token_and_agreement(
     payment_method_data: &PaymentMethodData,
     setup_future_usage: Option<enums::FutureUsage>,
     off_session: Option<bool>,
+    mandate_ids: Option<MandateIds>,
 ) -> (Option<TokenCreation>, Option<CustomerAgreement>) {
     match (payment_method_data, setup_future_usage, off_session) {
         // CIT
@@ -454,7 +464,8 @@ fn get_token_and_agreement(
             }),
             Some(CustomerAgreement {
                 agreement_type: CustomerAgreementType::Subscription,
-                stored_card_usage: StoredCardUsageType::First,
+                stored_card_usage: Some(StoredCardUsageType::First),
+                scheme_reference: None,
             }),
         ),
         // MIT
@@ -462,7 +473,26 @@ fn get_token_and_agreement(
             None,
             Some(CustomerAgreement {
                 agreement_type: CustomerAgreementType::Subscription,
-                stored_card_usage: StoredCardUsageType::Subsequent,
+                stored_card_usage: Some(StoredCardUsageType::Subsequent),
+                scheme_reference: None,
+            }),
+        ),
+        // NTI with raw card data
+        (PaymentMethodData::CardDetailsForNetworkTransactionId(_), _, _) => (
+            None,
+            mandate_ids.and_then(|mandate_ids| {
+                mandate_ids
+                    .mandate_reference_id
+                    .and_then(|mandate_id| match mandate_id {
+                        MandateReferenceId::NetworkMandateId(network_transaction_id) => {
+                            Some(CustomerAgreement {
+                                agreement_type: CustomerAgreementType::Unscheduled,
+                                scheme_reference: Some(network_transaction_id.into()),
+                                stored_card_usage: None,
+                            })
+                        }
+                        _ => None,
+                    })
             }),
         ),
         _ => (None, None),
@@ -493,6 +523,7 @@ impl<T: WorldpayPaymentsRequestData> TryFrom<(&WorldpayRouterData<&T>, &Secret<S
             item.router_data.get_payment_method_data(),
             item.router_data.get_setup_future_usage(),
             item.router_data.get_off_session(),
+            item.router_data.get_mandate_id(),
         );
 
         Ok(Self {
@@ -652,7 +683,7 @@ impl<F, T>
         ),
     ) -> Result<Self, Self::Error> {
         let (router_data, optional_correlation_id) = item;
-        let (description, redirection_data, mandate_reference, error) = router_data
+        let (description, redirection_data, mandate_reference, network_txn_id, error) = router_data
             .response
             .other_fields
             .as_ref()
@@ -666,6 +697,7 @@ impl<F, T>
                         mandate_metadata: None,
                         connector_mandate_request_reference_id: None,
                     }),
+                    res.scheme_reference.clone(),
                     None,
                 ),
                 WorldpayPaymentResponseFields::DDCResponse(res) => (
@@ -687,6 +719,7 @@ impl<F, T>
                     }),
                     None,
                     None,
+                    None,
                 ),
                 WorldpayPaymentResponseFields::ThreeDsChallenged(res) => (
                     None,
@@ -700,16 +733,18 @@ impl<F, T>
                     }),
                     None,
                     None,
+                    None,
                 ),
                 WorldpayPaymentResponseFields::RefusedResponse(res) => (
                     None,
                     None,
                     None,
+                    None,
                     Some((res.refusal_code.clone(), res.refusal_description.clone())),
                 ),
-                WorldpayPaymentResponseFields::FraudHighRisk(_) => (None, None, None, None),
+                WorldpayPaymentResponseFields::FraudHighRisk(_) => (None, None, None, None, None),
             })
-            .unwrap_or((None, None, None, None));
+            .unwrap_or((None, None, None, None, None));
         let worldpay_status = router_data.response.outcome.clone();
         let optional_error_message = match worldpay_status {
             PaymentOutcome::ThreeDsAuthenticationFailed => {
@@ -731,7 +766,7 @@ impl<F, T>
                 redirection_data: Box::new(redirection_data),
                 mandate_reference: Box::new(mandate_reference),
                 connector_metadata: None,
-                network_txn_id: None,
+                network_txn_id: network_txn_id.map(|id| id.expose()),
                 connector_response_reference_id: optional_correlation_id.clone(),
                 incremental_authorization_allowed: None,
                 charge_id: None,
