@@ -1285,7 +1285,6 @@ impl PaymentCreate {
                 fingerprint_id: None,
                 authentication_connector: None,
                 authentication_id: None,
-                charge_id: None,
                 client_source: None,
                 client_version: None,
                 customer_acceptance: customer_acceptance

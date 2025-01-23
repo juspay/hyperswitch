@@ -465,7 +465,6 @@ where
                 unified_code: None,
                 unified_message: None,
                 payment_method_data: additional_payment_method_data,
-                charge_id: None,
                 connector_mandate_detail: None,
                 charges,
             };
@@ -652,7 +651,6 @@ pub fn make_new_payment_attempt(
         mandate_data: Default::default(),
         payment_method_billing_address_id: Default::default(),
         fingerprint_id: Default::default(),
-        charge_id: Default::default(),
         customer_acceptance: Default::default(),
         connector_mandate_detail: Default::default(),
     }
