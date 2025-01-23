@@ -5,13 +5,9 @@ use std::collections::HashMap;
 use common_enums::enums;
 use common_utils::{errors, events, impl_to_sql_from_sql_json, types::MinorUnit};
 use diesel::{sql_types::Jsonb, AsExpression, FromSqlRow};
-use euclid::{
-    dssa::types::EuclidAnalysable,
-    frontend::{
-        ast::Program,
-        dir::{DirKeyKind, DirValue, EuclidDirFilter},
-    },
-    types::Metadata,
+use euclid::frontend::{
+    ast::Program,
+    dir::{DirKeyKind, EuclidDirFilter},
 };
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -75,68 +71,13 @@ pub struct StripeSplitPaymentRequest {
 impl_to_sql_from_sql_json!(StripeSplitPaymentRequest);
 
 #[derive(
-    Clone,
-    Debug,
-    Hash,
-    PartialEq,
-    Eq,
-    strum::Display,
-    strum::VariantNames,
-    strum::EnumIter,
-    strum::EnumString,
-    Serialize,
-    Deserialize,
-    FromSqlRow,
-    AsExpression,
-)]
-#[diesel(sql_type = Jsonb)]
-#[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "snake_case")]
-/// AuthenticationType
-pub enum AuthenticationType {
-    /// If the card is enrolled for 3DS authentication, the 3DS based authentication will be activated. The liability of chargeback shift to the issuer
-    ThreeDs,
-    /// 3DS based authentication will not be activated. The liability of chargeback stays with the merchant.
-    NoThreeDs,
-}
-
-impl_to_sql_from_sql_json!(AuthenticationType);
-
-impl AuthenticationType {
-    /// Convert to DirValue
-    pub fn to_dir_value(&self) -> DirValue {
-        match self {
-            Self::ThreeDs => DirValue::AuthenticationType(enums::AuthenticationType::ThreeDs),
-            Self::NoThreeDs => DirValue::AuthenticationType(enums::AuthenticationType::NoThreeDs),
-        }
-    }
-}
-
-impl EuclidAnalysable for AuthenticationType {
-    fn get_dir_value_for_analysis(&self, rule_name: String) -> Vec<(DirValue, Metadata)> {
-        let auth = self.to_string();
-
-        vec![(
-            self.to_dir_value(),
-            HashMap::from_iter([(
-                "AUTHENTICATION_TYPE".to_string(),
-                serde_json::json!({
-                    "rule_name":rule_name,
-                    "Authentication_type": auth,
-                }),
-            )]),
-        )]
-    }
-}
-
-#[derive(
     Serialize, Default, Deserialize, Debug, Clone, PartialEq, Eq, FromSqlRow, AsExpression, ToSchema,
 )]
 #[diesel(sql_type = Jsonb)]
 /// ConditionalConfigs
 pub struct ConditionalConfigs {
     /// Override 3DS
-    pub override_3ds: Option<AuthenticationType>,
+    pub override_3ds: Option<common_enums::AuthenticationType>,
 }
 impl EuclidDirFilter for ConditionalConfigs {
     const ALLOWED: &'static [DirKeyKind] = &[

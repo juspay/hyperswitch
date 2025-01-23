@@ -4006,6 +4006,7 @@ dependencies = [
  "hyperswitch_domain_models",
  "hyperswitch_interfaces",
  "image",
+ "josekit",
  "lazy_static",
  "masking",
  "mime",
