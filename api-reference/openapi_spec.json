@@ -5867,7 +5867,8 @@
         "description": "Data for the split items",
         "required": [
           "amount",
-          "split_type"
+          "split_type",
+          "reference"
         ],
         "properties": {
           "amount": {
@@ -5886,8 +5887,7 @@
           },
           "reference": {
             "type": "string",
-            "description": "Unique Identifier for the split item",
-            "nullable": true
+            "description": "Unique Identifier for the split item"
           },
           "description": {
             "type": "string",
