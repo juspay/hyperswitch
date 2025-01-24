@@ -288,11 +288,16 @@ pub async fn construct_refund_router_data<'a, F>(
         .payment_method
         .get_required_value("payment_method_type")
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
+    let merchant_connector_account_id_or_connector_name = payment_attempt
+        .merchant_connector_id
+        .as_ref()
+        .map(|mca_id| mca_id.get_string_repr())
+        .unwrap_or(connector_id);
 
     let webhook_url = Some(helpers::create_webhook_url(
         &state.base_url.clone(),
         merchant_account.get_id(),
-        connector_id,
+        merchant_connector_account_id_or_connector_name,
     ));
     let test_mode: Option<bool> = merchant_connector_account.is_test_mode_on();
 
@@ -917,8 +922,8 @@ pub async fn construct_upload_file_router_data<'a>(
 }
 
 #[cfg(feature = "v2")]
-pub async fn construct_payments_dynamic_tax_calculation_router_data<'a, F: Clone>(
-    state: &'a SessionState,
+pub async fn construct_payments_dynamic_tax_calculation_router_data<F: Clone>(
+    state: &SessionState,
     merchant_account: &domain::MerchantAccount,
     _key_store: &domain::MerchantKeyStore,
     payment_data: &mut PaymentData<F>,
@@ -928,8 +933,8 @@ pub async fn construct_payments_dynamic_tax_calculation_router_data<'a, F: Clone
 }
 
 #[cfg(feature = "v1")]
-pub async fn construct_payments_dynamic_tax_calculation_router_data<'a, F: Clone>(
-    state: &'a SessionState,
+pub async fn construct_payments_dynamic_tax_calculation_router_data<F: Clone>(
+    state: &SessionState,
     merchant_account: &domain::MerchantAccount,
     _key_store: &domain::MerchantKeyStore,
     payment_data: &mut PaymentData<F>,
