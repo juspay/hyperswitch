@@ -30,20 +30,24 @@ export default defineConfig({
         },
       });
       on("after:spec", (spec, results) => {
-        if (results && results.video) {
-          // Do we have failures for any retry attempts?
-          const failures = results.tests.some((test) =>
+        // Clean up resources after each spec
+        if (
+          results &&
+          results.video &&
+          !results.tests.some((test) =>
             test.attempts.some((attempt) => attempt.state === "failed")
-          );
-          if (!failures) {
-            // delete the video if the spec passed and no tests retried
-            fs.unlinkSync(results.video);
-          }
+          )
+        ) {
+          // Delete video for passed specs
+          fs.unlinkSync(results.video);
         }
       });
       return config;
     },
     experimentalRunAllSpecs: true,
+
+    specPattern: "cypress/e2e/**/*.cy.{js,jsx,ts,tsx}",
+    supportFile: "cypress/support/e2e.js",
 
     reporter: "cypress-mochawesome-reporter",
     reporterOptions: {
@@ -55,12 +59,18 @@ export default defineConfig({
       inlineAssets: true,
       saveJson: true,
     },
+    defaultCommandTimeout: 10000,
+    pageLoadTimeout: 20000,
+    responseTimeout: 30000,
+    screenshotsFolder: screenshotsFolderName,
+    video: true,
+    videoCompression: 32,
+    chromeWebSecurity: false,
+    // TODO: Plan migration strategy for v15 when injectDocumentDomain is removed
+    // Options:
+    // 1. Restructure tests to avoid cross-subdomain testing
+    // 2. Use alternative domain handling approaches
+    // 3. Keep using v14 if cross-subdomain testing is critical
+    injectDocumentDomain: true,
   },
-  chromeWebSecurity: false,
-  defaultCommandTimeout: 10000,
-  pageLoadTimeout: 20000,
-  responseTimeout: 30000,
-  screenshotsFolder: screenshotsFolderName,
-  video: true,
-  videoCompression: 32,
 });
