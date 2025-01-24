@@ -791,6 +791,7 @@ pub struct PaymentAttemptUpdateInternal {
     // client_version: Option<String>,
     // customer_acceptance: Option<pii::SecretSerdeValue>,
     // card_network: Option<String>,
+    pub connector_mandate_detail: Option<ConnectorMandateReferenceId>,
 }
 
 #[cfg(feature = "v1")]

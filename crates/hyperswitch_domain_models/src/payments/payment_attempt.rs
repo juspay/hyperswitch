@@ -1423,6 +1423,7 @@ pub enum PaymentAttemptUpdate {
         redirection_data: Option<router_response_types::RedirectForm>,
         connector_metadata: Option<pii::SecretSerdeValue>,
         amount_capturable: Option<MinorUnit>,
+        connector_mandate_detail: Option<ConnectorMandateReferenceId>,
     },
     /// Update the payment attempt after force syncing with the connector
     SyncUpdate {
@@ -2083,6 +2084,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 connector_metadata: None,
                 amount_capturable: None,
                 amount_to_capture: None,
+                connector_mandate_detail: None,
             },
             PaymentAttemptUpdate::ErrorUpdate {
                 status,
@@ -2107,6 +2109,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 connector_metadata: None,
                 amount_capturable,
                 amount_to_capture: None,
+                connector_mandate_detail: None,
             },
             PaymentAttemptUpdate::ConfirmIntentResponse {
                 status,
@@ -2115,6 +2118,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 redirection_data,
                 connector_metadata,
                 amount_capturable,
+                connector_mandate_detail,
             } => Self {
                 status: Some(status),
                 amount_capturable,
@@ -2133,6 +2137,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                     .map(diesel_models::payment_attempt::RedirectForm::from),
                 connector_metadata,
                 amount_to_capture: None,
+                connector_mandate_detail,
             },
             PaymentAttemptUpdate::SyncUpdate {
                 status,
@@ -2155,6 +2160,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 redirection_data: None,
                 connector_metadata: None,
                 amount_to_capture: None,
+                connector_mandate_detail: None,
             },
             PaymentAttemptUpdate::CaptureUpdate {
                 status,
@@ -2177,6 +2183,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 connector: None,
                 redirection_data: None,
                 connector_metadata: None,
+                connector_mandate_detail: None,
             },
             PaymentAttemptUpdate::PreCaptureUpdate {
                 amount_to_capture,
@@ -2198,6 +2205,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 status: None,
                 connector_metadata: None,
                 amount_capturable: None,
+                connector_mandate_detail: None,
             },
         }
     }

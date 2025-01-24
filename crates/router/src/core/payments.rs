@@ -1609,6 +1609,94 @@ where
     )
 }
 
+#[allow(clippy::too_many_arguments)]
+#[cfg(feature = "v2")]
+pub(crate) async fn payments_create_and_confirm_setup_intent(
+    state: SessionState,
+    req_state: ReqState,
+    merchant_account: domain::MerchantAccount,
+    profile: domain::Profile,
+    key_store: domain::MerchantKeyStore,
+    request: payments_api::PaymentsSetupIntentRequest,
+    mut header_payload: HeaderPayload,
+    platform_merchant_account: Option<domain::MerchantAccount>,
+) -> RouterResponse<payments_api::SetupIntentWrapperResponse> {
+    use actix_http::body::MessageBody;
+    use common_utils::ext_traits::BytesExt;
+    use hyperswitch_domain_models::{
+        payments::{PaymentConfirmData, PaymentIntentData},
+        router_flow_types::{Authorize, SetupMandate},
+    };
+
+    let global_payment_id = id_type::GlobalPaymentId::generate(&state.conf.cell_information.id);
+
+    let payload = payments_api::PaymentsCreateIntentRequest::from(&request);
+
+    let create_intent_response = Box::pin(payments_intent_core::<
+        SetupMandate,
+        payments_api::PaymentsIntentResponse,
+        _,
+        _,
+        PaymentIntentData<SetupMandate>,
+    >(
+        state.clone(),
+        req_state.clone(),
+        merchant_account.clone(),
+        profile.clone(),
+        key_store.clone(),
+        operations::PaymentIntentCreate,
+        payload,
+        global_payment_id.clone(),
+        header_payload.clone(),
+        platform_merchant_account,
+    ))
+    .await?;
+
+    logger::info!(create_setup_intent_response=?create_intent_response);
+    let create_intent_response = match create_intent_response {
+        hyperswitch_domain_models::api::ApplicationResponse::Json(response)
+        | hyperswitch_domain_models::api::ApplicationResponse::JsonWithHeaders((response, _)) => {
+            Ok(response)
+        }
+        hyperswitch_domain_models::api::ApplicationResponse::StatusOk
+        | hyperswitch_domain_models::api::ApplicationResponse::TextPlain(_)
+        | hyperswitch_domain_models::api::ApplicationResponse::JsonForRedirection(_)
+        | hyperswitch_domain_models::api::ApplicationResponse::Form(_)
+        | hyperswitch_domain_models::api::ApplicationResponse::PaymentLinkForm(_)
+        | hyperswitch_domain_models::api::ApplicationResponse::FileData(_)
+        | hyperswitch_domain_models::api::ApplicationResponse::GenericLinkForm(_) => {
+            Err(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Unexpected response from payment intent core")
+        }
+    }?;
+
+    // Adding client secret to ensure client secret validation passes during confirm intent step
+    header_payload.client_secret = Some(create_intent_response.client_secret);
+
+    let payload = payments_api::PaymentsConfirmIntentRequest::from(&request);
+
+    Box::pin(payments_core::<
+        SetupMandate,
+        api_models::payments::SetupIntentWrapperResponse,
+        _,
+        _,
+        _,
+        PaymentConfirmData<SetupMandate>,
+    >(
+        state,
+        req_state,
+        merchant_account,
+        profile,
+        key_store,
+        operations::PaymentIntentConfirm,
+        payload,
+        global_payment_id,
+        CallConnectorAction::Trigger,
+        header_payload.clone(),
+    ))
+    .await
+}
+
 fn is_start_pay<Op: Debug>(operation: &Op) -> bool {
     format!("{operation:?}").eq("PaymentStart")
 }

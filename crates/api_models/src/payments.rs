@@ -4784,6 +4784,102 @@ pub struct PaymentsConfirmIntentRequest {
     pub browser_info: Option<common_utils::types::BrowserInformation>,
 }
 
+// This struct contains the union of fields in `PaymentsCreateIntentRequest` and
+// `PaymentsConfirmIntentRequest`
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone)]
+#[serde(deny_unknown_fields)]
+#[cfg(feature = "v2")]
+pub struct PaymentsSetupIntentRequest {
+    pub amount_details: AmountDetails,
+    pub merchant_reference_id: Option<id_type::PaymentReferenceId>,
+    pub routing_algorithm_id: Option<id_type::RoutingId>,
+    pub capture_method: Option<api_enums::CaptureMethod>,
+    pub authentication_type: Option<api_enums::AuthenticationType>,
+    pub billing: Option<Address>,
+    pub shipping: Option<Address>,
+    pub customer_id: Option<id_type::GlobalCustomerId>,
+    pub customer_present: Option<common_enums::PresenceOfCustomerDuringPayment>,
+    pub description: Option<common_utils::types::Description>,
+    pub return_url: Option<common_utils::types::Url>,
+    pub setup_future_usage: Option<api_enums::FutureUsage>,
+    pub apply_mit_exemption: Option<common_enums::MitExemptionRequest>,
+    pub statement_descriptor: Option<common_utils::types::StatementDescriptor>,
+    pub order_details: Option<Vec<OrderDetailsWithAmount>>,
+    pub allowed_payment_method_types: Option<Vec<api_enums::PaymentMethodType>>,
+    pub metadata: Option<pii::SecretSerdeValue>,
+    pub connector_metadata: Option<ConnectorMetadata>,
+    pub feature_metadata: Option<FeatureMetadata>,
+    pub payment_link_enabled: Option<common_enums::EnablePaymentLinkRequest>,
+    pub payment_link_config: Option<admin::PaymentLinkConfigRequest>,
+    pub request_incremental_authorization: Option<common_enums::RequestIncrementalAuthorization>,
+    pub session_expiry: Option<u32>,
+    pub frm_metadata: Option<pii::SecretSerdeValue>,
+    pub request_external_three_ds_authentication:
+        Option<common_enums::External3dsAuthenticationRequest>,
+    pub payment_method_data: PaymentMethodDataRequest,
+    pub payment_method_type: api_enums::PaymentMethod,
+    pub payment_method_subtype: api_enums::PaymentMethodType,
+    pub customer_acceptance: Option<CustomerAcceptance>,
+    pub browser_info: Option<common_utils::types::BrowserInformation>,
+}
+
+#[cfg(feature = "v2")]
+impl From<&PaymentsSetupIntentRequest> for PaymentsCreateIntentRequest {
+    fn from(request: &PaymentsSetupIntentRequest) -> Self {
+        Self {
+            amount_details: request.amount_details.clone(),
+            merchant_reference_id: request.merchant_reference_id.clone(),
+            routing_algorithm_id: request.routing_algorithm_id.clone(),
+            capture_method: request.capture_method,
+            authentication_type: request.authentication_type,
+            billing: request.billing.clone(),
+            shipping: request.shipping.clone(),
+            customer_id: request.customer_id.clone(),
+            customer_present: request.customer_present.clone(),
+            description: request.description.clone(),
+            return_url: request.return_url.clone(),
+            setup_future_usage: request.setup_future_usage,
+            apply_mit_exemption: request.apply_mit_exemption.clone(),
+            statement_descriptor: request.statement_descriptor.clone(),
+            order_details: request.order_details.clone(),
+            allowed_payment_method_types: request.allowed_payment_method_types.clone(),
+            metadata: request.metadata.clone(),
+            connector_metadata: request.connector_metadata.clone(),
+            feature_metadata: request.feature_metadata.clone(),
+            payment_link_enabled: request.payment_link_enabled.clone(),
+            payment_link_config: request.payment_link_config.clone(),
+            request_incremental_authorization: request.request_incremental_authorization,
+            session_expiry: request.session_expiry,
+            frm_metadata: request.frm_metadata.clone(),
+            request_external_three_ds_authentication: request
+                .request_external_three_ds_authentication
+                .clone(),
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
+impl From<&PaymentsSetupIntentRequest> for PaymentsConfirmIntentRequest {
+    fn from(request: &PaymentsSetupIntentRequest) -> Self {
+        Self {
+            return_url: request.return_url.clone(),
+            payment_method_data: request.payment_method_data.clone(),
+            payment_method_type: request.payment_method_type,
+            payment_method_subtype: request.payment_method_subtype,
+            shipping: request.shipping.clone(),
+            customer_acceptance: request.customer_acceptance.clone(),
+            browser_info: request.browser_info.clone(),
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Serialize)]
+pub struct SetupIntentWrapperResponse {
+    pub confirm_intent_response: PaymentsConfirmIntentResponse,
+    pub connector_mandate_reference_id: Option<ConnectorMandateReferenceId>,
+}
+
 // Serialize is implemented because, this will be serialized in the api events.
 // Usually request types should not have serialize implemented.
 //

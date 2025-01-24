@@ -149,6 +149,7 @@ impl PaymentsResponseData {
             .into()),
         }
     }
+
     pub fn merge_transaction_responses(
         auth_response: &Self,
         capture_response: &Self,
@@ -204,6 +205,31 @@ impl PaymentsResponseData {
                 message: "Invalid Flow ".to_owned(),
             }
             .into()),
+        }
+    }
+
+    pub fn get_connector_mandate_details(
+        &self,
+    ) -> Option<diesel_models::ConnectorMandateReferenceId> {
+        if let Self::TransactionResponse {
+            mandate_reference, ..
+        } = self
+        {
+            mandate_reference.clone().map(|mandate_ref| {
+                let connector_mandate_id = mandate_ref.connector_mandate_id;
+                let mandate_metadata = mandate_ref.mandate_metadata;
+                let connector_mandate_request_reference_id =
+                    mandate_ref.connector_mandate_request_reference_id;
+
+                diesel_models::ConnectorMandateReferenceId {
+                    connector_mandate_id,
+                    payment_method_id: None,
+                    mandate_metadata,
+                    connector_mandate_request_reference_id,
+                }
+            })
+        } else {
+            None
         }
     }
 }
