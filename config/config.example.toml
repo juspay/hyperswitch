@@ -462,6 +462,7 @@ bank_debit.sepa = { connector_list = "gocardless,adyen" }                       
 bank_redirect.ideal = { connector_list = "stripe,adyen,globalpay" }                   # Mandate supported payment method type and connector for bank_redirect
 bank_redirect.sofort = { connector_list = "stripe,adyen,globalpay" }
 wallet.apple_pay = { connector_list = "stripe,adyen,cybersource,noon,bankofamerica" }
+wallet.samsung_pay = { connector_list = "cybersource" }
 wallet.google_pay = { connector_list = "bankofamerica" }
 bank_redirect.giropay = { connector_list = "adyen,globalpay" }
 
