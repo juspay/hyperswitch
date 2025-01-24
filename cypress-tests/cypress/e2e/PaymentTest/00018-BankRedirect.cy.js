@@ -227,7 +227,9 @@ describe("Bank Redirect tests", () => {
         globalState
       ).then(() => {
         if (globalState.get("connectorId") === "adyen") {
-          expect(data.Response.body.error_message).to.equal("Required object 'paymentMethod' is not provided.");
+          expect(data.Response.body.error_message).to.equal(
+            "Required object 'paymentMethod' is not provided."
+          );
         }
       });
 
