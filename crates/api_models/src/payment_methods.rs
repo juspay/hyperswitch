@@ -783,7 +783,7 @@ pub struct PaymentMethodResponse {
 
     /// For Client based calls
     #[schema(value_type=Option<String>)]
-    pub ephemeral_key: Option<masking::Secret<String>>,
+    pub client_secret: Option<masking::Secret<String>>,
 
     pub payment_method_data: Option<PaymentMethodResponseData>,
 }

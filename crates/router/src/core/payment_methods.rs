@@ -1401,11 +1401,10 @@ pub async fn create_payment_method_for_intent(
     payment_method_billing_address: crypto::OptionalEncryptableValue,
 ) -> errors::CustomResult<(domain::PaymentMethod, Secret<String>), errors::ApiErrorResponse> {
     let db = &*state.store;
-    let ephemeral_key = payment_helpers::create_ephemeral_key(
+    let ephemeral_key = payment_helpers::create_client_secret(
         state,
-        customer_id,
         merchant_id,
-        ephemeral_key::ResourceType::PaymentMethod,
+        diesel_models::ResourceId::Customer(customer_id.clone()),
     )
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1983,7 +1982,7 @@ pub async fn retrieve_payment_method(
         created: Some(payment_method.created_at),
         recurring_enabled: false,
         last_used_at: Some(payment_method.last_used_at),
-        ephemeral_key: None,
+        client_secret: None,
         payment_method_data: pmd,
     };
 

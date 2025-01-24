@@ -7,7 +7,7 @@ use common_utils::{
     types::{keymanager::KeyManagerState, theme::ThemeLineage},
 };
 #[cfg(feature = "v2")]
-use diesel_models::ephemeral_key::{EphemeralKeyType, EphemeralKeyTypeNew};
+use diesel_models::ephemeral_key::{ClientSecretType, ClientSecretTypeNew};
 use diesel_models::{
     enums,
     enums::ProcessTrackerStatus,
@@ -39,6 +39,7 @@ use time::PrimitiveDateTime;
 
 use super::{
     dashboard_metadata::DashboardMetadataInterface,
+    ephemeral_key::ClientSecretInterface,
     role::RoleInterface,
     user::{sample_data::BatchSampleDataInterface, theme::ThemeInterface, UserInterface},
     user_authentication_method::UserAuthenticationMethodInterface,
@@ -658,45 +659,48 @@ impl EphemeralKeyInterface for KafkaStore {
         self.diesel_store.create_ephemeral_key(ek, validity).await
     }
 
-    #[cfg(feature = "v2")]
-    async fn create_ephemeral_key(
+    #[cfg(feature = "v1")]
+    async fn get_ephemeral_key(
         &self,
-        ek: EphemeralKeyTypeNew,
+        key: &str,
+    ) -> CustomResult<EphemeralKey, errors::StorageError> {
+        self.diesel_store.get_ephemeral_key(key).await
+    }
+
+    #[cfg(feature = "v1")]
+    async fn delete_ephemeral_key(
+        &self,
+        id: &str,
+    ) -> CustomResult<EphemeralKey, errors::StorageError> {
+        self.diesel_store.delete_ephemeral_key(id).await
+    }
+}
+
+#[async_trait::async_trait]
+impl ClientSecretInterface for KafkaStore {
+    #[cfg(feature = "v2")]
+    async fn create_client_secret(
+        &self,
+        ek: ClientSecretTypeNew,
         validity: i64,
-    ) -> CustomResult<EphemeralKeyType, errors::StorageError> {
-        self.diesel_store.create_ephemeral_key(ek, validity).await
-    }
-
-    #[cfg(feature = "v1")]
-    async fn get_ephemeral_key(
-        &self,
-        key: &str,
-    ) -> CustomResult<EphemeralKey, errors::StorageError> {
-        self.diesel_store.get_ephemeral_key(key).await
+    ) -> CustomResult<ClientSecretType, errors::StorageError> {
+        self.diesel_store.create_client_secret(ek, validity).await
     }
 
     #[cfg(feature = "v2")]
-    async fn get_ephemeral_key(
+    async fn get_client_secret(
         &self,
         key: &str,
-    ) -> CustomResult<EphemeralKeyType, errors::StorageError> {
-        self.diesel_store.get_ephemeral_key(key).await
-    }
-
-    #[cfg(feature = "v1")]
-    async fn delete_ephemeral_key(
-        &self,
-        id: &str,
-    ) -> CustomResult<EphemeralKey, errors::StorageError> {
-        self.diesel_store.delete_ephemeral_key(id).await
+    ) -> CustomResult<ClientSecretType, errors::StorageError> {
+        self.diesel_store.get_client_secret(key).await
     }
 
     #[cfg(feature = "v2")]
-    async fn delete_ephemeral_key(
+    async fn delete_client_secret(
         &self,
         id: &str,
-    ) -> CustomResult<EphemeralKeyType, errors::StorageError> {
-        self.diesel_store.delete_ephemeral_key(id).await
+    ) -> CustomResult<ClientSecretType, errors::StorageError> {
+        self.diesel_store.delete_client_secret(id).await
     }
 }
 

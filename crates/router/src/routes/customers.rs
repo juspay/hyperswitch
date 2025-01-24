@@ -85,6 +85,8 @@ pub async fn customers_retrieve(
     req: HttpRequest,
     path: web::Path<id_type::GlobalCustomerId>,
 ) -> HttpResponse {
+    use crate::services::authentication::V2Auth;
+
     let flow = Flow::CustomersRetrieve;
 
     let id = path.into_inner();

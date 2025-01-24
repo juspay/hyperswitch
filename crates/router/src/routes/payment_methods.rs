@@ -175,10 +175,10 @@ pub async fn confirm_payment_method_intent_api(
     let pm_id = path.into_inner();
     let payload = json_payload.into_inner();
 
-    let auth = match auth::is_ephemeral_or_publishible_auth(req.headers()) {
-        Ok(auth) => auth,
-        Err(e) => return api::log_and_return_error_response(e),
-    };
+    // let auth = match auth::is_ephemeral_or_publishible_auth(req.headers()) {
+    //     Ok(auth) => auth,
+    //     Err(e) => return api::log_and_return_error_response(e),
+    // };
 
     let inner_payload = PaymentMethodIntentConfirmInternal {
         id: pm_id.to_owned(),
@@ -206,7 +206,7 @@ pub async fn confirm_payment_method_intent_api(
                 .await
             }
         },
-        &*auth,
+        &auth::V2Auth::ClientAuth,
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -222,16 +222,11 @@ pub async fn list_payment_methods_enabled(
     let flow = Flow::PaymentMethodsList;
     let payment_method_id = path.into_inner();
 
-    let auth = match auth::is_ephemeral_or_publishible_auth(req.headers()) {
-        Ok(auth) => auth,
-        Err(e) => return api::log_and_return_error_response(e),
-    };
-
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
-        payment_method_id,
+        payment_method_id.clone(),
         |state, auth: auth::AuthenticationData, payment_method_id, _| {
             payment_methods_routes::list_payment_methods_enabled(
                 state,
@@ -241,7 +236,7 @@ pub async fn list_payment_methods_enabled(
                 payment_method_id,
             )
         },
-        &*auth,
+        &auth::V2Auth::ClientAuth,
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -259,10 +254,10 @@ pub async fn payment_method_update_api(
     let payment_method_id = path.into_inner();
     let payload = json_payload.into_inner();
 
-    let auth = match auth::is_ephemeral_or_publishible_auth(req.headers()) {
-        Ok(auth) => auth,
-        Err(e) => return api::log_and_return_error_response(e),
-    };
+    // let auth = match auth::is_ephemeral_or_publishible_auth(req.headers()) {
+    //     Ok(auth) => auth,
+    //     Err(e) => return api::log_and_return_error_response(e),
+    // };
 
     Box::pin(api::server_wrap(
         flow,
@@ -278,7 +273,7 @@ pub async fn payment_method_update_api(
                 auth.key_store,
             )
         },
-        &*auth,
+        &auth::V2Auth::ClientAuth,
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -596,10 +591,10 @@ pub async fn list_customer_payment_method_api(
     let payload = query_payload.into_inner();
     let customer_id = customer_id.into_inner();
 
-    let ephemeral_or_api_auth = match auth::is_ephemeral_auth(req.headers()) {
-        Ok(auth) => auth,
-        Err(err) => return api::log_and_return_error_response(err),
-    };
+    // let ephemeral_or_api_auth = match auth::is_ephemeral_auth(req.headers()) {
+    //     Ok(auth) => auth,
+    //     Err(err) => return api::log_and_return_error_response(err),
+    // };
 
     Box::pin(api::server_wrap(
         flow,
@@ -617,7 +612,7 @@ pub async fn list_customer_payment_method_api(
                 false,
             )
         },
-        &*ephemeral_or_api_auth,
+        &auth::V2Auth::ClientAuth,
         api_locking::LockAction::NotApplicable,
     ))
     .await
