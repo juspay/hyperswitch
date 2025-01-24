@@ -39,6 +39,8 @@ use crate::{
     events::EventsConfig,
 };
 
+pub const REQUIRED_FIELDS_CONFIG_FILE: &str = "payment_required_fields_v2.toml";
+
 #[derive(clap::Parser, Default)]
 #[cfg_attr(feature = "vergen", command(version = router_env::version!()))]
 pub struct CmdLineConf {
@@ -137,7 +139,7 @@ pub struct Platform {
     pub enabled: bool,
 }
 
-#[derive(Debug, Deserialize, Clone, Default)]
+#[derive(Debug, Clone, Default, Deserialize)]
 pub struct Multitenancy {
     pub tenants: TenantConfig,
     pub enabled: bool,
@@ -195,8 +197,10 @@ impl storage_impl::config::TenantConfig for Tenant {
     }
 }
 
-#[derive(Debug, Deserialize, Clone, Default)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct GlobalTenant {
+    #[serde(default = "id_type::TenantId::get_default_global_tenant_id")]
+    pub tenant_id: id_type::TenantId,
     pub schema: String,
     pub redis_key_prefix: String,
     pub clickhouse_database: String,
@@ -530,9 +534,11 @@ pub struct NotAvailableFlows {
 
 #[cfg(feature = "payouts")]
 #[derive(Debug, Deserialize, Clone)]
+#[cfg_attr(feature = "v2", derive(Default))] // Configs are read from the config file in config/payout_required_fields.toml
 pub struct PayoutRequiredFields(pub HashMap<enums::PaymentMethod, PaymentMethodType>);
 
 #[derive(Debug, Deserialize, Clone)]
+#[cfg_attr(feature = "v2", derive(Default))] // Configs are read from the config file in config/payment_required_fields.toml
 pub struct RequiredFields(pub HashMap<enums::PaymentMethod, PaymentMethodType>);
 
 #[derive(Debug, Deserialize, Clone)]
@@ -543,11 +549,20 @@ pub struct ConnectorFields {
     pub fields: HashMap<enums::Connector, RequiredFieldFinal>,
 }
 
+#[cfg(feature = "v1")]
 #[derive(Debug, Deserialize, Clone)]
 pub struct RequiredFieldFinal {
     pub mandate: HashMap<String, RequiredFieldInfo>,
     pub non_mandate: HashMap<String, RequiredFieldInfo>,
     pub common: HashMap<String, RequiredFieldInfo>,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, Deserialize, Clone)]
+pub struct RequiredFieldFinal {
+    pub mandate: Option<Vec<RequiredFieldInfo>>,
+    pub non_mandate: Option<Vec<RequiredFieldInfo>>,
+    pub common: Option<Vec<RequiredFieldInfo>>,
 }
 
 #[derive(Debug, Default, Deserialize, Clone)]
@@ -618,7 +633,7 @@ pub struct Proxy {
     pub http_url: Option<String>,
     pub https_url: Option<String>,
     pub idle_pool_connection_timeout: Option<u64>,
-    pub bypass_proxy_urls: Vec<String>,
+    pub bypass_proxy_hosts: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -790,7 +805,16 @@ impl Settings<SecuredSecret> {
 
         let config = router_env::Config::builder(&environment.to_string())
             .change_context(ApplicationError::ConfigurationError)?
-            .add_source(File::from(config_path).required(false))
+            .add_source(File::from(config_path).required(false));
+
+        #[cfg(feature = "v2")]
+        let config = {
+            let required_fields_config_file =
+                router_env::Config::get_config_directory().join(REQUIRED_FIELDS_CONFIG_FILE);
+            config.add_source(File::from(required_fields_config_file).required(false))
+        };
+
+        let config = config
             .add_source(
                 Environment::with_prefix("ROUTER")
                     .try_parsing(true)
@@ -799,7 +823,6 @@ impl Settings<SecuredSecret> {
                     .with_list_parse_key("log.telemetry.route_to_trace")
                     .with_list_parse_key("redis.cluster_urls")
                     .with_list_parse_key("events.kafka.brokers")
-                    .with_list_parse_key("proxy.bypass_proxy_urls")
                     .with_list_parse_key("connectors.supported.wallets")
                     .with_list_parse_key("connector_request_reference_id_config.merchant_ids_send_payment_id_as_connector_request_id"),
 
