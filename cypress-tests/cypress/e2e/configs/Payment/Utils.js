@@ -27,6 +27,7 @@ import { connectorDetails as trustpayConnectorDetails } from "./Trustpay.js";
 import { connectorDetails as wellsfargoConnectorDetails } from "./WellsFargo.js";
 import { connectorDetails as worldpayConnectorDetails } from "./WorldPay.js";
 import { connectorDetails as deutschebankConnectorDetails } from "./Deutschebank.js";
+import { connectorDetails as xenditConnectorDetails } from "./Xendit.js";
 
 const connectorDetails = {
   adyen: adyenConnectorDetails,
@@ -44,6 +45,7 @@ const connectorDetails = {
   nmi: nmiConnectorDetails,
   novalnet: novalnetConnectorDetails,
   paybox: payboxConnectorDetails,
+  xendit: xenditConnectorDetails,
   paypal: paypalConnectorDetails,
   stripe: stripeConnectorDetails,
   elavon: elavonConnectorDetails,

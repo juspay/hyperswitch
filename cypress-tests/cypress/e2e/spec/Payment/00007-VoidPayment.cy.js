@@ -54,6 +54,13 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
+    it("retrieve-payment-call-test", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["No3DSManualCapture"];
+
+      cy.retrievePaymentCallTest(globalState, data);
+    });
     it("void-call-test", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "card_pm"
@@ -149,6 +156,13 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
+    it("retrieve-payment-call-test", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["No3DSManualCapture"];
+
+      cy.retrievePaymentCallTest(globalState, data);
+    });
     it("void-call-test", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "card_pm"

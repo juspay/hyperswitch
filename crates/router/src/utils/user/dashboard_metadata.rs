@@ -281,7 +281,7 @@ pub fn parse_string_to_enums(query: String) -> UserResult<GetMultipleMetaDataPay
 fn not_contains_string(value: &Option<String>, value_to_be_checked: &str) -> bool {
     value
         .as_ref()
-        .map_or(false, |mail| !mail.contains(value_to_be_checked))
+        .is_some_and(|mail| !mail.contains(value_to_be_checked))
 }
 
 pub fn is_prod_email_required(data: &ProdIntent, user_email: String) -> bool {
