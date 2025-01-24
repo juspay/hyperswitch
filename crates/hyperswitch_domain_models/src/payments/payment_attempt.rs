@@ -1407,6 +1407,18 @@ impl PaymentAttemptUpdate {
 
 #[cfg(feature = "v2")]
 #[derive(Debug, Clone, Serialize)]
+pub struct ConfirmIntentResponseUpdate {
+    pub status: storage_enums::AttemptStatus,
+    pub connector_payment_id: Option<String>,
+    pub updated_by: String,
+    pub redirection_data: Option<router_response_types::RedirectForm>,
+    pub connector_metadata: Option<pii::SecretSerdeValue>,
+    pub amount_capturable: Option<MinorUnit>,
+    pub connector_mandate_detail: Option<ConnectorMandateReferenceId>,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, Clone, Serialize)]
 pub enum PaymentAttemptUpdate {
     /// Update the payment attempt on confirming the intent, before calling the connector
     ConfirmIntent {
@@ -1416,15 +1428,7 @@ pub enum PaymentAttemptUpdate {
         merchant_connector_id: id_type::MerchantConnectorAccountId,
     },
     /// Update the payment attempt on confirming the intent, after calling the connector on success response
-    ConfirmIntentResponse {
-        status: storage_enums::AttemptStatus,
-        connector_payment_id: Option<String>,
-        updated_by: String,
-        redirection_data: Option<router_response_types::RedirectForm>,
-        connector_metadata: Option<pii::SecretSerdeValue>,
-        amount_capturable: Option<MinorUnit>,
-        connector_mandate_detail: Option<ConnectorMandateReferenceId>,
-    },
+    ConfirmIntentResponse(Box<ConfirmIntentResponseUpdate>),
     /// Update the payment attempt after force syncing with the connector
     SyncUpdate {
         status: storage_enums::AttemptStatus,
@@ -2111,34 +2115,37 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 amount_to_capture: None,
                 connector_mandate_detail: None,
             },
-            PaymentAttemptUpdate::ConfirmIntentResponse {
-                status,
-                connector_payment_id,
-                updated_by,
-                redirection_data,
-                connector_metadata,
-                amount_capturable,
-                connector_mandate_detail,
-            } => Self {
-                status: Some(status),
-                amount_capturable,
-                error_message: None,
-                error_code: None,
-                modified_at: common_utils::date_time::now(),
-                browser_info: None,
-                error_reason: None,
-                updated_by,
-                merchant_connector_id: None,
-                unified_code: None,
-                unified_message: None,
-                connector_payment_id,
-                connector: None,
-                redirection_data: redirection_data
-                    .map(diesel_models::payment_attempt::RedirectForm::from),
-                connector_metadata,
-                amount_to_capture: None,
-                connector_mandate_detail,
-            },
+            PaymentAttemptUpdate::ConfirmIntentResponse(confirm_intent_response_update) => {
+                let ConfirmIntentResponseUpdate {
+                    status,
+                    connector_payment_id,
+                    updated_by,
+                    redirection_data,
+                    connector_metadata,
+                    amount_capturable,
+                    connector_mandate_detail,
+                } = *confirm_intent_response_update;
+                Self {
+                    status: Some(status),
+                    amount_capturable,
+                    error_message: None,
+                    error_code: None,
+                    modified_at: common_utils::date_time::now(),
+                    browser_info: None,
+                    error_reason: None,
+                    updated_by,
+                    merchant_connector_id: None,
+                    unified_code: None,
+                    unified_message: None,
+                    connector_payment_id,
+                    connector: None,
+                    redirection_data: redirection_data
+                        .map(diesel_models::payment_attempt::RedirectForm::from),
+                    connector_metadata,
+                    amount_to_capture: None,
+                    connector_mandate_detail,
+                }
+            }
             PaymentAttemptUpdate::SyncUpdate {
                 status,
                 amount_capturable,

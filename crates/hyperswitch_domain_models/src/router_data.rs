@@ -10,6 +10,14 @@ use error_stack::ResultExt;
 use masking::{ExposeInterface, Secret};
 
 use crate::{payment_address::PaymentAddress, payment_method_data, payments};
+#[cfg(feature = "v2")]
+use crate::{
+    payments::{
+        payment_attempt::{ErrorDetails, PaymentAttemptUpdate},
+        payment_intent::PaymentIntentUpdate,
+    },
+    router_flow_types, router_request_types, router_response_types,
+};
 
 #[derive(Debug, Clone)]
 pub struct RouterData<Flow, Request, Response> {
@@ -394,15 +402,6 @@ impl ErrorResponse {
     }
 }
 
-#[cfg(feature = "v2")]
-use crate::{
-    payments::{
-        payment_attempt::{ErrorDetails, PaymentAttemptUpdate},
-        payment_intent::PaymentIntentUpdate,
-    },
-    router_flow_types, router_request_types, router_response_types,
-};
-
 /// Get updatable trakcer objects of payment intent and payment attempt
 #[cfg(feature = "v2")]
 pub trait TrackerPostUpdateObjects<Flow, FlowRequest, D> {
@@ -496,16 +495,18 @@ impl
                         | router_request_types::ResponseId::EncodedData(id) => Some(id.to_owned()),
                     };
 
-                    PaymentAttemptUpdate::ConfirmIntentResponse {
-                        status: attempt_status,
-                        connector_payment_id,
-                        updated_by: storage_scheme.to_string(),
-                        redirection_data: *redirection_data.clone(),
-                        amount_capturable,
-                        connector_metadata: connector_metadata.clone().map(Secret::new),
-                        connector_mandate_detail: response_router_data
-                            .get_connector_mandate_details(),
-                    }
+                    PaymentAttemptUpdate::ConfirmIntentResponse(Box::new(
+                        payments::payment_attempt::ConfirmIntentResponseUpdate {
+                            status: attempt_status,
+                            connector_payment_id,
+                            updated_by: storage_scheme.to_string(),
+                            redirection_data: *redirection_data.clone(),
+                            amount_capturable,
+                            connector_metadata: connector_metadata.clone().map(Secret::new),
+                            connector_mandate_detail: response_router_data
+                                .get_connector_mandate_details(),
+                        },
+                    ))
                 }
                 router_response_types::PaymentsResponseData::MultipleCaptureResponse { .. } => {
                     todo!()
@@ -1138,16 +1139,18 @@ impl
                         | router_request_types::ResponseId::EncodedData(id) => Some(id.to_owned()),
                     };
 
-                    PaymentAttemptUpdate::ConfirmIntentResponse {
-                        status: attempt_status,
-                        connector_payment_id,
-                        updated_by: storage_scheme.to_string(),
-                        redirection_data: *redirection_data.clone(),
-                        amount_capturable,
-                        connector_metadata: connector_metadata.clone().map(Secret::new),
-                        connector_mandate_detail: response_router_data
-                            .get_connector_mandate_details(),
-                    }
+                    PaymentAttemptUpdate::ConfirmIntentResponse(Box::new(
+                        payments::payment_attempt::ConfirmIntentResponseUpdate {
+                            status: attempt_status,
+                            connector_payment_id,
+                            updated_by: storage_scheme.to_string(),
+                            redirection_data: *redirection_data.clone(),
+                            amount_capturable,
+                            connector_metadata: connector_metadata.clone().map(Secret::new),
+                            connector_mandate_detail: response_router_data
+                                .get_connector_mandate_details(),
+                        },
+                    ))
                 }
                 router_response_types::PaymentsResponseData::MultipleCaptureResponse { .. } => {
                     todo!()
