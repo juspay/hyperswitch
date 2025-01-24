@@ -231,6 +231,22 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
+    callback_mapper (id, type_) {
+        #[max_length = 128]
+        id -> Varchar,
+        #[sql_name = "type"]
+        #[max_length = 64]
+        type_ -> Varchar,
+        data -> Jsonb,
+        created_at -> Timestamp,
+        last_modified_at -> Timestamp,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::enums::diesel_exports::*;
+
     captures (capture_id) {
         #[max_length = 64]
         capture_id -> Varchar,
@@ -431,6 +447,8 @@ diesel::table! {
         created_at -> Timestamp,
         #[max_length = 64]
         payment_method_type -> Nullable<Varchar>,
+        #[max_length = 64]
+        global_success_based_connector -> Nullable<Varchar>,
     }
 }
 
@@ -1441,6 +1459,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     blocklist_fingerprint,
     blocklist_lookup,
     business_profile,
+    callback_mapper,
     captures,
     cards_info,
     configs,
