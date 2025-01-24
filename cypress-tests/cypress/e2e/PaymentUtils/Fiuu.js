@@ -382,6 +382,21 @@ export const connectorDetails = {
         },
       },
     },
+    PaymentIntentOffSession: {
+      Request: {
+        amount: 6500,
+        authentication_type: "no_three_ds",
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "off_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    },
     PaymentMethodIdMandateNo3DSAutoCapture: {
       Request: {
         payment_method: "card",
