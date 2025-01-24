@@ -332,10 +332,7 @@ impl DashboardMetadataInterface for MockDb {
         let index_to_remove = dashboard_metadata
             .iter()
             .position(|metadata_inner| {
-                metadata_inner
-                    .user_id
-                    .as_deref()
-                    .map_or(false, |user_id_inner| user_id_inner == user_id)
+                metadata_inner.user_id.as_deref() == Some(user_id)
                     && metadata_inner.merchant_id == *merchant_id
                     && metadata_inner.data_key == data_key
             })

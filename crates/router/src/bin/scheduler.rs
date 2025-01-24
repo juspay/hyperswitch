@@ -35,15 +35,8 @@ async fn main() -> CustomResult<(), ProcessTrackerError> {
     let conf = Settings::with_config_path(cmd_line.config_path)
         .expect("Unable to construct application configuration");
     let api_client = Box::new(
-        services::ProxyClient::new(
-            conf.proxy.clone(),
-            services::proxy_bypass_urls(
-                conf.key_manager.get_inner(),
-                &conf.locker,
-                &conf.proxy.bypass_proxy_urls,
-            ),
-        )
-        .change_context(ProcessTrackerError::ConfigurationError)?,
+        services::ProxyClient::new(&conf.proxy)
+            .change_context(ProcessTrackerError::ConfigurationError)?,
     );
     // channel for listening to redis disconnect events
     let (redis_shutdown_signal_tx, redis_shutdown_signal_rx) = oneshot::channel();
@@ -158,7 +151,7 @@ pub async fn deep_health_check(
     let app_state = Arc::clone(&state.into_inner());
     let service_name = service.into_inner();
     for (tenant, _) in stores {
-        let session_state_res = app_state.clone().get_session_state(&tenant, || {
+        let session_state_res = app_state.clone().get_session_state(&tenant, None, || {
             errors::ApiErrorResponse::MissingRequiredField {
                 field_name: "tenant_id",
             }
@@ -397,7 +390,7 @@ async fn start_scheduler(
         WorkflowRunner {},
         |state, tenant| {
             Arc::new(state.clone())
-                .get_session_state(tenant, || ProcessTrackerError::TenantNotFound.into())
+                .get_session_state(tenant, None, || ProcessTrackerError::TenantNotFound.into())
         },
     )
     .await

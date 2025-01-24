@@ -58,6 +58,26 @@ export const cardCreditEnabledInUs = [
   },
 ];
 
+export const cardCreditEnabledInEur = [
+  {
+    payment_method: "card",
+    payment_method_types: [
+      {
+        payment_method_type: "credit",
+        card_networks: ["Visa"],
+        minimum_amount: 0,
+        accepted_currencies: {
+          type: "enable_only",
+          list: ["EUR"],
+        },
+        maximum_amount: 68607706,
+        recurring_enabled: false,
+        installment_payment_enabled: true,
+      },
+    ],
+  },
+];
+
 export const bankRedirectIdealEnabled = [
   {
     payment_method: "bank_redirect",

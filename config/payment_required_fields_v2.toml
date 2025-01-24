@@ -1,0 +1,16 @@
+[[required_fields.card.credit.fields.stripe.common]]
+required_field = "payment_method_data.card.card_number"
+display_name = "card_number"
+field_type = "user_card_number"
+[[required_fields.card.credit.fields.stripe.common]]
+required_field = "payment_method_data.card.card_exp_year"
+display_name = "card_exp_year"
+field_type = "user_card_expiry_year"
+[[required_fields.card.credit.fields.stripe.common]]
+required_field = "payment_method_data.card.card_cvc"
+display_name = "card_cvc"
+field_type = "user_card_cvc"
+[[required_fields.card.credit.fields.stripe.common]]
+required_field = "payment_method_data.card.card_exp_month"
+display_name = "card_exp_month"
+field_type = "user_card_expiry_month"
