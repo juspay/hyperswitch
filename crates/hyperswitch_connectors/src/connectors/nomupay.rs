@@ -40,7 +40,6 @@ use hyperswitch_domain_models::{
 use hyperswitch_interfaces::types;
 use hyperswitch_interfaces::{
     api::{
-        
         self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorRedirectResponse,
         ConnectorSpecifications, ConnectorValidation,
     },
@@ -57,6 +56,8 @@ use josekit::{
     Map, Value,
 };
 use masking::{ExposeInterface, Mask};
+#[cfg(feature = "payouts")]
+use router_env::{instrument, tracing};
 use serde_json::json;
 use transformers as nomupay;
 
@@ -418,6 +419,7 @@ impl ConnectorIntegration<PoSync, PayoutsData, PayoutsResponseData> for Nomupay 
         Ok(Some(request))
     }
 
+    #[instrument(skip_all)]
     fn handle_response(
         &self,
         data: &PayoutsRouterData<PoSync>,
