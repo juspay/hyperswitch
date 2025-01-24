@@ -25,7 +25,7 @@ describe("In Memory Cache configs", () => {
 
     it("Update Configs", () => {
       cy.setConfigs(globalState, key, newValue, "UPDATE");
-      cy.setConfigs(globalState, key, value, "FETCH");
+      cy.setConfigs(globalState, key, newValue, "FETCH");
     });
 
     it("delete configs", () => {
