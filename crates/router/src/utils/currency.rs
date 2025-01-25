@@ -13,6 +13,7 @@ use strum::IntoEnumIterator;
 use tokio::{sync::RwLock, time::sleep};
 
 use crate::{
+    core::metrics,
     logger,
     routes::app::settings::{Conversion, DefaultExchangeRates},
     services, SessionState,
@@ -248,6 +249,7 @@ async fn successive_fetch_and_save_forex(
             }
         }
         Err(error) => stale_redis_data.ok_or({
+            metrics::CURRENCY_CONVERSION_REDIS_LOCK_NOT_ACQUIRED.add(&metrics::CONTEXT, 1, &[]);
             logger::error!(?error);
             ForexCacheError::ApiUnresponsive.into()
         }),
@@ -260,7 +262,10 @@ async fn successive_save_data_to_redis_local(
 ) -> CustomResult<FxExchangeRatesCacheEntry, ForexCacheError> {
     Ok(save_forex_to_redis(state, &forex)
         .await
-        .async_and_then(|_rates| release_redis_lock(state))
+        .async_and_then(|_rates| {
+            metrics::CURRENCY_CONVERSION_SUCCESSFUL_REDIS_WRITE.add(&metrics::CONTEXT, 1, &[]);
+            release_redis_lock(state)
+        })
         .await
         .async_and_then(|_val| save_forex_to_local(forex.clone()))
         .await
@@ -353,6 +358,7 @@ async fn fetch_forex_rates(
         )?;
 
     logger::info!("{:?}", forex_response);
+    metrics::CURRENCY_CONVERSION_SUCCESSFUL_PRIMARY_API_CALL.add(&metrics::CONTEXT, 1, &[]);
 
     let mut conversions: HashMap<enums::Currency, CurrencyFactors> = HashMap::new();
     for enum_curr in enums::Currency::iter() {
@@ -414,6 +420,7 @@ pub async fn fallback_fetch_forex_rates(
         )?;
 
     logger::info!("{:?}", fallback_forex_response);
+    metrics::CURRENCY_CONVERSION_SUCCESSFUL_FALLBACK_API_CALL.add(&metrics::CONTEXT, 1, &[]);
     let mut conversions: HashMap<enums::Currency, CurrencyFactors> = HashMap::new();
     for enum_curr in enums::Currency::iter() {
         match fallback_forex_response.quotes.get(
@@ -452,6 +459,7 @@ pub async fn fallback_fetch_forex_rates(
     match acquire_redis_lock(state).await {
         Ok(_) => Ok(successive_save_data_to_redis_local(state, rates).await?),
         Err(e) => {
+            metrics::CURRENCY_CONVERSION_REDIS_LOCK_NOT_ACQUIRED.add(&metrics::CONTEXT, 1, &[]);
             logger::error!(?e);
             Ok(rates)
         }
