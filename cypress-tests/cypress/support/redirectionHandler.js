@@ -106,6 +106,7 @@ function bankRedirectRedirection(
 ) {
   let verifyUrl = false;
   cy.visit(redirection_url.href);
+  cy.wait(WAIT_TIME / 2);
 
   switch (connectorId) {
     case "adyen":
@@ -278,6 +279,7 @@ function bankRedirectRedirection(
 
 function threeDsRedirection(redirection_url, expected_url, connectorId) {
   cy.visit(redirection_url.href);
+  cy.wait(WAIT_TIME / 2);
 
   switch (connectorId) {
     case "adyen":
