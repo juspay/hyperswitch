@@ -24,7 +24,7 @@ use hyperswitch_domain_models::{
         PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
         RefundsData, SetupMandateRequestData,
     },
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    router_response_types::{ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData, SupportedPaymentMethods, SupportedPaymentMethodsExt},
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
         PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData,
@@ -52,6 +52,7 @@ use crate::{
     types::ResponseRouterData,
     utils::{self, construct_not_supported_error_report, convert_amount, get_header_key_value},
 };
+use lazy_static::lazy_static;
 
 #[derive(Clone)]
 pub struct Rapyd {
@@ -950,4 +951,85 @@ impl IncomingWebhook for Rapyd {
     }
 }
 
-impl ConnectorSpecifications for Rapyd {}
+lazy_static! {
+    static ref RAPYD_SUPPORTED_PAYMENT_METHODS: SupportedPaymentMethods = {
+        let supported_capture_methods = vec![
+            enums::CaptureMethod::Automatic,
+            enums::CaptureMethod::Manual,
+            enums::CaptureMethod::SequentialAutomatic,
+        ];
+
+        let supported_card_network = vec![
+            common_enums::CardNetwork::AmericanExpress,
+        ];
+
+        let mut rapyd_supported_payment_methods = SupportedPaymentMethods::new();
+
+        rapyd_supported_payment_methods.add(
+            enums::PaymentMethod::Wallet,
+            enums::PaymentMethodType::ApplePay,
+            PaymentMethodDetails{
+                mandates: enums::FeatureStatus::NotSupported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: None,
+            }
+        );
+
+        rapyd_supported_payment_methods.add(
+            enums::PaymentMethod::Wallet,
+            enums::PaymentMethodType::GooglePay,
+            PaymentMethodDetails{
+                mandates: enums::FeatureStatus::NotSupported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: None,
+            }
+        );
+
+        rapyd_supported_payment_methods.add(
+            enums::PaymentMethod::Card,
+            enums::PaymentMethodType::Credit,
+            PaymentMethodDetails{
+                mandates: enums::FeatureStatus::NotSupported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: Some(
+                    api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
+                        api_models::feature_matrix::CardSpecificFeatures {
+                            three_ds: common_enums::FeatureStatus::Supported,
+                            non_three_ds: common_enums::FeatureStatus::NotSupported,
+                            supported_card_networks: supported_card_network.clone(),
+                        }
+                    }),
+                ),
+            }
+        );
+
+        rapyd_supported_payment_methods
+    };
+
+    static ref RAPYD_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+        description:
+            "Rapyd is a fintech company that enables businesses to collect payments in local currencies across the globe "
+                .to_string(),
+        connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+    };
+
+    static ref RAPYD_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> = Vec::new();
+
+}
+
+impl ConnectorSpecifications for Rapyd {
+    fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
+        Some(&*RAPYD_CONNECTOR_INFO)
+    }
+
+    fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
+        Some(&*RAPYD_SUPPORTED_PAYMENT_METHODS)
+    }
+
+    fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
+        Some(&*RAPYD_SUPPORTED_WEBHOOK_FLOWS)
+    }
+}
