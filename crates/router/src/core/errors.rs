@@ -260,8 +260,8 @@ pub enum GooglePayDecryptionError {
     CertificateParsingFailed,
     #[error("Key deserialization failure")]
     KeyDeserializationFailed,
-    #[error("Failed to derive a shared ephimeral key")]
-    DerivingSharedEphimeralKeyFailed,
+    #[error("Failed to derive a shared ephemeral key")]
+    DerivingSharedEphemeralKeyFailed,
     #[error("Failed to derive a shared secret key")]
     DerivingSharedSecretKeyFailed,
     #[error("Failed to parse the tag")]
@@ -269,11 +269,11 @@ pub enum GooglePayDecryptionError {
     #[error("HMAC verification failed")]
     HmacVerificationFailed,
     #[error("Failed to derive Elliptic Curve key")]
-    DerivingEcKeyFailied,
+    DerivingEcKeyFailed,
     #[error("Failed to Derive Public key")]
     DerivingPublicKeyFailed,
     #[error("Failed to Derive Elliptic Curve group")]
-    DerivingEcGroupFailied,
+    DerivingEcGroupFailed,
     #[error("Failed to allocate memory for big number")]
     BigNumAllocationFailed,
     #[error("Failed to get the ECDSA signature")]

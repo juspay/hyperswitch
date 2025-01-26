@@ -5695,7 +5695,7 @@ impl GooglePayTokenDecryptor {
             // fetch the ec key from public key
             let ec_key = public_key
                 .ec_key()
-                .change_context(errors::GooglePayDecryptionError::DerivingEcKeyFailied)?;
+                .change_context(errors::GooglePayDecryptionError::DerivingEcKeyFailed)?;
 
             // hash the signed data
             let message_hash = sha256(&signed_data);
@@ -5777,7 +5777,7 @@ impl GooglePayTokenDecryptor {
         // get the EC key from the public key
         let ec_key = public_key
             .ec_key()
-            .change_context(errors::GooglePayDecryptionError::DerivingEcKeyFailied)?;
+            .change_context(errors::GooglePayDecryptionError::DerivingEcKeyFailed)?;
 
         // get the sender id i.e. Google
         let sender_id = String::from_utf8(SENDER_ID.to_vec())
@@ -5817,7 +5817,7 @@ impl GooglePayTokenDecryptor {
 
         // parse the DER-encoded data as an EC public key
         let ec_key = EcKey::public_key_from_der(&der_data)
-            .change_context(errors::GooglePayDecryptionError::DerivingEcKeyFailied)?;
+            .change_context(errors::GooglePayDecryptionError::DerivingEcKeyFailed)?;
 
         // wrap the EC key in a PKey (a more general-purpose public key type in OpenSSL)
         let public_key = PKey::from_ec_key(ec_key)
@@ -5865,13 +5865,13 @@ impl GooglePayTokenDecryptor {
         ephemeral_public_key_bytes: &[u8],
     ) -> CustomResult<Vec<u8>, errors::GooglePayDecryptionError> {
         let group = EcGroup::from_curve_name(Nid::X9_62_PRIME256V1)
-            .change_context(errors::GooglePayDecryptionError::DerivingEcGroupFailied)?;
+            .change_context(errors::GooglePayDecryptionError::DerivingEcGroupFailed)?;
 
         let mut big_num_context = BigNumContext::new()
             .change_context(errors::GooglePayDecryptionError::BigNumAllocationFailed)?;
 
         let ec_key = EcPoint::from_bytes(&group, ephemeral_public_key_bytes, &mut big_num_context)
-            .change_context(errors::GooglePayDecryptionError::DerivingEcKeyFailied)?;
+            .change_context(errors::GooglePayDecryptionError::DerivingEcKeyFailed)?;
 
         // create an ephemeral public key from the given bytes
         let ephemeral_public_key = EcKey::from_public_key(&group, &ec_key)
@@ -5911,7 +5911,7 @@ impl GooglePayTokenDecryptor {
         // derive 64 bytes for the output key (symmetric encryption + MAC key)
         let mut output_key = vec![0u8; 64];
         hkdf.expand(SENDER_ID, &mut output_key).map_err(|_| {
-            report!(errors::GooglePayDecryptionError::DerivingSharedEphimeralKeyFailed)
+            report!(errors::GooglePayDecryptionError::DerivingSharedEphemeralKeyFailed)
         })?;
 
         Ok(output_key)
