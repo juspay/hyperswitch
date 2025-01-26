@@ -185,4 +185,15 @@ impl PaymentIntentInterface for MockDb {
 
         Ok(payment_intent.clone())
     }
+    #[cfg(feature = "v2")]
+    async fn find_payment_intent_by_merchant_reference_id_profile_id(
+        &self,
+        state: &KeyManagerState,
+        merchant_reference_id: &common_utils::id_type::PaymentReferenceId,
+        profile_id: &common_utils::id_type::ProfileId,
+        merchant_key_store: &MerchantKeyStore,
+        storage_scheme: &common_enums::MerchantStorageScheme,
+    ) -> error_stack::Result<PaymentIntent, StorageError>{
+        todo!()
+    }
 }

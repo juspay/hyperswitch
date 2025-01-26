@@ -47,6 +47,7 @@ log_extra_implicit_fields = []
 log_active_span_json = []
 payouts = []
 recovery = []
+v2 = []
 
 [lints]
 workspace = true

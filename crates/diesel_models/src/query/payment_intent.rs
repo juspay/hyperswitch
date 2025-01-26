@@ -87,6 +87,21 @@ impl PaymentIntent {
         .await
     }
 
+    #[cfg(feature = "v2")]
+    pub async fn find_by_merchant_reference_id_profile_id(
+        conn: &PgPooledConn,
+        merchant_reference_id: &common_utils::id_type::PaymentReferenceId,
+        profile_id: &common_utils::id_type::ProfileId,
+    ) -> StorageResult<Self> {
+        generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
+            conn,
+            dsl::profile_id
+                .eq(profile_id.to_owned())
+                .and(dsl::merchant_reference_id.eq(merchant_reference_id.to_owned())),
+        )
+        .await
+    }
+
     #[cfg(feature = "v1")]
     pub async fn find_by_payment_id_merchant_id(
         conn: &PgPooledConn,

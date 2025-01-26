@@ -2422,6 +2422,50 @@ pub async fn payment_status(
 }
 
 #[cfg(feature = "v2")]
+#[instrument(skip(state, req), fields(flow, payment_id))]
+pub async fn payment_get_intent_using_merchant_reference_id(
+    state: web::Data<app::AppState>,
+    req: actix_web::HttpRequest,
+    path: web::Path<common_utils::id_type::PaymentReferenceId>,
+) -> impl Responder {
+    use api_models::payments::PaymentsGetUsingMerchantReferenceIdRequest;
+    use hyperswitch_domain_models::payments::PaymentStatusData;
+
+    let flow = Flow::PaymentsRetrieveUsingMerchantReferenceId;
+    let header_payload = match HeaderPayload::foreign_try_from(req.headers()) {
+        Ok(headers) => headers,
+        Err(err) => {
+            return api::log_and_return_error_response(err);
+        }
+    };
+
+    let merchant_reference_id = path.into_inner();
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        (),
+        |state, auth: auth::AuthenticationData, req, req_state| async {
+            Box::pin(payments::payments_get_intent_using_merchant_reference(
+                state,
+                auth.merchant_account,
+                auth.profile,
+                auth.key_store,
+                req_state,
+                &merchant_reference_id,
+                header_payload.clone(),
+                auth.platform_merchant_account,
+            ))
+            .await
+        },
+        &auth::HeaderAuth(auth::ApiKeyAuth),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(feature = "v2")]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsRedirect, payment_id))]
 pub async fn payments_finish_redirection(
     state: web::Data<app::AppState>,
