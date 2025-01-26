@@ -425,7 +425,8 @@ impl MerchantAccountUpdateInternal {
             is_platform_account: is_platform_account.unwrap_or(source.is_platform_account),
             fingerprint_secret_key,
             card_ip_blocking: card_ip_blocking.unwrap_or(source.card_ip_blocking),
-            guest_user_card_blocking: guest_user_card_blocking.unwrap_or(source.guest_user_card_blocking),
+            guest_user_card_blocking: guest_user_card_blocking
+                .unwrap_or(source.guest_user_card_blocking),
             customer_id_blocking: customer_id_blocking.unwrap_or(source.customer_id_blocking),
         }
     }

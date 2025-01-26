@@ -44,8 +44,8 @@ use crate::{
         },
         utils as core_utils,
     },
-    services,
     routes::{metrics, SessionState},
+    services,
     types::{
         self, domain,
         storage::{self, enums},
@@ -2048,19 +2048,41 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
             .map(|info| info.status = status)
     });
 
-
     if payment_data.payment_attempt.status == enums::AttemptStatus::Failure {
-        
-        if let (Some(card_ip_blocking_cache_key), Some(card_testing_guard_expiry)) = (payment_data.card_ip_blocking_cache_key.clone(), payment_data.card_testing_guard_expiry.clone()) {
-            let _ = services::card_testing_guard::increment_blocked_count_in_cache(state, &card_ip_blocking_cache_key, card_testing_guard_expiry.into()).await;
+        if let (Some(card_ip_blocking_cache_key), Some(card_testing_guard_expiry)) = (
+            payment_data.card_ip_blocking_cache_key.clone(),
+            payment_data.card_testing_guard_expiry,
+        ) {
+            let _ = services::card_testing_guard::increment_blocked_count_in_cache(
+                state,
+                &card_ip_blocking_cache_key,
+                card_testing_guard_expiry.into(),
+            )
+            .await;
         }
 
-        if let (Some(guest_user_card_blocking_cache_key), Some(card_testing_guard_expiry)) = (payment_data.guest_user_card_blocking_cache_key.clone(), payment_data.card_testing_guard_expiry.clone()) {
-            let _ = services::card_testing_guard::increment_blocked_count_in_cache(state, &guest_user_card_blocking_cache_key, card_testing_guard_expiry.into()).await;
+        if let (Some(guest_user_card_blocking_cache_key), Some(card_testing_guard_expiry)) = (
+            payment_data.guest_user_card_blocking_cache_key.clone(),
+            payment_data.card_testing_guard_expiry,
+        ) {
+            let _ = services::card_testing_guard::increment_blocked_count_in_cache(
+                state,
+                &guest_user_card_blocking_cache_key,
+                card_testing_guard_expiry.into(),
+            )
+            .await;
         }
 
-        if let (Some(customer_id_blocking_cache_key), Some(card_testing_guard_expiry)) = (payment_data.customer_id_blocking_cache_key.clone(), payment_data.card_testing_guard_expiry.clone()) {
-            let _ = services::card_testing_guard::increment_blocked_count_in_cache(state, &customer_id_blocking_cache_key, card_testing_guard_expiry.into()).await;
+        if let (Some(customer_id_blocking_cache_key), Some(card_testing_guard_expiry)) = (
+            payment_data.customer_id_blocking_cache_key.clone(),
+            payment_data.card_testing_guard_expiry,
+        ) {
+            let _ = services::card_testing_guard::increment_blocked_count_in_cache(
+                state,
+                &customer_id_blocking_cache_key,
+                card_testing_guard_expiry.into(),
+            )
+            .await;
         }
     }
 

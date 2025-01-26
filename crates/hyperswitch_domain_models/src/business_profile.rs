@@ -331,7 +331,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     card_ip_blocking_threshold,
                     guest_user_card_blocking_threshold,
                     customer_id_blocking_threshold,
-                    card_testing_guard_expiry
+                    card_testing_guard_expiry,
                 }
             }
             ProfileUpdate::RoutingAlgorithmUpdate {

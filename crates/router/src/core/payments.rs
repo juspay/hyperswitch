@@ -273,7 +273,6 @@ where
         .to_validate_request()?
         .validate_request(&req, &merchant_account)?;
 
-
     tracing::Span::current().record("payment_id", format!("{}", validate_result.payment_id));
     // get profile from headers
     let operations::GetTrackerResponse {
@@ -296,7 +295,16 @@ where
         )
         .await?;
 
-    operation.to_get_tracker()?.validate_request_with_state(state, &req, &merchant_account, &mut payment_data, &business_profile).await?;
+    operation
+        .to_get_tracker()?
+        .validate_request_with_state(
+            state,
+            &req,
+            &merchant_account,
+            &mut payment_data,
+            &business_profile,
+        )
+        .await?;
 
     core_utils::validate_profile_id_from_auth_layer(
         profile_id_from_auth_layer,

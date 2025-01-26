@@ -7,8 +7,8 @@ pub mod authentication;
 #[cfg(feature = "v1")]
 pub mod blocklist;
 pub mod cache;
-pub mod cards_info;
 pub mod card_testing_guard;
+pub mod cards_info;
 pub mod conditional_config;
 pub mod configs;
 #[cfg(feature = "olap")]

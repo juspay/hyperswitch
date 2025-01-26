@@ -260,7 +260,7 @@ pub enum MerchantAccountUpdate {
         card_ip_blocking: bool,
         guest_user_card_blocking: bool,
         customer_id_blocking: bool,
-    }
+    },
 }
 
 #[cfg(feature = "v2")]
@@ -502,7 +502,9 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 guest_user_card_blocking: None,
                 customer_id_blocking: None,
             },
-            MerchantAccountUpdate::FingerprintSecretKeyUpdate { fingerprint_secret_key } => Self {
+            MerchantAccountUpdate::FingerprintSecretKeyUpdate {
+                fingerprint_secret_key,
+            } => Self {
                 fingerprint_secret_key: fingerprint_secret_key.map(Encryption::from),
                 modified_at: now,
                 merchant_name: None,
@@ -534,41 +536,42 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 guest_user_card_blocking: None,
                 customer_id_blocking: None,
             },
-            MerchantAccountUpdate::CardTestingGuardUpdate { 
-                card_ip_blocking, 
-                guest_user_card_blocking, 
-                customer_id_blocking } => Self {
-                    modified_at: now,
-                    merchant_name: None,
-                    merchant_details: None,
-                    return_url: None,
-                    webhook_details: None,
-                    sub_merchants_enabled: None,
-                    parent_merchant_id: None,
-                    enable_payment_response_hash: None,
-                    payment_response_hash_key: None,
-                    redirect_to_merchant_with_http_post: None,
-                    publishable_key: None,
-                    storage_scheme: None,
-                    locker_id: None,
-                    metadata: None,
-                    routing_algorithm: None,
-                    primary_business_details: None,
-                    intent_fulfillment_time: None,
-                    frm_routing_algorithm: None,
-                    payout_routing_algorithm: None,
-                    organization_id: None,
-                    is_recon_enabled: None,
-                    default_profile: None,
-                    recon_status: None,
-                    payment_link_config: None,
-                    pm_collect_link_config: None,
-                    is_platform_account: None,
-                    fingerprint_secret_key: None,
-                    card_ip_blocking: Some(card_ip_blocking),
-                    guest_user_card_blocking: Some(guest_user_card_blocking),
-                    customer_id_blocking: Some(customer_id_blocking),
-                }
+            MerchantAccountUpdate::CardTestingGuardUpdate {
+                card_ip_blocking,
+                guest_user_card_blocking,
+                customer_id_blocking,
+            } => Self {
+                modified_at: now,
+                merchant_name: None,
+                merchant_details: None,
+                return_url: None,
+                webhook_details: None,
+                sub_merchants_enabled: None,
+                parent_merchant_id: None,
+                enable_payment_response_hash: None,
+                payment_response_hash_key: None,
+                redirect_to_merchant_with_http_post: None,
+                publishable_key: None,
+                storage_scheme: None,
+                locker_id: None,
+                metadata: None,
+                routing_algorithm: None,
+                primary_business_details: None,
+                intent_fulfillment_time: None,
+                frm_routing_algorithm: None,
+                payout_routing_algorithm: None,
+                organization_id: None,
+                is_recon_enabled: None,
+                default_profile: None,
+                recon_status: None,
+                payment_link_config: None,
+                pm_collect_link_config: None,
+                is_platform_account: None,
+                fingerprint_secret_key: None,
+                card_ip_blocking: Some(card_ip_blocking),
+                guest_user_card_blocking: Some(guest_user_card_blocking),
+                customer_id_blocking: Some(customer_id_blocking),
+            },
         }
     }
 }
@@ -869,19 +872,19 @@ impl super::behaviour::Conversion for MerchantAccount {
                 version: item.version,
                 is_platform_account: item.is_platform_account,
                 fingerprint_secret_key: item
-                .fingerprint_secret_key
-                .async_lift(|inner| async {
-                    crypto_operation(
-                        state,
-                        type_name!(Self::DstType),
-                        CryptoOperation::DecryptOptional(inner),
-                        key_manager_identifier.clone(),
-                        key.peek(),
-                    )
-                    .await
-                    .and_then(|val| val.try_into_optionaloperation())
-                })
-                .await?,
+                    .fingerprint_secret_key
+                    .async_lift(|inner| async {
+                        crypto_operation(
+                            state,
+                            type_name!(Self::DstType),
+                            CryptoOperation::DecryptOptional(inner),
+                            key_manager_identifier.clone(),
+                            key.peek(),
+                        )
+                        .await
+                        .and_then(|val| val.try_into_optionaloperation())
+                    })
+                    .await?,
                 card_ip_blocking: item.card_ip_blocking,
                 guest_user_card_blocking: item.guest_user_card_blocking,
                 customer_id_blocking: item.customer_id_blocking,

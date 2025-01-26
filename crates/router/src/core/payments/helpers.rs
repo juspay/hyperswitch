@@ -1,4 +1,9 @@
-use std::{borrow::Cow, collections::HashSet, str::FromStr};
+use std::{
+    borrow::Cow,
+    collections::HashSet
+    net::{IpAddr, Ipv4Addr},
+    str::FromStr,
+};
 
 #[cfg(feature = "v2")]
 use api_models::ephemeral_key::EphemeralKeyResponse;
@@ -6,8 +11,6 @@ use api_models::{
     mandates::RecurringDetails,
     payments::{additional_info as payment_additional_types, RequestSurchargeDetails},
 };
-use std::net::IpAddr;
-use std::net::Ipv4Addr;
 use base64::Engine;
 use common_enums::ConnectorType;
 #[cfg(feature = "v2")]
@@ -1482,98 +1485,91 @@ pub async fn validate_card_ip_blocking_for_merchant(
     state: &SessionState,
     request: &api_models::payments::PaymentsRequest,
     fingerprnt: masking::Secret<String>,
-    business_profile:  &domain::Profile,
+    business_profile: &domain::Profile,
 ) -> RouterResult<String> {
-    
     let mut ip: IpAddr = IpAddr::V4(Ipv4Addr::UNSPECIFIED);
 
     if let Some(browser_info) = &request.browser_info {
-        if let Ok(browser_info_parsed) = serde_json::from_value::<payments::BrowserInformation>(browser_info.clone()) {
+        if let Ok(browser_info_parsed) =
+            serde_json::from_value::<payments::BrowserInformation>(browser_info.clone())
+        {
             if let Some(browserip) = browser_info_parsed.ip_address {
                 ip = browserip;
             }
         }
     }
 
-    let cache_key = format!("{}_{}_{}", consts::CARD_IP_BLOCKING_CACHE_KEY_PREFIX, fingerprnt.peek(), ip);
+    let cache_key = format!(
+        "{}_{}_{}",
+        consts::CARD_IP_BLOCKING_CACHE_KEY_PREFIX,
+        fingerprnt.peek(),
+        ip
+    );
 
     let unsuccessful_payment_threshold = business_profile.card_ip_blocking_threshold;
 
     match unsuccessful_payment_threshold {
         Some(unsuccessful_payment_threshold) => {
-            match services::card_testing_guard::get_blocked_count_from_cache(state, &cache_key).await {
+            match services::card_testing_guard::get_blocked_count_from_cache(state, &cache_key)
+                .await
+            {
                 Ok(Some(unsuccessful_payment_count)) => {
                     if unsuccessful_payment_count >= unsuccessful_payment_threshold {
                         Err(errors::ApiErrorResponse::PreconditionFailed {
-                            message: format!(
-                                "Blocked due to suspicious activity"
-                            ),
+                            message: "Blocked due to suspicious activity".to_string(),
                         })?
-                    }
-                    else {
+                    } else {
                         Ok(cache_key)
                     }
                 }
-                Ok(None) => {
-                    Ok(cache_key)
-                }
-                Err(_) => {
-                    Err(errors::ApiErrorResponse::InternalServerError)?
-                }
+                Ok(None) => Ok(cache_key),
+                Err(_) => Err(errors::ApiErrorResponse::InternalServerError)?,
             }
-        },
-        None => {
-            Err(errors::ApiErrorResponse::PreconditionFailed {
-                message: format!(
-                    "No threshold configured in profile"
-                ),
-            })?
-        },
-    } 
+        }
+        None => Err(errors::ApiErrorResponse::PreconditionFailed {
+            message: "No threshold configured in profile".to_string(),
+        })?,
+    }
 }
 
 #[cfg(feature = "v1")]
 pub async fn validate_guest_user_card_blocking_for_merchant(
     state: &SessionState,
     fingerprnt: masking::Secret<String>,
-    business_profile:  &domain::Profile,
+    business_profile: &domain::Profile,
     customer_id: Option<id_type::CustomerId>,
 ) -> RouterResult<String> {
-
-    let cache_key = format!("{}_{}", consts::GUEST_USER_CARD_BLOCKING_CACHE_KEY_PREFIX, fingerprnt.peek());
+    let cache_key = format!(
+        "{}_{}",
+        consts::GUEST_USER_CARD_BLOCKING_CACHE_KEY_PREFIX,
+        fingerprnt.peek()
+    );
 
     let unsuccessful_payment_threshold = business_profile.guest_user_card_blocking_threshold;
 
     match unsuccessful_payment_threshold {
         Some(unsuccessful_payment_threshold) => {
-            match services::card_testing_guard::get_blocked_count_from_cache(state, &cache_key).await {
+            match services::card_testing_guard::get_blocked_count_from_cache(state, &cache_key)
+                .await
+            {
                 Ok(Some(unsuccessful_payment_count)) => {
-                    if unsuccessful_payment_count >= unsuccessful_payment_threshold && customer_id.is_none() {
+                    if unsuccessful_payment_count >= unsuccessful_payment_threshold
+                        && customer_id.is_none()
+                    {
                         Err(errors::ApiErrorResponse::PreconditionFailed {
-                            message: format!(
-                                "Blocked due to suspicious activity"
-                            ),
+                            message: "Blocked due to suspicious activity".to_string(),
                         })?
-                    }
-                    else {
+                    } else {
                         Ok(cache_key)
                     }
                 }
-                Ok(None) => {
-                    Ok(cache_key)
-                }
-                Err(_) => {
-                    Err(errors::ApiErrorResponse::InternalServerError)?
-                }
+                Ok(None) => Ok(cache_key),
+                Err(_) => Err(errors::ApiErrorResponse::InternalServerError)?,
             }
-        },
-        None => {
-            Err(errors::ApiErrorResponse::PreconditionFailed {
-                message: format!(
-                    "No threshold configured in profile"
-                ),
-            })?
-        },
+        }
+        None => Err(errors::ApiErrorResponse::PreconditionFailed {
+            message: "No threshold configured in profile".to_string(),
+        })?,
     }
 }
 
@@ -1581,45 +1577,40 @@ pub async fn validate_customer_id_blocking_for_merchant(
     state: &SessionState,
     customer_id: id_type::CustomerId,
     merchant_account: &domain::MerchantAccount,
-    business_profile:  &domain::Profile,
+    business_profile: &domain::Profile,
 ) -> RouterResult<String> {
-
     let merchant_id = merchant_account.get_id();
 
-    let cache_key = format!("{}_{}_{}", consts::CUSTOMER_ID_BLOCKING_PREFIX, merchant_id.get_string_repr(), customer_id.get_string_repr());
+    let cache_key = format!(
+        "{}_{}_{}",
+        consts::CUSTOMER_ID_BLOCKING_PREFIX,
+        merchant_id.get_string_repr(),
+        customer_id.get_string_repr()
+    );
 
     let unsuccessful_payment_threshold = business_profile.customer_id_blocking_threshold;
 
     match unsuccessful_payment_threshold {
         Some(unsuccessful_payment_threshold) => {
-            match services::card_testing_guard::get_blocked_count_from_cache(state, &cache_key).await {
+            match services::card_testing_guard::get_blocked_count_from_cache(state, &cache_key)
+                .await
+            {
                 Ok(Some(unsuccessful_payment_count)) => {
                     if unsuccessful_payment_count >= unsuccessful_payment_threshold {
                         Err(errors::ApiErrorResponse::PreconditionFailed {
-                            message: format!(
-                                "Blocked due to suspicious activity"
-                            ),
+                            message: "Blocked due to suspicious activity".to_string(),
                         })?
-                    }
-                    else {
+                    } else {
                         Ok(cache_key)
                     }
                 }
-                Ok(None) => {
-                    Ok(cache_key)
-                }
-                Err(_) => {
-                    Err(errors::ApiErrorResponse::InternalServerError)?
-                }
+                Ok(None) => Ok(cache_key),
+                Err(_) => Err(errors::ApiErrorResponse::InternalServerError)?,
             }
-        },
-        None => {
-            Err(errors::ApiErrorResponse::PreconditionFailed {
-                message: format!(
-                    "No threshold configured in profile"
-                ),
-            })?
-        },
+        }
+        None => Err(errors::ApiErrorResponse::PreconditionFailed {
+            message: "No threshold configured in profile".to_string(),
+        })?,
     }
 }
 

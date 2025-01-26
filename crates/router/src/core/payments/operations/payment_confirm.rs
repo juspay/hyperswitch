@@ -45,13 +45,17 @@ use crate::{
             types::{ClickToPay, UnifiedAuthenticationService},
         },
         utils as core_utils,
-    }, routes::{app::ReqState, SessionState}, services, types::{
+    },
+    routes::{app::ReqState, SessionState},
+    services,
+    types::{
         self,
         api::{self, ConnectorCallType, PaymentIdTypeExt},
         domain::{self},
         storage::{self, enums as storage_enums},
         transformers::ForeignFrom,
-    }, utils::{self, OptionExt}
+    },
+    utils::{self, OptionExt},
 };
 
 #[derive(Debug, Clone, Copy, PaymentOperation)]
@@ -839,17 +843,16 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
 
     async fn validate_request_with_state(
         &self,
-        state:  &SessionState,
+        state: &SessionState,
         request: &api::PaymentsRequest,
         merchant_account: &domain::MerchantAccount,
         payment_data: &mut PaymentData<F>,
-        business_profile:  &domain::Profile,
+        business_profile: &domain::Profile,
     ) -> RouterResult<()> {
-
         let _merchant_id = merchant_account.get_id();
 
-        let payment_method_data: Option<&api_models::payments::PaymentMethodData> =
-        request.payment_method_data
+        let payment_method_data: Option<&api_models::payments::PaymentMethodData> = request
+            .payment_method_data
             .as_ref()
             .and_then(|request_payment_method_data| {
                 request_payment_method_data.payment_method_data.as_ref()
@@ -857,34 +860,62 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
 
         match payment_method_data {
             Some(api_models::payments::PaymentMethodData::Card(_card)) => {
-
-                let fingerprint = card_testing_guard_utils::generate_fingerprint(state, payment_method_data, merchant_account).await?;
+                let fingerprint = card_testing_guard_utils::generate_fingerprint(
+                    state,
+                    payment_method_data,
+                    merchant_account,
+                )
+                .await?;
 
                 let customer_id = &payment_data.payment_intent.customer_id;
 
                 let card_testing_guard_expiry = business_profile.card_testing_guard_expiry;
 
-                if merchant_account.card_ip_blocking && card_testing_guard_expiry.is_some(){
-                    let card_ip_blocking_cache_key = helpers::validate_card_ip_blocking_for_merchant(state, &request, fingerprint.clone(), business_profile).await?;
+                if merchant_account.card_ip_blocking && card_testing_guard_expiry.is_some() {
+                    let card_ip_blocking_cache_key =
+                        helpers::validate_card_ip_blocking_for_merchant(
+                            state,
+                            request,
+                            fingerprint.clone(),
+                            business_profile,
+                        )
+                        .await?;
                     payment_data.card_ip_blocking_cache_key = Some(card_ip_blocking_cache_key);
                 }
 
-                if merchant_account.guest_user_card_blocking && card_testing_guard_expiry.is_some(){
-                    let guest_user_card_blocking_cache_key = helpers::validate_guest_user_card_blocking_for_merchant(state, fingerprint.clone(), business_profile, customer_id.clone()).await?;
-                    payment_data.guest_user_card_blocking_cache_key = Some(guest_user_card_blocking_cache_key);
+                if merchant_account.guest_user_card_blocking && card_testing_guard_expiry.is_some()
+                {
+                    let guest_user_card_blocking_cache_key =
+                        helpers::validate_guest_user_card_blocking_for_merchant(
+                            state,
+                            fingerprint.clone(),
+                            business_profile,
+                            customer_id.clone(),
+                        )
+                        .await?;
+                    payment_data.guest_user_card_blocking_cache_key =
+                        Some(guest_user_card_blocking_cache_key);
                 }
 
-                if merchant_account.customer_id_blocking && card_testing_guard_expiry.is_some(){
+                if merchant_account.customer_id_blocking && card_testing_guard_expiry.is_some() {
                     if let Some(customer_id) = customer_id.clone() {
-                        let customer_id_blocking_cache_key = helpers::validate_customer_id_blocking_for_merchant(state, customer_id.clone(), merchant_account, business_profile).await?;
-                        payment_data.customer_id_blocking_cache_key = Some(customer_id_blocking_cache_key);
+                        let customer_id_blocking_cache_key =
+                            helpers::validate_customer_id_blocking_for_merchant(
+                                state,
+                                customer_id.clone(),
+                                merchant_account,
+                                business_profile,
+                            )
+                            .await?;
+                        payment_data.customer_id_blocking_cache_key =
+                            Some(customer_id_blocking_cache_key);
                     }
                 }
-                
+
                 payment_data.card_testing_guard_expiry = card_testing_guard_expiry;
                 Ok(())
             }
-            _ => Ok(())
+            _ => Ok(()),
         }
     }
 }
@@ -912,7 +943,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
             key_store,
             storage_scheme,
         )
-        .await   
+        .await
     }
 
     #[instrument(skip_all)]
@@ -1851,11 +1882,11 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
             utils::flatten_join_error(payment_intent_fut),
             utils::flatten_join_error(payment_attempt_fut),
             utils::flatten_join_error(customer_fut)
-        )?; 
+        )?;
 
         payment_data.payment_intent = payment_intent;
         payment_data.payment_attempt = payment_attempt;
-        
+
         let client_src = payment_data.payment_attempt.client_source.clone();
         let client_ver = payment_data.payment_attempt.client_version.clone();
 
@@ -1874,7 +1905,9 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
 }
 
 #[async_trait]
-impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentData<F>> for PaymentConfirm {
+impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentData<F>>
+    for PaymentConfirm
+{
     #[instrument(skip_all)]
     fn validate_request<'a, 'b>(
         &'b self,
@@ -1933,5 +1966,4 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentDat
             },
         ))
     }
-
 }

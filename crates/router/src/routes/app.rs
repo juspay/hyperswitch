@@ -57,7 +57,9 @@ use super::{
     relay, user, user_role,
 };
 #[cfg(feature = "v1")]
-use super::{apple_pay_certificates_migration, blocklist, card_testing_guard, payment_link, webhook_events};
+use super::{
+    apple_pay_certificates_migration, blocklist, card_testing_guard, payment_link, webhook_events,
+};
 #[cfg(any(feature = "olap", feature = "oltp"))]
 use super::{configs::*, customers, payments};
 #[cfg(all(any(feature = "olap", feature = "oltp"), feature = "v1"))]
@@ -1319,7 +1321,7 @@ impl CardTestingGuard {
             .app_data(web::Data::new(state))
             .service(
                 web::resource("/update")
-                .route(web::post().to(card_testing_guard::update_card_testing_guard)),
+                    .route(web::post().to(card_testing_guard::update_card_testing_guard)),
             )
     }
 }

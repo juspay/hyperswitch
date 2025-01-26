@@ -34,8 +34,8 @@ where
 }
 
 pub async fn get_blocked_count_from_cache<A>(
-    state: &A, 
-    cache_key: &str
+    state: &A,
+    cache_key: &str,
 ) -> RouterResult<Option<i32>>
 where
     A: SessionStateInfo + Sync,
@@ -51,7 +51,7 @@ where
 }
 
 pub async fn increment_blocked_count_in_cache<A>(
-    state: &A, 
+    state: &A,
     cache_key: &str,
     expiry: i64,
 ) -> RouterResult<()>
@@ -69,13 +69,10 @@ where
 
     if let Some(actual_value) = value {
         incremented_blocked_count = actual_value + 1;
-    } 
+    }
 
     redis_conn
         .set_key_with_expiry(cache_key, incremented_blocked_count, expiry)
         .await
         .change_context(ApiErrorResponse::InternalServerError)
 }
-
-
-
