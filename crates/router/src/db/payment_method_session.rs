@@ -1,9 +1,9 @@
+use hyperswitch_domain_models::payment_methods::PaymentMethodsSession;
+
 use crate::{
     core::errors::{self, CustomResult},
     db::MockDb,
 };
-
-use hyperswitch_domain_models::payment_methods::PaymentMethodsSession;
 
 #[cfg(feature = "v1")]
 #[async_trait::async_trait]
@@ -39,7 +39,6 @@ mod storage {
         behaviour::{Conversion, ReverseConversion},
         payment_methods::PaymentMethodsSession,
     };
-
     use router_env::{instrument, tracing};
     use storage_impl::redis::kv_store::RedisConnInterface;
 
