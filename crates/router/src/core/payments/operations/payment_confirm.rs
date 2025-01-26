@@ -823,6 +823,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             card_ip_blocking_cache_key: None,
             guest_user_card_blocking_cache_key: None,
             customer_id_blocking_cache_key: None,
+            card_testing_guard_expiry: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -841,12 +842,11 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         state:  &SessionState,
         request: &api::PaymentsRequest,
         merchant_account: &domain::MerchantAccount,
-        payment_data: &mut PaymentData<F>
+        payment_data: &mut PaymentData<F>,
+        business_profile:  &domain::Profile,
     ) -> RouterResult<()> {
 
         let _merchant_id = merchant_account.get_id();
-
-        //TODO: Check if Card Testing Guard is enabled for this merchant
 
         let payment_method_data: Option<&api_models::payments::PaymentMethodData> =
         request.payment_method_data
@@ -860,23 +860,28 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
 
                 let fingerprint = card_testing_guard_utils::generate_fingerprint(state, payment_method_data, merchant_account).await?;
 
-                if merchant_account.card_ip_blocking {
-                    let card_ip_blocking_cache_key = helpers::validate_card_ip_blocking_for_merchant(state, request, fingerprint.clone()).await?;
+                let customer_id = &payment_data.payment_intent.customer_id;
+
+                let card_testing_guard_expiry = business_profile.card_testing_guard_expiry;
+
+                if merchant_account.card_ip_blocking && card_testing_guard_expiry.is_some(){
+                    let card_ip_blocking_cache_key = helpers::validate_card_ip_blocking_for_merchant(state, &request, fingerprint.clone(), business_profile).await?;
                     payment_data.card_ip_blocking_cache_key = Some(card_ip_blocking_cache_key);
                 }
 
-                if merchant_account.guest_user_card_blocking {
-                    let guest_user_card_blocking_cache_key = helpers::validate_guest_user_card_blocking_for_merchant(state, request, fingerprint.clone()).await?;
+                if merchant_account.guest_user_card_blocking && card_testing_guard_expiry.is_some(){
+                    let guest_user_card_blocking_cache_key = helpers::validate_guest_user_card_blocking_for_merchant(state, fingerprint.clone(), business_profile, customer_id.clone()).await?;
                     payment_data.guest_user_card_blocking_cache_key = Some(guest_user_card_blocking_cache_key);
                 }
 
-                if merchant_account.customer_id_blocking {
-                    if let Some(customer_id) = &request.customer_id {
-                        let customer_id_blocking_cache_key = helpers::validate_customer_id_blocking_for_merchant(state, customer_id.clone(), merchant_account).await?;
+                if merchant_account.customer_id_blocking && card_testing_guard_expiry.is_some(){
+                    if let Some(customer_id) = customer_id.clone() {
+                        let customer_id_blocking_cache_key = helpers::validate_customer_id_blocking_for_merchant(state, customer_id.clone(), merchant_account, business_profile).await?;
                         payment_data.customer_id_blocking_cache_key = Some(customer_id_blocking_cache_key);
                     }
                 }
                 
+                payment_data.card_testing_guard_expiry = card_testing_guard_expiry;
                 Ok(())
             }
             _ => Ok(())

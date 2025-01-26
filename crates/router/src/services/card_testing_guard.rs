@@ -19,7 +19,7 @@ fn get_redis_connection<A: SessionStateInfo>(state: &A) -> RouterResult<Arc<Redi
 pub async fn set_blocked_count_in_cache<A>(
     state: &A,
     cache_key: &str,
-    value: u64,
+    value: i32,
     expiry: i64,
 ) -> RouterResult<()>
 where
@@ -36,13 +36,13 @@ where
 pub async fn get_blocked_count_from_cache<A>(
     state: &A, 
     cache_key: &str
-) -> RouterResult<Option<u64>>
+) -> RouterResult<Option<i32>>
 where
     A: SessionStateInfo + Sync,
 {
     let redis_conn = get_redis_connection(state)?;
 
-    let value: Option<u64> = redis_conn
+    let value: Option<i32> = redis_conn
         .get_key(cache_key)
         .await
         .change_context(ApiErrorResponse::InternalServerError)?;
@@ -60,12 +60,12 @@ where
 {
     let redis_conn = get_redis_connection(state)?;
 
-    let value: Option<u64> = redis_conn
+    let value: Option<i32> = redis_conn
         .get_key(cache_key)
         .await
         .change_context(ApiErrorResponse::InternalServerError)?;
 
-    let mut incremented_blocked_count: u64 = 1;
+    let mut incremented_blocked_count: i32 = 1;
 
     if let Some(actual_value) = value {
         incremented_blocked_count = actual_value + 1;

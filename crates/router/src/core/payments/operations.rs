@@ -214,7 +214,8 @@ pub trait GetTracker<F: Clone, D, R>: Send {
         _state:  &SessionState,
         _request: &R,
         _merchant_account: &domain::MerchantAccount,
-        _payment_data: &mut D
+        _payment_data: &mut D,
+        _business_profile: &domain::Profile,
     ) -> RouterResult<()> {
         Ok(())
     }

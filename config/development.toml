@@ -846,7 +846,3 @@ background_color = "#FFFFFF"                     # Background color of email bod
 
 [platform]
 enabled = true
-
-[card_test_guard]
-unsuccessful_payment_threshold = 3
-redis_expiry = 3600

@@ -3693,6 +3693,10 @@ impl ProfileCreateBridge for api::ProfileCreate {
             max_auto_retries_enabled: self.max_auto_retries_enabled.map(i16::from),
             is_click_to_pay_enabled: self.is_click_to_pay_enabled,
             authentication_product_ids: self.authentication_product_ids,
+            card_ip_blocking_threshold: self.card_ip_blocking_threshold,
+            guest_user_card_blocking_threshold: self.guest_user_card_blocking_threshold,
+            customer_id_blocking_threshold: self.customer_id_blocking_threshold,
+            card_testing_guard_expiry: self.card_testing_guard_expiry,
         }))
     }
 
@@ -4054,6 +4058,10 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                 max_auto_retries_enabled: self.max_auto_retries_enabled.map(i16::from),
                 is_click_to_pay_enabled: self.is_click_to_pay_enabled,
                 authentication_product_ids: self.authentication_product_ids,
+                card_ip_blocking_threshold: self.card_ip_blocking_threshold,
+                guest_user_card_blocking_threshold: self.guest_user_card_blocking_threshold,
+                customer_id_blocking_threshold: self.customer_id_blocking_threshold,
+                card_testing_guard_expiry: self.card_testing_guard_expiry,
             },
         )))
     }

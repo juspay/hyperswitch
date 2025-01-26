@@ -178,6 +178,10 @@ impl ForeignTryFrom<domain::Profile> for ProfileResponse {
             max_auto_retries_enabled: item.max_auto_retries_enabled,
             is_click_to_pay_enabled: item.is_click_to_pay_enabled,
             authentication_product_ids: item.authentication_product_ids,
+            card_ip_blocking_threshold: item.card_ip_blocking_threshold,
+            guest_user_card_blocking_threshold: item.guest_user_card_blocking_threshold,
+            customer_id_blocking_threshold: item.customer_id_blocking_threshold,
+            card_testing_guard_expiry: item.card_testing_guard_expiry,
         })
     }
 }
@@ -377,5 +381,17 @@ pub async fn create_profile_from_merchant_account(
         max_auto_retries_enabled: request.max_auto_retries_enabled.map(i16::from),
         is_click_to_pay_enabled: request.is_click_to_pay_enabled,
         authentication_product_ids: request.authentication_product_ids,
+        card_ip_blocking_threshold: request
+            .card_ip_blocking_threshold
+            .or(Some(common_utils::consts::DEFAULT_CARD_IP_BLOCKING_THRESHOLD)),
+        guest_user_card_blocking_threshold: request
+            .guest_user_card_blocking_threshold
+            .or(Some(common_utils::consts::DEFAULT_GUEST_USER_CARD_BLOCKING_THRESHOLD)),
+        customer_id_blocking_threshold: request
+            .customer_id_blocking_threshold
+            .or(Some(common_utils::consts::DEFAULT_CUSTOMER_ID_BLOCKING_THRESHOLD)),
+        card_testing_guard_expiry: request
+            .card_testing_guard_expiry
+            .or(Some(common_utils::consts::DEFAULT_CARD_TESTING_GUARD_EXPIRY)),
     }))
 }

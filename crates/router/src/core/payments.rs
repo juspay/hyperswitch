@@ -296,7 +296,7 @@ where
         )
         .await?;
 
-    operation.to_get_tracker()?.validate_request_with_state(state, &req, &merchant_account, &mut payment_data).await?;
+    operation.to_get_tracker()?.validate_request_with_state(state, &req, &merchant_account, &mut payment_data, &business_profile).await?;
 
     core_utils::validate_profile_id_from_auth_layer(
         profile_id_from_auth_layer,
@@ -4833,7 +4833,8 @@ where
     pub service_details: Option<api_models::payments::CtpServiceDetails>,
     pub card_ip_blocking_cache_key: Option<String>,
     pub guest_user_card_blocking_cache_key: Option<String>,
-    pub customer_id_blocking_cache_key: Option<String>
+    pub customer_id_blocking_cache_key: Option<String>,
+    pub card_testing_guard_expiry: Option<i32>,
 }
 
 #[derive(Clone, serde::Serialize, Debug)]

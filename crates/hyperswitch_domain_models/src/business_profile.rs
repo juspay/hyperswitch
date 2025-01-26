@@ -61,6 +61,10 @@ pub struct Profile {
     pub is_click_to_pay_enabled: bool,
     pub authentication_product_ids:
         Option<common_types::payments::AuthenticationConnectorAccountMap>,
+    pub card_ip_blocking_threshold: Option<i32>,
+    pub guest_user_card_blocking_threshold: Option<i32>,
+    pub customer_id_blocking_threshold: Option<i32>,
+    pub card_testing_guard_expiry: Option<i32>,
 }
 
 #[cfg(feature = "v1")]
@@ -104,6 +108,10 @@ pub struct ProfileSetter {
     pub is_click_to_pay_enabled: bool,
     pub authentication_product_ids:
         Option<common_types::payments::AuthenticationConnectorAccountMap>,
+    pub card_ip_blocking_threshold: Option<i32>,
+    pub guest_user_card_blocking_threshold: Option<i32>,
+    pub customer_id_blocking_threshold: Option<i32>,
+    pub card_testing_guard_expiry: Option<i32>,
 }
 
 #[cfg(feature = "v1")]
@@ -153,6 +161,10 @@ impl From<ProfileSetter> for Profile {
             max_auto_retries_enabled: value.max_auto_retries_enabled,
             is_click_to_pay_enabled: value.is_click_to_pay_enabled,
             authentication_product_ids: value.authentication_product_ids,
+            card_ip_blocking_threshold: value.card_ip_blocking_threshold,
+            guest_user_card_blocking_threshold: value.guest_user_card_blocking_threshold,
+            customer_id_blocking_threshold: value.customer_id_blocking_threshold,
+            card_testing_guard_expiry: value.card_testing_guard_expiry,
         }
     }
 }
@@ -205,6 +217,10 @@ pub struct ProfileGeneralUpdate {
     pub is_click_to_pay_enabled: Option<bool>,
     pub authentication_product_ids:
         Option<common_types::payments::AuthenticationConnectorAccountMap>,
+    pub card_ip_blocking_threshold: Option<i32>,
+    pub guest_user_card_blocking_threshold: Option<i32>,
+    pub customer_id_blocking_threshold: Option<i32>,
+    pub card_testing_guard_expiry: Option<i32>,
 }
 
 #[cfg(feature = "v1")]
@@ -269,6 +285,10 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     max_auto_retries_enabled,
                     is_click_to_pay_enabled,
                     authentication_product_ids,
+                    card_ip_blocking_threshold,
+                    guest_user_card_blocking_threshold,
+                    customer_id_blocking_threshold,
+                    card_testing_guard_expiry,
                 } = *update;
 
                 Self {
@@ -308,6 +328,10 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     max_auto_retries_enabled,
                     is_click_to_pay_enabled,
                     authentication_product_ids,
+                    card_ip_blocking_threshold,
+                    guest_user_card_blocking_threshold,
+                    customer_id_blocking_threshold,
+                    card_testing_guard_expiry
                 }
             }
             ProfileUpdate::RoutingAlgorithmUpdate {
@@ -349,6 +373,10 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 max_auto_retries_enabled: None,
                 is_click_to_pay_enabled: None,
                 authentication_product_ids: None,
+                card_ip_blocking_threshold: None,
+                guest_user_card_blocking_threshold: None,
+                customer_id_blocking_threshold: None,
+                card_testing_guard_expiry: None,
             },
             ProfileUpdate::DynamicRoutingAlgorithmUpdate {
                 dynamic_routing_algorithm,
@@ -388,6 +416,10 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 max_auto_retries_enabled: None,
                 is_click_to_pay_enabled: None,
                 authentication_product_ids: None,
+                card_ip_blocking_threshold: None,
+                guest_user_card_blocking_threshold: None,
+                customer_id_blocking_threshold: None,
+                card_testing_guard_expiry: None,
             },
             ProfileUpdate::ExtendedCardInfoUpdate {
                 is_extended_card_info_enabled,
@@ -427,6 +459,10 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 max_auto_retries_enabled: None,
                 is_click_to_pay_enabled: None,
                 authentication_product_ids: None,
+                card_ip_blocking_threshold: None,
+                guest_user_card_blocking_threshold: None,
+                customer_id_blocking_threshold: None,
+                card_testing_guard_expiry: None,
             },
             ProfileUpdate::ConnectorAgnosticMitUpdate {
                 is_connector_agnostic_mit_enabled,
@@ -466,6 +502,10 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 max_auto_retries_enabled: None,
                 is_click_to_pay_enabled: None,
                 authentication_product_ids: None,
+                card_ip_blocking_threshold: None,
+                guest_user_card_blocking_threshold: None,
+                customer_id_blocking_threshold: None,
+                card_testing_guard_expiry: None,
             },
             ProfileUpdate::NetworkTokenizationUpdate {
                 is_network_tokenization_enabled,
@@ -505,6 +545,10 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 max_auto_retries_enabled: None,
                 is_click_to_pay_enabled: None,
                 authentication_product_ids: None,
+                card_ip_blocking_threshold: None,
+                guest_user_card_blocking_threshold: None,
+                customer_id_blocking_threshold: None,
+                card_testing_guard_expiry: None,
             },
         }
     }
@@ -563,6 +607,10 @@ impl super::behaviour::Conversion for Profile {
             max_auto_retries_enabled: self.max_auto_retries_enabled,
             is_click_to_pay_enabled: self.is_click_to_pay_enabled,
             authentication_product_ids: self.authentication_product_ids,
+            card_ip_blocking_threshold: self.card_ip_blocking_threshold,
+            guest_user_card_blocking_threshold: self.guest_user_card_blocking_threshold,
+            customer_id_blocking_threshold: self.customer_id_blocking_threshold,
+            card_testing_guard_expiry: self.card_testing_guard_expiry,
         })
     }
 
@@ -633,6 +681,10 @@ impl super::behaviour::Conversion for Profile {
                 max_auto_retries_enabled: item.max_auto_retries_enabled,
                 is_click_to_pay_enabled: item.is_click_to_pay_enabled,
                 authentication_product_ids: item.authentication_product_ids,
+                card_ip_blocking_threshold: item.card_ip_blocking_threshold,
+                guest_user_card_blocking_threshold: item.guest_user_card_blocking_threshold,
+                customer_id_blocking_threshold: item.customer_id_blocking_threshold,
+                card_testing_guard_expiry: item.card_testing_guard_expiry,
             })
         }
         .await
@@ -687,6 +739,10 @@ impl super::behaviour::Conversion for Profile {
             max_auto_retries_enabled: self.max_auto_retries_enabled,
             is_click_to_pay_enabled: self.is_click_to_pay_enabled,
             authentication_product_ids: self.authentication_product_ids,
+            card_ip_blocking_threshold: self.card_ip_blocking_threshold,
+            guest_user_card_blocking_threshold: self.guest_user_card_blocking_threshold,
+            customer_id_blocking_threshold: self.customer_id_blocking_threshold,
+            card_testing_guard_expiry: self.card_testing_guard_expiry,
         })
     }
 }
