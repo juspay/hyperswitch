@@ -5977,6 +5977,56 @@ pub struct SessionTokenForSimplifiedApplePay {
     pub merchant_business_country: Option<api_enums::CountryAlpha2>,
 }
 
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct GooglePayWalletDetails {
+    pub google_pay: GooglePayDetails,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct GooglePayDetails {
+    pub provider_details: GooglePayProviderDetails,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(untagged)]
+pub enum GooglePayProviderDetails {
+    GooglePayMerchantDetails(GooglePayMerchantDetails),
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct GooglePayMerchantDetails {
+    pub merchant_info: GooglePayMerchantInfo,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct GooglePayMerchantInfo {
+    pub merchant_name: String,
+    pub tokenization_specification: GooglePayTokenizationSpecification,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct GooglePayTokenizationSpecification {
+    #[serde(rename = "type")]
+    pub tokenization_type: GooglePayTokenizationType,
+    pub parameters: GooglePayTokenizationParameters,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum GooglePayTokenizationType {
+    PaymentGateway,
+    Direct,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct GooglePayTokenizationParameters {
+    pub gateway: String,
+    pub public_key: Secret<String>,
+    pub private_key: Secret<String>,
+    pub root_signing_keys: Secret<String>,
+    pub recipient_id: Option<Secret<String>>,
+}
+
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
 #[serde(tag = "wallet_name")]
 #[serde(rename_all = "snake_case")]

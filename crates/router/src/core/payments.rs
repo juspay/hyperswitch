@@ -3096,7 +3096,7 @@ where
 
                     Some(
                         decryptor
-                            .decrypt_token(&wallet_data.tokenization_data.token.clone())
+                            .decrypt_token(&wallet_data.tokenization_data.token.clone(), false)
                             .change_context(errors::ApiErrorResponse::InternalServerError)
                             .attach_printable("failed to decrypt google pay token")?,
                     )
@@ -4089,6 +4089,53 @@ fn check_apple_pay_metadata(
     })
 }
 
+fn get_google_pay_connector_wallet_details(
+    merchant_connector_account: &helpers::MerchantConnectorAccountType,
+) -> Option<GooglePayPaymentProcessingDetails> {
+    match merchant_connector_account.get_connector_wallets_details() {
+        Some(wallet_details) => {
+            let google_pay_wallet_details = wallet_details
+                .parse_value::<api_models::payments::GooglePayWalletDetails>(
+                    "GooglePayWalletDetails",
+                )
+                .map_err(|error| {
+                    logger::warn!(?error, "Failed to Parse Value to GooglePayWalletDetails")
+                });
+
+            google_pay_wallet_details
+                .ok()
+                .map(
+                    |google_pay_wallet_details| {
+                        match google_pay_wallet_details
+                        .google_pay
+                        .provider_details {
+                            api_models::payments::GooglePayProviderDetails::GooglePayMerchantDetails(merchant_details) => {
+                                GooglePayPaymentProcessingDetails {
+                                    google_pay_private_key: merchant_details
+                                    .merchant_info
+                                        .tokenization_specification
+                                        .parameters
+                                        .private_key,
+                                    google_pay_root_signing_keys: merchant_details
+                                    .merchant_info
+                                        .tokenization_specification
+                                        .parameters
+                                        .root_signing_keys,
+                                    google_pay_recipient_id: merchant_details
+                                    .merchant_info
+                                        .tokenization_specification
+                                        .parameters
+                                        .recipient_id,
+                                }
+                            }
+                        }
+                    }
+                )
+        }
+        None => None,
+    }
+}
+
 fn is_payment_method_type_allowed_for_connector(
     current_pm_type: Option<storage::enums::PaymentMethodType>,
     pm_type_filter: Option<PaymentMethodTypeTokenFilter>,
@@ -4103,6 +4150,7 @@ fn is_payment_method_type_allowed_for_connector(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn decide_payment_method_tokenize_action(
     state: &SessionState,
     connector_name: &str,
@@ -4111,6 +4159,7 @@ async fn decide_payment_method_tokenize_action(
     is_connector_tokenization_enabled: bool,
     apple_pay_flow: Option<domain::ApplePayFlow>,
     payment_method_type: Option<storage_enums::PaymentMethodType>,
+    merchant_connector_account: &helpers::MerchantConnectorAccountType,
 ) -> RouterResult<TokenizationAction> {
     if let Some(storage_enums::PaymentMethodType::Paze) = payment_method_type {
         // Paze generates a one time use network token which should not be tokenized in the connector or router.
@@ -4128,25 +4177,24 @@ async fn decide_payment_method_tokenize_action(
                 .attach_printable("Failed to fetch Paze configs"),
         }
     } else if let Some(storage_enums::PaymentMethodType::GooglePay) = payment_method_type {
-        match &state.conf.google_pay_decrypt_keys {
-            Some(google_pay_keys) => Ok(TokenizationAction::DecryptGooglePayToken(
+        let google_pay_details =
+            get_google_pay_connector_wallet_details(merchant_connector_account);
+
+        match google_pay_details {
+            Some(wallet_details) => Ok(TokenizationAction::DecryptGooglePayToken(
                 GooglePayPaymentProcessingDetails {
-                    google_pay_private_key: google_pay_keys
-                        .get_inner()
-                        .google_pay_private_key
-                        .clone(),
-                    google_pay_root_signing_keys: google_pay_keys
-                        .get_inner()
-                        .google_pay_root_signing_keys
-                        .clone(),
-                    google_pay_recipient_id: google_pay_keys
-                        .get_inner()
-                        .google_pay_recipient_id
-                        .clone(),
+                    google_pay_private_key: wallet_details.google_pay_private_key,
+                    google_pay_root_signing_keys: wallet_details.google_pay_root_signing_keys,
+                    google_pay_recipient_id: wallet_details.google_pay_recipient_id,
                 },
             )),
-            None => Err(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to fetch Google Pay configs"),
+            None => {
+                if is_connector_tokenization_enabled {
+                    Ok(TokenizationAction::TokenizeInConnectorAndRouter)
+                } else {
+                    Ok(TokenizationAction::TokenizeInRouter)
+                }
+            }
         }
     } else {
         match pm_parent_token {
@@ -4216,7 +4264,7 @@ pub struct PazePaymentProcessingDetails {
 pub struct GooglePayPaymentProcessingDetails {
     pub google_pay_private_key: Secret<String>,
     pub google_pay_root_signing_keys: Secret<String>,
-    pub google_pay_recipient_id: Secret<String>,
+    pub google_pay_recipient_id: Option<Secret<String>>,
 }
 
 #[derive(Clone, Debug)]
@@ -4320,6 +4368,7 @@ where
                 is_connector_tokenization_enabled,
                 apple_pay_flow,
                 payment_method_type,
+                merchant_connector_account,
             )
             .await?;
 

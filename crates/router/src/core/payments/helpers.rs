@@ -5432,7 +5432,7 @@ pub const PROTOCOL: &str = "ECv2";
 // Structs for keys and the main decryptor
 pub struct GooglePayTokenDecryptor {
     root_signing_keys: Vec<GooglePayRootSigningKey>,
-    recipient_id: String,
+    recipient_id: Option<String>,
     private_key: PKey<Private>,
 }
 
@@ -5527,7 +5527,7 @@ fn filter_root_signing_keys(root_keys: Vec<serde_json::Value>) -> Vec<GooglePayR
 impl GooglePayTokenDecryptor {
     pub fn new(
         root_keys: masking::Secret<String>,
-        recipient_id: masking::Secret<String>,
+        recipient_id: Option<masking::Secret<String>>,
         private_key: masking::Secret<String>,
     ) -> CustomResult<Self, errors::GooglePayDecryptionError> {
         // base64 decode the private key
@@ -5547,7 +5547,7 @@ impl GooglePayTokenDecryptor {
 
         Ok(Self {
             root_signing_keys: filtered_root_signing_keys,
-            recipient_id: recipient_id.expose(),
+            recipient_id: recipient_id.map(|id| id.expose()),
             private_key,
         })
     }
@@ -5556,13 +5556,16 @@ impl GooglePayTokenDecryptor {
     pub fn decrypt_token(
         &self,
         data: &str,
+        should_verify_signature: bool,
     ) -> CustomResult<serde_json::Value, errors::GooglePayDecryptionError> {
         // parse the encrypted data
         let encrypted_data: EncryptedData = serde_json::from_str(data)
             .change_context(errors::GooglePayDecryptionError::DeserializationFailed)?;
 
         // verify the signature if required
-        self.verify_signature(&encrypted_data)?;
+        if should_verify_signature {
+            self.verify_signature(&encrypted_data)?;
+        }
 
         // load the signed message from the token
         let signed_message: serde_json::Value =
@@ -5830,9 +5833,13 @@ impl GooglePayTokenDecryptor {
         protocol_version: &str,
         signed_key: &str,
     ) -> CustomResult<Vec<u8>, errors::GooglePayDecryptionError> {
+        let recipient_id = self
+            .recipient_id
+            .clone()
+            .ok_or(errors::GooglePayDecryptionError::RecipientIdNotFound)?;
         let length_of_sender_id = u32::try_from(sender_id.len())
             .change_context(errors::GooglePayDecryptionError::ParsingFailed)?;
-        let length_of_recipient_id = u32::try_from(self.recipient_id.len())
+        let length_of_recipient_id = u32::try_from(recipient_id.len())
             .change_context(errors::GooglePayDecryptionError::ParsingFailed)?;
         let length_of_protocol_version = u32::try_from(protocol_version.len())
             .change_context(errors::GooglePayDecryptionError::ParsingFailed)?;
@@ -5843,7 +5850,7 @@ impl GooglePayTokenDecryptor {
         signed_data.append(&mut get_little_endian_format(length_of_sender_id));
         signed_data.append(&mut sender_id.as_bytes().to_vec());
         signed_data.append(&mut get_little_endian_format(length_of_recipient_id));
-        signed_data.append(&mut self.recipient_id.as_bytes().to_vec());
+        signed_data.append(&mut recipient_id.as_bytes().to_vec());
         signed_data.append(&mut get_little_endian_format(length_of_protocol_version));
         signed_data.append(&mut protocol_version.as_bytes().to_vec());
         signed_data.append(&mut get_little_endian_format(length_of_signed_key));

@@ -197,9 +197,9 @@ impl TryFrom<&SetupMandateRouterData> for CybersourceZeroMandateRequest {
                                     ApplePayPaymentInformation {
                                         tokenized_card: TokenizedCard {
                                             number: decrypt_data.application_primary_account_number,
-                                            cryptogram: decrypt_data
-                                                .payment_data
-                                                .online_payment_cryptogram,
+                                            cryptogram: Some(
+                                                decrypt_data.payment_data.online_payment_cryptogram,
+                                            ),
                                             transaction_type: TransactionType::ApplePay,
                                             expiration_year,
                                             expiration_month,
@@ -453,7 +453,7 @@ pub struct TokenizedCard {
     number: Secret<String>,
     expiration_month: Secret<String>,
     expiration_year: Secret<String>,
-    cryptogram: Secret<String>,
+    cryptogram: Option<Secret<String>>,
     transaction_type: TransactionType,
 }
 
@@ -1659,7 +1659,7 @@ impl
             PaymentInformation::ApplePay(Box::new(ApplePayPaymentInformation {
                 tokenized_card: TokenizedCard {
                     number: apple_pay_data.application_primary_account_number,
-                    cryptogram: apple_pay_data.payment_data.online_payment_cryptogram,
+                    cryptogram: Some(apple_pay_data.payment_data.online_payment_cryptogram),
                     transaction_type: TransactionType::ApplePay,
                     expiration_year,
                     expiration_month,
@@ -1773,28 +1773,31 @@ impl
         let order_information = OrderInformationWithBill::from((item, Some(bill_to)));
 
         let payment_information =
-            PaymentInformation::ApplePay(Box::new(ApplePayPaymentInformation {
+            PaymentInformation::GooglePay(Box::new(GooglePayPaymentInformation {
                 tokenized_card: TokenizedCard {
                     number: google_pay_decrypted_data.payment_method_details.pan,
-                    cryptogram: google_pay_decrypted_data
-                        .payment_method_details
-                        .cryptogram
-                        .ok_or(errors::ConnectorError::MissingRequiredField {
-                            field_name: "cryptogram",
-                        })?,
+                    cryptogram: google_pay_decrypted_data.payment_method_details.cryptogram,
                     transaction_type: TransactionType::GooglePay,
-                    expiration_year: google_pay_decrypted_data
-                        .payment_method_details
-                        .expiration_year,
-                    expiration_month: google_pay_decrypted_data
-                        .payment_method_details
-                        .expiration_month,
+                    expiration_year: Secret::new(
+                        google_pay_decrypted_data
+                            .payment_method_details
+                            .expiration_year
+                            .expose()
+                            .to_string(),
+                    ),
+                    expiration_month: Secret::new(
+                        google_pay_decrypted_data
+                            .payment_method_details
+                            .expiration_month
+                            .expose()
+                            .to_string(),
+                    ),
                 },
             }));
         let processing_information = ProcessingInformation::try_from((
             item,
             Some(PaymentSolution::GooglePay),
-            Some(google_pay_data.info.card_network),
+            Some(google_pay_data.info.card_network.clone()),
         ))?;
         let client_reference_information = ClientReferenceInformation::from(item);
         let merchant_defined_information = item
@@ -1804,12 +1807,27 @@ impl
             .clone()
             .map(convert_metadata_to_merchant_defined_info);
 
+        let ucaf_collection_indicator =
+            match google_pay_data.info.card_network.to_lowercase().as_str() {
+                "mastercard" => Some("2".to_string()),
+                _ => None,
+            };
+
         Ok(Self {
             processing_information,
             payment_information,
             order_information,
             client_reference_information,
-            consumer_authentication_information: None,
+            consumer_authentication_information: Some(CybersourceConsumerAuthInformation {
+                ucaf_collection_indicator,
+                cavv: None,
+                ucaf_authentication_data: None,
+                xid: None,
+                directory_server_transaction_id: None,
+                specification_version: None,
+                pa_specification_version: None,
+                veres_enrolled: None,
+            }),
             merchant_defined_information,
         })
     }
