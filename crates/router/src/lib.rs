@@ -242,19 +242,9 @@ pub async fn start_server(conf: settings::Settings<SecuredSecret>) -> Applicatio
     logger::debug!(startup_config=?conf);
     let server = conf.server.clone();
     let (tx, rx) = oneshot::channel();
-    let api_client = Box::new(
-        services::ProxyClient::new(
-            conf.proxy.clone(),
-            services::proxy_bypass_urls(
-                conf.key_manager.get_inner(),
-                &conf.locker,
-                &conf.proxy.bypass_proxy_urls,
-            ),
-        )
-        .map_err(|error| {
-            errors::ApplicationError::ApiClientError(error.current_context().clone())
-        })?,
-    );
+    let api_client = Box::new(services::ProxyClient::new(&conf.proxy).map_err(|error| {
+        errors::ApplicationError::ApiClientError(error.current_context().clone())
+    })?);
     let state = Box::pin(AppState::new(conf, tx, api_client)).await;
     let request_body_limit = server.request_body_limit;
 

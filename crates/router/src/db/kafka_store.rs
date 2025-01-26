@@ -28,7 +28,7 @@ use hyperswitch_domain_models::{
 use hyperswitch_domain_models::{PayoutAttemptInterface, PayoutsInterface};
 use masking::Secret;
 use redis_interface::{errors::RedisError, RedisConnectionPool, RedisEntryId};
-use router_env::logger;
+use router_env::{instrument, logger, tracing};
 use scheduler::{
     db::{process_tracker::ProcessTrackerInterface, queue::QueueInterface},
     SchedulerInterface,
@@ -56,6 +56,7 @@ use crate::{
         authentication::AuthenticationInterface,
         authorization::AuthorizationInterface,
         business_profile::ProfileInterface,
+        callback_mapper::CallbackMapperInterface,
         capture::CaptureInterface,
         cards_info::CardsInfoInterface,
         configs::ConfigInterface,
@@ -3924,3 +3925,23 @@ impl db::payment_method_session::PaymentMethodsSessionInterface for KafkaStore {
 #[async_trait::async_trait]
 #[cfg(feature = "v1")]
 impl db::payment_method_session::PaymentMethodsSessionInterface for KafkaStore {}
+
+impl CallbackMapperInterface for KafkaStore {
+    #[instrument(skip_all)]
+    async fn insert_call_back_mapper(
+        &self,
+        call_back_mapper: domain::CallbackMapper,
+    ) -> CustomResult<domain::CallbackMapper, errors::StorageError> {
+        self.diesel_store
+            .insert_call_back_mapper(call_back_mapper)
+            .await
+    }
+
+    #[instrument(skip_all)]
+    async fn find_call_back_mapper_by_id(
+        &self,
+        id: &str,
+    ) -> CustomResult<domain::CallbackMapper, errors::StorageError> {
+        self.diesel_store.find_call_back_mapper_by_id(id).await
+    }
+}

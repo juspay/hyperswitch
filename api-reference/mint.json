@@ -253,5 +253,15 @@
   "openapi": ["openapi_spec.json", "rust_locker_open_api_spec.yml"],
   "api": {
     "maintainOrder": true
+  },
+  "analytics": {
+    "gtm": {
+        "tagId": "GTM-PLBNKQFQ"
+    }
+  },
+  "analytics": {
+    "mixpanel": {
+        "projectToken": "b00355f29d9548d1333608df71d5d53d"
+    }
   }
 }
