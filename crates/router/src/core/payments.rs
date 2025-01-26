@@ -22,7 +22,6 @@ use std::{
 
 #[cfg(feature = "v2")]
 pub mod payment_methods;
-
 #[cfg(feature = "olap")]
 use api_models::admin::MerchantConnectorInfo;
 use api_models::{
@@ -1522,6 +1521,69 @@ where
         header_payload.x_hs_latency,
         &merchant_account,
     )
+}
+
+#[cfg(feature = "v2")]
+#[allow(clippy::too_many_arguments)]
+pub async fn payments_get_intent_using_merchant_reference(
+    state: SessionState,
+    merchant_account: domain::MerchantAccount,
+    profile: domain::Profile,
+    key_store: domain::MerchantKeyStore,
+    req_state: ReqState,
+    merchant_reference_id: &id_type::PaymentReferenceId,
+    header_payload: HeaderPayload,
+    platform_merchant_account: Option<domain::MerchantAccount>,
+) -> RouterResponse<api::PaymentsIntentResponse>
+{
+
+    let db = state.store.as_ref();
+    let storage_scheme = merchant_account.storage_scheme;
+    let key_manager_state = &(&state).into();
+    let payment_intent = db
+        .find_payment_intent_by_merchant_reference_id_profile_id(
+            key_manager_state,
+            merchant_reference_id,
+            profile.get_id(),
+            &key_store,
+            &storage_scheme,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+    let (payment_data, _req, customer) =
+        Box::pin(payments_intent_operation_core::<
+            api::PaymentGetIntent,
+            _,
+            _,
+            PaymentIntentData<api::PaymentGetIntent>,
+        >(
+            &state,
+            req_state,
+            merchant_account.clone(),
+            profile.clone(),
+            key_store.clone(),
+            operations::PaymentGetIntent,
+            api_models::payments::PaymentsGetIntentRequest {
+                id: payment_intent.get_id().clone()
+            },
+            payment_intent.get_id().clone(),
+            HeaderPayload::default(),
+            platform_merchant_account
+        ))
+        .await?;
+
+        transformers::ToResponse::<api::PaymentGetIntent,PaymentIntentData<api::PaymentGetIntent>,operations::PaymentGetIntent>::generate_response(
+            payment_data,
+            customer,
+            &state.base_url,
+            operations::PaymentGetIntent,
+            &state.conf.connector_request_reference_id_config,
+            None,
+            None,
+            header_payload.x_hs_latency,
+            &merchant_account,
+        )
 }
 
 #[cfg(feature = "v2")]

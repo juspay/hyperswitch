@@ -304,6 +304,13 @@ pub struct PaymentsGetIntentRequest {
     pub id: id_type::GlobalPaymentId,
 }
 
+// This struct is only used internally, not visible in API Reference
+#[derive(Debug, Clone, serde::Serialize)]
+#[cfg(feature = "v2")]
+pub struct PaymentsGetUsingMerchantReferenceIdRequest {
+    pub merchant_reference_id: id_type::PaymentReferenceId,
+}
+
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
 #[cfg(feature = "v2")]
