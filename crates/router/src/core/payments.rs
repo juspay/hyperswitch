@@ -3094,6 +3094,7 @@ where
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("failed to create google pay token decryptor")?;
 
+                    // should_verify_token is set to false to disable verification of token
                     Some(
                         decryptor
                             .decrypt_token(&wallet_data.tokenization_data.token.clone(), false)

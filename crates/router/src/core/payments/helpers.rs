@@ -5478,7 +5478,7 @@ pub struct GooglePaySignedMessage {
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
 pub enum GooglePayProtocolVersion {
     #[serde(rename = "ECv2")]
-    EcProtocalVersion2,
+    EcProtocolVersion2,
 }
 
 // Check expiration date validity
@@ -5506,7 +5506,7 @@ fn filter_root_signing_keys(root_keys: Vec<serde_json::Value>) -> Vec<GooglePayR
             serde_json::from_value(key).unwrap_or_else(|_| GooglePayRootSigningKey {
                 key_value: "".to_string(),
                 key_expiration: "".to_string(),
-                protocol_version: GooglePayProtocolVersion::EcProtocalVersion2,
+                protocol_version: GooglePayProtocolVersion::EcProtocolVersion2,
             })
         })
         .collect();
@@ -5514,7 +5514,7 @@ fn filter_root_signing_keys(root_keys: Vec<serde_json::Value>) -> Vec<GooglePayR
     root_signing_keys
         .iter()
         .filter(|key| {
-            key.protocol_version == GooglePayProtocolVersion::EcProtocalVersion2
+            key.protocol_version == GooglePayProtocolVersion::EcProtocolVersion2
                 && matches!(
                     check_expiration_date_is_valid(&key.key_expiration),
                     Ok(true)
@@ -5646,7 +5646,7 @@ impl GooglePayTokenDecryptor {
         encrypted_data: &EncryptedData,
     ) -> CustomResult<(), errors::GooglePayDecryptionError> {
         // check the protocol version
-        if encrypted_data.protocol_version != GooglePayProtocolVersion::EcProtocalVersion2 {
+        if encrypted_data.protocol_version != GooglePayProtocolVersion::EcProtocolVersion2 {
             return Err(errors::GooglePayDecryptionError::InvalidProtocolVersion.into());
         }
 

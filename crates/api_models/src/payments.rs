@@ -5987,6 +5987,8 @@ pub struct GooglePayDetails {
     pub provider_details: GooglePayProviderDetails,
 }
 
+// Google Pay Provider Details can of two types: GooglePayMerchantDetails or GooglePayHyperSwitchDetails
+// GooglePayHyperSwitchDetails is not implemented yet
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(untagged)]
 pub enum GooglePayProviderDetails {
