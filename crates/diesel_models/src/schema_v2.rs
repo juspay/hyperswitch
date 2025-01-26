@@ -447,6 +447,8 @@ diesel::table! {
         created_at -> Timestamp,
         #[max_length = 64]
         payment_method_type -> Nullable<Varchar>,
+        #[max_length = 64]
+        global_success_based_connector -> Nullable<Varchar>,
     }
 }
 
