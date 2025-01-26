@@ -972,3 +972,23 @@ impl transformers::ForeignTryFrom<domain::PaymentMethod> for api::CustomerPaymen
         })
     }
 }
+
+#[cfg(feature = "v2")]
+impl transformers::ForeignFrom<hyperswitch_domain_models::payment_methods::PaymentMethodsSession>
+    for api_models::payment_methods::PaymentMethodsSessionResponse
+{
+    fn foreign_from(
+        item: hyperswitch_domain_models::payment_methods::PaymentMethodsSession,
+    ) -> Self {
+        Self {
+            id: item.id,
+            customer_id: item.customer_id,
+            billing: item
+                .billing
+                .map(|address| address.into_inner())
+                .map(From::from),
+            psp_tokenization: item.psp_tokenization,
+            network_tokenization: item.network_tokenization,
+        }
+    }
+}

@@ -117,7 +117,6 @@ Never share your secret api keys. Keep them guarded and secure.
         routes::customers::customers_update,
         routes::customers::customers_delete,
         routes::customers::customers_list,
-        routes::customers::list_saved_payment_methods_for_customer,
 
         //Routes for payments
         routes::payments::payments_create_intent,
@@ -131,11 +130,15 @@ Never share your secret api keys. Keep them guarded and secure.
         //Routes for payment methods
         routes::payment_method::create_payment_method_api,
         routes::payment_method::create_payment_method_intent_api,
-        routes::payment_method::list_payment_methods,
         routes::payment_method::confirm_payment_method_intent_api,
         routes::payment_method::payment_method_update_api,
         routes::payment_method::payment_method_retrieve_api,
         routes::payment_method::payment_method_delete_api,
+
+        //Routes for payment method session
+        routes::payment_method::payment_method_session_create,
+        routes::payment_method::payment_method_session_retrieve,
+        routes::payment_method::payment_method_session_list_payment_methods,
 
         //Routes for refunds
         routes::refunds::refunds_create,
@@ -161,6 +164,8 @@ Never share your secret api keys. Keep them guarded and secure.
         common_types::refunds::StripeSplitRefundRequest,
         common_utils::types::ChargeRefunds,
         common_types::payment_methods::PaymentMethodsEnabled,
+        common_types::payment_methods::PspTokenization,
+        common_types::payment_methods::NetworkTokenization,
         common_types::refunds::SplitRefund,
         api_models::payments::SplitPaymentsResponse,
         api_models::payments::StripeSplitPaymentsResponse,
@@ -484,6 +489,8 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payment_methods::PaymentMethodCollectLinkRequest,
         api_models::payment_methods::PaymentMethodCollectLinkResponse,
         api_models::payment_methods::PaymentMethodSubtypeSpecificData,
+        api_models::payment_methods::PaymentMethodsSessionRequest,
+        api_models::payment_methods::PaymentMethodsSessionResponse,
         api_models::payments::PaymentsRetrieveResponse,
         api_models::refunds::RefundListRequest,
         api_models::refunds::RefundListResponse,
@@ -645,6 +652,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::feature_matrix::ConnectorFeatureMatrixResponse,
         api_models::feature_matrix::SupportedPaymentMethod,
         common_utils::types::BrowserInformation,
+        api_models::enums::TokenizationType,
         api_models::payments::PaymentAmountDetailsResponse,
         routes::payments::ForceSync,
     )),

@@ -25,7 +25,7 @@ use api_models::payment_methods;
 pub use api_models::{enums::PayoutConnectors, payouts as payout_types};
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use common_utils::ext_traits::Encode;
-use common_utils::{consts::DEFAULT_LOCALE, id_type};
+use common_utils::{consts::DEFAULT_LOCALE, id_type, types::keymanager::ToEncryptable};
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use common_utils::{
     crypto::{self, Encryptable},
@@ -41,7 +41,10 @@ use diesel_models::{
 use error_stack::{report, ResultExt};
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use hyperswitch_domain_models::api::{GenericLinks, GenericLinksData};
-use hyperswitch_domain_models::payments::{payment_attempt::PaymentAttempt, PaymentIntent};
+use hyperswitch_domain_models::{
+    behaviour::Conversion,
+    payments::{payment_attempt::PaymentAttempt, PaymentIntent},
+};
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use masking::ExposeInterface;
 use masking::{PeekInterface, Secret};
@@ -61,6 +64,7 @@ use crate::{
     services::encryption,
     types::{
         api::{self, payment_methods::PaymentMethodCreateExt},
+        domain::types as domain_types,
         payment_methods as pm_types,
         storage::{ephemeral_key, PaymentMethodListContext},
         transformers::ForeignTryFrom,
@@ -78,6 +82,7 @@ use crate::{
     types::{
         domain,
         storage::{self, enums as storage_enums},
+        transformers::ForeignFrom,
     },
 };
 
@@ -1148,26 +1153,22 @@ impl PerformFilteringOnEnabledPaymentMethods
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 #[instrument(skip_all)]
-pub async fn list_payment_methods_enabled(
+pub async fn list_payment_methods_for_session(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     profile: domain::Profile,
-    payment_method_id: id_type::GlobalPaymentMethodId,
+    payment_method_session_id: id_type::GlobalPaymentMethodSessionId,
 ) -> RouterResponse<api::PaymentMethodListResponse> {
     let key_manager_state = &(&state).into();
 
     let db = &*state.store;
 
-    db.find_payment_method(
-        key_manager_state,
-        &key_store,
-        &payment_method_id,
-        merchant_account.storage_scheme,
-    )
-    .await
-    .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
-    .attach_printable("Unable to find payment method")?;
+    let payment_method_session = db
+        .get_payment_methods_session(key_manager_state, &key_store, &payment_method_session_id)
+        .await
+        .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
+        .attach_printable("Unable to find payment method")?;
 
     let payment_connector_accounts = db
         .list_enabled_connector_accounts_by_profile_id(
@@ -1180,11 +1181,19 @@ pub async fn list_payment_methods_enabled(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("error when fetching merchant connector accounts")?;
 
+    let customer_payment_methods = list_customer_payment_method_core(
+        &state,
+        &merchant_account,
+        &key_store,
+        &payment_method_session.customer_id,
+    )
+    .await?;
+
     let response =
         hyperswitch_domain_models::merchant_connector_account::FlattenedPaymentMethodsEnabled::from_payment_connectors_list(payment_connector_accounts)
             .perform_filtering()
             .get_required_fields(RequiredFieldsInput::new(state.conf.required_fields.clone()))
-            .generate_response();
+            .generate_response(customer_payment_methods.customer_payment_methods);
 
     Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
         response,
@@ -1305,7 +1314,10 @@ struct RequiredFieldsForEnabledPaymentMethodTypes(Vec<RequiredFieldsForEnabledPa
 
 #[cfg(feature = "v2")]
 impl RequiredFieldsForEnabledPaymentMethodTypes {
-    fn generate_response(self) -> payment_methods::PaymentMethodListResponse {
+    fn generate_response(
+        self,
+        customer_payment_methods: Vec<payment_methods::CustomerPaymentMethod>,
+    ) -> payment_methods::PaymentMethodListResponse {
         let response_payment_methods = self
             .0
             .into_iter()
@@ -1321,53 +1333,9 @@ impl RequiredFieldsForEnabledPaymentMethodTypes {
 
         payment_methods::PaymentMethodListResponse {
             payment_methods_enabled: response_payment_methods,
+            customer_payment_methods,
         }
     }
-}
-
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-#[instrument(skip_all)]
-pub async fn list_payment_methods(
-    state: SessionState,
-    merchant_account: domain::MerchantAccount,
-    key_store: domain::MerchantKeyStore,
-    profile: domain::Profile,
-    payment_method_id: id_type::GlobalPaymentMethodId,
-) -> RouterResponse<api::PaymentMethodListResponse> {
-    let key_manager_state = &(&state).into();
-
-    let db = &*state.store;
-
-    db.find_payment_method(
-        key_manager_state,
-        &key_store,
-        &payment_method_id,
-        merchant_account.storage_scheme,
-    )
-    .await
-    .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
-    .attach_printable("Unable to find payment method")?;
-
-    let payment_connector_accounts = db
-        .list_enabled_connector_accounts_by_profile_id(
-            key_manager_state,
-            profile.get_id(),
-            &key_store,
-            common_enums::ConnectorType::PaymentProcessor,
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("error when fetching merchant connector accounts")?;
-
-    let response =
-        hyperswitch_domain_models::merchant_connector_account::FlattenedPaymentMethodsEnabled::from_payment_connectors_list(payment_connector_accounts)
-            .perform_filtering()
-            .get_required_fields(RequiredFieldsInput::new(state.conf.required_fields.clone()))
-            .generate_response();
-
-    Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
-        response,
-    ))
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
@@ -1610,26 +1578,14 @@ fn get_pm_list_context(
     feature = "payment_methods_v2",
     feature = "customer_v2"
 ))]
-pub async fn list_customer_payment_method(
-    state: SessionState,
-    merchant_account: domain::MerchantAccount,
-    profile: domain::Profile,
-    key_store: domain::MerchantKeyStore,
-    customer_id: id_type::GlobalCustomerId,
-) -> RouterResponse<api::CustomerPaymentMethodsListResponse> {
+pub async fn list_customer_payment_method_core(
+    state: &SessionState,
+    merchant_account: &domain::MerchantAccount,
+    key_store: &domain::MerchantKeyStore,
+    customer_id: &id_type::GlobalCustomerId,
+) -> RouterResult<api::CustomerPaymentMethodsListResponse> {
     let db = &*state.store;
-    let key_manager_state = &(&state).into();
-
-    let customer = db
-        .find_customer_by_global_id(
-            key_manager_state,
-            &customer_id,
-            merchant_account.get_id(),
-            &key_store,
-            merchant_account.storage_scheme,
-        )
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
+    let key_manager_state = &(state).into();
 
     let saved_payment_methods = db
         .find_payment_method_by_global_customer_id_merchant_id_status(
@@ -1654,7 +1610,7 @@ pub async fn list_customer_payment_method(
         customer_payment_methods,
     };
 
-    Ok(services::ApplicationResponse::Json(response))
+    Ok(response)
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
@@ -1869,6 +1825,125 @@ pub async fn delete_payment_method(
         .attach_printable("Failed to delete payment method from vault")?;
 
     let response = api::PaymentMethodDeleteResponse { id: pm_id };
+
+    Ok(services::ApplicationResponse::Json(response))
+}
+
+pub async fn payment_methods_session_create(
+    state: SessionState,
+    merchant_account: domain::MerchantAccount,
+    key_store: domain::MerchantKeyStore,
+    request: payment_methods::PaymentMethodsSessionRequest,
+) -> RouterResponse<payment_methods::PaymentMethodsSessionResponse> {
+    let db = state.store.as_ref();
+    let key_manager_state = &(&state).into();
+
+    db.find_customer_by_global_id(
+        key_manager_state,
+        &request.customer_id,
+        merchant_account.get_id(),
+        &key_store,
+        merchant_account.storage_scheme,
+    )
+    .await
+    .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
+
+    let payment_methods_session_id =
+        id_type::GlobalPaymentMethodSessionId::generate(&state.conf.cell_information.id)
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to generate GlobalPaymentMethodSessionId")?;
+
+    let encrypted_billing_address = request
+        .billing
+        .clone()
+        .map(|address| address.encode_to_value())
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to encode billing address")?
+        .map(Secret::new);
+
+    let batch_encrypted_data = domain_types::crypto_operation(
+            key_manager_state,
+            common_utils::type_name!(hyperswitch_domain_models::payment_methods::PaymentMethodsSession),
+            domain_types::CryptoOperation::BatchEncrypt(
+                hyperswitch_domain_models::payment_methods::FromRequestEncryptablePaymentMethodsSession::to_encryptable(
+                    hyperswitch_domain_models::payment_methods::FromRequestEncryptablePaymentMethodsSession {
+                       billing: encrypted_billing_address,
+                    },
+                ),
+            ),
+            common_utils::types::keymanager::Identifier::Merchant(merchant_account.get_id().to_owned()),
+            key_store.key.peek(),
+        )
+        .await
+        .and_then(|val| val.try_into_batchoperation())
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed while encrypting payment methods session details".to_string())?;
+
+    let encrypted_data =
+        hyperswitch_domain_models::payment_methods::FromRequestEncryptablePaymentMethodsSession::from_encryptable(
+            batch_encrypted_data,
+        )
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed while encrypting payment methods session detailss")?;
+
+    let billing = encrypted_data
+        .billing
+        .as_ref()
+        .map(|data| {
+            data.clone()
+                .deserialize_inner_value(|value| value.parse_value("Address"))
+        })
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to decode billing address")?;
+
+    let payment_method_session_domain_model =
+        hyperswitch_domain_models::payment_methods::PaymentMethodsSession {
+            id: payment_methods_session_id,
+            customer_id: request.customer_id,
+            billing,
+            psp_tokenization: request.psp_tokenization,
+            network_tokenization: request.network_tokenization,
+        };
+
+    let validity = 15 * 60;
+
+    db.insert_payment_methods_session(
+        key_manager_state,
+        &key_store,
+        payment_method_session_domain_model.clone(),
+        validity,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to insert payment methods session in db")?;
+
+    let response = payment_methods::PaymentMethodsSessionResponse::foreign_from(
+        payment_method_session_domain_model,
+    );
+
+    Ok(services::ApplicationResponse::Json(response))
+}
+
+pub async fn payment_methods_session_retrieve(
+    state: SessionState,
+    _merchant_account: domain::MerchantAccount,
+    key_store: domain::MerchantKeyStore,
+    payment_method_session_id: id_type::GlobalPaymentMethodSessionId,
+) -> RouterResponse<payment_methods::PaymentMethodsSessionResponse> {
+    let db = state.store.as_ref();
+    let key_manager_state = &(&state).into();
+
+    let payment_method_session_domain_model = db
+        .get_payment_methods_session(key_manager_state, &key_store, &payment_method_session_id)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to insert payment methods session in db")?;
+
+    let response = payment_methods::PaymentMethodsSessionResponse::foreign_from(
+        payment_method_session_domain_model,
+    );
 
     Ok(services::ApplicationResponse::Json(response))
 }

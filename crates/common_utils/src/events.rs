@@ -115,6 +115,10 @@ pub enum ApiEventsType {
     EphemeralKey {
         key_id: id_type::EphemeralKeyId,
     },
+    #[cfg(feature = "v2")]
+    PaymentMethodSession {
+        payment_method_session_id: id_type::GlobalPaymentMethodSessionId,
+    },
 }
 
 impl ApiEventMetric for serde_json::Value {}

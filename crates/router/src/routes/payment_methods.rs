@@ -196,41 +196,6 @@ pub async fn confirm_payment_method_intent_api(
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-#[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsList))]
-pub async fn list_payment_methods_enabled(
-    state: web::Data<AppState>,
-    req: HttpRequest,
-    path: web::Path<id_type::GlobalPaymentMethodId>,
-) -> HttpResponse {
-    let flow = Flow::PaymentMethodsList;
-    let payment_method_id = path.into_inner();
-
-    let auth = match auth::is_ephemeral_or_publishible_auth(req.headers()) {
-        Ok(auth) => auth,
-        Err(e) => return api::log_and_return_error_response(e),
-    };
-
-    Box::pin(api::server_wrap(
-        flow,
-        state,
-        &req,
-        payment_method_id,
-        |state, auth: auth::AuthenticationData, payment_method_id, _| {
-            payment_methods_routes::list_payment_methods_enabled(
-                state,
-                auth.merchant_account,
-                auth.key_store,
-                auth.profile,
-                payment_method_id,
-            )
-        },
-        &*auth,
-        api_locking::LockAction::NotApplicable,
-    ))
-    .await
-}
-
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsUpdate))]
 pub async fn payment_method_update_api(
     state: web::Data<AppState>,
@@ -568,45 +533,6 @@ pub async fn list_customer_payment_method_api(
             )
         },
         &*ephemeral_auth,
-        api_locking::LockAction::NotApplicable,
-    ))
-    .await
-}
-
-#[cfg(all(
-    feature = "v2",
-    feature = "payment_methods_v2",
-    feature = "customer_v2"
-))]
-#[instrument(skip_all, fields(flow = ?Flow::CustomerPaymentMethodsList))]
-pub async fn list_customer_payment_method_api(
-    state: web::Data<AppState>,
-    customer_id: web::Path<id_type::GlobalCustomerId>,
-    req: HttpRequest,
-) -> HttpResponse {
-    let flow = Flow::CustomerPaymentMethodsList;
-    let customer_id = customer_id.into_inner();
-
-    let ephemeral_or_api_auth = match auth::is_ephemeral_auth(req.headers()) {
-        Ok(auth) => auth,
-        Err(err) => return api::log_and_return_error_response(err),
-    };
-
-    Box::pin(api::server_wrap(
-        flow,
-        state,
-        &req,
-        customer_id,
-        |state, auth: auth::AuthenticationData, customer_id, _| {
-            payment_methods_routes::list_customer_payment_method(
-                state,
-                auth.merchant_account,
-                auth.profile,
-                auth.key_store,
-                customer_id,
-            )
-        },
-        &*ephemeral_or_api_auth,
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -1003,4 +929,109 @@ impl ParentPaymentMethodToken {
             }
         }
     }
+}
+
+#[cfg(feature = "v2")]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentMethodSessionCreate))]
+pub async fn payment_methods_session_create(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<api_models::payment_methods::PaymentMethodsSessionRequest>,
+) -> HttpResponse {
+    let flow = Flow::PaymentMethodSessionCreate;
+    let payload = json_payload.into_inner();
+
+    let ephemeral_auth = match auth::is_ephemeral_auth(req.headers()) {
+        Ok(auth) => auth,
+        Err(err) => return api::log_and_return_error_response(err),
+    };
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth: auth::AuthenticationData, request, _| async move {
+            payment_methods_routes::payment_methods_session_create(
+                state,
+                auth.merchant_account,
+                auth.key_store,
+                request,
+            )
+            .await
+        },
+        &*ephemeral_auth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(feature = "v2")]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentMethodSessionRetrieve))]
+pub async fn payment_methods_session_get(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<id_type::GlobalPaymentMethodSessionId>,
+) -> HttpResponse {
+    let flow = Flow::PaymentMethodSessionRetrieve;
+    let payment_method_session_id = path.into_inner();
+
+    let ephemeral_auth = match auth::is_ephemeral_auth(req.headers()) {
+        Ok(auth) => auth,
+        Err(err) => return api::log_and_return_error_response(err),
+    };
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payment_method_session_id,
+        |state, auth: auth::AuthenticationData, payment_method_session_id, _| async move {
+            payment_methods_routes::payment_methods_session_retrieve(
+                state,
+                auth.merchant_account,
+                auth.key_store,
+                payment_method_session_id,
+            )
+            .await
+        },
+        &*ephemeral_auth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsList))]
+pub async fn payment_method_session_list_payment_methods(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<id_type::GlobalPaymentMethodSessionId>,
+) -> HttpResponse {
+    let flow = Flow::PaymentMethodsList;
+    let payment_method_session_id = path.into_inner();
+
+    let auth = match auth::is_ephemeral_or_publishible_auth(req.headers()) {
+        Ok(auth) => auth,
+        Err(e) => return api::log_and_return_error_response(e),
+    };
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payment_method_session_id,
+        |state, auth: auth::AuthenticationData, payment_method_session_id, _| {
+            payment_methods_routes::list_payment_methods_for_session(
+                state,
+                auth.merchant_account,
+                auth.key_store,
+                auth.profile,
+                payment_method_session_id,
+            )
+        },
+        &*auth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
 }

@@ -500,3 +500,92 @@ impl super::behaviour::Conversion for PaymentMethod {
         })
     }
 }
+
+#[cfg(feature = "v2")]
+#[derive(Clone, Debug, router_derive::ToEncryption)]
+pub struct PaymentMethodsSession {
+    pub id: common_utils::id_type::GlobalPaymentMethodSessionId,
+    pub customer_id: common_utils::id_type::GlobalCustomerId,
+    #[encrypt(ty = Value)]
+    pub billing: Option<Encryptable<Address>>,
+    pub psp_tokenization: Option<common_types::payment_methods::PspTokenization>,
+    pub network_tokenization: Option<common_types::payment_methods::NetworkTokenization>,
+}
+
+#[async_trait::async_trait]
+impl super::behaviour::Conversion for PaymentMethodsSession {
+    type DstType = diesel_models::payment_methods_session::PaymentMethodsSession;
+    type NewDstType = diesel_models::payment_methods_session::PaymentMethodsSession;
+    async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
+        Ok(Self::DstType {
+            id: self.id,
+            customer_id: self.customer_id,
+            billing: self.billing.map(|val| val.into()),
+            psp_tokenization: self.psp_tokenization,
+            network_tokeinzation: self.network_tokenization,
+        })
+    }
+
+    async fn convert_back(
+        state: &keymanager::KeyManagerState,
+        storage_model: Self::DstType,
+        key: &Secret<Vec<u8>>,
+        key_manager_identifier: keymanager::Identifier,
+    ) -> CustomResult<Self, ValidationError>
+    where
+        Self: Sized,
+    {
+        use common_utils::ext_traits::ValueExt;
+
+        async {
+            let decrypted_data = crypto_operation(
+                state,
+                type_name!(Self::DstType),
+                CryptoOperation::BatchDecrypt(EncryptedPaymentMethodsSession::to_encryptable(
+                    EncryptedPaymentMethodsSession {
+                        billing: storage_model.billing,
+                    },
+                )),
+                key_manager_identifier,
+                key.peek(),
+            )
+            .await
+            .and_then(|val| val.try_into_batchoperation())?;
+
+            let data = EncryptedPaymentMethodsSession::from_encryptable(decrypted_data)
+                .change_context(common_utils::errors::CryptoError::DecodingFailed)
+                .attach_printable("Invalid batch operation data")?;
+
+            let billing = data
+                .billing
+                .map(|billing| {
+                    billing.deserialize_inner_value(|value| value.parse_value("Address"))
+                })
+                .transpose()
+                .change_context(common_utils::errors::CryptoError::DecodingFailed)
+                .attach_printable("Error while deserializing Address")?;
+
+            Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(Self {
+                id: storage_model.id,
+                customer_id: storage_model.customer_id,
+                billing,
+                psp_tokenization: storage_model.psp_tokenization,
+                network_tokenization: storage_model.network_tokeinzation,
+            })
+        }
+        .await
+        .change_context(ValidationError::InvalidValue {
+            message: "Failed while decrypting payment method data".to_string(),
+        })
+    }
+
+    async fn construct_new(self) -> CustomResult<Self::NewDstType, ValidationError> {
+        Ok(Self::NewDstType {
+            id: self.id,
+            customer_id: self.customer_id,
+            billing: self.billing.map(|val| val.into()),
+            psp_tokenization: self.psp_tokenization,
+            network_tokeinzation: self.network_tokenization,
+        })
+    }
+}

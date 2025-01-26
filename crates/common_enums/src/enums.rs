@@ -3613,3 +3613,27 @@ pub enum FeatureStatus {
     NotSupported,
     Supported,
 }
+
+/// The type of tokenization to use for the payment method
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    ToSchema,
+)]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+pub enum TokenizationType {
+    /// Create a single use token for the given payment method
+    /// The user might have to go through additional factor authentication when using the single use token if required by the payment method
+    SingleUse,
+    /// Create a multi use token for the given payment method
+    /// User will have to complete the additional factor authentication only once when creating the multi use token
+    /// This will create a mandate at the connector which can be used for recurring payments
+    MultiUse,
+}

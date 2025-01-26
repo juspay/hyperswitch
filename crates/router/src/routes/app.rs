@@ -1004,13 +1004,6 @@ impl Customers {
                         .route(web::delete().to(customers::customers_delete)),
                 )
         }
-        #[cfg(all(feature = "oltp", feature = "v2", feature = "payment_methods_v2"))]
-        {
-            route = route.service(
-                web::resource("/{customer_id}/saved-payment-methods")
-                    .route(web::get().to(payment_methods::list_customer_payment_method_api)),
-            );
-        }
         route
     }
 }
@@ -1170,10 +1163,9 @@ impl PaymentMethods {
                         .route(web::get().to(payment_methods::payment_method_retrieve_api))
                         .route(web::delete().to(payment_methods::payment_method_delete_api)),
                 )
-                .service(
-                    web::resource("/list-enabled-payment-methods")
-                        .route(web::get().to(payment_methods::list_payment_methods_enabled)),
-                )
+                .service(web::resource("/list-enabled-payment-methods").route(
+                    web::get().to(payment_methods::payment_method_session_list_payment_methods),
+                ))
                 .service(
                     web::resource("/confirm-intent")
                         .route(web::post().to(payment_methods::confirm_payment_method_intent_api)),
@@ -1250,6 +1242,33 @@ impl PaymentMethods {
                     web::resource("/auth/exchange").route(web::post().to(pm_auth::exchange_token)),
                 )
         }
+        route
+    }
+}
+
+#[cfg(all(feature = "v2", feature = "oltp"))]
+pub struct PaymentMethodsSession;
+
+#[cfg(all(feature = "v2", feature = "oltp"))]
+impl PaymentMethodsSession {
+    pub fn server(state: AppState) -> Scope {
+        let mut route = web::scope("/v2/payment-methods-session").app_data(web::Data::new(state));
+        route = route.service(
+            web::resource("")
+                .route(web::post().to(payment_methods::payment_methods_session_create)),
+        );
+
+        route = route.service(
+            web::scope("/{payment_method_session_id}")
+                .service(
+                    web::resource("")
+                        .route(web::get().to(payment_methods::payment_methods_session_get)),
+                )
+                .service(web::resource("/list-payment-methods").route(
+                    web::get().to(payment_methods::payment_method_session_list_payment_methods),
+                )),
+        );
+
         route
     }
 }

@@ -213,20 +213,3 @@ pub async fn customers_delete() {}
 )]
 #[cfg(feature = "v2")]
 pub async fn customers_list() {}
-
-/// Customers - List Saved Payment Methods
-///
-/// To filter and list the applicable payment methods for a particular Customer ID, to be used in a non-payments context
-#[utoipa::path(
-    get,
-    path = "/v2/customers/{id}/saved-payment-methods",
-    responses(
-        (status = 200, description = "Saved Payment Methods retrieved", body = CustomerPaymentMethodsListResponse),
-        (status = 404, description = "Customer id does not exist")
-    ),
-    tag = "Customers",
-    operation_id = "List all Saved Payment Methods for a Customer",
-    security(("api_key" = [], "ephemeral_key" = []))
-)]
-#[cfg(feature = "v2")]
-pub async fn list_saved_payment_methods_for_customer() {}

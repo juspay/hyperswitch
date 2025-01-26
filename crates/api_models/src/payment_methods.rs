@@ -1029,6 +1029,9 @@ impl From<CardDetailFromLocker> for payments::AdditionalCardInfo {
 pub struct PaymentMethodListResponse {
     /// The list of payment methods that are enabled for the business profile
     pub payment_methods_enabled: Vec<ResponsePaymentMethodTypes>,
+
+    /// The list of saved payment methods of the customer
+    pub customer_payment_methods: Vec<CustomerPaymentMethod>,
 }
 
 #[cfg(all(
@@ -2216,6 +2219,7 @@ type PaymentMethodMigrationResponseType = (
     Result<PaymentMethodMigrateResponse, String>,
     PaymentMethodRecord,
 );
+
 #[cfg(all(
     any(feature = "v2", feature = "v1"),
     not(feature = "payment_methods_v2")
@@ -2377,29 +2381,45 @@ impl From<(PaymentMethodRecord, id_type::MerchantId)> for customers::CustomerReq
     }
 }
 
-// #[cfg(feature = "v2")]
-// impl From<PaymentMethodRecord> for customers::CustomerRequest {
-//     fn from(record: PaymentMethodRecord) -> Self {
-//         Self {
-//             merchant_reference_id: Some(record.customer_id),
-//             name: record.name.unwrap(),
-//             email: record.email.unwrap(),
-//             phone: record.phone,
-//             description: None,
-//             phone_country_code: record.phone_country_code,
-//             default_billing_address: Some(payments::AddressDetails {
-//                 city: Some(record.billing_address_city),
-//                 country: record.billing_address_country,
-//                 line1: Some(record.billing_address_line1),
-//                 line2: record.billing_address_line2,
-//                 state: Some(record.billing_address_state),
-//                 line3: record.billing_address_line3,
-//                 zip: Some(record.billing_address_zip),
-//                 first_name: Some(record.billing_address_first_name),
-//                 last_name: Some(record.billing_address_last_name),
-//             }),
-//             default_shipping_address: None,
-//             metadata: None,
-//         }
-//     }
-// }
+#[cfg(feature = "v2")]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct PaymentMethodsSessionRequest {
+    /// The customer id for which the payment methods session is to be created
+    #[schema(value_type = String, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
+    pub customer_id: id_type::GlobalCustomerId,
+
+    /// The billing address details of the customer. This will also be used for any new payment methods added during the session
+    #[schema(value_type = Option<Address>)]
+    pub billing: Option<payments::Address>,
+
+    /// The tokenization type to be applied
+    #[schema(value_type = Option<PspTokenization>)]
+    pub psp_tokenization: Option<common_types::payment_methods::PspTokenization>,
+
+    /// The network tokenization configuration if applicable
+    #[schema(value_type = Option<NetworkTokenization>)]
+    pub network_tokenization: Option<common_types::payment_methods::NetworkTokenization>,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct PaymentMethodsSessionResponse {
+    #[schema(value_type = String, example = "12345_pms_01926c58bc6e77c09e809964e72af8c8")]
+    pub id: id_type::GlobalPaymentMethodSessionId,
+
+    /// The customer id for which the payment methods session is to be created
+    #[schema(value_type = String, example = "12345_cus_01926c58bc6e77c09e809964e72af8c8")]
+    pub customer_id: id_type::GlobalCustomerId,
+
+    /// The billing address details of the customer. This will also be used for any new payment methods added during the session
+    #[schema(value_type = Option<Address>)]
+    pub billing: Option<payments::Address>,
+
+    /// The tokenization type to be applied
+    #[schema(value_type = Option<PspTokenization>)]
+    pub psp_tokenization: Option<common_types::payment_methods::PspTokenization>,
+
+    /// The network tokenization configuration if applicable
+    #[schema(value_type = Option<NetworkTokenization>)]
+    pub network_tokenization: Option<common_types::payment_methods::NetworkTokenization>,
+}

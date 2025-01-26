@@ -1769,37 +1769,6 @@
         ]
       }
     },
-    "/v2/customers/{id}/saved-payment-methods": {
-      "get": {
-        "tags": [
-          "Customers"
-        ],
-        "summary": "Customers - List Saved Payment Methods",
-        "description": "To filter and list the applicable payment methods for a particular Customer ID, to be used in a non-payments context",
-        "operationId": "List all Saved Payment Methods for a Customer",
-        "responses": {
-          "200": {
-            "description": "Saved Payment Methods retrieved",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CustomerPaymentMethodsListResponse"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Customer id does not exist"
-          }
-        },
-        "security": [
-          {
-            "api_key": [],
-            "ephemeral_key": []
-          }
-        ]
-      }
-    },
     "/v2/payments/create-intent": {
       "post": {
         "tags": [
@@ -2301,60 +2270,6 @@
         ]
       }
     },
-    "/v2/payment-methods/{id}/list-enabled-payment-methods": {
-      "get": {
-        "tags": [
-          "Payment Methods"
-        ],
-        "summary": "Payment Methods - Payment Methods List",
-        "description": "List the payment methods eligible for a payment method.",
-        "operationId": "List Payment methods for a Payment Method Intent",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "description": "The global payment method id",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "X-Profile-Id",
-            "in": "header",
-            "description": "Profile ID associated to the payment method intent",
-            "required": true,
-            "schema": {
-              "type": "string"
-            },
-            "example": {
-              "X-Profile-Id": "pro_abcdefghijklmnop"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Get the payment methods",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PaymentMethodListResponseForPayments"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "No payment method found with the given id"
-          }
-        },
-        "security": [
-          {
-            "api_key": [],
-            "ephemeral_key": []
-          }
-        ]
-      }
-    },
     "/v2/payment-methods/{id}/confirm-intent": {
       "post": {
         "tags": [
@@ -2511,6 +2426,136 @@
         "security": [
           {
             "api_key": []
+          }
+        ]
+      }
+    },
+    "/v2/payment-method-session": {
+      "get": {
+        "tags": [
+          "Payment Method Session"
+        ],
+        "summary": "Payment Method Session - Create",
+        "description": "Create a payment method session for a customer\nThis is used to list the saved payment methods for the customer\nThe customer can also add a new payment method using this session",
+        "operationId": "List Payment methods for a Payment Method Intent",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PaymentMethodsSessionRequest"
+              },
+              "examples": {
+                "Create a payment method session with customer_id": {
+                  "value": {
+                    "customer_id": "12345_cus_abcdefghijklmnopqrstuvwxyz"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Create the payment method session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentMethodsSessionResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is invalid"
+          }
+        },
+        "security": [
+          {
+            "api_key": [],
+            "ephemeral_key": []
+          }
+        ]
+      }
+    },
+    "/v2/payment-method-session/:id": {
+      "get": {
+        "tags": [
+          "Payment Method Session"
+        ],
+        "summary": "Payment Method Session - Retrieve",
+        "description": "Retrieve the payment method session",
+        "operationId": "List Payment methods for a Payment Method Intent",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The unique identifier for the Payment Method Session",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The payment method session is retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentMethodsSessionResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The request is invalid"
+          }
+        },
+        "security": [
+          {
+            "ephemeral_key": []
+          }
+        ]
+      }
+    },
+    "/v2/payment-method-session/:id/list-payment-methods": {
+      "get": {
+        "tags": [
+          "Payment Method Session"
+        ],
+        "summary": "Payment Method Session - List Payment Methods",
+        "description": "List payment methods for the given payment method session.\nThis endpoint lists the enabled payment methods for the profile and the saved payment methods of the customer.",
+        "operationId": "List Payment methods for a Payment Method Intent",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The unique identifier for the Payment Method Session",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The payment method session is retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentMethodListResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The request is invalid"
+          }
+        },
+        "security": [
+          {
+            "ephemeral_key": []
           }
         ]
       }
@@ -11459,6 +11504,19 @@
           }
         }
       },
+      "NetworkTokenization": {
+        "type": "object",
+        "description": "The newtwork tokenization configuration for creating the payment method session",
+        "required": [
+          "enable"
+        ],
+        "properties": {
+          "enable": {
+            "type": "boolean",
+            "description": "Enable the network tokenization for payment methods that are created using the payment method session"
+          }
+        }
+      },
       "NetworkTransactionIdAndCardDetails": {
         "type": "object",
         "required": [
@@ -14002,7 +14060,8 @@
       "PaymentMethodListResponse": {
         "type": "object",
         "required": [
-          "payment_methods_enabled"
+          "payment_methods_enabled",
+          "customer_payment_methods"
         ],
         "properties": {
           "payment_methods_enabled": {
@@ -14011,6 +14070,13 @@
               "$ref": "#/components/schemas/ResponsePaymentMethodTypes"
             },
             "description": "The list of payment methods that are enabled for the business profile"
+          },
+          "customer_payment_methods": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CustomerPaymentMethod"
+            },
+            "description": "The list of saved payment methods of the customer"
           }
         }
       },
@@ -14315,6 +14381,85 @@
           }
         },
         "additionalProperties": false
+      },
+      "PaymentMethodsSessionRequest": {
+        "type": "object",
+        "required": [
+          "customer_id"
+        ],
+        "properties": {
+          "customer_id": {
+            "type": "string",
+            "description": "The customer id for which the payment methods session is to be created",
+            "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44"
+          },
+          "billing": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Address"
+              }
+            ],
+            "nullable": true
+          },
+          "psp_tokenization": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PspTokenization"
+              }
+            ],
+            "nullable": true
+          },
+          "network_tokenization": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/NetworkTokenization"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "PaymentMethodsSessionResponse": {
+        "type": "object",
+        "required": [
+          "id",
+          "customer_id"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "12345_pms_01926c58bc6e77c09e809964e72af8c8"
+          },
+          "customer_id": {
+            "type": "string",
+            "description": "The customer id for which the payment methods session is to be created",
+            "example": "12345_cus_01926c58bc6e77c09e809964e72af8c8"
+          },
+          "billing": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Address"
+              }
+            ],
+            "nullable": true
+          },
+          "psp_tokenization": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PspTokenization"
+              }
+            ],
+            "nullable": true
+          },
+          "network_tokenization": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/NetworkTokenization"
+              }
+            ],
+            "nullable": true
+          }
+        }
       },
       "PaymentProcessingDetails": {
         "type": "object",
@@ -18344,6 +18489,23 @@
           }
         }
       },
+      "PspTokenization": {
+        "type": "object",
+        "description": "The Payment Service Provider Configuration for payment methods that are created using the payment method session",
+        "required": [
+          "tokenization_type",
+          "connector_id"
+        ],
+        "properties": {
+          "tokenization_type": {
+            "$ref": "#/components/schemas/TokenizationType"
+          },
+          "connector_id": {
+            "type": "string",
+            "description": "The merchant connector id to be used for tokenization"
+          }
+        }
+      },
       "RealTimePaymentData": {
         "oneOf": [
           {
@@ -20892,6 +21054,14 @@
             "example": true
           }
         }
+      },
+      "TokenizationType": {
+        "type": "string",
+        "description": "The type of tokenization to use for the payment method",
+        "enum": [
+          "single_use",
+          "multi_use"
+        ]
       },
       "TouchNGoRedirection": {
         "type": "object"

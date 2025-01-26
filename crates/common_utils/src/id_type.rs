@@ -32,7 +32,7 @@ use thiserror::Error;
 pub use self::global_id::{
     customer::GlobalCustomerId,
     payment::{GlobalAttemptId, GlobalPaymentId},
-    payment_methods::GlobalPaymentMethodId,
+    payment_methods::{GlobalPaymentMethodId, GlobalPaymentMethodSessionId},
     refunds::GlobalRefundId,
     CellId,
 };

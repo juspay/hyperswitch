@@ -50,6 +50,7 @@ use crate::services::kafka::payout::KafkaPayout;
 use crate::{
     core::errors::{self, ProcessTrackerError},
     db::{
+        self,
         address::AddressInterface,
         api_keys::ApiKeyInterface,
         authentication::AuthenticationInterface,
@@ -3889,3 +3890,37 @@ impl ThemeInterface for KafkaStore {
             .await
     }
 }
+
+#[async_trait::async_trait]
+#[cfg(feature = "v2")]
+impl db::payment_method_session::PaymentMethodsSessionInterface for KafkaStore {
+    async fn insert_payment_methods_session(
+        &self,
+        state: &KeyManagerState,
+        key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
+        payment_methods_session: hyperswitch_domain_models::payment_methods::PaymentMethodsSession,
+        validity: i64,
+    ) -> CustomResult<(), errors::StorageError> {
+        self.diesel_store
+            .insert_payment_methods_session(state, key_store, payment_methods_session, validity)
+            .await
+    }
+
+    async fn get_payment_methods_session(
+        &self,
+        state: &KeyManagerState,
+        key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
+        id: &id_type::GlobalPaymentMethodSessionId,
+    ) -> CustomResult<
+        hyperswitch_domain_models::payment_methods::PaymentMethodsSession,
+        errors::StorageError,
+    > {
+        self.diesel_store
+            .get_payment_methods_session(state, key_store, id)
+            .await
+    }
+}
+
+#[async_trait::async_trait]
+#[cfg(feature = "v1")]
+impl db::payment_method_session::PaymentMethodsSessionInterface for KafkaStore {}

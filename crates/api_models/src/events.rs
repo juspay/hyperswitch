@@ -202,3 +202,15 @@ impl ApiEventMetric for DisputeListFilters {
         Some(ApiEventsType::ResourceListAPI)
     }
 }
+
+#[cfg(feature = "v2")]
+impl ApiEventMetric for PaymentMethodsSessionRequest {}
+
+#[cfg(feature = "v2")]
+impl ApiEventMetric for PaymentMethodsSessionResponse {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::PaymentMethodSession {
+            payment_method_session_id: self.id.clone(),
+        })
+    }
+}
