@@ -19,7 +19,7 @@ pub struct CardSpecificFeatures {
     /// Indicates whether three_ds card payments are supported.
     pub three_ds: FeatureStatus,
     /// Indicates whether non three_ds card payments are supported.
-    pub non_three_ds: FeatureStatus,
+    pub no_three_ds: FeatureStatus,
     /// List of supported card networks
     pub supported_card_networks: Vec<CardNetwork>,
 }
