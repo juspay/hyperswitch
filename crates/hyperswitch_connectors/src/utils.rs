@@ -1,6 +1,8 @@
 use std::collections::{HashMap, HashSet};
 
 use api_models::payments;
+#[cfg(feature = "payouts")]
+use api_models::payouts::PayoutVendorAccountDetails;
 use base64::Engine;
 use common_enums::{
     enums,
@@ -17,15 +19,15 @@ use common_utils::{
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
     address::{Address, AddressDetails, PhoneDetails},
-    payment_method_data::{self, Card, PaymentMethodData},
+    payment_method_data::{self, Card, CardDetailsForNetworkTransactionId, PaymentMethodData},
     router_data::{
         ApplePayPredecryptData, ErrorResponse, PaymentMethodToken, RecurringMandatePaymentData,
     },
     router_request_types::{
         AuthenticationData, BrowserInformation, CompleteAuthorizeData, ConnectorCustomerData,
-        PaymentMethodTokenizationData, PaymentsAuthorizeData, PaymentsCancelData,
-        PaymentsCaptureData, PaymentsPreProcessingData, PaymentsSyncData, RefundsData, ResponseId,
-        SetupMandateRequestData,
+        MandateRevokeRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
+        PaymentsCancelData, PaymentsCaptureData, PaymentsPreProcessingData, PaymentsSyncData,
+        RefundsData, ResponseId, SetupMandateRequestData,
     },
     types::OrderDetailsWithAmount,
 };
@@ -1040,6 +1042,97 @@ impl CardData for Card {
     }
 }
 
+impl CardData for CardDetailsForNetworkTransactionId {
+    fn get_card_expiry_year_2_digit(&self) -> Result<Secret<String>, errors::ConnectorError> {
+        let binding = self.card_exp_year.clone();
+        let year = binding.peek();
+        Ok(Secret::new(
+            year.get(year.len() - 2..)
+                .ok_or(errors::ConnectorError::RequestEncodingFailed)?
+                .to_string(),
+        ))
+    }
+    fn get_card_issuer(&self) -> Result<CardIssuer, Error> {
+        get_card_issuer(self.card_number.peek())
+    }
+    fn get_card_expiry_month_year_2_digit_with_delimiter(
+        &self,
+        delimiter: String,
+    ) -> Result<Secret<String>, errors::ConnectorError> {
+        let year = self.get_card_expiry_year_2_digit()?;
+        Ok(Secret::new(format!(
+            "{}{}{}",
+            self.card_exp_month.peek(),
+            delimiter,
+            year.peek()
+        )))
+    }
+    fn get_expiry_date_as_yyyymm(&self, delimiter: &str) -> Secret<String> {
+        let year = self.get_expiry_year_4_digit();
+        Secret::new(format!(
+            "{}{}{}",
+            year.peek(),
+            delimiter,
+            self.card_exp_month.peek()
+        ))
+    }
+    fn get_expiry_date_as_mmyyyy(&self, delimiter: &str) -> Secret<String> {
+        let year = self.get_expiry_year_4_digit();
+        Secret::new(format!(
+            "{}{}{}",
+            self.card_exp_month.peek(),
+            delimiter,
+            year.peek()
+        ))
+    }
+    fn get_expiry_year_4_digit(&self) -> Secret<String> {
+        let mut year = self.card_exp_year.peek().clone();
+        if year.len() == 2 {
+            year = format!("20{}", year);
+        }
+        Secret::new(year)
+    }
+    fn get_expiry_date_as_yymm(&self) -> Result<Secret<String>, errors::ConnectorError> {
+        let year = self.get_card_expiry_year_2_digit()?.expose();
+        let month = self.card_exp_month.clone().expose();
+        Ok(Secret::new(format!("{year}{month}")))
+    }
+    fn get_expiry_date_as_mmyy(&self) -> Result<Secret<String>, errors::ConnectorError> {
+        let year = self.get_card_expiry_year_2_digit()?.expose();
+        let month = self.card_exp_month.clone().expose();
+        Ok(Secret::new(format!("{month}{year}")))
+    }
+    fn get_expiry_month_as_i8(&self) -> Result<Secret<i8>, Error> {
+        self.card_exp_month
+            .peek()
+            .clone()
+            .parse::<i8>()
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)
+            .map(Secret::new)
+    }
+    fn get_expiry_year_as_i32(&self) -> Result<Secret<i32>, Error> {
+        self.card_exp_year
+            .peek()
+            .clone()
+            .parse::<i32>()
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)
+            .map(Secret::new)
+    }
+    fn get_expiry_year_as_4_digit_i32(&self) -> Result<Secret<i32>, Error> {
+        self.get_expiry_year_4_digit()
+            .peek()
+            .clone()
+            .parse::<i32>()
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)
+            .map(Secret::new)
+    }
+    fn get_cardholder_name(&self) -> Result<Secret<String>, Error> {
+        self.card_holder_name
+            .clone()
+            .ok_or_else(missing_field_err("card.card_holder_name"))
+    }
+}
+
 #[track_caller]
 fn get_card_issuer(card_number: &str) -> Result<CardIssuer, Error> {
     for (k, v) in CARD_REGEX.iter() {
@@ -1284,6 +1377,8 @@ pub trait PaymentsAuthorizeRequestData {
         &self,
     ) -> Result<Secret<String>, Error>;
     fn is_cit_mandate_payment(&self) -> bool;
+    fn get_optional_network_transaction_id(&self) -> Option<String>;
+    fn get_optional_email(&self) -> Option<Email>;
 }
 
 impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
@@ -1472,6 +1567,21 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
     fn is_cit_mandate_payment(&self) -> bool {
         (self.customer_acceptance.is_some() || self.setup_mandate_details.is_some())
             && self.setup_future_usage == Some(FutureUsage::OffSession)
+    }
+    fn get_optional_network_transaction_id(&self) -> Option<String> {
+        self.mandate_id
+            .as_ref()
+            .and_then(|mandate_ids| match &mandate_ids.mandate_reference_id {
+                Some(payments::MandateReferenceId::NetworkMandateId(network_transaction_id)) => {
+                    Some(network_transaction_id.clone())
+                }
+                Some(payments::MandateReferenceId::ConnectorMandateId(_))
+                | Some(payments::MandateReferenceId::NetworkTokenWithNTI(_))
+                | None => None,
+            })
+    }
+    fn get_optional_email(&self) -> Option<Email> {
+        self.email.clone()
     }
 }
 
@@ -1725,12 +1835,41 @@ impl AddressData for Address {
     }
 }
 pub trait PaymentsPreProcessingRequestData {
-    fn get_amount(&self) -> Result<i64, Error>;
+    fn get_redirect_response_payload(&self) -> Result<pii::SecretSerdeValue, Error>;
+    fn get_email(&self) -> Result<Email, Error>;
+    fn get_payment_method_type(&self) -> Result<enums::PaymentMethodType, Error>;
     fn get_currency(&self) -> Result<enums::Currency, Error>;
+    fn get_amount(&self) -> Result<i64, Error>;
+    fn get_minor_amount(&self) -> Result<MinorUnit, Error>;
     fn is_auto_capture(&self) -> Result<bool, Error>;
+    fn get_order_details(&self) -> Result<Vec<OrderDetailsWithAmount>, Error>;
+    fn get_webhook_url(&self) -> Result<String, Error>;
+    fn get_router_return_url(&self) -> Result<String, Error>;
+    fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
+    fn get_complete_authorize_url(&self) -> Result<String, Error>;
+    fn connector_mandate_id(&self) -> Option<String>;
 }
 
 impl PaymentsPreProcessingRequestData for PaymentsPreProcessingData {
+    fn get_email(&self) -> Result<Email, Error> {
+        self.email.clone().ok_or_else(missing_field_err("email"))
+    }
+    fn get_payment_method_type(&self) -> Result<enums::PaymentMethodType, Error> {
+        self.payment_method_type
+            .to_owned()
+            .ok_or_else(missing_field_err("payment_method_type"))
+    }
+    fn get_currency(&self) -> Result<enums::Currency, Error> {
+        self.currency.ok_or_else(missing_field_err("currency"))
+    }
+    fn get_amount(&self) -> Result<i64, Error> {
+        self.amount.ok_or_else(missing_field_err("amount"))
+    }
+
+    // New minor amount function for amount framework
+    fn get_minor_amount(&self) -> Result<MinorUnit, Error> {
+        self.minor_amount.ok_or_else(missing_field_err("amount"))
+    }
     fn is_auto_capture(&self) -> Result<bool, Error> {
         match self.capture_method {
             Some(enums::CaptureMethod::Automatic)
@@ -1742,11 +1881,53 @@ impl PaymentsPreProcessingRequestData for PaymentsPreProcessingData {
             }
         }
     }
-    fn get_amount(&self) -> Result<i64, Error> {
-        self.amount.ok_or_else(missing_field_err("amount"))
+    fn get_order_details(&self) -> Result<Vec<OrderDetailsWithAmount>, Error> {
+        self.order_details
+            .clone()
+            .ok_or_else(missing_field_err("order_details"))
     }
-    fn get_currency(&self) -> Result<enums::Currency, Error> {
-        self.currency.ok_or_else(missing_field_err("currency"))
+    fn get_webhook_url(&self) -> Result<String, Error> {
+        self.webhook_url
+            .clone()
+            .ok_or_else(missing_field_err("webhook_url"))
+    }
+    fn get_router_return_url(&self) -> Result<String, Error> {
+        self.router_return_url
+            .clone()
+            .ok_or_else(missing_field_err("return_url"))
+    }
+    fn get_browser_info(&self) -> Result<BrowserInformation, Error> {
+        self.browser_info
+            .clone()
+            .ok_or_else(missing_field_err("browser_info"))
+    }
+    fn get_complete_authorize_url(&self) -> Result<String, Error> {
+        self.complete_authorize_url
+            .clone()
+            .ok_or_else(missing_field_err("complete_authorize_url"))
+    }
+    fn get_redirect_response_payload(&self) -> Result<pii::SecretSerdeValue, Error> {
+        self.redirect_response
+            .as_ref()
+            .and_then(|res| res.payload.to_owned())
+            .ok_or(
+                errors::ConnectorError::MissingConnectorRedirectionPayload {
+                    field_name: "request.redirect_response.payload",
+                }
+                .into(),
+            )
+    }
+    fn connector_mandate_id(&self) -> Option<String> {
+        self.mandate_id
+            .as_ref()
+            .and_then(|mandate_ids| match &mandate_ids.mandate_reference_id {
+                Some(payments::MandateReferenceId::ConnectorMandateId(connector_mandate_ids)) => {
+                    connector_mandate_ids.get_connector_mandate_id()
+                }
+                Some(payments::MandateReferenceId::NetworkMandateId(_))
+                | None
+                | Some(payments::MandateReferenceId::NetworkTokenWithNTI(_)) => None,
+            })
     }
 }
 
@@ -2452,4 +2633,181 @@ pub fn deserialize_xml_to_struct<T: serde::de::DeserializeOwned>(
     })?;
 
     Ok(result)
+}
+
+#[cfg(feature = "payouts")]
+pub trait PayoutsData {
+    fn get_transfer_id(&self) -> Result<String, Error>;
+    fn get_customer_details(
+        &self,
+    ) -> Result<hyperswitch_domain_models::router_request_types::CustomerDetails, Error>;
+    fn get_vendor_details(&self) -> Result<PayoutVendorAccountDetails, Error>;
+    #[cfg(feature = "payouts")]
+    fn get_payout_type(&self) -> Result<enums::PayoutType, Error>;
+}
+
+#[cfg(feature = "payouts")]
+impl PayoutsData for hyperswitch_domain_models::router_request_types::PayoutsData {
+    fn get_transfer_id(&self) -> Result<String, Error> {
+        self.connector_payout_id
+            .clone()
+            .ok_or_else(missing_field_err("transfer_id"))
+    }
+    fn get_customer_details(
+        &self,
+    ) -> Result<hyperswitch_domain_models::router_request_types::CustomerDetails, Error> {
+        self.customer_details
+            .clone()
+            .ok_or_else(missing_field_err("customer_details"))
+    }
+    fn get_vendor_details(&self) -> Result<PayoutVendorAccountDetails, Error> {
+        self.vendor_details
+            .clone()
+            .ok_or_else(missing_field_err("vendor_details"))
+    }
+    #[cfg(feature = "payouts")]
+    fn get_payout_type(&self) -> Result<enums::PayoutType, Error> {
+        self.payout_type
+            .to_owned()
+            .ok_or_else(missing_field_err("payout_type"))
+    }
+}
+pub trait RevokeMandateRequestData {
+    fn get_connector_mandate_id(&self) -> Result<String, Error>;
+}
+
+impl RevokeMandateRequestData for MandateRevokeRequestData {
+    fn get_connector_mandate_id(&self) -> Result<String, Error> {
+        self.connector_mandate_id
+            .clone()
+            .ok_or_else(missing_field_err("connector_mandate_id"))
+    }
+}
+pub trait RecurringMandateData {
+    fn get_original_payment_amount(&self) -> Result<i64, Error>;
+    fn get_original_payment_currency(&self) -> Result<enums::Currency, Error>;
+}
+
+impl RecurringMandateData for RecurringMandatePaymentData {
+    fn get_original_payment_amount(&self) -> Result<i64, Error> {
+        self.original_payment_authorized_amount
+            .ok_or_else(missing_field_err("original_payment_authorized_amount"))
+    }
+    fn get_original_payment_currency(&self) -> Result<enums::Currency, Error> {
+        self.original_payment_authorized_currency
+            .ok_or_else(missing_field_err("original_payment_authorized_currency"))
+    }
+}
+
+#[cfg(feature = "payouts")]
+impl CardData for api_models::payouts::CardPayout {
+    fn get_card_expiry_year_2_digit(&self) -> Result<Secret<String>, errors::ConnectorError> {
+        let binding = self.expiry_year.clone();
+        let year = binding.peek();
+        Ok(Secret::new(
+            year.get(year.len() - 2..)
+                .ok_or(errors::ConnectorError::RequestEncodingFailed)?
+                .to_string(),
+        ))
+    }
+    fn get_card_issuer(&self) -> Result<CardIssuer, Error> {
+        get_card_issuer(self.card_number.peek())
+    }
+    fn get_card_expiry_month_year_2_digit_with_delimiter(
+        &self,
+        delimiter: String,
+    ) -> Result<Secret<String>, errors::ConnectorError> {
+        let year = self.get_card_expiry_year_2_digit()?;
+        Ok(Secret::new(format!(
+            "{}{}{}",
+            self.expiry_month.peek(),
+            delimiter,
+            year.peek()
+        )))
+    }
+    fn get_expiry_date_as_yyyymm(&self, delimiter: &str) -> Secret<String> {
+        let year = self.get_expiry_year_4_digit();
+        Secret::new(format!(
+            "{}{}{}",
+            year.peek(),
+            delimiter,
+            self.expiry_month.peek()
+        ))
+    }
+    fn get_expiry_date_as_mmyyyy(&self, delimiter: &str) -> Secret<String> {
+        let year = self.get_expiry_year_4_digit();
+        Secret::new(format!(
+            "{}{}{}",
+            self.expiry_month.peek(),
+            delimiter,
+            year.peek()
+        ))
+    }
+    fn get_expiry_year_4_digit(&self) -> Secret<String> {
+        let mut year = self.expiry_year.peek().clone();
+        if year.len() == 2 {
+            year = format!("20{}", year);
+        }
+        Secret::new(year)
+    }
+    fn get_expiry_date_as_yymm(&self) -> Result<Secret<String>, errors::ConnectorError> {
+        let year = self.get_card_expiry_year_2_digit()?.expose();
+        let month = self.expiry_month.clone().expose();
+        Ok(Secret::new(format!("{year}{month}")))
+    }
+    fn get_expiry_month_as_i8(&self) -> Result<Secret<i8>, Error> {
+        self.expiry_month
+            .peek()
+            .clone()
+            .parse::<i8>()
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)
+            .map(Secret::new)
+    }
+    fn get_expiry_year_as_i32(&self) -> Result<Secret<i32>, Error> {
+        self.expiry_year
+            .peek()
+            .clone()
+            .parse::<i32>()
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)
+            .map(Secret::new)
+    }
+
+    fn get_expiry_date_as_mmyy(&self) -> Result<Secret<String>, errors::ConnectorError> {
+        let year = self.get_card_expiry_year_2_digit()?.expose();
+        let month = self.expiry_month.clone().expose();
+        Ok(Secret::new(format!("{month}{year}")))
+    }
+
+    fn get_expiry_year_as_4_digit_i32(&self) -> Result<Secret<i32>, Error> {
+        self.get_expiry_year_4_digit()
+            .peek()
+            .clone()
+            .parse::<i32>()
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)
+            .map(Secret::new)
+    }
+    fn get_cardholder_name(&self) -> Result<Secret<String>, Error> {
+        self.card_holder_name
+            .clone()
+            .ok_or_else(missing_field_err("card.card_holder_name"))
+    }
+}
+
+pub trait NetworkTokenData {
+    fn get_card_issuer(&self) -> Result<CardIssuer, Error>;
+    fn get_expiry_year_4_digit(&self) -> Secret<String>;
+}
+
+impl NetworkTokenData for payment_method_data::NetworkTokenData {
+    fn get_card_issuer(&self) -> Result<CardIssuer, Error> {
+        get_card_issuer(self.token_number.peek())
+    }
+
+    fn get_expiry_year_4_digit(&self) -> Secret<String> {
+        let mut year = self.token_exp_year.peek().clone();
+        if year.len() == 2 {
+            year = format!("20{}", year);
+        }
+        Secret::new(year)
+    }
 }

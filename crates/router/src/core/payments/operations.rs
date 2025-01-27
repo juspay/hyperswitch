@@ -302,6 +302,7 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
         Ok(())
     }
 
+    #[allow(clippy::too_many_arguments)]
     async fn call_unified_authentication_service_if_eligible<'a>(
         &'a self,
         _state: &SessionState,

@@ -6393,6 +6393,29 @@
           }
         }
       },
+      "CardSpecificFeatures": {
+        "type": "object",
+        "required": [
+          "three_ds",
+          "non_three_ds",
+          "supported_card_networks"
+        ],
+        "properties": {
+          "three_ds": {
+            "$ref": "#/components/schemas/FeatureStatus"
+          },
+          "non_three_ds": {
+            "$ref": "#/components/schemas/FeatureStatus"
+          },
+          "supported_card_networks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CardNetwork"
+            },
+            "description": "List of supported card networks"
+          }
+        }
+      },
       "CardToken": {
         "type": "object",
         "required": [
@@ -14117,6 +14140,13 @@
           }
         ]
       },
+      "PaymentMethodSpecificFeatures": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/CardSpecificFeatures"
+          }
+        ]
+      },
       "PaymentMethodStatus": {
         "type": "string",
         "description": "Payment Method Status",
@@ -20602,50 +20632,62 @@
         "additionalProperties": false
       },
       "SupportedPaymentMethod": {
-        "type": "object",
-        "required": [
-          "payment_method",
-          "payment_method_type",
-          "mandates",
-          "refunds",
-          "supported_capture_methods"
-        ],
-        "properties": {
-          "payment_method": {
-            "$ref": "#/components/schemas/PaymentMethod"
+        "allOf": [
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodSpecificFeatures"
+              }
+            ],
+            "nullable": true
           },
-          "payment_method_type": {
-            "$ref": "#/components/schemas/PaymentMethodType"
-          },
-          "mandates": {
-            "$ref": "#/components/schemas/FeatureStatus"
-          },
-          "refunds": {
-            "$ref": "#/components/schemas/FeatureStatus"
-          },
-          "supported_capture_methods": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/CaptureMethod"
+          {
+            "type": "object",
+            "required": [
+              "payment_method",
+              "payment_method_type",
+              "mandates",
+              "refunds",
+              "supported_capture_methods"
+            ],
+            "properties": {
+              "payment_method": {
+                "$ref": "#/components/schemas/PaymentMethod"
+              },
+              "payment_method_type": {
+                "$ref": "#/components/schemas/PaymentMethodType"
+              },
+              "mandates": {
+                "$ref": "#/components/schemas/FeatureStatus"
+              },
+              "refunds": {
+                "$ref": "#/components/schemas/FeatureStatus"
+              },
+              "supported_capture_methods": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/CaptureMethod"
+                }
+              },
+              "supported_countries": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/CountryAlpha2"
+                },
+                "uniqueItems": true,
+                "nullable": true
+              },
+              "supported_currencies": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/Currency"
+                },
+                "uniqueItems": true,
+                "nullable": true
+              }
             }
-          },
-          "supported_countries": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/CountryAlpha2"
-            },
-            "uniqueItems": true,
-            "nullable": true
-          },
-          "supported_currencies": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/Currency"
-            },
-            "uniqueItems": true,
-            "nullable": true
           }
-        }
+        ]
       },
       "SurchargeCalculationOverride": {
         "type": "string",

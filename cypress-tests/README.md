@@ -1,4 +1,4 @@
-# Hyperswitch Cypress Testing Framework
+# Hyperswitch Cypress Testing Framework <!-- omit in toc -->
 
 ## Overview
 
@@ -61,7 +61,7 @@ CYPRESS_CONNECTOR="connector_id" npm run cypress:ci
 
 ## Getting Started
 
-## Prerequisites
+### Prerequisites
 
 - Node.js (18.x or above)
 - npm or yarn
@@ -70,7 +70,7 @@ CYPRESS_CONNECTOR="connector_id" npm run cypress:ci
 > [!NOTE]
 > To learn about the hardware requirements and software dependencies for running Cypress, refer to the [official documentation](https://docs.cypress.io/app/get-started/install-cypress).
 
-## Installation
+### Installation
 
 1. Clone the repository and switch to the project directory:
 
@@ -119,32 +119,33 @@ CYPRESS_CONNECTOR="connector_id" npm run cypress:ci
 > [!NOTE]
 > To learn about how `creds` file should be structured, refer to the [example.creds.json](#example-credsjson) section below.
 
-## Running Tests
+### Running Tests
 
 Execution of Cypress tests can be done in two modes: Development mode (Interactive) and CI mode (Headless). The tests can be executed against a single connector or multiple connectors in parallel. Time taken to execute the tests will vary based on the number of connectors and the number of tests. For a single connector, the tests will take approximately 07-12 minutes to execute (this also depends on the hardware configurations).
 
 For Development mode, the tests will run in the Cypress UI where execution of tests can be seen in real-time and provides a larger area for debugging based on the need. In CI mode (Headless), tests run in the terminal without UI interaction and generate reports automatically.
 
-### Development Mode (Interactive)
+#### Development Mode (Interactive)
 
 ```shell
 npm run cypress
 ```
 
-### CI Mode (Headless)
+#### CI Mode (Headless)
 
 ```shell
 # All tests
 npm run cypress:ci
 
 # Specific test suites
-npm run cypress:payments            # Payment tests
+npm run cypress:misc                # Miscellaneous tests (e.g. health check, memory cache etc.)
 npm run cypress:payment-method-list # Payment method list tests
+npm run cypress:payments            # Payment tests
 npm run cypress:payouts             # Payout tests
 npm run cypress:routing             # Routing tests
 ```
 
-### Execute tests against multiple connectors or in parallel
+#### Execute tests against multiple connectors or in parallel
 
 1. Set additional environment variables:
 
@@ -178,18 +179,27 @@ The folder structure of this directory is as follows:
 
 ```txt
 .
-├── .prettierrc                       # prettier configs
-├── README.md                         # this file
+├── .prettierrc                             # prettier configs
+├── README.md                               # this file
 ├── cypress
 │   ├── e2e
-│   │   ├── <Service>Test             # Directory for test scenarios related to connectors.
-│   │   │   ├── 00000-test_<0>.cy.js
-│   │   │   ├── ...
-│   │   │   └── 0000n-test_<n>.cy.js
-│   │   └── <Service>Utils            # Directory for utility functions related to connectors.
-│   │        ├── connector_<1>.js
-│   │        ├── ...
-│   │        └── connector_<n>.js
+│   │   ├── configs                         # Directory for utility functions related to connectors.
+│   │   │   ├── PaymentMethodList
+│   │   │   │   ├── connector_<1>.js
+│   │   │   │   ├── ...
+│   │   │   │   └── connector_<n>.js
+│   │   │   ├── Payment
+│   │   │   ├── Payout
+│   │   │   └── Routing
+│   │   └── spec                            # Directory for test scenarios related to connectors.
+│   │       ├── Misc
+│   │       │   ├── 00000-test_<0>.cy.js
+│   │       │   ├── ...
+│   │       │   └── 0000n-test_<n>.cy.js
+│   │       ├── Payment
+│   │       ├── PaymentMethodList
+│   │       ├── Payout
+│   │       └── Routing
 │   ├── fixtures                      # Directory for storing test data API request.
 │   │   ├── fixture_<1>.json
 │   │   ├── ...
@@ -197,11 +207,14 @@ The folder structure of this directory is as follows:
 │   ├── support                       # Directory for Cypress support files.
 │   │   ├── commands.js               # File containing custom Cypress commands and utilities.
 │   │   ├── e2e.js
-│   │   └── redirectionHandler.js
+│   │   └── redirectionHandler.js     # Functions for handling redirections in tests
 │   └── utils
-│       ├── RequestBodyUtils.js
+│       ├── RequestBodyUtils.js       # Utility Functions for handling request bodies
 │       ├── State.js
-│       └── featureFlags.js
+│       └── featureFlags.js           # Functions for validating and controlling feature flags
+├── screenshots
+│   └── <connector-name>              # Connector directory for storing screenshots of test failures
+│       └── <test-name>.png
 ├── cypress.config.js                 # Cypress configuration file.
 ├── eslint.config.js                  # linter configuration file.
 └── package.json                      # Node.js package file.
@@ -240,8 +253,8 @@ To add a new test, create a new test file in the `e2e` directory under respectiv
 
 ```javascript
 // cypress/e2e/<Service>Test/NewFeature.cy.js
-import * as fixtures from "../../fixtures/imports";
-import State from "../../utils/State";
+import * as fixtures from "../../../fixtures/imports";
+import State from "../../../utils/State";
 
 describe("New Feature", () => {
   let globalState;

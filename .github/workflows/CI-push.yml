@@ -42,6 +42,8 @@ jobs:
     runs-on: ${{ matrix.runner }}
 
     env:
+      # Use `sccache` for caching compilation artifacts
+      RUSTC_WRAPPER: sccache
       RUSTFLAGS: "-D warnings"
 
     strategy:
@@ -75,11 +77,16 @@ jobs:
         uses: arduino/setup-protoc@v3
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
-
-      - uses: Swatinem/rust-cache@v2.7.0
+          
+      - name: Install sccache
+        uses: taiki-e/install-action@v2.33.28
         with:
-          save-if: ${{ github.event_name == 'push' }}
-          cache-bin: "false"
+          tool: sccache
+          checksum: true
+
+      # - uses: Swatinem/rust-cache@v2.7.0
+      #   with:
+      #     save-if: ${{ github.event_name == 'push' }}
 
       - name: Install cargo-hack
         uses: baptiste0928/cargo-install@v2.2.0
@@ -132,6 +139,8 @@ jobs:
     runs-on: ${{ matrix.runner }}
 
     env:
+      # Use `sccache` for caching compilation artifacts
+      RUSTC_WRAPPER: sccache
       RUSTFLAGS: "-D warnings"
 
     strategy:
@@ -161,6 +170,12 @@ jobs:
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Install sccache
+        uses: taiki-e/install-action@v2.33.28
+        with:
+          tool: sccache
+          checksum: true
+
       - name: Install cargo-hack
         uses: baptiste0928/cargo-install@v2.2.0
         with:
@@ -181,14 +196,13 @@ jobs:
       #   with:
       #     crate: cargo-nextest
 
-      - uses: Swatinem/rust-cache@v2.7.0
-        with:
-          save-if: ${{ github.event_name == 'push' }}
-          cache-bin: "false"
+      # - uses: Swatinem/rust-cache@v2.7.0
+      #   with:
+      #     save-if: ${{ github.event_name == 'push' }}
 
       - name: Run clippy
         shell: bash
-        run: just clippy
+        run: just clippy --jobs 2
 
       - name: Cargo hack
         if: ${{ github.event_name == 'push' }}

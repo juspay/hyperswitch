@@ -241,6 +241,17 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         .map(|id| id.get_string_repr().to_owned())
         .unwrap_or(payment_data.payment_attempt.id.get_string_repr().to_owned());
 
+    let email = customer
+        .as_ref()
+        .and_then(|customer| customer.email.clone())
+        .map(pii::Email::from);
+
+    let browser_info = payment_data
+        .payment_attempt
+        .browser_info
+        .clone()
+        .map(types::BrowserInformation::from);
+
     // TODO: few fields are repeated in both routerdata and request
     let request = types::PaymentsAuthorizeData {
         payment_method_data: payment_data
@@ -262,8 +273,8 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         minor_amount: payment_data.payment_attempt.amount_details.get_net_amount(),
         order_tax_amount: None,
         currency: payment_data.payment_intent.amount_details.currency,
-        browser_info: None,
-        email: None,
+        browser_info,
+        email,
         customer_name: None,
         payment_experience: None,
         order_details: None,
