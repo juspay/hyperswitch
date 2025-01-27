@@ -218,13 +218,13 @@ pub async fn payments_get_intent(
 }
 
 #[cfg(feature = "v2")]
-#[instrument(skip_all, fields(flow = ?Flow::PaymentsCreateAndConfirmSetupIntent, payment_id))]
-pub async fn payments_create_and_confirm_setup_intent(
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsCreateAndConfirmIntent, payment_id))]
+pub async fn payments_create_and_confirm_intent(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
     json_payload: web::Json<payment_types::PaymentsRequest>,
 ) -> impl Responder {
-    let flow = Flow::PaymentsCreateAndConfirmSetupIntent;
+    let flow = Flow::PaymentsCreateAndConfirmIntent;
     let header_payload = match HeaderPayload::foreign_try_from(req.headers()) {
         Ok(headers) => headers,
         Err(err) => {
@@ -232,19 +232,23 @@ pub async fn payments_create_and_confirm_setup_intent(
         }
     };
 
+    let global_payment_id =
+        common_utils::id_type::GlobalPaymentId::generate(&state.conf.cell_information.id);
+
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
         json_payload.into_inner(),
         |state, auth: auth::AuthenticationData, request, req_state| {
-            payments::payments_create_and_confirm_setup_intent(
+            payments::payments_create_and_confirm_intent(
                 state,
                 req_state,
                 auth.merchant_account,
                 auth.profile,
                 auth.key_store,
                 request,
+                global_payment_id.clone(),
                 header_payload.clone(),
                 auth.platform_merchant_account,
             )

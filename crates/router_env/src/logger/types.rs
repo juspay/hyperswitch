@@ -174,8 +174,8 @@ pub enum Flow {
     PaymentsUpdateIntent,
     /// Payments confirm intent flow
     PaymentsConfirmIntent,
-    /// Payments create and confirm setup intent flow
-    PaymentsCreateAndConfirmSetupIntent,
+    /// Payments create and confirm intent flow
+    PaymentsCreateAndConfirmIntent,
     #[cfg(feature = "payouts")]
     /// Payouts create flow
     PayoutsCreate,

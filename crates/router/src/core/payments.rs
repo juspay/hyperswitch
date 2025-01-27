@@ -1611,13 +1611,14 @@ where
 
 #[allow(clippy::too_many_arguments)]
 #[cfg(feature = "v2")]
-pub(crate) async fn payments_create_and_confirm_setup_intent(
+pub(crate) async fn payments_create_and_confirm_intent(
     state: SessionState,
     req_state: ReqState,
     merchant_account: domain::MerchantAccount,
     profile: domain::Profile,
     key_store: domain::MerchantKeyStore,
     request: payments_api::PaymentsRequest,
+    payment_id: id_type::GlobalPaymentId,
     mut header_payload: HeaderPayload,
     platform_merchant_account: Option<domain::MerchantAccount>,
 ) -> RouterResponse<payments_api::PaymentsResponse> {
@@ -1627,8 +1628,6 @@ pub(crate) async fn payments_create_and_confirm_setup_intent(
         payments::{PaymentConfirmData, PaymentIntentData},
         router_flow_types::{Authorize, SetupMandate},
     };
-
-    let global_payment_id = id_type::GlobalPaymentId::generate(&state.conf.cell_information.id);
 
     let payload = payments_api::PaymentsCreateIntentRequest::from(&request);
 
@@ -1646,7 +1645,7 @@ pub(crate) async fn payments_create_and_confirm_setup_intent(
         key_store.clone(),
         operations::PaymentIntentCreate,
         payload,
-        global_payment_id.clone(),
+        payment_id.clone(),
         header_payload.clone(),
         platform_merchant_account,
     ))
@@ -1690,7 +1689,7 @@ pub(crate) async fn payments_create_and_confirm_setup_intent(
         key_store,
         operations::PaymentIntentConfirm,
         payload,
-        global_payment_id,
+        payment_id,
         CallConnectorAction::Trigger,
         header_payload.clone(),
     ))
