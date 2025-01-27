@@ -4,6 +4,39 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.01.27.0
+
+### Bug Fixes
+
+- **connectors:** [worldpay] send decoded token for ApplePay ([#7069](https://github.com/juspay/hyperswitch/pull/7069)) ([`7fd3551`](https://github.com/juspay/hyperswitch/commit/7fd3551afd7122ed28fe5532639e4a256863de6b))
+- **cypress:** Uncaught exceptions thrown by `hyperswitch.io` ([#7092](https://github.com/juspay/hyperswitch/pull/7092)) ([`cf82861`](https://github.com/juspay/hyperswitch/commit/cf82861e855bbd055fcbfc2367b23eaa58d8f842))
+
+### Refactors
+
+- **cypress:** Move memory cache tests out of payment for misc ([#6992](https://github.com/juspay/hyperswitch/pull/6992)) ([`4382fc6`](https://github.com/juspay/hyperswitch/commit/4382fc650ae586e5244f2c68ec0fba536caa88a9))
+
+**Full Changelog:** [`2025.01.23.0...2025.01.27.0`](https://github.com/juspay/hyperswitch/compare/2025.01.23.0...2025.01.27.0)
+
+- - -
+
+## 2025.01.23.0
+
+### Features
+
+- **connector:** [ADYEN ] Consume transaction id for PaymentsPreProcessing error ([#7061](https://github.com/juspay/hyperswitch/pull/7061)) ([`199d176`](https://github.com/juspay/hyperswitch/commit/199d1764488f234accab3bfecef9645ee9486057))
+
+### Refactors
+
+- [CYBERSOURCE, BANKOFAMERICA, WELLSFARGO] Move code to crate hyperswitch_connectors ([#6908](https://github.com/juspay/hyperswitch/pull/6908)) ([`be01896`](https://github.com/juspay/hyperswitch/commit/be018963c6696c3f494bdd45825ebc61ba1bbc82))
+
+### Miscellaneous Tasks
+
+- Enable 128-column-tables feature for diesel crate ([#6857](https://github.com/juspay/hyperswitch/pull/6857)) ([`eaf450b`](https://github.com/juspay/hyperswitch/commit/eaf450b91109c21e1091f7936cab009e8e6e2abb))
+
+**Full Changelog:** [`2025.01.22.0...2025.01.23.0`](https://github.com/juspay/hyperswitch/compare/2025.01.22.0...2025.01.23.0)
+
+- - -
+
 ## 2025.01.22.0
 
 ### Features
