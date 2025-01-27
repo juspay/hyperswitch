@@ -94,7 +94,7 @@ pub struct PaymentAttempt {
     pub shipping_cost: Option<MinorUnit>,
     pub order_tax_amount: Option<MinorUnit>,
     pub connector_mandate_detail: Option<ConnectorMandateReferenceId>,
-    pub feature_metadata : Option<PaymentAttemptFeatureMetadata>,
+    pub feature_metadata: Option<PaymentAttemptFeatureMetadata>,
 }
 
 #[cfg(feature = "v1")]
@@ -279,7 +279,7 @@ pub struct PaymentAttemptNew {
     pub payment_method_subtype: storage_enums::PaymentMethodType,
     pub id: id_type::GlobalAttemptId,
     pub connector_mandate_detail: Option<ConnectorMandateReferenceId>,
-    pub feature_metadata: Option<PaymentAttemptFeatureMetadata>
+    pub feature_metadata: Option<PaymentAttemptFeatureMetadata>,
 }
 
 #[cfg(feature = "v1")]
@@ -793,7 +793,7 @@ pub struct PaymentAttemptUpdateInternal {
     // client_version: Option<String>,
     // customer_acceptance: Option<pii::SecretSerdeValue>,
     // card_network: Option<String>,
-    pub feature_metadata: Option<Option<PaymentAttemptFeatureMetadata>>
+    pub feature_metadata: Option<Option<PaymentAttemptFeatureMetadata>>,
 }
 
 #[cfg(feature = "v1")]
@@ -3461,29 +3461,29 @@ common_utils::impl_to_sql_from_sql_json!(RedirectForm);
 
 #[cfg(feature = "v2")]
 #[derive(
-    Clone, Debug, serde::Deserialize, serde::Serialize, Eq, PartialEq, diesel::AsExpression
+    Clone, Debug, serde::Deserialize, serde::Serialize, Eq, PartialEq, diesel::AsExpression,
 )]
 #[diesel(sql_type = diesel::pg::sql_types::Jsonb)]
 pub struct PaymentAttemptFeatureMetadata {
-    pub passive_churn_recovery : Option<PassiveChurnRecoveryData>
+    pub passive_churn_recovery: Option<PassiveChurnRecoveryData>,
 }
 
 #[cfg(feature = "v2")]
 #[derive(
-    Clone, Debug, serde::Deserialize, serde::Serialize, Eq, PartialEq, diesel::AsExpression
+    Clone, Debug, serde::Deserialize, serde::Serialize, Eq, PartialEq, diesel::AsExpression,
 )]
 #[diesel(sql_type = diesel::pg::sql_types::Jsonb)]
-pub struct PassiveChurnRecoveryData{
-    pub triggered_by : TriggeredBy
+pub struct PassiveChurnRecoveryData {
+    pub triggered_by: TriggeredBy,
 }
 
 #[cfg(feature = "v2")]
 #[derive(
-    Clone, Debug, serde::Deserialize, serde::Serialize, Eq, PartialEq, diesel::AsExpression
+    Clone, Debug, serde::Deserialize, serde::Serialize, Eq, PartialEq, diesel::AsExpression,
 )]
 #[diesel(sql_type = diesel::pg::sql_types::Jsonb)]
 #[serde(rename_all = "snake_case")]
-pub enum TriggeredBy{
+pub enum TriggeredBy {
     Internal,
     External,
 }
@@ -3585,4 +3585,3 @@ mod tests {
         assert!(deserialized.is_ok());
     }
 }
-

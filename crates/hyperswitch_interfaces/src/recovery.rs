@@ -61,13 +61,13 @@ pub enum RecoveryAction {
     SuccessPaymentExternal,
     /// add docs
     PendingPayment,
-     /// add docs
+    /// add docs
     NoAction,
-     /// add docs
+    /// add docs
     InvalidAction,
 }
 
- /// add docs
+/// add docs
 pub trait RecoveryActionTrait {
     /// add docs
     fn find_action(event_type: IncomingWebhookEvent, triggered_by: Option<TriggeredBy>) -> Self;

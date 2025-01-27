@@ -208,10 +208,10 @@ impl From<IncomingWebhookEvent> for WebhookFlow {
             | IncomingWebhookEvent::PayoutExpired
             | IncomingWebhookEvent::PayoutReversed => Self::Payout,
             #[cfg(feature = "recovery")]
-            IncomingWebhookEvent::RecoveryInvoiceCancel |
-            IncomingWebhookEvent::RecoveryPaymentFailure|
-            IncomingWebhookEvent::RecoveryPaymentPending|
-            IncomingWebhookEvent::RecoveryPaymentSuccess => Self::Recovery
+            IncomingWebhookEvent::RecoveryInvoiceCancel
+            | IncomingWebhookEvent::RecoveryPaymentFailure
+            | IncomingWebhookEvent::RecoveryPaymentPending
+            | IncomingWebhookEvent::RecoveryPaymentSuccess => Self::Recovery,
         }
     }
 }

@@ -15,6 +15,8 @@ use hyperswitch_interfaces::webhooks::IncomingWebhookRequestDetails;
 use router_env::{instrument, tracing, tracing_actix_web::RequestId};
 
 use super::{types, utils, MERCHANT_ID};
+#[cfg(feature = "recovery")]
+use crate::core::webhooks::recovery_incoming;
 use crate::{
     core::{
         api_locking,
@@ -44,9 +46,6 @@ use crate::{
         transformers::ForeignInto,
     },
 };
-
-#[cfg(feature= "recovery")]
-use crate::core::webhooks::recovery_incoming;
 
 #[allow(clippy::too_many_arguments)]
 pub async fn incoming_webhooks_wrapper<W: types::OutgoingWebhookType>(
@@ -352,20 +351,22 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                     api::WebhookFlow::Payout => todo!(),
 
                     api::WebhookFlow::Subscription => todo!(),
-                    #[cfg(feature= "recovery")]
-                    api::WebhookFlow::Recovery => Box::pin(recovery_incoming::recovery_incoming_webhook_flow(
-                        state.clone(),
-                        merchant_account,
-                        profile,
-                        key_store,
-                        webhook_details,
-                        source_verified,
-                        &connector,
-                        &request_details,
-                        event_type,
-                    ))
-                    .await
-                    .attach_printable("Recovery incoming webhook flow for payments failed")?,
+                    #[cfg(feature = "recovery")]
+                    api::WebhookFlow::Recovery => {
+                        Box::pin(recovery_incoming::recovery_incoming_webhook_flow(
+                            state.clone(),
+                            merchant_account,
+                            profile,
+                            key_store,
+                            webhook_details,
+                            source_verified,
+                            &connector,
+                            &request_details,
+                            event_type,
+                        ))
+                        .await
+                        .attach_printable("Recovery incoming webhook flow for payments failed")?
+                    }
                 }
             }
         }

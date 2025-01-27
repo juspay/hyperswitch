@@ -14,15 +14,13 @@ use common_utils::{
         ConnectorTransactionId, ConnectorTransactionIdTrait, MinorUnit,
     },
 };
+#[cfg(feature = "v2")]
+use diesel_models::PaymentAttemptFeatureMetadata;
 use diesel_models::{
     ConnectorMandateReferenceId, PaymentAttempt as DieselPaymentAttempt,
     PaymentAttemptNew as DieselPaymentAttemptNew,
     PaymentAttemptUpdate as DieselPaymentAttemptUpdate,
 };
-
-#[cfg(feature = "v2")]
-use diesel_models::PaymentAttemptFeatureMetadata;
-
 use error_stack::ResultExt;
 #[cfg(feature = "v2")]
 use masking::PeekInterface;
@@ -406,7 +404,7 @@ pub struct PaymentAttempt {
     pub id: id_type::GlobalAttemptId,
     /// The connector mandate details which are stored temporarily
     pub connector_mandate_detail: Option<ConnectorMandateReferenceId>,
-    pub feature_metadata  :Option<PaymentAttemptFeatureMetadata>,
+    pub feature_metadata: Option<PaymentAttemptFeatureMetadata>,
 }
 
 impl PaymentAttempt {
@@ -524,7 +522,7 @@ impl PaymentAttempt {
             payment_method_billing_address,
             error: None,
             connector_mandate_detail: None,
-            feature_metadata:None,
+            feature_metadata: None,
             id,
         })
     }
