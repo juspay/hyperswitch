@@ -212,8 +212,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, PaymentsConfir
             )
             .await?;
 
-        let payment_attempt = db
-            .insert_payment_attempt(
+        let payment_attempt: hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt =
+            db.insert_payment_attempt(
                 key_manager_state,
                 key_store,
                 payment_attempt_domain_model,

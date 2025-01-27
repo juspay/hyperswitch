@@ -4,7 +4,7 @@ use external_services::email::EmailError;
 use hyperswitch_domain_models::errors::api_error_response::ApiErrorResponse;
 pub use redis_interface::errors::RedisError;
 pub use storage_impl::errors::ApplicationError;
-use storage_impl::errors::StorageError;
+use storage_impl::errors::{RecoveryError, StorageError};
 
 use crate::env::logger::{self, error};
 
@@ -46,6 +46,8 @@ pub enum ProcessTrackerError {
     EApiErrorResponse,
     #[error("Received Error ClientError")]
     EClientError,
+    #[error("Received RecoveryError: {0:?}")]
+    ERecoveryError(error_stack::Report<RecoveryError>),
     #[error("Received Error StorageError: {0:?}")]
     EStorageError(error_stack::Report<StorageError>),
     #[error("Received Error RedisError: {0:?}")]
@@ -130,4 +132,9 @@ error_to_process_tracker_error!(
 error_to_process_tracker_error!(
     error_stack::Report<EmailError>,
     ProcessTrackerError::EEmailError(error_stack::Report<EmailError>)
+);
+
+error_to_process_tracker_error!(
+    error_stack::Report<RecoveryError>,
+    ProcessTrackerError::ERecoveryError(error_stack::Report<RecoveryError>)
 );

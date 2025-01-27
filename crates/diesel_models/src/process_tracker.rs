@@ -210,6 +210,7 @@ pub enum ProcessTrackerRunner {
     OutgoingWebhookRetryWorkflow,
     AttachPayoutAccountWorkflow,
     PaymentMethodStatusUpdateWorkflow,
+    PassiveRecoveryWorkflow,
 }
 
 #[cfg(test)]

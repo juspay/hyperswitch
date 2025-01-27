@@ -298,3 +298,15 @@ pub enum HealthCheckGRPCServiceError {
     #[error("Failed to establish connection with gRPC service")]
     FailedToCallService,
 }
+
+#[derive(thiserror::Error, Debug, Clone)]
+pub enum RecoveryError {
+    #[error("Failed to establish Locker connection")]
+    RecoveryFailed,
+    #[error("Encountered a Process Tracker Failure")]
+    ProcessTrackerFailure,
+    #[error("The encountered task is invalid")]
+    InvalidTask,
+    #[error("The task was not found")]
+    TaskNotFound,
+}

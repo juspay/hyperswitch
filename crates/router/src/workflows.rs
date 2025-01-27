@@ -11,3 +11,5 @@ pub mod payment_sync;
 pub mod refund_router;
 #[cfg(feature = "v1")]
 pub mod tokenized_data;
+
+pub mod passive_churn_recovery_workflow;
