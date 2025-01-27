@@ -40,7 +40,7 @@ pub struct StripeSplitPaymentRequest {
     #[schema(value_type = i64, example = 6540)]
     pub application_fees: MinorUnit,
 
-    /// Identifier for the reseller's account to send the funds to
+    /// Identifier for the reseller's account where the funds were transferred
     pub transfer_account_id: String,
 }
 impl_to_sql_from_sql_json!(StripeSplitPaymentRequest);
