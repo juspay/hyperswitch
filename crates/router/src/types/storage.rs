@@ -42,23 +42,26 @@ pub mod user;
 pub mod user_authentication_method;
 pub mod user_role;
 
-use std::collections::HashMap;
-
 pub use diesel_models::{
     process_tracker::business_status, ProcessTracker, ProcessTrackerNew, ProcessTrackerRunner,
     ProcessTrackerUpdate,
 };
 #[cfg(feature = "v1")]
 pub use hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptNew;
-pub use hyperswitch_domain_models::payments::{
-    payment_attempt::{PaymentAttempt, PaymentAttemptUpdate},
-    payment_intent::{PaymentIntentUpdate, PaymentIntentUpdateFields},
-    PaymentIntent,
-};
 #[cfg(feature = "payouts")]
 pub use hyperswitch_domain_models::payouts::{
     payout_attempt::{PayoutAttempt, PayoutAttemptNew, PayoutAttemptUpdate},
     payouts::{Payouts, PayoutsNew, PayoutsUpdate},
+};
+pub use hyperswitch_domain_models::{
+    payments::{
+        payment_attempt::{PaymentAttempt, PaymentAttemptUpdate},
+        payment_intent::{PaymentIntentUpdate, PaymentIntentUpdateFields},
+        PaymentIntent,
+    },
+    routing::{
+        PaymentRoutingInfo, PaymentRoutingInfoInner, PreRoutingConnectorChoice, RoutingData,
+    },
 };
 pub use scheduler::db::process_tracker;
 
@@ -72,67 +75,3 @@ pub use self::{
     process_tracker::*, refund::*, reverse_lookup::*, role::*, routing_algorithm::*,
     unified_translations::*, user::*, user_authentication_method::*, user_role::*,
 };
-use crate::types::api::routing;
-
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct RoutingData {
-    pub routed_through: Option<String>,
-
-    pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
-
-    pub routing_info: PaymentRoutingInfo,
-    pub algorithm: Option<api_models::routing::StraightThroughAlgorithm>,
-}
-
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-#[serde(from = "PaymentRoutingInfoSerde", into = "PaymentRoutingInfoSerde")]
-pub struct PaymentRoutingInfo {
-    pub algorithm: Option<routing::StraightThroughAlgorithm>,
-    pub pre_routing_results:
-        Option<HashMap<api_models::enums::PaymentMethodType, PreRoutingConnectorChoice>>,
-}
-
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct PaymentRoutingInfoInner {
-    pub algorithm: Option<routing::StraightThroughAlgorithm>,
-    pub pre_routing_results:
-        Option<HashMap<api_models::enums::PaymentMethodType, PreRoutingConnectorChoice>>,
-}
-
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-#[serde(untagged)]
-pub enum PreRoutingConnectorChoice {
-    Single(routing::RoutableConnectorChoice),
-    Multiple(Vec<routing::RoutableConnectorChoice>),
-}
-
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
-#[serde(untagged)]
-pub enum PaymentRoutingInfoSerde {
-    OnlyAlgorithm(Box<routing::StraightThroughAlgorithm>),
-    WithDetails(Box<PaymentRoutingInfoInner>),
-}
-
-impl From<PaymentRoutingInfoSerde> for PaymentRoutingInfo {
-    fn from(value: PaymentRoutingInfoSerde) -> Self {
-        match value {
-            PaymentRoutingInfoSerde::OnlyAlgorithm(algo) => Self {
-                algorithm: Some(*algo),
-                pre_routing_results: None,
-            },
-            PaymentRoutingInfoSerde::WithDetails(details) => Self {
-                algorithm: details.algorithm,
-                pre_routing_results: details.pre_routing_results,
-            },
-        }
-    }
-}
-
-impl From<PaymentRoutingInfo> for PaymentRoutingInfoSerde {
-    fn from(value: PaymentRoutingInfo) -> Self {
-        Self::WithDetails(Box::new(PaymentRoutingInfoInner {
-            algorithm: value.algorithm,
-            pre_routing_results: value.pre_routing_results,
-        }))
-    }
-}
