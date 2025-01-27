@@ -1,6 +1,6 @@
 use std::{
     borrow::Cow,
-    collections::HashSet
+    collections::HashSet,
     net::{IpAddr, Ipv4Addr},
     str::FromStr,
 };
