@@ -466,6 +466,7 @@ lazy_static! {
     };
 
     static ref ZSL_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+        display_name: "ZSL".to_string(),
         description:
             "Zsl is a payment gateway operating in China, specializing in facilitating local bank transfers"
                 .to_string(),

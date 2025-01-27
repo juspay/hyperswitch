@@ -99,6 +99,7 @@ fn build_connector_feature_details(
             .map(|webhook_flows| webhook_flows.to_vec());
         feature_matrix::ConnectorFeatureMatrixResponse {
             name: connector_name.to_uppercase(),
+            display_name: connector_about.map(|about| about.display_name.clone()),
             description: connector_about.map(|about| about.description.clone()),
             category: connector_about.map(|about| about.connector_type),
             supported_webhook_flows,

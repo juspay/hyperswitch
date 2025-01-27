@@ -858,6 +858,7 @@ lazy_static! {
         bambora_supported_payment_methods
     };
     static ref BAMBORA_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+        display_name: "Bambora".to_string(),
         description: "Bambora is a leading online payment provider in Canada and United States."
             .to_string(),
         connector_type: enums::PaymentConnectorCategory::PaymentGateway,

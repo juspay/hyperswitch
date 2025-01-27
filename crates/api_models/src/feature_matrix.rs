@@ -47,6 +47,7 @@ pub struct SupportedPaymentMethod {
 #[derive(Debug, ToSchema, Serialize)]
 pub struct ConnectorFeatureMatrixResponse {
     pub name: String,
+    pub display_name: Option<String>,
     pub description: Option<String>,
     pub category: Option<PaymentConnectorCategory>,
     pub supported_payment_methods: Vec<SupportedPaymentMethod>,

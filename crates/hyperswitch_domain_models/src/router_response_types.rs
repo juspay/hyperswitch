@@ -543,9 +543,10 @@ pub type SupportedPaymentMethods = HashMap<common_enums::PaymentMethod, PaymentM
 
 #[derive(Debug, Clone)]
 pub struct ConnectorInfo {
+    /// Display name of the Connector
+    pub display_name: String,
     /// Description of the connector.
     pub description: String,
-
     /// Connector Type
     pub connector_type: common_enums::PaymentConnectorCategory,
 }
