@@ -149,6 +149,10 @@ pub struct MerchantAccountSetter {
     pub organization_id: common_utils::id_type::OrganizationId,
     pub recon_status: diesel_models::enums::ReconStatus,
     pub is_platform_account: bool,
+    pub fingerprint_secret_key: OptionalEncryptableName,
+    pub card_ip_blocking: bool,
+    pub guest_user_card_blocking: bool,
+    pub customer_id_blocking: bool,
 }
 
 #[cfg(feature = "v2")]
@@ -166,6 +170,10 @@ impl From<MerchantAccountSetter> for MerchantAccount {
             organization_id,
             recon_status,
             is_platform_account,
+            fingerprint_secret_key,
+            card_ip_blocking,
+            guest_user_card_blocking,
+            customer_id_blocking,
         } = item;
         Self {
             id,
@@ -179,6 +187,10 @@ impl From<MerchantAccountSetter> for MerchantAccount {
             organization_id,
             recon_status,
             is_platform_account,
+            fingerprint_secret_key,
+            card_ip_blocking,
+            guest_user_card_blocking,
+            customer_id_blocking,
         }
     }
 }
@@ -197,6 +209,10 @@ pub struct MerchantAccount {
     pub organization_id: common_utils::id_type::OrganizationId,
     pub recon_status: diesel_models::enums::ReconStatus,
     pub is_platform_account: bool,
+    pub fingerprint_secret_key: OptionalEncryptableName,
+    pub card_ip_blocking: bool,
+    pub guest_user_card_blocking: bool,
+    pub customer_id_blocking: bool,
 }
 
 impl MerchantAccount {
@@ -281,6 +297,14 @@ pub enum MerchantAccountUpdate {
     },
     ModifiedAtUpdate,
     ToPlatformAccount,
+    FingerprintSecretKeyUpdate {
+        fingerprint_secret_key: OptionalEncryptableName,
+    },
+    CardTestingGuardUpdate {
+        card_ip_blocking: bool,
+        guest_user_card_blocking: bool,
+        customer_id_blocking: bool,
+    },
 }
 
 #[cfg(feature = "v1")]
@@ -642,6 +666,40 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 recon_status: None,
                 is_platform_account: Some(true),
             },
+            MerchantAccountUpdate::FingerprintSecretKeyUpdate { 
+                fingerprint_secret_key } => Self {
+                    modified_at: now,
+                    merchant_name: None,
+                    merchant_details: None,
+                    publishable_key: None,
+                    storage_scheme: None,
+                    metadata: None,
+                    organization_id: None,
+                    recon_status: None,
+                    is_platform_account: None,
+                    fingerprint_secret_key,
+                    card_ip_blocking: None,
+                    guest_user_card_blocking: None,
+                    customer_id_blocking: None,
+                },
+            MerchantAccountUpdate::CardTestingGuardUpdate { 
+                card_ip_blocking, 
+                guest_user_card_blocking, 
+                customer_id_blocking } => Self {
+                    modified_at: now,
+                    merchant_name: None,
+                    merchant_details: None,
+                    publishable_key: None,
+                    storage_scheme: None,
+                    metadata: None,
+                    organization_id: None,
+                    recon_status: None,
+                    is_platform_account: None,
+                    fingerprint_secret_key: None,
+                    card_ip_blocking,
+                    guest_user_card_blocking,
+                    customer_id_blocking,
+                }
         }
     }
 }

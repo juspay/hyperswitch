@@ -791,6 +791,10 @@ pub struct Profile {
     pub authentication_product_ids:
         Option<common_types::payments::AuthenticationConnectorAccountMap>,
     pub three_ds_decision_manager_config: Option<common_types::payments::DecisionManagerRecord>,
+    pub card_ip_blocking_threshold: Option<i32>,
+    pub guest_user_card_blocking_threshold: Option<i32>,
+    pub customer_id_blocking_threshold: Option<i32>,
+    pub card_testing_guard_expiry: Option<i32>,
 }
 
 #[cfg(feature = "v2")]
@@ -835,6 +839,10 @@ pub struct ProfileSetter {
     pub authentication_product_ids:
         Option<common_types::payments::AuthenticationConnectorAccountMap>,
     pub three_ds_decision_manager_config: Option<common_types::payments::DecisionManagerRecord>,
+    pub card_ip_blocking_threshold: Option<i32>,
+    pub guest_user_card_blocking_threshold: Option<i32>,
+    pub customer_id_blocking_threshold: Option<i32>,
+    pub card_testing_guard_expiry: Option<i32>,
 }
 
 #[cfg(feature = "v2")]
@@ -885,6 +893,10 @@ impl From<ProfileSetter> for Profile {
             is_click_to_pay_enabled: value.is_click_to_pay_enabled,
             authentication_product_ids: value.authentication_product_ids,
             three_ds_decision_manager_config: value.three_ds_decision_manager_config,
+            card_ip_blocking_threshold: value.card_ip_blocking_threshold,
+            guest_user_card_blocking_threshold: value.guest_user_card_blocking_threshold,
+            customer_id_blocking_threshold: value.customer_id_blocking_threshold,
+            card_testing_guard_expiry: value.card_testing_guard_expiry,
         }
     }
 }
@@ -939,6 +951,10 @@ pub struct ProfileGeneralUpdate {
     pub authentication_product_ids:
         Option<common_types::payments::AuthenticationConnectorAccountMap>,
     pub three_ds_decision_manager_config: Option<common_types::payments::DecisionManagerRecord>,
+    pub card_ip_blocking_threshold: Option<i32>,
+    pub guest_user_card_blocking_threshold: Option<i32>,
+    pub customer_id_blocking_threshold: Option<i32>,
+    pub card_testing_guard_expiry: Option<i32>,
 }
 
 #[cfg(feature = "v2")]
@@ -1003,6 +1019,10 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     is_click_to_pay_enabled,
                     authentication_product_ids,
                     three_ds_decision_manager_config,
+                    card_ip_blocking_threshold,
+                    guest_user_card_blocking_threshold,
+                    customer_id_blocking_threshold,
+                    card_testing_guard_expiry,
                 } = *update;
                 Self {
                     profile_name,
@@ -1044,6 +1064,10 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     is_click_to_pay_enabled: None,
                     authentication_product_ids,
                     three_ds_decision_manager_config,
+                    card_ip_blocking_threshold,
+                    guest_user_card_blocking_threshold,
+                    customer_id_blocking_threshold,
+                    card_testing_guard_expiry,
                 }
             }
             ProfileUpdate::RoutingAlgorithmUpdate {
@@ -1088,6 +1112,10 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_click_to_pay_enabled: None,
                 authentication_product_ids: None,
                 three_ds_decision_manager_config: None,
+                card_ip_blocking_threshold: None,
+                guest_user_card_blocking_threshold: None,
+                customer_id_blocking_threshold: None,
+                card_testing_guard_expiry: None,
             },
             ProfileUpdate::ExtendedCardInfoUpdate {
                 is_extended_card_info_enabled,
@@ -1130,6 +1158,10 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_click_to_pay_enabled: None,
                 authentication_product_ids: None,
                 three_ds_decision_manager_config: None,
+                card_ip_blocking_threshold: None,
+                guest_user_card_blocking_threshold: None,
+                customer_id_blocking_threshold: None,
+                card_testing_guard_expiry: None,
             },
             ProfileUpdate::ConnectorAgnosticMitUpdate {
                 is_connector_agnostic_mit_enabled,
@@ -1172,6 +1204,10 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_click_to_pay_enabled: None,
                 authentication_product_ids: None,
                 three_ds_decision_manager_config: None,
+                card_ip_blocking_threshold: None,
+                guest_user_card_blocking_threshold: None,
+                customer_id_blocking_threshold: None,
+                card_testing_guard_expiry: None,
             },
             ProfileUpdate::DefaultRoutingFallbackUpdate {
                 default_fallback_routing,
@@ -1214,6 +1250,10 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_click_to_pay_enabled: None,
                 authentication_product_ids: None,
                 three_ds_decision_manager_config: None,
+                card_ip_blocking_threshold: None,
+                guest_user_card_blocking_threshold: None,
+                customer_id_blocking_threshold: None,
+                card_testing_guard_expiry: None,
             },
             ProfileUpdate::NetworkTokenizationUpdate {
                 is_network_tokenization_enabled,
@@ -1256,6 +1296,10 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_click_to_pay_enabled: None,
                 authentication_product_ids: None,
                 three_ds_decision_manager_config: None,
+                card_ip_blocking_threshold: None,
+                guest_user_card_blocking_threshold: None,
+                customer_id_blocking_threshold: None,
+                card_testing_guard_expiry: None,
             },
             ProfileUpdate::CollectCvvDuringPaymentUpdate {
                 should_collect_cvv_during_payment,
@@ -1298,6 +1342,10 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_click_to_pay_enabled: None,
                 authentication_product_ids: None,
                 three_ds_decision_manager_config: None,
+                card_ip_blocking_threshold: None,
+                guest_user_card_blocking_threshold: None,
+                customer_id_blocking_threshold: None,
+                card_testing_guard_expiry: None,
             },
             ProfileUpdate::DecisionManagerRecordUpdate {
                 three_ds_decision_manager_config,
@@ -1340,6 +1388,10 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_click_to_pay_enabled: None,
                 authentication_product_ids: None,
                 three_ds_decision_manager_config: Some(three_ds_decision_manager_config),
+                card_ip_blocking_threshold: None,
+                guest_user_card_blocking_threshold: None,
+                customer_id_blocking_threshold: None,
+                card_testing_guard_expiry: None,
             },
         }
     }
@@ -1402,6 +1454,10 @@ impl super::behaviour::Conversion for Profile {
             is_click_to_pay_enabled: self.is_click_to_pay_enabled,
             authentication_product_ids: self.authentication_product_ids,
             three_ds_decision_manager_config: self.three_ds_decision_manager_config,
+            card_ip_blocking_threshold: self.card_ip_blocking_threshold,
+            guest_user_card_blocking_threshold: self.guest_user_card_blocking_threshold,
+            customer_id_blocking_threshold: self.customer_id_blocking_threshold,
+            card_testing_guard_expiry: self.card_testing_guard_expiry,
         })
     }
 
@@ -1473,6 +1529,10 @@ impl super::behaviour::Conversion for Profile {
                 is_click_to_pay_enabled: item.is_click_to_pay_enabled,
                 authentication_product_ids: item.authentication_product_ids,
                 three_ds_decision_manager_config: item.three_ds_decision_manager_config,
+                card_ip_blocking_threshold: item.card_ip_blocking_threshold,
+                guest_user_card_blocking_threshold: item.guest_user_card_blocking_threshold,
+                customer_id_blocking_threshold: item.customer_id_blocking_threshold,
+                card_testing_guard_expiry: item.card_testing_guard_expiry,
             })
         }
         .await
@@ -1531,6 +1591,10 @@ impl super::behaviour::Conversion for Profile {
             is_click_to_pay_enabled: self.is_click_to_pay_enabled,
             authentication_product_ids: self.authentication_product_ids,
             three_ds_decision_manager_config: self.three_ds_decision_manager_config,
+            card_ip_blocking_threshold: self.card_ip_blocking_threshold,
+            guest_user_card_blocking_threshold: self.guest_user_card_blocking_threshold,
+            customer_id_blocking_threshold: self.customer_id_blocking_threshold,
+            card_testing_guard_expiry: self.card_testing_guard_expiry,
         })
     }
 }

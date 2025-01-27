@@ -164,6 +164,10 @@ pub struct MerchantAccount {
     pub version: common_enums::ApiVersion,
     pub id: common_utils::id_type::MerchantId,
     pub is_platform_account: bool,
+    pub fingerprint_secret_key: Option<Encryption>,
+    pub card_ip_blocking: bool,
+    pub guest_user_card_blocking: bool,
+    pub customer_id_blocking: bool,
 }
 
 #[cfg(feature = "v2")]
@@ -182,6 +186,10 @@ impl From<MerchantAccountSetter> for MerchantAccount {
             recon_status: item.recon_status,
             version: item.version,
             is_platform_account: item.is_platform_account,
+            fingerprint_secret_key: item.fingerprint_secret_key,
+            card_ip_blocking: item.card_ip_blocking,
+            guest_user_card_blocking: item.guest_user_card_blocking,
+            customer_id_blocking: item.customer_id_blocking,
         }
     }
 }
@@ -200,6 +208,10 @@ pub struct MerchantAccountSetter {
     pub recon_status: storage_enums::ReconStatus,
     pub version: common_enums::ApiVersion,
     pub is_platform_account: bool,
+    pub fingerprint_secret_key: Option<Encryption>,
+    pub card_ip_blocking: bool,
+    pub guest_user_card_blocking: bool,
+    pub customer_id_blocking: bool,
 }
 
 impl MerchantAccount {
@@ -268,6 +280,10 @@ pub struct MerchantAccountNew {
     pub id: common_utils::id_type::MerchantId,
     pub version: common_enums::ApiVersion,
     pub is_platform_account: bool,
+    pub fingerprint_secret_key: Option<Encryption>,
+    pub card_ip_blocking: bool,
+    pub guest_user_card_blocking: bool,
+    pub customer_id_blocking: bool,
 }
 
 #[cfg(feature = "v2")]
@@ -283,6 +299,10 @@ pub struct MerchantAccountUpdateInternal {
     pub organization_id: Option<common_utils::id_type::OrganizationId>,
     pub recon_status: Option<storage_enums::ReconStatus>,
     pub is_platform_account: Option<bool>,
+    pub fingerprint_secret_key: Option<Encryption>,
+    pub card_ip_blocking: Option<bool>,
+    pub guest_user_card_blocking: Option<bool>,
+    pub customer_id_blocking: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -298,6 +318,10 @@ impl MerchantAccountUpdateInternal {
             organization_id,
             recon_status,
             is_platform_account,
+            fingerprint_secret_key,
+            card_ip_blocking,
+            guest_user_card_blocking,
+            customer_id_blocking,
         } = self;
 
         MerchantAccount {
@@ -313,6 +337,11 @@ impl MerchantAccountUpdateInternal {
             version: source.version,
             id: source.id,
             is_platform_account: is_platform_account.unwrap_or(source.is_platform_account),
+            fingerprint_secret_key,
+            card_ip_blocking: card_ip_blocking.unwrap_or(source.card_ip_blocking),
+            guest_user_card_blocking: guest_user_card_blocking
+                .unwrap_or(source.guest_user_card_blocking),
+            customer_id_blocking: customer_id_blocking.unwrap_or(source.customer_id_blocking),
         }
     }
 }
