@@ -9057,14 +9057,14 @@
         "type": "object",
         "required": [
           "three_ds",
-          "non_three_ds",
+          "no_three_ds",
           "supported_card_networks"
         ],
         "properties": {
           "three_ds": {
             "$ref": "#/components/schemas/FeatureStatus"
           },
-          "non_three_ds": {
+          "no_three_ds": {
             "$ref": "#/components/schemas/FeatureStatus"
           },
           "supported_card_networks": {
@@ -9353,6 +9353,10 @@
         "properties": {
           "name": {
             "type": "string"
+          },
+          "display_name": {
+            "type": "string",
+            "nullable": true
           },
           "description": {
             "type": "string",
