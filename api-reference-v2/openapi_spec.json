@@ -6640,7 +6640,7 @@
       },
       "ClientSecretResponse": {
         "type": "object",
-        "description": "client_secret for the customer_id mentioned",
+        "description": "client_secret for the resource_id mentioned",
         "required": [
           "id",
           "resource_id",
