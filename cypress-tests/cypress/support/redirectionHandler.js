@@ -3,7 +3,6 @@
 import jsQR from "jsqr";
 
 // Define constants for wait times
-
 const CONSTANTS = {
   TIMEOUT: 20000, // 20 seconds
   WAIT_TIME: 10000, // 10 seconds
@@ -59,7 +58,7 @@ export function handleRedirection(
       );
       break;
     default:
-      throw new Error(`Redirection known: ${redirection_type}`);
+      throw new Error(`Unknown redirection type: ${redirection_type}`);
   }
 }
 
@@ -504,8 +503,8 @@ function upiRedirection(
         );
     }
   } else {
-    // If connectorId is not iatapay, wait for 10 seconds
-    cy.wait(CONSTANTS.WAIT_TIME);
+    // It is better to return other than waiting for nothing but 10 seconds.
+    return;
   }
 
   cy.then(() => {
@@ -525,45 +524,20 @@ function verifyReturnUrl(redirection_url, expected_url, forward_flow) {
         .then((location) => {
           // Check page state before taking screenshots
           cy.document().then((doc) => {
-            // For blank page
-            cy.wrap(doc.body.innerText.trim()).then((text) => {
-              if (text === "") {
-                cy.wrap(text).should("eq", "");
-                cy.screenshot("blank-page-error");
-              }
-            });
-
-            // For error pages
-            const errorPatterns = [
-              /4\d{2}/,
-              /5\d{2}/,
-              /error/i,
-              /invalid request/i,
-              /server error/i,
-            ];
-
             const pageText = doc.body.innerText.toLowerCase();
-            cy.wrap(pageText).then((text) => {
-              if (errorPatterns.some((pattern) => pattern.test(text))) {
-                cy.wrap(text).should((content) => {
-                  expect(errorPatterns.some((pattern) => pattern.test(content)))
-                    .to.be.true;
-                });
-                cy.screenshot(`error-page-${Date.now()}`);
-              }
-            });
+            if (pageText === "") {
+              cy.screenshot("blank-page-error");
+            } else if (
+              CONSTANTS.ERROR_PATTERNS.some((pattern) => pattern.test(pageText))
+            ) {
+              cy.screenshot(`error-page-${Date.now()}`);
+            }
           });
 
           const url_params = new URLSearchParams(location.search);
           const payment_status = url_params.get("status");
 
-          if (
-            payment_status !== "failed" &&
-            payment_status !== "processing" &&
-            payment_status !== "requires_capture" &&
-            payment_status !== "succeeded"
-          ) {
-            cy.wrap(payment_status).should("exist");
+          if (!CONSTANTS.VALID_TERMINAL_STATUSES.includes(payment_status)) {
             cy.screenshot(`failed-payment-${payment_status}`);
             throw new Error(
               `Redirection failed with payment status: ${payment_status}`
