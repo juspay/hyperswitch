@@ -23,7 +23,10 @@ use hyperswitch_domain_models::{
         PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData,
         PaymentsSyncData, RefundsData, SetupMandateRequestData,
     },
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    router_response_types::{
+        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
+        SupportedPaymentMethods, SupportedPaymentMethodsExt,
+    },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
         PaymentsCompleteAuthorizeRouterData, RefundsRouterData,
@@ -43,6 +46,7 @@ use hyperswitch_interfaces::{
     },
     webhooks,
 };
+use lazy_static::lazy_static;
 use masking::{ExposeInterface, Mask};
 use transformers as powertranz;
 
@@ -618,4 +622,75 @@ impl webhooks::IncomingWebhook for Powertranz {
     }
 }
 
-impl ConnectorSpecifications for Powertranz {}
+lazy_static! {
+    static ref POWERTRANZ_SUPPORTED_PAYMENT_METHODS: SupportedPaymentMethods = {
+        let supported_capture_methods = vec![
+            enums::CaptureMethod::Automatic,
+            enums::CaptureMethod::Manual,
+            enums::CaptureMethod::SequentialAutomatic,
+        ];
+
+        let supported_card_network = vec![
+            common_enums::CardNetwork::Visa,
+            common_enums::CardNetwork::Mastercard,
+        ];
+
+        let mut powertranz_supported_payment_methods = SupportedPaymentMethods::new();
+
+        powertranz_supported_payment_methods.add(
+            enums::PaymentMethod::BankDebit,
+            enums::PaymentMethodType::Sepa,
+            PaymentMethodDetails{
+                mandates: enums::FeatureStatus::Supported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: None,
+            }
+        );
+
+        powertranz_supported_payment_methods.add(
+            enums::PaymentMethod::Card,
+            enums::PaymentMethodType::Credit,
+            PaymentMethodDetails{
+                mandates: enums::FeatureStatus::NotSupported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: Some(
+                    api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
+                        api_models::feature_matrix::CardSpecificFeatures {
+                            three_ds: common_enums::FeatureStatus::Supported,
+                            non_three_ds: common_enums::FeatureStatus::NotSupported,
+                            supported_card_networks: supported_card_network.clone(),
+                        }
+                    }),
+                ),
+            }
+        );
+
+        powertranz_supported_payment_methods
+    };
+
+    static ref POWERTRANZ_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+        description:
+            "Powertranz is a leading payment gateway serving the Caribbean and parts of Central America "
+                .to_string(),
+        connector_type: enums::PaymentConnectorCategory::BankAcquirer,
+    };
+
+    static ref POWERTRANZ_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> = Vec::new();
+
+}
+
+impl ConnectorSpecifications for Powertranz {
+    fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
+        Some(&*POWERTRANZ_CONNECTOR_INFO)
+    }
+
+    fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
+        Some(&*POWERTRANZ_SUPPORTED_PAYMENT_METHODS)
+    }
+
+    fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
+        Some(&*POWERTRANZ_SUPPORTED_WEBHOOK_FLOWS)
+    }
+}

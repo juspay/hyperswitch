@@ -24,7 +24,10 @@ use hyperswitch_domain_models::{
         PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
         RefundsData, SetupMandateRequestData,
     },
-    router_response_types::{ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData, SupportedPaymentMethods, SupportedPaymentMethodsExt},
+    router_response_types::{
+        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
+        SupportedPaymentMethods, SupportedPaymentMethodsExt,
+    },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
         PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData,
@@ -41,6 +44,7 @@ use hyperswitch_interfaces::{
     types::{self, Response},
     webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
 };
+use lazy_static::lazy_static;
 use masking::{ExposeInterface, Mask, PeekInterface, Secret};
 use rand::distributions::{Alphanumeric, DistString};
 use ring::hmac;
@@ -52,7 +56,6 @@ use crate::{
     types::ResponseRouterData,
     utils::{self, construct_not_supported_error_report, convert_amount, get_header_key_value},
 };
-use lazy_static::lazy_static;
 
 #[derive(Clone)]
 pub struct Rapyd {
@@ -961,6 +964,7 @@ lazy_static! {
 
         let supported_card_network = vec![
             common_enums::CardNetwork::AmericanExpress,
+            common_enums::CardNetwork::Visa,
         ];
 
         let mut rapyd_supported_payment_methods = SupportedPaymentMethods::new();
