@@ -19,15 +19,7 @@ pub struct EphemeralKeyCreateRequest {
 }
 
 #[cfg(feature = "v2")]
-#[derive(
-    Clone,
-    Debug,
-    serde::Serialize,
-    serde::Deserialize,
-    PartialEq,
-    Eq,
-    ToSchema,
-)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq, Eq, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ResourceId {
     #[schema(value_type = String)]

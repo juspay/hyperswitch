@@ -161,7 +161,6 @@ pub async fn confirm_payment_method_intent_api(
     let pm_id = path.into_inner();
     let payload = json_payload.into_inner();
 
-
     let inner_payload = PaymentMethodIntentConfirmInternal {
         id: pm_id.to_owned(),
         request: payload,
