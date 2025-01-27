@@ -79,7 +79,7 @@ pub async fn check_user_in_blacklist<A: SessionStateInfo>(
         .get_key::<Option<i64>>(token.as_str())
         .await
         .change_context(ApiErrorResponse::InternalServerError)
-        .map(|timestamp| timestamp.map_or(false, |timestamp| timestamp > token_issued_at))
+        .map(|timestamp| timestamp > Some(token_issued_at))
 }
 
 pub async fn check_role_in_blacklist<A: SessionStateInfo>(
@@ -94,7 +94,7 @@ pub async fn check_role_in_blacklist<A: SessionStateInfo>(
         .get_key::<Option<i64>>(token.as_str())
         .await
         .change_context(ApiErrorResponse::InternalServerError)
-        .map(|timestamp| timestamp.map_or(false, |timestamp| timestamp > token_issued_at))
+        .map(|timestamp| timestamp > Some(token_issued_at))
 }
 
 #[cfg(feature = "email")]

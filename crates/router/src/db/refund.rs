@@ -1136,7 +1136,7 @@ impl RefundInterface for MockDb {
                     || refund
                         .merchant_connector_id
                         .as_ref()
-                        .map_or(false, |id| unique_merchant_connector_ids.contains(id))
+                        .is_some_and(|id| unique_merchant_connector_ids.contains(id))
             })
             .filter(|refund| {
                 unique_currencies.is_empty() || unique_currencies.contains(&refund.currency)
@@ -1342,7 +1342,7 @@ impl RefundInterface for MockDb {
                     || refund
                         .merchant_connector_id
                         .as_ref()
-                        .map_or(false, |id| unique_merchant_connector_ids.contains(id))
+                        .is_some_and(|id| unique_merchant_connector_ids.contains(id))
             })
             .filter(|refund| {
                 unique_currencies.is_empty() || unique_currencies.contains(&refund.currency)
