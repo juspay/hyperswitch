@@ -674,7 +674,7 @@ common_utils::create_list_wrapper!(
             connector_mandate_details
             .payments
             .as_ref()
-            .map_or(false, |payments| {
+            .as_ref().is_some_and(|payments| {
                 payments.0.keys().any(|mca_id| mca_ids.contains(mca_id))
             })
         }
