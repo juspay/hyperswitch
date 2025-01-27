@@ -42,20 +42,26 @@ pub async fn upsert_conditional_config(
     };
 
     let business_profile_update = domain::ProfileUpdate::DecisionManagerRecordUpdate {
-        three_ds_decision_manager_config: decision_manager_record.clone(),
+        three_ds_decision_manager_config: decision_manager_record,
     };
-    db.update_profile_by_profile_id(
-        key_manager_state,
-        &key_store,
-        profile,
-        business_profile_update,
-    )
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Failed to update routing algorithm ref in business profile")?;
+    let updated_profile = db
+        .update_profile_by_profile_id(
+            key_manager_state,
+            &key_store,
+            profile,
+            business_profile_update,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to update routing algorithm ref in business profile")?;
 
     Ok(service_api::ApplicationResponse::Json(
-        decision_manager_record,
+        updated_profile
+            .three_ds_decision_manager_config
+            .clone()
+            .get_required_value("three_ds_decision_manager_config")
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to get updated routing algorithm ref in business profile")?,
     ))
 }
 
@@ -279,12 +285,6 @@ pub async fn retrieve_conditional_config(
     let key_manager_state: &KeyManagerState = &(&state).into();
     let profile_id = profile.get_id();
 
-    let profile = db
-        .find_business_profile_by_profile_id(key_manager_state, &key_store, profile_id)
-        .await
-        .change_context(errors::ApiErrorResponse::ProfileNotFound {
-            id: profile_id.get_string_repr().to_owned(),
-        })?;
     let record = profile
         .three_ds_decision_manager_config
         .clone()
