@@ -63,6 +63,8 @@ pub mod relay;
 
 #[cfg(feature = "dummy_connector")]
 pub use self::app::DummyConnector;
+#[cfg(feature = "v2")]
+pub use self::app::PaymentMethodsSession;
 #[cfg(all(feature = "olap", feature = "recon", feature = "v1"))]
 pub use self::app::Recon;
 pub use self::app::{
@@ -71,10 +73,6 @@ pub use self::app::{
     MerchantAccount, MerchantConnectorAccount, PaymentLink, PaymentMethods, Payments, Poll,
     Profile, ProfileNew, Refunds, Relay, RelayWebhooks, SessionState, User, Webhooks,
 };
-
-#[cfg(feature = "v2")]
-pub use self::app::PaymentMethodsSession;
-
 #[cfg(feature = "olap")]
 pub use self::app::{Blocklist, Organization, Routing, Verify, WebhookEvents};
 #[cfg(feature = "payouts")]

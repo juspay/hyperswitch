@@ -1,6 +1,5 @@
 #[cfg(feature = "v2")]
 use crate::core::errors::{self, CustomResult};
-
 use crate::db::MockDb;
 
 #[cfg(feature = "v2")]
