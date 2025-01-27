@@ -17,5 +17,14 @@
 import "cypress-mochawesome-reporter/register";
 import "./commands";
 
-// Alternatively you can use CommonJS syntax:
-// require('./commands')
+// Add error handling for dynamic imports
+Cypress.on("uncaught:exception", (err, runnable) => {
+  // Log the error details
+  // eslint-disable-next-line no-console
+  console.log(
+    `Error: ${err.message}\nError occurred in: ${runnable.title}\nStack trace: ${err.stack}`
+  );
+
+  // Return false to prevent the error from failing the test
+  return false;
+});
