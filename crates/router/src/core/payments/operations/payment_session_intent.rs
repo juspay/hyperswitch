@@ -367,12 +367,7 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsSessionRequest, payments::Payment
         };
 
         // Store the routing results in payment intent
-        payment_data.payment_intent.prerouting_algorithm = Some(
-            pre_routing
-                .encode_to_value()
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Unable to serialize payment routing info to value")?,
-        );
+        payment_data.payment_intent.prerouting_algorithm = Some(pre_routing);
 
         Ok(api::ConnectorCallType::SessionMultiple(
             session_token_routing_result.final_result,

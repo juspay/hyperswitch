@@ -39,7 +39,7 @@ use crate::RemoteStorageObject;
 #[cfg(feature = "v2")]
 use crate::{
     address::Address, business_profile, errors, merchant_account, payment_address,
-    payment_method_data, ApiModelToDieselModelConvertor,
+    payment_method_data, routing, ApiModelToDieselModelConvertor,
 };
 
 #[cfg(feature = "v1")]
@@ -365,7 +365,7 @@ pub struct PaymentIntent {
     /// Authentication type that is requested by the merchant for this payment.
     pub authentication_type: common_enums::AuthenticationType,
     /// This contains the pre routing results that are done when routing is done during listing the payment methods.
-    pub prerouting_algorithm: Option<Value>,
+    pub prerouting_algorithm: Option<routing::PaymentRoutingInfo>,
     /// The organization id for the payment. This is derived from the merchant account
     pub organization_id: id_type::OrganizationId,
     /// Denotes the request by the merchant whether to enable a payment link for this payment.

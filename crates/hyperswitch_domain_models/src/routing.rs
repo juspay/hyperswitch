@@ -13,7 +13,7 @@ pub struct RoutingData {
     pub algorithm: Option<routing::StraightThroughAlgorithm>,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq)]
 #[serde(from = "PaymentRoutingInfoSerde", into = "PaymentRoutingInfoSerde")]
 pub struct PaymentRoutingInfo {
     pub algorithm: Option<routing::StraightThroughAlgorithm>,
@@ -21,7 +21,7 @@ pub struct PaymentRoutingInfo {
         Option<HashMap<api_enums::PaymentMethodType, PreRoutingConnectorChoice>>,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq)]
 #[serde(untagged)]
 pub enum PreRoutingConnectorChoice {
     Single(routing::RoutableConnectorChoice),

@@ -1429,7 +1429,15 @@ impl behaviour::Conversion for PaymentIntent {
             capture_method: Some(capture_method),
             id,
             authentication_type: Some(authentication_type),
-            prerouting_algorithm,
+            prerouting_algorithm: prerouting_algorithm
+                .map(|prerouting_algorithm| {
+                    prerouting_algorithm.encode_to_value().change_context(
+                        ValidationError::InvalidValue {
+                            message: "Failed to serialize prerouting_algorithm".to_string(),
+                        },
+                    )
+                })
+                .transpose()?,
             merchant_reference_id,
             surcharge_amount: amount_details.surcharge_amount,
             tax_on_surcharge: amount_details.tax_on_surcharge,
@@ -1563,7 +1571,14 @@ impl behaviour::Conversion for PaymentIntent {
                 merchant_reference_id: storage_model.merchant_reference_id,
                 organization_id: storage_model.organization_id,
                 authentication_type: storage_model.authentication_type.unwrap_or_default(),
-                prerouting_algorithm: storage_model.prerouting_algorithm,
+                prerouting_algorithm: storage_model
+                    .prerouting_algorithm
+                    .map(|prerouting_algorithm_value| {
+                        prerouting_algorithm_value
+                            .parse_value("PaymentRoutingInfo")
+                            .change_context(common_utils::errors::CryptoError::DecodingFailed)
+                    })
+                    .transpose()?,
                 enable_payment_link: storage_model.enable_payment_link.into(),
                 apply_mit_exemption: storage_model.apply_mit_exemption.into(),
                 customer_present: storage_model.customer_present.into(),
@@ -1634,7 +1649,16 @@ impl behaviour::Conversion for PaymentIntent {
             id: self.id,
             merchant_reference_id: self.merchant_reference_id,
             authentication_type: Some(self.authentication_type),
-            prerouting_algorithm: self.prerouting_algorithm,
+            prerouting_algorithm: self
+                .prerouting_algorithm
+                .map(|prerouting_algorithm| {
+                    prerouting_algorithm.encode_to_value().change_context(
+                        ValidationError::InvalidValue {
+                            message: "Failed to serialize prerouting_algorithm".to_string(),
+                        },
+                    )
+                })
+                .transpose()?,
             surcharge_amount: amount_details.surcharge_amount,
             tax_on_surcharge: amount_details.tax_on_surcharge,
             organization_id: self.organization_id,
