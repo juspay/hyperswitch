@@ -1020,10 +1020,9 @@ lazy_static! {
     };
 
     static ref DEUTSCHEBANK_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
-        display_name: "Deutsche Bank".to_string(),
+        display_name: "Deutsche Bank",
         description:
-            "Deutsche Bank is a German multinational investment bank and financial services company "
-                .to_string(),
+            "Deutsche Bank is a German multinational investment bank and financial services company ",
         connector_type: enums::PaymentConnectorCategory::BankAcquirer,
     };
 
