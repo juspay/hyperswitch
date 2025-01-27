@@ -53,7 +53,7 @@ pub async fn upsert_conditional_config(
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to update routing algorithm ref in business profile")?;
+        .attach_printable("Failed to update decision manager record in business profile")?;
 
     Ok(service_api::ApplicationResponse::Json(
         updated_profile
@@ -61,7 +61,9 @@ pub async fn upsert_conditional_config(
             .clone()
             .get_required_value("three_ds_decision_manager_config")
             .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to get updated routing algorithm ref in business profile")?,
+            .attach_printable(
+                "Failed to get updated decision manager record in business profile",
+            )?,
     ))
 }
 
@@ -288,7 +290,7 @@ pub async fn retrieve_conditional_config(
     let record = profile
         .three_ds_decision_manager_config
         .clone()
-        .ok_or_else(|| errors::ApiErrorResponse::InternalServerError)
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("The Conditional Config Record was not found")?;
 
     let response = common_types::payments::DecisionManagerRecord {
