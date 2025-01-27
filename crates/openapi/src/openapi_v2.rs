@@ -359,7 +359,6 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::CardToken,
         api_models::payments::CustomerAcceptance,
         api_models::payments::PaymentsResponse,
-        api_models::payments::PaymentsCreateResponseOpenApi,
         api_models::payments::PaymentRetrieveBody,
         api_models::payments::PaymentsRetrieveRequest,
         api_models::payments::PaymentsCaptureRequest,

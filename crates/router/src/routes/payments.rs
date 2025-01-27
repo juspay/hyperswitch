@@ -222,7 +222,7 @@ pub async fn payments_get_intent(
 pub async fn payments_create_and_confirm_setup_intent(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
-    json_payload: web::Json<payment_types::PaymentsSetupIntentRequest>,
+    json_payload: web::Json<payment_types::PaymentsRequest>,
 ) -> impl Responder {
     let flow = Flow::PaymentsCreateAndConfirmSetupIntent;
     let header_payload = match HeaderPayload::foreign_try_from(req.headers()) {

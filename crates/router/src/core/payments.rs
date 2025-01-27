@@ -1617,10 +1617,10 @@ pub(crate) async fn payments_create_and_confirm_setup_intent(
     merchant_account: domain::MerchantAccount,
     profile: domain::Profile,
     key_store: domain::MerchantKeyStore,
-    request: payments_api::PaymentsSetupIntentRequest,
+    request: payments_api::PaymentsRequest,
     mut header_payload: HeaderPayload,
     platform_merchant_account: Option<domain::MerchantAccount>,
-) -> RouterResponse<payments_api::SetupIntentWrapperResponse> {
+) -> RouterResponse<payments_api::PaymentsResponse> {
     use actix_http::body::MessageBody;
     use common_utils::ext_traits::BytesExt;
     use hyperswitch_domain_models::{
@@ -1677,7 +1677,7 @@ pub(crate) async fn payments_create_and_confirm_setup_intent(
 
     Box::pin(payments_core::<
         SetupMandate,
-        api_models::payments::SetupIntentWrapperResponse,
+        api_models::payments::PaymentsResponse,
         _,
         _,
         _,

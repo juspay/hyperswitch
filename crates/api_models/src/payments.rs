@@ -4411,6 +4411,7 @@ pub struct ReceiverDetails {
     amount_remaining: Option<i64>,
 }
 
+#[cfg(feature = "v1")]
 #[derive(Clone, Debug, PartialEq, serde::Serialize, ToSchema, router_derive::PolymorphicSchema)]
 #[generate_schemas(PaymentsCreateResponseOpenApi)]
 pub struct PaymentsResponse {
@@ -4789,7 +4790,7 @@ pub struct PaymentsConfirmIntentRequest {
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone)]
 #[serde(deny_unknown_fields)]
 #[cfg(feature = "v2")]
-pub struct PaymentsSetupIntentRequest {
+pub struct PaymentsRequest {
     pub amount_details: AmountDetails,
     pub merchant_reference_id: Option<id_type::PaymentReferenceId>,
     pub routing_algorithm_id: Option<id_type::RoutingId>,
@@ -4824,8 +4825,8 @@ pub struct PaymentsSetupIntentRequest {
 }
 
 #[cfg(feature = "v2")]
-impl From<&PaymentsSetupIntentRequest> for PaymentsCreateIntentRequest {
-    fn from(request: &PaymentsSetupIntentRequest) -> Self {
+impl From<&PaymentsRequest> for PaymentsCreateIntentRequest {
+    fn from(request: &PaymentsRequest) -> Self {
         Self {
             amount_details: request.amount_details.clone(),
             merchant_reference_id: request.merchant_reference_id.clone(),
@@ -4859,8 +4860,8 @@ impl From<&PaymentsSetupIntentRequest> for PaymentsCreateIntentRequest {
 }
 
 #[cfg(feature = "v2")]
-impl From<&PaymentsSetupIntentRequest> for PaymentsConfirmIntentRequest {
-    fn from(request: &PaymentsSetupIntentRequest) -> Self {
+impl From<&PaymentsRequest> for PaymentsConfirmIntentRequest {
+    fn from(request: &PaymentsRequest) -> Self {
         Self {
             return_url: request.return_url.clone(),
             payment_method_data: request.payment_method_data.clone(),
@@ -4875,7 +4876,7 @@ impl From<&PaymentsSetupIntentRequest> for PaymentsConfirmIntentRequest {
 
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Serialize)]
-pub struct SetupIntentWrapperResponse {
+pub struct PaymentsResponse {
     pub confirm_intent_response: PaymentsConfirmIntentResponse,
     pub connector_mandate_reference_id: Option<ConnectorMandateReferenceId>,
 }
@@ -5197,6 +5198,7 @@ pub struct PaymentListConstraints {
     pub created_gte: Option<PrimitiveDateTime>,
 }
 
+#[cfg(feature = "v1")]
 #[derive(Clone, Debug, serde::Serialize, ToSchema)]
 pub struct PaymentListResponse {
     /// The number of payments included in the list
@@ -5223,6 +5225,7 @@ pub struct IncrementalAuthorizationResponse {
     pub previously_authorized_amount: MinorUnit,
 }
 
+#[cfg(feature = "v1")]
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct PaymentListResponseV2 {
     /// The number of payments included in the list for given constraints

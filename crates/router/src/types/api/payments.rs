@@ -1,9 +1,9 @@
 #[cfg(feature = "v1")]
-pub use api_models::payments::PaymentsRequest;
+pub use api_models::payments::{PaymentListResponse, PaymentListResponseV2};
 #[cfg(feature = "v2")]
 pub use api_models::payments::{
     PaymentsConfirmIntentRequest, PaymentsCreateIntentRequest, PaymentsIntentResponse,
-    PaymentsSetupIntentRequest, PaymentsUpdateIntentRequest,
+    PaymentsUpdateIntentRequest,
 };
 pub use api_models::{
     feature_matrix::{
@@ -15,18 +15,18 @@ pub use api_models::{
         MandateTransactionType, MandateType, MandateValidationFields, NextActionType,
         OnlineMandate, OpenBankingSessionToken, PayLaterData, PaymentIdType,
         PaymentListConstraints, PaymentListFilterConstraints, PaymentListFilters,
-        PaymentListFiltersV2, PaymentListResponse, PaymentListResponseV2, PaymentMethodData,
-        PaymentMethodDataRequest, PaymentMethodDataResponse, PaymentOp, PaymentRetrieveBody,
+        PaymentListFiltersV2, PaymentMethodData, PaymentMethodDataRequest,
+        PaymentMethodDataResponse, PaymentOp, PaymentRetrieveBody,
         PaymentRetrieveBodyWithCredentials, PaymentsAggregateResponse, PaymentsApproveRequest,
         PaymentsCancelRequest, PaymentsCaptureRequest, PaymentsCompleteAuthorizeRequest,
         PaymentsDynamicTaxCalculationRequest, PaymentsDynamicTaxCalculationResponse,
         PaymentsExternalAuthenticationRequest, PaymentsIncrementalAuthorizationRequest,
         PaymentsManualUpdateRequest, PaymentsPostSessionTokensRequest,
         PaymentsPostSessionTokensResponse, PaymentsRedirectRequest, PaymentsRedirectionResponse,
-        PaymentsRejectRequest, PaymentsResponse, PaymentsResponseForm, PaymentsRetrieveRequest,
-        PaymentsSessionRequest, PaymentsSessionResponse, PaymentsStartRequest, PgRedirectResponse,
-        PhoneDetails, RedirectionResponse, SessionToken, UrlDetails, VerifyRequest, VerifyResponse,
-        WalletData,
+        PaymentsRejectRequest, PaymentsRequest, PaymentsResponse, PaymentsResponseForm,
+        PaymentsRetrieveRequest, PaymentsSessionRequest, PaymentsSessionResponse,
+        PaymentsStartRequest, PgRedirectResponse, PhoneDetails, RedirectionResponse, SessionToken,
+        UrlDetails, VerifyRequest, VerifyResponse, WalletData,
     },
 };
 use error_stack::ResultExt;

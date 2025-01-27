@@ -1652,7 +1652,7 @@ where
 }
 
 #[cfg(feature = "v2")]
-impl<F> GenerateResponse<api_models::payments::SetupIntentWrapperResponse>
+impl<F> GenerateResponse<api_models::payments::PaymentsResponse>
     for hyperswitch_domain_models::payments::PaymentConfirmData<F>
 where
     F: Clone,
@@ -1664,7 +1664,7 @@ where
         external_latency: Option<u128>,
         is_latency_header_enabled: Option<bool>,
         merchant_account: &domain::MerchantAccount,
-    ) -> RouterResponse<api_models::payments::SetupIntentWrapperResponse> {
+    ) -> RouterResponse<api_models::payments::PaymentsResponse> {
         let connector_mandate_reference_id = self
             .payment_attempt
             .connector_mandate_detail
@@ -1683,7 +1683,7 @@ where
         match confirm_intent_response {
             hyperswitch_domain_models::api::ApplicationResponse::Json(confirm_intent_response) => {
                 Ok(services::ApplicationResponse::Json(
-                    api_models::payments::SetupIntentWrapperResponse {
+                    api_models::payments::PaymentsResponse {
                         confirm_intent_response,
                         connector_mandate_reference_id,
                     },
@@ -1693,7 +1693,7 @@ where
                 confirm_intent_response,
                 headers,
             )) => Ok(services::ApplicationResponse::JsonWithHeaders((
-                api_models::payments::SetupIntentWrapperResponse {
+                api_models::payments::PaymentsResponse {
                     confirm_intent_response,
                     connector_mandate_reference_id,
                 },
