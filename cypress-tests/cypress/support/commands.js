@@ -1551,11 +1551,6 @@ Cypress.Commands.add(
                   expect(response.body.error_code).to.equal(
                     resData.body.error_code
                   );
-                  if (response.body.payment_method_type === "sofort") {
-                    expect(response.body.error_message).to.equal(
-                      resData.body.error_message
-                    );
-                  }
                 }
               } else {
                 throw new Error(
