@@ -804,6 +804,16 @@ clickhouse_database = "default"
 [multitenancy.tenants.public.user]
 control_center_url = "http://localhost:9000"
 
+# multitenancy.v1_tenants is only applicable for v2 deployment
+[multitenancy.v1_tenants.public]
+base_url = "http://localhost:8081"
+schema = "v1_public"
+redis_key_prefix = ""
+clickhouse_database = "default"
+
+[multitenancy.v1_tenants.public.user]
+control_center_url = "http://localhost:9001"
+
 [user_auth_methods]
 encryption_key = "A8EF32E029BC3342E54BF2E172A4D7AA43E8EF9D2C3A624A9F04E2EF79DC698F"
 
