@@ -1,9 +1,6 @@
 use common_enums::{PaymentMethodType, RequestIncrementalAuthorization};
-use common_utils::{
-    encryption::Encryption,
-    pii,
-    types::{MinorUnit, RequestExtendedAuthorizationBool},
-};
+use common_types::primitive_wrappers::RequestExtendedAuthorizationBool;
+use common_utils::{encryption::Encryption, pii, types::MinorUnit};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;

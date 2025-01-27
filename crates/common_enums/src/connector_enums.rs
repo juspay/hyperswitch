@@ -425,6 +425,15 @@ impl Connector {
         matches!(self, Self::Airwallex)
     }
 
+    pub fn get_payment_methods_supporting_extended_authorization(self) -> Vec<PaymentMethod> {
+        vec![]
+    }
+    pub fn get_payment_method_types_supporting_extended_authorization(
+        self,
+    ) -> Vec<crate::PaymentMethodType> {
+        vec![]
+    }
+
     pub fn should_acknowledge_webhook_for_resource_not_found_errors(self) -> bool {
         matches!(self, Self::Adyenplatform)
     }

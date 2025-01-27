@@ -1,7 +1,8 @@
 use std::collections::{HashMap, HashSet};
 
 use common_enums::{AuthenticationConnectors, UIWidgetFormLayout};
-use common_utils::{encryption::Encryption, pii, types::AlwaysRequestExtendedAuthorization};
+use common_types::primitive_wrappers::AlwaysRequestExtendedAuthorization;
+use common_utils::{encryption::Encryption, pii};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use masking::Secret;
 

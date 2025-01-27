@@ -1,6 +1,9 @@
 #[cfg(all(feature = "v1", feature = "olap"))]
 use api_models::enums::Connector;
 use common_enums as storage_enums;
+use common_types::primitive_wrappers::{
+    ExtendedAuthorizationAppliedBool, RequestExtendedAuthorizationBool,
+};
 #[cfg(feature = "v2")]
 use common_utils::{
     crypto::Encryptable, encryption::Encryption, ext_traits::ValueExt,
@@ -11,8 +14,7 @@ use common_utils::{
     id_type, pii,
     types::{
         keymanager::{self, KeyManagerState},
-        ConnectorTransactionId, ConnectorTransactionIdTrait, ExtendedAuthorizationAppliedBool,
-        MinorUnit, RequestExtendedAuthorizationBool,
+        ConnectorTransactionId, ConnectorTransactionIdTrait, MinorUnit,
     },
 };
 use diesel_models::{
@@ -954,6 +956,8 @@ pub enum PaymentAttemptUpdate {
         encoded_data: Option<String>,
         unified_code: Option<Option<String>>,
         unified_message: Option<Option<String>>,
+        capture_before: Option<PrimitiveDateTime>,
+        extended_authorization_applied: Option<ExtendedAuthorizationAppliedBool>,
         payment_method_data: Option<serde_json::Value>,
         charge_id: Option<String>,
         connector_mandate_detail: Option<ConnectorMandateReferenceId>,
@@ -1224,6 +1228,8 @@ impl PaymentAttemptUpdate {
                 encoded_data,
                 unified_code,
                 unified_message,
+                capture_before,
+                extended_authorization_applied,
                 payment_method_data,
                 charge_id,
                 connector_mandate_detail,
@@ -1246,6 +1252,8 @@ impl PaymentAttemptUpdate {
                 encoded_data,
                 unified_code,
                 unified_message,
+                capture_before,
+                extended_authorization_applied,
                 payment_method_data,
                 charge_id,
                 connector_mandate_detail,

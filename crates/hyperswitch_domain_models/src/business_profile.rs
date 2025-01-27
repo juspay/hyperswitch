@@ -1,10 +1,11 @@
+use common_types::primitive_wrappers::AlwaysRequestExtendedAuthorization;
 use common_utils::{
     crypto::OptionalEncryptableValue,
     date_time,
     encryption::Encryption,
     errors::{CustomResult, ValidationError},
     pii, type_name,
-    types::{keymanager, AlwaysRequestExtendedAuthorization},
+    types::keymanager,
 };
 use diesel_models::business_profile::{
     AuthenticationConnectorDetails, BusinessPaymentLinkConfig, BusinessPayoutLinkConfig,
