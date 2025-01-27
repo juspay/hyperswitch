@@ -19,8 +19,3 @@ pub mod refunds;
 pub mod relay;
 pub mod routing;
 pub mod webhook_events;
-
-pub use self::{
-    customers::*, mandates::*, merchant_account::*, merchant_connector_account::*, organization::*,
-    payment_method::*, payments::*, poll::*, refunds::*, relay::*, routing::*, webhook_events::*,
-};
