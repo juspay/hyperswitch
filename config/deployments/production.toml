@@ -164,8 +164,8 @@ bank_debit.ach = { connector_list = "gocardless,adyen,stripe" }
 bank_debit.becs = { connector_list = "gocardless,stripe,adyen" }                      
 bank_debit.bacs = { connector_list = "stripe,gocardless" }                           
 bank_debit.sepa = { connector_list = "gocardless,adyen,stripe,deutschebank" }                
-card.credit.connector_list = "stripe,adyen,authorizedotnet,cybersource,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,braintree,nuvei,payme,wellsfargo,bamboraapac,elavon,fiuu,nexixpay,novalnet,paybox,paypal"     
-card.debit.connector_list = "stripe,adyen,authorizedotnet,cybersource,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,braintree,nuvei,payme,wellsfargo,bamboraapac,elavon,fiuu,nexixpay,novalnet,paybox,paypal"      
+card.credit.connector_list = "stripe,adyen,authorizedotnet,cybersource,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,braintree,nuvei,payme,wellsfargo,bamboraapac,elavon,fiuu,nexixpay,novalnet,paybox,paypal,xendit"     
+card.debit.connector_list = "stripe,adyen,authorizedotnet,cybersource,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,braintree,nuvei,payme,wellsfargo,bamboraapac,elavon,fiuu,nexixpay,novalnet,paybox,paypal,xendit"      
 pay_later.klarna.connector_list = "adyen"                       
 wallet.apple_pay.connector_list = "stripe,adyen,cybersource,noon,bankofamerica,nexinets,novalnet"        
 wallet.google_pay.connector_list = "stripe,adyen,cybersource,bankofamerica,noon,globalpay,multisafepay,novalnet"            
@@ -302,6 +302,9 @@ debit = { currency = "USD" }
 apple_pay = { currency = "USD" }
 google_pay = { currency = "USD" }
 
+[pm_filters.xendit]
+credit = { currency = "IDR,PHP,USD,VND,THB,MYR" }
+debit = { currency = "IDR,PHP,USD,VND,THB,MYR" }
 
 [pm_filters.cybersource]
 credit = { currency = "USD,GBP,EUR,PLN" }

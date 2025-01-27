@@ -195,7 +195,18 @@ impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> fo
     //TODO: implement sessions flow
 }
 
-impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsResponseData> for Xendit {}
+impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsResponseData> for Xendit {
+    fn build_request(
+        &self,
+        _req: &RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponseData>,
+        _connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Err(
+            errors::ConnectorError::NotImplemented("Setup Mandate flow for Xendit".to_string())
+                .into(),
+        )
+    }
+}
 
 impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData> for Xendit {
     fn get_headers(

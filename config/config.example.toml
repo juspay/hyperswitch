@@ -549,6 +549,10 @@ debit = { currency = "USD" }
 apple_pay = { currency = "USD" }
 google_pay = { currency = "USD" }
 
+[pm_filters.xendit]
+credit = { currency = "IDR,PHP,USD,VND,THB,MYR" }
+debit = { currency = "IDR,PHP,USD,VND,THB,MYR" }
+
 [pm_filters.cybersource]
 credit = { currency = "USD,GBP,EUR,PLN" }
 debit = { currency = "USD,GBP,EUR,PLN" }
