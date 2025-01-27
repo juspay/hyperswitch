@@ -869,14 +869,15 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
 
                         let customer_id = &payment_data.payment_intent.customer_id;
 
-                        let card_testing_guard_expiry = card_testing_guard_config.card_testing_guard_expiry;
+                        let card_testing_guard_expiry =
+                            card_testing_guard_config.card_testing_guard_expiry;
 
                         let mut card_ip_blocking_cache_key = String::new();
                         let mut guest_user_card_blocking_cache_key = String::new();
                         let mut customer_id_blocking_cache_key = String::new();
 
                         if card_testing_guard_config.is_card_ip_blocking_enabled {
-                            card_ip_blocking_cache_key = 
+                            card_ip_blocking_cache_key =
                                 helpers::validate_card_ip_blocking_for_merchant(
                                     state,
                                     request,
@@ -887,7 +888,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                         }
 
                         if card_testing_guard_config.is_guest_user_card_blocking_enabled {
-                            guest_user_card_blocking_cache_key = 
+                            guest_user_card_blocking_cache_key =
                                 helpers::validate_guest_user_card_blocking_for_merchant(
                                     state,
                                     fingerprint.clone(),
@@ -899,7 +900,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
 
                         if card_testing_guard_config.is_customer_id_blocking_enabled {
                             if let Some(customer_id) = customer_id.clone() {
-                                customer_id_blocking_cache_key = 
+                                customer_id_blocking_cache_key =
                                     helpers::validate_customer_id_blocking_for_merchant(
                                         state,
                                         customer_id.clone(),
@@ -911,11 +912,14 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                         }
 
                         payment_data.card_testing_guard_data = Some(CardTestingGuardData {
-                            is_card_ip_blocking_enabled: card_testing_guard_config.is_card_ip_blocking_enabled,
+                            is_card_ip_blocking_enabled: card_testing_guard_config
+                                .is_card_ip_blocking_enabled,
                             card_ip_blocking_cache_key,
-                            is_guest_user_card_blocking_enabled: card_testing_guard_config.is_guest_user_card_blocking_enabled,
+                            is_guest_user_card_blocking_enabled: card_testing_guard_config
+                                .is_guest_user_card_blocking_enabled,
                             guest_user_card_blocking_cache_key,
-                            is_customer_id_blocking_enabled: card_testing_guard_config.is_customer_id_blocking_enabled,
+                            is_customer_id_blocking_enabled: card_testing_guard_config
+                                .is_customer_id_blocking_enabled,
                             customer_id_blocking_cache_key,
                             card_testing_guard_expiry,
                         });

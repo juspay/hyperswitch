@@ -390,7 +390,8 @@ pub async fn create_profile_from_merchant_account(
             is_customer_id_blocking_enabled: false,
             customer_id_blocking_threshold:
                 common_utils::consts::DEFAULT_CUSTOMER_ID_BLOCKING_THRESHOLD,
-            card_testing_guard_expiry: common_utils::consts::DEFAULT_CARD_TESTING_GUARD_EXPIRY_IN_SECS,
+            card_testing_guard_expiry:
+                common_utils::consts::DEFAULT_CARD_TESTING_GUARD_EXPIRY_IN_SECS,
         }),
         card_testing_secret_key: None,
     }))

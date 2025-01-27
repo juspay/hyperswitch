@@ -2050,7 +2050,6 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
 
     if payment_data.payment_attempt.status == enums::AttemptStatus::Failure {
         if let Some(card_testing_guard_data) = payment_data.card_testing_guard_data.clone() {
-
             if card_testing_guard_data.is_card_ip_blocking_enabled {
                 let _ = services::card_testing_guard::increment_blocked_count_in_cache(
                     state,

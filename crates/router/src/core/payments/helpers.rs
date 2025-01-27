@@ -1561,7 +1561,6 @@ pub async fn validate_customer_id_blocking_for_merchant(
     profile_id: &id_type::ProfileId,
     card_testing_guard_config: &diesel_models::business_profile::CardTestingGuardConfig,
 ) -> RouterResult<String> {
-
     let cache_key = format!(
         "{}_{}_{}",
         consts::CUSTOMER_ID_BLOCKING_PREFIX,
