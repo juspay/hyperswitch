@@ -329,7 +329,7 @@ pub async fn payment_method_delete_api() {}
 /// The customer can also add a new payment method using this session
 #[cfg(feature = "v2")]
 #[utoipa::path(
-    get,
+    post,
     path = "/v2/payment-method-session",
     request_body(
     content = PaymentMethodsSessionRequest,

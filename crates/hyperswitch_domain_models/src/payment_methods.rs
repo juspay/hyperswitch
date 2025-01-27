@@ -512,6 +512,7 @@ pub struct PaymentMethodsSession {
     pub network_tokenization: Option<common_types::payment_methods::NetworkTokenization>,
 }
 
+#[cfg(feature = "v2")]
 #[async_trait::async_trait]
 impl super::behaviour::Conversion for PaymentMethodsSession {
     type DstType = diesel_models::payment_methods_session::PaymentMethodsSession;

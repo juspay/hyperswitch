@@ -68,10 +68,13 @@ pub use self::app::Recon;
 pub use self::app::{
     ApiKeys, AppState, ApplePayCertificatesMigration, Cache, Cards, Configs, ConnectorOnboarding,
     Customers, Disputes, EphemeralKey, FeatureMatrix, Files, Forex, Gsm, Health, Mandates,
-    MerchantAccount, MerchantConnectorAccount, PaymentLink, PaymentMethods, PaymentMethodsSession,
-    Payments, Poll, Profile, ProfileNew, Refunds, Relay, RelayWebhooks, SessionState, User,
-    Webhooks,
+    MerchantAccount, MerchantConnectorAccount, PaymentLink, PaymentMethods, Payments, Poll,
+    Profile, ProfileNew, Refunds, Relay, RelayWebhooks, SessionState, User, Webhooks,
 };
+
+#[cfg(feature = "v2")]
+pub use self::app::PaymentMethodsSession;
+
 #[cfg(feature = "olap")]
 pub use self::app::{Blocklist, Organization, Routing, Verify, WebhookEvents};
 #[cfg(feature = "payouts")]

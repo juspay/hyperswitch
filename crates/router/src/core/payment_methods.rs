@@ -25,7 +25,7 @@ use api_models::payment_methods;
 pub use api_models::{enums::PayoutConnectors, payouts as payout_types};
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use common_utils::ext_traits::Encode;
-use common_utils::{consts::DEFAULT_LOCALE, id_type, types::keymanager::ToEncryptable};
+use common_utils::{consts::DEFAULT_LOCALE, id_type};
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use common_utils::{
     crypto::{self, Encryptable},
@@ -41,10 +41,8 @@ use diesel_models::{
 use error_stack::{report, ResultExt};
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use hyperswitch_domain_models::api::{GenericLinks, GenericLinksData};
-use hyperswitch_domain_models::{
-    behaviour::Conversion,
-    payments::{payment_attempt::PaymentAttempt, PaymentIntent},
-};
+
+use hyperswitch_domain_models::payments::{payment_attempt::PaymentAttempt, PaymentIntent};
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use masking::ExposeInterface;
 use masking::{PeekInterface, Secret};
@@ -67,10 +65,11 @@ use crate::{
         domain::types as domain_types,
         payment_methods as pm_types,
         storage::{ephemeral_key, PaymentMethodListContext},
-        transformers::ForeignTryFrom,
+        transformers::{ForeignFrom, ForeignTryFrom},
     },
     utils::ext_traits::OptionExt,
 };
+
 use crate::{
     consts,
     core::{
@@ -82,7 +81,6 @@ use crate::{
     types::{
         domain,
         storage::{self, enums as storage_enums},
-        transformers::ForeignFrom,
     },
 };
 
@@ -1590,8 +1588,8 @@ pub async fn list_customer_payment_method_core(
     let saved_payment_methods = db
         .find_payment_method_by_global_customer_id_merchant_id_status(
             key_manager_state,
-            &key_store,
-            &customer_id,
+            key_store,
+            customer_id,
             merchant_account.get_id(),
             common_enums::PaymentMethodStatus::Active,
             None,
@@ -1829,12 +1827,15 @@ pub async fn delete_payment_method(
     Ok(services::ApplicationResponse::Json(response))
 }
 
+#[cfg(feature = "v2")]
 pub async fn payment_methods_session_create(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     request: payment_methods::PaymentMethodsSessionRequest,
 ) -> RouterResponse<payment_methods::PaymentMethodsSessionResponse> {
+    use common_utils::types::keymanager::ToEncryptable;
+
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
 
@@ -1926,6 +1927,7 @@ pub async fn payment_methods_session_create(
     Ok(services::ApplicationResponse::Json(response))
 }
 
+#[cfg(feature = "v2")]
 pub async fn payment_methods_session_retrieve(
     state: SessionState,
     _merchant_account: domain::MerchantAccount,

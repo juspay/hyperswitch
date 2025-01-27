@@ -2431,7 +2431,7 @@
       }
     },
     "/v2/payment-method-session": {
-      "get": {
+      "post": {
         "tags": [
           "Payment Method Session"
         ],

@@ -3926,6 +3926,7 @@ impl db::payment_method_session::PaymentMethodsSessionInterface for KafkaStore {
 #[cfg(feature = "v1")]
 impl db::payment_method_session::PaymentMethodsSessionInterface for KafkaStore {}
 
+#[async_trait::async_trait]
 impl CallbackMapperInterface for KafkaStore {
     #[instrument(skip_all)]
     async fn insert_call_back_mapper(
