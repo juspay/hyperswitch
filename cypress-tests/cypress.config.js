@@ -66,11 +66,5 @@ export default defineConfig({
     video: true,
     videoCompression: 32,
     chromeWebSecurity: false,
-    // TODO: Plan migration strategy for v15 when injectDocumentDomain is removed
-    // Options:
-    // 1. Restructure tests to avoid cross-subdomain testing
-    // 2. Use alternative domain handling approaches
-    // 3. Keep using v14 if cross-subdomain testing is critical
-    injectDocumentDomain: true,
   },
 });
