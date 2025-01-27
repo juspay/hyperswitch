@@ -38,8 +38,18 @@ export default defineConfig({
             test.attempts.some((attempt) => attempt.state === "failed")
           )
         ) {
-          // Delete video for passed specs
-          fs.unlinkSync(results.video);
+          // Only try to delete if the video file exists
+          try {
+            if (fs.existsSync(results.video)) {
+              fs.unlinkSync(results.video);
+            }
+          } catch (error) {
+            // Log the error but don't fail the test
+            console.warn(
+              `Warning: Could not delete video file: ${results.video}`
+            );
+            console.warn(error);
+          }
         }
       });
       return config;
@@ -65,6 +75,7 @@ export default defineConfig({
     screenshotsFolder: screenshotsFolderName,
     video: true,
     videoCompression: 32,
+    videosFolder: `cypress/videos/${connectorId}`,
     chromeWebSecurity: false,
   },
 });
