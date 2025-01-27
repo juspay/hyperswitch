@@ -17,8 +17,6 @@ use common_utils::{
     types::{AmountConvertor, MinorUnit},
 };
 use error_stack::{report, ResultExt};
-#[cfg(feature = "payouts")]
-use hyperswitch_domain_models::router_request_types::PayoutsData;
 use hyperswitch_domain_models::{
     address::{Address, AddressDetails, PhoneDetails},
     payment_method_data::{self, Card, CardDetailsForNetworkTransactionId, PaymentMethodData},
@@ -1346,7 +1344,7 @@ pub trait PayoutFulfillRequestData {
     fn get_connector_transfer_method_id(&self) -> Result<String, Error>;
 }
 #[cfg(feature = "payouts")]
-impl PayoutFulfillRequestData for PayoutsData {
+impl PayoutFulfillRequestData for hyperswitch_domain_models::router_request_types::PayoutsData {
     fn get_connector_payout_id(&self) -> Result<String, Error> {
         self.connector_payout_id
             .clone()
