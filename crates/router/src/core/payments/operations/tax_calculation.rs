@@ -181,10 +181,7 @@ impl<F: Send + Clone + Sync>
             tax_data: Some(tax_data),
             session_id: request.session_id.clone(),
             service_details: None,
-            card_ip_blocking_cache_key: None,
-            guest_user_card_blocking_cache_key: None,
-            customer_id_blocking_cache_key: None,
-            card_testing_guard_expiry: None,
+            card_testing_guard_data: None,
         };
         let get_trackers_response = operations::GetTrackerResponse {
             operation: Box::new(self),

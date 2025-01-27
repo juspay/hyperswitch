@@ -3,7 +3,6 @@ pub mod analytics;
 pub mod api_keys;
 pub mod apple_pay_certificates_migration;
 pub mod blocklist;
-pub mod card_testing_guard;
 pub mod cards_info;
 pub mod conditional_configs;
 pub mod connector_enums;

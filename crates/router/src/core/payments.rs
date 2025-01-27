@@ -4839,10 +4839,18 @@ where
     pub tax_data: Option<TaxData>,
     pub session_id: Option<String>,
     pub service_details: Option<api_models::payments::CtpServiceDetails>,
-    pub card_ip_blocking_cache_key: Option<String>,
-    pub guest_user_card_blocking_cache_key: Option<String>,
-    pub customer_id_blocking_cache_key: Option<String>,
-    pub card_testing_guard_expiry: Option<i32>,
+    pub card_testing_guard_data: Option<CardTestingGuardData>,
+}
+
+#[derive(Clone, serde::Serialize, Debug)]
+pub struct CardTestingGuardData {
+    pub is_card_ip_blocking_enabled: bool,
+    pub card_ip_blocking_cache_key: String,
+    pub is_guest_user_card_blocking_enabled: bool,
+    pub guest_user_card_blocking_cache_key: String,
+    pub is_customer_id_blocking_enabled: bool,
+    pub customer_id_blocking_cache_key: String,
+    pub card_testing_guard_expiry: i32,
 }
 
 #[derive(Clone, serde::Serialize, Debug)]

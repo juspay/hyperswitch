@@ -218,10 +218,8 @@ diesel::table! {
         max_auto_retries_enabled -> Nullable<Int2>,
         is_click_to_pay_enabled -> Bool,
         authentication_product_ids -> Nullable<Jsonb>,
-        card_ip_blocking_threshold -> Nullable<Int4>,
-        guest_user_card_blocking_threshold -> Nullable<Int4>,
-        customer_id_blocking_threshold -> Nullable<Int4>,
-        card_testing_guard_expiry -> Nullable<Int4>,
+        card_testing_guard_config -> Nullable<Jsonb>,
+        card_testing_secret_key -> Nullable<Bytea>,
     }
 }
 
@@ -742,10 +740,6 @@ diesel::table! {
         pm_collect_link_config -> Nullable<Jsonb>,
         version -> ApiVersion,
         is_platform_account -> Bool,
-        fingerprint_secret_key -> Nullable<Bytea>,
-        card_ip_blocking -> Bool,
-        guest_user_card_blocking -> Bool,
-        customer_id_blocking -> Bool,
     }
 }
 

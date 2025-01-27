@@ -2012,6 +2012,38 @@ impl ForeignFrom<diesel_models::business_profile::AuthenticationConnectorDetails
     }
 }
 
+impl ForeignFrom<api_models::admin::CardTestingGuardConfig>
+    for diesel_models::business_profile::CardTestingGuardConfig
+{
+    fn foreign_from(item: api_models::admin::CardTestingGuardConfig) -> Self {
+        Self {
+            is_card_ip_blocking_enabled: item.is_card_ip_blocking_enabled,
+            card_ip_blocking_threshold: item.card_ip_blocking_threshold,
+            is_guest_user_card_blocking_enabled: item.is_guest_user_card_blocking_enabled,
+            guest_user_card_blocking_threshold: item.guest_user_card_blocking_threshold,
+            is_customer_id_blocking_enabled: item.is_customer_id_blocking_enabled,
+            customer_id_blocking_threshold: item.customer_id_blocking_threshold,
+            card_testing_guard_expiry: item.card_testing_guard_expiry,
+        }
+    }
+}
+
+impl ForeignFrom<diesel_models::business_profile::CardTestingGuardConfig>
+    for api_models::admin::CardTestingGuardConfig
+{
+    fn foreign_from(item: diesel_models::business_profile::CardTestingGuardConfig) -> Self {
+        Self {
+            is_card_ip_blocking_enabled: item.is_card_ip_blocking_enabled,
+            card_ip_blocking_threshold: item.card_ip_blocking_threshold,
+            is_guest_user_card_blocking_enabled: item.is_guest_user_card_blocking_enabled,
+            guest_user_card_blocking_threshold: item.guest_user_card_blocking_threshold,
+            is_customer_id_blocking_enabled: item.is_customer_id_blocking_enabled,
+            customer_id_blocking_threshold: item.customer_id_blocking_threshold,
+            card_testing_guard_expiry: item.card_testing_guard_expiry,
+        }
+    }
+}
+
 impl ForeignFrom<api_models::admin::WebhookDetails>
     for diesel_models::business_profile::WebhookDetails
 {

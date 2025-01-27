@@ -162,5 +162,5 @@ pub const DEFAULT_GUEST_USER_CARD_BLOCKING_THRESHOLD: i32 = 10;
 /// Default Threshold for Customer ID Blocking
 pub const DEFAULT_CUSTOMER_ID_BLOCKING_THRESHOLD: i32 = 5;
 
-/// Default Card Testing Guard Redis Expiry
-pub const DEFAULT_CARD_TESTING_GUARD_EXPIRY: i32 = 3600;
+/// Default Card Testing Guard Redis Expiry in seconds
+pub const DEFAULT_CARD_TESTING_GUARD_EXPIRY_IN_SECS: i32 = 3600;

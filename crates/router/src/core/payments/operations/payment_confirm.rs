@@ -37,8 +37,8 @@ use crate::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         mandate::helpers as m_helpers,
         payments::{
-            self, helpers, operations, populate_surcharge_details, CustomerDetails, PaymentAddress,
-            PaymentData,
+            self, helpers, operations, populate_surcharge_details, CardTestingGuardData,
+            CustomerDetails, PaymentAddress, PaymentData,
         },
         unified_authentication_service::{
             self as uas_utils,
@@ -824,10 +824,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             tax_data: None,
             session_id: None,
             service_details: request.ctp_service_details.clone(),
-            card_ip_blocking_cache_key: None,
-            guest_user_card_blocking_cache_key: None,
-            customer_id_blocking_cache_key: None,
-            card_testing_guard_expiry: None,
+            card_testing_guard_data: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -860,60 +857,73 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
 
         match payment_method_data {
             Some(api_models::payments::PaymentMethodData::Card(_card)) => {
-                let fingerprint = card_testing_guard_utils::generate_fingerprint(
-                    state,
-                    payment_method_data,
-                    merchant_account,
-                )
-                .await?;
-
-                let customer_id = &payment_data.payment_intent.customer_id;
-
-                let card_testing_guard_expiry = business_profile.card_testing_guard_expiry;
-
-                if merchant_account.card_ip_blocking && card_testing_guard_expiry.is_some() {
-                    let card_ip_blocking_cache_key =
-                        helpers::validate_card_ip_blocking_for_merchant(
+                match &business_profile.card_testing_guard_config {
+                    Some(card_testing_guard_config) => {
+                        let fingerprint = card_testing_guard_utils::generate_fingerprint(
                             state,
-                            request,
-                            fingerprint.clone(),
+                            payment_method_data,
+                            merchant_account,
                             business_profile,
                         )
                         .await?;
-                    payment_data.card_ip_blocking_cache_key = Some(card_ip_blocking_cache_key);
-                }
 
-                if merchant_account.guest_user_card_blocking && card_testing_guard_expiry.is_some()
-                {
-                    let guest_user_card_blocking_cache_key =
-                        helpers::validate_guest_user_card_blocking_for_merchant(
-                            state,
-                            fingerprint.clone(),
-                            business_profile,
-                            customer_id.clone(),
-                        )
-                        .await?;
-                    payment_data.guest_user_card_blocking_cache_key =
-                        Some(guest_user_card_blocking_cache_key);
-                }
+                        let customer_id = &payment_data.payment_intent.customer_id;
 
-                if merchant_account.customer_id_blocking && card_testing_guard_expiry.is_some() {
-                    if let Some(customer_id) = customer_id.clone() {
-                        let customer_id_blocking_cache_key =
-                            helpers::validate_customer_id_blocking_for_merchant(
-                                state,
-                                customer_id.clone(),
-                                merchant_account,
-                                business_profile,
-                            )
-                            .await?;
-                        payment_data.customer_id_blocking_cache_key =
-                            Some(customer_id_blocking_cache_key);
+                        let card_testing_guard_expiry = card_testing_guard_config.card_testing_guard_expiry;
+
+                        let mut card_ip_blocking_cache_key = String::new();
+                        let mut guest_user_card_blocking_cache_key = String::new();
+                        let mut customer_id_blocking_cache_key = String::new();
+
+                        if card_testing_guard_config.is_card_ip_blocking_enabled {
+                            card_ip_blocking_cache_key = 
+                                helpers::validate_card_ip_blocking_for_merchant(
+                                    state,
+                                    request,
+                                    fingerprint.clone(),
+                                    card_testing_guard_config,
+                                )
+                                .await?;
+                        }
+
+                        if card_testing_guard_config.is_guest_user_card_blocking_enabled {
+                            guest_user_card_blocking_cache_key = 
+                                helpers::validate_guest_user_card_blocking_for_merchant(
+                                    state,
+                                    fingerprint.clone(),
+                                    customer_id.clone(),
+                                    card_testing_guard_config,
+                                )
+                                .await?;
+                        }
+
+                        if card_testing_guard_config.is_customer_id_blocking_enabled {
+                            if let Some(customer_id) = customer_id.clone() {
+                                customer_id_blocking_cache_key = 
+                                    helpers::validate_customer_id_blocking_for_merchant(
+                                        state,
+                                        customer_id.clone(),
+                                        business_profile.get_id(),
+                                        card_testing_guard_config,
+                                    )
+                                    .await?;
+                            }
+                        }
+
+                        payment_data.card_testing_guard_data = Some(CardTestingGuardData {
+                            is_card_ip_blocking_enabled: card_testing_guard_config.is_card_ip_blocking_enabled,
+                            card_ip_blocking_cache_key,
+                            is_guest_user_card_blocking_enabled: card_testing_guard_config.is_guest_user_card_blocking_enabled,
+                            guest_user_card_blocking_cache_key,
+                            is_customer_id_blocking_enabled: card_testing_guard_config.is_customer_id_blocking_enabled,
+                            customer_id_blocking_cache_key,
+                            card_testing_guard_expiry,
+                        });
+
+                        Ok(())
                     }
+                    None => Ok(()),
                 }
-
-                payment_data.card_testing_guard_expiry = card_testing_guard_expiry;
-                Ok(())
             }
             _ => Ok(()),
         }
