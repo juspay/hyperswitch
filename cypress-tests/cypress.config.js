@@ -45,9 +45,11 @@ export default defineConfig({
             }
           } catch (error) {
             // Log the error but don't fail the test
+            // eslint-disable-next-line no-console
             console.warn(
               `Warning: Could not delete video file: ${results.video}`
             );
+            // eslint-disable-next-line no-console
             console.warn(error);
           }
         }

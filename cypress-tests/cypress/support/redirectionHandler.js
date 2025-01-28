@@ -198,8 +198,6 @@ function bankRedirectRedirection(
                   }
                 });
                 break;
-              case "trustly":
-                break;
               default:
                 throw new Error(
                   `Unsupported payment method type: ${payment_method_type}`
@@ -208,44 +206,28 @@ function bankRedirectRedirection(
             verifyUrl = true;
             break;
           case "paypal":
-            switch (payment_method_type) {
-              case "eps":
-                cy.get('button[name="Successful"][value="SUCCEEDED"]').click();
-                break;
-              case "ideal":
-                cy.get('button[name="Successful"][value="SUCCEEDED"]').click();
-                break;
-              case "giropay":
-                cy.get('button[name="Successful"][value="SUCCEEDED"]').click();
-                break;
-              default:
-                throw new Error(
-                  `Unsupported payment method type: ${payment_method_type}`
-                );
+            if (["eps", "ideal", "giropay"].includes(payment_method_type)) {
+              cy.get('button[name="Successful"][value="SUCCEEDED"]').click();
+              verifyUrl = true;
+            } else {
+              throw new Error(
+                `Unsupported payment method type: ${payment_method_type}`
+              );
             }
             verifyUrl = true;
             break;
           case "stripe":
-            switch (payment_method_type) {
-              case "eps":
-                cy.get('a[name="success"]').click();
-                break;
-              case "ideal":
-                cy.get('a[name="success"]').click();
-                break;
-              case "giropay":
-                cy.get('a[name="success"]').click();
-                break;
-              case "sofort":
-                cy.get('a[name="success"]').click();
-                break;
-              case "przelewy24":
-                cy.get('a[name="success"]').click();
-                break;
-              default:
-                throw new Error(
-                  `Unsupported payment method type: ${payment_method_type}`
-                );
+            if (
+              ["eps", "ideal", "giropay", "sofort", "przelewy24"].includes(
+                payment_method_type
+              )
+            ) {
+              cy.get('a[name="success"]').click();
+              verifyUrl = true;
+            } else {
+              throw new Error(
+                `Unsupported payment method type: ${payment_method_type}`
+              );
             }
             verifyUrl = true;
             break;
@@ -282,10 +264,6 @@ function bankRedirectRedirection(
                 cy.get("._transactionId__primaryButton__nCa0r").click();
                 cy.get(".normal-3").should("contain.text", "Kontoauswahl");
                 break;
-              case "sofort":
-                break;
-              case "trustly":
-                break;
               default:
                 throw new Error(
                   `Unsupported payment method type: ${payment_method_type}`
@@ -305,15 +283,21 @@ function bankRedirectRedirection(
   });
 }
 
-function threeDsRedirection(redirection_url, expected_url, connectorId) {
-  cy.visit(redirection_url.href);
-  waitForRedirect(redirection_url.href);
+function threeDsRedirection(redirectionUrl, expectedUrl, connectorId) {
+  cy.visit(redirectionUrl.href);
+  waitForRedirect(redirectionUrl.href);
 
   cy.url().then((currentUrl) => {
     cy.origin(
       new URL(currentUrl).origin,
-      { args: { connectorId, constants: CONSTANTS } },
-      ({ connectorId, constants }) => {
+      {
+        args: {
+          connectorId,
+          constants: CONSTANTS,
+          expectedUrl: expectedUrl.origin,
+        },
+      },
+      ({ connectorId, constants, expectedUrl }) => {
         switch (connectorId) {
           case "adyen":
             cy.get("iframe")
@@ -461,14 +445,14 @@ function threeDsRedirection(redirection_url, expected_url, connectorId) {
             break;
 
           default:
-            cy.wait(CONSTANTS.WAIT_TIME);
+            cy.wait(constants.WAIT_TIME);
         }
       }
     );
   });
 
   // Verify return URL after handling the specific connector
-  verifyReturnUrl(redirection_url, expected_url, true);
+  verifyReturnUrl(redirectionUrl, expectedUrl, true);
 }
 
 function upiRedirection(
@@ -503,7 +487,7 @@ function upiRedirection(
         );
     }
   } else {
-    // It is better to return other than waiting for nothing but 10 seconds.
+    // For other connectors, nothing to do
     return;
   }
 
@@ -512,62 +496,79 @@ function upiRedirection(
   });
 }
 
-function verifyReturnUrl(redirection_url, expected_url, forward_flow) {
-  if (!forward_flow) return;
+function verifyReturnUrl(redirectionUrl, expectedUrl, forwardFlow) {
+  if (!forwardFlow) return;
 
-  try {
-    if (redirection_url.host.endsWith(expected_url.host)) {
-      cy.wait(CONSTANTS.WAIT_TIME / 2);
+  cy.location("host", { timeout: CONSTANTS.TIMEOUT }).should((currentHost) => {
+    expect(currentHost).to.equal(expectedUrl.host);
+  });
 
-      cy.window()
-        .its("location")
-        .then((location) => {
-          // Check page state before taking screenshots
-          cy.document().then((doc) => {
-            const pageText = doc.body.innerText.toLowerCase();
-            if (pageText === "") {
-              cy.screenshot("blank-page-error");
-            } else if (
-              CONSTANTS.ERROR_PATTERNS.some((pattern) => pattern.test(pageText))
-            ) {
-              cy.screenshot(`error-page-${Date.now()}`);
-            }
-          });
+  cy.url().then((url) => {
+    cy.origin(
+      new URL(url).origin,
+      {
+        args: {
+          redirectionUrl: redirectionUrl.origin,
+          expectedUrl: expectedUrl.origin,
+        },
+      },
+      ({ redirectionUrl, expectedUrl }) => {
+        try {
+          const redirectionHost = new URL(redirectionUrl).host;
+          const expectedHost = new URL(expectedUrl).host;
+          if (redirectionHost.endsWith(expectedHost)) {
+            cy.wait(CONSTANTS.WAIT_TIME / 2);
 
-          const url_params = new URLSearchParams(location.search);
-          const payment_status = url_params.get("status");
+            cy.window()
+              .its("location")
+              .then((location) => {
+                // Check page state before taking screenshots
+                cy.document().then((doc) => {
+                  const pageText = doc.body.innerText.toLowerCase();
+                  if (!pageText) {
+                    // eslint-disable-next-line cypress/assertion-before-screenshot
+                    cy.screenshot("blank-page-error");
+                  } else if (
+                    CONSTANTS.ERROR_PATTERNS.some((pattern) =>
+                      pattern.test(pageText)
+                    )
+                  ) {
+                    cy.screenshot(`error-page-${Date.now()}`);
+                  }
+                });
 
-          if (!CONSTANTS.VALID_TERMINAL_STATUSES.includes(payment_status)) {
-            cy.screenshot(`failed-payment-${payment_status}`);
-            throw new Error(
-              `Redirection failed with payment status: ${payment_status}`
-            );
+                const urlParams = new URLSearchParams(location.search);
+                const paymentStatus = urlParams.get("status");
+
+                if (
+                  !CONSTANTS.VALID_TERMINAL_STATUSES.includes(paymentStatus)
+                ) {
+                  cy.screenshot(`failed-payment-${paymentStatus}`);
+                  throw new Error(
+                    `Redirection failed with payment status: ${paymentStatus}`
+                  );
+                }
+              });
+          } else {
+            cy.window().its("location.origin").should("eq", expectedUrl);
+
+            Cypress.on("uncaught:exception", (err, runnable) => {
+              // Log the error details
+              // eslint-disable-next-line no-console
+              console.error(
+                `Error: ${err.message}\nOccurred in: ${runnable.title}\nStack: ${err.stack}`
+              );
+
+              // Return false to prevent the error from failing the test
+              return false;
+            });
           }
-        });
-    } else {
-      cy.origin(
-        expected_url.origin,
-        { args: { expected_url: expected_url.origin } },
-        ({ expected_url }) => {
-          cy.window().its("location.origin").should("eq", expected_url);
-
-          Cypress.on("uncaught:exception", (err, runnable) => {
-            // Log the error details
-            // eslint-disable-next-line no-console
-            console.error(
-              `Error: ${err.message}\nError occurred in: ${runnable.title}\nStack trace: ${err.stack}`
-            );
-
-            // Return false to prevent the error from failing the test
-            return false;
-          });
+        } catch (error) {
+          throw new Error(`Redirection verification failed: ${error}`);
         }
-      );
-    }
-  } catch (error) {
-    cy.error("Redirection verification failed:", error);
-    throw error;
-  }
+      }
+    );
+  });
 }
 
 async function fetchAndParseQRCode(url) {
@@ -644,6 +645,7 @@ function waitForRedirect(url) {
   return cy
     .location("host", { timeout: CONSTANTS.TIMEOUT })
     .should((currentHost) => {
+      // Make sure we've left the original host
       expect(currentHost).to.not.equal(host);
     });
 }
