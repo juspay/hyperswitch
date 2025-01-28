@@ -46,14 +46,14 @@ use super::payouts::*;
 use super::pm_auth;
 #[cfg(feature = "oltp")]
 use super::poll;
+#[cfg(all(feature = "v2", feature = "recovery", feature = "oltp"))]
+use super::recovery_webhooks::*;
 #[cfg(feature = "olap")]
 use super::routing;
 #[cfg(all(feature = "olap", feature = "v1"))]
 use super::verification::{apple_pay_merchant_registration, retrieve_apple_pay_verified_domains};
 #[cfg(feature = "oltp")]
 use super::webhooks::*;
-#[cfg(all(feature = "v2", feature = "recovery" , feature= "oltp"))]
-use super::recovery_webhooks::*;
 use super::{
     admin, api_keys, cache::*, connector_onboarding, disputes, files, gsm, health::*, profiles,
     relay, user, user_role,
@@ -1571,8 +1571,10 @@ impl Webhooks {
         #[cfg(feature = "recovery")]
         {
             route = route.service(
-                web::resource("/recovery/{merchant_id}/{profile_id}/{connector_id}")
-                    .route(web::post().to(recovery_receive_incoming_webhook::<webhook_type::OutgoingWebhook>)),
+                web::resource("/recovery/{merchant_id}/{profile_id}/{connector_id}").route(
+                    web::post()
+                        .to(recovery_receive_incoming_webhook::<webhook_type::OutgoingWebhook>),
+                ),
             );
         }
 

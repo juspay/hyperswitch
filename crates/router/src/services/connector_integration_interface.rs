@@ -339,14 +339,12 @@ impl api::IncomingWebhook for ConnectorEnum {
         }
     }
 
-    #[cfg(feature= "recovery")]
+    #[cfg(feature = "recovery")]
     fn get_recovery_details(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<
-        hyperswitch_interfaces::recovery::RecoveryPayload,
-        errors::ConnectorError,
-    > {
+    ) -> CustomResult<hyperswitch_interfaces::recovery::RecoveryPayload, errors::ConnectorError>
+    {
         match self {
             Self::Old(connector) => connector.get_recovery_details(request),
             Self::New(connector) => connector.get_recovery_details(request),
