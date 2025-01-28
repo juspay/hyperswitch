@@ -163,7 +163,7 @@ impl ApiEventMetric for PaymentsRequest {
 impl ApiEventMetric for PaymentsResponse {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::Payment {
-            payment_id: self.confirm_intent_response.id.clone(),
+            payment_id: self.id.clone(),
         })
     }
 }

@@ -1625,6 +1625,15 @@ where
             .as_ref()
             .map(|_| api_models::payments::NextActionData::RedirectToUrl { redirect_to_url });
 
+        let connector_token_details = payment_attempt
+            .connector_mandate_detail
+            .and_then(|connector_mandate_details| connector_mandate_details.connector_mandate_id)
+            .map(
+                |connector_mandate_id| api_models::payments::ConnectorTokenDetails {
+                    connector_token: connector_mandate_id,
+                },
+            );
+
         let response = api_models::payments::PaymentsConfirmIntentResponse {
             id: payment_intent.id.clone(),
             status: payment_intent.status,
@@ -1639,6 +1648,7 @@ where
             next_action,
             connector_transaction_id: payment_attempt.connector_payment_id.clone(),
             connector_reference_id: None,
+            connector_token_details,
             merchant_connector_id,
             browser_info: None,
             error,
