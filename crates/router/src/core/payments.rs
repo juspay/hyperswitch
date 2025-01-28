@@ -1621,22 +1621,22 @@ pub(crate) async fn payments_create_and_confirm_intent(
     payment_id: id_type::GlobalPaymentId,
     mut header_payload: HeaderPayload,
     platform_merchant_account: Option<domain::MerchantAccount>,
-) -> RouterResponse<payments_api::PaymentsResponse> {
+) -> RouterResponse<payments_api::PaymentsConfirmIntentResponse> {
     use actix_http::body::MessageBody;
     use common_utils::ext_traits::BytesExt;
     use hyperswitch_domain_models::{
         payments::{PaymentConfirmData, PaymentIntentData},
-        router_flow_types::{Authorize, SetupMandate},
+        router_flow_types::{Authorize, PaymentCreateIntent, SetupMandate},
     };
 
     let payload = payments_api::PaymentsCreateIntentRequest::from(&request);
 
     let create_intent_response = Box::pin(payments_intent_core::<
-        SetupMandate,
+        PaymentCreateIntent,
         payments_api::PaymentsIntentResponse,
         _,
         _,
-        PaymentIntentData<SetupMandate>,
+        PaymentIntentData<PaymentCreateIntent>,
     >(
         state.clone(),
         req_state.clone(),
@@ -1676,7 +1676,7 @@ pub(crate) async fn payments_create_and_confirm_intent(
 
     Box::pin(payments_core::<
         SetupMandate,
-        api_models::payments::PaymentsResponse,
+        api_models::payments::PaymentsConfirmIntentResponse,
         _,
         _,
         _,

@@ -1652,68 +1652,6 @@ where
 }
 
 #[cfg(feature = "v2")]
-impl<F> GenerateResponse<api_models::payments::PaymentsResponse>
-    for hyperswitch_domain_models::payments::PaymentConfirmData<F>
-where
-    F: Clone,
-{
-    fn generate_response(
-        self,
-        state: &SessionState,
-        connector_http_status_code: Option<u16>,
-        external_latency: Option<u128>,
-        is_latency_header_enabled: Option<bool>,
-        merchant_account: &domain::MerchantAccount,
-    ) -> RouterResponse<api_models::payments::PaymentsResponse> {
-        let connector_mandate_reference_id = self
-            .payment_attempt
-            .connector_mandate_detail
-            .clone()
-            .map(ConnectorMandateReferenceId::foreign_from);
-
-        let confirm_intent_response = self.generate_response(
-            state,
-            connector_http_status_code,
-            external_latency,
-            is_latency_header_enabled,
-            merchant_account,
-        )?;
-        router_env::logger::info!(confirm_setup_intent_response=?confirm_intent_response);
-
-        match confirm_intent_response {
-            hyperswitch_domain_models::api::ApplicationResponse::Json(confirm_intent_response) => {
-                Ok(services::ApplicationResponse::Json(
-                    api_models::payments::PaymentsResponse {
-                        confirm_intent_response,
-                        connector_mandate_reference_id,
-                    },
-                ))
-            }
-            hyperswitch_domain_models::api::ApplicationResponse::JsonWithHeaders((
-                confirm_intent_response,
-                headers,
-            )) => Ok(services::ApplicationResponse::JsonWithHeaders((
-                api_models::payments::PaymentsResponse {
-                    confirm_intent_response,
-                    connector_mandate_reference_id,
-                },
-                headers,
-            ))),
-            hyperswitch_domain_models::api::ApplicationResponse::StatusOk
-            | hyperswitch_domain_models::api::ApplicationResponse::TextPlain(_)
-            | hyperswitch_domain_models::api::ApplicationResponse::JsonForRedirection(_)
-            | hyperswitch_domain_models::api::ApplicationResponse::Form(_)
-            | hyperswitch_domain_models::api::ApplicationResponse::PaymentLinkForm(_)
-            | hyperswitch_domain_models::api::ApplicationResponse::FileData(_)
-            | hyperswitch_domain_models::api::ApplicationResponse::GenericLinkForm(_) => {
-                Err(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Unexpected payment confirm intent response received")
-            }
-        }
-    }
-}
-
-#[cfg(feature = "v2")]
 impl<F> GenerateResponse<api_models::payments::PaymentsRetrieveResponse>
     for hyperswitch_domain_models::payments::PaymentStatusData<F>
 where
