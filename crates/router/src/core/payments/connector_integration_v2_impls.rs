@@ -699,10 +699,8 @@ default_imp_for_new_connector_integration_payment!(
     connector::Adyen,
     connector::Adyenplatform,
     connector::Authorizedotnet,
-    connector::Bankofamerica,
     connector::Braintree,
     connector::Checkout,
-    connector::Cybersource,
     connector::Ebanx,
     connector::Globalpay,
     connector::Gpayments,
@@ -724,7 +722,6 @@ default_imp_for_new_connector_integration_payment!(
     connector::Stripe,
     connector::Trustpay,
     connector::Threedsecureio,
-    connector::Wellsfargo,
     connector::Wellsfargopayout,
     connector::Wise,
     connector::Plaid
@@ -751,10 +748,8 @@ default_imp_for_new_connector_integration_refund!(
     connector::Adyen,
     connector::Adyenplatform,
     connector::Authorizedotnet,
-    connector::Bankofamerica,
     connector::Braintree,
     connector::Checkout,
-    connector::Cybersource,
     connector::Ebanx,
     connector::Globalpay,
     connector::Gpayments,
@@ -776,7 +771,6 @@ default_imp_for_new_connector_integration_refund!(
     connector::Stripe,
     connector::Trustpay,
     connector::Threedsecureio,
-    connector::Wellsfargo,
     connector::Wise,
     connector::Plaid
 );
@@ -797,10 +791,8 @@ default_imp_for_new_connector_integration_connector_access_token!(
     connector::Adyen,
     connector::Adyenplatform,
     connector::Authorizedotnet,
-    connector::Bankofamerica,
     connector::Braintree,
     connector::Checkout,
-    connector::Cybersource,
     connector::Ebanx,
     connector::Globalpay,
     connector::Gpayments,
@@ -822,7 +814,6 @@ default_imp_for_new_connector_integration_connector_access_token!(
     connector::Stripe,
     connector::Trustpay,
     connector::Threedsecureio,
-    connector::Wellsfargo,
     connector::Wise,
     connector::Plaid
 );
@@ -865,10 +856,8 @@ default_imp_for_new_connector_integration_accept_dispute!(
     connector::Adyen,
     connector::Adyenplatform,
     connector::Authorizedotnet,
-    connector::Bankofamerica,
     connector::Braintree,
     connector::Checkout,
-    connector::Cybersource,
     connector::Ebanx,
     connector::Globalpay,
     connector::Gpayments,
@@ -890,7 +879,6 @@ default_imp_for_new_connector_integration_accept_dispute!(
     connector::Stripe,
     connector::Trustpay,
     connector::Threedsecureio,
-    connector::Wellsfargo,
     connector::Wise,
     connector::Plaid
 );
@@ -915,10 +903,8 @@ default_imp_for_new_connector_integration_defend_dispute!(
     connector::Adyen,
     connector::Adyenplatform,
     connector::Authorizedotnet,
-    connector::Bankofamerica,
     connector::Braintree,
     connector::Checkout,
-    connector::Cybersource,
     connector::Ebanx,
     connector::Globalpay,
     connector::Gpayments,
@@ -940,7 +926,6 @@ default_imp_for_new_connector_integration_defend_dispute!(
     connector::Stripe,
     connector::Trustpay,
     connector::Threedsecureio,
-    connector::Wellsfargo,
     connector::Wise,
     connector::Plaid
 );
@@ -949,10 +934,8 @@ default_imp_for_new_connector_integration_submit_evidence!(
     connector::Adyen,
     connector::Adyenplatform,
     connector::Authorizedotnet,
-    connector::Bankofamerica,
     connector::Braintree,
     connector::Checkout,
-    connector::Cybersource,
     connector::Ebanx,
     connector::Globalpay,
     connector::Gpayments,
@@ -974,7 +957,6 @@ default_imp_for_new_connector_integration_submit_evidence!(
     connector::Stripe,
     connector::Trustpay,
     connector::Threedsecureio,
-    connector::Wellsfargo,
     connector::Wise,
     connector::Plaid
 );
@@ -1010,10 +992,8 @@ default_imp_for_new_connector_integration_file_upload!(
     connector::Adyen,
     connector::Adyenplatform,
     connector::Authorizedotnet,
-    connector::Bankofamerica,
     connector::Braintree,
     connector::Checkout,
-    connector::Cybersource,
     connector::Ebanx,
     connector::Globalpay,
     connector::Gpayments,
@@ -1035,7 +1015,6 @@ default_imp_for_new_connector_integration_file_upload!(
     connector::Stripe,
     connector::Trustpay,
     connector::Threedsecureio,
-    connector::Wellsfargo,
     connector::Wise,
     connector::Plaid
 );
@@ -1120,7 +1099,6 @@ default_imp_for_new_connector_integration_payouts!(
     connector::Tsys,
     connector::UnifiedAuthenticationService,
     connector::Volt,
-    connector::Wellsfargo,
     connector::Wise,
     connector::Worldline,
     connector::Worldpay,
@@ -1152,10 +1130,8 @@ default_imp_for_new_connector_integration_payouts_create!(
     connector::Adyen,
     connector::Adyenplatform,
     connector::Authorizedotnet,
-    connector::Bankofamerica,
     connector::Braintree,
     connector::Checkout,
-    connector::Cybersource,
     connector::Ebanx,
     connector::Globalpay,
     connector::Gpayments,
@@ -1177,7 +1153,6 @@ default_imp_for_new_connector_integration_payouts_create!(
     connector::Stripe,
     connector::Trustpay,
     connector::Threedsecureio,
-    connector::Wellsfargo,
     connector::Wise,
     connector::Plaid
 );
@@ -1205,10 +1180,8 @@ default_imp_for_new_connector_integration_payouts_eligibility!(
     connector::Adyen,
     connector::Adyenplatform,
     connector::Authorizedotnet,
-    connector::Bankofamerica,
     connector::Braintree,
     connector::Checkout,
-    connector::Cybersource,
     connector::Ebanx,
     connector::Globalpay,
     connector::Gpayments,
@@ -1230,7 +1203,6 @@ default_imp_for_new_connector_integration_payouts_eligibility!(
     connector::Stripe,
     connector::Trustpay,
     connector::Threedsecureio,
-    connector::Wellsfargo,
     connector::Wise,
     connector::Plaid
 );
@@ -1258,10 +1230,8 @@ default_imp_for_new_connector_integration_payouts_fulfill!(
     connector::Adyen,
     connector::Adyenplatform,
     connector::Authorizedotnet,
-    connector::Bankofamerica,
     connector::Braintree,
     connector::Checkout,
-    connector::Cybersource,
     connector::Ebanx,
     connector::Globalpay,
     connector::Gpayments,
@@ -1283,7 +1253,6 @@ default_imp_for_new_connector_integration_payouts_fulfill!(
     connector::Stripe,
     connector::Trustpay,
     connector::Threedsecureio,
-    connector::Wellsfargo,
     connector::Wise,
     connector::Plaid
 );
@@ -1311,10 +1280,8 @@ default_imp_for_new_connector_integration_payouts_cancel!(
     connector::Adyen,
     connector::Adyenplatform,
     connector::Authorizedotnet,
-    connector::Bankofamerica,
     connector::Braintree,
     connector::Checkout,
-    connector::Cybersource,
     connector::Ebanx,
     connector::Globalpay,
     connector::Gpayments,
@@ -1336,7 +1303,6 @@ default_imp_for_new_connector_integration_payouts_cancel!(
     connector::Stripe,
     connector::Trustpay,
     connector::Threedsecureio,
-    connector::Wellsfargo,
     connector::Wise,
     connector::Plaid
 );
@@ -1364,10 +1330,8 @@ default_imp_for_new_connector_integration_payouts_quote!(
     connector::Adyen,
     connector::Adyenplatform,
     connector::Authorizedotnet,
-    connector::Bankofamerica,
     connector::Braintree,
     connector::Checkout,
-    connector::Cybersource,
     connector::Ebanx,
     connector::Globalpay,
     connector::Gpayments,
@@ -1389,7 +1353,6 @@ default_imp_for_new_connector_integration_payouts_quote!(
     connector::Stripe,
     connector::Trustpay,
     connector::Threedsecureio,
-    connector::Wellsfargo,
     connector::Wise,
     connector::Plaid
 );
@@ -1417,10 +1380,8 @@ default_imp_for_new_connector_integration_payouts_recipient!(
     connector::Adyen,
     connector::Adyenplatform,
     connector::Authorizedotnet,
-    connector::Bankofamerica,
     connector::Braintree,
     connector::Checkout,
-    connector::Cybersource,
     connector::Ebanx,
     connector::Globalpay,
     connector::Gpayments,
@@ -1442,7 +1403,6 @@ default_imp_for_new_connector_integration_payouts_recipient!(
     connector::Stripe,
     connector::Trustpay,
     connector::Threedsecureio,
-    connector::Wellsfargo,
     connector::Wise,
     connector::Plaid
 );
@@ -1470,10 +1430,8 @@ default_imp_for_new_connector_integration_payouts_sync!(
     connector::Aci,
     connector::Adyen,
     connector::Authorizedotnet,
-    connector::Bankofamerica,
     connector::Braintree,
     connector::Checkout,
-    connector::Cybersource,
     connector::Ebanx,
     connector::Globalpay,
     connector::Gpayments,
@@ -1495,7 +1453,6 @@ default_imp_for_new_connector_integration_payouts_sync!(
     connector::Stripe,
     connector::Threedsecureio,
     connector::Trustpay,
-    connector::Wellsfargo,
     connector::Wise,
     connector::Plaid
 );
@@ -1523,10 +1480,8 @@ default_imp_for_new_connector_integration_payouts_recipient_account!(
     connector::Adyen,
     connector::Adyenplatform,
     connector::Authorizedotnet,
-    connector::Bankofamerica,
     connector::Braintree,
     connector::Checkout,
-    connector::Cybersource,
     connector::Ebanx,
     connector::Globalpay,
     connector::Gpayments,
@@ -1548,7 +1503,6 @@ default_imp_for_new_connector_integration_payouts_recipient_account!(
     connector::Stripe,
     connector::Trustpay,
     connector::Threedsecureio,
-    connector::Wellsfargo,
     connector::Wise,
     connector::Plaid
 );
@@ -1574,10 +1528,8 @@ default_imp_for_new_connector_integration_webhook_source_verification!(
     connector::Adyen,
     connector::Adyenplatform,
     connector::Authorizedotnet,
-    connector::Bankofamerica,
     connector::Braintree,
     connector::Checkout,
-    connector::Cybersource,
     connector::Ebanx,
     connector::Globalpay,
     connector::Gpayments,
@@ -1599,7 +1551,6 @@ default_imp_for_new_connector_integration_webhook_source_verification!(
     connector::Stripe,
     connector::Trustpay,
     connector::Threedsecureio,
-    connector::Wellsfargo,
     connector::Wise,
     connector::Plaid
 );
@@ -1621,7 +1572,6 @@ default_imp_for_new_connector_integration_frm!(
     connector::Authorizedotnet,
     connector::Bambora,
     connector::Bamboraapac,
-    connector::Bankofamerica,
     connector::Billwerk,
     connector::Bitpay,
     connector::Bluesnap,
@@ -1631,7 +1581,6 @@ default_imp_for_new_connector_integration_frm!(
     connector::Checkout,
     connector::Cryptopay,
     connector::Coinbase,
-    connector::Cybersource,
     connector::Deutschebank,
     connector::Digitalvirgo,
     connector::Dlocal,
@@ -1686,7 +1635,6 @@ default_imp_for_new_connector_integration_frm!(
     connector::Tsys,
     connector::UnifiedAuthenticationService,
     connector::Volt,
-    connector::Wellsfargo,
     connector::Wise,
     connector::Worldline,
     connector::Worldpay,
@@ -1718,10 +1666,8 @@ default_imp_for_new_connector_integration_frm_sale!(
     connector::Adyen,
     connector::Adyenplatform,
     connector::Authorizedotnet,
-    connector::Bankofamerica,
     connector::Braintree,
     connector::Checkout,
-    connector::Cybersource,
     connector::Ebanx,
     connector::Globalpay,
     connector::Gpayments,
@@ -1743,7 +1689,6 @@ default_imp_for_new_connector_integration_frm_sale!(
     connector::Stripe,
     connector::Trustpay,
     connector::Threedsecureio,
-    connector::Wellsfargo,
     connector::Wise,
     connector::Plaid
 );
@@ -1771,10 +1716,8 @@ default_imp_for_new_connector_integration_frm_checkout!(
     connector::Adyen,
     connector::Adyenplatform,
     connector::Authorizedotnet,
-    connector::Bankofamerica,
     connector::Braintree,
     connector::Checkout,
-    connector::Cybersource,
     connector::Ebanx,
     connector::Globalpay,
     connector::Gpayments,
@@ -1796,7 +1739,6 @@ default_imp_for_new_connector_integration_frm_checkout!(
     connector::Stripe,
     connector::Trustpay,
     connector::Threedsecureio,
-    connector::Wellsfargo,
     connector::Wise,
     connector::Plaid
 );
@@ -1824,10 +1766,8 @@ default_imp_for_new_connector_integration_frm_transaction!(
     connector::Adyen,
     connector::Adyenplatform,
     connector::Authorizedotnet,
-    connector::Bankofamerica,
     connector::Braintree,
     connector::Checkout,
-    connector::Cybersource,
     connector::Ebanx,
     connector::Globalpay,
     connector::Gpayments,
@@ -1849,7 +1789,6 @@ default_imp_for_new_connector_integration_frm_transaction!(
     connector::Stripe,
     connector::Trustpay,
     connector::Threedsecureio,
-    connector::Wellsfargo,
     connector::Wise,
     connector::Plaid
 );
@@ -1877,10 +1816,8 @@ default_imp_for_new_connector_integration_frm_fulfillment!(
     connector::Adyen,
     connector::Adyenplatform,
     connector::Authorizedotnet,
-    connector::Bankofamerica,
     connector::Braintree,
     connector::Checkout,
-    connector::Cybersource,
     connector::Ebanx,
     connector::Globalpay,
     connector::Gpayments,
@@ -1902,7 +1839,6 @@ default_imp_for_new_connector_integration_frm_fulfillment!(
     connector::Stripe,
     connector::Trustpay,
     connector::Threedsecureio,
-    connector::Wellsfargo,
     connector::Wise,
     connector::Plaid
 );
@@ -1930,10 +1866,8 @@ default_imp_for_new_connector_integration_frm_record_return!(
     connector::Adyen,
     connector::Adyenplatform,
     connector::Authorizedotnet,
-    connector::Bankofamerica,
     connector::Braintree,
     connector::Checkout,
-    connector::Cybersource,
     connector::Ebanx,
     connector::Globalpay,
     connector::Gpayments,
@@ -1955,7 +1889,6 @@ default_imp_for_new_connector_integration_frm_record_return!(
     connector::Stripe,
     connector::Trustpay,
     connector::Threedsecureio,
-    connector::Wellsfargo,
     connector::Wise,
     connector::Plaid
 );
@@ -1980,10 +1913,8 @@ default_imp_for_new_connector_integration_revoking_mandates!(
     connector::Adyen,
     connector::Adyenplatform,
     connector::Authorizedotnet,
-    connector::Bankofamerica,
     connector::Braintree,
     connector::Checkout,
-    connector::Cybersource,
     connector::Ebanx,
     connector::Globalpay,
     connector::Gpayments,
@@ -2005,7 +1936,6 @@ default_imp_for_new_connector_integration_revoking_mandates!(
     connector::Stripe,
     connector::Trustpay,
     connector::Threedsecureio,
-    connector::Wellsfargo,
     connector::Wise,
     connector::Plaid
 );
@@ -2129,10 +2059,10 @@ default_imp_for_new_connector_integration_connector_authentication!(
     connector::Tsys,
     connector::UnifiedAuthenticationService,
     connector::Volt,
-    connector::Wellsfargo,
     connector::Wise,
     connector::Worldline,
     connector::Worldpay,
+    connector::Xendit,
     connector::Zen,
     connector::Zsl,
     connector::Plaid
@@ -2168,10 +2098,8 @@ default_imp_for_new_connector_integration_uas!(
     connector::Aci,
     connector::Adyen,
     connector::Authorizedotnet,
-    connector::Bankofamerica,
     connector::Braintree,
     connector::Checkout,
-    connector::Cybersource,
     connector::Ebanx,
     connector::Globalpay,
     connector::Gpayments,
@@ -2194,7 +2122,6 @@ default_imp_for_new_connector_integration_uas!(
     connector::Stripe,
     connector::Threedsecureio,
     connector::Trustpay,
-    connector::Wellsfargo,
     connector::Wellsfargopayout,
     connector::Wise
 );

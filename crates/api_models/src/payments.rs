@@ -6558,13 +6558,38 @@ pub struct PaymentMethodsListRequest {}
 #[derive(Debug, serde::Serialize, ToSchema)]
 pub struct PaymentMethodListResponseForPayments {
     /// The list of payment methods that are enabled for the business profile
-    #[schema(value_type = Vec<ResponsePaymentMethodTypes>)]
-    pub payment_methods_enabled: Vec<payment_methods::ResponsePaymentMethodTypes>,
+    pub payment_methods_enabled: Vec<ResponsePaymentMethodTypesForPayments>,
 
     /// The list of payment methods that are saved by the given customer
     /// This field is only returned if the customer_id is provided in the request
     #[schema(value_type = Option<Vec<CustomerPaymentMethod>>)]
     pub customer_payment_methods: Option<Vec<payment_methods::CustomerPaymentMethod>>,
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[derive(Debug, Clone, serde::Serialize, ToSchema, PartialEq)]
+pub struct ResponsePaymentMethodTypesForPayments {
+    /// The payment method type enabled
+    #[schema(example = "pay_later", value_type = PaymentMethod)]
+    pub payment_method_type: common_enums::PaymentMethod,
+
+    /// The payment method subtype enabled
+    #[schema(example = "klarna", value_type = PaymentMethodType)]
+    pub payment_method_subtype: common_enums::PaymentMethodType,
+
+    /// payment method subtype specific information
+    #[serde(flatten)]
+    #[schema(value_type = Option<PaymentMethodSubtypeSpecificData>)]
+    pub extra_information: Option<payment_methods::PaymentMethodSubtypeSpecificData>,
+
+    /// Required fields for the payment_method_type.
+    /// This is the union of all the required fields for the payment method type enabled in all the connectors.
+    #[schema(value_type = Option<RequiredFieldInfo>)]
+    pub required_fields: Option<Vec<payment_methods::RequiredFieldInfo>>,
+
+    /// surcharge details for this payment method type if exists
+    #[schema(value_type = Option<SurchargeDetailsResponse>)]
+    pub surcharge_details: Option<payment_methods::SurchargeDetailsResponse>,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
