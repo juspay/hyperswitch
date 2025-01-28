@@ -119,6 +119,7 @@ impl
     }
 }
 
+#[cfg(feature = "v1")]
 impl
     ForeignFrom<(
         &PayoutRequiredFields,
