@@ -15,16 +15,11 @@ pub async fn retrieve_forex(
 ) -> CustomResult<ApplicationResponse<currency::FxExchangeRatesCacheEntry>, ApiErrorResponse> {
     let forex_api = state.conf.forex_api.get_inner();
     Ok(ApplicationResponse::Json(
-        get_forex_rates(
-            &state,
-            forex_api.call_delay,
-            forex_api.local_fetch_retry_delay,
-            forex_api.local_fetch_retry_count,
-        )
-        .await
-        .change_context(ApiErrorResponse::GenericNotFoundError {
-            message: "Unable to fetch forex rates".to_string(),
-        })?,
+        get_forex_rates(&state, forex_api.call_delay)
+            .await
+            .change_context(ApiErrorResponse::GenericNotFoundError {
+                message: "Unable to fetch forex rates".to_string(),
+            })?,
     ))
 }
 
@@ -53,14 +48,9 @@ pub async fn get_forex_exchange_rates(
     state: SessionState,
 ) -> CustomResult<ExchangeRates, AnalyticsError> {
     let forex_api = state.conf.forex_api.get_inner();
-    let rates = get_forex_rates(
-        &state,
-        forex_api.call_delay,
-        forex_api.local_fetch_retry_delay,
-        forex_api.local_fetch_retry_count,
-    )
-    .await
-    .change_context(AnalyticsError::ForexFetchFailed)?;
+    let rates = get_forex_rates(&state, forex_api.call_delay)
+        .await
+        .change_context(AnalyticsError::ForexFetchFailed)?;
 
     Ok((*rates.data).clone())
 }
