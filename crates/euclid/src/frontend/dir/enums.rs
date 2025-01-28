@@ -70,8 +70,8 @@ pub enum PayLaterType {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum WalletType {
-    GooglePay,
     AmazonPay,
+    GooglePay,
     ApplePay,
     Paypal,
     AliPay,
