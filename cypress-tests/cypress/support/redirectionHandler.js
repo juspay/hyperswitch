@@ -121,13 +121,19 @@ function bankRedirectRedirection(
 ) {
   let verifyUrl = false;
 
-  cy.visit(redirection_url.href);
-  waitForRedirect(redirection_url.href);
+  cy.visit(redirectionUrl.href);
+  waitForRedirect(redirectionUrl.href);
 
   cy.url().then((currentUrl) => {
     cy.origin(
       new URL(currentUrl).origin,
-      { args: { connectorId, payment_method_type, constants: CONSTANTS } },
+      {
+        args: {
+          connectorId,
+          payment_method_type,
+          constants: CONSTANTS,
+        },
+      },
       ({ connectorId, payment_method_type, constants }) => {
         switch (connectorId) {
           case "adyen":
@@ -336,7 +342,7 @@ function threeDsRedirection(redirectionUrl, expectedUrl, connectorId) {
           case "cybersource":
             cy.url({ timeout: constants.TIMEOUT }).should(
               "include",
-              expectedUrl.origin
+              expectedUrl
             );
             break;
 
