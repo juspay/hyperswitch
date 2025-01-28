@@ -1621,7 +1621,7 @@ pub(crate) async fn payments_create_and_confirm_intent(
     payment_id: id_type::GlobalPaymentId,
     mut header_payload: HeaderPayload,
     platform_merchant_account: Option<domain::MerchantAccount>,
-) -> RouterResponse<payments_api::PaymentsConfirmIntentResponse> {
+) -> RouterResponse<payments_api::PaymentsResponse> {
     use actix_http::body::MessageBody;
     use common_utils::ext_traits::BytesExt;
     use hyperswitch_domain_models::{
@@ -1655,11 +1655,11 @@ pub(crate) async fn payments_create_and_confirm_intent(
     let create_intent_response = handle_payments_intent_response(create_intent_response)?;
 
     // Adding client secret to ensure client secret validation passes during confirm intent step
-    header_payload.client_secret = Some(create_intent_response.client_secret);
+    header_payload.client_secret = Some(create_intent_response.client_secret.clone());
 
     let payload = payments_api::PaymentsConfirmIntentRequest::from(&request);
 
-    Box::pin(payments_core::<
+    let confirm_intent_response = Box::pin(payments_core::<
         SetupMandate,
         api_models::payments::PaymentsConfirmIntentResponse,
         _,
@@ -1678,9 +1678,15 @@ pub(crate) async fn payments_create_and_confirm_intent(
         CallConnectorAction::Trigger,
         header_payload.clone(),
     ))
-    .await
+    .await?;
+
+    logger::info!(?confirm_intent_response);
+    let confirm_intent_response = handle_payments_intent_response(confirm_intent_response)?;
+
+    construct_payments_response(create_intent_response, confirm_intent_response)
 }
 
+#[cfg(feature = "v2")]
 #[inline]
 fn handle_payments_intent_response<T>(
     response: hyperswitch_domain_models::api::ApplicationResponse<T>,
@@ -1701,6 +1707,37 @@ fn handle_payments_intent_response<T>(
                 .attach_printable("Unexpected response from payment intent core")
         }
     }
+}
+
+#[cfg(feature = "v2")]
+#[inline]
+fn construct_payments_response(
+    create_intent_response: payments_api::PaymentsIntentResponse,
+    confirm_intent_response: payments_api::PaymentsConfirmIntentResponse,
+) -> RouterResponse<payments_api::PaymentsResponse> {
+    let response = payments_api::PaymentsResponse {
+        id: confirm_intent_response.id,
+        status: confirm_intent_response.status,
+        amount: confirm_intent_response.amount,
+        customer_id: confirm_intent_response.customer_id,
+        connector: confirm_intent_response.connector,
+        client_secret: confirm_intent_response.client_secret,
+        created: confirm_intent_response.created,
+        payment_method_data: confirm_intent_response.payment_method_data,
+        payment_method_type: confirm_intent_response.payment_method_type,
+        payment_method_subtype: confirm_intent_response.payment_method_subtype,
+        next_action: confirm_intent_response.next_action,
+        connector_transaction_id: confirm_intent_response.connector_transaction_id,
+        connector_reference_id: confirm_intent_response.connector_reference_id,
+        connector_token_details: confirm_intent_response.connector_token_details,
+        merchant_connector_id: confirm_intent_response.merchant_connector_id,
+        browser_info: confirm_intent_response.browser_info,
+        error: confirm_intent_response.error,
+    };
+
+    Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
+        response,
+    ))
 }
 
 fn is_start_pay<Op: Debug>(operation: &Op) -> bool {
