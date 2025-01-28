@@ -1534,9 +1534,7 @@ pub async fn payments_get_intent_using_merchant_reference(
     merchant_reference_id: &id_type::PaymentReferenceId,
     header_payload: HeaderPayload,
     platform_merchant_account: Option<domain::MerchantAccount>,
-) -> RouterResponse<api::PaymentsIntentResponse>
-{
-
+) -> RouterResponse<api::PaymentsIntentResponse> {
     let db = state.store.as_ref();
     let storage_scheme = merchant_account.storage_scheme;
     let key_manager_state = &(&state).into();
@@ -1551,39 +1549,42 @@ pub async fn payments_get_intent_using_merchant_reference(
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
-    let (payment_data, _req, customer) =
-        Box::pin(payments_intent_operation_core::<
-            api::PaymentGetIntent,
-            _,
-            _,
-            PaymentIntentData<api::PaymentGetIntent>,
-        >(
-            &state,
-            req_state,
-            merchant_account.clone(),
-            profile.clone(),
-            key_store.clone(),
-            operations::PaymentGetIntent,
-            api_models::payments::PaymentsGetIntentRequest {
-                id: payment_intent.get_id().clone()
-            },
-            payment_intent.get_id().clone(),
-            HeaderPayload::default(),
-            platform_merchant_account
-        ))
-        .await?;
+    let (payment_data, _req, customer) = Box::pin(payments_intent_operation_core::<
+        api::PaymentGetIntent,
+        _,
+        _,
+        PaymentIntentData<api::PaymentGetIntent>,
+    >(
+        &state,
+        req_state,
+        merchant_account.clone(),
+        profile.clone(),
+        key_store.clone(),
+        operations::PaymentGetIntent,
+        api_models::payments::PaymentsGetIntentRequest {
+            id: payment_intent.get_id().clone(),
+        },
+        payment_intent.get_id().clone(),
+        HeaderPayload::default(),
+        platform_merchant_account,
+    ))
+    .await?;
 
-        transformers::ToResponse::<api::PaymentGetIntent,PaymentIntentData<api::PaymentGetIntent>,operations::PaymentGetIntent>::generate_response(
-            payment_data,
-            customer,
-            &state.base_url,
-            operations::PaymentGetIntent,
-            &state.conf.connector_request_reference_id_config,
-            None,
-            None,
-            header_payload.x_hs_latency,
-            &merchant_account,
-        )
+    transformers::ToResponse::<
+        api::PaymentGetIntent,
+        PaymentIntentData<api::PaymentGetIntent>,
+        operations::PaymentGetIntent,
+    >::generate_response(
+        payment_data,
+        customer,
+        &state.base_url,
+        operations::PaymentGetIntent,
+        &state.conf.connector_request_reference_id_config,
+        None,
+        None,
+        header_payload.x_hs_latency,
+        &merchant_account,
+    )
 }
 
 #[cfg(feature = "v2")]

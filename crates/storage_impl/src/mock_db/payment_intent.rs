@@ -193,11 +193,14 @@ impl PaymentIntentInterface for MockDb {
         profile_id: &common_utils::id_type::ProfileId,
         _merchant_key_store: &MerchantKeyStore,
         _storage_scheme: &common_enums::MerchantStorageScheme,
-    ) -> error_stack::Result<PaymentIntent, StorageError>{
+    ) -> error_stack::Result<PaymentIntent, StorageError> {
         let payment_intents = self.payment_intents.lock().await;
         let payment_intent = payment_intents
             .iter()
-            .find(|payment_intent| payment_intent.merchant_reference_id.as_ref() == Some(merchant_reference_id) && payment_intent.profile_id.eq(profile_id))
+            .find(|payment_intent| {
+                payment_intent.merchant_reference_id.as_ref() == Some(merchant_reference_id)
+                    && payment_intent.profile_id.eq(profile_id)
+            })
             .ok_or(StorageError::ValueNotFound(
                 "PaymentIntent not found".to_string(),
             ))?;

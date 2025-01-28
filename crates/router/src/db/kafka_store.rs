@@ -1904,7 +1904,7 @@ impl PaymentIntentInterface for KafkaStore {
             )
             .await
     }
-    
+
     #[cfg(feature = "v2")]
     async fn find_payment_intent_by_merchant_reference_id_profile_id(
         &self,
@@ -1913,9 +1913,18 @@ impl PaymentIntentInterface for KafkaStore {
         profile_id: &id_type::ProfileId,
         merchant_key_store: &domain::MerchantKeyStore,
         storage_scheme: &MerchantStorageScheme,
-    ) -> error_stack::Result<hyperswitch_domain_models::payments::PaymentIntent, errors::DataStorageError>{
+    ) -> error_stack::Result<
+        hyperswitch_domain_models::payments::PaymentIntent,
+        errors::DataStorageError,
+    > {
         self.diesel_store
-            .find_payment_intent_by_merchant_reference_id_profile_id(state, merchant_reference_id, profile_id,merchant_key_store, storage_scheme)
+            .find_payment_intent_by_merchant_reference_id_profile_id(
+                state,
+                merchant_reference_id,
+                profile_id,
+                merchant_key_store,
+                storage_scheme,
+            )
             .await
     }
 }
