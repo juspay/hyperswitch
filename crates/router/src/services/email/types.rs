@@ -454,7 +454,7 @@ impl BizEmailProd {
             settings: state.conf.clone(),
             subject: consts::user::EMAIL_SUBJECT_NEW_PROD_INTENT,
             user_name: data.poc_name.unwrap_or_default().into(),
-            poc_email: data.poc_email.unwrap_or_default().into(),
+            poc_email: data.poc_email.unwrap_or_default(),
             legal_business_name: data.legal_business_name.unwrap_or_default(),
             business_location: data
                 .business_location
