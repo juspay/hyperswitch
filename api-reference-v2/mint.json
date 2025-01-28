@@ -42,7 +42,8 @@
         "api-reference/payments/payments--session-token",
         "api-reference/payments/payments--payment-methods-list",
         "api-reference/payments/payments--confirm-intent",
-        "api-reference/payments/payments--get"
+        "api-reference/payments/payments--get",
+        "api-reference/payments/payments--create-and-confirm-intent"
       ]
     },
     {
