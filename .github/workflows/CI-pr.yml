@@ -131,6 +131,9 @@ jobs:
         with:
           tool: sccache
           checksum: true
+      
+      - name: Install rust cache
+        uses: Swatinem/rust-cache@v2.7.0
 
       - name: Install cargo-hack
         uses: taiki-e/install-action@v2.33.28
@@ -234,6 +237,9 @@ jobs:
         with:
           tool: sccache
           checksum: true
+
+      - name: Install rust cache
+        uses: Swatinem/rust-cache@v2.7.0
 
       - name: Install cargo-hack
         uses: taiki-e/install-action@v2.33.28
