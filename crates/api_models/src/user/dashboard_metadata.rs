@@ -94,7 +94,7 @@ pub struct ProdIntent {
     pub business_label: Option<String>,
     pub business_location: Option<CountryAlpha2>,
     pub display_name: Option<String>,
-    pub poc_email: Option<String>,
+    pub poc_email: Option<Secret<String>>,
     pub business_type: Option<String>,
     pub business_identifier: Option<String>,
     pub business_website: Option<String>,
