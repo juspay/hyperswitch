@@ -1,3 +1,4 @@
+use common_enums::RequestIncrementalAuthorization;
 #[cfg(feature = "v2")]
 use common_utils::ext_traits::{Encode, ValueExt};
 use common_utils::{
@@ -15,6 +16,7 @@ use common_utils::{
 };
 use diesel_models::{
     PaymentIntent as DieselPaymentIntent, PaymentIntentNew as DieselPaymentIntentNew,
+    PaymentLinkConfigRequestForPayments,
 };
 use error_stack::ResultExt;
 #[cfg(feature = "v2")]
@@ -31,8 +33,9 @@ use crate::address::Address;
 use crate::{
     behaviour, errors,
     merchant_key_store::MerchantKeyStore,
+    routing,
     type_encryption::{crypto_operation, CryptoOperation},
-    RemoteStorageObject,
+    FeatureMetadata, OrderDetailsWithAmount, RemoteStorageObject,
 };
 
 #[async_trait::async_trait]
@@ -307,7 +310,7 @@ pub enum PaymentIntentUpdate {
     },
     /// Update the payment intent details on payment sdk session call, before calling the connector.
     SessionIntentUpdate {
-        prerouting_algorithm: serde_json::Value,
+        prerouting_algorithm: routing::PaymentRoutingInfo,
         updated_by: String,
     },
     /// UpdateIntent
@@ -360,14 +363,15 @@ pub struct PaymentIntentUpdateInternal {
 
 // This conversion is used in the `update_payment_intent` function
 #[cfg(feature = "v2")]
-impl From<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal {
-    fn from(payment_intent_update: PaymentIntentUpdate) -> Self {
+impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal {
+    type Error = error_stack::Report<errors::StorageError>;
+    fn try_from(payment_intent_update: PaymentIntentUpdate) -> Result<Self, Self::Error> {
         match payment_intent_update {
             PaymentIntentUpdate::ConfirmIntent {
                 status,
                 active_attempt_id,
                 updated_by,
-            } => Self {
+            } => Ok(Self {
                 status: Some(status),
                 active_attempt_id: Some(active_attempt_id),
                 prerouting_algorithm: None,
@@ -403,13 +407,13 @@ impl From<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal {
                 frm_metadata: None,
                 request_external_three_ds_authentication: None,
                 updated_by,
-            },
+            }),
 
             PaymentIntentUpdate::ConfirmIntentPostUpdate {
                 status,
                 updated_by,
                 amount_captured,
-            } => Self {
+            } => Ok(Self {
                 status: Some(status),
                 active_attempt_id: None,
                 prerouting_algorithm: None,
@@ -445,12 +449,12 @@ impl From<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal {
                 frm_metadata: None,
                 request_external_three_ds_authentication: None,
                 updated_by,
-            },
+            }),
             PaymentIntentUpdate::SyncUpdate {
                 status,
                 amount_captured,
                 updated_by,
-            } => Self {
+            } => Ok(Self {
                 status: Some(status),
                 active_attempt_id: None,
                 prerouting_algorithm: None,
@@ -486,12 +490,12 @@ impl From<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal {
                 frm_metadata: None,
                 request_external_three_ds_authentication: None,
                 updated_by,
-            },
+            }),
             PaymentIntentUpdate::CaptureUpdate {
                 status,
                 amount_captured,
                 updated_by,
-            } => Self {
+            } => Ok(Self {
                 status: Some(status),
                 amount_captured,
                 active_attempt_id: None,
@@ -527,16 +531,21 @@ impl From<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal {
                 frm_metadata: None,
                 request_external_three_ds_authentication: None,
                 updated_by,
-            },
+            }),
             PaymentIntentUpdate::SessionIntentUpdate {
                 prerouting_algorithm,
                 updated_by,
-            } => Self {
+            } => Ok(Self {
                 status: None,
                 active_attempt_id: None,
                 modified_at: common_utils::date_time::now(),
                 amount_captured: None,
-                prerouting_algorithm: Some(prerouting_algorithm),
+                prerouting_algorithm: Some(
+                    prerouting_algorithm
+                        .encode_to_value()
+                        .change_context(errors::StorageError::SerializationFailed)
+                        .attach_printable("Failed to Serialize prerouting_algorithm")?,
+                ),
                 amount: None,
                 currency: None,
                 shipping_cost: None,
@@ -567,7 +576,7 @@ impl From<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal {
                 frm_metadata: None,
                 request_external_three_ds_authentication: None,
                 updated_by,
-            },
+            }),
             PaymentIntentUpdate::UpdateIntent(boxed_intent) => {
                 let PaymentIntentUpdateFields {
                     amount,
@@ -601,7 +610,7 @@ impl From<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal {
                     request_external_three_ds_authentication,
                     updated_by,
                 } = *boxed_intent;
-                Self {
+                Ok(Self {
                     status: None,
                     active_attempt_id: None,
                     prerouting_algorithm: None,
@@ -644,7 +653,7 @@ impl From<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal {
                         request_external_three_ds_authentication.map(|val| val.as_bool()),
 
                     updated_by,
-                }
+                })
             }
         }
     }
