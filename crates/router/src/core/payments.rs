@@ -1659,25 +1659,17 @@ pub(crate) async fn payments_create_and_confirm_intent(
 
     let payload = payments_api::PaymentsConfirmIntentRequest::from(&request);
 
-    let confirm_intent_response = Box::pin(payments_core::<
-        SetupMandate,
-        api_models::payments::PaymentsConfirmIntentResponse,
-        _,
-        _,
-        _,
-        PaymentConfirmData<SetupMandate>,
-    >(
+    let confirm_intent_response = decide_authorize_or_setup_intent_flow(
         state,
         req_state,
         merchant_account,
         profile,
         key_store,
-        operations::PaymentIntentConfirm,
+        &create_intent_response,
         payload,
         payment_id,
-        CallConnectorAction::Trigger,
-        header_payload.clone(),
-    ))
+        header_payload,
+    )
     .await?;
 
     logger::info!(?confirm_intent_response);
@@ -1738,6 +1730,69 @@ fn construct_payments_response(
     Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
         response,
     ))
+}
+
+#[cfg(feature = "v2")]
+#[allow(clippy::too_many_arguments)]
+async fn decide_authorize_or_setup_intent_flow(
+    state: SessionState,
+    req_state: ReqState,
+    merchant_account: domain::MerchantAccount,
+    profile: domain::Profile,
+    key_store: domain::MerchantKeyStore,
+    create_intent_response: &payments_api::PaymentsIntentResponse,
+    confirm_intent_request: payments_api::PaymentsConfirmIntentRequest,
+    payment_id: id_type::GlobalPaymentId,
+    mut header_payload: HeaderPayload,
+) -> RouterResponse<payments_api::PaymentsConfirmIntentResponse> {
+    use hyperswitch_domain_models::{
+        payments::PaymentConfirmData,
+        router_flow_types::{Authorize, SetupMandate},
+    };
+
+    if create_intent_response.amount_details.order_amount == MinorUnit::zero() {
+        Box::pin(payments_core::<
+            SetupMandate,
+            api_models::payments::PaymentsConfirmIntentResponse,
+            _,
+            _,
+            _,
+            PaymentConfirmData<SetupMandate>,
+        >(
+            state,
+            req_state,
+            merchant_account,
+            profile,
+            key_store,
+            operations::PaymentIntentConfirm,
+            confirm_intent_request,
+            payment_id,
+            CallConnectorAction::Trigger,
+            header_payload,
+        ))
+        .await
+    } else {
+        Box::pin(payments_core::<
+            Authorize,
+            api_models::payments::PaymentsConfirmIntentResponse,
+            _,
+            _,
+            _,
+            PaymentConfirmData<Authorize>,
+        >(
+            state,
+            req_state,
+            merchant_account,
+            profile,
+            key_store,
+            operations::PaymentIntentConfirm,
+            confirm_intent_request,
+            payment_id,
+            CallConnectorAction::Trigger,
+            header_payload,
+        ))
+        .await
+    }
 }
 
 fn is_start_pay<Op: Debug>(operation: &Op) -> bool {
