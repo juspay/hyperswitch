@@ -216,3 +216,6 @@ pub const AUTHENTICATION_SERVICE_ELIGIBLE_CONFIG: &str =
 
 /// Refund flow identifier used for performing GSM operations
 pub const REFUND_FLOW_STR: &str = "refund_flow";
+
+/// Authorize flow identifier used for performing GSM operations
+pub const AUTHORIZE_FLOW_STR: &str = "Authorize";

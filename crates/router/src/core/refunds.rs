@@ -297,6 +297,21 @@ pub async fn trigger_refund_to_gateway(
                 consts::REFUND_FLOW_STR.to_string(),
             )
             .await;
+            // Note: Some connectors do not have a separate list of refund errors
+            // In such cases, the error codes and messages are stored under "Authorize" flow in GSM table
+            // So we will have to fetch the GSM using Authorize flow in case GSM is not found using "refund_flow"
+            let option_gsm = if option_gsm.is_none() {
+                helpers::get_gsm_record(
+                    state,
+                    Some(err.code.clone()),
+                    Some(err.message.clone()),
+                    connector.connector_name.to_string(),
+                    consts::AUTHORIZE_FLOW_STR.to_string(),
+                )
+                .await
+            } else {
+                option_gsm
+            };
 
             let gsm_unified_code = option_gsm.as_ref().and_then(|gsm| gsm.unified_code.clone());
             let gsm_unified_message = option_gsm.and_then(|gsm| gsm.unified_message);
