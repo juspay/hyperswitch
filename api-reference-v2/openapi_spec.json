@@ -14447,6 +14447,15 @@
               }
             ],
             "nullable": true
+          },
+          "expires_in": {
+            "type": "integer",
+            "format": "int32",
+            "description": "The time (seconds ) when the session will expire\nIf not provided, the session will expire in 15 minutes",
+            "default": 900,
+            "example": 900,
+            "nullable": true,
+            "minimum": 0
           }
         }
       },
@@ -14454,7 +14463,8 @@
         "type": "object",
         "required": [
           "id",
-          "customer_id"
+          "customer_id",
+          "expires_at"
         ],
         "properties": {
           "id": {
@@ -14489,6 +14499,12 @@
               }
             ],
             "nullable": true
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The iso timestamp when the session will expire\nTrying to retrieve the session or any operations on the session after this time will result in an error",
+            "example": "2023-01-18T11:04:09.922Z"
           }
         }
       },
