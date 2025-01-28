@@ -659,7 +659,7 @@ pub fn payments_get_intent() {}
       (
         "X-Profile-Id" = String, Header,
         description = "Profile ID associated to the payment intent",
-        example = json!({"X-Profile-Id": "pro_abcdefghijklmnop"})
+        example = "pro_abcdefghijklmnop"
       ),
     ),
   request_body(
@@ -695,7 +695,7 @@ pub fn payments_update_intent() {}
       (
         "X-Profile-Id" = String, Header,
         description = "Profile ID associated to the payment intent",
-        example = json!({"X-Profile-Id": "pro_abcdefghijklmnop"})
+        example = "pro_abcdefghijklmnop"
       ),
       (
         "X-Client-Secret" = String, Header,
@@ -710,6 +710,7 @@ pub fn payments_update_intent() {}
               "Confirm the payment intent with card details" = (
                   value = json!({
                     "payment_method_type": "card",
+                    "payment_method_subtype": "credit",
                     "payment_method_data": {
                       "card": {
                         "card_number": "4242424242424242",
@@ -756,6 +757,57 @@ pub fn payments_confirm_intent() {}
 #[cfg(feature = "v2")]
 pub fn payment_status() {}
 
+/// Payments - Create and Confirm Intent
+///
+/// **Creates and confirms a payment intent object when the amount and payment method information are passed.**
+///
+/// You will require the 'API - Key' from the Hyperswitch dashboard to make the call.
+#[utoipa::path(
+  post,
+  path = "/v2/payments",
+  params (
+      (
+        "X-Profile-Id" = String, Header,
+        description = "Profile ID associated to the payment intent",
+        example = "pro_abcdefghijklmnop"
+      )
+    ),
+  request_body(
+      content = PaymentsRequest,
+      examples(
+          (
+              "Create and confirm the payment intent with amount and card details" = (
+                  value = json!({
+                    "amount_details": {
+                      "order_amount": 6540,
+                      "currency": "USD"
+                    },
+                    "payment_method_type": "card",
+                    "payment_method_subtype": "credit",
+                    "payment_method_data": {
+                      "card": {
+                        "card_number": "4242424242424242",
+                        "card_exp_month": "10",
+                        "card_exp_year": "25",
+                        "card_holder_name": "joseph Doe",
+                        "card_cvc": "123"
+                      }
+                    },
+                  })
+              )
+          ),
+      ),
+  ),
+  responses(
+      (status = 200, description = "Payment created", body = PaymentsResponse),
+      (status = 400, description = "Missing Mandatory fields")
+  ),
+  tag = "Payments",
+  operation_id = "Create and Confirm Payment Intent",
+  security(("api_key" = [])),
+)]
+pub fn payments_create_and_confirm_intent() {}
+
 #[derive(utoipa::ToSchema)]
 #[schema(rename_all = "lowercase")]
 pub(crate) enum ForceSync {
@@ -777,7 +829,7 @@ pub(crate) enum ForceSync {
         (
           "X-Profile-Id" = String, Header,
           description = "Profile ID associated to the payment intent",
-          example = json!({"X-Profile-Id": "pro_abcdefghijklmnop"})
+          example = "pro_abcdefghijklmnop"
         ),
         (
           "X-Client-Secret" = String, Header,

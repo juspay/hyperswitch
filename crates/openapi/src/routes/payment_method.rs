@@ -334,7 +334,7 @@ pub async fn payment_method_delete_api() {}
         (
           "X-Profile-Id" = String, Header,
           description = "Profile ID associated to the payment method intent",
-          example = json!({"X-Profile-Id": "pro_abcdefghijklmnop"})
+          example = "pro_abcdefghijklmnop"
         ),
     ),
     responses(
