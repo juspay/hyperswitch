@@ -235,7 +235,7 @@ pub enum ProfileUpdate {
     NetworkTokenizationUpdate {
         is_network_tokenization_enabled: bool,
     },
-    FingerprintSecretKeyUpdate {
+    CardTestingSecretKeyUpdate {
         card_testing_secret_key: OptionalEncryptableName,
     },
 }
@@ -531,7 +531,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 card_testing_guard_config: None,
                 card_testing_secret_key: None,
             },
-            ProfileUpdate::FingerprintSecretKeyUpdate {
+            ProfileUpdate::CardTestingSecretKeyUpdate {
                 card_testing_secret_key,
             } => Self {
                 profile_name: None,
@@ -1004,7 +1004,7 @@ pub enum ProfileUpdate {
     DecisionManagerRecordUpdate {
         three_ds_decision_manager_config: common_types::payments::DecisionManagerRecord,
     },
-    FingerprintSecretKeyUpdate {
+    CardTestingSecretKeyUpdate {
         card_testing_secret_key: OptionalEncryptableName,
     },
 }
@@ -1087,7 +1087,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     authentication_product_ids,
                     three_ds_decision_manager_config,
                     card_testing_guard_config,
-                    card_testing_secret_key,
+                    card_testing_secret_key: card_testing_secret_key.map(Encryption::from),
                 }
             }
             ProfileUpdate::RoutingAlgorithmUpdate {
@@ -1401,7 +1401,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 card_testing_guard_config: None,
                 card_testing_secret_key: None,
             },
-            ProfileUpdate::FingerprintSecretKeyUpdate {
+            ProfileUpdate::CardTestingSecretKeyUpdate {
                 card_testing_secret_key,
             } => Self {
                 profile_name: None,

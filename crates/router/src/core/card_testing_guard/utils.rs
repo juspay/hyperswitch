@@ -88,7 +88,7 @@ pub async fn get_merchant_profile_fingerprint_secret(
                     key_manager_state,
                     &key_store,
                     business_profile.clone(),
-                    domain::ProfileUpdate::FingerprintSecretKeyUpdate {
+                    domain::ProfileUpdate::CardTestingSecretKeyUpdate {
                         card_testing_secret_key: AsyncLift::async_lift(
                             fingerprint_secret,
                             |inner| async {
