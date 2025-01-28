@@ -336,7 +336,7 @@ function threeDsRedirection(redirectionUrl, expectedUrl, connectorId) {
           case "cybersource":
             cy.url({ timeout: constants.TIMEOUT }).should(
               "include",
-              expected_url.origin
+              expectedUrl.origin
             );
             break;
 
@@ -533,6 +533,7 @@ function verifyReturnUrl(redirectionUrl, expectedUrl, forwardFlow) {
                       pattern.test(pageText)
                     )
                   ) {
+                    // eslint-disable-next-line cypress/assertion-before-screenshot
                     cy.screenshot(`error-page-${Date.now()}`);
                   }
                 });
@@ -543,6 +544,7 @@ function verifyReturnUrl(redirectionUrl, expectedUrl, forwardFlow) {
                 if (
                   !CONSTANTS.VALID_TERMINAL_STATUSES.includes(paymentStatus)
                 ) {
+                  // eslint-disable-next-line cypress/assertion-before-screenshot
                   cy.screenshot(`failed-payment-${paymentStatus}`);
                   throw new Error(
                     `Redirection failed with payment status: ${paymentStatus}`
