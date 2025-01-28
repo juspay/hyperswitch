@@ -510,6 +510,7 @@ pub struct PaymentMethodsSession {
     pub billing: Option<Encryptable<Address>>,
     pub psp_tokenization: Option<common_types::payment_methods::PspTokenization>,
     pub network_tokenization: Option<common_types::payment_methods::NetworkTokenization>,
+    pub expires_at: PrimitiveDateTime,
 }
 
 #[cfg(feature = "v2")]
@@ -524,6 +525,7 @@ impl super::behaviour::Conversion for PaymentMethodsSession {
             billing: self.billing.map(|val| val.into()),
             psp_tokenization: self.psp_tokenization,
             network_tokeinzation: self.network_tokenization,
+            expires_at: self.expires_at,
         })
     }
 
@@ -572,6 +574,7 @@ impl super::behaviour::Conversion for PaymentMethodsSession {
                 billing,
                 psp_tokenization: storage_model.psp_tokenization,
                 network_tokenization: storage_model.network_tokeinzation,
+                expires_at: storage_model.expires_at,
             })
         }
         .await
@@ -587,6 +590,7 @@ impl super::behaviour::Conversion for PaymentMethodsSession {
             billing: self.billing.map(|val| val.into()),
             psp_tokenization: self.psp_tokenization,
             network_tokeinzation: self.network_tokenization,
+            expires_at: self.expires_at,
         })
     }
 }

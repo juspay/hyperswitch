@@ -2399,6 +2399,11 @@ pub struct PaymentMethodsSessionRequest {
     /// The network tokenization configuration if applicable
     #[schema(value_type = Option<NetworkTokenization>)]
     pub network_tokenization: Option<common_types::payment_methods::NetworkTokenization>,
+
+    /// The time (seconds ) when the session will expire
+    /// If not provided, the session will expire in 15 minutes
+    #[schema(example = 900, default = 900)]
+    pub expires_in: Option<u32>,
 }
 
 #[cfg(feature = "v2")]
@@ -2422,4 +2427,10 @@ pub struct PaymentMethodsSessionResponse {
     /// The network tokenization configuration if applicable
     #[schema(value_type = Option<NetworkTokenization>)]
     pub network_tokenization: Option<common_types::payment_methods::NetworkTokenization>,
+
+    /// The iso timestamp when the session will expire
+    /// Trying to retrieve the session or any operations on the session after this time will result in an error
+    #[schema(value_type = PrimitiveDateTime, example = "2023-01-18T11:04:09.922Z")]
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub expires_at: time::PrimitiveDateTime,
 }

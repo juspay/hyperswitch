@@ -989,6 +989,7 @@ impl transformers::ForeignFrom<hyperswitch_domain_models::payment_methods::Payme
                 .map(From::from),
             psp_tokenization: item.psp_tokenization,
             network_tokenization: item.network_tokenization,
+            expires_at: item.expires_at,
         }
     }
 }
