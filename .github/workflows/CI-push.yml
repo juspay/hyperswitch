@@ -84,7 +84,7 @@ jobs:
       #     tool: sccache
       #     checksum: true
 
-      - uses: Swatinem/rust-cache@v2.7.0
+      - uses: Swatinem/rust-cache@v2.7.7
         with:
           save-if: ${{ github.event_name == 'push' }}
 
@@ -196,7 +196,7 @@ jobs:
       #   with:
       #     crate: cargo-nextest
 
-      - uses: Swatinem/rust-cache@v2.7.0
+      - uses: Swatinem/rust-cache@v2.7.7
         with:
           save-if: ${{ github.event_name == 'push' }}
 
@@ -249,7 +249,7 @@ jobs:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install rust cache
-        uses: Swatinem/rust-cache@v2.7.0
+        uses: Swatinem/rust-cache@v2.7.7
 
       - name: Run cargo check enabling only the release and v2 features
         shell: bash
