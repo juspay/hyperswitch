@@ -22,19 +22,19 @@ const CONSTANTS = {
 };
 
 export function handleRedirection(
-  redirection_type,
+  redirectionType,
   urls,
   connectorId,
-  payment_method_type,
-  handler_metadata
+  paymentMethodType,
+  handlerMetadata
 ) {
-  switch (redirection_type) {
+  switch (redirectionType) {
     case "bank_redirect":
       bankRedirectRedirection(
         urls.redirection_url,
         urls.expected_url,
         connectorId,
-        payment_method_type
+        paymentMethodType
       );
       break;
     case "bank_transfer":
@@ -42,8 +42,8 @@ export function handleRedirection(
         urls.redirection_url,
         urls.expected_url,
         connectorId,
-        payment_method_type,
-        handler_metadata.next_action_type
+        paymentMethodType,
+        handlerMetadata.next_action_type
       );
       break;
     case "three_ds":
@@ -54,70 +54,70 @@ export function handleRedirection(
         urls.redirection_url,
         urls.expected_url,
         connectorId,
-        payment_method_type
+        paymentMethodType
       );
       break;
     default:
-      throw new Error(`Unknown redirection type: ${redirection_type}`);
+      throw new Error(`Unknown redirection type: ${redirectionType}`);
   }
 }
 
 function bankTransferRedirection(
-  redirection_url,
-  expected_url,
+  redirectionUrl,
+  expectedUrl,
   connectorId,
-  payment_method_type,
-  next_action_type
+  paymentMethodType,
+  nextActionType
 ) {
-  switch (next_action_type) {
+  switch (nextActionType) {
     case "qr_code_url":
-      cy.request(redirection_url.href).then((response) => {
+      cy.request(redirectionUrl.href).then((response) => {
         switch (connectorId) {
           case "adyen":
-            switch (payment_method_type) {
+            switch (paymentMethodType) {
               case "pix":
                 expect(response.status).to.eq(200);
-                fetchAndParseQRCode(redirection_url.href).then((qrCodeData) => {
+                fetchAndParseQRCode(redirectionUrl.href).then((qrCodeData) => {
                   expect(qrCodeData).to.eq("TestQRCodeEMVToken");
                 });
                 break;
               default:
-                verifyReturnUrl(redirection_url, expected_url, true);
+                verifyReturnUrl(redirectionUrl, expectedUrl, true);
               // expected_redirection can be used here to handle other payment methods
             }
             break;
           default:
-            verifyReturnUrl(redirection_url, expected_url, true);
+            verifyReturnUrl(redirectionUrl, expectedUrl, true);
         }
       });
       break;
     case "image_data_url":
       switch (connectorId) {
         case "itaubank":
-          switch (payment_method_type) {
+          switch (paymentMethodType) {
             case "pix":
-              fetchAndParseImageData(redirection_url).then((qrCodeData) => {
+              fetchAndParseImageData(redirectionUrl).then((qrCodeData) => {
                 expect(qrCodeData).to.contains("itau.com.br/pix/qr/v2"); // image data contains the following value
               });
               break;
             default:
-              verifyReturnUrl(redirection_url, expected_url, true);
+              verifyReturnUrl(redirectionUrl, expectedUrl, true);
           }
           break;
         default:
-          verifyReturnUrl(redirection_url, expected_url, true);
+          verifyReturnUrl(redirectionUrl, expectedUrl, true);
       }
       break;
     default:
-      verifyReturnUrl(redirection_url, expected_url, true);
+      verifyReturnUrl(redirectionUrl, expectedUrl, true);
   }
 }
 
 function bankRedirectRedirection(
-  redirection_url,
-  expected_url,
+  redirectionUrl,
+  expectedUrl,
   connectorId,
-  payment_method_type
+  paymentMethodType
 ) {
   let verifyUrl = false;
 
@@ -130,14 +130,14 @@ function bankRedirectRedirection(
       {
         args: {
           connectorId,
-          payment_method_type,
+          paymentMethodType,
           constants: CONSTANTS,
         },
       },
-      ({ connectorId, payment_method_type, constants }) => {
+      ({ connectorId, paymentMethodType, constants }) => {
         switch (connectorId) {
           case "adyen":
-            switch (payment_method_type) {
+            switch (paymentMethodType) {
               case "eps":
                 cy.get("h1").should("contain.text", "Acquirer Simulator");
                 cy.get('[value="authorised"]').click();
@@ -206,18 +206,18 @@ function bankRedirectRedirection(
                 break;
               default:
                 throw new Error(
-                  `Unsupported payment method type: ${payment_method_type}`
+                  `Unsupported payment method type: ${paymentMethodType}`
                 );
             }
             verifyUrl = true;
             break;
           case "paypal":
-            if (["eps", "ideal", "giropay"].includes(payment_method_type)) {
+            if (["eps", "ideal", "giropay"].includes(paymentMethodType)) {
               cy.get('button[name="Successful"][value="SUCCEEDED"]').click();
               verifyUrl = true;
             } else {
               throw new Error(
-                `Unsupported payment method type: ${payment_method_type}`
+                `Unsupported payment method type: ${paymentMethodType}`
               );
             }
             verifyUrl = true;
@@ -225,20 +225,20 @@ function bankRedirectRedirection(
           case "stripe":
             if (
               ["eps", "ideal", "giropay", "sofort", "przelewy24"].includes(
-                payment_method_type
+                paymentMethodType
               )
             ) {
               cy.get('a[name="success"]').click();
               verifyUrl = true;
             } else {
               throw new Error(
-                `Unsupported payment method type: ${payment_method_type}`
+                `Unsupported payment method type: ${paymentMethodType}`
               );
             }
             verifyUrl = true;
             break;
           case "trustpay":
-            switch (payment_method_type) {
+            switch (paymentMethodType) {
               case "eps":
                 cy.get("#bankname").type(
                   "Allgemeine Sparkasse Oberösterreich Bank AG (ASPKAT2LXXX / 20320)"
@@ -272,7 +272,7 @@ function bankRedirectRedirection(
                 break;
               default:
                 throw new Error(
-                  `Unsupported payment method type: ${payment_method_type}`
+                  `Unsupported payment method type: ${paymentMethodType}`
                 );
             }
             verifyUrl = false;
@@ -285,7 +285,7 @@ function bankRedirectRedirection(
   });
 
   cy.then(() => {
-    verifyReturnUrl(redirection_url, expected_url, verifyUrl);
+    verifyReturnUrl(redirectionUrl, expectedUrl, verifyUrl);
   });
 }
 
@@ -462,22 +462,22 @@ function threeDsRedirection(redirectionUrl, expectedUrl, connectorId) {
 }
 
 function upiRedirection(
-  redirection_url,
-  expected_url,
+  redirectionUrl,
+  expectedUrl,
   connectorId,
-  payment_method_type
+  paymentMethodType
 ) {
   let verifyUrl = false;
   if (connectorId === "iatapay") {
-    switch (payment_method_type) {
+    switch (paymentMethodType) {
       case "upi_collect":
-        cy.visit(redirection_url.href);
+        cy.visit(redirectionUrl.href);
         cy.wait(CONSTANTS.TIMEOUT).then(() => {
           verifyUrl = true;
         });
         break;
       case "upi_intent":
-        cy.request(redirection_url.href).then((response) => {
+        cy.request(redirectionUrl.href).then((response) => {
           expect(response.status).to.eq(200);
           expect(response.body).to.have.property("iataPaymentId");
           expect(response.body).to.have.property("status", "INITIATED");
@@ -489,7 +489,7 @@ function upiRedirection(
         break;
       default:
         throw new Error(
-          `Unsupported payment method type: ${payment_method_type}`
+          `Unsupported payment method type: ${paymentMethodType}`
         );
     }
   } else {
@@ -498,7 +498,7 @@ function upiRedirection(
   }
 
   cy.then(() => {
-    verifyReturnUrl(redirection_url, expected_url, verifyUrl);
+    verifyReturnUrl(redirectionUrl, expectedUrl, verifyUrl);
   });
 }
 
