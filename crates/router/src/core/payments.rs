@@ -1651,23 +1651,8 @@ pub(crate) async fn payments_create_and_confirm_intent(
     ))
     .await?;
 
-    logger::info!(create_setup_intent_response=?create_intent_response);
-    let create_intent_response = match create_intent_response {
-        hyperswitch_domain_models::api::ApplicationResponse::Json(response)
-        | hyperswitch_domain_models::api::ApplicationResponse::JsonWithHeaders((response, _)) => {
-            Ok(response)
-        }
-        hyperswitch_domain_models::api::ApplicationResponse::StatusOk
-        | hyperswitch_domain_models::api::ApplicationResponse::TextPlain(_)
-        | hyperswitch_domain_models::api::ApplicationResponse::JsonForRedirection(_)
-        | hyperswitch_domain_models::api::ApplicationResponse::Form(_)
-        | hyperswitch_domain_models::api::ApplicationResponse::PaymentLinkForm(_)
-        | hyperswitch_domain_models::api::ApplicationResponse::FileData(_)
-        | hyperswitch_domain_models::api::ApplicationResponse::GenericLinkForm(_) => {
-            Err(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Unexpected response from payment intent core")
-        }
-    }?;
+    logger::info!(?create_intent_response);
+    let create_intent_response = handle_payments_intent_response(create_intent_response)?;
 
     // Adding client secret to ensure client secret validation passes during confirm intent step
     header_payload.client_secret = Some(create_intent_response.client_secret);
@@ -1694,6 +1679,28 @@ pub(crate) async fn payments_create_and_confirm_intent(
         header_payload.clone(),
     ))
     .await
+}
+
+#[inline]
+fn handle_payments_intent_response<T>(
+    response: hyperswitch_domain_models::api::ApplicationResponse<T>,
+) -> CustomResult<T, errors::ApiErrorResponse> {
+    match response {
+        hyperswitch_domain_models::api::ApplicationResponse::Json(body)
+        | hyperswitch_domain_models::api::ApplicationResponse::JsonWithHeaders((body, _)) => {
+            Ok(body)
+        }
+        hyperswitch_domain_models::api::ApplicationResponse::StatusOk
+        | hyperswitch_domain_models::api::ApplicationResponse::TextPlain(_)
+        | hyperswitch_domain_models::api::ApplicationResponse::JsonForRedirection(_)
+        | hyperswitch_domain_models::api::ApplicationResponse::Form(_)
+        | hyperswitch_domain_models::api::ApplicationResponse::PaymentLinkForm(_)
+        | hyperswitch_domain_models::api::ApplicationResponse::FileData(_)
+        | hyperswitch_domain_models::api::ApplicationResponse::GenericLinkForm(_) => {
+            Err(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Unexpected response from payment intent core")
+        }
+    }
 }
 
 fn is_start_pay<Op: Debug>(operation: &Op) -> bool {
