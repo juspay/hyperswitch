@@ -435,7 +435,7 @@ outgoing_enabled = true
 connectors_with_webhook_source_verification_call = "paypal"     # List of connectors which has additional source verification api-call
 
 [unmasked_headers]
-keys = "accept-language,user-agent,x-profile-id"
+keys = "accept-language,user-agent,x-profile-id,x-tenant-id"
 
 [saved_payment_methods]
 sdk_eligible_payment_methods = "card"
