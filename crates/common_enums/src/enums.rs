@@ -63,6 +63,8 @@ pub enum ApiClientError {
     #[error("Unexpected state reached/Invariants conflicted")]
     UnexpectedState,
 
+    #[error("Failed to parse URL")]
+    UrlParsingFailed,
     #[error("URL encoding of request payload failed")]
     UrlEncodingFailed,
     #[error("Failed to send request to connector {0}")]
@@ -1304,6 +1306,20 @@ pub enum IntentStatus {
 }
 
 impl IntentStatus {
+    /// Indicates whether the payment intent is in terminal state or not
+    pub fn is_in_terminal_state(self) -> bool {
+        match self {
+            Self::Succeeded | Self::Failed | Self::Cancelled | Self::PartiallyCaptured => true,
+            Self::Processing
+            | Self::RequiresCustomerAction
+            | Self::RequiresMerchantAction
+            | Self::RequiresPaymentMethod
+            | Self::RequiresConfirmation
+            | Self::RequiresCapture
+            | Self::PartiallyCapturedAndCapturable => false,
+        }
+    }
+
     /// Indicates whether the syncing with the connector should be allowed or not
     pub fn should_force_sync_with_connector(self) -> bool {
         match self {
@@ -1726,6 +1742,53 @@ pub enum RefundStatus {
     Success,
     #[serde(alias = "TransactionFailure")]
     TransactionFailure,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    Hash,
+    PartialEq,
+    strum::Display,
+    strum::EnumString,
+    strum::EnumIter,
+    serde::Serialize,
+    serde::Deserialize,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+pub enum RelayStatus {
+    Created,
+    #[default]
+    Pending,
+    Success,
+    Failure,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    strum::Display,
+    strum::EnumString,
+    strum::EnumIter,
+    serde::Serialize,
+    serde::Deserialize,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+pub enum RelayType {
+    Refund,
 }
 
 #[derive(
@@ -3372,6 +3435,26 @@ impl From<ConnectorType> for TransactionType {
     }
 }
 
+impl From<RefundStatus> for RelayStatus {
+    fn from(refund_status: RefundStatus) -> Self {
+        match refund_status {
+            RefundStatus::Failure | RefundStatus::TransactionFailure => Self::Failure,
+            RefundStatus::ManualReview | RefundStatus::Pending => Self::Pending,
+            RefundStatus::Success => Self::Success,
+        }
+    }
+}
+
+impl From<RelayStatus> for RefundStatus {
+    fn from(relay_status: RelayStatus) -> Self {
+        match relay_status {
+            RelayStatus::Failure => Self::Failure,
+            RelayStatus::Pending | RelayStatus::Created => Self::Pending,
+            RelayStatus::Success => Self::Success,
+        }
+    }
+}
+
 #[derive(
     Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize, Default, ToSchema,
 )]
@@ -3506,4 +3589,64 @@ pub enum StripeChargeType {
     #[default]
     Direct,
     Destination,
+}
+
+/// Authentication Products
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum AuthenticationProduct {
+    ClickToPay,
+}
+
+/// Connector Access Method
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    ToSchema,
+)]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+pub enum PaymentConnectorCategory {
+    PaymentGateway,
+    AlternativePaymentMethod,
+    BankAcquirer,
+}
+
+/// The status of the feature
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    ToSchema,
+)]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+pub enum FeatureStatus {
+    NotSupported,
+    Supported,
 }

@@ -1,15 +1,20 @@
-use std::{borrow::Cow, str::FromStr};
+use std::{borrow::Cow, collections::HashSet, str::FromStr};
 
+#[cfg(feature = "v2")]
+use api_models::ephemeral_key::EphemeralKeyResponse;
 use api_models::{
     mandates::RecurringDetails,
     payments::{additional_info as payment_additional_types, RequestSurchargeDetails},
 };
 use base64::Engine;
 use common_enums::ConnectorType;
+#[cfg(feature = "v2")]
+use common_utils::id_type::GenerateId;
 use common_utils::{
     crypto::Encryptable,
     ext_traits::{AsyncExt, ByteSliceExt, Encode, ValueExt},
-    fp_utils, generate_id, id_type,
+    fp_utils, generate_id,
+    id_type::{self},
     new_type::{MaskedIban, MaskedSortCode},
     pii, type_name,
     types::{
@@ -40,6 +45,8 @@ use openssl::{
     pkey::PKey,
     symm::{decrypt_aead, Cipher},
 };
+#[cfg(feature = "v2")]
+use redis_interface::errors::RedisError;
 use router_env::{instrument, logger, tracing};
 use uuid::Uuid;
 use x509_parser::parse_x509_certificate;
@@ -48,8 +55,6 @@ use super::{
     operations::{BoxedOperation, Operation, PaymentResponse},
     CustomerDetails, PaymentData,
 };
-#[cfg(feature = "v2")]
-use crate::core::admin as core_admin;
 use crate::{
     configs::settings::{ConnectorRequestReferenceIdConfig, TempLockerEnableConfig},
     connector,
@@ -84,6 +89,8 @@ use crate::{
         OptionExt, StringExt,
     },
 };
+#[cfg(feature = "v2")]
+use crate::{core::admin as core_admin, headers};
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use crate::{
     core::payment_methods::cards::create_encrypted_data, types::storage::CustomerUpdate::Update,
@@ -1235,17 +1242,18 @@ pub fn create_authorize_url(
 }
 
 pub fn create_webhook_url(
-    router_base_url: &String,
+    router_base_url: &str,
     merchant_id: &id_type::MerchantId,
-    connector_name: impl std::fmt::Display,
+    merchant_connector_id_or_connector_name: &str,
 ) -> String {
     format!(
         "{}/webhooks/{}/{}",
         router_base_url,
         merchant_id.get_string_repr(),
-        connector_name
+        merchant_connector_id_or_connector_name,
     )
 }
+
 pub fn create_complete_authorize_url(
     router_base_url: &String,
     payment_attempt: &PaymentAttempt,
@@ -3021,6 +3029,7 @@ pub fn make_merchant_url_with_response(
     Ok(merchant_url_with_response.to_string())
 }
 
+#[cfg(feature = "v1")]
 pub async fn make_ephemeral_key(
     state: SessionState,
     customer_id: id_type::CustomerId,
@@ -3043,6 +3052,80 @@ pub async fn make_ephemeral_key(
     Ok(services::ApplicationResponse::Json(ek))
 }
 
+#[cfg(feature = "v2")]
+pub async fn make_ephemeral_key(
+    state: SessionState,
+    customer_id: id_type::GlobalCustomerId,
+    merchant_account: domain::MerchantAccount,
+    key_store: domain::MerchantKeyStore,
+    headers: &actix_web::http::header::HeaderMap,
+) -> errors::RouterResponse<EphemeralKeyResponse> {
+    let db = &state.store;
+    let key_manager_state = &((&state).into());
+    db.find_customer_by_global_id(
+        key_manager_state,
+        &customer_id,
+        merchant_account.get_id(),
+        &key_store,
+        merchant_account.storage_scheme,
+    )
+    .await
+    .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
+
+    let resource_type = services::authentication::get_header_value_by_key(
+        headers::X_RESOURCE_TYPE.to_string(),
+        headers,
+    )?
+    .map(ephemeral_key::ResourceType::from_str)
+    .transpose()
+    .change_context(errors::ApiErrorResponse::InvalidRequestData {
+        message: format!("`{}` header is invalid", headers::X_RESOURCE_TYPE),
+    })?
+    .get_required_value("ResourceType")
+    .attach_printable("Failed to convert ResourceType from string")?;
+
+    let ephemeral_key = create_ephemeral_key(
+        &state,
+        &customer_id,
+        merchant_account.get_id(),
+        resource_type,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Unable to create ephemeral key")?;
+
+    let response = EphemeralKeyResponse::foreign_from(ephemeral_key);
+    Ok(services::ApplicationResponse::Json(response))
+}
+
+#[cfg(feature = "v2")]
+pub async fn create_ephemeral_key(
+    state: &SessionState,
+    customer_id: &id_type::GlobalCustomerId,
+    merchant_id: &id_type::MerchantId,
+    resource_type: ephemeral_key::ResourceType,
+) -> RouterResult<ephemeral_key::EphemeralKeyType> {
+    use common_utils::generate_time_ordered_id;
+
+    let store = &state.store;
+    let id = id_type::EphemeralKeyId::generate();
+    let secret = masking::Secret::new(generate_time_ordered_id("epk"));
+    let ephemeral_key = ephemeral_key::EphemeralKeyTypeNew {
+        id,
+        customer_id: customer_id.to_owned(),
+        merchant_id: merchant_id.to_owned(),
+        secret,
+        resource_type,
+    };
+    let ephemeral_key = store
+        .create_ephemeral_key(ephemeral_key, state.conf.eph_key.validity)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to create ephemeral key")?;
+    Ok(ephemeral_key)
+}
+
+#[cfg(feature = "v1")]
 pub async fn delete_ephemeral_key(
     state: SessionState,
     ek_id: String,
@@ -3054,6 +3137,29 @@ pub async fn delete_ephemeral_key(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to delete ephemeral key")?;
     Ok(services::ApplicationResponse::Json(ek))
+}
+
+#[cfg(feature = "v2")]
+pub async fn delete_ephemeral_key(
+    state: SessionState,
+    ephemeral_key_id: String,
+) -> errors::RouterResponse<EphemeralKeyResponse> {
+    let db = state.store.as_ref();
+    let ephemeral_key = db
+        .delete_ephemeral_key(&ephemeral_key_id)
+        .await
+        .map_err(|err| match err.current_context() {
+            errors::StorageError::ValueNotFound(_) => {
+                err.change_context(errors::ApiErrorResponse::GenericNotFoundError {
+                    message: "Ephemeral Key not found".to_string(),
+                })
+            }
+            _ => err.change_context(errors::ApiErrorResponse::InternalServerError),
+        })
+        .attach_printable("Unable to delete ephemeral key")?;
+
+    let response = EphemeralKeyResponse::foreign_from(ephemeral_key);
+    Ok(services::ApplicationResponse::Json(response))
 }
 
 pub fn make_pg_redirect_response(
@@ -3510,6 +3616,7 @@ mod tests {
             tax_details: None,
             skip_external_tax_calculation: None,
             psd2_sca_exemption_type: None,
+            platform_merchant_id: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_ok());
@@ -3580,6 +3687,7 @@ mod tests {
             tax_details: None,
             skip_external_tax_calculation: None,
             psd2_sca_exemption_type: None,
+            platform_merchant_id: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent,).is_err())
@@ -3648,6 +3756,7 @@ mod tests {
             tax_details: None,
             skip_external_tax_calculation: None,
             psd2_sca_exemption_type: None,
+            platform_merchant_id: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_err())
@@ -3928,6 +4037,7 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
         request,
         response,
         merchant_id: router_data.merchant_id,
+        tenant_id: router_data.tenant_id,
         address: router_data.address,
         amount_captured: router_data.amount_captured,
         minor_amount_captured: router_data.minor_amount_captured,
@@ -3938,7 +4048,6 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
         description: router_data.description,
         payment_id: router_data.payment_id,
         payment_method: router_data.payment_method,
-        return_url: router_data.return_url,
         status: router_data.status,
         attempt_id: router_data.attempt_id,
         access_token: router_data.access_token,
@@ -5002,7 +5111,7 @@ pub fn get_applepay_metadata(
         })
 }
 
-#[cfg(feature = "retry")]
+#[cfg(all(feature = "retry", feature = "v1"))]
 pub async fn get_apple_pay_retryable_connectors<F, D>(
     state: &SessionState,
     merchant_account: &domain::MerchantAccount,
@@ -6060,6 +6169,7 @@ where
     Ok(())
 }
 
+#[cfg(feature = "v1")]
 pub async fn validate_merchant_connector_ids_in_connector_mandate_details(
     state: &SessionState,
     key_store: &domain::MerchantKeyStore,
@@ -6160,5 +6270,122 @@ pub fn validate_platform_fees_for_marketplace(
             }
         }
     }
+    Ok(())
+}
+
+pub async fn is_merchant_eligible_authentication_service(
+    merchant_id: &id_type::MerchantId,
+    state: &SessionState,
+) -> RouterResult<bool> {
+    let merchants_eligible_for_authentication_service = state
+        .store
+        .as_ref()
+        .find_config_by_key_unwrap_or(
+            consts::AUTHENTICATION_SERVICE_ELIGIBLE_CONFIG,
+            Some("[]".to_string()),
+        )
+        .await;
+
+    let auth_eligible_array: Vec<String> = match merchants_eligible_for_authentication_service {
+        Ok(config) => serde_json::from_str(&config.config)
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("unable to parse authentication service config")?,
+        Err(err) => {
+            logger::error!(
+                "Error fetching authentication service enabled merchant config {:?}",
+                err
+            );
+            Vec::new()
+        }
+    };
+
+    Ok(auth_eligible_array.contains(&merchant_id.get_string_repr().to_owned()))
+}
+
+#[cfg(feature = "v1")]
+pub async fn validate_allowed_payment_method_types_request(
+    state: &SessionState,
+    profile_id: &id_type::ProfileId,
+    merchant_account: &domain::MerchantAccount,
+    merchant_key_store: &domain::MerchantKeyStore,
+    allowed_payment_method_types: Option<Vec<common_enums::PaymentMethodType>>,
+) -> CustomResult<(), errors::ApiErrorResponse> {
+    if let Some(allowed_payment_method_types) = allowed_payment_method_types {
+        let db = &*state.store;
+        let all_connector_accounts = db
+            .find_merchant_connector_account_by_merchant_id_and_disabled_list(
+                &state.into(),
+                merchant_account.get_id(),
+                false,
+                merchant_key_store,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to fetch merchant connector account for given merchant id")?;
+
+        let filtered_connector_accounts = filter_mca_based_on_profile_and_connector_type(
+            all_connector_accounts,
+            profile_id,
+            ConnectorType::PaymentProcessor,
+        );
+
+        let supporting_payment_method_types: HashSet<_> = filtered_connector_accounts
+            .iter()
+            .flat_map(|connector_account| {
+                connector_account
+                    .payment_methods_enabled
+                    .clone()
+                    .unwrap_or_default()
+                    .into_iter()
+                    .map(|payment_methods_enabled| {
+                        payment_methods_enabled
+                            .parse_value::<api_models::admin::PaymentMethodsEnabled>(
+                                "payment_methods_enabled",
+                            )
+                    })
+                    .filter_map(|parsed_payment_method_result| {
+                        parsed_payment_method_result
+                            .inspect_err(|err| {
+                                logger::error!(
+                                    "Unable to deserialize payment methods enabled: {:?}",
+                                    err
+                                );
+                            })
+                            .ok()
+                    })
+                    .flat_map(|parsed_payment_methods_enabled| {
+                        parsed_payment_methods_enabled
+                            .payment_method_types
+                            .unwrap_or_default()
+                            .into_iter()
+                            .map(|payment_method_type| payment_method_type.payment_method_type)
+                    })
+            })
+            .collect();
+
+        let unsupported_payment_methods: Vec<_> = allowed_payment_method_types
+            .iter()
+            .filter(|allowed_pmt| !supporting_payment_method_types.contains(allowed_pmt))
+            .collect();
+
+        if !unsupported_payment_methods.is_empty() {
+            metrics::PAYMENT_METHOD_TYPES_MISCONFIGURATION_METRIC.add(
+                1,
+                router_env::metric_attributes!(("merchant_id", merchant_account.get_id().clone())),
+            );
+        }
+
+        fp_utils::when(
+            unsupported_payment_methods.len() == allowed_payment_method_types.len(),
+            || {
+                Err(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)
+                    .attach_printable(format!(
+                        "None of the allowed payment method types {:?} are configured for this merchant connector account.",
+                        allowed_payment_method_types
+                    ))
+            },
+        )?;
+    }
+
     Ok(())
 }

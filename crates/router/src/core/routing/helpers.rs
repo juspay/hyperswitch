@@ -189,7 +189,7 @@ pub async fn update_merchant_active_algorithm_ref(
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to update routing algorithm ref in merchant account")?;
 
-    cache::publish_into_redact_channel(db.get_cache_store().as_ref(), [config_key])
+    cache::redact_from_redis_and_publish(db.get_cache_store().as_ref(), [config_key])
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to invalidate the config cache")?;
@@ -256,7 +256,7 @@ pub async fn update_profile_active_algorithm_ref(
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to update routing algorithm ref in business profile")?;
 
-    cache::publish_into_redact_channel(db.get_cache_store().as_ref(), [routing_cache_key])
+    cache::redact_from_redis_and_publish(db.get_cache_store().as_ref(), [routing_cache_key])
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to invalidate routing cache")?;
@@ -300,10 +300,13 @@ pub struct RoutingAlgorithmHelpers<'h> {
 
 #[derive(Clone, Debug)]
 pub struct ConnectNameAndMCAIdForProfile<'a>(
-    pub FxHashSet<(&'a String, id_type::MerchantConnectorAccountId)>,
+    pub  FxHashSet<(
+        &'a common_enums::connector_enums::Connector,
+        id_type::MerchantConnectorAccountId,
+    )>,
 );
 #[derive(Clone, Debug)]
-pub struct ConnectNameForProfile<'a>(pub FxHashSet<&'a String>);
+pub struct ConnectNameForProfile<'a>(pub FxHashSet<&'a common_enums::connector_enums::Connector>);
 
 #[cfg(feature = "v2")]
 #[derive(Clone, Debug)]
@@ -368,23 +371,25 @@ impl RoutingAlgorithmHelpers<'_> {
         choice: &routing_types::RoutableConnectorChoice,
     ) -> RouterResult<()> {
         if let Some(ref mca_id) = choice.merchant_connector_id {
+            let connector_choice = common_enums::connector_enums::Connector::from(choice.connector);
             error_stack::ensure!(
-                    self.name_mca_id_set.0.contains(&(&choice.connector.to_string(), mca_id.clone())),
-                    errors::ApiErrorResponse::InvalidRequestData {
-                        message: format!(
-                            "connector with name '{}' and merchant connector account id '{:?}' not found for the given profile",
-                            choice.connector,
-                            mca_id,
-                        )
-                    }
-                );
+                self.name_mca_id_set.0.contains(&(&connector_choice, mca_id.clone())),
+                errors::ApiErrorResponse::InvalidRequestData {
+                    message: format!(
+                        "connector with name '{}' and merchant connector account id '{:?}' not found for the given profile",
+                        connector_choice,
+                        mca_id,
+                    )
+                }
+            );
         } else {
+            let connector_choice = common_enums::connector_enums::Connector::from(choice.connector);
             error_stack::ensure!(
-                self.name_set.0.contains(&choice.connector.to_string()),
+                self.name_set.0.contains(&connector_choice),
                 errors::ApiErrorResponse::InvalidRequestData {
                     message: format!(
                         "connector with name '{}' not found for the given profile",
-                        choice.connector,
+                        connector_choice,
                     )
                 }
             );
@@ -570,7 +575,7 @@ pub fn get_default_config_key(
 
 /// Retrieves cached success_based routing configs specific to tenant and profile
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-pub async fn get_cached_success_based_routing_config_for_profile<'a>(
+pub async fn get_cached_success_based_routing_config_for_profile(
     state: &SessionState,
     key: &str,
 ) -> Option<Arc<routing_types::SuccessBasedRoutingConfig>> {
@@ -699,11 +704,6 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("unable to retrieve success_rate based dynamic routing configs")?;
 
-        let tenant_business_profile_id = generate_tenant_business_profile_id(
-            &state.tenant.redis_key_prefix,
-            business_profile.get_id().get_string_repr(),
-        );
-
         let success_based_routing_config_params = success_based_routing_config_params_interpolator
             .get_string_val(
                 success_based_routing_configs
@@ -714,11 +714,12 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
             );
 
         let success_based_connectors = client
-            .calculate_success_rate(
-                tenant_business_profile_id.clone(),
+            .calculate_entity_and_global_success_rate(
+                business_profile.get_id().get_string_repr().into(),
                 success_based_routing_configs.clone(),
                 success_based_routing_config_params.clone(),
                 routable_connectors.clone(),
+                state.get_grpc_headers(),
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -729,28 +730,34 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
         let payment_status_attribute =
             get_desired_payment_status_for_success_routing_metrics(payment_attempt.status);
 
-        let first_success_based_connector_label = &success_based_connectors
-            .labels_with_score
+        let first_merchant_success_based_connector = &success_based_connectors
+            .entity_scores_with_labels
             .first()
             .ok_or(errors::ApiErrorResponse::InternalServerError)
             .attach_printable(
                 "unable to fetch the first connector from list of connectors obtained from dynamic routing service",
-            )?
-            .label
-            .to_string();
+            )?;
 
-        let (first_success_based_connector, _) = first_success_based_connector_label
+        let (first_merchant_success_based_connector_label, _) = first_merchant_success_based_connector.label
             .split_once(':')
             .ok_or(errors::ApiErrorResponse::InternalServerError)
             .attach_printable(format!(
                 "unable to split connector_name and mca_id from the first connector {:?} obtained from dynamic routing service",
-                first_success_based_connector_label
+                first_merchant_success_based_connector.label
             ))?;
+
+        let first_global_success_based_connector = &success_based_connectors
+            .global_scores_with_labels
+            .first()
+            .ok_or(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable(
+                "unable to fetch the first global connector from list of connectors obtained from dynamic routing service",
+            )?;
 
         let outcome = get_success_based_metrics_outcome_for_payment(
             payment_status_attribute,
             payment_connector.to_string(),
-            first_success_based_connector.to_string(),
+            first_merchant_success_based_connector_label.to_string(),
         );
 
         let dynamic_routing_stats = DynamicRoutingStatsNew {
@@ -759,8 +766,10 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
             merchant_id: payment_attempt.merchant_id.to_owned(),
             profile_id: payment_attempt.profile_id.to_owned(),
             amount: payment_attempt.get_total_amount(),
-            success_based_routing_connector: first_success_based_connector.to_string(),
+            success_based_routing_connector: first_merchant_success_based_connector_label
+                .to_string(),
             payment_connector: payment_connector.to_string(),
+            payment_method_type: payment_attempt.payment_method_type,
             currency: payment_attempt.currency,
             payment_method: payment_attempt.payment_method,
             capture_method: payment_attempt.capture_method,
@@ -768,6 +777,9 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
             payment_status: payment_attempt.status,
             conclusive_classification: outcome,
             created_at: common_utils::date_time::now(),
+            global_success_based_connector: Some(
+                first_global_success_based_connector.label.to_string(),
+            ),
         };
 
         core_metrics::DYNAMIC_SUCCESS_BASED_ROUTING.add(
@@ -786,8 +798,20 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
                     ),
                 ),
                 (
-                    "success_based_routing_connector",
-                    first_success_based_connector.to_string(),
+                    "merchant_specific_success_based_routing_connector",
+                    first_merchant_success_based_connector_label.to_string(),
+                ),
+                (
+                    "merchant_specific_success_based_routing_connector_score",
+                    first_merchant_success_based_connector.score.to_string(),
+                ),
+                (
+                    "global_success_based_routing_connector",
+                    first_global_success_based_connector.label.to_string(),
+                ),
+                (
+                    "global_success_based_routing_connector_score",
+                    first_global_success_based_connector.score.to_string(),
                 ),
                 ("payment_connector", payment_connector.to_string()),
                 (
@@ -839,7 +863,7 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
 
         client
             .update_success_rate(
-                tenant_business_profile_id,
+                business_profile.get_id().get_string_repr().into(),
                 success_based_routing_configs,
                 success_based_routing_config_params,
                 vec![routing_types::RoutableConnectorChoiceWithStatus::new(
@@ -854,6 +878,7 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
                     },
                     payment_status_attribute == common_enums::AttemptStatus::Charged,
                 )],
+                state.get_grpc_headers(),
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -931,14 +956,6 @@ fn get_success_based_metrics_outcome_for_payment(
         }
         _ => common_enums::SuccessBasedRoutingConclusiveState::NonDeterministic,
     }
-}
-
-/// generates cache key with tenant's redis key prefix and profile_id
-pub fn generate_tenant_business_profile_id(
-    redis_key_prefix: &str,
-    business_profile_id: &str,
-) -> String {
-    format!("{}:{}", redis_key_prefix, business_profile_id)
 }
 
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
@@ -1041,7 +1058,7 @@ pub async fn disable_dynamic_routing_algorithm(
         };
 
     // redact cache for dynamic routing config
-    let _ = cache::publish_into_redact_channel(
+    let _ = cache::redact_from_redis_and_publish(
         state.store.get_cache_store().as_ref(),
         cache_entries_to_redact,
     )

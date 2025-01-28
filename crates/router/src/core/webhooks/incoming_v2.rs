@@ -20,7 +20,10 @@ use crate::{
         api_locking,
         errors::{self, ConnectorErrorExt, CustomResult, RouterResponse, StorageErrorExt},
         metrics,
-        payments::{self, transformers::ToResponse},
+        payments::{
+            self,
+            transformers::{GenerateResponse, ToResponse},
+        },
         webhooks::utils::construct_webhook_router_data,
     },
     db::StorageInterface,
@@ -53,6 +56,7 @@ pub async fn incoming_webhooks_wrapper<W: types::OutgoingWebhookType>(
     key_store: domain::MerchantKeyStore,
     connector_id: &common_utils::id_type::MerchantConnectorAccountId,
     body: actix_web::web::Bytes,
+    is_relay_webhook: bool,
 ) -> RouterResponse<serde_json::Value> {
     let start_instant = Instant::now();
     let (application_response, webhooks_response_tracker, serialized_req) =
@@ -65,6 +69,7 @@ pub async fn incoming_webhooks_wrapper<W: types::OutgoingWebhookType>(
             key_store,
             connector_id,
             body.clone(),
+            is_relay_webhook,
         ))
         .await?;
 
@@ -121,6 +126,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
     key_store: domain::MerchantKeyStore,
     connector_id: &common_utils::id_type::MerchantConnectorAccountId,
     body: actix_web::web::Bytes,
+    _is_relay_webhook: bool,
 ) -> errors::RouterResult<(
     services::ApplicationResponse<serde_json::Value>,
     WebhookResponseTracker,
@@ -433,12 +439,8 @@ async fn payments_incoming_webhook_flow(
                 ))
                 .await?;
 
-            let response = api_models::payments::PaymentsRetrieveResponse::generate_response(
-                payment_data,
-                customer,
-                &state.base_url,
-                payments::operations::PaymentGet,
-                &state.conf.connector_request_reference_id_config,
+            let response = payment_data.generate_response(
+                &state,
                 connector_http_status_code,
                 external_latency,
                 None,
@@ -666,6 +668,7 @@ async fn verify_webhook_source_verification_call(
         .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
 
     let router_data = construct_webhook_router_data(
+        state,
         connector_name,
         merchant_connector_account,
         merchant_account,
@@ -756,8 +759,11 @@ async fn fetch_mca_and_connector(
         })
         .attach_printable("error while fetching merchant_connector_account from connector_id")?;
 
-    let (connector, connector_name) =
-        get_connector_by_connector_name(state, &mca.connector_name, Some(mca.get_id()))?;
+    let (connector, connector_name) = get_connector_by_connector_name(
+        state,
+        &mca.connector_name.to_string(),
+        Some(mca.get_id()),
+    )?;
 
     Ok((mca, connector, connector_name))
 }

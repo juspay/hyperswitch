@@ -41,7 +41,6 @@ pub const DEFAULT_LIST_API_LIMIT: u16 = 10;
 pub(crate) const UNSUPPORTED_ERROR_MESSAGE: &str = "Unsupported response type";
 pub(crate) const LOW_BALANCE_ERROR_MESSAGE: &str = "Insufficient balance in the payment method";
 pub(crate) const CONNECTOR_UNAUTHORIZED_ERROR: &str = "Authentication Error from the connector";
-pub(crate) const REFUND_VOIDED: &str = "Refund request has been voided.";
 
 pub(crate) const CANNOT_CONTINUE_AUTH: &str =
     "Cannot continue with Authorization due to failed Liability Shift.";
@@ -171,19 +170,19 @@ pub const DEFAULT_SDK_LAYOUT: &str = "tabs";
 
 /// Vault Add request url
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-pub const ADD_VAULT_REQUEST_URL: &str = "/vault/add";
+pub const ADD_VAULT_REQUEST_URL: &str = "/api/v2/vault/add";
 
 /// Vault Get Fingerprint request url
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-pub const VAULT_FINGERPRINT_REQUEST_URL: &str = "/fingerprint";
+pub const VAULT_FINGERPRINT_REQUEST_URL: &str = "/api/v2/vault/fingerprint";
 
 /// Vault Retrieve request url
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-pub const VAULT_RETRIEVE_REQUEST_URL: &str = "/vault/retrieve";
+pub const VAULT_RETRIEVE_REQUEST_URL: &str = "/api/v2/vault/retrieve";
 
 /// Vault Delete request url
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-pub const VAULT_DELETE_REQUEST_URL: &str = "/vault/delete";
+pub const VAULT_DELETE_REQUEST_URL: &str = "/api/v2/vault/delete";
 
 /// Vault Header content type
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
@@ -210,3 +209,10 @@ pub const DYNAMIC_ROUTING_MAX_VOLUME: u8 = 100;
 
 /// Click To Pay
 pub const CLICK_TO_PAY: &str = "click_to_pay";
+
+/// Merchant eligible for authentication service config
+pub const AUTHENTICATION_SERVICE_ELIGIBLE_CONFIG: &str =
+    "merchants_eligible_for_authentication_service";
+
+/// Refund flow identifier used for performing GSM operations
+pub const REFUND_FLOW_STR: &str = "refund_flow";

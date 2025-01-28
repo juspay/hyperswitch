@@ -2,6 +2,7 @@ pub mod address;
 pub mod api;
 pub mod behaviour;
 pub mod business_profile;
+pub mod callback_mapper;
 pub mod consts;
 pub mod customer;
 pub mod disputes;
@@ -17,6 +18,7 @@ pub mod payments;
 #[cfg(feature = "payouts")]
 pub mod payouts;
 pub mod refunds;
+pub mod relay;
 pub mod router_data;
 pub mod router_data_v2;
 pub mod router_flow_types;

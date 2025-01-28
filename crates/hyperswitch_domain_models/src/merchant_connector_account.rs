@@ -1,29 +1,23 @@
-#[cfg(feature = "v2")]
-use api_models::admin;
-#[cfg(feature = "v2")]
-use common_utils::ext_traits::ValueExt;
 use common_utils::{
     crypto::Encryptable,
     date_time,
     encryption::Encryption,
     errors::{CustomResult, ValidationError},
+    ext_traits::ValueExt,
     id_type, pii, type_name,
     types::keymanager::{Identifier, KeyManagerState, ToEncryptable},
 };
 use diesel_models::{enums, merchant_connector_account::MerchantConnectorAccountUpdateInternal};
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
-#[cfg(feature = "v2")]
-use router_env::logger;
 use rustc_hash::FxHashMap;
 use serde_json::Value;
 
 use super::behaviour;
-#[cfg(feature = "v2")]
-use crate::errors::api_error_response::ApiErrorResponse;
-#[cfg(feature = "v2")]
-use crate::router_data;
-use crate::type_encryption::{crypto_operation, CryptoOperation};
+use crate::{
+    router_data,
+    type_encryption::{crypto_operation, CryptoOperation},
+};
 
 #[cfg(feature = "v1")]
 #[derive(Clone, Debug, router_derive::ToEncryption)]
@@ -62,6 +56,23 @@ impl MerchantConnectorAccount {
     pub fn get_id(&self) -> id_type::MerchantConnectorAccountId {
         self.merchant_connector_id.clone()
     }
+    pub fn get_connector_account_details(
+        &self,
+    ) -> error_stack::Result<router_data::ConnectorAuthType, common_utils::errors::ParsingError>
+    {
+        self.connector_account_details
+            .get_inner()
+            .clone()
+            .parse_value("ConnectorAuthType")
+    }
+
+    pub fn get_connector_wallets_details(&self) -> Option<Secret<Value>> {
+        self.connector_wallets_details.as_deref().cloned()
+    }
+
+    pub fn get_connector_test_mode(&self) -> Option<bool> {
+        self.test_mode
+    }
 }
 
 #[cfg(feature = "v2")]
@@ -69,11 +80,11 @@ impl MerchantConnectorAccount {
 pub struct MerchantConnectorAccount {
     pub id: id_type::MerchantConnectorAccountId,
     pub merchant_id: id_type::MerchantId,
-    pub connector_name: String,
+    pub connector_name: common_enums::connector_enums::Connector,
     #[encrypt]
     pub connector_account_details: Encryptable<Secret<Value>>,
     pub disabled: Option<bool>,
-    pub payment_methods_enabled: Option<Vec<pii::SecretSerdeValue>>,
+    pub payment_methods_enabled: Option<Vec<common_types::payment_methods::PaymentMethodsEnabled>>,
     pub connector_type: enums::ConnectorType,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub frm_configs: Option<Vec<pii::SecretSerdeValue>>,
@@ -102,23 +113,6 @@ impl MerchantConnectorAccount {
         self.metadata.clone()
     }
 
-    pub fn get_parsed_payment_methods_enabled(
-        &self,
-    ) -> Vec<CustomResult<admin::PaymentMethodsEnabled, ApiErrorResponse>> {
-        self.payment_methods_enabled
-            .clone()
-            .unwrap_or_default()
-            .into_iter()
-            .map(|payment_methods_enabled| {
-                payment_methods_enabled
-                    .parse_value::<admin::PaymentMethodsEnabled>("payment_methods_enabled")
-                    .change_context(ApiErrorResponse::InvalidDataValue {
-                        field_name: "payment_methods_enabled",
-                    })
-            })
-            .collect()
-    }
-
     pub fn is_disabled(&self) -> bool {
         self.disabled.unwrap_or(false)
     }
@@ -133,6 +127,73 @@ impl MerchantConnectorAccount {
             .get_inner()
             .clone()
             .parse_value("ConnectorAuthType")
+    }
+
+    pub fn get_connector_wallets_details(&self) -> Option<Secret<Value>> {
+        self.connector_wallets_details.as_deref().cloned()
+    }
+
+    pub fn get_connector_test_mode(&self) -> Option<bool> {
+        todo!()
+    }
+}
+
+#[cfg(feature = "v2")]
+/// Holds the payment methods enabled for a connector along with the connector name
+/// This struct is a flattened representation of the payment methods enabled for a connector
+#[derive(Debug)]
+pub struct PaymentMethodsEnabledForConnector {
+    pub payment_methods_enabled: common_types::payment_methods::RequestPaymentMethodTypes,
+    pub payment_method: common_enums::PaymentMethod,
+    pub connector: common_enums::connector_enums::Connector,
+}
+
+#[cfg(feature = "v2")]
+/// Holds the payment methods enabled for a connector
+pub struct FlattenedPaymentMethodsEnabled {
+    pub payment_methods_enabled: Vec<PaymentMethodsEnabledForConnector>,
+}
+
+#[cfg(feature = "v2")]
+impl FlattenedPaymentMethodsEnabled {
+    /// This functions flattens the payment methods enabled from the connector accounts
+    /// Retains the connector name and payment method in every flattened element
+    pub fn from_payment_connectors_list(payment_connectors: Vec<MerchantConnectorAccount>) -> Self {
+        let payment_methods_enabled_flattened_with_connector = payment_connectors
+            .into_iter()
+            .map(|connector| {
+                (
+                    connector.payment_methods_enabled.unwrap_or_default(),
+                    connector.connector_name,
+                )
+            })
+            .flat_map(|(payment_method_enabled, connector_name)| {
+                payment_method_enabled
+                    .into_iter()
+                    .flat_map(move |payment_method| {
+                        let request_payment_methods_enabled =
+                            payment_method.payment_method_subtypes.unwrap_or_default();
+                        let length = request_payment_methods_enabled.len();
+                        request_payment_methods_enabled.into_iter().zip(
+                            std::iter::repeat((connector_name, payment_method.payment_method_type))
+                                .take(length),
+                        )
+                    })
+            })
+            .map(
+                |(request_payment_methods, (connector_name, payment_method))| {
+                    PaymentMethodsEnabledForConnector {
+                        payment_methods_enabled: request_payment_methods,
+                        connector: connector_name,
+                        payment_method,
+                    }
+                },
+            )
+            .collect();
+
+        Self {
+            payment_methods_enabled: payment_methods_enabled_flattened_with_connector,
+        }
     }
 }
 
@@ -169,7 +230,7 @@ pub enum MerchantConnectorAccountUpdate {
         connector_type: Option<enums::ConnectorType>,
         connector_account_details: Box<Option<Encryptable<pii::SecretSerdeValue>>>,
         disabled: Option<bool>,
-        payment_methods_enabled: Option<Vec<pii::SecretSerdeValue>>,
+        payment_methods_enabled: Option<Vec<common_types::payment_methods::PaymentMethodsEnabled>>,
         metadata: Option<pii::SecretSerdeValue>,
         frm_configs: Option<Vec<pii::SecretSerdeValue>>,
         connector_webhook_details: Option<pii::SecretSerdeValue>,
@@ -567,34 +628,20 @@ common_utils::create_list_wrapper!(
         pub fn get_connector_and_supporting_payment_method_type_for_session_call(
             &self,
         ) -> Vec<(&MerchantConnectorAccount, common_enums::PaymentMethodType)> {
+            // This vector is created to work around lifetimes
+            let ref_vector = Vec::default();
+
             let connector_and_supporting_payment_method_type = self.iter().flat_map(|connector_account| {
                 connector_account
-                    .get_parsed_payment_methods_enabled()
-                    // TODO: make payment_methods_enabled strict type in DB
-                    .into_iter()
-                    .filter_map(|parsed_payment_method_result| {
-                        parsed_payment_method_result
-                            .inspect_err(|err| {
-                                logger::error!(session_token_parsing_error=?err);
-                            })
-                            .ok()
+                    .payment_methods_enabled.as_ref()
+                    .unwrap_or(&Vec::default())
+                    .iter()
+                    .flat_map(|payment_method_types| payment_method_types.payment_method_subtypes.as_ref().unwrap_or(&ref_vector))
+                    .filter(|payment_method_types_enabled| {
+                        payment_method_types_enabled.payment_experience == Some(api_models::enums::PaymentExperience::InvokeSdkClient)
                     })
-                    .flat_map(|parsed_payment_methods_enabled| {
-                        parsed_payment_methods_enabled
-                            .payment_method_types
-                            .unwrap_or_default()
-                            .into_iter()
-                            .filter(|payment_method_type| {
-                                let is_invoke_sdk_client = matches!(
-                                    payment_method_type.payment_experience,
-                                    Some(api_models::enums::PaymentExperience::InvokeSdkClient)
-                                );
-                                is_invoke_sdk_client
-                            })
-                            .map(|payment_method_type| {
-                                (connector_account, payment_method_type.payment_method_type)
-                            })
-                            .collect::<Vec<_>>()
+                    .map(|payment_method_types| {
+                        (connector_account, payment_method_types.payment_method_subtype)
                     })
                     .collect::<Vec<_>>()
             }).collect();

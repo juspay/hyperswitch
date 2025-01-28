@@ -6,6 +6,8 @@ use common_utils::{
     id_type,
     types::{keymanager::KeyManagerState, theme::ThemeLineage},
 };
+#[cfg(feature = "v2")]
+use diesel_models::ephemeral_key::{EphemeralKeyType, EphemeralKeyTypeNew};
 use diesel_models::{
     enums,
     enums::ProcessTrackerStatus,
@@ -26,7 +28,7 @@ use hyperswitch_domain_models::{
 use hyperswitch_domain_models::{PayoutAttemptInterface, PayoutsInterface};
 use masking::Secret;
 use redis_interface::{errors::RedisError, RedisConnectionPool, RedisEntryId};
-use router_env::logger;
+use router_env::{instrument, logger, tracing};
 use scheduler::{
     db::{process_tracker::ProcessTrackerInterface, queue::QueueInterface},
     SchedulerInterface,
@@ -53,6 +55,7 @@ use crate::{
         authentication::AuthenticationInterface,
         authorization::AuthorizationInterface,
         business_profile::ProfileInterface,
+        callback_mapper::CallbackMapperInterface,
         capture::CaptureInterface,
         cards_info::CardsInfoInterface,
         configs::ConfigInterface,
@@ -646,6 +649,7 @@ impl DisputeInterface for KafkaStore {
 
 #[async_trait::async_trait]
 impl EphemeralKeyInterface for KafkaStore {
+    #[cfg(feature = "v1")]
     async fn create_ephemeral_key(
         &self,
         ek: EphemeralKeyNew,
@@ -653,16 +657,45 @@ impl EphemeralKeyInterface for KafkaStore {
     ) -> CustomResult<EphemeralKey, errors::StorageError> {
         self.diesel_store.create_ephemeral_key(ek, validity).await
     }
+
+    #[cfg(feature = "v2")]
+    async fn create_ephemeral_key(
+        &self,
+        ek: EphemeralKeyTypeNew,
+        validity: i64,
+    ) -> CustomResult<EphemeralKeyType, errors::StorageError> {
+        self.diesel_store.create_ephemeral_key(ek, validity).await
+    }
+
+    #[cfg(feature = "v1")]
     async fn get_ephemeral_key(
         &self,
         key: &str,
     ) -> CustomResult<EphemeralKey, errors::StorageError> {
         self.diesel_store.get_ephemeral_key(key).await
     }
+
+    #[cfg(feature = "v2")]
+    async fn get_ephemeral_key(
+        &self,
+        key: &str,
+    ) -> CustomResult<EphemeralKeyType, errors::StorageError> {
+        self.diesel_store.get_ephemeral_key(key).await
+    }
+
+    #[cfg(feature = "v1")]
     async fn delete_ephemeral_key(
         &self,
         id: &str,
     ) -> CustomResult<EphemeralKey, errors::StorageError> {
+        self.diesel_store.delete_ephemeral_key(id).await
+    }
+
+    #[cfg(feature = "v2")]
+    async fn delete_ephemeral_key(
+        &self,
+        id: &str,
+    ) -> CustomResult<EphemeralKeyType, errors::StorageError> {
         self.diesel_store.delete_ephemeral_key(id).await
     }
 }
@@ -1194,6 +1227,23 @@ impl MerchantConnectorAccountInterface for KafkaStore {
                 key_store,
             )
             .await
+    }
+
+    #[cfg(all(feature = "oltp", feature = "v2"))]
+    async fn list_enabled_connector_accounts_by_profile_id(
+        &self,
+        state: &KeyManagerState,
+        profile_id: &id_type::ProfileId,
+        key_store: &domain::MerchantKeyStore,
+        connector_type: common_enums::ConnectorType,
+    ) -> CustomResult<Vec<domain::MerchantConnectorAccount>, errors::StorageError> {
+        self.list_enabled_connector_accounts_by_profile_id(
+            state,
+            profile_id,
+            key_store,
+            connector_type,
+        )
+        .await
     }
 
     async fn insert_merchant_connector_account(
@@ -3160,6 +3210,16 @@ impl UserRoleInterface for KafkaStore {
         self.diesel_store.list_user_roles_by_user_id(payload).await
     }
 
+    async fn list_user_roles_by_user_id_across_tenants(
+        &self,
+        user_id: &str,
+        limit: Option<u32>,
+    ) -> CustomResult<Vec<storage::UserRole>, errors::StorageError> {
+        self.diesel_store
+            .list_user_roles_by_user_id_across_tenants(user_id, limit)
+            .await
+    }
+
     async fn list_user_roles_by_org_id<'a>(
         &self,
         payload: ListUserRolesByOrgIdPayload<'a>,
@@ -3557,9 +3617,10 @@ impl RoleInterface for KafkaStore {
         role_id: &str,
         merchant_id: &id_type::MerchantId,
         org_id: &id_type::OrganizationId,
+        tenant_id: &id_type::TenantId,
     ) -> CustomResult<storage::Role, errors::StorageError> {
         self.diesel_store
-            .find_role_by_role_id_in_merchant_scope(role_id, merchant_id, org_id)
+            .find_role_by_role_id_in_merchant_scope(role_id, merchant_id, org_id, tenant_id)
             .await
     }
 
@@ -3568,19 +3629,21 @@ impl RoleInterface for KafkaStore {
         role_id: &str,
         merchant_id: &id_type::MerchantId,
         org_id: &id_type::OrganizationId,
+        tenant_id: &id_type::TenantId,
     ) -> CustomResult<storage::Role, errors::StorageError> {
         self.diesel_store
-            .find_role_by_role_id_in_lineage(role_id, merchant_id, org_id)
+            .find_role_by_role_id_in_lineage(role_id, merchant_id, org_id, tenant_id)
             .await
     }
 
-    async fn find_by_role_id_and_org_id(
+    async fn find_by_role_id_org_id_tenant_id(
         &self,
         role_id: &str,
         org_id: &id_type::OrganizationId,
+        tenant_id: &id_type::TenantId,
     ) -> CustomResult<storage::Role, errors::StorageError> {
         self.diesel_store
-            .find_by_role_id_and_org_id(role_id, org_id)
+            .find_by_role_id_org_id_tenant_id(role_id, org_id, tenant_id)
             .await
     }
 
@@ -3605,19 +3668,23 @@ impl RoleInterface for KafkaStore {
         &self,
         merchant_id: &id_type::MerchantId,
         org_id: &id_type::OrganizationId,
+        tenant_id: &id_type::TenantId,
     ) -> CustomResult<Vec<storage::Role>, errors::StorageError> {
-        self.diesel_store.list_all_roles(merchant_id, org_id).await
+        self.diesel_store
+            .list_all_roles(merchant_id, org_id, tenant_id)
+            .await
     }
 
     async fn list_roles_for_org_by_parameters(
         &self,
+        tenant_id: &id_type::TenantId,
         org_id: &id_type::OrganizationId,
         merchant_id: Option<&id_type::MerchantId>,
         entity_type: Option<enums::EntityType>,
         limit: Option<u32>,
     ) -> CustomResult<Vec<storage::Role>, errors::StorageError> {
         self.diesel_store
-            .list_roles_for_org_by_parameters(org_id, merchant_id, entity_type, limit)
+            .list_roles_for_org_by_parameters(tenant_id, org_id, merchant_id, entity_type, limit)
             .await
     }
 }
@@ -3767,6 +3834,18 @@ impl UserAuthenticationMethodInterface for KafkaStore {
             .update_user_authentication_method(id, user_authentication_method_update)
             .await
     }
+
+    async fn list_user_authentication_methods_for_email_domain(
+        &self,
+        email_domain: &str,
+    ) -> CustomResult<
+        Vec<diesel_models::user_authentication_method::UserAuthenticationMethod>,
+        errors::StorageError,
+    > {
+        self.diesel_store
+            .list_user_authentication_methods_for_email_domain(email_domain)
+            .await
+    }
 }
 
 #[async_trait::async_trait]
@@ -3809,5 +3888,26 @@ impl ThemeInterface for KafkaStore {
         self.diesel_store
             .delete_theme_by_lineage_and_theme_id(theme_id, lineage)
             .await
+    }
+}
+
+#[async_trait::async_trait]
+impl CallbackMapperInterface for KafkaStore {
+    #[instrument(skip_all)]
+    async fn insert_call_back_mapper(
+        &self,
+        call_back_mapper: domain::CallbackMapper,
+    ) -> CustomResult<domain::CallbackMapper, errors::StorageError> {
+        self.diesel_store
+            .insert_call_back_mapper(call_back_mapper)
+            .await
+    }
+
+    #[instrument(skip_all)]
+    async fn find_call_back_mapper_by_id(
+        &self,
+        id: &str,
+    ) -> CustomResult<domain::CallbackMapper, errors::StorageError> {
+        self.diesel_store.find_call_back_mapper_by_id(id).await
     }
 }

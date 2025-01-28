@@ -30,7 +30,7 @@ use crate::{
     headers,
     services::{
         request::{self, Mask},
-        ConnectorIntegration, ConnectorValidation,
+        ConnectorIntegration, ConnectorSpecifications, ConnectorValidation,
     },
     types::{
         self,
@@ -429,3 +429,5 @@ impl ConnectorErrorTypeMapping for Payone {
         }
     }
 }
+
+impl ConnectorSpecifications for Payone {}

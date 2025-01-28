@@ -19,6 +19,8 @@ pub struct DynamicRoutingStatsNew {
     pub payment_status: common_enums::AttemptStatus,
     pub conclusive_classification: common_enums::SuccessBasedRoutingConclusiveState,
     pub created_at: time::PrimitiveDateTime,
+    pub payment_method_type: Option<common_enums::PaymentMethodType>,
+    pub global_success_based_connector: Option<String>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Queryable, Selectable, Insertable)]
@@ -38,4 +40,6 @@ pub struct DynamicRoutingStats {
     pub payment_status: common_enums::AttemptStatus,
     pub conclusive_classification: common_enums::SuccessBasedRoutingConclusiveState,
     pub created_at: time::PrimitiveDateTime,
+    pub payment_method_type: Option<common_enums::PaymentMethodType>,
+    pub global_success_based_connector: Option<String>,
 }

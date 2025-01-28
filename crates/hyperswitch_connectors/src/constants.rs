@@ -10,6 +10,7 @@ pub(crate) mod headers {
     pub(crate) const IDEMPOTENCY_KEY: &str = "Idempotency-Key";
     pub(crate) const MESSAGE_SIGNATURE: &str = "Message-Signature";
     pub(crate) const MERCHANT_ID: &str = "Merchant-ID";
+    pub(crate) const REQUEST_ID: &str = "request-id";
     pub(crate) const NONCE: &str = "nonce";
     pub(crate) const TIMESTAMP: &str = "Timestamp";
     pub(crate) const TOKEN: &str = "token";
@@ -31,3 +32,11 @@ pub(crate) mod headers {
 
 /// Unsupported response type error message
 pub const UNSUPPORTED_ERROR_MESSAGE: &str = "Unsupported response type";
+
+/// Error message for Authentication Error from the connector
+pub const CONNECTOR_UNAUTHORIZED_ERROR: &str = "Authentication Error from the connector";
+
+/// Error message when Refund request has been voided.
+pub const REFUND_VOIDED: &str = "Refund request has been voided.";
+
+pub const LOW_BALANCE_ERROR_MESSAGE: &str = "Insufficient balance in the payment method";

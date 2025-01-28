@@ -65,7 +65,6 @@ pub async fn initiate_payment_link(
         payment_id,
         merchant_id: merchant_id.clone(),
     };
-    let headers = req.headers();
     Box::pin(api::server_wrap(
         flow,
         state,
@@ -78,7 +77,6 @@ pub async fn initiate_payment_link(
                 auth.key_store,
                 payload.merchant_id.clone(),
                 payload.payment_id.clone(),
-                headers,
             )
         },
         &crate::services::authentication::MerchantIdAuth(merchant_id),
@@ -183,7 +181,6 @@ pub async fn payment_link_status(
         payment_id,
         merchant_id: merchant_id.clone(),
     };
-    let headers = req.headers();
     Box::pin(api::server_wrap(
         flow,
         state,
@@ -196,7 +193,6 @@ pub async fn payment_link_status(
                 auth.key_store,
                 payload.merchant_id.clone(),
                 payload.payment_id.clone(),
-                headers,
             )
         },
         &crate::services::authentication::MerchantIdAuth(merchant_id),

@@ -1,5 +1,6 @@
 import { defineConfig } from "cypress";
-import "cypress-mochawesome-reporter/plugin.js";
+import mochawesome from "cypress-mochawesome-reporter/plugin.js";
+import fs from "fs";
 
 let globalState;
 
@@ -10,7 +11,9 @@ const reportName = process.env.REPORT_NAME || `${connectorId}_report`;
 
 export default defineConfig({
   e2e: {
-    setupNodeEvents(on) {
+    setupNodeEvents(on, config) {
+      mochawesome(on);
+
       on("task", {
         setGlobalState: (val) => {
           return (globalState = val || {});
@@ -26,6 +29,19 @@ export default defineConfig({
           return null;
         },
       });
+      on("after:spec", (spec, results) => {
+        if (results && results.video) {
+          // Do we have failures for any retry attempts?
+          const failures = results.tests.some((test) =>
+            test.attempts.some((attempt) => attempt.state === "failed")
+          );
+          if (!failures) {
+            // delete the video if the spec passed and no tests retried
+            fs.unlinkSync(results.video);
+          }
+        }
+      });
+      return config;
     },
     experimentalRunAllSpecs: true,
 
@@ -43,6 +59,8 @@ export default defineConfig({
   chromeWebSecurity: false,
   defaultCommandTimeout: 10000,
   pageLoadTimeout: 20000,
-
+  responseTimeout: 30000,
   screenshotsFolder: screenshotsFolderName,
+  video: true,
+  videoCompression: 32,
 });

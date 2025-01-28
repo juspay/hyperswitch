@@ -84,6 +84,10 @@ Never share your secret api keys. Keep them guarded and secure.
         routes::payments::payments_complete_authorize,
         routes::payments::payments_post_session_tokens,
 
+        // Routes for relay
+        routes::relay::relay,
+        routes::relay::relay_retrieve,
+
         // Routes for refunds
         routes::refunds::refunds_create,
         routes::refunds::refunds_retrieve,
@@ -302,6 +306,8 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::enums::PaymentLinkDetailsLayout,
         api_models::enums::PaymentMethodStatus,
         api_models::enums::UIWidgetFormLayout,
+        api_models::enums::PaymentConnectorCategory,
+        api_models::enums::FeatureStatus,
         api_models::admin::MerchantConnectorCreate,
         api_models::admin::AdditionalMerchantData,
         api_models::admin::ConnectorWalletDetails,
@@ -520,6 +526,13 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payment_methods::PaymentMethodCollectLinkResponse,
         api_models::refunds::RefundListRequest,
         api_models::refunds::RefundListResponse,
+        api_models::relay::RelayRequest,
+        api_models::relay::RelayResponse,
+        api_models::enums::RelayType,
+        api_models::relay::RelayData,
+        api_models::relay::RelayRefundRequest,
+        api_models::enums::RelayStatus,
+        api_models::relay::RelayError,
         api_models::payments::AmountFilter,
         api_models::mandates::MandateRevokedResponse,
         api_models::mandates::MandateResponse,
@@ -611,6 +624,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::routing::StraightThroughAlgorithm,
         api_models::routing::ConnectorVolumeSplit,
         api_models::routing::ConnectorSelection,
+        api_models::routing::SuccessRateSpecificityLevel,
         api_models::routing::ToggleDynamicRoutingQuery,
         api_models::routing::ToggleDynamicRoutingPath,
         api_models::routing::ast::RoutableChoiceKind,
@@ -677,7 +691,13 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::DisplayAmountOnSdk,
         api_models::payments::PaymentsPostSessionTokensRequest,
         api_models::payments::PaymentsPostSessionTokensResponse,
-        api_models::payments::CtpServiceDetails
+        api_models::payments::CtpServiceDetails,
+        api_models::feature_matrix::FeatureMatrixListResponse,
+        api_models::feature_matrix::FeatureMatrixRequest,
+        api_models::feature_matrix::ConnectorFeatureMatrixResponse,
+        api_models::feature_matrix::PaymentMethodSpecificFeatures,
+        api_models::feature_matrix::CardSpecificFeatures,
+        api_models::feature_matrix::SupportedPaymentMethod,
     )),
     modifiers(&SecurityAddon)
 )]

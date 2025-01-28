@@ -314,7 +314,7 @@ struct AddressStructForDbEntry<'a> {
 }
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
-impl<'a> AddressStructForDbEntry<'a> {
+impl AddressStructForDbEntry<'_> {
     async fn encrypt_customer_address_and_set_to_db(
         &self,
         db: &dyn StorageInterface,
@@ -568,7 +568,7 @@ pub async fn delete_customer(
 ) -> errors::CustomerResponse<customers::CustomerDeleteResponse> {
     let db = &*state.store;
     let key_manager_state = &(&state).into();
-    id.fetch_domain_model_and_update_and_generate_delete_customer_response(
+    id.redact_customer_details_and_generate_response(
         db,
         &key_store,
         &merchant_account,
@@ -585,7 +585,7 @@ pub async fn delete_customer(
 ))]
 #[async_trait::async_trait]
 impl CustomerDeleteBridge for id_type::GlobalCustomerId {
-    async fn fetch_domain_model_and_update_and_generate_delete_customer_response<'a>(
+    async fn redact_customer_details_and_generate_response<'a>(
         &'a self,
         db: &'a dyn StorageInterface,
         key_store: &'a domain::MerchantKeyStore,
@@ -717,7 +717,7 @@ impl CustomerDeleteBridge for id_type::GlobalCustomerId {
 
 #[async_trait::async_trait]
 trait CustomerDeleteBridge {
-    async fn fetch_domain_model_and_update_and_generate_delete_customer_response<'a>(
+    async fn redact_customer_details_and_generate_response<'a>(
         &'a self,
         db: &'a dyn StorageInterface,
         key_store: &'a domain::MerchantKeyStore,
@@ -742,7 +742,7 @@ pub async fn delete_customer(
     let db = &*state.store;
     let key_manager_state = &(&state).into();
     customer_id
-        .fetch_domain_model_and_update_and_generate_delete_customer_response(
+        .redact_customer_details_and_generate_response(
             db,
             &key_store,
             &merchant_account,
@@ -759,7 +759,7 @@ pub async fn delete_customer(
 ))]
 #[async_trait::async_trait]
 impl CustomerDeleteBridge for id_type::CustomerId {
-    async fn fetch_domain_model_and_update_and_generate_delete_customer_response<'a>(
+    async fn redact_customer_details_and_generate_response<'a>(
         &'a self,
         db: &'a dyn StorageInterface,
         key_store: &'a domain::MerchantKeyStore,
@@ -1029,7 +1029,7 @@ struct AddressStructForDbUpdate<'a> {
 }
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
-impl<'a> AddressStructForDbUpdate<'a> {
+impl AddressStructForDbUpdate<'_> {
     async fn update_address_if_sent(
         &self,
         db: &dyn StorageInterface,
@@ -1131,7 +1131,7 @@ struct VerifyIdForUpdateCustomer<'a> {
 }
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
-impl<'a> VerifyIdForUpdateCustomer<'a> {
+impl VerifyIdForUpdateCustomer<'_> {
     async fn verify_id_and_get_customer_object(
         &self,
         db: &dyn StorageInterface,
@@ -1152,7 +1152,7 @@ impl<'a> VerifyIdForUpdateCustomer<'a> {
 }
 
 #[cfg(all(feature = "v2", feature = "customer_v2"))]
-impl<'a> VerifyIdForUpdateCustomer<'a> {
+impl VerifyIdForUpdateCustomer<'_> {
     async fn verify_id_and_get_customer_object(
         &self,
         db: &dyn StorageInterface,

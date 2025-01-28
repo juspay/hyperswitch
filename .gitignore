@@ -187,7 +187,7 @@ target/
 
 ### VisualStudioCode ###
 .vscode/*
-!.vscode/settings.json
+.vscode/settings.json
 !.vscode/tasks.json
 !.vscode/launch.json
 !.vscode/extensions.json
@@ -241,6 +241,7 @@ $RECYCLE.BIN/
 # hyperswitch Project specific excludes
 # code coverage report
 *.profraw
+lcov.info
 html/
 coverage.json
 # other
