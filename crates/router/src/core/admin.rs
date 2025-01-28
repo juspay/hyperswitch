@@ -3803,6 +3803,10 @@ impl ProfileCreateBridge for api::ProfileCreate {
             is_click_to_pay_enabled: self.is_click_to_pay_enabled,
             authentication_product_ids: self.authentication_product_ids,
             three_ds_decision_manager_config: None,
+            card_testing_guard_config: self
+                .card_testing_guard_config
+                .map(ForeignInto::foreign_into),
+            card_testing_secret_key: None,
         }))
     }
 }
@@ -4157,6 +4161,10 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                 is_click_to_pay_enabled: self.is_click_to_pay_enabled,
                 authentication_product_ids: self.authentication_product_ids,
                 three_ds_decision_manager_config: None,
+                card_testing_guard_config: self
+                    .card_testing_guard_config
+                    .map(ForeignInto::foreign_into),
+                card_testing_secret_key: None,
             },
         )))
     }
