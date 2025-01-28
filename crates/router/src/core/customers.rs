@@ -463,7 +463,7 @@ pub async fn retrieve_customer(
     let key_manager_state = &(&state).into();
 
     let response = db
-        .find_customer_by_customer_id_merchant_id(
+        .find_customer_optional_with_redacted_customer_details_by_customer_id_merchant_id(
             key_manager_state,
             &customer_id,
             merchant_account.get_id(),
@@ -471,7 +471,9 @@ pub async fn retrieve_customer(
             merchant_account.storage_scheme,
         )
         .await
-        .switch()?;
+        .switch()?
+        .ok_or(errors::CustomersErrorResponse::CustomerNotFound)?;
+
     let address = match &response.address_id {
         Some(address_id) => Some(api_models::payments::AddressDetails::from(
             db.find_address_by_address_id(key_manager_state, address_id, &key_store)
