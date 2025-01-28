@@ -1224,8 +1224,21 @@ impl TryFrom<RefundsResponseRouterData<RSync, DeutschebankPaymentsResponse>>
     }
 }
 
-#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
-pub struct DeutschebankErrorResponse {
+#[derive(Default, Debug, Serialize, Deserialize, PartialEq, Clone)]
+pub struct PaymentsErrorResponse {
     pub rc: String,
     pub message: String,
+}
+
+#[derive(Default, Debug, Serialize, Deserialize, PartialEq, Clone)]
+pub struct AccessTokenErrorResponse {
+    pub cause: String,
+    pub description: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(untagged)]
+pub enum DeutschebankError {
+    PaymentsErrorResponse(PaymentsErrorResponse),
+    AccessTokenErrorResponse(AccessTokenErrorResponse),
 }
