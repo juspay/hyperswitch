@@ -4,7 +4,7 @@ use api_models::{enums, payments, webhooks};
 use cards::CardNumber;
 use common_utils::{errors::ParsingError, ext_traits::Encode, id_type, pii, types::MinorUnit};
 use error_stack::{report, ResultExt};
-use hyperswitch_domain_models::router_request_types::SubmitEvidenceRequestData;
+use hyperswitch_domain_models::{router_request_types::SubmitEvidenceRequestData, network_tokenization::NetworkTokenNumber};
 use masking::{ExposeInterface, PeekInterface};
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
@@ -619,6 +619,7 @@ pub enum AdyenPaymentMethod<'a> {
     PayEasy(Box<JCSVoucherData>),
     Pix(Box<PmdForPaymentType>),
     NetworkToken(Box<AdyenNetworkTokenData>),
+    AdyenPaze(Box<AdyenPazeData>)
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -1124,6 +1125,21 @@ pub struct AdyenCard {
     network_payment_reference: Option<Secret<String>>,
 }
 
+#[serde_with::skip_serializing_none]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AdyenPazeData {
+    #[serde(rename = "type")]
+    payment_type: PaymentType,
+    number: NetworkTokenNumber,
+    expiry_month: Secret<String>,
+    expiry_year: Secret<String>,
+    cvc: Option<Secret<String>>,
+    holder_name: Option<Secret<String>>,
+    brand: Option<CardBrand>, //Mandatory for mandate using network_txns_id
+    network_payment_reference: Option<Secret<String>>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum CardBrand {
@@ -1223,7 +1239,7 @@ pub struct AdyenApplePay {
 pub struct AdyenNetworkTokenData {
     #[serde(rename = "type")]
     payment_type: PaymentType,
-    number: CardNumber,
+    number: NetworkTokenNumber,
     expiry_month: Secret<String>,
     expiry_year: Secret<String>,
     holder_name: Option<Secret<String>>,
@@ -2185,7 +2201,7 @@ impl TryFrom<(&domain::WalletData, &types::PaymentsAuthorizeRouterData)>
             }
             domain::WalletData::Paze(_) => match item.payment_method_token.clone() {
                 Some(types::PaymentMethodToken::PazeDecrypt(paze_decrypted_data)) => {
-                    let data = AdyenCard {
+                    let data = AdyenPazeData {
                         payment_type: PaymentType::NetworkToken,
                         number: paze_decrypted_data.token.payment_token,
                         expiry_month: paze_decrypted_data.token.token_expiration_month,
@@ -2199,7 +2215,7 @@ impl TryFrom<(&domain::WalletData, &types::PaymentsAuthorizeRouterData)>
                             .and_then(get_adyen_card_network),
                         network_payment_reference: None,
                     };
-                    Ok(AdyenPaymentMethod::AdyenCard(Box::new(data)))
+                    Ok(AdyenPaymentMethod::AdyenPaze(Box::new(data)))
                 }
                 _ => Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Cybersource"),
@@ -2714,8 +2730,8 @@ impl
                         let card_holder_name = item.router_data.get_optional_billing_full_name();
                         let adyen_network_token = AdyenNetworkTokenData {
                             payment_type: PaymentType::NetworkToken,
-                            number: token_data.token_number.clone(),
-                            expiry_month: token_data.token_exp_month.clone(),
+                            number: token_data.get_network_token(),
+                            expiry_month: token_data.get_network_token_expiry_month(),
                             expiry_year: token_data.get_expiry_year_4_digit(),
                             holder_name: card_holder_name,
                             brand: Some(brand), // FIXME: Remove hardcoding
@@ -5403,8 +5419,8 @@ impl TryFrom<(&domain::NetworkTokenData, Option<Secret<String>>)> for AdyenPayme
     ) -> Result<Self, Self::Error> {
         let adyen_network_token = AdyenNetworkTokenData {
             payment_type: PaymentType::NetworkToken,
-            number: token_data.token_number.clone(),
-            expiry_month: token_data.token_exp_month.clone(),
+            number: token_data.get_network_token(),
+            expiry_month: token_data.get_network_token_expiry_month(),
             expiry_year: token_data.get_expiry_year_4_digit(),
             holder_name: card_holder_name,
             brand: None, // FIXME: Remove hardcoding
@@ -5453,7 +5469,7 @@ impl
             directory_response: "Y".to_string(),
             authentication_response: "Y".to_string(),
             token_authentication_verification_value: token_data
-                .token_cryptogram
+                .get_cryptogram()
                 .clone()
                 .unwrap_or_default(),
             eci: Some("02".to_string()),

@@ -91,6 +91,7 @@ pub async fn create_payment_method_api(
                 req,
                 &auth.merchant_account,
                 &auth.key_store,
+                &auth.profile,
             ))
             .await
         },

@@ -41,6 +41,8 @@ use diesel_models::{
 use error_stack::{report, ResultExt};
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use hyperswitch_domain_models::api::{GenericLinks, GenericLinksData};
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+use hyperswitch_domain_models::payment_method_data;
 use hyperswitch_domain_models::payments::{payment_attempt::PaymentAttempt, PaymentIntent};
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use masking::ExposeInterface;
@@ -729,6 +731,7 @@ pub(crate) async fn get_payment_method_create_request(
                             card_detail,
                         ),
                         billing: None,
+                        network_tokenization: None,
                     };
                     Ok(payment_method_request)
                 }
@@ -845,6 +848,7 @@ pub async fn create_payment_method(
     req: api::PaymentMethodCreate,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
+    profile: &domain::Profile,
 ) -> RouterResponse<api::PaymentMethodResponse> {
     req.validate()?;
 
@@ -894,6 +898,9 @@ pub async fn create_payment_method(
 
     let payment_method_data = pm_types::PaymentMethodVaultingData::from(req.payment_method_data);
 
+    let payment_method_data =
+        populate_bin_details_for_payment_method(state, &payment_method_data).await;
+
     let vaulting_result = vault_payment_method(
         state,
         &payment_method_data,
@@ -902,6 +909,17 @@ pub async fn create_payment_method(
         None,
     )
     .await;
+
+    let network_tokenization_resp =network_tokenize_and_vault_the_pmd(
+        state,
+        &payment_method_data,
+        merchant_account,
+        key_store,
+        req.network_tokenization,
+        profile.is_network_tokenization_enabled,
+        &customer_id,
+    )
+    .await.ok();
 
     let response = match vaulting_result {
         Ok((vaulting_resp, fingerprint_id)) => {
@@ -913,6 +931,7 @@ pub async fn create_payment_method(
                 Some(req.payment_method_type),
                 Some(req.payment_method_subtype),
                 Some(fingerprint_id),
+                network_tokenization_resp,
             )
             .await
             .attach_printable("Unable to create Payment method data")?;
@@ -957,6 +976,166 @@ pub async fn create_payment_method(
     }?;
 
     Ok(services::ApplicationResponse::Json(response))
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[derive(Clone, Debug)]
+pub struct NetworkTokenPaymentMethodDetails {
+    network_token_requestor_reference_id: String,
+    network_token_locker_id: String,
+    network_token_pmd: Encryptable<Secret<serde_json::Value>>,
+    //add finger print id for network token entry
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+pub async fn network_tokenize_and_vault_the_pmd(
+    state: &SessionState,
+    payment_method_data: &pm_types::PaymentMethodVaultingData,
+    merchant_account: &domain::MerchantAccount,
+    key_store: &domain::MerchantKeyStore,
+    network_tokenization: Option<payment_methods::NetworkTokenization>,
+    network_tokenization_enabled_for_profile: bool,
+    customer_id: &id_type::GlobalCustomerId,
+) -> RouterResult<NetworkTokenPaymentMethodDetails> {
+    let cond1 = match network_tokenization {
+        Some(network_tokenization) => network_tokenization.enabled,
+        None => false,
+    };
+    //check for card network as well
+    match (
+        cond1,
+        payment_method_data,
+        network_tokenization_enabled_for_profile,
+    ) {
+        (true, pm_types::PaymentMethodVaultingData::Card(card_data), true) => {
+            match network_tokenization::make_card_network_tokenization_request(
+                state,
+                card_data,
+                customer_id,
+            )
+            .await
+            {
+                Ok((resp, network_token_req_ref_id)) => {
+                    let network_token_vaulting_data =
+                        pm_types::PaymentMethodVaultingData::NetworkToken(resp);
+                    let vaulting_result = vault_payment_method(
+                        state,
+                        &network_token_vaulting_data,
+                        merchant_account,
+                        key_store,
+                        None,
+                    )
+                    .await;
+                    match vaulting_result {
+                        Ok((vaulting_resp, fingerprint_id)) => {
+                            let key_manager_state = &(state).into();
+                            let network_token = match network_token_vaulting_data {
+                                pm_types::PaymentMethodVaultingData::Card(card) => {
+                                    payment_method_data::PaymentMethodsData::Card(card.clone().into())
+                                }
+                                pm_types::PaymentMethodVaultingData::NetworkToken(network_token) => {
+                                    payment_method_data::PaymentMethodsData::NetworkToken(network_token.clone().into())
+                                }
+                            };
+                            let network_token_pmd: Encryptable<Secret<serde_json::Value>>=
+                                cards::create_encrypted_data(key_manager_state, key_store, network_token)
+                                    .await
+                                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                                    .attach_printable("Unable to encrypt Payment method data")?;
+
+                            let network_token_locker_id =
+                                vaulting_resp.vault_id.get_string_repr().clone();
+                            let network_token_details = NetworkTokenPaymentMethodDetails {
+                                network_token_requestor_reference_id: network_token_req_ref_id,
+                                network_token_locker_id,
+                                network_token_pmd,
+                            };
+                            Ok(network_token_details)
+                        }
+                        Err(e) => {
+                            services::logger::error!(
+                                "Failed to vault network tokenized payment method: {}",
+                                e
+                            );
+                            Err(report!(errors::ApiErrorResponse::InternalServerError)
+                                .attach_printable("Failed to vault network tokenized payment method"))
+                        }
+                    }
+                },
+                Err(e) => {
+                    services::logger::error!(
+                        "Failed to vault network tokenized payment method: {}",
+                        e
+                    );
+                    Err(report!(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed to vault network tokenized payment method"))
+                }
+            }
+        }
+        _ => Err(report!(errors::ApiErrorResponse::NotSupported{message: "Network Tokenization is not supported for this payment method".to_string()})),
+    }
+
+    //vaildate if profile.network_tokenization is enabled
+    //validate if network_tokenization is present and enabled true
+    //validate if payment_method_data is card
+    //generate network token
+    //if OK() then store in vault
+    //return struct {ref_id, network token pmd, network token locker id}
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+pub async fn populate_bin_details_for_payment_method(
+    state: &SessionState,
+    payment_method_data: &pm_types::PaymentMethodVaultingData,
+) -> pm_types::PaymentMethodVaultingData {
+    match payment_method_data {
+        pm_types::PaymentMethodVaultingData::Card(card) => {
+            let card_isin = card.card_number.get_card_isin();
+
+            if card.card_issuer.is_some()
+                && card.card_network.is_some()
+                && card.card_type.is_some()
+                && card.card_issuing_country.is_some()
+            {
+                pm_types::PaymentMethodVaultingData::Card(card.clone())
+            } else {
+                let card_info = state
+                    .store
+                    .get_card_info(&card_isin)
+                    .await
+                    .map_err(|error| services::logger::error!(card_info_error=?error))
+                    .ok()
+                    .flatten();
+
+                pm_types::PaymentMethodVaultingData::Card(payment_methods::CardDetail {
+                    card_number: card.card_number.clone(),
+                    card_exp_month: card.card_exp_month.clone(),
+                    card_exp_year: card.card_exp_year.clone(),
+                    card_holder_name: card.card_holder_name.clone(),
+                    nick_name: card.nick_name.clone(),
+                    card_issuing_country: card_info.as_ref().and_then(|val| {
+                        val.card_issuing_country
+                            .as_ref()
+                            .map(|c| api_enums::CountryAlpha2::from_str(c))
+                            .transpose()
+                            .ok()
+                            .flatten()
+                    }),
+                    card_network: card_info.as_ref().and_then(|val| val.card_network.clone()),
+                    card_issuer: card_info.as_ref().and_then(|val| val.card_issuer.clone()),
+                    card_type: card_info.as_ref().and_then(|val| {
+                        val.card_type
+                            .as_ref()
+                            .map(|c| payment_methods::CardType::from_str(c))
+                            .transpose()
+                            .ok()
+                            .flatten()
+                    }),
+                })
+            }
+        }
+        _ => payment_method_data.clone(),
+    }
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
@@ -1085,6 +1264,7 @@ pub async fn payment_method_intent_confirm(
                 Some(req.payment_method_type),
                 Some(req.payment_method_subtype),
                 Some(fingerprint_id),
+                None,
             )
             .await
             .attach_printable("Unable to create Payment method data")?;
@@ -1450,6 +1630,7 @@ pub async fn create_payment_method_for_intent(
     Ok((response, ephemeral_key.secret))
 }
 
+#[allow(clippy::too_many_arguments)]
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 pub async fn create_pm_additional_data_update(
     pmd: &pm_types::PaymentMethodVaultingData,
@@ -1459,10 +1640,14 @@ pub async fn create_pm_additional_data_update(
     payment_method_type: Option<api_enums::PaymentMethod>,
     payment_method_subtype: Option<api_enums::PaymentMethodType>,
     vault_fingerprint_id: Option<String>,
+    nt_data: Option<NetworkTokenPaymentMethodDetails>,
 ) -> RouterResult<storage::PaymentMethodUpdate> {
     let card = match pmd {
         pm_types::PaymentMethodVaultingData::Card(card) => {
-            api::PaymentMethodsData::Card(card.clone().into())
+            payment_method_data::PaymentMethodsData::Card(card.clone().into())
+        }
+        pm_types::PaymentMethodVaultingData::NetworkToken(network_token) => {
+            payment_method_data::PaymentMethodsData::NetworkToken(network_token.clone().into())
         }
     };
     let key_manager_state = &(state).into();
@@ -1478,9 +1663,11 @@ pub async fn create_pm_additional_data_update(
         payment_method_type_v2: payment_method_type,
         payment_method_subtype,
         payment_method_data: Some(pmd.into()),
-        network_token_requestor_reference_id: None,
-        network_token_locker_id: None,
-        network_token_payment_method_data: None,
+        network_token_requestor_reference_id: nt_data
+            .clone()
+            .map(|data| data.network_token_requestor_reference_id),
+        network_token_locker_id: nt_data.clone().map(|data| data.network_token_locker_id),
+        network_token_payment_method_data: nt_data.map(|data| data.network_token_pmd.into()),
         locker_fingerprint_id: vault_fingerprint_id,
     };
 
@@ -2054,6 +2241,7 @@ pub async fn update_payment_method(
         payment_method.get_payment_method_type(),
         payment_method.get_payment_method_subtype(),
         Some(fingerprint_id),
+        None,
     )
     .await
     .attach_printable("Unable to create Payment method data")?;
