@@ -34,12 +34,12 @@ use hyperswitch_interfaces::{
     configs::Connectors,
     errors,
     events::connector_api_logs::ConnectorEvent,
+    recovery::RecoveryPayload,
     types::{self, Response},
     webhooks,
 };
 use masking::{ExposeInterface, Mask, PeekInterface, Secret};
 use transformers::{self as chargebee, ChargebeeWebhookBody};
-use hyperswitch_interfaces::recovery::RecoveryPayload;
 
 use crate::{constants::headers, types::ResponseRouterData, utils};
 
@@ -637,8 +637,7 @@ impl webhooks::IncomingWebhook for Chargebee {
     fn get_recovery_details(
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<RecoveryPayload, errors::ConnectorError>
-    {
+    ) -> CustomResult<RecoveryPayload, errors::ConnectorError> {
         let webhook = ChargebeeWebhookBody::get_webhook_object_from_body(request.body)?;
         Ok(RecoveryPayload::try_from(webhook)?)
     }

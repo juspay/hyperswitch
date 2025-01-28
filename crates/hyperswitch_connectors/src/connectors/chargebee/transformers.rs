@@ -1,5 +1,10 @@
 use common_enums::enums;
-use common_utils::types::StringMinorUnit;
+use common_utils::{
+    errors::CustomResult,
+    ext_traits::ByteSliceExt,
+    types::{MinorUnit, StringMinorUnit},
+};
+use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     router_data::{ConnectorAuthType, RouterData},
@@ -12,8 +17,6 @@ use hyperswitch_interfaces::errors;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
-use common_utils::{errors::CustomResult, ext_traits::ByteSliceExt, types::MinorUnit};
-use error_stack::ResultExt;
 
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
@@ -249,7 +252,7 @@ pub struct ChargebeeWebhookContent {
 pub enum ChargebeeEventType {
     PaymentSucceeded,
     PaymentFailed,
-    InvoiceDeleted
+    InvoiceDeleted,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -257,7 +260,7 @@ pub struct ChargebeeInvoiceData {
     // invoice id
     pub id: String,
     pub total: MinorUnit,
-    pub currency_code : enums::Currency,
+    pub currency_code: enums::Currency,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -288,19 +291,19 @@ pub enum ChargebeeTranasactionStatus {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct ChargebeeCustomer{
-    pub payment_method : ChargebeePaymentMethod,
+pub struct ChargebeeCustomer {
+    pub payment_method: ChargebeePaymentMethod,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct ChargebeePaymentMethod{
+pub struct ChargebeePaymentMethod {
     pub reference_id: String,
     pub gateway: ChargebeeGateway,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "snake_case")]
-pub enum ChargebeeGateway{
+pub enum ChargebeeGateway {
     Stripe,
     Braintree,
 }
@@ -316,11 +319,11 @@ impl ChargebeeWebhookBody {
     }
 }
 
-impl ChargebeeCustomer{
+impl ChargebeeCustomer {
     // the logic to find connector customer id & mandate id is different for different gateways, reference : https://apidocs.chargebee.com/docs/api/customers?prod_cat_ver=2#customer_payment_method_reference_id .
     pub fn find_connector_ids(&self) -> Result<(String, String), errors::ConnectorError> {
         match self.payment_method.gateway {
-            ChargebeeGateway::Stripe |  ChargebeeGateway::Braintree => {
+            ChargebeeGateway::Stripe | ChargebeeGateway::Braintree => {
                 let mut parts = self.payment_method.reference_id.split('/');
                 let customer_id = parts
                     .next()
@@ -336,27 +339,57 @@ impl ChargebeeCustomer{
     }
 }
 
-impl TryFrom<ChargebeeWebhookBody> for hyperswitch_interfaces::recovery::RecoveryPayload{
+impl TryFrom<ChargebeeWebhookBody> for hyperswitch_interfaces::recovery::RecoveryPayload {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: ChargebeeWebhookBody,
-    ) -> Result<Self,Self::Error>{
-        let amount = item.content.transaction.as_ref().map_or(item.content.invoice.total.clone(),|trans|trans.amount.clone());
-        let currency = item.content.transaction.as_ref().map_or(item.content.invoice.currency_code.clone(),|trans|trans.currency_code.clone());
+    fn try_from(item: ChargebeeWebhookBody) -> Result<Self, Self::Error> {
+        let amount = item
+            .content
+            .transaction
+            .as_ref()
+            .map_or(item.content.invoice.total.clone(), |trans| {
+                trans.amount.clone()
+            });
+        let currency = item
+            .content
+            .transaction
+            .as_ref()
+            .map_or(item.content.invoice.currency_code.clone(), |trans| {
+                trans.currency_code.clone()
+            });
         let merchant_reference_id = item.content.invoice.id.clone();
-        let connector_transaction_id = item.content.transaction.as_ref().map(|trans| trans.id_at_gateway.clone());        
-        let error_code = item.content.transaction.as_ref().and_then(|trans| trans.error_code.clone());
-        let error_message = item.content.transaction.as_ref().and_then(|trans| trans.error_text.clone());
+        let connector_transaction_id = item
+            .content
+            .transaction
+            .as_ref()
+            .map(|trans| trans.id_at_gateway.clone());
+        let error_code = item
+            .content
+            .transaction
+            .as_ref()
+            .and_then(|trans| trans.error_code.clone());
+        let error_message = item
+            .content
+            .transaction
+            .as_ref()
+            .and_then(|trans| trans.error_text.clone());
         let (connector_customer_id, connector_mandate_id) = match &item.content.customer {
-            Some(customer) =>{
-                let (customer_id,mandate_id) =customer.find_connector_ids()?;
-                (Some(customer_id),Some(mandate_id))
-            },
+            Some(customer) => {
+                let (customer_id, mandate_id) = customer.find_connector_ids()?;
+                (Some(customer_id), Some(mandate_id))
+            }
             None => (None, None),
         };
-        let connector_account_reference_id = item.content.transaction.as_ref().and_then(|trans|trans.gateway_account_id.clone());
-        let created_at = item.content.transaction.as_ref().map(|trans| trans.date.clone());
-        Ok(hyperswitch_interfaces::recovery::RecoveryPayload{
+        let connector_account_reference_id = item
+            .content
+            .transaction
+            .as_ref()
+            .and_then(|trans| trans.gateway_account_id.clone());
+        let created_at = item
+            .content
+            .transaction
+            .as_ref()
+            .map(|trans| trans.date.clone());
+        Ok(hyperswitch_interfaces::recovery::RecoveryPayload {
             amount,
             currency,
             merchant_reference_id,
@@ -366,7 +399,7 @@ impl TryFrom<ChargebeeWebhookBody> for hyperswitch_interfaces::recovery::Recover
             connector_mandate_id,
             connector_transaction_id,
             connector_account_reference_id,
-            created_at
+            created_at,
         })
     }
 }
