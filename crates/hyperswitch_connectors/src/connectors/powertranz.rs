@@ -627,7 +627,6 @@ lazy_static! {
         let supported_capture_methods = vec![
             enums::CaptureMethod::Automatic,
             enums::CaptureMethod::Manual,
-            enums::CaptureMethod::SequentialAutomatic,
         ];
 
         let supported_card_network = vec![
@@ -636,17 +635,6 @@ lazy_static! {
         ];
 
         let mut powertranz_supported_payment_methods = SupportedPaymentMethods::new();
-
-        powertranz_supported_payment_methods.add(
-            enums::PaymentMethod::BankDebit,
-            enums::PaymentMethodType::Sepa,
-            PaymentMethodDetails{
-                mandates: enums::FeatureStatus::Supported,
-                refunds: enums::FeatureStatus::Supported,
-                supported_capture_methods: supported_capture_methods.clone(),
-                specific_features: None,
-            }
-        );
 
         powertranz_supported_payment_methods.add(
             enums::PaymentMethod::Card,
@@ -674,7 +662,7 @@ lazy_static! {
         description:
             "Powertranz is a leading payment gateway serving the Caribbean and parts of Central America "
                 .to_string(),
-        connector_type: enums::PaymentConnectorCategory::BankAcquirer,
+        connector_type: enums::PaymentConnectorCategory::PaymentGateway,
     };
 
     static ref POWERTRANZ_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> = Vec::new();

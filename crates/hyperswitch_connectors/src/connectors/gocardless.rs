@@ -25,7 +25,10 @@ use hyperswitch_domain_models::{
         PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsPreProcessingData,
         PaymentsSessionData, PaymentsSyncData, RefundsData, SetupMandateRequestData,
     },
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    router_response_types::{
+        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
+        SupportedPaymentMethods, SupportedPaymentMethodsExt,
+    },
     types::{
         ConnectorCustomerRouterData, PaymentsAuthorizeRouterData, PaymentsSyncRouterData,
         RefundSyncRouterData, RefundsRouterData, SetupMandateRouterData, TokenizationRouterData,
@@ -42,6 +45,7 @@ use hyperswitch_interfaces::{
     types::{self, PaymentsSyncType, Response},
     webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
 };
+use lazy_static::lazy_static;
 use masking::{Mask, PeekInterface};
 use transformers as gocardless;
 
@@ -873,4 +877,86 @@ impl IncomingWebhook for Gocardless {
     }
 }
 
-impl ConnectorSpecifications for Gocardless {}
+lazy_static! {
+    static ref GOCARDLESS_SUPPORTED_PAYMENT_METHODS: SupportedPaymentMethods = {
+        let default_capture_methods = vec![];
+        let supported_capture_methods = vec![enums::CaptureMethod::Automatic];
+        let supported_card_network = vec![];
+
+        let mut gocardless_supported_payment_methods = SupportedPaymentMethods::new();
+
+        gocardless_supported_payment_methods.add(
+            enums::PaymentMethod::Card,
+            enums::PaymentMethodType::Credit,
+            PaymentMethodDetails {
+                mandates: common_enums::FeatureStatus::NotSupported,
+                refunds: common_enums::FeatureStatus::NotSupported,
+                supported_capture_methods: default_capture_methods.clone(),
+                specific_features: Some(
+                    api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
+                        api_models::feature_matrix::CardSpecificFeatures {
+                            three_ds: common_enums::FeatureStatus::NotSupported,
+                            non_three_ds: common_enums::FeatureStatus::NotSupported,
+                            supported_card_networks: supported_card_network.clone(),
+                        }
+                    }),
+                ),
+            },
+        );
+
+        gocardless_supported_payment_methods.add(
+            enums::PaymentMethod::BankDebit,
+            enums::PaymentMethodType::Ach,
+            PaymentMethodDetails {
+                mandates: common_enums::FeatureStatus::Supported,
+                refunds: common_enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: None,
+            },
+        );
+
+        gocardless_supported_payment_methods.add(
+            enums::PaymentMethod::BankDebit,
+            enums::PaymentMethodType::Becs,
+            PaymentMethodDetails {
+                mandates: common_enums::FeatureStatus::Supported,
+                refunds: common_enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: None,
+            },
+        );
+
+        gocardless_supported_payment_methods.add(
+            enums::PaymentMethod::BankDebit,
+            enums::PaymentMethodType::Sepa,
+            PaymentMethodDetails {
+                mandates: common_enums::FeatureStatus::Supported,
+                refunds: common_enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: None,
+            },
+        );
+
+        gocardless_supported_payment_methods
+    };
+    static ref GOCARDLESS_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+        description: "GoCardless is a fintech company that specialises in bank payments including recurring payments."
+            .to_string(),
+        connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+    };
+    static ref GOCARDLESS_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> = Vec::new();
+}
+
+impl ConnectorSpecifications for Gocardless {
+    fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
+        Some(&*GOCARDLESS_CONNECTOR_INFO)
+    }
+
+    fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
+        Some(&*GOCARDLESS_SUPPORTED_PAYMENT_METHODS)
+    }
+
+    fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
+        Some(&*GOCARDLESS_SUPPORTED_WEBHOOK_FLOWS)
+    }
+}

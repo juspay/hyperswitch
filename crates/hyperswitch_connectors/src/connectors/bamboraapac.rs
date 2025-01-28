@@ -756,6 +756,7 @@ lazy_static! {
         let default_capture_methods = vec![
             enums::CaptureMethod::Automatic,
             enums::CaptureMethod::Manual,
+            enums::CaptureMethod::SequentialAutomatic,
         ];
 
         let supported_card_network = vec![
@@ -763,6 +764,9 @@ lazy_static! {
             common_enums::CardNetwork::Mastercard,
             common_enums::CardNetwork::AmericanExpress,
             common_enums::CardNetwork::DinersClub,
+            common_enums::CardNetwork::JCB,
+            common_enums::CardNetwork::UnionPay,
+            common_enums::CardNetwork::Discover,
         ];
 
         let mut bamboraapac_supported_payment_methods = SupportedPaymentMethods::new();

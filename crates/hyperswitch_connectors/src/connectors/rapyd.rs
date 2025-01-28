@@ -965,6 +965,11 @@ lazy_static! {
         let supported_card_network = vec![
             common_enums::CardNetwork::AmericanExpress,
             common_enums::CardNetwork::Visa,
+            common_enums::CardNetwork::JCB,
+            common_enums::CardNetwork::DinersClub,
+            common_enums::CardNetwork::UnionPay,
+            common_enums::CardNetwork::Mastercard,
+            common_enums::CardNetwork::Discover,
         ];
 
         let mut rapyd_supported_payment_methods = SupportedPaymentMethods::new();
@@ -1002,7 +1007,7 @@ lazy_static! {
                     api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
                         api_models::feature_matrix::CardSpecificFeatures {
                             three_ds: common_enums::FeatureStatus::Supported,
-                            non_three_ds: common_enums::FeatureStatus::NotSupported,
+                            non_three_ds: common_enums::FeatureStatus::Supported,
                             supported_card_networks: supported_card_network.clone(),
                         }
                     }),
