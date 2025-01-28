@@ -63,6 +63,8 @@ pub enum ApiClientError {
     #[error("Unexpected state reached/Invariants conflicted")]
     UnexpectedState,
 
+    #[error("Failed to parse URL")]
+    UrlParsingFailed,
     #[error("URL encoding of request payload failed")]
     UrlEncodingFailed,
     #[error("Failed to send request to connector {0}")]
@@ -3589,12 +3591,33 @@ pub enum StripeChargeType {
     Destination,
 }
 
+/// Authentication Products
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum AuthenticationProduct {
+    ClickToPay,
+}
+
 /// Connector Access Method
 #[derive(
     Clone,
     Copy,
     Debug,
     Eq,
+    Hash,
     PartialEq,
     serde::Deserialize,
     serde::Serialize,
