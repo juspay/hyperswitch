@@ -22,6 +22,7 @@ use std::{
 
 #[cfg(feature = "v2")]
 pub mod payment_methods;
+
 #[cfg(feature = "olap")]
 use api_models::admin::MerchantConnectorInfo;
 use api_models::{
@@ -1565,7 +1566,7 @@ pub async fn payments_get_intent_using_merchant_reference(
             id: payment_intent.get_id().clone(),
         },
         payment_intent.get_id().clone(),
-        HeaderPayload::default(),
+        header_payload.clone(),
         platform_merchant_account,
     ))
     .await?;

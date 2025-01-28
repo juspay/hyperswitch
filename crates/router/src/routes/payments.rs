@@ -2443,7 +2443,7 @@ pub async fn payment_get_intent_using_merchant_reference_id(
         state,
         &req,
         (),
-        |state, auth: auth::AuthenticationData, req, req_state| async {
+        |state, auth: auth::AuthenticationData, _, req_state| async {
             Box::pin(payments::payments_get_intent_using_merchant_reference(
                 state,
                 auth.merchant_account,

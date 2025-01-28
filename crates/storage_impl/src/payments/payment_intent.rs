@@ -656,7 +656,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         merchant_reference_id: &common_utils::id_type::PaymentReferenceId,
         profile_id: &common_utils::id_type::ProfileId,
         merchant_key_store: &MerchantKeyStore,
-        storage_scheme: &MerchantStorageScheme,
+        _storage_scheme: &MerchantStorageScheme,
     ) -> error_stack::Result<PaymentIntent, StorageError> {
         let conn = pg_connection_read(self).await?;
         let diesel_payment_intent = DieselPaymentIntent::find_by_merchant_reference_id_profile_id(
