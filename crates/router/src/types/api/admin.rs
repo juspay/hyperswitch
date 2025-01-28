@@ -252,6 +252,9 @@ impl ForeignTryFrom<domain::Profile> for ProfileResponse {
             is_network_tokenization_enabled: item.is_network_tokenization_enabled,
             is_click_to_pay_enabled: item.is_click_to_pay_enabled,
             authentication_product_ids: item.authentication_product_ids,
+            card_testing_guard_config: item
+                .card_testing_guard_config
+                .map(ForeignInto::foreign_into),
         })
     }
 }
