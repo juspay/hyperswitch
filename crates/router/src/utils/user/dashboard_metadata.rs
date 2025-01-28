@@ -10,7 +10,7 @@ use diesel_models::{
     user::dashboard_metadata::{DashboardMetadata, DashboardMetadataNew, DashboardMetadataUpdate},
 };
 use error_stack::{report, ResultExt};
-use masking::{ExposeInterface, Secret};
+use masking::{ExposeInterface, PeekInterface, Secret};
 use router_env::logger;
 
 use crate::{
@@ -278,20 +278,27 @@ pub fn parse_string_to_enums(query: String) -> UserResult<GetMultipleMetaDataPay
     })
 }
 
-fn not_contains_string(value: &Option<String>, value_to_be_checked: &str) -> bool {
-    value
-        .as_ref()
-        .is_some_and(|mail| !mail.contains(value_to_be_checked))
+fn not_contains_string(value: Option<&str>, value_to_be_checked: &str) -> bool {
+    value.is_some_and(|mail| !mail.contains(value_to_be_checked))
 }
 
 pub fn is_prod_email_required(data: &ProdIntent, user_email: String) -> bool {
     let poc_email_check = not_contains_string(
-        &data.poc_email.clone().map(|email| format!("{:?}", email)),
+        data.poc_email.as_ref().map(|email| email.peek().as_str()),
         "juspay",
     );
-    let business_website_check = not_contains_string(&data.business_website, "juspay")
-        && not_contains_string(&data.business_website, "hyperswitch");
-    let user_email_check = not_contains_string(&Some(user_email), "juspay");
+    let business_website_check = not_contains_string(
+        data.business_website
+            .as_ref()
+            .map(|business_website| business_website.as_str()),
+        "juspay",
+    ) && not_contains_string(
+        data.business_website
+            .as_ref()
+            .map(|business_website| business_website.as_str()),
+        "hyperswitch",
+    );
+    let user_email_check = not_contains_string(Some(&user_email), "juspay");
 
     if (poc_email_check && business_website_check && user_email_check).not() {
         logger::info!(prod_intent_email = poc_email_check);

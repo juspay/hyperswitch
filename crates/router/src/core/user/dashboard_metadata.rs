@@ -3,6 +3,7 @@ use std::str::FromStr;
 use api_models::user::dashboard_metadata::{self as api, GetMultipleMetaDataPayload};
 #[cfg(feature = "email")]
 use common_enums::EntityType;
+use common_utils::pii;
 use diesel_models::{
     enums::DashboardMetadata as DBEnum, user::dashboard_metadata::DashboardMetadata,
 };
@@ -452,7 +453,7 @@ async fn insert_metadata(
         types::MetaData::ProdIntent(data) => {
             if let Some(poc_email) = &data.poc_email {
                 let inner_poc_email = poc_email.peek().as_str();
-                common_utils::pii::Email::from_str(inner_poc_email)
+                pii::Email::from_str(inner_poc_email)
                     .change_context(UserErrors::EmailParsingError)?;
             }
             let mut metadata = utils::insert_user_scoped_metadata_to_db(
