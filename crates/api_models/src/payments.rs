@@ -4895,7 +4895,11 @@ pub struct PaymentsConfirmIntentResponse {
 
     /// The transaction authentication can be set to undergo payer authentication. By default, the authentication will be marked as NO_THREE_DS
     #[schema(value_type = AuthenticationType, example = "no_three_ds", default = "three_ds")]
-    pub authentication_type: api_enums::AuthenticationType,
+    pub authentication_type: Option<api_enums::AuthenticationType>,
+
+    /// The transaction authentication can be set to undergo payer authentication. By default, the authentication will be marked as NO_THREE_DS
+    #[schema(value_type = AuthenticationType, example = "no_three_ds", default = "three_ds")]
+    pub applied_authentication_type: api_enums::AuthenticationType,
 }
 
 // TODO: have a separate response for detailed, summarized

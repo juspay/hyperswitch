@@ -1453,7 +1453,8 @@ where
             merchant_connector_id,
             browser_info: None,
             error,
-            authentication_type: payment_attempt.authentication_type,
+            authentication_type: payment_intent.authentication_type,
+            applied_authentication_type: payment_attempt.authentication_type,
         };
 
         Ok(services::ApplicationResponse::JsonWithHeaders((

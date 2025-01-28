@@ -178,13 +178,7 @@ where
 
     operation
         .to_domain()?
-        .run_decision_manager(
-            state,
-            &mut payment_data,
-            &key_store,
-            merchant_account.storage_scheme,
-            &profile,
-        )
+        .run_decision_manager(state, &mut payment_data, &profile)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to run decision manager")?;
@@ -1164,16 +1158,13 @@ where
 // TODO: Move to business profile surcharge column
 #[instrument(skip_all)]
 #[cfg(feature = "v2")]
-pub async fn call_decision_manager<F, D>(
+pub fn call_decision_manager<F>(
     state: &SessionState,
-    // _merchant_account: &domain::MerchantAccount,
-    // business_profile: &domain::Profile,
     record: common_types::payments::DecisionManagerRecord,
-    payment_data: &D,
+    payment_data: &PaymentConfirmData<F>,
 ) -> RouterResult<Option<enums::AuthenticationType>>
 where
     F: Clone,
-    D: OperationSessionGetters<F>,
 {
     let payment_method_data = payment_data.get_payment_method_data();
     let payment_dsl_data = core_routing::PaymentsDslInput::new(
@@ -1190,8 +1181,7 @@ where
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Could not decode the conditional config")?;
 
-    ////
-    Ok(output.override_3ds.map(ForeignInto::foreign_into))
+    Ok(output.override_3ds)
 }
 
 #[cfg(feature = "v2")]
@@ -6966,15 +6956,9 @@ pub trait OperationSessionSetters<F> {
     fn set_capture_method_in_attempt(&mut self, capture_method: enums::CaptureMethod);
     fn set_frm_message(&mut self, frm_message: FraudCheck);
     fn set_payment_intent_status(&mut self, status: storage_enums::IntentStatus);
-    #[cfg(feature = "v1")]
     fn set_authentication_type_in_attempt(
         &mut self,
         authentication_type: Option<enums::AuthenticationType>,
-    );
-    #[cfg(feature = "v2")]
-    fn set_authentication_type_in_attempt(
-        &mut self,
-        authentication_type: enums::AuthenticationType,
     );
     fn set_recurring_mandate_payment_data(
         &mut self,
@@ -7427,7 +7411,7 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentIntentData<F> {
 
     fn set_authentication_type_in_attempt(
         &mut self,
-        _authentication_type: enums::AuthenticationType,
+        _authentication_type: Option<enums::AuthenticationType>,
     ) {
         todo!()
     }
@@ -7640,9 +7624,9 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentConfirmData<F> {
 
     fn set_authentication_type_in_attempt(
         &mut self,
-        authentication_type: enums::AuthenticationType,
+        _authentication_type: Option<enums::AuthenticationType>,
     ) {
-        self.payment_attempt.authentication_type = authentication_type;
+        todo!()
     }
 
     fn set_recurring_mandate_payment_data(
@@ -7853,7 +7837,7 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentStatusData<F> {
 
     fn set_authentication_type_in_attempt(
         &mut self,
-        _authentication_type: enums::AuthenticationType,
+        _authentication_type: Option<enums::AuthenticationType>,
     ) {
         todo!()
     }
@@ -8068,7 +8052,7 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentCaptureData<F> {
 
     fn set_authentication_type_in_attempt(
         &mut self,
-        _authentication_type: enums::AuthenticationType,
+        _authentication_type: Option<enums::AuthenticationType>,
     ) {
         todo!()
     }

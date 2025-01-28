@@ -295,32 +295,21 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
         &'a self,
         state: &SessionState,
         payment_data: &mut PaymentConfirmData<F>,
-        merchant_key_store: &domain::MerchantKeyStore,
-        storage_scheme: storage_enums::MerchantStorageScheme,
         business_profile: &domain::Profile,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
-        // Check if authentication type is already present in the request
         let authentication_type = payment_data.payment_intent.authentication_type;
 
-        // If not present, run the decision manager if configured
-        let authentication_type = if authentication_type.is_none()
-            && business_profile.three_ds_decision_manager_config.is_some()
-        {
-            call_decision_manager(
+        let authentication_type = match business_profile.three_ds_decision_manager_config.as_ref() {
+            Some(three_ds_decision_manager_config) => call_decision_manager(
                 state,
-                business_profile
-                    .three_ds_decision_manager_config
-                    .clone()
-                    .ok_or_else(|| errors::ApiErrorResponse::InternalServerError)?,
+                three_ds_decision_manager_config.clone(),
                 payment_data,
-            )
-            .await?
-        } else {
-            authentication_type
+            )?,
+            None => authentication_type,
         };
 
         if let Some(auth_type) = authentication_type {
-            payment_data.set_authentication_type_in_attempt(auth_type);
+            payment_data.payment_attempt.authentication_type = auth_type;
         }
 
         Ok(())
