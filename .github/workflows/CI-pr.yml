@@ -90,7 +90,7 @@ jobs:
 
     env:
       # Use `sccache` for caching compilation artifacts
-      RUSTC_WRAPPER: sccache
+      # RUSTC_WRAPPER: sccache
       RUSTFLAGS: "-D warnings"
 
     strategy:
@@ -126,11 +126,11 @@ jobs:
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Install sccache
-        uses: taiki-e/install-action@v2.33.28
-        with:
-          tool: sccache
-          checksum: true
+      # - name: Install sccache
+      #   uses: taiki-e/install-action@v2.33.28
+      #   with:
+      #     tool: sccache
+      #     checksum: true
       
       - name: Install rust cache
         uses: Swatinem/rust-cache@v2.7.0
@@ -184,7 +184,7 @@ jobs:
 
     env:
       # Use `sccache` for caching compilation artifacts
-      RUSTC_WRAPPER: sccache
+      # RUSTC_WRAPPER: sccache
       RUSTFLAGS: "-D warnings"
 
     strategy:
@@ -232,11 +232,11 @@ jobs:
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Install sccache
-        uses: taiki-e/install-action@v2.33.28
-        with:
-          tool: sccache
-          checksum: true
+      # - name: Install sccache
+      #   uses: taiki-e/install-action@v2.33.28
+      #   with:
+      #     tool: sccache
+      #     checksum: true
 
       - name: Install rust cache
         uses: Swatinem/rust-cache@v2.7.0
