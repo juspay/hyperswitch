@@ -132,10 +132,10 @@ impl ConnectorCommon for Bluesnap {
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         logger::debug!(bluesnap_error_response=?res);
-        let response_data: Result<bluesnap::BluesnapErrors, Report<errors::ConnectorError>> = res
-            .response
-            .parse_struct("bluesnap::BluesnapErrors")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed);
+        let response_data: Result<
+            bluesnap::BluesnapErrors,
+            Report<common_utils::errors::ParsingError>,
+        > = res.response.parse_struct("BluesnapErrors");
 
         match response_data {
             Ok(response) => {
