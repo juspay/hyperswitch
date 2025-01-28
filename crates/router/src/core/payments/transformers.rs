@@ -743,6 +743,13 @@ pub async fn construct_payment_router_data_for_sdk_session<'a>(
             ForeignInto::foreign_into((apple_pay_recurring_details, apple_pay_amount))
         });
 
+    let order_tax_amount = payment_data
+        .payment_intent
+        .amount_details
+        .tax_details
+        .clone()
+        .and_then(|tax| tax.get_default_tax_amount());
+
     // TODO: few fields are repeated in both routerdata and request
     let request = types::PaymentsSessionData {
         amount: payment_data
@@ -767,6 +774,12 @@ pub async fn construct_payment_router_data_for_sdk_session<'a>(
         email,
         minor_amount: payment_data.payment_intent.amount_details.order_amount,
         apple_pay_recurring_details,
+        metadata: payment_data
+            .payment_intent
+            .metadata
+            .map(|secret| secret.expose()),
+        order_tax_amount,
+        shipping_cost: payment_data.payment_intent.amount_details.shipping_cost,
     };
 
     // TODO: evaluate the fields in router data, if they are required or not
@@ -3723,6 +3736,13 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSessionD
                 ForeignInto::foreign_into((apple_pay_recurring_details, apple_pay_amount))
             });
 
+        let order_tax_amount = payment_data
+            .payment_intent
+            .amount_details
+            .tax_details
+            .clone()
+            .and_then(|tax| tax.get_default_tax_amount());
+
         Ok(Self {
             amount: amount.get_amount_as_i64(), //need to change once we move to connector module
             minor_amount: amount,
@@ -3739,6 +3759,12 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSessionD
             surcharge_details: payment_data.surcharge_details,
             email: payment_data.email,
             apple_pay_recurring_details,
+            metadata: payment_data
+                .payment_intent
+                .metadata
+                .map(|secret| secret.expose()),
+            order_tax_amount,
+            shipping_cost: payment_data.payment_intent.amount_details.shipping_cost,
         })
     }
 }
@@ -3808,6 +3834,16 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSessionD
                 ForeignFrom::foreign_from((apple_pay_recurring_details, apple_pay_amount))
             });
 
+        let order_tax_amount = payment_data
+            .payment_intent
+            .tax_details
+            .clone()
+            .and_then(|tax| tax.get_default_tax_amount());
+
+        let shipping_cost = payment_data.payment_intent.shipping_cost;
+
+        let metadata = payment_data.payment_intent.metadata.clone();
+
         Ok(Self {
             amount: net_amount.get_amount_as_i64(), //need to change once we move to connector module
             minor_amount: amount,
@@ -3824,6 +3860,9 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSessionD
             email: payment_data.email,
             surcharge_details: payment_data.surcharge_details,
             apple_pay_recurring_details,
+            order_tax_amount,
+            shipping_cost,
+            metadata,
         })
     }
 }

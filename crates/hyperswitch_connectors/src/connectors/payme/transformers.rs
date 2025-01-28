@@ -395,6 +395,7 @@ impl TryFrom<&PaymentMethodData> for SalePaymentMethod {
                 WalletData::AliPayQr(_)
                 | WalletData::AliPayRedirect(_)
                 | WalletData::AliPayHkRedirect(_)
+                | WalletData::AmazonPay(_)
                 | WalletData::AmazonPayRedirect(_)
                 | WalletData::MomoRedirect(_)
                 | WalletData::KakaoPayRedirect(_)

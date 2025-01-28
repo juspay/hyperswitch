@@ -2969,8 +2969,8 @@ pub fn validate_payment_method_type_against_payment_method(
         ),
         api_enums::PaymentMethod::Wallet => matches!(
             payment_method_type,
-            api_enums::PaymentMethodType::AmazonPay
-                | api_enums::PaymentMethodType::ApplePay
+            api_enums::PaymentMethodType::ApplePay
+                | api_enums::PaymentMethodType::AmazonPay
                 | api_enums::PaymentMethodType::GooglePay
                 | api_enums::PaymentMethodType::Paypal
                 | api_enums::PaymentMethodType::AliPay
@@ -5306,6 +5306,9 @@ async fn get_and_merge_apple_pay_metadata(
                     apple_pay: connector_wallets_details_optional
                         .as_ref()
                         .and_then(|d| d.apple_pay.clone()),
+                    amazon_pay: connector_wallets_details_optional
+                        .as_ref()
+                        .and_then(|d| d.amazon_pay.clone()),
                     samsung_pay: connector_wallets_details_optional
                         .as_ref()
                         .and_then(|d| d.samsung_pay.clone()),
@@ -5327,6 +5330,9 @@ async fn get_and_merge_apple_pay_metadata(
                     apple_pay_combined: connector_wallets_details_optional
                         .as_ref()
                         .and_then(|d| d.apple_pay_combined.clone()),
+                    amazon_pay: connector_wallets_details_optional
+                        .as_ref()
+                        .and_then(|d| d.amazon_pay.clone()),
                     samsung_pay: connector_wallets_details_optional
                         .as_ref()
                         .and_then(|d| d.samsung_pay.clone()),
