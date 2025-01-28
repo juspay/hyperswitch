@@ -1481,7 +1481,7 @@ pub fn validate_customer_information(
 }
 
 #[cfg(feature = "v1")]
-pub async fn validate_card_ip_blocking_for_merchant(
+pub async fn validate_card_ip_blocking_for_business_profile(
     state: &SessionState,
     request: &api_models::payments::PaymentsRequest,
     fingerprnt: masking::Secret<String>,
@@ -1524,7 +1524,7 @@ pub async fn validate_card_ip_blocking_for_merchant(
 }
 
 #[cfg(feature = "v1")]
-pub async fn validate_guest_user_card_blocking_for_merchant(
+pub async fn validate_guest_user_card_blocking_for_business_profile(
     state: &SessionState,
     fingerprnt: masking::Secret<String>,
     customer_id: Option<id_type::CustomerId>,
@@ -1555,7 +1555,7 @@ pub async fn validate_guest_user_card_blocking_for_merchant(
     }
 }
 
-pub async fn validate_customer_id_blocking_for_merchant(
+pub async fn validate_customer_id_blocking_for_business_profile(
     state: &SessionState,
     customer_id: id_type::CustomerId,
     profile_id: &id_type::ProfileId,

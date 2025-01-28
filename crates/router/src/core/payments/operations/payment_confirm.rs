@@ -878,7 +878,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
 
                         if card_testing_guard_config.is_card_ip_blocking_enabled {
                             card_ip_blocking_cache_key =
-                                helpers::validate_card_ip_blocking_for_merchant(
+                                helpers::validate_card_ip_blocking_for_business_profile(
                                     state,
                                     request,
                                     fingerprint.clone(),
@@ -889,7 +889,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
 
                         if card_testing_guard_config.is_guest_user_card_blocking_enabled {
                             guest_user_card_blocking_cache_key =
-                                helpers::validate_guest_user_card_blocking_for_merchant(
+                                helpers::validate_guest_user_card_blocking_for_business_profile(
                                     state,
                                     fingerprint.clone(),
                                     customer_id.clone(),
@@ -901,7 +901,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                         if card_testing_guard_config.is_customer_id_blocking_enabled {
                             if let Some(customer_id) = customer_id.clone() {
                                 customer_id_blocking_cache_key =
-                                    helpers::validate_customer_id_blocking_for_merchant(
+                                    helpers::validate_customer_id_blocking_for_business_profile(
                                         state,
                                         customer_id.clone(),
                                         business_profile.get_id(),
