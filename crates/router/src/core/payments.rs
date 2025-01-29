@@ -4105,29 +4105,38 @@ fn get_google_pay_connector_wallet_details(
 
             google_pay_wallet_details
                 .ok()
-                .map(
+                .and_then(
                     |google_pay_wallet_details| {
                         match google_pay_wallet_details
                         .google_pay
                         .provider_details {
                             api_models::payments::GooglePayProviderDetails::GooglePayMerchantDetails(merchant_details) => {
-                                GooglePayPaymentProcessingDetails {
-                                    google_pay_private_key: merchant_details
-                                    .merchant_info
+                                match (
+                                    merchant_details
+                                        .merchant_info
                                         .tokenization_specification
                                         .parameters
                                         .private_key,
-                                    google_pay_root_signing_keys: merchant_details
-                                    .merchant_info
+                                    merchant_details
+                                        .merchant_info
                                         .tokenization_specification
                                         .parameters
                                         .root_signing_keys,
-                                    google_pay_recipient_id: merchant_details
-                                    .merchant_info
+                                    merchant_details
+                                        .merchant_info
                                         .tokenization_specification
                                         .parameters
                                         .recipient_id,
-                                }
+                                    ) {
+                                        (Some(google_pay_private_key), Some(google_pay_root_signing_keys), Some(google_pay_recipient_id)) => {
+                                            Some(GooglePayPaymentProcessingDetails {
+                                                google_pay_private_key,
+                                                google_pay_root_signing_keys,
+                                                google_pay_recipient_id
+                                            })
+                                        }
+                                        _ => None,
+                                    }
                             }
                         }
                     }
@@ -4265,7 +4274,7 @@ pub struct PazePaymentProcessingDetails {
 pub struct GooglePayPaymentProcessingDetails {
     pub google_pay_private_key: Secret<String>,
     pub google_pay_root_signing_keys: Secret<String>,
-    pub google_pay_recipient_id: Option<Secret<String>>,
+    pub google_pay_recipient_id: Secret<String>,
 }
 
 #[derive(Clone, Debug)]

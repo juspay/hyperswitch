@@ -5705,7 +5705,8 @@ pub enum GpayBillingAddressFormat {
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct GpayTokenParameters {
     /// The name of the connector
-    pub gateway: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub gateway: Option<String>,
     /// The merchant ID registered in the connector associated
     #[serde(skip_serializing_if = "Option::is_none")]
     pub gateway_merchant_id: Option<String>,
@@ -5716,6 +5717,12 @@ pub struct GpayTokenParameters {
         rename = "stripe:publishableKey"
     )]
     pub stripe_publishable_key: Option<String>,
+    /// The protocol version for encryption
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub protocol_version: Option<String>,
+    /// The public key provided by the merchant
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub public_key: Option<String>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -5985,6 +5992,7 @@ pub struct GooglePayWalletDetails {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct GooglePayDetails {
     pub provider_details: GooglePayProviderDetails,
+    pub cards: GpayAllowedMethodsParameters,
 }
 
 // Google Pay Provider Details can of two types: GooglePayMerchantDetails or GooglePayHyperSwitchDetails
@@ -6003,6 +6011,7 @@ pub struct GooglePayMerchantDetails {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct GooglePayMerchantInfo {
     pub merchant_name: String,
+    pub merchant_id: Option<String>,
     pub tokenization_specification: GooglePayTokenizationSpecification,
 }
 
@@ -6013,7 +6022,8 @@ pub struct GooglePayTokenizationSpecification {
     pub parameters: GooglePayTokenizationParameters,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, strum::Display)]
+#[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum GooglePayTokenizationType {
     PaymentGateway,
@@ -6022,11 +6032,14 @@ pub enum GooglePayTokenizationType {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct GooglePayTokenizationParameters {
-    pub gateway: String,
-    pub public_key: Secret<String>,
-    pub private_key: Secret<String>,
-    pub root_signing_keys: Secret<String>,
+    pub gateway: Option<String>,
+    pub public_key: Option<Secret<String>>,
+    pub private_key: Option<Secret<String>>,
+    pub root_signing_keys: Option<Secret<String>>,
     pub recipient_id: Option<Secret<String>>,
+    pub gateway_merchant_id: Option<Secret<String>>,
+    pub stripe_publishable_key: Option<Secret<String>>,
+    pub stripe_version: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]

@@ -216,3 +216,9 @@ pub const AUTHENTICATION_SERVICE_ELIGIBLE_CONFIG: &str =
 
 /// Refund flow identifier used for performing GSM operations
 pub const REFUND_FLOW_STR: &str = "refund_flow";
+
+/// Protocol Version for encrypted Google Pay Token
+pub const PROTOCOL: &str = "ECv2";
+
+/// Sender ID for Google Pay Decryption
+pub const SENDER_ID: &[u8] = b"Google";
