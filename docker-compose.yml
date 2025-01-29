@@ -149,7 +149,7 @@ services:
 
   ### Web Client
   hyperswitch-web:
-    image: juspaydotin/hyperswitch-web:standalone
+    image: juspaydotin/hyperswitch-web:latest
     ports:
       - "9050:9050"
       - "9060:9060"

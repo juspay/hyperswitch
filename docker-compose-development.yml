@@ -64,7 +64,7 @@ services:
         FROM rust:latest
         RUN apt-get update && \
             apt-get install -y protobuf-compiler
-        RUN rustup component add rustfmt clippy  
+        RUN rustup component add rustfmt clippy
     command: cargo run --bin router -- -f ./config/docker_compose.toml
     working_dir: /app
     ports:
@@ -332,7 +332,7 @@ services:
         FROM node:lts
         RUN git clone https://github.com/juspay/hyperswitch-web.git --depth 1
         WORKDIR hyperswitch-web
-        RUN npm i --force
+        RUN npm i --ignore-scripts
     command: bash -c 'npm run re:build && npx run webpack serve --config webpack.dev.js --host 0.0.0.0'
     ports:
       - "9050:9050"
