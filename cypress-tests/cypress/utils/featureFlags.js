@@ -152,7 +152,7 @@ function matchesSpecName(specName) {
 export function determineConnectorConfig(connectorConfig) {
   // Case 1: Multiple connectors configuration
   if (
-    connectorConfig?.nextConnector &&
+    connectorConfig?.config?.CONNECTOR_CREDENTIAL?.nextConnector &&
     connectorConfig?.multipleConnectors?.status
   ) {
     return "connector_2";
@@ -179,7 +179,7 @@ export function execConfig(configs) {
     cy.wait(configs.DELAY.TIMEOUT);
   }
 
-  const connectorType = determineConnectorConfig(configs?.CONNECTOR_CREDENTIAL);
+  const connectorType = determineConnectorConfig(configs);
   const { profileId, connectorId } = getProfileAndConnectorId(connectorType);
 
   return {

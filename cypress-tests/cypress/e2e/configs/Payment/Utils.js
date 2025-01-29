@@ -241,13 +241,12 @@ export function createBusinessProfile(
   globalState,
   multipleConnector = { nextConnector: false }
 ) {
-  const { config, multipleConnectors } = getConnectorConfig(
-    globalState,
-    multipleConnector
-  );
+  const config = getConnectorConfig(globalState, multipleConnector);
   const { profilePrefix } = execConfig(config);
 
-  if (shouldProceedWithOperation(multipleConnector, multipleConnectors)) {
+  if (
+    shouldProceedWithOperation(multipleConnector, config.multipleConnectors)
+  ) {
     cy.createBusinessProfileTest(
       createBusinessProfileBody,
       globalState,
@@ -264,13 +263,12 @@ export function createMerchantConnectorAccount(
   paymentMethodsEnabled,
   multipleConnector = { nextConnector: false }
 ) {
-  const { config, multipleConnectors } = getConnectorConfig(
-    globalState,
-    multipleConnector
-  );
+  const config = getConnectorConfig(globalState, multipleConnector);
   const { profilePrefix, merchantConnectorPrefix } = execConfig(config);
 
-  if (shouldProceedWithOperation(multipleConnector, multipleConnectors)) {
+  if (
+    shouldProceedWithOperation(multipleConnector, config.multipleConnectors)
+  ) {
     cy.createConnectorCallTest(
       paymentType,
       createMerchantConnectorAccountBody,
