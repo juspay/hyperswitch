@@ -14,6 +14,9 @@ impl ForeignTryFrom<ClientSecretType> for api_models::ephemeral_key::ClientSecre
             diesel_models::ResourceId::Payment(global_payment_id) => {
                 Err(errors::ApiErrorResponse::InternalServerError)
             }
+            diesel_models::ResourceId::PaymentMethodSession(global_payment_id) => {
+                Err(errors::ApiErrorResponse::InternalServerError)
+            }
             diesel_models::ResourceId::Customer(global_customer_id) => Ok(Self {
                 resource_id: api_models::ephemeral_key::ResourceId::Customer(
                     global_customer_id.clone(),

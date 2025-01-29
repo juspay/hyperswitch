@@ -1745,9 +1745,9 @@ where
 #[derive(Debug)]
 #[cfg(feature = "v2")]
 pub enum V2Auth {
-    ApiKeyAuth,    // API Key
-    ClientAuth,    // Publishable Key + Client Secret
-    DashboardAuth, // JWT
+    ApiKeyAuth,                            // API Key
+    ClientAuth(diesel_models::ResourceId), // Publishable Key + Client Secret
+    DashboardAuth,                         // JWT
 }
 
 #[cfg(feature = "v2")]
@@ -1880,7 +1880,7 @@ where
                     },
                 ))
             }
-            Self::ClientAuth => {
+            Self::ClientAuth(resource_id) => {
                 let publishable_key = auth_string
                     .split(',')
                     .find_map(|part| part.trim().strip_prefix("publishable-key="))
@@ -1913,19 +1913,19 @@ where
                 )?
                 .get_required_value(headers::X_PROFILE_ID)?;
 
-                let customer_id: String = get_id_type_by_key_from_headers(
-                    headers::X_CUSTOMER_ID.to_string(),
-                    request_headers,
-                )?
-                .unwrap();
 
                 match db_client_secret.resource_id {
                     diesel_models::ResourceId::Payment(global_payment_id) => todo!(),
                     diesel_models::ResourceId::Customer(global_customer_id) => {
-                        if global_customer_id.get_string_repr() != customer_id {
+                        if global_customer_id.get_string_repr() != resource_id.to_str() {
                             return Err(errors::ApiErrorResponse::Unauthorized.into());
                         }
                     }
+                    diesel_models::ResourceId::PaymentMethodSession(global_payment_method_session_id) => {
+                        if global_payment_method_session_id.get_string_repr() != resource_id.to_str() {
+                                return Err(errors::ApiErrorResponse::Unauthorized.into()); 
+                        }
+                    },
                 };
 
                 let (merchant_account, key_store) = state
@@ -2003,7 +2003,7 @@ where
 
         if let Some(_) = publishable_key {
             for handler in self {
-                if let V2Auth::ClientAuth = handler {
+                if let V2Auth::ClientAuth(_) = handler {
                     return handler.authenticate_and_fetch(request_headers, state).await;
                 }
             }
@@ -3518,6 +3518,7 @@ where
     }
 }
 
+#[cfg(feature = "v1")]
 pub fn is_ephemeral_auth<A: SessionStateInfo + Sync + Send>(
     headers: &HeaderMap,
 ) -> RouterResult<Box<dyn AuthenticateAndFetch<AuthenticationData, A>>> {
@@ -3526,7 +3527,7 @@ pub fn is_ephemeral_auth<A: SessionStateInfo + Sync + Send>(
     if !api_key.starts_with("epk") {
         Ok(Box::new(HeaderAuth(ApiKeyAuth)))
     } else {
-        Ok(Box::new(V2Auth::ClientAuth))
+        Ok(Box::new(EphemeralKeyAuth))
     }
 }
 

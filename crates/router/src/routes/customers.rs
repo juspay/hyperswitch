@@ -85,19 +85,18 @@ pub async fn customers_retrieve(
     req: HttpRequest,
     path: web::Path<id_type::GlobalCustomerId>,
 ) -> HttpResponse {
+    use crate::services::authentication::V2Auth;
+
     let flow = Flow::CustomersRetrieve;
 
     let id = path.into_inner();
 
-    let auth = if auth::is_jwt_auth(req.headers()) {
+    let auth: Box<dyn auth::AuthenticateAndFetch<auth::AuthenticationData,crate::routes::SessionState>  + Send + Sync>  = if auth::is_jwt_auth(req.headers()) {
         Box::new(auth::JWTAuth {
             permission: Permission::MerchantCustomerRead,
         })
     } else {
-        match auth::is_ephemeral_auth(req.headers()) {
-            Ok(auth) => auth,
-            Err(err) => return api::log_and_return_error_response(err),
-        }
+        Box::new(vec![V2Auth::ApiKeyAuth, V2Auth::ClientAuth(diesel_models::ResourceId::Customer(id.clone()))])
     };
 
     Box::pin(api::server_wrap(

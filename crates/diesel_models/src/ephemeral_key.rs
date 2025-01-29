@@ -56,5 +56,17 @@ impl common_utils::events::ApiEventMetric for EphemeralKey {
 pub enum ResourceId {
     Payment(common_utils::id_type::GlobalPaymentId),
     Customer(common_utils::id_type::GlobalCustomerId),
-    // PaymentMethodsSession(crate::payment_methods_session::PaymentMethodsSession)
+    PaymentMethodSession(common_utils::id_type::GlobalPaymentMethodSessionId),
+}
+
+
+#[cfg(feature = "v2")]
+impl ResourceId {
+    pub fn to_str(&self) -> &str {
+        match self {
+            Self::Payment(id) => id.get_string_repr(),
+            Self::Customer(id) => id.get_string_repr(),
+            Self::PaymentMethodSession(id) => id.get_string_repr(),
+        }
+    }
 }
