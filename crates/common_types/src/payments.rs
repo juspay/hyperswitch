@@ -98,6 +98,7 @@ impl_to_sql_from_sql_json!(StripeChargeResponseData);
     Serialize, Deserialize, Debug, Clone, PartialEq, Eq, FromSqlRow, AsExpression, ToSchema,
 )]
 #[diesel(sql_type = Jsonb)]
+#[serde(rename_all = "snake_case")]
 #[serde(deny_unknown_fields)]
 pub enum ConnectorChargeResponseData {
     /// StripeChargeResponseData
