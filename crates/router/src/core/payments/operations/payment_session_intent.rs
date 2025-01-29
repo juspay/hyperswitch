@@ -327,7 +327,6 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsSessionRequest, payments::Payment
                 .collect();
         let session_token_routing_result = payments::perform_session_token_routing(
             state.clone(),
-            merchant_account,
             business_profile,
             merchant_key_store,
             payment_data,

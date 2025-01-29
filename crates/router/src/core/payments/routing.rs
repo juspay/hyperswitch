@@ -79,10 +79,7 @@ pub struct SessionFlowRoutingInput<'a> {
 
 #[cfg(feature = "v2")]
 pub struct SessionFlowRoutingInput<'a> {
-    pub state: &'a SessionState,
     pub country: Option<CountryAlpha2>,
-    pub key_store: &'a domain::MerchantKeyStore,
-    pub merchant_account: &'a domain::MerchantAccount,
     pub payment_intent: &'a oss_storage::PaymentIntent,
     pub chosen: api::SessionConnectorDatas,
 }
@@ -101,8 +98,6 @@ pub struct SessionRoutingPmTypeInput<'a> {
 
 #[cfg(feature = "v2")]
 pub struct SessionRoutingPmTypeInput<'a> {
-    state: &'a SessionState,
-    key_store: &'a domain::MerchantKeyStore,
     routing_algorithm: &'a MerchantAccountRoutingAlgorithm,
     backend_input: dsl_inputs::BackendInput,
     allowed_connectors: FxHashMap<String, api::GetToken>,
@@ -886,7 +881,9 @@ pub async fn perform_eligibility_analysis_with_fallback(
 }
 
 #[cfg(feature = "v2")]
-pub async fn perform_session_flow_routing(
+pub async fn perform_session_flow_routing<'a>(
+    state: &'a SessionState,
+    key_store: &'a domain::MerchantKeyStore,
     session_input: SessionFlowRoutingInput<'_>,
     business_profile: &domain::Profile,
     transaction_type: &api_enums::TransactionType,
@@ -895,8 +892,7 @@ pub async fn perform_session_flow_routing(
     let mut pm_type_map: FxHashMap<api_enums::PaymentMethodType, FxHashMap<String, api::GetToken>> =
         FxHashMap::default();
 
-    #[cfg(feature = "v2")]
-    let profile_id = session_input.payment_intent.profile_id.clone();
+    let profile_id = business_profile.get_id().clone();
 
     let routing_algorithm =
         MerchantAccountRoutingAlgorithm::V1(business_profile.routing_algorithm_id.clone());
@@ -969,8 +965,6 @@ pub async fn perform_session_flow_routing(
         backend_input.payment_method.payment_method_type = Some(euclid_pmt);
 
         let session_pm_input = SessionRoutingPmTypeInput {
-            state: session_input.state,
-            key_store: session_input.key_store,
             routing_algorithm: &routing_algorithm,
             backend_input: backend_input.clone(),
             allowed_connectors,
@@ -978,6 +972,8 @@ pub async fn perform_session_flow_routing(
         };
 
         let routable_connector_choice_option = perform_session_routing_for_pm_type(
+            state,
+            key_store,
             &session_pm_input,
             transaction_type,
             business_profile,
@@ -991,7 +987,7 @@ pub async fn perform_session_flow_routing(
                 let connector_name = selection.connector.to_string();
                 if let Some(get_token) = session_pm_input.allowed_connectors.get(&connector_name) {
                     let connector_data = api::ConnectorData::get_connector_by_name(
-                        &session_pm_input.state.clone().conf.connectors,
+                        &state.clone().conf.connectors,
                         &connector_name,
                         get_token.clone(),
                         selection.merchant_connector_id,
@@ -1240,18 +1236,20 @@ async fn perform_session_routing_for_pm_type(
 }
 
 #[cfg(feature = "v2")]
-async fn get_chosen_connectors(
+async fn get_chosen_connectors<'a>(
+    state: &'a SessionState,
+    key_store: &'a domain::MerchantKeyStore,
     session_pm_input: &SessionRoutingPmTypeInput<'_>,
     transaction_type: &api_enums::TransactionType,
     profile_wrapper: &admin::ProfileWrapper,
 ) -> RoutingResult<Vec<api_models::routing::RoutableConnectorChoice>> {
-    let merchant_id = &session_pm_input.key_store.merchant_id;
+    let merchant_id = &key_store.merchant_id;
 
     let MerchantAccountRoutingAlgorithm::V1(algorithm_id) = session_pm_input.routing_algorithm;
 
     let chosen_connectors = if let Some(ref algorithm_id) = algorithm_id {
         let cached_algorithm = ensure_algorithm_cached_v1(
-            &session_pm_input.state.clone(),
+            state,
             merchant_id,
             algorithm_id,
             session_pm_input.profile_id,
@@ -1278,18 +1276,26 @@ async fn get_chosen_connectors(
 }
 
 #[cfg(feature = "v2")]
-async fn perform_session_routing_for_pm_type(
+async fn perform_session_routing_for_pm_type<'a>(
+    state: &'a SessionState,
+    key_store: &'a domain::MerchantKeyStore,
     session_pm_input: &SessionRoutingPmTypeInput<'_>,
     transaction_type: &api_enums::TransactionType,
     business_profile: &domain::Profile,
 ) -> RoutingResult<Option<Vec<api_models::routing::RoutableConnectorChoice>>> {
     let profile_wrapper = admin::ProfileWrapper::new(business_profile.clone());
-    let chosen_connectors =
-        get_chosen_connectors(session_pm_input, transaction_type, &profile_wrapper).await?;
+    let chosen_connectors = get_chosen_connectors(
+        state,
+        key_store,
+        session_pm_input,
+        transaction_type,
+        &profile_wrapper,
+    )
+    .await?;
 
     let mut final_selection = perform_cgraph_filtering(
-        &session_pm_input.state.clone(),
-        session_pm_input.key_store,
+        state,
+        key_store,
         chosen_connectors,
         session_pm_input.backend_input.clone(),
         None,
@@ -1304,8 +1310,8 @@ async fn perform_session_routing_for_pm_type(
             .change_context(errors::RoutingError::FallbackConfigFetchFailed)?;
 
         final_selection = perform_cgraph_filtering(
-            &session_pm_input.state.clone(),
-            session_pm_input.key_store,
+            state,
+            key_store,
             fallback,
             session_pm_input.backend_input.clone(),
             None,

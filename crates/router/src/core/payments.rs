@@ -6141,7 +6141,6 @@ pub struct SessionTokenRoutingResult {
 #[cfg(feature = "v2")]
 pub async fn perform_session_token_routing<F, D>(
     state: SessionState,
-    merchant_account: &domain::MerchantAccount,
     business_profile: &domain::Profile,
     key_store: &domain::MerchantKeyStore,
     payment_data: &D,
@@ -6153,20 +6152,19 @@ where
 {
     let chosen = connectors.apply_filter_for_session_routing();
     let sfr = SessionFlowRoutingInput {
-        state: &state,
         country: payment_data
             .get_payment_intent()
             .billing_address
             .as_ref()
             .and_then(|address| address.get_inner().address.as_ref())
             .and_then(|details| details.country),
-        key_store,
-        merchant_account,
         payment_intent: payment_data.get_payment_intent(),
 
         chosen,
     };
     let result = self_routing::perform_session_flow_routing(
+        &state,
+        key_store,
         sfr,
         business_profile,
         &enums::TransactionType::Payment,
@@ -6175,7 +6173,7 @@ where
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("error performing session flow routing")?;
 
-    let mut final_list = connectors.filter_and_validate_for_session_flow(&result)?;
+    let final_list = connectors.filter_and_validate_for_session_flow(&result)?;
     Ok(SessionTokenRoutingResult {
         final_result: final_list,
         routing_result: result,
