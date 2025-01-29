@@ -584,7 +584,6 @@ Cypress.Commands.add(
         );
 
         if (stateUpdate) {
-          // cy.task("setGlobalState", stateUpdate);
           globalState.set(
             "MULTIPLE_CONNECTORS",
             stateUpdate.MULTIPLE_CONNECTORS

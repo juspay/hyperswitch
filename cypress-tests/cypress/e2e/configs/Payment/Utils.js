@@ -225,12 +225,10 @@ function getConnectorConfig(
   const mcaConfig = getConnectorDetails(globalState.get("connectorId"));
 
   return {
-    config: {
-      CONNECTOR_CREDENTIAL:
-        multipleConnector?.nextConnector && multipleConnectors?.status
-          ? multipleConnector
-          : mcaConfig?.multi_credential_config || multipleConnector,
-    },
+    CONNECTOR_CREDENTIAL:
+      multipleConnector?.nextConnector && multipleConnectors?.status
+        ? multipleConnector
+        : mcaConfig?.multi_credential_config || multipleConnector,
     multipleConnectors,
   };
 }

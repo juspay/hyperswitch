@@ -149,29 +149,39 @@ function matchesSpecName(specName) {
   );
 }
 
-export function determineConnectorConfig(connectorConfig) {
-  // Case 1: Multiple connectors configuration
-  if (
-    connectorConfig?.config?.CONNECTOR_CREDENTIAL?.nextConnector &&
-    connectorConfig?.multipleConnectors?.status
-  ) {
-    return "connector_2";
-  }
+export function determineConnectorConfig(config) {
+  const connectorCredential = config?.CONNECTOR_CREDENTIAL;
+  const multipleConnectors = config?.multipleConnectors;
 
-  // Case 2: Invalid or null configuration
-  if (!connectorConfig || connectorConfig.value === "null") {
+  // If CONNECTOR_CREDENTIAL doesn't exist or value is null, return default
+  if (!connectorCredential || connectorCredential.value === null) {
     return DEFAULT_CONNECTOR;
   }
 
-  const { specName, value } = connectorConfig;
-
-  // Case 3: No spec name matching needed
-  if (!specName) {
-    return value;
+  // Handle nextConnector cases
+  if (connectorCredential.hasOwnProperty("nextConnector")) {
+    if (connectorCredential.nextConnector === true) {
+      // Check multipleConnectors conditions if available
+      if (
+        multipleConnectors?.status === true &&
+        multipleConnectors?.count > 1
+      ) {
+        return "connector_2";
+      }
+      return DEFAULT_CONNECTOR;
+    }
+    return DEFAULT_CONNECTOR;
   }
 
-  // Case 4: Match spec name and return appropriate connector
-  return matchesSpecName(specName) ? value : DEFAULT_CONNECTOR;
+  // Handle specName cases
+  if (connectorCredential.hasOwnProperty("specName")) {
+    return matchesSpecName(connectorCredential.specName)
+      ? connectorCredential.value
+      : DEFAULT_CONNECTOR;
+  }
+
+  // Return value if it's the only property
+  return connectorCredential.value;
 }
 
 export function execConfig(configs) {
