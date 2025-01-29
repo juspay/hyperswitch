@@ -59,7 +59,6 @@ pub enum ResourceId {
     PaymentMethodSession(common_utils::id_type::GlobalPaymentMethodSessionId),
 }
 
-
 #[cfg(feature = "v2")]
 impl ResourceId {
     pub fn to_str(&self) -> &str {

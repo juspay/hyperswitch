@@ -979,7 +979,10 @@ pub async fn payment_methods_session_retrieve(
             )
             .await
         },
-        &vec![auth::V2Auth::ApiKeyAuth, auth::V2Auth::ClientAuth(ResourceId::PaymentMethodSession(payment_method_session_id))],
+        &vec![
+            auth::V2Auth::ApiKeyAuth,
+            auth::V2Auth::ClientAuth(ResourceId::PaymentMethodSession(payment_method_session_id)),
+        ],
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -1051,7 +1054,6 @@ pub async fn payment_method_session_update_saved_payment_method(
     let flow = Flow::PaymentMethodSessionUpdateSavedPaymentMethod;
     let payload = json_payload.into_inner();
     let payment_method_session_id = path.into_inner();
-
 
     let request = PaymentMethodsSessionGenericRequest {
         payment_method_session_id: payment_method_session_id.clone(),

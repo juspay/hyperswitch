@@ -91,12 +91,19 @@ pub async fn customers_retrieve(
 
     let id = path.into_inner();
 
-    let auth: Box<dyn auth::AuthenticateAndFetch<auth::AuthenticationData,crate::routes::SessionState>  + Send + Sync>  = if auth::is_jwt_auth(req.headers()) {
+    let auth: Box<
+        dyn auth::AuthenticateAndFetch<auth::AuthenticationData, crate::routes::SessionState>
+            + Send
+            + Sync,
+    > = if auth::is_jwt_auth(req.headers()) {
         Box::new(auth::JWTAuth {
             permission: Permission::MerchantCustomerRead,
         })
     } else {
-        Box::new(vec![V2Auth::ApiKeyAuth, V2Auth::ClientAuth(diesel_models::ResourceId::Customer(id.clone()))])
+        Box::new(vec![
+            V2Auth::ApiKeyAuth,
+            V2Auth::ClientAuth(diesel_models::ResourceId::Customer(id.clone())),
+        ])
     };
 
     Box::pin(api::server_wrap(

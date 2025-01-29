@@ -1913,7 +1913,6 @@ where
                 )?
                 .get_required_value(headers::X_PROFILE_ID)?;
 
-
                 match db_client_secret.resource_id {
                     diesel_models::ResourceId::Payment(global_payment_id) => todo!(),
                     diesel_models::ResourceId::Customer(global_customer_id) => {
@@ -1921,11 +1920,15 @@ where
                             return Err(errors::ApiErrorResponse::Unauthorized.into());
                         }
                     }
-                    diesel_models::ResourceId::PaymentMethodSession(global_payment_method_session_id) => {
-                        if global_payment_method_session_id.get_string_repr() != resource_id.to_str() {
-                                return Err(errors::ApiErrorResponse::Unauthorized.into()); 
+                    diesel_models::ResourceId::PaymentMethodSession(
+                        global_payment_method_session_id,
+                    ) => {
+                        if global_payment_method_session_id.get_string_repr()
+                            != resource_id.to_str()
+                        {
+                            return Err(errors::ApiErrorResponse::Unauthorized.into());
                         }
-                    },
+                    }
                 };
 
                 let (merchant_account, key_store) = state

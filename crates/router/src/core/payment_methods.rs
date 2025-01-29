@@ -1934,10 +1934,14 @@ pub async fn payment_methods_session_create(
 
     let expires_at = common_utils::date_time::now().saturating_add(Duration::seconds(expires_in));
 
-    let client_secret = payment_helpers::create_client_secret(&state, merchant_account.get_id(), diesel_models::ResourceId::PaymentMethodSession(payment_methods_session_id.clone()))
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Unable to create client secret")?;
+    let client_secret = payment_helpers::create_client_secret(
+        &state,
+        merchant_account.get_id(),
+        diesel_models::ResourceId::PaymentMethodSession(payment_methods_session_id.clone()),
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Unable to create client secret")?;
 
     let payment_method_session_domain_model =
         hyperswitch_domain_models::payment_methods::PaymentMethodsSession {
@@ -1959,9 +1963,10 @@ pub async fn payment_methods_session_create(
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to insert payment methods session in db")?;
 
-    let response = payment_methods::PaymentMethodsSessionResponse::foreign_from(
-        (payment_method_session_domain_model, client_secret.secret)
-    );
+    let response = payment_methods::PaymentMethodsSessionResponse::foreign_from((
+        payment_method_session_domain_model,
+        client_secret.secret,
+    ));
 
     Ok(services::ApplicationResponse::Json(response))
 }
@@ -1984,9 +1989,10 @@ pub async fn payment_methods_session_retrieve(
         })
         .attach_printable("Failed to retrieve payment methods session from db")?;
 
-    let response = payment_methods::PaymentMethodsSessionResponse::foreign_from(
-        (payment_method_session_domain_model, Secret::new("CLIENT_SECRET_REDACTED".to_string()))
-    );
+    let response = payment_methods::PaymentMethodsSessionResponse::foreign_from((
+        payment_method_session_domain_model,
+        Secret::new("CLIENT_SECRET_REDACTED".to_string()),
+    ));
 
     Ok(services::ApplicationResponse::Json(response))
 }
