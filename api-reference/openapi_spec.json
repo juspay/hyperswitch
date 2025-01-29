@@ -9247,6 +9247,52 @@
           }
         }
       },
+      "CardTestingGuardConfig": {
+        "type": "object",
+        "required": [
+          "is_card_ip_blocking_enabled",
+          "card_ip_blocking_threshold",
+          "is_guest_user_card_blocking_enabled",
+          "guest_user_card_blocking_threshold",
+          "is_customer_id_blocking_enabled",
+          "customer_id_blocking_threshold",
+          "card_testing_guard_expiry"
+        ],
+        "properties": {
+          "is_card_ip_blocking_enabled": {
+            "type": "boolean",
+            "description": "Determines if Card IP Blocking is enabled for profile"
+          },
+          "card_ip_blocking_threshold": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Determines the unsuccessful payment threshold for Card IP Blocking for profile"
+          },
+          "is_guest_user_card_blocking_enabled": {
+            "type": "boolean",
+            "description": "Determines if Guest User Card Blocking is enabled for profile"
+          },
+          "guest_user_card_blocking_threshold": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Determines the unsuccessful payment threshold for Guest User Card Blocking for profile"
+          },
+          "is_customer_id_blocking_enabled": {
+            "type": "boolean",
+            "description": "Determines if Customer Id Blocking is enabled for profile"
+          },
+          "customer_id_blocking_threshold": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Determines the unsuccessful payment threshold for Customer Id Blocking for profile"
+          },
+          "card_testing_guard_expiry": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Determines Redis Expiry for Card Testing Guard for profile"
+          }
+        }
+      },
       "CardToken": {
         "type": "object",
         "required": [
@@ -22831,6 +22877,14 @@
           "authentication_product_ids": {
             "type": "object",
             "description": "Product authentication ids",
+            "nullable": true
+          },
+          "card_testing_guard_config": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardTestingGuardConfig"
+              }
+            ],
             "nullable": true
           }
         },
