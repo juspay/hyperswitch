@@ -22832,30 +22832,6 @@
             "type": "object",
             "description": "Product authentication ids",
             "nullable": true
-          },
-          "card_ip_blocking_threshold": {
-            "type": "integer",
-            "format": "int32",
-            "description": "Determines the maximum unsucessful payment threshold for card<>ip before it is blocked",
-            "nullable": true
-          },
-          "guest_user_card_blocking_threshold": {
-            "type": "integer",
-            "format": "int32",
-            "description": "Determines the maximum unsucessful payment threshold for card before it is blocked for guest users",
-            "nullable": true
-          },
-          "customer_id_blocking_threshold": {
-            "type": "integer",
-            "format": "int32",
-            "description": "Determines the maximum unsucessful payment threshold for customer_id before it is blocked",
-            "nullable": true
-          },
-          "card_testing_guard_expiry": {
-            "type": "integer",
-            "format": "int32",
-            "description": "Determines the r edis expiry for card testing guard",
-            "nullable": true
           }
         },
         "additionalProperties": false
@@ -23096,30 +23072,6 @@
           "authentication_product_ids": {
             "type": "object",
             "description": "Product authentication ids",
-            "nullable": true
-          },
-          "card_ip_blocking_threshold": {
-            "type": "integer",
-            "format": "int32",
-            "description": "Determines the maximum unsucessful payment threshold for card<>ip before it is blocked",
-            "nullable": true
-          },
-          "guest_user_card_blocking_threshold": {
-            "type": "integer",
-            "format": "int32",
-            "description": "Determines the maximum unsucessful payment threshold for card before it is blocked for guest users",
-            "nullable": true
-          },
-          "customer_id_blocking_threshold": {
-            "type": "integer",
-            "format": "int32",
-            "description": "Determines the maximum unsucessful payment threshold for customer_id before it is blocked",
-            "nullable": true
-          },
-          "card_testing_guard_expiry": {
-            "type": "integer",
-            "format": "int32",
-            "description": "Determines the r edis expiry for card testing guard",
             "nullable": true
           }
         }
