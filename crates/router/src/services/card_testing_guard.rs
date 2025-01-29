@@ -28,7 +28,7 @@ where
     let redis_conn = get_redis_connection(state)?;
 
     redis_conn
-        .set_key_with_expiry(cache_key, value, expiry)
+        .set_key_with_expiry(&cache_key.into(), value, expiry)
         .await
         .change_context(ApiErrorResponse::InternalServerError)
 }
@@ -43,7 +43,7 @@ where
     let redis_conn = get_redis_connection(state)?;
 
     let value: Option<i32> = redis_conn
-        .get_key(cache_key)
+        .get_key(&cache_key.into())
         .await
         .change_context(ApiErrorResponse::InternalServerError)?;
 
@@ -61,7 +61,7 @@ where
     let redis_conn = get_redis_connection(state)?;
 
     let value: Option<i32> = redis_conn
-        .get_key(cache_key)
+        .get_key(&cache_key.into())
         .await
         .change_context(ApiErrorResponse::InternalServerError)?;
 
@@ -72,7 +72,7 @@ where
     }
 
     redis_conn
-        .set_key_with_expiry(cache_key, incremented_blocked_count, expiry)
+        .set_key_with_expiry(&cache_key.into(), incremented_blocked_count, expiry)
         .await
         .change_context(ApiErrorResponse::InternalServerError)
 }
