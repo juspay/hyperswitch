@@ -3456,6 +3456,10 @@ pub enum RedirectForm {
         access_token: String,
         step_up_url: String,
     },
+    DeutschebankThreeDSChallengeFlow {
+        acs_url: String,
+        creq: String,
+    },
     Payme,
     Braintree {
         client_token: String,

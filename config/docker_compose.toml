@@ -31,12 +31,9 @@ pool_size = 5
 
 [forex_api]
 call_delay = 21600
-local_fetch_retry_count = 5
-local_fetch_retry_delay = 1000
-api_timeout = 20000
-api_key = "YOUR API KEY HERE"
-fallback_api_key = "YOUR API KEY HERE"
-redis_lock_timeout = 26000
+api_key = ""
+fallback_api_key = ""
+redis_lock_timeout = 100
 
 [replica_database]
 username = "db_user"
@@ -55,9 +52,9 @@ master_enc_key = "73ad7bbbbc640c845a150f67d058b279849370cd2c1f3c67c4dd6c869213e1
 password_validity_in_days = 90
 two_factor_auth_expiry_in_secs = 300
 totp_issuer_name = "Hyperswitch"
-base_url = "http://localhost:8080"
+base_url = "http://localhost:9000"
 force_two_factor_auth = false
-force_cookies = true
+force_cookies = false
 
 [locker]
 host = ""
@@ -540,7 +537,7 @@ card.credit = { connector_list = "cybersource" }
 card.debit = { connector_list = "cybersource" }
 
 [network_transaction_id_supported_connectors]
-connector_list = "stripe,adyen,cybersource"
+connector_list = "adyen,cybersource,novalnet,stripe,worldpay"
 
 [connector_customer]
 connector_list = "gocardless,stax,stripe"
@@ -572,6 +569,7 @@ authentication_analytics_topic = "hyperswitch-authentication-events"
 
 [analytics]
 source = "sqlx"
+forex_enabled = false # Enable or disable forex conversion for analytics
 
 [analytics.clickhouse]
 username = "default"
@@ -695,7 +693,7 @@ connector_list = "cybersource"
 sender_email = "example@example.com"                 # Sender email
 aws_region = ""                                      # AWS region used by AWS SES
 allowed_unverified_days = 1                          # Number of days the api calls ( with jwt token ) can be made without verifying the email
-active_email_client = "NO_EMAIL_CLIENT"              # The currently active email client
+active_email_client = "SMTP"              # The currently active email client
 recon_recipient_email = "recon@example.com"          # Recipient email for recon request email
 prod_intent_recipient_email = "business@example.com" # Recipient email for prod intent email
 
@@ -706,6 +704,13 @@ sts_role_session_name = "" # An identifier for the assumed role session, used to
 
 [theme.storage]
 file_storage_backend = "file_system" # Theme storage backend to be used
+
+# Configuration for smtp, applicable when the active email client is SMTP
+[email.smtp]
+host = "mailhog" # SMTP host
+port = 1025 # SMTP port
+timeout = 10 # Timeout for SMTP connection in seconds
+connection = "plaintext" #currently plaintext and starttls are supported
 
 [theme.email_config]
 entity_name = "Hyperswitch"                      # Name of the entity to be showed in emails

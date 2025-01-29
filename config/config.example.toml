@@ -23,11 +23,10 @@ certificate = "/path/to/certificate.pem"
 # Proxy server configuration for connecting to payment gateways.
 # Don't define the fields if a Proxy isn't needed. Empty strings will cause failure.
 [proxy]
-# http_url = "http proxy url"   # Proxy all HTTP traffic via this proxy
-# https_url = "https proxy url" # Proxy all HTTPS traffic via this proxy
-idle_pool_connection_timeout = 90 # Timeout for idle pool connections (defaults to 90s)
-bypass_proxy_urls = []            # A list of URLs that should bypass the proxy
-
+# http_url = "http proxy url"                   # Proxy all HTTP traffic via this proxy
+# https_url = "https proxy url"                 # Proxy all HTTPS traffic via this proxy
+idle_pool_connection_timeout = 90               # Timeout for idle pool connections (defaults to 90s)
+bypass_proxy_hosts = "localhost, cluster.local" # A comma-separated list of domains or IP addresses that should not use the proxy. Whitespace between entries would be ignored.
 
 # Configuration for the Key Manager Service
 [key_manager]
@@ -75,13 +74,10 @@ max_feed_count = 200              # The maximum number of frames that will be fe
 
 # This section provides configs for currency conversion api
 [forex_api]
-call_delay = 21600                # Api calls are made after every 6 hrs
-local_fetch_retry_count = 5       # Fetch from Local cache has retry count as 5
-local_fetch_retry_delay = 1000    # Retry delay for checking write condition
-api_timeout = 20000               # Api timeouts once it crosses 20000 ms
-api_key = "YOUR API KEY HERE"     # Api key for making request to foreign exchange Api
-fallback_api_key = "YOUR API KEY" # Api key for the fallback service
-redis_lock_timeout = 26000        # Redis remains write locked for 26000 ms once the acquire_redis_lock is called
+call_delay = 21600                # Expiration time for data in cache as well as redis in seconds
+api_key = ""                      # Api key for making request to foreign exchange Api
+fallback_api_key = ""             # Api key for the fallback service
+redis_lock_timeout = 100          # Redis remains write locked for 100 s once the acquire_redis_lock is called
 
 # Logging configuration. Logging can be either to file or console or both.
 
@@ -468,8 +464,8 @@ bank_redirect.giropay = { connector_list = "adyen,globalpay" }
 
 
 [mandates.update_mandate_supported]
-card.credit = { connector_list = "cybersource" } # Update Mandate supported payment method type and connector for card 
-card.debit = { connector_list = "cybersource" }  # Update Mandate supported payment method type and connector for card 
+card.credit = { connector_list = "cybersource" } # Update Mandate supported payment method type and connector for card
+card.debit = { connector_list = "cybersource" }  # Update Mandate supported payment method type and connector for card
 
 # Required fields info used while listing the payment_method_data
 [required_fields.pay_later] # payment_method = "pay_later"
@@ -803,7 +799,7 @@ check_token_status_url= ""    # base url to check token status from token servic
 connector_list = "cybersource" # Supported connectors for network tokenization
 
 [network_transaction_id_supported_connectors]
-connector_list = "stripe,adyen,cybersource" # Supported connectors for network transaction id
+connector_list = "adyen,cybersource,novalnet,stripe,worldpay" # Supported connectors for network transaction id
 
 [grpc_client.dynamic_routing_client] # Dynamic Routing Client Configuration
 host = "localhost" # Client Host

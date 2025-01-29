@@ -49,8 +49,8 @@ use crate::{
 };
 
 #[allow(clippy::too_many_arguments)]
-pub async fn make_payout_method_data<'a>(
-    state: &'a SessionState,
+pub async fn make_payout_method_data(
+    state: &SessionState,
     payout_method_data: Option<&api::PayoutMethodData>,
     payout_token: Option<&str>,
     customer_id: &id_type::CustomerId,
@@ -79,7 +79,7 @@ pub async fn make_payout_method_data<'a>(
                 .attach_printable("Failed to get redis connection")?;
 
             let hyperswitch_token = redis_conn
-                .get_key::<Option<String>>(&key)
+                .get_key::<Option<String>>(&key.into())
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to fetch the token from redis")?

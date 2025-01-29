@@ -759,8 +759,11 @@ async fn fetch_mca_and_connector(
         })
         .attach_printable("error while fetching merchant_connector_account from connector_id")?;
 
-    let (connector, connector_name) =
-        get_connector_by_connector_name(state, &mca.connector_name, Some(mca.get_id()))?;
+    let (connector, connector_name) = get_connector_by_connector_name(
+        state,
+        &mca.connector_name.to_string(),
+        Some(mca.get_id()),
+    )?;
 
     Ok((mca, connector, connector_name))
 }

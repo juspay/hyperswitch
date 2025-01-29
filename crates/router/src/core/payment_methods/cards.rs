@@ -13,10 +13,9 @@ use api_models::{
     enums as api_enums,
     payment_methods::{
         BankAccountTokenData, Card, CardDetailUpdate, CardDetailsPaymentMethod, CardNetworkTypes,
-        CountryCodeWithName, CustomerDefaultPaymentMethodResponse, ListCountriesCurrenciesRequest,
-        ListCountriesCurrenciesResponse, MaskedBankDetails, PaymentExperienceTypes,
-        PaymentMethodsData, RequestPaymentMethodTypes, RequiredFieldInfo,
-        ResponsePaymentMethodIntermediate, ResponsePaymentMethodTypes,
+        CountryCodeWithName, ListCountriesCurrenciesRequest, ListCountriesCurrenciesResponse,
+        MaskedBankDetails, PaymentExperienceTypes, PaymentMethodsData, RequestPaymentMethodTypes,
+        RequiredFieldInfo, ResponsePaymentMethodIntermediate, ResponsePaymentMethodTypes,
         ResponsePaymentMethodsEnabled,
     },
     payments::BankCodeResponse,
@@ -2304,40 +2303,38 @@ pub fn validate_payment_method_update(
     card_updation_obj
         .card_exp_month
         .map(|exp_month| exp_month.expose())
-        .map_or(false, |new_exp_month| {
+        .is_some_and(|new_exp_month| {
             existing_card_data
                 .expiry_month
                 .map(|exp_month| exp_month.expose())
-                .map_or(true, |old_exp_month| new_exp_month != old_exp_month)
+                != Some(new_exp_month)
         })
         || card_updation_obj
             .card_exp_year
             .map(|exp_year| exp_year.expose())
-            .map_or(false, |new_exp_year| {
+            .is_some_and(|new_exp_year| {
                 existing_card_data
                     .expiry_year
                     .map(|exp_year| exp_year.expose())
-                    .map_or(true, |old_exp_year| new_exp_year != old_exp_year)
+                    != Some(new_exp_year)
             })
         || card_updation_obj
             .card_holder_name
             .map(|name| name.expose())
-            .map_or(false, |new_card_holder_name| {
+            .is_some_and(|new_card_holder_name| {
                 existing_card_data
                     .card_holder_name
                     .map(|name| name.expose())
-                    .map_or(true, |old_card_holder_name| {
-                        new_card_holder_name != old_card_holder_name
-                    })
+                    != Some(new_card_holder_name)
             })
         || card_updation_obj
             .nick_name
             .map(|nick_name| nick_name.expose())
-            .map_or(false, |new_nick_name| {
+            .is_some_and(|new_nick_name| {
                 existing_card_data
                     .nick_name
                     .map(|nick_name| nick_name.expose())
-                    .map_or(true, |old_nick_name| new_nick_name != old_nick_name)
+                    != Some(new_nick_name)
             })
 }
 
@@ -3719,7 +3716,7 @@ pub async fn list_payment_methods(
         let redis_expiry = state.conf.payment_method_auth.get_inner().redis_expiry;
 
         if let Some(rc) = redis_conn {
-            rc.serialize_and_set_key_with_expiry(pm_auth_key.as_str(), val, redis_expiry)
+            rc.serialize_and_set_key_with_expiry(&pm_auth_key.as_str().into(), val, redis_expiry)
                 .await
                 .attach_printable("Failed to store pm auth data in redis")
                 .unwrap_or_else(|error| {
@@ -4213,9 +4210,9 @@ pub async fn list_payment_methods(
             }
         });
 
-    let is_tax_connector_enabled = business_profile.as_ref().map_or(false, |business_profile| {
-        business_profile.get_is_tax_connector_enabled()
-    });
+    let is_tax_connector_enabled = business_profile
+        .as_ref()
+        .is_some_and(|business_profile| business_profile.get_is_tax_connector_enabled());
 
     Ok(services::ApplicationResponse::Json(
         api::PaymentMethodListResponse {
@@ -5033,7 +5030,7 @@ pub async fn list_customer_payment_method(
                 );
 
                 redis_conn
-                    .set_key_with_expiry(&key, pm_metadata.1, intent_fulfillment_time)
+                    .set_key_with_expiry(&key.into(), pm_metadata.1, intent_fulfillment_time)
                     .await
                     .change_context(errors::StorageError::KVError)
                     .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -5513,18 +5510,6 @@ pub async fn get_bank_account_connector_details(
     }
 }
 
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
-pub async fn set_default_payment_method(
-    _state: &routes::SessionState,
-    _merchant_id: &id_type::MerchantId,
-    _key_store: domain::MerchantKeyStore,
-    _customer_id: &id_type::CustomerId,
-    _payment_method_id: String,
-    _storage_scheme: MerchantStorageScheme,
-) -> errors::RouterResponse<CustomerDefaultPaymentMethodResponse> {
-    todo!()
-}
-
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 pub async fn set_default_payment_method(
     state: &routes::SessionState,
@@ -5533,7 +5518,7 @@ pub async fn set_default_payment_method(
     customer_id: &id_type::CustomerId,
     payment_method_id: String,
     storage_scheme: MerchantStorageScheme,
-) -> errors::RouterResponse<CustomerDefaultPaymentMethodResponse> {
+) -> errors::RouterResponse<api_models::payment_methods::CustomerDefaultPaymentMethodResponse> {
     let db = &*state.store;
     let key_manager_state = &state.into();
     // check for the customer
@@ -5601,7 +5586,7 @@ pub async fn set_default_payment_method(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to update the default payment method id for the customer")?;
 
-    let resp = CustomerDefaultPaymentMethodResponse {
+    let resp = api_models::payment_methods::CustomerDefaultPaymentMethodResponse {
         default_payment_method_id: updated_customer_details.default_payment_method_id,
         customer_id,
         payment_method_type: payment_method.get_payment_method_subtype(),
