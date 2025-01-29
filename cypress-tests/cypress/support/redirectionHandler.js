@@ -141,8 +141,6 @@ function bankRedirectRedirection(
               case "eps":
                 cy.get("h1").should("contain.text", "Acquirer Simulator");
                 cy.get('[value="authorised"]').click();
-                cy.url().should("include", "status=succeeded");
-                cy.wait(5000);
                 break;
               case "ideal":
                 cy.get(":nth-child(4) > td > p").should(

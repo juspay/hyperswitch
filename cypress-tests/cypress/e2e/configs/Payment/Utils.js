@@ -4,10 +4,8 @@ import { connectorDetails as adyenConnectorDetails } from "./Adyen.js";
 import { connectorDetails as bankOfAmericaConnectorDetails } from "./BankOfAmerica.js";
 import { connectorDetails as bluesnapConnectorDetails } from "./Bluesnap.js";
 import { connectorDetails as checkoutConnectorDetails } from "./Checkout.js";
-import {
-  connectorDetails as CommonConnectorDetails,
-  updateDefaultStatusCode,
-} from "./Commons.js";
+import { connectorDetails as CommonConnectorDetails } from "./Commons.js";
+import { updateDefaultStatusCode } from "./Modifiers.js";
 import { connectorDetails as cybersourceConnectorDetails } from "./Cybersource.js";
 import { connectorDetails as datatransConnectorDetails } from "./Datatrans.js";
 import { connectorDetails as elavonConnectorDetails } from "./Elavon.js";
