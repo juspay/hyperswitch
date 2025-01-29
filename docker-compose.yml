@@ -51,7 +51,7 @@ services:
     environment:
       # format -> postgresql://DB_USER:DB_PASSWORD@HOST:PORT/DATABASE_NAME
       - DATABASE_URL=postgresql://db_user:db_pass@pg:5432/hyperswitch_db
-  
+
   mailhog:
     image: mailhog/mailhog
     networks:
@@ -149,15 +149,13 @@ services:
 
   ### Web Client
   hyperswitch-web:
+    image: juspaydotin/hyperswitch-web:standalone
     ports:
       - "9050:9050"
       - "9060:9060"
       - "5252:5252"
     networks:
       - router_net
-    build:
-      context: ./docker
-      dockerfile: web.Dockerfile
     depends_on:
       hyperswitch-server:
         condition: service_healthy
