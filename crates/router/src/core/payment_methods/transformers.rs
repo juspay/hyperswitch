@@ -972,22 +972,23 @@ impl transformers::ForeignTryFrom<domain::PaymentMethod> for api::CustomerPaymen
 }
 
 #[cfg(feature = "v2")]
-impl transformers::ForeignFrom<hyperswitch_domain_models::payment_methods::PaymentMethodsSession>
+impl transformers::ForeignFrom<(hyperswitch_domain_models::payment_methods::PaymentMethodsSession, Secret<String>)>
     for api_models::payment_methods::PaymentMethodsSessionResponse
 {
     fn foreign_from(
-        item: hyperswitch_domain_models::payment_methods::PaymentMethodsSession,
+        item: (hyperswitch_domain_models::payment_methods::PaymentMethodsSession, Secret<String>),
     ) -> Self {
         Self {
-            id: item.id,
-            customer_id: item.customer_id,
-            billing: item
+            id: item.0.id,
+            customer_id: item.0.customer_id,
+            billing: item.0
                 .billing
                 .map(|address| address.into_inner())
                 .map(From::from),
-            psp_tokenization: item.psp_tokenization,
-            network_tokenization: item.network_tokenization,
-            expires_at: item.expires_at,
+            psp_tokenization: item.0.psp_tokenization,
+            network_tokenization: item.0.network_tokenization,
+            expires_at: item.0.expires_at,
+            client_secret: item.1
         }
     }
 }

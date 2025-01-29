@@ -1046,14 +1046,12 @@ pub async fn payment_method_session_update_saved_payment_method(
         api_models::payment_methods::PaymentMethodSessionUpdateSavedPaymentMethod,
     >,
 ) -> HttpResponse {
+    use diesel_models::ResourceId;
+
     let flow = Flow::PaymentMethodSessionUpdateSavedPaymentMethod;
     let payload = json_payload.into_inner();
     let payment_method_session_id = path.into_inner();
 
-    let auth = match auth::is_ephemeral_or_publishible_auth(req.headers()) {
-        Ok(auth) => auth,
-        Err(e) => return api::log_and_return_error_response(e),
-    };
 
     let request = PaymentMethodsSessionGenericRequest {
         payment_method_session_id: payment_method_session_id.clone(),
@@ -1074,7 +1072,7 @@ pub async fn payment_method_session_update_saved_payment_method(
                 request.request,
             )
         },
-        &*auth,
+        &auth::V2Auth::ClientAuth(ResourceId::PaymentMethodSession(payment_method_session_id)),
         api_locking::LockAction::NotApplicable,
     ))
     .await
