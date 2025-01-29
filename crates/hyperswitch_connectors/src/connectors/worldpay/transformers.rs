@@ -26,7 +26,7 @@ use super::{requests::*, response::*};
 use crate::{
     types::ResponseRouterData,
     utils::{
-        self, AddressData, CardData, ForeignTryFrom, PaymentsAuthorizeRequestData,
+        self, AddressData, ApplePay, CardData, ForeignTryFrom, PaymentsAuthorizeRequestData,
         PaymentsSetupMandateRequestData, RouterData as RouterDataTrait,
     },
 };
@@ -156,7 +156,7 @@ fn fetch_payment_instrument(
             })),
             WalletData::ApplePay(data) => Ok(PaymentInstrument::Applepay(WalletPayment {
                 payment_type: PaymentType::Encrypted,
-                wallet_token: Secret::new(data.payment_data),
+                wallet_token: data.get_applepay_decoded_payment_data()?,
                 ..WalletPayment::default()
             })),
             WalletData::AliPayQr(_)
