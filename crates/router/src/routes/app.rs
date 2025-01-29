@@ -556,7 +556,7 @@ impl Payments {
         );
 
         route = route.service(
-            web::resource("/merchant-reference-id/{merchant_reference_id}")
+            web::resource("/ref/{merchant_reference_id}")
                 .route(web::get().to(payments::payment_get_intent_using_merchant_reference_id)),
         );
 
