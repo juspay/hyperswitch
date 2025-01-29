@@ -25241,7 +25241,7 @@
           },
           "transfer_account_id": {
             "type": "string",
-            "description": "Identifier for the reseller's account to send the funds to"
+            "description": "Identifier for the reseller's account where the funds were transferred"
           }
         },
         "additionalProperties": false
