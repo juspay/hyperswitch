@@ -159,7 +159,9 @@ export function determineConnectorConfig(config) {
   }
 
   // Handle nextConnector cases
-  if (connectorCredential.hasOwnProperty("nextConnector")) {
+  if (
+    Object.prototype.hasOwnProperty.call(connectorCredential, "nextConnector")
+  ) {
     if (connectorCredential.nextConnector === true) {
       // Check multipleConnectors conditions if available
       if (
@@ -174,7 +176,7 @@ export function determineConnectorConfig(config) {
   }
 
   // Handle specName cases
-  if (connectorCredential.hasOwnProperty("specName")) {
+  if (Object.prototype.hasOwnProperty.call(connectorCredential, "specName")) {
     return matchesSpecName(connectorCredential.specName)
       ? connectorCredential.value
       : DEFAULT_CONNECTOR;
