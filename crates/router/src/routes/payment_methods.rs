@@ -117,7 +117,7 @@ pub async fn create_payment_method_intent_api(
             ))
             .await
         },
-        &auth::HeaderAuth(auth::ApiKeyAuth),
+        &auth::V2Auth::ApiKeyAuth,
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -931,11 +931,6 @@ pub async fn payment_methods_session_create(
     let flow = Flow::PaymentMethodSessionCreate;
     let payload = json_payload.into_inner();
 
-    let ephemeral_auth = match auth::is_ephemeral_auth(req.headers()) {
-        Ok(auth) => auth,
-        Err(err) => return api::log_and_return_error_response(err),
-    };
-
     Box::pin(api::server_wrap(
         flow,
         state,
@@ -950,7 +945,7 @@ pub async fn payment_methods_session_create(
             )
             .await
         },
-        &*ephemeral_auth,
+        &vec![auth::V2Auth::ApiKeyAuth, auth::V2Auth::ClientAuth],
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -966,11 +961,6 @@ pub async fn payment_methods_session_retrieve(
     let flow = Flow::PaymentMethodSessionRetrieve;
     let payment_method_session_id = path.into_inner();
 
-    let ephemeral_auth = match auth::is_ephemeral_auth(req.headers()) {
-        Ok(auth) => auth,
-        Err(err) => return api::log_and_return_error_response(err),
-    };
-
     Box::pin(api::server_wrap(
         flow,
         state,
@@ -985,7 +975,7 @@ pub async fn payment_methods_session_retrieve(
             )
             .await
         },
-        &*ephemeral_auth,
+        &vec![auth::V2Auth::ApiKeyAuth, auth::V2Auth::ClientAuth],
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -1000,11 +990,6 @@ pub async fn payment_method_session_list_payment_methods(
 ) -> HttpResponse {
     let flow = Flow::PaymentMethodsList;
     let payment_method_session_id = path.into_inner();
-
-    // let auth = match auth::is_ephemeral_or_publishible_auth(req.headers()) {
-    //     Ok(auth) => auth,
-    //     Err(e) => return api::log_and_return_error_response(e),
-    // };
 
     Box::pin(api::server_wrap(
         flow,

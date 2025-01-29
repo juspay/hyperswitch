@@ -1772,7 +1772,114 @@ where
             .to_owned();
 
         match self {
-            Self::ApiKeyAuth => Err(errors::ApiErrorResponse::Unauthorized.into()),
+            Self::ApiKeyAuth => {
+                let api_key = auth_string
+                    .split(',')
+                    .find_map(|part| part.trim().strip_prefix("api-key="))
+                    .ok_or_else(|| {
+                        report!(errors::ApiErrorResponse::Unauthorized)
+                            .attach_printable("Unable to parse api_key")
+                    })?;
+                if api_key.is_empty() {
+                    return Err(errors::ApiErrorResponse::Unauthorized)
+                        .attach_printable("API key is empty");
+                }
+
+                let profile_id = HeaderMapStruct::new(request_headers)
+                    .get_id_type_from_header::<id_type::ProfileId>(headers::X_PROFILE_ID)?;
+
+                let api_key = api_keys::PlaintextApiKey::from(api_key);
+                let hash_key = {
+                    let config = state.conf();
+                    config.api_keys.get_inner().get_hash_key()?
+                };
+                let hashed_api_key = api_key.keyed_hash(hash_key.peek());
+
+                let stored_api_key = state
+                    .store()
+                    .find_api_key_by_hash_optional(hashed_api_key.into())
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError) // If retrieve failed
+                    .attach_printable("Failed to retrieve API key")?
+                    .ok_or(report!(errors::ApiErrorResponse::Unauthorized)) // If retrieve returned `None`
+                    .attach_printable("Merchant not authenticated")?;
+
+                if stored_api_key
+                    .expires_at
+                    .map(|expires_at| expires_at < date_time::now())
+                    .unwrap_or(false)
+                {
+                    return Err(report!(errors::ApiErrorResponse::Unauthorized))
+                        .attach_printable("API key has expired");
+                }
+
+                let key_manager_state = &(&state.session_state()).into();
+
+                let key_store = state
+                    .store()
+                    .get_merchant_key_store_by_merchant_id(
+                        key_manager_state,
+                        &stored_api_key.merchant_id,
+                        &state.store().get_master_key().to_vec().into(),
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::Unauthorized)
+                    .attach_printable("Failed to fetch merchant key store for the merchant id")?;
+
+                let merchant = state
+                    .store()
+                    .find_merchant_account_by_merchant_id(
+                        key_manager_state,
+                        &stored_api_key.merchant_id,
+                        &key_store,
+                    )
+                    .await
+                    .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
+
+                // Get connected merchant account if API call is done by Platform merchant account on behalf of connected merchant account
+                let (merchant, platform_merchant_account) = if state.conf().platform.enabled {
+                    get_platform_merchant_account(state, request_headers, merchant).await?
+                } else {
+                    (merchant, None)
+                };
+
+                let key_store = if platform_merchant_account.is_some() {
+                    state
+                        .store()
+                        .get_merchant_key_store_by_merchant_id(
+                            key_manager_state,
+                            merchant.get_id(),
+                            &state.store().get_master_key().to_vec().into(),
+                        )
+                        .await
+                        .change_context(errors::ApiErrorResponse::Unauthorized)
+                        .attach_printable(
+                            "Failed to fetch merchant key store for the merchant id",
+                        )?
+                } else {
+                    key_store
+                };
+
+                let profile = state
+                    .store()
+                    .find_business_profile_by_profile_id(key_manager_state, &key_store, &profile_id)
+                    .await
+                    .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
+
+                let auth = AuthenticationData {
+                    merchant_account: merchant,
+                    platform_merchant_account,
+                    key_store,
+                    profile,
+                };
+                Ok((
+                    auth.clone(),
+                    AuthenticationType::ApiKey {
+                        merchant_id: auth.merchant_account.get_id().clone(),
+                        key_id: stored_api_key.key_id,
+                    },
+                ))
+            }
             Self::ClientAuth => {
                 let publishable_key = auth_string
                     .split(',')
@@ -1853,6 +1960,57 @@ where
             }
             Self::DashboardAuth => Err(errors::ApiErrorResponse::Unauthorized.into()),
         }
+    }
+}
+
+#[cfg(feature = "v2")]
+#[async_trait]
+impl<A> AuthenticateAndFetch<AuthenticationData, A> for Vec<V2Auth>
+where
+    A: SessionStateInfo + Sync,
+{
+    async fn authenticate_and_fetch(
+        &self,
+        request_headers: &HeaderMap,
+        state: &A,
+    ) -> RouterResult<(AuthenticationData, AuthenticationType)> {
+        let auth_string = request_headers
+            .get(headers::AUTHORIZATION)
+            .get_required_value(headers::AUTHORIZATION)?
+            .to_str()
+            .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: headers::AUTHORIZATION,
+            })
+            .attach_printable("Failed to convert authorization header to string")?
+            .to_owned();
+
+        let api_key = auth_string
+            .split(',')
+            .find_map(|part| part.trim().strip_prefix("api-key="));
+
+        if let Some(_) = api_key {
+            for handler in self {
+                if let V2Auth::ApiKeyAuth = handler {
+                    return handler.authenticate_and_fetch(request_headers, state).await;
+                }
+                return Err(errors::ApiErrorResponse::Unauthorized.into());
+            }
+        };
+
+        let publishable_key = auth_string
+            .split(',')
+            .find_map(|part| part.trim().strip_prefix("publishable-key="));
+
+        if let Some(_) = publishable_key {
+            for handler in self {
+                if let V2Auth::ClientAuth = handler {
+                    return handler.authenticate_and_fetch(request_headers, state).await;
+                }
+            }
+            return Err(errors::ApiErrorResponse::Unauthorized.into());
+        };
+
+        Err(errors::ApiErrorResponse::Unauthorized.into())
     }
 }
 

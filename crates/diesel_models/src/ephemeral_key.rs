@@ -1,5 +1,6 @@
 #[cfg(feature = "v2")]
 use masking::{PeekInterface, Secret};
+
 #[cfg(feature = "v2")]
 pub struct ClientSecretTypeNew {
     pub id: common_utils::id_type::ClientSecretId,
@@ -55,4 +56,5 @@ impl common_utils::events::ApiEventMetric for EphemeralKey {
 pub enum ResourceId {
     Payment(common_utils::id_type::GlobalPaymentId),
     Customer(common_utils::id_type::GlobalCustomerId),
+    // PaymentMethodsSession(crate::payment_methods_session::PaymentMethodsSession)
 }
