@@ -655,6 +655,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::feature_matrix::SupportedPaymentMethod,
         common_utils::types::BrowserInformation,
         api_models::enums::TokenizationType,
+        api_models::enums::NetworkTokenizationToggle,
         api_models::payments::PaymentAmountDetailsResponse,
         routes::payments::ForceSync,
     )),

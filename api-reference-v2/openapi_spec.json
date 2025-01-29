@@ -11530,16 +11530,23 @@
       },
       "NetworkTokenization": {
         "type": "object",
-        "description": "The newtwork tokenization configuration for creating the payment method session",
+        "description": "The network tokenization configuration for creating the payment method session",
         "required": [
           "enable"
         ],
         "properties": {
           "enable": {
-            "type": "boolean",
-            "description": "Enable the network tokenization for payment methods that are created using the payment method session"
+            "$ref": "#/components/schemas/NetworkTokenizationToggle"
           }
         }
+      },
+      "NetworkTokenizationToggle": {
+        "type": "string",
+        "description": "The network tokenization toggle, whether to enable or skip the network tokenization",
+        "enum": [
+          "Enable",
+          "Skip"
+        ]
       },
       "NetworkTransactionIdAndCardDetails": {
         "type": "object",

@@ -3674,3 +3674,12 @@ pub enum TokenizationType {
     /// This will create a mandate at the connector which can be used for recurring payments
     MultiUse,
 }
+
+/// The network tokenization toggle, whether to enable or skip the network tokenization
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
+pub enum NetworkTokenizationToggle {
+    /// Enable network tokenization for the payment method
+    Enable,
+    /// Skip network tokenization for the payment method
+    Skip,
+}

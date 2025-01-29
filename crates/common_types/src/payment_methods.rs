@@ -125,11 +125,12 @@ where
 
 common_utils::impl_to_sql_from_sql_json!(PaymentMethodsEnabled);
 
-/// The newtwork tokenization configuration for creating the payment method session
+/// The network tokenization configuration for creating the payment method session
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct NetworkTokenization {
     /// Enable the network tokenization for payment methods that are created using the payment method session
-    pub enable: bool,
+    #[schema(value_type = NetworkTokenizationToggle)]
+    pub enable: common_enums::NetworkTokenizationToggle,
 }
 
 /// The Payment Service Provider Configuration for payment methods that are created using the payment method session
