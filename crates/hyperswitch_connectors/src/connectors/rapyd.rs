@@ -1025,7 +1025,7 @@ lazy_static! {
         connector_type: enums::PaymentConnectorCategory::PaymentGateway,
     };
 
-    static ref RAPYD_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> = Vec::new();
+    static ref RAPYD_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> = vec![enums::EventClass::Payments, enums::EventClass::Refunds, enums::EventClass::Disputes];
 
 }
 

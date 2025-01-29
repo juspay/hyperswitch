@@ -944,7 +944,7 @@ lazy_static! {
             .to_string(),
         connector_type: enums::PaymentConnectorCategory::PaymentGateway,
     };
-    static ref GOCARDLESS_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> = Vec::new();
+    static ref GOCARDLESS_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> = vec![enums::EventClass::Payments, enums::EventClass::Refunds, enums::EventClass::Mandates];
 }
 
 impl ConnectorSpecifications for Gocardless {
