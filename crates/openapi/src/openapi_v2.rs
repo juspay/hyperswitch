@@ -489,7 +489,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payment_methods::PaymentMethodCollectLinkRequest,
         api_models::payment_methods::PaymentMethodCollectLinkResponse,
         api_models::payment_methods::PaymentMethodSubtypeSpecificData,
-        api_models::payment_methods::PaymentMethodsSessionRequest,
+        api_models::payment_methods::PaymentMethodSessionRequest,
         api_models::payment_methods::PaymentMethodsSessionResponse,
         api_models::payments::PaymentsRetrieveResponse,
         api_models::refunds::RefundListRequest,

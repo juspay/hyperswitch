@@ -889,7 +889,7 @@ pub async fn create_payment_method(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Unable to generate GlobalPaymentMethodId")?;
 
-    let (payment_method, ephemeral_key) = create_payment_method_for_intent(
+    let payment_method = create_payment_method_for_intent(
         state,
         req.metadata.clone(),
         &customer_id,
@@ -939,10 +939,7 @@ pub async fn create_payment_method(
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to update payment method in db")?;
 
-            let resp = pm_transforms::generate_payment_method_response(
-                &payment_method,
-                Some(ephemeral_key),
-            )?;
+            let resp = pm_transforms::generate_payment_method_response(&payment_method)?;
 
             Ok(resp)
         }
@@ -1015,7 +1012,7 @@ pub async fn payment_method_intent_create(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Unable to generate GlobalPaymentMethodId")?;
 
-    let (payment_method, ephemeral_key) = create_payment_method_for_intent(
+    let payment_method = create_payment_method_for_intent(
         state,
         req.metadata.clone(),
         &customer_id,
@@ -1028,8 +1025,7 @@ pub async fn payment_method_intent_create(
     .await
     .attach_printable("Failed to add Payment method to DB")?;
 
-    let resp =
-        pm_transforms::generate_payment_method_response(&payment_method, Some(ephemeral_key))?;
+    let resp = pm_transforms::generate_payment_method_response(&payment_method)?;
 
     Ok(services::ApplicationResponse::Json(resp))
 }
@@ -1106,7 +1102,7 @@ pub async fn payment_method_intent_confirm(
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to update payment method in db")?;
 
-            let resp = pm_transforms::generate_payment_method_response(&payment_method, None)?;
+            let resp = pm_transforms::generate_payment_method_response(&payment_method)?;
 
             Ok(resp)
         }
@@ -1348,17 +1344,8 @@ pub async fn create_payment_method_for_intent(
     payment_method_billing_address: Option<
         Encryptable<hyperswitch_domain_models::address::Address>,
     >,
-) -> errors::CustomResult<(domain::PaymentMethod, Secret<String>), errors::ApiErrorResponse> {
+) -> errors::CustomResult<domain::PaymentMethod, errors::ApiErrorResponse> {
     let db = &*state.store;
-    let ephemeral_key = payment_helpers::create_ephemeral_key(
-        state,
-        customer_id,
-        merchant_id,
-        ephemeral_key::ResourceType::PaymentMethod,
-    )
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Failed to create ephemeral_key")?;
 
     let current_time = common_utils::date_time::now();
 
@@ -1396,7 +1383,7 @@ pub async fn create_payment_method_for_intent(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to add payment method in db")?;
 
-    Ok((response, ephemeral_key.secret))
+    Ok(response)
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
@@ -1657,7 +1644,6 @@ pub async fn retrieve_payment_method(
         created: Some(payment_method.created_at),
         recurring_enabled: false,
         last_used_at: Some(payment_method.last_used_at),
-        ephemeral_key: None,
         payment_method_data: pmd,
     };
 
@@ -1669,21 +1655,33 @@ pub async fn retrieve_payment_method(
 pub async fn update_payment_method(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
-    req: api::PaymentMethodUpdate,
-    payment_method_id: &str,
     key_store: domain::MerchantKeyStore,
+    req: api::PaymentMethodUpdate,
+    payment_method_id: &id_type::GlobalPaymentMethodId,
 ) -> RouterResponse<api::PaymentMethodResponse> {
-    let db = state.store.as_ref();
+    let response =
+        update_payment_method_core(state, merchant_account, key_store, req, payment_method_id)
+            .await?;
 
-    let pm_id = id_type::GlobalPaymentMethodId::generate_from_string(payment_method_id.to_string())
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Unable to generate GlobalPaymentMethodId")?;
+    Ok(services::ApplicationResponse::Json(response))
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[instrument(skip_all)]
+pub async fn update_payment_method_core(
+    state: SessionState,
+    merchant_account: domain::MerchantAccount,
+    key_store: domain::MerchantKeyStore,
+    req: api::PaymentMethodUpdate,
+    payment_method_id: &id_type::GlobalPaymentMethodId,
+) -> RouterResult<api::PaymentMethodResponse> {
+    let db = state.store.as_ref();
 
     let payment_method = db
         .find_payment_method(
             &((&state).into()),
             &key_store,
-            &pm_id,
+            payment_method_id,
             merchant_account.storage_scheme,
         )
         .await
@@ -1744,11 +1742,11 @@ pub async fn update_payment_method(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to update payment method in db")?;
 
-    let response = pm_transforms::generate_payment_method_response(&payment_method, None)?;
+    let response = pm_transforms::generate_payment_method_response(&payment_method)?;
 
     // Add a PT task to handle payment_method delete from vault
 
-    Ok(services::ApplicationResponse::Json(response))
+    Ok(response)
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
@@ -1838,7 +1836,7 @@ trait EncryptableData {
 
 #[cfg(feature = "v2")]
 #[async_trait::async_trait]
-impl EncryptableData for payment_methods::PaymentMethodsSessionRequest {
+impl EncryptableData for payment_methods::PaymentMethodSessionRequest {
     type Output = hyperswitch_domain_models::payment_methods::DecryptedPaymentMethodsSession;
 
     async fn encrypt_data(
@@ -1891,7 +1889,7 @@ pub async fn payment_methods_session_create(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
-    request: payment_methods::PaymentMethodsSessionRequest,
+    request: payment_methods::PaymentMethodSessionRequest,
 ) -> RouterResponse<payment_methods::PaymentMethodsSessionResponse> {
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
@@ -1986,6 +1984,40 @@ pub async fn payment_methods_session_retrieve(
     );
 
     Ok(services::ApplicationResponse::Json(response))
+}
+
+#[cfg(feature = "v2")]
+pub async fn payment_methods_session_update_payment_method(
+    state: SessionState,
+    merchant_account: domain::MerchantAccount,
+    key_store: domain::MerchantKeyStore,
+    payment_method_session_id: id_type::GlobalPaymentMethodSessionId,
+    request: payment_methods::PaymentMethodSessionUpdateSavedPaymentMethod,
+) -> RouterResponse<payment_methods::PaymentMethodResponse> {
+    let db = state.store.as_ref();
+    let key_manager_state = &(&state).into();
+
+    // Validate if the session still exists
+    db.get_payment_methods_session(key_manager_state, &key_store, &payment_method_session_id)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::GenericNotFoundError {
+            message: "payment methods session does not exist or has expired".to_string(),
+        })
+        .attach_printable("Failed to retrieve payment methods session from db")?;
+
+    let payment_method_update_request = request.payment_method_update_request;
+
+    let updated_payment_method = update_payment_method_core(
+        state,
+        merchant_account,
+        key_store,
+        payment_method_update_request,
+        &request.payment_method_id,
+    )
+    .await
+    .attach_printable("Failed to update saved payment method")?;
+
+    Ok(services::ApplicationResponse::Json(updated_payment_method))
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]

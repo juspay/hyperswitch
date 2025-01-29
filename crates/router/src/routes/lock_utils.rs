@@ -309,9 +309,9 @@ impl From<Flow> for ApiIdentifier {
 
             Flow::FeatureMatrix => Self::Documentation,
 
-            Flow::PaymentMethodSessionCreate | Flow::PaymentMethodSessionRetrieve => {
-                Self::PaymentMethodsSession
-            }
+            Flow::PaymentMethodSessionCreate
+            | Flow::PaymentMethodSessionRetrieve
+            | Flow::PaymentMethodSessionUpdateSavedPaymentMethod => Self::PaymentMethodsSession,
         }
     }
 }

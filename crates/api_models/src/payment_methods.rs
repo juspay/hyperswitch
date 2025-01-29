@@ -795,10 +795,6 @@ pub struct PaymentMethodResponse {
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub last_used_at: Option<time::PrimitiveDateTime>,
 
-    /// For Client based calls
-    #[schema(value_type=Option<String>)]
-    pub ephemeral_key: Option<masking::Secret<String>>,
-
     pub payment_method_data: Option<PaymentMethodResponseData>,
 }
 
@@ -2383,7 +2379,7 @@ impl From<(PaymentMethodRecord, id_type::MerchantId)> for customers::CustomerReq
 
 #[cfg(feature = "v2")]
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
-pub struct PaymentMethodsSessionRequest {
+pub struct PaymentMethodSessionRequest {
     /// The customer id for which the payment methods session is to be created
     #[schema(value_type = String, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
     pub customer_id: id_type::GlobalCustomerId,
@@ -2404,6 +2400,18 @@ pub struct PaymentMethodsSessionRequest {
     /// If not provided, the session will expire in 15 minutes
     #[schema(example = 900, default = 900)]
     pub expires_in: Option<u32>,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct PaymentMethodSessionUpdateSavedPaymentMethod {
+    /// The payment method id of the payment method to be updated
+    #[schema(value_type = String, example = "12345_pm_01926c58bc6e77c09e809964e72af8c8")]
+    pub payment_method_id: id_type::GlobalPaymentMethodId,
+
+    /// The update request for the payment method update
+    #[serde(flatten)]
+    pub payment_method_update_request: PaymentMethodUpdate,
 }
 
 #[cfg(feature = "v2")]

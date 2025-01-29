@@ -200,7 +200,7 @@ pub async fn confirm_payment_method_intent_api(
 pub async fn payment_method_update_api(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<String>,
+    path: web::Path<id_type::GlobalPaymentMethodId>,
     json_payload: web::Json<payment_methods::PaymentMethodUpdate>,
 ) -> HttpResponse {
     let flow = Flow::PaymentMethodsUpdate;
@@ -221,9 +221,9 @@ pub async fn payment_method_update_api(
             payment_methods_routes::update_payment_method(
                 state,
                 auth.merchant_account,
+                auth.key_store,
                 req,
                 &payment_method_id,
-                auth.key_store,
             )
         },
         &*auth,
@@ -936,7 +936,7 @@ impl ParentPaymentMethodToken {
 pub async fn payment_methods_session_create(
     state: web::Data<AppState>,
     req: HttpRequest,
-    json_payload: web::Json<api_models::payment_methods::PaymentMethodsSessionRequest>,
+    json_payload: web::Json<api_models::payment_methods::PaymentMethodSessionRequest>,
 ) -> HttpResponse {
     let flow = Flow::PaymentMethodSessionCreate;
     let payload = json_payload.into_inner();
@@ -968,7 +968,7 @@ pub async fn payment_methods_session_create(
 
 #[cfg(feature = "v2")]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentMethodSessionRetrieve))]
-pub async fn payment_methods_session_get(
+pub async fn payment_methods_session_retrieve(
     state: web::Data<AppState>,
     req: HttpRequest,
     path: web::Path<id_type::GlobalPaymentMethodSessionId>,
@@ -1028,6 +1028,69 @@ pub async fn payment_method_session_list_payment_methods(
                 auth.key_store,
                 auth.profile,
                 payment_method_session_id,
+            )
+        },
+        &*auth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(feature = "v2")]
+#[derive(Clone, Debug, serde::Serialize)]
+struct PaymentMethodsSessionGenericRequest<T: serde::Serialize> {
+    payment_method_session_id: id_type::GlobalPaymentMethodSessionId,
+    #[serde(flatten)]
+    request: T,
+}
+
+#[cfg(feature = "v2")]
+impl<T: serde::Serialize> common_utils::events::ApiEventMetric
+    for PaymentMethodsSessionGenericRequest<T>
+{
+    fn get_api_event_type(&self) -> Option<common_utils::events::ApiEventsType> {
+        Some(common_utils::events::ApiEventsType::PaymentMethodSession {
+            payment_method_session_id: self.payment_method_session_id.clone(),
+        })
+    }
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentMethodSessionUpdateSavedPaymentMethod))]
+pub async fn payment_method_session_update_saved_payment_method(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<id_type::GlobalPaymentMethodSessionId>,
+    json_payload: web::Json<
+        api_models::payment_methods::PaymentMethodSessionUpdateSavedPaymentMethod,
+    >,
+) -> HttpResponse {
+    let flow = Flow::PaymentMethodSessionUpdateSavedPaymentMethod;
+    let payload = json_payload.into_inner();
+    let payment_method_session_id = path.into_inner();
+
+    let auth = match auth::is_ephemeral_or_publishible_auth(req.headers()) {
+        Ok(auth) => auth,
+        Err(e) => return api::log_and_return_error_response(e),
+    };
+
+    let request = PaymentMethodsSessionGenericRequest {
+        payment_method_session_id: payment_method_session_id.clone(),
+        request: payload,
+    };
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        request,
+        |state, auth: auth::AuthenticationData, request, _| {
+            payment_methods_routes::payment_methods_session_update_payment_method(
+                state,
+                auth.merchant_account,
+                auth.key_store,
+                request.payment_method_session_id,
+                request.request,
             )
         },
         &*auth,

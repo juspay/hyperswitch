@@ -204,7 +204,7 @@ impl ApiEventMetric for DisputeListFilters {
 }
 
 #[cfg(feature = "v2")]
-impl ApiEventMetric for PaymentMethodsSessionRequest {}
+impl ApiEventMetric for PaymentMethodSessionRequest {}
 
 #[cfg(feature = "v2")]
 impl ApiEventMetric for PaymentMethodsSessionResponse {
