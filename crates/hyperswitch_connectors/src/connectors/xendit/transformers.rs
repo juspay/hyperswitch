@@ -307,6 +307,18 @@ impl<F>
                 status_code: item.http_code,
             })
         } else {
+            /// Map charge response of preprocessing
+            let charges = item.data.response.as_ref().ok()
+            .and_then(|response| match response {
+                PaymentsResponseData::TransactionResponse { charges, .. } => charges.clone(),
+                _ => None,
+            })
+            .and_then(|charges| match charges {
+                common_types::payments::ConnectorChargeResponseData::XenditSplitPayment(xendit_response) => 
+                Some(common_types::payments::ConnectorChargeResponseData::XenditSplitPayment(xendit_response))
+                _ => None,
+            });
+        
             Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
                 redirection_data: match item.response.actions {
@@ -339,7 +351,7 @@ impl<F>
                     item.response.reference_id.peek().to_string(),
                 ),
                 incremental_authorization_allowed: None,
-                charges: None,
+                charges,
             })
         };
         Ok(Self {
