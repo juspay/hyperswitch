@@ -41,6 +41,7 @@ pub struct Connectors {
     pub fiservemea: ConnectorParams,
     pub fiuu: ConnectorParamsWithThreeUrls,
     pub forte: ConnectorParams,
+    pub getnet: ConnectorParams,
     pub globalpay: ConnectorParams,
     pub globepay: ConnectorParams,
     pub gocardless: ConnectorParams,

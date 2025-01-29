@@ -21,6 +21,7 @@ pub mod fiserv;
 pub mod fiservemea;
 pub mod fiuu;
 pub mod forte;
+pub mod getnet;
 pub mod globepay;
 pub mod gocardless;
 pub mod helcim;
@@ -62,13 +63,14 @@ pub use self::{
     boku::Boku, cashtocode::Cashtocode, coinbase::Coinbase, cryptopay::Cryptopay,
     ctp_mastercard::CtpMastercard, cybersource::Cybersource, datatrans::Datatrans,
     deutschebank::Deutschebank, digitalvirgo::Digitalvirgo, dlocal::Dlocal, elavon::Elavon,
-    fiserv::Fiserv, fiservemea::Fiservemea, fiuu::Fiuu, forte::Forte, globepay::Globepay,
-    gocardless::Gocardless, helcim::Helcim, inespay::Inespay, jpmorgan::Jpmorgan, mollie::Mollie,
-    multisafepay::Multisafepay, nexinets::Nexinets, nexixpay::Nexixpay, nomupay::Nomupay,
-    novalnet::Novalnet, paybox::Paybox, payeezy::Payeezy, payu::Payu, placetopay::Placetopay,
-    powertranz::Powertranz, prophetpay::Prophetpay, rapyd::Rapyd, razorpay::Razorpay,
-    redsys::Redsys, shift4::Shift4, square::Square, stax::Stax, taxjar::Taxjar, thunes::Thunes,
-    tsys::Tsys, unified_authentication_service::UnifiedAuthenticationService, volt::Volt,
+    fiserv::Fiserv, fiservemea::Fiservemea, fiuu::Fiuu, forte::Forte, getnet::Getnet,
+    globepay::Globepay, gocardless::Gocardless, helcim::Helcim, inespay::Inespay,
+    jpmorgan::Jpmorgan, mollie::Mollie, multisafepay::Multisafepay, nexinets::Nexinets,
+    nexixpay::Nexixpay, nomupay::Nomupay, novalnet::Novalnet, paybox::Paybox, payeezy::Payeezy,
+    payu::Payu, placetopay::Placetopay, powertranz::Powertranz, prophetpay::Prophetpay,
+    rapyd::Rapyd, razorpay::Razorpay, redsys::Redsys, shift4::Shift4, square::Square, stax::Stax,
+    taxjar::Taxjar, thunes::Thunes, tsys::Tsys,
+    unified_authentication_service::UnifiedAuthenticationService, volt::Volt,
     wellsfargo::Wellsfargo, worldline::Worldline, worldpay::Worldpay, xendit::Xendit, zen::Zen,
     zsl::Zsl,
 };
