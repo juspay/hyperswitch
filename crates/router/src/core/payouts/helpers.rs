@@ -79,7 +79,7 @@ pub async fn make_payout_method_data(
                 .attach_printable("Failed to get redis connection")?;
 
             let hyperswitch_token = redis_conn
-                .get_key::<Option<String>>(&key)
+                .get_key::<Option<String>>(&key.into())
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to fetch the token from redis")?
