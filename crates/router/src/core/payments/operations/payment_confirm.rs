@@ -1250,7 +1250,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
 
             redis_conn
                 .set_key_with_expiry(
-                    &key,
+                    &key.into(),
                     encrypted_payload.clone(),
                     (*merchant_config.ttl_in_secs).into(),
                 )
