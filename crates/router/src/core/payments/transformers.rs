@@ -3763,7 +3763,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPreProce
         let payment_method_data = payment_data.payment_method_data;
         let router_base_url = &additional_data.router_base_url;
         let attempt = &payment_data.payment_attempt;
-        let connector_name = &additional_data.connector_name;
+        let connector_name = &additional_data.connector_name; 
 
         let order_details = payment_data
             .payment_intent
@@ -3838,6 +3838,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPreProce
             mandate_id: payment_data.mandate_id,
             related_transaction_id: None,
             enrolled_for_3ds: true,
+            split_payments: payment_data.payment_intent.split_payments,
             metadata: payment_data.payment_intent.metadata.map(Secret::new),
         })
     }

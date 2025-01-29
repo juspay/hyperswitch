@@ -6349,6 +6349,62 @@ pub fn validate_platform_request_for_marketplace(
                     Ok(())
                 })?;
         }
+        Some(common_types::payments::SplitPaymentsRequest::XenditSplitPayment(
+            xendit_split_payment,
+        )) => {
+            match amount {
+                api::Amount::Zero => {
+                    let total_split_amount: i64 = xendit_split_payment
+                        .routes
+                        .iter()
+                        .map(|route| {
+                            route
+                                .flat_amount
+                                .unwrap_or(MinorUnit::new(0))
+                                .get_amount_as_i64()
+                        })
+                        .sum();
+
+                    if total_split_amount != 0 {
+                        return Err(errors::ApiErrorResponse::InvalidDataValue {
+                            field_name: "Sum of split amounts should be equal to the total amount",
+                        });
+                    }
+                }
+                api::Amount::Value(amount) => {
+                    let i64_amount: i64 = amount.into();
+                    let total_split_amount: i64 = xendit_split_payment
+                    .routes
+                    .into_iter()
+                    .map(|route| {
+                        if route.flat_amount.is_none() && route.percent_amount.is_none() {
+                            Err(errors::ApiErrorResponse::MissingRequiredField {
+                                field_name: "split_payments.xendit_split_payment.routes.flat_amount or split_payments.xendit_split_payment.routes.percent_amount",
+                            })
+                        } else if route.flat_amount.is_some() && route.percent_amount.is_some(){
+                            Err(errors::ApiErrorResponse::InvalidRequestData {
+                                message: "Expected one of split_payments.xendit_split_payment.routes.flat_amount or split_payments.xendit_split_payment.routes.percent_amount, not both".to_string(),
+                            })
+                        } else {
+                            Ok(route
+                                .flat_amount
+                                .map(|amount| amount.get_amount_as_i64())
+                                .or(route.percent_amount.map(|percentage| (percentage * i64_amount) / 100))
+                                .unwrap_or(0))}
+                            })
+                            .collect::<Result<Vec<i64>, _>>()?
+                            .into_iter()
+                            .sum();
+
+                    if i64_amount < total_split_amount {
+                        return Err(errors::ApiErrorResponse::PreconditionFailed {
+                            message: "Sum of split amounts should be equal to the total amount"
+                                .to_string(),
+                        });
+                    }
+                }
+            };
+        }
         None => (),
     }
     Ok(())
