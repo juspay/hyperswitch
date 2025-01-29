@@ -5,6 +5,7 @@ pub mod customers;
 pub mod flows;
 pub mod helpers;
 pub mod operations;
+
 #[cfg(feature = "retry")]
 pub mod retry;
 pub mod routing;
@@ -33,14 +34,14 @@ pub use common_enums::enums::CallConnectorAction;
 use common_utils::{
     ext_traits::{AsyncExt, StringExt},
     id_type, pii,
-    types::{MinorUnit, Surcharge},
+    types::{AmountConvertor, MinorUnit, Surcharge},
 };
 use diesel_models::{ephemeral_key, fraud_check::FraudCheck};
 use error_stack::{report, ResultExt};
 use events::EventInfo;
 use futures::future::join_all;
 use helpers::{decrypt_paze_token, ApplePayData};
-use hyperswitch_domain_models::payments::payment_intent::CustomerData;
+use hyperswitch_domain_models::payments::{payment_intent::CustomerData, ClickToPayMetaData};
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::payments::{
     PaymentCaptureData, PaymentConfirmData, PaymentIntentData, PaymentStatusData,
@@ -380,29 +381,38 @@ where
             should_continue_capture,
         );
 
-        operation
-            .to_domain()?
-            .call_external_three_ds_authentication_if_eligible(
-                state,
-                &mut payment_data,
-                &mut should_continue_transaction,
-                &connector_details,
-                &business_profile,
-                &key_store,
-                mandate_type,
-            )
-            .await?;
-        operation
-            .to_domain()?
-            .call_unified_authentication_service_if_eligible(
-                state,
-                &mut payment_data,
-                &mut should_continue_transaction,
-                &connector_details,
-                &business_profile,
-                &key_store,
-            )
-            .await?;
+        if helpers::is_merchant_eligible_authentication_service(merchant_account.get_id(), state)
+            .await?
+        {
+            operation
+                .to_domain()?
+                .call_unified_authentication_service_if_eligible(
+                    state,
+                    &mut payment_data,
+                    &mut should_continue_transaction,
+                    &connector_details,
+                    &business_profile,
+                    &key_store,
+                )
+                .await?;
+        } else {
+            logger::info!(
+                "skipping authentication service call since the merchant is not eligible."
+            );
+
+            operation
+                .to_domain()?
+                .call_external_three_ds_authentication_if_eligible(
+                    state,
+                    &mut payment_data,
+                    &mut should_continue_transaction,
+                    &connector_details,
+                    &business_profile,
+                    &key_store,
+                    mandate_type,
+                )
+                .await?;
+        };
 
         operation
             .to_domain()?
@@ -2353,7 +2363,7 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
                 .attach_printable("Failed to get redis connection")?;
             redis_conn
                 .set_key_with_expiry(
-                    &poll_id,
+                    &poll_id.into(),
                     api_models::poll::PollStatus::Pending.to_string(),
                     crate::consts::POLL_ID_TTL,
                 )
@@ -3432,29 +3442,21 @@ pub async fn get_session_token_for_click_to_pay(
     state: &SessionState,
     merchant_id: &id_type::MerchantId,
     key_store: &domain::MerchantKeyStore,
-    authentication_product_ids: serde_json::Value,
+    authentication_product_ids: common_types::payments::AuthenticationConnectorAccountMap,
     payment_intent: &hyperswitch_domain_models::payments::PaymentIntent,
 ) -> RouterResult<api_models::payments::SessionToken> {
-    use common_utils::{id_type::MerchantConnectorAccountId, types::AmountConvertor};
-    use hyperswitch_domain_models::payments::{payment_intent::CustomerData, ClickToPayMetaData};
-
-    use crate::consts::CLICK_TO_PAY;
-
-    let mca_ids: HashMap<String, MerchantConnectorAccountId> = authentication_product_ids
-        .parse_value("HashMap<String, MerchantConnectorAccountId>")
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Error while parsing authentication product ids")?;
-    let click_to_pay_mca_id = mca_ids
-        .get(CLICK_TO_PAY)
-        .ok_or(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Error while getting click_to_pay mca_id from business profile")?;
+    let click_to_pay_mca_id = authentication_product_ids
+        .get_click_to_pay_connector_account_id()
+        .change_context(errors::ApiErrorResponse::MissingRequiredField {
+            field_name: "authentication_product_ids",
+        })?;
     let key_manager_state = &(state).into();
     let merchant_connector_account = state
         .store
         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
             key_manager_state,
             merchant_id,
-            click_to_pay_mca_id,
+            &click_to_pay_mca_id,
             key_store,
         )
         .await
@@ -3473,8 +3475,8 @@ pub async fn get_session_token_for_click_to_pay(
     let required_amount_type = common_utils::types::StringMajorUnitForConnector;
     let transaction_amount = required_amount_type
         .convert(payment_intent.amount, transaction_currency)
-        .change_context(errors::ApiErrorResponse::PreconditionFailed {
-            message: "Failed to convert amount to string major unit for clickToPay".to_string(),
+        .change_context(errors::ApiErrorResponse::AmountConversionFailed {
+            amount_type: "string major unit",
         })?;
 
     let customer_details_value = payment_intent
@@ -4116,7 +4118,7 @@ async fn decide_payment_method_tokenize_action(
                 );
 
                 let connector_token_option = redis_conn
-                    .get_key::<Option<String>>(&key)
+                    .get_key::<Option<String>>(&key.into())
                     .await
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed to fetch the token from redis")?;
@@ -5797,26 +5799,7 @@ where
             .as_ref()
             .ok_or(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to find the merchant connector id")?;
-        if is_network_transaction_id_flow(
-            state,
-            is_connector_agnostic_mit_enabled,
-            connector_data.connector_name,
-            payment_method_info,
-        ) {
-            logger::info!("using network_transaction_id for MIT flow");
-            let network_transaction_id = payment_method_info
-                .network_transaction_id
-                .as_ref()
-                .ok_or(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to fetch the network transaction id")?;
-
-            let mandate_reference_id = Some(payments_api::MandateReferenceId::NetworkMandateId(
-                network_transaction_id.to_string(),
-            ));
-
-            connector_choice = Some((connector_data, mandate_reference_id.clone()));
-            break;
-        } else if connector_mandate_details
+        if connector_mandate_details
             .clone()
             .map(|connector_mandate_details| {
                 connector_mandate_details.contains_key(merchant_connector_id)
@@ -5866,6 +5849,25 @@ where
                             break;
                         }
             }
+        } else if is_network_transaction_id_flow(
+            state,
+            is_connector_agnostic_mit_enabled,
+            connector_data.connector_name,
+            payment_method_info,
+        ) {
+            logger::info!("using network_transaction_id for MIT flow");
+            let network_transaction_id = payment_method_info
+                .network_transaction_id
+                .as_ref()
+                .ok_or(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to fetch the network transaction id")?;
+
+            let mandate_reference_id = Some(payments_api::MandateReferenceId::NetworkMandateId(
+                network_transaction_id.to_string(),
+            ));
+
+            connector_choice = Some((connector_data, mandate_reference_id.clone()));
+            break;
         } else {
             continue;
         }
@@ -6564,8 +6566,17 @@ pub async fn payment_external_authentication(
         &payment_attempt.clone(),
         payment_connector_name,
     ));
-    let webhook_url =
-        helpers::create_webhook_url(&state.base_url, merchant_id, &authentication_connector);
+    let mca_id_option = merchant_connector_account.get_mca_id(); // Bind temporary value
+    let merchant_connector_account_id_or_connector_name = mca_id_option
+        .as_ref()
+        .map(|mca_id| mca_id.get_string_repr())
+        .unwrap_or(&authentication_connector);
+
+    let webhook_url = helpers::create_webhook_url(
+        &state.base_url,
+        merchant_id,
+        merchant_connector_account_id_or_connector_name,
+    );
 
     let authentication_details = business_profile
         .authentication_connector_details
@@ -6694,7 +6705,7 @@ pub async fn get_extended_card_info(
 
     let key = helpers::get_redis_key_for_extended_card_info(&merchant_id, &payment_id);
     let payload = redis_conn
-        .get_key::<String>(&key)
+        .get_key::<String>(&key.into())
         .await
         .change_context(errors::ApiErrorResponse::ExtendedCardInfoNotFound)?;
 

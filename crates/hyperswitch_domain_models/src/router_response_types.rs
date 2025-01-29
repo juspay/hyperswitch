@@ -236,6 +236,10 @@ pub enum RedirectForm {
         access_token: String,
         step_up_url: String,
     },
+    DeutschebankThreeDSChallengeFlow {
+        acs_url: String,
+        creq: String,
+    },
     Payme,
     Braintree {
         client_token: String,
@@ -313,6 +317,9 @@ impl From<RedirectForm> for diesel_models::payment_attempt::RedirectForm {
                 access_token,
                 step_up_url,
             },
+            RedirectForm::DeutschebankThreeDSChallengeFlow { acs_url, creq } => {
+                Self::DeutschebankThreeDSChallengeFlow { acs_url, creq }
+            }
             RedirectForm::Payme => Self::Payme,
             RedirectForm::Braintree {
                 client_token,
@@ -392,6 +399,9 @@ impl From<diesel_models::payment_attempt::RedirectForm> for RedirectForm {
                 access_token,
                 step_up_url,
             },
+            diesel_models::RedirectForm::DeutschebankThreeDSChallengeFlow { acs_url, creq } => {
+                Self::DeutschebankThreeDSChallengeFlow { acs_url, creq }
+            }
             diesel_models::payment_attempt::RedirectForm::Payme => Self::Payme,
             diesel_models::payment_attempt::RedirectForm::Braintree {
                 client_token,
@@ -521,6 +531,8 @@ pub struct PaymentMethodDetails {
     pub refunds: common_enums::FeatureStatus,
     /// List of supported capture methods
     pub supported_capture_methods: Vec<common_enums::CaptureMethod>,
+    /// Payment method specific features
+    pub specific_features: Option<api_models::feature_matrix::PaymentMethodSpecificFeatures>,
 }
 
 /// list of payment method types and metadata related to them

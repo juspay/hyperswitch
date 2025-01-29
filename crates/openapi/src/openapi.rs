@@ -85,8 +85,8 @@ Never share your secret api keys. Keep them guarded and secure.
         routes::payments::payments_post_session_tokens,
 
         // Routes for relay
-        routes::relay,
-        routes::relay_retrieve,
+        routes::relay::relay,
+        routes::relay::relay_retrieve,
 
         // Routes for refunds
         routes::refunds::refunds_create,
@@ -624,6 +624,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::routing::StraightThroughAlgorithm,
         api_models::routing::ConnectorVolumeSplit,
         api_models::routing::ConnectorSelection,
+        api_models::routing::SuccessRateSpecificityLevel,
         api_models::routing::ToggleDynamicRoutingQuery,
         api_models::routing::ToggleDynamicRoutingPath,
         api_models::routing::ast::RoutableChoiceKind,
@@ -694,6 +695,8 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::feature_matrix::FeatureMatrixListResponse,
         api_models::feature_matrix::FeatureMatrixRequest,
         api_models::feature_matrix::ConnectorFeatureMatrixResponse,
+        api_models::feature_matrix::PaymentMethodSpecificFeatures,
+        api_models::feature_matrix::CardSpecificFeatures,
         api_models::feature_matrix::SupportedPaymentMethod,
     )),
     modifiers(&SecurityAddon)
