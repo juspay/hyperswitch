@@ -514,14 +514,15 @@ function verifyReturnUrl(redirectionUrl, expectedUrl, forwardFlow) {
         args: {
           redirectionUrl: redirectionUrl.origin,
           expectedUrl: expectedUrl.origin,
+          constants: CONSTANTS,
         },
       },
-      ({ redirectionUrl, expectedUrl }) => {
+      ({ redirectionUrl, expectedUrl, constants }) => {
         try {
           const redirectionHost = new URL(redirectionUrl).host;
           const expectedHost = new URL(expectedUrl).host;
           if (redirectionHost.endsWith(expectedHost)) {
-            cy.wait(CONSTANTS.WAIT_TIME / 2);
+            cy.wait(constants.WAIT_TIME / 2);
 
             cy.window()
               .its("location")
@@ -533,7 +534,7 @@ function verifyReturnUrl(redirectionUrl, expectedUrl, forwardFlow) {
                     // eslint-disable-next-line cypress/assertion-before-screenshot
                     cy.screenshot("blank-page-error");
                   } else if (
-                    CONSTANTS.ERROR_PATTERNS.some((pattern) =>
+                    constants.ERROR_PATTERNS.some((pattern) =>
                       pattern.test(pageText)
                     )
                   ) {
@@ -546,7 +547,7 @@ function verifyReturnUrl(redirectionUrl, expectedUrl, forwardFlow) {
                 const paymentStatus = urlParams.get("status");
 
                 if (
-                  !CONSTANTS.VALID_TERMINAL_STATUSES.includes(paymentStatus)
+                  !constants.VALID_TERMINAL_STATUSES.includes(paymentStatus)
                 ) {
                   // eslint-disable-next-line cypress/assertion-before-screenshot
                   cy.screenshot(`failed-payment-${paymentStatus}`);
