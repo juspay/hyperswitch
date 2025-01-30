@@ -2086,13 +2086,18 @@ Cypress.Commands.add(
 );
 
 Cypress.Commands.add("voidCallTest", (requestBody, data, globalState) => {
-  const { Configs: configs = {}, Response: resData } = data || {};
+  const {
+    Configs: configs = {},
+    Response: resData,
+    Request: reqData,
+  } = data || {};
 
   const configInfo = execConfig(validateConfig(configs));
   const payment_id = globalState.get("paymentID");
   const profile_id = globalState.get(`${configInfo.profilePrefix}Id`);
 
   requestBody.profile_id = profile_id;
+  requestBody.cancellation_reason = reqData.cancellation_reason;
 
   cy.request({
     method: "POST",
