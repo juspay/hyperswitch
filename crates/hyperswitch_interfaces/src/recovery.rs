@@ -1,4 +1,5 @@
 use api_models::webhooks::IncomingWebhookEvent;
+use common_utils::types::MinorUnit;
 use diesel_models::payment_attempt::TriggeredBy;
 use hyperswitch_domain_models::{
     errors::api_error_response::ApiErrorResponse,
@@ -10,7 +11,7 @@ use time::PrimitiveDateTime;
 #[derive(Default, Debug)]
 pub struct RecoveryPayload {
     /// amount
-    pub amount: String,
+    pub amount: MinorUnit,
     /// currency
     pub currency: common_enums::enums::Currency,
     /// merchant reference id ex: invoice_id
