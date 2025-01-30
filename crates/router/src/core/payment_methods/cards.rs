@@ -6041,7 +6041,8 @@ pub async fn tokenize_card_flow(
                 card_req,
                 req.customer.as_ref(),
             );
-            let builder = tokenize::NetworkTokenizationBuilder::<tokenize::TokenizeWithCard>::new();
+            let builder =
+                tokenize::NetworkTokenizationBuilder::<tokenize::TokenizeWithCard>::default();
             execute_card_tokenization(executor, builder, card_req).await
         }
         domain::TokenizeDataRequest::PaymentMethod(ref payment_method) => {
@@ -6052,7 +6053,8 @@ pub async fn tokenize_card_flow(
                 payment_method,
                 req.customer.as_ref(),
             );
-            let builder = tokenize::NetworkTokenizationBuilder::<tokenize::TokenizeWithPmId>::new();
+            let builder =
+                tokenize::NetworkTokenizationBuilder::<tokenize::TokenizeWithPmId>::default();
             execute_payment_method_tokenization(executor, builder, payment_method).await
         }
     }

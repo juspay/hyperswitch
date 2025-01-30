@@ -1,30 +1,34 @@
 use actix_multipart::form::{bytes::Bytes, text::Text, MultipartForm};
-use api_models::payment_methods as payment_methods_api;
+use api_models::{enums as api_enums, payment_methods as payment_methods_api};
 use cards::CardNumber;
 use common_utils::{
+    crypto::Encryptable,
     id_type,
     transformers::{ForeignFrom, ForeignTryFrom},
 };
 use hyperswitch_domain_models::router_request_types as domain_request_types;
-use masking::Secret;
+use masking::{ExposeInterface, Secret};
 use router_env::logger;
 
 use super::migration;
 use crate::{
     core::payment_methods::{
-        cards::tokenize_card_flow, network_tokenization, transformers as pm_transformers,
+        cards::{add_card_to_hs_locker, create_encrypted_data, tokenize_card_flow},
+        network_tokenization, transformers as pm_transformers,
     },
     errors::{self, RouterResult},
     services,
     types::{api, domain},
     SessionState,
 };
+use error_stack::{report, ResultExt};
 
 pub mod card_executor;
 pub mod payment_method_executor;
 
 pub use card_executor::*;
 pub use payment_method_executor::*;
+use rdkafka::message::ToBytes;
 
 #[derive(Debug, MultipartForm)]
 pub struct CardNetworkTokenizeForm {
@@ -196,6 +200,17 @@ pub trait NetworkTokenizationProcess<'a, D> {
         data: &'a D,
         customer: Option<&'a domain_request_types::CustomerDetails>,
     ) -> Self;
+    async fn encrypt_card(
+        &self,
+        card_details: &domain::Card,
+        saved_to_locker: bool,
+    ) -> RouterResult<Encryptable<Secret<serde_json::Value>>>;
+    async fn encrypt_network_token(
+        &self,
+        network_token_details: &NetworkTokenizationResponse,
+        card_details: &domain::Card,
+        saved_to_locker: bool,
+    ) -> RouterResult<Encryptable<Secret<serde_json::Value>>>;
     async fn fetch_bin_details(
         &self,
         card_number: CardNumber,
@@ -212,4 +227,138 @@ pub trait NetworkTokenizationProcess<'a, D> {
         card_holder_name: Option<Secret<String>>,
         nick_name: Option<Secret<String>>,
     ) -> RouterResult<pm_transformers::StoreCardRespPayload>;
+}
+
+// Generic implementation
+#[async_trait::async_trait]
+impl<'a, D> NetworkTokenizationProcess<'a, D> for CardNetworkTokenizeExecutor<'a, D>
+where
+    D: Send + Sync + 'static,
+{
+    fn new(
+        state: &'a SessionState,
+        key_store: &'a domain::MerchantKeyStore,
+        merchant_account: &'a domain::MerchantAccount,
+        data: &'a D,
+        customer: Option<&'a domain_request_types::CustomerDetails>,
+    ) -> Self {
+        Self {
+            data,
+            customer,
+            state,
+            merchant_account,
+            key_store,
+        }
+    }
+    async fn encrypt_card(
+        &self,
+        card_details: &domain::Card,
+        saved_to_locker: bool,
+    ) -> RouterResult<Encryptable<Secret<serde_json::Value>>> {
+        let pm_data = api::PaymentMethodsData::Card(api::CardDetailsPaymentMethod {
+            last4_digits: Some(card_details.card_number.get_last4()),
+            expiry_month: Some(card_details.card_exp_month.clone()),
+            expiry_year: Some(card_details.card_exp_year.clone()),
+            card_isin: Some(card_details.card_number.get_card_isin()),
+            nick_name: card_details.nick_name.clone(),
+            card_holder_name: card_details.card_holder_name.clone(),
+            issuer_country: card_details.card_issuing_country.clone(),
+            card_issuer: card_details.card_issuer.clone(),
+            card_network: card_details.card_network.clone(),
+            card_type: card_details.card_type.clone(),
+            saved_to_locker,
+        });
+        create_encrypted_data(&self.state.into(), self.key_store, pm_data)
+            .await
+            .inspect_err(|err| logger::info!("Error encrypting payment method data: {:?}", err))
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+    }
+    async fn encrypt_network_token(
+        &self,
+        network_token_details: &NetworkTokenizationResponse,
+        card_details: &domain::Card,
+        saved_to_locker: bool,
+    ) -> RouterResult<Encryptable<Secret<serde_json::Value>>> {
+        let network_token = &network_token_details.0;
+        let token_data = api::PaymentMethodsData::Card(api::CardDetailsPaymentMethod {
+            last4_digits: Some(network_token.token_last_four.clone()),
+            expiry_month: Some(network_token.token_expiry_month.clone()),
+            expiry_year: Some(network_token.token_expiry_year.clone()),
+            card_isin: Some(network_token.token_isin.clone()),
+            nick_name: card_details.nick_name.clone(),
+            card_holder_name: card_details.card_holder_name.clone(),
+            issuer_country: card_details.card_issuing_country.clone(),
+            card_issuer: card_details.card_issuer.clone(),
+            card_network: card_details.card_network.clone(),
+            card_type: card_details.card_type.clone(),
+            saved_to_locker,
+        });
+        create_encrypted_data(&self.state.into(), self.key_store, token_data)
+            .await
+            .inspect_err(|err| logger::info!("Error encrypting network token data: {:?}", err))
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+    }
+    async fn fetch_bin_details(
+        &self,
+        card_number: CardNumber,
+    ) -> RouterResult<Option<diesel_models::CardInfo>> {
+        let db = &*self.state.store;
+        db.get_card_info(&card_number.get_card_isin())
+            .await
+            .attach_printable("Failed to perform BIN lookup")
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+    }
+    async fn tokenize_card(
+        &self,
+        customer_id: &id_type::CustomerId,
+        card: &domain::Card,
+    ) -> RouterResult<NetworkTokenizationResponse> {
+        network_tokenization::make_card_network_tokenization_request(self.state, card, customer_id)
+            .await
+            .map_err(|err| {
+                logger::error!(
+                    "Failed to tokenize card with the network: {:?}\nUsing dummy response",
+                    err
+                );
+                report!(errors::ApiErrorResponse::InternalServerError)
+            })
+    }
+    async fn store_network_token_in_locker(
+        &self,
+        network_token: &NetworkTokenizationResponse,
+        customer_id: &id_type::CustomerId,
+        card_holder_name: Option<Secret<String>>,
+        nick_name: Option<Secret<String>>,
+    ) -> RouterResult<pm_transformers::StoreCardRespPayload> {
+        let network_token = &network_token.0;
+        let merchant_id = self.merchant_account.get_id();
+        let locker_req =
+            pm_transformers::StoreLockerReq::LockerCard(pm_transformers::StoreCardReq {
+                merchant_id: merchant_id.clone(),
+                merchant_customer_id: customer_id.clone(),
+                card: payment_methods_api::Card {
+                    card_number: network_token.token.clone(),
+                    card_exp_month: network_token.token_expiry_month.clone(),
+                    card_exp_year: network_token.token_expiry_year.clone(),
+                    card_brand: Some(network_token.card_brand.to_string()),
+                    card_isin: Some(network_token.token_isin.clone()),
+                    name_on_card: card_holder_name,
+                    nick_name: nick_name.map(|nick_name| nick_name.expose()),
+                },
+                requestor_card_reference: None,
+                ttl: self.state.conf.locker.ttl_for_storage_in_secs,
+            });
+
+        let stored_resp = add_card_to_hs_locker(
+            self.state,
+            &locker_req,
+            customer_id,
+            api_enums::LockerChoice::HyperswitchCardVault,
+        )
+        .await
+        .inspect_err(|err| logger::info!("Error adding card in locker: {:?}", err))
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+        Ok(stored_resp)
+    }
 }

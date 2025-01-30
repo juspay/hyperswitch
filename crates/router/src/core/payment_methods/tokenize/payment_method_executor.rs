@@ -1,24 +1,17 @@
-use actix_multipart::form::{bytes::Bytes, text::Text, MultipartForm};
-use api_models::{enums as api_enums, payment_methods as payment_methods_api};
-use cards::CardNumber;
-use common_utils::{fp_utils::when, id_type};
+use api_models::enums as api_enums;
+use common_utils::fp_utils::when;
 use error_stack::{report, ResultExt};
-use hyperswitch_domain_models::router_request_types as domain_request_types;
-use masking::{ExposeInterface, Secret};
+use masking::Secret;
 use router_env::logger;
 
 use super::{
     CardNetworkTokenizeExecutor, NetworkTokenizationBuilder, NetworkTokenizationProcess,
-    NetworkTokenizationResponse, State, StoreLockerResponse, TransitionTo,
+    NetworkTokenizationResponse, State, TransitionTo,
 };
 use crate::{
-    core::payment_methods::{
-        cards::{add_card_to_hs_locker, create_encrypted_data},
-        network_tokenization, transformers as pm_transformers,
-    },
+    core::payment_methods::transformers as pm_transformers,
     errors::{self, RouterResult},
     types::{api, domain},
-    SessionState,
 };
 
 // Available states for payment method tokenization
@@ -45,6 +38,12 @@ impl TransitionTo<PmAssigned> for PmValidated {}
 impl TransitionTo<PmTokenized> for PmAssigned {}
 impl TransitionTo<PmTokenStored> for PmTokenized {}
 impl TransitionTo<PmTokenUpdated> for PmTokenStored {}
+
+impl<'a> Default for NetworkTokenizationBuilder<'a, TokenizeWithPmId> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl<'a> NetworkTokenizationBuilder<'a, TokenizeWithPmId> {
     pub fn new() -> Self {
@@ -319,12 +318,11 @@ impl<'a> CardNetworkTokenizeExecutor<'a, domain::TokenizePaymentMethodRequest> {
         )?;
 
         // Ensure locker reference is present
-        payment_method.locker_id.clone().map_or(
-            Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+        payment_method.locker_id.clone().ok_or(report!(
+            errors::ApiErrorResponse::InvalidRequestData {
                 message: "locker_id not found for given payment_method_id".to_string()
-            })),
-            Ok,
-        )
+            }
+        ))
     }
     pub async fn update_payment_method(
         &self,
@@ -333,25 +331,10 @@ impl<'a> CardNetworkTokenizeExecutor<'a, domain::TokenizePaymentMethodRequest> {
         network_token_details: &NetworkTokenizationResponse,
         card_details: &domain::Card,
     ) -> RouterResult<domain::PaymentMethod> {
-        // Form encrypted network token data (tokenized card)
-        let network_token_data = &network_token_details.0;
-        let token_data = api::PaymentMethodsData::Card(api::CardDetailsPaymentMethod {
-            last4_digits: Some(network_token_data.token_last_four.clone()),
-            expiry_month: Some(network_token_data.token_expiry_month.clone()),
-            expiry_year: Some(network_token_data.token_expiry_year.clone()),
-            card_isin: Some(network_token_data.token_isin.clone()),
-            nick_name: card_details.nick_name.clone(),
-            card_holder_name: card_details.card_holder_name.clone(),
-            issuer_country: card_details.card_issuing_country.clone(),
-            card_issuer: card_details.card_issuer.clone(),
-            card_network: card_details.card_network.clone(),
-            card_type: card_details.card_type.clone(),
-            saved_to_locker: true,
-        });
-        let enc_token_data = create_encrypted_data(&self.state.into(), self.key_store, token_data)
-            .await
-            .inspect_err(|err| logger::info!("Error encrypting network token data: {:?}", err))
-            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        // Form encrypted network token data
+        let enc_token_data = self
+            .encrypt_network_token(network_token_details, card_details, true)
+            .await?;
 
         // Update payment method
         let payment_method_update = diesel_models::PaymentMethodUpdate::NetworkTokenDataUpdate {
@@ -371,117 +354,5 @@ impl<'a> CardNetworkTokenizeExecutor<'a, domain::TokenizePaymentMethodRequest> {
             .await
             .inspect_err(|err| logger::info!("Error updating payment method: {:?}", err))
             .change_context(errors::ApiErrorResponse::InternalServerError)
-    }
-}
-
-// Common executor for payment method tokenization
-#[async_trait::async_trait]
-impl<'a> NetworkTokenizationProcess<'a, domain::TokenizePaymentMethodRequest>
-    for CardNetworkTokenizeExecutor<'a, domain::TokenizePaymentMethodRequest>
-{
-    fn new(
-        state: &'a SessionState,
-        key_store: &'a domain::MerchantKeyStore,
-        merchant_account: &'a domain::MerchantAccount,
-        data: &'a domain::TokenizePaymentMethodRequest,
-        customer: Option<&'a domain_request_types::CustomerDetails>,
-    ) -> Self {
-        Self {
-            data,
-            customer,
-            state,
-            merchant_account,
-            key_store,
-        }
-    }
-
-    async fn fetch_bin_details(
-        &self,
-        card_number: CardNumber,
-    ) -> RouterResult<Option<diesel_models::CardInfo>> {
-        let db = &*self.state.store;
-        db.get_card_info(&card_number.get_card_isin())
-            .await
-            .attach_printable("Failed to perform BIN lookup")
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-    }
-
-    async fn tokenize_card(
-        &self,
-        customer_id: &id_type::CustomerId,
-        card: &domain::Card,
-    ) -> RouterResult<NetworkTokenizationResponse> {
-        match network_tokenization::make_card_network_tokenization_request(
-            self.state,
-            card,
-            customer_id,
-        )
-        .await
-        {
-            Ok(tokenization_response) => Ok(tokenization_response),
-            Err(err) => {
-                // TODO: revert this
-                logger::error!(
-                    "Failed to tokenize card with the network: {:?}\nUsing dummy response",
-                    err
-                );
-                Ok((
-                    network_tokenization::CardNetworkTokenResponsePayload {
-                        card_brand: api_enums::CardNetwork::Visa,
-                        card_fingerprint: None,
-                        card_reference: uuid::Uuid::new_v4().to_string(),
-                        correlation_id: uuid::Uuid::new_v4().to_string(),
-                        customer_id: customer_id.get_string_repr().to_string(),
-                        par: "".to_string(),
-                        token: card.card_number.clone(),
-                        token_expiry_month: card.card_exp_month.clone(),
-                        token_expiry_year: card.card_exp_year.clone(),
-                        token_isin: card.card_number.get_card_isin(),
-                        token_last_four: card.card_number.get_last4(),
-                        token_status: "active".to_string(),
-                    },
-                    Some(uuid::Uuid::new_v4().to_string()),
-                ))
-            }
-        }
-    }
-
-    async fn store_network_token_in_locker(
-        &self,
-        network_token: &NetworkTokenizationResponse,
-        customer_id: &id_type::CustomerId,
-        card_holder_name: Option<Secret<String>>,
-        nick_name: Option<Secret<String>>,
-    ) -> RouterResult<pm_transformers::StoreCardRespPayload> {
-        let network_token = &network_token.0;
-        let merchant_id = self.merchant_account.get_id();
-        let locker_req =
-            pm_transformers::StoreLockerReq::LockerCard(pm_transformers::StoreCardReq {
-                merchant_id: merchant_id.clone(),
-                merchant_customer_id: customer_id.clone(),
-                card: payment_methods_api::Card {
-                    card_number: network_token.token.clone(),
-                    card_exp_month: network_token.token_expiry_month.clone(),
-                    card_exp_year: network_token.token_expiry_year.clone(),
-                    card_brand: Some(network_token.card_brand.to_string()),
-                    card_isin: Some(network_token.token_isin.clone()),
-                    name_on_card: card_holder_name,
-                    nick_name: nick_name.map(|nick_name| nick_name.expose()),
-                },
-                requestor_card_reference: None,
-                ttl: self.state.conf.locker.ttl_for_storage_in_secs,
-            });
-
-        let stored_resp = add_card_to_hs_locker(
-            self.state,
-            &locker_req,
-            customer_id,
-            api_enums::LockerChoice::HyperswitchCardVault,
-        )
-        .await
-        .inspect_err(|err| logger::info!("Error adding card in locker: {:?}", err))
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
-
-        Ok(stored_resp)
     }
 }
