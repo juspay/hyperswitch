@@ -11,7 +11,7 @@ use common_utils::{
     ext_traits::{AsyncExt, ByteSliceExt, Encode, StringExt},
     fp_utils,
 };
-use error_stack::{report, ResultExt};
+use error_stack::{report, FutureExt, ResultExt};
 use fred::{
     interfaces::{HashesInterface, KeysInterface, ListInterface, SetsInterface, StreamsInterface},
     prelude::{LuaInterface, RedisErrorKind},
@@ -608,6 +608,17 @@ impl super::RedisConnectionPool {
                 }
             }
         }
+    }
+
+    #[instrument(level = "DEBUG", skip(self))]
+    pub async fn incr_value<V>(&self, key: &RedisKey) -> CustomResult<V, errors::RedisError>
+    where
+        V: FromRedis + Unpin + Send + 'static,
+    {
+        self.pool
+            .incr(key)
+            .await
+            .change_context(errors::RedisError::IncrementValueFailed)?
     }
 
     #[instrument(level = "DEBUG", skip(self))]
