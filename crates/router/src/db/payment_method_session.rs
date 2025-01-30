@@ -48,8 +48,8 @@ mod storage {
         #[instrument(skip_all)]
         async fn insert_payment_methods_session(
             &self,
-            state: &common_utils::types::keymanager::KeyManagerState,
-            key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
+            _state: &common_utils::types::keymanager::KeyManagerState,
+            _key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
             payment_methods_session: hyperswitch_domain_models::payment_methods::PaymentMethodsSession,
             validity_in_seconds: i64,
         ) -> CustomResult<(), errors::StorageError> {
@@ -87,8 +87,7 @@ mod storage {
                 .get_redis_conn()
                 .map_err(Into::<errors::StorageError>::into)?;
 
-            let db_model = self.get_redis_conn()
-                .map_err(Into::<errors::StorageError>::into)?
+            let db_model = redis_connection
                 .get_and_deserialize_key::<diesel_models::payment_methods_session::PaymentMethodsSession>(&redis_key, "PaymentMethodsSession")
                 .await
                 .change_context(errors::StorageError::KVError)?;
