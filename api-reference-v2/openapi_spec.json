@@ -6774,10 +6774,10 @@
           {
             "type": "object",
             "required": [
-              "StripeSplitPayment"
+              "stripe_split_payment"
             ],
             "properties": {
-              "StripeSplitPayment": {
+              "stripe_split_payment": {
                 "$ref": "#/components/schemas/StripeChargeResponseData"
               }
             }
@@ -6785,10 +6785,10 @@
           {
             "type": "object",
             "required": [
-              "AdyenSplitPayment"
+              "adyen_split_payment"
             ],
             "properties": {
-              "AdyenSplitPayment": {
+              "adyen_split_payment": {
                 "$ref": "#/components/schemas/AdyenSplitData"
               }
             }
