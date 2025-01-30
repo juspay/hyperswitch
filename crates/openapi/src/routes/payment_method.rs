@@ -332,7 +332,7 @@ pub async fn payment_method_delete_api() {}
     post,
     path = "/v2/payment-method-session",
     request_body(
-    content = PaymentMethodsSessionRequest,
+    content = PaymentMethodSessionRequest,
         examples  (( "Create a payment method session with customer_id" = (
         value =json!( {
             "customer_id": "12345_cus_abcdefghijklmnopqrstuvwxyz"
@@ -344,8 +344,8 @@ pub async fn payment_method_delete_api() {}
         (status = 400, description = "The request is invalid")
     ),
     tag = "Payment Method Session",
-    operation_id = "List Payment methods for a Payment Method Intent",
-    security(("api_key" = [], "ephemeral_key" = []))
+    operation_id = "Create a payment method session",
+    security(("api_key" = []))
 )]
 pub fn payment_method_session_create() {}
 
@@ -364,7 +364,7 @@ pub fn payment_method_session_create() {}
         (status = 404, description = "The request is invalid")
     ),
     tag = "Payment Method Session",
-    operation_id = "List Payment methods for a Payment Method Intent",
+    operation_id = "Retrieve the payment method session",
     security(("ephemeral_key" = []))
 )]
 pub fn payment_method_session_retrieve() {}
@@ -385,7 +385,41 @@ pub fn payment_method_session_retrieve() {}
         (status = 404, description = "The request is invalid")
     ),
     tag = "Payment Method Session",
-    operation_id = "List Payment methods for a Payment Method Intent",
+    operation_id = "List Payment methods for a Payment Method Session",
     security(("ephemeral_key" = []))
 )]
 pub fn payment_method_session_list_payment_methods() {}
+
+/// Payment Method Session - Update a saved payment method
+///
+/// Update a saved payment method from the given payment method session.
+#[cfg(feature = "v2")]
+#[utoipa::path(
+    put,
+    path = "/v2/payment-method-session/:id/update-saved-payment-method",
+    params (
+        ("id" = String, Path, description = "The unique identifier for the Payment Method Session"),
+    ),
+    request_body(
+        content = PaymentMethodSessionUpdateSavedPaymentMethod,
+            examples(( "Update the card holder name" = (
+                value =json!( {
+                    "payment_method_id": "12345_pm_0194b1ecabc172e28aeb71f70a4daba3",
+                    "payment_method_data": {
+                        "card": {
+                            "card_holder_name": "Narayan Bhat"
+                        }
+                    }
+                }
+            )
+        )))
+    ),
+    responses(
+        (status = 200, description = "The payment method has been updated successfully", body = PaymentMethodResponse),
+        (status = 404, description = "The request is invalid")
+    ),
+    tag = "Payment Method Session",
+    operation_id = "Update a saved payment method",
+    security(("ephemeral_key" = []))
+)]
+pub fn payment_method_session_update_saved_payment_method() {}

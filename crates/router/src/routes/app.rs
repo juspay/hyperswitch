@@ -1269,7 +1269,7 @@ impl PaymentMethodsSession {
                 ))
                 .service(
                     web::resource("/update-saved-payment-method").route(
-                        web::post().to(
+                        web::put().to(
                             payment_methods::payment_method_session_update_saved_payment_method,
                         ),
                     ),
