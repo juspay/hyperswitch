@@ -1377,6 +1377,7 @@ pub async fn create_payment_method_in_db(
                 network_token_locker_id: None,
                 network_token_payment_method_data: None,
                 network_token_requestor_reference_id: None,
+                network_token_locker_fingerprint_id: None,
             },
             storage_scheme,
         )
@@ -1440,6 +1441,7 @@ pub async fn create_payment_method_for_intent(
                 network_token_locker_id: None,
                 network_token_payment_method_data: None,
                 network_token_requestor_reference_id: None,
+                network_token_locker_fingerprint_id: None,
             },
             storage_scheme,
         )
@@ -1482,6 +1484,7 @@ pub async fn create_pm_additional_data_update(
         network_token_locker_id: None,
         network_token_payment_method_data: None,
         locker_fingerprint_id: vault_fingerprint_id,
+        network_token_locker_fingerprint_id: None,
     };
 
     Ok(pm_update)

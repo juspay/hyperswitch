@@ -1021,6 +1021,8 @@ diesel::table! {
         payment_method_subtype -> Nullable<Varchar>,
         #[max_length = 64]
         id -> Varchar,
+        #[max_length = 64]
+        network_token_locker_fingerprint_id -> Nullable<Varchar>,
         version -> ApiVersion,
         #[max_length = 128]
         network_token_requestor_reference_id -> Nullable<Varchar>,
