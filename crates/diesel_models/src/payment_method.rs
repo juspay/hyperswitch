@@ -379,7 +379,8 @@ impl PaymentMethodUpdateInternal {
             network_token_locker_id: network_token_locker_id.or(source.network_token_locker_id),
             network_token_payment_method_data: network_token_payment_method_data
                 .or(source.network_token_payment_method_data),
-            network_token_locker_fingerprint_id: network_token_locker_fingerprint_id.or(source.network_token_locker_fingerprint_id),
+            network_token_locker_fingerprint_id: network_token_locker_fingerprint_id
+                .or(source.network_token_locker_fingerprint_id),
         }
     }
 }
@@ -778,7 +779,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 network_token_requestor_reference_id: None,
                 network_token_payment_method_data: None,
                 locker_fingerprint_id: None,
-                network_token_locker_fingerprint_id: None, 
+                network_token_locker_fingerprint_id: None,
             },
             PaymentMethodUpdate::StatusUpdate { status } => Self {
                 payment_method_data: None,
@@ -931,7 +932,9 @@ impl From<&PaymentMethodNew> for PaymentMethod {
             network_token_payment_method_data: payment_method_new
                 .network_token_payment_method_data
                 .clone(),
-            network_token_locker_fingerprint_id: payment_method_new.network_token_locker_fingerprint_id.clone(),
+            network_token_locker_fingerprint_id: payment_method_new
+                .network_token_locker_fingerprint_id
+                .clone(),
         }
     }
 }
