@@ -1,7 +1,8 @@
+use std::fmt::Debug;
+
 use api_models::payments::{PaymentsGetIntentRequest, PaymentsRetrieveRequest};
 use common_utils::id_type;
 use hyperswitch_domain_models::{business_profile, merchant_account, merchant_key_store};
-use std::fmt::Debug;
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct PCRExecuteWorkflowTrackingData {
     pub request: PaymentsGetIntentRequest,
