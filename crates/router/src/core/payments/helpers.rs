@@ -2289,7 +2289,7 @@ pub async fn retrieve_payment_token_data(
     );
 
     let token_data_string = redis_conn
-        .get_key::<Option<String>>(&key)
+        .get_key::<Option<String>>(&key.into())
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to fetch the token from redis")?
@@ -3779,7 +3779,7 @@ pub async fn insert_merchant_connector_creds_to_config(
 
         redis
             .serialize_and_set_key_with_expiry(
-                key.as_str(),
+                &key.as_str().into(),
                 &encoded_data.peek(),
                 consts::CONNECTOR_CREDS_TOKEN_TTL,
             )
@@ -3895,7 +3895,7 @@ pub async fn get_merchant_connector_account(
                     .attach_printable("Failed to get redis connection")
                     .async_and_then(|redis| async move {
                         redis
-                            .get_and_deserialize_key(key.clone().as_str(), "String")
+                            .get_and_deserialize_key(&key.as_str().into(), "String")
                             .await
                             .change_context(
                                 errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
@@ -5841,7 +5841,7 @@ pub async fn get_payment_method_details_from_payment_token(
                 .get_required_value("payment_method")?,
         );
         let token_data_string = redis_conn
-            .get_key::<Option<String>>(&key)
+            .get_key::<Option<String>>(&key.into())
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to fetch the token from redis")?

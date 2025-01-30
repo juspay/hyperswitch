@@ -5772,6 +5772,11 @@
             "type": "string",
             "description": "The device model of the client",
             "nullable": true
+          },
+          "accept_language": {
+            "type": "string",
+            "description": "Accept-language of the browser",
+            "nullable": true
           }
         }
       },
