@@ -9,6 +9,7 @@ use hyperswitch_domain_models::router_request_types as domain_request_types;
 use masking::Secret;
 use router_env::logger;
 
+use super::migration;
 use crate::{
     core::payment_methods::{
         cards::tokenize_card_flow, network_tokenization, transformers as pm_transformers,
@@ -18,8 +19,6 @@ use crate::{
     types::{api, domain},
     SessionState,
 };
-
-use super::migration;
 
 pub mod card_executor;
 pub mod payment_method_executor;

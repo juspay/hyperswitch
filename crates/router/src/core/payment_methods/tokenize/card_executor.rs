@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use api_models::{enums as api_enums, payment_methods as payment_methods_api};
 use cards::CardNumber;
 use common_utils::{
@@ -15,8 +17,11 @@ use hyperswitch_domain_models::{
 };
 use masking::{ExposeInterface, PeekInterface, Secret, SwitchStrategy};
 use router_env::logger;
-use std::str::FromStr;
 
+use super::{
+    migration, CardNetworkTokenizeExecutor, NetworkTokenizationBuilder, NetworkTokenizationProcess,
+    NetworkTokenizationResponse, State, StoreLockerResponse, TransitionTo,
+};
 use crate::{
     core::payment_methods::{
         cards::{add_card_to_hs_locker, create_encrypted_data, create_payment_method},
@@ -25,11 +30,6 @@ use crate::{
     errors::{self, RouterResult},
     types::{api, domain},
     utils, SessionState,
-};
-
-use super::{
-    migration, CardNetworkTokenizeExecutor, NetworkTokenizationBuilder, NetworkTokenizationProcess,
-    NetworkTokenizationResponse, State, StoreLockerResponse, TransitionTo,
 };
 
 // Available states for card tokenization

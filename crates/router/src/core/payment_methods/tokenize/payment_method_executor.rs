@@ -7,6 +7,10 @@ use hyperswitch_domain_models::router_request_types as domain_request_types;
 use masking::{ExposeInterface, Secret};
 use router_env::logger;
 
+use super::{
+    CardNetworkTokenizeExecutor, NetworkTokenizationBuilder, NetworkTokenizationProcess,
+    NetworkTokenizationResponse, State, StoreLockerResponse, TransitionTo,
+};
 use crate::{
     core::payment_methods::{
         cards::{add_card_to_hs_locker, create_encrypted_data},
@@ -15,11 +19,6 @@ use crate::{
     errors::{self, RouterResult},
     types::{api, domain},
     SessionState,
-};
-
-use super::{
-    CardNetworkTokenizeExecutor, NetworkTokenizationBuilder, NetworkTokenizationProcess,
-    NetworkTokenizationResponse, State, StoreLockerResponse, TransitionTo,
 };
 
 // Available states for payment method tokenization
