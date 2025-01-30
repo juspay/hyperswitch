@@ -327,10 +327,13 @@ services:
       sdkBaseUrl: http://localhost:9050/HyperLoader.js
 
   hyperswitch-web-sdk:
-    image: juspaydotin/hyperswitch-web:latest
-    pull_policy: always
-    networks:
-      - router_net
+    build:
+      dockerfile_inline: |
+        FROM node:lts
+        RUN git clone https://github.com/juspay/hyperswitch-web.git --depth 1
+        WORKDIR hyperswitch-web
+        RUN npm i --ignore-scripts
+    command: bash -c 'npm run re:build && npx run webpack serve --config webpack.dev.js --host 0.0.0.0'
     ports:
       - "9050:9050"
     environment:
