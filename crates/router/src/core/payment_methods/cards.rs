@@ -70,7 +70,7 @@ use super::surcharge_decision_configs::{
     any(feature = "v1", feature = "v2"),
     not(feature = "payment_methods_v2")
 ))]
-use super::tokenize::CardNetworkTokenizeExecutor;
+use super::tokenize::NetworkTokenizationProcess;
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
     not(feature = "payment_methods_v2")
@@ -6028,137 +6028,157 @@ pub async fn list_countries_currencies_for_connector_payment_method_util(
 ))]
 pub async fn tokenize_card_flow(
     state: &routes::SessionState,
-    req: domain::bulk_tokenization::CardNetworkTokenizeRequest,
-    merchant_id: &id_type::MerchantId,
+    req: domain::CardNetworkTokenizeRequest,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
 ) -> errors::RouterResult<api::CardNetworkTokenizeResponse> {
-    use common_utils::transformers::ForeignFrom;
-    let response = match req.data {
-        domain::bulk_tokenization::TokenizeDataRequest::Card(ref card) => {
-            // Initialize builder and executor
-            let executor =
-                CardNetworkTokenizeExecutor::new(&req, state, merchant_account, key_store);
-            let builder = tokenize::CardNetworkTokenizeResponseBuilder::<
-                &domain::bulk_tokenization::TokenizeCardRequest,
-                tokenize::TokenizeWithCard,
-            >::new(&req, card);
-
-            // Validate card number
-            let card_number = executor.validate_card_number(card.raw_card_number.clone())?;
-            let builder = builder.transition(|_| card);
-
-            // Get or create customer
-            let customer_details = executor.get_or_create_customer().await?;
-            let builder = builder.set_customer_details(&customer_details);
-
-            // Get and populate BIN details
-            let card_bin_details = populate_bin_details_for_masked_card(
-                &api::MigrateCardDetail::foreign_from(card),
-                &*state.store,
-            )
-            .await?;
-            let builder = builder.set_card_details(card_number, card, &card_bin_details);
-            let card_details = &builder.get_data();
-
-            // Tokenize card
-            let network_token_details = executor
-                .tokenize_card(&customer_details.id, card_details)
-                .await?;
-            let builder = builder
-                .set_tokenize_details(&network_token_details.0, network_token_details.1.as_ref());
-
-            // Store card in locker
-            let stored_card_resp = executor
-                .store_in_locker(
-                    &network_token_details,
-                    &customer_details.id,
-                    card.card_holder_name.clone(),
-                    card.nick_name.clone(),
-                )
-                .await?;
-            let builder = builder.set_locker_details(
-                &card_bin_details,
-                &stored_card_resp,
-                merchant_id.clone(),
-                customer_details.id.clone(),
-            );
-
-            // Create payment method entry
-            let payment_method = executor
-                .create_payment_method(
-                    &stored_card_resp,
-                    network_token_details,
-                    card_details,
-                    &customer_details.id,
-                )
-                .await?;
-            let builder = builder.set_payment_method_response(payment_method);
-
-            // Build response
-            builder.build()
-        }
-        domain::bulk_tokenization::TokenizeDataRequest::PaymentMethod(ref payment_method) => {
-            // Initialize builder and executor
-            let executor =
-                CardNetworkTokenizeExecutor::new(&req, state, merchant_account, key_store);
-            let builder = tokenize::CardNetworkTokenizeResponseBuilder::<
-                domain::bulk_tokenization::TokenizePaymentMethodRequest,
-                tokenize::TokenizeWithPmId,
-            >::new(&req, payment_method.clone());
-
-            // Validate payment_method_id
-            let (payment_method_in_db, locker_id) = executor
-                .validate_payment_method_id(&payment_method.payment_method_id)
-                .await?;
-            let builder = builder.transition(|_| payment_method_in_db);
-            let data = builder.get_data();
-
-            // Fetch raw card details from locker
-            let card_details = get_card_from_locker(
+    match req.data {
+        domain::TokenizeDataRequest::Card(ref card_req) => {
+            let executor = tokenize::CardNetworkTokenizeExecutor::new(
                 state,
-                &data.customer_id,
-                merchant_account.get_id(),
-                &locker_id,
-            )
-            .await?;
-            let builder = builder.transition(|_| card_details.clone());
-
-            // Get and populate BIN details
-            let card_bin_details = populate_bin_details_for_masked_card(
-                &api::MigrateCardDetail::from(&card_details),
-                &*state.store,
-            )
-            .await?;
-            let builder = builder.set_card_details(&payment_method.card_cvc, &card_bin_details);
-            let card = builder.get_data();
-
-            // Tokenize card
-            let network_token_details = executor.tokenize_card(&data.customer_id, &card).await?;
-            let builder = builder
-                .set_tokenize_details(&network_token_details.0, network_token_details.1.as_ref());
-
-            // Store in locker
-            let stored_card_resp = executor
-                .store_in_locker(
-                    &network_token_details,
-                    &data.customer_id,
-                    card_details.name_on_card,
-                    card_details.nick_name.map(Secret::new),
-                )
-                .await?;
-            let builder = builder.transition(|_| &stored_card_resp);
-
-            // Update payment method entry
-            let payment_method_in_db = executor
-                .update_payment_method(&stored_card_resp, data, network_token_details, &card)
-                .await?;
-            let builder =
-                builder.set_payment_method_response(payment_method_in_db, &card_bin_details);
-
-            // Build response
-            builder.build()
+                key_store,
+                merchant_account,
+                card_req,
+                req.customer.as_ref(),
+            );
+            let builder = tokenize::NetworkTokenizationBuilder::<tokenize::TokenizeWithCard>::new();
+            execute_card_tokenization(executor, builder, card_req).await
         }
+        domain::TokenizeDataRequest::PaymentMethod(ref payment_method) => {
+            let executor = tokenize::CardNetworkTokenizeExecutor::new(
+                state,
+                key_store,
+                merchant_account,
+                payment_method,
+                req.customer.as_ref(),
+            );
+            let builder = tokenize::NetworkTokenizationBuilder::<tokenize::TokenizeWithPmId>::new();
+            execute_payment_method_tokenization(executor, builder, payment_method).await
+        }
+    }
+}
+
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
+pub async fn execute_card_tokenization(
+    executor: tokenize::CardNetworkTokenizeExecutor<'_, domain::TokenizeCardRequest>,
+    builder: tokenize::NetworkTokenizationBuilder<'_, tokenize::TokenizeWithCard>,
+    req: &domain::TokenizeCardRequest,
+) -> errors::RouterResult<api::CardNetworkTokenizeResponse> {
+    // Validate request and get optional customer
+    let optional_customer = executor
+        .validate_request_and_fetch_optional_customer()
+        .await?;
+    let builder = builder.set_validate_result();
+
+    // Create customer if not present
+    let customer = match optional_customer {
+        Some(customer) => customer,
+        None => executor.create_customer().await?,
     };
-    Ok(response)
+    let builder = builder.set_customer(&customer);
+
+    // Perform BIN lookup
+    let optional_card_info = executor
+        .fetch_bin_details(req.raw_card_number.clone())
+        .await?;
+    let builder = builder.set_card_details(req, optional_card_info);
+
+    // Tokenize card
+    let domain_card = builder
+        .get_optional_card()
+        .get_required_value("value")
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+    let network_token_details = executor.tokenize_card(&customer.id, &domain_card).await?;
+    let builder = builder.set_token_details(&network_token_details);
+
+    // Store card and token in locker
+    let store_card_and_token_resp = executor
+        .store_card_and_token_in_locker(&network_token_details, &domain_card, &customer.id)
+        .await?;
+    let builder = builder.set_stored_card_response(&store_card_and_token_resp);
+    let builder = builder.set_stored_token_response(&store_card_and_token_resp);
+
+    // Create payment method
+    let payment_method = executor
+        .create_payment_method(
+            &store_card_and_token_resp,
+            &network_token_details,
+            &domain_card,
+            &customer.id,
+        )
+        .await?;
+    let builder = builder.set_payment_method_response(&payment_method);
+
+    Ok(builder.build())
+}
+
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
+pub async fn execute_payment_method_tokenization(
+    executor: tokenize::CardNetworkTokenizeExecutor<'_, domain::TokenizePaymentMethodRequest>,
+    builder: tokenize::NetworkTokenizationBuilder<'_, tokenize::TokenizeWithPmId>,
+    req: &domain::TokenizePaymentMethodRequest,
+) -> errors::RouterResult<api::CardNetworkTokenizeResponse> {
+    // Fetch payment method
+    let payment_method = executor
+        .fetch_payment_method(&req.payment_method_id)
+        .await?;
+    let builder = builder.set_payment_method(&payment_method);
+
+    // Validate payment method
+    let locker_id = executor
+        .validate_payment_method_and_get_locker_reference(&payment_method)
+        .await?;
+    let builder = builder.set_validate_result();
+
+    // Fetch card from locker
+    let card_details = get_card_from_locker(
+        executor.state,
+        &payment_method.customer_id,
+        executor.merchant_account.get_id(),
+        &locker_id,
+    )
+    .await?;
+
+    // Perform BIN lookup
+    let optional_card_info = executor
+        .fetch_bin_details(card_details.card_number.clone())
+        .await?;
+    let builder = builder.set_card_details(&card_details, optional_card_info, req.card_cvc.clone());
+
+    // Tokenize card
+    let domain_card = builder.get_optional_card().get_required_value("card")?;
+    let network_token_details = executor
+        .tokenize_card(&payment_method.customer_id, &domain_card)
+        .await?;
+    let builder = builder.set_token_details(&network_token_details);
+
+    // Store token in locker
+    let store_token_resp = executor
+        .store_network_token_in_locker(
+            &network_token_details,
+            &payment_method.customer_id,
+            card_details.name_on_card.clone(),
+            card_details.nick_name.clone().map(Secret::new),
+        )
+        .await?;
+    let builder = builder.set_stored_token_response(&store_token_resp);
+
+    // Update payment method
+    let updated_payment_method = executor
+        .update_payment_method(
+            &store_token_resp,
+            payment_method,
+            &network_token_details,
+            &domain_card,
+        )
+        .await?;
+    let builder = builder.set_payment_method(&updated_payment_method);
+
+    Ok(builder.build())
 }

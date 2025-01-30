@@ -2401,6 +2401,7 @@ pub struct CardNetworkTokenizeRequest {
     /// Merchant ID associated with the tokenization request
     pub merchant_id: id_type::MerchantId,
 
+    /// Details of the card or payment method to be tokenized
     #[serde(flatten)]
     pub data: TokenizeDataRequest,
 
@@ -2434,7 +2435,7 @@ pub enum TokenizeDataRequest {
 pub struct TokenizeCardRequest {
     /// Card Number
     #[schema(value_type = String, example = "4111111145551142")]
-    pub raw_card_number: masking::Secret<String>,
+    pub raw_card_number: CardNumber,
 
     /// Card Expiry Month
     #[schema(value_type = String, example = "10")]

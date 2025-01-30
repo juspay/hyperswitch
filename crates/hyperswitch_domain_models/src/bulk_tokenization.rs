@@ -1,4 +1,5 @@
 use api_models::{payment_methods as payment_methods_api, payments as payments_api};
+use cards::CardNumber;
 use common_enums as enums;
 use common_utils::{
     errors,
@@ -31,7 +32,7 @@ pub enum TokenizeDataRequest {
 
 #[derive(Clone, Debug)]
 pub struct TokenizeCardRequest {
-    pub raw_card_number: masking::Secret<String>,
+    pub raw_card_number: CardNumber,
     pub card_expiry_month: masking::Secret<String>,
     pub card_expiry_year: masking::Secret<String>,
     pub card_cvc: masking::Secret<String>,
@@ -52,7 +53,7 @@ pub struct TokenizePaymentMethodRequest {
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize)]
 pub struct CardNetworkTokenizeRecord {
     // Card details
-    pub raw_card_number: Option<masking::Secret<String>>,
+    pub raw_card_number: Option<CardNumber>,
     pub card_expiry_month: Option<masking::Secret<String>>,
     pub card_expiry_year: Option<masking::Secret<String>>,
     pub card_cvc: Option<masking::Secret<String>>,
@@ -199,7 +200,7 @@ impl ForeignTryFrom<CardNetworkTokenizeRecord> for payment_methods_api::CardNetw
 impl ForeignFrom<&TokenizeCardRequest> for payment_methods_api::MigrateCardDetail {
     fn foreign_from(card: &TokenizeCardRequest) -> Self {
         Self {
-            card_number: card.raw_card_number.clone(),
+            card_number: masking::Secret::new(card.raw_card_number.get_card_no()),
             card_exp_month: card.card_expiry_month.clone(),
             card_exp_year: card.card_expiry_year.clone(),
             card_holder_name: card.card_holder_name.clone(),

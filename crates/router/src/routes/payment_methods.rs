@@ -1046,7 +1046,6 @@ pub async fn tokenize_card_api(
             let res = Box::pin(cards::tokenize_card_flow(
                 &state,
                 CardNetworkTokenizeRequest::foreign_from(req),
-                &merchant_id,
                 &merchant_account,
                 &key_store,
             ))
@@ -1088,7 +1087,6 @@ pub async fn tokenize_card_batch_api(
                 Box::pin(tokenize::tokenize_cards(
                     &state,
                     req,
-                    &merchant_id,
                     &merchant_account,
                     &key_store,
                 ))
