@@ -6,6 +6,7 @@ use common_utils::{
     id_type,
     transformers::{ForeignFrom, ForeignTryFrom},
 };
+use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::router_request_types as domain_request_types;
 use masking::{ExposeInterface, Secret};
 use router_env::logger;
@@ -21,7 +22,6 @@ use crate::{
     types::{api, domain},
     SessionState,
 };
-use error_stack::{report, ResultExt};
 
 pub mod card_executor;
 pub mod payment_method_executor;
