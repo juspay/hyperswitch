@@ -560,7 +560,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                     None, // update_history
                     None, // mandate_metadata
                     Some(common_utils::generate_id_with_len(
-                        consts::CONNECTOR_MANDATE_REQUEST_REFERENCE_ID_LENGTH.to_owned(),
+                        consts::CONNECTOR_MANDATE_REQUEST_REFERENCE_ID_LENGTH,
                     )), // connector_mandate_request_reference_id
                 ),
             ));

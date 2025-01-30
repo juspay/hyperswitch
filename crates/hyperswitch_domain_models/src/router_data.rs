@@ -503,8 +503,17 @@ impl
                             redirection_data: *redirection_data.clone(),
                             amount_capturable,
                             connector_metadata: connector_metadata.clone().map(Secret::new),
-                            connector_mandate_detail: response_router_data
-                                .get_connector_mandate_details(),
+                            connector_token_details: response_router_data
+                                .get_updated_connector_token_details(
+                                    payment_data
+                                        .payment_attempt
+                                        .connector_token_details
+                                        .as_ref()
+                                        .and_then(|token_details| {
+                                            token_details
+                                                .get_connector_mandate_request_reference_id()
+                                        }),
+                                ),
                         },
                     ))
                 }
@@ -1147,8 +1156,17 @@ impl
                             redirection_data: *redirection_data.clone(),
                             amount_capturable,
                             connector_metadata: connector_metadata.clone().map(Secret::new),
-                            connector_mandate_detail: response_router_data
-                                .get_connector_mandate_details(),
+                            connector_token_details: response_router_data
+                                .get_updated_connector_token_details(
+                                    payment_data
+                                        .payment_attempt
+                                        .connector_token_details
+                                        .as_ref()
+                                        .and_then(|token_details| {
+                                            token_details
+                                                .get_connector_mandate_request_reference_id()
+                                        }),
+                                ),
                         },
                     ))
                 }

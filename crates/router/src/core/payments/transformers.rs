@@ -305,7 +305,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
     };
     let connector_mandate_request_reference_id = payment_data
         .payment_attempt
-        .connector_mandate_detail
+        .connector_token_details
         .as_ref()
         .and_then(|detail| detail.get_connector_mandate_request_reference_id());
 
@@ -428,7 +428,7 @@ pub async fn construct_payment_router_data_for_capture<'a>(
 
     let connector_mandate_request_reference_id = payment_data
         .payment_attempt
-        .connector_mandate_detail
+        .connector_token_details
         .as_ref()
         .and_then(|detail| detail.get_connector_mandate_request_reference_id());
 
@@ -944,7 +944,7 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
     };
     let connector_mandate_request_reference_id = payment_data
         .payment_attempt
-        .connector_mandate_detail
+        .connector_token_details
         .as_ref()
         .and_then(|detail| detail.get_connector_mandate_request_reference_id());
 
@@ -1626,13 +1626,8 @@ where
             .map(|_| api_models::payments::NextActionData::RedirectToUrl { redirect_to_url });
 
         let connector_token_details = payment_attempt
-            .connector_mandate_detail
-            .and_then(|connector_mandate_details| connector_mandate_details.connector_mandate_id)
-            .map(
-                |connector_mandate_id| api_models::payments::ConnectorTokenDetails {
-                    connector_token: connector_mandate_id,
-                },
-            );
+            .connector_token_details
+            .and_then(Option::<api_models::payments::ConnectorTokenDetails>::foreign_from);
 
         let response = api_models::payments::PaymentsConfirmIntentResponse {
             id: payment_intent.id.clone(),
@@ -4348,6 +4343,7 @@ impl ForeignFrom<DieselConnectorMandateReferenceId> for ConnectorMandateReferenc
         )
     }
 }
+
 impl ForeignFrom<ConnectorMandateReferenceId> for DieselConnectorMandateReferenceId {
     fn foreign_from(value: ConnectorMandateReferenceId) -> Self {
         Self {
@@ -4357,6 +4353,17 @@ impl ForeignFrom<ConnectorMandateReferenceId> for DieselConnectorMandateReferenc
             connector_mandate_request_reference_id: value
                 .get_connector_mandate_request_reference_id(),
         }
+    }
+}
+
+#[cfg(feature = "v2")]
+impl ForeignFrom<diesel_models::ConnectorTokenDetails>
+    for Option<api_models::payments::ConnectorTokenDetails>
+{
+    fn foreign_from(value: diesel_models::ConnectorTokenDetails) -> Self {
+        value
+            .connector_mandate_id
+            .map(|mandate_id| api_models::payments::ConnectorTokenDetails { token: mandate_id })
     }
 }
 

@@ -93,7 +93,7 @@ pub struct PaymentAttempt {
     pub id: id_type::GlobalAttemptId,
     pub shipping_cost: Option<MinorUnit>,
     pub order_tax_amount: Option<MinorUnit>,
-    pub connector_mandate_detail: Option<ConnectorMandateReferenceId>,
+    pub connector_token_details: Option<ConnectorTokenDetails>,
 }
 
 #[cfg(feature = "v1")]
@@ -214,6 +214,26 @@ impl ConnectorTransactionIdTrait for PaymentAttempt {
     }
 }
 
+#[cfg(feature = "v2")]
+#[derive(
+    Clone, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize, diesel::AsExpression,
+)]
+#[diesel(sql_type = diesel::sql_types::Jsonb)]
+pub struct ConnectorTokenDetails {
+    pub connector_mandate_id: Option<String>,
+    pub connector_mandate_request_reference_id: Option<String>,
+}
+
+#[cfg(feature = "v2")]
+common_utils::impl_to_sql_from_sql_json!(ConnectorTokenDetails);
+
+#[cfg(feature = "v2")]
+impl ConnectorTokenDetails {
+    pub fn get_connector_mandate_request_reference_id(&self) -> Option<String> {
+        self.connector_mandate_request_reference_id.clone()
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq, Queryable, Serialize, Deserialize)]
 pub struct PaymentListFilters {
     pub connector: Vec<String>,
@@ -277,7 +297,7 @@ pub struct PaymentAttemptNew {
     pub payment_method_type_v2: storage_enums::PaymentMethod,
     pub payment_method_subtype: storage_enums::PaymentMethodType,
     pub id: id_type::GlobalAttemptId,
-    pub connector_mandate_detail: Option<ConnectorMandateReferenceId>,
+    pub connector_token_details: Option<ConnectorTokenDetails>,
 }
 
 #[cfg(feature = "v1")]
@@ -791,7 +811,7 @@ pub struct PaymentAttemptUpdateInternal {
     // client_version: Option<String>,
     // customer_acceptance: Option<pii::SecretSerdeValue>,
     // card_network: Option<String>,
-    pub connector_mandate_detail: Option<ConnectorMandateReferenceId>,
+    pub connector_token_details: Option<ConnectorTokenDetails>,
 }
 
 #[cfg(feature = "v1")]
