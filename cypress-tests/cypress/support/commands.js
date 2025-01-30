@@ -319,6 +319,7 @@ Cypress.Commands.add(
       failOnStatusCode: false,
     }).then((response) => {
       logRequestId(response.headers["x-request-id"]);
+
       cy.wrap(response).then(() => {
         if (response.status === 200) {
           globalState.set(
@@ -2335,6 +2336,7 @@ Cypress.Commands.add(
       body: requestBody,
     }).then((response) => {
       logRequestId(response.headers["x-request-id"]);
+
       cy.wrap(response).then(() => {
 
       expect(response.headers["content-type"]).to.include("application/json");
@@ -2845,6 +2847,7 @@ Cypress.Commands.add("listMandateCallTest", (globalState) => {
     },
   }).then((response) => {
     logRequestId(response.headers["x-request-id"]);
+
     cy.wrap(response).then(() => {
 
     expect(response.headers["content-type"]).to.include("application/json");
