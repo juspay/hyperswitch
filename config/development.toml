@@ -567,6 +567,18 @@ debit = { currency = "USD" }
 [pm_filters.fiuu]
 duit_now = { country = "MY", currency = "MYR" }
 
+[pm_filters.rapyd]
+apple_pay = { country = "AD,AM,AT,BE,BG,BI,BR,CH,CY,CZ,DE,DK,EE,ES,FI,FO,FR,GB,GE,GI,GR,HR,HU,ID,IE,IM,IS,IT,KG,KY,LI,LT,LU,LV,MC,MD,ME,MK,MT,NL,NO,PL,PT,RO,RS,RU,SE,SI,SK,SM,TH,TR,UA,VA", currency = "AED,AUD,BDT,BGN,BND,BOB,BRL,BWP,CAD,CHF,CNY,COP,CZK,DKK,EGP,EUR,FJD,GBP,GEL,GHS,HKD,HRK,HUF,IDR,ILS,INR,IQD,IRR,ISK,JPY,KES,KRW,KWD,KZT,LAK,LKR,MAD,MDL,MMK,MOP,MXN,MYR,MZN,NAD,NGN,NOK,NPR,NZD,PEN,PHP,PKR,PLN,QAR,RON,RSD,RUB,RWF,SAR,SCR,SEK,SGD,SLL,THB,TRY,TWD,TZS,UAH,UGX,USD,UYU,VND,XAF,XOF,ZAR,ZMW,MWK" }
+
+[pm_filters.bamboraapac]
+sofort = { country = "ID,KG,TH,TR", currency = "AUD,BDT,BND,CNY,FJD,HKD,IDR,INR,JPY,KRW,LAK,LKR,MMK,MOP,MYR,NPR,NZD,PHP,PKR,SGD,THB,TRY,TWD,VND" }
+
+[pm_filters.gocardless]
+sofort = { country = "AU,AT,BE,BG,CA,HR,CY,CZ,DK,FI,FR,DE,HU,IT,LU,MT,NL,NZ,NO,PL,PT,IE,RO,SK,SI,ZA,ES,SE,CH,GB,US", currency = "GBP,EUR,SEK,DKK,AUD,NZD,CAD,USD" }
+
+[pm_filters.powertranz]
+sofort = { country = "BS,BM,KY,BB,JM,TT,CR,HN,SV,GT", currency = "BBD,BMD,BSD,CRC,GTQ,HNL,JMD,KYD,TTD,USD" }
+
 [tokenization]
 stripe = { long_lived_token = false, payment_method = "wallet", payment_method_type = { type = "disable_only", list = "google_pay" } }
 checkout = { long_lived_token = false, payment_method = "wallet", apple_pay_pre_decrypt_flow = "network_tokenization" }
