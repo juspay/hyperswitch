@@ -497,9 +497,17 @@ paypal = { currency = "AUD,BRL,CAD,CNY,CZK,DKK,EUR,HKD,HUF,ILS,JPY,MYR,MXN,TWD,N
 credit = { currency = "USD" }
 debit = { currency = "USD" }
 
-[pm.filters.jpmorgan]
-debit = { country = "CA, EU, UK, US", currency = "CAD, EUR, GBP, USD" }
-credit = { country = "CA, EU, UK, US", currency = "CAD, EUR, GBP, USD" }
+[pm_filters.jpmorgan]
+debit = { country = "CA, GB, US, AT, BE, BG, HR, CY, CZ, DK, EE, FI, FR, DE, GR, HU, IE, IT, LV, LT, LU, MT, NL, PL, PT, RO, SK, SI, ES, SE", currency = "USD, EUR, GBP, AUD, NZD, SGD, CAD, JPY, HKD, KRW, TWD, MXN, BRL, DKK, NOK, ZAR, SEK, CHF, CZK, PLN, TRY, AFN, ALL, DZD, AOA, ARS, AMD, AWG, AZN, BSD, BDT, BBD, BYN, BZD, BMD, BOB, BAM, BWP, BND, BGN, BIF, BTN, XOF, XAF, XPF, KHR, CVE, KYD, CLP, CNY, COP, KMF, CDF, CRC, HRK, DJF, DOP, XCD, EGP, ETB, FKP, FJD, GMD, GEL, GHS, GIP, GTQ, GYD, HTG, HNL, HUF, ISK, INR, IDR, ILS, JMD, KZT, KES, LAK, LBP, LSL, LRD, MOP, MKD, MGA, MWK, MYR, MVR, MRU, MUR, MDL, MNT, MAD, MZN, MMK, NAD, NPR, ANG, PGK, NIO, NGN, PKR, PAB, PYG, PEN, PHP, QAR, RON, RWF, SHP, WST, STN, SAR, RSD, SCR, SLL, SBD, SOS, LKR, SRD, SZL, TJS, TZS, THB, TOP, TTD, UGX, UAH, AED, UYU, UZS, VUV, VND, YER, ZMW" }
+credit = { country = "CA, GB, US, AT, BE, BG, HR, CY, CZ, DK, EE, FI, FR, DE, GR, HU, IE, IT, LV, LT, LU, MT, NL, PL, PT, RO, SK, SI, ES, SE", currency = "USD, EUR, GBP, AUD, NZD, SGD, CAD, JPY, HKD, KRW, TWD, MXN, BRL, DKK, NOK, ZAR, SEK, CHF, CZK, PLN, TRY, AFN, ALL, DZD, AOA, ARS, AMD, AWG, AZN, BSD, BDT, BBD, BYN, BZD, BMD, BOB, BAM, BWP, BND, BGN, BIF, BTN, XOF, XAF, XPF, KHR, CVE, KYD, CLP, CNY, COP, KMF, CDF, CRC, HRK, DJF, DOP, XCD, EGP, ETB, FKP, FJD, GMD, GEL, GHS, GIP, GTQ, GYD, HTG, HNL, HUF, ISK, INR, IDR, ILS, JMD, KZT, KES, LAK, LBP, LSL, LRD, MOP, MKD, MGA, MWK, MYR, MVR, MRU, MUR, MDL, MNT, MAD, MZN, MMK, NAD, NPR, ANG, PGK, NIO, NGN, PKR, PAB, PYG, PEN, PHP, QAR, RON, RWF, SHP, WST, STN, SAR, RSD, SCR, SLL, SBD, SOS, LKR, SRD, SZL, TJS, TZS, THB, TOP, TTD, UGX, UAH, AED, UYU, UZS, VUV, VND, YER, ZMW" }
+
+[pm_filters.digitalvirgo]
+direct_carrier_billing = {country = "MA, CM, ZA, EG, SN, DZ, TN, ML, GN, GH, LY, GA, CG, MG, BW, SD, NG, ID, SG, AZ, TR, FR, ES, PL, GB, PT, DE, IT, BE, IE, SK, GR, NL, CH, BR, MX, AR, CL, AE, IQ, KW, BH, SA, QA, PS, JO, OM, RU" , currency = "MAD, XOF, XAF, ZAR, EGP, DZD, TND, GNF, GHS, LYD, XAF, CDF, MGA, BWP, SDG, NGN, IDR, SGD, RUB, AZN, TRY, EUR, PLN, GBP, CHF, BRL, MXN, ARS, CLP, AED, IQD, KWD, BHD, SAR, QAR, ILS, JOD, OMR" }
+
+[pm_filters.payu]
+debit = { country = "CZ, HU, PL, RO", currency = "CHF, CZK, DKK, EUR, GBP, HUF, NOK, PLN, RON, SEK, USD" }
+credit = { country = "CZ, HU, PL, RO", currency = "CHF, CZK, DKK, EUR, GBP, HUF, NOK, PLN, RON, SEK, USD" }
+google_pay = { country = "CZ, HU, PL, RO", currency = "CHF, CZK, DKK, EUR, GBP, HUF, NOK, PLN, RON, SEK, USD" }
 
 [pm_filters.klarna]
 klarna = { country = "AU,AT,BE,CA,CZ,DK,FI,FR,DE,GR,IE,IT,NL,NZ,NO,PL,PT,ES,SE,CH,GB,US", currency = "AUD,EUR,EUR,CAD,CZK,DKK,EUR,EUR,EUR,EUR,EUR,EUR,EUR,NZD,NOK,PLN,EUR,EUR,SEK,CHF,GBP,USD" }
