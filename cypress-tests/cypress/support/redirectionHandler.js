@@ -585,12 +585,17 @@ async function fetchAndParseQRCode(url) {
   }
   const blob = await response.blob();
   const reader = new FileReader();
-  return await new Promise((resolve, reject) => {
-    reader.onload = () => {
-      const base64Image = reader.result.split(",")[1]; // Remove data URI prefix
-      const image = new Image();
-      image.src = base64Image;
 
+  return new Promise((resolve, reject) => {
+    reader.onload = () => {
+      // Use the entire data URI from reader.result
+      const dataUrl = reader.result;
+
+      // Create a new Image, assigning its src to the full data URI
+      const image = new Image();
+      image.src = dataUrl;
+
+      // Once the image loads, draw it to a canvas and let jsQR decode it
       image.onload = () => {
         const canvas = document.createElement("canvas");
         const ctx = canvas.getContext("2d");
@@ -611,8 +616,14 @@ async function fetchAndParseQRCode(url) {
           reject(new Error("Failed to decode QR code"));
         }
       };
-      image.onerror = reject; // Handle image loading errors
+
+      // If the image fails to load at all, reject the promise
+      image.onerror = (err) => {
+        reject(new Error("Image failed to load: " + err?.message || err));
+      };
     };
+
+    // Read the blob as a data URL (this includes the data:image/png;base64 prefix)
     reader.readAsDataURL(blob);
   });
 }
