@@ -6882,14 +6882,14 @@
       },
       "ConnectorTokenDetails": {
         "type": "object",
-        "description": "Connector token information",
+        "description": "Token information that can be used to initiate transactions by the merchant.",
         "required": [
-          "connector_token"
+          "token"
         ],
         "properties": {
-          "connector_token": {
+          "token": {
             "type": "string",
-            "description": "Connector token",
+            "description": "A token that can be used to make payments directly with the connector.",
             "example": "pm_9UhMqBMEOooRIvJFFdeW"
           }
         }

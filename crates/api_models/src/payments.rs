@@ -5035,7 +5035,7 @@ pub struct PaymentsResponse {
     #[schema(value_type = Option<String>, example = "993672945374576J")]
     pub connector_reference_id: Option<String>,
 
-    /// Connector token information that can be used to make payments
+    /// Connector token information that can be used to make payments directly by the merchant.
     pub connector_token_details: Option<ConnectorTokenDetails>,
 
     /// Identifier of the connector ( merchant connector account ) which was chosen to make the payment
@@ -5148,7 +5148,7 @@ pub struct PaymentsConfirmIntentResponse {
     #[schema(value_type = Option<String>, example = "993672945374576J")]
     pub connector_reference_id: Option<String>,
 
-    /// Connector token information that can be used to make payments
+    /// Connector token information that can be used to make payments directly by the merchant.
     pub connector_token_details: Option<ConnectorTokenDetails>,
 
     /// Identifier of the connector ( merchant connector account ) which was chosen to make the payment
@@ -5163,13 +5163,13 @@ pub struct PaymentsConfirmIntentResponse {
     pub error: Option<ErrorDetails>,
 }
 
-/// Connector token information
+/// Token information that can be used to initiate transactions by the merchant.
 #[cfg(feature = "v2")]
-#[derive(Debug, serde::Serialize, ToSchema)]
+#[derive(Debug, Serialize, ToSchema)]
 pub struct ConnectorTokenDetails {
-    /// Connector token
+    /// A token that can be used to make payments directly with the connector.
     #[schema(example = "pm_9UhMqBMEOooRIvJFFdeW")]
-    pub connector_token: String,
+    pub token: String,
 }
 
 // TODO: have a separate response for detailed, summarized
