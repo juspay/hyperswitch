@@ -1,8 +1,8 @@
+use common_enums::AttemptStatus;
+
 use crate::{
     core::passive_churn_recovery::types::PCRAttemptStatus, types::transformers::ForeignFrom,
 };
-
-use common_enums::AttemptStatus;
 
 impl ForeignFrom<AttemptStatus> for PCRAttemptStatus {
     fn foreign_from(s: AttemptStatus) -> Self {
