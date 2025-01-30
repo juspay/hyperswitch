@@ -1288,6 +1288,18 @@ impl<'a> HeaderMapStruct<'a> {
             })
     }
 
+    #[cfg(feature = "v2")]
+    pub fn get_auth_string_from_header(&self) -> RouterResult<&str> {
+        self.headers
+            .get(headers::AUTHORIZATION)
+            .get_required_value(headers::AUTHORIZATION)?
+            .to_str()
+            .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: headers::AUTHORIZATION,
+            })
+            .attach_printable("Failed to convert authorization header to string")
+    }
+
     pub fn get_id_type_from_header_if_present<T>(&self, key: &str) -> RouterResult<Option<T>>
     where
         T: TryFrom<
@@ -1977,43 +1989,26 @@ where
         request_headers: &HeaderMap,
         state: &A,
     ) -> RouterResult<(AuthenticationData, AuthenticationType)> {
-        let auth_string = request_headers
-            .get(headers::AUTHORIZATION)
-            .get_required_value(headers::AUTHORIZATION)?
-            .to_str()
-            .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: headers::AUTHORIZATION,
-            })
-            .attach_printable("Failed to convert authorization header to string")?
-            .to_owned();
+        let header_map_struct = HeaderMapStruct::new(request_headers);
+        let auth_string = header_map_struct.get_auth_string_from_header()?;
 
-        let api_key = auth_string
-            .split(',')
-            .find_map(|part| part.trim().strip_prefix("api-key="));
-
-        if let Some(_) = api_key {
-            for handler in self {
-                if let V2Auth::ApiKeyAuth = handler {
-                    return handler.authenticate_and_fetch(request_headers, state).await;
-                }
-                return Err(errors::ApiErrorResponse::Unauthorized.into());
-            }
-        };
-
-        let publishable_key = auth_string
-            .split(',')
-            .find_map(|part| part.trim().strip_prefix("publishable-key="));
-
-        if let Some(_) = publishable_key {
-            for handler in self {
-                if let V2Auth::ClientAuth(_) = handler {
-                    return handler.authenticate_and_fetch(request_headers, state).await;
+        match auth_string.trim() {
+            s if s.starts_with("api-key=") => {
+                if let Some(handler) = self.iter().find(|auth| matches!(auth, V2Auth::ApiKeyAuth)) {
+                    handler.authenticate_and_fetch(request_headers, state).await
+                } else {
+                    Err(errors::ApiErrorResponse::Unauthorized.into())
                 }
             }
-            return Err(errors::ApiErrorResponse::Unauthorized.into());
-        };
-
-        Err(errors::ApiErrorResponse::Unauthorized.into())
+            s if s.starts_with("publishable-key=") || s.starts_with("client-secret=") => {
+                if let Some(handler) = self.iter().find(|auth| matches!(auth, V2Auth::ClientAuth(_))) {
+                    handler.authenticate_and_fetch(request_headers, state).await
+                } else {
+                    Err(errors::ApiErrorResponse::Unauthorized.into())
+                }
+            }
+            _ => Err(errors::ApiErrorResponse::Unauthorized.into()),
+        }
     }
 }
 

@@ -1167,10 +1167,6 @@ impl PaymentMethods {
                     web::get().to(payment_methods::payment_method_session_list_payment_methods),
                 ))
                 .service(
-                    web::resource("/confirm-intent")
-                        .route(web::post().to(payment_methods::confirm_payment_method_intent_api)),
-                )
-                .service(
                     web::resource("/update-saved-payment-method")
                         .route(web::put().to(payment_methods::payment_method_update_api)),
                 ),

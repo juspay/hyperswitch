@@ -150,48 +150,6 @@ impl common_utils::events::ApiEventMetric for PaymentMethodIntentConfirmInternal
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-#[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsCreate))]
-pub async fn confirm_payment_method_intent_api(
-    state: web::Data<AppState>,
-    req: HttpRequest,
-    json_payload: web::Json<payment_methods::PaymentMethodIntentConfirm>,
-    path: web::Path<id_type::GlobalPaymentMethodId>,
-) -> HttpResponse {
-    let flow = Flow::PaymentMethodsCreate;
-    let pm_id = path.into_inner();
-    let payload = json_payload.into_inner();
-
-    let inner_payload = PaymentMethodIntentConfirmInternal {
-        id: pm_id.to_owned(),
-        request: payload,
-    };
-
-    Box::pin(api::server_wrap(
-        flow,
-        state,
-        &req,
-        inner_payload,
-        |state, auth: auth::AuthenticationData, req, _| {
-            let pm_id = pm_id.clone();
-            async move {
-                Box::pin(payment_methods_routes::payment_method_intent_confirm(
-                    &state,
-                    req.request,
-                    &auth.merchant_account,
-                    &auth.key_store,
-                    pm_id,
-                ))
-                .await
-            }
-        },
-        // TODO: This endpoint will be removed
-        &auth::V2Auth::ApiKeyAuth,
-        api_locking::LockAction::NotApplicable,
-    ))
-    .await
-}
-
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsUpdate))]
 pub async fn payment_method_update_api(
     state: web::Data<AppState>,
@@ -217,7 +175,6 @@ pub async fn payment_method_update_api(
                 &payment_method_id,
             )
         },
-        // TODO: This endpoint will be removed
         &auth::V2Auth::ApiKeyAuth,
         api_locking::LockAction::NotApplicable,
     ))
@@ -960,8 +917,6 @@ pub async fn payment_methods_session_retrieve(
     req: HttpRequest,
     path: web::Path<id_type::GlobalPaymentMethodSessionId>,
 ) -> HttpResponse {
-    use diesel_models::ResourceId;
-
     let flow = Flow::PaymentMethodSessionRetrieve;
     let payment_method_session_id = path.into_inner();
 
@@ -981,7 +936,9 @@ pub async fn payment_methods_session_retrieve(
         },
         &vec![
             auth::V2Auth::ApiKeyAuth,
-            auth::V2Auth::ClientAuth(ResourceId::PaymentMethodSession(payment_method_session_id)),
+            auth::V2Auth::ClientAuth(diesel_models::ResourceId::PaymentMethodSession(
+                payment_method_session_id,
+            )),
         ],
         api_locking::LockAction::NotApplicable,
     ))
@@ -995,8 +952,6 @@ pub async fn payment_method_session_list_payment_methods(
     req: HttpRequest,
     path: web::Path<id_type::GlobalPaymentMethodSessionId>,
 ) -> HttpResponse {
-    use diesel_models::ResourceId;
-
     let flow = Flow::PaymentMethodsList;
     let payment_method_session_id = path.into_inner();
 
@@ -1014,7 +969,9 @@ pub async fn payment_method_session_list_payment_methods(
                 payment_method_session_id,
             )
         },
-        &auth::V2Auth::ClientAuth(ResourceId::PaymentMethodSession(payment_method_session_id)),
+        &auth::V2Auth::ClientAuth(diesel_models::ResourceId::PaymentMethodSession(
+            payment_method_session_id,
+        )),
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -1049,8 +1006,6 @@ pub async fn payment_method_session_update_saved_payment_method(
         api_models::payment_methods::PaymentMethodSessionUpdateSavedPaymentMethod,
     >,
 ) -> HttpResponse {
-    use diesel_models::ResourceId;
-
     let flow = Flow::PaymentMethodSessionUpdateSavedPaymentMethod;
     let payload = json_payload.into_inner();
     let payment_method_session_id = path.into_inner();
@@ -1074,7 +1029,9 @@ pub async fn payment_method_session_update_saved_payment_method(
                 request.request,
             )
         },
-        &auth::V2Auth::ClientAuth(ResourceId::PaymentMethodSession(payment_method_session_id)),
+        &auth::V2Auth::ClientAuth(diesel_models::ResourceId::PaymentMethodSession(
+            payment_method_session_id,
+        )),
         api_locking::LockAction::NotApplicable,
     ))
     .await

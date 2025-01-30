@@ -984,18 +984,18 @@ impl
             Secret<String>,
         ),
     ) -> Self {
+        let (session, client_secret) = item;
         Self {
-            id: item.0.id,
-            customer_id: item.0.customer_id,
-            billing: item
-                .0
+            id: session.id,
+            customer_id: session.customer_id,
+            billing: session
                 .billing
                 .map(|address| address.into_inner())
                 .map(From::from),
-            psp_tokenization: item.0.psp_tokenization,
-            network_tokenization: item.0.network_tokenization,
-            expires_at: item.0.expires_at,
-            client_secret: item.1,
+            psp_tokenization: session.psp_tokenization,
+            network_tokenization: session.network_tokenization,
+            expires_at: session.expires_at,
+            client_secret,
         }
     }
 }
