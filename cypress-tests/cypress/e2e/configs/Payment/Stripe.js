@@ -82,12 +82,12 @@ const payment_method_data_3ds = {
 
 const payment_method_data_no3ds = {
   card: {
-    last4: "4242",
+    last4: "0005",
     card_type: "CREDIT",
-    card_network: "Visa",
-    card_issuer: "STRIPE PAYMENTS UK LIMITED",
-    card_issuing_country: "UNITEDKINGDOM",
-    card_isin: "424242",
+    card_network: "AmericanExpress",
+    card_issuer: "AmericanExpress",
+    card_issuing_country: "INDIA",
+    card_isin: "378282",
     card_extended_bin: null,
     card_exp_month: "10",
     card_exp_year: "50",
