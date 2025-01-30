@@ -124,163 +124,157 @@ function bankRedirectRedirection(
   cy.visit(redirectionUrl.href);
   waitForRedirect(redirectionUrl.href);
 
-  cy.url().then((currentUrl) => {
-    cy.origin(
-      new URL(currentUrl).origin,
-      {
-        args: {
-          connectorId,
-          paymentMethodType,
-          constants: CONSTANTS,
-        },
-      },
-      ({ connectorId, paymentMethodType, constants }) => {
-        switch (connectorId) {
-          case "adyen":
-            switch (paymentMethodType) {
-              case "eps":
-                cy.get("h1").should("contain.text", "Acquirer Simulator");
-                cy.get('[value="authorised"]').click();
-                break;
-              case "ideal":
-                cy.get(":nth-child(4) > td > p").should(
-                  "contain.text",
-                  "Your Payment was Authorised/Refused/Cancelled (It may take up to five minutes to show on the Payment List)"
-                );
-                cy.get(".btnLink").click();
-                cy.url().should("include", "status=succeeded");
-                cy.wait(5000);
-                break;
-              case "giropay":
-                cy.get(
-                  ".rds-cookies-overlay__allow-all-cookies-btn > .rds-button"
-                ).click();
-                cy.wait(5000);
-                cy.get(".normal-3").should(
-                  "contain.text",
-                  "Bank suchen ‑ mit giropay zahlen."
-                );
-                cy.get("#bankSearch").type("giropay TestBank{enter}");
-                cy.get(".normal-2 > div").click();
-                cy.get('[data-testid="customerIban"]').type(
-                  "DE48499999601234567890"
-                );
-                cy.get('[data-testid="customerIdentification"]').type(
-                  "9123456789"
-                );
-                cy.get(":nth-child(3) > .rds-button").click();
-                cy.get('[data-testid="onlineBankingPin"]').type("1234");
-                cy.get(".rds-button--primary").click();
-                cy.get(":nth-child(5) > .rds-radio-input-group__label").click();
-                cy.get(".rds-button--primary").click();
-                cy.get('[data-testid="photoTan"]').type("123456");
-                cy.get(".rds-button--primary").click();
-                cy.wait(5000);
-                cy.url().should("include", "status=succeeded");
-                cy.wait(5000);
-                break;
-              case "sofort":
-                cy.get(".modal-overlay.modal-shown.in", {
-                  timeout: constants.TIMEOUT,
-                }).then(($modal) => {
-                  // If modal is found, handle it
-                  if ($modal.length > 0) {
-                    cy.get("button.cookie-modal-deny-all.button-tertiary")
-                      .should("be.visible")
-                      .should("contain", "Reject All")
-                      .click({ multiple: true });
-                    cy.get("div#TopBanks.top-banks-multistep")
-                      .should("contain", "Demo Bank")
-                      .as("btn")
-                      .click();
-                    cy.get("@btn").click();
-                  } else {
-                    cy.get("input.phone").type("9123456789");
-                    cy.get("#button.onContinue")
-                      .should("contain", "Continue")
-                      .click();
-                  }
-                });
-                break;
-              default:
-                throw new Error(
-                  `Unsupported payment method type: ${paymentMethodType}`
-                );
-            }
-            verifyUrl = true;
-            break;
-          case "paypal":
-            if (["eps", "ideal", "giropay"].includes(paymentMethodType)) {
-              cy.get('button[name="Successful"][value="SUCCEEDED"]').click();
-              verifyUrl = true;
-            } else {
+  handleFlow(
+    redirectionUrl,
+    expectedUrl,
+    connectorId,
+    ({ connectorId, paymentMethodType, constants }) => {
+      switch (connectorId) {
+        case "adyen":
+          switch (paymentMethodType) {
+            case "eps":
+              cy.get("h1").should("contain.text", "Acquirer Simulator");
+              cy.get('[value="authorised"]').click();
+              break;
+            case "ideal":
+              cy.get(":nth-child(4) > td > p").should(
+                "contain.text",
+                "Your Payment was Authorised/Refused/Cancelled (It may take up to five minutes to show on the Payment List)"
+              );
+              cy.get(".btnLink").click();
+              cy.url().should("include", "status=succeeded");
+              cy.wait(5000);
+              break;
+            case "giropay":
+              cy.get(
+                ".rds-cookies-overlay__allow-all-cookies-btn > .rds-button"
+              ).click();
+              cy.wait(5000);
+              cy.get(".normal-3").should(
+                "contain.text",
+                "Bank suchen ‑ mit giropay zahlen."
+              );
+              cy.get("#bankSearch").type("giropay TestBank{enter}");
+              cy.get(".normal-2 > div").click();
+              cy.get('[data-testid="customerIban"]').type(
+                "DE48499999601234567890"
+              );
+              cy.get('[data-testid="customerIdentification"]').type(
+                "9123456789"
+              );
+              cy.get(":nth-child(3) > .rds-button").click();
+              cy.get('[data-testid="onlineBankingPin"]').type("1234");
+              cy.get(".rds-button--primary").click();
+              cy.get(":nth-child(5) > .rds-radio-input-group__label").click();
+              cy.get(".rds-button--primary").click();
+              cy.get('[data-testid="photoTan"]').type("123456");
+              cy.get(".rds-button--primary").click();
+              cy.wait(5000);
+              cy.url().should("include", "status=succeeded");
+              cy.wait(5000);
+              break;
+            case "sofort":
+              cy.get(".modal-overlay.modal-shown.in", {
+                timeout: constants.TIMEOUT,
+              }).then(($modal) => {
+                // If modal is found, handle it
+                if ($modal.length > 0) {
+                  cy.get("button.cookie-modal-deny-all.button-tertiary")
+                    .should("be.visible")
+                    .should("contain", "Reject All")
+                    .click({ multiple: true });
+                  cy.get("div#TopBanks.top-banks-multistep")
+                    .should("contain", "Demo Bank")
+                    .as("btn")
+                    .click();
+                  cy.get("@btn").click();
+                } else {
+                  cy.get("input.phone").type("9123456789");
+                  cy.get("#button.onContinue")
+                    .should("contain", "Continue")
+                    .click();
+                }
+              });
+              break;
+            default:
               throw new Error(
                 `Unsupported payment method type: ${paymentMethodType}`
               );
-            }
+          }
+          verifyUrl = true;
+          break;
+        case "paypal":
+          if (["eps", "ideal", "giropay"].includes(paymentMethodType)) {
+            cy.get('button[name="Successful"][value="SUCCEEDED"]').click();
             verifyUrl = true;
-            break;
-          case "stripe":
-            if (
-              ["eps", "ideal", "giropay", "sofort", "przelewy24"].includes(
-                paymentMethodType
-              )
-            ) {
-              cy.get('a[name="success"]').click();
-              verifyUrl = true;
-            } else {
+          } else {
+            throw new Error(
+              `Unsupported payment method type: ${paymentMethodType}`
+            );
+          }
+          verifyUrl = true;
+          break;
+        case "stripe":
+          if (
+            ["eps", "ideal", "giropay", "sofort", "przelewy24"].includes(
+              paymentMethodType
+            )
+          ) {
+            cy.get('a[name="success"]').click();
+            verifyUrl = true;
+          } else {
+            throw new Error(
+              `Unsupported payment method type: ${paymentMethodType}`
+            );
+          }
+          verifyUrl = true;
+          break;
+        case "trustpay":
+          switch (paymentMethodType) {
+            case "eps":
+              cy.get("#bankname").type(
+                "Allgemeine Sparkasse Oberösterreich Bank AG (ASPKAT2LXXX / 20320)"
+              );
+              cy.get("#selectionSubmit").click();
+              cy.get("#user")
+                .should("be.visible")
+                .should("be.enabled")
+                .focus()
+                .type("Verfügernummer");
+              cy.get("input#submitButton.btn.btn-primary").click();
+              break;
+            case "ideal":
+              cy.contains("button", "Select your bank").click();
+              cy.get(
+                'button[data-testid="bank-item"][id="bank-item-INGBNL2A"]'
+              ).click();
+              break;
+            case "giropay":
+              cy.get("._transactionId__header__iXVd_").should(
+                "contain.text",
+                "Bank suchen ‑ mit giropay zahlen."
+              );
+              cy.get(".BankSearch_searchInput__uX_9l").type(
+                "Volksbank Hildesheim{enter}"
+              );
+              cy.get(".BankSearch_searchIcon__EcVO7").click();
+              cy.get(".BankSearch_bankWrapper__R5fUK").click();
+              cy.get("._transactionId__primaryButton__nCa0r").click();
+              cy.get(".normal-3").should("contain.text", "Kontoauswahl");
+              break;
+            default:
               throw new Error(
                 `Unsupported payment method type: ${paymentMethodType}`
               );
-            }
-            verifyUrl = true;
-            break;
-          case "trustpay":
-            switch (paymentMethodType) {
-              case "eps":
-                cy.get("#bankname").type(
-                  "Allgemeine Sparkasse Oberösterreich Bank AG (ASPKAT2LXXX / 20320)"
-                );
-                cy.get("#selectionSubmit").click();
-                cy.get("#user")
-                  .should("be.visible")
-                  .should("be.enabled")
-                  .focus()
-                  .type("Verfügernummer");
-                cy.get("input#submitButton.btn.btn-primary").click();
-                break;
-              case "ideal":
-                cy.contains("button", "Select your bank").click();
-                cy.get(
-                  'button[data-testid="bank-item"][id="bank-item-INGBNL2A"]'
-                ).click();
-                break;
-              case "giropay":
-                cy.get("._transactionId__header__iXVd_").should(
-                  "contain.text",
-                  "Bank suchen ‑ mit giropay zahlen."
-                );
-                cy.get(".BankSearch_searchInput__uX_9l").type(
-                  "Volksbank Hildesheim{enter}"
-                );
-                cy.get(".BankSearch_searchIcon__EcVO7").click();
-                cy.get(".BankSearch_bankWrapper__R5fUK").click();
-                cy.get("._transactionId__primaryButton__nCa0r").click();
-                cy.get(".normal-3").should("contain.text", "Kontoauswahl");
-                break;
-              default:
-                throw new Error(
-                  `Unsupported payment method type: ${paymentMethodType}`
-                );
-            }
-            verifyUrl = false;
-            break;
-          default:
-            throw new Error(`Unsupported connector: ${connectorId}`);
-        }
+          }
+          verifyUrl = false;
+          break;
+        default:
+          throw new Error(`Unsupported connector: ${connectorId}`);
       }
-    );
-  });
+    },
+    { paymentMethodType }
+  );
 
   cy.then(() => {
     verifyReturnUrl(redirectionUrl, expectedUrl, verifyUrl);
@@ -291,169 +285,157 @@ function threeDsRedirection(redirectionUrl, expectedUrl, connectorId) {
   cy.visit(redirectionUrl.href);
   waitForRedirect(redirectionUrl.href);
 
-  cy.url().then((currentUrl) => {
-    cy.origin(
-      new URL(currentUrl).origin,
-      {
-        args: {
-          connectorId,
-          constants: CONSTANTS,
-          expectedUrl: expectedUrl.origin,
-        },
-      },
-      ({ connectorId, constants, expectedUrl }) => {
-        switch (connectorId) {
-          case "adyen":
-            cy.get("iframe")
-              .its("0.contentDocument.body")
-              .within(() => {
-                cy.get('input[type="password"]').click();
-                cy.get('input[type="password"]').type("password");
-                cy.get("#buttonSubmit").click();
-              });
-            break;
+  handleFlow(
+    redirectionUrl,
+    expectedUrl,
+    connectorId,
+    ({ connectorId, constants, expectedUrl }) => {
+      switch (connectorId) {
+        case "adyen":
+          cy.get("iframe")
+            .its("0.contentDocument.body")
+            .within(() => {
+              cy.get('input[type="password"]').click();
+              cy.get('input[type="password"]').type("password");
+              cy.get("#buttonSubmit").click();
+            });
+          break;
 
-          case "bankofamerica":
-          case "wellsfargo":
-            cy.get("iframe", { timeout: constants.TIMEOUT })
-              .should("be.visible")
-              .its("0.contentDocument.body")
-              .should("not.be.empty")
-              .within(() => {
-                cy.get(
-                  'input[type="text"], input[type="password"], input[name="challengeDataEntry"]',
-                  { timeout: constants.TIMEOUT }
-                )
-                  .should("be.visible")
-                  .should("be.enabled")
-                  .click()
-                  .type("1234");
+        case "bankofamerica":
+        case "wellsfargo":
+          cy.get("iframe", { timeout: constants.TIMEOUT })
+            .should("be.visible")
+            .its("0.contentDocument.body")
+            .should("not.be.empty")
+            .within(() => {
+              cy.get(
+                'input[type="text"], input[type="password"], input[name="challengeDataEntry"]',
+                { timeout: constants.TIMEOUT }
+              )
+                .should("be.visible")
+                .should("be.enabled")
+                .click()
+                .type("1234");
 
-                cy.get('input[value="SUBMIT"], button[type="submit"]', {
-                  timeout: constants.TIMEOUT,
-                })
-                  .should("be.visible")
-                  .click();
-              });
-            break;
+              cy.get('input[value="SUBMIT"], button[type="submit"]', {
+                timeout: constants.TIMEOUT,
+              })
+                .should("be.visible")
+                .click();
+            });
+          break;
 
-          case "cybersource":
-            cy.url({ timeout: constants.TIMEOUT }).should(
-              "include",
-              expectedUrl
-            );
-            break;
+        case "cybersource":
+          cy.url({ timeout: constants.TIMEOUT }).should("include", expectedUrl);
+          break;
 
-          case "checkout":
-            cy.get("iframe", { timeout: constants.TIMEOUT })
-              .its("0.contentDocument.body")
-              .within(() => {
-                cy.get('form[id="form"]', { timeout: constants.WAIT_TIME })
-                  .should("exist")
-                  .then(() => {
-                    cy.get('input[id="password"]').click();
-                    cy.get('input[id="password"]').type("Checkout1!");
-                    cy.get("#txtButton").click();
-                  });
-              });
-            break;
+        case "checkout":
+          cy.get("iframe", { timeout: constants.TIMEOUT })
+            .its("0.contentDocument.body")
+            .within(() => {
+              cy.get('form[id="form"]', { timeout: constants.WAIT_TIME })
+                .should("exist")
+                .then(() => {
+                  cy.get('input[id="password"]').click();
+                  cy.get('input[id="password"]').type("Checkout1!");
+                  cy.get("#txtButton").click();
+                });
+            });
+          break;
 
-          case "nmi":
-          case "noon":
-          case "xendit":
-            cy.get("iframe", { timeout: constants.TIMEOUT })
-              .its("0.contentDocument.body")
-              .within(() => {
-                cy.get("iframe", { timeout: constants.TIMEOUT })
-                  .its("0.contentDocument.body")
-                  .within(() => {
-                    cy.get('form[name="cardholderInput"]', {
-                      timeout: constants.TIMEOUT,
-                    })
-                      .should("exist")
-                      .then(() => {
-                        cy.get('input[name="challengeDataEntry"]')
-                          .click()
-                          .type("1234");
-                        cy.get('input[value="SUBMIT"]').click();
-                      });
-                  });
-              });
-            break;
+        case "nmi":
+        case "noon":
+        case "xendit":
+          cy.get("iframe", { timeout: constants.TIMEOUT })
+            .its("0.contentDocument.body")
+            .within(() => {
+              cy.get("iframe", { timeout: constants.TIMEOUT })
+                .its("0.contentDocument.body")
+                .within(() => {
+                  cy.get('form[name="cardholderInput"]', {
+                    timeout: constants.TIMEOUT,
+                  })
+                    .should("exist")
+                    .then(() => {
+                      cy.get('input[name="challengeDataEntry"]')
+                        .click()
+                        .type("1234");
+                      cy.get('input[value="SUBMIT"]').click();
+                    });
+                });
+            });
+          break;
 
-          case "novalnet":
-            cy.get("form", { timeout: constants.WAIT_TIME })
-              .should("exist")
-              .then(() => {
-                cy.get('input[id="submit"]').click();
-              });
-            break;
+        case "novalnet":
+          cy.get("form", { timeout: constants.WAIT_TIME })
+            .should("exist")
+            .then(() => {
+              cy.get('input[id="submit"]').click();
+            });
+          break;
 
-          case "stripe":
-            cy.get("iframe", { timeout: constants.TIMEOUT })
-              .its("0.contentDocument.body")
-              .within(() => {
-                cy.get("iframe")
-                  .its("0.contentDocument.body")
-                  .within(() => {
-                    cy.get("#test-source-authorize-3ds").click();
-                  });
-              });
-            break;
+        case "stripe":
+          cy.get("iframe", { timeout: constants.TIMEOUT })
+            .its("0.contentDocument.body")
+            .within(() => {
+              cy.get("iframe")
+                .its("0.contentDocument.body")
+                .within(() => {
+                  cy.get("#test-source-authorize-3ds").click();
+                });
+            });
+          break;
 
-          case "trustpay":
-            cy.get('form[name="challengeForm"]', {
-              timeout: constants.WAIT_TIME,
-            })
-              .should("exist")
-              .then(() => {
-                cy.get("#outcomeSelect")
-                  .select("Approve")
-                  .should("have.value", "Y");
-                cy.get('button[type="submit"]').click();
-              });
-            break;
+        case "trustpay":
+          cy.get('form[name="challengeForm"]', {
+            timeout: constants.WAIT_TIME,
+          })
+            .should("exist")
+            .then(() => {
+              cy.get("#outcomeSelect")
+                .select("Approve")
+                .should("have.value", "Y");
+              cy.get('button[type="submit"]').click();
+            });
+          break;
 
-          case "worldpay":
-            cy.get("iframe", { timeout: constants.WAIT_TIME })
-              .its("0.contentDocument.body")
-              .within(() => {
-                cy.get('form[name="cardholderInput"]', {
-                  timeout: constants.WAIT_TIME,
-                })
-                  .should("exist")
-                  .then(() => {
-                    cy.get('input[name="challengeDataEntry"]')
-                      .click()
-                      .type("1234");
-                    cy.get('input[value="SUBMIT"]').click();
-                  });
-              });
-            break;
+        case "worldpay":
+          cy.get("iframe", { timeout: constants.WAIT_TIME })
+            .its("0.contentDocument.body")
+            .within(() => {
+              cy.get('form[name="cardholderInput"]', {
+                timeout: constants.WAIT_TIME,
+              })
+                .should("exist")
+                .then(() => {
+                  cy.get('input[name="challengeDataEntry"]')
+                    .click()
+                    .type("1234");
+                  cy.get('input[value="SUBMIT"]').click();
+                });
+            });
+          break;
 
-          case "fiuu":
-            cy.get('form[id="cc_form"]', { timeout: constants.TIMEOUT })
-              .should("exist")
-              .then(() => {
-                cy.get('button.pay-btn[name="pay"]').click();
-                cy.get("div.otp")
-                  .invoke("text")
-                  .then((otpText) => {
-                    const otp = otpText.match(/\d+/)[0];
-                    cy.get("input#otp-input")
-                      .should("not.be.disabled")
-                      .type(otp);
-                    cy.get("button.pay-btn").click();
-                  });
-              });
-            break;
+        case "fiuu":
+          cy.get('form[id="cc_form"]', { timeout: constants.TIMEOUT })
+            .should("exist")
+            .then(() => {
+              cy.get('button.pay-btn[name="pay"]').click();
+              cy.get("div.otp")
+                .invoke("text")
+                .then((otpText) => {
+                  const otp = otpText.match(/\d+/)[0];
+                  cy.get("input#otp-input").should("not.be.disabled").type(otp);
+                  cy.get("button.pay-btn").click();
+                });
+            });
+          break;
 
-          default:
-            cy.wait(constants.WAIT_TIME);
-        }
+        default:
+          cy.wait(constants.WAIT_TIME);
       }
-    );
-  });
+    }
+  );
 
   // Verify return URL after handling the specific connector
   verifyReturnUrl(redirectionUrl, expectedUrl, true);
@@ -657,13 +639,86 @@ async function fetchAndParseImageData(url) {
   });
 }
 
-function waitForRedirect(url) {
-  const host = new URL(url).host;
+function waitForRedirect(redirectionUrl) {
+  const originalHost = new URL(redirectionUrl).host;
 
-  return cy
-    .location("host", { timeout: CONSTANTS.TIMEOUT })
-    .should((currentHost) => {
-      // Make sure we've left the original host
-      expect(currentHost).to.not.equal(host);
+  // Wait until location.host is no longer the original, OR confirm an iframe loaded
+  cy.location("host", { timeout: CONSTANTS.TIMEOUT }).then((currentHost) => {
+    if (currentHost !== originalHost) {
+      // This is a top-level redirect (host changed)
+      // Proceed with the normal flow
+      return;
+    }
+
+    // Else, possibly an iframe-based flow
+    // Check if an iframe from a different domain (connector's domain) is present
+    cy.get("iframe", { timeout: CONSTANTS.TIMEOUT }).then((iframes) => {
+      // Try to see if any iframe is from a domain different than currentHost
+      const foreignIframe = [...iframes].find((iframeEl) => {
+        try {
+          const iframeHost = new URL(iframeEl.src).host;
+          return iframeHost !== currentHost && iframeHost !== "";
+        } catch (err) {
+          // If we can't parse the src (or it's blank), ignore
+          // eslint-disable-next-line no-console
+          console.error(`Failed to parse iframe src: ${err}`);
+          return false;
+        }
+      });
+
+      if (!foreignIframe) {
+        // No external iframe found; page either failed to actually redirect or embed
+        throw new Error(
+          "No top-level redirect or embedded iframe redirect found."
+        );
+      }
+
+      // Embedded flow
+      cy.wrap(foreignIframe, { timeout: CONSTANTS.WAIT_TIME }).should(
+        "be.visible"
+      );
     });
+  });
+}
+
+function handleFlow(
+  redirectionUrl,
+  expectedUrl,
+  connectorId,
+  callback,
+  options = {}
+) {
+  const originalHost = new URL(redirectionUrl.href).host;
+  cy.location("host", { timeout: CONSTANTS.TIMEOUT }).then((currentHost) => {
+    if (currentHost !== originalHost) {
+      // Regular redirection flow - host changed, use cy.origin()
+      cy.url().then((currentUrl) => {
+        cy.origin(
+          new URL(currentUrl).origin,
+          {
+            args: {
+              connectorId,
+              constants: CONSTANTS,
+              expectedUrl: expectedUrl.origin,
+              ...options, // optional params like paymentMethodType
+            },
+          },
+          callback
+        );
+      });
+    } else {
+      // Embedded flow - host unchanged, use cy.get("iframe")
+      cy.get("iframe", { timeout: CONSTANTS.TIMEOUT })
+        .should("be.visible")
+        .should("exist");
+
+      // Execute callback within the iframe context
+      callback({
+        connectorId,
+        constants: CONSTANTS,
+        expectedUrl: expectedUrl.origin,
+        ...options, // optional params like paymentMethodType
+      });
+    }
+  });
 }
