@@ -732,6 +732,11 @@ pub struct MerchantConnectorCreate {
     /// The connector_wallets_details is used to store wallet details such as certificates and wallet credentials
     #[schema(value_type = Option<ConnectorWalletDetails>)]
     pub connector_wallets_details: Option<ConnectorWalletDetails>,
+
+    /// Additional data that might be required by hyperswitch, to enable some specific features.
+    #[schema(value_type = Option<MerchantConnectorAccountFeatureMetadata>)]
+    pub feature_metadata:
+        Option<common_types::merchant_connector_account::MerchantConnectorAccountFeatureMetadata>,
 }
 
 #[cfg(feature = "v2")]
@@ -1070,6 +1075,10 @@ pub struct MerchantConnectorResponse {
     /// The connector_wallets_details is used to store wallet details such as certificates and wallet credentials
     #[schema(value_type = Option<ConnectorWalletDetails>)]
     pub connector_wallets_details: Option<ConnectorWalletDetails>,
+
+    /// This metadata will have different feature-specific metadata.
+    #[schema(value_type = Option<MerchantConnectorAccountFeatureMetadata>)]
+    pub feature_metadata: Option<common_types::merchant_connector_account::MerchantConnectorAccountFeatureMetadata>,
 }
 
 #[cfg(feature = "v2")]
@@ -1528,6 +1537,10 @@ pub struct MerchantConnectorUpdate {
 
     /// The connector_wallets_details is used to store wallet details such as certificates and wallet credentials
     pub connector_wallets_details: Option<ConnectorWalletDetails>,
+
+    /// This metadata will have different feature-specific metadata.
+    #[schema(value_type = Option<MerchantConnectorAccountFeatureMetadata>)]
+    pub feature_metadata: Option<common_types::merchant_connector_account::MerchantConnectorAccountFeatureMetadata>,
 }
 
 #[cfg(feature = "v2")]

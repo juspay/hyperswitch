@@ -101,6 +101,7 @@ pub struct MerchantConnectorAccount {
     #[encrypt]
     pub additional_merchant_data: Option<Encryptable<Secret<Value>>>,
     pub version: common_enums::ApiVersion,
+    pub feature_metadata: Option<common_types::merchant_connector_account::MerchantConnectorAccountFeatureMetadata>,
 }
 
 #[cfg(feature = "v2")]
@@ -233,13 +234,14 @@ pub enum MerchantConnectorAccountUpdate {
         payment_methods_enabled: Option<Vec<common_types::payment_methods::PaymentMethodsEnabled>>,
         metadata: Option<pii::SecretSerdeValue>,
         frm_configs: Option<Vec<pii::SecretSerdeValue>>,
-        connector_webhook_details: Option<pii::SecretSerdeValue>,
+        connector_webhook_details: Box<Option<pii::SecretSerdeValue>>,
         applepay_verified_domains: Option<Vec<String>>,
         pm_auth_config: Box<Option<pii::SecretSerdeValue>>,
         connector_label: Option<String>,
         status: Option<enums::ConnectorStatus>,
         connector_wallets_details: Box<Option<Encryptable<pii::SecretSerdeValue>>>,
         additional_merchant_data: Box<Option<Encryptable<pii::SecretSerdeValue>>>,
+        feature_metadata: Option<common_types::merchant_connector_account::MerchantConnectorAccountFeatureMetadata>
     },
     ConnectorWalletDetailsUpdate {
         connector_wallets_details: Encryptable<pii::SecretSerdeValue>,
@@ -409,6 +411,7 @@ impl behaviour::Conversion for MerchantConnectorAccount {
                 connector_wallets_details: self.connector_wallets_details.map(Encryption::from),
                 additional_merchant_data: self.additional_merchant_data.map(|data| data.into()),
                 version: self.version,
+                feature_metadata: self.feature_metadata,
             },
         )
     }
@@ -467,6 +470,7 @@ impl behaviour::Conversion for MerchantConnectorAccount {
             connector_wallets_details: decrypted_data.connector_wallets_details,
             additional_merchant_data: decrypted_data.additional_merchant_data,
             version: other.version,
+            feature_metadata: other.feature_metadata,
         })
     }
 
@@ -493,6 +497,7 @@ impl behaviour::Conversion for MerchantConnectorAccount {
             connector_wallets_details: self.connector_wallets_details.map(Encryption::from),
             additional_merchant_data: self.additional_merchant_data.map(|data| data.into()),
             version: self.version,
+            feature_metadata: self.feature_metadata,
         })
     }
 }
@@ -582,6 +587,7 @@ impl From<MerchantConnectorAccountUpdate> for MerchantConnectorAccountUpdateInte
                 status,
                 connector_wallets_details,
                 additional_merchant_data,
+                feature_metadata,
             } => Self {
                 connector_type,
                 connector_account_details: connector_account_details.map(Encryption::from),
@@ -590,13 +596,14 @@ impl From<MerchantConnectorAccountUpdate> for MerchantConnectorAccountUpdateInte
                 metadata,
                 frm_config: frm_configs,
                 modified_at: Some(date_time::now()),
-                connector_webhook_details,
+                connector_webhook_details: *connector_webhook_details,
                 applepay_verified_domains,
                 pm_auth_config: *pm_auth_config,
                 connector_label,
                 status,
                 connector_wallets_details: connector_wallets_details.map(Encryption::from),
                 additional_merchant_data: additional_merchant_data.map(Encryption::from),
+                feature_metadata,
             },
             MerchantConnectorAccountUpdate::ConnectorWalletDetailsUpdate {
                 connector_wallets_details,
@@ -615,6 +622,7 @@ impl From<MerchantConnectorAccountUpdate> for MerchantConnectorAccountUpdateInte
                 pm_auth_config: None,
                 status: None,
                 additional_merchant_data: None,
+                feature_metadata: None,
             },
         }
     }

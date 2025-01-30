@@ -1341,6 +1341,7 @@ impl ForeignTryFrom<domain::MerchantConnectorAccount>
                         .change_context(errors::ApiErrorResponse::InternalServerError)
                 })
                 .transpose()?,
+            feature_metadata: item.feature_metadata,
         };
         Ok(response)
     }

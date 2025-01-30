@@ -95,6 +95,7 @@ pub struct MerchantConnectorAccount {
     pub connector_wallets_details: Option<Encryption>,
     pub version: common_enums::ApiVersion,
     pub id: id_type::MerchantConnectorAccountId,
+    pub feature_metadata: Option<common_types::merchant_connector_account::MerchantConnectorAccountFeatureMetadata>,
 }
 
 #[cfg(feature = "v2")]
@@ -164,6 +165,7 @@ pub struct MerchantConnectorAccountNew {
     pub connector_wallets_details: Option<Encryption>,
     pub id: id_type::MerchantConnectorAccountId,
     pub version: common_enums::ApiVersion,
+    pub feature_metadata: Option<common_types::merchant_connector_account::MerchantConnectorAccountFeatureMetadata>,
 }
 
 #[cfg(feature = "v1")]
@@ -213,6 +215,7 @@ pub struct MerchantConnectorAccountUpdateInternal {
     pub status: Option<storage_enums::ConnectorStatus>,
     pub connector_wallets_details: Option<Encryption>,
     pub additional_merchant_data: Option<Encryption>,
+    pub feature_metadata: Option<common_types::merchant_connector_account::MerchantConnectorAccountFeatureMetadata>,
 }
 
 #[cfg(feature = "v1")]
@@ -260,6 +263,7 @@ impl MerchantConnectorAccountUpdateInternal {
             modified_at: self.modified_at.unwrap_or(source.modified_at),
             pm_auth_config: self.pm_auth_config,
             status: self.status.unwrap_or(source.status),
+            feature_metadata: self.feature_metadata,
 
             ..source
         }

@@ -2195,18 +2195,19 @@ impl MerchantConnectorAccountUpdateBridge for api_models::admin::MerchantConnect
             metadata: self.metadata,
             frm_configs,
             connector_webhook_details: match &self.connector_webhook_details {
-                Some(connector_webhook_details) => connector_webhook_details
+                Some(connector_webhook_details) => Box::new(connector_webhook_details
                     .encode_to_value()
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .map(Some)?
-                    .map(Secret::new),
-                None => None,
+                    .map(Secret::new)),
+                None => Box::new(None),
             },
             applepay_verified_domains: None,
             pm_auth_config: Box::new(self.pm_auth_config),
             status: Some(connector_status),
             additional_merchant_data: Box::new(encrypted_data.additional_merchant_data),
             connector_wallets_details: Box::new(encrypted_data.connector_wallets_details),
+            feature_metadata: self.feature_metadata
         })
     }
 }
@@ -2534,6 +2535,7 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
             connector_wallets_details: encrypted_data.connector_wallets_details,
             additional_merchant_data: encrypted_data.additional_merchant_data,
             version: hyperswitch_domain_models::consts::API_VERSION,
+            feature_metadata: self.feature_metadata.clone(),
         })
     }
 
