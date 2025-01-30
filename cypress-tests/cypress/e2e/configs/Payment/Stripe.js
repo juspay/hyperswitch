@@ -5,7 +5,7 @@ import {
 import { getCustomExchange } from "./Modifiers";
 
 const successfulNo3DSCardDetails = {
-  card_number: "4242424242424242",
+  card_number: "378282246310005",
   card_exp_month: "10",
   card_exp_year: "50",
   card_holder_name: "morino",
