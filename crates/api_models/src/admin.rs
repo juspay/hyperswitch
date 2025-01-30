@@ -1078,7 +1078,8 @@ pub struct MerchantConnectorResponse {
 
     /// This metadata will have different feature-specific metadata.
     #[schema(value_type = Option<MerchantConnectorAccountFeatureMetadata>)]
-    pub feature_metadata: Option<common_types::merchant_connector_account::MerchantConnectorAccountFeatureMetadata>,
+    pub feature_metadata:
+        Option<common_types::merchant_connector_account::MerchantConnectorAccountFeatureMetadata>,
 }
 
 #[cfg(feature = "v2")]
@@ -1540,7 +1541,8 @@ pub struct MerchantConnectorUpdate {
 
     /// This metadata will have different feature-specific metadata.
     #[schema(value_type = Option<MerchantConnectorAccountFeatureMetadata>)]
-    pub feature_metadata: Option<common_types::merchant_connector_account::MerchantConnectorAccountFeatureMetadata>,
+    pub feature_metadata:
+        Option<common_types::merchant_connector_account::MerchantConnectorAccountFeatureMetadata>,
 }
 
 #[cfg(feature = "v2")]

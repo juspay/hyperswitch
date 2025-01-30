@@ -1,10 +1,10 @@
-//! Merchant connector account related types 
+//! Merchant connector account related types
 #[cfg(feature = "v2")]
 use diesel::{sql_types::Jsonb, AsExpression, FromSqlRow};
 #[cfg(feature = "v2")]
 use serde::{Deserialize, Serialize};
 #[cfg(feature = "v2")]
-use utoipa::{ToSchema,schema};
+use utoipa::{schema, ToSchema};
 
 #[cfg(feature = "v2")]
 #[derive(
@@ -49,7 +49,7 @@ pub struct BillingConnectorRecoveryMetadata {
     /// Maximum number of retry attempts should be done for one intent.
     pub max_retry_count: i64,
     /// Retry count after which recovery attempts will be started.
-    pub start_after_retry_count: i64
+    pub start_after_retry_count: i64,
 }
 
 #[cfg(feature = "v2")]

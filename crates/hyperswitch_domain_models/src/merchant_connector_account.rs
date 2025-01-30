@@ -101,7 +101,8 @@ pub struct MerchantConnectorAccount {
     #[encrypt]
     pub additional_merchant_data: Option<Encryptable<Secret<Value>>>,
     pub version: common_enums::ApiVersion,
-    pub feature_metadata: Option<common_types::merchant_connector_account::MerchantConnectorAccountFeatureMetadata>,
+    pub feature_metadata:
+        Option<common_types::merchant_connector_account::MerchantConnectorAccountFeatureMetadata>,
 }
 
 #[cfg(feature = "v2")]
@@ -241,7 +242,9 @@ pub enum MerchantConnectorAccountUpdate {
         status: Option<enums::ConnectorStatus>,
         connector_wallets_details: Box<Option<Encryptable<pii::SecretSerdeValue>>>,
         additional_merchant_data: Box<Option<Encryptable<pii::SecretSerdeValue>>>,
-        feature_metadata: Option<common_types::merchant_connector_account::MerchantConnectorAccountFeatureMetadata>
+        feature_metadata: Option<
+            common_types::merchant_connector_account::MerchantConnectorAccountFeatureMetadata,
+        >,
     },
     ConnectorWalletDetailsUpdate {
         connector_wallets_details: Encryptable<pii::SecretSerdeValue>,
