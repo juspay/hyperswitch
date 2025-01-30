@@ -1,9 +1,9 @@
 use hyperswitch_domain_models::router_flow_types::{
-    AuthenticationConfirmation, PostAuthenticate, PreAuthenticate,
+    Authenticate, AuthenticationConfirmation, PostAuthenticate, PreAuthenticate,
 };
 use hyperswitch_interfaces::api::{
-    UasAuthenticationConfirmationV2, UasPostAuthenticationV2, UasPreAuthenticationV2,
-    UnifiedAuthenticationServiceV2,
+    UasAuthenticationConfirmationV2, UasAuthenticationV2, UasPostAuthenticationV2,
+    UasPreAuthenticationV2, UnifiedAuthenticationServiceV2,
 };
 
 #[cfg(feature = "frm")]
@@ -2077,6 +2077,7 @@ macro_rules! default_imp_for_new_connector_integration_uas {
             impl UasPreAuthenticationV2 for $path::$connector {}
             impl UasPostAuthenticationV2 for $path::$connector {}
             impl UasAuthenticationConfirmationV2 for $path::$connector {}
+            impl UasAuthenticationV2 for $path::$connector {}
             impl
             services::ConnectorIntegrationV2<
             PreAuthenticate,
@@ -2098,6 +2099,13 @@ macro_rules! default_imp_for_new_connector_integration_uas {
             AuthenticationConfirmation,
             types::UasFlowData,
             types::UasConfirmationRequestData,
+            types::UasAuthenticationResponseData,
+        > for $path::$connector
+        {}
+        impl services::ConnectorIntegrationV2<
+            Authenticate,
+            types::UasFlowData,
+            types::UasAuthenticationRequestData,
             types::UasAuthenticationResponseData,
         > for $path::$connector
         {}

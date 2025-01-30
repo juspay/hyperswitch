@@ -305,8 +305,11 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
         &'a self,
         _state: &SessionState,
         _payment_data: &mut D,
-        _merchant_account: &domain::Profile,
+        _should_continue_confirm_transaction: &mut bool,
+        _connector_call_type: &ConnectorCallType,
+        _business_profile: &domain::Profile,
         _key_store: &domain::MerchantKeyStore,
+        _mandate_type: Option<api_models::payments::MandateTransactionType>,
         _do_authorisation_confirmation: &bool,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
         Ok(())

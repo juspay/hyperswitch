@@ -14,12 +14,14 @@ pub mod setup_mandate_flow;
 use async_trait::async_trait;
 use hyperswitch_domain_models::{
     mandates::CustomerAcceptance,
-    router_flow_types::{AuthenticationConfirmation, PostAuthenticate, PreAuthenticate},
+    router_flow_types::{
+        Authenticate, AuthenticationConfirmation, PostAuthenticate, PreAuthenticate,
+    },
     router_request_types::PaymentsCaptureData,
 };
 use hyperswitch_interfaces::api::{
-    payouts::Payouts, UasAuthenticationConfirmation, UasPostAuthentication, UasPreAuthentication,
-    UnifiedAuthenticationService,
+    payouts::Payouts, UasAuthentication, UasAuthenticationConfirmation, UasPostAuthentication,
+    UasPreAuthentication, UnifiedAuthenticationService,
 };
 
 #[cfg(feature = "frm")]
@@ -2536,21 +2538,10 @@ macro_rules! default_imp_for_uas_authentication_confirmation {
             AuthenticationConfirmation,
             types::UasConfirmationRequestData,
             types::UasAuthenticationResponseData
-        > for $path::$connector
-        {}
-    )*
+            > for $path::$connector
+            {}
+        )*
     };
-}
-#[cfg(feature = "dummy_connector")]
-impl<const T: u8> UasAuthenticationConfirmation for connector::DummyConnector<T> {}
-#[cfg(feature = "dummy_connector")]
-impl<const T: u8>
-    services::ConnectorIntegration<
-        AuthenticationConfirmation,
-        types::UasConfirmationRequestData,
-        types::UasAuthenticationResponseData,
-    > for connector::DummyConnector<T>
-{
 }
 
 default_imp_for_uas_authentication_confirmation!(
@@ -2585,6 +2576,77 @@ default_imp_for_uas_authentication_confirmation!(
     connector::Wellsfargopayout,
     connector::Wise
 );
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> UasAuthenticationConfirmation for connector::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    services::ConnectorIntegration<
+        AuthenticationConfirmation,
+        types::UasConfirmationRequestData,
+        types::UasAuthenticationResponseData,
+    > for connector::DummyConnector<T>
+{
+}
+
+macro_rules! default_imp_for_uas_authentication {
+    ($($path:ident::$connector:ident),*) => {
+        $( impl UasAuthentication for $path::$connector {}
+            impl
+            services::ConnectorIntegration<
+                Authenticate,
+                types::UasAuthenticationRequestData,
+                types::UasAuthenticationResponseData
+        > for $path::$connector
+        {}
+    )*
+    };
+}
+
+default_imp_for_uas_authentication!(
+    connector::Adyenplatform,
+    connector::Aci,
+    connector::Adyen,
+    connector::Authorizedotnet,
+    connector::Braintree,
+    connector::Checkout,
+    connector::Ebanx,
+    connector::Globalpay,
+    connector::Gpayments,
+    connector::Iatapay,
+    connector::Itaubank,
+    connector::Klarna,
+    connector::Mifinity,
+    connector::Netcetera,
+    connector::Nmi,
+    connector::Noon,
+    connector::Nuvei,
+    connector::Opayo,
+    connector::Opennode,
+    connector::Payme,
+    connector::Payone,
+    connector::Paypal,
+    connector::Plaid,
+    connector::Riskified,
+    connector::Signifyd,
+    connector::Stripe,
+    connector::Threedsecureio,
+    connector::Trustpay,
+    connector::Wellsfargopayout,
+    connector::Wise
+);
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> UasAuthentication for connector::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    services::ConnectorIntegration<
+        Authenticate,
+        types::UasAuthenticationRequestData,
+        types::UasAuthenticationResponseData,
+    > for connector::DummyConnector<T>
+{
+}
 
 /// Determines whether a capture API call should be made for a payment attempt
 /// This function evaluates whether an authorized payment should proceed with a capture API call

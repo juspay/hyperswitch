@@ -34,13 +34,14 @@ use hyperswitch_domain_models::{
         UasFlowData,
     },
     router_flow_types::{
-        mandate_revoke::MandateRevoke, AccessTokenAuth, AuthenticationConfirmation,
+        mandate_revoke::MandateRevoke, AccessTokenAuth, Authenticate, AuthenticationConfirmation,
         PostAuthenticate, PreAuthenticate, VerifyWebhookSource,
     },
     router_request_types::{
         unified_authentication_service::{
-            UasAuthenticationResponseData, UasConfirmationRequestData,
-            UasPostAuthenticationRequestData, UasPreAuthenticationRequestData,
+            UasAuthenticationRequestData, UasAuthenticationResponseData,
+            UasConfirmationRequestData, UasPostAuthenticationRequestData,
+            UasPreAuthenticationRequestData,
         },
         AccessTokenRequestData, MandateRevokeRequestData, VerifyWebhookSourceRequestData,
     },
@@ -371,7 +372,11 @@ pub trait ConnectorVerifyWebhookSourceV2:
 
 /// trait UnifiedAuthenticationService
 pub trait UnifiedAuthenticationService:
-    ConnectorCommon + UasPreAuthentication + UasPostAuthentication + UasAuthenticationConfirmation
+    ConnectorCommon
+    + UasPreAuthentication
+    + UasPostAuthentication
+    + UasAuthenticationConfirmation
+    + UasAuthentication
 {
 }
 
@@ -404,9 +409,20 @@ pub trait UasAuthenticationConfirmation:
 >
 {
 }
+
+/// trait UasAuthentication
+pub trait UasAuthentication:
+    ConnectorIntegration<Authenticate, UasAuthenticationRequestData, UasAuthenticationResponseData>
+{
+}
+
 /// trait UnifiedAuthenticationServiceV2
 pub trait UnifiedAuthenticationServiceV2:
-    ConnectorCommon + UasPreAuthenticationV2 + UasPostAuthenticationV2 + UasAuthenticationConfirmationV2
+    ConnectorCommon
+    + UasPreAuthenticationV2
+    + UasPostAuthenticationV2
+    + UasAuthenticationV2
+    + UasAuthenticationConfirmationV2
 {
 }
 
@@ -438,6 +454,17 @@ pub trait UasAuthenticationConfirmationV2:
     AuthenticationConfirmation,
     UasFlowData,
     UasConfirmationRequestData,
+    UasAuthenticationResponseData,
+>
+{
+}
+
+/// trait UasAuthenticationV2
+pub trait UasAuthenticationV2:
+    ConnectorIntegrationV2<
+    Authenticate,
+    UasFlowData,
+    UasAuthenticationRequestData,
     UasAuthenticationResponseData,
 >
 {

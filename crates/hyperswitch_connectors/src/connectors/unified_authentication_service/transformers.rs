@@ -3,7 +3,8 @@ use common_utils::types::FloatMajorUnit;
 use hyperswitch_domain_models::{
     router_data::{ConnectorAuthType, RouterData},
     router_request_types::unified_authentication_service::{
-        DynamicData, PostAuthenticationDetails, TokenDetails, UasAuthenticationResponseData,
+        DynamicData, PostAuthenticationDetails, PreAuthenticationDetails, TokenDetails,
+        UasAuthenticationResponseData,
     },
     types::{
         UasAuthenticationConfirmationRouterData, UasPostAuthenticationRouterData,
@@ -291,7 +292,10 @@ impl TryFrom<&UnifiedAuthenticationServiceRouterData<&UasPreAuthenticationRouter
                     .ok_or(errors::ConnectorError::MissingRequiredField {
                         field_name: "transaction_details",
                     })?
-                    .currency,
+                    .currency
+                    .ok_or(errors::ConnectorError::MissingRequiredField {
+                        field_name: "currency",
+                    })?,
                 date: None,
                 pan_source: None,
                 protection_type: None,
@@ -354,7 +358,18 @@ impl<F, T>
         >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            response: Ok(UasAuthenticationResponseData::PreAuthentication {}),
+            response: Ok(UasAuthenticationResponseData::PreAuthentication {
+                authentication_details: PreAuthenticationDetails {
+                    threeds_server_transaction_id: None,
+                    maximum_supported_3ds_version: None,
+                    connector_authentication_id: None,
+                    three_ds_method_data: None,
+                    three_ds_method_url: None,
+                    message_version: None,
+                    connector_metadata: None,
+                    directory_server_id: None,
+                },
+            }),
             ..item.data
         })
     }
@@ -390,7 +405,7 @@ pub struct UasTokenDetails {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UasDynamicData {
     pub dynamic_data_value: Option<Secret<String>>,
-    pub dynamic_data_type: String,
+    pub dynamic_data_type: Option<String>,
     pub ds_trans_id: Option<String>,
 }
 
@@ -437,7 +452,7 @@ impl<F, T>
             response: Ok(UasAuthenticationResponseData::PostAuthentication {
                 authentication_details: PostAuthenticationDetails {
                     eci: item.response.authentication_details.eci,
-                    token_details: TokenDetails {
+                    token_details: Some(TokenDetails {
                         payment_token: item
                             .response
                             .authentication_details
@@ -458,7 +473,7 @@ impl<F, T>
                             .authentication_details
                             .token_details
                             .token_expiration_year,
-                    },
+                    }),
                     dynamic_data_details: item
                         .response
                         .authentication_details
@@ -468,6 +483,7 @@ impl<F, T>
                             dynamic_data_type: dynamic_data.dynamic_data_type,
                             ds_trans_id: dynamic_data.ds_trans_id,
                         }),
+                    trans_status: None,
                 },
             }),
             ..item.data
