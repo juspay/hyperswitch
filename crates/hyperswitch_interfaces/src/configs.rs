@@ -24,6 +24,7 @@ pub struct Connectors {
     pub boku: ConnectorParams,
     pub braintree: ConnectorParams,
     pub cashtocode: ConnectorParams,
+    pub chargebee: ConnectorParams,
     pub checkout: ConnectorParams,
     pub coinbase: ConnectorParams,
     pub cryptopay: ConnectorParams,
