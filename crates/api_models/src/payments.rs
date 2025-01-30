@@ -6025,7 +6025,6 @@ pub struct GooglePayTokenizationParameters {
     pub gateway: String,
     pub public_key: Secret<String>,
     pub private_key: Secret<String>,
-    pub root_signing_keys: Secret<String>,
     pub recipient_id: Option<Secret<String>>,
 }
 
