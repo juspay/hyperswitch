@@ -111,6 +111,14 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentMethodStatusUpdateWorkflow 
         Ok(())
     }
 
+    #[cfg(feature = "v2")]
+    async fn execute_workflow<'a>(
+        &'a self,
+        _state: &'a SessionState,
+        _process: storage::ProcessTracker,
+    ) -> Result<(), errors::ProcessTrackerError> {
+        todo!()
+    }
     async fn error_handler<'a>(
         &'a self,
         _state: &'a SessionState,

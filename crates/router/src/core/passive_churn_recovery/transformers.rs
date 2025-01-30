@@ -1,0 +1,39 @@
+use crate::{
+    core::passive_churn_recovery::types::PCRAttemptStatus, types::transformers::ForeignFrom,
+};
+
+use common_enums::AttemptStatus;
+
+impl ForeignFrom<AttemptStatus> for PCRAttemptStatus {
+    fn foreign_from(s: AttemptStatus) -> Self {
+        match s {
+            AttemptStatus::Authorized | AttemptStatus::Charged | AttemptStatus::AutoRefunded => {
+                Self::Succeeded
+            }
+
+            AttemptStatus::Started
+            | AttemptStatus::AuthenticationSuccessful
+            | AttemptStatus::Authorizing
+            | AttemptStatus::CodInitiated
+            | AttemptStatus::VoidInitiated
+            | AttemptStatus::CaptureInitiated
+            | AttemptStatus::Pending => Self::Processing,
+
+            AttemptStatus::AuthenticationFailed
+            | AttemptStatus::AuthorizationFailed
+            | AttemptStatus::VoidFailed
+            | AttemptStatus::RouterDeclined
+            | AttemptStatus::CaptureFailed
+            | AttemptStatus::Failure => Self::Failed,
+
+            AttemptStatus::Voided
+            | AttemptStatus::ConfirmationAwaited
+            | AttemptStatus::PartialCharged
+            | AttemptStatus::PartialChargedAndChargeable
+            | AttemptStatus::PaymentMethodAwaited
+            | AttemptStatus::AuthenticationPending
+            | AttemptStatus::DeviceDataCollectionPending
+            | AttemptStatus::Unresolved => Self::InvalidAction(s.to_string()),
+        }
+    }
+}

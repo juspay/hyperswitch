@@ -285,7 +285,7 @@ pub enum PaymentIntentUpdate {
     /// PreUpdate tracker of ConfirmIntent
     ConfirmIntent {
         status: common_enums::IntentStatus,
-        active_attempt_id: id_type::GlobalAttemptId,
+        active_attempt_id: Option<id_type::GlobalAttemptId>,
         updated_by: String,
     },
     /// PostUpdate tracker of ConfirmIntent
@@ -364,7 +364,7 @@ impl From<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal {
                 updated_by,
             } => Self {
                 status: Some(status),
-                active_attempt_id: Some(active_attempt_id),
+                active_attempt_id,
                 modified_at: common_utils::date_time::now(),
                 amount: None,
                 amount_captured: None,

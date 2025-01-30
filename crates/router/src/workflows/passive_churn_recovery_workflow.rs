@@ -1,6 +1,7 @@
 #[cfg(feature = "v2")]
 use crate::{
-    core::passive_churn_recovery as pcr, types::storage::passive_churn_recovery as pcr_types,
+    core::passive_churn_recovery::{self as pcr, types as pcr_types},
+    types::storage::passive_churn_recovery as pcr_storage_types,
 };
 use crate::{
     core::payments,
@@ -42,28 +43,26 @@ impl ProcessTrackerWorkflow<SessionState> for ExecutePcrWorkflow {
     ) -> Result<(), errors::ProcessTrackerError> {
         match process.name.as_deref() {
             Some("EXECUTE_WORKFLOW") => {
-                let db = &*state.store;
-
                 let tracking_data = process
                     .tracking_data
                     .clone()
-                    .parse_value::<pcr_types::PCRExecuteWorkflowTrackingData>(
+                    .parse_value::<pcr_storage_types::PCRExecuteWorkflowTrackingData>(
                     "PCRExecuteWorkflowTrackingData",
                 )?;
 
                 let key_manager_state = &state.into();
-                let pcr_data = extract_data_and_perform_action(&state, process).await?;
-                let (payment_data, _, customer) = payments::payments_intent_operation_core::<
+                let pcr_data = extract_data_and_perform_action(state, &process).await?;
+                let (payment_data, _, _) = payments::payments_intent_operation_core::<
                     api_types::PaymentGetIntent,
                     _,
                     _,
                     PaymentIntentData<api_types::PaymentGetIntent>,
                 >(
-                    &state,
+                    state,
                     state.get_req_state(),
-                    pcr_data.merchant_account,
-                    pcr_data.profile,
-                    pcr_data.key_store,
+                    pcr_data.merchant_account.clone(),
+                    pcr_data.profile.clone(),
+                    pcr_data.key_store.clone(),
                     payments::operations::PaymentGetIntent,
                     tracking_data.request,
                     pcr_data.global_payment_id.clone(),
@@ -74,10 +73,10 @@ impl ProcessTrackerWorkflow<SessionState> for ExecutePcrWorkflow {
 
                 // handle the call connector field once it has been added
                 pcr::decide_execute_pcr_workflow(
-                    &state,
+                    state,
                     &process,
                     &payment_data.payment_intent,
-                    &key_manager_state,
+                    key_manager_state,
                     &pcr_data.key_store,
                     &pcr_data.merchant_account,
                     &pcr_data.profile,
@@ -95,15 +94,15 @@ impl ProcessTrackerWorkflow<SessionState> for ExecutePcrWorkflow {
 #[cfg(feature = "v2")]
 pub(crate) async fn extract_data_and_perform_action(
     state: &SessionState,
-    process: storage::ProcessTracker,
-) -> Result<pcr_types::PCRPaymentData, errors::ProcessTrackerError> {
+    process: &storage::ProcessTracker,
+) -> Result<pcr_storage_types::PCRPaymentData, errors::ProcessTrackerError> {
     let db = &state.store;
     let tracking_data = process
         .tracking_data
         .clone()
-        .parse_value::<pcr_types::PCRExecuteWorkflowTrackingData>(
-            "PCRExecuteWorkflowTrackingData",
-        )?;
+        .parse_value::<pcr_storage_types::PCRExecuteWorkflowTrackingData>(
+        "PCRExecuteWorkflowTrackingData",
+    )?;
 
     let key_manager_state = &state.into();
     let key_store = db
@@ -144,7 +143,7 @@ pub(crate) async fn extract_data_and_perform_action(
         };
 
     let global_payment_id = tracking_data.global_payment_id.clone();
-    let pcr_payment_data = pcr_types::PCRPaymentData {
+    let pcr_payment_data = pcr_storage_types::PCRPaymentData {
         merchant_account,
         profile,
         platform_merchant_account,
@@ -200,13 +199,13 @@ pub(crate) async fn retry_pcr_payment_task(
     db: &dyn StorageInterface,
     merchant_id: common_utils::id_type::MerchantId,
     mut pt: storage::ProcessTracker,
-) -> pcr::Action {
+) -> pcr_types::Action {
     let schedule_time =
         get_schedule_time_to_retry_mit_payments(db, &merchant_id, pt.retry_count + 1).await;
     pt.schedule_time = schedule_time;
     match schedule_time {
-        Some(_) => pcr::Action::RetryPayment(pt),
+        Some(_) => pcr_types::Action::RetryPayment(pt),
 
-        None => pcr::Action::TerminalPaymentStatus,
+        None => pcr_types::Action::TerminalFailure,
     }
 }

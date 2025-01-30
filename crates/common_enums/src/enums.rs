@@ -3650,13 +3650,3 @@ pub enum FeatureStatus {
     NotSupported,
     Supported,
 }
-
-/// The status of Passive Churn Payments
-#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
-pub enum PCRAttemptStatus {
-    Succeeded,
-    Failed,
-    Processing,
-    InvalidAction(String),
-    //  Cancelled,
-}
