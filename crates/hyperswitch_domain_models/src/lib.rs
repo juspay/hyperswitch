@@ -84,12 +84,14 @@ impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
             redirect_response,
             search_tags,
             apple_pay_recurring_details,
+            revenue_recovery_metadata,
         } = from;
         Self {
             redirect_response: redirect_response.map(RedirectResponse::convert_from),
             search_tags,
             apple_pay_recurring_details: apple_pay_recurring_details
                 .map(ApplePayRecurringDetails::convert_from),
+            revenue_recovery_metadata,
         }
     }
 
@@ -98,6 +100,7 @@ impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
             redirect_response,
             search_tags,
             apple_pay_recurring_details,
+            revenue_recovery_metadata,
         } = self;
         ApiFeatureMetadata {
             redirect_response: redirect_response
@@ -105,6 +108,7 @@ impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
             search_tags,
             apple_pay_recurring_details: apple_pay_recurring_details
                 .map(|value| value.convert_back()),
+            revenue_recovery_metadata,
         }
     }
 }

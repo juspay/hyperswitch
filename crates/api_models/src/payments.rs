@@ -6,6 +6,7 @@ use std::{
 pub mod additional_info;
 use cards::CardNumber;
 use common_enums::ProductType;
+use common_types::payments::PCRPaymentIntentFeatureMetadata;
 #[cfg(feature = "v2")]
 use common_utils::id_type::GlobalPaymentId;
 use common_utils::{
@@ -6651,6 +6652,9 @@ pub struct FeatureMetadata {
     pub search_tags: Option<Vec<HashedString<WithType>>>,
     /// Recurring payment details required for apple pay Merchant Token
     pub apple_pay_recurring_details: Option<ApplePayRecurringDetails>,
+    /// Revenue recovery feature metadata
+    pub revenue_recovery_metadata: Option<PCRPaymentIntentFeatureMetadata>
+
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
