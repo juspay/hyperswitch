@@ -4105,11 +4105,8 @@ fn get_google_pay_connector_wallet_details(
                     .google_pay_root_signing_keys
                     .clone()
             });
-    match (
-        google_pay_root_signing_keys,
-        merchant_connector_account.get_connector_wallets_details(),
-    ) {
-        (Some(google_pay_root_signing_keys), Some(wallet_details)) => {
+    match merchant_connector_account.get_connector_wallets_details() {
+        Some(wallet_details) => {
             let google_pay_wallet_details = wallet_details
                 .parse_value::<api_models::payments::GooglePayWalletDetails>(
                     "GooglePayWalletDetails",
@@ -4132,11 +4129,7 @@ fn get_google_pay_connector_wallet_details(
                                         .tokenization_specification
                                         .parameters
                                         .private_key,
-                                    merchant_details
-                                        .merchant_info
-                                        .tokenization_specification
-                                        .parameters
-                                        .root_signing_keys,
+                                    google_pay_root_signing_keys,
                                     merchant_details
                                         .merchant_info
                                         .tokenization_specification
@@ -4157,7 +4150,7 @@ fn get_google_pay_connector_wallet_details(
                     }
                 )
         }
-        _ => None,
+        None => None,
     }
 }
 
