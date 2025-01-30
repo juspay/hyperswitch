@@ -65,40 +65,6 @@ pub async fn initiate_payment_link(
         payment_id,
         merchant_id: merchant_id.clone(),
     };
-    Box::pin(api::server_wrap(
-        flow,
-        state,
-        &req,
-        payload.clone(),
-        |state, auth: auth::AuthenticationData, _, _| {
-            initiate_payment_link_flow(
-                state,
-                auth.merchant_account,
-                auth.key_store,
-                payload.merchant_id.clone(),
-                payload.payment_id.clone(),
-            )
-        },
-        &crate::services::authentication::MerchantIdAuth(merchant_id),
-        api_locking::LockAction::NotApplicable,
-    ))
-    .await
-}
-
-pub async fn initiate_secure_payment_link(
-    state: web::Data<AppState>,
-    req: actix_web::HttpRequest,
-    path: web::Path<(
-        common_utils::id_type::MerchantId,
-        common_utils::id_type::PaymentId,
-    )>,
-) -> impl Responder {
-    let flow = Flow::PaymentSecureLinkInitiate;
-    let (merchant_id, payment_id) = path.into_inner();
-    let payload = api_models::payments::PaymentLinkInitiateRequest {
-        payment_id,
-        merchant_id: merchant_id.clone(),
-    };
     let headers = req.headers();
     Box::pin(api::server_wrap(
         flow,
@@ -106,7 +72,7 @@ pub async fn initiate_secure_payment_link(
         &req,
         payload.clone(),
         |state, auth: auth::AuthenticationData, _, _| {
-            initiate_secure_payment_link_flow(
+            initiate_payment_link_flow(
                 state,
                 auth.merchant_account,
                 auth.key_store,

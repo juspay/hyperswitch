@@ -1020,7 +1020,7 @@ diesel::table! {
         #[max_length = 64]
         profile_id -> Nullable<Varchar>,
         #[max_length = 255]
-        secure_link -> Nullable<Varchar>,
+        secure_link -> Nullable<Varchar>, //It is deprecated now.
     }
 }
 

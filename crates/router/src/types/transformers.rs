@@ -1745,7 +1745,7 @@ impl ForeignFrom<(storage::PaymentLink, payments::PaymentLinkStatus)>
             description: payment_link_config.description,
             currency: payment_link_config.currency,
             status,
-            secure_link: payment_link_config.secure_link,
+            secure_link: None, //It is deprecated now.
         }
     }
 }

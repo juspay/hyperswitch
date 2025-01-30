@@ -24,7 +24,7 @@ pub struct PaymentLink {
     pub payment_link_config: Option<serde_json::Value>,
     pub description: Option<String>,
     pub profile_id: Option<common_utils::id_type::ProfileId>,
-    pub secure_link: Option<String>,
+    pub secure_link: Option<String>, //It is deprecated now.
 }
 
 #[derive(
@@ -55,5 +55,5 @@ pub struct PaymentLinkNew {
     pub payment_link_config: Option<serde_json::Value>,
     pub description: Option<String>,
     pub profile_id: Option<common_utils::id_type::ProfileId>,
-    pub secure_link: Option<String>,
+    pub secure_link: Option<String>, //It is deprecated now.
 }

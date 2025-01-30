@@ -1571,16 +1571,6 @@ async fn create_payment_link(
         locale_str.clone(),
     );
 
-    let secure_link = payment_link_config.allowed_domains.as_ref().map(|_| {
-        format!(
-            "{}/payment_link/s/{}/{}?locale={}",
-            domain_name,
-            merchant_id.get_string_repr(),
-            payment_id.get_string_repr(),
-            locale_str,
-        )
-    });
-
     let payment_link_config_encoded_value = payment_link_config.encode_to_value().change_context(
         errors::ApiErrorResponse::InvalidDataValue {
             field_name: "payment_link_config",
@@ -1601,7 +1591,7 @@ async fn create_payment_link(
         description,
         payment_link_config: Some(payment_link_config_encoded_value),
         profile_id: Some(profile_id),
-        secure_link,
+        secure_link: None, //It is deprecated now.,
     };
     let payment_link_db = db
         .insert_payment_link(payment_link_req)
@@ -1612,7 +1602,7 @@ async fn create_payment_link(
 
     Ok(Some(api_models::payments::PaymentLinkResponse {
         link: payment_link_db.link_to_pay.clone(),
-        secure_link: payment_link_db.secure_link,
+        secure_link: None, //It is deprecated now.
         payment_link_id: payment_link_db.payment_link_id,
     }))
 }

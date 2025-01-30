@@ -285,98 +285,113 @@ pub async fn form_payment_link_data(
     ))
 }
 
-pub async fn initiate_secure_payment_link_flow(
-    state: SessionState,
-    merchant_account: domain::MerchantAccount,
-    key_store: domain::MerchantKeyStore,
-    merchant_id: common_utils::id_type::MerchantId,
-    payment_id: common_utils::id_type::PaymentId,
-    request_headers: &header::HeaderMap,
-) -> RouterResponse<services::PaymentLinkFormData> {
-    let (payment_link, payment_link_details, payment_link_config) =
-        form_payment_link_data(&state, merchant_account, key_store, merchant_id, payment_id)
-            .await?;
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum PaymentLinkType {
+    SecurePaymentLink,
+    OpenPaymentLink,
+}
 
-    validator::validate_secure_payment_link_render_request(
-        request_headers,
-        &payment_link,
-        &payment_link_config,
-    )?;
-
-    let css_script = get_color_scheme_css(&payment_link_config);
-
-    match payment_link_details {
-        PaymentLinkData::PaymentLinkStatusDetails(ref status_details) => {
-            let js_script = get_js_script(&payment_link_details)?;
-            let payment_link_error_data = services::PaymentLinkStatusData {
-                js_script,
-                css_script,
-            };
-            logger::info!(
-                "payment link data, for building payment link status page {:?}",
-                status_details
-            );
-            Ok(services::ApplicationResponse::PaymentLinkForm(Box::new(
-                services::api::PaymentLinkAction::PaymentLinkStatus(payment_link_error_data),
-            )))
-        }
-        PaymentLinkData::PaymentLinkDetails(link_details) => {
-            let secure_payment_link_details = api_models::payments::SecurePaymentLinkDetails {
-                enabled_saved_payment_method: payment_link_config.enabled_saved_payment_method,
-                hide_card_nickname_field: payment_link_config.hide_card_nickname_field,
-                show_card_form_by_default: payment_link_config.show_card_form_by_default,
-                payment_link_details: *link_details.to_owned(),
-                payment_button_text: payment_link_config.payment_button_text,
-            };
-            let js_script = format!(
-                "window.__PAYMENT_DETAILS = {}",
-                serde_json::to_string(&secure_payment_link_details)
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed to serialize PaymentLinkData")?
-            );
-            let html_meta_tags = get_meta_tags_html(&link_details);
-            let payment_link_data = services::PaymentLinkFormData {
-                js_script,
-                sdk_url: state.conf.payment_link.sdk_url.clone(),
-                css_script,
-                html_meta_tags,
-            };
-            let allowed_domains = payment_link_config
-                .allowed_domains
-                .clone()
-                .ok_or(report!(errors::ApiErrorResponse::InternalServerError))
-                .attach_printable_lazy(|| {
-                    format!(
-                        "Invalid list of allowed_domains found - {:?}",
-                        payment_link_config.allowed_domains.clone()
-                    )
-                })?;
-
-            if allowed_domains.is_empty() {
-                return Err(report!(errors::ApiErrorResponse::InternalServerError))
-                    .attach_printable_lazy(|| {
-                        format!(
-                            "Invalid list of allowed_domains found - {:?}",
-                            payment_link_config.allowed_domains.clone()
-                        )
-                    });
-            }
-
-            let link_data = GenericLinks {
-                allowed_domains,
-                data: GenericLinksData::SecurePaymentLink(payment_link_data),
-                locale: DEFAULT_LOCALE.to_string(),
-            };
-            logger::info!(
-                "payment link data, for building secure payment link {:?}",
-                link_data
-            );
-
-            Ok(services::ApplicationResponse::GenericLinkForm(Box::new(
-                link_data,
-            )))
+impl PaymentLinkType {
+    fn get_requested_payment_link_type(request_headers: &header::HeaderMap) -> Self {
+        match request_headers
+            .get("sec-fetch-dest")
+            .and_then(|v| v.to_str().ok())
+        {
+            Some("iframe") => Self::SecurePaymentLink,
+            Some(_) | None => Self::OpenPaymentLink,
         }
     }
+}
+
+fn generate_secure_payment_link(
+    state: &SessionState,
+    request_headers: &header::HeaderMap,
+    payment_link: &PaymentLink,
+    payment_link_config: PaymentLinkConfig,
+    payment_details: api_models::payments::PaymentLinkDetails,
+    css_script: String,
+) -> RouterResponse<services::PaymentLinkFormData> {
+    validator::validate_secure_payment_link_render_request(
+        request_headers,
+        payment_link,
+        &payment_link_config,
+    )?;
+    let secure_payment_link_details = api_models::payments::SecurePaymentLinkDetails {
+        enabled_saved_payment_method: payment_link_config.enabled_saved_payment_method,
+        hide_card_nickname_field: payment_link_config.hide_card_nickname_field,
+        show_card_form_by_default: payment_link_config.show_card_form_by_default,
+        payment_link_details: payment_details.to_owned(),
+        payment_button_text: payment_link_config.payment_button_text.clone(),
+    };
+    let js_script = format!(
+        "window.__PAYMENT_DETAILS = {}",
+        serde_json::to_string(&secure_payment_link_details)
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to serialize PaymentLinkData")?
+    );
+    let html_meta_tags = get_meta_tags_html(&payment_details);
+    let payment_link_data = services::PaymentLinkFormData {
+        js_script,
+        sdk_url: state.conf.payment_link.sdk_url.clone(),
+        css_script: css_script.clone(),
+        html_meta_tags,
+    };
+    let allowed_domains = payment_link_config
+        .allowed_domains
+        .clone()
+        .ok_or(report!(errors::ApiErrorResponse::InternalServerError))
+        .attach_printable_lazy(|| {
+            format!(
+                "Invalid list of allowed_domains found - {:?}",
+                payment_link_config.allowed_domains.clone()
+            )
+        })?;
+
+    if allowed_domains.is_empty() {
+        return Err(report!(errors::ApiErrorResponse::InternalServerError)).attach_printable_lazy(
+            || {
+                format!(
+                    "Invalid list of allowed_domains found - {:?}",
+                    payment_link_config.allowed_domains.clone()
+                )
+            },
+        );
+    }
+    let link_data = GenericLinks {
+        allowed_domains,
+        data: GenericLinksData::SecurePaymentLink(payment_link_data),
+        locale: DEFAULT_LOCALE.to_string(),
+    };
+    logger::info!(
+        "payment link data, for building secure payment link {:?}",
+        link_data
+    );
+
+    Ok(services::ApplicationResponse::GenericLinkForm(Box::new(
+        link_data,
+    )))
+}
+
+fn generate_open_payment_link(
+    state: &SessionState,
+    payment_details: api_models::payments::PaymentLinkDetails,
+    js_script: String,
+    css_script: String,
+) -> RouterResponse<services::PaymentLinkFormData> {
+    let html_meta_tags = get_meta_tags_html(&payment_details);
+    let payment_link_data = services::PaymentLinkFormData {
+        js_script,
+        sdk_url: state.conf.payment_link.sdk_url.clone(),
+        css_script,
+        html_meta_tags,
+    };
+    logger::info!(
+        "payment link data, for building open payment link {:?}",
+        payment_link_data
+    );
+    Ok(services::ApplicationResponse::PaymentLinkForm(Box::new(
+        services::api::PaymentLinkAction::PaymentLinkFormData(payment_link_data),
+    )))
 }
 
 pub async fn initiate_payment_link_flow(
@@ -385,13 +400,15 @@ pub async fn initiate_payment_link_flow(
     key_store: domain::MerchantKeyStore,
     merchant_id: common_utils::id_type::MerchantId,
     payment_id: common_utils::id_type::PaymentId,
+    request_headers: &header::HeaderMap,
 ) -> RouterResponse<services::PaymentLinkFormData> {
-    let (_, payment_details, payment_link_config) =
+    let (payment_link, payment_details, payment_link_config) =
         form_payment_link_data(&state, merchant_account, key_store, merchant_id, payment_id)
             .await?;
-
     let css_script = get_color_scheme_css(&payment_link_config);
     let js_script = get_js_script(&payment_details)?;
+    let requested_payment_link_type =
+        PaymentLinkType::get_requested_payment_link_type(request_headers);
 
     match payment_details {
         PaymentLinkData::PaymentLinkStatusDetails(status_details) => {
@@ -407,22 +424,19 @@ pub async fn initiate_payment_link_flow(
                 services::api::PaymentLinkAction::PaymentLinkStatus(payment_link_error_data),
             )))
         }
-        PaymentLinkData::PaymentLinkDetails(payment_details) => {
-            let html_meta_tags = get_meta_tags_html(&payment_details);
-            let payment_link_data = services::PaymentLinkFormData {
-                js_script,
-                sdk_url: state.conf.payment_link.sdk_url.clone(),
+        PaymentLinkData::PaymentLinkDetails(payment_details) => match requested_payment_link_type {
+            PaymentLinkType::SecurePaymentLink => generate_secure_payment_link(
+                &state,
+                request_headers,
+                &payment_link,
+                payment_link_config,
+                *payment_details,
                 css_script,
-                html_meta_tags,
-            };
-            logger::info!(
-                "payment link data, for building open payment link {:?}",
-                payment_link_data
-            );
-            Ok(services::ApplicationResponse::PaymentLinkForm(Box::new(
-                services::api::PaymentLinkAction::PaymentLinkFormData(payment_link_data),
-            )))
-        }
+            ),
+            PaymentLinkType::OpenPaymentLink => {
+                generate_open_payment_link(&state, *payment_details, js_script, css_script)
+            }
+        },
     }
 }
 
