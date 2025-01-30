@@ -653,7 +653,14 @@ pub async fn payments_confirm(
         return http_not_implemented();
     };
 
-    if let Err(err) = helpers::populate_ip_into_browser_info(&req, &mut payload) {
+    let header_payload = match HeaderPayload::foreign_try_from(req.headers()) {
+        Ok(headers) => headers,
+        Err(err) => {
+            return api::log_and_return_error_response(err);
+        }
+    };
+
+    if let Err(err) = helpers::populate_browser_info(&req, &mut payload, &header_payload) {
         return api::log_and_return_error_response(err);
     }
 
@@ -661,12 +668,6 @@ pub async fn payments_confirm(
     tracing::Span::current().record("payment_id", payment_id.get_string_repr());
     payload.payment_id = Some(payment_types::PaymentIdType::PaymentIntentId(payment_id));
     payload.confirm = Some(true);
-    let header_payload = match HeaderPayload::foreign_try_from(req.headers()) {
-        Ok(headers) => headers,
-        Err(err) => {
-            return api::log_and_return_error_response(err);
-        }
-    };
 
     let (auth_type, auth_flow) =
         match auth::check_client_secret_and_get_auth(req.headers(), &payload) {
