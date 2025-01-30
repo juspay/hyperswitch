@@ -1469,7 +1469,7 @@ pub struct ConnectorWalletDetails {
     #[schema(value_type = Option<Object>)]
     pub paze: Option<pii::SecretSerdeValue>,
     /// This field contains the Google Pay certificates and credentials
-    /// #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     #[schema(value_type = Option<Object>)]
     pub google_pay: Option<pii::SecretSerdeValue>,
 }

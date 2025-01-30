@@ -4091,10 +4091,25 @@ fn check_apple_pay_metadata(
 }
 
 fn get_google_pay_connector_wallet_details(
+    state: &SessionState,
     merchant_connector_account: &helpers::MerchantConnectorAccountType,
 ) -> Option<GooglePayPaymentProcessingDetails> {
-    match merchant_connector_account.get_connector_wallets_details() {
-        Some(wallet_details) => {
+    let google_pay_root_signing_keys =
+        state
+            .conf
+            .google_pay_decrypt_keys
+            .as_ref()
+            .map(|google_pay_keys| {
+                google_pay_keys
+                    .get_inner()
+                    .google_pay_root_signing_keys
+                    .clone()
+            });
+    match (
+        google_pay_root_signing_keys,
+        merchant_connector_account.get_connector_wallets_details(),
+    ) {
+        (Some(google_pay_root_signing_keys), Some(wallet_details)) => {
             let google_pay_wallet_details = wallet_details
                 .parse_value::<api_models::payments::GooglePayWalletDetails>(
                     "GooglePayWalletDetails",
@@ -4142,7 +4157,7 @@ fn get_google_pay_connector_wallet_details(
                     }
                 )
         }
-        None => None,
+        _ => None,
     }
 }
 
@@ -4188,16 +4203,10 @@ async fn decide_payment_method_tokenize_action(
         }
     } else if let Some(storage_enums::PaymentMethodType::GooglePay) = payment_method_type {
         let google_pay_details =
-            get_google_pay_connector_wallet_details(merchant_connector_account);
+            get_google_pay_connector_wallet_details(state, merchant_connector_account);
 
         match google_pay_details {
-            Some(wallet_details) => Ok(TokenizationAction::DecryptGooglePayToken(
-                GooglePayPaymentProcessingDetails {
-                    google_pay_private_key: wallet_details.google_pay_private_key,
-                    google_pay_root_signing_keys: wallet_details.google_pay_root_signing_keys,
-                    google_pay_recipient_id: wallet_details.google_pay_recipient_id,
-                },
-            )),
+            Some(wallet_details) => Ok(TokenizationAction::DecryptGooglePayToken(wallet_details)),
             None => {
                 if is_connector_tokenization_enabled {
                     Ok(TokenizationAction::TokenizeInConnectorAndRouter)

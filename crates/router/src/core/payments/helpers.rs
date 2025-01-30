@@ -5533,7 +5533,11 @@ impl GooglePayTokenDecryptor {
             .change_context(errors::GooglePayDecryptionError::Base64DecodingFailed)?;
         // create a private key from the decoded key
         let private_key = PKey::private_key_from_pkcs8(&decoded_key)
-            .change_context(errors::GooglePayDecryptionError::KeyDeserializationFailed)?;
+            .change_context(errors::GooglePayDecryptionError::KeyDeserializationFailed)
+            .attach_printable(format!(
+                "cannot convert private key from given data: {:?}",
+                decoded_key
+            ))?;
 
         // parse the root signing keys
         let root_keys_vector: Vec<serde_json::Value> = serde_json::from_str(&root_keys.expose())
