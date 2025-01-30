@@ -2001,7 +2001,10 @@ where
                 }
             }
             s if s.starts_with("publishable-key=") || s.starts_with("client-secret=") => {
-                if let Some(handler) = self.iter().find(|auth| matches!(auth, V2Auth::ClientAuth(_))) {
+                if let Some(handler) = self
+                    .iter()
+                    .find(|auth| matches!(auth, V2Auth::ClientAuth(_)))
+                {
                     handler.authenticate_and_fetch(request_headers, state).await
                 } else {
                     Err(errors::ApiErrorResponse::Unauthorized.into())

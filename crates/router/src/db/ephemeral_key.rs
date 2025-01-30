@@ -147,7 +147,7 @@ mod storage {
             let key = format!("epkey_{key}");
             self.get_redis_conn()
                 .map_err(Into::<errors::StorageError>::into)?
-                .get_hash_field_and_deserialize(&key, "ephkey", "EphemeralKey")
+                .get_hash_field_and_deserialize(&key.into(), "ephkey", "EphemeralKey")
                 .await
                 .change_context(errors::StorageError::KVError)
         }
@@ -161,13 +161,13 @@ mod storage {
 
             self.get_redis_conn()
                 .map_err(Into::<errors::StorageError>::into)?
-                .delete_key(&format!("epkey_{}", &ek.id))
+                .delete_key(&format!("epkey_{}", &ek.id).into())
                 .await
                 .change_context(errors::StorageError::KVError)?;
 
             self.get_redis_conn()
                 .map_err(Into::<errors::StorageError>::into)?
-                .delete_key(&format!("epkey_{}", &ek.secret))
+                .delete_key(&format!("epkey_{}", &ek.secret).into())
                 .await
                 .change_context(errors::StorageError::KVError)?;
             Ok(ek)
@@ -235,20 +235,6 @@ mod storage {
             }
         }
 
-        #[cfg(feature = "v1")]
-        #[instrument(skip_all)]
-        async fn get_ephemeral_key(
-            &self,
-            key: &str,
-        ) -> CustomResult<EphemeralKey, errors::StorageError> {
-            let key = format!("epkey_{key}");
-            self.get_redis_conn()
-                .map_err(Into::<errors::StorageError>::into)?
-                .get_hash_field_and_deserialize(&key.into(), "ephkey", "EphemeralKey")
-                .await
-                .change_context(errors::StorageError::KVError)
-        }
-
         #[cfg(feature = "v2")]
         #[instrument(skip_all)]
         async fn get_client_secret(
@@ -261,27 +247,6 @@ mod storage {
                 .get_hash_field_and_deserialize(&key.into(), "csh", "ClientSecretType")
                 .await
                 .change_context(errors::StorageError::KVError)
-        }
-
-        #[cfg(feature = "v1")]
-        async fn delete_ephemeral_key(
-            &self,
-            id: &str,
-        ) -> CustomResult<EphemeralKey, errors::StorageError> {
-            let ek = self.get_ephemeral_key(id).await?;
-
-            self.get_redis_conn()
-                .map_err(Into::<errors::StorageError>::into)?
-                .delete_key(&format!("epkey_{}", &ek.id).into())
-                .await
-                .change_context(errors::StorageError::KVError)?;
-
-            self.get_redis_conn()
-                .map_err(Into::<errors::StorageError>::into)?
-                .delete_key(&format!("epkey_{}", &ek.secret).into())
-                .await
-                .change_context(errors::StorageError::KVError)?;
-            Ok(ek)
         }
 
         #[cfg(feature = "v2")]

@@ -65,7 +65,7 @@ mod storage {
                 .map_err(Into::<errors::StorageError>::into)?;
 
             redis_connection
-                .serialize_and_set_key_with_expiry(&redis_key, db_model, validity_in_seconds)
+                .serialize_and_set_key_with_expiry(&redis_key.into(), db_model, validity_in_seconds)
                 .await
                 .change_context(errors::StorageError::KVError)
                 .attach_printable("Failed to insert payment methods session to redis")
@@ -88,7 +88,7 @@ mod storage {
                 .map_err(Into::<errors::StorageError>::into)?;
 
             let db_model = redis_connection
-                .get_and_deserialize_key::<diesel_models::payment_methods_session::PaymentMethodsSession>(&redis_key, "PaymentMethodsSession")
+                .get_and_deserialize_key::<diesel_models::payment_methods_session::PaymentMethodsSession>(&redis_key.into(), "PaymentMethodsSession")
                 .await
                 .change_context(errors::StorageError::KVError)?;
 
