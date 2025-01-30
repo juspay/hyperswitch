@@ -1,5 +1,4 @@
 pub mod transformers;
-
 use base64::Engine;
 use common_enums::enums;
 use common_utils::{
@@ -25,7 +24,10 @@ use hyperswitch_domain_models::{
         PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData,
         PaymentsSyncData, RefundsData, SetupMandateRequestData,
     },
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    router_response_types::{
+        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
+        SupportedPaymentMethods, SupportedPaymentMethodsExt,
+    },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCaptureRouterData,
         PaymentsCompleteAuthorizeRouterData, PaymentsSyncRouterData, RefundSyncRouterData,
@@ -43,6 +45,7 @@ use hyperswitch_interfaces::{
     types::{self, Response},
     webhooks,
 };
+use lazy_static::lazy_static;
 use masking::{Mask, PeekInterface};
 use transformers as digitalvirgo;
 
@@ -540,4 +543,50 @@ impl webhooks::IncomingWebhook for Digitalvirgo {
     }
 }
 
-impl ConnectorSpecifications for Digitalvirgo {}
+lazy_static! {
+    static ref DIGITALVIRGO_SUPPORTED_PAYMENT_METHODS: SupportedPaymentMethods = {
+        let supported_capture_methods = vec![
+            enums::CaptureMethod::Automatic,
+            enums::CaptureMethod::SequentialAutomatic,
+        ];
+
+        let mut digitalvirgo_supported_payment_methods = SupportedPaymentMethods::new();
+
+        digitalvirgo_supported_payment_methods.add(
+            enums::PaymentMethod::MobilePayment,
+            enums::PaymentMethodType::DirectCarrierBilling,
+            PaymentMethodDetails{
+                mandates: enums::FeatureStatus::NotSupported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: None,
+            }
+        );
+
+        digitalvirgo_supported_payment_methods
+    };
+
+    static ref DIGITALVIRGO_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+        description:
+            "Digital Virgo is an alternative payment provider specializing in carrier billing and mobile payments "
+                .to_string(),
+        connector_type: enums::PaymentConnectorCategory::AlternativePaymentMethod,
+    };
+
+    static ref DIGITALVIRGO_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> = Vec::new();
+
+}
+
+impl ConnectorSpecifications for Digitalvirgo {
+    fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
+        Some(&*DIGITALVIRGO_CONNECTOR_INFO)
+    }
+
+    fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
+        Some(&*DIGITALVIRGO_SUPPORTED_PAYMENT_METHODS)
+    }
+
+    fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
+        Some(&*DIGITALVIRGO_SUPPORTED_WEBHOOK_FLOWS)
+    }
+}
