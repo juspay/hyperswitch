@@ -1,10 +1,12 @@
 //! Payment related types
-use diesel::sql_types::Json;
 use std::collections::HashMap;
 
 use common_enums::enums;
 use common_utils::{errors, impl_to_sql_from_sql_json, types::MinorUnit};
-use diesel::{sql_types::Jsonb, AsExpression, FromSqlRow};
+use diesel::{
+    sql_types::{Json, Jsonb},
+    AsExpression, FromSqlRow,
+};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -71,16 +73,16 @@ impl AuthenticationConnectorAccountMap {
 )]
 #[diesel(sql_type = Json)]
 /// Metadata for the revenue recovery payment intent
-pub struct PCRPaymentIntentFeatureMetadata{
-    /// Number of attempts that have been made for the order 
+pub struct PCRPaymentIntentFeatureMetadata {
+    /// Number of attempts that have been made for the order
     #[schema(value_type = i32, example = 1)]
-    pub retry_count : i32,
+    pub retry_count: i32,
     /// Denotes whether the connector has been called
-    pub called_connector : bool,
+    pub called_connector: bool,
     /// The merchant connector account id for the billing connector
-    pub billing_connector_mca_id : common_utils::id_type::MerchantConnectorAccountId,
+    pub billing_connector_mca_id: common_utils::id_type::MerchantConnectorAccountId,
     /// The mandate details for the connector
-    pub connector_mandate_details : PCRConnectorMandateDetails
+    pub connector_mandate_details: PCRConnectorMandateDetails,
 }
 
 #[derive(
@@ -88,11 +90,11 @@ pub struct PCRPaymentIntentFeatureMetadata{
 )]
 #[diesel(sql_type = Json)]
 /// Mandate details for the PCR connector
-pub struct PCRConnectorMandateDetails{
+pub struct PCRConnectorMandateDetails {
     /// The payment processor token for the PCR connector
-    pub payment_processor_token : String,
+    pub payment_processor_token: String,
     /// The connector customer id for the PCR connector
-    pub connector_customer_id : String
+    pub connector_customer_id: String,
 }
 
 common_utils::impl_to_sql_from_sql_json!(PCRPaymentIntentFeatureMetadata);

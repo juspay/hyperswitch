@@ -6653,8 +6653,7 @@ pub struct FeatureMetadata {
     /// Recurring payment details required for apple pay Merchant Token
     pub apple_pay_recurring_details: Option<ApplePayRecurringDetails>,
     /// Revenue recovery feature metadata
-    pub revenue_recovery_metadata: Option<PCRPaymentIntentFeatureMetadata>
-
+    pub revenue_recovery_metadata: Option<PCRPaymentIntentFeatureMetadata>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
