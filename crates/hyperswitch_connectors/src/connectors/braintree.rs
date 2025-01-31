@@ -35,7 +35,8 @@ use hyperswitch_domain_models::{
 };
 use hyperswitch_interfaces::{
     api::{
-        self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorRedirectResponse, ConnectorSpecifications, ConnectorValidation
+        self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorRedirectResponse,
+        ConnectorSpecifications, ConnectorValidation,
     },
     configs::Connectors,
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
@@ -59,9 +60,8 @@ use crate::{
     constants::headers,
     types::ResponseRouterData,
     utils::{
-        self, convert_amount, is_mandate_supported,
-        to_currency_lower_unit, PaymentMethodDataType, PaymentsAuthorizeRequestData,
-        PaymentsCompleteAuthorizeRequestData,
+        self, convert_amount, is_mandate_supported, to_currency_lower_unit, PaymentMethodDataType,
+        PaymentsAuthorizeRequestData, PaymentsCompleteAuthorizeRequestData,
     },
 };
 

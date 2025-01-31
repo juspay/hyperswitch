@@ -76,6 +76,12 @@ pub(crate) fn get_amount_as_string(
     Ok(amount)
 }
 
+pub(crate) fn base64_decode(data: String) -> Result<Vec<u8>, Error> {
+    BASE64_ENGINE
+        .decode(data)
+        .change_context(errors::ConnectorError::ResponseDeserializationFailed)
+}
+
 pub(crate) fn to_currency_base_unit(
     amount: i64,
     currency: enums::Currency,

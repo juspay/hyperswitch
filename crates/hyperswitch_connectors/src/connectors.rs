@@ -7,8 +7,8 @@ pub mod bankofamerica;
 pub mod billwerk;
 pub mod bitpay;
 pub mod bluesnap;
-pub mod braintree;
 pub mod boku;
+pub mod braintree;
 pub mod cashtocode;
 pub mod chargebee;
 pub mod coinbase;
@@ -27,6 +27,7 @@ pub mod forte;
 pub mod globepay;
 pub mod gocardless;
 pub mod helcim;
+pub mod iatapay;
 pub mod inespay;
 pub mod jpmorgan;
 pub mod mollie;
@@ -62,12 +63,12 @@ pub mod zsl;
 pub use self::{
     aci::Aci, airwallex::Airwallex, amazonpay::Amazonpay, bambora::Bambora,
     bamboraapac::Bamboraapac, bankofamerica::Bankofamerica, billwerk::Billwerk, bitpay::Bitpay,
-    bluesnap::Bluesnap, braintree::Braintree, boku::Boku, cashtocode::Cashtocode, chargebee::Chargebee,
-    coinbase::Coinbase, cryptopay::Cryptopay, ctp_mastercard::CtpMastercard,
+    bluesnap::Bluesnap, boku::Boku, braintree::Braintree, cashtocode::Cashtocode,
+    chargebee::Chargebee, coinbase::Coinbase, cryptopay::Cryptopay, ctp_mastercard::CtpMastercard,
     cybersource::Cybersource, datatrans::Datatrans, deutschebank::Deutschebank,
     digitalvirgo::Digitalvirgo, dlocal::Dlocal, elavon::Elavon, fiserv::Fiserv,
     fiservemea::Fiservemea, fiuu::Fiuu, forte::Forte, globepay::Globepay, gocardless::Gocardless,
-    helcim::Helcim, inespay::Inespay, jpmorgan::Jpmorgan, mollie::Mollie,
+    helcim::Helcim, iatapay::Iatapay, inespay::Inespay, jpmorgan::Jpmorgan, mollie::Mollie,
     multisafepay::Multisafepay, nexinets::Nexinets, nexixpay::Nexixpay, nomupay::Nomupay,
     novalnet::Novalnet, paybox::Paybox, payeezy::Payeezy, payu::Payu, placetopay::Placetopay,
     powertranz::Powertranz, prophetpay::Prophetpay, rapyd::Rapyd, razorpay::Razorpay,
