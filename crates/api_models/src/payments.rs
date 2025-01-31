@@ -6549,12 +6549,12 @@ pub struct SdkInformation {
     /// Indicates maximum amount of time in minutes
     pub sdk_max_timeout: u8,
     /// Indicates the type of 3DS SDK
-    pub sdk_type: Option<SdkTypeEnum>,
+    pub sdk_type: Option<SdkType>,
 }
 
 /// Enum representing the type of 3DS SDK.
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub enum SdkTypeEnum {
+#[derive(Serialize, Deserialize, Debug, Clone, ToSchema)]
+pub enum SdkType {
     #[serde(rename = "01")]
     DefaultSdk,
     #[serde(rename = "02")]
