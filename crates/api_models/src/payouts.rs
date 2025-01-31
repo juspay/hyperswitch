@@ -184,6 +184,8 @@ pub struct PayoutCreateRequest {
     /// Customer's phone country code. _Deprecated: Use customer object instead._
     #[schema(deprecated, max_length = 255, example = "+1")]
     pub phone_country_code: Option<String>,
+
+    pub payout_method_id: Option<common_enums::PaymentMethod>, // here
 }
 
 impl PayoutCreateRequest {

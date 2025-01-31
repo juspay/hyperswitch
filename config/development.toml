@@ -593,6 +593,9 @@ nexixpay = { payment_method = "card" }
 connector_list = "gocardless,stax,stripe"
 payout_connector_list = "stripe,wise"
 
+[some_name]
+payout_connector_list = "nomupay" 
+
 [dummy_connector]
 enabled = true
 payment_ttl = 172800

@@ -812,7 +812,7 @@ pub struct UploadFileRequestData {
 pub struct PayoutsData {
     pub payout_id: String,
     pub amount: i64,
-    pub connector_payout_id: Option<String>,
+    pub connector_payout_id: Option<String>, //not this
     pub destination_currency: storage_enums::Currency,
     pub source_currency: storage_enums::Currency,
     pub payout_type: Option<storage_enums::PayoutType>,
@@ -823,6 +823,7 @@ pub struct PayoutsData {
     // New minor amount for amount framework
     pub minor_amount: MinorUnit,
     pub priority: Option<storage_enums::PayoutSendPriority>,
+    pub transfer_method_id: Option<String>, // will be using as destination_id: item.request.clone().connector_payout_id,
 }
 
 #[derive(Debug, Default, Clone)]
