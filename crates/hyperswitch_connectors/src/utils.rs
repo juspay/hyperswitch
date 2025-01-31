@@ -39,6 +39,7 @@ use regex::Regex;
 use router_env::logger;
 use serde::Serializer;
 use serde_json::Value;
+use time::PrimitiveDateTime;
 
 use crate::{constants::UNSUPPORTED_ERROR_MESSAGE, types::RefreshTokenRouterData};
 
@@ -62,6 +63,11 @@ pub(crate) fn to_currency_base_unit_with_zero_decimal_check(
     currency
         .to_currency_base_unit_with_zero_decimal_check(amount)
         .change_context(errors::ConnectorError::RequestEncodingFailed)
+}
+
+pub(crate) fn get_timestamp_in_milliseconds(datetime: &PrimitiveDateTime) -> i64 {
+    let utc_datetime = datetime.assume_utc();
+    utc_datetime.unix_timestamp() * 1000
 }
 
 pub(crate) fn get_amount_as_string(
@@ -1697,6 +1703,7 @@ pub trait RefundsRequestData {
     fn get_connector_refund_id(&self) -> Result<String, Error>;
     fn get_webhook_url(&self) -> Result<String, Error>;
     fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
+    fn get_connector_metadata(&self) -> Result<Value, Error>;
 }
 
 impl RefundsRequestData for RefundsData {
@@ -1721,6 +1728,11 @@ impl RefundsRequestData for RefundsData {
         self.browser_info
             .clone()
             .and_then(|browser_info| browser_info.language)
+    }
+    fn get_connector_metadata(&self) -> Result<Value, Error> {
+        self.connector_metadata
+            .clone()
+            .ok_or_else(missing_field_err("connector_metadata"))
     }
 }
 

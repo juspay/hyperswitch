@@ -217,7 +217,7 @@ default_imp_for_complete_authorize!(
     connector::Checkout,
     connector::Ebanx,
     connector::Gpayments,
-    connector::Itaubank,
+    
     connector::Klarna,
     connector::Mifinity,
     connector::Netcetera,
@@ -268,7 +268,7 @@ default_imp_for_webhook_source_verification!(
     connector::Ebanx,
     connector::Globalpay,
     connector::Gpayments,
-    connector::Itaubank,
+    
     connector::Klarna,
     connector::Mifinity,
     connector::Netcetera,
@@ -324,7 +324,7 @@ default_imp_for_create_customer!(
     connector::Ebanx,
     connector::Globalpay,
     connector::Gpayments,
-    connector::Itaubank,
+    
     connector::Klarna,
     connector::Mifinity,
     connector::Netcetera,
@@ -379,7 +379,7 @@ default_imp_for_connector_redirect_response!(
     connector::Adyen,
     connector::Ebanx,
     connector::Gpayments,
-    connector::Itaubank,
+    
     connector::Klarna,
     connector::Mifinity,
     connector::Netcetera,
@@ -529,7 +529,7 @@ default_imp_for_accept_dispute!(
     connector::Ebanx,
     connector::Globalpay,
     connector::Gpayments,
-    connector::Itaubank,
+    
     connector::Klarna,
     connector::Mifinity,
     connector::Netcetera,
@@ -606,7 +606,7 @@ default_imp_for_file_upload!(
     connector::Ebanx,
     connector::Globalpay,
     connector::Gpayments,
-    connector::Itaubank,
+    
     connector::Klarna,
     connector::Mifinity,
     connector::Netcetera,
@@ -660,7 +660,7 @@ default_imp_for_submit_evidence!(
     connector::Ebanx,
     connector::Globalpay,
     connector::Gpayments,
-    connector::Itaubank,
+    
     connector::Klarna,
     connector::Mifinity,
     connector::Netcetera,
@@ -714,7 +714,7 @@ default_imp_for_defend_dispute!(
     connector::Ebanx,
     connector::Globalpay,
     connector::Gpayments,
-    connector::Itaubank,
+    
     connector::Klarna,
     connector::Mifinity,
     connector::Netcetera,
@@ -783,7 +783,7 @@ default_imp_for_pre_processing_steps!(
     connector::Authorizedotnet,
     connector::Checkout,
     connector::Ebanx,
-    connector::Itaubank,
+    
     connector::Globalpay,
     connector::Gpayments,
     connector::Klarna,
@@ -825,7 +825,7 @@ default_imp_for_post_processing_steps!(
     connector::Authorizedotnet,
     connector::Checkout,
     connector::Ebanx,
-    connector::Itaubank,
+    
     connector::Globalpay,
     connector::Gpayments,
     connector::Klarna,
@@ -858,7 +858,7 @@ default_imp_for_payouts!(
     connector::Checkout,
     connector::Globalpay,
     connector::Gpayments,
-    connector::Itaubank,
+    
     connector::Klarna,
     connector::Mifinity,
     connector::Netcetera,
@@ -910,7 +910,7 @@ default_imp_for_payouts_create!(
     connector::Checkout,
     connector::Globalpay,
     connector::Gpayments,
-    connector::Itaubank,
+    
     connector::Klarna,
     connector::Mifinity,
     connector::Netcetera,
@@ -965,7 +965,7 @@ default_imp_for_payouts_retrieve!(
     connector::Ebanx,
     connector::Globalpay,
     connector::Gpayments,
-    connector::Itaubank,
+    
     connector::Klarna,
     connector::Mifinity,
     connector::Netcetera,
@@ -1023,7 +1023,7 @@ default_imp_for_payouts_eligibility!(
     connector::Checkout,
     connector::Globalpay,
     connector::Gpayments,
-    connector::Itaubank,
+    
     connector::Klarna,
     connector::Mifinity,
     connector::Netcetera,
@@ -1077,7 +1077,7 @@ default_imp_for_payouts_fulfill!(
     connector::Checkout,
     connector::Globalpay,
     connector::Gpayments,
-    connector::Itaubank,
+    
     connector::Klarna,
     connector::Mifinity,
     connector::Netcetera,
@@ -1129,7 +1129,7 @@ default_imp_for_payouts_cancel!(
     connector::Checkout,
     connector::Globalpay,
     connector::Gpayments,
-    connector::Itaubank,
+    
     connector::Klarna,
     connector::Mifinity,
     connector::Netcetera,
@@ -1184,7 +1184,7 @@ default_imp_for_payouts_quote!(
     connector::Checkout,
     connector::Globalpay,
     connector::Gpayments,
-    connector::Itaubank,
+    
     connector::Klarna,
     connector::Mifinity,
     connector::Netcetera,
@@ -1240,7 +1240,7 @@ default_imp_for_payouts_recipient!(
     connector::Checkout,
     connector::Globalpay,
     connector::Gpayments,
-    connector::Itaubank,
+    
     connector::Klarna,
     connector::Mifinity,
     connector::Netcetera,
@@ -1299,7 +1299,7 @@ default_imp_for_payouts_recipient_account!(
     connector::Ebanx,
     connector::Globalpay,
     connector::Gpayments,
-    connector::Itaubank,
+    
     connector::Klarna,
     connector::Mifinity,
     connector::Netcetera,
@@ -1355,7 +1355,7 @@ default_imp_for_approve!(
     connector::Ebanx,
     connector::Globalpay,
     connector::Gpayments,
-    connector::Itaubank,
+    
     connector::Klarna,
     connector::Mifinity,
     connector::Netcetera,
@@ -1412,7 +1412,7 @@ default_imp_for_reject!(
     connector::Ebanx,
     connector::Globalpay,
     connector::Gpayments,
-    connector::Itaubank,
+    
     connector::Klarna,
     connector::Mifinity,
     connector::Netcetera,
@@ -1570,7 +1570,7 @@ default_imp_for_frm_sale!(
     connector::Ebanx,
     connector::Globalpay,
     connector::Gpayments,
-    connector::Itaubank,
+    
     connector::Klarna,
     connector::Mifinity,
     connector::Netcetera,
@@ -1627,7 +1627,7 @@ default_imp_for_frm_checkout!(
     connector::Ebanx,
     connector::Globalpay,
     connector::Gpayments,
-    connector::Itaubank,
+    
     connector::Klarna,
     connector::Mifinity,
     connector::Netcetera,
@@ -1684,7 +1684,7 @@ default_imp_for_frm_transaction!(
     connector::Ebanx,
     connector::Globalpay,
     connector::Gpayments,
-    connector::Itaubank,
+    
     connector::Klarna,
     connector::Mifinity,
     connector::Netcetera,
@@ -1741,7 +1741,7 @@ default_imp_for_frm_fulfillment!(
     connector::Ebanx,
     connector::Globalpay,
     connector::Gpayments,
-    connector::Itaubank,
+    
     connector::Klarna,
     connector::Mifinity,
     connector::Netcetera,
@@ -1798,7 +1798,7 @@ default_imp_for_frm_record_return!(
     connector::Ebanx,
     connector::Globalpay,
     connector::Gpayments,
-    connector::Itaubank,
+    
     connector::Klarna,
     connector::Mifinity,
     connector::Netcetera,
@@ -1853,7 +1853,7 @@ default_imp_for_incremental_authorization!(
     connector::Ebanx,
     connector::Globalpay,
     connector::Gpayments,
-    connector::Itaubank,
+    
     connector::Klarna,
     connector::Mifinity,
     connector::Netcetera,
@@ -1908,7 +1908,7 @@ default_imp_for_revoking_mandates!(
     connector::Ebanx,
     connector::Globalpay,
     connector::Gpayments,
-    connector::Itaubank,
+    
     connector::Klarna,
     connector::Mifinity,
     connector::Netcetera,
@@ -2133,7 +2133,7 @@ default_imp_for_authorize_session_token!(
     connector::Ebanx,
     connector::Globalpay,
     connector::Gpayments,
-    connector::Itaubank,
+    
     connector::Klarna,
     connector::Mifinity,
     connector::Netcetera,
@@ -2187,7 +2187,7 @@ default_imp_for_calculate_tax!(
     connector::Ebanx,
     connector::Globalpay,
     connector::Gpayments,
-    connector::Itaubank,
+    
     connector::Klarna,
     connector::Mifinity,
     connector::Netcetera,
@@ -2242,7 +2242,7 @@ default_imp_for_session_update!(
     connector::Ebanx,
     connector::Globalpay,
     connector::Gpayments,
-    connector::Itaubank,
+    
     connector::Klarna,
     connector::Mifinity,
     connector::Netcetera,
@@ -2296,7 +2296,7 @@ default_imp_for_post_session_tokens!(
     connector::Ebanx,
     connector::Globalpay,
     connector::Gpayments,
-    connector::Itaubank,
+    
     connector::Klarna,
     connector::Mifinity,
     connector::Netcetera,
@@ -2353,7 +2353,7 @@ default_imp_for_uas_pre_authentication!(
     connector::Ebanx,
     connector::Globalpay,
     connector::Gpayments,
-    connector::Itaubank,
+    
     connector::Klarna,
     connector::Mifinity,
     connector::Netcetera,
@@ -2408,7 +2408,7 @@ default_imp_for_uas_post_authentication!(
     connector::Ebanx,
     connector::Globalpay,
     connector::Gpayments,
-    connector::Itaubank,
+    
     connector::Klarna,
     connector::Mifinity,
     connector::Netcetera,

@@ -28,6 +28,7 @@ pub(crate) mod headers {
     pub(crate) const CORRELATION_ID: &str = "Correlation-Id";
     pub(crate) const WP_API_VERSION: &str = "WP-Api-Version";
     pub(crate) const SOURCE: &str = "Source";
+    pub(crate) const USER_AGENT: &str = "User-Agent";
 }
 
 /// Unsupported response type error message
