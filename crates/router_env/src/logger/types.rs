@@ -547,6 +547,8 @@ pub enum Flow {
     PaymentMethodSessionCreate,
     /// Payment Method Session Retrieve
     PaymentMethodSessionRetrieve,
+    // Payment Method Session Update
+    PaymentMethodSessionUpdate,
     /// Update a saved payment method using the payment methods session
     PaymentMethodSessionUpdateSavedPaymentMethod,
 }

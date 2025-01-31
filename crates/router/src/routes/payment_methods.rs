@@ -918,6 +918,46 @@ pub async fn payment_methods_session_create(
 }
 
 #[cfg(feature = "v2")]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentMethodSessionUpdate))]
+pub async fn payment_methods_session_update(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<id_type::GlobalPaymentMethodSessionId>,
+    json_payload: web::Json<api_models::payment_methods::PaymentMethodsSessionUpdateRequest>,
+) -> HttpResponse {
+    let flow = Flow::PaymentMethodSessionUpdate;
+    let payment_method_session_id = path.into_inner();
+    let payload = json_payload.into_inner();
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth: auth::AuthenticationData, req, _| {
+            let value = payment_method_session_id.clone();
+            async move {
+            payment_methods_routes::payment_methods_session_update(
+                state,
+                auth.merchant_account,
+                auth.key_store,
+                value.clone(),
+                req,
+            )
+            .await
+        }},
+        &vec![
+            auth::V2Auth::ApiKeyAuth,
+            auth::V2Auth::ClientAuth(diesel_models::ResourceId::PaymentMethodSession(
+                payment_method_session_id.clone(),
+            )),
+        ],
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(feature = "v2")]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentMethodSessionRetrieve))]
 pub async fn payment_methods_session_retrieve(
     state: web::Data<AppState>,
