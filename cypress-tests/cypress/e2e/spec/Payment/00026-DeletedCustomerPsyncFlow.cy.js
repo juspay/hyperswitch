@@ -14,6 +14,7 @@ describe("Card - Customer Deletion and Psync", () => {
   after("flush global state", () => {
     cy.task("setGlobalState", globalState.data);
   });
+
   context("Card - Psync after Customer Deletion for Automatic Capture", () => {
     context("No3DS Card - Psync after Customer Deletion  ", () => {
       let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
@@ -84,6 +85,16 @@ describe("Card - Customer Deletion and Psync", () => {
         if (!shouldContinue) {
           this.skip();
         }
+      });
+
+      before("seed global state", () => {
+        cy.task("getGlobalState").then((state) => {
+          globalState = new State(state);
+        });
+      });
+
+      afterEach("flush global state", () => {
+        cy.task("setGlobalState", globalState.data);
       });
 
       it("Create Customer", () => {
@@ -197,6 +208,7 @@ describe("Card - Customer Deletion and Psync", () => {
         if (shouldContinue)
           shouldContinue = utils.should_continue_further(data);
       });
+
       it("Retrieve Payment", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
@@ -204,6 +216,7 @@ describe("Card - Customer Deletion and Psync", () => {
 
         cy.retrievePaymentCallTest(globalState, data);
       });
+
       it("Delete Customer", () => {
         cy.customerDeleteCall(globalState);
       });
@@ -224,6 +237,16 @@ describe("Card - Customer Deletion and Psync", () => {
         if (!shouldContinue) {
           this.skip();
         }
+      });
+
+      before("seed global state", () => {
+        cy.task("getGlobalState").then((state) => {
+          globalState = new State(state);
+        });
+      });
+
+      afterEach("flush global state", () => {
+        cy.task("setGlobalState", globalState.data);
       });
 
       it("Create Customer", () => {
