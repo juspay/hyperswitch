@@ -26,7 +26,10 @@ use hyperswitch_domain_models::{
         PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData,
         PaymentsSyncData, RefundsData, ResponseId, SetupMandateRequestData,
     },
-    router_response_types::{ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData, SupportedPaymentMethods, SupportedPaymentMethodsExt},
+    router_response_types::{
+        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
+        SupportedPaymentMethods, SupportedPaymentMethodsExt,
+    },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
         PaymentsCompleteAuthorizeRouterData, PaymentsSyncRouterData, RefundExecuteRouterData,
@@ -1277,7 +1280,7 @@ lazy_static! {
         worldpay_supported_payment_methods.add(
             enums::PaymentMethod::Card,
             enums::PaymentMethodType::Credit,
-            PaymentMethodDetails{
+            PaymentMethodDetails {
                 mandates: enums::FeatureStatus::Supported,
                 refunds: enums::FeatureStatus::Supported,
                 supported_capture_methods: supported_capture_methods.clone(),
@@ -1290,13 +1293,13 @@ lazy_static! {
                         }
                     }),
                 ),
-            }
+            },
         );
 
         worldpay_supported_payment_methods.add(
             enums::PaymentMethod::Card,
             enums::PaymentMethodType::Debit,
-            PaymentMethodDetails{
+            PaymentMethodDetails {
                 mandates: enums::FeatureStatus::Supported,
                 refunds: enums::FeatureStatus::Supported,
                 supported_capture_methods: supported_capture_methods.clone(),
@@ -1309,43 +1312,39 @@ lazy_static! {
                         }
                     }),
                 ),
-            }
+            },
         );
 
         worldpay_supported_payment_methods.add(
             enums::PaymentMethod::Wallet,
             enums::PaymentMethodType::GooglePay,
-            PaymentMethodDetails{
+            PaymentMethodDetails {
                 mandates: enums::FeatureStatus::NotSupported,
                 refunds: enums::FeatureStatus::Supported,
                 supported_capture_methods: supported_capture_methods.clone(),
                 specific_features: None,
-            }
+            },
         );
 
         worldpay_supported_payment_methods.add(
             enums::PaymentMethod::Wallet,
             enums::PaymentMethodType::ApplePay,
-            PaymentMethodDetails{
+            PaymentMethodDetails {
                 mandates: enums::FeatureStatus::NotSupported,
                 refunds: enums::FeatureStatus::Supported,
                 supported_capture_methods: supported_capture_methods.clone(),
                 specific_features: None,
-            }
+            },
         );
 
         worldpay_supported_payment_methods
     };
-
     static ref WORLDPAY_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
         display_name: "Worldpay",
-        description:
-            "Worldpay is a payment gateway and PSP enabling secure online transactions",
+        description: "Worldpay is a payment gateway and PSP enabling secure online transactions",
         connector_type: enums::PaymentConnectorCategory::PaymentGateway,
     };
-
     static ref WORLDPAY_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> = Vec::new();
-
 }
 
 impl ConnectorSpecifications for Worldpay {

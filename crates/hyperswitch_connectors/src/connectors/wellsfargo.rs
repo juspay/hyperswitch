@@ -28,7 +28,10 @@ use hyperswitch_domain_models::{
         PaymentsIncrementalAuthorizationData, PaymentsSessionData, PaymentsSyncData, RefundsData,
         SetupMandateRequestData,
     },
-    router_response_types::{ConnectorInfo, MandateRevokeResponseData, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData, SupportedPaymentMethods, SupportedPaymentMethodsExt},
+    router_response_types::{
+        ConnectorInfo, MandateRevokeResponseData, PaymentMethodDetails, PaymentsResponseData,
+        RefundsResponseData, SupportedPaymentMethods, SupportedPaymentMethodsExt,
+    },
     types::{
         MandateRevokeRouterData, PaymentsAuthorizeRouterData, PaymentsCancelRouterData,
         PaymentsCaptureRouterData, PaymentsIncrementalAuthorizationRouterData,

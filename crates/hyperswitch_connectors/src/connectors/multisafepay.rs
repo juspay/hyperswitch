@@ -22,7 +22,10 @@ use hyperswitch_domain_models::{
         PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
         RefundsData, SetupMandateRequestData,
     },
-    router_response_types::{ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData, SupportedPaymentMethods, SupportedPaymentMethodsExt},
+    router_response_types::{
+        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
+        SupportedPaymentMethods, SupportedPaymentMethodsExt,
+    },
     types::{
         PaymentsAuthorizeRouterData, PaymentsSyncRouterData, RefundSyncRouterData,
         RefundsRouterData,
@@ -591,7 +594,7 @@ lazy_static! {
         multisafepay_supported_payment_methods.add(
             enums::PaymentMethod::Card,
             enums::PaymentMethodType::Credit,
-            PaymentMethodDetails{
+            PaymentMethodDetails {
                 mandates: enums::FeatureStatus::Supported,
                 refunds: enums::FeatureStatus::Supported,
                 supported_capture_methods: supported_capture_methods.clone(),
@@ -604,13 +607,13 @@ lazy_static! {
                         }
                     }),
                 ),
-            }
+            },
         );
 
         multisafepay_supported_payment_methods.add(
             enums::PaymentMethod::Card,
             enums::PaymentMethodType::Debit,
-            PaymentMethodDetails{
+            PaymentMethodDetails {
                 mandates: enums::FeatureStatus::Supported,
                 refunds: enums::FeatureStatus::Supported,
                 supported_capture_methods: supported_capture_methods.clone(),
@@ -623,76 +626,73 @@ lazy_static! {
                         }
                     }),
                 ),
-            }
+            },
         );
 
         multisafepay_supported_payment_methods.add(
             enums::PaymentMethod::Wallet,
             enums::PaymentMethodType::GooglePay,
-            PaymentMethodDetails{
+            PaymentMethodDetails {
                 mandates: enums::FeatureStatus::Supported,
                 refunds: enums::FeatureStatus::Supported,
                 supported_capture_methods: supported_capture_methods.clone(),
                 specific_features: None,
-            }
+            },
         );
 
         multisafepay_supported_payment_methods.add(
             enums::PaymentMethod::Wallet,
             enums::PaymentMethodType::Paypal,
-            PaymentMethodDetails{
+            PaymentMethodDetails {
                 mandates: enums::FeatureStatus::NotSupported,
                 refunds: enums::FeatureStatus::Supported,
                 supported_capture_methods: supported_capture_methods.clone(),
                 specific_features: None,
-            }
+            },
         );
 
         multisafepay_supported_payment_methods.add(
             enums::PaymentMethod::BankRedirect,
             enums::PaymentMethodType::Giropay,
-            PaymentMethodDetails{
+            PaymentMethodDetails {
                 mandates: enums::FeatureStatus::NotSupported,
                 refunds: enums::FeatureStatus::Supported,
                 supported_capture_methods: supported_capture_methods.clone(),
                 specific_features: None,
-            }
+            },
         );
 
         multisafepay_supported_payment_methods.add(
             enums::PaymentMethod::BankRedirect,
             enums::PaymentMethodType::Ideal,
-            PaymentMethodDetails{
+            PaymentMethodDetails {
                 mandates: enums::FeatureStatus::NotSupported,
                 refunds: enums::FeatureStatus::Supported,
                 supported_capture_methods: supported_capture_methods.clone(),
                 specific_features: None,
-            }
+            },
         );
 
         multisafepay_supported_payment_methods.add(
             enums::PaymentMethod::PayLater,
             enums::PaymentMethodType::Klarna,
-            PaymentMethodDetails{
+            PaymentMethodDetails {
                 mandates: enums::FeatureStatus::NotSupported,
                 refunds: enums::FeatureStatus::Supported,
                 supported_capture_methods: supported_capture_methods.clone(),
                 specific_features: None,
-            }
+            },
         );
 
         multisafepay_supported_payment_methods
     };
-
     static ref MULTISAFEPAY_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
         display_name: "Multisafepay",
         description:
             "MultiSafePay is a payment gateway and PSP enabling secure online transactions",
         connector_type: enums::PaymentConnectorCategory::PaymentGateway,
     };
-
     static ref MULTISAFEPAY_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> = Vec::new();
-
 }
 
 impl ConnectorSpecifications for Multisafepay {
