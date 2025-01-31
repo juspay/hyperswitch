@@ -298,7 +298,7 @@ impl PaymentLinkType {
             .and_then(|v| v.to_str().ok())
         {
             Some("iframe") => Self::SecurePaymentLink,
-            Some(_) | None => Self::OpenPaymentLink,
+            _ => Self::OpenPaymentLink,
         }
     }
 }

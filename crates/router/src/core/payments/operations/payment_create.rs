@@ -1602,7 +1602,6 @@ async fn create_payment_link(
 
     Ok(Some(api_models::payments::PaymentLinkResponse {
         link: payment_link_db.link_to_pay.clone(),
-        secure_link: None, //It is deprecated now.
         payment_link_id: payment_link_db.payment_link_id,
     }))
 }

@@ -30,7 +30,6 @@ impl PaymentLinkResponseExt for RetrievePaymentLinkResponse {
             expiry: payment_link.fulfilment_time,
             currency: payment_link.currency,
             status,
-            secure_link: None, //It is deprecated now.
         })
     }
 }
