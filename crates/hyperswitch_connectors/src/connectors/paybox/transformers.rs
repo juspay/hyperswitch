@@ -148,7 +148,7 @@ pub struct ThreeDSPaymentsRequest {
     address1: Secret<String>,
     zip_code: Secret<String>,
     city: String,
-    country_code: i32,
+    country_code: String,
     total_quantity: i32,
 }
 #[derive(Debug, Serialize, Eq, PartialEq)]
@@ -422,8 +422,11 @@ impl TryFrom<&PayboxRouterData<&types::PaymentsAuthorizeRouterData>> for PayboxP
                         address1: address.get_line1()?.clone(),
                         zip_code: address.get_zip()?.clone(),
                         city: address.get_city()?.clone(),
-                        country_code: common_enums::Country::from_alpha2(*address.get_country()?)
-                            .to_numeric() as i32,
+                        country_code: format!(
+                            "{:03}",
+                            common_enums::Country::from_alpha2(*address.get_country()?)
+                                .to_numeric()
+                        ),
                         total_quantity: 1,
                     }))
                 } else {
