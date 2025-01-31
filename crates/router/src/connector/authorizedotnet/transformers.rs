@@ -1837,6 +1837,7 @@ impl TryFrom<&AuthorizedotnetRouterData<&types::PaymentsCompleteAuthorizeRouterD
 
         let query_params: Option<PaypalQueryParams> = serde_urlencoded::from_str(params.peek())
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)
+            .attach_printable("Failed to parse connector response")
             .ok();
         let payer_id = query_params.and_then(|params| params.payer_id);
 
