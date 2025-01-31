@@ -1563,9 +1563,28 @@ impl From<api_models::payments::SdkInformation> for Sdk {
             sdk_reference_number: Some(sdk_info.sdk_reference_number),
             sdk_trans_id: Some(sdk_info.sdk_trans_id),
             sdk_server_signed_content: None,
-            sdk_type: None,
-            default_sdk_type: None,
+            sdk_type: sdk_info
+                .sdk_type
+                .map(SdkTypeEnum::from)
+                .or(Some(SdkTypeEnum::DefaultSdk)),
+            default_sdk_type: Some(DefaultSdkType {
+                // hardcoding this value because, it's the only value that is accepted
+                sdk_variant: "01".to_string(),
+                wrapped_ind: None,
+            }),
             split_sdk_type: None,
+        }
+    }
+}
+
+impl From<api_models::payments::SdkTypeEnum> for SdkTypeEnum {
+    fn from(sdk_type: api_models::payments::SdkTypeEnum) -> Self {
+        match sdk_type {
+            api_models::payments::SdkTypeEnum::DefaultSdk => Self::DefaultSdk,
+            api_models::payments::SdkTypeEnum::SplitSdk => Self::SplitSdk,
+            api_models::payments::SdkTypeEnum::LimitedSdk => Self::LimitedSdk,
+            api_models::payments::SdkTypeEnum::BrowserSdk => Self::BrowserSdk,
+            api_models::payments::SdkTypeEnum::ShellSdk => Self::ShellSdk,
         }
     }
 }
