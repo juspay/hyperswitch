@@ -250,7 +250,7 @@ impl<F>
                     code: error_data.error.to_string(),
                     status_code: item.http_code,
                     message: error_data.error_description.clone(),
-                    reason: Some(error_data.error_description.clone()),
+                    reason: Some(error_data.error_description),
                     attempt_status: None,
                     connector_transaction_id: None,
                 }),
