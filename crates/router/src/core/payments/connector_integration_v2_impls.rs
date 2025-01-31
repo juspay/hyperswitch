@@ -704,7 +704,7 @@ default_imp_for_new_connector_integration_payment!(
     connector::Gpayments,
     
     connector::Klarna,
-    connector::Mifinity,
+    
     connector::Netcetera,
     connector::Nmi,
     connector::Noon,
@@ -750,7 +750,7 @@ default_imp_for_new_connector_integration_refund!(
     connector::Gpayments,
     
     connector::Klarna,
-    connector::Mifinity,
+    
     connector::Netcetera,
     connector::Nmi,
     connector::Noon,
@@ -790,7 +790,7 @@ default_imp_for_new_connector_integration_connector_access_token!(
     connector::Gpayments,
     
     connector::Klarna,
-    connector::Mifinity,
+    
     connector::Netcetera,
     connector::Nmi,
     connector::Noon,
@@ -852,7 +852,7 @@ default_imp_for_new_connector_integration_accept_dispute!(
     connector::Gpayments,
     
     connector::Klarna,
-    connector::Mifinity,
+    
     connector::Netcetera,
     connector::Nmi,
     connector::Noon,
@@ -896,7 +896,7 @@ default_imp_for_new_connector_integration_defend_dispute!(
     connector::Gpayments,
     
     connector::Klarna,
-    connector::Mifinity,
+    
     connector::Netcetera,
     connector::Nmi,
     connector::Noon,
@@ -924,7 +924,7 @@ default_imp_for_new_connector_integration_submit_evidence!(
     connector::Gpayments,
     
     connector::Klarna,
-    connector::Mifinity,
+    
     connector::Netcetera,
     connector::Nmi,
     connector::Noon,
@@ -979,7 +979,7 @@ default_imp_for_new_connector_integration_file_upload!(
     connector::Gpayments,
     
     connector::Klarna,
-    connector::Mifinity,
+    
     connector::Netcetera,
     connector::Nmi,
     connector::Noon,
@@ -1115,7 +1115,7 @@ default_imp_for_new_connector_integration_payouts_create!(
     connector::Gpayments,
     
     connector::Klarna,
-    connector::Mifinity,
+    
     connector::Netcetera,
     connector::Nmi,
     connector::Noon,
@@ -1162,7 +1162,7 @@ default_imp_for_new_connector_integration_payouts_eligibility!(
     connector::Gpayments,
     
     connector::Klarna,
-    connector::Mifinity,
+    
     connector::Netcetera,
     connector::Nmi,
     connector::Noon,
@@ -1209,7 +1209,7 @@ default_imp_for_new_connector_integration_payouts_fulfill!(
     connector::Gpayments,
     
     connector::Klarna,
-    connector::Mifinity,
+    
     connector::Netcetera,
     connector::Nmi,
     connector::Noon,
@@ -1256,7 +1256,7 @@ default_imp_for_new_connector_integration_payouts_cancel!(
     connector::Gpayments,
     
     connector::Klarna,
-    connector::Mifinity,
+    
     connector::Netcetera,
     connector::Nmi,
     connector::Noon,
@@ -1303,7 +1303,7 @@ default_imp_for_new_connector_integration_payouts_quote!(
     connector::Gpayments,
     
     connector::Klarna,
-    connector::Mifinity,
+    
     connector::Netcetera,
     connector::Nmi,
     connector::Noon,
@@ -1350,7 +1350,7 @@ default_imp_for_new_connector_integration_payouts_recipient!(
     connector::Gpayments,
     
     connector::Klarna,
-    connector::Mifinity,
+    
     connector::Netcetera,
     connector::Nmi,
     connector::Noon,
@@ -1397,7 +1397,7 @@ default_imp_for_new_connector_integration_payouts_sync!(
     connector::Gpayments,
     
     connector::Klarna,
-    connector::Mifinity,
+    
     connector::Netcetera,
     connector::Nmi,
     connector::Noon,
@@ -1444,7 +1444,7 @@ default_imp_for_new_connector_integration_payouts_recipient_account!(
     connector::Gpayments,
     
     connector::Klarna,
-    connector::Mifinity,
+    
     connector::Netcetera,
     connector::Nmi,
     connector::Noon,
@@ -1489,7 +1489,7 @@ default_imp_for_new_connector_integration_webhook_source_verification!(
     connector::Gpayments,
     
     connector::Klarna,
-    connector::Mifinity,
+    
     connector::Netcetera,
     connector::Nmi,
     connector::Noon,
@@ -1625,7 +1625,7 @@ default_imp_for_new_connector_integration_frm_sale!(
     connector::Gpayments,
     
     connector::Klarna,
-    connector::Mifinity,
+    
     connector::Netcetera,
     connector::Nmi,
     connector::Noon,
@@ -1672,7 +1672,7 @@ default_imp_for_new_connector_integration_frm_checkout!(
     connector::Gpayments,
     
     connector::Klarna,
-    connector::Mifinity,
+    
     connector::Netcetera,
     connector::Nmi,
     connector::Noon,
@@ -1719,7 +1719,7 @@ default_imp_for_new_connector_integration_frm_transaction!(
     connector::Gpayments,
     
     connector::Klarna,
-    connector::Mifinity,
+    
     connector::Netcetera,
     connector::Nmi,
     connector::Noon,
@@ -1766,7 +1766,7 @@ default_imp_for_new_connector_integration_frm_fulfillment!(
     connector::Gpayments,
     
     connector::Klarna,
-    connector::Mifinity,
+    
     connector::Netcetera,
     connector::Nmi,
     connector::Noon,
@@ -1813,7 +1813,7 @@ default_imp_for_new_connector_integration_frm_record_return!(
     connector::Gpayments,
     
     connector::Klarna,
-    connector::Mifinity,
+    
     connector::Netcetera,
     connector::Nmi,
     connector::Noon,
@@ -1857,7 +1857,7 @@ default_imp_for_new_connector_integration_revoking_mandates!(
     connector::Gpayments,
     
     connector::Klarna,
-    connector::Mifinity,
+    
     connector::Netcetera,
     connector::Nmi,
     connector::Noon,
@@ -2040,7 +2040,7 @@ default_imp_for_new_connector_integration_uas!(
     connector::Gpayments,
     
     connector::Klarna,
-    connector::Mifinity,
+    
     connector::Netcetera,
     connector::Nmi,
     connector::Noon,
