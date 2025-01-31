@@ -2404,6 +2404,23 @@ pub struct PaymentMethodSessionRequest {
 
 #[cfg(feature = "v2")]
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct PaymentMethodsSessionUpdateRequest {
+    /// The billing address details of the customer. This will also be used for any new payment methods added during the session
+    #[schema(value_type = Option<Address>)]
+    pub billing: Option<payments::Address>,
+
+    /// The tokenization type to be applied
+    #[schema(value_type = Option<PspTokenization>)]
+    pub psp_tokenization: Option<common_types::payment_methods::PspTokenization>,
+
+    /// The network tokenization configuration if applicable
+    #[schema(value_type = Option<NetworkTokenization>)]
+    pub network_tokenization: Option<common_types::payment_methods::NetworkTokenization>,
+
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct PaymentMethodSessionUpdateSavedPaymentMethod {
     /// The payment method id of the payment method to be updated
     #[schema(value_type = String, example = "12345_pm_01926c58bc6e77c09e809964e72af8c8")]

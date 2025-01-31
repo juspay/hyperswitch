@@ -311,7 +311,8 @@ impl From<Flow> for ApiIdentifier {
 
             Flow::PaymentMethodSessionCreate
             | Flow::PaymentMethodSessionRetrieve
-            | Flow::PaymentMethodSessionUpdateSavedPaymentMethod => Self::PaymentMethodsSession,
+            | Flow::PaymentMethodSessionUpdateSavedPaymentMethod 
+            | Flow::PaymentMethodSessionUpdate => Self::PaymentMethodsSession,
         }
     }
 }
