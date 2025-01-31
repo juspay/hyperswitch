@@ -52,6 +52,7 @@ pub struct FeatureMetadata {
     /// Recurring payment details required for apple pay Merchant Token
     pub apple_pay_recurring_details: Option<ApplePayRecurringDetails>,
     /// Revenue recovery feature metadata
+    #[cfg(feature = "v2")]
     pub revenue_recovery_metadata: Option<PCRPaymentIntentFeatureMetadata>,
 }
 

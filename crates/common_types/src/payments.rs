@@ -69,6 +69,7 @@ impl AuthenticationConnectorAccountMap {
     }
 }
 
+#[cfg(feature="v2")]
 #[derive(
     Serialize, Deserialize, Debug, Clone, PartialEq, Eq, FromSqlRow, AsExpression, ToSchema,
 )]
@@ -88,7 +89,7 @@ pub struct PCRPaymentIntentFeatureMetadata {
     pub connector_mandate_details: PCRConnectorMandateDetails,
 }
 
-
+#[cfg(feature="v2")]
 #[derive(
     Serialize, Deserialize, Debug, Clone, PartialEq, Eq, FromSqlRow, AsExpression, ToSchema,
 )]
@@ -101,5 +102,7 @@ pub struct PCRConnectorMandateDetails {
     pub connector_customer_id: String,
 }
 
+#[cfg(feature="v2")]
 common_utils::impl_to_sql_from_sql_json!(PCRPaymentIntentFeatureMetadata);
+#[cfg(feature="v2")]
 common_utils::impl_to_sql_from_sql_json!(PCRConnectorMandateDetails);

@@ -1818,7 +1818,6 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
                 }),
                 search_tags: None,
                 apple_pay_recurring_details: None,
-                revenue_recovery_metadata : None,
             }),
             ..Default::default()
         };
@@ -2287,7 +2286,6 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
                     }),
                     search_tags: None,
                     apple_pay_recurring_details: None,
-                    revenue_recovery_metadata: None
                 }),
                 ..Default::default()
             };

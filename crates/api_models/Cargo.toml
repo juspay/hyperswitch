@@ -42,7 +42,7 @@ nutype = { version = "0.4.2", features = ["serde"] }
 # First party crates
 cards = { version = "0.1.0", path = "../cards" }
 common_enums = { version = "0.1.0", path = "../common_enums" }
-common_types = { version = "0.1.0", path = "../common_types" }
+common_types = { version = "0.1.0", path = "../common_types", features = ["v2"] }
 common_utils = { version = "0.1.0", path = "../common_utils" }
 euclid = { version = "0.1.0", path = "../euclid" }
 masking = { version = "0.1.0", path = "../masking", default-features = false, features = ["alloc", "serde"] }
