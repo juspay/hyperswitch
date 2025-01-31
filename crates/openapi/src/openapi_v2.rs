@@ -139,6 +139,7 @@ Never share your secret api keys. Keep them guarded and secure.
         routes::payment_method::payment_method_session_create,
         routes::payment_method::payment_method_session_retrieve,
         routes::payment_method::payment_method_session_list_payment_methods,
+        routes::payment_method::payment_method_session_update_saved_payment_method,
 
         //Routes for refunds
         routes::refunds::refunds_create,
@@ -651,6 +652,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::feature_matrix::PaymentMethodSpecificFeatures,
         api_models::feature_matrix::CardSpecificFeatures,
         api_models::feature_matrix::SupportedPaymentMethod,
+        api_models::payment_methods::PaymentMethodSessionUpdateSavedPaymentMethod,
         common_utils::types::BrowserInformation,
         api_models::enums::TokenizationType,
         api_models::enums::NetworkTokenizationToggle,

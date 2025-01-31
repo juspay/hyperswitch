@@ -2437,12 +2437,12 @@
         ],
         "summary": "Payment Method Session - Create",
         "description": "Create a payment method session for a customer\nThis is used to list the saved payment methods for the customer\nThe customer can also add a new payment method using this session",
-        "operationId": "List Payment methods for a Payment Method Intent",
+        "operationId": "Create a payment method session",
         "requestBody": {
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/PaymentMethodsSessionRequest"
+                "$ref": "#/components/schemas/PaymentMethodSessionRequest"
               },
               "examples": {
                 "Create a payment method session with customer_id": {
@@ -2472,8 +2472,7 @@
         },
         "security": [
           {
-            "api_key": [],
-            "ephemeral_key": []
+            "api_key": []
           }
         ]
       }
@@ -2485,7 +2484,7 @@
         ],
         "summary": "Payment Method Session - Retrieve",
         "description": "Retrieve the payment method session",
-        "operationId": "List Payment methods for a Payment Method Intent",
+        "operationId": "Retrieve the payment method session",
         "parameters": [
           {
             "name": "id",
@@ -2526,7 +2525,7 @@
         ],
         "summary": "Payment Method Session - List Payment Methods",
         "description": "List payment methods for the given payment method session.\nThis endpoint lists the enabled payment methods for the profile and the saved payment methods of the customer.",
-        "operationId": "List Payment methods for a Payment Method Intent",
+        "operationId": "List Payment methods for a Payment Method Session",
         "parameters": [
           {
             "name": "id",
@@ -2545,6 +2544,69 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/PaymentMethodListResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The request is invalid"
+          }
+        },
+        "security": [
+          {
+            "ephemeral_key": []
+          }
+        ]
+      }
+    },
+    "/v2/payment-method-session/:id/update-saved-payment-method": {
+      "put": {
+        "tags": [
+          "Payment Method Session"
+        ],
+        "summary": "Payment Method Session - Update a saved payment method",
+        "description": "Update a saved payment method from the given payment method session.",
+        "operationId": "Update a saved payment method",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The unique identifier for the Payment Method Session",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PaymentMethodSessionUpdateSavedPaymentMethod"
+              },
+              "examples": {
+                "Update the card holder name": {
+                  "value": {
+                    "payment_method_data": {
+                      "card": {
+                        "card_holder_name": "Narayan Bhat"
+                      }
+                    },
+                    "payment_method_id": "12345_pm_0194b1ecabc172e28aeb71f70a4daba3"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "The payment method has been updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentMethodResponse"
                 }
               }
             }
@@ -14178,11 +14240,6 @@
             "example": "2024-02-24T11:04:09.922Z",
             "nullable": true
           },
-          "client_secret": {
-            "type": "string",
-            "description": "For Client based calls",
-            "nullable": true
-          },
           "payment_method_data": {
             "allOf": [
               {
@@ -14203,6 +14260,72 @@
             "properties": {
               "card": {
                 "$ref": "#/components/schemas/CardDetailFromLocker"
+              }
+            }
+          }
+        ]
+      },
+      "PaymentMethodSessionRequest": {
+        "type": "object",
+        "required": [
+          "customer_id"
+        ],
+        "properties": {
+          "customer_id": {
+            "type": "string",
+            "description": "The customer id for which the payment methods session is to be created",
+            "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44"
+          },
+          "billing": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Address"
+              }
+            ],
+            "nullable": true
+          },
+          "psp_tokenization": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PspTokenization"
+              }
+            ],
+            "nullable": true
+          },
+          "network_tokenization": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/NetworkTokenization"
+              }
+            ],
+            "nullable": true
+          },
+          "expires_in": {
+            "type": "integer",
+            "format": "int32",
+            "description": "The time (seconds ) when the session will expire\nIf not provided, the session will expire in 15 minutes",
+            "default": 900,
+            "example": 900,
+            "nullable": true,
+            "minimum": 0
+          }
+        }
+      },
+      "PaymentMethodSessionUpdateSavedPaymentMethod": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/PaymentMethodUpdate"
+          },
+          {
+            "type": "object",
+            "required": [
+              "payment_method_id"
+            ],
+            "properties": {
+              "payment_method_id": {
+                "type": "string",
+                "description": "The payment method id of the payment method to be updated",
+                "example": "12345_pm_01926c58bc6e77c09e809964e72af8c8"
               }
             }
           }
@@ -14408,58 +14531,13 @@
         },
         "additionalProperties": false
       },
-      "PaymentMethodsSessionRequest": {
-        "type": "object",
-        "required": [
-          "customer_id"
-        ],
-        "properties": {
-          "customer_id": {
-            "type": "string",
-            "description": "The customer id for which the payment methods session is to be created",
-            "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44"
-          },
-          "billing": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/Address"
-              }
-            ],
-            "nullable": true
-          },
-          "psp_tokenization": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/PspTokenization"
-              }
-            ],
-            "nullable": true
-          },
-          "network_tokenization": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/NetworkTokenization"
-              }
-            ],
-            "nullable": true
-          },
-          "expires_in": {
-            "type": "integer",
-            "format": "int32",
-            "description": "The time (seconds ) when the session will expire\nIf not provided, the session will expire in 15 minutes",
-            "default": 900,
-            "example": 900,
-            "nullable": true,
-            "minimum": 0
-          }
-        }
-      },
       "PaymentMethodsSessionResponse": {
         "type": "object",
         "required": [
           "id",
           "customer_id",
-          "expires_at"
+          "expires_at",
+          "client_secret"
         ],
         "properties": {
           "id": {
@@ -14500,6 +14578,10 @@
             "format": "date-time",
             "description": "The iso timestamp when the session will expire\nTrying to retrieve the session or any operations on the session after this time will result in an error",
             "example": "2023-01-18T11:04:09.922Z"
+          },
+          "client_secret": {
+            "type": "string",
+            "description": "Client Secret"
           }
         }
       },
