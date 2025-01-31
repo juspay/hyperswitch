@@ -106,6 +106,7 @@ pub async fn tokenize_cards(
     let responses = futures::stream::iter(records.into_iter())
         .map(|record| async move {
             let tokenize_request = record.data.clone();
+            let customer = record.customer.clone();
             Box::pin(tokenize_card_flow(
                 state,
                 domain::CardNetworkTokenizeRequest::foreign_from(record),
@@ -121,7 +122,7 @@ pub async fn tokenize_cards(
                     error_message: Some(err.error_message()),
                     card_tokenized: false,
                     payment_method_response: None,
-                    customer: None,
+                    customer: Some(customer),
                 }
             })
         })
@@ -183,7 +184,7 @@ pub struct CardNetworkTokenizeExecutor<'a, D> {
     pub merchant_account: &'a domain::MerchantAccount,
     key_store: &'a domain::MerchantKeyStore,
     data: &'a D,
-    customer: Option<&'a domain_request_types::CustomerDetails>,
+    customer: &'a domain_request_types::CustomerDetails,
 }
 
 // State machine
@@ -198,7 +199,7 @@ pub trait NetworkTokenizationProcess<'a, D> {
         key_store: &'a domain::MerchantKeyStore,
         merchant_account: &'a domain::MerchantAccount,
         data: &'a D,
-        customer: Option<&'a domain_request_types::CustomerDetails>,
+        customer: &'a domain_request_types::CustomerDetails,
     ) -> Self;
     async fn encrypt_card(
         &self,
@@ -240,7 +241,7 @@ where
         key_store: &'a domain::MerchantKeyStore,
         merchant_account: &'a domain::MerchantAccount,
         data: &'a D,
-        customer: Option<&'a domain_request_types::CustomerDetails>,
+        customer: &'a domain_request_types::CustomerDetails,
     ) -> Self {
         Self {
             data,
@@ -317,7 +318,7 @@ where
             .await
             .map_err(|err| {
                 logger::error!(
-                    "Failed to tokenize card with the network: {:?}\nUsing dummy response",
+                    "Failed to tokenize card with the network: {:?}",
                     err
                 );
                 report!(errors::ApiErrorResponse::InternalServerError)

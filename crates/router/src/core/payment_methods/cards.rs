@@ -6039,7 +6039,7 @@ pub async fn tokenize_card_flow(
                 key_store,
                 merchant_account,
                 card_req,
-                req.customer.as_ref(),
+                &req.customer,
             );
             let builder =
                 tokenize::NetworkTokenizationBuilder::<tokenize::TokenizeWithCard>::default();
@@ -6051,7 +6051,7 @@ pub async fn tokenize_card_flow(
                 key_store,
                 merchant_account,
                 payment_method,
-                req.customer.as_ref(),
+                &req.customer,
             );
             let builder =
                 tokenize::NetworkTokenizationBuilder::<tokenize::TokenizeWithPmId>::default();
@@ -6132,16 +6132,16 @@ pub async fn execute_payment_method_tokenization(
         .await?;
     let builder = builder.set_payment_method(&payment_method);
 
-    // Validate payment method
-    let locker_id = executor
-        .validate_payment_method_and_get_locker_reference(&payment_method)
+    // Validate payment method and customer
+    let (locker_id, customer) = executor
+        .validate_request_and_locker_reference_and_customer(&payment_method)
         .await?;
-    let builder = builder.set_validate_result();
+    let builder = builder.set_validate_result(&customer);
 
     // Fetch card from locker
     let card_details = get_card_from_locker(
         executor.state,
-        &payment_method.customer_id,
+        &customer.id,
         executor.merchant_account.get_id(),
         &locker_id,
     )
@@ -6155,16 +6155,14 @@ pub async fn execute_payment_method_tokenization(
 
     // Tokenize card
     let domain_card = builder.get_optional_card().get_required_value("card")?;
-    let network_token_details = executor
-        .tokenize_card(&payment_method.customer_id, &domain_card)
-        .await?;
+    let network_token_details = executor.tokenize_card(&customer.id, &domain_card).await?;
     let builder = builder.set_token_details(&network_token_details);
 
     // Store token in locker
     let store_token_resp = executor
         .store_network_token_in_locker(
             &network_token_details,
-            &payment_method.customer_id,
+            &customer.id,
             card_details.name_on_card.clone(),
             card_details.nick_name.clone().map(Secret::new),
         )

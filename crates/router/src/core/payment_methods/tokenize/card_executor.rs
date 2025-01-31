@@ -55,7 +55,7 @@ impl TransitionTo<CardTokenized> for CardDetailsAssigned {}
 impl TransitionTo<CardTokenStored> for CardTokenized {}
 impl TransitionTo<PaymentMethodCreated> for CardTokenStored {}
 
-impl<'a> Default for NetworkTokenizationBuilder<'a, TokenizeWithCard> {
+impl Default for NetworkTokenizationBuilder<'_, TokenizeWithCard> {
     fn default() -> Self {
         Self::new()
     }
@@ -297,7 +297,7 @@ impl NetworkTokenizationBuilder<'_, PaymentMethodCreated> {
 }
 
 // Specific executor for card tokenization
-impl<'a> CardNetworkTokenizeExecutor<'a, domain::TokenizeCardRequest> {
+impl CardNetworkTokenizeExecutor<'_, domain::TokenizeCardRequest> {
     pub async fn validate_request_and_fetch_optional_customer(
         &self,
     ) -> RouterResult<Option<api::CustomerDetails>> {
@@ -305,13 +305,8 @@ impl<'a> CardNetworkTokenizeExecutor<'a, domain::TokenizeCardRequest> {
         migration::validate_card_expiry(&self.data.card_expiry_month, &self.data.card_expiry_year)?;
 
         // Validate customer ID
-        let customer_req = self
+        let customer_id = self
             .customer
-            .get_required_value("customer")
-            .change_context(errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "customer",
-            })?;
-        let customer_id = customer_req
             .customer_id
             .as_ref()
             .get_required_value("customer_id")
@@ -334,9 +329,9 @@ impl<'a> CardNetworkTokenizeExecutor<'a, domain::TokenizeCardRequest> {
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .map_or(
             // Validate if customer creation is feasible
-            if customer_req.name.is_some()
-                || customer_req.email.is_some()
-                || customer_req.phone.is_some()
+            if self.customer.name.is_some()
+                || self.customer.email.is_some()
+                || self.customer.phone.is_some()
             {
                 Ok(None)
             } else {
@@ -359,13 +354,8 @@ impl<'a> CardNetworkTokenizeExecutor<'a, domain::TokenizeCardRequest> {
 
     pub async fn create_customer(&self) -> RouterResult<api::CustomerDetails> {
         let db = &*self.state.store;
-        let customer_details = self
+        let customer_id = self
             .customer
-            .get_required_value("customer")
-            .change_context(errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "customer",
-            })?;
-        let customer_id = customer_details
             .customer_id
             .as_ref()
             .get_required_value("customer_id")
@@ -379,12 +369,13 @@ impl<'a> CardNetworkTokenizeExecutor<'a, domain::TokenizeCardRequest> {
             type_name!(domain::Customer),
             CryptoOperation::BatchEncrypt(domain::FromRequestEncryptableCustomer::to_encryptable(
                 domain::FromRequestEncryptableCustomer {
-                    name: customer_details.name.clone(),
-                    email: customer_details
+                    name: self.customer.name.clone(),
+                    email: self
+                        .customer
                         .email
                         .clone()
                         .map(|email| email.expose().switch_strategy()),
-                    phone: customer_details.phone.clone(),
+                    phone: self.customer.phone.clone(),
                 },
             )),
             Identifier::Merchant(self.merchant_account.get_id().clone()),
@@ -401,8 +392,9 @@ impl<'a> CardNetworkTokenizeExecutor<'a, domain::TokenizeCardRequest> {
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to form EncryptableCustomer")?;
 
+        let new_customer_id = generate_customer_id_of_default_length();
         let domain_customer = domain::Customer {
-            customer_id: generate_customer_id_of_default_length(),
+            customer_id: new_customer_id.clone(),
             merchant_id: self.merchant_account.get_id().clone(),
             name: encryptable_customer.name,
             email: encryptable_customer.email.map(|email| {
@@ -413,7 +405,7 @@ impl<'a> CardNetworkTokenizeExecutor<'a, domain::TokenizeCardRequest> {
             }),
             phone: encryptable_customer.phone,
             description: None,
-            phone_country_code: customer_details.phone_country_code.to_owned(),
+            phone_country_code: self.customer.phone_country_code.to_owned(),
             metadata: None,
             connector_customer: None,
             created_at: common_utils::date_time::now(),
@@ -425,7 +417,7 @@ impl<'a> CardNetworkTokenizeExecutor<'a, domain::TokenizeCardRequest> {
         };
 
         db.insert_customer(
-            domain_customer.clone(),
+            domain_customer,
             key_manager_state,
             self.key_store,
             self.merchant_account.storage_scheme,
@@ -442,11 +434,11 @@ impl<'a> CardNetworkTokenizeExecutor<'a, domain::TokenizeCardRequest> {
         })?;
 
         Ok(api::CustomerDetails {
-            id: domain_customer.customer_id,
-            name: customer_details.name.clone(),
-            email: customer_details.email.clone(),
-            phone: customer_details.phone.clone(),
-            phone_country_code: customer_details.phone_country_code.clone(),
+            id: new_customer_id,
+            name: self.customer.name.clone(),
+            email: self.customer.email.clone(),
+            phone: self.customer.phone.clone(),
+            phone_country_code: self.customer.phone_country_code.clone(),
         })
     }
 

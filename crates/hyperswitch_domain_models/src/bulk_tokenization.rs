@@ -18,7 +18,7 @@ use crate::{
 pub struct CardNetworkTokenizeRequest {
     pub data: TokenizeDataRequest,
     pub card_type: Option<payment_methods_api::CardType>,
-    pub customer: Option<CustomerDetails>,
+    pub customer: CustomerDetails,
     pub billing: Option<Address>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub payment_method_issuer: Option<String>,
@@ -138,7 +138,7 @@ impl ForeignTryFrom<CardNetworkTokenizeRecord> for payment_methods_api::CardNetw
     type Error = error_stack::Report<errors::ValidationError>;
     fn foreign_try_from(record: CardNetworkTokenizeRecord) -> Result<Self, Self::Error> {
         let billing = Some(payments_api::Address::foreign_from(&record));
-        let customer = Some(payments_api::CustomerDetails::foreign_from(&record));
+        let customer = payments_api::CustomerDetails::foreign_from(&record);
         let merchant_id = record.merchant_id.get_required_value("merchant_id")?;
 
         match (
@@ -234,7 +234,7 @@ impl ForeignFrom<payment_methods_api::CardNetworkTokenizeRequest> for CardNetwor
         Self {
             data: TokenizeDataRequest::foreign_from(req.data),
             card_type: req.card_type,
-            customer: req.customer.map(ForeignFrom::foreign_from),
+            customer: CustomerDetails::foreign_from(req.customer),
             billing: req.billing.map(ForeignFrom::foreign_from),
             metadata: req.metadata,
             payment_method_issuer: req.payment_method_issuer,

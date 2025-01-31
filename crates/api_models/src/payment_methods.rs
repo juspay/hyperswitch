@@ -2409,7 +2409,7 @@ pub struct CardNetworkTokenizeRequest {
     pub card_type: Option<CardType>,
 
     /// Customer details
-    pub customer: Option<payments::CustomerDetails>,
+    pub customer: payments::CustomerDetails,
 
     /// The billing details of the payment method
     pub billing: Option<payments::Address>,

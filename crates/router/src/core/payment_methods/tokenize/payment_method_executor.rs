@@ -1,5 +1,7 @@
 use api_models::enums as api_enums;
-use common_utils::fp_utils::when;
+use common_utils::{
+    ext_traits::OptionExt, fp_utils::when, pii::Email, types::keymanager::KeyManagerState,
+};
 use error_stack::{report, ResultExt};
 use masking::Secret;
 use router_env::logger;
@@ -39,7 +41,7 @@ impl TransitionTo<PmTokenized> for PmAssigned {}
 impl TransitionTo<PmTokenStored> for PmTokenized {}
 impl TransitionTo<PmTokenUpdated> for PmTokenStored {}
 
-impl<'a> Default for NetworkTokenizationBuilder<'a, TokenizeWithPmId> {
+impl Default for NetworkTokenizationBuilder<'_, TokenizeWithPmId> {
     fn default() -> Self {
         Self::new()
     }
@@ -96,10 +98,13 @@ impl<'a> NetworkTokenizationBuilder<'a, TokenizeWithPmId> {
 }
 
 impl<'a> NetworkTokenizationBuilder<'a, PmFetched> {
-    pub fn set_validate_result(self) -> NetworkTokenizationBuilder<'a, PmValidated> {
+    pub fn set_validate_result(
+        self,
+        customer: &'a api::CustomerDetails,
+    ) -> NetworkTokenizationBuilder<'a, PmValidated> {
         NetworkTokenizationBuilder {
             state: std::marker::PhantomData,
-            customer: self.customer,
+            customer: Some(customer),
             card: self.card,
             network_token: self.network_token,
             stored_card: self.stored_card,
@@ -254,7 +259,7 @@ impl NetworkTokenizationBuilder<'_, PmTokenUpdated> {
 }
 
 // Specific executor for payment method tokenization
-impl<'a> CardNetworkTokenizeExecutor<'a, domain::TokenizePaymentMethodRequest> {
+impl CardNetworkTokenizeExecutor<'_, domain::TokenizePaymentMethodRequest> {
     pub async fn fetch_payment_method(
         &self,
         payment_method_id: &str,
@@ -290,10 +295,25 @@ impl<'a> CardNetworkTokenizeExecutor<'a, domain::TokenizePaymentMethodRequest> {
                 }
             })
     }
-    pub async fn validate_payment_method_and_get_locker_reference(
+    pub async fn validate_request_and_locker_reference_and_customer(
         &self,
         payment_method: &domain::PaymentMethod,
-    ) -> RouterResult<String> {
+    ) -> RouterResult<(String, api::CustomerDetails)> {
+        // Ensure customer ID matches
+        let customer_id_in_req = self
+            .customer
+            .customer_id
+            .clone()
+            .get_required_value("customer_id")
+            .change_context(errors::ApiErrorResponse::MissingRequiredField {
+                field_name: "customer",
+            })?;
+        when(payment_method.customer_id != customer_id_in_req, || {
+            Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+                message: "Payment method does not belong to the customer".to_string()
+            }))
+        })?;
+
         // Ensure payment method is card
         match payment_method.payment_method {
             Some(api_enums::PaymentMethod::Card) => Ok(()),
@@ -318,11 +338,36 @@ impl<'a> CardNetworkTokenizeExecutor<'a, domain::TokenizePaymentMethodRequest> {
         )?;
 
         // Ensure locker reference is present
-        payment_method.locker_id.clone().ok_or(report!(
+        let locker_id = payment_method.locker_id.clone().ok_or(report!(
             errors::ApiErrorResponse::InvalidRequestData {
                 message: "locker_id not found for given payment_method_id".to_string()
             }
-        ))
+        ))?;
+
+        // Fetch customer
+        let db = &*self.state.store;
+        let key_manager_state: &KeyManagerState = &self.state.into();
+        let customer = db
+            .find_customer_by_customer_id_merchant_id(
+                key_manager_state,
+                &payment_method.customer_id,
+                self.merchant_account.get_id(),
+                self.key_store,
+                self.merchant_account.storage_scheme,
+            )
+            .await
+            .inspect_err(|err| logger::info!("Error fetching customer: {:?}", err))
+            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+        let customer_details = api::CustomerDetails {
+            id: customer.customer_id.clone(),
+            name: customer.name.clone().map(|name| name.into_inner()),
+            email: customer.email.clone().map(Email::from),
+            phone: customer.phone.clone().map(|phone| phone.into_inner()),
+            phone_country_code: customer.phone_country_code.clone(),
+        };
+
+        Ok((locker_id, customer_details))
     }
     pub async fn update_payment_method(
         &self,
