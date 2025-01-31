@@ -1030,105 +1030,6 @@ pub async fn payment_method_intent_create(
     Ok(services::ApplicationResponse::Json(resp))
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-#[instrument(skip_all)]
-pub async fn payment_method_intent_confirm(
-    state: &SessionState,
-    req: api::PaymentMethodIntentConfirm,
-    merchant_account: &domain::MerchantAccount,
-    key_store: &domain::MerchantKeyStore,
-    pm_id: id_type::GlobalPaymentMethodId,
-) -> RouterResponse<api::PaymentMethodResponse> {
-    let key_manager_state = &(state).into();
-    req.validate()?;
-
-    let db = &*state.store;
-
-    let payment_method = db
-        .find_payment_method(
-            key_manager_state,
-            key_store,
-            &pm_id,
-            merchant_account.storage_scheme,
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
-        .attach_printable("Unable to find payment method")?;
-
-    when(
-        payment_method.status != enums::PaymentMethodStatus::AwaitingData,
-        || {
-            Err(errors::ApiErrorResponse::InvalidRequestData {
-                message: "Invalid pm_id provided: This Payment method cannot be confirmed"
-                    .to_string(),
-            })
-        },
-    )?;
-
-    let payment_method_data = pm_types::PaymentMethodVaultingData::from(req.payment_method_data);
-
-    let vaulting_result = vault_payment_method(
-        state,
-        &payment_method_data,
-        merchant_account,
-        key_store,
-        None,
-    )
-    .await;
-
-    let response = match vaulting_result {
-        Ok((vaulting_resp, fingerprint_id)) => {
-            let pm_update = create_pm_additional_data_update(
-                &payment_method_data,
-                state,
-                key_store,
-                Some(vaulting_resp.vault_id.get_string_repr().clone()),
-                Some(req.payment_method_type),
-                Some(req.payment_method_subtype),
-                Some(fingerprint_id),
-            )
-            .await
-            .attach_printable("Unable to create Payment method data")?;
-
-            let payment_method = db
-                .update_payment_method(
-                    &(state.into()),
-                    key_store,
-                    payment_method,
-                    pm_update,
-                    merchant_account.storage_scheme,
-                )
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to update payment method in db")?;
-
-            let resp = pm_transforms::generate_payment_method_response(&payment_method)?;
-
-            Ok(resp)
-        }
-        Err(e) => {
-            let pm_update = storage::PaymentMethodUpdate::StatusUpdate {
-                status: Some(enums::PaymentMethodStatus::Inactive),
-            };
-
-            db.update_payment_method(
-                &(state.into()),
-                key_store,
-                payment_method,
-                pm_update,
-                merchant_account.storage_scheme,
-            )
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to update payment method in db")?;
-
-            Err(e)
-        }
-    }?;
-
-    Ok(services::ApplicationResponse::Json(response))
-}
-
 #[cfg(feature = "v2")]
 trait PerformFilteringOnEnabledPaymentMethods {
     fn perform_filtering(self) -> FilteredPaymentMethodsEnabled;
@@ -1934,6 +1835,15 @@ pub async fn payment_methods_session_create(
 
     let expires_at = common_utils::date_time::now().saturating_add(Duration::seconds(expires_in));
 
+    let client_secret = payment_helpers::create_client_secret(
+        &state,
+        merchant_account.get_id(),
+        diesel_models::ResourceId::PaymentMethodSession(payment_methods_session_id.clone()),
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Unable to create client secret")?;
+
     let payment_method_session_domain_model =
         hyperswitch_domain_models::payment_methods::PaymentMethodsSession {
             id: payment_methods_session_id,
@@ -1954,9 +1864,10 @@ pub async fn payment_methods_session_create(
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to insert payment methods session in db")?;
 
-    let response = payment_methods::PaymentMethodsSessionResponse::foreign_from(
+    let response = payment_methods::PaymentMethodsSessionResponse::foreign_from((
         payment_method_session_domain_model,
-    );
+        client_secret.secret,
+    ));
 
     Ok(services::ApplicationResponse::Json(response))
 }
@@ -1979,9 +1890,10 @@ pub async fn payment_methods_session_retrieve(
         })
         .attach_printable("Failed to retrieve payment methods session from db")?;
 
-    let response = payment_methods::PaymentMethodsSessionResponse::foreign_from(
+    let response = payment_methods::PaymentMethodsSessionResponse::foreign_from((
         payment_method_session_domain_model,
-    );
+        Secret::new("CLIENT_SECRET_REDACTED".to_string()),
+    ));
 
     Ok(services::ApplicationResponse::Json(response))
 }

@@ -20,6 +20,8 @@ use common_utils::{date_time, id_type};
 use diesel_models::ephemeral_key;
 use error_stack::{report, ResultExt};
 use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
+#[cfg(feature = "v2")]
+use masking::ExposeInterface;
 use masking::PeekInterface;
 use router_env::logger;
 use serde::Serialize;
@@ -1286,6 +1288,18 @@ impl<'a> HeaderMapStruct<'a> {
             })
     }
 
+    #[cfg(feature = "v2")]
+    pub fn get_auth_string_from_header(&self) -> RouterResult<&str> {
+        self.headers
+            .get(headers::AUTHORIZATION)
+            .get_required_value(headers::AUTHORIZATION)?
+            .to_str()
+            .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: headers::AUTHORIZATION,
+            })
+            .attach_printable("Failed to convert authorization header to string")
+    }
+
     pub fn get_id_type_from_header_if_present<T>(&self, key: &str) -> RouterResult<Option<T>>
     where
         T: TryFrom<
@@ -1510,44 +1524,6 @@ where
     }
 }
 
-#[cfg(feature = "v2")]
-#[async_trait]
-impl<A> AuthenticateAndFetch<AuthenticationData, A> for EphemeralKeyAuth
-where
-    A: SessionStateInfo + Sync,
-{
-    async fn authenticate_and_fetch(
-        &self,
-        request_headers: &HeaderMap,
-        state: &A,
-    ) -> RouterResult<(AuthenticationData, AuthenticationType)> {
-        let api_key =
-            get_api_key(request_headers).change_context(errors::ApiErrorResponse::Unauthorized)?;
-        let ephemeral_key = state
-            .store()
-            .get_ephemeral_key(api_key)
-            .await
-            .change_context(errors::ApiErrorResponse::Unauthorized)?;
-
-        let resource_type = HeaderMapStruct::new(request_headers)
-            .get_mandatory_header_value_by_key(headers::X_RESOURCE_TYPE)
-            .and_then(|val| {
-                ephemeral_key::ResourceType::from_str(val).change_context(
-                    errors::ApiErrorResponse::InvalidRequestData {
-                        message: format!("`{}` header is invalid", headers::X_RESOURCE_TYPE),
-                    },
-                )
-            })?;
-
-        fp_utils::when(resource_type != ephemeral_key.resource_type, || {
-            Err(errors::ApiErrorResponse::Unauthorized)
-        })?;
-
-        MerchantIdAuth(ephemeral_key.merchant_id)
-            .authenticate_and_fetch(request_headers, state)
-            .await
-    }
-}
 #[derive(Debug)]
 pub struct MerchantIdAuth(pub id_type::MerchantId);
 
@@ -1775,6 +1751,267 @@ where
             },
             AuthenticationType::PublishableKey { merchant_id },
         ))
+    }
+}
+
+#[derive(Debug)]
+#[cfg(feature = "v2")]
+pub enum V2Auth {
+    ApiKeyAuth,                            // API Key
+    ClientAuth(diesel_models::ResourceId), // Publishable Key + Client Secret
+    DashboardAuth,                         // JWT
+}
+
+#[cfg(feature = "v2")]
+#[async_trait]
+impl<A> AuthenticateAndFetch<AuthenticationData, A> for V2Auth
+where
+    A: SessionStateInfo + Sync,
+{
+    async fn authenticate_and_fetch(
+        &self,
+        request_headers: &HeaderMap,
+        state: &A,
+    ) -> RouterResult<(AuthenticationData, AuthenticationType)> {
+        let auth_string = request_headers
+            .get(headers::AUTHORIZATION)
+            .get_required_value(headers::AUTHORIZATION)?
+            .to_str()
+            .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: headers::AUTHORIZATION,
+            })
+            .attach_printable("Failed to convert authorization header to string")?
+            .to_owned();
+
+        match self {
+            Self::ApiKeyAuth => {
+                let api_key = auth_string
+                    .split(',')
+                    .find_map(|part| part.trim().strip_prefix("api-key="))
+                    .ok_or_else(|| {
+                        report!(errors::ApiErrorResponse::Unauthorized)
+                            .attach_printable("Unable to parse api_key")
+                    })?;
+                if api_key.is_empty() {
+                    return Err(errors::ApiErrorResponse::Unauthorized)
+                        .attach_printable("API key is empty");
+                }
+
+                let profile_id = HeaderMapStruct::new(request_headers)
+                    .get_id_type_from_header::<id_type::ProfileId>(headers::X_PROFILE_ID)?;
+
+                let api_key = api_keys::PlaintextApiKey::from(api_key);
+                let hash_key = {
+                    let config = state.conf();
+                    config.api_keys.get_inner().get_hash_key()?
+                };
+                let hashed_api_key = api_key.keyed_hash(hash_key.peek());
+
+                let stored_api_key = state
+                    .store()
+                    .find_api_key_by_hash_optional(hashed_api_key.into())
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError) // If retrieve failed
+                    .attach_printable("Failed to retrieve API key")?
+                    .ok_or(report!(errors::ApiErrorResponse::Unauthorized)) // If retrieve returned `None`
+                    .attach_printable("Merchant not authenticated")?;
+
+                if stored_api_key
+                    .expires_at
+                    .map(|expires_at| expires_at < date_time::now())
+                    .unwrap_or(false)
+                {
+                    return Err(report!(errors::ApiErrorResponse::Unauthorized))
+                        .attach_printable("API key has expired");
+                }
+
+                let key_manager_state = &(&state.session_state()).into();
+
+                let key_store = state
+                    .store()
+                    .get_merchant_key_store_by_merchant_id(
+                        key_manager_state,
+                        &stored_api_key.merchant_id,
+                        &state.store().get_master_key().to_vec().into(),
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::Unauthorized)
+                    .attach_printable("Failed to fetch merchant key store for the merchant id")?;
+
+                let merchant = state
+                    .store()
+                    .find_merchant_account_by_merchant_id(
+                        key_manager_state,
+                        &stored_api_key.merchant_id,
+                        &key_store,
+                    )
+                    .await
+                    .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
+
+                // Get connected merchant account if API call is done by Platform merchant account on behalf of connected merchant account
+                let (merchant, platform_merchant_account) = if state.conf().platform.enabled {
+                    get_platform_merchant_account(state, request_headers, merchant).await?
+                } else {
+                    (merchant, None)
+                };
+
+                let key_store = if platform_merchant_account.is_some() {
+                    state
+                        .store()
+                        .get_merchant_key_store_by_merchant_id(
+                            key_manager_state,
+                            merchant.get_id(),
+                            &state.store().get_master_key().to_vec().into(),
+                        )
+                        .await
+                        .change_context(errors::ApiErrorResponse::Unauthorized)
+                        .attach_printable(
+                            "Failed to fetch merchant key store for the merchant id",
+                        )?
+                } else {
+                    key_store
+                };
+
+                let profile = state
+                    .store()
+                    .find_business_profile_by_profile_id(key_manager_state, &key_store, &profile_id)
+                    .await
+                    .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
+
+                let auth = AuthenticationData {
+                    merchant_account: merchant,
+                    platform_merchant_account,
+                    key_store,
+                    profile,
+                };
+                Ok((
+                    auth.clone(),
+                    AuthenticationType::ApiKey {
+                        merchant_id: auth.merchant_account.get_id().clone(),
+                        key_id: stored_api_key.key_id,
+                    },
+                ))
+            }
+            Self::ClientAuth(resource_id) => {
+                let publishable_key = auth_string
+                    .split(',')
+                    .find_map(|part| part.trim().strip_prefix("publishable-key="))
+                    .ok_or_else(|| {
+                        report!(errors::ApiErrorResponse::Unauthorized)
+                            .attach_printable("Unable to parse publishable_key")
+                    })?;
+
+                let client_secret = auth_string
+                    .split(',')
+                    .find_map(|part| part.trim().strip_prefix("client-secret="))
+                    .ok_or_else(|| {
+                        report!(errors::ApiErrorResponse::Unauthorized)
+                            .attach_printable("Unable to parse client_secret")
+                    })?;
+
+                let key_manager_state: &common_utils::types::keymanager::KeyManagerState =
+                    &(&state.session_state()).into();
+
+                let db_client_secret: diesel_models::ClientSecretType = state
+                    .store()
+                    .get_client_secret(client_secret)
+                    .await
+                    .change_context(errors::ApiErrorResponse::Unauthorized)
+                    .attach_printable("Invalid ephemeral_key")?;
+
+                let profile_id = get_id_type_by_key_from_headers(
+                    headers::X_PROFILE_ID.to_string(),
+                    request_headers,
+                )?
+                .get_required_value(headers::X_PROFILE_ID)?;
+
+                match db_client_secret.resource_id {
+                    diesel_models::ResourceId::Payment(global_payment_id) => todo!(),
+                    diesel_models::ResourceId::Customer(global_customer_id) => {
+                        if global_customer_id.get_string_repr() != resource_id.to_str() {
+                            return Err(errors::ApiErrorResponse::Unauthorized.into());
+                        }
+                    }
+                    diesel_models::ResourceId::PaymentMethodSession(
+                        global_payment_method_session_id,
+                    ) => {
+                        if global_payment_method_session_id.get_string_repr()
+                            != resource_id.to_str()
+                        {
+                            return Err(errors::ApiErrorResponse::Unauthorized.into());
+                        }
+                    }
+                };
+
+                let (merchant_account, key_store) = state
+                    .store()
+                    .find_merchant_account_by_publishable_key(key_manager_state, publishable_key)
+                    .await
+                    .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
+                let merchant_id = merchant_account.get_id().clone();
+
+                if db_client_secret.merchant_id != merchant_id {
+                    return Err(errors::ApiErrorResponse::Unauthorized.into());
+                }
+                let profile = state
+                    .store()
+                    .find_business_profile_by_merchant_id_profile_id(
+                        key_manager_state,
+                        &key_store,
+                        &merchant_id,
+                        &profile_id,
+                    )
+                    .await
+                    .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
+                Ok((
+                    AuthenticationData {
+                        merchant_account,
+                        key_store,
+                        profile,
+                        platform_merchant_account: None,
+                    },
+                    AuthenticationType::PublishableKey { merchant_id },
+                ))
+            }
+            Self::DashboardAuth => Err(errors::ApiErrorResponse::Unauthorized.into()),
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
+#[async_trait]
+impl<A> AuthenticateAndFetch<AuthenticationData, A> for Vec<V2Auth>
+where
+    A: SessionStateInfo + Sync,
+{
+    async fn authenticate_and_fetch(
+        &self,
+        request_headers: &HeaderMap,
+        state: &A,
+    ) -> RouterResult<(AuthenticationData, AuthenticationType)> {
+        let header_map_struct = HeaderMapStruct::new(request_headers);
+        let auth_string = header_map_struct.get_auth_string_from_header()?;
+
+        match auth_string.trim() {
+            s if s.starts_with("api-key=") => {
+                if let Some(handler) = self.iter().find(|auth| matches!(auth, V2Auth::ApiKeyAuth)) {
+                    handler.authenticate_and_fetch(request_headers, state).await
+                } else {
+                    Err(errors::ApiErrorResponse::Unauthorized.into())
+                }
+            }
+            s if s.starts_with("publishable-key=") || s.starts_with("client-secret=") => {
+                if let Some(handler) = self
+                    .iter()
+                    .find(|auth| matches!(auth, V2Auth::ClientAuth(_)))
+                {
+                    handler.authenticate_and_fetch(request_headers, state).await
+                } else {
+                    Err(errors::ApiErrorResponse::Unauthorized.into())
+                }
+            }
+            _ => Err(errors::ApiErrorResponse::Unauthorized.into()),
+        }
     }
 }
 
@@ -3282,20 +3519,7 @@ where
     }
 }
 
-pub fn is_ephemeral_or_publishible_auth<A: SessionStateInfo + Sync + Send>(
-    headers: &HeaderMap,
-) -> RouterResult<Box<dyn AuthenticateAndFetch<AuthenticationData, A>>> {
-    let api_key = get_api_key(headers)?;
-
-    if api_key.starts_with("epk") {
-        Ok(Box::new(EphemeralKeyAuth))
-    } else if api_key.starts_with("pk_") {
-        Ok(Box::new(HeaderAuth(PublishableKeyAuth)))
-    } else {
-        Ok(Box::new(HeaderAuth(ApiKeyAuth)))
-    }
-}
-
+#[cfg(feature = "v1")]
 pub fn is_ephemeral_auth<A: SessionStateInfo + Sync + Send>(
     headers: &HeaderMap,
 ) -> RouterResult<Box<dyn AuthenticateAndFetch<AuthenticationData, A>>> {

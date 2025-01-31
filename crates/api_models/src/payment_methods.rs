@@ -2441,4 +2441,8 @@ pub struct PaymentMethodsSessionResponse {
     #[schema(value_type = PrimitiveDateTime, example = "2023-01-18T11:04:09.922Z")]
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub expires_at: time::PrimitiveDateTime,
+
+    /// Client Secret
+    #[schema(value_type = String)]
+    pub client_secret: masking::Secret<String>,
 }

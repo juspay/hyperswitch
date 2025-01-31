@@ -1167,10 +1167,6 @@ impl PaymentMethods {
                     web::get().to(payment_methods::payment_method_session_list_payment_methods),
                 ))
                 .service(
-                    web::resource("/confirm-intent")
-                        .route(web::post().to(payment_methods::confirm_payment_method_intent_api)),
-                )
-                .service(
                     web::resource("/update-saved-payment-method")
                         .route(web::put().to(payment_methods::payment_method_update_api)),
                 ),
@@ -1497,10 +1493,10 @@ impl EphemeralKey {
 #[cfg(feature = "v2")]
 impl EphemeralKey {
     pub fn server(config: AppState) -> Scope {
-        web::scope("/v2/ephemeral-keys")
+        web::scope("/v2/client-secret")
             .app_data(web::Data::new(config))
-            .service(web::resource("").route(web::post().to(ephemeral_key_create)))
-            .service(web::resource("/{id}").route(web::delete().to(ephemeral_key_delete)))
+            .service(web::resource("").route(web::post().to(client_secret_create)))
+            .service(web::resource("/{id}").route(web::delete().to(client_secret_delete)))
     }
 }
 
