@@ -317,10 +317,7 @@ where
         network_tokenization::make_card_network_tokenization_request(self.state, card, customer_id)
             .await
             .map_err(|err| {
-                logger::error!(
-                    "Failed to tokenize card with the network: {:?}",
-                    err
-                );
+                logger::error!("Failed to tokenize card with the network: {:?}", err);
                 report!(errors::ApiErrorResponse::InternalServerError)
             })
     }
