@@ -68,6 +68,7 @@ impl AuthenticationConnectorAccountMap {
             .cloned()
     }
 }
+
 #[derive(
     Serialize, Deserialize, Debug, Clone, PartialEq, Eq, FromSqlRow, AsExpression, ToSchema,
 )]
@@ -81,9 +82,12 @@ pub struct PCRPaymentIntentFeatureMetadata {
     pub called_connector: bool,
     /// The merchant connector account id for the billing connector
     pub billing_connector_mca_id: common_utils::id_type::MerchantConnectorAccountId,
+    /// The merchant connector account id for the payment connector
+    pub payment_connector_mca_id: common_utils::id_type::MerchantConnectorAccountId,
     /// The mandate details for the connector
     pub connector_mandate_details: PCRConnectorMandateDetails,
 }
+
 
 #[derive(
     Serialize, Deserialize, Debug, Clone, PartialEq, Eq, FromSqlRow, AsExpression, ToSchema,
