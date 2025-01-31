@@ -2674,6 +2674,7 @@ default_imp_for_uas_authentication!(
     connectors::Bluesnap,
     connectors::Boku,
     connectors::Cashtocode,
+    connectors::Chargebee,
     connectors::Coinbase,
     connectors::Cryptopay,
     connectors::CtpMastercard,
