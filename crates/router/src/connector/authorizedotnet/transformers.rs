@@ -1835,11 +1835,11 @@ impl TryFrom<&AuthorizedotnetRouterData<&types::PaymentsCompleteAuthorizeRouterD
             .and_then(|redirect_response| redirect_response.params.as_ref())
             .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        let query_params: Option<PaypalQueryParams> = serde_urlencoded::from_str(params.peek())
+        let query_params: PaypalQueryParams = serde_urlencoded::from_str(params.peek())
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)
-            .attach_printable("Failed to parse connector response")
-            .ok();
-        let payer_id = query_params.and_then(|params| params.payer_id);
+            .attach_printable("Failed to parse connector response")?;
+
+        let payer_id = query_params.payer_id;
 
         let transaction_type = match item.router_data.request.capture_method {
             Some(enums::CaptureMethod::Manual) => Ok(TransactionType::ContinueAuthorization),
