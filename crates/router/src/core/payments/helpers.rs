@@ -6390,7 +6390,8 @@ pub fn validate_platform_request_for_marketplace(
                                 .flat_amount
                                 .map(|amount| amount.get_amount_as_i64())
                                 .or(route.percent_amount.map(|percentage| (percentage * i64_amount) / 100))
-                                .unwrap_or(0))}
+                                .unwrap_or(0))
+                            }
                             })
                             .collect::<Result<Vec<i64>, _>>()?
                             .into_iter()

@@ -330,7 +330,7 @@ impl
         req: &PaymentsPreProcessingRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = xendit::XenditSplitRequest::try_from(req)?;
+        let connector_req = xendit::XenditSplitRequestData::try_from(req)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 

@@ -89,19 +89,40 @@ pub struct XenditPaymentsRequest {
     pub channel_properties: Option<ChannelProperties>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
-pub struct XenditSplitRequest {
-    #[serde(flatten)]
-    pub split_data: common_types::payments::XenditSplitRequest,
+#[derive(
+    Serialize, Deserialize, Debug, Clone,
+)]
+pub struct XenditSplitRoute {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub flat_amount: Option<common_utils::types::MinorUnit>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub percent_amount: Option<i64>,
+    pub currency: enums::Currency,
+    pub destination_account_id: String,
+    pub reference_id: String,
 }
 
+#[derive(
+    Serialize, Deserialize, Debug, Clone, 
+)]
+pub struct XenditSplitRequest {
+    pub name: String,
+    pub description: Option<String>,
+    pub routes: Vec<XenditSplitRoute>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct XenditSplitRequestData {
+    #[serde(flatten)]
+    pub split_data: XenditSplitRequest,
+}
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct XenditSplitResponse {
     id: String,
     name: String,
     description: Option<String>,
-    routes: Vec<common_types::payments::XenditSplitRoute> 
+    routes: Vec<XenditSplitRoute>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -307,7 +328,6 @@ impl<F>
                 status_code: item.http_code,
             })
         } else {
-            /// Map charge response of preprocessing
             let charges = item.data.response.as_ref().ok()
             .and_then(|response| match response {
                 PaymentsResponseData::TransactionResponse { charges, .. } => charges.clone(),
@@ -315,7 +335,7 @@ impl<F>
             })
             .and_then(|charges| match charges {
                 common_types::payments::ConnectorChargeResponseData::XenditSplitPayment(xendit_response) => 
-                Some(common_types::payments::ConnectorChargeResponseData::XenditSplitPayment(xendit_response))
+                Some(common_types::payments::ConnectorChargeResponseData::XenditSplitPayment(xendit_response)),
                 _ => None,
             });
         
@@ -438,11 +458,25 @@ impl<F>
             PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
+        let (for_user_id, routes) = match item.data.request.split_payments {
+            Some(common_types::payments::SplitPaymentsRequest::XenditSplitPayment(ref split_data)) => (split_data.for_user_id.clone(), 
+                Some(split_data.routes.iter().map(|route| common_types::payments::XenditSplitRoute {
+                    flat_amount: route.flat_amount,
+                    percent_amount: route.percent_amount,
+                    currency: route.currency,
+                    destination_account_id: route.destination_account_id.clone(),
+                    reference_id: route.reference_id.clone(),
+                }).collect())),
+            _ => (None, None)
+        };
+
+
         let charges = common_types::payments::XenditChargeResponseData {
             split_rule_id: item.response.id,
+            for_user_id,
             name: item.response.name,
             description: item.response.description,
-            routes: item.response.routes,
+            routes: routes.unwrap_or(Vec::new()),
         };
 
          let response = 
@@ -537,13 +571,33 @@ impl TryFrom<&ConnectorAuthType> for XenditAuthType {
     }
 }
 
-impl TryFrom<&PaymentsPreProcessingRouterData> for XenditSplitRequest {
+impl TryFrom<&PaymentsPreProcessingRouterData> for XenditSplitRequestData {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &PaymentsPreProcessingRouterData) -> Result<Self, Self::Error> {
         if let Some(common_types::payments::SplitPaymentsRequest::XenditSplitPayment(split_data)) =
             item.request.split_payments.clone()
         {
-            Ok(XenditSplitRequest { split_data })
+            let routes = match item.request.split_payments {
+                Some(common_types::payments::SplitPaymentsRequest::XenditSplitPayment(ref split_data)) => Some(split_data.routes.iter().map(|route| XenditSplitRoute {
+                    flat_amount: route.flat_amount,
+                    percent_amount: route.percent_amount,
+                    currency: route.currency,
+                    destination_account_id: route.destination_account_id.clone(),
+                    reference_id: route.reference_id.clone(),
+                }).collect()),
+                _ => None
+            };
+
+            let split_data = XenditSplitRequest { 
+                name: split_data.name.clone(),
+                description: split_data.description.clone(),
+                routes: routes.unwrap_or(Vec::new()),
+             };
+    
+
+            Ok(XenditSplitRequestData { 
+                split_data,
+             })
         } else {
             Err(errors::ConnectorError::NotImplemented(
                 get_unimplemented_payment_method_error_message("Xendit"),

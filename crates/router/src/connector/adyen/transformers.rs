@@ -588,7 +588,7 @@ pub enum AdyenPaymentMethod<'a> {
     #[serde(rename = "directEbanking")]
     Sofort,
     #[serde(rename = "trustly")]
-    Trustly(Box<PmdForPaymentType>),
+    Trustly,
     #[serde(rename = "walley")]
     Walley,
     #[serde(rename = "wechatpayWeb")]

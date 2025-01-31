@@ -103,10 +103,8 @@ impl_to_sql_from_sql_json!(StripeChargeResponseData);
 #[serde(deny_unknown_fields)]
 pub struct XenditSplitRoute {
     /// Name to identify split rule. Not required to be unique. Typically based on transaction and/or sub-merchant types.
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub flat_amount: Option<MinorUnit>,
     /// Description to identify fee rule
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub percent_amount: Option<i64>,
     /// Currency code
     #[schema(value_type = Currency, example = "USD")]
@@ -129,6 +127,8 @@ pub struct XenditSplitRequest {
     pub name: String,
     /// Description to identify fee rule
     pub description: Option<String>,
+    /// The sub-account user-id that you want to make this transaction for.
+    pub for_user_id: Option<String>,
     /// Array of objects that define how the platform wants to route the fees and to which accounts.
     pub routes: Vec<XenditSplitRoute>,
 }
@@ -144,6 +144,8 @@ impl_to_sql_from_sql_json!(XenditSplitRequest);
 pub struct XenditChargeResponseData {
     /// Identifier for split rule created for the payment
     pub split_rule_id: String,
+    /// The sub-account user-id that you want to make this transaction for.
+    pub for_user_id: Option<String>,
     /// Name to identify split rule. Not required to be unique. Typically based on transaction and/or sub-merchant types.
     pub name: String,
     /// Description to identify fee rule
