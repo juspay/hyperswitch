@@ -7,7 +7,7 @@ use api_models::{
 use common_utils::{
     date_time,
     ext_traits::{AsyncExt, Encode, OptionExt, ValueExt},
-    id_type, pii, type_name,
+    fp_utils, id_type, pii, type_name,
     types::keymanager::{self as km_types, KeyManagerState, ToEncryptable},
 };
 use diesel_models::configs;
@@ -1550,6 +1550,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 worldpay::transformers::WorldpayAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            api_enums::Connector::Xendit => {
+                xendit::transformers::XenditAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Zen => {
                 zen::transformers::ZenAuthType::try_from(self.auth_type)?;
                 Ok(())
@@ -1748,7 +1752,7 @@ struct PMAuthConfigValidation<'a> {
     key_manager_state: &'a KeyManagerState,
 }
 
-impl<'a> PMAuthConfigValidation<'a> {
+impl PMAuthConfigValidation<'_> {
     async fn validate_pm_auth(&self, val: &pii::SecretSerdeValue) -> RouterResponse<()> {
         let config = serde_json::from_value::<api_models::pm_auth::PaymentMethodAuthConfig>(
             val.clone().expose(),
@@ -1865,7 +1869,7 @@ struct MerchantDefaultConfigUpdate<'a> {
     transaction_type: &'a api_enums::TransactionType,
 }
 #[cfg(feature = "v1")]
-impl<'a> MerchantDefaultConfigUpdate<'a> {
+impl MerchantDefaultConfigUpdate<'_> {
     async fn retrieve_and_update_default_fallback_routing_algorithm_if_routable_connector_exists(
         &self,
     ) -> RouterResult<()> {
@@ -1938,11 +1942,7 @@ impl<'a> MerchantDefaultConfigUpdate<'a> {
             };
             if default_routing_config.contains(&choice) {
                 default_routing_config.retain(|mca| {
-                    mca.merchant_connector_id
-                        .as_ref()
-                        .map_or(true, |merchant_connector_id| {
-                            merchant_connector_id != self.merchant_connector_id
-                        })
+                    mca.merchant_connector_id.as_ref() != Some(self.merchant_connector_id)
                 });
                 routing::helpers::update_merchant_default_config(
                     self.store,
@@ -1954,11 +1954,7 @@ impl<'a> MerchantDefaultConfigUpdate<'a> {
             }
             if default_routing_config_for_profile.contains(&choice.clone()) {
                 default_routing_config_for_profile.retain(|mca| {
-                    mca.merchant_connector_id
-                        .as_ref()
-                        .map_or(true, |merchant_connector_id| {
-                            merchant_connector_id != self.merchant_connector_id
-                        })
+                    mca.merchant_connector_id.as_ref() != Some(self.merchant_connector_id)
                 });
                 routing::helpers::update_merchant_default_config(
                     self.store,
@@ -1982,7 +1978,7 @@ struct DefaultFallbackRoutingConfigUpdate<'a> {
     key_manager_state: &'a KeyManagerState,
 }
 #[cfg(feature = "v2")]
-impl<'a> DefaultFallbackRoutingConfigUpdate<'a> {
+impl DefaultFallbackRoutingConfigUpdate<'_> {
     async fn retrieve_and_update_default_fallback_routing_algorithm_if_routable_connector_exists(
         &self,
     ) -> RouterResult<()> {
@@ -2025,11 +2021,7 @@ impl<'a> DefaultFallbackRoutingConfigUpdate<'a> {
             };
             if default_routing_config_for_profile.contains(&choice.clone()) {
                 default_routing_config_for_profile.retain(|mca| {
-                    mca.merchant_connector_id
-                        .as_ref()
-                        .map_or(true, |merchant_connector_id| {
-                            merchant_connector_id != self.merchant_connector_id
-                        })
+                    (mca.merchant_connector_id.as_ref() != Some(self.merchant_connector_id))
                 });
 
                 profile_wrapper
@@ -2111,19 +2103,12 @@ impl MerchantConnectorAccountUpdateBridge for api_models::admin::MerchantConnect
 
         let metadata = self.metadata.clone().or(mca.metadata.clone());
 
-        let connector_name = mca.connector_name.as_ref();
-        let connector_enum = api_models::enums::Connector::from_str(connector_name)
-            .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "connector",
-            })
-            .attach_printable_lazy(|| {
-                format!("unable to parse connector name {connector_name:?}")
-            })?;
         let connector_auth_type_and_metadata_validation = ConnectorAuthTypeAndMetadataValidation {
-            connector_name: &connector_enum,
+            connector_name: &mca.connector_name,
             auth_type: &auth,
             connector_meta_data: &metadata,
         };
+
         connector_auth_type_and_metadata_validation.validate_auth_and_metadata_type()?;
         let connector_status_and_disabled_validation = ConnectorStatusAndDisabledValidation {
             status: &self.status,
@@ -2131,6 +2116,7 @@ impl MerchantConnectorAccountUpdateBridge for api_models::admin::MerchantConnect
             auth: &auth,
             current_status: &mca.status,
         };
+
         let (connector_status, disabled) =
             connector_status_and_disabled_validation.validate_status_and_disabled()?;
 
@@ -2153,7 +2139,7 @@ impl MerchantConnectorAccountUpdateBridge for api_models::admin::MerchantConnect
                     merchant_account.get_id(),
                     &auth,
                     &self.connector_type,
-                    &connector_enum,
+                    &mca.connector_name,
                     types::AdditionalMerchantData::foreign_from(data.clone()),
                 )
                 .await?,
@@ -2520,7 +2506,7 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
         Ok(domain::MerchantConnectorAccount {
             merchant_id: business_profile.merchant_id.clone(),
             connector_type: self.connector_type,
-            connector_name: self.connector_name.to_string(),
+            connector_name: self.connector_name,
             connector_account_details: encrypted_data.connector_account_details,
             payment_methods_enabled,
             disabled,
@@ -2819,11 +2805,16 @@ pub async fn create_connector(
     let store = state.store.as_ref();
     let key_manager_state = &(&state).into();
     #[cfg(feature = "dummy_connector")]
-    req.connector_name
-        .validate_dummy_connector_enabled(state.conf.dummy_connector.enabled)
-        .change_context(errors::ApiErrorResponse::InvalidRequestData {
-            message: "Invalid connector name".to_string(),
-        })?;
+    fp_utils::when(
+        req.connector_name
+            .validate_dummy_connector_create(state.conf.dummy_connector.enabled),
+        || {
+            Err(errors::ApiErrorResponse::InvalidRequestData {
+                message: "Invalid connector name".to_string(),
+            })
+        },
+    )?;
+
     let connector_metadata = ConnectorMetadata {
         connector_metadata: &req.metadata,
     };
@@ -3331,11 +3322,11 @@ pub async fn delete_connector(
 
     let merchant_default_config_delete = DefaultFallbackRoutingConfigUpdate {
         routable_connector: &Some(
-            common_enums::RoutableConnectors::from_str(&mca.connector_name).map_err(|_| {
-                errors::ApiErrorResponse::InvalidDataValue {
+            common_enums::RoutableConnectors::from_str(&mca.connector_name.to_string()).map_err(
+                |_| errors::ApiErrorResponse::InvalidDataValue {
                     field_name: "connector_name",
-                }
-            })?,
+                },
+            )?,
         ),
         merchant_connector_id: &mca.get_id(),
         store: db,
@@ -3627,13 +3618,6 @@ impl ProfileCreateBridge for api::ProfileCreate {
             })
             .transpose()?;
 
-        let authentication_product_ids = self
-            .authentication_product_ids
-            .map(serde_json::to_value)
-            .transpose()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("failed to parse product authentication id's to value")?;
-
         Ok(domain::Profile::from(domain::ProfileSetter {
             profile_id,
             merchant_id: merchant_account.get_id().clone(),
@@ -3704,7 +3688,7 @@ impl ProfileCreateBridge for api::ProfileCreate {
             is_auto_retries_enabled: self.is_auto_retries_enabled.unwrap_or_default(),
             max_auto_retries_enabled: self.max_auto_retries_enabled.map(i16::from),
             is_click_to_pay_enabled: self.is_click_to_pay_enabled,
-            authentication_product_ids,
+            authentication_product_ids: self.authentication_product_ids,
         }))
     }
 
@@ -3755,13 +3739,6 @@ impl ProfileCreateBridge for api::ProfileCreate {
                 )),
             })
             .transpose()?;
-
-        let authentication_product_ids = self
-            .authentication_product_ids
-            .map(serde_json::to_value)
-            .transpose()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("failed to parse product authentication id's to value")?;
 
         Ok(domain::Profile::from(domain::ProfileSetter {
             id: profile_id,
@@ -3820,7 +3797,7 @@ impl ProfileCreateBridge for api::ProfileCreate {
             is_tax_connector_enabled: self.is_tax_connector_enabled,
             is_network_tokenization_enabled: self.is_network_tokenization_enabled,
             is_click_to_pay_enabled: self.is_click_to_pay_enabled,
-            authentication_product_ids,
+            authentication_product_ids: self.authentication_product_ids,
         }))
     }
 }
@@ -4028,13 +4005,6 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
             })
             .transpose()?;
 
-        let authentication_product_ids = self
-            .authentication_product_ids
-            .map(serde_json::to_value)
-            .transpose()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("failed to parse product authentication id's to value")?;
-
         Ok(domain::ProfileUpdate::Update(Box::new(
             domain::ProfileGeneralUpdate {
                 profile_name: self.profile_name,
@@ -4078,7 +4048,7 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                 is_auto_retries_enabled: self.is_auto_retries_enabled,
                 max_auto_retries_enabled: self.max_auto_retries_enabled.map(i16::from),
                 is_click_to_pay_enabled: self.is_click_to_pay_enabled,
-                authentication_product_ids,
+                authentication_product_ids: self.authentication_product_ids,
             },
         )))
     }
@@ -4141,13 +4111,6 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
             })
             .transpose()?;
 
-        let authentication_product_ids = self
-            .authentication_product_ids
-            .map(serde_json::to_value)
-            .transpose()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("failed to parse product authentication id's to value")?;
-
         Ok(domain::ProfileUpdate::Update(Box::new(
             domain::ProfileGeneralUpdate {
                 profile_name: self.profile_name,
@@ -4183,7 +4146,7 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                     .always_collect_shipping_details_from_wallet_connector,
                 is_network_tokenization_enabled: self.is_network_tokenization_enabled,
                 is_click_to_pay_enabled: self.is_click_to_pay_enabled,
-                authentication_product_ids,
+                authentication_product_ids: self.authentication_product_ids,
             },
         )))
     }

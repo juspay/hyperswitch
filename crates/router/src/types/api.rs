@@ -359,6 +359,7 @@ impl ConnectorData {
                     Ok(ConnectorEnum::Old(Box::new(connector::Braintree::new())))
                 }
                 enums::Connector::Cashtocode => {
+                    // enums::Connector::Chargebee => Ok(ConnectorEnum::Old(Box::new(connector::Chargebee))),
                     Ok(ConnectorEnum::Old(Box::new(connector::Cashtocode::new())))
                 }
                 enums::Connector::Checkout => {
@@ -511,9 +512,9 @@ impl ConnectorData {
                 enums::Connector::Worldpay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Worldpay::new())))
                 }
-                // enums::Connector::Xendit => {
-                //     Ok(ConnectorEnum::Old(Box::new(connector::Xendit::new())))
-                // }
+                enums::Connector::Xendit => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Xendit::new())))
+                }
                 enums::Connector::Mifinity => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Mifinity::new())))
                 }

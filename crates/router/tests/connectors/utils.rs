@@ -490,6 +490,8 @@ pub trait ConnectorActions: Connector {
             merchant_id,
             customer_id: Some(common_utils::generate_customer_id_of_default_length()),
             connector: self.get_name(),
+            tenant_id: common_utils::id_type::TenantId::try_from_string("public".to_string())
+                .unwrap(),
             payment_id: uuid::Uuid::new_v4().to_string(),
             attempt_id: uuid::Uuid::new_v4().to_string(),
             status: enums::AttemptStatus::default(),
@@ -602,6 +604,7 @@ pub trait ConnectorActions: Connector {
         let state = Arc::new(app_state)
             .get_session_state(
                 &common_utils::id_type::TenantId::try_from_string("public".to_string()).unwrap(),
+                None,
                 || {},
             )
             .unwrap();
@@ -645,6 +648,7 @@ pub trait ConnectorActions: Connector {
         let state = Arc::new(app_state)
             .get_session_state(
                 &common_utils::id_type::TenantId::try_from_string("public".to_string()).unwrap(),
+                None,
                 || {},
             )
             .unwrap();
@@ -689,6 +693,7 @@ pub trait ConnectorActions: Connector {
         let state = Arc::new(app_state)
             .get_session_state(
                 &common_utils::id_type::TenantId::try_from_string("public".to_string()).unwrap(),
+                None,
                 || {},
             )
             .unwrap();
@@ -732,6 +737,7 @@ pub trait ConnectorActions: Connector {
         let state = Arc::new(app_state)
             .get_session_state(
                 &common_utils::id_type::TenantId::try_from_string("public".to_string()).unwrap(),
+                None,
                 || {},
             )
             .unwrap();
@@ -826,6 +832,7 @@ pub trait ConnectorActions: Connector {
         let state = Arc::new(app_state)
             .get_session_state(
                 &common_utils::id_type::TenantId::try_from_string("public".to_string()).unwrap(),
+                None,
                 || {},
             )
             .unwrap();
@@ -866,6 +873,7 @@ async fn call_connector<
     let state = Arc::new(app_state)
         .get_session_state(
             &common_utils::id_type::TenantId::try_from_string("public".to_string()).unwrap(),
+            None,
             || {},
         )
         .unwrap();
@@ -1014,6 +1022,7 @@ impl Default for BrowserInfoType {
             device_model: Some("Apple IPHONE 7".to_string()),
             os_type: Some("IOS or ANDROID".to_string()),
             os_version: Some("IOS 14.5".to_string()),
+            accept_language: Some("en".to_string()),
         };
         Self(data)
     }

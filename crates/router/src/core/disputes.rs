@@ -79,6 +79,7 @@ pub async fn accept_dispute(
     todo!()
 }
 
+#[cfg(feature = "v1")]
 #[instrument(skip(state))]
 pub async fn get_filters_for_disputes(
     state: SessionState,

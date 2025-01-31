@@ -122,7 +122,9 @@ jobs:
           toolchain: stable
 
       - name: Build and Cache Rust Dependencies
-        uses: Swatinem/rust-cache@v2.7.0
+        uses: Swatinem/rust-cache@v2.7.7
+        with: 
+            save-if: false
 
       - name: Install Diesel CLI with Postgres Support
         uses: baptiste0928/cargo-install@v2.2.0
