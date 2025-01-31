@@ -311,11 +311,13 @@ where
 {
     let type_name = std::any::type_name::<T>();
     let key = key.as_ref();
-    let redis_val = redis.get_and_deserialize_key::<T>(key, type_name).await;
+    let redis_val = redis
+        .get_and_deserialize_key::<T>(&key.into(), type_name)
+        .await;
     let get_data_set_redis = || async {
         let data = fun().await?;
         redis
-            .serialize_and_set_key(key, &data)
+            .serialize_and_set_key(&key.into(), &data)
             .await
             .change_context(StorageError::KVError)?;
         Ok::<_, Report<StorageError>>(data)
@@ -392,7 +394,7 @@ pub async fn redact_from_redis_and_publish<
     let redis_keys_to_be_deleted = keys
         .clone()
         .into_iter()
-        .map(|val| val.get_key_without_prefix().to_owned())
+        .map(|val| val.get_key_without_prefix().to_owned().into())
         .collect::<Vec<_>>();
 
     let del_replies = redis_conn
