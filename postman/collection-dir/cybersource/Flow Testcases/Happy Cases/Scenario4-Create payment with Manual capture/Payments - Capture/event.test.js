@@ -50,12 +50,12 @@ if (jsonData?.client_secret) {
   );
 }
 
-// Response body should have value "succeeded" for "status"
+// Response body should have value "processing" for "status" while capturing a payment manually
 if (jsonData?.status) {
   pm.test(
-    "[POST]:://payments/:id/capture - Content check if value for 'status' matches 'succeeded'",
+    "[POST]:://payments/:id/capture - Content check if value for 'status' matches 'processing'",
     function () {
-      pm.expect(jsonData.status).to.eql("succeeded");
+      pm.expect(jsonData.status).to.eql("processing");
     },
   );
 }

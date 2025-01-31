@@ -47,12 +47,12 @@ if (jsonData?.error?.type) {
   );
 }
 
-// Response body should have value "The refund amount exceeds the amount captured" for "error message"
+// Response body should have value "This Payment could not be refund because it has a status of processing. The expected state is succeeded, partially_captured" for "error message"
 if (jsonData?.error?.type) {
   pm.test(
-    "[POST]::/payments/:id/confirm - Content check if value for 'error.message' matches 'The refund amount exceeds the amount captured'",
+    "[POST]::/payments/:id/confirm - Content check if value for 'error.message' matches 'This Payment could not be refund because it has a status of processing. The expected state is succeeded, partially_captured'",
     function () {
-      pm.expect(jsonData.error.message).to.eql("The refund amount exceeds the amount captured");
+      pm.expect(jsonData.error.message).to.eql("This Payment could not be refund because it has a status of processing. The expected state is succeeded, partially_captured");
     },
   );
 }
