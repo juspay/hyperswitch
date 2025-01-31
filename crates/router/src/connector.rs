@@ -1,7 +1,6 @@
 pub mod adyen;
 pub mod adyenplatform;
 pub mod authorizedotnet;
-pub mod braintree;
 pub mod checkout;
 #[cfg(feature = "dummy_connector")]
 pub mod dummyconnector;
@@ -35,7 +34,7 @@ pub use hyperswitch_connectors::connectors::{
     aci, aci::Aci, airwallex, airwallex::Airwallex, amazonpay, amazonpay::Amazonpay, bambora,
     bambora::Bambora, bamboraapac, bamboraapac::Bamboraapac, bankofamerica,
     bankofamerica::Bankofamerica, billwerk, billwerk::Billwerk, bitpay, bitpay::Bitpay, bluesnap,
-    bluesnap::Bluesnap, boku, boku::Boku, cashtocode, cashtocode::Cashtocode, chargebee::Chargebee,
+    bluesnap::Bluesnap, braintree, braintree::Braintree, boku, boku::Boku, cashtocode, cashtocode::Cashtocode, chargebee::Chargebee,
     coinbase, coinbase::Coinbase, cryptopay, cryptopay::Cryptopay, ctp_mastercard,
     ctp_mastercard::CtpMastercard, cybersource, cybersource::Cybersource, datatrans,
     datatrans::Datatrans, deutschebank, deutschebank::Deutschebank, digitalvirgo,
@@ -58,7 +57,7 @@ pub use hyperswitch_connectors::connectors::{
 pub use self::dummyconnector::DummyConnector;
 pub use self::{
     adyen::Adyen, adyenplatform::Adyenplatform, authorizedotnet::Authorizedotnet,
-    braintree::Braintree, checkout::Checkout, ebanx::Ebanx, globalpay::Globalpay,
+    checkout::Checkout, ebanx::Ebanx, globalpay::Globalpay,
     gpayments::Gpayments, iatapay::Iatapay, itaubank::Itaubank, klarna::Klarna, mifinity::Mifinity,
     netcetera::Netcetera, nmi::Nmi, noon::Noon, nuvei::Nuvei, opayo::Opayo, opennode::Opennode,
     payme::Payme, payone::Payone, paypal::Paypal, plaid::Plaid, riskified::Riskified,
