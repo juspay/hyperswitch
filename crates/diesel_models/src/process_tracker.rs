@@ -268,13 +268,13 @@ pub mod business_status {
     pub const PENDING: &str = "Pending";
 
     /// For the PCR Workflow
-
-    /// This status indicates the completetion of a execute task
+    ///
+    /// This status indicates the completion of a execute task
     pub const EXECUTE_WORKFLOW_COMPLETE: &str = "COMPLETED_EXECUTE_TASK";
 
     /// This status indicates that the execute task was completed to trigger the psync task
     pub const EXECUTE_WORKFLOW_COMPLETE_FOR_PSYNC: &str = "COMPLETED_EXECUTE_TASK_TO_TRIGGER_PSYNC";
 
-    /// This status indicates the completetion of a psync task
+    /// This status indicates the completion of a psync task
     pub const PSYNC_WORKFLOW_COMPLETE: &str = "COMPLETED_PSYNC_TASK";
 }
