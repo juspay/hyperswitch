@@ -1,4 +1,4 @@
-use common_utils::id_type;
+use common_utils::{errors::CustomResult, id_type};
 use error_stack::ResultExt;
 #[cfg(feature = "frm")]
 use hyperswitch_domain_models::router_data_v2::flow_common_types::FrmFlowData;
@@ -17,8 +17,7 @@ use hyperswitch_domain_models::{
     },
 };
 
-use super::connector_integration_interface::RouterDataConversion;
-use crate::errors;
+use crate::{connector_integration_interface::RouterDataConversion, errors::ConnectorError};
 
 fn get_irrelevant_id_string(id_name: &str, flow_name: &str) -> String {
     format!("irrelevant {id_name} in {flow_name} flow")
@@ -89,7 +88,7 @@ fn get_default_router_data<F, Req, Resp>(
 impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for AccessTokenFlowData {
     fn from_old_router_data(
         old_router_data: &RouterData<T, Req, Resp>,
-    ) -> errors::CustomResult<RouterDataV2<T, Self, Req, Resp>, errors::ConnectorError>
+    ) -> CustomResult<RouterDataV2<T, Self, Req, Resp>, ConnectorError>
     where
         Self: Sized,
     {
@@ -106,7 +105,7 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for AccessTo
 
     fn to_old_router_data(
         new_router_data: RouterDataV2<T, Self, Req, Resp>,
-    ) -> errors::CustomResult<RouterData<T, Req, Resp>, errors::ConnectorError>
+    ) -> CustomResult<RouterData<T, Req, Resp>, ConnectorError>
     where
         Self: Sized,
     {
@@ -126,7 +125,7 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for AccessTo
 impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for PaymentFlowData {
     fn from_old_router_data(
         old_router_data: &RouterData<T, Req, Resp>,
-    ) -> errors::CustomResult<RouterDataV2<T, Self, Req, Resp>, errors::ConnectorError>
+    ) -> CustomResult<RouterDataV2<T, Self, Req, Resp>, ConnectorError>
     where
         Self: Sized,
     {
@@ -172,7 +171,7 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for PaymentF
 
     fn to_old_router_data(
         new_router_data: RouterDataV2<T, Self, Req, Resp>,
-    ) -> errors::CustomResult<RouterData<T, Req, Resp>, errors::ConnectorError>
+    ) -> CustomResult<RouterData<T, Req, Resp>, ConnectorError>
     where
         Self: Sized,
     {
@@ -247,7 +246,7 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for PaymentF
 impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for RefundFlowData {
     fn from_old_router_data(
         old_router_data: &RouterData<T, Req, Resp>,
-    ) -> errors::CustomResult<RouterDataV2<T, Self, Req, Resp>, errors::ConnectorError>
+    ) -> CustomResult<RouterDataV2<T, Self, Req, Resp>, ConnectorError>
     where
         Self: Sized,
     {
@@ -263,7 +262,7 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for RefundFl
             minor_amount_captured: old_router_data.minor_amount_captured,
             connector_request_reference_id: old_router_data.connector_request_reference_id.clone(),
             refund_id: old_router_data.refund_id.clone().ok_or(
-                errors::ConnectorError::MissingRequiredField {
+                ConnectorError::MissingRequiredField {
                     field_name: "refund_id",
                 },
             )?,
@@ -280,7 +279,7 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for RefundFl
 
     fn to_old_router_data(
         new_router_data: RouterDataV2<T, Self, Req, Resp>,
-    ) -> errors::CustomResult<RouterData<T, Req, Resp>, errors::ConnectorError>
+    ) -> CustomResult<RouterData<T, Req, Resp>, ConnectorError>
     where
         Self: Sized,
     {
@@ -321,7 +320,7 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for RefundFl
 impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for DisputesFlowData {
     fn from_old_router_data(
         old_router_data: &RouterData<T, Req, Resp>,
-    ) -> errors::CustomResult<RouterDataV2<T, Self, Req, Resp>, errors::ConnectorError>
+    ) -> CustomResult<RouterDataV2<T, Self, Req, Resp>, ConnectorError>
     where
         Self: Sized,
     {
@@ -335,7 +334,7 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for Disputes
             minor_amount_captured: old_router_data.minor_amount_captured,
             connector_request_reference_id: old_router_data.connector_request_reference_id.clone(),
             dispute_id: old_router_data.dispute_id.clone().ok_or(
-                errors::ConnectorError::MissingRequiredField {
+                ConnectorError::MissingRequiredField {
                     field_name: "dispute_id",
                 },
             )?,
@@ -352,7 +351,7 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for Disputes
 
     fn to_old_router_data(
         new_router_data: RouterDataV2<T, Self, Req, Resp>,
-    ) -> errors::CustomResult<RouterData<T, Req, Resp>, errors::ConnectorError>
+    ) -> CustomResult<RouterData<T, Req, Resp>, ConnectorError>
     where
         Self: Sized,
     {
@@ -390,7 +389,7 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for Disputes
 impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for FrmFlowData {
     fn from_old_router_data(
         old_router_data: &RouterData<T, Req, Resp>,
-    ) -> errors::CustomResult<RouterDataV2<T, Self, Req, Resp>, errors::ConnectorError>
+    ) -> CustomResult<RouterDataV2<T, Self, Req, Resp>, ConnectorError>
     where
         Self: Sized,
     {
@@ -418,7 +417,7 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for FrmFlowD
 
     fn to_old_router_data(
         new_router_data: RouterDataV2<T, Self, Req, Resp>,
-    ) -> errors::CustomResult<RouterData<T, Req, Resp>, errors::ConnectorError>
+    ) -> CustomResult<RouterData<T, Req, Resp>, ConnectorError>
     where
         Self: Sized,
     {
@@ -459,7 +458,7 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for FrmFlowD
 impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for FilesFlowData {
     fn from_old_router_data(
         old_router_data: &RouterData<T, Req, Resp>,
-    ) -> errors::CustomResult<RouterDataV2<T, Self, Req, Resp>, errors::ConnectorError>
+    ) -> CustomResult<RouterDataV2<T, Self, Req, Resp>, ConnectorError>
     where
         Self: Sized,
     {
@@ -482,7 +481,7 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for FilesFlo
 
     fn to_old_router_data(
         new_router_data: RouterDataV2<T, Self, Req, Resp>,
-    ) -> errors::CustomResult<RouterData<T, Req, Resp>, errors::ConnectorError>
+    ) -> CustomResult<RouterData<T, Req, Resp>, ConnectorError>
     where
         Self: Sized,
     {
@@ -512,7 +511,7 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for FilesFlo
 impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for WebhookSourceVerifyData {
     fn from_old_router_data(
         old_router_data: &RouterData<T, Req, Resp>,
-    ) -> errors::CustomResult<RouterDataV2<T, Self, Req, Resp>, errors::ConnectorError>
+    ) -> CustomResult<RouterDataV2<T, Self, Req, Resp>, ConnectorError>
     where
         Self: Sized,
     {
@@ -531,7 +530,7 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for WebhookS
 
     fn to_old_router_data(
         new_router_data: RouterDataV2<T, Self, Req, Resp>,
-    ) -> errors::CustomResult<RouterData<T, Req, Resp>, errors::ConnectorError>
+    ) -> CustomResult<RouterData<T, Req, Resp>, ConnectorError>
     where
         Self: Sized,
     {
@@ -550,14 +549,14 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for WebhookS
 impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for MandateRevokeFlowData {
     fn from_old_router_data(
         old_router_data: &RouterData<T, Req, Resp>,
-    ) -> errors::CustomResult<RouterDataV2<T, Self, Req, Resp>, errors::ConnectorError>
+    ) -> CustomResult<RouterDataV2<T, Self, Req, Resp>, ConnectorError>
     where
         Self: Sized,
     {
         let resource_common_data = Self {
             merchant_id: old_router_data.merchant_id.clone(),
             customer_id: old_router_data.customer_id.clone().ok_or(
-                errors::ConnectorError::MissingRequiredField {
+                ConnectorError::MissingRequiredField {
                     field_name: "customer_id",
                 },
             )?,
@@ -575,7 +574,7 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for MandateR
 
     fn to_old_router_data(
         new_router_data: RouterDataV2<T, Self, Req, Resp>,
-    ) -> errors::CustomResult<RouterData<T, Req, Resp>, errors::ConnectorError>
+    ) -> CustomResult<RouterData<T, Req, Resp>, ConnectorError>
     where
         Self: Sized,
     {
@@ -607,7 +606,7 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for MandateR
 impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for PayoutFlowData {
     fn from_old_router_data(
         old_router_data: &RouterData<T, Req, Resp>,
-    ) -> errors::CustomResult<RouterDataV2<T, Self, Req, Resp>, errors::ConnectorError>
+    ) -> CustomResult<RouterDataV2<T, Self, Req, Resp>, ConnectorError>
     where
         Self: Sized,
     {
@@ -634,7 +633,7 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for PayoutFl
 
     fn to_old_router_data(
         new_router_data: RouterDataV2<T, Self, Req, Resp>,
-    ) -> errors::CustomResult<RouterData<T, Req, Resp>, errors::ConnectorError>
+    ) -> CustomResult<RouterData<T, Req, Resp>, ConnectorError>
     where
         Self: Sized,
     {
@@ -672,7 +671,7 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp>
 {
     fn from_old_router_data(
         old_router_data: &RouterData<T, Req, Resp>,
-    ) -> errors::CustomResult<RouterDataV2<T, Self, Req, Resp>, errors::ConnectorError>
+    ) -> CustomResult<RouterDataV2<T, Self, Req, Resp>, ConnectorError>
     where
         Self: Sized,
     {
@@ -693,7 +692,7 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp>
 
     fn to_old_router_data(
         new_router_data: RouterDataV2<T, Self, Req, Resp>,
-    ) -> errors::CustomResult<RouterData<T, Req, Resp>, errors::ConnectorError>
+    ) -> CustomResult<RouterData<T, Req, Resp>, ConnectorError>
     where
         Self: Sized,
     {
@@ -718,7 +717,7 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp>
 impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for UasFlowData {
     fn from_old_router_data(
         old_router_data: &RouterData<T, Req, Resp>,
-    ) -> errors::CustomResult<RouterDataV2<T, Self, Req, Resp>, errors::ConnectorError>
+    ) -> CustomResult<RouterDataV2<T, Self, Req, Resp>, ConnectorError>
     where
         Self: Sized,
     {
@@ -727,7 +726,7 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for UasFlowD
             source_authentication_id: old_router_data
                 .authentication_id
                 .clone()
-                .ok_or(errors::ConnectorError::MissingRequiredField {
+                .ok_or(ConnectorError::MissingRequiredField {
                     field_name: "source_authentication_id",
                 })
                 .attach_printable("missing authentication id for uas")?,
@@ -744,7 +743,7 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for UasFlowD
 
     fn to_old_router_data(
         new_router_data: RouterDataV2<T, Self, Req, Resp>,
-    ) -> errors::CustomResult<RouterData<T, Req, Resp>, errors::ConnectorError>
+    ) -> CustomResult<RouterData<T, Req, Resp>, ConnectorError>
     where
         Self: Sized,
     {

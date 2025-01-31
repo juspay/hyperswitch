@@ -289,7 +289,7 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsSessionRequest, payments::Payment
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Database error when querying for merchant connector accounts")?;
-        let profile_id = &payment_data.payment_intent.profile_id;
+        let profile_id = business_profile.get_id();
         let filtered_connector_accounts = all_connector_accounts
             .filter_based_on_profile_and_connector_type(
                 profile_id,

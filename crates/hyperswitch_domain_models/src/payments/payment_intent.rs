@@ -1,3 +1,4 @@
+#[cfg(feature = "v2")]
 use common_enums::RequestIncrementalAuthorization;
 #[cfg(feature = "v2")]
 use common_utils::ext_traits::{Encode, ValueExt};
@@ -14,9 +15,10 @@ use common_utils::{
         MinorUnit,
     },
 };
+#[cfg(feature = "v2")]
+use diesel_models::PaymentLinkConfigRequestForPayments;
 use diesel_models::{
     PaymentIntent as DieselPaymentIntent, PaymentIntentNew as DieselPaymentIntentNew,
-    PaymentLinkConfigRequestForPayments,
 };
 use error_stack::ResultExt;
 #[cfg(feature = "v2")]
@@ -30,13 +32,16 @@ use super::payment_attempt::PaymentAttempt;
 use super::PaymentIntent;
 #[cfg(feature = "v2")]
 use crate::address::Address;
+#[cfg(feature = "v2")]
+use crate::routing;
 use crate::{
     behaviour, errors,
     merchant_key_store::MerchantKeyStore,
-    routing,
     type_encryption::{crypto_operation, CryptoOperation},
-    FeatureMetadata, OrderDetailsWithAmount, RemoteStorageObject,
+    RemoteStorageObject,
 };
+#[cfg(feature = "v2")]
+use crate::{FeatureMetadata, OrderDetailsWithAmount};
 
 #[async_trait::async_trait]
 pub trait PaymentIntentInterface {

@@ -5,9 +5,12 @@ use hyperswitch_domain_models::{
             DisputesFlowData, MandateRevokeFlowData, PaymentFlowData, RefundFlowData,
             WebhookSourceVerifyData,
         },
-        AccessTokenFlowData, FilesFlowData,
+        AccessTokenFlowData, ExternalAuthenticationFlowData, FilesFlowData,
     },
     router_flow_types::{
+        authentication::{
+            Authentication, PostAuthentication, PreAuthentication, PreAuthenticationVersionCall,
+        },
         dispute::{Accept, Defend, Evidence},
         files::{Retrieve, Upload},
         mandate_revoke::MandateRevoke,
@@ -22,10 +25,10 @@ use hyperswitch_domain_models::{
         AccessTokenAuth,
     },
     router_request_types::{
-        AcceptDisputeRequestData, AccessTokenRequestData, AuthorizeSessionTokenData,
-        CompleteAuthorizeData, ConnectorCustomerData, DefendDisputeRequestData,
-        MandateRevokeRequestData, PaymentMethodTokenizationData, PaymentsApproveData,
-        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData,
+        authentication, AcceptDisputeRequestData, AccessTokenRequestData,
+        AuthorizeSessionTokenData, CompleteAuthorizeData, ConnectorCustomerData,
+        DefendDisputeRequestData, MandateRevokeRequestData, PaymentMethodTokenizationData,
+        PaymentsApproveData, PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData,
         PaymentsIncrementalAuthorizationData, PaymentsPostProcessingData,
         PaymentsPostSessionTokensData, PaymentsPreProcessingData, PaymentsRejectData,
         PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData, RefundsData,
@@ -33,9 +36,10 @@ use hyperswitch_domain_models::{
         SubmitEvidenceRequestData, UploadFileRequestData, VerifyWebhookSourceRequestData,
     },
     router_response_types::{
-        AcceptDisputeResponse, DefendDisputeResponse, MandateRevokeResponseData,
-        PaymentsResponseData, RefundsResponseData, RetrieveFileResponse, SubmitEvidenceResponse,
-        TaxCalculationResponseData, UploadFileResponse, VerifyWebhookSourceResponseData,
+        AcceptDisputeResponse, AuthenticationResponseData, DefendDisputeResponse,
+        MandateRevokeResponseData, PaymentsResponseData, RefundsResponseData, RetrieveFileResponse,
+        SubmitEvidenceResponse, TaxCalculationResponseData, UploadFileResponse,
+        VerifyWebhookSourceResponseData,
     },
 };
 #[cfg(feature = "frm")]
@@ -61,7 +65,7 @@ use hyperswitch_domain_models::{
 #[cfg(feature = "frm")]
 use hyperswitch_interfaces::api::fraud_check_v2::{
     FraudCheckCheckoutV2, FraudCheckFulfillmentV2, FraudCheckRecordReturnV2, FraudCheckSaleV2,
-    FraudCheckTransactionV2,
+    FraudCheckTransactionV2, FraudCheckV2,
 };
 #[cfg(feature = "payouts")]
 use hyperswitch_interfaces::api::payouts_v2::{
@@ -70,6 +74,10 @@ use hyperswitch_interfaces::api::payouts_v2::{
 };
 use hyperswitch_interfaces::{
     api::{
+        authentication_v2::{
+            ConnectorAuthenticationV2, ConnectorPostAuthenticationV2, ConnectorPreAuthenticationV2,
+            ConnectorPreAuthenticationVersionCallV2, ExternalAuthenticationV2,
+        },
         disputes_v2::{AcceptDisputeV2, DefendDisputeV2, DisputeV2, SubmitEvidenceV2},
         files_v2::{FileUploadV2, RetrieveFileV2, UploadFileV2},
         payments_v2::{
@@ -1769,6 +1777,173 @@ macro_rules! default_imp_for_new_connector_integration_revoking_mandates {
 }
 
 default_imp_for_new_connector_integration_revoking_mandates!(
+    connectors::Airwallex,
+    connectors::Amazonpay,
+    connectors::Bambora,
+    connectors::Bamboraapac,
+    connectors::Billwerk,
+    connectors::Bitpay,
+    connectors::Bluesnap,
+    connectors::Boku,
+    connectors::Cashtocode,
+    connectors::Coinbase,
+    connectors::Cryptopay,
+    connectors::CtpMastercard,
+    connectors::Datatrans,
+    connectors::Deutschebank,
+    connectors::Digitalvirgo,
+    connectors::Dlocal,
+    connectors::Elavon,
+    connectors::Fiserv,
+    connectors::Fiservemea,
+    connectors::Fiuu,
+    connectors::Forte,
+    connectors::Globepay,
+    connectors::Gocardless,
+    connectors::Helcim,
+    connectors::Inespay,
+    connectors::Jpmorgan,
+    connectors::Nomupay,
+    connectors::Novalnet,
+    connectors::Nexinets,
+    connectors::Nexixpay,
+    connectors::Paybox,
+    connectors::Payeezy,
+    connectors::Payu,
+    connectors::Placetopay,
+    connectors::Powertranz,
+    connectors::Prophetpay,
+    connectors::Mollie,
+    connectors::Multisafepay,
+    connectors::Rapyd,
+    connectors::Razorpay,
+    connectors::Redsys,
+    connectors::Shift4,
+    connectors::Stax,
+    connectors::Square,
+    connectors::Taxjar,
+    connectors::Thunes,
+    connectors::Tsys,
+    connectors::UnifiedAuthenticationService,
+    connectors::Worldline,
+    connectors::Volt,
+    connectors::Worldpay,
+    connectors::Xendit,
+    connectors::Zen,
+    connectors::Zsl
+);
+
+#[cfg(feature = "frm")]
+macro_rules! default_imp_for_new_connector_integration_frm {
+    ($($path:ident::$connector:ident),*) => {
+        $(
+            impl FraudCheckV2 for $path::$connector {}
+    )*
+    };
+}
+
+#[cfg(feature = "frm")]
+default_imp_for_new_connector_integration_frm!(
+    connectors::Airwallex,
+    connectors::Amazonpay,
+    connectors::Bambora,
+    connectors::Bamboraapac,
+    connectors::Billwerk,
+    connectors::Bitpay,
+    connectors::Bluesnap,
+    connectors::Boku,
+    connectors::Cashtocode,
+    connectors::Coinbase,
+    connectors::Cryptopay,
+    connectors::CtpMastercard,
+    connectors::Datatrans,
+    connectors::Deutschebank,
+    connectors::Digitalvirgo,
+    connectors::Dlocal,
+    connectors::Elavon,
+    connectors::Fiserv,
+    connectors::Fiservemea,
+    connectors::Fiuu,
+    connectors::Forte,
+    connectors::Globepay,
+    connectors::Gocardless,
+    connectors::Helcim,
+    connectors::Inespay,
+    connectors::Jpmorgan,
+    connectors::Nomupay,
+    connectors::Novalnet,
+    connectors::Nexinets,
+    connectors::Nexixpay,
+    connectors::Paybox,
+    connectors::Payeezy,
+    connectors::Payu,
+    connectors::Placetopay,
+    connectors::Powertranz,
+    connectors::Prophetpay,
+    connectors::Mollie,
+    connectors::Multisafepay,
+    connectors::Rapyd,
+    connectors::Razorpay,
+    connectors::Redsys,
+    connectors::Shift4,
+    connectors::Stax,
+    connectors::Square,
+    connectors::Taxjar,
+    connectors::Thunes,
+    connectors::Tsys,
+    connectors::UnifiedAuthenticationService,
+    connectors::Worldline,
+    connectors::Volt,
+    connectors::Worldpay,
+    connectors::Xendit,
+    connectors::Zen,
+    connectors::Zsl
+);
+
+macro_rules! default_imp_for_new_connector_integration_connector_authentication {
+    ($($path:ident::$connector:ident),*) => {
+        $( impl ExternalAuthenticationV2 for $path::$connector {}
+            impl ConnectorAuthenticationV2 for $path::$connector {}
+            impl ConnectorPreAuthenticationV2 for $path::$connector {}
+            impl ConnectorPreAuthenticationVersionCallV2 for $path::$connector {}
+            impl ConnectorPostAuthenticationV2 for $path::$connector {}
+            impl
+            ConnectorIntegrationV2<
+            Authentication,
+            ExternalAuthenticationFlowData,
+            authentication::ConnectorAuthenticationRequestData,
+            AuthenticationResponseData,
+        > for $path::$connector
+        {}
+        impl
+            ConnectorIntegrationV2<
+            PreAuthentication,
+            ExternalAuthenticationFlowData,
+            authentication::PreAuthNRequestData,
+            AuthenticationResponseData,
+        > for $path::$connector
+        {}
+        impl
+            ConnectorIntegrationV2<
+            PreAuthenticationVersionCall,
+            ExternalAuthenticationFlowData,
+            authentication::PreAuthNRequestData,
+            AuthenticationResponseData,
+        > for $path::$connector
+        {}
+        impl
+            ConnectorIntegrationV2<
+            PostAuthentication,
+            ExternalAuthenticationFlowData,
+            authentication::ConnectorPostAuthenticationRequestData,
+            AuthenticationResponseData,
+        > for $path::$connector
+        {}
+    )*
+    };
+}
+
+default_imp_for_new_connector_integration_connector_authentication!(
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Bambora,

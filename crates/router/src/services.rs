@@ -2,7 +2,6 @@ pub mod api;
 pub mod authentication;
 pub mod authorization;
 pub mod connector_integration_interface;
-pub mod conversion_impls;
 #[cfg(feature = "email")]
 pub mod email;
 pub mod encryption;

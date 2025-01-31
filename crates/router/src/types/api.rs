@@ -45,12 +45,24 @@ pub use hyperswitch_domain_models::router_flow_types::{
     access_token_auth::AccessTokenAuth, mandate_revoke::MandateRevoke,
     webhooks::VerifyWebhookSource,
 };
-pub use hyperswitch_interfaces::api::{
-    ConnectorAccessToken, ConnectorAccessTokenV2, ConnectorCommon, ConnectorCommonExt,
-    ConnectorMandateRevoke, ConnectorMandateRevokeV2, ConnectorVerifyWebhookSource,
-    ConnectorVerifyWebhookSourceV2, CurrencyUnit,
+pub use hyperswitch_interfaces::{
+    api::{
+        authentication::{
+            ConnectorAuthentication, ConnectorPostAuthentication, ConnectorPreAuthentication,
+            ConnectorPreAuthenticationVersionCall, ExternalAuthentication,
+        },
+        authentication_v2::{
+            ConnectorAuthenticationV2, ConnectorPostAuthenticationV2, ConnectorPreAuthenticationV2,
+            ConnectorPreAuthenticationVersionCallV2, ExternalAuthenticationV2,
+        },
+        fraud_check::FraudCheck,
+        BoxedConnector, Connector, ConnectorAccessToken, ConnectorAccessTokenV2, ConnectorCommon,
+        ConnectorCommonExt, ConnectorMandateRevoke, ConnectorMandateRevokeV2,
+        ConnectorTransactionId, ConnectorVerifyWebhookSource, ConnectorVerifyWebhookSourceV2,
+        CurrencyUnit,
+    },
+    connector_integration_v2::{BoxedConnectorV2, ConnectorV2},
 };
-use hyperswitch_interfaces::api::{UnifiedAuthenticationService, UnifiedAuthenticationServiceV2};
 use rustc_hash::FxHashMap;
 
 #[cfg(feature = "frm")]
@@ -70,7 +82,7 @@ use crate::{
         errors::{self, CustomResult},
         payments::types as payments_types,
     },
-    services::{connector_integration_interface::ConnectorEnum, ConnectorRedirectResponse},
+    services::connector_integration_interface::ConnectorEnum,
     types::{self, api::enums as api_enums},
 };
 #[derive(Clone)]
@@ -81,98 +93,6 @@ pub enum ConnectorCallType {
     #[cfg(feature = "v2")]
     Skip,
 }
-
-pub trait ConnectorTransactionId: ConnectorCommon + Sync {
-    fn connector_transaction_id(
-        &self,
-        payment_attempt: hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
-    ) -> Result<Option<String>, errors::ApiErrorResponse> {
-        Ok(payment_attempt
-            .get_connector_payment_id()
-            .map(ToString::to_string))
-    }
-}
-pub trait Connector:
-    Send
-    + Refund
-    + Payment
-    + ConnectorRedirectResponse
-    + IncomingWebhook
-    + ConnectorAccessToken
-    + Dispute
-    + FileUpload
-    + ConnectorTransactionId
-    + Payouts
-    + ConnectorVerifyWebhookSource
-    + FraudCheck
-    + ConnectorMandateRevoke
-    + ExternalAuthentication
-    + TaxCalculation
-    + UnifiedAuthenticationService
-{
-}
-
-impl<
-        T: Refund
-            + Payment
-            + ConnectorRedirectResponse
-            + Send
-            + IncomingWebhook
-            + ConnectorAccessToken
-            + Dispute
-            + FileUpload
-            + ConnectorTransactionId
-            + Payouts
-            + ConnectorVerifyWebhookSource
-            + FraudCheck
-            + ConnectorMandateRevoke
-            + ExternalAuthentication
-            + TaxCalculation
-            + UnifiedAuthenticationService,
-    > Connector for T
-{
-}
-
-pub trait ConnectorV2:
-    Send
-    + RefundV2
-    + PaymentV2
-    + ConnectorRedirectResponse
-    + IncomingWebhook
-    + ConnectorAccessTokenV2
-    + DisputeV2
-    + FileUploadV2
-    + ConnectorTransactionId
-    + PayoutsV2
-    + ConnectorVerifyWebhookSourceV2
-    + FraudCheckV2
-    + ConnectorMandateRevokeV2
-    + ExternalAuthenticationV2
-    + UnifiedAuthenticationServiceV2
-{
-}
-impl<
-        T: RefundV2
-            + PaymentV2
-            + ConnectorRedirectResponse
-            + Send
-            + IncomingWebhook
-            + ConnectorAccessTokenV2
-            + DisputeV2
-            + FileUploadV2
-            + ConnectorTransactionId
-            + PayoutsV2
-            + ConnectorVerifyWebhookSourceV2
-            + FraudCheckV2
-            + ConnectorMandateRevokeV2
-            + ExternalAuthenticationV2
-            + UnifiedAuthenticationServiceV2,
-    > ConnectorV2 for T
-{
-}
-
-pub type BoxedConnector = Box<&'static (dyn Connector + Sync)>;
-pub type BoxedConnectorV2 = Box<&'static (dyn ConnectorV2 + Sync)>;
 
 // Normal flow will call the connector and follow the flow specific operations (capture, authorize)
 // SessionTokenFromMetadata will avoid calling the connector instead create the session token ( for sdk )
@@ -611,17 +531,6 @@ impl ConnectorData {
             .change_context(errors::ApiErrorResponse::InternalServerError),
         }
     }
-}
-
-#[cfg(feature = "frm")]
-pub trait FraudCheck:
-    ConnectorCommon
-    + FraudCheckSale
-    + FraudCheckTransaction
-    + FraudCheckCheckout
-    + FraudCheckFulfillment
-    + FraudCheckRecordReturn
-{
 }
 
 #[cfg(not(feature = "frm"))]

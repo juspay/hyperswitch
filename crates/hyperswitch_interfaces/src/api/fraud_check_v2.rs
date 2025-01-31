@@ -45,3 +45,14 @@ pub trait FraudCheckRecordReturnV2:
 >
 {
 }
+
+/// trait FraudCheckV2
+pub trait FraudCheckV2:
+    super::ConnectorCommon
+    + FraudCheckSaleV2
+    + FraudCheckTransactionV2
+    + FraudCheckCheckoutV2
+    + FraudCheckFulfillmentV2
+    + FraudCheckRecordReturnV2
+{
+}
