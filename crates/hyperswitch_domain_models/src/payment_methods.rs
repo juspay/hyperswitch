@@ -634,11 +634,13 @@ impl super::behaviour::Conversion for PaymentMethodsSessionUpdate {
             let decrypted_data = crypto_operation(
                 state,
                 type_name!(Self::DstType),
-                CryptoOperation::BatchDecrypt(EncryptedPaymentMethodsSessionUpdate::to_encryptable(
-                    EncryptedPaymentMethodsSessionUpdate {
-                        billing: storage_model.billing,
-                    },
-                )),
+                CryptoOperation::BatchDecrypt(
+                    EncryptedPaymentMethodsSessionUpdate::to_encryptable(
+                        EncryptedPaymentMethodsSessionUpdate {
+                            billing: storage_model.billing,
+                        },
+                    ),
+                ),
                 key_manager_identifier,
                 key.peek(),
             )

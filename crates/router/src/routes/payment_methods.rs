@@ -937,15 +937,16 @@ pub async fn payment_methods_session_update(
         |state, auth: auth::AuthenticationData, req, _| {
             let value = payment_method_session_id.clone();
             async move {
-            payment_methods_routes::payment_methods_session_update(
-                state,
-                auth.merchant_account,
-                auth.key_store,
-                value.clone(),
-                req,
-            )
-            .await
-        }},
+                payment_methods_routes::payment_methods_session_update(
+                    state,
+                    auth.merchant_account,
+                    auth.key_store,
+                    value.clone(),
+                    req,
+                )
+                .await
+            }
+        },
         &vec![
             auth::V2Auth::ApiKeyAuth,
             auth::V2Auth::ClientAuth(diesel_models::ResourceId::PaymentMethodSession(

@@ -1254,24 +1254,23 @@ impl PaymentMethodsSession {
                 .route(web::post().to(payment_methods::payment_methods_session_create)),
         );
 
-        route = route.service(
-            web::scope("/{payment_method_session_id}")
-                .service(
-                    web::resource("")
-                        .route(web::get().to(payment_methods::payment_methods_session_retrieve))
-                        .route(web::put().to(payment_methods::payment_methods_session_update)),
-                )
-                .service(web::resource("/list-payment-methods").route(
-                    web::get().to(payment_methods::payment_method_session_list_payment_methods),
-                ))
-                .service(
-                    web::resource("/update-saved-payment-method").route(
+        route =
+            route.service(
+                web::scope("/{payment_method_session_id}")
+                    .service(
+                        web::resource("")
+                            .route(web::get().to(payment_methods::payment_methods_session_retrieve))
+                            .route(web::put().to(payment_methods::payment_methods_session_update)),
+                    )
+                    .service(web::resource("/list-payment-methods").route(
+                        web::get().to(payment_methods::payment_method_session_list_payment_methods),
+                    ))
+                    .service(web::resource("/update-saved-payment-method").route(
                         web::put().to(
                             payment_methods::payment_method_session_update_saved_payment_method,
                         ),
-                    ),
-                ),
-        );
+                    )),
+            );
 
         route
     }

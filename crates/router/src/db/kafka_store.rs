@@ -3931,7 +3931,7 @@ impl db::payment_method_session::PaymentMethodsSessionInterface for KafkaStore {
         key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
         id: &id_type::GlobalPaymentMethodSessionId,
         payment_methods_session: hyperswitch_domain_models::payment_methods::PaymentMethodsSession,
-    ) -> CustomResult< (), errors::StorageError, > {
+    ) -> CustomResult<(), errors::StorageError> {
         self.diesel_store
             .update_payment_method_session(state, key_store, id, payment_methods_session)
             .await
