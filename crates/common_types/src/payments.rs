@@ -134,7 +134,6 @@ pub struct XenditSplitRequest {
 }
 impl_to_sql_from_sql_json!(XenditSplitRequest);
 
-
 /// Fee information charged on the payment being collected via xendit
 #[derive(
     Serialize, Deserialize, Debug, Clone, PartialEq, Eq, FromSqlRow, AsExpression, ToSchema,
