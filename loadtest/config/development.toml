@@ -305,6 +305,9 @@ paypal = { country = "AU,NZ,CN,JP,HK,MY,TH,KR,PH,ID,AE,KW,BR,ES,GB,SE,NO,SK,AT,N
 klarna = { country = "AU,AT,BE,CA,CZ,DK,FI,FR,DE,GR,IE,IT,NO,PL,PT,RO,ES,SE,CH,NL,GB,US", currency = "AUD,EUR,CAD,CZK,DKK,NOK,PLN,RON,SEK,CHF,GBP,USD" }
 ideal = { country = "NL", currency = "EUR" }
 
+[pm_filters.amazonpay]
+amazon_pay = { country = "US", currency = "USD" }
+
 [pm_filters.bambora]
 credit = { country = "US,CA", currency = "USD" }
 debit = { country = "US,CA", currency = "USD" }

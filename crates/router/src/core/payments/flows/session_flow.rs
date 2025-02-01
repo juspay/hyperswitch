@@ -1329,61 +1329,6 @@ fn create_amazon_pay_session_token(
 
                             let is_default = option.get("is_default")?.as_bool()?;
 
-                            let shipping_estimate =
-                                option.get("shipping_estimate").and_then(|estimates| {
-                                    estimates
-                                        .as_array()?
-                                        .iter()
-                                        .map(|estimate| {
-                                            let time_unit =
-                                                match estimate.get("time_unit")?.as_str()? {
-                                                    "MINUTES" => AmazonPayDateTimeUnit::MINUTE,
-                                                    "HOURS" => AmazonPayDateTimeUnit::HOUR,
-                                                    _ => return None,
-                                                };
-                                            let value = estimate.get("value")?.as_i64()?;
-                                            Some(AmazonPayEstimationDetails { time_unit, value })
-                                        })
-                                        .collect::<Option<Vec<_>>>()
-                                });
-
-                            let discounted_price = option.get("discounted_price").and_then(|dp| {
-                                let amount = dp.get("amount")?.as_str()?.to_string();
-                                let currency_code = dp.get("currency_code")?.as_str()?.to_string();
-                                Some(AmazonPayDeliveryPrice {
-                                    amount,
-                                    currency_code,
-                                })
-                            });
-
-                            let date_time_window = option.get("date_time_window").and_then(|dtw| {
-                                dtw.as_array()?
-                                    .iter()
-                                    .map(|window| {
-                                        let window_type = match window.get("type")?.as_str()? {
-                                            "DATE" => AmazonPayDateTimeWindowDetailsType::DATE,
-                                            "TIME" => AmazonPayDateTimeWindowDetailsType::TIME,
-                                            _ => return None,
-                                        };
-                                        let values = window
-                                            .get("value")?
-                                            .as_array()?
-                                            .iter()
-                                            .filter_map(|v| v.as_str().map(String::from))
-                                            .collect();
-                                        let default_value = window
-                                            .get("default_value")
-                                            .and_then(|dv| dv.as_str())
-                                            .map(String::from);
-                                        Some(AmazonPayDateTimeWindowDetails {
-                                            type_: window_type,
-                                            value: values,
-                                            default_value,
-                                        })
-                                    })
-                                    .collect::<Option<Vec<_>>>()
-                            });
-
                             Some(AmazonPayDeliveryOption {
                                 id,
                                 price: AmazonPayDeliveryPrice {
@@ -1395,9 +1340,6 @@ fn create_amazon_pay_session_token(
                                     shipping_method_code,
                                 },
                                 is_default,
-                                shipping_estimate,
-                                discounted_price,
-                                date_time_window,
                             })
                         })
                         .collect()

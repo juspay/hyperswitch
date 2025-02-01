@@ -6780,9 +6780,6 @@ pub struct AmazonPayDeliveryOption {
     pub price: AmazonPayDeliveryPrice,
     pub shipping_method: AmazonPayShippingMethod,
     pub is_default: bool,
-    pub shipping_estimate: Option<Vec<AmazonPayEstimationDetails>>,
-    pub discounted_price: Option<AmazonPayDeliveryPrice>,
-    pub date_time_window: Option<Vec<AmazonPayDateTimeWindowDetails>>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
@@ -6795,31 +6792,6 @@ pub struct AmazonPayDeliveryPrice {
 pub struct AmazonPayShippingMethod {
     pub shipping_method_name: String,
     pub shipping_method_code: String,
-}
-
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
-pub struct AmazonPayEstimationDetails {
-    pub time_unit: AmazonPayDateTimeUnit,
-    pub value: i64,
-}
-
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
-pub struct AmazonPayDateTimeWindowDetails {
-    pub type_: AmazonPayDateTimeWindowDetailsType,
-    pub value: Vec<String>,
-    pub default_value: Option<String>,
-}
-
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
-pub enum AmazonPayDateTimeWindowDetailsType {
-    DATE,
-    TIME,
-}
-
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
-pub enum AmazonPayDateTimeUnit {
-    MINUTE,
-    HOUR,
 }
 
 #[cfg(feature = "v1")]
