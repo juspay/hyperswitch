@@ -642,42 +642,24 @@ async function fetchAndParseImageData(url) {
 function waitForRedirect(redirectionUrl) {
   const originalHost = new URL(redirectionUrl).host;
 
-  // Wait until location.host is no longer the original, OR confirm an iframe loaded
-  cy.location("host", { timeout: CONSTANTS.TIMEOUT }).then((currentHost) => {
-    if (currentHost !== originalHost) {
-      // This is a top-level redirect (host changed)
-      // Proceed with the normal flow
-      return;
-    }
-
-    // Else, possibly an iframe-based flow
-    // Check if an iframe from a different domain (connector's domain) is present
-    cy.get("iframe", { timeout: CONSTANTS.TIMEOUT }).then((iframes) => {
-      // Try to see if any iframe is from a domain different than currentHost
-      const foreignIframe = [...iframes].find((iframeEl) => {
+  cy.location("host", { timeout: CONSTANTS.TIMEOUT }).should((currentHost) => {
+    const hostChanged = currentHost !== originalHost;
+    const iframeExists = Cypress.$("iframe")
+      .toArray()
+      .some((iframeEl) => {
         try {
           const iframeHost = new URL(iframeEl.src).host;
-          return iframeHost !== currentHost && iframeHost !== "";
-        } catch (err) {
-          // If we can't parse the src (or it's blank), ignore
-          // eslint-disable-next-line no-console
-          console.error(`Failed to parse iframe src: ${err}`);
+          return iframeHost && iframeHost !== originalHost;
+        } catch (e) {
           return false;
         }
       });
 
-      if (!foreignIframe) {
-        // No external iframe found; page either failed to actually redirect or embed
-        throw new Error(
-          "No top-level redirect or embedded iframe redirect found."
-        );
-      }
-
-      // Embedded flow
-      cy.wrap(foreignIframe, { timeout: CONSTANTS.WAIT_TIME }).should(
-        "be.visible"
-      );
-    });
+    // The assertion will pass if either the host changed or an iframe with a foreign host exists.
+    expect(
+      hostChanged || iframeExists,
+      "Host changed or an  iframe with foreign host exist"
+    ).to.be.true;
   });
 }
 
