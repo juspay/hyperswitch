@@ -651,6 +651,7 @@ function waitForRedirect(redirectionUrl) {
           const iframeHost = new URL(iframeEl.src).host;
           return iframeHost && iframeHost !== originalHost;
         } catch (e) {
+          cy.log(`iframe host could not be determined: ${e}`);
           return false;
         }
       });
