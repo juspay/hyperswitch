@@ -1538,7 +1538,7 @@ pub struct Sdk {
     ///
     /// This field is required for requests where deviceChannel = 01 (APP).
     /// Available for supporting EMV 3DS 2.3.1 and later versions.
-    sdk_type: Option<SdkTypeEnum>,
+    sdk_type: Option<SdkType>,
 
     /// Indicates the characteristics of a Default-SDK.
     ///
@@ -1565,8 +1565,8 @@ impl From<api_models::payments::SdkInformation> for Sdk {
             sdk_server_signed_content: None,
             sdk_type: sdk_info
                 .sdk_type
-                .map(SdkTypeEnum::from)
-                .or(Some(SdkTypeEnum::DefaultSdk)),
+                .map(SdkType::from)
+                .or(Some(SdkType::DefaultSdk)),
             default_sdk_type: Some(DefaultSdkType {
                 // hardcoding this value because, it's the only value that is accepted
                 sdk_variant: "01".to_string(),
@@ -1577,21 +1577,21 @@ impl From<api_models::payments::SdkInformation> for Sdk {
     }
 }
 
-impl From<api_models::payments::SdkTypeEnum> for SdkTypeEnum {
-    fn from(sdk_type: api_models::payments::SdkTypeEnum) -> Self {
+impl From<api_models::payments::SdkType> for SdkType {
+    fn from(sdk_type: api_models::payments::SdkType) -> Self {
         match sdk_type {
-            api_models::payments::SdkTypeEnum::DefaultSdk => Self::DefaultSdk,
-            api_models::payments::SdkTypeEnum::SplitSdk => Self::SplitSdk,
-            api_models::payments::SdkTypeEnum::LimitedSdk => Self::LimitedSdk,
-            api_models::payments::SdkTypeEnum::BrowserSdk => Self::BrowserSdk,
-            api_models::payments::SdkTypeEnum::ShellSdk => Self::ShellSdk,
+            api_models::payments::SdkType::DefaultSdk => Self::DefaultSdk,
+            api_models::payments::SdkType::SplitSdk => Self::SplitSdk,
+            api_models::payments::SdkType::LimitedSdk => Self::LimitedSdk,
+            api_models::payments::SdkType::BrowserSdk => Self::BrowserSdk,
+            api_models::payments::SdkType::ShellSdk => Self::ShellSdk,
         }
     }
 }
 
 /// Enum representing the type of 3DS SDK.
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub enum SdkTypeEnum {
+pub enum SdkType {
     #[serde(rename = "01")]
     DefaultSdk,
     #[serde(rename = "02")]
