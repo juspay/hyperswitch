@@ -34,4 +34,11 @@ if (jsonData?.status && pm.collectionVariables.get("refund_id") !== null) {
       pm.expect(jsonData.amount).to.eql(540);
     },
   );
+} else {
+  pm.test(
+    "[POST]::/refunds - Content check if value for 'error.message' matches 'Refund does not exist in our records.'",
+    function () {
+      pm.expect(jsonData.error.message).to.eql("Refund does not exist in our records.");
+    },
+  );
 }
