@@ -87,7 +87,7 @@ if (jsonData?.amount) {
   pm.test(
     "[post]:://payments/:id/capture - Content check if value for 'amount_capturable' matches 'amount - 0'",
     function () {
-      pm.expect(jsonData.amount_capturable).to.eql(jsonData.amount - 0);
+      pm.expect(jsonData.amount_capturable).to.eql(jsonData.amount);
     },
   );
 }
