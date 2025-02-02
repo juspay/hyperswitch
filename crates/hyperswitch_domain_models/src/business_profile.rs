@@ -574,7 +574,7 @@ impl super::behaviour::Conversion for Profile {
             max_auto_retries_enabled: self.max_auto_retries_enabled,
             is_click_to_pay_enabled: self.is_click_to_pay_enabled,
             authentication_product_ids: self.authentication_product_ids,
-            is_clear_pan_retries_enabled: Some(self.is_clear_pan_retries_enabled),
+            is_clear_pan_retries_enabled: self.is_clear_pan_retries_enabled,
         })
     }
 
@@ -645,7 +645,7 @@ impl super::behaviour::Conversion for Profile {
                 max_auto_retries_enabled: item.max_auto_retries_enabled,
                 is_click_to_pay_enabled: item.is_click_to_pay_enabled,
                 authentication_product_ids: item.authentication_product_ids,
-                is_clear_pan_retries_enabled: item.is_clear_pan_retries_enabled.unwrap_or(false),
+                is_clear_pan_retries_enabled: item.is_clear_pan_retries_enabled,
             })
         }
         .await

@@ -4,6 +4,7 @@
 use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface, Secret, Strategy};
 use quick_xml::de;
+use router_env::logger;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -320,7 +321,7 @@ pub trait AsyncExt<A> {
 
 #[cfg(feature = "async_ext")]
 #[cfg_attr(feature = "async_ext", async_trait::async_trait)]
-impl<A: Send, E: Send> AsyncExt<A> for Result<A, E> {
+impl<A: Send, E: Send + std::fmt::Debug> AsyncExt<A> for Result<A, E> {
     type WrappedSelf<T> = Result<T, E>;
     async fn async_and_then<F, B, Fut>(self, func: F) -> Self::WrappedSelf<B>
     where
@@ -351,7 +352,10 @@ impl<A: Send, E: Send> AsyncExt<A> for Result<A, E> {
     {
         match self {
             Ok(a) => a,
-            Err(_) => func().await,
+            Err(err) => {
+                logger::error!("Error: {:?}", err);
+                func().await
+            }
         }
     }
 }

@@ -115,6 +115,7 @@ impl VaultingInterface for VaultDelete {
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
 pub enum PaymentMethodVaultingData {
     Card(api::CardDetail),
+    
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]

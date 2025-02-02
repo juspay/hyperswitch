@@ -1908,7 +1908,7 @@ pub async fn retrieve_card_with_permanent_token(
 
 pub enum VaultFetchAction {
     FetchCardDetailsFromLocker,
-    FetchCardDetailsForNetworkTransactionFlowFromLocker,
+    FetchCardDetailsForNetworkTransactionIdFlowFromLocker,
     FetchNetworkTokenDataFromTokenizationService(String),
     FetchNetworkTokenDetailsFromLocker(api_models::payments::NetworkTokenWithNTIRef),
     NoFetchAction,
@@ -1951,7 +1951,7 @@ pub fn determine_standard_vault_action(
 
     if !is_network_tokenization_enabled {
         if is_network_transaction_id_flow {
-            VaultFetchAction::FetchCardDetailsForNetworkTransactionFlowFromLocker
+            VaultFetchAction::FetchCardDetailsForNetworkTransactionIdFlowFromLocker
         } else {
             VaultFetchAction::FetchCardDetailsFromLocker
         }
@@ -1962,7 +1962,7 @@ pub fn determine_standard_vault_action(
                     VaultFetchAction::FetchNetworkTokenDetailsFromLocker(nt_data)
                 }
                 Some(api_models::payments::MandateReferenceId::NetworkMandateId(_)) => {
-                    VaultFetchAction::FetchCardDetailsForNetworkTransactionFlowFromLocker
+                    VaultFetchAction::FetchCardDetailsForNetworkTransactionIdFlowFromLocker
                 }
                 Some(api_models::payments::MandateReferenceId::ConnectorMandateId(_)) | None => {
                     VaultFetchAction::NoFetchAction
@@ -2043,8 +2043,8 @@ pub async fn retrieve_payment_method_data_with_permanent_token(
     );
     match vault_fetch_action {
         VaultFetchAction::FetchCardDetailsFromLocker => {
-            let card_result = vault_data
-                .and_then(|vd| vd.get_card_vault_data())
+            let card = vault_data
+                .and_then(|vault_data| vault_data.get_card_vault_data())
                 .map(Ok)
                 .async_unwrap_or_else(|| async {
                     fetch_card_details_from_locker(
@@ -2058,9 +2058,9 @@ pub async fn retrieve_payment_method_data_with_permanent_token(
                 })
                 .await?;
 
-            Ok(domain::PaymentMethodData::Card(card_result))
+            Ok(domain::PaymentMethodData::Card(card))
         }
-        VaultFetchAction::FetchCardDetailsForNetworkTransactionFlowFromLocker => {
+        VaultFetchAction::FetchCardDetailsForNetworkTransactionIdFlowFromLocker => {
             fetch_card_details_for_network_transaction_flow_from_locker(
                 state,
                 customer_id,
@@ -2094,7 +2094,7 @@ pub async fn retrieve_payment_method_data_with_permanent_token(
                     logger::info!("Falling back to fetch card details from locker");
                     Ok(domain::PaymentMethodData::Card(
                         vault_data
-                            .and_then(|vd| vd.get_card_vault_data())
+                            .and_then(|vault_data| vault_data.get_card_vault_data())
                             .map(Ok)
                             .async_unwrap_or_else(|| async {
                                 fetch_card_details_from_locker(
@@ -2116,7 +2116,7 @@ pub async fn retrieve_payment_method_data_with_permanent_token(
                 payment_method_info.network_token_locker_id.as_ref()
             {
                 let network_token_data = vault_data
-                    .and_then(|vd| vd.get_network_token_data())
+                    .and_then(|vault_data| vault_data.get_network_token_data())
                     .map(Ok)
                     .async_unwrap_or_else(|| async {
                         fetch_network_token_details_from_locker(
@@ -2504,8 +2504,8 @@ pub async fn make_pm_data<'a, F: Clone, R, D>(
         (_, Some(hyperswitch_token)) => {
             let current_payment_method_data = payment_data.get_vault_operation();
 
-            let vd = current_payment_method_data.map(|data| match data {
-                payments::PaymentMethodDataAction::ExistingVaultData(vd) => vd,
+            let vault_data = current_payment_method_data.map(|data| match data {
+                payments::VaultOperation::ExistingVaultData(vault_data) => vault_data,
             });
 
             let pm_data = Box::pin(payment_methods::retrieve_payment_method_with_token(
@@ -2521,57 +2521,14 @@ pub async fn make_pm_data<'a, F: Clone, R, D>(
                 payment_data.payment_method_info.clone(),
                 business_profile,
                 should_retry_with_pan,
-                vd,
+                vault_data,
             ))
             .await;
 
             let payment_method_details = pm_data.attach_printable("in 'make_pm_data'")?;
 
             if let Some(ref payment_method_data) = payment_method_details.payment_method_data {
-                let updated_vault_operation =
-                    match (current_payment_method_data, payment_method_data) {
-                        (None, domain::PaymentMethodData::Card(card)) => {
-                            Some(payments::PaymentMethodDataAction::ExistingVaultData(
-                                payments::VaultData::CardVaultData(card.clone()),
-                            ))
-                        }
-                        (None, domain::PaymentMethodData::NetworkToken(nt_data)) => {
-                            Some(payments::PaymentMethodDataAction::ExistingVaultData(
-                                payments::VaultData::NetworkTokenVaultData(nt_data.clone()),
-                            ))
-                        }
-                        (
-                            Some(payments::PaymentMethodDataAction::ExistingVaultData(vault_data)),
-                            payment_method,
-                        ) => match (vault_data, payment_method) {
-                            (
-                                payments::VaultData::CardVaultData(card),
-                                domain::PaymentMethodData::NetworkToken(nt_data),
-                            ) => Some(payments::PaymentMethodDataAction::ExistingVaultData(
-                                payments::VaultData::CardAndNetworkToken(Box::new(
-                                    payments::CardAndNetworkTokenData {
-                                        card_data: card.clone(),
-                                        network_token_data: nt_data.clone(),
-                                    },
-                                )),
-                            )),
-                            (
-                                payments::VaultData::NetworkTokenVaultData(nt_data),
-                                domain::PaymentMethodData::Card(card),
-                            ) => Some(payments::PaymentMethodDataAction::ExistingVaultData(
-                                payments::VaultData::CardAndNetworkToken(Box::new(
-                                    payments::CardAndNetworkTokenData {
-                                        card_data: card.clone(),
-                                        network_token_data: nt_data.clone(),
-                                    },
-                                )),
-                            )),
-                            _ => Some(payments::PaymentMethodDataAction::ExistingVaultData(
-                                vault_data.clone(),
-                            )),
-                        },
-                        _ => None,
-                    };
+                let updated_vault_operation = payments::VaultOperation::get_updated_vault_data(current_payment_method_data, payment_method_data);
 
                 if let Some(vault_operation) = updated_vault_operation {
                     payment_data.set_vault_operation(vault_operation);
@@ -2613,6 +2570,7 @@ pub async fn make_pm_data<'a, F: Clone, R, D>(
 
     Ok((operation, payment_method, pm_id))
 }
+
 
 #[cfg(feature = "v1")]
 pub async fn store_in_vault_and_generate_ppmt(

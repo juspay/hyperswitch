@@ -35,7 +35,7 @@ pub async fn do_gsm_actions<F, ApiRequest, FData, D>(
     req_state: ReqState,
     payment_data: &mut D,
     mut connectors: IntoIter<api::ConnectorData>,
-    original_connector_data: api::ConnectorData,
+    original_connector_data: &api::ConnectorData,
     mut router_data: types::RouterData<F, FData, types::PaymentsResponseData>,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
@@ -98,7 +98,7 @@ where
         router_data = do_retry(
             &state.clone(),
             req_state.clone(),
-            original_connector_data.clone(),
+            original_connector_data,
             operation,
             customer,
             merchant_account,
@@ -110,13 +110,12 @@ where
             true,
             frm_suggestion,
             business_profile,
-            false,
+            false, //should_retry_with_pan is not applicable for step-up
         )
         .await?;
     }
     // Step up is not applicable so proceed with auto retries flow
     else {
-        let original_connector_data = original_connector_data.clone();
         loop {
             // Use initial_gsm for first time alone
             let gsm = match initial_gsm.as_ref() {
@@ -142,10 +141,11 @@ where
                         break;
                     }
 
-                    let is_network_token = matches!(
-                        payment_data.get_payment_method_data(),
-                        Some(domain::PaymentMethodData::NetworkToken(_))
-                    );
+                    let is_network_token = payment_data
+                        .get_payment_method_data()
+                        .map(|pmd| pmd.is_network_token_payment_method_data())
+                        .unwrap_or(false);
+
                     let should_retry_with_pan = is_network_token
                         && initial_gsm
                             .as_ref()
@@ -154,9 +154,10 @@ where
                         && business_profile.is_clear_pan_retries_enabled;
 
                     let connector = if should_retry_with_pan {
-                        original_connector_data.clone()
+                        // If should_retry_with_pan is true, it indicates that we are retrying with PAN using the same connector.
+                        original_connector_data
                     } else {
-                        super::get_connector_data(&mut connectors)?
+                        &super::get_connector_data(&mut connectors)?
                     };
 
                     router_data = do_retry(
@@ -315,7 +316,7 @@ fn get_flow_name<F>() -> RouterResult<String> {
 pub async fn do_retry<F, ApiRequest, FData, D>(
     state: &routes::SessionState,
     req_state: ReqState,
-    connector: api::ConnectorData,
+    connector: &api::ConnectorData,
     operation: &operations::BoxedOperation<'_, F, ApiRequest, D>,
     customer: &Option<domain::Customer>,
     merchant_account: &domain::MerchantAccount,
@@ -360,7 +361,7 @@ where
         req_state,
         merchant_account,
         key_store,
-        connector,
+        connector.clone(),
         operation,
         payment_data,
         customer,

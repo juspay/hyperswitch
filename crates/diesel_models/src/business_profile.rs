@@ -60,7 +60,7 @@ pub struct Profile {
     pub is_click_to_pay_enabled: bool,
     pub authentication_product_ids:
         Option<common_types::payments::AuthenticationConnectorAccountMap>,
-    pub is_clear_pan_retries_enabled: Option<bool>,
+    pub is_clear_pan_retries_enabled: bool,
 }
 
 #[cfg(feature = "v1")]
@@ -258,7 +258,7 @@ impl ProfileUpdateInternal {
             authentication_product_ids: authentication_product_ids
                 .or(source.authentication_product_ids),
             is_clear_pan_retries_enabled: is_clear_pan_retries_enabled
-                .or(source.is_clear_pan_retries_enabled),
+                .unwrap_or(source.is_clear_pan_retries_enabled),
         }
     }
 }
