@@ -250,6 +250,7 @@ impl ForeignTryFrom<domain::Profile> for ProfileResponse {
             is_network_tokenization_enabled: item.is_network_tokenization_enabled,
             is_click_to_pay_enabled: item.is_click_to_pay_enabled,
             authentication_product_ids: item.authentication_product_ids,
+            is_clear_pan_retries_enabled: item.is_clear_pan_retries_enabled,
         })
     }
 }

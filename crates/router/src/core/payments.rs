@@ -189,7 +189,7 @@ where
 
     let payment_data = match connector {
         ConnectorCallType::PreDetermined(connector_data) => {
-            let router_data = call_connector_service(
+            let router_data: RouterData<F, FData, hyperswitch_domain_models::router_response_types::PaymentsResponseData> = call_connector_service(
                 state,
                 req_state.clone(),
                 &merchant_account,
@@ -207,6 +207,7 @@ where
                 None,
                 &profile,
                 false,
+                false, //should_retry_with_pan is set to false in case of PreDetermined ConnectorCallType
             )
             .await?;
 
@@ -7003,6 +7004,8 @@ pub trait OperationSessionGetters<F> {
     fn get_mandate_connector(&self) -> Option<&MandateConnectorDetails>;
     fn get_force_sync(&self) -> Option<bool>;
     fn get_capture_method(&self) -> Option<enums::CaptureMethod>;
+
+    #[cfg(feature = "v1")]
     fn get_vault_operation(&self) -> Option<&VaultOperation>;
 
     #[cfg(feature = "v2")]
@@ -7049,6 +7052,8 @@ pub trait OperationSessionSetters<F> {
         straight_through_algorithm: serde_json::Value,
     );
     fn set_connector_in_payment_attempt(&mut self, connector: Option<String>);
+
+    #[cfg(feature = "v1")]
     fn set_vault_operation(&mut self, vault_operation: VaultOperation);
 }
 
@@ -7182,6 +7187,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentData<F> {
         self.payment_attempt.capture_method
     }
 
+    #[cfg(feature = "v1")]
     fn get_vault_operation(&self) -> Option<&VaultOperation> {
         self.vault_operation.as_ref()
     }
