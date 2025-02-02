@@ -156,3 +156,10 @@ where
         SecretValue::default().into()
     }
 }
+
+// Required by base64-serde to serialize Secret
+impl<T> AsRef<[T]> for Secret<Vec<T>> {
+    fn as_ref(&self) -> &[T] {
+        self.peek().as_slice()
+    }
+}

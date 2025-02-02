@@ -203,8 +203,20 @@ pub mod timestamp {
 
 /// <https://github.com/serde-rs/serde/issues/994#issuecomment-316895860>
 pub mod json_string {
-    use serde::de::{self, Deserialize, DeserializeOwned, Deserializer};
-    use serde_json;
+    use serde::{
+        de::{self, Deserialize, DeserializeOwned, Deserializer},
+        ser::{self, Serialize, Serializer},
+    };
+
+    /// Serialize a type to json_string format
+    pub fn serialize<T, S>(value: &T, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        T: Serialize,
+        S: Serializer,
+    {
+        let j = serde_json::to_string(value).map_err(ser::Error::custom)?;
+        j.serialize(serializer)
+    }
 
     /// Deserialize a string which is in json format
     pub fn deserialize<'de, T, D>(deserializer: D) -> Result<T, D::Error>

@@ -3651,21 +3651,7 @@ pub enum FeatureStatus {
     Supported,
 }
 
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    PartialEq,
-    Eq,
-    Hash,
-    strum::Display,
-    strum::VariantNames,
-    strum::EnumIter,
-    strum::EnumString,
-    Deserialize,
-    Serialize,
-)]
-#[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
+#[derive(Clone, Copy, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum GooglePayAuthMethod {
     /// Contain pan data only
