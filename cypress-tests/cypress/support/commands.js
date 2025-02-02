@@ -2212,7 +2212,8 @@ Cypress.Commands.add("voidCallTest", (requestBody, data, globalState) => {
   const profile_id = globalState.get(`${configInfo.profilePrefix}Id`);
 
   requestBody.profile_id = profile_id;
-  requestBody.cancellation_reason = reqData.cancellation_reason;
+  requestBody.cancellation_reason =
+    reqData?.cancellation_reason ?? requestBody.cancellation_reason;
 
   cy.request({
     method: "POST",
