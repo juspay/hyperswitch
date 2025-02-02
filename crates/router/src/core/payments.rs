@@ -4457,34 +4457,30 @@ impl VaultOperation {
         payment_method_data: &domain::PaymentMethodData,
     ) -> Option<Self> {
         match (current_payment_method_data, payment_method_data) {
-            (None, domain::PaymentMethodData::Card(card)) => Some(
-                Self::ExistingVaultData(VaultData::Card(card.clone())),
-            ),
-            (None, domain::PaymentMethodData::NetworkToken(nt_data)) => {
-                Some(Self::ExistingVaultData(
-                    VaultData::NetworkToken(nt_data.clone()),
-                ))
+            (None, domain::PaymentMethodData::Card(card)) => {
+                Some(Self::ExistingVaultData(VaultData::Card(card.clone())))
             }
+            (None, domain::PaymentMethodData::NetworkToken(nt_data)) => Some(
+                Self::ExistingVaultData(VaultData::NetworkToken(nt_data.clone())),
+            ),
             (Some(Self::ExistingVaultData(vault_data)), payment_method) => {
                 match (vault_data, payment_method) {
-                    (
-                        VaultData::Card(card),
-                        domain::PaymentMethodData::NetworkToken(nt_data),
-                    ) => Some(Self::ExistingVaultData(
-                        VaultData::CardAndNetworkToken(Box::new(CardAndNetworkTokenData {
-                            card_data: card.clone(),
-                            network_token_data: nt_data.clone(),
-                        })),
-                    )),
-                    (
-                        VaultData::NetworkToken(nt_data),
-                        domain::PaymentMethodData::Card(card),
-                    ) => Some(Self::ExistingVaultData(
-                        VaultData::CardAndNetworkToken(Box::new(CardAndNetworkTokenData {
-                            card_data: card.clone(),
-                            network_token_data: nt_data.clone(),
-                        })),
-                    )),
+                    (VaultData::Card(card), domain::PaymentMethodData::NetworkToken(nt_data)) => {
+                        Some(Self::ExistingVaultData(VaultData::CardAndNetworkToken(
+                            Box::new(CardAndNetworkTokenData {
+                                card_data: card.clone(),
+                                network_token_data: nt_data.clone(),
+                            }),
+                        )))
+                    }
+                    (VaultData::NetworkToken(nt_data), domain::PaymentMethodData::Card(card)) => {
+                        Some(Self::ExistingVaultData(VaultData::CardAndNetworkToken(
+                            Box::new(CardAndNetworkTokenData {
+                                card_data: card.clone(),
+                                network_token_data: nt_data.clone(),
+                            }),
+                        )))
+                    }
                     _ => Some(Self::ExistingVaultData(vault_data.clone())),
                 }
             }

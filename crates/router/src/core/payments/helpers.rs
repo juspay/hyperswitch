@@ -2528,7 +2528,10 @@ pub async fn make_pm_data<'a, F: Clone, R, D>(
             let payment_method_details = pm_data.attach_printable("in 'make_pm_data'")?;
 
             if let Some(ref payment_method_data) = payment_method_details.payment_method_data {
-                let updated_vault_operation = payments::VaultOperation::get_updated_vault_data(current_payment_method_data, payment_method_data);
+                let updated_vault_operation = payments::VaultOperation::get_updated_vault_data(
+                    current_payment_method_data,
+                    payment_method_data,
+                );
 
                 if let Some(vault_operation) = updated_vault_operation {
                     payment_data.set_vault_operation(vault_operation);
@@ -2570,7 +2573,6 @@ pub async fn make_pm_data<'a, F: Clone, R, D>(
 
     Ok((operation, payment_method, pm_id))
 }
-
 
 #[cfg(feature = "v1")]
 pub async fn store_in_vault_and_generate_ppmt(
