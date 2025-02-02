@@ -18140,6 +18140,11 @@
             "type": "object",
             "description": "Product authentication ids",
             "nullable": true
+          },
+          "is_clear_pan_retries_enabled": {
+            "type": "boolean",
+            "description": "Indicates if clear pan retries is enabled or not.",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -18173,7 +18178,8 @@
           "is_tax_connector_enabled",
           "is_network_tokenization_enabled",
           "should_collect_cvv_during_payment",
-          "is_click_to_pay_enabled"
+          "is_click_to_pay_enabled",
+          "is_clear_pan_retries_enabled"
         ],
         "properties": {
           "merchant_id": {
@@ -18364,6 +18370,10 @@
             "type": "object",
             "description": "Product authentication ids",
             "nullable": true
+          },
+          "is_clear_pan_retries_enabled": {
+            "type": "boolean",
+            "description": "Indicates if clear pan retries is enabled or not."
           }
         }
       },
