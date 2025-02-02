@@ -305,6 +305,11 @@ pub enum PaymentIntentUpdate {
         amount_captured: Option<MinorUnit>,
         updated_by: String,
     },
+    /// Update the payment intent details on payment sdk session call, before calling the connector.
+    SessionIntentUpdate {
+        prerouting_algorithm: serde_json::Value,
+        updated_by: String,
+    },
     /// UpdateIntent
     UpdateIntent(Box<PaymentIntentUpdateFields>),
 }
@@ -365,6 +370,7 @@ impl From<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal {
             } => Self {
                 status: Some(status),
                 active_attempt_id: Some(active_attempt_id),
+                prerouting_algorithm: None,
                 modified_at: common_utils::date_time::now(),
                 amount: None,
                 amount_captured: None,
@@ -406,6 +412,7 @@ impl From<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal {
             } => Self {
                 status: Some(status),
                 active_attempt_id: None,
+                prerouting_algorithm: None,
                 modified_at: common_utils::date_time::now(),
                 amount_captured,
                 amount: None,
@@ -446,6 +453,7 @@ impl From<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal {
             } => Self {
                 status: Some(status),
                 active_attempt_id: None,
+                prerouting_algorithm: None,
                 modified_at: common_utils::date_time::now(),
                 amount: None,
                 currency: None,
@@ -487,7 +495,48 @@ impl From<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal {
                 status: Some(status),
                 amount_captured,
                 active_attempt_id: None,
+                prerouting_algorithm: None,
                 modified_at: common_utils::date_time::now(),
+                amount: None,
+                currency: None,
+                shipping_cost: None,
+                tax_details: None,
+                skip_external_tax_calculation: None,
+                surcharge_applicable: None,
+                surcharge_amount: None,
+                tax_on_surcharge: None,
+                routing_algorithm_id: None,
+                capture_method: None,
+                authentication_type: None,
+                billing_address: None,
+                shipping_address: None,
+                customer_present: None,
+                description: None,
+                return_url: None,
+                setup_future_usage: None,
+                apply_mit_exemption: None,
+                statement_descriptor: None,
+                order_details: None,
+                allowed_payment_method_types: None,
+                metadata: None,
+                connector_metadata: None,
+                feature_metadata: None,
+                payment_link_config: None,
+                request_incremental_authorization: None,
+                session_expiry: None,
+                frm_metadata: None,
+                request_external_three_ds_authentication: None,
+                updated_by,
+            },
+            PaymentIntentUpdate::SessionIntentUpdate {
+                prerouting_algorithm,
+                updated_by,
+            } => Self {
+                status: None,
+                active_attempt_id: None,
+                modified_at: common_utils::date_time::now(),
+                amount_captured: None,
+                prerouting_algorithm: Some(prerouting_algorithm),
                 amount: None,
                 currency: None,
                 shipping_cost: None,
@@ -555,6 +604,7 @@ impl From<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal {
                 Self {
                     status: None,
                     active_attempt_id: None,
+                    prerouting_algorithm: None,
                     modified_at: common_utils::date_time::now(),
                     amount_captured: None,
                     amount,
@@ -1379,7 +1429,15 @@ impl behaviour::Conversion for PaymentIntent {
             capture_method: Some(capture_method),
             id,
             authentication_type: Some(authentication_type),
-            prerouting_algorithm,
+            prerouting_algorithm: prerouting_algorithm
+                .map(|prerouting_algorithm| {
+                    prerouting_algorithm.encode_to_value().change_context(
+                        ValidationError::InvalidValue {
+                            message: "Failed to serialize prerouting_algorithm".to_string(),
+                        },
+                    )
+                })
+                .transpose()?,
             merchant_reference_id,
             surcharge_amount: amount_details.surcharge_amount,
             tax_on_surcharge: amount_details.tax_on_surcharge,
@@ -1513,7 +1571,14 @@ impl behaviour::Conversion for PaymentIntent {
                 merchant_reference_id: storage_model.merchant_reference_id,
                 organization_id: storage_model.organization_id,
                 authentication_type: storage_model.authentication_type.unwrap_or_default(),
-                prerouting_algorithm: storage_model.prerouting_algorithm,
+                prerouting_algorithm: storage_model
+                    .prerouting_algorithm
+                    .map(|prerouting_algorithm_value| {
+                        prerouting_algorithm_value
+                            .parse_value("PaymentRoutingInfo")
+                            .change_context(common_utils::errors::CryptoError::DecodingFailed)
+                    })
+                    .transpose()?,
                 enable_payment_link: storage_model.enable_payment_link.into(),
                 apply_mit_exemption: storage_model.apply_mit_exemption.into(),
                 customer_present: storage_model.customer_present.into(),
@@ -1584,7 +1649,16 @@ impl behaviour::Conversion for PaymentIntent {
             id: self.id,
             merchant_reference_id: self.merchant_reference_id,
             authentication_type: Some(self.authentication_type),
-            prerouting_algorithm: self.prerouting_algorithm,
+            prerouting_algorithm: self
+                .prerouting_algorithm
+                .map(|prerouting_algorithm| {
+                    prerouting_algorithm.encode_to_value().change_context(
+                        ValidationError::InvalidValue {
+                            message: "Failed to serialize prerouting_algorithm".to_string(),
+                        },
+                    )
+                })
+                .transpose()?,
             surcharge_amount: amount_details.surcharge_amount,
             tax_on_surcharge: amount_details.tax_on_surcharge,
             organization_id: self.organization_id,
