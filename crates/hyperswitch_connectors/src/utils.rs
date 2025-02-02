@@ -335,6 +335,17 @@ pub(crate) fn validate_currency(
     Ok(())
 }
 
+pub(crate) fn to_boolean(string: String) -> bool {
+    let str = string.as_str();
+    match str {
+        "true" => true,
+        "false" => false,
+        "yes" => true,
+        "no" => false,
+        _ => false,
+    }
+}
+
 pub(crate) fn convert_back_amount_to_minor_units<T>(
     amount_convertor: &dyn AmountConvertor<Output = T>,
     amount: T,

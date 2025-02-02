@@ -702,13 +702,10 @@ default_imp_for_new_connector_integration_payment!(
     connector::Ebanx,
     connector::Globalpay,
     connector::Gpayments,
-    
     connector::Klarna,
-    
     connector::Netcetera,
     connector::Nmi,
     connector::Noon,
-    connector::Nuvei,
     connector::Opayo,
     connector::Opennode,
     connector::Payme,
@@ -748,13 +745,10 @@ default_imp_for_new_connector_integration_refund!(
     connector::Ebanx,
     connector::Globalpay,
     connector::Gpayments,
-    
     connector::Klarna,
-    
     connector::Netcetera,
     connector::Nmi,
     connector::Noon,
-    connector::Nuvei,
     connector::Opayo,
     connector::Opennode,
     connector::Payme,
@@ -788,13 +782,10 @@ default_imp_for_new_connector_integration_connector_access_token!(
     connector::Ebanx,
     connector::Globalpay,
     connector::Gpayments,
-    
     connector::Klarna,
-    
     connector::Netcetera,
     connector::Nmi,
     connector::Noon,
-    connector::Nuvei,
     connector::Opayo,
     connector::Opennode,
     connector::Payme,
@@ -850,13 +841,10 @@ default_imp_for_new_connector_integration_accept_dispute!(
     connector::Ebanx,
     connector::Globalpay,
     connector::Gpayments,
-    
     connector::Klarna,
-    
     connector::Netcetera,
     connector::Nmi,
     connector::Noon,
-    connector::Nuvei,
     connector::Opayo,
     connector::Opennode,
     connector::Payme,
@@ -894,13 +882,10 @@ default_imp_for_new_connector_integration_defend_dispute!(
     connector::Ebanx,
     connector::Globalpay,
     connector::Gpayments,
-    
     connector::Klarna,
-    
     connector::Netcetera,
     connector::Nmi,
     connector::Noon,
-    connector::Nuvei,
     connector::Opayo,
     connector::Opennode,
     connector::Payme,
@@ -922,13 +907,10 @@ default_imp_for_new_connector_integration_submit_evidence!(
     connector::Ebanx,
     connector::Globalpay,
     connector::Gpayments,
-    
     connector::Klarna,
-    
     connector::Netcetera,
     connector::Nmi,
     connector::Noon,
-    connector::Nuvei,
     connector::Opayo,
     connector::Opennode,
     connector::Payme,
@@ -977,13 +959,10 @@ default_imp_for_new_connector_integration_file_upload!(
     connector::Ebanx,
     connector::Globalpay,
     connector::Gpayments,
-    
     connector::Klarna,
-    
     connector::Netcetera,
     connector::Nmi,
     connector::Noon,
-    connector::Nuvei,
     connector::Opayo,
     connector::Opennode,
     connector::Payme,
@@ -1053,7 +1032,6 @@ default_imp_for_new_connector_integration_payouts!(
     connector::Nomupay,
     connector::Noon,
     connector::Novalnet,
-    connector::Nuvei,
     connector::Opayo,
     connector::Opennode,
     connector::Paybox,
@@ -1113,13 +1091,10 @@ default_imp_for_new_connector_integration_payouts_create!(
     connector::Ebanx,
     connector::Globalpay,
     connector::Gpayments,
-    
     connector::Klarna,
-    
     connector::Netcetera,
     connector::Nmi,
     connector::Noon,
-    connector::Nuvei,
     connector::Opayo,
     connector::Opennode,
     connector::Payme,
@@ -1160,13 +1135,10 @@ default_imp_for_new_connector_integration_payouts_eligibility!(
     connector::Ebanx,
     connector::Globalpay,
     connector::Gpayments,
-    
     connector::Klarna,
-    
     connector::Netcetera,
     connector::Nmi,
     connector::Noon,
-    connector::Nuvei,
     connector::Opayo,
     connector::Opennode,
     connector::Payme,
@@ -1207,13 +1179,10 @@ default_imp_for_new_connector_integration_payouts_fulfill!(
     connector::Ebanx,
     connector::Globalpay,
     connector::Gpayments,
-    
     connector::Klarna,
-    
     connector::Netcetera,
     connector::Nmi,
     connector::Noon,
-    connector::Nuvei,
     connector::Opayo,
     connector::Opennode,
     connector::Payme,
@@ -1254,13 +1223,10 @@ default_imp_for_new_connector_integration_payouts_cancel!(
     connector::Ebanx,
     connector::Globalpay,
     connector::Gpayments,
-    
     connector::Klarna,
-    
     connector::Netcetera,
     connector::Nmi,
     connector::Noon,
-    connector::Nuvei,
     connector::Opayo,
     connector::Opennode,
     connector::Payme,
@@ -1301,13 +1267,10 @@ default_imp_for_new_connector_integration_payouts_quote!(
     connector::Ebanx,
     connector::Globalpay,
     connector::Gpayments,
-    
     connector::Klarna,
-    
     connector::Netcetera,
     connector::Nmi,
     connector::Noon,
-    connector::Nuvei,
     connector::Opayo,
     connector::Opennode,
     connector::Payme,
@@ -1348,13 +1311,10 @@ default_imp_for_new_connector_integration_payouts_recipient!(
     connector::Ebanx,
     connector::Globalpay,
     connector::Gpayments,
-    
     connector::Klarna,
-    
     connector::Netcetera,
     connector::Nmi,
     connector::Noon,
-    connector::Nuvei,
     connector::Opayo,
     connector::Opennode,
     connector::Payme,
@@ -1395,13 +1355,10 @@ default_imp_for_new_connector_integration_payouts_sync!(
     connector::Ebanx,
     connector::Globalpay,
     connector::Gpayments,
-    
     connector::Klarna,
-    
     connector::Netcetera,
     connector::Nmi,
     connector::Noon,
-    connector::Nuvei,
     connector::Opayo,
     connector::Opennode,
     connector::Payme,
@@ -1442,13 +1399,10 @@ default_imp_for_new_connector_integration_payouts_recipient_account!(
     connector::Ebanx,
     connector::Globalpay,
     connector::Gpayments,
-    
     connector::Klarna,
-    
     connector::Netcetera,
     connector::Nmi,
     connector::Noon,
-    connector::Nuvei,
     connector::Opayo,
     connector::Opennode,
     connector::Payme,
@@ -1487,13 +1441,10 @@ default_imp_for_new_connector_integration_webhook_source_verification!(
     connector::Ebanx,
     connector::Globalpay,
     connector::Gpayments,
-    
     connector::Klarna,
-    
     connector::Netcetera,
     connector::Nmi,
     connector::Noon,
-    connector::Nuvei,
     connector::Opayo,
     connector::Opennode,
     connector::Payme,
@@ -1563,7 +1514,6 @@ default_imp_for_new_connector_integration_frm!(
     connector::Nomupay,
     connector::Noon,
     connector::Novalnet,
-    connector::Nuvei,
     connector::Opayo,
     connector::Opennode,
     connector::Paybox,
@@ -1623,13 +1573,10 @@ default_imp_for_new_connector_integration_frm_sale!(
     connector::Ebanx,
     connector::Globalpay,
     connector::Gpayments,
-    
     connector::Klarna,
-    
     connector::Netcetera,
     connector::Nmi,
     connector::Noon,
-    connector::Nuvei,
     connector::Opayo,
     connector::Opennode,
     connector::Payme,
@@ -1670,13 +1617,10 @@ default_imp_for_new_connector_integration_frm_checkout!(
     connector::Ebanx,
     connector::Globalpay,
     connector::Gpayments,
-    
     connector::Klarna,
-    
     connector::Netcetera,
     connector::Nmi,
     connector::Noon,
-    connector::Nuvei,
     connector::Opayo,
     connector::Opennode,
     connector::Payme,
@@ -1717,13 +1661,10 @@ default_imp_for_new_connector_integration_frm_transaction!(
     connector::Ebanx,
     connector::Globalpay,
     connector::Gpayments,
-    
     connector::Klarna,
-    
     connector::Netcetera,
     connector::Nmi,
     connector::Noon,
-    connector::Nuvei,
     connector::Opayo,
     connector::Opennode,
     connector::Payme,
@@ -1764,13 +1705,10 @@ default_imp_for_new_connector_integration_frm_fulfillment!(
     connector::Ebanx,
     connector::Globalpay,
     connector::Gpayments,
-    
     connector::Klarna,
-    
     connector::Netcetera,
     connector::Nmi,
     connector::Noon,
-    connector::Nuvei,
     connector::Opayo,
     connector::Opennode,
     connector::Payme,
@@ -1811,13 +1749,10 @@ default_imp_for_new_connector_integration_frm_record_return!(
     connector::Ebanx,
     connector::Globalpay,
     connector::Gpayments,
-    
     connector::Klarna,
-    
     connector::Netcetera,
     connector::Nmi,
     connector::Noon,
-    connector::Nuvei,
     connector::Opayo,
     connector::Opennode,
     connector::Payme,
@@ -1855,13 +1790,10 @@ default_imp_for_new_connector_integration_revoking_mandates!(
     connector::Ebanx,
     connector::Globalpay,
     connector::Gpayments,
-    
     connector::Klarna,
-    
     connector::Netcetera,
     connector::Nmi,
     connector::Noon,
-    connector::Nuvei,
     connector::Opayo,
     connector::Opennode,
     connector::Payme,
@@ -2038,13 +1970,10 @@ default_imp_for_new_connector_integration_uas!(
     connector::Ebanx,
     connector::Globalpay,
     connector::Gpayments,
-    
     connector::Klarna,
-    
     connector::Netcetera,
     connector::Nmi,
     connector::Noon,
-    connector::Nuvei,
     connector::Opayo,
     connector::Opennode,
     connector::Payme,

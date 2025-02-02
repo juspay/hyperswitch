@@ -27,7 +27,10 @@ use hyperswitch_domain_models::{
     },
 };
 use hyperswitch_interfaces::{
-    api::{self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorSpecifications, ConnectorValidation},
+    api::{
+        self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorSpecifications,
+        ConnectorValidation,
+    },
     configs::Connectors,
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     errors,
@@ -39,7 +42,11 @@ use masking::{ExposeInterface, Mask};
 use router_env::logger;
 use transformers::{self as mifinity, auth_headers};
 
-use crate::{constants::{headers, CONNECTOR_UNAUTHORIZED_ERROR}, types::ResponseRouterData, utils::convert_amount};
+use crate::{
+    constants::{headers, CONNECTOR_UNAUTHORIZED_ERROR},
+    types::ResponseRouterData,
+    utils::convert_amount,
+};
 
 #[derive(Clone)]
 pub struct Mifinity {
@@ -493,4 +500,4 @@ impl IncomingWebhook for Mifinity {
     }
 }
 
-impl ConnectorSpecifications for Mifinity{}
+impl ConnectorSpecifications for Mifinity {}
