@@ -353,6 +353,8 @@ pub enum Flow {
     DecisionManagerRetrieveConfig,
     /// Manual payment fulfillment acknowledgement
     FrmFulfillment,
+    /// Get connectors feature matrix
+    FeatureMatrix,
     /// Change password flow
     ChangePassword,
     /// Signout flow
@@ -535,6 +537,8 @@ pub enum Flow {
     Relay,
     /// Relay retrieve flow
     RelayRetrieve,
+    /// Incoming Relay Webhook Receive
+    IncomingRelayWebhookReceive,
 }
 
 /// Trait for providing generic behaviour to flow metric

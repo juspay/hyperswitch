@@ -21,6 +21,7 @@ error-stack = "0.4.1"
 hex = "0.4.3"
 http = "0.2.12"
 image = { version = "0.25.1", default-features = false, features = ["png"] }
+josekit = "0.8.6"
 mime = "0.3.17"
 once_cell = "1.19.0"
 qrcode = "0.14.0"
@@ -40,6 +41,7 @@ time = "0.3.35"
 url = "2.5.0"
 urlencoding = "2.1.3"
 uuid = { version = "1.8.0", features = ["v4"] }
+lazy_static = "1.4.0"
 
 # First party crates
 api_models = { version = "0.1.0", path = "../api_models", features = ["errors"], default-features = false }

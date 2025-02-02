@@ -84,7 +84,6 @@ pub trait RouterData {
     fn get_billing_phone(&self)
         -> Result<&hyperswitch_domain_models::address::PhoneDetails, Error>;
     fn get_description(&self) -> Result<String, Error>;
-    fn get_return_url(&self) -> Result<String, Error>;
     fn get_billing_address(
         &self,
     ) -> Result<&hyperswitch_domain_models::address::AddressDetails, Error>;
@@ -320,11 +319,6 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
         self.description
             .clone()
             .ok_or_else(missing_field_err("description"))
-    }
-    fn get_return_url(&self) -> Result<String, Error> {
-        self.return_url
-            .clone()
-            .ok_or_else(missing_field_err("return_url"))
     }
     fn get_billing_address(
         &self,
@@ -653,7 +647,7 @@ pub trait PaymentsPreProcessingData {
     fn is_auto_capture(&self) -> Result<bool, Error>;
     fn get_order_details(&self) -> Result<Vec<OrderDetailsWithAmount>, Error>;
     fn get_webhook_url(&self) -> Result<String, Error>;
-    fn get_return_url(&self) -> Result<String, Error>;
+    fn get_router_return_url(&self) -> Result<String, Error>;
     fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
     fn get_complete_authorize_url(&self) -> Result<String, Error>;
     fn connector_mandate_id(&self) -> Option<String>;
@@ -699,7 +693,7 @@ impl PaymentsPreProcessingData for types::PaymentsPreProcessingData {
             .clone()
             .ok_or_else(missing_field_err("webhook_url"))
     }
-    fn get_return_url(&self) -> Result<String, Error> {
+    fn get_router_return_url(&self) -> Result<String, Error> {
         self.router_return_url
             .clone()
             .ok_or_else(missing_field_err("return_url"))
@@ -797,7 +791,6 @@ pub trait PaymentsAuthorizeRequestData {
     fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
     fn get_order_details(&self) -> Result<Vec<OrderDetailsWithAmount>, Error>;
     fn get_card(&self) -> Result<domain::Card, Error>;
-    fn get_return_url(&self) -> Result<String, Error>;
     fn connector_mandate_id(&self) -> Option<String>;
     fn get_optional_network_transaction_id(&self) -> Option<String>;
     fn is_mandate_payment(&self) -> bool;
@@ -865,11 +858,6 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
             _ => Err(missing_field_err("card")()),
         }
     }
-    fn get_return_url(&self) -> Result<String, Error> {
-        self.router_return_url
-            .clone()
-            .ok_or_else(missing_field_err("return_url"))
-    }
 
     fn get_complete_authorize_url(&self) -> Result<String, Error> {
         self.complete_authorize_url
@@ -905,9 +893,7 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
 
     fn is_mandate_payment(&self) -> bool {
         ((self.customer_acceptance.is_some() || self.setup_mandate_details.is_some())
-            && self.setup_future_usage.map_or(false, |setup_future_usage| {
-                setup_future_usage == storage_enums::FutureUsage::OffSession
-            }))
+            && self.setup_future_usage == Some(storage_enums::FutureUsage::OffSession))
             || self
                 .mandate_id
                 .as_ref()
@@ -916,9 +902,7 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
     }
     fn is_cit_mandate_payment(&self) -> bool {
         (self.customer_acceptance.is_some() || self.setup_mandate_details.is_some())
-            && self.setup_future_usage.map_or(false, |setup_future_usage| {
-                setup_future_usage == storage_enums::FutureUsage::OffSession
-            })
+            && self.setup_future_usage == Some(storage_enums::FutureUsage::OffSession)
     }
     fn get_webhook_url(&self) -> Result<String, Error> {
         self.webhook_url
@@ -985,9 +969,7 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
 
     fn is_customer_initiated_mandate_payment(&self) -> bool {
         (self.customer_acceptance.is_some() || self.setup_mandate_details.is_some())
-            && self.setup_future_usage.map_or(false, |setup_future_usage| {
-                setup_future_usage == storage_enums::FutureUsage::OffSession
-            })
+            && self.setup_future_usage == Some(storage_enums::FutureUsage::OffSession)
     }
 
     fn get_metadata_as_object(&self) -> Option<pii::SecretSerdeValue> {
@@ -1135,9 +1117,7 @@ impl PaymentsCompleteAuthorizeRequestData for types::CompleteAuthorizeData {
     }
     fn is_mandate_payment(&self) -> bool {
         ((self.customer_acceptance.is_some() || self.setup_mandate_details.is_some())
-            && self.setup_future_usage.map_or(false, |setup_future_usage| {
-                setup_future_usage == storage_enums::FutureUsage::OffSession
-            }))
+            && self.setup_future_usage == Some(storage_enums::FutureUsage::OffSession))
             || self
                 .mandate_id
                 .as_ref()
@@ -1146,9 +1126,7 @@ impl PaymentsCompleteAuthorizeRequestData for types::CompleteAuthorizeData {
     }
     fn is_cit_mandate_payment(&self) -> bool {
         (self.customer_acceptance.is_some() || self.setup_mandate_details.is_some())
-            && self.setup_future_usage.map_or(false, |setup_future_usage| {
-                setup_future_usage == storage_enums::FutureUsage::OffSession
-            })
+            && self.setup_future_usage == Some(storage_enums::FutureUsage::OffSession)
     }
     /// Attempts to retrieve the connector mandate reference ID as a `Result<String, Error>`.
     fn get_connector_mandate_request_reference_id(&self) -> Result<String, Error> {

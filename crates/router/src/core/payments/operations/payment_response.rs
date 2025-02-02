@@ -200,6 +200,7 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
             payment_method_billing_address,
             business_profile,
             connector_mandate_reference_id.clone(),
+            merchant_connector_id.clone(),
         ));
 
         let is_connector_mandate = resp.request.customer_acceptance.is_some()
@@ -315,6 +316,7 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
                         payment_method_billing_address.as_ref(),
                         &business_profile,
                         connector_mandate_reference_id,
+                        merchant_connector_id.clone(),
                     ))
                     .await;
 
@@ -1099,6 +1101,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
             payment_method_billing_address,
             business_profile,
             connector_mandate_reference_id,
+            merchant_connector_id.clone(),
         ))
         .await?;
 
@@ -1902,7 +1905,6 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
             status: api_models::enums::IntentStatus::foreign_from(
                 payment_data.payment_attempt.status,
             ),
-            return_url: router_data.return_url.clone(),
             amount_captured,
             updated_by: storage_scheme.to_string(),
             fingerprint_id: payment_data.payment_attempt.fingerprint_id.clone(),
@@ -1969,7 +1971,9 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
 
     #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
     {
-        if business_profile.dynamic_routing_algorithm.is_some() {
+        if payment_intent.status.is_in_terminal_state()
+            && business_profile.dynamic_routing_algorithm.is_some()
+        {
             let state = state.clone();
             let business_profile = business_profile.clone();
             let payment_attempt = payment_attempt.clone();

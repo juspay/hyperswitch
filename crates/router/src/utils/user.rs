@@ -5,7 +5,7 @@ use common_enums::UserAuthType;
 use common_utils::{
     encryption::Encryption, errors::CustomResult, id_type, type_name, types::keymanager::Identifier,
 };
-use diesel_models::{organization, organization::OrganizationBridge};
+use diesel_models::organization::{self, OrganizationBridge};
 use error_stack::ResultExt;
 use masking::{ExposeInterface, Secret};
 use redis_interface::RedisConnectionPool;
@@ -77,9 +77,14 @@ impl UserFromToken {
     }
 
     pub async fn get_role_info_from_db(&self, state: &SessionState) -> UserResult<RoleInfo> {
-        RoleInfo::from_role_id_and_org_id(state, &self.role_id, &self.org_id)
-            .await
-            .change_context(UserErrors::InternalServerError)
+        RoleInfo::from_role_id_org_id_tenant_id(
+            state,
+            &self.role_id,
+            &self.org_id,
+            self.tenant_id.as_ref().unwrap_or(&state.tenant.tenant_id),
+        )
+        .await
+        .change_context(UserErrors::InternalServerError)
     }
 }
 
@@ -241,7 +246,7 @@ pub async fn set_sso_id_in_redis(
     let connection = get_redis_connection(state)?;
     let key = get_oidc_key(&oidc_state.expose());
     connection
-        .set_key_with_expiry(&key, sso_id, REDIS_SSO_TTL)
+        .set_key_with_expiry(&key.into(), sso_id, REDIS_SSO_TTL)
         .await
         .change_context(UserErrors::InternalServerError)
         .attach_printable("Failed to set sso id in redis")
@@ -254,7 +259,7 @@ pub async fn get_sso_id_from_redis(
     let connection = get_redis_connection(state)?;
     let key = get_oidc_key(&oidc_state.expose());
     connection
-        .get_key::<Option<String>>(&key)
+        .get_key::<Option<String>>(&key.into())
         .await
         .change_context(UserErrors::InternalServerError)
         .attach_printable("Failed to get sso id from redis")?
@@ -311,4 +316,24 @@ pub fn create_merchant_account_request_for_org(
         redirect_to_merchant_with_http_post: None,
         pm_collect_link_config: None,
     })
+}
+
+pub async fn validate_email_domain_auth_type_using_db(
+    state: &SessionState,
+    email: &domain::UserEmail,
+    required_auth_type: UserAuthType,
+) -> UserResult<()> {
+    let domain = email.extract_domain()?;
+    let user_auth_methods = state
+        .store
+        .list_user_authentication_methods_for_email_domain(domain)
+        .await
+        .change_context(UserErrors::InternalServerError)?;
+
+    (user_auth_methods.is_empty()
+        || user_auth_methods
+            .iter()
+            .any(|auth_method| auth_method.auth_type == required_auth_type))
+    .then_some(())
+    .ok_or(UserErrors::InvalidUserAuthMethodOperation.into())
 }

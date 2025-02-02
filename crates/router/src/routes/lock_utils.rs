@@ -38,6 +38,7 @@ pub enum ApiIdentifier {
     Poll,
     ApplePayCertificatesMigration,
     Relay,
+    Documentation,
 }
 
 impl From<Flow> for ApiIdentifier {
@@ -170,6 +171,7 @@ impl From<Flow> for ApiIdentifier {
 
             Flow::FrmFulfillment
             | Flow::IncomingWebhookReceive
+            | Flow::IncomingRelayWebhookReceive
             | Flow::WebhookEventInitialDeliveryAttemptList
             | Flow::WebhookEventDeliveryAttemptList
             | Flow::WebhookEventDeliveryRetry => Self::Webhooks,
@@ -303,6 +305,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::ReconVerifyToken => Self::Recon,
 
             Flow::RetrievePollStatus => Self::Poll,
+
+            Flow::FeatureMatrix => Self::Documentation,
         }
     }
 }

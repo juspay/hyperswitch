@@ -22,9 +22,9 @@ use crate::{
     core::{
         api_locking,
         errors::{self, ConnectorErrorExt, CustomResult, RouterResponse, StorageErrorExt},
-        metrics, payments,
-        payments::tokenization,
-        refunds, utils as core_utils,
+        metrics,
+        payments::{self, tokenization},
+        refunds, relay, utils as core_utils,
         webhooks::utils::construct_webhook_router_data,
     },
     db::StorageInterface,
@@ -62,6 +62,7 @@ pub async fn incoming_webhooks_wrapper<W: types::OutgoingWebhookType>(
     key_store: domain::MerchantKeyStore,
     connector_name_or_mca_id: &str,
     body: actix_web::web::Bytes,
+    is_relay_webhook: bool,
 ) -> RouterResponse<serde_json::Value> {
     let start_instant = Instant::now();
     let (application_response, webhooks_response_tracker, serialized_req) =
@@ -73,6 +74,7 @@ pub async fn incoming_webhooks_wrapper<W: types::OutgoingWebhookType>(
             key_store,
             connector_name_or_mca_id,
             body.clone(),
+            is_relay_webhook,
         ))
         .await?;
 
@@ -118,6 +120,7 @@ pub async fn incoming_webhooks_wrapper<W: types::OutgoingWebhookType>(
     Ok(application_response)
 }
 
+#[allow(clippy::too_many_arguments)]
 #[instrument(skip_all)]
 async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
     state: SessionState,
@@ -127,6 +130,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
     key_store: domain::MerchantKeyStore,
     connector_name_or_mca_id: &str,
     body: actix_web::web::Bytes,
+    is_relay_webhook: bool,
 ) -> errors::RouterResult<(
     services::ApplicationResponse<serde_json::Value>,
     WebhookResponseTracker,
@@ -361,120 +365,162 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                 id: profile_id.get_string_repr().to_owned(),
             })?;
 
-        let result_response = match flow_type {
-            api::WebhookFlow::Payment => Box::pin(payments_incoming_webhook_flow(
+        // If the incoming webhook is a relay webhook, then we need to trigger the relay webhook flow
+        let result_response = if is_relay_webhook {
+            let relay_webhook_response = Box::pin(relay_incoming_webhook_flow(
                 state.clone(),
-                req_state,
                 merchant_account,
                 business_profile,
                 key_store,
                 webhook_details,
-                source_verified,
-                &connector,
-                &request_details,
                 event_type,
-            ))
-            .await
-            .attach_printable("Incoming webhook flow for payments failed"),
-
-            api::WebhookFlow::Refund => Box::pin(refunds_incoming_webhook_flow(
-                state.clone(),
-                merchant_account,
-                business_profile,
-                key_store,
-                webhook_details,
-                connector_name.as_str(),
-                source_verified,
-                event_type,
-            ))
-            .await
-            .attach_printable("Incoming webhook flow for refunds failed"),
-
-            api::WebhookFlow::Dispute => Box::pin(disputes_incoming_webhook_flow(
-                state.clone(),
-                merchant_account,
-                business_profile,
-                key_store,
-                webhook_details,
-                source_verified,
-                &connector,
-                &request_details,
-                event_type,
-            ))
-            .await
-            .attach_printable("Incoming webhook flow for disputes failed"),
-
-            api::WebhookFlow::BankTransfer => Box::pin(bank_transfer_webhook_flow(
-                state.clone(),
-                req_state,
-                merchant_account,
-                business_profile,
-                key_store,
-                webhook_details,
                 source_verified,
             ))
             .await
-            .attach_printable("Incoming bank-transfer webhook flow failed"),
+            .attach_printable("Incoming webhook flow for relay failed");
 
-            api::WebhookFlow::ReturnResponse => Ok(WebhookResponseTracker::NoEffect),
+            // Using early return ensures unsupported webhooks are acknowledged to the connector
+            if let Some(errors::ApiErrorResponse::NotSupported { .. }) = relay_webhook_response
+                .as_ref()
+                .err()
+                .map(|a| a.current_context())
+            {
+                logger::error!(
+                    webhook_payload =? request_details.body,
+                    "Failed while identifying the event type",
+                );
 
-            api::WebhookFlow::Mandate => Box::pin(mandates_incoming_webhook_flow(
-                state.clone(),
-                merchant_account,
-                business_profile,
-                key_store,
-                webhook_details,
-                source_verified,
-                event_type,
-            ))
-            .await
-            .attach_printable("Incoming webhook flow for mandates failed"),
+                let response = connector
+                        .get_webhook_api_response(&request_details, None)
+                        .switch()
+                        .attach_printable(
+                            "Failed while early return in case of not supported event type in relay webhooks",
+                        )?;
 
-            api::WebhookFlow::ExternalAuthentication => {
-                Box::pin(external_authentication_incoming_webhook_flow(
+                return Ok((
+                    response,
+                    WebhookResponseTracker::NoEffect,
+                    serde_json::Value::Null,
+                ));
+            };
+
+            relay_webhook_response
+        } else {
+            match flow_type {
+                api::WebhookFlow::Payment => Box::pin(payments_incoming_webhook_flow(
+                    state.clone(),
+                    req_state,
+                    merchant_account,
+                    business_profile,
+                    key_store,
+                    webhook_details,
+                    source_verified,
+                    &connector,
+                    &request_details,
+                    event_type,
+                ))
+                .await
+                .attach_printable("Incoming webhook flow for payments failed"),
+
+                api::WebhookFlow::Refund => Box::pin(refunds_incoming_webhook_flow(
+                    state.clone(),
+                    merchant_account,
+                    business_profile,
+                    key_store,
+                    webhook_details,
+                    connector_name.as_str(),
+                    source_verified,
+                    event_type,
+                ))
+                .await
+                .attach_printable("Incoming webhook flow for refunds failed"),
+
+                api::WebhookFlow::Dispute => Box::pin(disputes_incoming_webhook_flow(
+                    state.clone(),
+                    merchant_account,
+                    business_profile,
+                    key_store,
+                    webhook_details,
+                    source_verified,
+                    &connector,
+                    &request_details,
+                    event_type,
+                ))
+                .await
+                .attach_printable("Incoming webhook flow for disputes failed"),
+
+                api::WebhookFlow::BankTransfer => Box::pin(bank_transfer_webhook_flow(
+                    state.clone(),
+                    req_state,
+                    merchant_account,
+                    business_profile,
+                    key_store,
+                    webhook_details,
+                    source_verified,
+                ))
+                .await
+                .attach_printable("Incoming bank-transfer webhook flow failed"),
+
+                api::WebhookFlow::ReturnResponse => Ok(WebhookResponseTracker::NoEffect),
+
+                api::WebhookFlow::Mandate => Box::pin(mandates_incoming_webhook_flow(
+                    state.clone(),
+                    merchant_account,
+                    business_profile,
+                    key_store,
+                    webhook_details,
+                    source_verified,
+                    event_type,
+                ))
+                .await
+                .attach_printable("Incoming webhook flow for mandates failed"),
+
+                api::WebhookFlow::ExternalAuthentication => {
+                    Box::pin(external_authentication_incoming_webhook_flow(
+                        state.clone(),
+                        req_state,
+                        merchant_account,
+                        key_store,
+                        source_verified,
+                        event_type,
+                        &request_details,
+                        &connector,
+                        object_ref_id,
+                        business_profile,
+                        merchant_connector_account,
+                    ))
+                    .await
+                    .attach_printable("Incoming webhook flow for external authentication failed")
+                }
+                api::WebhookFlow::FraudCheck => Box::pin(frm_incoming_webhook_flow(
                     state.clone(),
                     req_state,
                     merchant_account,
                     key_store,
                     source_verified,
                     event_type,
-                    &request_details,
-                    &connector,
                     object_ref_id,
                     business_profile,
-                    merchant_connector_account,
                 ))
                 .await
-                .attach_printable("Incoming webhook flow for external authentication failed")
+                .attach_printable("Incoming webhook flow for fraud check failed"),
+
+                #[cfg(feature = "payouts")]
+                api::WebhookFlow::Payout => Box::pin(payouts_incoming_webhook_flow(
+                    state.clone(),
+                    merchant_account,
+                    business_profile,
+                    key_store,
+                    webhook_details,
+                    event_type,
+                    source_verified,
+                ))
+                .await
+                .attach_printable("Incoming webhook flow for payouts failed"),
+
+                _ => Err(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Unsupported Flow Type received in incoming webhooks"),
             }
-            api::WebhookFlow::FraudCheck => Box::pin(frm_incoming_webhook_flow(
-                state.clone(),
-                req_state,
-                merchant_account,
-                key_store,
-                source_verified,
-                event_type,
-                object_ref_id,
-                business_profile,
-            ))
-            .await
-            .attach_printable("Incoming webhook flow for fraud check failed"),
-
-            #[cfg(feature = "payouts")]
-            api::WebhookFlow::Payout => Box::pin(payouts_incoming_webhook_flow(
-                state.clone(),
-                merchant_account,
-                business_profile,
-                key_store,
-                webhook_details,
-                event_type,
-                source_verified,
-            ))
-            .await
-            .attach_printable("Incoming webhook flow for payouts failed"),
-
-            _ => Err(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Unsupported Flow Type received in incoming webhooks"),
         };
 
         match result_response {
@@ -836,6 +882,97 @@ async fn payouts_incoming_webhook_flow(
     }
 }
 
+async fn relay_refunds_incoming_webhook_flow(
+    state: SessionState,
+    merchant_account: domain::MerchantAccount,
+    business_profile: domain::Profile,
+    merchant_key_store: domain::MerchantKeyStore,
+    webhook_details: api::IncomingWebhookDetails,
+    event_type: webhooks::IncomingWebhookEvent,
+    source_verified: bool,
+) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
+    let db = &*state.store;
+    let key_manager_state = &(&state).into();
+
+    let relay_record = match webhook_details.object_reference_id {
+        webhooks::ObjectReferenceId::RefundId(refund_id_type) => match refund_id_type {
+            webhooks::RefundIdType::RefundId(refund_id) => {
+                let relay_id = common_utils::id_type::RelayId::from_str(&refund_id)
+                    .change_context(errors::ValidationError::IncorrectValueProvided {
+                        field_name: "relay_id",
+                    })
+                    .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+                db.find_relay_by_id(key_manager_state, &merchant_key_store, &relay_id)
+                    .await
+                    .to_not_found_response(errors::ApiErrorResponse::WebhookResourceNotFound)
+                    .attach_printable("Failed to fetch the relay record")?
+            }
+            webhooks::RefundIdType::ConnectorRefundId(connector_refund_id) => db
+                .find_relay_by_profile_id_connector_reference_id(
+                    key_manager_state,
+                    &merchant_key_store,
+                    business_profile.get_id(),
+                    &connector_refund_id,
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::WebhookResourceNotFound)
+                .attach_printable("Failed to fetch the relay record")?,
+        },
+        _ => Err(errors::ApiErrorResponse::WebhookProcessingFailure)
+            .attach_printable("received a non-refund id when processing relay refund webhooks")?,
+    };
+
+    // if source_verified then update relay status else trigger relay force sync
+    let relay_response = if source_verified {
+        let relay_update = hyperswitch_domain_models::relay::RelayUpdate::StatusUpdate {
+            connector_reference_id: None,
+            status: common_enums::RelayStatus::foreign_try_from(event_type)
+                .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
+                .attach_printable("failed relay refund status mapping from event type")?,
+        };
+        db.update_relay(
+            key_manager_state,
+            &merchant_key_store,
+            relay_record,
+            relay_update,
+        )
+        .await
+        .map(api_models::relay::RelayResponse::from)
+        .to_not_found_response(errors::ApiErrorResponse::WebhookResourceNotFound)
+        .attach_printable("Failed to update relay")?
+    } else {
+        let relay_retrieve_request = api_models::relay::RelayRetrieveRequest {
+            force_sync: true,
+            id: relay_record.id,
+        };
+        let relay_force_sync_response = Box::pin(relay::relay_retrieve(
+            state,
+            merchant_account,
+            Some(business_profile.get_id().clone()),
+            merchant_key_store,
+            relay_retrieve_request,
+        ))
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to force sync relay")?;
+
+        if let hyperswitch_domain_models::api::ApplicationResponse::Json(response) =
+            relay_force_sync_response
+        {
+            response
+        } else {
+            Err(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Unexpected response from force sync relay")?
+        }
+    };
+
+    Ok(WebhookResponseTracker::Relay {
+        relay_id: relay_response.id,
+        status: relay_response.status,
+    })
+}
+
 #[allow(clippy::too_many_arguments)]
 #[instrument(skip_all)]
 async fn refunds_incoming_webhook_flow(
@@ -936,6 +1073,44 @@ async fn refunds_incoming_webhook_flow(
         refund_id: updated_refund.refund_id,
         status: updated_refund.refund_status,
     })
+}
+
+async fn relay_incoming_webhook_flow(
+    state: SessionState,
+    merchant_account: domain::MerchantAccount,
+    business_profile: domain::Profile,
+    merchant_key_store: domain::MerchantKeyStore,
+    webhook_details: api::IncomingWebhookDetails,
+    event_type: webhooks::IncomingWebhookEvent,
+    source_verified: bool,
+) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
+    let flow_type: api::WebhookFlow = event_type.into();
+
+    let result_response = match flow_type {
+        webhooks::WebhookFlow::Refund => Box::pin(relay_refunds_incoming_webhook_flow(
+            state,
+            merchant_account,
+            business_profile,
+            merchant_key_store,
+            webhook_details,
+            event_type,
+            source_verified,
+        ))
+        .await
+        .attach_printable("Incoming webhook flow for relay refund failed")?,
+        webhooks::WebhookFlow::Payment
+        | webhooks::WebhookFlow::Payout
+        | webhooks::WebhookFlow::Dispute
+        | webhooks::WebhookFlow::Subscription
+        | webhooks::WebhookFlow::ReturnResponse
+        | webhooks::WebhookFlow::BankTransfer
+        | webhooks::WebhookFlow::Mandate
+        | webhooks::WebhookFlow::ExternalAuthentication
+        | webhooks::WebhookFlow::FraudCheck => Err(errors::ApiErrorResponse::NotSupported {
+            message: "Relay webhook flow types not supported".to_string(),
+        })?,
+    };
+    Ok(result_response)
 }
 
 async fn get_payment_attempt_from_object_reference_id(
@@ -1182,7 +1357,7 @@ async fn external_authentication_incoming_webhook_flow(
                             .attach_printable("Failed to get redis connection")?;
                         redis_conn
                             .set_key_without_modifying_ttl(
-                                &poll_id,
+                                &poll_id.into(),
                                 api_models::poll::PollStatus::Completed.to_string(),
                             )
                             .await
@@ -1658,6 +1833,7 @@ async fn verify_webhook_source_verification_call(
         .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
 
     let router_data = construct_webhook_router_data(
+        state,
         connector_name,
         merchant_connector_account,
         merchant_account,

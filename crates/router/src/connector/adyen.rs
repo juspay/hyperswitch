@@ -27,7 +27,7 @@ use crate::{
     services::{
         self,
         request::{self, Mask},
-        ConnectorValidation,
+        ConnectorSpecifications, ConnectorValidation,
     },
     types::{
         self,
@@ -98,9 +98,10 @@ impl ConnectorCommon for Adyen {
 }
 
 impl ConnectorValidation for Adyen {
-    fn validate_capture_method(
+    fn validate_connector_against_payment_request(
         &self,
         capture_method: Option<storage_enums::CaptureMethod>,
+        _payment_method: enums::PaymentMethod,
         pmt: Option<PaymentMethodType>,
     ) -> CustomResult<(), errors::ConnectorError> {
         let capture_method = capture_method.unwrap_or_default();
@@ -1000,7 +1001,7 @@ impl
                     reason: Some(consts::LOW_BALANCE_ERROR_MESSAGE.to_string()),
                     status_code: res.status_code,
                     attempt_status: Some(enums::AttemptStatus::Failure),
-                    connector_transaction_id: None,
+                    connector_transaction_id: Some(response.psp_reference),
                 }),
                 ..data.clone()
             })
@@ -2291,3 +2292,5 @@ impl api::FileUpload for Adyen {
         Ok(())
     }
 }
+
+impl ConnectorSpecifications for Adyen {}

@@ -152,7 +152,7 @@ impl TryFrom<&MollieRouterData<&types::PaymentsAuthorizeRouterData>> for MollieP
             value: item.amount.clone(),
         };
         let description = item.router_data.get_description()?;
-        let redirect_url = item.router_data.request.get_return_url()?;
+        let redirect_url = item.router_data.request.get_router_return_url()?;
         let payment_method_data = match item.router_data.request.capture_method.unwrap_or_default()
         {
             enums::CaptureMethod::Automatic | enums::CaptureMethod::SequentialAutomatic => {

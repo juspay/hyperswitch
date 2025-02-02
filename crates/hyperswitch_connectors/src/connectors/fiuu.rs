@@ -2,7 +2,7 @@ pub mod transformers;
 
 use std::collections::{HashMap, HashSet};
 
-use common_enums::{CaptureMethod, PaymentMethodType};
+use common_enums::{CaptureMethod, PaymentMethod, PaymentMethodType};
 use common_utils::{
     crypto::{self, GenerateDigest},
     errors::{self as common_errors, CustomResult},
@@ -31,7 +31,10 @@ use hyperswitch_domain_models::{
     },
 };
 use hyperswitch_interfaces::{
-    api::{self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorValidation},
+    api::{
+        self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorSpecifications,
+        ConnectorValidation,
+    },
     configs::Connectors,
     errors,
     events::connector_api_logs::ConnectorEvent,
@@ -202,9 +205,10 @@ pub fn build_form_from_struct<T: Serialize>(data: T) -> Result<Form, common_erro
 }
 
 impl ConnectorValidation for Fiuu {
-    fn validate_capture_method(
+    fn validate_connector_against_payment_request(
         &self,
         capture_method: Option<CaptureMethod>,
+        _payment_method: PaymentMethod,
         _pmt: Option<PaymentMethodType>,
     ) -> CustomResult<(), errors::ConnectorError> {
         let capture_method = capture_method.unwrap_or_default();
@@ -250,16 +254,23 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         req: &PaymentsAuthorizeRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let url = if req.request.off_session == Some(true) {
-            format!(
+        let optional_is_mit_flow = req.request.off_session;
+        let optional_is_nti_flow = req
+            .request
+            .mandate_id
+            .as_ref()
+            .map(|mandate_id| mandate_id.is_network_transaction_id_flow());
+        let url = match (optional_is_mit_flow, optional_is_nti_flow) {
+            (Some(true), Some(false)) => format!(
                 "{}/RMS/API/Recurring/input_v7.php",
                 self.base_url(connectors)
-            )
-        } else {
-            format!(
-                "{}RMS/API/Direct/1.4.0/index.php",
-                self.base_url(connectors)
-            )
+            ),
+            _ => {
+                format!(
+                    "{}RMS/API/Direct/1.4.0/index.php",
+                    self.base_url(connectors)
+                )
+            }
         };
         Ok(url)
     }
@@ -276,14 +287,24 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         )?;
 
         let connector_router_data = fiuu::FiuuRouterData::from((amount, req));
-        let connector_req = if req.request.off_session == Some(true) {
-            let recurring_request = fiuu::FiuuMandateRequest::try_from(&connector_router_data)?;
-            build_form_from_struct(recurring_request)
-                .change_context(errors::ConnectorError::ParsingFailed)?
-        } else {
-            let payment_request = fiuu::FiuuPaymentRequest::try_from(&connector_router_data)?;
-            build_form_from_struct(payment_request)
-                .change_context(errors::ConnectorError::ParsingFailed)?
+        let optional_is_mit_flow = req.request.off_session;
+        let optional_is_nti_flow = req
+            .request
+            .mandate_id
+            .as_ref()
+            .map(|mandate_id| mandate_id.is_network_transaction_id_flow());
+
+        let connector_req = match (optional_is_mit_flow, optional_is_nti_flow) {
+            (Some(true), Some(false)) => {
+                let recurring_request = fiuu::FiuuMandateRequest::try_from(&connector_router_data)?;
+                build_form_from_struct(recurring_request)
+                    .change_context(errors::ConnectorError::ParsingFailed)?
+            }
+            _ => {
+                let payment_request = fiuu::FiuuPaymentRequest::try_from(&connector_router_data)?;
+                build_form_from_struct(payment_request)
+                    .change_context(errors::ConnectorError::ParsingFailed)?
+            }
         };
         Ok(RequestContent::FormData(connector_req))
     }
@@ -904,7 +925,7 @@ impl webhooks::IncomingWebhook for Fiuu {
             serde_urlencoded::from_bytes::<transformers::FiuuWebhooksPaymentResponse>(request.body)
                 .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
         let mandate_reference = webhook_payment_response.extra_parameters.as_ref().and_then(|extra_p| {
-                    let mandate_token: Result<ExtraParameters, _> = serde_json::from_str(extra_p);
+                    let mandate_token: Result<ExtraParameters, _> = serde_json::from_str(&extra_p.clone().expose());
                     match mandate_token {
                         Ok(token) => {
                             token.token.as_ref().map(|token| hyperswitch_domain_models::router_flow_types::ConnectorMandateDetails {
@@ -914,7 +935,7 @@ impl webhooks::IncomingWebhook for Fiuu {
                         Err(err) => {
                             router_env::logger::warn!(
                                 "Failed to convert 'extraP' from fiuu webhook response to fiuu::ExtraParameters. \
-                                 Input: '{}', Error: {}",
+                                 Input: '{:?}', Error: {}",
                                 extra_p,
                                 err
                             );
@@ -925,3 +946,5 @@ impl webhooks::IncomingWebhook for Fiuu {
         Ok(mandate_reference)
     }
 }
+
+impl ConnectorSpecifications for Fiuu {}

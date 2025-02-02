@@ -17,6 +17,7 @@ pub mod disputes;
 #[cfg(feature = "dummy_connector")]
 pub mod dummy_connector;
 pub mod ephemeral_key;
+pub mod feature_matrix;
 pub mod files;
 #[cfg(feature = "frm")]
 pub mod fraud_check;
@@ -66,9 +67,9 @@ pub use self::app::DummyConnector;
 pub use self::app::Recon;
 pub use self::app::{
     ApiKeys, AppState, ApplePayCertificatesMigration, Cache, Cards, Configs, ConnectorOnboarding,
-    Customers, Disputes, EphemeralKey, Files, Forex, Gsm, Health, Mandates, MerchantAccount,
-    MerchantConnectorAccount, PaymentLink, PaymentMethods, Payments, Poll, Profile, ProfileNew,
-    Refunds, Relay, SessionState, User, Webhooks,
+    Customers, Disputes, EphemeralKey, FeatureMatrix, Files, Forex, Gsm, Health, Mandates,
+    MerchantAccount, MerchantConnectorAccount, PaymentLink, PaymentMethods, Payments, Poll,
+    Profile, ProfileNew, Refunds, Relay, RelayWebhooks, SessionState, User, Webhooks,
 };
 #[cfg(feature = "olap")]
 pub use self::app::{Blocklist, Organization, Routing, Verify, WebhookEvents};

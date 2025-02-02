@@ -44,6 +44,7 @@ boku.base_url = "https://$-api4-stage.boku.com"
 braintree.base_url = "https://payments.sandbox.braintree-api.com/graphql"
 cashtocode.base_url = "https://cluster05.api-test.cashtocode.com"
 checkout.base_url = "https://api.sandbox.checkout.com/"
+chargebee.base_url = "https://$.chargebee.com/api/"
 coinbase.base_url = "https://api.commerce.coinbase.com"
 cryptopay.base_url = "https://business-sandbox.cryptopay.me"
 cybersource.base_url = "https://apitest.cybersource.com/"
@@ -191,7 +192,7 @@ card.credit = { connector_list = "cybersource" }            # Update Mandate sup
 card.debit = { connector_list = "cybersource" }             # Update Mandate supported payment method type and connector for card 
 
 [network_transaction_id_supported_connectors]
-connector_list = "stripe,adyen,cybersource"
+connector_list = "adyen,cybersource,novalnet,stripe,worldpay"
 
 
 [payouts]
@@ -293,6 +294,10 @@ pix = { country = "BR", currency = "BRL" }
 [pm_filters.authorizedotnet]
 google_pay.currency = "CHF,DKK,EUR,GBP,NOK,PLN,SEK,USD,AUD,NZD,CAD"
 paypal.currency = "CHF,DKK,EUR,GBP,NOK,PLN,SEK,USD,AUD,NZD,CAD"
+
+[pm_filters.bambora]
+credit = { country = "US,CA", currency = "USD" }
+debit = { country = "US,CA", currency = "USD" }
 
 [pm_filters.bankofamerica]
 credit = { currency = "USD" }
@@ -433,7 +438,7 @@ outgoing_enabled = true
 connectors_with_webhook_source_verification_call = "paypal"        # List of connectors which has additional source verification api-call
 
 [unmasked_headers]
-keys = "accept-language,user-agent"
+keys = "accept-language,user-agent,x-profile-id"
 
 [saved_payment_methods]
 sdk_eligible_payment_methods = "card"

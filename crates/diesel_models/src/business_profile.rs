@@ -58,7 +58,8 @@ pub struct Profile {
     pub is_auto_retries_enabled: Option<bool>,
     pub max_auto_retries_enabled: Option<i16>,
     pub is_click_to_pay_enabled: bool,
-    pub authentication_product_ids: Option<serde_json::Value>,
+    pub authentication_product_ids:
+        Option<common_types::payments::AuthenticationConnectorAccountMap>,
     pub is_clear_pan_retries_enabled: Option<bool>,
 }
 
@@ -104,7 +105,8 @@ pub struct ProfileNew {
     pub is_auto_retries_enabled: Option<bool>,
     pub max_auto_retries_enabled: Option<i16>,
     pub is_click_to_pay_enabled: bool,
-    pub authentication_product_ids: Option<serde_json::Value>,
+    pub authentication_product_ids:
+        Option<common_types::payments::AuthenticationConnectorAccountMap>,
     pub is_clear_pan_retries_enabled: Option<bool>,
 }
 
@@ -147,7 +149,8 @@ pub struct ProfileUpdateInternal {
     pub is_auto_retries_enabled: Option<bool>,
     pub max_auto_retries_enabled: Option<i16>,
     pub is_click_to_pay_enabled: Option<bool>,
-    pub authentication_product_ids: Option<serde_json::Value>,
+    pub authentication_product_ids:
+        Option<common_types::payments::AuthenticationConnectorAccountMap>,
     pub is_clear_pan_retries_enabled: Option<bool>,
 }
 
@@ -311,7 +314,8 @@ pub struct Profile {
     pub is_auto_retries_enabled: Option<bool>,
     pub max_auto_retries_enabled: Option<i16>,
     pub is_click_to_pay_enabled: bool,
-    pub authentication_product_ids: Option<serde_json::Value>,
+    pub authentication_product_ids:
+        Option<common_types::payments::AuthenticationConnectorAccountMap>,
 }
 
 impl Profile {
@@ -371,7 +375,8 @@ pub struct ProfileNew {
     pub is_auto_retries_enabled: Option<bool>,
     pub max_auto_retries_enabled: Option<i16>,
     pub is_click_to_pay_enabled: bool,
-    pub authentication_product_ids: Option<serde_json::Value>,
+    pub authentication_product_ids:
+        Option<common_types::payments::AuthenticationConnectorAccountMap>,
 }
 
 #[cfg(feature = "v2")]
@@ -415,7 +420,8 @@ pub struct ProfileUpdateInternal {
     pub is_auto_retries_enabled: Option<bool>,
     pub max_auto_retries_enabled: Option<i16>,
     pub is_click_to_pay_enabled: Option<bool>,
-    pub authentication_product_ids: Option<serde_json::Value>,
+    pub authentication_product_ids:
+        Option<common_types::payments::AuthenticationConnectorAccountMap>,
 }
 
 #[cfg(feature = "v2")]

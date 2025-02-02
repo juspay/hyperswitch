@@ -142,6 +142,7 @@ pub fn mk_app(
             .service(routes::Customers::server(state.clone()))
             .service(routes::Configs::server(state.clone()))
             .service(routes::MerchantConnectorAccount::server(state.clone()))
+            .service(routes::RelayWebhooks::server(state.clone()))
             .service(routes::Webhooks::server(state.clone()))
             .service(routes::Relay::server(state.clone()));
 
@@ -192,7 +193,8 @@ pub fn mk_app(
                 .service(routes::ConnectorOnboarding::server(state.clone()))
                 .service(routes::Verify::server(state.clone()))
                 .service(routes::Analytics::server(state.clone()))
-                .service(routes::WebhookEvents::server(state.clone()));
+                .service(routes::WebhookEvents::server(state.clone()))
+                .service(routes::FeatureMatrix::server(state.clone()));
         }
     }
 
@@ -235,19 +237,9 @@ pub async fn start_server(conf: settings::Settings<SecuredSecret>) -> Applicatio
     logger::debug!(startup_config=?conf);
     let server = conf.server.clone();
     let (tx, rx) = oneshot::channel();
-    let api_client = Box::new(
-        services::ProxyClient::new(
-            conf.proxy.clone(),
-            services::proxy_bypass_urls(
-                conf.key_manager.get_inner(),
-                &conf.locker,
-                &conf.proxy.bypass_proxy_urls,
-            ),
-        )
-        .map_err(|error| {
-            errors::ApplicationError::ApiClientError(error.current_context().clone())
-        })?,
-    );
+    let api_client = Box::new(services::ProxyClient::new(&conf.proxy).map_err(|error| {
+        errors::ApplicationError::ApiClientError(error.current_context().clone())
+    })?);
     let state = Box::pin(AppState::new(conf, tx, api_client)).await;
     let request_body_limit = server.request_body_limit;
 

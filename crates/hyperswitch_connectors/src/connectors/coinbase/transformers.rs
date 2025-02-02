@@ -278,8 +278,8 @@ fn get_crypto_specific_payment_data(
         })?;
     let pricing_type = connector_meta.pricing_type;
     let local_price = get_local_price(item);
-    let redirect_url = item.request.get_return_url()?;
-    let cancel_url = item.request.get_return_url()?;
+    let redirect_url = item.request.get_router_return_url()?;
+    let cancel_url = item.request.get_router_return_url()?;
 
     Ok(CoinbasePaymentsRequest {
         name,

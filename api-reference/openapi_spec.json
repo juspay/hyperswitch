@@ -990,8 +990,10 @@
                     "connector_id": "mca_5apGeP94tMts6rg3U3kR",
                     "connector_resource_id": "7256228702616471803954",
                     "data": {
-                      "amount": 6540,
-                      "currency": "USD"
+                      "refund": {
+                        "amount": 6540,
+                        "currency": "USD"
+                      }
                     },
                     "type": "refund"
                   }
@@ -6050,7 +6052,7 @@
         "required": [
           "payment_description",
           "regular_billing",
-          "management_url"
+          "management_u_r_l"
         ],
         "properties": {
           "payment_description": {
@@ -6065,7 +6067,7 @@
             "description": "A localized billing agreement that the payment sheet displays to the user before the user authorizes the payment",
             "nullable": true
           },
-          "management_url": {
+          "management_u_r_l": {
             "type": "string",
             "description": "A URL to a web page where the user can update or delete the payment method for the recurring payment",
             "example": "https://hyperswitch.io"
@@ -9051,6 +9053,29 @@
           }
         }
       },
+      "CardSpecificFeatures": {
+        "type": "object",
+        "required": [
+          "three_ds",
+          "non_three_ds",
+          "supported_card_networks"
+        ],
+        "properties": {
+          "three_ds": {
+            "$ref": "#/components/schemas/FeatureStatus"
+          },
+          "non_three_ds": {
+            "$ref": "#/components/schemas/FeatureStatus"
+          },
+          "supported_card_networks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CardNetwork"
+            },
+            "description": "List of supported card networks"
+          }
+        }
+      },
       "CardToken": {
         "type": "object",
         "required": [
@@ -9231,7 +9256,6 @@
       },
       "Connector": {
         "type": "string",
-        "description": "A connector is an integration to fulfill payments",
         "enum": [
           "adyenplatform",
           "phonypay",
@@ -9315,9 +9339,47 @@
           "signifyd",
           "plaid",
           "riskified",
+          "xendit",
           "zen",
           "zsl"
         ]
+      },
+      "ConnectorFeatureMatrixResponse": {
+        "type": "object",
+        "required": [
+          "name",
+          "supported_payment_methods"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "category": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentConnectorCategory"
+              }
+            ],
+            "nullable": true
+          },
+          "supported_payment_methods": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SupportedPaymentMethod"
+            }
+          },
+          "supported_webhook_flows": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EventClass"
+            },
+            "nullable": true
+          }
+        }
       },
       "ConnectorMetadata": {
         "type": "object",
@@ -11269,6 +11331,38 @@
           }
         }
       },
+      "FeatureMatrixListResponse": {
+        "type": "object",
+        "required": [
+          "connector_count",
+          "connectors"
+        ],
+        "properties": {
+          "connector_count": {
+            "type": "integer",
+            "description": "The number of connectors included in the response",
+            "minimum": 0
+          },
+          "connectors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ConnectorFeatureMatrixResponse"
+            }
+          }
+        }
+      },
+      "FeatureMatrixRequest": {
+        "type": "object",
+        "properties": {
+          "connectors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Connector"
+            },
+            "nullable": true
+          }
+        }
+      },
       "FeatureMetadata": {
         "type": "object",
         "description": "additional data that might be required by hyperswitch",
@@ -11298,6 +11392,14 @@
             "nullable": true
           }
         }
+      },
+      "FeatureStatus": {
+        "type": "string",
+        "description": "The status of the feature",
+        "enum": [
+          "not_supported",
+          "supported"
+        ]
       },
       "FieldType": {
         "oneOf": [
@@ -15797,6 +15899,15 @@
           }
         ]
       },
+      "PaymentConnectorCategory": {
+        "type": "string",
+        "description": "Connector Access Method",
+        "enum": [
+          "payment_gateway",
+          "alternative_payment_method",
+          "bank_acquirer"
+        ]
+      },
       "PaymentCreatePaymentLinkConfig": {
         "allOf": [
           {
@@ -17116,6 +17227,13 @@
             "nullable": true
           }
         }
+      },
+      "PaymentMethodSpecificFeatures": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/CardSpecificFeatures"
+          }
+        ]
       },
       "PaymentMethodStatus": {
         "type": "string",
@@ -23178,6 +23296,16 @@
             "description": "The code for the error",
             "nullable": true
           },
+          "unified_code": {
+            "type": "string",
+            "description": "Error code unified across the connectors is received here if there was an error while calling connector",
+            "nullable": true
+          },
+          "unified_message": {
+            "type": "string",
+            "description": "Error message unified across the connectors is received here if there was an error while calling connector",
+            "nullable": true
+          },
           "created_at": {
             "type": "string",
             "format": "date-time",
@@ -23825,7 +23953,7 @@
       },
       "RoutableConnectors": {
         "type": "string",
-        "description": "Connectors eligible for payments routing",
+        "description": "RoutableConnectors are the subset of Connectors that are eligible for payments routing",
         "enum": [
           "adyenplatform",
           "phonypay",
@@ -25099,8 +25227,76 @@
               }
             ],
             "nullable": true
+          },
+          "specificity_level": {
+            "$ref": "#/components/schemas/SuccessRateSpecificityLevel"
           }
         }
+      },
+      "SuccessRateSpecificityLevel": {
+        "type": "string",
+        "enum": [
+          "merchant",
+          "global"
+        ]
+      },
+      "SupportedPaymentMethod": {
+        "allOf": [
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodSpecificFeatures"
+              }
+            ],
+            "nullable": true
+          },
+          {
+            "type": "object",
+            "required": [
+              "payment_method",
+              "payment_method_type",
+              "mandates",
+              "refunds",
+              "supported_capture_methods"
+            ],
+            "properties": {
+              "payment_method": {
+                "$ref": "#/components/schemas/PaymentMethod"
+              },
+              "payment_method_type": {
+                "$ref": "#/components/schemas/PaymentMethodType"
+              },
+              "mandates": {
+                "$ref": "#/components/schemas/FeatureStatus"
+              },
+              "refunds": {
+                "$ref": "#/components/schemas/FeatureStatus"
+              },
+              "supported_capture_methods": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/CaptureMethod"
+                }
+              },
+              "supported_countries": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/CountryAlpha2"
+                },
+                "uniqueItems": true,
+                "nullable": true
+              },
+              "supported_currencies": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/Currency"
+                },
+                "uniqueItems": true,
+                "nullable": true
+              }
+            }
+          }
+        ]
       },
       "SurchargeDetailsResponse": {
         "type": "object",

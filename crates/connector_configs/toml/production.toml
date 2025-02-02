@@ -1447,8 +1447,6 @@ key2="Certificate Key"
 [[jpmorgan.credit]]
   payment_method_type = "AmericanExpress"
 [[jpmorgan.credit]]
-  payment_method_type = "ChaseNet"
-[[jpmorgan.credit]]
   payment_method_type = "DinersClub"
 [[jpmorgan.credit]]
   payment_method_type = "Discover"
@@ -1465,8 +1463,6 @@ key2="Certificate Key"
   [[jpmorgan.debit]]
   payment_method_type = "AmericanExpress"
 [[jpmorgan.debit]]
-  payment_method_type = "ChaseNet"
-[[jpmorgan.debit]]
   payment_method_type = "DinersClub"
 [[jpmorgan.debit]]
   payment_method_type = "Discover"
@@ -1482,6 +1478,7 @@ key2="Certificate Key"
   payment_method_type = "Visa"
 [jpmorgan.connector_auth.BodyKey]
 api_key="Access Token"
+key1="Client Secret"
 
 [klarna]
 [[klarna.pay_later]]
@@ -3345,3 +3342,43 @@ merchant_secret="Source verification key"
 api_key="Account Id"
 key1="User ID"
 api_secret="Pin"
+
+[xendit]
+[[xendit.credit]]
+  payment_method_type = "Mastercard"
+[[xendit.credit]]
+  payment_method_type = "Visa"
+[[xendit.credit]]
+  payment_method_type = "Interac"
+[[xendit.credit]]
+  payment_method_type = "AmericanExpress"
+[[xendit.credit]]
+  payment_method_type = "JCB"
+[[xendit.credit]]
+  payment_method_type = "DinersClub"
+[[xendit.credit]]
+  payment_method_type = "Discover"
+[[xendit.credit]]
+  payment_method_type = "CartesBancaires"
+[[xendit.credit]]
+  payment_method_type = "UnionPay"
+[[xendit.debit]]
+  payment_method_type = "Mastercard"
+[[xendit.debit]]
+  payment_method_type = "Visa"
+[[xendit.debit]]
+  payment_method_type = "Interac"
+[[xendit.debit]]
+  payment_method_type = "AmericanExpress"
+[[xendit.debit]]
+  payment_method_type = "JCB"
+[[xendit.debit]]
+  payment_method_type = "DinersClub"
+[[xendit.debit]]
+  payment_method_type = "Discover"
+[[xendit.debit]]
+  payment_method_type = "CartesBancaires"
+[[xendit.debit]]
+  payment_method_type = "UnionPay"
+[xendit.connector_auth.HeaderKey]
+api_key="API Key"

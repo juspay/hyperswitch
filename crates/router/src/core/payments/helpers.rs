@@ -1,4 +1,4 @@
-use std::{borrow::Cow, str::FromStr};
+use std::{borrow::Cow, collections::HashSet, str::FromStr};
 
 #[cfg(feature = "v2")]
 use api_models::ephemeral_key::EphemeralKeyResponse;
@@ -13,7 +13,8 @@ use common_utils::id_type::GenerateId;
 use common_utils::{
     crypto::Encryptable,
     ext_traits::{AsyncExt, ByteSliceExt, Encode, ValueExt},
-    fp_utils, generate_id, id_type,
+    fp_utils, generate_id,
+    id_type::{self},
     new_type::{MaskedIban, MaskedSortCode},
     pii, type_name,
     types::{
@@ -1241,17 +1242,18 @@ pub fn create_authorize_url(
 }
 
 pub fn create_webhook_url(
-    router_base_url: &String,
+    router_base_url: &str,
     merchant_id: &id_type::MerchantId,
-    connector_name: impl std::fmt::Display,
+    merchant_connector_id_or_connector_name: &str,
 ) -> String {
     format!(
         "{}/webhooks/{}/{}",
         router_base_url,
         merchant_id.get_string_repr(),
-        connector_name
+        merchant_connector_id_or_connector_name,
     )
 }
+
 pub fn create_complete_authorize_url(
     router_base_url: &String,
     payment_attempt: &PaymentAttempt,
@@ -1916,7 +1918,7 @@ pub fn decide_payment_method_retrieval_action(
     is_network_tokenization_enabled: bool,
     mandate_id: Option<api_models::payments::MandateIds>,
     connector: Option<api_enums::Connector>,
-    network_tokenization_supported_connectors: &std::collections::HashSet<api_enums::Connector>,
+    network_tokenization_supported_connectors: &HashSet<api_enums::Connector>,
     should_retry_with_pan: bool,
     network_token_requestor_ref_id: Option<String>,
 ) -> VaultFetchAction {
@@ -1939,7 +1941,7 @@ pub fn determine_standard_vault_action(
     is_network_tokenization_enabled: bool,
     mandate_id: Option<api_models::payments::MandateIds>,
     connector: Option<api_enums::Connector>,
-    network_tokenization_supported_connectors: &std::collections::HashSet<api_enums::Connector>,
+    network_tokenization_supported_connectors: &HashSet<api_enums::Connector>,
     network_token_requestor_ref_id: Option<String>,
 ) -> VaultFetchAction {
     let is_network_transaction_id_flow = mandate_id
@@ -2382,7 +2384,7 @@ pub async fn retrieve_payment_token_data(
     );
 
     let token_data_string = redis_conn
-        .get_key::<Option<String>>(&key)
+        .get_key::<Option<String>>(&key.into())
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to fetch the token from redis")?
@@ -3938,7 +3940,7 @@ pub async fn insert_merchant_connector_creds_to_config(
 
         redis
             .serialize_and_set_key_with_expiry(
-                key.as_str(),
+                &key.as_str().into(),
                 &encoded_data.peek(),
                 consts::CONNECTOR_CREDS_TOKEN_TTL,
             )
@@ -4054,7 +4056,7 @@ pub async fn get_merchant_connector_account(
                     .attach_printable("Failed to get redis connection")
                     .async_and_then(|redis| async move {
                         redis
-                            .get_and_deserialize_key(key.clone().as_str(), "String")
+                            .get_and_deserialize_key(&key.as_str().into(), "String")
                             .await
                             .change_context(
                                 errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
@@ -4194,6 +4196,7 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
         request,
         response,
         merchant_id: router_data.merchant_id,
+        tenant_id: router_data.tenant_id,
         address: router_data.address,
         amount_captured: router_data.amount_captured,
         minor_amount_captured: router_data.minor_amount_captured,
@@ -4204,7 +4207,6 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
         description: router_data.description,
         payment_id: router_data.payment_id,
         payment_method: router_data.payment_method,
-        return_url: router_data.return_url,
         status: router_data.status,
         attempt_id: router_data.attempt_id,
         access_token: router_data.access_token,
@@ -5268,7 +5270,7 @@ pub fn get_applepay_metadata(
         })
 }
 
-#[cfg(feature = "retry")]
+#[cfg(all(feature = "retry", feature = "v1"))]
 pub async fn get_apple_pay_retryable_connectors<F, D>(
     state: &SessionState,
     merchant_account: &domain::MerchantAccount,
@@ -5999,7 +6001,7 @@ pub async fn get_payment_method_details_from_payment_token(
                 .get_required_value("payment_method")?,
         );
         let token_data_string = redis_conn
-            .get_key::<Option<String>>(&key)
+            .get_key::<Option<String>>(&key.into())
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to fetch the token from redis")?
@@ -6313,6 +6315,7 @@ where
     Ok(())
 }
 
+#[cfg(feature = "v1")]
 pub async fn validate_merchant_connector_ids_in_connector_mandate_details(
     state: &SessionState,
     key_store: &domain::MerchantKeyStore,
@@ -6413,5 +6416,122 @@ pub fn validate_platform_fees_for_marketplace(
             }
         }
     }
+    Ok(())
+}
+
+pub async fn is_merchant_eligible_authentication_service(
+    merchant_id: &id_type::MerchantId,
+    state: &SessionState,
+) -> RouterResult<bool> {
+    let merchants_eligible_for_authentication_service = state
+        .store
+        .as_ref()
+        .find_config_by_key_unwrap_or(
+            consts::AUTHENTICATION_SERVICE_ELIGIBLE_CONFIG,
+            Some("[]".to_string()),
+        )
+        .await;
+
+    let auth_eligible_array: Vec<String> = match merchants_eligible_for_authentication_service {
+        Ok(config) => serde_json::from_str(&config.config)
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("unable to parse authentication service config")?,
+        Err(err) => {
+            logger::error!(
+                "Error fetching authentication service enabled merchant config {:?}",
+                err
+            );
+            Vec::new()
+        }
+    };
+
+    Ok(auth_eligible_array.contains(&merchant_id.get_string_repr().to_owned()))
+}
+
+#[cfg(feature = "v1")]
+pub async fn validate_allowed_payment_method_types_request(
+    state: &SessionState,
+    profile_id: &id_type::ProfileId,
+    merchant_account: &domain::MerchantAccount,
+    merchant_key_store: &domain::MerchantKeyStore,
+    allowed_payment_method_types: Option<Vec<common_enums::PaymentMethodType>>,
+) -> CustomResult<(), errors::ApiErrorResponse> {
+    if let Some(allowed_payment_method_types) = allowed_payment_method_types {
+        let db = &*state.store;
+        let all_connector_accounts = db
+            .find_merchant_connector_account_by_merchant_id_and_disabled_list(
+                &state.into(),
+                merchant_account.get_id(),
+                false,
+                merchant_key_store,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to fetch merchant connector account for given merchant id")?;
+
+        let filtered_connector_accounts = filter_mca_based_on_profile_and_connector_type(
+            all_connector_accounts,
+            profile_id,
+            ConnectorType::PaymentProcessor,
+        );
+
+        let supporting_payment_method_types: HashSet<_> = filtered_connector_accounts
+            .iter()
+            .flat_map(|connector_account| {
+                connector_account
+                    .payment_methods_enabled
+                    .clone()
+                    .unwrap_or_default()
+                    .into_iter()
+                    .map(|payment_methods_enabled| {
+                        payment_methods_enabled
+                            .parse_value::<api_models::admin::PaymentMethodsEnabled>(
+                                "payment_methods_enabled",
+                            )
+                    })
+                    .filter_map(|parsed_payment_method_result| {
+                        parsed_payment_method_result
+                            .inspect_err(|err| {
+                                logger::error!(
+                                    "Unable to deserialize payment methods enabled: {:?}",
+                                    err
+                                );
+                            })
+                            .ok()
+                    })
+                    .flat_map(|parsed_payment_methods_enabled| {
+                        parsed_payment_methods_enabled
+                            .payment_method_types
+                            .unwrap_or_default()
+                            .into_iter()
+                            .map(|payment_method_type| payment_method_type.payment_method_type)
+                    })
+            })
+            .collect();
+
+        let unsupported_payment_methods: Vec<_> = allowed_payment_method_types
+            .iter()
+            .filter(|allowed_pmt| !supporting_payment_method_types.contains(allowed_pmt))
+            .collect();
+
+        if !unsupported_payment_methods.is_empty() {
+            metrics::PAYMENT_METHOD_TYPES_MISCONFIGURATION_METRIC.add(
+                1,
+                router_env::metric_attributes!(("merchant_id", merchant_account.get_id().clone())),
+            );
+        }
+
+        fp_utils::when(
+            unsupported_payment_methods.len() == allowed_payment_method_types.len(),
+            || {
+                Err(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)
+                    .attach_printable(format!(
+                        "None of the allowed payment method types {:?} are configured for this merchant connector account.",
+                        allowed_payment_method_types
+                    ))
+            },
+        )?;
+    }
+
     Ok(())
 }

@@ -35,7 +35,7 @@ pub async fn get_authorization_url(
     // Save csrf & nonce as key value respectively
     let key = get_oidc_redis_key(csrf_token.secret());
     get_redis_connection(&state)?
-        .set_key_with_expiry(&key, nonce.secret(), consts::user::REDIS_SSO_TTL)
+        .set_key_with_expiry(&key.into(), nonce.secret(), consts::user::REDIS_SSO_TTL)
         .await
         .change_context(UserErrors::InternalServerError)
         .attach_printable("Failed to save csrf-nonce in redis")?;
@@ -142,7 +142,7 @@ async fn get_nonce_from_redis(
     let redirect_state = redirect_state.clone().expose();
     let key = get_oidc_redis_key(&redirect_state);
     redis_connection
-        .get_key::<Option<String>>(&key)
+        .get_key::<Option<String>>(&key.into())
         .await
         .change_context(UserErrors::InternalServerError)
         .attach_printable("Error Fetching CSRF from redis")?
@@ -155,7 +155,7 @@ async fn get_oidc_reqwest_client(
     state: &SessionState,
     request: oidc::HttpRequest,
 ) -> Result<oidc::HttpResponse, ApiClientError> {
-    let client = client::create_client(&state.conf.proxy, false, None, None)
+    let client = client::create_client(&state.conf.proxy, None, None)
         .map_err(|e| e.current_context().to_owned())?;
 
     let mut request_builder = client
