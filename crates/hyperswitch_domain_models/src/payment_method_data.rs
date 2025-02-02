@@ -69,7 +69,7 @@ impl PaymentMethodData {
         }
     }
 
-    pub fn is_network_token_payment_method_data(&self) -> bool{
+    pub fn is_network_token_payment_method_data(&self) -> bool {
         matches!(self, Self::NetworkToken(_))
     }
 }
