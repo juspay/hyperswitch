@@ -321,7 +321,7 @@ pub trait AsyncExt<A> {
 
 #[cfg(feature = "async_ext")]
 #[cfg_attr(feature = "async_ext", async_trait::async_trait)]
-impl<A: Send, E: Send > AsyncExt<A> for Result<A, E> {
+impl<A: Send, E: Send> AsyncExt<A> for Result<A, E> {
     type WrappedSelf<T> = Result<T, E>;
     async fn async_and_then<F, B, Fut>(self, func: F) -> Self::WrappedSelf<B>
     where

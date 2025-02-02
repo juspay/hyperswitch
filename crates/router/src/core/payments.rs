@@ -189,7 +189,11 @@ where
 
     let payment_data = match connector {
         ConnectorCallType::PreDetermined(connector_data) => {
-            let router_data: RouterData<F, FData, hyperswitch_domain_models::router_response_types::PaymentsResponseData> = call_connector_service(
+            let router_data: RouterData<
+                F,
+                FData,
+                hyperswitch_domain_models::router_response_types::PaymentsResponseData,
+            > = call_connector_service(
                 state,
                 req_state.clone(),
                 &merchant_account,
