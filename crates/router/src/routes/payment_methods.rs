@@ -987,7 +987,11 @@ impl ParentPaymentMethodToken {
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to get redis connection")?;
         redis_conn
-            .serialize_and_set_key_with_expiry(&self.key_for_token, token, fulfillment_time)
+            .serialize_and_set_key_with_expiry(
+                &self.key_for_token.as_str().into(),
+                token,
+                fulfillment_time,
+            )
             .await
             .change_context(errors::StorageError::KVError)
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1011,7 +1015,10 @@ impl ParentPaymentMethodToken {
             .get_redis_conn()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to get redis connection")?;
-        match redis_conn.delete_key(&self.key_for_token).await {
+        match redis_conn
+            .delete_key(&self.key_for_token.as_str().into())
+            .await
+        {
             Ok(_) => Ok(()),
             Err(err) => {
                 {

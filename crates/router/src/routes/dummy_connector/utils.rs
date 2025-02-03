@@ -38,7 +38,7 @@ pub async fn store_data_in_redis(
         .attach_printable("Failed to get redis connection")?;
 
     redis_conn
-        .serialize_and_set_key_with_expiry(&key, data, ttl)
+        .serialize_and_set_key_with_expiry(&key.into(), data, ttl)
         .await
         .change_context(errors::DummyConnectorErrors::PaymentStoringError)
         .attach_printable("Failed to add data in redis")?;
@@ -57,7 +57,7 @@ pub async fn get_payment_data_from_payment_id(
 
     redis_conn
         .get_and_deserialize_key::<types::DummyConnectorPaymentData>(
-            payment_id.as_str(),
+            &payment_id.as_str().into(),
             "types DummyConnectorPaymentData",
         )
         .await
@@ -75,12 +75,12 @@ pub async fn get_payment_data_by_attempt_id(
         .attach_printable("Failed to get redis connection")?;
 
     redis_conn
-        .get_and_deserialize_key::<String>(attempt_id.as_str(), "String")
+        .get_and_deserialize_key::<String>(&attempt_id.as_str().into(), "String")
         .await
         .async_and_then(|payment_id| async move {
             redis_conn
                 .get_and_deserialize_key::<types::DummyConnectorPaymentData>(
-                    payment_id.as_str(),
+                    &payment_id.as_str().into(),
                     "DummyConnectorPaymentData",
                 )
                 .await
