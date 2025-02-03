@@ -1713,6 +1713,26 @@ impl From<Card> for ExtendedCardInfo {
     }
 }
 
+impl From<ApplePayWalletData> for payment_methods::PaymentMethodDataWalletInfo {
+    fn from(item: ApplePayWalletData) -> Self {
+        Self {
+            last4: item
+                .payment_method
+                .display_name
+                .clone()
+                .chars()
+                .rev()
+                .take(4)
+                .collect::<String>()
+                .chars()
+                .rev()
+                .collect::<String>(),
+            card_network: item.payment_method.network,
+            card_type: item.payment_method.pm_type,
+        }
+    }
+}
+
 impl From<GooglePayWalletData> for payment_methods::PaymentMethodDataWalletInfo {
     fn from(item: GooglePayWalletData) -> Self {
         Self {

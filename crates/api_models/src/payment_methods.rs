@@ -852,6 +852,35 @@ impl From<PaymentMethodDataWalletInfo> for payments::additional_info::WalletAddi
     }
 }
 
+impl From<payments::ApplepayPaymentMethod> for PaymentMethodDataWalletInfo {
+    fn from(item: payments::ApplepayPaymentMethod) -> Self {
+        Self {
+            last4: item
+                .display_name
+                .clone()
+                .chars()
+                .rev()
+                .take(4)
+                .collect::<String>()
+                .chars()
+                .rev()
+                .collect::<String>(),
+            card_network: item.network,
+            card_type: item.pm_type,
+        }
+    }
+}
+
+impl From<PaymentMethodDataWalletInfo> for payments::ApplepayPaymentMethod {
+    fn from(item: PaymentMethodDataWalletInfo) -> Self {
+        Self {
+            display_name: item.last4,
+            network: item.card_network,
+            pm_type: item.card_type,
+        }
+    }
+}
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct BankAccountTokenData {
     pub payment_method_type: api_enums::PaymentMethodType,

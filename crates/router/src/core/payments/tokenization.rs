@@ -260,6 +260,12 @@ where
                     )),
                     (
                         _,
+                        domain::PaymentMethodData::Wallet(domain::WalletData::ApplePay(applepay)),
+                    ) => Some(PaymentMethodsData::WalletDetails(
+                        PaymentMethodDataWalletInfo::from(applepay),
+                    )),
+                    (
+                        _,
                         domain::PaymentMethodData::Wallet(domain::WalletData::GooglePay(googlepay)),
                     ) => Some(PaymentMethodsData::WalletDetails(
                         PaymentMethodDataWalletInfo::from(googlepay),
