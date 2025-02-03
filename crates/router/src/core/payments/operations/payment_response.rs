@@ -1997,40 +1997,43 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                 .parse_value("DynamicRoutingAlgorithmRef")
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("unable to deserialize DynamicRoutingAlgorithmRef from JSON")?;
-            let state = state.clone();
-            let business_profile = business_profile.clone();
-            let payment_attempt = payment_attempt.clone();
-            let dynamic_routing_config_params_interpolator =
-                routing_helpers::DynamicRoutingConfigParamsInterpolator::new(
-                    payment_attempt.payment_method,
-                    payment_attempt.payment_method_type,
-                    payment_attempt.authentication_type,
-                    payment_attempt.currency,
-                    payment_data
-                        .address
-                        .get_payment_billing()
-                        .and_then(|address| address.clone().address)
-                        .and_then(|address| address.country),
-                    payment_attempt
-                        .payment_method_data
-                        .as_ref()
-                        .and_then(|data| data.as_object())
-                        .and_then(|card| card.get("card"))
-                        .and_then(|data| data.as_object())
-                        .and_then(|card| card.get("card_network"))
-                        .and_then(|network| network.as_str())
-                        .map(|network| network.to_string()),
-                    payment_attempt
-                        .payment_method_data
-                        .as_ref()
-                        .and_then(|data| data.as_object())
-                        .and_then(|card| card.get("card"))
-                        .and_then(|data| data.as_object())
-                        .and_then(|card| card.get("card_isin"))
-                        .and_then(|card_isin| card_isin.as_str())
-                        .map(|card_isin| card_isin.to_string()),
-                );
-            tokio::spawn(
+            if payment_intent.status.is_in_terminal_state()
+                && business_profile.dynamic_routing_algorithm.is_some()
+            {
+                let state = state.clone();
+                let business_profile = business_profile.clone();
+                let payment_attempt = payment_attempt.clone();
+                let dynamic_routing_config_params_interpolator =
+                    routing_helpers::DynamicRoutingConfigParamsInterpolator::new(
+                        payment_attempt.payment_method,
+                        payment_attempt.payment_method_type,
+                        payment_attempt.authentication_type,
+                        payment_attempt.currency,
+                        payment_data
+                            .address
+                            .get_payment_billing()
+                            .and_then(|address| address.clone().address)
+                            .and_then(|address| address.country),
+                        payment_attempt
+                            .payment_method_data
+                            .as_ref()
+                            .and_then(|data| data.as_object())
+                            .and_then(|card| card.get("card"))
+                            .and_then(|data| data.as_object())
+                            .and_then(|card| card.get("card_network"))
+                            .and_then(|network| network.as_str())
+                            .map(|network| network.to_string()),
+                        payment_attempt
+                            .payment_method_data
+                            .as_ref()
+                            .and_then(|data| data.as_object())
+                            .and_then(|card| card.get("card"))
+                            .and_then(|data| data.as_object())
+                            .and_then(|card| card.get("card_isin"))
+                            .and_then(|card_isin| card_isin.as_str())
+                            .map(|card_isin| card_isin.to_string()),
+                    );
+                tokio::spawn(
                 async move {
                     if dynamic_routing_config.success_based_algorithm.is_some_and(
                         |success_based_algo| {
@@ -2078,6 +2081,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                 }
                 .in_current_span(),
             );
+            }
         }
     }
 

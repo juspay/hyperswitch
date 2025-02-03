@@ -225,7 +225,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
     let webhook_url = Some(helpers::create_webhook_url(
         router_base_url,
         &attempt.merchant_id,
-        connector_id,
+        merchant_connector_account.get_id().get_string_repr(),
     ));
 
     let router_return_url = payment_data
@@ -240,6 +240,17 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         .merchant_reference_id
         .map(|id| id.get_string_repr().to_owned())
         .unwrap_or(payment_data.payment_attempt.id.get_string_repr().to_owned());
+
+    let email = customer
+        .as_ref()
+        .and_then(|customer| customer.email.clone())
+        .map(pii::Email::from);
+
+    let browser_info = payment_data
+        .payment_attempt
+        .browser_info
+        .clone()
+        .map(types::BrowserInformation::from);
 
     // TODO: few fields are repeated in both routerdata and request
     let request = types::PaymentsAuthorizeData {
@@ -262,8 +273,8 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         minor_amount: payment_data.payment_attempt.amount_details.get_net_amount(),
         order_tax_amount: None,
         currency: payment_data.payment_intent.amount_details.currency,
-        browser_info: None,
-        email: None,
+        browser_info,
+        email,
         customer_name: None,
         payment_experience: None,
         order_details: None,
@@ -2751,11 +2762,17 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             attempt,
             connector_name,
         ));
+        let merchant_connector_account_id_or_connector_name = payment_data
+            .payment_attempt
+            .merchant_connector_id
+            .as_ref()
+            .map(|mca_id| mca_id.get_string_repr())
+            .unwrap_or(connector_name);
 
         let webhook_url = Some(helpers::create_webhook_url(
             router_base_url,
             &attempt.merchant_id,
-            connector_name,
+            merchant_connector_account_id_or_connector_name,
         ));
         let router_return_url = Some(helpers::create_redirect_url(
             router_base_url,
@@ -3575,6 +3592,18 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
                     .map(|customer| customer.clone().into_inner())
             });
         let amount = payment_data.payment_attempt.get_total_amount();
+        let merchant_connector_account_id_or_connector_name = payment_data
+            .payment_attempt
+            .merchant_connector_id
+            .as_ref()
+            .map(|mca_id| mca_id.get_string_repr())
+            .unwrap_or(connector_name);
+        let webhook_url = Some(helpers::create_webhook_url(
+            router_base_url,
+            &attempt.merchant_id,
+            merchant_connector_account_id_or_connector_name,
+        ));
+
         Ok(Self {
             currency: payment_data.currency,
             confirm: true,
@@ -3604,6 +3633,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
             ),
             metadata: payment_data.payment_intent.metadata.clone().map(Into::into),
             shipping_cost: payment_data.payment_intent.shipping_cost,
+            webhook_url,
         })
     }
 }
@@ -3770,11 +3800,16 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPreProce
                     .collect::<Result<Vec<_>, _>>()
             })
             .transpose()?;
-
+        let merchant_connector_account_id_or_connector_name = payment_data
+            .payment_attempt
+            .merchant_connector_id
+            .as_ref()
+            .map(|mca_id| mca_id.get_string_repr())
+            .unwrap_or(connector_name);
         let webhook_url = Some(helpers::create_webhook_url(
             router_base_url,
             &attempt.merchant_id,
-            connector_name,
+            merchant_connector_account_id_or_connector_name,
         ));
         let router_return_url = Some(helpers::create_redirect_url(
             router_base_url,
