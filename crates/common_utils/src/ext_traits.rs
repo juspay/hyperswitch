@@ -353,9 +353,9 @@ impl<A: Send, E: Send + std::fmt::Debug> AsyncExt<A> for Result<A, E> {
     {
         match self {
             Ok(a) => a,
-            Err(err) => {
+            Err(_err) => {
                 #[cfg(feature = "logs")]
-                logger::error!("Error: {:?}", err);
+                logger::error!("Error: {:?}", _err);
                 func().await
             }
         }
