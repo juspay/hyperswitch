@@ -2516,6 +2516,45 @@
             "ephemeral_key": []
           }
         ]
+      },
+      "put": {
+        "tags": [
+          "Payment Method Session"
+        ],
+        "summary": "Payment Method Session - Update",
+        "description": "Update the payment method session",
+        "operationId": "Update the payment method session",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The unique identifier for the Payment Method Session",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The payment method session is updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentMethodsSessionResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The request is invalid"
+          }
+        },
+        "security": [
+          {
+            "ephemeral_key": []
+          }
+        ]
       }
     },
     "/v2/payment-method-session/:id/list-payment-methods": {
@@ -14582,35 +14621,6 @@
           "client_secret": {
             "type": "string",
             "description": "Client Secret"
-          }
-        }
-      },
-      "PaymentMethodsSessionUpdateRequest": {
-        "type": "object",
-        "properties": {
-          "billing": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/Address"
-              }
-            ],
-            "nullable": true
-          },
-          "psp_tokenization": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/PspTokenization"
-              }
-            ],
-            "nullable": true
-          },
-          "network_tokenization": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/NetworkTokenization"
-              }
-            ],
-            "nullable": true
           }
         }
       },
