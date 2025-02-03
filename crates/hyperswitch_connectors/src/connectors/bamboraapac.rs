@@ -49,7 +49,7 @@ use transformers as bamboraapac;
 use crate::{
     constants::headers,
     types::ResponseRouterData,
-    utils::{self, construct_not_implemented_error_report, convert_amount},
+    utils::{self, convert_amount},
 };
 
 #[derive(Clone)]
@@ -102,23 +102,6 @@ where
 }
 
 impl ConnectorValidation for Bamboraapac {
-    fn validate_connector_against_payment_request(
-        &self,
-        capture_method: Option<enums::CaptureMethod>,
-        _payment_method: enums::PaymentMethod,
-        _pmt: Option<enums::PaymentMethodType>,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let capture_method = capture_method.unwrap_or_default();
-        match capture_method {
-            enums::CaptureMethod::Automatic
-            | enums::CaptureMethod::Manual
-            | enums::CaptureMethod::SequentialAutomatic => Ok(()),
-            enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => Err(
-                construct_not_implemented_error_report(capture_method, self.id()),
-            ),
-        }
-    }
-
     fn validate_mandate_payment(
         &self,
         _pm_type: Option<enums::PaymentMethodType>,

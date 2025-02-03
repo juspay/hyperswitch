@@ -53,7 +53,7 @@ use transformers as powertranz;
 use crate::{
     constants::headers,
     types::ResponseRouterData,
-    utils::{self, PaymentsAuthorizeRequestData as _, PaymentsCompleteAuthorizeRequestData as _},
+    utils::{PaymentsAuthorizeRequestData as _, PaymentsCompleteAuthorizeRequestData as _},
 };
 
 #[derive(Debug, Clone)]
@@ -151,24 +151,7 @@ impl ConnectorCommon for Powertranz {
     }
 }
 
-impl ConnectorValidation for Powertranz {
-    fn validate_connector_against_payment_request(
-        &self,
-        capture_method: Option<enums::CaptureMethod>,
-        _payment_method: enums::PaymentMethod,
-        _pmt: Option<enums::PaymentMethodType>,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let capture_method = capture_method.unwrap_or_default();
-        match capture_method {
-            enums::CaptureMethod::Automatic
-            | enums::CaptureMethod::Manual
-            | enums::CaptureMethod::SequentialAutomatic => Ok(()),
-            enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => Err(
-                utils::construct_not_supported_error_report(capture_method, self.id()),
-            ),
-        }
-    }
-}
+impl ConnectorValidation for Powertranz {}
 
 impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Powertranz {}
 

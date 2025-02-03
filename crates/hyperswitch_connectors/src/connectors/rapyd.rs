@@ -54,7 +54,7 @@ use transformers as rapyd;
 use crate::{
     constants::headers,
     types::ResponseRouterData,
-    utils::{self, construct_not_supported_error_report, convert_amount, get_header_key_value},
+    utils::{self, convert_amount, get_header_key_value},
 };
 
 #[derive(Clone)]
@@ -151,24 +151,7 @@ impl ConnectorCommon for Rapyd {
     }
 }
 
-impl ConnectorValidation for Rapyd {
-    fn validate_connector_against_payment_request(
-        &self,
-        capture_method: Option<enums::CaptureMethod>,
-        _payment_method: enums::PaymentMethod,
-        _pmt: Option<enums::PaymentMethodType>,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let capture_method = capture_method.unwrap_or_default();
-        match capture_method {
-            enums::CaptureMethod::Automatic
-            | enums::CaptureMethod::Manual
-            | enums::CaptureMethod::SequentialAutomatic => Ok(()),
-            enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => Err(
-                construct_not_supported_error_report(capture_method, self.id()),
-            ),
-        }
-    }
-}
+impl ConnectorValidation for Rapyd {}
 
 impl api::ConnectorAccessToken for Rapyd {}
 
