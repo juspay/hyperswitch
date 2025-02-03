@@ -155,15 +155,15 @@ where
 
                     let connector = if should_retry_with_pan {
                         // If should_retry_with_pan is true, it indicates that we are retrying with PAN using the same connector.
-                        original_connector_data
+                        original_connector_data.clone()
                     } else {
-                        &super::get_connector_data(&mut connectors)?
+                        super::get_connector_data(&mut connectors)?
                     };
 
                     router_data = do_retry(
                         &state.clone(),
                         req_state.clone(),
-                        connector,
+                        &connector,
                         operation,
                         customer,
                         merchant_account,
