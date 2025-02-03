@@ -35,6 +35,7 @@ CREATE TABLE authentication_queue (
     `ds_trans_id` Nullable(String),
     `directory_server_id` Nullable(String),
     `acquirer_country_code` Nullable(String),
+    `organization_id` String,
     `sign_flag` Int8
 ) ENGINE = Kafka SETTINGS kafka_broker_list = 'kafka0:29092',
 kafka_topic_list = 'hyperswitch-authentication-events',
@@ -80,6 +81,7 @@ CREATE TABLE authentications (
     `ds_trans_id` Nullable(String),
     `directory_server_id` Nullable(String),
     `acquirer_country_code` Nullable(String),
+    `organization_id` String,
     `sign_flag` Int8,
     INDEX authenticationConnectorIndex authentication_connector TYPE bloom_filter GRANULARITY 1,
     INDEX transStatusIndex trans_status TYPE bloom_filter GRANULARITY 1,
@@ -127,6 +129,7 @@ CREATE MATERIALIZED VIEW authentication_mv TO authentications (
     `ds_trans_id` Nullable(String),
     `directory_server_id` Nullable(String),
     `acquirer_country_code` Nullable(String),
+    `organization_id` String,
     `sign_flag` Int8
 ) AS
 SELECT
@@ -167,7 +170,8 @@ SELECT
     ds_trans_id,
     directory_server_id,
     acquirer_country_code,
-    sign_flag
+    sign_flag,
+    organization_id
 FROM
     authentication_queue
 WHERE
