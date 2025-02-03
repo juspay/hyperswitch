@@ -320,6 +320,9 @@ pub struct TenantUserConfig {
 }
 
 impl storage_impl::config::TenantConfig for AccountsTenantInternal {
+    fn get_tenant_id(&self) -> &id_type::TenantId {
+        self.tenant_id()
+    }
     fn get_schema(&self) -> &str {
         self.accounts_schema()
     }
@@ -332,6 +335,9 @@ impl storage_impl::config::TenantConfig for AccountsTenantInternal {
 }
 
 impl storage_impl::config::TenantConfig for Tenant {
+    fn get_tenant_id(&self) -> &id_type::TenantId {
+        &self.tenant_id
+    }
     fn get_schema(&self) -> &str {
         self.schema.as_str()
     }
@@ -353,6 +359,9 @@ pub struct GlobalTenant {
 }
 
 impl storage_impl::config::TenantConfig for GlobalTenant {
+    fn get_tenant_id(&self) -> &id_type::TenantId {
+        &self.tenant_id
+    }
     fn get_schema(&self) -> &str {
         self.schema.as_str()
     }
