@@ -471,7 +471,6 @@ default_imp_for_incremental_authorization!(
     connectors::Chargebee,
     connectors::Coinbase,
     connectors::Cryptopay,
-    connectors::Datatrans,
     connectors::Deutschebank,
     connectors::Digitalvirgo,
     connectors::Dlocal,

@@ -16,17 +16,14 @@ use hyperswitch_domain_models::{
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
         payments::{Authorize, Capture, PSync, PaymentMethodToken, Session, SetupMandate, Void},
-        refunds::{Execute, RSync},
+        refunds::{Execute, RSync}, IncrementalAuthorization,
     },
     router_request_types::{
-        AccessTokenRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
-        PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
-        RefundsData, SetupMandateRequestData,
+        AccessTokenRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData, PaymentsSessionData, PaymentsSyncData, RefundsData, SetupMandateRequestData
     },
     router_response_types::{PaymentsResponseData, RefundsResponseData},
     types::{
-        PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
-        PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData,
+        PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData, PaymentsIncrementalAuthorizationRouterData, PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData
     },
 };
 use hyperswitch_interfaces::{
@@ -46,7 +43,7 @@ use transformers as datatrans;
 use crate::{
     constants::headers,
     types::ResponseRouterData,
-    utils::{convert_amount, RefundsRequestData},
+    utils::{convert_amount, RefundsRequestData, RouterData as OtherRouterData},
 };
 
 impl api::Payment for Datatrans {}
@@ -61,6 +58,7 @@ impl api::Refund for Datatrans {}
 impl api::RefundExecute for Datatrans {}
 impl api::RefundSync for Datatrans {}
 impl api::PaymentToken for Datatrans {}
+impl api::PaymentIncrementalAuthorization for Datatrans {}
 
 #[derive(Clone)]
 pub struct Datatrans {
@@ -204,11 +202,15 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
 
     fn get_url(
         &self,
-        _req: &PaymentsAuthorizeRouterData,
+        req: &PaymentsAuthorizeRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let base_url = self.base_url(connectors);
-        Ok(format!("{base_url}v1/transactions/authorize"))
+        if req.is_three_ds() {
+            Ok(format!("{base_url}v1/transactions"))
+        } else {
+            Ok(format!("{base_url}v1/transactions/authorize"))
+        }
     }
 
     fn get_request_body(
@@ -654,6 +656,108 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Datatrans
         })
     }
 
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+}
+impl
+    ConnectorIntegration<
+        IncrementalAuthorization,
+        PaymentsIncrementalAuthorizationData,
+        PaymentsResponseData,
+    > for Datatrans
+{
+    fn get_headers(
+        &self,
+        req: &PaymentsIncrementalAuthorizationRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String,masking::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+    fn get_request_body(
+        &self,
+        req: &PaymentsIncrementalAuthorizationRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let amount = convert_amount(
+            self.amount_converter,
+            req.request.minor_additional_amount,
+            req.request.currency,
+        )?;
+        let connector_router_data = datatrans::DatatransRouterData::try_from((amount, req))?;
+        let connector_request =
+            datatrans::DatatransIncrementalAuthorizationPaymentRequest::try_from(
+                &connector_router_data,
+            )?;
+        Ok(RequestContent::Json(Box::new(connector_request)))
+    }
+    fn get_url(
+        &self,
+        req: &PaymentsIncrementalAuthorizationRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        let connector_payment_id = req.request.connector_transaction_id.clone();
+        let base_url = self.base_url(connectors);
+        Ok(format!(
+            "{base_url}v1/transactions/{connector_payment_id}/increase"
+        ))
+    }
+
+    fn build_request(
+        &self,
+        req: &PaymentsIncrementalAuthorizationRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Ok(Some(
+            RequestBuilder::new()
+                .method(Method::Post)
+                .url(&types::IncrementalAuthorizationType::get_url(
+                    self, req, connectors,
+                )?)
+                .attach_default_headers()
+                .headers(types::IncrementalAuthorizationType::get_headers(
+                    self, req, connectors,
+                )?)
+                .set_body(types::IncrementalAuthorizationType::get_request_body(
+                    self, req, connectors,
+                )?)
+                .build(),
+        ))
+    }
+    fn handle_response(
+        &self,
+        data: &PaymentsIncrementalAuthorizationRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<
+        RouterData<
+            IncrementalAuthorization,
+            PaymentsIncrementalAuthorizationData,
+            PaymentsResponseData,
+        >,
+        errors::ConnectorError,
+    > {
+        let response: datatrans::DatatransIncrementalAuthorizationResponse = res
+            .response
+            .parse_struct("Datatrans DatatransIncrementalAuthorizationResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+    }
     fn get_error_response(
         &self,
         res: Response,
