@@ -19982,6 +19982,14 @@
             "format": "int32",
             "description": "Indicates maximum amount of time in minutes",
             "minimum": 0
+          },
+          "sdk_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SdkType"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -20010,6 +20018,17 @@
             "nullable": true
           }
         }
+      },
+      "SdkType": {
+        "type": "string",
+        "description": "Enum representing the type of 3DS SDK.",
+        "enum": [
+          "01",
+          "02",
+          "03",
+          "04",
+          "05"
+        ]
       },
       "SecretInfoToInitiateSdk": {
         "type": "object",
