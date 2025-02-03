@@ -877,6 +877,8 @@ diesel::table! {
         shipping_cost -> Nullable<Int8>,
         order_tax_amount -> Nullable<Int8>,
         connector_mandate_detail -> Nullable<Jsonb>,
+        #[max_length = 64]
+        platform_merchant_id -> Nullable<Varchar>,
     }
 }
 
