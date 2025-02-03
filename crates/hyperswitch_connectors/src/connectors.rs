@@ -31,6 +31,7 @@ pub mod iatapay;
 pub mod inespay;
 pub mod itaubank;
 pub mod jpmorgan;
+pub mod klarna;
 pub mod mifinity;
 pub mod mollie;
 pub mod multisafepay;
@@ -72,9 +73,9 @@ pub use self::{
     digitalvirgo::Digitalvirgo, dlocal::Dlocal, elavon::Elavon, fiserv::Fiserv,
     fiservemea::Fiservemea, fiuu::Fiuu, forte::Forte, globepay::Globepay, gocardless::Gocardless,
     helcim::Helcim, iatapay::Iatapay, inespay::Inespay, itaubank::Itaubank, jpmorgan::Jpmorgan,
-    mifinity::Mifinity, mollie::Mollie, multisafepay::Multisafepay, nexinets::Nexinets,
-    nexixpay::Nexixpay, nomupay::Nomupay, novalnet::Novalnet, nuvei::Nuvei, paybox::Paybox,
-    payeezy::Payeezy, payu::Payu, placetopay::Placetopay, powertranz::Powertranz,
+    klarna::Klarna, mifinity::Mifinity, mollie::Mollie, multisafepay::Multisafepay,
+    nexinets::Nexinets, nexixpay::Nexixpay, nomupay::Nomupay, novalnet::Novalnet, nuvei::Nuvei,
+    paybox::Paybox, payeezy::Payeezy, payu::Payu, placetopay::Placetopay, powertranz::Powertranz,
     prophetpay::Prophetpay, rapyd::Rapyd, razorpay::Razorpay, redsys::Redsys, shift4::Shift4,
     square::Square, stax::Stax, taxjar::Taxjar, thunes::Thunes, tsys::Tsys,
     unified_authentication_service::UnifiedAuthenticationService, volt::Volt,

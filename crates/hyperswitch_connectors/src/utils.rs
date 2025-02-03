@@ -1872,6 +1872,8 @@ impl PaymentsCompleteAuthorizeRequestData for CompleteAuthorizeData {
 }
 pub trait AddressData {
     fn get_optional_full_name(&self) -> Option<Secret<String>>;
+    fn get_email(&self) -> Result<Email, Error>;
+    fn get_phone_with_country_code(&self) -> Result<Secret<String>, Error>;
 }
 
 impl AddressData for Address {
@@ -1879,6 +1881,18 @@ impl AddressData for Address {
         self.address
             .as_ref()
             .and_then(|billing_address| billing_address.get_optional_full_name())
+    }
+
+    fn get_email(&self) -> Result<Email, Error> {
+        self.email.clone().ok_or_else(missing_field_err("email"))
+    }
+
+    fn get_phone_with_country_code(&self) -> Result<Secret<String>, Error> {
+        self.phone
+            .clone()
+            .map(|phone_details| phone_details.get_number_with_country_code())
+            .transpose()?
+            .ok_or_else(missing_field_err("phone"))
     }
 }
 pub trait PaymentsPreProcessingRequestData {
