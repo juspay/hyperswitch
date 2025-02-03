@@ -4,6 +4,7 @@ import { payment_methods_enabled } from "../../configs/Payment/Commons";
 import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
 
 let globalState;
+let connector;
 
 /*
 Flow:
@@ -32,10 +33,31 @@ Flow:
 */
 
 describe("Connector Agnostic Tests", () => {
-  before("seed global state", () => {
-    cy.task("getGlobalState").then((state) => {
-      globalState = new State(state);
-    });
+  before(function () {
+    // Changed to regular function instead of arrow function
+    let skip = false;
+
+    cy.task("getGlobalState")
+      .then((state) => {
+        globalState = new State(state);
+        connector = globalState.get("connectorId");
+
+        // Skip entire test suite if connector is not in exclusion list
+        // Here, exclusion list works as an inclusion list
+        if (
+          utils.shouldExcludeConnector(
+            connector,
+            utils.CONNECTOR_LISTS.EXCLUDE.CONNECTOR_AGNOSTIC_NTID
+          )
+        ) {
+          skip = true;
+        }
+      })
+      .then(() => {
+        if (skip) {
+          this.skip();
+        }
+      });
   });
 
   after("flush global state", () => {

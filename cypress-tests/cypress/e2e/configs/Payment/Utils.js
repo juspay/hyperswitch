@@ -4,7 +4,7 @@ import { connectorDetails as adyenConnectorDetails } from "./Adyen.js";
 import { connectorDetails as bankOfAmericaConnectorDetails } from "./BankOfAmerica.js";
 import { connectorDetails as bluesnapConnectorDetails } from "./Bluesnap.js";
 import { connectorDetails as checkoutConnectorDetails } from "./Checkout.js";
-import { connectorDetails as CommonConnectorDetails } from "./Commons.js";
+import { connectorDetails as commonConnectorDetails } from "./Commons.js";
 import { updateDefaultStatusCode } from "./Modifiers.js";
 import { connectorDetails as cybersourceConnectorDetails } from "./Cybersource.js";
 import { connectorDetails as datatransConnectorDetails } from "./Datatrans.js";
@@ -32,7 +32,7 @@ const connectorDetails = {
   bankofamerica: bankOfAmericaConnectorDetails,
   bluesnap: bluesnapConnectorDetails,
   checkout: checkoutConnectorDetails,
-  commons: CommonConnectorDetails,
+  commons: commonConnectorDetails,
   cybersource: cybersourceConnectorDetails,
   deutschebank: deutschebankConnectorDetails,
   fiservemea: fiservemeaConnectorDetails,
@@ -307,3 +307,26 @@ export function updateBusinessProfile(
     profilePrefix
   );
 }
+
+export const CONNECTOR_LISTS = {
+  // Exclusion lists (skip these connectors)
+  EXCLUDE: {
+    CONNECTOR_AGNOSTIC_NTID: ["paypal"],
+    // Add more exclusion lists
+  },
+
+  // Inclusion lists (only run for these connectors)
+  INCLUDE: {
+    MANDATES_USING_NTID_PROXY: ["cybersource"],
+    // Add more inclusion lists
+  },
+};
+
+// Helper functions
+export const shouldExcludeConnector = (connectorId, list) => {
+  return list.includes(connectorId);
+};
+
+export const shouldIncludeConnector = (connectorId, list) => {
+  return !list.includes(connectorId);
+};
