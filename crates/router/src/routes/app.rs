@@ -432,7 +432,7 @@ impl AppState {
                             .await
                             .expect("Failed to create store"),
                         kafka_client.clone(),
-                        TenantID(tenant.get_schema().to_string()),
+                        TenantID(tenant.get_tenant_id().get_string_repr().to_owned()),
                         tenant,
                     )
                     .await,
