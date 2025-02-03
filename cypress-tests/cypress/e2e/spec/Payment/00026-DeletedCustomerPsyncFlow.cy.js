@@ -198,6 +198,14 @@ describe("Card - Customer Deletion and Psync", () => {
           shouldContinue = utils.should_continue_further(data);
       });
 
+      it("Retrieve Payment", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["No3DSManualCapture"];
+
+        cy.retrievePaymentCallTest(globalState, data);
+      });
+
       it("Capture Payment", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
@@ -284,6 +292,14 @@ describe("Card - Customer Deletion and Psync", () => {
       it("Handle redirection", () => {
         const expected_redirection = fixtures.confirmBody["return_url"];
         cy.handleRedirection(globalState, expected_redirection);
+      });
+
+      it("Retrieve Payment", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["3DSManualCapture"];
+
+        cy.retrievePaymentCallTest(globalState, data);
       });
 
       it("Capture Payment", () => {
