@@ -878,14 +878,25 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                         let mut customer_id_blocking_cache_key = String::new();
 
                         if card_testing_guard_config.is_card_ip_blocking_enabled {
-                            card_ip_blocking_cache_key =
-                                helpers::validate_card_ip_blocking_for_business_profile(
-                                    state,
-                                    request,
-                                    fingerprint.clone(),
-                                    card_testing_guard_config,
-                                )
-                                .await?;
+                            if let Some(browser_info) = &request.browser_info {
+                                let browser_info_parsed =
+                                    serde_json::from_value::<payments::BrowserInformation>(
+                                        browser_info.clone(),
+                                    )
+                                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                                    .attach_printable("could not parse browser_info")?;
+
+                                if let Some(browser_info_ip) = browser_info_parsed.ip_address {
+                                    card_ip_blocking_cache_key =
+                                        helpers::validate_card_ip_blocking_for_business_profile(
+                                            state,
+                                            browser_info_ip,
+                                            fingerprint.clone(),
+                                            card_testing_guard_config,
+                                        )
+                                        .await?;
+                                }
+                            }
                         }
 
                         if card_testing_guard_config.is_guest_user_card_blocking_enabled {
