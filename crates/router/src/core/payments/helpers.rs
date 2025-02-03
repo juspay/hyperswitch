@@ -1923,7 +1923,7 @@ pub fn decide_payment_method_retrieval_action(
     should_retry_with_pan: bool,
     network_token_requestor_ref_id: Option<String>,
 ) -> VaultFetchAction {
-    let normal_flow = || {
+    let standard_flow = || {
         determine_standard_vault_action(
             is_network_tokenization_enabled,
             mandate_id,
@@ -1935,7 +1935,7 @@ pub fn decide_payment_method_retrieval_action(
 
     should_retry_with_pan
         .then_some(VaultFetchAction::FetchCardDetailsFromLocker)
-        .unwrap_or_else(normal_flow)
+        .unwrap_or_else(standard_flow)
 }
 
 pub fn determine_standard_vault_action(
@@ -1971,11 +1971,11 @@ pub fn determine_standard_vault_action(
             },
             None => {
                 //saved card flow
-                let is_supported_connector = connector
+                let is_network_token_supported_connector = connector
                     .map(|conn| network_tokenization_supported_connectors.contains(&conn))
                     .unwrap_or(false);
 
-                match (is_supported_connector, network_token_requestor_ref_id) {
+                match (is_network_token_supported_connector, network_token_requestor_ref_id) {
                     (true, Some(ref_id)) => {
                         VaultFetchAction::FetchNetworkTokenDataFromTokenizationService(ref_id)
                     }
