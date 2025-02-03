@@ -14,9 +14,12 @@ use common_utils::ext_traits::{AsyncExt, Encode, StringExt, ValueExt};
 use diesel_models::payment_attempt::ConnectorMandateReferenceId as DieselConnectorMandateReferenceId;
 use error_stack::{report, ResultExt};
 use futures::FutureExt;
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
-use hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdateFields;
 use hyperswitch_domain_models::router_request_types::unified_authentication_service;
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+use hyperswitch_domain_models::{
+    card_testing_guard_data::CardTestingGuardData,
+    payments::payment_intent::PaymentIntentUpdateFields,
+};
 use masking::{ExposeInterface, PeekInterface};
 use router_derive::PaymentOperation;
 use router_env::{instrument, logger, tracing};
@@ -37,8 +40,8 @@ use crate::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         mandate::helpers as m_helpers,
         payments::{
-            self, helpers, operations, populate_surcharge_details, CardTestingGuardData,
-            CustomerDetails, PaymentAddress, PaymentData,
+            self, helpers, operations, populate_surcharge_details, CustomerDetails, PaymentAddress,
+            PaymentData,
         },
         unified_authentication_service::{
             self as uas_utils,
@@ -860,9 +863,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 match &business_profile.card_testing_guard_config {
                     Some(card_testing_guard_config) => {
                         let fingerprint = card_testing_guard_utils::generate_fingerprint(
-                            state,
                             payment_method_data,
-                            merchant_account,
                             business_profile,
                         )
                         .await?;
