@@ -983,6 +983,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     business_profile,
                     Some(acquirer_details),
                     Some(payment_data.payment_attempt.payment_id.clone()),
+                    payment_data.payment_attempt.organization_id.clone(),
                 )
                 .await?;
                 if authentication.is_separate_authn_required()
@@ -1164,6 +1165,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     &authentication_id,
                     payment_data.service_details.clone(),
                     authentication_status,
+                    payment_data.payment_attempt.organization_id.clone(),
                 )
                 .await?;
             }

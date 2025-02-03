@@ -121,6 +121,8 @@ diesel::table! {
         #[max_length = 64]
         acquirer_country_code -> Nullable<Varchar>,
         service_details -> Nullable<Jsonb>,
+        #[max_length = 32]
+        organization_id -> Varchar,
     }
 }
 
