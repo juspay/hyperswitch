@@ -369,18 +369,6 @@ impl AppState {
                 .tenants
                 .get_store_interface_map(&storage_impl, &conf, Arc::clone(&cache_store), testable)
                 .await;
-            #[cfg(feature = "v2")]
-            let accounts_store = conf
-                .multitenancy
-                .v1_tenants
-                .get_accounts_store_interface_map(
-                    &storage_impl,
-                    &conf,
-                    Arc::clone(&cache_store),
-                    testable,
-                )
-                .await;
-            #[cfg(feature = "v1")]
             let accounts_store = conf
                 .multitenancy
                 .tenants
