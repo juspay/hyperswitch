@@ -590,6 +590,7 @@ pub struct PaymentAttempt {
     pub profile_id: id_type::ProfileId,
     pub organization_id: id_type::OrganizationId,
     pub connector_mandate_detail: Option<ConnectorMandateReferenceId>,
+    pub platform_merchant_id: Option<id_type::MerchantId>,
 }
 
 #[cfg(feature = "v1")]
@@ -836,6 +837,7 @@ pub struct PaymentAttemptNew {
     pub profile_id: id_type::ProfileId,
     pub organization_id: id_type::OrganizationId,
     pub connector_mandate_detail: Option<ConnectorMandateReferenceId>,
+    pub platform_merchant_id: Option<id_type::MerchantId>,
 }
 
 #[cfg(feature = "v1")]
@@ -1551,6 +1553,7 @@ impl behaviour::Conversion for PaymentAttempt {
             order_tax_amount: self.net_amount.get_order_tax_amount(),
             shipping_cost: self.net_amount.get_shipping_cost(),
             connector_mandate_detail: self.connector_mandate_detail,
+            platform_merchant_id: self.platform_merchant_id,
         })
     }
 
@@ -1632,6 +1635,7 @@ impl behaviour::Conversion for PaymentAttempt {
                 profile_id: storage_model.profile_id,
                 organization_id: storage_model.organization_id,
                 connector_mandate_detail: storage_model.connector_mandate_detail,
+                platform_merchant_id: storage_model.platform_merchant_id,
             })
         }
         .await
@@ -1714,6 +1718,7 @@ impl behaviour::Conversion for PaymentAttempt {
             order_tax_amount: self.net_amount.get_order_tax_amount(),
             shipping_cost: self.net_amount.get_shipping_cost(),
             connector_mandate_detail: self.connector_mandate_detail,
+            platform_merchant_id: self.platform_merchant_id,
         })
     }
 }

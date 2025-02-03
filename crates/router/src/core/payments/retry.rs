@@ -654,6 +654,7 @@ pub fn make_new_payment_attempt(
         charge_id: Default::default(),
         customer_acceptance: Default::default(),
         connector_mandate_detail: Default::default(),
+        platform_merchant_id: old_payment_attempt.platform_merchant_id,
     }
 }
 

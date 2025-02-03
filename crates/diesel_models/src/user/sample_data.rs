@@ -64,6 +64,7 @@ use crate::{
 //     pub customer_acceptance: Option<common_utils::pii::SecretSerdeValue>,
 //     pub profile_id: common_utils::id_type::ProfileId,
 //     pub organization_id: common_utils::id_type::OrganizationId,
+//     pub platform_merchant_id: Option<common_utils::id_type::MerchantId>,
 // }
 
 // #[cfg(feature = "v2")]
@@ -203,6 +204,7 @@ pub struct PaymentAttemptBatchNew {
     pub order_tax_amount: Option<MinorUnit>,
     pub connector_transaction_data: Option<String>,
     pub connector_mandate_detail: Option<ConnectorMandateReferenceId>,
+    pub platform_merchant_id: Option<common_utils::id_type::MerchantId>,
 }
 
 #[cfg(feature = "v1")]
@@ -282,6 +284,7 @@ impl PaymentAttemptBatchNew {
             shipping_cost: self.shipping_cost,
             order_tax_amount: self.order_tax_amount,
             connector_mandate_detail: self.connector_mandate_detail,
+            platform_merchant_id: self.platform_merchant_id,
         }
     }
 }
