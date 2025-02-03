@@ -1775,22 +1775,25 @@ impl
         let payment_information =
             PaymentInformation::GooglePay(Box::new(GooglePayPaymentInformation {
                 tokenized_card: TokenizedCard {
-                    number: google_pay_decrypted_data.payment_method_details.pan,
+                    number: Secret::new(
+                        google_pay_decrypted_data
+                            .payment_method_details
+                            .pan
+                            .get_card_no(),
+                    ),
                     cryptogram: google_pay_decrypted_data.payment_method_details.cryptogram,
                     transaction_type: TransactionType::GooglePay,
                     expiration_year: Secret::new(
                         google_pay_decrypted_data
                             .payment_method_details
                             .expiration_year
-                            .expose()
-                            .to_string(),
+                            .four_digits(),
                     ),
                     expiration_month: Secret::new(
                         google_pay_decrypted_data
                             .payment_method_details
                             .expiration_month
-                            .expose()
-                            .to_string(),
+                            .two_digits(),
                     ),
                 },
             }));

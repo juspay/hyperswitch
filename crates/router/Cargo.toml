@@ -68,7 +68,7 @@ encoding_rs = "0.8.33"
 error-stack = "0.4.1"
 futures = "0.3.30"
 hex = "0.4.3"
-rust_hkdf = { package = "hkdf", version = "0.12.4" }
+hkdf = "0.12.4"
 http = "0.2.12"
 hyper = "0.14.28"
 infer = "0.15.0"

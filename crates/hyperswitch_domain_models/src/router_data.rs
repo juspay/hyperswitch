@@ -262,9 +262,9 @@ pub struct GooglePayDecryptedData {
 #[serde(rename_all = "camelCase")]
 pub struct GooglePayPaymentMethodDetails {
     pub auth_method: common_enums::enums::GooglePayAuthMethod,
-    pub expiration_month: Secret<u16>,
-    pub expiration_year: Secret<u16>,
-    pub pan: Secret<String>,
+    pub expiration_month: cards::CardExpirationMonth,
+    pub expiration_year: cards::CardExpirationYear,
+    pub pan: cards::CardNumber,
     pub cryptogram: Option<Secret<String>>,
     pub eci_indicator: Option<String>,
 }

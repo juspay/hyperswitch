@@ -3106,13 +3106,8 @@ where
             };
 
             let google_pay_predecrypt = google_pay_data
-                .parse_value::<hyperswitch_domain_models::router_data::GooglePayDecryptedData>(
-                    "GooglePayDecryptedData",
-                )
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable(
-                    "failed to parse decrypted google pay response to GooglePayDecryptedData",
-                )?;
+                .ok_or(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("failed to get GooglePayDecryptedData in response")?;
 
             Ok(Some(PaymentMethodToken::GooglePayDecrypt(Box::new(
                 google_pay_predecrypt,
