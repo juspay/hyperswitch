@@ -1341,7 +1341,11 @@ pub async fn get_payment_filters(
         &req,
         (),
         |state, auth: auth::AuthenticationData, _, _| {
-            payments::get_payment_filters(state, auth.merchant_account,Some(vec![auth.profile.get_id().clone()]),)
+            payments::get_payment_filters(
+                state,
+                auth.merchant_account,
+                Some(vec![auth.profile.get_id().clone()]),
+            )
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
@@ -1350,7 +1354,6 @@ pub async fn get_payment_filters(
             },
             req.headers(),
         ),
-        
         api_locking::LockAction::NotApplicable,
     ))
     .await

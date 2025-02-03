@@ -4909,23 +4909,35 @@ pub async fn get_payment_filters(
 
     // populate payment method type map
     merchant_connector_accounts
-    .iter()
-    .filter_map(|merchant_connector_account| merchant_connector_account.payment_methods_enabled.as_ref())
-    .flat_map(|payment_methods_enabled| {
-        payment_methods_enabled.iter().filter_map(|payment_method_enabled| {
-            payment_method_enabled
-                .payment_method_subtypes
-                .as_ref()
-                .map(|subtypes_vec| (payment_method_enabled.payment_method_type, subtypes_vec.clone()))
+        .iter()
+        .filter_map(|merchant_connector_account| {
+            merchant_connector_account.payment_methods_enabled.as_ref()
         })
-    })
-    .for_each(|(payment_method_type, payment_method_subtypes_vec)| {
-        payment_method_types_map
-            .entry(payment_method_type)
-            .or_default()
-            .extend(payment_method_subtypes_vec.iter().map(|subtype| subtype.payment_method_subtype));
-    });
-
+        .flat_map(|payment_methods_enabled| {
+            payment_methods_enabled
+                .iter()
+                .filter_map(|payment_method_enabled| {
+                    payment_method_enabled
+                        .payment_method_subtypes
+                        .as_ref()
+                        .map(|subtypes_vec| {
+                            (
+                                payment_method_enabled.payment_method_type,
+                                subtypes_vec.clone(),
+                            )
+                        })
+                })
+        })
+        .for_each(|(payment_method_type, payment_method_subtypes_vec)| {
+            payment_method_types_map
+                .entry(payment_method_type)
+                .or_default()
+                .extend(
+                    payment_method_subtypes_vec
+                        .iter()
+                        .map(|subtype| subtype.payment_method_subtype),
+                );
+        });
 
     Ok(services::ApplicationResponse::Json(
         api::PaymentListFiltersV2 {
@@ -4938,8 +4950,6 @@ pub async fn get_payment_filters(
         },
     ))
 }
-
-
 
 #[cfg(all(feature = "olap", feature = "v1"))]
 pub async fn get_aggregates_for_payments(
