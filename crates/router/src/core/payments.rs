@@ -51,7 +51,7 @@ use hyperswitch_domain_models::router_response_types::RedirectForm;
 pub use hyperswitch_domain_models::{
     mandates::{CustomerAcceptance, MandateData},
     payment_address::PaymentAddress,
-    payments::HeaderPayload,
+    payments::{self as domain_payments, HeaderPayload},
     router_data::{PaymentMethodToken, RouterData},
     router_request_types::CustomerDetails,
 };
@@ -189,11 +189,7 @@ where
 
     let payment_data = match connector {
         ConnectorCallType::PreDetermined(connector_data) => {
-            let router_data: RouterData<
-                F,
-                FData,
-                hyperswitch_domain_models::router_response_types::PaymentsResponseData,
-            > = call_connector_service(
+            let router_data= call_connector_service(
                 state,
                 req_state.clone(),
                 &merchant_account,
@@ -4448,86 +4444,9 @@ where
     pub tax_data: Option<TaxData>,
     pub session_id: Option<String>,
     pub service_details: Option<api_models::payments::CtpServiceDetails>,
-    pub vault_operation: Option<VaultOperation>,
+    pub vault_operation: Option<domain_payments::VaultOperation>,
 }
 
-#[derive(Clone, serde::Serialize, Debug)]
-pub enum VaultOperation {
-    ExistingVaultData(VaultData),
-}
-
-impl VaultOperation {
-    pub fn get_updated_vault_data(
-        current_payment_method_data: Option<&Self>,
-        payment_method_data: &domain::PaymentMethodData,
-    ) -> Option<Self> {
-        match (current_payment_method_data, payment_method_data) {
-            (None, domain::PaymentMethodData::Card(card)) => {
-                Some(Self::ExistingVaultData(VaultData::Card(card.clone())))
-            }
-            (None, domain::PaymentMethodData::NetworkToken(nt_data)) => Some(
-                Self::ExistingVaultData(VaultData::NetworkToken(nt_data.clone())),
-            ),
-            (Some(Self::ExistingVaultData(vault_data)), payment_method) => {
-                match (vault_data, payment_method) {
-                    (VaultData::Card(card), domain::PaymentMethodData::NetworkToken(nt_data)) => {
-                        Some(Self::ExistingVaultData(VaultData::CardAndNetworkToken(
-                            Box::new(CardAndNetworkTokenData {
-                                card_data: card.clone(),
-                                network_token_data: nt_data.clone(),
-                            }),
-                        )))
-                    }
-                    (VaultData::NetworkToken(nt_data), domain::PaymentMethodData::Card(card)) => {
-                        Some(Self::ExistingVaultData(VaultData::CardAndNetworkToken(
-                            Box::new(CardAndNetworkTokenData {
-                                card_data: card.clone(),
-                                network_token_data: nt_data.clone(),
-                            }),
-                        )))
-                    }
-                    _ => Some(Self::ExistingVaultData(vault_data.clone())),
-                }
-            }
-            _ => None,
-        }
-    }
-}
-
-#[derive(Clone, serde::Serialize, Debug)]
-pub enum VaultData {
-    Card(hyperswitch_domain_models::payment_method_data::Card),
-    NetworkToken(hyperswitch_domain_models::payment_method_data::NetworkTokenData),
-    CardAndNetworkToken(Box<CardAndNetworkTokenData>),
-}
-
-#[derive(Default, Clone, serde::Serialize, Debug)]
-pub struct CardAndNetworkTokenData {
-    pub card_data: hyperswitch_domain_models::payment_method_data::Card,
-    pub network_token_data: hyperswitch_domain_models::payment_method_data::NetworkTokenData,
-}
-
-impl VaultData {
-    pub fn get_card_vault_data(
-        &self,
-    ) -> Option<hyperswitch_domain_models::payment_method_data::Card> {
-        match self {
-            Self::Card(card_data) => Some(card_data.clone()),
-            Self::NetworkToken(_network_token_data) => None,
-            Self::CardAndNetworkToken(vault_data) => Some(vault_data.card_data.clone()),
-        }
-    }
-
-    pub fn get_network_token_data(
-        &self,
-    ) -> Option<hyperswitch_domain_models::payment_method_data::NetworkTokenData> {
-        match self {
-            Self::Card(_card_data) => None,
-            Self::NetworkToken(network_token_data) => Some(network_token_data.clone()),
-            Self::CardAndNetworkToken(vault_data) => Some(vault_data.network_token_data.clone()),
-        }
-    }
-}
 
 #[derive(Clone, serde::Serialize, Debug)]
 pub struct TaxData {
@@ -7006,7 +6925,7 @@ pub trait OperationSessionGetters<F> {
     fn get_capture_method(&self) -> Option<enums::CaptureMethod>;
 
     #[cfg(feature = "v1")]
-    fn get_vault_operation(&self) -> Option<&VaultOperation>;
+    fn get_vault_operation(&self) -> Option<&domain_payments::VaultOperation>;
 
     #[cfg(feature = "v2")]
     fn get_optional_payment_attempt(&self) -> Option<&storage::PaymentAttempt>;
@@ -7054,7 +6973,7 @@ pub trait OperationSessionSetters<F> {
     fn set_connector_in_payment_attempt(&mut self, connector: Option<String>);
 
     #[cfg(feature = "v1")]
-    fn set_vault_operation(&mut self, vault_operation: VaultOperation);
+    fn set_vault_operation(&mut self, vault_operation: domain_payments::VaultOperation);
 }
 
 #[cfg(feature = "v1")]
@@ -7188,7 +7107,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentData<F> {
     }
 
     #[cfg(feature = "v1")]
-    fn get_vault_operation(&self) -> Option<&VaultOperation> {
+    fn get_vault_operation(&self) -> Option<&domain_payments::VaultOperation> {
         self.vault_operation.as_ref()
     }
 
@@ -7309,7 +7228,7 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentData<F> {
         self.payment_attempt.connector = connector;
     }
 
-    fn set_vault_operation(&mut self, vault_operation: VaultOperation) {
+    fn set_vault_operation(&mut self, vault_operation: domain_payments::VaultOperation) {
         self.vault_operation = Some(vault_operation);
     }
 }

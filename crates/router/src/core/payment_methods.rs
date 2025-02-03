@@ -41,7 +41,7 @@ use diesel_models::{
 use error_stack::{report, ResultExt};
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use hyperswitch_domain_models::api::{GenericLinks, GenericLinksData};
-use hyperswitch_domain_models::payments::{payment_attempt::PaymentAttempt, PaymentIntent};
+use hyperswitch_domain_models::payments::{payment_attempt::PaymentAttempt, PaymentIntent, VaultData};
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use masking::ExposeInterface;
 use masking::{PeekInterface, Secret};
@@ -70,7 +70,7 @@ use crate::{
     consts,
     core::{
         errors::{self, RouterResult},
-        payments::{self, helpers as payment_helpers},
+        payments::helpers as payment_helpers,
     },
     routes::{app::StorageInterface, SessionState},
     services,
@@ -536,7 +536,7 @@ pub async fn retrieve_payment_method_with_token(
     payment_method_info: Option<domain::PaymentMethod>,
     business_profile: &domain::Profile,
     should_retry_with_pan: bool,
-    vault_data: Option<&payments::VaultData>,
+    vault_data: Option<&VaultData>,
 ) -> RouterResult<storage::PaymentMethodDataWithId> {
     let token = match token_data {
         storage::PaymentTokenData::TemporaryGeneric(generic_token) => {

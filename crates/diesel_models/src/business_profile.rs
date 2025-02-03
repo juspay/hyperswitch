@@ -107,7 +107,7 @@ pub struct ProfileNew {
     pub is_click_to_pay_enabled: bool,
     pub authentication_product_ids:
         Option<common_types::payments::AuthenticationConnectorAccountMap>,
-    pub is_clear_pan_retries_enabled: Option<bool>,
+    pub is_clear_pan_retries_enabled: bool,
 }
 
 #[cfg(feature = "v1")]
