@@ -1,4 +1,4 @@
-mod result_codes;
+mod aci_result_codes;
 pub mod transformers;
 
 use api_models::webhooks::IncomingWebhookEvent;

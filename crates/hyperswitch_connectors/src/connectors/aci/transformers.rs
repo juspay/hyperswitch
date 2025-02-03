@@ -17,7 +17,7 @@ use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 use url::Url;
 
-use super::result_codes::{FAILURE_CODES, PENDING_CODES, SUCCESSFUL_CODES};
+use super::aci_result_codes::{FAILURE_CODES, PENDING_CODES, SUCCESSFUL_CODES};
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
     utils::{self, PhoneDetailsData, RouterData as _},
