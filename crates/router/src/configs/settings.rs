@@ -1309,7 +1309,6 @@ impl<'de> Deserialize<'de> for TenantConfig {
         struct Inner {
             base_url: String,
             schema: String,
-            accounts_schema: String,
             redis_key_prefix: String,
             clickhouse_database: String,
             user: TenantUserConfig,
