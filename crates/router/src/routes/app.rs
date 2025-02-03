@@ -554,6 +554,9 @@ impl Payments {
         route = route.service(
             web::resource("/create-intent").route(web::post().to(payments::payments_create_intent)),
         );
+        route=route.service(
+            web::resource("/v2/filter").route(web::get().to(payments::get_payment_filters)),
+        );
 
         route = route.service(
             web::scope("/{payment_id}")

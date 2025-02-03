@@ -1329,6 +1329,29 @@ pub async fn get_payment_filters(
 }
 
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsFilters))]
+#[cfg(all(feature = "olap", feature = "v2"))]
+pub async fn get_payment_filters(
+    state: web::Data<app::AppState>,
+    req: actix_web::HttpRequest,
+) -> impl Responder {
+    let flow = Flow::PaymentsFilters;
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        (),
+        |state, auth: auth::AuthenticationData, _, _| {
+            payments::get_payment_filters(state, auth.merchant_account,Some(vec![auth.profile.get_id().clone()]),)
+        },
+        &auth::JWTAuth {
+            permission: Permission::MerchantPaymentRead,
+        },
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsFilters))]
 #[cfg(all(feature = "olap", feature = "v1"))]
 pub async fn get_payment_filters_profile(
     state: web::Data<app::AppState>,

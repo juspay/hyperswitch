@@ -4867,6 +4867,80 @@ pub async fn get_payment_filters(
     ))
 }
 
+#[cfg(all(feature = "olap", feature = "v2"))]
+pub async fn get_payment_filters(
+    state: SessionState,
+    merchant: domain::MerchantAccount,
+    profile_id_list: Option<Vec<id_type::ProfileId>>,
+) -> RouterResponse<api::PaymentListFiltersV2> {
+    let merchant_connector_accounts = if let services::ApplicationResponse::Json(data) =
+        super::admin::list_payment_connectors(state, merchant.get_id().to_owned(), profile_id_list)
+            .await?
+    {
+        data
+    } else {
+        return Err(errors::ApiErrorResponse::InternalServerError.into());
+    };
+
+    let mut connector_map: HashMap<String, Vec<MerchantConnectorInfo>> = HashMap::new();
+    let mut payment_method_types_map: HashMap<
+        enums::PaymentMethod,
+        HashSet<enums::PaymentMethodType>,
+    > = HashMap::new();
+
+    // populate connector map
+    merchant_connector_accounts
+        .iter()
+        .filter_map(|merchant_connector_account| {
+            merchant_connector_account
+                .connector_label
+                .as_ref()
+                .map(|label| {
+                    let info = merchant_connector_account.to_merchant_connector_info(label);
+                    (merchant_connector_account.connector_name, info)
+                })
+        })
+        .for_each(|(connector_name, info)| {
+            connector_map
+                .entry(connector_name.to_string())
+                .or_default()
+                .push(info);
+        });
+
+    // populate payment method type map
+    merchant_connector_accounts
+    .iter()
+    .filter_map(|merchant_connector_account| merchant_connector_account.payment_methods_enabled.as_ref())
+    .flat_map(|payment_methods_enabled| {
+        payment_methods_enabled.iter().filter_map(|payment_method_enabled| {
+            payment_method_enabled
+                .payment_method_subtypes
+                .as_ref()
+                .map(|subtypes_vec| (payment_method_enabled.payment_method_type, subtypes_vec.clone()))
+        })
+    })
+    .for_each(|(payment_method_type, payment_method_subtypes_vec)| {
+        payment_method_types_map
+            .entry(payment_method_type)
+            .or_default()
+            .extend(payment_method_subtypes_vec.iter().map(|subtype| subtype.payment_method_subtype));
+    });
+
+
+    Ok(services::ApplicationResponse::Json(
+        api::PaymentListFiltersV2 {
+            connector: connector_map,
+            currency: enums::Currency::iter().collect(),
+            status: enums::IntentStatus::iter().collect(),
+            payment_method: payment_method_types_map,
+            authentication_type: enums::AuthenticationType::iter().collect(),
+            card_network: enums::CardNetwork::iter().collect(),
+        },
+    ))
+}
+
+
+
 #[cfg(all(feature = "olap", feature = "v1"))]
 pub async fn get_aggregates_for_payments(
     state: SessionState,
