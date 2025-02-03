@@ -32,9 +32,8 @@ use hyperswitch_domain_models::{
     mandates::MandateData,
     payment_method_data::{GetPaymentMethodType, PazeWalletData},
     payments::{
-        self as domain_payments,
-        payment_attempt::PaymentAttempt, payment_intent::PaymentIntentFetchConstraints,
-        PaymentIntent, 
+        self as domain_payments, payment_attempt::PaymentAttempt,
+        payment_intent::PaymentIntentFetchConstraints, PaymentIntent,
     },
     router_data::KlarnaSdkResponse,
 };
@@ -1975,7 +1974,10 @@ pub fn determine_standard_vault_action(
                     .map(|conn| network_tokenization_supported_connectors.contains(&conn))
                     .unwrap_or(false);
 
-                match (is_network_token_supported_connector, network_token_requestor_ref_id) {
+                match (
+                    is_network_token_supported_connector,
+                    network_token_requestor_ref_id,
+                ) {
                     (true, Some(ref_id)) => {
                         VaultFetchAction::FetchNetworkTokenDataFromTokenizationService(ref_id)
                     }
@@ -2243,7 +2245,9 @@ pub async fn fetch_network_token_details_from_locker(
             .attach_printable(
                 "failed to fetch network token information from the permanent locker",
             )?;
-    let expiry = network_transaction_data.token_exp_month.zip(network_transaction_data.token_exp_year);
+    let expiry = network_transaction_data
+        .token_exp_month
+        .zip(network_transaction_data.token_exp_year);
     if let Some((exp_month, exp_year)) = expiry {
         token_data.card_exp_month = exp_month;
         token_data.card_exp_year = exp_year;
@@ -2540,10 +2544,11 @@ pub async fn make_pm_data<'a, F: Clone, R, D>(
             let payment_method_details = pm_data.attach_printable("in 'make_pm_data'")?;
 
             if let Some(ref payment_method_data) = payment_method_details.payment_method_data {
-                let updated_vault_operation = domain_payments::VaultOperation::get_updated_vault_data(
-                    existing_vault_data,
-                    payment_method_data,
-                );
+                let updated_vault_operation =
+                    domain_payments::VaultOperation::get_updated_vault_data(
+                        existing_vault_data,
+                        payment_method_data,
+                    );
 
                 if let Some(vault_operation) = updated_vault_operation {
                     payment_data.set_vault_operation(vault_operation);

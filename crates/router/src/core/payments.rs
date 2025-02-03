@@ -189,7 +189,7 @@ where
 
     let payment_data = match connector {
         ConnectorCallType::PreDetermined(connector_data) => {
-            let router_data= call_connector_service(
+            let router_data = call_connector_service(
                 state,
                 req_state.clone(),
                 &merchant_account,
@@ -4446,7 +4446,6 @@ where
     pub service_details: Option<api_models::payments::CtpServiceDetails>,
     pub vault_operation: Option<domain_payments::VaultOperation>,
 }
-
 
 #[derive(Clone, serde::Serialize, Debug)]
 pub struct TaxData {

@@ -35,13 +35,13 @@ use diesel_models::{
 };
 
 use self::payment_attempt::PaymentAttempt;
-#[cfg(feature = "v1")]
-use crate::{RemoteStorageObject, payment_method_data};
 #[cfg(feature = "v2")]
 use crate::{
     address::Address, business_profile, errors, merchant_account, payment_address,
     payment_method_data, ApiModelToDieselModelConvertor,
 };
+#[cfg(feature = "v1")]
+use crate::{payment_method_data, RemoteStorageObject};
 
 #[cfg(feature = "v1")]
 #[derive(Clone, Debug, PartialEq, serde::Serialize, ToEncryption)]
@@ -648,22 +648,24 @@ impl VaultOperation {
             ),
             (Some(Self::ExistingVaultData(vault_data)), payment_method_data) => {
                 match (vault_data, payment_method_data) {
-                    (VaultData::Card(card), payment_method_data::PaymentMethodData::NetworkToken(nt_data)) => {
-                        Some(Self::ExistingVaultData(VaultData::CardAndNetworkToken(
-                            Box::new(CardAndNetworkTokenData {
-                                card_data: card.clone(),
-                                network_token_data: nt_data.clone(),
-                            }),
-                        )))
-                    }
-                    (VaultData::NetworkToken(nt_data), payment_method_data::PaymentMethodData::Card(card)) => {
-                        Some(Self::ExistingVaultData(VaultData::CardAndNetworkToken(
-                            Box::new(CardAndNetworkTokenData {
-                                card_data: card.clone(),
-                                network_token_data: nt_data.clone(),
-                            }),
-                        )))
-                    }
+                    (
+                        VaultData::Card(card),
+                        payment_method_data::PaymentMethodData::NetworkToken(nt_data),
+                    ) => Some(Self::ExistingVaultData(VaultData::CardAndNetworkToken(
+                        Box::new(CardAndNetworkTokenData {
+                            card_data: card.clone(),
+                            network_token_data: nt_data.clone(),
+                        }),
+                    ))),
+                    (
+                        VaultData::NetworkToken(nt_data),
+                        payment_method_data::PaymentMethodData::Card(card),
+                    ) => Some(Self::ExistingVaultData(VaultData::CardAndNetworkToken(
+                        Box::new(CardAndNetworkTokenData {
+                            card_data: card.clone(),
+                            network_token_data: nt_data.clone(),
+                        }),
+                    ))),
                     _ => Some(Self::ExistingVaultData(vault_data.clone())),
                 }
             }
@@ -687,9 +689,7 @@ pub struct CardAndNetworkTokenData {
 }
 
 impl VaultData {
-    pub fn get_card_vault_data(
-        &self,
-    ) -> Option<payment_method_data::Card> {
+    pub fn get_card_vault_data(&self) -> Option<payment_method_data::Card> {
         match self {
             Self::Card(card_data) => Some(card_data.clone()),
             Self::NetworkToken(_network_token_data) => None,
@@ -697,9 +697,7 @@ impl VaultData {
         }
     }
 
-    pub fn get_network_token_data(
-        &self,
-    ) -> Option<payment_method_data::NetworkTokenData> {
+    pub fn get_network_token_data(&self) -> Option<payment_method_data::NetworkTokenData> {
         match self {
             Self::Card(_card_data) => None,
             Self::NetworkToken(network_token_data) => Some(network_token_data.clone()),
