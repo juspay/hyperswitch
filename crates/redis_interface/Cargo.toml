@@ -7,6 +7,9 @@ rust-version.workspace = true
 readme = "README.md"
 license.workspace = true
 
+[features]
+multitenancy_fallback = []
+
 [dependencies]
 error-stack = "0.4.1"
 fred = { version = "7.1.2", features = ["metrics", "partial-tracing", "subscriber-client", "check-unresponsive"] }

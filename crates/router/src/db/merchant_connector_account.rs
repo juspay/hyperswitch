@@ -59,7 +59,7 @@ impl ConnectorAccessToken for Store {
         let maybe_token = self
             .get_redis_conn()
             .map_err(Into::<errors::StorageError>::into)?
-            .get_key::<Option<Vec<u8>>>(&key)
+            .get_key::<Option<Vec<u8>>>(&key.into())
             .await
             .change_context(errors::StorageError::KVError)
             .attach_printable("DB error when getting access token")?;
@@ -88,7 +88,7 @@ impl ConnectorAccessToken for Store {
             .change_context(errors::StorageError::SerializationFailed)?;
         self.get_redis_conn()
             .map_err(Into::<errors::StorageError>::into)?
-            .set_key_with_expiry(&key, serialized_access_token, access_token.expires)
+            .set_key_with_expiry(&key.into(), serialized_access_token, access_token.expires)
             .await
             .change_context(errors::StorageError::KVError)
     }
