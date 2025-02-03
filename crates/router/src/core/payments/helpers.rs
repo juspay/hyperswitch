@@ -1480,7 +1480,6 @@ pub fn validate_customer_information(
     }
 }
 
-#[cfg(feature = "v1")]
 pub async fn validate_card_ip_blocking_for_business_profile(
     state: &SessionState,
     request: &api_models::payments::PaymentsRequest,
@@ -1508,22 +1507,9 @@ pub async fn validate_card_ip_blocking_for_business_profile(
 
     let unsuccessful_payment_threshold = card_testing_guard_config.card_ip_blocking_threshold;
 
-    match services::card_testing_guard::get_blocked_count_from_cache(state, &cache_key).await {
-        Ok(Some(unsuccessful_payment_count)) => {
-            if unsuccessful_payment_count >= unsuccessful_payment_threshold {
-                Err(errors::ApiErrorResponse::PreconditionFailed {
-                    message: "Blocked due to suspicious activity".to_string(),
-                })?
-            } else {
-                Ok(cache_key)
-            }
-        }
-        Ok(None) => Ok(cache_key),
-        Err(_) => Err(errors::ApiErrorResponse::InternalServerError)?,
-    }
+    Ok(validate_blocking_threshold(state, unsuccessful_payment_threshold, cache_key).await?)
 }
 
-#[cfg(feature = "v1")]
 pub async fn validate_guest_user_card_blocking_for_business_profile(
     state: &SessionState,
     fingerprnt: masking::Secret<String>,
@@ -1539,19 +1525,10 @@ pub async fn validate_guest_user_card_blocking_for_business_profile(
     let unsuccessful_payment_threshold =
         card_testing_guard_config.guest_user_card_blocking_threshold;
 
-    match services::card_testing_guard::get_blocked_count_from_cache(state, &cache_key).await {
-        Ok(Some(unsuccessful_payment_count)) => {
-            if unsuccessful_payment_count >= unsuccessful_payment_threshold && customer_id.is_none()
-            {
-                Err(errors::ApiErrorResponse::PreconditionFailed {
-                    message: "Blocked due to suspicious activity".to_string(),
-                })?
-            } else {
-                Ok(cache_key)
-            }
-        }
-        Ok(None) => Ok(cache_key),
-        Err(_) => Err(errors::ApiErrorResponse::InternalServerError)?,
+    if customer_id.is_none() {
+        Ok(validate_blocking_threshold(state, unsuccessful_payment_threshold, cache_key).await?)
+    } else {
+        Ok(cache_key)
     }
 }
 
@@ -1570,6 +1547,14 @@ pub async fn validate_customer_id_blocking_for_business_profile(
 
     let unsuccessful_payment_threshold = card_testing_guard_config.customer_id_blocking_threshold;
 
+    Ok(validate_blocking_threshold(state, unsuccessful_payment_threshold, cache_key).await?)
+}
+
+pub async fn validate_blocking_threshold(
+    state: &SessionState,
+    unsuccessful_payment_threshold: i32,
+    cache_key: String,
+) -> RouterResult<String> {
     match services::card_testing_guard::get_blocked_count_from_cache(state, &cache_key).await {
         Ok(Some(unsuccessful_payment_count)) => {
             if unsuccessful_payment_count >= unsuccessful_payment_threshold {
@@ -1581,7 +1566,7 @@ pub async fn validate_customer_id_blocking_for_business_profile(
             }
         }
         Ok(None) => Ok(cache_key),
-        Err(_) => Err(errors::ApiErrorResponse::InternalServerError)?,
+        Err(error) => Err(errors::ApiErrorResponse::InternalServerError).attach_printable(error)?,
     }
 }
 
