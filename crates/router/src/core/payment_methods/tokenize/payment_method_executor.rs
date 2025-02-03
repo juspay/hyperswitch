@@ -53,6 +53,7 @@ impl<'a> NetworkTokenizationBuilder<'a, TokenizeWithPmId> {
             state: std::marker::PhantomData,
             customer: None,
             card: None,
+            card_cvc: None,
             network_token: None,
             stored_card: None,
             stored_token: None,
@@ -87,6 +88,7 @@ impl<'a> NetworkTokenizationBuilder<'a, TokenizeWithPmId> {
             payment_method_response: Some(payment_method_response),
             customer: self.customer,
             card: self.card,
+            card_cvc: self.card_cvc,
             network_token: self.network_token,
             stored_card: self.stored_card,
             stored_token: self.stored_token,
@@ -106,6 +108,7 @@ impl<'a> NetworkTokenizationBuilder<'a, PmFetched> {
             state: std::marker::PhantomData,
             customer: Some(customer),
             card: self.card,
+            card_cvc: self.card_cvc,
             network_token: self.network_token,
             stored_card: self.stored_card,
             stored_token: self.stored_token,
@@ -122,13 +125,12 @@ impl<'a> NetworkTokenizationBuilder<'a, PmValidated> {
         self,
         card_from_locker: &'a api_models::payment_methods::Card,
         optional_card_info: Option<diesel_models::CardInfo>,
-        card_cvc: Secret<String>,
+        card_cvc: Option<Secret<String>>,
     ) -> NetworkTokenizationBuilder<'a, PmAssigned> {
-        let card = domain::Card {
+        let card = domain::CardDetailsForNetworkTransactionId {
             card_number: card_from_locker.card_number.clone(),
             card_exp_month: card_from_locker.card_exp_month.clone(),
             card_exp_year: card_from_locker.card_exp_year.clone(),
-            card_cvc,
             bank_code: optional_card_info
                 .as_ref()
                 .and_then(|card_info| card_info.bank_code.clone()),
@@ -153,6 +155,7 @@ impl<'a> NetworkTokenizationBuilder<'a, PmValidated> {
         NetworkTokenizationBuilder {
             state: std::marker::PhantomData,
             card: Some(card),
+            card_cvc,
             customer: self.customer,
             network_token: self.network_token,
             stored_card: self.stored_card,
@@ -166,8 +169,13 @@ impl<'a> NetworkTokenizationBuilder<'a, PmValidated> {
 }
 
 impl<'a> NetworkTokenizationBuilder<'a, PmAssigned> {
-    pub fn get_optional_card(&self) -> Option<domain::Card> {
-        self.card.clone()
+    pub fn get_optional_card_and_cvc(
+        &self,
+    ) -> (
+        Option<domain::CardDetailsForNetworkTransactionId>,
+        Option<Secret<String>>,
+    ) {
+        (self.card.clone(), self.card_cvc.clone())
     }
     pub fn set_token_details(
         self,
@@ -179,6 +187,7 @@ impl<'a> NetworkTokenizationBuilder<'a, PmAssigned> {
             card_tokenized: true,
             customer: self.customer,
             card: self.card,
+            card_cvc: self.card_cvc,
             stored_card: self.stored_card,
             stored_token: self.stored_token,
             payment_method_response: self.payment_method_response,
@@ -198,6 +207,7 @@ impl<'a> NetworkTokenizationBuilder<'a, PmTokenized> {
             stored_token: Some(store_token_response),
             customer: self.customer,
             card: self.card,
+            card_cvc: self.card_cvc,
             network_token: self.network_token,
             stored_card: self.stored_card,
             payment_method_response: self.payment_method_response,
@@ -234,6 +244,7 @@ impl<'a> NetworkTokenizationBuilder<'a, PmTokenStored> {
             payment_method_response: Some(payment_method_response),
             customer: self.customer,
             card: self.card,
+            card_cvc: self.card_cvc,
             stored_token: self.stored_token,
             network_token: self.network_token,
             stored_card: self.stored_card,
@@ -374,7 +385,7 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizePaymentMethodRequest> {
         store_token_response: &pm_transformers::StoreCardRespPayload,
         payment_method: domain::PaymentMethod,
         network_token_details: &NetworkTokenizationResponse,
-        card_details: &domain::Card,
+        card_details: &domain::CardDetailsForNetworkTransactionId,
     ) -> RouterResult<domain::PaymentMethod> {
         // Form encrypted network token data
         let enc_token_data = self

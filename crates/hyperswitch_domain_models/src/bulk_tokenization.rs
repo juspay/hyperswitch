@@ -17,7 +17,6 @@ use crate::{
 #[derive(Debug)]
 pub struct CardNetworkTokenizeRequest {
     pub data: TokenizeDataRequest,
-    pub card_type: Option<payment_methods_api::CardType>,
     pub customer: CustomerDetails,
     pub billing: Option<Address>,
     pub metadata: Option<pii::SecretSerdeValue>,
@@ -35,7 +34,7 @@ pub struct TokenizeCardRequest {
     pub raw_card_number: CardNumber,
     pub card_expiry_month: masking::Secret<String>,
     pub card_expiry_year: masking::Secret<String>,
-    pub card_cvc: masking::Secret<String>,
+    pub card_cvc: Option<masking::Secret<String>>,
     pub card_holder_name: Option<masking::Secret<String>>,
     pub nick_name: Option<masking::Secret<String>>,
     pub card_issuing_country: Option<String>,
@@ -47,7 +46,7 @@ pub struct TokenizeCardRequest {
 #[derive(Clone, Debug)]
 pub struct TokenizePaymentMethodRequest {
     pub payment_method_id: String,
-    pub card_cvc: masking::Secret<String>,
+    pub card_cvc: Option<masking::Secret<String>>,
 }
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize)]
@@ -145,48 +144,41 @@ impl ForeignTryFrom<CardNetworkTokenizeRecord> for payment_methods_api::CardNetw
             record.raw_card_number,
             record.card_expiry_month,
             record.card_expiry_year,
-            record.card_cvc,
             record.payment_method_id,
         ) {
-            (
-                Some(raw_card_number),
-                Some(card_expiry_month),
-                Some(card_expiry_year),
-                Some(card_cvc),
-                _,
-            ) => Ok(Self {
-                merchant_id,
-                data: payment_methods_api::TokenizeDataRequest::Card(
-                    payment_methods_api::TokenizeCardRequest {
-                        raw_card_number,
-                        card_expiry_month,
-                        card_expiry_year,
-                        card_cvc,
-                        card_holder_name: record.card_holder_name,
-                        nick_name: record.nick_name,
-                        card_issuing_country: record.card_issuing_country,
-                        card_network: record.card_network,
-                        card_issuer: record.card_issuer,
-                        card_type: record.card_type.clone(),
-                    },
-                ),
-                billing,
-                customer,
-                card_type: record.card_type,
-                metadata: None,
-                payment_method_issuer: record.payment_method_issuer,
-            }),
-            (_, _, _, Some(card_cvc), Some(payment_method_id)) => Ok(Self {
+            (Some(raw_card_number), Some(card_expiry_month), Some(card_expiry_year), _) => {
+                Ok(Self {
+                    merchant_id,
+                    data: payment_methods_api::TokenizeDataRequest::Card(
+                        payment_methods_api::TokenizeCardRequest {
+                            raw_card_number,
+                            card_expiry_month,
+                            card_expiry_year,
+                            card_cvc: record.card_cvc,
+                            card_holder_name: record.card_holder_name,
+                            nick_name: record.nick_name,
+                            card_issuing_country: record.card_issuing_country,
+                            card_network: record.card_network,
+                            card_issuer: record.card_issuer,
+                            card_type: record.card_type.clone(),
+                        },
+                    ),
+                    billing,
+                    customer,
+                    metadata: None,
+                    payment_method_issuer: record.payment_method_issuer,
+                })
+            }
+            (_, _, _, Some(payment_method_id)) => Ok(Self {
                 merchant_id,
                 data: payment_methods_api::TokenizeDataRequest::PaymentMethod(
                     payment_methods_api::TokenizePaymentMethodRequest {
                         payment_method_id,
-                        card_cvc,
+                        card_cvc: record.card_cvc,
                     },
                 ),
                 billing,
                 customer,
-                card_type: record.card_type,
                 metadata: None,
                 payment_method_issuer: record.payment_method_issuer,
             }),
@@ -233,7 +225,6 @@ impl ForeignFrom<payment_methods_api::CardNetworkTokenizeRequest> for CardNetwor
     fn foreign_from(req: payment_methods_api::CardNetworkTokenizeRequest) -> Self {
         Self {
             data: TokenizeDataRequest::foreign_from(req.data),
-            card_type: req.card_type,
             customer: CustomerDetails::foreign_from(req.customer),
             billing: req.billing.map(ForeignFrom::foreign_from),
             metadata: req.metadata,

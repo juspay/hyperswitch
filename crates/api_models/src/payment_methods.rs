@@ -2405,9 +2405,6 @@ pub struct CardNetworkTokenizeRequest {
     #[serde(flatten)]
     pub data: TokenizeDataRequest,
 
-    /// Card type
-    pub card_type: Option<CardType>,
-
     /// Customer details
     pub customer: payments::CustomerDetails,
 
@@ -2446,8 +2443,8 @@ pub struct TokenizeCardRequest {
     pub card_expiry_year: masking::Secret<String>,
 
     /// The CVC number for the card
-    #[schema(value_type = String,  example = "242")]
-    pub card_cvc: masking::Secret<String>,
+    #[schema(value_type = Option<String>,  example = "242")]
+    pub card_cvc: Option<masking::Secret<String>>,
 
     /// Card Holder Name
     #[schema(value_type = Option<String>, example = "John Doe")]
@@ -2477,7 +2474,7 @@ pub struct TokenizePaymentMethodRequest {
     pub payment_method_id: String,
 
     /// The CVC number for the card
-    pub card_cvc: masking::Secret<String>,
+    pub card_cvc: Option<masking::Secret<String>>,
 }
 
 #[derive(Debug, Default, serde::Deserialize, serde::Serialize, ToSchema)]

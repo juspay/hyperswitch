@@ -6075,6 +6075,18 @@ pub async fn execute_card_tokenization(
         .await?;
     let builder = builder.set_validate_result();
 
+    // Perform BIN lookup and validate card network
+    let optional_card_info = executor
+        .fetch_bin_details_and_validate_card_network(
+            req.raw_card_number.clone(),
+            req.card_issuer.as_ref(),
+            req.card_network.as_ref(),
+            req.card_type.as_ref(),
+            req.card_issuing_country.as_ref(),
+        )
+        .await?;
+    let builder = builder.set_card_details(req, optional_card_info);
+
     // Create customer if not present
     let customer = match optional_customer {
         Some(customer) => customer,
@@ -6082,18 +6094,14 @@ pub async fn execute_card_tokenization(
     };
     let builder = builder.set_customer(&customer);
 
-    // Perform BIN lookup
-    let optional_card_info = executor
-        .fetch_bin_details(req.raw_card_number.clone())
-        .await?;
-    let builder = builder.set_card_details(req, optional_card_info);
-
     // Tokenize card
-    let domain_card = builder
-        .get_optional_card()
-        .get_required_value("value")
+    let (optional_card, optional_cvc) = builder.get_optional_card_and_cvc();
+    let domain_card = optional_card
+        .get_required_value("card")
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
-    let network_token_details = executor.tokenize_card(&customer.id, &domain_card).await?;
+    let network_token_details = executor
+        .tokenize_card(&customer.id, &domain_card, optional_cvc)
+        .await?;
     let builder = builder.set_token_details(&network_token_details);
 
     // Store card and token in locker
@@ -6147,15 +6155,24 @@ pub async fn execute_payment_method_tokenization(
     )
     .await?;
 
-    // Perform BIN lookup
+    // Perform BIN lookup and validate card network
     let optional_card_info = executor
-        .fetch_bin_details(card_details.card_number.clone())
+        .fetch_bin_details_and_validate_card_network(
+            card_details.card_number.clone(),
+            None,
+            None,
+            None,
+            None,
+        )
         .await?;
     let builder = builder.set_card_details(&card_details, optional_card_info, req.card_cvc.clone());
 
     // Tokenize card
-    let domain_card = builder.get_optional_card().get_required_value("card")?;
-    let network_token_details = executor.tokenize_card(&customer.id, &domain_card).await?;
+    let (optional_card, optional_cvc) = builder.get_optional_card_and_cvc();
+    let domain_card = optional_card.get_required_value("card")?;
+    let network_token_details = executor
+        .tokenize_card(&customer.id, &domain_card, optional_cvc)
+        .await?;
     let builder = builder.set_token_details(&network_token_details);
 
     // Store token in locker

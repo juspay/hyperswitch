@@ -154,7 +154,10 @@ pub struct NetworkTokenizationBuilder<'a, S: State> {
     pub customer: Option<&'a api::CustomerDetails>,
 
     /// Card details
-    pub card: Option<domain::Card>,
+    pub card: Option<domain::CardDetailsForNetworkTransactionId>,
+
+    /// CVC
+    pub card_cvc: Option<Secret<String>>,
 
     /// Network token details
     pub network_token: Option<&'a network_tokenization::CardNetworkTokenResponsePayload>,
@@ -203,23 +206,32 @@ pub trait NetworkTokenizationProcess<'a, D> {
     ) -> Self;
     async fn encrypt_card(
         &self,
-        card_details: &domain::Card,
+        card_details: &domain::CardDetailsForNetworkTransactionId,
         saved_to_locker: bool,
     ) -> RouterResult<Encryptable<Secret<serde_json::Value>>>;
     async fn encrypt_network_token(
         &self,
         network_token_details: &NetworkTokenizationResponse,
-        card_details: &domain::Card,
+        card_details: &domain::CardDetailsForNetworkTransactionId,
         saved_to_locker: bool,
     ) -> RouterResult<Encryptable<Secret<serde_json::Value>>>;
-    async fn fetch_bin_details(
+    async fn fetch_bin_details_and_validate_card_network(
         &self,
         card_number: CardNumber,
+        card_issuer: Option<&String>,
+        card_network: Option<&api_enums::CardNetwork>,
+        card_type: Option<&api_models::payment_methods::CardType>,
+        card_issuing_country: Option<&String>,
     ) -> RouterResult<Option<diesel_models::CardInfo>>;
+    fn validate_card_network(
+        &self,
+        optional_card_network: Option<&api_enums::CardNetwork>,
+    ) -> RouterResult<()>;
     async fn tokenize_card(
         &self,
         customer_id: &id_type::CustomerId,
-        card: &domain::Card,
+        card: &domain::CardDetailsForNetworkTransactionId,
+        optional_cvc: Option<Secret<String>>,
     ) -> RouterResult<NetworkTokenizationResponse>;
     async fn store_network_token_in_locker(
         &self,
@@ -253,7 +265,7 @@ where
     }
     async fn encrypt_card(
         &self,
-        card_details: &domain::Card,
+        card_details: &domain::CardDetailsForNetworkTransactionId,
         saved_to_locker: bool,
     ) -> RouterResult<Encryptable<Secret<serde_json::Value>>> {
         let pm_data = api::PaymentMethodsData::Card(api::CardDetailsPaymentMethod {
@@ -277,7 +289,7 @@ where
     async fn encrypt_network_token(
         &self,
         network_token_details: &NetworkTokenizationResponse,
-        card_details: &domain::Card,
+        card_details: &domain::CardDetailsForNetworkTransactionId,
         saved_to_locker: bool,
     ) -> RouterResult<Encryptable<Secret<serde_json::Value>>> {
         let network_token = &network_token_details.0;
@@ -299,27 +311,79 @@ where
             .inspect_err(|err| logger::info!("Error encrypting network token data: {:?}", err))
             .change_context(errors::ApiErrorResponse::InternalServerError)
     }
-    async fn fetch_bin_details(
+    async fn fetch_bin_details_and_validate_card_network(
         &self,
         card_number: CardNumber,
+        card_issuer: Option<&String>,
+        card_network: Option<&api_enums::CardNetwork>,
+        card_type: Option<&api_models::payment_methods::CardType>,
+        card_issuing_country: Option<&String>,
     ) -> RouterResult<Option<diesel_models::CardInfo>> {
         let db = &*self.state.store;
+        if card_issuer.is_some()
+            && card_network.is_some()
+            && card_type.is_some()
+            && card_issuing_country.is_some()
+        {
+            self.validate_card_network(card_network)?;
+            return Ok(None);
+        }
+
         db.get_card_info(&card_number.get_card_isin())
             .await
             .attach_printable("Failed to perform BIN lookup")
-            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .change_context(errors::ApiErrorResponse::InternalServerError)?
+            .map(|card_info| {
+                self.validate_card_network(card_info.card_network.as_ref())?;
+                Ok(card_info)
+            })
+            .transpose()
     }
     async fn tokenize_card(
         &self,
         customer_id: &id_type::CustomerId,
-        card: &domain::Card,
+        card: &domain::CardDetailsForNetworkTransactionId,
+        optional_cvc: Option<Secret<String>>,
     ) -> RouterResult<NetworkTokenizationResponse> {
-        network_tokenization::make_card_network_tokenization_request(self.state, card, customer_id)
-            .await
-            .map_err(|err| {
-                logger::error!("Failed to tokenize card with the network: {:?}", err);
-                report!(errors::ApiErrorResponse::InternalServerError)
-            })
+        network_tokenization::make_card_network_tokenization_request(
+            self.state,
+            card,
+            optional_cvc,
+            customer_id,
+        )
+        .await
+        .map_err(|err| {
+            logger::error!("Failed to tokenize card with the network: {:?}", err);
+            report!(errors::ApiErrorResponse::InternalServerError)
+        })
+    }
+    fn validate_card_network(
+        &self,
+        optional_card_network: Option<&api_enums::CardNetwork>,
+    ) -> RouterResult<()> {
+        optional_card_network.map_or(
+            Err(report!(errors::ApiErrorResponse::NotSupported {
+                message: "Unknown card network".to_string()
+            })),
+            |card_network| {
+                if self
+                    .state
+                    .conf
+                    .network_tokenization_supported_card_networks
+                    .card_networks
+                    .contains(card_network)
+                {
+                    Ok(())
+                } else {
+                    Err(report!(errors::ApiErrorResponse::NotSupported {
+                        message: format!(
+                            "Network tokenization for {} is not supported",
+                            card_network
+                        )
+                    }))
+                }
+            },
+        )
     }
     async fn store_network_token_in_locker(
         &self,

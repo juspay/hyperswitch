@@ -30,7 +30,7 @@ pub struct CardData {
     card_number: CardNumber,
     exp_month: Secret<String>,
     exp_year: Secret<String>,
-    card_security_code: Secret<String>,
+    card_security_code: Option<Secret<String>>,
 }
 
 #[derive(Debug, Serialize)]
@@ -264,7 +264,8 @@ pub async fn mk_tokenization_req(
 
 pub async fn make_card_network_tokenization_request(
     state: &routes::SessionState,
-    card: &domain::Card,
+    card: &domain::CardDetailsForNetworkTransactionId,
+    optional_cvc: Option<Secret<String>>,
     customer_id: &id_type::CustomerId,
 ) -> CustomResult<(CardNetworkTokenResponsePayload, Option<String>), errors::NetworkTokenizationError>
 {
@@ -272,7 +273,7 @@ pub async fn make_card_network_tokenization_request(
         card_number: card.card_number.clone(),
         exp_month: card.card_exp_month.clone(),
         exp_year: card.card_exp_year.clone(),
-        card_security_code: card.card_cvc.clone(),
+        card_security_code: optional_cvc,
     };
 
     let payload = card_data

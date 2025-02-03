@@ -126,6 +126,23 @@ impl CardDetailsForNetworkTransactionId {
     }
 }
 
+impl From<&Card> for CardDetailsForNetworkTransactionId {
+    fn from(item: &Card) -> Self {
+        Self {
+            card_number: item.card_number.to_owned(),
+            card_exp_month: item.card_exp_month.to_owned(),
+            card_exp_year: item.card_exp_year.to_owned(),
+            card_issuer: item.card_issuer.to_owned(),
+            card_network: item.card_network.to_owned(),
+            card_type: item.card_type.to_owned(),
+            card_issuing_country: item.card_issuing_country.to_owned(),
+            bank_code: item.bank_code.to_owned(),
+            nick_name: item.nick_name.to_owned(),
+            card_holder_name: item.card_holder_name.to_owned(),
+        }
+    }
+}
+
 impl From<mandates::NetworkTransactionIdAndCardDetails> for CardDetailsForNetworkTransactionId {
     fn from(card_details_for_nti: mandates::NetworkTransactionIdAndCardDetails) -> Self {
         Self {

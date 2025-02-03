@@ -1020,9 +1020,11 @@ pub async fn save_network_token_in_locker(
         .filter(|cn| network_tokenization_supported_card_networks.contains(cn))
         .is_some()
     {
+        let optional_card_cvc = Some(card_data.card_cvc.clone());
         match network_tokenization::make_card_network_tokenization_request(
             state,
-            card_data,
+            &domain::CardDetailsForNetworkTransactionId::from(card_data),
+            optional_card_cvc,
             &customer_id,
         )
         .await
