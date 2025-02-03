@@ -3097,7 +3097,7 @@ where
                     // should_verify_token is set to false to disable verification of token
                     Some(
                         decryptor
-                            .decrypt_token(&wallet_data.tokenization_data.token.clone(), false)
+                            .decrypt_token(wallet_data.tokenization_data.token.clone(), false)
                             .change_context(errors::ApiErrorResponse::InternalServerError)
                             .attach_printable("failed to decrypt google pay token")?,
                     )
@@ -4123,13 +4123,13 @@ fn get_google_pay_connector_wallet_details(
                             api_models::payments::GooglePayProviderDetails::GooglePayMerchantDetails(merchant_details) => {
                                 GooglePayPaymentProcessingDetails {
                                     google_pay_private_key: merchant_details
-                                    .merchant_info
+                                        .merchant_info
                                         .tokenization_specification
                                         .parameters
                                         .private_key,
                                     google_pay_root_signing_keys,
                                     google_pay_recipient_id: merchant_details
-                                    .merchant_info
+                                        .merchant_info
                                         .tokenization_specification
                                         .parameters
                                         .recipient_id,
@@ -4261,7 +4261,7 @@ pub struct PazePaymentProcessingDetails {
     pub paze_private_key_passphrase: Secret<String>,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct GooglePayPaymentProcessingDetails {
     pub google_pay_private_key: Secret<String>,
     pub google_pay_root_signing_keys: Secret<String>,

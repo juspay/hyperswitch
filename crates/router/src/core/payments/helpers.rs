@@ -5479,6 +5479,7 @@ fn check_expiration_date_is_valid(
     let expiration_ms = expiration
         .parse::<i128>()
         .change_context(errors::GooglePayDecryptionError::InvalidExpirationTime)?;
+    // convert milliseconds to nanoseconds (1 millisecond = 1_000_000 nanoseconds) to create OffsetDateTime
     let expiration_time =
         time::OffsetDateTime::from_unix_timestamp_nanos(expiration_ms * 1_000_000)
             .change_context(errors::GooglePayDecryptionError::InvalidExpirationTime)?;
@@ -5494,16 +5495,8 @@ fn get_little_endian_format(number: u32) -> Vec<u8> {
 
 // Filter and parse the root signing keys based on protocol version and expiration time
 fn filter_root_signing_keys(
-    root_keys: Vec<serde_json::Value>,
+    root_signing_keys: Vec<GooglePayRootSigningKey>,
 ) -> CustomResult<Vec<GooglePayRootSigningKey>, errors::GooglePayDecryptionError> {
-    let root_signing_keys = root_keys
-        .into_iter()
-        .map(|key| {
-            serde_json::from_value::<GooglePayRootSigningKey>(key)
-                .change_context(errors::GooglePayDecryptionError::DeserializationFailed)
-        })
-        .collect::<Result<Vec<_>, _>>()?;
-
     let filtered_root_signing_keys = root_signing_keys
         .iter()
         .filter(|key| {
@@ -5546,7 +5539,9 @@ impl GooglePayTokenDecryptor {
             .attach_printable("cannot convert private key from decode_key")?;
 
         // parse the root signing keys
-        let root_keys_vector: Vec<serde_json::Value> = serde_json::from_str(&root_keys.expose())
+        let root_keys_vector: Vec<GooglePayRootSigningKey> = root_keys
+            .expose()
+            .parse_struct("GooglePayRootSigningKey")
             .change_context(errors::GooglePayDecryptionError::DeserializationFailed)?;
 
         // parse and filter the root signing keys by protocol version
@@ -5562,14 +5557,15 @@ impl GooglePayTokenDecryptor {
     // Decrypt the Google pay token
     pub fn decrypt_token(
         &self,
-        data: &str,
+        data: String,
         should_verify_signature: bool,
     ) -> CustomResult<
         hyperswitch_domain_models::router_data::GooglePayDecryptedData,
         errors::GooglePayDecryptionError,
     > {
         // parse the encrypted data
-        let encrypted_data: EncryptedData = serde_json::from_str(data)
+        let encrypted_data: EncryptedData = data
+            .parse_struct("EncryptedData")
             .change_context(errors::GooglePayDecryptionError::DeserializationFailed)?;
 
         // verify the signature if required
@@ -5599,7 +5595,8 @@ impl GooglePayTokenDecryptor {
 
         // parse the decrypted data
         let decrypted_data: hyperswitch_domain_models::router_data::GooglePayDecryptedData =
-            serde_json::from_slice(&decrypted)
+            decrypted
+                .parse_struct("GooglePayDecryptedData")
                 .change_context(errors::GooglePayDecryptionError::DeserializationFailed)?;
 
         // check the expiration date of the decrypted data
@@ -5718,9 +5715,12 @@ impl GooglePayTokenDecryptor {
         &self,
         intermediate_signing_key: &IntermediateSigningKey,
     ) -> CustomResult<GooglePaySignedKey, errors::GooglePayDecryptionError> {
-        let signed_key: GooglePaySignedKey =
-            serde_json::from_str(intermediate_signing_key.signed_key.peek())
-                .change_context(errors::GooglePayDecryptionError::SignedKeyParsingFailure)?;
+        let signed_key: GooglePaySignedKey = intermediate_signing_key
+            .signed_key
+            .clone()
+            .expose()
+            .parse_struct("GooglePaySignedKey")
+            .change_context(errors::GooglePayDecryptionError::SignedKeyParsingFailure)?;
         if !matches!(
             check_expiration_date_is_valid(&signed_key.key_expiration),
             Ok(true)
@@ -5756,7 +5756,7 @@ impl GooglePayTokenDecryptor {
         let sender_id = String::from_utf8(SENDER_ID.to_vec())
             .change_context(errors::GooglePayDecryptionError::DeserializationFailed)?;
 
-        // parse the signed message to string
+        // serialize the signed message to string
         let signed_message = serde_json::to_string(&encrypted_data.signed_message)
             .change_context(errors::GooglePayDecryptionError::SignedKeyParsingFailure)?;
 
@@ -5890,7 +5890,7 @@ impl GooglePayTokenDecryptor {
         // initialize HKDF with SHA-256 as the hash function
         // Salt is not provided as per the Google Pay documentation
         // https://developers.google.com/pay/api/android/guides/resources/payment-data-cryptography#encrypt-spec
-        let hkdf: ::hkdf::Hkdf<sha2::Sha256> = ::hkdf::Hkdf::new(None, &input_key_material); // 32 zeroed bytes as salt
+        let hkdf: ::hkdf::Hkdf<sha2::Sha256> = ::hkdf::Hkdf::new(None, &input_key_material);
 
         // derive 64 bytes for the output key (symmetric encryption + MAC key)
         let mut output_key = vec![0u8; 64];
