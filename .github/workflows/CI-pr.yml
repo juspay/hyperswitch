@@ -243,7 +243,7 @@ jobs:
       - name: Install rust cache
         uses: Swatinem/rust-cache@v2.7.7
         with: 
-            save-if: false
+            save-if: true
 
       - name: Install cargo-hack
         uses: taiki-e/install-action@v2.33.28

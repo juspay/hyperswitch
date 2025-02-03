@@ -84,7 +84,8 @@ jobs:
       #     tool: sccache
       #     checksum: true
 
-      - uses: Swatinem/rust-cache@v2.7.7
+      - name: Install rust cache
+        uses: Swatinem/rust-cache@v2.7.7
         with:
           save-if: ${{ github.event_name == 'push' }}
 
@@ -196,7 +197,8 @@ jobs:
       #   with:
       #     crate: cargo-nextest
 
-      - uses: Swatinem/rust-cache@v2.7.7
+      - name: Install rust cache
+        uses: Swatinem/rust-cache@v2.7.7
         with:
           save-if: ${{ github.event_name == 'push' }}
 
