@@ -5,7 +5,7 @@ use std::{
 };
 pub mod additional_info;
 use cards::CardNumber;
-use common_enums::ProductType;
+use common_enums::{PaymentMethodType, ProductType,PaymentMethod};
 #[cfg(feature = "v2")]
 use common_utils::id_type::GlobalPaymentId;
 use common_utils::{
@@ -6650,7 +6650,10 @@ pub struct FeatureMetadata {
     #[schema(value_type = Option<Vec<String>>)]
     pub search_tags: Option<Vec<HashedString<WithType>>>,
     /// Recurring payment details required for apple pay Merchant Token
-    pub apple_pay_recurring_details: Option<ApplePayRecurringDetails>,
+    pub apple_pay_recurring_details: Option<ApplePayRecurringDetails>, 
+    /// revenue recovery data for payment intent
+    #[cfg(feature= "v2" )]
+    pub revenue_recovery_metadata: Option<RevenueRecoveryMetadata>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -7505,4 +7508,32 @@ mod billing_from_payment_method_data {
 
         assert!(billing_details.is_none());
     }
+}
+
+#[cfg(feature="v2")]
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize, ToSchema)]
+pub struct RevenueRecoveryMetadata {
+    ///Total number of billing connector + recovery retries for a payment intent.
+    #[schema(value_type = i32,example = "1")]
+    pub retry_count : i32,
+    //if the payment_connector has been called or not
+    pub payment_connector_transmission : bool,
+    // Billing Connector Id to update the invoices
+    pub billing_connector_id : id_type::MerchantConnectorAccountId,
+    // Payment Connector Id to retry the payments
+    pub active_attempt_payment_connector_id : id_type::MerchantConnectorAccountId,
+    // Billing Connector Mit Token Details
+    pub billing_connector_mit_token_details : BillingConnectorMitTokenDetails,
+    //Payment Method Type
+    pub payment_method_type : PaymentMethod,   
+    //PaymentMethod Subtype
+    pub payment_method_subtype : PaymentMethodType
+}
+#[derive(Debug, Clone, Eq, PartialEq,Serialize, Deserialize, ToSchema)]
+#[cfg(feature="v2")]
+pub struct BillingConnectorMitTokenDetails{
+    //Payment Processor Token To process the retry payment
+    pub payment_processor_token : String,
+    //Connector Customer Id to process the retry payment
+    pub connector_customer_id : String,
 }
