@@ -42,8 +42,6 @@ jobs:
     runs-on: ${{ matrix.runner }}
 
     env:
-      # Use `sccache` for caching compilation artifacts
-      # RUSTC_WRAPPER: sccache
       RUSTFLAGS: "-D warnings"
 
     strategy:
@@ -77,17 +75,11 @@ jobs:
         uses: arduino/setup-protoc@v3
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
-          
-      # - name: Install sccache
-      #   uses: taiki-e/install-action@v2.33.28
-      #   with:
-      #     tool: sccache
-      #     checksum: true
 
       - name: Install rust cache
         uses: Swatinem/rust-cache@v2.7.7
         with:
-          save-if: ${{ github.event_name == 'push' }}
+          save-if: true
 
       - name: Install cargo-hack
         uses: baptiste0928/cargo-install@v2.2.0
@@ -140,8 +132,6 @@ jobs:
     runs-on: ${{ matrix.runner }}
 
     env:
-      # Use `sccache` for caching compilation artifacts
-      # RUSTC_WRAPPER: sccache
       RUSTFLAGS: "-D warnings"
 
     strategy:
@@ -171,12 +161,6 @@ jobs:
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
-      # - name: Install sccache
-      #   uses: taiki-e/install-action@v2.33.28
-      #   with:
-      #     tool: sccache
-      #     checksum: true
-
       - name: Install cargo-hack
         uses: baptiste0928/cargo-install@v2.2.0
         with:
@@ -200,7 +184,7 @@ jobs:
       - name: Install rust cache
         uses: Swatinem/rust-cache@v2.7.7
         with:
-          save-if: ${{ github.event_name == 'push' }}
+          save-if: true
 
       - name: Run clippy
         shell: bash
@@ -252,6 +236,8 @@ jobs:
 
       - name: Install rust cache
         uses: Swatinem/rust-cache@v2.7.7
+        with:
+          save-if: true
 
       - name: Run cargo check enabling only the release and v2 features
         shell: bash
