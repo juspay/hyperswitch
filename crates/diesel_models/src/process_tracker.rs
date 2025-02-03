@@ -277,4 +277,7 @@ pub mod business_status {
 
     /// This status indicates the completion of a psync task
     pub const PSYNC_WORKFLOW_COMPLETE: &str = "COMPLETED_PSYNC_TASK";
+
+    /// This status indicates that the psync task was completed to trigger the review task
+    pub const PSYNC_WORKFLOW_COMPLETE_FOR_REVIEW: &str = "COMPLETED_PSYNC_TASK_TO_TRIGGER_REVIEW";
 }

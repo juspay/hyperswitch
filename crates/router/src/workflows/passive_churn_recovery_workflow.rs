@@ -23,6 +23,7 @@ use crate::{
         storage,
     },
 };
+use api_models::payments::PaymentsGetIntentRequest;
 
 pub struct ExecutePcrWorkflow;
 
@@ -47,12 +48,14 @@ impl ProcessTrackerWorkflow<SessionState> for ExecutePcrWorkflow {
                 let tracking_data = process
                     .tracking_data
                     .clone()
-                    .parse_value::<pcr_storage_types::PCRExecuteWorkflowTrackingData>(
-                    "PCRExecuteWorkflowTrackingData",
+                    .parse_value::<pcr_storage_types::PCRWorkflowTrackingData>(
+                    "PCRWorkflowTrackingData",
                 )?;
-
+                let request = PaymentsGetIntentRequest {
+                    id: tracking_data.global_payment_id.clone(),
+                };
                 let key_manager_state = &state.into();
-                let pcr_data = extract_data_and_perform_action(state, &process).await?;
+                let pcr_data = extract_data_and_perform_action(state, &tracking_data).await?;
                 let (payment_data, _, _) = payments::payments_intent_operation_core::<
                     api_types::PaymentGetIntent,
                     _,
@@ -65,8 +68,8 @@ impl ProcessTrackerWorkflow<SessionState> for ExecutePcrWorkflow {
                     pcr_data.profile.clone(),
                     pcr_data.key_store.clone(),
                     payments::operations::PaymentGetIntent,
-                    tracking_data.request,
-                    pcr_data.global_payment_id.clone(),
+                    request,
+                    tracking_data.global_payment_id,
                     hyperswitch_domain_models::payments::HeaderPayload::default(),
                     pcr_data.platform_merchant_account,
                 )
@@ -84,7 +87,25 @@ impl ProcessTrackerWorkflow<SessionState> for ExecutePcrWorkflow {
                 )
                 .await
             }
-            Some("PSYNC_WORKFLOW") => todo!(),
+            Some("PSYNC_WORKFLOW") => {
+                let key_manager_state = &state.into();
+                let tracking_data = process
+                    .tracking_data
+                    .clone()
+                    .parse_value::<pcr_storage_types::PCRWorkflowTrackingData>(
+                    "PCRWorkflowTrackingData",
+                )?;
+                let pcr_data = extract_data_and_perform_action(state, &tracking_data).await?;
+                Box::pin(pcr::decide_execute_psync_workflow(
+                    state,
+                    &process,
+                    &tracking_data,
+                    &pcr_data,
+                    key_manager_state,
+                ))
+                .await?;
+                Ok(())
+            }
 
             Some("REVIEW_WORKFLOW") => todo!(),
             _ => Err(errors::ProcessTrackerError::JobNotFound),
@@ -95,15 +116,9 @@ impl ProcessTrackerWorkflow<SessionState> for ExecutePcrWorkflow {
 #[cfg(feature = "v2")]
 pub(crate) async fn extract_data_and_perform_action(
     state: &SessionState,
-    process: &storage::ProcessTracker,
+    tracking_data: &pcr_storage_types::PCRWorkflowTrackingData,
 ) -> Result<pcr_storage_types::PCRPaymentData, errors::ProcessTrackerError> {
     let db = &state.store;
-    let tracking_data = process
-        .tracking_data
-        .clone()
-        .parse_value::<pcr_storage_types::PCRExecuteWorkflowTrackingData>(
-        "PCRExecuteWorkflowTrackingData",
-    )?;
 
     let key_manager_state = &state.into();
     let key_store = db
@@ -130,11 +145,11 @@ pub(crate) async fn extract_data_and_perform_action(
         )
         .await?;
     let platform_merchant_account =
-        if let Some(platform_merchant_id) = tracking_data.platform_merchant_id {
+        if let Some(platform_merchant_id) = &tracking_data.platform_merchant_id {
             Some(
                 db.find_merchant_account_by_merchant_id(
                     key_manager_state,
-                    &platform_merchant_id,
+                    platform_merchant_id,
                     &key_store,
                 )
                 .await?,
@@ -143,13 +158,11 @@ pub(crate) async fn extract_data_and_perform_action(
             None
         };
 
-    let global_payment_id = tracking_data.global_payment_id.clone();
     let pcr_payment_data = pcr_storage_types::PCRPaymentData {
         merchant_account,
         profile,
         platform_merchant_account,
         key_store,
-        global_payment_id,
     };
     Ok(pcr_payment_data)
 }
