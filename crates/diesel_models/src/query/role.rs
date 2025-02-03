@@ -168,22 +168,20 @@ impl Role {
     ) -> StorageResult<Vec<Self>> {
         let mut query = <Self as HasTable>::table()
             .into_boxed()
-            .filter(dsl::tenant_id.eq(tenant_id));
+            .filter(dsl::tenant_id.eq(tenant_id))
+            .filter(dsl::org_id.eq(org_id));
 
         match payload {
             ListRolesByEntityPayload::Organization => {
                 let entity_in_vec =
                     Self::get_entity_list(EntityType::Organization, is_lineage_data_required);
-                query = query
-                    .filter(dsl::org_id.eq(org_id))
-                    .filter(dsl::entity_type.eq_any(entity_in_vec))
+                query = query.filter(dsl::entity_type.eq_any(entity_in_vec))
             }
 
             ListRolesByEntityPayload::Merchant(merchant_id) => {
                 let entity_in_vec =
                     Self::get_entity_list(EntityType::Merchant, is_lineage_data_required);
                 query = query
-                    .filter(dsl::org_id.eq(org_id))
                     .filter(
                         dsl::scope
                             .eq(RoleScope::Organization)
@@ -196,7 +194,6 @@ impl Role {
                 let entity_in_vec =
                     Self::get_entity_list(EntityType::Profile, is_lineage_data_required);
                 query = query
-                    .filter(dsl::org_id.eq(org_id))
                     .filter(
                         dsl::scope
                             .eq(RoleScope::Organization)
