@@ -188,6 +188,7 @@ jobs:
       # Use `sccache` for caching compilation artifacts
       # RUSTC_WRAPPER: sccache
       RUSTFLAGS: "-D warnings"
+      ACTIONS_STEP_DEBUG: true
 
     strategy:
       fail-fast: false
