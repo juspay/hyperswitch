@@ -3671,9 +3671,10 @@ impl RoleInterface for KafkaStore {
         payload: diesel_models::role::ListRolesByEntityPayload,
         is_lineage_data_required: bool,
         tenant_id: id_type::TenantId,
+        org_id: id_type::OrganizationId,
     ) -> CustomResult<Vec<storage::Role>, errors::StorageError> {
         self.diesel_store
-            .generic_list_roles_by_entity_type(payload, is_lineage_data_required, tenant_id)
+            .generic_list_roles_by_entity_type(payload, is_lineage_data_required, tenant_id, org_id)
             .await
     }
 }

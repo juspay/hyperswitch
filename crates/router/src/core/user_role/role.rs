@@ -362,9 +362,10 @@ pub async fn list_roles_with_info(
             EntityType::Tenant | EntityType::Organization => state
                 .global_store
                 .generic_list_roles_by_entity_type(
-                    ListRolesByEntityPayload::Organization(user_from_token.org_id),
+                    ListRolesByEntityPayload::Organization,
                     is_lineage_data_required,
                     tenant_id,
+                    user_from_token.org_id,
                 )
                 .await
                 .change_context(UserErrors::InternalServerError)
@@ -372,12 +373,10 @@ pub async fn list_roles_with_info(
             EntityType::Merchant => state
                 .global_store
                 .generic_list_roles_by_entity_type(
-                    ListRolesByEntityPayload::Merchant(
-                        user_from_token.org_id,
-                        user_from_token.merchant_id,
-                    ),
+                    ListRolesByEntityPayload::Merchant(user_from_token.merchant_id),
                     is_lineage_data_required,
                     tenant_id,
+                    user_from_token.org_id,
                 )
                 .await
                 .change_context(UserErrors::InternalServerError)
@@ -387,12 +386,12 @@ pub async fn list_roles_with_info(
                 .global_store
                 .generic_list_roles_by_entity_type(
                     ListRolesByEntityPayload::Profile(
-                        user_from_token.org_id,
                         user_from_token.merchant_id,
                         user_from_token.profile_id,
                     ),
                     is_lineage_data_required,
                     tenant_id,
+                    user_from_token.org_id,
                 )
                 .await
                 .change_context(UserErrors::InternalServerError)
@@ -456,9 +455,10 @@ pub async fn list_roles_at_entity_level(
         EntityType::Tenant | EntityType::Organization => state
             .global_store
             .generic_list_roles_by_entity_type(
-                ListRolesByEntityPayload::Organization(user_from_token.org_id),
+                ListRolesByEntityPayload::Organization,
                 is_lineage_data_required,
                 tenant_id,
+                user_from_token.org_id,
             )
             .await
             .change_context(UserErrors::InternalServerError)
@@ -467,12 +467,10 @@ pub async fn list_roles_at_entity_level(
         EntityType::Merchant => state
             .global_store
             .generic_list_roles_by_entity_type(
-                ListRolesByEntityPayload::Merchant(
-                    user_from_token.org_id,
-                    user_from_token.merchant_id,
-                ),
+                ListRolesByEntityPayload::Merchant(user_from_token.merchant_id),
                 is_lineage_data_required,
                 tenant_id,
+                user_from_token.org_id,
             )
             .await
             .change_context(UserErrors::InternalServerError)
@@ -482,12 +480,12 @@ pub async fn list_roles_at_entity_level(
             .global_store
             .generic_list_roles_by_entity_type(
                 ListRolesByEntityPayload::Profile(
-                    user_from_token.org_id,
                     user_from_token.merchant_id,
                     user_from_token.profile_id,
                 ),
                 is_lineage_data_required,
                 tenant_id,
+                user_from_token.org_id,
             )
             .await
             .change_context(UserErrors::InternalServerError)

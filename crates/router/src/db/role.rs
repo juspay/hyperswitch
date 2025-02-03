@@ -67,6 +67,7 @@ pub trait RoleInterface {
         payload: storage::ListRolesByEntityPayload,
         is_lineage_data_required: bool,
         tenant_id: id_type::TenantId,
+        org_id: id_type::OrganizationId,
     ) -> CustomResult<Vec<storage::Role>, errors::StorageError>;
 }
 
@@ -181,6 +182,7 @@ impl RoleInterface for Store {
         payload: storage::ListRolesByEntityPayload,
         is_lineage_data_required: bool,
         tenant_id: id_type::TenantId,
+        org_id: id_type::OrganizationId,
     ) -> CustomResult<Vec<storage::Role>, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
         storage::Role::generic_list_roles_by_entity_type(
@@ -188,6 +190,7 @@ impl RoleInterface for Store {
             payload,
             is_lineage_data_required,
             tenant_id,
+            org_id,
         )
         .await
         .map_err(|error| report!(errors::StorageError::from(error)))
@@ -389,12 +392,13 @@ impl RoleInterface for MockDb {
         payload: storage::ListRolesByEntityPayload,
         is_lineage_data_required: bool,
         tenant_id: id_type::TenantId,
+        org_id: id_type::OrganizationId,
     ) -> CustomResult<Vec<storage::Role>, errors::StorageError> {
         let roles = self.roles.lock().await;
         let roles_list: Vec<_> = roles
             .iter()
             .filter(|role| match &payload {
-                storage::ListRolesByEntityPayload::Organization(org_id) => {
+                storage::ListRolesByEntityPayload::Organization => {
                     let entity_in_vec = if is_lineage_data_required {
                         vec![
                             EntityType::Organization,
@@ -406,10 +410,10 @@ impl RoleInterface for MockDb {
                     };
 
                     role.tenant_id == tenant_id
-                        && role.org_id == *org_id
+                        && role.org_id == org_id
                         && entity_in_vec.contains(&role.entity_type)
                 }
-                storage::ListRolesByEntityPayload::Merchant(org_id, merchant_id) => {
+                storage::ListRolesByEntityPayload::Merchant(merchant_id) => {
                     let entity_in_vec = if is_lineage_data_required {
                         vec![EntityType::Merchant, EntityType::Profile]
                     } else {
@@ -417,12 +421,12 @@ impl RoleInterface for MockDb {
                     };
 
                     role.tenant_id == tenant_id
-                        && role.org_id == *org_id
+                        && role.org_id == org_id
                         && (role.scope == RoleScope::Organization
                             || role.merchant_id == *merchant_id)
                         && entity_in_vec.contains(&role.entity_type)
                 }
-                storage::ListRolesByEntityPayload::Profile(org_id, merchant_id, profile_id) => {
+                storage::ListRolesByEntityPayload::Profile(merchant_id, profile_id) => {
                     let entity_in_vec = [EntityType::Profile];
 
                     let matches_merchant =
@@ -437,7 +441,7 @@ impl RoleInterface for MockDb {
                             });
 
                     role.tenant_id == tenant_id
-                        && role.org_id == *org_id
+                        && role.org_id == org_id
                         && (role.scope == RoleScope::Organization
                             || matches_merchant
                             || matches_profile)

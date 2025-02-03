@@ -60,22 +60,21 @@ pub async fn validate_role_name(
         .any(|(_, role_info)| role_info.get_role_name() == role_name_str);
 
     let entity_type_for_role = match entity_type {
-        EntityType::Tenant | EntityType::Organization => {
-            ListRolesByEntityPayload::Organization(org_id.to_owned())
+        EntityType::Tenant | EntityType::Organization => ListRolesByEntityPayload::Organization,
+        EntityType::Merchant => ListRolesByEntityPayload::Merchant(merchant_id.to_owned()),
+        EntityType::Profile => {
+            ListRolesByEntityPayload::Profile(merchant_id.to_owned(), profile_id.to_owned())
         }
-        EntityType::Merchant => {
-            ListRolesByEntityPayload::Merchant(org_id.to_owned(), merchant_id.to_owned())
-        }
-        EntityType::Profile => ListRolesByEntityPayload::Profile(
-            org_id.to_owned(),
-            merchant_id.to_owned(),
-            profile_id.to_owned(),
-        ),
     };
 
     let is_present_in_custom_role = match state
         .global_store
-        .generic_list_roles_by_entity_type(entity_type_for_role, false, tenant_id.to_owned())
+        .generic_list_roles_by_entity_type(
+            entity_type_for_role,
+            false,
+            tenant_id.to_owned(),
+            org_id.to_owned(),
+        )
         .await
     {
         Ok(roles_list) => roles_list
