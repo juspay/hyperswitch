@@ -5,6 +5,8 @@ use router_env::logger;
 use super::errors;
 use crate::{
     core::errors::RouterResult,
+    routes::SessionState,
+    services,
     types::domain,
     utils::crypto::{self, SignMessage},
 };
@@ -46,5 +48,41 @@ pub async fn generate_fingerprint(
         }
         None => Err(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("card testing secret key not configured")?,
+    }
+}
+
+pub async fn increment_blocked_count_in_cache(
+    state: &SessionState,
+    card_testing_guard_data: Option<
+        hyperswitch_domain_models::card_testing_guard_data::CardTestingGuardData,
+    >,
+) {
+    if let Some(card_testing_guard_data) = card_testing_guard_data.clone() {
+        if card_testing_guard_data.is_card_ip_blocking_enabled {
+            let _ = services::card_testing_guard::increment_blocked_count_in_cache(
+                state,
+                &card_testing_guard_data.card_ip_blocking_cache_key,
+                card_testing_guard_data.card_testing_guard_expiry.into(),
+            )
+            .await;
+        }
+
+        if card_testing_guard_data.is_guest_user_card_blocking_enabled {
+            let _ = services::card_testing_guard::increment_blocked_count_in_cache(
+                state,
+                &card_testing_guard_data.guest_user_card_blocking_cache_key,
+                card_testing_guard_data.card_testing_guard_expiry.into(),
+            )
+            .await;
+        }
+
+        if card_testing_guard_data.is_customer_id_blocking_enabled {
+            let _ = services::card_testing_guard::increment_blocked_count_in_cache(
+                state,
+                &card_testing_guard_data.customer_id_blocking_cache_key,
+                card_testing_guard_data.card_testing_guard_expiry.into(),
+            )
+            .await;
+        }
     }
 }

@@ -30,6 +30,7 @@ use crate::{
     connector::utils::PaymentResponseRouterData,
     consts,
     core::{
+        card_testing_guard::utils as card_testing_guard_utils,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         mandate,
         payment_methods::{self, cards::create_encrypted_data},
@@ -45,7 +46,6 @@ use crate::{
         utils as core_utils,
     },
     routes::{metrics, SessionState},
-    services,
     types::{
         self, domain,
         storage::{self, enums},
@@ -2049,34 +2049,11 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
     });
 
     if payment_data.payment_attempt.status == enums::AttemptStatus::Failure {
-        if let Some(card_testing_guard_data) = payment_data.card_testing_guard_data.clone() {
-            if card_testing_guard_data.is_card_ip_blocking_enabled {
-                let _ = services::card_testing_guard::increment_blocked_count_in_cache(
-                    state,
-                    &card_testing_guard_data.card_ip_blocking_cache_key,
-                    card_testing_guard_data.card_testing_guard_expiry.into(),
-                )
-                .await;
-            }
-
-            if card_testing_guard_data.is_guest_user_card_blocking_enabled {
-                let _ = services::card_testing_guard::increment_blocked_count_in_cache(
-                    state,
-                    &card_testing_guard_data.guest_user_card_blocking_cache_key,
-                    card_testing_guard_data.card_testing_guard_expiry.into(),
-                )
-                .await;
-            }
-
-            if card_testing_guard_data.is_customer_id_blocking_enabled {
-                let _ = services::card_testing_guard::increment_blocked_count_in_cache(
-                    state,
-                    &card_testing_guard_data.customer_id_blocking_cache_key,
-                    card_testing_guard_data.card_testing_guard_expiry.into(),
-                )
-                .await;
-            }
-        }
+        card_testing_guard_utils::increment_blocked_count_in_cache(
+            state,
+            payment_data.card_testing_guard_data.clone(),
+        )
+        .await;
     }
 
     match router_data.integrity_check {
