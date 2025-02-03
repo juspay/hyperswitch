@@ -167,22 +167,6 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Xe
 }
 
 impl ConnectorValidation for Xendit {
-    fn validate_connector_against_payment_request(
-        &self,
-        capture_method: Option<CaptureMethod>,
-        _payment_method: enums::PaymentMethod,
-        _pmt: Option<PaymentMethodType>,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let capture_method = capture_method.unwrap_or_default();
-        match capture_method {
-            CaptureMethod::Automatic
-            | CaptureMethod::Manual
-            | CaptureMethod::SequentialAutomatic => Ok(()),
-            CaptureMethod::ManualMultiple | CaptureMethod::Scheduled => Err(
-                utils::construct_not_supported_error_report(capture_method, self.id()),
-            ),
-        }
-    }
     fn validate_mandate_payment(
         &self,
         pm_type: Option<PaymentMethodType>,
