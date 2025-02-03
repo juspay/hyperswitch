@@ -78,12 +78,9 @@ ttl_for_storage_in_secs = 220752000
 
 [forex_api]
 call_delay = 21600
-local_fetch_retry_count = 5
-local_fetch_retry_delay = 1000
-api_timeout = 20000
-api_key = "YOUR API KEY HERE"
-fallback_api_key = "YOUR API KEY HERE"
-redis_lock_timeout = 26000
+api_key = ""
+fallback_api_key = ""
+redis_lock_timeout = 100
 
 [jwekey]
 vault_encryption_key = ""
@@ -215,6 +212,7 @@ bluesnap.secondary_base_url = "https://sandpay.bluesnap.com/"
 boku.base_url = "https://$-api4-stage.boku.com"
 braintree.base_url = "https://payments.sandbox.braintree-api.com/graphql"
 cashtocode.base_url = "https://cluster05.api-test.cashtocode.com"
+chargebee.base_url = "https://$.chargebee.com/api/"
 checkout.base_url = "https://api.sandbox.checkout.com/"
 coinbase.base_url = "https://api.commerce.coinbase.com"
 cryptopay.base_url = "https://business-sandbox.cryptopay.me"
