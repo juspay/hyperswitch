@@ -862,30 +862,9 @@ impl IncomingWebhook for Gocardless {
 
 lazy_static! {
     static ref GOCARDLESS_SUPPORTED_PAYMENT_METHODS: SupportedPaymentMethods = {
-        let default_capture_methods = vec![];
         let supported_capture_methods = vec![enums::CaptureMethod::Automatic];
-        let supported_card_network = vec![];
 
         let mut gocardless_supported_payment_methods = SupportedPaymentMethods::new();
-
-        gocardless_supported_payment_methods.add(
-            enums::PaymentMethod::Card,
-            enums::PaymentMethodType::Credit,
-            PaymentMethodDetails {
-                mandates: common_enums::FeatureStatus::NotSupported,
-                refunds: common_enums::FeatureStatus::NotSupported,
-                supported_capture_methods: default_capture_methods.clone(),
-                specific_features: Some(
-                    api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
-                        api_models::feature_matrix::CardSpecificFeatures {
-                            three_ds: common_enums::FeatureStatus::NotSupported,
-                            non_three_ds: common_enums::FeatureStatus::NotSupported,
-                            supported_card_networks: supported_card_network.clone(),
-                        }
-                    }),
-                ),
-            },
-        );
 
         gocardless_supported_payment_methods.add(
             enums::PaymentMethod::BankDebit,
