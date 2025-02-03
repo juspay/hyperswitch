@@ -6,7 +6,7 @@ pm.test("[POST]::/payments - Status code is 2xx", function () {
 // Validate if response header has matching content-type
 pm.test("[POST]::/payments - Content-Type is application/json", function () {
   pm.expect(pm.response.headers.get("Content-Type")).to.include(
-    "application/json",
+    "application/json"
   );
 });
 
@@ -26,11 +26,11 @@ if (jsonData?.payment_id) {
   pm.collectionVariables.set("payment_id", jsonData.payment_id);
   console.log(
     "- use {{payment_id}} as collection variable for value",
-    jsonData.payment_id,
+    jsonData.payment_id
   );
 } else {
   console.log(
-    "INFO - Unable to assign variable {{payment_id}}, as jsonData.payment_id is undefined.",
+    "INFO - Unable to assign variable {{payment_id}}, as jsonData.payment_id is undefined."
   );
 }
 
@@ -39,11 +39,11 @@ if (jsonData?.mandate_id) {
   pm.collectionVariables.set("mandate_id", jsonData.mandate_id);
   console.log(
     "- use {{mandate_id}} as collection variable for value",
-    jsonData.mandate_id,
+    jsonData.mandate_id
   );
 } else {
   console.log(
-    "INFO - Unable to assign variable {{mandate_id}}, as jsonData.mandate_id is undefined.",
+    "INFO - Unable to assign variable {{mandate_id}}, as jsonData.mandate_id is undefined."
   );
 }
 
@@ -52,11 +52,11 @@ if (jsonData?.client_secret) {
   pm.collectionVariables.set("client_secret", jsonData.client_secret);
   console.log(
     "- use {{client_secret}} as collection variable for value",
-    jsonData.client_secret,
+    jsonData.client_secret
   );
 } else {
   console.log(
-    "INFO - Unable to assign variable {{client_secret}}, as jsonData.client_secret is undefined.",
+    "INFO - Unable to assign variable {{client_secret}}, as jsonData.client_secret is undefined."
   );
 }
 
@@ -65,8 +65,8 @@ if (jsonData?.status) {
   pm.test(
     "[POST]::/payments - Content check if value for 'status' matches 'failed'",
     function () {
-      pm.expect(jsonData.status).to.eql("failed");
-    },
+      pm.expect(jsonData.status).to.eql("failed", "requires_customer_action");
+    }
   );
 }
 
@@ -76,7 +76,7 @@ pm.test(
   function () {
     pm.expect(typeof jsonData.connector_transaction_id !== "undefined").to.be
       .true;
-  },
+  }
 );
 
 // Response body should have value "card_declined" for "error_code"
@@ -85,7 +85,7 @@ if (jsonData?.error_code) {
     "[POST]::/payments/:id/confirm - Content check if value for 'error_code' matches 'card_declined'",
     function () {
       pm.expect(jsonData.error_code).to.eql("card_declined");
-    },
+    }
   );
 }
 
@@ -94,7 +94,9 @@ if (jsonData?.error_message) {
   pm.test(
     "[POST]::/payments/:id/confirm - Content check if value for 'error_message' matches 'message - Your card has insufficient funds., decline_code - insufficient_funds'",
     function () {
-      pm.expect(jsonData.error_message).to.eql("message - Your card has insufficient funds., decline_code - insufficient_funds");
-    },
+      pm.expect(jsonData.error_message).to.eql(
+        "message - Your card has insufficient funds., decline_code - insufficient_funds"
+      );
+    }
   );
 }

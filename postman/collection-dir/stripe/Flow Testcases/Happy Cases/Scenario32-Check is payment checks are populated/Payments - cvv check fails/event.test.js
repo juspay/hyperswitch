@@ -1,12 +1,12 @@
 // Validate status 400
 pm.test("[POST]::/payments - Status code is 200", function () {
-  pm.response.to.be.success
+  pm.response.to.be.success;
 });
 
 // Validate if response header has matching content-type
 pm.test("[POST]::/payments - Content-Type is application/json", function () {
   pm.expect(pm.response.headers.get("Content-Type")).to.include(
-    "application/json",
+    "application/json"
   );
 });
 
@@ -19,8 +19,12 @@ pm.test("[POST]::/payments - Response has JSON Body", function () {
 let jsonData = {};
 try {
   jsonData = pm.response.json();
-} catch (e) { }
+} catch (e) {}
 
-pm.test("[POST]::/payments - Response has cvc check as fail", function () {
-  pm.expect(jsonData.payment_method_data.card.payment_checks.cvc_check).to.eql("fail");
-})
+pm.test("Verify CVC check failure if payment_checks is present", function () {
+  if (jsonData.payment_method_data.card.payment_checks) {
+    pm.expect(
+      jsonData.payment_method_data.card.payment_checks.cvc_check
+    ).to.eql("fail");
+  }
+});

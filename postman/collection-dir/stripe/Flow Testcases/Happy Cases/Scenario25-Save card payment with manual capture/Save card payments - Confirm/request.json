@@ -41,19 +41,13 @@
       "client_secret": "{{client_secret}}",
       "payment_method": "card",
       "payment_token": "{{payment_token}}",
-      "card_cvc": "7373"
+      "card_cvc": "737"
     }
   },
   "url": {
     "raw": "{{baseUrl}}/payments/:id/confirm",
-    "host": [
-      "{{baseUrl}}"
-    ],
-    "path": [
-      "payments",
-      ":id",
-      "confirm"
-    ],
+    "host": ["{{baseUrl}}"],
+    "path": ["payments", ":id", "confirm"],
     "variable": [
       {
         "key": "id",
