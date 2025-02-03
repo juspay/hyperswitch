@@ -5,7 +5,6 @@ pub mod checkout;
 #[cfg(feature = "dummy_connector")]
 pub mod dummyconnector;
 pub mod ebanx;
-pub mod globalpay;
 pub mod gpayments;
 pub mod netcetera;
 pub mod nmi;
@@ -35,8 +34,8 @@ pub use hyperswitch_connectors::connectors::{
     cybersource::Cybersource, datatrans, datatrans::Datatrans, deutschebank,
     deutschebank::Deutschebank, digitalvirgo, digitalvirgo::Digitalvirgo, dlocal, dlocal::Dlocal,
     elavon, elavon::Elavon, fiserv, fiserv::Fiserv, fiservemea, fiservemea::Fiservemea, fiuu,
-    fiuu::Fiuu, forte, forte::Forte, globepay, globepay::Globepay, gocardless,
-    gocardless::Gocardless, helcim, helcim::Helcim, iatapay, iatapay::Iatapay, inespay,
+    fiuu::Fiuu, forte, forte::Forte, globalpay, globalpay::Globalpay, globepay, globepay::Globepay,
+    gocardless, gocardless::Gocardless, helcim, helcim::Helcim, iatapay, iatapay::Iatapay, inespay,
     inespay::Inespay, itaubank, itaubank::Itaubank, jpmorgan, jpmorgan::Jpmorgan, klarna,
     klarna::Klarna, mifinity, mifinity::Mifinity, mollie, mollie::Mollie, multisafepay,
     multisafepay::Multisafepay, nexinets, nexinets::Nexinets, nexixpay, nexixpay::Nexixpay,
@@ -55,9 +54,9 @@ pub use hyperswitch_connectors::connectors::{
 pub use self::dummyconnector::DummyConnector;
 pub use self::{
     adyen::Adyen, adyenplatform::Adyenplatform, authorizedotnet::Authorizedotnet,
-    checkout::Checkout, ebanx::Ebanx, globalpay::Globalpay, gpayments::Gpayments,
-    netcetera::Netcetera, nmi::Nmi, noon::Noon, opayo::Opayo, opennode::Opennode, payme::Payme,
-    payone::Payone, paypal::Paypal, plaid::Plaid, riskified::Riskified, signifyd::Signifyd,
-    stripe::Stripe, threedsecureio::Threedsecureio, trustpay::Trustpay,
-    wellsfargopayout::Wellsfargopayout, wise::Wise,
+    checkout::Checkout, ebanx::Ebanx, gpayments::Gpayments, netcetera::Netcetera, nmi::Nmi,
+    noon::Noon, opayo::Opayo, opennode::Opennode, payme::Payme, payone::Payone, paypal::Paypal,
+    plaid::Plaid, riskified::Riskified, signifyd::Signifyd, stripe::Stripe,
+    threedsecureio::Threedsecureio, trustpay::Trustpay, wellsfargopayout::Wellsfargopayout,
+    wise::Wise,
 };
