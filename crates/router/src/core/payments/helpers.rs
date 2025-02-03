@@ -1507,7 +1507,7 @@ pub async fn validate_card_ip_blocking_for_business_profile(
 
     let unsuccessful_payment_threshold = card_testing_guard_config.card_ip_blocking_threshold;
 
-    Ok(validate_blocking_threshold(state, unsuccessful_payment_threshold, cache_key).await?)
+    validate_blocking_threshold(state, unsuccessful_payment_threshold, cache_key).await
 }
 
 pub async fn validate_guest_user_card_blocking_for_business_profile(
@@ -1547,7 +1547,7 @@ pub async fn validate_customer_id_blocking_for_business_profile(
 
     let unsuccessful_payment_threshold = card_testing_guard_config.customer_id_blocking_threshold;
 
-    Ok(validate_blocking_threshold(state, unsuccessful_payment_threshold, cache_key).await?)
+    validate_blocking_threshold(state, unsuccessful_payment_threshold, cache_key).await
 }
 
 pub async fn validate_blocking_threshold(
