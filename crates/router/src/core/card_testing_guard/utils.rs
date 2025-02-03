@@ -58,7 +58,11 @@ pub async fn increment_blocked_count_in_cache(
     >,
 ) {
     if let Some(card_testing_guard_data) = card_testing_guard_data.clone() {
-        if card_testing_guard_data.is_card_ip_blocking_enabled {
+        if card_testing_guard_data.is_card_ip_blocking_enabled
+            && !card_testing_guard_data
+                .card_ip_blocking_cache_key
+                .is_empty()
+        {
             let _ = services::card_testing_guard::increment_blocked_count_in_cache(
                 state,
                 &card_testing_guard_data.card_ip_blocking_cache_key,
@@ -67,7 +71,11 @@ pub async fn increment_blocked_count_in_cache(
             .await;
         }
 
-        if card_testing_guard_data.is_guest_user_card_blocking_enabled {
+        if card_testing_guard_data.is_guest_user_card_blocking_enabled
+            && !card_testing_guard_data
+                .guest_user_card_blocking_cache_key
+                .is_empty()
+        {
             let _ = services::card_testing_guard::increment_blocked_count_in_cache(
                 state,
                 &card_testing_guard_data.guest_user_card_blocking_cache_key,
@@ -76,7 +84,11 @@ pub async fn increment_blocked_count_in_cache(
             .await;
         }
 
-        if card_testing_guard_data.is_customer_id_blocking_enabled {
+        if card_testing_guard_data.is_customer_id_blocking_enabled
+            && !card_testing_guard_data
+                .customer_id_blocking_cache_key
+                .is_empty()
+        {
             let _ = services::card_testing_guard::increment_blocked_count_in_cache(
                 state,
                 &card_testing_guard_data.customer_id_blocking_cache_key,

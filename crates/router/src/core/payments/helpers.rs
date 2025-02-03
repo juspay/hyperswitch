@@ -1,9 +1,4 @@
-use std::{
-    borrow::Cow,
-    collections::HashSet,
-    net::{IpAddr, Ipv4Addr},
-    str::FromStr,
-};
+use std::{borrow::Cow, collections::HashSet, net::IpAddr, str::FromStr};
 
 #[cfg(feature = "v2")]
 use api_models::ephemeral_key::EphemeralKeyResponse;
@@ -1482,22 +1477,10 @@ pub fn validate_customer_information(
 
 pub async fn validate_card_ip_blocking_for_business_profile(
     state: &SessionState,
-    request: &api_models::payments::PaymentsRequest,
+    ip: IpAddr,
     fingerprnt: masking::Secret<String>,
     card_testing_guard_config: &diesel_models::business_profile::CardTestingGuardConfig,
 ) -> RouterResult<String> {
-    let mut ip: IpAddr = IpAddr::V4(Ipv4Addr::UNSPECIFIED);
-
-    if let Some(browser_info) = &request.browser_info {
-        if let Ok(browser_info_parsed) =
-            serde_json::from_value::<payments::BrowserInformation>(browser_info.clone())
-        {
-            if let Some(browserip) = browser_info_parsed.ip_address {
-                ip = browserip;
-            }
-        }
-    }
-
     let cache_key = format!(
         "{}_{}_{}",
         consts::CARD_IP_BLOCKING_CACHE_KEY_PREFIX,
