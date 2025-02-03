@@ -5587,7 +5587,6 @@ impl GooglePayTokenDecryptor {
         // derive the symmetric encryption key and MAC key
         let derived_key = self.derive_key(ephemeral_public_key, &shared_key)?;
         // First 32 bytes for AES-256 and Remaining bytes for HMAC
-        #[allow(clippy::incompatible_msrv)]
         let (symmetric_encryption_key, mac_key) = derived_key
             .split_at_checked(32)
             .ok_or(errors::GooglePayDecryptionError::ParsingFailed)?;
