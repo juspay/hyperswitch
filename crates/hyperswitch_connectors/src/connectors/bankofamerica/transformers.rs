@@ -511,24 +511,26 @@ fn build_bill_to(
         email: email.clone(),
     };
 
-
     Ok(address_details
         .and_then(|addr| {
             addr.address.as_ref().map(|addr| {
                 let administrative_area = addr.to_state_code_as_optional().unwrap_or_else(|_| {
-                    addr.state.clone().map(|state| Secret::new(format!("{:.20}", state.expose())))
+                    addr.state
+                        .clone()
+                        .map(|state| Secret::new(format!("{:.20}", state.expose())))
                 });
 
                 BillTo {
-                first_name: addr.first_name.clone(),
-                last_name: addr.last_name.clone(),
-                address1: addr.line1.clone(),
-                locality: addr.city.clone(),
-                administrative_area,
-                postal_code: addr.zip.clone(),
-                country: addr.country,
-                email,
-        }})
+                    first_name: addr.first_name.clone(),
+                    last_name: addr.last_name.clone(),
+                    address1: addr.line1.clone(),
+                    locality: addr.city.clone(),
+                    administrative_area,
+                    postal_code: addr.zip.clone(),
+                    country: addr.country,
+                    email,
+                }
+            })
         })
         .unwrap_or(default_address))
 }
@@ -824,8 +826,7 @@ impl
             Err(errors::ConnectorError::NotSupported {
                 message: "Card 3DS".to_string(),
                 connector: "BankOfAmerica",
-            }
-            )?
+            })?
         };
 
         let email = item.router_data.request.get_email()?;
@@ -2255,8 +2256,7 @@ impl
             Err(errors::ConnectorError::NotSupported {
                 message: "Card 3DS".to_string(),
                 connector: "BankOfAmerica",
-            }
-            )?
+            })?
         };
 
         let order_information = OrderInformationWithBill::try_from(item)?;
