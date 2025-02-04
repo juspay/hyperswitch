@@ -1002,6 +1002,8 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentDat
                 .and_then(|pmd| pmd.payment_method_data.clone()),
         )?;
 
+        helpers::validate_overcapture_request(request.capture_method, request.request_overcapture)?;
+
         helpers::validate_payment_method_fields_present(request)?;
 
         let mandate_type =
@@ -1516,6 +1518,7 @@ impl PaymentCreate {
             psd2_sca_exemption_type: request.psd2_sca_exemption_type,
             platform_merchant_id: platform_merchant_account
                 .map(|platform_merchant_account| platform_merchant_account.get_id().to_owned()),
+            request_overcapture: request.request_overcapture,
         })
     }
 

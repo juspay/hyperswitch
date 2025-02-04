@@ -3395,6 +3395,60 @@ pub enum External3dsAuthenticationRequest {
     Skip,
 }
 
+/// Whether overcapture is requested or not
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    Hash,
+    PartialEq,
+    ToSchema,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumIter,
+    strum::EnumString,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum OverCaptureRequest {
+    /// Request for applying overcapture
+    Enable,
+    /// Skip overcapture
+    #[default]
+    Skip,
+}
+
+/// Whether overcapture is allowed by the connector
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    Hash,
+    PartialEq,
+    ToSchema,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumIter,
+    strum::EnumString,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum OverCaptureStatus {
+    /// Overcapture is allowed
+    Applicable,
+    /// Overcapture is not allowed
+    #[default]
+    NotApplicable,
+}
+
 /// Whether payment link is requested to be enabled or not for this transaction
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, Default, ToSchema)]
 pub enum EnablePaymentLinkRequest {
@@ -3649,4 +3703,37 @@ pub enum PaymentConnectorCategory {
 pub enum FeatureStatus {
     NotSupported,
     Supported,
+}
+
+impl From<bool> for OverCaptureRequest {
+    fn from(value: bool) -> Self {
+        match value {
+            true => Self::Enable,
+            _ => Self::Skip,
+        }
+    }
+}
+
+impl OverCaptureRequest {
+    pub fn is_enabled(&self) -> bool {
+        match self {
+            Self::Enable => true,
+            Self::Skip => false,
+        }
+    }
+}
+
+impl OverCaptureStatus {
+    pub fn is_applicable(&self) -> bool {
+        match self {
+            Self::Applicable => true,
+            Self::NotApplicable => false,
+        }
+    }
+}
+
+impl CaptureMethod {
+    pub fn is_manual(&self) -> bool {
+        matches!(self, Self::Manual)
+    }
 }

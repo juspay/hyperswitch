@@ -12342,6 +12342,22 @@
           }
         }
       },
+      "OverCaptureRequest": {
+        "type": "string",
+        "description": "Whether overcapture is requested or not",
+        "enum": [
+          "enable",
+          "skip"
+        ]
+      },
+      "OverCaptureStatus": {
+        "type": "string",
+        "description": "Whether overcapture is allowed by the connector",
+        "enum": [
+          "applicable",
+          "not_applicable"
+        ]
+      },
       "PayLaterData": {
         "oneOf": [
           {
@@ -15378,6 +15394,14 @@
             "type": "string",
             "description": "Connector Identifier for the payment method",
             "nullable": true
+          },
+          "overcapture_status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OverCaptureStatus"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -16277,6 +16301,14 @@
           "connector_mandate_id": {
             "type": "string",
             "description": "Connector Identifier for the payment method",
+            "nullable": true
+          },
+          "overcapture_status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OverCaptureStatus"
+              }
+            ],
             "nullable": true
           }
         }

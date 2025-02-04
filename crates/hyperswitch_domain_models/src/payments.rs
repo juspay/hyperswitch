@@ -110,6 +110,7 @@ pub struct PaymentIntent {
     pub skip_external_tax_calculation: Option<bool>,
     pub psd2_sca_exemption_type: Option<storage_enums::ScaExemptionType>,
     pub platform_merchant_id: Option<id_type::MerchantId>,
+    pub request_overcapture: Option<storage_enums::OverCaptureRequest>,
 }
 
 impl PaymentIntent {
@@ -368,6 +369,8 @@ pub struct PaymentIntent {
     pub routing_algorithm_id: Option<id_type::RoutingId>,
     /// Identifier for the platform merchant.
     pub platform_merchant_id: Option<id_type::MerchantId>,
+    /// Denotes whether to request for overcapture
+    pub request_overcapture: Option<common_enums::OverCaptureRequest>,
 }
 
 #[cfg(feature = "v2")]
@@ -510,6 +513,7 @@ impl PaymentIntent {
             routing_algorithm_id: request.routing_algorithm_id,
             platform_merchant_id: platform_merchant_id
                 .map(|merchant_account| merchant_account.get_id().to_owned()),
+            request_overcapture: None,
         })
     }
 }

@@ -1,0 +1,1 @@
+ALTER TABLE payment_intent DROP COLUMN IF EXISTS request_overcapture;

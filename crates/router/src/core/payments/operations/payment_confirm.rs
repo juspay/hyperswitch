@@ -782,6 +782,12 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             )),
         );
 
+        payment_attempt.request_overcapture = helpers::get_overcapture_request_for_payments_update(
+            &payment_attempt,
+            &payment_intent,
+            &business_profile,
+        )?;
+
         let payment_data = PaymentData {
             flow: PhantomData,
             payment_intent,
@@ -1613,6 +1619,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
             ),
             None => (None, None, None),
         };
+        let request_overcapture = payment_data.payment_attempt.request_overcapture;
 
         let payment_attempt_fut = tokio::spawn(
             async move {
@@ -1661,6 +1668,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                         connector_mandate_detail: payment_data
                             .payment_attempt
                             .connector_mandate_detail,
+                        request_overcapture,
                     },
                     storage_scheme,
                 )
@@ -1744,6 +1752,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                         shipping_details,
                         is_payment_processor_token_flow,
                         tax_details: None,
+                        request_overcapture: None,
                     })),
                     &m_key_store,
                     storage_scheme,
