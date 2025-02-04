@@ -4450,6 +4450,28 @@ pub struct PaymentEvent {
 }
 
 impl<F: Clone> PaymentData<F> {
+    // Get the method by which a card is discovered during a payment
+    #[cfg(feature = "v1")]
+    fn get_card_discovery_for_card_payment_method(&self) -> Option<common_enums::CardDiscovery> {
+        match self.payment_attempt.payment_method {
+            Some(storage_enums::PaymentMethod::Card) => {
+                if self
+                    .token_data
+                    .as_ref()
+                    .map(storage::PaymentTokenData::is_permanent_card)
+                    .unwrap_or(false)
+                {
+                    Some(common_enums::CardDiscovery::SavedCard)
+                } else if self.service_details.is_some() {
+                    Some(common_enums::CardDiscovery::ClickToPay)
+                } else {
+                    Some(common_enums::CardDiscovery::Manual)
+                }
+            }
+            _ => None,
+        }
+    }
+
     fn to_event(&self) -> PaymentEvent {
         PaymentEvent {
             payment_intent: self.payment_intent.clone(),
