@@ -254,7 +254,8 @@ pub struct ApplePayCryptogramData {
 pub struct GooglePayDecryptedData {
     pub message_expiration: String,
     pub message_id: String,
-    pub payment_method: String,
+    #[serde(rename = "paymentMethod")]
+    pub payment_method_type: String,
     pub payment_method_details: GooglePayPaymentMethodDetails,
 }
 

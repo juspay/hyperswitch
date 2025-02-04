@@ -3102,7 +3102,17 @@ where
                             .attach_printable("failed to decrypt google pay token")?,
                     )
                 }
-                _ => None,
+                Some(payment_method_data) => {
+                    logger::info!(
+                        "Invalid payment_method_data found for Google Pay Decrypt Flow: {:?}",
+                        payment_method_data.get_payment_method()
+                    );
+                    None
+                }
+                None => {
+                    logger::info!("No payment_method_data found for Google Pay Decrypt Flow");
+                    None
+                }
             };
 
             let google_pay_predecrypt = google_pay_data
@@ -3113,7 +3123,17 @@ where
                 google_pay_predecrypt,
             ))))
         }
-        _ => Ok(None),
+        TokenizationAction::ConnectorToken(_) => {
+            logger::info!("Invalid tokenization action found for decryption flow: ConnectorToken",);
+            Ok(None)
+        }
+        token_action => {
+            logger::info!(
+                "Invalid tokenization action found for decryption flow: {:?}",
+                token_action
+            );
+            Ok(None)
+        }
     }
 }
 

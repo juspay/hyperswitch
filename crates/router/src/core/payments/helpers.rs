@@ -5894,7 +5894,11 @@ impl GooglePayTokenDecryptor {
 
         // derive 64 bytes for the output key (symmetric encryption + MAC key)
         let mut output_key = vec![0u8; 64];
-        hkdf.expand(SENDER_ID, &mut output_key).map_err(|_| {
+        hkdf.expand(SENDER_ID, &mut output_key).map_err(|err| {
+            logger::error!(
+                "Failed to derive the shared ephemeral key for Google Pay decryption flow: {:?}",
+                err
+            );
             report!(errors::GooglePayDecryptionError::DerivingSharedEphemeralKeyFailed)
         })?;
 
