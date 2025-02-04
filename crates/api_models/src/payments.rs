@@ -4782,6 +4782,43 @@ pub struct PaymentsConfirmIntentRequest {
     /// Additional details required by 3DS 2.0
     #[schema(value_type = Option<BrowserInformation>)]
     pub browser_info: Option<common_utils::types::BrowserInformation>,
+
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ProxyPaymentsIntentRequest {
+    /// The URL to which you want the user to be redirected after the completion of the payment operation
+    /// If this url is not passed, the url configured in the business profile will be used
+    #[schema(value_type = Option<String>, example = "https://hyperswitch.io")]
+    pub return_url: Option<common_utils::types::Url>,
+
+    pub amount: AmountDetails,
+
+    pub recurring_details:RecurringDetails,
+
+    pub connector_customer_id:String,
+
+    /// The payment metho:d type to be used for the payment. This should match with the `payment_method_data` provided
+    #[schema(value_type = PaymentMethod, example = "card")]
+    pub payment_method_type: api_enums::PaymentMethod,
+
+    /// The payment method subtype to be used for the payment. This should match with the `payment_method_data` provided
+    #[schema(value_type = PaymentMethodType, example = "apple_pay")]
+    pub payment_method_subtype: api_enums::PaymentMethodType,
+
+    pub shipping: Option<Address>,
+
+    /// Additional details required by 3DS 2.0
+    #[schema(value_type = Option<BrowserInformation>)]
+    pub browser_info: Option<common_utils::types::BrowserInformation>,
+
+    #[schema(example = "stripe")]
+    pub connector: String,
+    
+    #[schema(value_type = String)]
+    pub merchant_connector_id: id_type::MerchantConnectorAccountId,
 }
 
 // Serialize is implemented because, this will be serialized in the api events.
@@ -4845,6 +4882,73 @@ pub struct PaymentsConfirmIntentResponse {
         value_type = String
     )]
     pub customer_id: Option<id_type::GlobalCustomerId>,
+
+    /// The connector used for the payment
+    #[schema(example = "stripe")]
+    pub connector: String,
+
+    /// It's a token used for client side verification.
+    #[schema(value_type = String)]
+    pub client_secret: common_utils::types::ClientSecret,
+
+    /// Time when the payment was created
+    #[schema(example = "2022-09-10T10:11:12Z")]
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub created: PrimitiveDateTime,
+
+    /// The payment method information provided for making a payment
+    #[schema(value_type = Option<PaymentMethodDataResponseWithBilling>)]
+    #[serde(serialize_with = "serialize_payment_method_data_response")]
+    pub payment_method_data: Option<PaymentMethodDataResponseWithBilling>,
+
+    /// The payment method type for this payment attempt
+    #[schema(value_type = PaymentMethod, example = "wallet")]
+    pub payment_method_type: api_enums::PaymentMethod,
+
+    #[schema(value_type = PaymentMethodType, example = "apple_pay")]
+    pub payment_method_subtype: api_enums::PaymentMethodType,
+
+    /// Additional information required for redirection
+    pub next_action: Option<NextActionData>,
+
+    /// A unique identifier for a payment provided by the connector
+    #[schema(value_type = Option<String>, example = "993672945374576J")]
+    pub connector_transaction_id: Option<String>,
+
+    /// reference(Identifier) to the payment at connector side
+    #[schema(value_type = Option<String>, example = "993672945374576J")]
+    pub connector_reference_id: Option<String>,
+
+    /// Identifier of the connector ( merchant connector account ) which was chosen to make the payment
+    #[schema(value_type = String)]
+    pub merchant_connector_id: id_type::MerchantConnectorAccountId,
+
+    /// The browser information used for this payment
+    #[schema(value_type = Option<BrowserInformation>)]
+    pub browser_info: Option<common_utils::types::BrowserInformation>,
+
+    /// Error details for the payment if any
+    pub error: Option<ErrorDetails>,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Serialize, ToSchema)]
+pub struct ProxyPaymentsIntentResponse {
+    /// Unique identifier for the payment. This ensures idempotency for multiple payments
+    /// that have been done by a single merchant.
+    #[schema(
+        min_length = 32,
+        max_length = 64,
+        example = "12345_pay_01926c58bc6e77c09e809964e72af8c8",
+        value_type = String,
+    )]
+    pub id: id_type::GlobalPaymentId,
+
+    #[schema(value_type = IntentStatus, example = "success")]
+    pub status: api_enums::IntentStatus,
+
+    /// Amount related information for this payment and attempt
+    pub amount: PaymentAmountDetailsResponse,
 
     /// The connector used for the payment
     #[schema(example = "stripe")]

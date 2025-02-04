@@ -72,7 +72,60 @@ pub struct PaymentsAuthorizeData {
     pub shipping_cost: Option<MinorUnit>,
     pub additional_payment_method_data: Option<AdditionalPaymentData>,
 }
+pub struct ProxyPaymentsAuthorizeData {
+    // pub payment_method_data: PaymentMethodData,
+    /// total amount (original_amount + surcharge_amount + tax_on_surcharge_amount)
+    /// If connector supports separate field for surcharge amount, consider using below functions defined on `PaymentsAuthorizeData` to fetch original amount and surcharge amount separately
+    /// ```text
+    /// get_original_amount()
+    /// get_surcharge_amount()
+    /// get_tax_on_surcharge_amount()
+    /// get_total_surcharge_amount() // returns surcharge_amount + tax_on_surcharge_amount
+    /// ```
+    pub amount: i64,
+    pub order_tax_amount: Option<MinorUnit>,
+    // pub email: Option<pii::Email>,
+    // pub customer_name: Option<Secret<String>>,
+    pub currency: storage_enums::Currency,
+    pub confirm: bool,
+    pub statement_descriptor_suffix: Option<String>,
+    pub statement_descriptor: Option<String>,
+    pub capture_method: Option<storage_enums::CaptureMethod>,
+    pub router_return_url: Option<String>,
+    pub webhook_url: Option<String>,
+    pub complete_authorize_url: Option<String>,
+    // Mandates
+    pub setup_future_usage: Option<storage_enums::FutureUsage>,
+    pub mandate_id: Option<api_models::payments::MandateIds>,
+    pub off_session: Option<bool>,
+    // pub customer_acceptance: Option<mandates::CustomerAcceptance>,
+    pub setup_mandate_details: Option<mandates::MandateData>,
+    pub browser_info: Option<BrowserInformation>,
+    pub order_details: Option<Vec<OrderDetailsWithAmount>>,
+    pub order_category: Option<String>,
+    pub session_token: Option<String>,
+    pub enrolled_for_3ds: bool,
+    pub related_transaction_id: Option<String>,
+    pub payment_experience: Option<storage_enums::PaymentExperience>,
+    // pub payment_method_type: Option<storage_enums::PaymentMethodType>,
+    pub surcharge_details: Option<SurchargeDetails>,
+    // pub customer_id: Option<id_type::CustomerId>,
+    pub request_incremental_authorization: bool,
+    pub metadata: Option<serde_json::Value>,
+    pub authentication_data: Option<AuthenticationData>,
+    pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
 
+    // New amount for amount frame work
+    pub minor_amount: MinorUnit,
+
+    /// Merchant's identifier for the payment/invoice. This will be sent to the connector
+    /// if the connector provides support to accept multiple reference ids.
+    /// In case the connector supports only one reference id, Hyperswitch's Payment ID will be sent as reference.
+    pub merchant_order_reference_id: Option<String>,
+    pub integrity_object: Option<AuthoriseIntegrityObject>,
+    pub shipping_cost: Option<MinorUnit>,
+    // pub additional_payment_method_data: Option<AdditionalPaymentData>,
+}
 #[derive(Debug, Clone)]
 pub struct PaymentsPostSessionTokensData {
     // amount here would include amount, surcharge_amount and shipping_cost

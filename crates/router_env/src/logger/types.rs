@@ -527,6 +527,7 @@ pub enum Flow {
     SessionUpdateTaxCalculation,
     /// Payments confirm intent
     PaymentsConfirmIntent,
+    ProxyConfirmIntent,
     /// Payments post session tokens flow
     PaymentsPostSessionTokens,
     /// Payments start redirection flow

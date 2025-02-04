@@ -14,7 +14,7 @@ use futures::FutureExt;
 use hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt;
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::payments::{
-    PaymentConfirmData, PaymentIntentData, PaymentStatusData,
+    PaymentConfirmData, PaymentIntentData, PaymentStatusData
 };
 use router_derive;
 use router_env::{instrument, logger, tracing};
@@ -2203,6 +2203,8 @@ impl<F: Send + Clone> Operation<F, types::PaymentsAuthorizeData> for PaymentResp
         Ok(self)
     }
 }
+
+
 
 #[cfg(feature = "v2")]
 impl<F: Send + Clone> Operation<F, types::PaymentsCaptureData> for PaymentResponse {

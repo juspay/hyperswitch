@@ -4,7 +4,7 @@ pub mod connector_integration_v2_impls;
 pub mod customers;
 pub mod flows;
 pub mod helpers;
-pub mod operations;
+pub mod operations;      
 
 #[cfg(feature = "retry")]
 pub mod retry;
@@ -73,7 +73,7 @@ use time;
 pub use self::operations::{
     PaymentApprove, PaymentCancel, PaymentCapture, PaymentConfirm, PaymentCreate,
     PaymentIncrementalAuthorization, PaymentPostSessionTokens, PaymentReject, PaymentSession,
-    PaymentSessionUpdate, PaymentStatus, PaymentUpdate,
+    PaymentSessionUpdate, PaymentStatus, PaymentUpdate
 };
 use self::{
     conditional_configs::perform_decision_management,
@@ -1039,7 +1039,7 @@ pub async fn proxy_for_payments_operation_core<F, Req, Op, FData, D>(
     get_tracker_response: operations::GetTrackerResponse<D>,
     call_connector_action: CallConnectorAction,
     header_payload: HeaderPayload,
-) -> RouterResult<(D, Req, Option<domain::Customer>, Option<u16>, Option<u128>)>
+) -> RouterResult<(D, Req, Option<u16>, Option<u128>)>
 where
     F: Send + Clone + Sync,
     Req: Send + Sync,
@@ -1065,14 +1065,14 @@ where
 
     // Get the trackers related to track the state of the payment
     let operations::GetTrackerResponse { mut payment_data } = get_tracker_response;
-
+        // consume the req merchant_connector_id and set it in the payment_data
     let connector = operation
         .to_domain()?
-        .get_connector(
+        .perform_routing(
             &merchant_account,
-            state,
             &profile,
-            payment_data.get_payment_intent(),
+            state,
+            &mut payment_data,
             &key_store,
         )
         .await?;
@@ -1087,9 +1087,7 @@ where
                 connector_data.clone(),
                 &operation,
                 &mut payment_data,
-                &None,
                 call_connector_action.clone(),
-                None,
                 header_payload.clone(),
                 &profile,
             )
@@ -1113,13 +1111,7 @@ where
         ConnectorCallType::Skip => payment_data,
     };
 
-    Ok((
-        payment_data,
-        req,
-        None,
-        router_data.connector_http_status_code,
-        router_data.external_latency,
-    ))
+    Ok((payment_data,req,None,None))
 }
 
 #[cfg(feature = "v2")]
@@ -1628,7 +1620,7 @@ where
         )
         .await?;
 
-    let (payment_data, _req, customer, connector_http_status_code, external_latency) =
+    let (payment_data, _req, connector_http_status_code, external_latency) =
         proxy_for_payments_operation_core::<_, _, _, _, _>(
             &state,
             req_state,
@@ -3193,9 +3185,7 @@ pub async fn proxy_for_call_connector_service<F, RouterDReq, ApiRequest, D>(
     connector: api::ConnectorData,
     operation: &BoxedOperation<'_, F, ApiRequest, D>,
     payment_data: &mut D,
-    customer: &Option<domain::Customer>,
     call_connector_action: CallConnectorAction,
-    schedule_time: Option<time::PrimitiveDateTime>,
     header_payload: HeaderPayload,
     business_profile: &domain::Profile,
 ) -> RouterResult<RouterData<F, RouterDReq, router_types::PaymentsResponseData>>
@@ -7219,7 +7209,7 @@ pub trait OperationSessionGetters<F> {
     fn get_mandate_connector(&self) -> Option<&MandateConnectorDetails>;
     fn get_force_sync(&self) -> Option<bool>;
     fn get_capture_method(&self) -> Option<enums::CaptureMethod>;
-
+    fn get_merchant_connector_id_in_attempt(&self) -> Option<id_type::MerchantConnectorAccountId>;
     #[cfg(feature = "v2")]
     fn get_optional_payment_attempt(&self) -> Option<&storage::PaymentAttempt>;
 }
@@ -7288,7 +7278,9 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentData<F> {
     fn get_address(&self) -> &PaymentAddress {
         &self.address
     }
-
+    fn  get_merchant_connector_id_in_attempt(&self) -> Option<id_type::MerchantConnectorAccountId> {
+        self.payment_attempt.merchant_connector_id.clone()
+    }
     fn get_creds_identifier(&self) -> Option<&str> {
         self.creds_identifier.as_deref()
     }
@@ -7606,6 +7598,10 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentIntentData<F> {
     }
 
     fn get_payment_attempt_connector(&self) -> Option<&str> {
+      todo!()
+    }
+
+    fn get_merchant_connector_id_in_attempt(&self) -> Option<id_type::MerchantConnectorAccountId>{
         todo!()
     }
 
@@ -7818,7 +7814,11 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentConfirmData<F> {
     }
 
     fn get_payment_attempt_connector(&self) -> Option<&str> {
-        todo!()
+        self.payment_attempt.connector.as_deref()
+    }
+    
+    fn  get_merchant_connector_id_in_attempt(&self) -> Option<id_type::MerchantConnectorAccountId> {
+        self.payment_attempt.merchant_connector_id.clone()
     }
 
     fn get_billing_address(&self) -> Option<hyperswitch_domain_models::address::Address> {
@@ -7940,6 +7940,7 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentConfirmData<F> {
     }
 }
 
+
 #[cfg(feature = "v2")]
 impl<F: Clone> OperationSessionGetters<F> for PaymentStatusData<F> {
     #[track_caller]
@@ -8032,6 +8033,10 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentStatusData<F> {
     }
 
     fn get_payment_attempt_connector(&self) -> Option<&str> {
+        todo!()
+    }
+
+    fn get_merchant_connector_id_in_attempt(&self) -> Option<id_type::MerchantConnectorAccountId>{
         todo!()
     }
 
@@ -8246,6 +8251,10 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentCaptureData<F> {
     }
 
     fn get_payment_attempt_connector(&self) -> Option<&str> {
+        todo!()
+    }
+
+    fn get_merchant_connector_id_in_attempt(&self) -> Option<id_type::MerchantConnectorAccountId>{
         todo!()
     }
 

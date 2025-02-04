@@ -242,6 +242,43 @@ impl AmountDetails {
         })
     }
 
+    pub fn proxy_create_attempt_amount_details(
+        &self,
+        confirm_intent_request: &api_models::payments::ProxyPaymentsIntentRequest,
+    ) -> payment_attempt::AttemptAmountDetails {
+        let net_amount = self.calculate_net_amount();
+
+        let surcharge_amount = match self.skip_surcharge_calculation {
+            common_enums::SurchargeCalculationOverride::Skip => self.surcharge_amount,
+            common_enums::SurchargeCalculationOverride::Calculate => None,
+        };
+
+        let tax_on_surcharge = match self.skip_surcharge_calculation {
+            common_enums::SurchargeCalculationOverride::Skip => self.tax_on_surcharge,
+            common_enums::SurchargeCalculationOverride::Calculate => None,
+        };
+
+        let order_tax_amount = match self.skip_external_tax_calculation {
+            common_enums::TaxCalculationOverride::Skip => {
+                self.tax_details.as_ref().and_then(|tax_details| {
+                    tax_details.get_tax_amount(confirm_intent_request.payment_method_subtype)
+                })
+            }
+            common_enums::TaxCalculationOverride::Calculate => None,
+        };
+
+        payment_attempt::AttemptAmountDetails::from(payment_attempt::AttemptAmountDetailsSetter {
+            net_amount,
+            amount_to_capture: None,
+            surcharge_amount,
+            tax_on_surcharge,
+            // This will be updated when we receive response from the connector
+            amount_capturable: MinorUnit::zero(),
+            shipping_cost: self.shipping_cost,
+            order_tax_amount,
+        })
+    }
+
     pub fn update_from_request(self, req: &api_models::payments::AmountDetailsUpdate) -> Self {
         Self {
             order_amount: req

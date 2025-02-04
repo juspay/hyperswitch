@@ -1460,6 +1460,94 @@ where
 }
 
 #[cfg(feature = "v2")]
+impl<F> GenerateResponse<api_models::payments::ProxyPaymentsIntentResponse>
+    for hyperswitch_domain_models::payments::PaymentConfirmData<F>
+where
+    F: Clone,
+{
+    fn generate_response(
+        self,
+        state: &SessionState,
+        connector_http_status_code: Option<u16>,
+        external_latency: Option<u128>,
+        is_latency_header_enabled: Option<bool>,
+        merchant_account: &domain::MerchantAccount,
+    ) -> RouterResponse<api_models::payments::ProxyPaymentsIntentResponse> {
+        let payment_intent = self.payment_intent;
+        let payment_attempt = self.payment_attempt;
+
+        let amount = api_models::payments::PaymentAmountDetailsResponse::foreign_from((
+            &payment_intent.amount_details,
+            &payment_attempt.amount_details,
+        ));
+
+        let connector = payment_attempt
+            .connector
+            .clone()
+            .get_required_value("connector")
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Connector is none when constructing response")?;
+
+        let merchant_connector_id = payment_attempt
+            .merchant_connector_id
+            .clone()
+            .get_required_value("merchant_connector_id")
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Merchant connector id is none when constructing response")?;
+
+        let error = payment_attempt
+            .error
+            .clone()
+            .map(api_models::payments::ErrorDetails::foreign_from);
+
+        let payment_address = self.payment_address;
+
+        let payment_method_data =
+            Some(api_models::payments::PaymentMethodDataResponseWithBilling {
+                payment_method_data: None,
+                billing: payment_address
+                    .get_request_payment_method_billing()
+                    .cloned()
+                    .map(From::from),
+            });
+
+        // TODO: Add support for other next actions, currently only supporting redirect to url
+        let redirect_to_url = payment_intent.create_start_redirection_url(
+            &state.base_url,
+            merchant_account.publishable_key.clone(),
+        )?;
+
+        let next_action = payment_attempt
+            .redirection_data
+            .as_ref()
+            .map(|_| api_models::payments::NextActionData::RedirectToUrl { redirect_to_url });
+
+        let response = api_models::payments::ProxyPaymentsIntentResponse {
+            id: payment_intent.id.clone(),
+            status: payment_intent.status,
+            amount,
+            connector,
+            client_secret: payment_intent.client_secret.clone(),
+            created: payment_intent.created_at,
+            payment_method_data,
+            payment_method_type: payment_attempt.payment_method_type,
+            payment_method_subtype: payment_attempt.payment_method_subtype,
+            next_action,
+            connector_transaction_id: payment_attempt.connector_payment_id.clone(),
+            connector_reference_id: None,
+            merchant_connector_id,
+            browser_info: None,
+            error,
+        };
+
+        Ok(services::ApplicationResponse::JsonWithHeaders((
+            response,
+            vec![],
+        )))
+    }
+}
+
+#[cfg(feature = "v2")]
 impl<F> GenerateResponse<api_models::payments::PaymentsRetrieveResponse>
     for hyperswitch_domain_models::payments::PaymentStatusData<F>
 where
