@@ -402,6 +402,8 @@ pub struct PaymentAttempt {
     pub id: id_type::GlobalAttemptId,
     /// The connector mandate details which are stored temporarily
     pub connector_mandate_detail: Option<ConnectorMandateReferenceId>,
+    /// The platform merchant id for the payment attempt
+    pub platform_merchant_id: Option<id_type::MerchantId>,
 }
 
 impl PaymentAttempt {
@@ -519,7 +521,7 @@ impl PaymentAttempt {
             payment_method_billing_address,
             error: None,
             connector_mandate_detail: None,
-            id,
+            platform_merchant_id: None,
         })
     }
 }
@@ -1786,6 +1788,7 @@ impl behaviour::Conversion for PaymentAttempt {
             payment_method_billing_address,
             connector,
             connector_mandate_detail,
+            platform_merchant_id,
         } = self;
 
         let AttemptAmountDetails {
@@ -1863,6 +1866,7 @@ impl behaviour::Conversion for PaymentAttempt {
             payment_method_billing_address: payment_method_billing_address.map(Encryption::from),
             connector_payment_data,
             connector_mandate_detail,
+            platform_merchant_id,
         })
     }
 
@@ -1974,6 +1978,7 @@ impl behaviour::Conversion for PaymentAttempt {
                 connector: storage_model.connector,
                 payment_method_billing_address,
                 connector_mandate_detail: storage_model.connector_mandate_detail,
+                platform_merchant_id: storage_model.platform_merchant_id,
             })
         }
         .await
@@ -2058,6 +2063,7 @@ impl behaviour::Conversion for PaymentAttempt {
             payment_method_type_v2: self.payment_method_type,
             id: self.id,
             connector_mandate_detail: self.connector_mandate_detail,
+            platform_merchant_id: self.platform_merchant_id,
         })
     }
 }
