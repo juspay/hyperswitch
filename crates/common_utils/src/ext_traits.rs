@@ -4,7 +4,7 @@
 use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface, Secret, Strategy};
 use quick_xml::de;
-#[cfg(feature = "logs")]
+#[cfg(all(feature = "logs", feature = "async_ext"))]
 use router_env::logger;
 use serde::{Deserialize, Serialize};
 
