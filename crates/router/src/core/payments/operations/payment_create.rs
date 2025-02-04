@@ -335,6 +335,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             merchant_key_store,
             profile_id,
             &customer_acceptance,
+            platform_merchant_account,
         )
         .await?;
 
@@ -1116,6 +1117,7 @@ impl PaymentCreate {
         _key_store: &domain::MerchantKeyStore,
         profile_id: common_utils::id_type::ProfileId,
         customer_acceptance: &Option<payments::CustomerAcceptance>,
+        platform_merchant_account: Option<&domain::MerchantAccount>,
     ) -> RouterResult<(
         storage::PaymentAttemptNew,
         Option<api_models::payments::AdditionalPaymentData>,
@@ -1298,7 +1300,8 @@ impl PaymentCreate {
                 organization_id: organization_id.clone(),
                 profile_id,
                 connector_mandate_detail: None,
-                platform_merchant_id: None,
+                platform_merchant_id: platform_merchant_account
+                .map(|platform_merchant_account| platform_merchant_account.get_id().to_owned()),
             },
             additional_pm_data,
 
