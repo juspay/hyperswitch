@@ -176,6 +176,7 @@ impl ForeignTryFrom<domain::Profile> for ProfileResponse {
             is_network_tokenization_enabled: item.is_network_tokenization_enabled,
             is_auto_retries_enabled: item.is_auto_retries_enabled,
             max_auto_retries_enabled: item.max_auto_retries_enabled,
+            always_request_extended_authorization: item.always_request_extended_authorization,
             is_click_to_pay_enabled: item.is_click_to_pay_enabled,
             authentication_product_ids: item.authentication_product_ids,
         })
@@ -375,6 +376,7 @@ pub async fn create_profile_from_merchant_account(
         is_network_tokenization_enabled: request.is_network_tokenization_enabled,
         is_auto_retries_enabled: request.is_auto_retries_enabled.unwrap_or_default(),
         max_auto_retries_enabled: request.max_auto_retries_enabled.map(i16::from),
+        always_request_extended_authorization: request.always_request_extended_authorization,
         is_click_to_pay_enabled: request.is_click_to_pay_enabled,
         authentication_product_ids: request.authentication_product_ids,
     }))

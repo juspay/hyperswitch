@@ -2305,6 +2305,8 @@ where
             order_tax_amount,
             connector_mandate_id,
             shipping_cost: payment_intent.shipping_cost,
+            capture_before: payment_attempt.capture_before,
+            extended_authorization_applied: payment_attempt.extended_authorization_applied,
         };
 
         services::ApplicationResponse::JsonWithHeaders((payments_response, headers))
@@ -2558,6 +2560,8 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             updated: None,
             split_payments: None,
             frm_metadata: None,
+            capture_before: pa.capture_before,
+            extended_authorization_applied: pa.extended_authorization_applied,
             order_tax_amount: None,
             connector_mandate_id:None,
             shipping_cost: None,
