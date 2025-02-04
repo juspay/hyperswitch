@@ -220,6 +220,7 @@ pub async fn external_authentication_update_trackers<F: Clone, Req>(
                     eci: authentication_details.eci,
                 }
             }
+
             UasAuthenticationResponseData::Confirmation { .. } => {
                 diesel_models::authentication::AuthenticationUpdate::AuthenticationStatusUpdate {
                     trans_status: common_enums::TransactionStatus::Success,

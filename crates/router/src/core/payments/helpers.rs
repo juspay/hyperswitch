@@ -2289,7 +2289,7 @@ pub async fn retrieve_payment_token_data(
     );
 
     let token_data_string = redis_conn
-        .get_key::<Option<String>>(&key)
+        .get_key::<Option<String>>(&key.into())
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to fetch the token from redis")?
@@ -3781,7 +3781,7 @@ pub async fn insert_merchant_connector_creds_to_config(
 
         redis
             .serialize_and_set_key_with_expiry(
-                key.as_str(),
+                &key.as_str().into(),
                 &encoded_data.peek(),
                 consts::CONNECTOR_CREDS_TOKEN_TTL,
             )
@@ -3897,7 +3897,7 @@ pub async fn get_merchant_connector_account(
                     .attach_printable("Failed to get redis connection")
                     .async_and_then(|redis| async move {
                         redis
-                            .get_and_deserialize_key(key.clone().as_str(), "String")
+                            .get_and_deserialize_key(&key.as_str().into(), "String")
                             .await
                             .change_context(
                                 errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
@@ -4671,6 +4671,7 @@ pub async fn get_additional_payment_data(
                         pm_type: apple_pay_wallet_data.payment_method.pm_type.clone(),
                     }),
                     google_pay: None,
+                    samsung_pay: None,
                 }))
             }
             domain::WalletData::GooglePay(google_pay_pm_data) => {
@@ -4679,13 +4680,32 @@ pub async fn get_additional_payment_data(
                     google_pay: Some(payment_additional_types::WalletAdditionalDataForCard {
                         last4: google_pay_pm_data.info.card_details.clone(),
                         card_network: google_pay_pm_data.info.card_network.clone(),
-                        card_type: google_pay_pm_data.pm_type.clone(),
+                        card_type: Some(google_pay_pm_data.pm_type.clone()),
+                    }),
+                    samsung_pay: None,
+                }))
+            }
+            domain::WalletData::SamsungPay(samsung_pay_pm_data) => {
+                Ok(Some(api_models::payments::AdditionalPaymentData::Wallet {
+                    apple_pay: None,
+                    google_pay: None,
+                    samsung_pay: Some(payment_additional_types::WalletAdditionalDataForCard {
+                        last4: samsung_pay_pm_data
+                            .payment_credential
+                            .card_last_four_digits
+                            .clone(),
+                        card_network: samsung_pay_pm_data
+                            .payment_credential
+                            .card_brand
+                            .to_string(),
+                        card_type: None,
                     }),
                 }))
             }
             _ => Ok(Some(api_models::payments::AdditionalPaymentData::Wallet {
                 apple_pay: None,
                 google_pay: None,
+                samsung_pay: None,
             })),
         },
         domain::PaymentMethodData::PayLater(_) => Ok(Some(
@@ -5843,7 +5863,7 @@ pub async fn get_payment_method_details_from_payment_token(
                 .get_required_value("payment_method")?,
         );
         let token_data_string = redis_conn
-            .get_key::<Option<String>>(&key)
+            .get_key::<Option<String>>(&key.into())
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to fetch the token from redis")?

@@ -1178,6 +1178,14 @@ impl PaymentCreate {
                                 Some(api_models::payments::AdditionalPaymentData::Wallet {
                                     apple_pay: None,
                                     google_pay: Some(wallet.into()),
+                                    samsung_pay: None,
+                                })
+                            }
+                            Some(enums::PaymentMethodType::SamsungPay) => {
+                                Some(api_models::payments::AdditionalPaymentData::Wallet {
+                                    apple_pay: None,
+                                    google_pay: None,
+                                    samsung_pay: Some(wallet.into()),
                                 })
                             }
                             _ => None,

@@ -434,6 +434,7 @@ default_imp_for_connector_request_id!(
     connector::Boku,
     connector::Braintree,
     connector::Cashtocode,
+    connector::Chargebee,
     connector::Checkout,
     connector::Coinbase,
     connector::Cryptopay,
@@ -1524,6 +1525,7 @@ default_imp_for_fraud_check!(
     connector::Boku,
     connector::Braintree,
     connector::Cashtocode,
+    connector::Chargebee,
     connector::Checkout,
     connector::Cryptopay,
     connector::Cybersource,
@@ -2113,6 +2115,7 @@ default_imp_for_connector_authentication!(
     connector::Boku,
     connector::Braintree,
     connector::Cashtocode,
+    connector::Chargebee,
     connector::Checkout,
     connector::Cryptopay,
     connector::Coinbase,
@@ -2603,6 +2606,18 @@ macro_rules! default_imp_for_uas_authentication {
     };
 }
 
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> UasAuthentication for connector::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    services::ConnectorIntegration<
+        Authenticate,
+        types::UasAuthenticationRequestData,
+        types::UasAuthenticationResponseData,
+    > for connector::DummyConnector<T>
+{
+}
+
 default_imp_for_uas_authentication!(
     connector::Adyenplatform,
     connector::Aci,
@@ -2635,18 +2650,6 @@ default_imp_for_uas_authentication!(
     connector::Wellsfargopayout,
     connector::Wise
 );
-
-#[cfg(feature = "dummy_connector")]
-impl<const T: u8> UasAuthentication for connector::DummyConnector<T> {}
-#[cfg(feature = "dummy_connector")]
-impl<const T: u8>
-    services::ConnectorIntegration<
-        Authenticate,
-        types::UasAuthenticationRequestData,
-        types::UasAuthenticationResponseData,
-    > for connector::DummyConnector<T>
-{
-}
 
 /// Determines whether a capture API call should be made for a payment attempt
 /// This function evaluates whether an authorized payment should proceed with a capture API call
