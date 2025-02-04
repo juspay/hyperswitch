@@ -23,7 +23,7 @@ const successfulThreeDSTestCardDetails = {
 const failedNo3DSCardDetails = {
   card_number: "4000000000000002",
   card_exp_month: "01",
-  card_exp_year: "25",
+  card_exp_year: "35",
   card_holder_name: "joseph Doe",
   card_cvc: "123",
 };
@@ -123,7 +123,7 @@ const requiredFields = {
 
 export const connectorDetails = {
   multi_credential_config: {
-    specName: ["connectorAgnostic"],
+    specName: ["connectorAgnosticNTID"],
     value: "connector_2",
   },
   card_pm: {
@@ -144,7 +144,7 @@ export const connectorDetails = {
     PaymentIntentOffSession: {
       Configs: {
         CONNECTOR_CREDENTIAL: {
-          specName: ["connectorAgnostic"],
+          specName: ["connectorAgnosticNTID"],
           value: "connector_2",
         },
       },
@@ -564,7 +564,7 @@ export const connectorDetails = {
     MITAutoCapture: getCustomExchange({
       Configs: {
         CONNECTOR_CREDENTIAL: {
-          specName: ["connectorAgnostic"],
+          specName: ["connectorAgnosticNTID"],
           value: "connector_2",
         },
       },
@@ -701,7 +701,7 @@ export const connectorDetails = {
     SaveCardUseNo3DSAutoCaptureOffSession: {
       Configs: {
         CONNECTOR_CREDENTIAL: {
-          specName: ["connectorAgnostic"],
+          specName: ["connectorAgnosticNTID"],
           value: "connector_2",
         },
       },
@@ -754,7 +754,7 @@ export const connectorDetails = {
     SaveCardConfirmAutoCaptureOffSession: {
       Configs: {
         CONNECTOR_CREDENTIAL: {
-          specName: ["connectorAgnostic"],
+          specName: ["connectorAgnosticNTID"],
           value: "connector_2",
         },
       },

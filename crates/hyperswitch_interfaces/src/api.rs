@@ -34,13 +34,13 @@ use hyperswitch_domain_models::{
         UasFlowData,
     },
     router_flow_types::{
-        mandate_revoke::MandateRevoke, AccessTokenAuth, PostAuthenticate, PreAuthenticate,
-        VerifyWebhookSource,
+        mandate_revoke::MandateRevoke, AccessTokenAuth, Authenticate, PostAuthenticate,
+        PreAuthenticate, VerifyWebhookSource,
     },
     router_request_types::{
         unified_authentication_service::{
-            UasAuthenticationResponseData, UasPostAuthenticationRequestData,
-            UasPreAuthenticationRequestData,
+            UasAuthenticationRequestData, UasAuthenticationResponseData,
+            UasPostAuthenticationRequestData, UasPreAuthenticationRequestData,
         },
         AccessTokenRequestData, MandateRevokeRequestData, VerifyWebhookSourceRequestData,
     },
@@ -371,7 +371,7 @@ pub trait ConnectorVerifyWebhookSourceV2:
 
 /// trait UnifiedAuthenticationService
 pub trait UnifiedAuthenticationService:
-    ConnectorCommon + UasPreAuthentication + UasPostAuthentication
+    ConnectorCommon + UasPreAuthentication + UasPostAuthentication + UasAuthentication
 {
 }
 
@@ -395,9 +395,15 @@ pub trait UasPostAuthentication:
 {
 }
 
+/// trait UasAuthentication
+pub trait UasAuthentication:
+    ConnectorIntegration<Authenticate, UasAuthenticationRequestData, UasAuthenticationResponseData>
+{
+}
+
 /// trait UnifiedAuthenticationServiceV2
 pub trait UnifiedAuthenticationServiceV2:
-    ConnectorCommon + UasPreAuthenticationV2 + UasPostAuthenticationV2
+    ConnectorCommon + UasPreAuthenticationV2 + UasPostAuthenticationV2 + UasAuthenticationV2
 {
 }
 
@@ -418,6 +424,17 @@ pub trait UasPostAuthenticationV2:
     PostAuthenticate,
     UasFlowData,
     UasPostAuthenticationRequestData,
+    UasAuthenticationResponseData,
+>
+{
+}
+
+/// trait UasAuthenticationV2
+pub trait UasAuthenticationV2:
+    ConnectorIntegrationV2<
+    Authenticate,
+    UasFlowData,
+    UasAuthenticationRequestData,
     UasAuthenticationResponseData,
 >
 {
