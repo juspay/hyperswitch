@@ -189,7 +189,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "20"
-          cache: "npm"
 
       - name: Install Cypress and dependencies
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -376,7 +375,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "20"
-          cache: "npm"
 
       - name: Install Cypress and dependencies
         if: ${{ env.RUN_TESTS == 'true' }}
