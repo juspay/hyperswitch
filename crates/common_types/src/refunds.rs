@@ -5,6 +5,8 @@ use diesel::{sql_types::Jsonb, AsExpression, FromSqlRow};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
+use crate::domain::AdyenSplitData;
+
 #[derive(
     Serialize, Deserialize, Debug, Clone, PartialEq, Eq, FromSqlRow, AsExpression, ToSchema,
 )]
@@ -15,6 +17,8 @@ use utoipa::ToSchema;
 pub enum SplitRefund {
     /// StripeSplitRefundRequest
     StripeSplitRefund(StripeSplitRefundRequest),
+    /// AdyenSplitRefundRequest
+    AdyenSplitRefund(AdyenSplitData),
 }
 impl_to_sql_from_sql_json!(SplitRefund);
 

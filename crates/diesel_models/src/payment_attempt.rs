@@ -73,7 +73,6 @@ pub struct PaymentAttempt {
     pub authentication_connector: Option<String>,
     pub authentication_id: Option<String>,
     pub fingerprint_id: Option<String>,
-    pub charge_id: Option<String>,
     pub client_source: Option<String>,
     pub client_version: Option<String>,
     pub customer_acceptance: Option<pii::SecretSerdeValue>,
@@ -94,6 +93,7 @@ pub struct PaymentAttempt {
     pub shipping_cost: Option<MinorUnit>,
     pub order_tax_amount: Option<MinorUnit>,
     pub connector_mandate_detail: Option<ConnectorMandateReferenceId>,
+    pub charges: Option<common_types::payments::ConnectorChargeResponseData>,
 }
 
 #[cfg(feature = "v1")]
@@ -172,6 +172,7 @@ pub struct PaymentAttempt {
     pub order_tax_amount: Option<MinorUnit>,
     pub connector_transaction_data: Option<String>,
     pub connector_mandate_detail: Option<ConnectorMandateReferenceId>,
+    pub charges: Option<common_types::payments::ConnectorChargeResponseData>,
 }
 
 #[cfg(feature = "v1")]
@@ -265,7 +266,6 @@ pub struct PaymentAttemptNew {
     pub authentication_id: Option<String>,
     pub fingerprint_id: Option<String>,
     pub payment_method_billing_address: Option<common_utils::encryption::Encryption>,
-    pub charge_id: Option<String>,
     pub client_source: Option<String>,
     pub client_version: Option<String>,
     pub customer_acceptance: Option<pii::SecretSerdeValue>,
@@ -278,6 +278,7 @@ pub struct PaymentAttemptNew {
     pub payment_method_subtype: storage_enums::PaymentMethodType,
     pub id: id_type::GlobalAttemptId,
     pub connector_mandate_detail: Option<ConnectorMandateReferenceId>,
+    pub charges: Option<common_types::payments::ConnectorChargeResponseData>,
 }
 
 #[cfg(feature = "v1")]
@@ -341,7 +342,6 @@ pub struct PaymentAttemptNew {
     pub mandate_data: Option<storage_enums::MandateDetails>,
     pub fingerprint_id: Option<String>,
     pub payment_method_billing_address_id: Option<String>,
-    pub charge_id: Option<String>,
     pub client_source: Option<String>,
     pub client_version: Option<String>,
     pub customer_acceptance: Option<pii::SecretSerdeValue>,
@@ -469,8 +469,8 @@ pub enum PaymentAttemptUpdate {
         unified_code: Option<Option<String>>,
         unified_message: Option<Option<String>>,
         payment_method_data: Option<serde_json::Value>,
-        charge_id: Option<String>,
         connector_mandate_detail: Option<ConnectorMandateReferenceId>,
+        charges: Option<common_types::payments::ConnectorChargeResponseData>,
     },
     UnresolvedResponseUpdate {
         status: storage_enums::AttemptStatus,
@@ -525,7 +525,7 @@ pub enum PaymentAttemptUpdate {
         encoded_data: Option<String>,
         connector_transaction_id: Option<String>,
         connector: Option<String>,
-        charge_id: Option<String>,
+        charges: Option<common_types::payments::ConnectorChargeResponseData>,
         updated_by: String,
     },
     IncrementalAuthorizationAmountUpdate {
@@ -839,7 +839,6 @@ pub struct PaymentAttemptUpdateInternal {
     pub authentication_id: Option<String>,
     pub fingerprint_id: Option<String>,
     pub payment_method_billing_address_id: Option<String>,
-    pub charge_id: Option<String>,
     pub client_source: Option<String>,
     pub client_version: Option<String>,
     pub customer_acceptance: Option<pii::SecretSerdeValue>,
@@ -848,6 +847,7 @@ pub struct PaymentAttemptUpdateInternal {
     pub order_tax_amount: Option<MinorUnit>,
     pub connector_transaction_data: Option<String>,
     pub connector_mandate_detail: Option<ConnectorMandateReferenceId>,
+    pub charges: Option<common_types::payments::ConnectorChargeResponseData>,
 }
 
 #[cfg(feature = "v1")]
@@ -1022,7 +1022,6 @@ impl PaymentAttemptUpdate {
             authentication_id,
             payment_method_billing_address_id,
             fingerprint_id,
-            charge_id,
             client_source,
             client_version,
             customer_acceptance,
@@ -1031,6 +1030,7 @@ impl PaymentAttemptUpdate {
             order_tax_amount,
             connector_transaction_data,
             connector_mandate_detail,
+            charges,
         } = PaymentAttemptUpdateInternal::from(self).populate_derived_fields(&source);
         PaymentAttempt {
             amount: amount.unwrap_or(source.amount),
@@ -1079,7 +1079,6 @@ impl PaymentAttemptUpdate {
             payment_method_billing_address_id: payment_method_billing_address_id
                 .or(source.payment_method_billing_address_id),
             fingerprint_id: fingerprint_id.or(source.fingerprint_id),
-            charge_id: charge_id.or(source.charge_id),
             client_source: client_source.or(source.client_source),
             client_version: client_version.or(source.client_version),
             customer_acceptance: customer_acceptance.or(source.customer_acceptance),
@@ -1089,6 +1088,7 @@ impl PaymentAttemptUpdate {
             connector_transaction_data: connector_transaction_data
                 .or(source.connector_transaction_data),
             connector_mandate_detail: connector_mandate_detail.or(source.connector_mandate_detail),
+            charges: charges.or(source.charges),
             ..source
         }
     }
@@ -2132,7 +2132,6 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 external_three_ds_authentication_attempted: None,
                 authentication_connector: None,
                 authentication_id: None,
-                charge_id: None,
                 client_source: None,
                 client_version: None,
                 customer_acceptance: None,
@@ -2141,6 +2140,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 order_tax_amount: None,
                 connector_transaction_data: None,
                 connector_mandate_detail: None,
+                charges: None,
             },
             PaymentAttemptUpdate::AuthenticationTypeUpdate {
                 authentication_type,
@@ -2188,7 +2188,6 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 authentication_id: None,
                 fingerprint_id: None,
                 payment_method_billing_address_id: None,
-                charge_id: None,
                 client_source: None,
                 client_version: None,
                 customer_acceptance: None,
@@ -2197,6 +2196,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 order_tax_amount: None,
                 connector_transaction_data: None,
                 connector_mandate_detail: None,
+                charges: None,
             },
             PaymentAttemptUpdate::ConfirmUpdate {
                 amount,
@@ -2278,12 +2278,12 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 encoded_data: None,
                 unified_code: None,
                 unified_message: None,
-                charge_id: None,
                 card_network: None,
                 shipping_cost,
                 order_tax_amount,
                 connector_transaction_data: None,
                 connector_mandate_detail,
+                charges: None,
             },
             PaymentAttemptUpdate::VoidUpdate {
                 status,
@@ -2332,7 +2332,6 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 authentication_id: None,
                 fingerprint_id: None,
                 payment_method_billing_address_id: None,
-                charge_id: None,
                 client_source: None,
                 client_version: None,
                 customer_acceptance: None,
@@ -2341,6 +2340,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 order_tax_amount: None,
                 connector_transaction_data: None,
                 connector_mandate_detail: None,
+                charges: None,
             },
             PaymentAttemptUpdate::RejectUpdate {
                 status,
@@ -2390,7 +2390,6 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 authentication_id: None,
                 fingerprint_id: None,
                 payment_method_billing_address_id: None,
-                charge_id: None,
                 client_source: None,
                 client_version: None,
                 customer_acceptance: None,
@@ -2399,6 +2398,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 order_tax_amount: None,
                 connector_transaction_data: None,
                 connector_mandate_detail: None,
+                charges: None,
             },
             PaymentAttemptUpdate::BlocklistUpdate {
                 status,
@@ -2448,7 +2448,6 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 authentication_id: None,
                 fingerprint_id: None,
                 payment_method_billing_address_id: None,
-                charge_id: None,
                 client_source: None,
                 client_version: None,
                 customer_acceptance: None,
@@ -2457,6 +2456,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 order_tax_amount: None,
                 connector_transaction_data: None,
                 connector_mandate_detail: None,
+                charges: None,
             },
             PaymentAttemptUpdate::ConnectorMandateDetailUpdate {
                 connector_mandate_detail,
@@ -2504,7 +2504,6 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 authentication_id: None,
                 fingerprint_id: None,
                 payment_method_billing_address_id: None,
-                charge_id: None,
                 client_source: None,
                 client_version: None,
                 customer_acceptance: None,
@@ -2513,6 +2512,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 order_tax_amount: None,
                 connector_transaction_data: None,
                 connector_mandate_detail,
+                charges: None,
             },
             PaymentAttemptUpdate::PaymentMethodDetailsUpdate {
                 payment_method_id,
@@ -2560,7 +2560,6 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 authentication_id: None,
                 fingerprint_id: None,
                 payment_method_billing_address_id: None,
-                charge_id: None,
                 client_source: None,
                 client_version: None,
                 customer_acceptance: None,
@@ -2569,6 +2568,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 order_tax_amount: None,
                 connector_transaction_data: None,
                 connector_mandate_detail: None,
+                charges: None,
             },
             PaymentAttemptUpdate::ResponseUpdate {
                 status,
@@ -2590,8 +2590,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 unified_code,
                 unified_message,
                 payment_method_data,
-                charge_id,
                 connector_mandate_detail,
+                charges,
             } => {
                 let (connector_transaction_id, connector_transaction_data) =
                     connector_transaction_id
@@ -2619,7 +2619,6 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     unified_code,
                     unified_message,
                     payment_method_data,
-                    charge_id,
                     connector_transaction_data,
                     amount: None,
                     net_amount: None,
@@ -2650,6 +2649,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     shipping_cost: None,
                     order_tax_amount: None,
                     connector_mandate_detail,
+                    charges,
                 }
             }
             PaymentAttemptUpdate::ErrorUpdate {
@@ -2715,7 +2715,6 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     authentication_id: None,
                     fingerprint_id: None,
                     payment_method_billing_address_id: None,
-                    charge_id: None,
                     client_source: None,
                     client_version: None,
                     customer_acceptance: None,
@@ -2723,6 +2722,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     shipping_cost: None,
                     order_tax_amount: None,
                     connector_mandate_detail: None,
+                    charges: None,
                 }
             }
             PaymentAttemptUpdate::StatusUpdate { status, updated_by } => Self {
@@ -2768,7 +2768,6 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 authentication_id: None,
                 fingerprint_id: None,
                 payment_method_billing_address_id: None,
-                charge_id: None,
                 client_source: None,
                 client_version: None,
                 customer_acceptance: None,
@@ -2777,6 +2776,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 order_tax_amount: None,
                 connector_transaction_data: None,
                 connector_mandate_detail: None,
+                charges: None,
             },
             PaymentAttemptUpdate::UpdateTrackers {
                 payment_token,
@@ -2830,7 +2830,6 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 authentication_id: None,
                 fingerprint_id: None,
                 payment_method_billing_address_id: None,
-                charge_id: None,
                 client_source: None,
                 client_version: None,
                 customer_acceptance: None,
@@ -2839,6 +2838,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 order_tax_amount: None,
                 connector_transaction_data: None,
                 connector_mandate_detail: None,
+                charges: None,
             },
             PaymentAttemptUpdate::UnresolvedResponseUpdate {
                 status,
@@ -2900,7 +2900,6 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     authentication_id: None,
                     fingerprint_id: None,
                     payment_method_billing_address_id: None,
-                    charge_id: None,
                     client_source: None,
                     client_version: None,
                     customer_acceptance: None,
@@ -2908,6 +2907,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     shipping_cost: None,
                     order_tax_amount: None,
                     connector_mandate_detail: None,
+                    charges: None,
                 }
             }
             PaymentAttemptUpdate::PreprocessingUpdate {
@@ -2968,7 +2968,6 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     authentication_id: None,
                     fingerprint_id: None,
                     payment_method_billing_address_id: None,
-                    charge_id: None,
                     client_source: None,
                     client_version: None,
                     customer_acceptance: None,
@@ -2976,6 +2975,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     shipping_cost: None,
                     order_tax_amount: None,
                     connector_mandate_detail: None,
+                    charges: None,
                 }
             }
             PaymentAttemptUpdate::CaptureUpdate {
@@ -3025,7 +3025,6 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 authentication_id: None,
                 fingerprint_id: None,
                 payment_method_billing_address_id: None,
-                charge_id: None,
                 client_source: None,
                 client_version: None,
                 customer_acceptance: None,
@@ -3034,6 +3033,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 order_tax_amount: None,
                 connector_transaction_data: None,
                 connector_mandate_detail: None,
+                charges: None,
             },
             PaymentAttemptUpdate::AmountToCaptureUpdate {
                 status,
@@ -3082,7 +3082,6 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 authentication_id: None,
                 fingerprint_id: None,
                 payment_method_billing_address_id: None,
-                charge_id: None,
                 client_source: None,
                 client_version: None,
                 customer_acceptance: None,
@@ -3091,6 +3090,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 order_tax_amount: None,
                 connector_transaction_data: None,
                 connector_mandate_detail: None,
+                charges: None,
             },
             PaymentAttemptUpdate::ConnectorResponse {
                 authentication_data,
@@ -3098,7 +3098,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 connector_transaction_id,
                 connector,
                 updated_by,
-                charge_id,
+                charges,
             } => {
                 let (connector_transaction_id, connector_transaction_data) =
                     connector_transaction_id
@@ -3112,7 +3112,6 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     connector: connector.map(Some),
                     modified_at: common_utils::date_time::now(),
                     updated_by,
-                    charge_id,
                     connector_transaction_data,
                     amount: None,
                     net_amount: None,
@@ -3157,6 +3156,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     shipping_cost: None,
                     order_tax_amount: None,
                     connector_mandate_detail: None,
+                    charges,
                 }
             }
             PaymentAttemptUpdate::IncrementalAuthorizationAmountUpdate {
@@ -3205,7 +3205,6 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 authentication_id: None,
                 fingerprint_id: None,
                 payment_method_billing_address_id: None,
-                charge_id: None,
                 client_source: None,
                 client_version: None,
                 customer_acceptance: None,
@@ -3214,6 +3213,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 order_tax_amount: None,
                 connector_transaction_data: None,
                 connector_mandate_detail: None,
+                charges: None,
             },
             PaymentAttemptUpdate::AuthenticationUpdate {
                 status,
@@ -3264,7 +3264,6 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 unified_message: None,
                 fingerprint_id: None,
                 payment_method_billing_address_id: None,
-                charge_id: None,
                 client_source: None,
                 client_version: None,
                 customer_acceptance: None,
@@ -3273,6 +3272,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 order_tax_amount: None,
                 connector_transaction_data: None,
                 connector_mandate_detail: None,
+                charges: None,
             },
             PaymentAttemptUpdate::ManualUpdate {
                 status,
@@ -3333,7 +3333,6 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     authentication_id: None,
                     fingerprint_id: None,
                     payment_method_billing_address_id: None,
-                    charge_id: None,
                     client_source: None,
                     client_version: None,
                     customer_acceptance: None,
@@ -3341,6 +3340,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     shipping_cost: None,
                     order_tax_amount: None,
                     connector_mandate_detail: None,
+                    charges: None,
                 }
             }
             PaymentAttemptUpdate::PostSessionTokensUpdate {
@@ -3389,7 +3389,6 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 authentication_id: None,
                 fingerprint_id: None,
                 payment_method_billing_address_id: None,
-                charge_id: None,
                 client_source: None,
                 client_version: None,
                 customer_acceptance: None,
@@ -3398,6 +3397,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 order_tax_amount: None,
                 connector_transaction_data: None,
                 connector_mandate_detail: None,
+                charges: None,
             },
         }
     }

@@ -433,7 +433,7 @@ impl<F>
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.operation.order_id),
                 incremental_authorization_allowed: None,
-                charge_id: None,
+                charges: None,
             }),
             ..item.data
         })
@@ -829,7 +829,7 @@ impl<F>
                             response_body.operation.order_id.clone(),
                         ),
                         incremental_authorization_allowed: None,
-                        charge_id: None,
+                        charges: None,
                     }),
                     ..item.data
                 })
@@ -848,7 +848,7 @@ impl<F>
                         mandate_response.operation.order_id.clone(),
                     ),
                     incremental_authorization_allowed: None,
-                    charge_id: None,
+                    charges: None,
                 }),
                 ..item.data
             }),
@@ -971,7 +971,7 @@ impl<F>
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.operation.order_id),
                 incremental_authorization_allowed: None,
-                charge_id: None,
+                charges: None,
             }),
             ..item.data
         })
@@ -1143,7 +1143,7 @@ impl<F>
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.order_id.clone()),
                 incremental_authorization_allowed: None,
-                charge_id: None,
+                charges: None,
             }),
             ..item.data
         })
@@ -1201,7 +1201,7 @@ impl<F>
                     item.data.request.connector_transaction_id.clone(),
                 ),
                 incremental_authorization_allowed: None,
-                charge_id: None,
+                charges: None,
             }),
             ..item.data
         })
@@ -1264,7 +1264,7 @@ impl<F>
                     item.data.request.connector_transaction_id.clone(),
                 ),
                 incremental_authorization_allowed: None,
-                charge_id: None,
+                charges: None,
             }),
             ..item.data
         })

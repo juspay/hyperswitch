@@ -8,6 +8,8 @@ use diesel::{sql_types::Jsonb, AsExpression, FromSqlRow};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
+use crate::domain::AdyenSplitData;
+
 #[derive(
     Serialize, Deserialize, Debug, Clone, PartialEq, Eq, FromSqlRow, AsExpression, ToSchema,
 )]
@@ -18,6 +20,8 @@ use utoipa::ToSchema;
 pub enum SplitPaymentsRequest {
     /// StripeSplitPayment
     StripeSplitPayment(StripeSplitPaymentRequest),
+    /// AdyenSplitPayment
+    AdyenSplitPayment(AdyenSplitData),
 }
 impl_to_sql_from_sql_json!(SplitPaymentsRequest);
 
@@ -36,7 +40,7 @@ pub struct StripeSplitPaymentRequest {
     #[schema(value_type = i64, example = 6540)]
     pub application_fees: MinorUnit,
 
-    /// Identifier for the reseller's account to send the funds to
+    /// Identifier for the reseller's account where the funds were transferred
     pub transfer_account_id: String,
 }
 impl_to_sql_from_sql_json!(StripeSplitPaymentRequest);
@@ -65,3 +69,42 @@ impl AuthenticationConnectorAccountMap {
             .cloned()
     }
 }
+
+/// Fee information to be charged on the payment being collected via Stripe
+#[derive(
+    Serialize, Deserialize, Debug, Clone, PartialEq, Eq, FromSqlRow, AsExpression, ToSchema,
+)]
+#[diesel(sql_type = Jsonb)]
+#[serde(deny_unknown_fields)]
+pub struct StripeChargeResponseData {
+    /// Identifier for charge created for the payment
+    pub charge_id: Option<String>,
+
+    /// Type of charge (connector specific)
+    #[schema(value_type = PaymentChargeType, example = "direct")]
+    pub charge_type: enums::PaymentChargeType,
+
+    /// Platform fees collected on the payment
+    #[schema(value_type = i64, example = 6540)]
+    pub application_fees: MinorUnit,
+
+    /// Identifier for the reseller's account where the funds were transferred
+    pub transfer_account_id: String,
+}
+impl_to_sql_from_sql_json!(StripeChargeResponseData);
+
+/// Charge Information
+#[derive(
+    Serialize, Deserialize, Debug, Clone, PartialEq, Eq, FromSqlRow, AsExpression, ToSchema,
+)]
+#[diesel(sql_type = Jsonb)]
+#[serde(rename_all = "snake_case")]
+#[serde(deny_unknown_fields)]
+pub enum ConnectorChargeResponseData {
+    /// StripeChargeResponseData
+    StripeSplitPayment(StripeChargeResponseData),
+    /// AdyenChargeResponseData
+    AdyenSplitPayment(AdyenSplitData),
+}
+
+impl_to_sql_from_sql_json!(ConnectorChargeResponseData);

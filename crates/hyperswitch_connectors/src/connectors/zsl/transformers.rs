@@ -334,7 +334,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, ZslPaymentsResponse, T, PaymentsRespons
                         network_txn_id: None,
                         connector_response_reference_id: Some(item.response.mer_ref.clone()),
                         incremental_authorization_allowed: None,
-                        charge_id: None,
+                        charges: None,
                     }),
                     ..item.data
                 })
@@ -427,7 +427,7 @@ impl<F> TryFrom<ResponseRouterData<F, ZslWebhookResponse, PaymentsSyncData, Paym
                     network_txn_id: None,
                     connector_response_reference_id: Some(item.response.mer_ref.clone()),
                     incremental_authorization_allowed: None,
-                    charge_id: None,
+                    charges: None,
                 }),
                 ..item.data
             })

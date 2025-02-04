@@ -647,6 +647,7 @@ pub struct RefundIntegrityObject {
 #[derive(Debug, serde::Deserialize, Clone)]
 pub enum SplitRefundsRequest {
     StripeSplitRefund(StripeSplitRefund),
+    AdyenSplitRefund(common_types::domain::AdyenSplitData),
 }
 
 #[derive(Debug, serde::Deserialize, Clone)]
