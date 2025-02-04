@@ -109,14 +109,21 @@ impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
     }
 
     fn convert_back(self) -> ApiFeatureMetadata {
+        #[cfg(feature = "v1")]
         let Self {
             redirect_response,
             search_tags,
             apple_pay_recurring_details,
+        } = self;
 
-            #[cfg(feature = "v2")]
+        #[cfg(feature = "v2")]
+        let Self {
+            redirect_response,
+            search_tags,
+            apple_pay_recurring_details,
             revenue_recovery_metadata,
         } = self;
+        
         ApiFeatureMetadata {
             redirect_response: redirect_response
                 .map(|redirect_response| redirect_response.convert_back()),

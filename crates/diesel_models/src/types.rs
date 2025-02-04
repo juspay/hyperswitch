@@ -42,6 +42,7 @@ impl masking::SerializableSecret for OrderDetailsWithAmount {}
 
 common_utils::impl_to_sql_from_sql_json!(OrderDetailsWithAmount);
 
+#[cfg(feature = "v2")]
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]
 #[diesel(sql_type = Json)]
 pub struct FeatureMetadata {
@@ -52,8 +53,21 @@ pub struct FeatureMetadata {
     pub search_tags: Option<Vec<HashedString<WithType>>>,
     /// Recurring payment details required for apple pay Merchant Token
     pub apple_pay_recurring_details: Option<ApplePayRecurringDetails>,
-    #[cfg(feature = "v2")]
+    /// revenue recovery data for payment intent
     pub revenue_recovery_metadata: Option<RevenueRecoveryMetadata>,
+}
+
+#[cfg(feature = "v1")]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]
+#[diesel(sql_type = Json)]
+pub struct FeatureMetadata {
+    /// Redirection response coming in request as metadata field only for redirection scenarios
+    pub redirect_response: Option<RedirectResponse>,
+    // TODO: Convert this to hashedstrings to avoid PII sensitive data
+    /// Additional tags to be used for global search
+    pub search_tags: Option<Vec<HashedString<WithType>>>,
+    /// Recurring payment details required for apple pay Merchant Token
+    pub apple_pay_recurring_details: Option<ApplePayRecurringDetails>,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]

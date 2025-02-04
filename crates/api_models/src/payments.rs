@@ -6640,6 +6640,7 @@ pub struct PaymentsStartRequest {
 }
 
 /// additional data that might be required by hyperswitch
+#[cfg(feature = "v2")]
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct FeatureMetadata {
     /// Redirection response coming in request as metadata field only for redirection scenarios
@@ -6652,9 +6653,25 @@ pub struct FeatureMetadata {
     /// Recurring payment details required for apple pay Merchant Token
     pub apple_pay_recurring_details: Option<ApplePayRecurringDetails>,
     /// revenue recovery data for payment intent
-    #[cfg(feature = "v2")]
     pub revenue_recovery_metadata: Option<RevenueRecoveryMetadata>,
 }
+
+/// additional data that might be required by hyperswitch
+#[cfg(feature = "v1")]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct FeatureMetadata {
+    /// Redirection response coming in request as metadata field only for redirection scenarios
+    #[schema(value_type = Option<RedirectResponse>)]
+    pub redirect_response: Option<RedirectResponse>,
+    // TODO: Convert this to hashedstrings to avoid PII sensitive data
+    /// Additional tags to be used for global search
+    #[schema(value_type = Option<Vec<String>>)]
+    pub search_tags: Option<Vec<HashedString<WithType>>>,
+    /// Recurring payment details required for apple pay Merchant Token
+    pub apple_pay_recurring_details: Option<ApplePayRecurringDetails>,
+}
+
+
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct ApplePayRecurringDetails {
