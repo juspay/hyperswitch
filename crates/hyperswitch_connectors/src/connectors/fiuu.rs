@@ -56,6 +56,20 @@ use crate::{
     utils::{self, PaymentMethodDataType},
 };
 
+pub fn parse_and_log_keys_in_url_encoded_response<T>(data: &[u8]) {
+    match std::str::from_utf8(data) {
+        Ok(query_str) => {
+            let keys: Vec<String> = url::form_urlencoded::parse(query_str.as_bytes())
+                .map(|(key, _)| key.into_owned())
+                .collect();
+            router_env::logger::info!("Keys in {} response\n{:?}", type_name::<T>(), keys);
+        }
+        Err(err) => {
+            router_env::logger::error!("Failed to convert bytes to string: {:?}", err);
+        }
+    }
+}
+
 fn parse_response<T>(data: &[u8]) -> Result<T, errors::ConnectorError>
 where
     T: for<'de> Deserialize<'de>,
@@ -90,7 +104,7 @@ where
         json.insert("miscellaneous".to_string(), misc_value);
     }
 
-    let keys = json.iter().map(|(key, _)| key).collect::<Vec<&String>>();
+    let keys: Vec<&String> = json.iter().map(|(key, _)| key).collect();
     router_env::logger::info!("Keys in response for type {}\n{:?}", type_name::<T>(), keys);
 
     let response: T = serde_json::from_value(Value::Object(json)).map_err(|e| {
@@ -753,6 +767,7 @@ impl webhooks::IncomingWebhook for Fiuu {
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let header = utils::get_header_key_value("content-type", request.headers)?;
         let resource: FiuuWebhooksResponse = if header == "application/x-www-form-urlencoded" {
+            parse_and_log_keys_in_url_encoded_response::<FiuuWebhooksResponse>(request.body);
             serde_urlencoded::from_bytes::<FiuuWebhooksResponse>(request.body)
                 .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?
         } else {
@@ -782,6 +797,7 @@ impl webhooks::IncomingWebhook for Fiuu {
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let header = utils::get_header_key_value("content-type", request.headers)?;
         let resource: FiuuWebhooksResponse = if header == "application/x-www-form-urlencoded" {
+            parse_and_log_keys_in_url_encoded_response::<FiuuWebhooksResponse>(request.body);
             serde_urlencoded::from_bytes::<FiuuWebhooksResponse>(request.body)
                 .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?
         } else {
@@ -839,6 +855,7 @@ impl webhooks::IncomingWebhook for Fiuu {
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
         let header = utils::get_header_key_value("content-type", request.headers)?;
         let resource: FiuuWebhooksResponse = if header == "application/x-www-form-urlencoded" {
+            parse_and_log_keys_in_url_encoded_response::<FiuuWebhooksResponse>(request.body);
             serde_urlencoded::from_bytes::<FiuuWebhooksResponse>(request.body)
                 .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?
         } else {
@@ -872,6 +889,7 @@ impl webhooks::IncomingWebhook for Fiuu {
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
         let header = utils::get_header_key_value("content-type", request.headers)?;
         let resource: FiuuWebhooksResponse = if header == "application/x-www-form-urlencoded" {
+            parse_and_log_keys_in_url_encoded_response::<FiuuWebhooksResponse>(request.body);
             serde_urlencoded::from_bytes::<FiuuWebhooksResponse>(request.body)
                 .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?
         } else {
@@ -897,6 +915,7 @@ impl webhooks::IncomingWebhook for Fiuu {
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
         let header = utils::get_header_key_value("content-type", request.headers)?;
         let payload: FiuuWebhooksResponse = if header == "application/x-www-form-urlencoded" {
+            parse_and_log_keys_in_url_encoded_response::<FiuuWebhooksResponse>(request.body);
             serde_urlencoded::from_bytes::<FiuuWebhooksResponse>(request.body)
                 .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?
         } else {
