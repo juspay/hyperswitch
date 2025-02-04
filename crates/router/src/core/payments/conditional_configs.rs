@@ -11,7 +11,6 @@ use crate::{core::errors::RouterResult, types::domain};
 use crate::{
     core::{errors, errors::ConditionalConfigError as ConfigError, routing as core_routing},
     routes,
-    // types::domain,
 };
 pub type ConditionalConfigResult<O> = errors::CustomResult<O, ConfigError>;
 
