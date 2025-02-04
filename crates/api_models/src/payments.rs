@@ -6671,8 +6671,6 @@ pub struct FeatureMetadata {
     pub apple_pay_recurring_details: Option<ApplePayRecurringDetails>,
 }
 
-
-
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct ApplePayRecurringDetails {
     /// A description of the recurring payment that Apple Pay displays to the user in the payment sheet

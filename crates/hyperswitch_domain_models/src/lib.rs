@@ -129,7 +129,7 @@ impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
             apple_pay_recurring_details,
             revenue_recovery_metadata,
         } = self;
-        
+
         ApiFeatureMetadata {
             redirect_response: redirect_response
                 .map(|redirect_response| redirect_response.convert_back()),
