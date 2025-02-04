@@ -1,13 +1,5 @@
-const successfulNo3DSCardDetails = {
+const successfulTestCardDetails = {
   card_number: "4111111111111111",
-  card_exp_month: "10",
-  card_exp_year: "30",
-  card_holder_name: "Juspay Hyperswitch",
-  card_cvc: "737",
-};
-
-const successfulThreeDSTestCardDetails = {
-  card_number: "4242424242424242",
   card_exp_month: "10",
   card_exp_year: "30",
   card_holder_name: "Juspay Hyperswitch",
@@ -57,7 +49,7 @@ export const connectorDetails = {
       Request: {
         payment_method: "card",
         payment_method_data: {
-          card: successfulNo3DSCardDetails,
+          card: successfulTestCardDetails,
         },
         customer_acceptance: null,
         setup_future_usage: "on_session",
@@ -77,7 +69,7 @@ export const connectorDetails = {
       Request: {
         payment_method: "card",
         payment_method_data: {
-          card: successfulNo3DSCardDetails,
+          card: successfulTestCardDetails,
         },
         currency: "USD",
         customer_acceptance: null,
@@ -94,7 +86,7 @@ export const connectorDetails = {
       Request: {
         payment_method: "card",
         payment_method_data: {
-          card: successfulNo3DSCardDetails,
+          card: successfulTestCardDetails,
         },
         currency: "USD",
         customer_acceptance: null,
@@ -111,7 +103,7 @@ export const connectorDetails = {
       Request: {
         payment_method: "card",
         payment_method_data: {
-          card: successfulNo3DSCardDetails,
+          card: successfulTestCardDetails,
         },
         currency: "USD",
         customer_acceptance: null,
@@ -120,9 +112,9 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
-          amount: 6500,
+          amount: random_amount,
           amount_capturable: 0,
-          amount_received: 6500,
+          amount_received: random_amount,
         },
       },
     },
@@ -151,7 +143,7 @@ export const connectorDetails = {
       Request: {
         payment_method: "card",
         payment_method_data: {
-          card: successfulNo3DSCardDetails,
+          card: successfulTestCardDetails,
         },
         currency: "USD",
         customer_acceptance: null,
@@ -167,7 +159,7 @@ export const connectorDetails = {
       Request: {
         payment_method: "card",
         payment_method_data: {
-          card: successfulNo3DSCardDetails,
+          card: successfulTestCardDetails,
         },
         currency: "USD",
         customer_acceptance: null,
@@ -183,7 +175,7 @@ export const connectorDetails = {
       Request: {
         payment_method: "card",
         payment_method_data: {
-          card: successfulNo3DSCardDetails,
+          card: successfulTestCardDetails,
         },
         currency: "USD",
         customer_acceptance: null,
@@ -199,7 +191,7 @@ export const connectorDetails = {
       Request: {
         payment_method: "card",
         payment_method_data: {
-          card: successfulNo3DSCardDetails,
+          card: successfulTestCardDetails,
         },
         currency: "USD",
         customer_acceptance: null,
@@ -215,7 +207,7 @@ export const connectorDetails = {
       Request: {
         payment_method: "card",
         payment_method_data: {
-          card: successfulNo3DSCardDetails,
+          card: successfulTestCardDetails,
         },
         currency: "USD",
         customer_acceptance: null,
@@ -259,7 +251,7 @@ export const connectorDetails = {
         payment_method: "card",
         payment_method_type: "credit",
         payment_method_data: {
-          card: successfulNo3DSCardDetails,
+          card: successfulTestCardDetails,
         },
       },
       Response: {
@@ -277,7 +269,7 @@ export const connectorDetails = {
       Request: {
         payment_method: "card",
         payment_method_data: {
-          card: successfulNo3DSCardDetails,
+          card: successfulTestCardDetails,
         },
         currency: "USD",
         setup_future_usage: "on_session",
@@ -301,7 +293,7 @@ export const connectorDetails = {
       Request: {
         payment_method: "card",
         payment_method_data: {
-          card: successfulNo3DSCardDetails,
+          card: successfulTestCardDetails,
         },
         currency: "USD",
         setup_future_usage: "on_session",
