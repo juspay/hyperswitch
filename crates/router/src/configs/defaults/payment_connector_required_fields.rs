@@ -53,6 +53,12 @@ impl Default for Mandates {
                                 ]),
                             },
                         ),
+                        (
+                            enums::PaymentMethodType::SamsungPay,
+                            SupportedConnectorsForMandate {
+                                connector_list: HashSet::from([enums::Connector::Cybersource]),
+                            },
+                        ),
                     ])),
                 ),
                 (
@@ -8886,6 +8892,21 @@ impl Default for settings::RequiredFields {
                                     }
                                 ),
 
+                            ]),
+                        },
+                    ),
+                    (
+                        enums::PaymentMethodType::SamsungPay,
+                        ConnectorFields {
+                            fields: HashMap::from([
+                                (
+                                    enums::Connector::Cybersource,
+                                    RequiredFieldFinal {
+                                        mandate: HashMap::new(),
+                                        non_mandate: HashMap::new(),
+                                        common: HashMap::new(),
+                                    }
+                                ),
                             ]),
                         },
                     ),
