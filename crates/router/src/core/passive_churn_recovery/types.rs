@@ -206,6 +206,8 @@ impl PCRAttemptStatus {
                     &process_tracker,
                 ))
                 .await?;
+
+                //handle the resp
                 action
                     .psync_payment_response_handler(
                         db,
@@ -216,7 +218,6 @@ impl PCRAttemptStatus {
                         &payment_intent,
                     )
                     .await?;
-                //handle the resp
             }
             Self::InvalidAction(action) => logger::debug!(
                 "Invalid Attempt Status for the Recovery Payment : {}",
@@ -405,7 +406,7 @@ impl Action {
 
                         PCRAttemptStatus::Processing => Ok(Self::SyncPayment),
                         PCRAttemptStatus::InvalidAction(action) => {
-                            logger::info!(?action, "Invalid Payment Status For PCR Payment");
+                            logger::info!(?action, "Invalid Payment Status For PCR PSync Payment");
                             Ok(Self::ManualReviewAction)
                         }
                     }
