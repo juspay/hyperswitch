@@ -522,6 +522,7 @@ impl PaymentAttempt {
             error: None,
             connector_mandate_detail: None,
             platform_merchant_id: None,
+            id,
         })
     }
 }
