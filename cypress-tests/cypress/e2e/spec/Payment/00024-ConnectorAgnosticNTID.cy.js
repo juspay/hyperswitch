@@ -29,6 +29,7 @@ Flow:
 - List Payment Method for Customer -- Empty list; i.e., no payment method should be listed
 - Confirm Payment with PMID from previous step (should fail as Connector Mandate ID is not present in the newly created Profile)
 
+
 - Create Business Profile with connector agnostic feature disabled
 - Create Merchant Connector Account and Customer
 - Make a Payment
