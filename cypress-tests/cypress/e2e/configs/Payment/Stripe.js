@@ -293,7 +293,7 @@ export const connectorDetails = {
         },
       },
     },
-    No3DSFailPayment: {
+    No3DSFailPayment: getCustomExchange({
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -309,11 +309,16 @@ export const connectorDetails = {
           error_code: "card_declined",
           error_message:
             "message - Your card was declined., decline_code - generic_decline",
-          unified_code: "UE_9000",
-          unified_message: "Something went wrong",
+          unified_code: "card_declined",
+          unified_message: "card is declined",
         },
       },
-    },
+      ResponseCustom: {
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    }),
     Capture: {
       Request: {
         payment_method: "card",
