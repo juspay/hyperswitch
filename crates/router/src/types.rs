@@ -54,8 +54,8 @@ pub use hyperswitch_domain_models::{
     },
     router_request_types::{
         unified_authentication_service::{
-            UasAuthenticationResponseData, UasPostAuthenticationRequestData,
-            UasPreAuthenticationRequestData,
+            UasAuthenticationRequestData, UasAuthenticationResponseData,
+            UasPostAuthenticationRequestData, UasPreAuthenticationRequestData,
         },
         AcceptDisputeRequestData, AccessTokenRequestData, AuthorizeSessionTokenData,
         BrowserInformation, ChargeRefunds, ChargeRefundsOptions, CompleteAuthorizeData,
