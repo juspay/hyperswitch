@@ -53,6 +53,20 @@ pub struct ClientSecretResponse {
     pub secret: Secret<String>,
 }
 
+#[cfg(feature = "v1")]
+impl common_utils::events::ApiEventMetric for EphemeralKeyCreateRequest {
+    fn get_api_event_type(&self) -> Option<common_utils::events::ApiEventsType> {
+        Some(common_utils::events::ApiEventsType::Miscellaneous)
+    }
+}
+
+#[cfg(feature = "v1")]
+impl common_utils::events::ApiEventMetric for EphemeralKeyCreateResponse {
+    fn get_api_event_type(&self) -> Option<common_utils::events::ApiEventsType> {
+        Some(common_utils::events::ApiEventsType::Miscellaneous)
+    }
+}
+
 #[cfg(feature = "v2")]
 impl common_utils::events::ApiEventMetric for ClientSecretCreateRequest {
     fn get_api_event_type(&self) -> Option<common_utils::events::ApiEventsType> {
