@@ -4187,6 +4187,7 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
         self,
         state: &SessionState,
         key_store: &domain::MerchantKeyStore,
+        business_profile: &domain::Profile,
     ) -> RouterResult<domain::ProfileUpdate> {
         if let Some(session_expiry) = &self.session_expiry {
             helpers::validate_session_expiry(session_expiry.to_owned())?;
