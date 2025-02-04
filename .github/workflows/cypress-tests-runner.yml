@@ -163,12 +163,11 @@ jobs:
           toolchain: stable 2 weeks ago
           components: clippy
 
-      - name: Install sccache
+      - name: Install rust cache
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: taiki-e/install-action@v2.41.10
+        uses: Swatinem/rust-cache@v2.7.7
         with:
-          tool: sccache
-          checksum: true
+          save-if: false
 
       - name: Install Diesel CLI
         if: ${{ env.RUN_TESTS == 'true' }}
