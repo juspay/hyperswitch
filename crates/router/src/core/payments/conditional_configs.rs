@@ -66,12 +66,6 @@ pub fn perform_decision_management(
     record: common_types::payments::DecisionManagerRecord,
     payment_data: &core_routing::PaymentsDslInput<'_>,
 ) -> RouterResult<common_types::payments::ConditionalConfigs> {
-    ///three_ds_decision_manager_config
-    // let record = profile
-    //     .three_ds_decision_manager_config
-    //     .clone()
-    //     .ok_or_else(|| errors::ApiErrorResponse::InternalServerError)
-    //     .attach_printable("The Conditional Config Record was not found")?;
     let interpreter = backend::VirInterpreterBackend::with_program(record.program)
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Error initializing DSL interpreter backend")?;

@@ -473,9 +473,7 @@ impl PaymentAttempt {
             .transpose()
             .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
             .attach_printable("Unable to decode billing address")?;
-        let authentication_type = payment_intent
-            .authentication_type
-            .unwrap_or(common_enums::AuthenticationType::NoThreeDs);
+        let authentication_type = payment_intent.authentication_type.unwrap_or_default();
 
         Ok(Self {
             payment_id: payment_intent.id.clone(),

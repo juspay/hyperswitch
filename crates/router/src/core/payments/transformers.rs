@@ -790,7 +790,7 @@ pub async fn construct_payment_router_data_for_sdk_session<'a>(
         auth_type: payment_data
             .payment_intent
             .authentication_type
-            .unwrap_or(common_enums::AuthenticationType::NoThreeDs),
+            .unwrap_or_default(),
         connector_meta_data: merchant_connector_account.get_metadata(),
         connector_wallets_details: None,
         request,

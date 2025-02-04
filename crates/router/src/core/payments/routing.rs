@@ -173,31 +173,33 @@ pub fn make_dsl_input(
     let mandate_data = dsl_inputs::MandateData {
         mandate_acceptance_type: payments_dsl_input.setup_mandate.as_ref().and_then(
             |mandate_data| {
-                mandate_data
-                    .customer_acceptance
-                    .clone()
-                    .map(|cat| match cat.acceptance_type {
+                mandate_data.customer_acceptance.clone().map(
+                    |customer_accept| match customer_accept.acceptance_type {
                         hyperswitch_domain_models::mandates::AcceptanceType::Online => {
                             euclid_enums::MandateAcceptanceType::Online
                         }
                         hyperswitch_domain_models::mandates::AcceptanceType::Offline => {
                             euclid_enums::MandateAcceptanceType::Offline
                         }
-                    })
+                    },
+                )
             },
         ),
         mandate_type: payments_dsl_input
             .setup_mandate
             .as_ref()
             .and_then(|mandate_data| {
-                mandate_data.mandate_type.clone().map(|mt| match mt {
-                    hyperswitch_domain_models::mandates::MandateDataType::SingleUse(_) => {
-                        euclid_enums::MandateType::SingleUse
-                    }
-                    hyperswitch_domain_models::mandates::MandateDataType::MultiUse(_) => {
-                        euclid_enums::MandateType::MultiUse
-                    }
-                })
+                mandate_data
+                    .mandate_type
+                    .clone()
+                    .map(|mandate_type| match mandate_type {
+                        hyperswitch_domain_models::mandates::MandateDataType::SingleUse(_) => {
+                            euclid_enums::MandateType::SingleUse
+                        }
+                        hyperswitch_domain_models::mandates::MandateDataType::MultiUse(_) => {
+                            euclid_enums::MandateType::MultiUse
+                        }
+                    })
             }),
         payment_type: Some(
             if payments_dsl_input
@@ -239,9 +241,7 @@ pub fn make_dsl_input(
             .get_net_amount(),
         card_bin: payments_dsl_input.payment_method_data.as_ref().and_then(
             |pm_data| match pm_data {
-                domain::PaymentMethodData::Card(card) => {
-                    Some(card.card_number.peek().chars().take(6).collect())
-                }
+                domain::PaymentMethodData::Card(card) => Some(card.card_number.get_card_isin()),
                 _ => None,
             },
         ),
@@ -252,8 +252,8 @@ pub fn make_dsl_input(
         billing_country: payments_dsl_input
             .address
             .get_payment_method_billing()
-            .and_then(|bic| bic.address.as_ref())
-            .and_then(|add| add.country)
+            .and_then(|billing_address| billing_address.address.as_ref())
+            .and_then(|address_details| address_details.country)
             .map(api_enums::Country::from_alpha2),
         business_label: None,
         setup_future_usage: Some(payments_dsl_input.payment_intent.setup_future_usage),
@@ -263,7 +263,7 @@ pub fn make_dsl_input(
         .payment_intent
         .metadata
         .clone()
-        .map(|val| val.parse_value("routing_parameters"))
+        .map(|value| value.parse_value("routing_parameters"))
         .transpose()
         .change_context(errors::RoutingError::MetadataParsingError)
         .attach_printable("Unable to parse routing_parameters from metadata of payment_intent")
