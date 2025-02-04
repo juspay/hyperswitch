@@ -5,7 +5,7 @@ use std::{
 };
 pub mod additional_info;
 use cards::CardNumber;
-use common_enums::{PaymentMethod, PaymentMethodType, ProductType};
+use common_enums::ProductType;
 #[cfg(feature = "v2")]
 use common_utils::id_type::GlobalPaymentId;
 use common_utils::{
@@ -7525,9 +7525,9 @@ pub struct RevenueRecoveryMetadata {
     // Billing Connector Mit Token Details
     pub billing_connector_mit_token_details: BillingConnectorMitTokenDetails,
     //Payment Method Type
-    pub payment_method_type: PaymentMethod,
+    pub payment_method_type: common_enums::PaymentMethod,
     //PaymentMethod Subtype
-    pub payment_method_subtype: PaymentMethodType,
+    pub payment_method_subtype: common_enums::PaymentMethodType,
 }
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize, ToSchema)]
 #[cfg(feature = "v2")]

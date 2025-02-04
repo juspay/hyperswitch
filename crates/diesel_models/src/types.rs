@@ -1,3 +1,4 @@
+#[cfg(feature = "v2")]
 use common_enums::{PaymentMethod, PaymentMethodType};
 use common_utils::{hashing::HashedString, pii, types::MinorUnit};
 use diesel::{
