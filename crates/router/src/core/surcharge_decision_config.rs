@@ -56,7 +56,7 @@ pub async fn upsert_surcharge_decision_config(
             message: "Invalid Request Data".to_string(),
         })
         .attach_printable("The Request has an Invalid Comparison")?;
-
+    let surcharge_cache_key = merchant_account.get_id().get_surcharge_dsk_key();
     match read_config_key {
         Ok(config) => {
             let previous_record: SurchargeDecisionManagerRecord = config
@@ -88,7 +88,7 @@ pub async fn upsert_surcharge_decision_config(
                 .attach_printable("Error serializing the config")?;
 
             algo_id.update_surcharge_config_id(key.clone());
-            let config_key = cache::CacheKind::Surcharge(key.into());
+            let config_key = cache::CacheKind::Surcharge(surcharge_cache_key.into());
             update_merchant_active_algorithm_ref(&state, &key_store, config_key, algo_id)
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -125,7 +125,7 @@ pub async fn upsert_surcharge_decision_config(
                 .attach_printable("Error fetching the config")?;
 
             algo_id.update_surcharge_config_id(key.clone());
-            let config_key = cache::CacheKind::Surcharge(key.clone().into());
+            let config_key = cache::CacheKind::Surcharge(surcharge_cache_key.into());
             update_merchant_active_algorithm_ref(&state, &key_store, config_key, algo_id)
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -173,7 +173,8 @@ pub async fn delete_surcharge_decision_config(
         .attach_printable("Could not decode the surcharge conditional_config algorithm")?
         .unwrap_or_default();
     algo_id.surcharge_config_algo_id = None;
-    let config_key = cache::CacheKind::Surcharge(key.clone().into());
+    let surcharge_cache_key = merchant_account.get_id().get_surcharge_dsk_key();
+    let config_key = cache::CacheKind::Surcharge(surcharge_cache_key.into());
     update_merchant_active_algorithm_ref(&state, &key_store, config_key, algo_id)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
