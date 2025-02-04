@@ -163,6 +163,16 @@ pub struct GenerateReportRequest {
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct GenerateReportRequestOrderManagement {
+    pub request: ReportRequest,
+    pub merchant_id: Option<common_utils::id_type::MerchantId>,
+    pub auth: AuthInfo,
+    pub email: Secret<String, EmailStrategy>,
+    pub s3_path: String,
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct GetPaymentIntentMetricRequest {
     pub time_series: Option<TimeSeries>,
     pub time_range: TimeRange,
@@ -508,4 +518,10 @@ pub struct SankeyResponse {
     pub refunds_status: Option<String>,
     pub dispute_status: Option<String>,
     pub first_attempt: i64,
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+pub struct LambdaResponse {
+    pub s3_path: String,
+    pub invocation_status_code: i32,
 }
