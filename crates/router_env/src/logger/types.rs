@@ -261,6 +261,8 @@ pub enum Flow {
     ToggleBlocklistGuard,
     /// Incoming Webhook Receive
     IncomingWebhookReceive,
+    /// Recovery incoming webhook receive
+    RecoveryIncomingWebhookReceive,
     /// Validate payment method flow
     ValidatePaymentMethod,
     /// API Key create flow

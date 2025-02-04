@@ -46,6 +46,7 @@ log_custom_entries_to_extra = []
 log_extra_implicit_fields = []
 log_active_span_json = []
 payouts = []
+recovery = []
 
 [lints]
 workspace = true

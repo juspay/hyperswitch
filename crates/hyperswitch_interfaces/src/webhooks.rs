@@ -7,6 +7,8 @@ use hyperswitch_domain_models::{
 };
 use masking::{ExposeInterface, Secret};
 
+#[cfg(feature = "recovery")]
+use crate::recovery::RecoveryPayload;
 use crate::{api::ConnectorCommon, errors};
 
 /// struct IncomingWebhookRequestDetails
@@ -274,5 +276,17 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
         errors::ConnectorError,
     > {
         Ok(None)
+    }
+
+    /// get passive churn recovery details
+    #[cfg(feature = "recovery")]
+    fn get_recovery_details(
+        &self,
+        _request: &IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<RecoveryPayload, errors::ConnectorError> {
+        Err(
+            errors::ConnectorError::NotImplemented("get_recovery_details method".to_string())
+                .into(),
+        )
     }
 }
