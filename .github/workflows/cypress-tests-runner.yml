@@ -13,11 +13,7 @@ concurrency:
 env:
   CARGO_INCREMENTAL: 0
   CARGO_NET_RETRY: 10
-<<<<<<< HEAD
-  PAYMENTS_CONNECTORS: "bluesnap cybersource nmi paypal stripe"
-=======
   PAYMENTS_CONNECTORS: "cybersource"
->>>>>>> ed8ef2466b7f059ed0f534aa1f3fca9b5ecbeefd
   PAYOUTS_CONNECTORS: "wise"
   RUST_BACKTRACE: short
   RUSTUP_MAX_RETRIES: 10
