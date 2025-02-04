@@ -87,12 +87,18 @@ pub trait ApiModelToDieselModelConvertor<F> {
 
 impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
     fn convert_from(from: ApiFeatureMetadata) -> Self {
+        #[cfg(feature = "v1")]
         let ApiFeatureMetadata {
             redirect_response,
             search_tags,
             apple_pay_recurring_details,
+        } = from;
 
-            #[cfg(feature = "v2")]
+        #[cfg(feature = "v2")]
+        let ApiFeatureMetadata {
+            redirect_response,
+            search_tags,
+            apple_pay_recurring_details,
             revenue_recovery_metadata,
         } = from;
 
