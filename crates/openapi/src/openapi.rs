@@ -655,6 +655,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::enums::PaymentChargeType,
         api_models::enums::StripeChargeType,
         api_models::payments::CustomerDetailsResponse,
+        api_models::payments::SdkType,
         api_models::payments::OpenBankingData,
         api_models::payments::OpenBankingSessionToken,
         api_models::payments::BankDebitResponse,
