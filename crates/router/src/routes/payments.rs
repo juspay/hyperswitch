@@ -1754,12 +1754,9 @@ pub async fn payments_external_authentication(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            payments::payment_external_authentication(
-                state,
-                auth.merchant_account,
-                auth.key_store,
-                req,
-            )
+            payments::payment_external_authentication::<
+                hyperswitch_domain_models::router_flow_types::Authenticate,
+            >(state, auth.merchant_account, auth.key_store, req)
         },
         &auth::HeaderAuth(auth::PublishableKeyAuth),
         locking_action,

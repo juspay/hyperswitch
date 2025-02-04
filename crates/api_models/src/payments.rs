@@ -2601,6 +2601,7 @@ pub enum AdditionalPaymentData {
     Wallet {
         apple_pay: Option<ApplepayPaymentMethod>,
         google_pay: Option<additional_info::WalletAdditionalDataForCard>,
+        samsung_pay: Option<additional_info::WalletAdditionalDataForCard>,
     },
     PayLater {
         klarna_sdk: Option<KlarnaSdkPaymentMethod>,
@@ -3874,6 +3875,8 @@ pub enum WalletResponseData {
     ApplePay(Box<additional_info::WalletAdditionalDataForCard>),
     #[schema(value_type = WalletAdditionalDataForCard)]
     GooglePay(Box<additional_info::WalletAdditionalDataForCard>),
+    #[schema(value_type = WalletAdditionalDataForCard)]
+    SamsungPay(Box<additional_info::WalletAdditionalDataForCard>),
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -5690,8 +5693,9 @@ impl From<AdditionalPaymentData> for PaymentMethodDataResponse {
             AdditionalPaymentData::Wallet {
                 apple_pay,
                 google_pay,
-            } => match (apple_pay, google_pay) {
-                (Some(apple_pay_pm), _) => Self::Wallet(Box::new(WalletResponse {
+                samsung_pay,
+            } => match (apple_pay, google_pay, samsung_pay) {
+                (Some(apple_pay_pm), _, _) => Self::Wallet(Box::new(WalletResponse {
                     details: Some(WalletResponseData::ApplePay(Box::new(
                         additional_info::WalletAdditionalDataForCard {
                             last4: apple_pay_pm
@@ -5705,12 +5709,15 @@ impl From<AdditionalPaymentData> for PaymentMethodDataResponse {
                                 .rev()
                                 .collect::<String>(),
                             card_network: apple_pay_pm.network.clone(),
-                            card_type: apple_pay_pm.pm_type.clone(),
+                            card_type: Some(apple_pay_pm.pm_type.clone()),
                         },
                     ))),
                 })),
-                (_, Some(google_pay_pm)) => Self::Wallet(Box::new(WalletResponse {
+                (_, Some(google_pay_pm), _) => Self::Wallet(Box::new(WalletResponse {
                     details: Some(WalletResponseData::GooglePay(Box::new(google_pay_pm))),
+                })),
+                (_, _, Some(samsung_pay_pm)) => Self::Wallet(Box::new(WalletResponse {
+                    details: Some(WalletResponseData::SamsungPay(Box::new(samsung_pay_pm))),
                 })),
                 _ => Self::Wallet(Box::new(WalletResponse { details: None })),
             },
@@ -6828,6 +6835,23 @@ pub struct SdkInformation {
     pub sdk_reference_number: String,
     /// Indicates maximum amount of time in minutes
     pub sdk_max_timeout: u8,
+    /// Indicates the type of 3DS SDK
+    pub sdk_type: Option<SdkType>,
+}
+
+/// Enum representing the type of 3DS SDK.
+#[derive(Serialize, Deserialize, Debug, Clone, ToSchema)]
+pub enum SdkType {
+    #[serde(rename = "01")]
+    DefaultSdk,
+    #[serde(rename = "02")]
+    SplitSdk,
+    #[serde(rename = "03")]
+    LimitedSdk,
+    #[serde(rename = "04")]
+    BrowserSdk,
+    #[serde(rename = "05")]
+    ShellSdk,
 }
 
 #[cfg(feature = "v2")]

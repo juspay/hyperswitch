@@ -877,6 +877,7 @@ diesel::table! {
         id -> Varchar,
         shipping_cost -> Nullable<Int8>,
         order_tax_amount -> Nullable<Int8>,
+        card_discovery -> Nullable<CardDiscovery>,
     }
 }
 

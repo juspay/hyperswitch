@@ -402,6 +402,8 @@ pub struct PaymentAttempt {
     pub id: id_type::GlobalAttemptId,
     /// Connector token information that can be used to make payments directly by the merchant.
     pub connector_token_details: Option<diesel_models::ConnectorTokenDetails>,
+    /// Indicates the method by which a card is discovered during a payment
+    pub card_discovery: Option<common_enums::CardDiscovery>,
 }
 
 impl PaymentAttempt {
@@ -525,6 +527,7 @@ impl PaymentAttempt {
                 )),
             }),
             id,
+            card_discovery: None,
         })
     }
 }
@@ -595,6 +598,7 @@ pub struct PaymentAttempt {
     pub profile_id: id_type::ProfileId,
     pub organization_id: id_type::OrganizationId,
     pub connector_mandate_detail: Option<ConnectorMandateReferenceId>,
+    pub card_discovery: Option<common_enums::CardDiscovery>,
 }
 
 #[cfg(feature = "v1")]
@@ -841,6 +845,7 @@ pub struct PaymentAttemptNew {
     pub profile_id: id_type::ProfileId,
     pub organization_id: id_type::OrganizationId,
     pub connector_mandate_detail: Option<ConnectorMandateReferenceId>,
+    pub card_discovery: Option<common_enums::CardDiscovery>,
 }
 
 #[cfg(feature = "v1")]
@@ -907,6 +912,7 @@ pub enum PaymentAttemptUpdate {
         client_version: Option<String>,
         customer_acceptance: Option<pii::SecretSerdeValue>,
         connector_mandate_detail: Option<ConnectorMandateReferenceId>,
+        card_discovery: Option<common_enums::CardDiscovery>,
     },
     RejectUpdate {
         status: storage_enums::AttemptStatus,
@@ -1159,6 +1165,7 @@ impl PaymentAttemptUpdate {
                 client_version,
                 customer_acceptance,
                 connector_mandate_detail,
+                card_discovery,
             } => DieselPaymentAttemptUpdate::ConfirmUpdate {
                 amount: net_amount.get_order_amount(),
                 currency,
@@ -1193,6 +1200,7 @@ impl PaymentAttemptUpdate {
                 shipping_cost: net_amount.get_shipping_cost(),
                 order_tax_amount: net_amount.get_order_tax_amount(),
                 connector_mandate_detail,
+                card_discovery,
             },
             Self::VoidUpdate {
                 status,
@@ -1561,6 +1569,7 @@ impl behaviour::Conversion for PaymentAttempt {
             order_tax_amount: self.net_amount.get_order_tax_amount(),
             shipping_cost: self.net_amount.get_shipping_cost(),
             connector_mandate_detail: self.connector_mandate_detail,
+            card_discovery: self.card_discovery,
         })
     }
 
@@ -1642,6 +1651,7 @@ impl behaviour::Conversion for PaymentAttempt {
                 profile_id: storage_model.profile_id,
                 organization_id: storage_model.organization_id,
                 connector_mandate_detail: storage_model.connector_mandate_detail,
+                card_discovery: storage_model.card_discovery,
             })
         }
         .await
@@ -1724,6 +1734,7 @@ impl behaviour::Conversion for PaymentAttempt {
             order_tax_amount: self.net_amount.get_order_tax_amount(),
             shipping_cost: self.net_amount.get_shipping_cost(),
             connector_mandate_detail: self.connector_mandate_detail,
+            card_discovery: self.card_discovery,
         })
     }
 }
@@ -1791,6 +1802,7 @@ impl behaviour::Conversion for PaymentAttempt {
             payment_method_billing_address,
             connector,
             connector_token_details,
+            card_discovery,
         } = self;
 
         let AttemptAmountDetails {
@@ -1868,6 +1880,7 @@ impl behaviour::Conversion for PaymentAttempt {
             payment_method_billing_address: payment_method_billing_address.map(Encryption::from),
             connector_payment_data,
             connector_token_details,
+            card_discovery,
         })
     }
 
@@ -1979,6 +1992,7 @@ impl behaviour::Conversion for PaymentAttempt {
                 connector: storage_model.connector,
                 payment_method_billing_address,
                 connector_token_details: storage_model.connector_token_details,
+                card_discovery: storage_model.card_discovery,
             })
         }
         .await
@@ -2063,6 +2077,7 @@ impl behaviour::Conversion for PaymentAttempt {
             payment_method_type_v2: self.payment_method_type,
             id: self.id,
             connector_token_details: self.connector_token_details,
+            card_discovery: self.card_discovery,
         })
     }
 }
