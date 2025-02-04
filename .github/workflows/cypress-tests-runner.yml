@@ -50,7 +50,7 @@ jobs:
       - name: Install Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: "20"
 
       - name: Install Cypress and dependencies
         run: |
@@ -167,7 +167,7 @@ jobs:
         if: ${{ env.RUN_TESTS == 'true' }}
         uses: Swatinem/rust-cache@v2.7.7
         with:
-          save-if: false
+          save-if: ${{ github.event_name == 'push' }}
 
       - name: Install Diesel CLI
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -188,8 +188,8 @@ jobs:
         if: ${{ env.RUN_TESTS == 'true' }}
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: "20"
+          cache: "npm"
 
       - name: Install Cypress and dependencies
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -343,12 +343,11 @@ jobs:
           toolchain: stable 2 weeks ago
           components: llvm-tools-preview
 
-      - name: Install sccache
+      - name: Install rust cache
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: taiki-e/install-action@v2.41.10
+        uses: Swatinem/rust-cache@v2.7.7
         with:
-          tool: sccache
-          checksum: true
+          save-if: ${{ github.event_name == 'push' }}
 
       - name: Install Diesel CLI
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -376,8 +375,8 @@ jobs:
         if: ${{ env.RUN_TESTS == 'true' }}
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: "20"
+          cache: "npm"
 
       - name: Install Cypress and dependencies
         if: ${{ env.RUN_TESTS == 'true' }}
