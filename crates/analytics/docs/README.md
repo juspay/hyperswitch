@@ -115,8 +115,8 @@ To configure the Forex APIs, update the `config/development.toml` or `config/doc
 
 ```toml
 [forex_api]
-api_key = "YOUR API KEY HERE" # Replace the placeholder with your Primary API Key
-fallback_api_key = "YOUR API KEY HERE" # Replace the placeholder with your Fallback API Key 
+api_key = ""
+fallback_api_key = ""
 ```
 ### Important Note
 ```bash

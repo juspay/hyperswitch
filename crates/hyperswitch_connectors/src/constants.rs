@@ -33,3 +33,11 @@ pub(crate) mod headers {
 
 /// Unsupported response type error message
 pub const UNSUPPORTED_ERROR_MESSAGE: &str = "Unsupported response type";
+
+/// Error message for Authentication Error from the connector
+pub const CONNECTOR_UNAUTHORIZED_ERROR: &str = "Authentication Error from the connector";
+
+/// Error message when Refund request has been voided.
+pub const REFUND_VOIDED: &str = "Refund request has been voided.";
+
+pub const LOW_BALANCE_ERROR_MESSAGE: &str = "Insufficient balance in the payment method";

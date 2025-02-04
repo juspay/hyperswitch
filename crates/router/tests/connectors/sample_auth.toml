@@ -306,3 +306,6 @@ key1="eid"
 
 [unified_authentication_service]
 api_key="API Key"
+
+[chargebee]
+api_key= "API Key"
