@@ -263,7 +263,7 @@ impl Action {
                     merchant_account.storage_scheme,
                 )
                 .await
-                .change_context(errors::RecoveryError::RecoveryFailed)
+                .change_context(errors::RecoveryError::RecoveryPaymentFailed)
                 .attach_printable("Failed to update the payment intent with terminal status")?;
                 Ok(())
             }

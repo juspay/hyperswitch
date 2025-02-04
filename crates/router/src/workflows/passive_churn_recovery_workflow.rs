@@ -1,8 +1,14 @@
+#[cfg(feature = "v2")]
 use common_utils::ext_traits::{StringExt, ValueExt};
+
+#[cfg(feature = "v2")]
 use error_stack::ResultExt;
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::payments::PaymentIntentData;
+#[cfg(feature = "v2")]
 use router_env::logger;
+
+#[cfg(feature = "v2")]
 use scheduler::{
     consumer::workflows::ProcessTrackerWorkflow, errors, types::process_data,
     utils as scheduler_utils,
@@ -10,17 +16,16 @@ use scheduler::{
 
 #[cfg(feature = "v2")]
 use crate::{
-    core::passive_churn_recovery::{self as pcr, types as pcr_types},
-    types::storage::passive_churn_recovery as pcr_storage_types,
-};
-use crate::{
-    core::payments,
+    core::{
+        passive_churn_recovery::{self as pcr, types as pcr_types},
+        payments,
+    },
     db::StorageInterface,
     errors::StorageError,
     routes::SessionState,
     types::{
         api::{self as api_types},
-        storage,
+        storage::{self, passive_churn_recovery as pcr_storage_types},
     },
 };
 
