@@ -207,6 +207,9 @@ impl ApiEventMetric for DisputeListFilters {
 impl ApiEventMetric for PaymentMethodSessionRequest {}
 
 #[cfg(feature = "v2")]
+impl ApiEventMetric for PaymentMethodsSessionUpdateRequest {}
+
+#[cfg(feature = "v2")]
 impl ApiEventMetric for PaymentMethodsSessionResponse {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::PaymentMethodSession {

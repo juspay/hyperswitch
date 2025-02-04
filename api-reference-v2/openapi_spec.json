@@ -14585,6 +14585,35 @@
           }
         }
       },
+      "PaymentMethodsSessionUpdateRequest": {
+        "type": "object",
+        "properties": {
+          "billing": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Address"
+              }
+            ],
+            "nullable": true
+          },
+          "psp_tokenization": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PspTokenization"
+              }
+            ],
+            "nullable": true
+          },
+          "network_tokenization": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/NetworkTokenization"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
       "PaymentProcessingDetails": {
         "type": "object",
         "required": [
