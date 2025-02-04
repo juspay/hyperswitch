@@ -134,7 +134,6 @@ impl ConnectorCommon for Multisafepay {
 }
 
 impl ConnectorValidation for Multisafepay {
-
     fn validate_mandate_payment(
         &self,
         pm_type: Option<enums::PaymentMethodType>,

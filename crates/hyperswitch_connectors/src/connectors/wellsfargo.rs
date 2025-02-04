@@ -274,7 +274,6 @@ impl ConnectorCommon for Wellsfargo {
 }
 
 impl ConnectorValidation for Wellsfargo {
-    
     fn validate_mandate_payment(
         &self,
         pm_type: Option<enums::PaymentMethodType>,

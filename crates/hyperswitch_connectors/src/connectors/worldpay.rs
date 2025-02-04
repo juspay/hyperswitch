@@ -64,8 +64,8 @@ use crate::{
     constants::headers,
     types::ResponseRouterData,
     utils::{
-        convert_amount, get_header_key_value,
-        is_mandate_supported, ForeignTryFrom, PaymentMethodDataType, RefundsRequestData,
+        convert_amount, get_header_key_value, is_mandate_supported, ForeignTryFrom,
+        PaymentMethodDataType, RefundsRequestData,
     },
 };
 
@@ -165,7 +165,6 @@ impl ConnectorCommon for Worldpay {
 }
 
 impl ConnectorValidation for Worldpay {
-
     fn validate_mandate_payment(
         &self,
         pm_type: Option<enums::PaymentMethodType>,
@@ -1328,7 +1327,8 @@ lazy_static! {
         description: "Worldpay is a payment gateway and PSP enabling secure online transactions",
         connector_type: enums::PaymentConnectorCategory::PaymentGateway,
     };
-    static ref WORLDPAY_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> = vec![enums::EventClass::Payments];
+    static ref WORLDPAY_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> =
+        vec![enums::EventClass::Payments];
 }
 
 impl ConnectorSpecifications for Worldpay {
