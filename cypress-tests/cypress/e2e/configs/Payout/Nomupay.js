@@ -9,14 +9,14 @@ function get_billing(x) {
       zip: "80331",
       country: "DE",
       first_name: "John",
-      last_name: "Doe"
+      last_name: "Doe",
     },
     phone: {
       number: "9123456789",
-      country_code: "+91"
+      country_code: "+91",
     },
-    email: `payout_customer${Date.now() + x}@example.com`
-  }
+    email: `payout_customer${Date.now() + x}@example.com`,
+  };
 }
 
 const card_data = {
@@ -38,17 +38,16 @@ const bank = {
   bic: "DEUTDE5M551",
   bank_name: "Deutsche Bank",
   bank_country_code: "DE",
-  bank_city: "Munich"
+  bank_city: "Munich",
 };
 
 const error = {
   code: "IR_04",
   message: "Missing required param: connector_customer_id",
-  type: "invalid_request"
-}
+  type: "invalid_request",
+};
 
 export const connectorDetails = {
-
   card_pm: {
     Create: {
       Request: {
@@ -179,7 +178,6 @@ export const connectorDetails = {
           payment_method: "bank_transfer",
           payment_method_type: "sepa",
           bank_transfer: bank,
-
         },
         Response: {
           status: 200,
