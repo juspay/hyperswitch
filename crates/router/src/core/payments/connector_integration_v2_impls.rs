@@ -1,6 +1,9 @@
-use hyperswitch_domain_models::router_flow_types::{PostAuthenticate, PreAuthenticate};
+use hyperswitch_domain_models::router_flow_types::{
+    Authenticate, PostAuthenticate, PreAuthenticate,
+};
 use hyperswitch_interfaces::api::{
-    UasPostAuthenticationV2, UasPreAuthenticationV2, UnifiedAuthenticationServiceV2,
+    UasAuthenticationV2, UasPostAuthenticationV2, UasPreAuthenticationV2,
+    UnifiedAuthenticationServiceV2,
 };
 
 #[cfg(feature = "frm")]
@@ -1041,6 +1044,7 @@ default_imp_for_new_connector_integration_payouts!(
     connector::Boku,
     connector::Braintree,
     connector::Cashtocode,
+    connector::Chargebee,
     connector::Checkout,
     connector::Cryptopay,
     connector::Coinbase,
@@ -1578,6 +1582,7 @@ default_imp_for_new_connector_integration_frm!(
     connector::Boku,
     connector::Braintree,
     connector::Cashtocode,
+    connector::Chargebee,
     connector::Checkout,
     connector::Cryptopay,
     connector::Coinbase,
@@ -1997,6 +2002,7 @@ default_imp_for_new_connector_integration_connector_authentication!(
     connector::Boku,
     connector::Braintree,
     connector::Cashtocode,
+    connector::Chargebee,
     connector::Checkout,
     connector::Cryptopay,
     connector::Coinbase,
@@ -2073,6 +2079,7 @@ macro_rules! default_imp_for_new_connector_integration_uas {
         $( impl UnifiedAuthenticationServiceV2 for $path::$connector {}
             impl UasPreAuthenticationV2 for $path::$connector {}
             impl UasPostAuthenticationV2 for $path::$connector {}
+            impl UasAuthenticationV2 for $path::$connector {}
             impl
             services::ConnectorIntegrationV2<
             PreAuthenticate,
@@ -2086,6 +2093,14 @@ macro_rules! default_imp_for_new_connector_integration_uas {
             PostAuthenticate,
             types::UasFlowData,
             types::UasPostAuthenticationRequestData,
+            types::UasAuthenticationResponseData,
+        > for $path::$connector
+        {}
+        impl
+            services::ConnectorIntegrationV2<
+            Authenticate,
+            types::UasFlowData,
+            types::UasAuthenticationRequestData,
             types::UasAuthenticationResponseData,
         > for $path::$connector
         {}
