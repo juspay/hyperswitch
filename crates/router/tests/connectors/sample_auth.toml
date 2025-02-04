@@ -301,7 +301,8 @@ key1 ="Client Secret"
 api_key="API Key"
 
 [nomupay]
-api_key="API Key"
+api_key="kid"
+key1="eid"
 
 [unified_authentication_service]
 api_key="API Key"
