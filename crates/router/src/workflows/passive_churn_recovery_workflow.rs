@@ -47,36 +47,35 @@ impl ProcessTrackerWorkflow<SessionState> for ExecutePcrWorkflow {
         state: &'a SessionState,
         process: storage::ProcessTracker,
     ) -> Result<(), errors::ProcessTrackerError> {
+        let tracking_data = process
+            .tracking_data
+            .clone()
+            .parse_value::<pcr_storage_types::PCRExecuteWorkflowTrackingData>(
+            "PCRExecuteWorkflowTrackingData",
+        )?;
+
+        let key_manager_state = &state.into();
+        let pcr_data = extract_data_and_perform_action(state, &process).await?;
+        let (payment_data, _, _) = payments::payments_intent_operation_core::<
+            api_types::PaymentGetIntent,
+            _,
+            _,
+            PaymentIntentData<api_types::PaymentGetIntent>,
+        >(
+            state,
+            state.get_req_state(),
+            pcr_data.merchant_account.clone(),
+            pcr_data.profile.clone(),
+            pcr_data.key_store.clone(),
+            payments::operations::PaymentGetIntent,
+            tracking_data.request,
+            pcr_data.global_payment_id.clone(),
+            hyperswitch_domain_models::payments::HeaderPayload::default(),
+            pcr_data.platform_merchant_account,
+        )
+        .await?;
         match process.name.as_deref() {
             Some("EXECUTE_WORKFLOW") => {
-                let tracking_data = process
-                    .tracking_data
-                    .clone()
-                    .parse_value::<pcr_storage_types::PCRExecuteWorkflowTrackingData>(
-                    "PCRExecuteWorkflowTrackingData",
-                )?;
-
-                let key_manager_state = &state.into();
-                let pcr_data = extract_data_and_perform_action(state, &process).await?;
-                let (payment_data, _, _) = payments::payments_intent_operation_core::<
-                    api_types::PaymentGetIntent,
-                    _,
-                    _,
-                    PaymentIntentData<api_types::PaymentGetIntent>,
-                >(
-                    state,
-                    state.get_req_state(),
-                    pcr_data.merchant_account.clone(),
-                    pcr_data.profile.clone(),
-                    pcr_data.key_store.clone(),
-                    payments::operations::PaymentGetIntent,
-                    tracking_data.request,
-                    pcr_data.global_payment_id.clone(),
-                    hyperswitch_domain_models::payments::HeaderPayload::default(),
-                    pcr_data.platform_merchant_account,
-                )
-                .await?;
-
                 // handle the call connector field once it has been added
                 pcr::decide_execute_pcr_workflow(
                     state,
