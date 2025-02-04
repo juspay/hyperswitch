@@ -5696,6 +5696,11 @@
             "type": "string",
             "description": "The device model of the client",
             "nullable": true
+          },
+          "accept_language": {
+            "type": "string",
+            "description": "Accept-language of the browser",
+            "nullable": true
           }
         }
       },
@@ -19977,6 +19982,14 @@
             "format": "int32",
             "description": "Indicates maximum amount of time in minutes",
             "minimum": 0
+          },
+          "sdk_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SdkType"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -20005,6 +20018,17 @@
             "nullable": true
           }
         }
+      },
+      "SdkType": {
+        "type": "string",
+        "description": "Enum representing the type of 3DS SDK.",
+        "enum": [
+          "01",
+          "02",
+          "03",
+          "04",
+          "05"
+        ]
       },
       "SecretInfoToInitiateSdk": {
         "type": "object",
@@ -21469,8 +21493,7 @@
         "type": "object",
         "required": [
           "last4",
-          "card_network",
-          "type"
+          "card_network"
         ],
         "properties": {
           "last4": {
@@ -21483,7 +21506,8 @@
           },
           "type": {
             "type": "string",
-            "description": "The type of payment method"
+            "description": "The type of payment method",
+            "nullable": true
           }
         }
       },
@@ -21837,6 +21861,17 @@
             ],
             "properties": {
               "google_pay": {
+                "$ref": "#/components/schemas/WalletAdditionalDataForCard"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "samsung_pay"
+            ],
+            "properties": {
+              "samsung_pay": {
                 "$ref": "#/components/schemas/WalletAdditionalDataForCard"
               }
             }

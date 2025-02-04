@@ -16,12 +16,25 @@
 // Import commands.js using ES2015 syntax:
 import "cypress-mochawesome-reporter/register";
 import "./commands";
+import "./redirectionHandler";
 
-// Alternatively you can use CommonJS syntax:
-// require('./commands')
+Cypress.on("window:before:load", (win) => {
+  // Add security headers
+  win.headers = {
+    "Content-Security-Policy": "default-src 'self'",
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY",
+  };
+});
 
-Cypress.on("uncaught:exception", (err) => {
-  // returning false here prevents Cypress from failing the test
-  cy.log(`Unhandled exception: ${err}`);
+// Add error handling for dynamic imports
+Cypress.on("uncaught:exception", (err, runnable) => {
+  // Log the error details
+  // eslint-disable-next-line no-console
+  console.error(
+    `Error: ${err.message}\nError occurred in: ${runnable.title}\nStack trace: ${err.stack}`
+  );
+
+  // Return false to prevent the error from failing the test
   return false;
 });
