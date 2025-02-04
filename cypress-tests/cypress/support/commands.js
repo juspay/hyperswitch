@@ -2263,54 +2263,66 @@ Cypress.Commands.add(
       logRequestId(response.headers["x-request-id"]);
 
       cy.wrap(response).then(() => {
-        expect(response.headers["content-type"]).to.include("application/json");
-        expect(response.body.payment_id).to.equal(payment_id);
-        expect(response.body.amount).to.equal(globalState.get("paymentAmount"));
-        expect(response.body.profile_id, "profile_id").to.not.be.null;
-        expect(response.body.billing, "billing_address").to.not.be.empty;
-        expect(response.body.customer, "customer").to.not.be.empty;
-        if (
-          ["succeeded", "processing", "requires_customer_action"].includes(
-            response.body.status
-          )
-        ) {
-          expect(response.body.connector, "connector").to.equal(
-            globalState.get("connectorId")
+        if (response.status === 200) {
+          expect(response.headers["content-type"]).to.include(
+            "application/json"
           );
-          expect(response.body.payment_method_data, "payment_method_data").to
-            .not.be.empty;
-          expect(response.body.payment_method, "payment_method").to.not.be.null;
-          expect(response.body.merchant_connector_id, "connector_id").to.equal(
-            merchant_connector_id
+          expect(response.body.payment_id).to.equal(payment_id);
+          expect(response.body.amount).to.equal(
+            globalState.get("paymentAmount")
           );
-        }
+          expect(response.body.profile_id, "profile_id").to.not.be.null;
+          expect(response.body.billing, "billing_address").to.not.be.empty;
+          expect(response.body.customer, "customer").to.not.be.empty;
+          if (
+            ["succeeded", "processing", "requires_customer_action"].includes(
+              response.body.status
+            )
+          ) {
+            expect(response.body.connector, "connector").to.equal(
+              globalState.get("connectorId")
+            );
+            expect(response.body.payment_method_data, "payment_method_data").to
+              .not.be.empty;
+            expect(response.body.payment_method, "payment_method").to.not.be
+              .null;
+            expect(
+              response.body.merchant_connector_id,
+              "connector_id"
+            ).to.equal(merchant_connector_id);
+          }
 
-        if (autoretries) {
-          expect(response.body).to.have.property("attempts");
-          expect(response.body.attempts).to.be.an("array").and.not.empty;
-          expect(response.body.attempts.length).to.equal(attempt);
-          expect(response.body.attempts[0].attempt_id).to.include(
-            `${payment_id}_`
-          );
-          for (const key in response.body.attempts) {
-            if (
-              response.body.attempts[key].attempt_id ===
-                `${payment_id}_${attempt}` &&
-              response.body.status === "succeeded"
-            ) {
-              expect(response.body.attempts[key].status).to.equal("charged");
-            } else if (
-              response.body.attempts[key].attempt_id ===
-                `${payment_id}_${attempt}` &&
-              response.body.status === "requires_customer_action"
-            ) {
-              expect(response.body.attempts[key].status).to.equal(
-                "authentication_pending"
-              );
-            } else {
-              expect(response.body.attempts[key].status).to.equal("failure");
+          if (autoretries) {
+            expect(response.body).to.have.property("attempts");
+            expect(response.body.attempts).to.be.an("array").and.not.empty;
+            expect(response.body.attempts.length).to.equal(attempt);
+            expect(response.body.attempts[0].attempt_id).to.include(
+              `${payment_id}_`
+            );
+            for (const key in response.body.attempts) {
+              if (
+                response.body.attempts[key].attempt_id ===
+                  `${payment_id}_${attempt}` &&
+                response.body.status === "succeeded"
+              ) {
+                expect(response.body.attempts[key].status).to.equal("charged");
+              } else if (
+                response.body.attempts[key].attempt_id ===
+                  `${payment_id}_${attempt}` &&
+                response.body.status === "requires_customer_action"
+              ) {
+                expect(response.body.attempts[key].status).to.equal(
+                  "authentication_pending"
+                );
+              } else {
+                expect(response.body.attempts[key].status).to.equal("failure");
+              }
             }
           }
+        } else {
+          throw new Error(
+            `Retrieve Payment Call Failed ${response.body.error.message}`
+          );
         }
       });
     });
