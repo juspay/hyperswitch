@@ -279,10 +279,7 @@ impl Action {
         process: &storage::ProcessTracker,
     ) -> RecoveryResult<Self> {
         // call the proxy api
-        let response: Result<
-            PaymentConfirmData<hyperswitch_domain_models::router_flow_types::Authorize>,
-            error_stack::Report<api_error_response::ApiErrorResponse>,
-        > = call_proxy_api::<api_types::Authorize>(payment_intent);
+        let response = call_proxy_api::<api_types::Authorize>(payment_intent);
         // handle proxy api's response
         match response {
             Ok(payment_data) => match payment_data.payment_attempt.status.foreign_into() {
