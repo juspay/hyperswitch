@@ -213,7 +213,7 @@ impl Action {
                     param: None,
                 };
 
-                core_pcr::insert_psync_pcr_workflow(
+                core_pcr::insert_psync_pcr_task(
                     db,
                     merchant_account.get_id().to_owned(),
                     payment_intent.id.clone(),
