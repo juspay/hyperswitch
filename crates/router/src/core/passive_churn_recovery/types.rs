@@ -319,7 +319,7 @@ impl Action {
     ) -> RecoveryResult<()> {
         match self {
             Self::SyncPayment => {
-                core_pcr::insert_psync_pcr_workflow(
+                core_pcr::insert_psync_pcr_task(
                     db,
                     merchant_account.get_id().to_owned(),
                     payment_intent.id.clone(),
@@ -370,7 +370,7 @@ impl Action {
                     merchant_account.storage_scheme,
                 )
                 .await
-                .change_context(errors::RecoveryError::RecoveryFailed)
+                .change_context(errors::RecoveryError::RecoveryPaymentFailed)
                 .attach_printable("Failed to update the payment intent with terminal status")?;
                 Ok(())
             }

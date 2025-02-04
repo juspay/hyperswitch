@@ -73,11 +73,17 @@ pub async fn decide_execute_pcr_workflow(
 
         pcr_types::Decision::PsyncTask(payment_attempt) => {
             // find if a psync task is already present
-            let process_tracker_entry = db.find_process_by_id(&process.id).await?;
+            let task = "PSYNC_WORKFLOW";
+            let runner = storage::ProcessTrackerRunner::PassiveRecoveryWorkflow;
+            let process_tracker_id = format!(
+                "{runner}_{task}_{}",
+                payment_intent.get_id().get_string_repr()
+            );
+            let process_tracker_entry = db.find_process_by_id(&process_tracker_id).await?;
 
             // validate if its a psync task
             match process_tracker_entry {
-                Some(process_tracker) if process.name == Some("PSYNC_WORKFLOW".to_string()) => {
+                Some(process_tracker) => {
                     let pcr_status: pcr_types::PCRAttemptStatus =
                         payment_attempt.status.foreign_into();
 
@@ -95,10 +101,8 @@ pub async fn decide_execute_pcr_workflow(
                         .await?;
                 }
 
-                Some(pt) => logger::debug!("Invalid Process Tracker name : {}", pt.id),
-
                 None => {
-                    insert_psync_pcr_workflow(
+                    insert_psync_pcr_task(
                         db,
                         merchant_account.get_id().clone(),
                         payment_intent.get_id().clone(),
@@ -122,7 +126,7 @@ pub async fn decide_execute_pcr_workflow(
     Ok(())
 }
 
-async fn insert_psync_pcr_workflow(
+async fn insert_psync_pcr_task(
     db: &dyn StorageInterface,
     merchant_id: id_type::MerchantId,
     payment_id: id_type::GlobalPaymentId,
