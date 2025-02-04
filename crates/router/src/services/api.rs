@@ -50,6 +50,7 @@ use masking::{Maskable, PeekInterface};
 use router_env::{instrument, tracing, tracing_actix_web::RequestId, Tag};
 use serde::Serialize;
 use serde_json::json;
+use storage_impl::config::TenantConfig;
 use tera::{Context, Error as TeraError, Tera};
 
 use self::request::{HeaderExt, RequestBuilderExt};
@@ -674,7 +675,7 @@ pub enum AuthFlow {
 #[allow(clippy::too_many_arguments)]
 #[instrument(
     skip(request, payload, state, func, api_auth, incoming_request_header),
-    fields(merchant_id)
+    fields(merchant_id, database_schema)
 )]
 pub async fn server_wrap_util<'a, 'b, U, T, Q, F, Fut, E, OErr>(
     flow: &'a impl router_env::types::FlowMetric,
@@ -779,6 +780,7 @@ where
     app_state.add_flow_name(flow.to_string());
 
     tracing::Span::current().record("merchant_id", merchant_id.get_string_repr().to_owned());
+    tracing::Span::current().record("database_schema", session_state.tenant.get_schema());
 
     let output = {
         lock_action
