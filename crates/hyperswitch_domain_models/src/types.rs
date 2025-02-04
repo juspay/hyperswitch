@@ -55,9 +55,6 @@ pub type PaymentsPostSessionTokensRouterData =
     RouterData<PostSessionTokens, PaymentsPostSessionTokensData, PaymentsResponseData>;
 pub type PaymentsSessionRouterData = RouterData<Session, PaymentsSessionData, PaymentsResponseData>;
 
-#[cfg(feature = "payouts")]
-pub type PayoutsRouterData<F> = RouterData<F, PayoutsData, PayoutsResponseData>;
-
 pub type UasPostAuthenticationRouterData =
     RouterData<PostAuthenticate, UasPostAuthenticationRequestData, UasAuthenticationResponseData>;
 
