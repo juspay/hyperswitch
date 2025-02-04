@@ -64,7 +64,7 @@ use crate::{
     constants::headers,
     types::ResponseRouterData,
     utils::{
-        construct_not_implemented_error_report, convert_amount, get_header_key_value,
+        convert_amount, get_header_key_value,
         is_mandate_supported, ForeignTryFrom, PaymentMethodDataType, RefundsRequestData,
     },
 };
@@ -165,22 +165,6 @@ impl ConnectorCommon for Worldpay {
 }
 
 impl ConnectorValidation for Worldpay {
-    fn validate_connector_against_payment_request(
-        &self,
-        capture_method: Option<enums::CaptureMethod>,
-        _payment_method: enums::PaymentMethod,
-        _pmt: Option<enums::PaymentMethodType>,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let capture_method = capture_method.unwrap_or_default();
-        match capture_method {
-            enums::CaptureMethod::Automatic
-            | enums::CaptureMethod::Manual
-            | enums::CaptureMethod::SequentialAutomatic => Ok(()),
-            enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => Err(
-                construct_not_implemented_error_report(capture_method, self.id()),
-            ),
-        }
-    }
 
     fn validate_mandate_payment(
         &self,
@@ -1344,7 +1328,7 @@ lazy_static! {
         description: "Worldpay is a payment gateway and PSP enabling secure online transactions",
         connector_type: enums::PaymentConnectorCategory::PaymentGateway,
     };
-    static ref WORLDPAY_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> = Vec::new();
+    static ref WORLDPAY_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> = vec![enums::EventClass::Payments];
 }
 
 impl ConnectorSpecifications for Worldpay {

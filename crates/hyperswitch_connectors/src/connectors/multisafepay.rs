@@ -134,23 +134,6 @@ impl ConnectorCommon for Multisafepay {
 }
 
 impl ConnectorValidation for Multisafepay {
-    fn validate_connector_against_payment_request(
-        &self,
-        capture_method: Option<enums::CaptureMethod>,
-        _payment_method: enums::PaymentMethod,
-        _pmt: Option<enums::PaymentMethodType>,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let capture_method = capture_method.unwrap_or_default();
-        match capture_method {
-            enums::CaptureMethod::Automatic | enums::CaptureMethod::SequentialAutomatic => Ok(()),
-            enums::CaptureMethod::Manual
-            | enums::CaptureMethod::ManualMultiple
-            | enums::CaptureMethod::Scheduled => Err(errors::ConnectorError::NotImplemented(
-                format!("{} for {}", capture_method, self.id()),
-            )
-            .into()),
-        }
-    }
 
     fn validate_mandate_payment(
         &self,
