@@ -1,6 +1,9 @@
 pub mod transformers;
 
-use std::collections::{HashMap, HashSet};
+use std::{
+    any::type_name,
+    collections::{HashMap, HashSet},
+};
 
 use common_enums::{CaptureMethod, PaymentMethod, PaymentMethodType};
 use common_utils::{
@@ -86,6 +89,9 @@ where
         })?;
         json.insert("miscellaneous".to_string(), misc_value);
     }
+
+    let keys = json.iter().map(|(key, _)| key).collect::<Vec<&String>>();
+    router_env::logger::info!("Keys in response for type {}\n{:?}", type_name::<T>(), keys);
 
     let response: T = serde_json::from_value(Value::Object(json)).map_err(|e| {
         router_env::logger::error!("Error in Deserializing Response Data: {:?}", e);
