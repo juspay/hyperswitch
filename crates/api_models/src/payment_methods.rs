@@ -839,7 +839,7 @@ pub struct PaymentMethodDataWalletInfo {
     pub card_network: String,
     /// The type of payment method
     #[serde(rename = "type")]
-    pub card_type: String,
+    pub card_type: Option<String>,
 }
 
 impl From<payments::additional_info::WalletAdditionalDataForCard> for PaymentMethodDataWalletInfo {

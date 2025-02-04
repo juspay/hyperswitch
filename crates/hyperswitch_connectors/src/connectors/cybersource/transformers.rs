@@ -417,6 +417,7 @@ pub enum CybersourcePaymentInitiatorTypes {
 pub struct CaptureOptions {
     capture_sequence_number: u32,
     total_capture_count: u32,
+    is_final: Option<bool>,
 }
 
 #[derive(Debug, Serialize)]
@@ -2142,11 +2143,18 @@ impl TryFrom<&CybersourceRouterData<&PaymentsCaptureRouterData>>
             .clone()
             .map(convert_metadata_to_merchant_defined_info);
 
+        let is_final = matches!(
+            item.router_data.request.capture_method,
+            Some(enums::CaptureMethod::Manual)
+        )
+        .then_some(true);
+
         Ok(Self {
             processing_information: ProcessingInformation {
                 capture_options: Some(CaptureOptions {
                     capture_sequence_number: 1,
                     total_capture_count: 1,
+                    is_final,
                 }),
                 action_list: None,
                 action_token_types: None,
