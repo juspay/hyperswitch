@@ -54,6 +54,7 @@ impl GlobalPaymentMethodSessionId {
         Ok(Self(global_id))
     }
 
+    /// Get the string representation of the id
     pub fn get_string_repr(&self) -> &str {
         self.0.get_string_repr()
     }

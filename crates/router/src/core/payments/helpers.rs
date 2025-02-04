@@ -3083,8 +3083,6 @@ pub async fn make_client_secret(
         }
     };
 
-    let resource_id = resource_id;
-
     let client_secret = create_client_secret(&state, merchant_account.get_id(), resource_id)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
