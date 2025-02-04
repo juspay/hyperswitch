@@ -178,7 +178,6 @@ jobs:
 
     env:
       RUSTFLAGS: "-D warnings"
-      ACTIONS_STEP_DEBUG: true
 
     strategy:
       fail-fast: false
