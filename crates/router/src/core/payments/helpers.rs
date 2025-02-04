@@ -4671,6 +4671,7 @@ pub async fn get_additional_payment_data(
                         pm_type: apple_pay_wallet_data.payment_method.pm_type.clone(),
                     }),
                     google_pay: None,
+                    samsung_pay: None,
                 }))
             }
             domain::WalletData::GooglePay(google_pay_pm_data) => {
@@ -4679,13 +4680,32 @@ pub async fn get_additional_payment_data(
                     google_pay: Some(payment_additional_types::WalletAdditionalDataForCard {
                         last4: google_pay_pm_data.info.card_details.clone(),
                         card_network: google_pay_pm_data.info.card_network.clone(),
-                        card_type: google_pay_pm_data.pm_type.clone(),
+                        card_type: Some(google_pay_pm_data.pm_type.clone()),
+                    }),
+                    samsung_pay: None,
+                }))
+            }
+            domain::WalletData::SamsungPay(samsung_pay_pm_data) => {
+                Ok(Some(api_models::payments::AdditionalPaymentData::Wallet {
+                    apple_pay: None,
+                    google_pay: None,
+                    samsung_pay: Some(payment_additional_types::WalletAdditionalDataForCard {
+                        last4: samsung_pay_pm_data
+                            .payment_credential
+                            .card_last_four_digits
+                            .clone(),
+                        card_network: samsung_pay_pm_data
+                            .payment_credential
+                            .card_brand
+                            .to_string(),
+                        card_type: None,
                     }),
                 }))
             }
             _ => Ok(Some(api_models::payments::AdditionalPaymentData::Wallet {
                 apple_pay: None,
                 google_pay: None,
+                samsung_pay: None,
             })),
         },
         domain::PaymentMethodData::PayLater(_) => Ok(Some(
@@ -5969,6 +5989,73 @@ pub fn validate_mandate_data_and_future_usage(
     } else {
         Ok(())
     }
+}
+
+#[derive(Debug, Clone)]
+pub enum UnifiedAuthenticationServiceFlow {
+    ClickToPayInitiate,
+    ExternalAuthenticationInitiate {
+        acquirer_details: authentication::types::AcquirerDetails,
+        card_number: ::cards::CardNumber,
+        token: String,
+    },
+    ExternalAuthenticationPostAuthenticate {
+        authentication_id: String,
+    },
+}
+
+#[cfg(feature = "v1")]
+pub async fn decide_action_for_unified_authentication_service<F: Clone>(
+    state: &SessionState,
+    key_store: &domain::MerchantKeyStore,
+    business_profile: &domain::Profile,
+    payment_data: &mut PaymentData<F>,
+    connector_call_type: &api::ConnectorCallType,
+    mandate_type: Option<api_models::payments::MandateTransactionType>,
+) -> RouterResult<Option<UnifiedAuthenticationServiceFlow>> {
+    let external_authentication_flow = get_payment_external_authentication_flow_during_confirm(
+        state,
+        key_store,
+        business_profile,
+        payment_data,
+        connector_call_type,
+        mandate_type,
+    )
+    .await?;
+    Ok(match external_authentication_flow {
+        Some(PaymentExternalAuthenticationFlow::PreAuthenticationFlow {
+            acquirer_details,
+            card_number,
+            token,
+        }) => Some(
+            UnifiedAuthenticationServiceFlow::ExternalAuthenticationInitiate {
+                acquirer_details,
+                card_number,
+                token,
+            },
+        ),
+        Some(PaymentExternalAuthenticationFlow::PostAuthenticationFlow { authentication_id }) => {
+            Some(
+                UnifiedAuthenticationServiceFlow::ExternalAuthenticationPostAuthenticate {
+                    authentication_id,
+                },
+            )
+        }
+        None => {
+            if let Some(payment_method) = payment_data.payment_attempt.payment_method {
+                if payment_method == storage_enums::PaymentMethod::Card
+                    && business_profile.is_click_to_pay_enabled
+                    && payment_data.service_details.is_some()
+                {
+                    Some(UnifiedAuthenticationServiceFlow::ClickToPayInitiate)
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        }
+    })
 }
 
 pub enum PaymentExternalAuthenticationFlow {
