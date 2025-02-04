@@ -564,6 +564,8 @@ debit = { currency = "USD" }
 
 [pm_filters.fiuu]
 duit_now = { country = "MY", currency = "MYR" }
+apple_pay = { country = "MY", currency = "MYR" }
+google_pay = { country = "MY", currency = "MYR" }
 
 [tokenization]
 stripe = { long_lived_token = false, payment_method = "wallet", payment_method_type = { type = "disable_only", list = "google_pay" } }
