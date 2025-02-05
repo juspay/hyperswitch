@@ -6,8 +6,9 @@ use common_utils::{self, id_type, types::keymanager::KeyManagerState};
 use diesel_models::process_tracker::business_status;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
-    errors::api_error_response, merchant_key_store::MerchantKeyStore, payments::PaymentIntent,
-    payments::PaymentStatusData,
+    errors::api_error_response,
+    merchant_key_store::MerchantKeyStore,
+    payments::{PaymentIntent, PaymentStatusData},
 };
 use scheduler::errors;
 
