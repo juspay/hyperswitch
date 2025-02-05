@@ -120,10 +120,6 @@ merchant_secret="Source verification key"
 [[adyen.bank_redirect]]
   payment_method_type = "ideal"
 [[adyen.bank_redirect]]
-  payment_method_type = "giropay"
-[[adyen.bank_redirect]]
-  payment_method_type = "sofort"
-[[adyen.bank_redirect]]
   payment_method_type = "eps"
 [[adyen.bank_redirect]]
   payment_method_type = "blik"
