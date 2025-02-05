@@ -496,7 +496,6 @@ fn get_fraud_status(
     }
 }
 
-// impl ForeignFrom<(KlarnaCheckoutStatus, bool)> for enums::AttemptStatus {
 fn get_checkout_status(
     klarna_status: KlarnaCheckoutStatus,
     is_auto_capture: bool,
@@ -512,7 +511,6 @@ fn get_checkout_status(
         KlarnaCheckoutStatus::CheckoutComplete => common_enums::AttemptStatus::Charged,
     }
 }
-// }
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(untagged)]

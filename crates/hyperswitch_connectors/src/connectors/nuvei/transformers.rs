@@ -46,6 +46,17 @@ use crate::{
     },
 };
 
+fn to_boolean(string: String) -> bool {
+    let str = string.as_str();
+    match str {
+        "true" => true,
+        "false" => false,
+        "yes" => true,
+        "no" => false,
+        _ => false,
+    }
+}
+
 trait NuveiAuthorizePreprocessingCommon {
     fn get_browser_info(&self) -> Option<BrowserInformation>;
     fn get_related_transaction_id(&self) -> Option<String>;
@@ -1658,7 +1669,7 @@ impl TryFrom<PaymentsPreprocessingResponseRouterData<NuveiPaymentsResponse>>
             .and_then(|po| po.card)
             .and_then(|c| c.three_d)
             .and_then(|t| t.v2supported)
-            .map(utils::to_boolean)
+            .map(to_boolean)
             .unwrap_or_default();
         Ok(Self {
             status: get_payment_status(&response),
