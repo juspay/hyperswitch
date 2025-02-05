@@ -5,7 +5,7 @@ import {
 import { getCustomExchange } from "./Modifiers";
 
 const successfulNo3DSCardDetails = {
-  card_number: "4242424242424242",
+  card_number: "378282246310005",
   card_exp_month: "10",
   card_exp_year: "50",
   card_holder_name: "morino",
@@ -23,7 +23,7 @@ const successfulThreeDSTestCardDetails = {
 const failedNo3DSCardDetails = {
   card_number: "4000000000000002",
   card_exp_month: "01",
-  card_exp_year: "25",
+  card_exp_year: "35",
   card_holder_name: "joseph Doe",
   card_cvc: "123",
 };
@@ -82,12 +82,12 @@ const payment_method_data_3ds = {
 
 const payment_method_data_no3ds = {
   card: {
-    last4: "4242",
+    last4: "0005",
     card_type: "CREDIT",
-    card_network: "Visa",
-    card_issuer: "STRIPE PAYMENTS UK LIMITED",
-    card_issuing_country: "UNITEDKINGDOM",
-    card_isin: "424242",
+    card_network: "AmericanExpress",
+    card_issuer: "AmericanExpress",
+    card_issuing_country: "INDIA",
+    card_isin: "378282",
     card_extended_bin: null,
     card_exp_month: "10",
     card_exp_year: "50",
@@ -123,7 +123,7 @@ const requiredFields = {
 
 export const connectorDetails = {
   multi_credential_config: {
-    specName: ["connectorAgnostic"],
+    specName: ["connectorAgnosticNTID"],
     value: "connector_2",
   },
   card_pm: {
@@ -144,7 +144,7 @@ export const connectorDetails = {
     PaymentIntentOffSession: {
       Configs: {
         CONNECTOR_CREDENTIAL: {
-          specName: ["connectorAgnostic"],
+          specName: ["connectorAgnosticNTID"],
           value: "connector_2",
         },
       },
@@ -564,7 +564,7 @@ export const connectorDetails = {
     MITAutoCapture: getCustomExchange({
       Configs: {
         CONNECTOR_CREDENTIAL: {
-          specName: ["connectorAgnostic"],
+          specName: ["connectorAgnosticNTID"],
           value: "connector_2",
         },
       },
@@ -701,7 +701,7 @@ export const connectorDetails = {
     SaveCardUseNo3DSAutoCaptureOffSession: {
       Configs: {
         CONNECTOR_CREDENTIAL: {
-          specName: ["connectorAgnostic"],
+          specName: ["connectorAgnosticNTID"],
           value: "connector_2",
         },
       },
@@ -754,7 +754,7 @@ export const connectorDetails = {
     SaveCardConfirmAutoCaptureOffSession: {
       Configs: {
         CONNECTOR_CREDENTIAL: {
-          specName: ["connectorAgnostic"],
+          specName: ["connectorAgnosticNTID"],
           value: "connector_2",
         },
       },

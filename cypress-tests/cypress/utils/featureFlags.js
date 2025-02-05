@@ -149,29 +149,41 @@ function matchesSpecName(specName) {
   );
 }
 
-export function determineConnectorConfig(connectorConfig) {
-  // Case 1: Multiple connectors configuration
-  if (
-    connectorConfig?.nextConnector &&
-    connectorConfig?.multipleConnectors?.status
-  ) {
-    return "connector_2";
-  }
+export function determineConnectorConfig(config) {
+  const connectorCredential = config?.CONNECTOR_CREDENTIAL;
+  const multipleConnectors = config?.multipleConnectors;
 
-  // Case 2: Invalid or null configuration
-  if (!connectorConfig || connectorConfig.value === "null") {
+  // If CONNECTOR_CREDENTIAL doesn't exist or value is null, return default
+  if (!connectorCredential || connectorCredential.value === null) {
     return DEFAULT_CONNECTOR;
   }
 
-  const { specName, value } = connectorConfig;
-
-  // Case 3: No spec name matching needed
-  if (!specName) {
-    return value;
+  // Handle nextConnector cases
+  if (
+    Object.prototype.hasOwnProperty.call(connectorCredential, "nextConnector")
+  ) {
+    if (connectorCredential.nextConnector === true) {
+      // Check multipleConnectors conditions if available
+      if (
+        multipleConnectors?.status === true &&
+        multipleConnectors?.count > 1
+      ) {
+        return "connector_2";
+      }
+      return DEFAULT_CONNECTOR;
+    }
+    return DEFAULT_CONNECTOR;
   }
 
-  // Case 4: Match spec name and return appropriate connector
-  return matchesSpecName(specName) ? value : DEFAULT_CONNECTOR;
+  // Handle specName cases
+  if (Object.prototype.hasOwnProperty.call(connectorCredential, "specName")) {
+    return matchesSpecName(connectorCredential.specName)
+      ? connectorCredential.value
+      : DEFAULT_CONNECTOR;
+  }
+
+  // Return value if it's the only property
+  return connectorCredential.value;
 }
 
 export function execConfig(configs) {
@@ -179,7 +191,7 @@ export function execConfig(configs) {
     cy.wait(configs.DELAY.TIMEOUT);
   }
 
-  const connectorType = determineConnectorConfig(configs?.CONNECTOR_CREDENTIAL);
+  const connectorType = determineConnectorConfig(configs);
   const { profileId, connectorId } = getProfileAndConnectorId(connectorType);
 
   return {

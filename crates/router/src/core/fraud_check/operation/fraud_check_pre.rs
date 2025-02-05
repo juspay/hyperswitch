@@ -239,7 +239,7 @@ where
             connector: router_data.connector,
             payment_id: router_data.payment_id.clone(),
             attempt_id: router_data.attempt_id,
-            request: FrmRequest::Checkout(FraudCheckCheckoutData {
+            request: FrmRequest::Checkout(Box::new(FraudCheckCheckoutData {
                 amount: router_data.request.amount,
                 order_details: router_data.request.order_details,
                 currency: router_data.request.currency,
@@ -247,7 +247,7 @@ where
                 payment_method_data: router_data.request.payment_method_data,
                 email: router_data.request.email,
                 gateway: router_data.request.gateway,
-            }),
+            })),
             response: FrmResponse::Checkout(router_data.response),
         })
     }

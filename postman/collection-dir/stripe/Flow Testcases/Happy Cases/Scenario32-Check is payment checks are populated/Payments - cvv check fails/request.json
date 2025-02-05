@@ -25,8 +25,8 @@
       "payment_method_data": {
         "card": {
           "card_number": "4000000000000101",
-          "card_exp_month": "10",
-          "card_exp_year": "25",
+          "card_exp_month": "12",
+          "card_exp_year": "34",
           "card_holder_name": "joseph Doe",
           "card_cvc": "123"
         }

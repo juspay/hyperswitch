@@ -39,7 +39,7 @@
       "payment_method_type": "debit",
       "payment_method_data": {
         "card": {
-          "card_number": "4242424242424242",
+          "card_number": "378282246310005",
           "card_exp_month": "01",
           "card_exp_year": "26",
           "card_holder_name": "joseph Doe",

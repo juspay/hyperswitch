@@ -29,7 +29,7 @@ pub struct FrmRouterData {
 #[derive(Debug, Clone)]
 pub enum FrmRequest {
     Sale(FraudCheckSaleData),
-    Checkout(FraudCheckCheckoutData),
+    Checkout(Box<FraudCheckCheckoutData>),
     Transaction(FraudCheckTransactionData),
     Fulfillment(FraudCheckFulfillmentData),
     RecordReturn(FraudCheckRecordReturnData),
