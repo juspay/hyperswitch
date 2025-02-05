@@ -34,7 +34,7 @@ describe("Card - SingleUse Mandates flow test", () => {
         cy.citForMandatesCallTest(
           fixtures.citConfirmBody,
           data,
-          7000,
+          6000,
           true,
           "automatic",
           "new_mandate",
@@ -53,7 +53,7 @@ describe("Card - SingleUse Mandates flow test", () => {
         cy.mitForMandatesCallTest(
           fixtures.mitConfirmBody,
           data,
-          7000,
+          6000,
           true,
           "automatic",
           globalState
@@ -184,7 +184,7 @@ describe("Card - SingleUse Mandates flow test", () => {
         cy.mitForMandatesCallTest(
           fixtures.mitConfirmBody,
           data,
-          7000,
+          6000,
           true,
           "automatic",
           globalState

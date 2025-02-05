@@ -27,7 +27,7 @@ const singleUseMandateData = {
   customer_acceptance: customerAcceptance,
   mandate_type: {
     single_use: {
-      amount: 7000,
+      amount: 6000,
       currency: "EUR",
     },
   },

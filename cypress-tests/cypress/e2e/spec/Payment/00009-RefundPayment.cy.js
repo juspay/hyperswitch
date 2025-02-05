@@ -667,7 +667,7 @@ describe("Card - Refund flow - No 3DS", () => {
         cy.citForMandatesCallTest(
           fixtures.citConfirmBody,
           data,
-          7000,
+          6000,
           true,
           "automatic",
           "new_mandate",
@@ -686,7 +686,7 @@ describe("Card - Refund flow - No 3DS", () => {
         cy.mitForMandatesCallTest(
           fixtures.mitConfirmBody,
           data,
-          7000,
+          6000,
           true,
           "automatic",
           globalState
@@ -701,7 +701,7 @@ describe("Card - Refund flow - No 3DS", () => {
         cy.mitForMandatesCallTest(
           fixtures.mitConfirmBody,
           data,
-          7000,
+          6000,
           true,
           "automatic",
           globalState
@@ -713,7 +713,7 @@ describe("Card - Refund flow - No 3DS", () => {
           "card_pm"
         ]["Refund"];
 
-        cy.refundCallTest(fixtures.refundBody, data, 7000, globalState);
+        cy.refundCallTest(fixtures.refundBody, data, 6000, globalState);
 
         if (shouldContinue)
           shouldContinue = utils.should_continue_further(data);

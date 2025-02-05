@@ -471,14 +471,14 @@ export const connectorDetails = {
     },
     IncrementalAuth: {
       Request: {
-        amount: 7000,
+        amount: 6000,
       },
       Response: {
         status: 200,
         body: {
           status: "requires_capture",
-          amount: 7000,
-          amount_capturable: 7000,
+          amount: 6000,
+          amount_capturable: 6000,
           amount_received: null,
         },
       },
