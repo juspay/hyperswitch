@@ -426,7 +426,8 @@ impl Default for settings::RequiredFields {
                                 enums::Connector::Bankofamerica,
                                 RequiredFieldFinal {
                                     mandate: HashMap::new(),
-                                    non_mandate: HashMap::from(
+                                    non_mandate: HashMap::new(),
+                                    common: HashMap::from(
                                         [
                                             (
                                                 "payment_method_data.card.card_number".to_string(),
@@ -542,7 +543,6 @@ impl Default for settings::RequiredFields {
                                             ),
                                         ]
                                     ),
-                                    common: HashMap::new(),
                                 }
                             ),
                             (
@@ -8723,7 +8723,8 @@ impl Default for settings::RequiredFields {
                                     enums::Connector::Wellsfargo,
                                     RequiredFieldFinal {
                                         mandate: HashMap::new(),
-                                        non_mandate: HashMap::from(
+                                        non_mandate: HashMap::new(),
+                                        common: HashMap::from(
                                             [
                                                 (
                                                     "email".to_string(),
@@ -8870,7 +8871,6 @@ impl Default for settings::RequiredFields {
                                                 ),
                                             ]
                                         ),
-                                        common: HashMap::new(),
                                     }
                                 ),
 
@@ -9071,7 +9071,9 @@ impl Default for settings::RequiredFields {
                                     enums::Connector::Multisafepay,
                                     RequiredFieldFinal {
                                         mandate: HashMap::new(),
-                                        non_mandate: HashMap::from([
+                                        non_mandate: HashMap::new(),
+                                        common: HashMap::from(
+                                            [
                                         (
                                             "billing.address.first_name".to_string(),
                                             RequiredFieldInfo {
@@ -9147,8 +9149,8 @@ impl Default for settings::RequiredFields {
                                                 field_type: enums::FieldType::UserAddressLine2,
                                                 value: None,
                                             }
-                                        )]),
-                                        common: HashMap::new(),
+                                        )]
+                                        ),
                                     }
                                 ),
                                 (
@@ -9274,7 +9276,8 @@ impl Default for settings::RequiredFields {
                                     enums::Connector::Wellsfargo,
                                     RequiredFieldFinal {
                                         mandate: HashMap::new(),
-                                        non_mandate: HashMap::from(
+                                        non_mandate: HashMap::new(),
+                                        common: HashMap::from(
                                             [
                                                 (
                                                     "email".to_string(),
@@ -9421,7 +9424,6 @@ impl Default for settings::RequiredFields {
                                                 ),
                                             ]
                                         ),
-                                        common: HashMap::new(),
                                     }
                                 ),
                                ]),
