@@ -47,6 +47,7 @@ use euclid::frontend::dir;
 use hyperswitch_constraint_graph as cgraph;
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use hyperswitch_domain_models::customer::CustomerUpdate;
+use hyperswitch_domain_models::mandates::CommonMandateReference;
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
     not(feature = "payment_methods_v2")
@@ -845,9 +846,10 @@ pub async fn skip_locker_call_and_migrate_payment_method(
             .clone()
             .and_then(|val| if val == json!({}) { None } else { Some(true) })
             .or_else(|| {
-                req.connector_mandate_details
-                    .clone()
-                    .and_then(|val| (!val.0.is_empty()).then_some(false))
+                req.connector_mandate_details.clone().and_then(|val| {
+                    val.payments
+                        .and_then(|payin_val| (!payin_val.0.is_empty()).then_some(false))
+                })
             }),
     );
 
@@ -2816,11 +2818,11 @@ pub async fn update_payment_method_connector_mandate_details(
     key_store: &domain::MerchantKeyStore,
     db: &dyn db::StorageInterface,
     pm: domain::PaymentMethod,
-    connector_mandate_details: Option<diesel_models::PaymentsMandateReference>,
+    connector_mandate_details: Option<CommonMandateReference>,
     storage_scheme: MerchantStorageScheme,
 ) -> errors::CustomResult<(), errors::VaultError> {
     let pm_update = payment_method::PaymentMethodUpdate::ConnectorMandateDetailsUpdate {
-        connector_mandate_details,
+        connector_mandate_details: connector_mandate_details.map(|cmd| cmd.into()),
     };
 
     db.update_payment_method(&(state.into()), key_store, pm, pm_update, storage_scheme)
@@ -2838,11 +2840,20 @@ pub async fn update_payment_method_connector_mandate_details(
     key_store: &domain::MerchantKeyStore,
     db: &dyn db::StorageInterface,
     pm: domain::PaymentMethod,
-    connector_mandate_details: Option<serde_json::Value>,
+    connector_mandate_details: Option<CommonMandateReference>,
     storage_scheme: MerchantStorageScheme,
 ) -> errors::CustomResult<(), errors::VaultError> {
+    let connector_mandate_details_value = connector_mandate_details
+        .map(|common_mandate| {
+            common_mandate.get_mandate_details_value().map_err(|err| {
+                router_env::logger::error!("Failed to get get_mandate_details_value : {:?}", err);
+                errors::VaultError::UpdateInPaymentMethodDataTableFailed
+            })
+        })
+        .transpose()?;
+
     let pm_update = payment_method::PaymentMethodUpdate::ConnectorMandateDetailsUpdate {
-        connector_mandate_details,
+        connector_mandate_details: connector_mandate_details_value,
     };
 
     db.update_payment_method(&(state.into()), key_store, pm, pm_update, storage_scheme)
@@ -4935,14 +4946,7 @@ pub async fn list_customer_payment_method(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("unable to decrypt payment method billing address details")?;
         let connector_mandate_details = pm
-            .connector_mandate_details
-            .clone()
-            .map(|val| {
-                val.parse_value::<diesel_models::PaymentsMandateReference>(
-                    "PaymentsMandateReference",
-                )
-            })
-            .transpose()
+            .get_common_mandate_reference()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to deserialize to Payment Mandate Reference ")?;
         let mca_enabled = get_mca_status(
@@ -4951,7 +4955,7 @@ pub async fn list_customer_payment_method(
             profile_id.clone(),
             merchant_account.get_id(),
             is_connector_agnostic_mit_enabled,
-            connector_mandate_details,
+            Some(connector_mandate_details),
             pm.network_transaction_id.as_ref(),
         )
         .await?;
@@ -5062,7 +5066,7 @@ pub async fn list_customer_payment_method(
     not(feature = "payment_methods_v2"),
     not(feature = "customer_v2")
 ))]
-async fn get_pm_list_context(
+pub async fn get_pm_list_context(
     state: &routes::SessionState,
     payment_method: &enums::PaymentMethod,
     #[cfg(feature = "payouts")] key_store: &domain::MerchantKeyStore,
@@ -5217,7 +5221,7 @@ pub async fn get_mca_status(
     profile_id: Option<id_type::ProfileId>,
     merchant_id: &id_type::MerchantId,
     is_connector_agnostic_mit_enabled: bool,
-    connector_mandate_details: Option<payment_method::PaymentsMandateReference>,
+    connector_mandate_details: Option<CommonMandateReference>,
     network_transaction_id: Option<&String>,
 ) -> errors::RouterResult<bool> {
     if is_connector_agnostic_mit_enabled && network_transaction_id.is_some() {
@@ -5255,7 +5259,7 @@ pub async fn get_mca_status(
     profile_id: Option<id_type::ProfileId>,
     merchant_id: &id_type::MerchantId,
     is_connector_agnostic_mit_enabled: bool,
-    connector_mandate_details: Option<&payment_method::PaymentsMandateReference>,
+    connector_mandate_details: Option<&CommonMandateReference>,
     network_transaction_id: Option<&String>,
     merchant_connector_accounts: &domain::MerchantConnectorAccounts,
 ) -> bool {

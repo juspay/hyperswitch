@@ -24,7 +24,7 @@ use uuid::Uuid;
 
 use super::payments::helpers;
 #[cfg(feature = "payouts")]
-use super::payouts::PayoutData;
+use super::payouts::{helpers as payout_helpers, PayoutData};
 #[cfg(feature = "payouts")]
 use crate::core::payments;
 use crate::{
@@ -150,6 +150,9 @@ pub async fn construct_payout_router_data<'a, F>(
             _ => None,
         };
 
+    let connector_transfer_method_id =
+        payout_helpers::should_create_connector_transfer_method(&*payout_data, connector_data)?;
+
     let router_data = types::RouterData {
         flow: PhantomData,
         merchant_id: merchant_account.get_id().to_owned(),
@@ -192,6 +195,7 @@ pub async fn construct_payout_router_data<'a, F>(
                     phone: c.phone.map(Encryptable::into_inner),
                     phone_country_code: c.phone_country_code,
                 }),
+            connector_transfer_method_id,
         },
         response: Ok(types::PayoutsResponseData::default()),
         access_token: None,

@@ -15,6 +15,9 @@ use common_utils::{
     id_type, pii,
 };
 use error_stack::{report, ResultExt};
+use hyperswitch_domain_models::mandates::{
+    CommonMandateReference, PaymentsMandateReference, PaymentsMandateReferenceRecord,
+};
 use masking::{ExposeInterface, Secret};
 use router_env::{instrument, tracing};
 
@@ -469,7 +472,7 @@ where
                                         .connector_mandate_details
                                         .clone()
                                         .map(|val| {
-                                            val.parse_value::<diesel_models::PaymentsMandateReference>(
+                                            val.parse_value::<PaymentsMandateReference>(
                                                 "PaymentsMandateReference",
                                             )
                                         })
@@ -1213,7 +1216,7 @@ pub fn add_connector_mandate_details_in_payment_method(
     connector_mandate_id: Option<String>,
     mandate_metadata: Option<Secret<serde_json::Value>>,
     connector_mandate_request_reference_id: Option<String>,
-) -> Option<diesel_models::PaymentsMandateReference> {
+) -> Option<CommonMandateReference> {
     let mut mandate_details = HashMap::new();
 
     if let Some((mca_id, connector_mandate_id)) =
@@ -1221,7 +1224,7 @@ pub fn add_connector_mandate_details_in_payment_method(
     {
         mandate_details.insert(
             mca_id,
-            diesel_models::PaymentsMandateReferenceRecord {
+            PaymentsMandateReferenceRecord {
                 connector_mandate_id,
                 payment_method_type,
                 original_payment_authorized_amount: authorized_amount,
@@ -1231,7 +1234,10 @@ pub fn add_connector_mandate_details_in_payment_method(
                 connector_mandate_request_reference_id,
             },
         );
-        Some(diesel_models::PaymentsMandateReference(mandate_details))
+        Some(CommonMandateReference {
+            payments: Some(PaymentsMandateReference(mandate_details)),
+            payouts: None,
+        })
     } else {
         None
     }
@@ -1240,7 +1246,7 @@ pub fn add_connector_mandate_details_in_payment_method(
 #[allow(clippy::too_many_arguments)]
 #[cfg(feature = "v1")]
 pub fn update_connector_mandate_details(
-    mandate_details: Option<diesel_models::PaymentsMandateReference>,
+    mandate_details: Option<CommonMandateReference>,
     payment_method_type: Option<storage_enums::PaymentMethodType>,
     authorized_amount: Option<i64>,
     authorized_currency: Option<storage_enums::Currency>,
@@ -1248,13 +1254,16 @@ pub fn update_connector_mandate_details(
     connector_mandate_id: Option<String>,
     mandate_metadata: Option<Secret<serde_json::Value>>,
     connector_mandate_request_reference_id: Option<String>,
-) -> RouterResult<Option<serde_json::Value>> {
-    let mandate_reference = match mandate_details {
+) -> RouterResult<Option<CommonMandateReference>> {
+    let mandate_reference = match mandate_details
+        .as_ref()
+        .and_then(|common_mandate| common_mandate.payments.clone())
+    {
         Some(mut payment_mandate_reference) => {
             if let Some((mca_id, connector_mandate_id)) =
                 merchant_connector_id.clone().zip(connector_mandate_id)
             {
-                let updated_record = diesel_models::PaymentsMandateReferenceRecord {
+                let updated_record = PaymentsMandateReferenceRecord {
                     connector_mandate_id: connector_mandate_id.clone(),
                     payment_method_type,
                     original_payment_authorized_amount: authorized_amount,
@@ -1268,7 +1277,7 @@ pub fn update_connector_mandate_details(
                 payment_mandate_reference
                     .entry(mca_id)
                     .and_modify(|pm| *pm = updated_record)
-                    .or_insert(diesel_models::PaymentsMandateReferenceRecord {
+                    .or_insert(PaymentsMandateReferenceRecord {
                         connector_mandate_id,
                         payment_method_type,
                         original_payment_authorized_amount: authorized_amount,
@@ -1277,7 +1286,13 @@ pub fn update_connector_mandate_details(
                         connector_mandate_status: Some(ConnectorMandateStatus::Active),
                         connector_mandate_request_reference_id,
                     });
-                Some(payment_mandate_reference)
+
+                let payout_data = mandate_details.and_then(|common_mandate| common_mandate.payouts);
+
+                Some(CommonMandateReference {
+                    payments: Some(payment_mandate_reference),
+                    payouts: payout_data,
+                })
             } else {
                 None
             }
@@ -1292,26 +1307,20 @@ pub fn update_connector_mandate_details(
             connector_mandate_request_reference_id,
         ),
     };
-    let connector_mandate_details = mandate_reference
-        .map(|mand| mand.encode_to_value())
-        .transpose()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Unable to serialize customer acceptance to value")?;
-
-    Ok(connector_mandate_details)
+    Ok(mandate_reference)
 }
 
 #[cfg(feature = "v1")]
 pub fn update_connector_mandate_details_status(
     merchant_connector_id: id_type::MerchantConnectorAccountId,
-    mut payment_mandate_reference: diesel_models::PaymentsMandateReference,
+    mut payment_mandate_reference: PaymentsMandateReference,
     status: ConnectorMandateStatus,
-) -> RouterResult<Option<serde_json::Value>> {
+) -> RouterResult<Option<CommonMandateReference>> {
     let mandate_reference = {
         payment_mandate_reference
             .entry(merchant_connector_id)
             .and_modify(|pm| {
-                let update_rec = diesel_models::PaymentsMandateReferenceRecord {
+                let update_rec = PaymentsMandateReferenceRecord {
                     connector_mandate_id: pm.connector_mandate_id.clone(),
                     payment_method_type: pm.payment_method_type,
                     original_payment_authorized_amount: pm.original_payment_authorized_amount,
@@ -1326,11 +1335,9 @@ pub fn update_connector_mandate_details_status(
             });
         Some(payment_mandate_reference)
     };
-    let connector_mandate_details = mandate_reference
-        .map(|mandate| mandate.encode_to_value())
-        .transpose()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Unable to serialize customer acceptance to value")?;
 
-    Ok(connector_mandate_details)
+    Ok(Some(CommonMandateReference {
+        payments: mandate_reference,
+        payouts: None,
+    }))
 }

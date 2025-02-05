@@ -6805,7 +6805,7 @@ where
 pub async fn validate_merchant_connector_ids_in_connector_mandate_details(
     state: &SessionState,
     key_store: &domain::MerchantKeyStore,
-    connector_mandate_details: &api_models::payment_methods::PaymentsMandateReference,
+    connector_mandate_details: &api_models::payment_methods::CommonMandateReference,
     merchant_id: &id_type::MerchantId,
     card_network: Option<api_enums::CardNetwork>,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
@@ -6833,46 +6833,49 @@ pub async fn validate_merchant_connector_ids_in_connector_mandate_details(
         })
         .collect();
 
-    for (migrating_merchant_connector_id, migrating_connector_mandate_details) in
-        connector_mandate_details.0.clone()
-    {
-        match (
-            card_network.clone(),
-            merchant_connector_account_details_hash_map.get(&migrating_merchant_connector_id),
-        ) {
-            (Some(enums::CardNetwork::Discover), Some(merchant_connector_account_details)) => {
-                if let ("cybersource", None) = (
-                    merchant_connector_account_details.connector_name.as_str(),
-                    migrating_connector_mandate_details
-                        .original_payment_authorized_amount
-                        .zip(
-                            migrating_connector_mandate_details
-                                .original_payment_authorized_currency,
-                        ),
-                ) {
-                    Err(errors::ApiErrorResponse::MissingRequiredFields {
-                        field_names: vec![
-                            "original_payment_authorized_currency",
-                            "original_payment_authorized_amount",
-                        ],
-                    })
-                    .attach_printable(format!(
-                        "Invalid connector_mandate_details provided for connector {:?}",
-                        migrating_merchant_connector_id
-                    ))?
+    if let Some(payment_mandate_reference) = &connector_mandate_details.payments {
+        let payments_map = payment_mandate_reference.0.clone();
+        for (migrating_merchant_connector_id, migrating_connector_mandate_details) in payments_map {
+            match (
+                card_network.clone(),
+                merchant_connector_account_details_hash_map.get(&migrating_merchant_connector_id),
+            ) {
+                (Some(enums::CardNetwork::Discover), Some(merchant_connector_account_details)) => {
+                    if let ("cybersource", None) = (
+                        merchant_connector_account_details.connector_name.as_str(),
+                        migrating_connector_mandate_details
+                            .original_payment_authorized_amount
+                            .zip(
+                                migrating_connector_mandate_details
+                                    .original_payment_authorized_currency,
+                            ),
+                    ) {
+                        Err(errors::ApiErrorResponse::MissingRequiredFields {
+                            field_names: vec![
+                                "original_payment_authorized_currency",
+                                "original_payment_authorized_amount",
+                            ],
+                        })
+                        .attach_printable(format!(
+                            "Invalid connector_mandate_details provided for connector {:?}",
+                            migrating_merchant_connector_id
+                        ))?
+                    }
                 }
+                (_, Some(_)) => (),
+                (_, None) => Err(errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "merchant_connector_id",
+                })
+                .attach_printable_lazy(|| {
+                    format!(
+                        "{:?} invalid merchant connector id in connector_mandate_details",
+                        migrating_merchant_connector_id
+                    )
+                })?,
             }
-            (_, Some(_)) => (),
-            (_, None) => Err(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "merchant_connector_id",
-            })
-            .attach_printable_lazy(|| {
-                format!(
-                    "{:?} invalid merchant connector id in connector_mandate_details",
-                    migrating_merchant_connector_id
-                )
-            })?,
         }
+    } else {
+        router_env::logger::error!("payment mandate reference not found");
     }
     Ok(())
 }

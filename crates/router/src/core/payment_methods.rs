@@ -41,6 +41,12 @@ use diesel_models::{
 use error_stack::{report, ResultExt};
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use hyperswitch_domain_models::api::{GenericLinks, GenericLinksData};
+#[cfg(all(
+    feature = "v2",
+    feature = "payment_methods_v2",
+    feature = "customer_v2"
+))]
+use hyperswitch_domain_models::mandates::CommonMandateReference;
 use hyperswitch_domain_models::payments::{payment_attempt::PaymentAttempt, PaymentIntent};
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use masking::ExposeInterface;
@@ -1340,7 +1346,7 @@ pub async fn create_payment_method_in_db(
         api::payment_methods::PaymentMethodsData,
     >,
     key_store: &domain::MerchantKeyStore,
-    connector_mandate_details: Option<diesel_models::PaymentsMandateReference>,
+    connector_mandate_details: Option<CommonMandateReference>,
     status: Option<enums::PaymentMethodStatus>,
     network_transaction_id: Option<String>,
     storage_scheme: enums::MerchantStorageScheme,
