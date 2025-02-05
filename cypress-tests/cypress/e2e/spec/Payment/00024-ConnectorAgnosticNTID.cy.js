@@ -42,7 +42,7 @@ describe("Connector Agnostic Tests", () => {
         globalState = new State(state);
         connector = globalState.get("connectorId");
 
-        // Skip running test against a connector that is added in the exclude list 
+        // Skip running test against a connector that is added in the exclude list
         if (
           utils.shouldExcludeConnector(
             connector,
