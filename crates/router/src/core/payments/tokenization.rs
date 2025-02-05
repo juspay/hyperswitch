@@ -362,16 +362,16 @@ where
                                         connector_token,
                                     )?;
                                     payment_methods::cards::update_payment_method_metadata_and_last_used(
-                                        state,
-                                        key_store,
-                                        db,
-                                        pm.clone(),
-                                        pm_metadata,
-                                        merchant_account.storage_scheme,
-                                    )
-                                    .await
-                                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                                    .attach_printable("Failed to add payment method in db")?;
+                                                state,
+                                                key_store,
+                                                db,
+                                                pm.clone(),
+                                                pm_metadata,
+                                                merchant_account.storage_scheme,
+                                            )
+                                            .await
+                                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                                            .attach_printable("Failed to add payment method in db")?;
                                 }
                                 Err(err) => {
                                     if err.current_context().is_db_not_found() {
@@ -582,7 +582,7 @@ where
                                 };
 
                                 let existing_pm_data = payment_methods::cards::get_card_details_without_locker_fallback(&existing_pm,state)
-                                .await?;
+                                        .await?;
 
                                 // scheme should be updated in case of co-badged cards
                                 let card_scheme = card
