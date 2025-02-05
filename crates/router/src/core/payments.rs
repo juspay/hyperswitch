@@ -297,13 +297,7 @@ where
 
     operation
         .to_get_tracker()?
-        .validate_request_with_state(
-            state,
-            &req,
-            &merchant_account,
-            &mut payment_data,
-            &business_profile,
-        )
+        .validate_request_with_state(state, &req, &mut payment_data, &business_profile)
         .await?;
 
     core_utils::validate_profile_id_from_auth_layer(
