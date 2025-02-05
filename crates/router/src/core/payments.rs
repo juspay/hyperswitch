@@ -5792,35 +5792,26 @@ where
                 .get_required_value("payment_method_info")?
                 .clone();
 
-            //fetch connectors that support ntid flow
-            let ntid_supported_connectors = &state
-                .conf
-                .network_transaction_id_supported_connectors
-                .connector_list;
-            //filered connectors list with ntid_supported_connectors
-            let filtered_ntid_supported_connectors =
-                filter_ntid_supported_connectors(connectors.clone(), ntid_supported_connectors);
+            let (mut action_type, mut retryable_connectors) = (None, Vec::new());
+            let mut mandate_ref_id = None;
 
-            //fetch connectors that support network tokenization flow
-            let network_tokenization_supported_connectors = &state
-                .conf
-                .network_tokenization_supported_connectors
-                .connector_list;
-            //filered connectors list with ntid_supported_connectors and network_tokenization_supported_connectors
-            let filtered_nt_supported_connectors = filter_network_tokenization_supported_connectors(
-                filtered_ntid_supported_connectors,
-                network_tokenization_supported_connectors,
-            );
-
-            let action_type = decide_action_type(
-                state,
-                is_connector_agnostic_mit_enabled,
-                is_network_tokenization_enabled,
-                &payment_method_info,
-                filtered_nt_supported_connectors.clone(),
-            )
-            .await;
-
+            for (idx, connector_data) in connectors.iter().enumerate() {
+                let optional_action_type = decide_action_type(
+                    state,
+                    is_connector_agnostic_mit_enabled,
+                    is_network_tokenization_enabled,
+                    &payment_method_info,
+                    connector_data.clone(),
+                )
+                .await;
+                if let Some(_) = optional_action_type {
+                    action_type = optional_action_type;
+                    retryable_connectors = connectors[idx..].to_vec();
+                    break;
+                } else {
+                    continue;
+                }
+            }
             match action_type {
                 Some(ActionType::NetworkTokenWithNetworkTransactionId(nt_data)) => {
                     logger::info!(
@@ -5835,41 +5826,83 @@ where
                                 token_exp_year: nt_data.token_exp_year,
                             },
                         ));
-                    let chosen_connector_data = filtered_nt_supported_connectors
+                    mandate_ref_id = mandate_reference_id;
+                }
+                Some(ActionType::CardWithNetworkTransactionId(data)) => {
+                    logger::info!("using network_transaction_id for MIT flow");
+
+                    let mandate_reference_id =
+                        Some(payments_api::MandateReferenceId::NetworkMandateId(
+                            data.network_transaction_id.to_string(),
+                        ));
+                    mandate_ref_id = mandate_reference_id;
+                }
+                Some(ActionType::ConnectorMandate(connector_mandate_details)) => {
+                    logger::info!("using connector_mandate_id for MIT flow");
+                    if let Some(merchant_connector_id) = retryable_connectors
                         .first()
-                        .ok_or(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)
-                        .attach_printable(
-                            "no eligible connector found for token-based MIT payment",
-                        )?;
-
-                    routing_data.routed_through =
-                        Some(chosen_connector_data.connector_name.to_string());
-
-                    routing_data
-                        .merchant_connector_id
-                        .clone_from(&chosen_connector_data.merchant_connector_id);
-
-                    payment_data.set_mandate_id(payments_api::MandateIds {
-                        mandate_id: None,
-                        mandate_reference_id,
-                    });
-
-                    Ok(ConnectorCallType::PreDetermined(
-                        chosen_connector_data.clone(),
-                    ))
+                        .and_then(|connector_data| connector_data.merchant_connector_id.as_ref())
+                    {
+                        if let Some(mandate_reference_record) = connector_mandate_details.clone()
+                                .get_required_value("connector_mandate_details")
+                                    .change_context(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)
+                                    .attach_printable("no eligible connector found for token-based MIT flow since there were no connector mandate details")?
+                                    .get(merchant_connector_id)
+                                {
+                                    common_utils::fp_utils::when(
+                                        mandate_reference_record
+                                            .original_payment_authorized_currency
+                                            .map(|mandate_currency| mandate_currency != payment_data.get_currency())
+                                            .unwrap_or(false),
+                                        || {
+                                            Err(report!(errors::ApiErrorResponse::MandateValidationFailed {
+                                                reason: "cross currency mandates not supported".into()
+                                            }))
+                                        },
+                                    )?;
+                                    let mandate_reference_id = Some(payments_api::MandateReferenceId::ConnectorMandateId(
+                                        api_models::payments::ConnectorMandateReferenceId::new(
+                                            Some(mandate_reference_record.connector_mandate_id.clone()),  // connector_mandate_id
+                                            Some(payment_method_info.get_id().clone()),                  // payment_method_id
+                                            None,                                                        // update_history
+                                            mandate_reference_record.mandate_metadata.clone(),           // mandate_metadata
+                                            mandate_reference_record.connector_mandate_request_reference_id.clone(), // connector_mandate_request_reference_id
+                                        )
+                                    ));
+                                    payment_data.set_recurring_mandate_payment_data(
+                                        hyperswitch_domain_models::router_data::RecurringMandatePaymentData {
+                                            payment_method_type: mandate_reference_record
+                                                .payment_method_type,
+                                            original_payment_authorized_amount: mandate_reference_record
+                                                .original_payment_authorized_amount,
+                                            original_payment_authorized_currency: mandate_reference_record
+                                                .original_payment_authorized_currency,
+                                            mandate_metadata: mandate_reference_record
+                                                .mandate_metadata.clone()
+                                        });
+                                    mandate_ref_id = mandate_reference_id;
+                                }
+                    }
                 }
-                None => {
-                    decide_connector_for_normal_or_recurring_payment(
-                        state,
-                        payment_data,
-                        routing_data,
-                        connectors,
-                        is_connector_agnostic_mit_enabled,
-                        &payment_method_info,
-                    )
-                    .await
-                }
+                None => (),
             }
+
+            let chosen_connector_data = retryable_connectors
+                .first()
+                .ok_or(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)
+                .attach_printable("no eligible connector found for token-based MIT payment")?;
+
+            routing_data.routed_through = Some(chosen_connector_data.connector_name.to_string());
+
+            routing_data
+                .merchant_connector_id
+                .clone_from(&chosen_connector_data.merchant_connector_id);
+
+            payment_data.set_mandate_id(payments_api::MandateIds {
+                mandate_id: None,
+                mandate_reference_id: mandate_ref_id,
+            });
+            Ok(ConnectorCallType::Retryable(retryable_connectors))
         }
         (
             None,
@@ -6081,8 +6114,15 @@ pub struct NTWithNTIRef {
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, Eq, PartialEq)]
+pub struct CardWithNTIRef {
+    pub network_transaction_id: String,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
 pub enum ActionType {
     NetworkTokenWithNetworkTransactionId(NTWithNTIRef),
+    CardWithNetworkTransactionId(CardWithNTIRef),
+    ConnectorMandate(Option<diesel_models::PaymentsMandateReference>),
 }
 
 pub fn filter_network_tokenization_supported_connectors(
@@ -6101,34 +6141,104 @@ pub async fn decide_action_type(
     is_connector_agnostic_mit_enabled: Option<bool>,
     is_network_tokenization_enabled: bool,
     payment_method_info: &domain::PaymentMethod,
-    filtered_nt_supported_connectors: Vec<api::ConnectorData>, //network tokenization supported connectors
+    connector: api::ConnectorData,
 ) -> Option<ActionType> {
+    let merchant_connector_id = connector.merchant_connector_id.as_ref();
+
+    //fetch connectors that support ntid flow
+    let ntid_supported_connectors = &state
+        .conf
+        .network_transaction_id_supported_connectors
+        .connector_list;
+
+    //fetch connectors that support network tokenization flow
+    let network_tokenization_supported_connectors = &state
+        .conf
+        .network_tokenization_supported_connectors
+        .connector_list;
+
+    let is_network_token_with_ntid_flow = is_network_token_with_network_transaction_id_flow(
+        is_connector_agnostic_mit_enabled,
+        is_network_tokenization_enabled,
+        payment_method_info,
+    );
+    let is_ntid_flow = is_network_transaction_id_flow(
+        state,
+        is_connector_agnostic_mit_enabled,
+        connector.connector_name.clone(),
+        payment_method_info,
+    );
+    let connector_mandate_details = &payment_method_info
+        .connector_mandate_details
+        .clone()
+        .map(|details| {
+            details
+                .parse_value::<diesel_models::PaymentsMandateReference>("connector_mandate_details")
+        })
+        .transpose();
+
+    let is_mandate_flow = if let (Ok(connector_mandate_details), Some(merchant_connector_id)) =
+        (connector_mandate_details, merchant_connector_id)
+    {
+        connector_mandate_details
+            .clone()
+            .map(|connector_mandate_details| {
+                connector_mandate_details.contains_key(merchant_connector_id)
+            })
+            .unwrap_or(false)
+    } else {
+        false
+    };
+
     match (
-        is_network_token_with_network_transaction_id_flow(
-            is_connector_agnostic_mit_enabled,
-            is_network_tokenization_enabled,
-            payment_method_info,
-        ),
-        !filtered_nt_supported_connectors.is_empty(),
+        is_network_token_with_ntid_flow,
+        is_ntid_flow,
+        is_mandate_flow,
     ) {
-        (IsNtWithNtiFlow::NtWithNtiSupported(network_transaction_id), true) => {
-            if let Ok((token_exp_month, token_exp_year)) =
-                network_tokenization::do_status_check_for_network_token(state, payment_method_info)
-                    .await
+        (IsNtWithNtiFlow::NtWithNtiSupported(network_transaction_id), _, _) => {
+            if ntid_supported_connectors.contains(&connector.connector_name)
+                && network_tokenization_supported_connectors.contains(&connector.connector_name)
             {
-                Some(ActionType::NetworkTokenWithNetworkTransactionId(
-                    NTWithNTIRef {
-                        token_exp_month,
-                        token_exp_year,
-                        network_transaction_id,
-                    },
+                if let Ok((token_exp_month, token_exp_year)) =
+                    network_tokenization::do_status_check_for_network_token(
+                        state,
+                        payment_method_info,
+                    )
+                    .await
+                {
+                    Some(ActionType::NetworkTokenWithNetworkTransactionId(
+                        NTWithNTIRef {
+                            token_exp_month,
+                            token_exp_year,
+                            network_transaction_id,
+                        },
+                    ))
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        }
+        (_, true, _) => {
+            if let Some(network_transaction_id) = &payment_method_info.network_transaction_id {
+                Some(ActionType::CardWithNetworkTransactionId(CardWithNTIRef {
+                    network_transaction_id: network_transaction_id.clone(),
+                }))
+            } else {
+                None
+            }
+        }
+        (_, _, true) => {
+            if let Ok(connector_mandate_details) = connector_mandate_details {
+                Some(ActionType::ConnectorMandate(
+                    connector_mandate_details.to_owned(),
                 ))
             } else {
                 None
             }
         }
-        (IsNtWithNtiFlow::NtWithNtiSupported(_), false)
-        | (IsNtWithNtiFlow::NTWithNTINotSupported, _) => None,
+        _ => None,
     }
 }
 
