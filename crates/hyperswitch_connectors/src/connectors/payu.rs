@@ -51,7 +51,6 @@ use crate::{
     constants::headers,
     types::{RefreshTokenRouterData, ResponseRouterData},
     utils,
-    utils::construct_not_supported_error_report,
 };
 
 #[derive(Clone)]
@@ -144,24 +143,7 @@ impl ConnectorCommon for Payu {
     }
 }
 
-impl ConnectorValidation for Payu {
-    fn validate_connector_against_payment_request(
-        &self,
-        capture_method: Option<enums::CaptureMethod>,
-        _payment_method: enums::PaymentMethod,
-        _pmt: Option<enums::PaymentMethodType>,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let capture_method = capture_method.unwrap_or_default();
-        match capture_method {
-            enums::CaptureMethod::Automatic
-            | enums::CaptureMethod::Manual
-            | enums::CaptureMethod::SequentialAutomatic => Ok(()),
-            enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => Err(
-                construct_not_supported_error_report(capture_method, self.id()),
-            ),
-        }
-    }
-}
+impl ConnectorValidation for Payu {}
 
 impl api::Payment for Payu {}
 
@@ -836,8 +818,8 @@ lazy_static! {
                 specific_features: Some(
                     api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
                         api_models::feature_matrix::CardSpecificFeatures {
-                            three_ds: common_enums::FeatureStatus::NotSupported,
-                            non_three_ds: common_enums::FeatureStatus::Supported,
+                            three_ds: common_enums::FeatureStatus::Supported,
+                            no_three_ds: common_enums::FeatureStatus::NotSupported,
                             supported_card_networks: supported_card_network.clone(),
                         }
                     }),
@@ -855,8 +837,8 @@ lazy_static! {
                 specific_features: Some(
                     api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
                         api_models::feature_matrix::CardSpecificFeatures {
-                            three_ds: common_enums::FeatureStatus::NotSupported,
-                            non_three_ds: common_enums::FeatureStatus::Supported,
+                            three_ds: common_enums::FeatureStatus::Supported,
+                            no_three_ds: common_enums::FeatureStatus::NotSupported,
                             supported_card_networks: supported_card_network.clone(),
                         }
                     }),
@@ -875,13 +857,24 @@ lazy_static! {
             }
         );
 
+        payu_supported_payment_methods.add(
+            enums::PaymentMethod::Wallet,
+            enums::PaymentMethodType::ApplePay,
+            PaymentMethodDetails{
+                mandates: enums::FeatureStatus::NotSupported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: None,
+            }
+        );
+
         payu_supported_payment_methods
     };
 
     static ref PAYU_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+        display_name: "Payu",
         description:
-            "PayU is a global fintech company providing online payment solutions, including card processing, UPI, wallets, and BNPL services across multiple markets "
-                .to_string(),
+            "PayU is a global fintech company providing online payment solutions, including card processing, UPI, wallets, and BNPL services across multiple markets ",
         connector_type: enums::PaymentConnectorCategory::PaymentGateway,
     };
 
