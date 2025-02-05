@@ -381,9 +381,11 @@ where
             should_continue_capture,
         );
 
-        if helpers::is_merchant_eligible_authentication_service(merchant_account.get_id(), state)
-            .await?
-        {
+        let is_eligible_for_uas =
+            helpers::is_merchant_eligible_authentication_service(merchant_account.get_id(), state)
+                .await?;
+
+        if is_eligible_for_uas {
             operation
                 .to_domain()?
                 .call_unified_authentication_service_if_eligible(
@@ -394,6 +396,7 @@ where
                     &business_profile,
                     &key_store,
                     mandate_type,
+                    &false,
                 )
                 .await?;
         } else {
@@ -452,7 +455,7 @@ where
                 _ => (),
             };
             payment_data = match connector_details {
-                ConnectorCallType::PreDetermined(connector) => {
+                ConnectorCallType::PreDetermined(ref connector) => {
                     #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
                     let routable_connectors =
                         convert_connector_data_to_routable_connectors(&[connector.clone()])
@@ -492,6 +495,22 @@ where
                         false,
                     )
                     .await?;
+
+                    if is_eligible_for_uas {
+                        operation
+                            .to_domain()?
+                            .call_unified_authentication_service_if_eligible(
+                                state,
+                                &mut payment_data,
+                                &mut should_continue_transaction,
+                                &connector_details,
+                                &business_profile,
+                                &key_store,
+                                mandate_type,
+                                &true,
+                            )
+                            .await?;
+                    }
 
                     let op_ref = &operation;
                     let should_trigger_post_processing_flows = is_operation_confirm(&operation);
@@ -538,7 +557,7 @@ where
                             &key_store,
                             &customer,
                             &mca,
-                            &connector,
+                            connector,
                             &mut payment_data,
                             op_ref,
                             Some(header_payload.clone()),
@@ -549,14 +568,14 @@ where
                     payment_data
                 }
 
-                ConnectorCallType::Retryable(connectors) => {
+                ConnectorCallType::Retryable(ref connectors) => {
                     #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
                     let routable_connectors =
-                        convert_connector_data_to_routable_connectors(&connectors)
+                        convert_connector_data_to_routable_connectors(connectors)
                             .map_err(|e| logger::error!(routable_connector_error=?e))
                             .unwrap_or_default();
 
-                    let mut connectors = connectors.into_iter();
+                    let mut connectors = connectors.clone().into_iter();
 
                     let connector_data = get_connector_data(&mut connectors)?;
 
@@ -633,6 +652,22 @@ where
 
                     let op_ref = &operation;
                     let should_trigger_post_processing_flows = is_operation_confirm(&operation);
+
+                    if is_eligible_for_uas {
+                        operation
+                            .to_domain()?
+                            .call_unified_authentication_service_if_eligible(
+                                state,
+                                &mut payment_data,
+                                &mut should_continue_transaction,
+                                &connector_details,
+                                &business_profile,
+                                &key_store,
+                                mandate_type,
+                                &true,
+                            )
+                            .await?;
+                    }
 
                     let operation = Box::new(PaymentResponse);
                     connector_http_status_code = router_data.connector_http_status_code;

@@ -33,12 +33,13 @@ use hyperswitch_domain_models::{
             PreProcessing, Reject, SdkSessionUpdate,
         },
         webhooks::VerifyWebhookSource,
-        Authenticate, PostAuthenticate, PreAuthenticate,
+        Authenticate, AuthenticationConfirmation, PostAuthenticate, PreAuthenticate,
     },
     router_request_types::{
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
-            UasPostAuthenticationRequestData, UasPreAuthenticationRequestData,
+            UasConfirmationRequestData, UasPostAuthenticationRequestData,
+            UasPreAuthenticationRequestData,
         },
         AcceptDisputeRequestData, AuthorizeSessionTokenData, CompleteAuthorizeData,
         ConnectorCustomerData, DefendDisputeRequestData, MandateRevokeRequestData,
@@ -75,7 +76,8 @@ use hyperswitch_interfaces::{
             PaymentsPreProcessing, TaxCalculation,
         },
         ConnectorIntegration, ConnectorMandateRevoke, ConnectorRedirectResponse, UasAuthentication,
-        UasPostAuthentication, UasPreAuthentication, UnifiedAuthenticationService,
+        UasAuthenticationConfirmation, UasPostAuthentication, UasPreAuthentication,
+        UnifiedAuthenticationService,
     },
     errors::ConnectorError,
 };
@@ -2664,6 +2666,81 @@ macro_rules! default_imp_for_uas_authentication {
 }
 
 default_imp_for_uas_authentication!(
+    connectors::Airwallex,
+    connectors::Amazonpay,
+    connectors::Bambora,
+    connectors::Bamboraapac,
+    connectors::Bankofamerica,
+    connectors::Billwerk,
+    connectors::Bitpay,
+    connectors::Bluesnap,
+    connectors::Boku,
+    connectors::Cashtocode,
+    connectors::Chargebee,
+    connectors::Coinbase,
+    connectors::Cryptopay,
+    connectors::CtpMastercard,
+    connectors::Cybersource,
+    connectors::Datatrans,
+    connectors::Deutschebank,
+    connectors::Digitalvirgo,
+    connectors::Dlocal,
+    connectors::Elavon,
+    connectors::Fiserv,
+    connectors::Fiservemea,
+    connectors::Fiuu,
+    connectors::Forte,
+    connectors::Globepay,
+    connectors::Gocardless,
+    connectors::Helcim,
+    connectors::Inespay,
+    connectors::Jpmorgan,
+    connectors::Nomupay,
+    connectors::Novalnet,
+    connectors::Nexinets,
+    connectors::Nexixpay,
+    connectors::Payeezy,
+    connectors::Payu,
+    connectors::Powertranz,
+    connectors::Prophetpay,
+    connectors::Mollie,
+    connectors::Multisafepay,
+    connectors::Paybox,
+    connectors::Placetopay,
+    connectors::Rapyd,
+    connectors::Razorpay,
+    connectors::Redsys,
+    connectors::Shift4,
+    connectors::Stax,
+    connectors::Square,
+    connectors::Taxjar,
+    connectors::Thunes,
+    connectors::Tsys,
+    connectors::Wellsfargo,
+    connectors::Worldline,
+    connectors::Worldpay,
+    connectors::Volt,
+    connectors::Xendit,
+    connectors::Zen,
+    connectors::Zsl
+);
+
+macro_rules! default_imp_for_uas_authentication_confirmation {
+    ($($path:ident::$connector:ident),*) => {
+        $( impl UasAuthenticationConfirmation for $path::$connector {}
+            impl
+            ConnectorIntegration<
+            AuthenticationConfirmation,
+            UasConfirmationRequestData,
+            UasAuthenticationResponseData
+
+        > for $path::$connector
+        {}
+        )*
+    };
+}
+
+default_imp_for_uas_authentication_confirmation!(
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Bambora,

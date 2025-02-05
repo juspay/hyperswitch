@@ -220,6 +220,13 @@ pub async fn external_authentication_update_trackers<F: Clone, Req>(
                     eci: authentication_details.eci,
                 }
             }
+
+            UasAuthenticationResponseData::Confirmation { .. } => {
+                diesel_models::authentication::AuthenticationUpdate::AuthenticationStatusUpdate {
+                    trans_status: common_enums::TransactionStatus::Success,
+                    authentication_status: common_enums::AuthenticationStatus::Success,
+                }
+            }
         },
         Err(error) => diesel_models::authentication::AuthenticationUpdate::ErrorUpdate {
             connector_authentication_id: error.connector_transaction_id,
@@ -240,4 +247,19 @@ pub async fn external_authentication_update_trackers<F: Clone, Req>(
         .await
         .change_context(ApiErrorResponse::InternalServerError)
         .attach_printable("Error while updating authentication")
+}
+
+pub fn get_checkout_event_status_and_reason(
+    attempt_status: common_enums::AttemptStatus,
+) -> (Option<String>, Option<String>) {
+    match attempt_status {
+        common_enums::AttemptStatus::Charged | common_enums::AttemptStatus::Authorized => (
+            Some("02".to_string()),
+            Some("Approval Code received".to_string()),
+        ),
+        _ => (
+            Some("03".to_string()),
+            Some("No Approval Code received".to_string()),
+        ),
+    }
 }
