@@ -48,7 +48,6 @@ common_utils::impl_to_sql_from_sql_json!(OrderDetailsWithAmount);
 pub struct FeatureMetadata {
     /// Redirection response coming in request as metadata field only for redirection scenarios
     pub redirect_response: Option<RedirectResponse>,
-    // TODO: Convert this to hashedstrings to avoid PII sensitive data
     /// Additional tags to be used for global search
     pub search_tags: Option<Vec<HashedString<WithType>>>,
     /// Recurring payment details required for apple pay Merchant Token
@@ -63,7 +62,6 @@ pub struct FeatureMetadata {
 pub struct FeatureMetadata {
     /// Redirection response coming in request as metadata field only for redirection scenarios
     pub redirect_response: Option<RedirectResponse>,
-    // TODO: Convert this to hashedstrings to avoid PII sensitive data
     /// Additional tags to be used for global search
     pub search_tags: Option<Vec<HashedString<WithType>>>,
     /// Recurring payment details required for apple pay Merchant Token
@@ -111,7 +109,7 @@ pub enum RecurringPaymentIntervalUnit {
     Minute,
 }
 
-common_utils::impl_to_sql_from_sql_json!(ApplePayRecurringDetails);
+common_utils::impl_to_sql_from_sql_json!(ApplePayRecurringDetails); 
 common_utils::impl_to_sql_from_sql_json!(ApplePayRegularBillingDetails);
 common_utils::impl_to_sql_from_sql_json!(RecurringPaymentIntervalUnit);
 
@@ -126,8 +124,7 @@ impl masking::SerializableSecret for RedirectResponse {}
 common_utils::impl_to_sql_from_sql_json!(RedirectResponse);
 
 #[cfg(feature = "v2")]
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]
-#[diesel(sql_type = Json)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct RevenueRecoveryMetadata {
     ///Total number of billing connector + recovery retries for a payment intent.
     pub retry_count: i32,
@@ -145,8 +142,7 @@ pub struct RevenueRecoveryMetadata {
     pub payment_method_subtype: PaymentMethodType,
 }
 
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]
-#[diesel(sql_type = Json)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 #[cfg(feature = "v2")]
 pub struct BillingConnectorMitTokenDetails {
     //Payment Processor Token To process the retry payment
@@ -155,7 +151,3 @@ pub struct BillingConnectorMitTokenDetails {
     pub connector_customer_id: String,
 }
 
-#[cfg(feature = "v2")]
-common_utils::impl_to_sql_from_sql_json!(RevenueRecoveryMetadata);
-#[cfg(feature = "v2")]
-common_utils::impl_to_sql_from_sql_json!(BillingConnectorMitTokenDetails);

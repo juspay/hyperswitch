@@ -85,16 +85,46 @@ pub trait ApiModelToDieselModelConvertor<F> {
     fn convert_back(self) -> F;
 }
 
+#[cfg(feature = "v1")]
 impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
     fn convert_from(from: ApiFeatureMetadata) -> Self {
-        #[cfg(feature = "v1")]
+        
         let ApiFeatureMetadata {
             redirect_response,
             search_tags,
             apple_pay_recurring_details,
         } = from;
 
-        #[cfg(feature = "v2")]
+        Self {
+            redirect_response: redirect_response.map(RedirectResponse::convert_from),
+            search_tags,
+            apple_pay_recurring_details: apple_pay_recurring_details
+                .map(ApplePayRecurringDetails::convert_from),
+
+        }
+    }
+
+    fn convert_back(self) -> ApiFeatureMetadata {
+        let Self {
+            redirect_response,
+            search_tags,
+            apple_pay_recurring_details,
+        } = self;
+        
+        ApiFeatureMetadata {
+            redirect_response: redirect_response
+                .map(|redirect_response| redirect_response.convert_back()),
+            search_tags,
+            apple_pay_recurring_details: apple_pay_recurring_details
+                .map(|value| value.convert_back()),
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
+impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
+    fn convert_from(from: ApiFeatureMetadata) -> Self {
+        
         let ApiFeatureMetadata {
             redirect_response,
             search_tags,
@@ -107,22 +137,13 @@ impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
             search_tags,
             apple_pay_recurring_details: apple_pay_recurring_details
                 .map(ApplePayRecurringDetails::convert_from),
-
-            #[cfg(feature = "v2")]
             revenue_recovery_metadata: revenue_recovery_metadata
                 .map(RevenueRecoveryMetadata::convert_from),
+
         }
     }
 
     fn convert_back(self) -> ApiFeatureMetadata {
-        #[cfg(feature = "v1")]
-        let Self {
-            redirect_response,
-            search_tags,
-            apple_pay_recurring_details,
-        } = self;
-
-        #[cfg(feature = "v2")]
         let Self {
             redirect_response,
             search_tags,
@@ -136,11 +157,12 @@ impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
             search_tags,
             apple_pay_recurring_details: apple_pay_recurring_details
                 .map(|value| value.convert_back()),
-            #[cfg(feature = "v2")]
-            revenue_recovery_metadata: revenue_recovery_metadata.map(|value| value.convert_back()),
+            revenue_recovery_metadata: revenue_recovery_metadata
+                .map(|value| value.convert_back()),
         }
     }
 }
+
 
 impl ApiModelToDieselModelConvertor<ApiRedirectResponse> for RedirectResponse {
     fn convert_from(from: ApiRedirectResponse) -> Self {

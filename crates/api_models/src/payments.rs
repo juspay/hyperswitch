@@ -6646,7 +6646,6 @@ pub struct FeatureMetadata {
     /// Redirection response coming in request as metadata field only for redirection scenarios
     #[schema(value_type = Option<RedirectResponse>)]
     pub redirect_response: Option<RedirectResponse>,
-    // TODO: Convert this to hashedstrings to avoid PII sensitive data
     /// Additional tags to be used for global search
     #[schema(value_type = Option<Vec<String>>)]
     pub search_tags: Option<Vec<HashedString<WithType>>>,
@@ -6663,7 +6662,6 @@ pub struct FeatureMetadata {
     /// Redirection response coming in request as metadata field only for redirection scenarios
     #[schema(value_type = Option<RedirectResponse>)]
     pub redirect_response: Option<RedirectResponse>,
-    // TODO: Convert this to hashedstrings to avoid PII sensitive data
     /// Additional tags to be used for global search
     #[schema(value_type = Option<Vec<String>>)]
     pub search_tags: Option<Vec<HashedString<WithType>>>,
@@ -7534,14 +7532,19 @@ pub struct RevenueRecoveryMetadata {
     //if the payment_connector has been called or not
     pub payment_connector_transmission: bool,
     // Billing Connector Id to update the invoices
+    #[schema(value_type = String, example = "mca_1234567890")]
     pub billing_connector_id: id_type::MerchantConnectorAccountId,
     // Payment Connector Id to retry the payments
+    #[schema(value_type = String, example = "mca_1234567890")]
     pub active_attempt_payment_connector_id: id_type::MerchantConnectorAccountId,
     // Billing Connector Mit Token Details
+    #[schema(value_type = BillingConnectorMitTokenDetails)]
     pub billing_connector_mit_token_details: BillingConnectorMitTokenDetails,
     //Payment Method Type
+    #[schema(example = "pay_later", value_type = PaymentMethod)]
     pub payment_method_type: common_enums::PaymentMethod,
     //PaymentMethod Subtype
+    #[schema(example = "klarna", value_type = PaymentMethodType)]
     pub payment_method_subtype: common_enums::PaymentMethodType,
 }
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize, ToSchema)]
