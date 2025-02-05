@@ -5945,16 +5945,12 @@ pub async fn decide_connector_for_normal_or_recurring_payment<F: Clone, D>(
 where
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
 {
-    let connector_mandate_details = &payment_method_info
-        .connector_mandate_details
-        .clone()
-        .map(|details| {
-            details
-                .parse_value::<diesel_models::PaymentsMandateReference>("connector_mandate_details")
-        })
-        .transpose()
+    let connector_common_mandate_details = payment_method_info
+        .get_common_mandate_reference()
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("unable to deserialize connector mandate details")?;
+        .attach_printable("Failed to get the common mandate reference")?;
+
+    let connector_mandate_details = connector_common_mandate_details.payments;
 
     let mut connector_choice = None;
 
