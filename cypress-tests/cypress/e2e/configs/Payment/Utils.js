@@ -1,6 +1,7 @@
 import { execConfig, validateConfig } from "../../../utils/featureFlags.js";
 
 import { connectorDetails as adyenConnectorDetails } from "./Adyen.js";
+import { connectorDetails as authorizeDotNetConnectorDetails } from "./Authorizedotnet.js";
 import { connectorDetails as bankOfAmericaConnectorDetails } from "./BankOfAmerica.js";
 import { connectorDetails as bluesnapConnectorDetails } from "./Bluesnap.js";
 import { connectorDetails as checkoutConnectorDetails } from "./Checkout.js";
@@ -29,6 +30,7 @@ import { connectorDetails as xenditConnectorDetails } from "./Xendit.js";
 
 const connectorDetails = {
   adyen: adyenConnectorDetails,
+  authorizedotnet: authorizeDotNetConnectorDetails,
   bankofamerica: bankOfAmericaConnectorDetails,
   bluesnap: bluesnapConnectorDetails,
   checkout: checkoutConnectorDetails,

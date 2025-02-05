@@ -1231,6 +1231,7 @@ Cypress.Commands.add(
       Request: reqData,
       Response: resData,
     } = data || {};
+    globalState.set("paymentAmount", reqData.amount);
 
     if (
       !createPaymentBody ||
@@ -1940,6 +1941,7 @@ Cypress.Commands.add(
       `${configInfo.merchantConnectorPrefix}Id`
     );
     const profile_id = globalState.get(`${configInfo.profilePrefix}Id`);
+    globalState.set("paymentAmount", reqData.amount);
 
     createConfirmPaymentBody.authentication_type = authentication_type;
     createConfirmPaymentBody.capture_method = capture_method;
@@ -2190,6 +2192,7 @@ Cypress.Commands.add(
         if (response.body.capture_method !== undefined) {
           expect(response.body.payment_id).to.equal(payment_id);
           for (const key in resData.body) {
+            // expect(resData.body['status']).to.equal('succeeded');
             expect(resData.body[key]).to.equal(response.body[key]);
           }
         } else {
