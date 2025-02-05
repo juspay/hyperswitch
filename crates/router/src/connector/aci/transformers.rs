@@ -112,6 +112,7 @@ impl TryFrom<(&domain::WalletData, &types::PaymentsAuthorizeRouterData)> for Pay
             | domain::WalletData::KakaoPayRedirect(_)
             | domain::WalletData::GoPayRedirect(_)
             | domain::WalletData::GcashRedirect(_)
+            | domain::WalletData::AmazonPay(_)
             | domain::WalletData::ApplePay(_)
             | domain::WalletData::ApplePayThirdPartySdk(_)
             | domain::WalletData::DanaRedirect { .. }

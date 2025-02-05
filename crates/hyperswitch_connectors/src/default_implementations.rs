@@ -395,7 +395,6 @@ macro_rules! default_imp_for_complete_authorize {
 }
 
 default_imp_for_complete_authorize!(
-    connectors::Amazonpay,
     connectors::Bamboraapac,
     connectors::Bankofamerica,
     connectors::Billwerk,

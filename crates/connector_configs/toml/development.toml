@@ -386,6 +386,12 @@ placeholder="Enter Google Pay Merchant Key"
 required=true
 type="Text"
 
+[amazonpay]
+[[amazonpay.wallet]]
+payment_method_type = "AmazonPay"
+[amazonpay.connector_auth.BodyKey]
+api_key="Public Key"
+key1="Private Key"
 
 [authorizedotnet]
 [[authorizedotnet.credit]]

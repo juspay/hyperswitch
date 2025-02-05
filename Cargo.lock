@@ -2419,6 +2419,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7a81dae078cea95a014a339291cec439d2f232ebe854a9d672b796c6afafa9b7"
 
 [[package]]
+name = "crypto"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c84494160481771c27fca091fb9b41c0dfa588e3a3b8156e797b3703b778459d"
+
+[[package]]
 name = "crypto-bigint"
 version = "0.5.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3994,8 +4000,10 @@ dependencies = [
  "base64 0.22.1",
  "bytes 1.7.1",
  "cards",
+ "chrono",
  "common_enums",
  "common_utils",
+ "crypto",
  "encoding_rs",
  "error-stack",
  "hex",
@@ -4008,6 +4016,7 @@ dependencies = [
  "masking",
  "mime",
  "once_cell",
+ "openssl",
  "qrcode",
  "quick-xml",
  "rand",
@@ -4021,6 +4030,7 @@ dependencies = [
  "serde_qs",
  "serde_urlencoded",
  "serde_with",
+ "sha2",
  "strum 0.26.3",
  "time",
  "url",

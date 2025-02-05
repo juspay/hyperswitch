@@ -277,6 +277,7 @@ impl From<api_models::enums::PaymentMethodType> for api::GetToken {
             api_models::enums::PaymentMethodType::SamsungPay => Self::SamsungPayMetadata,
             api_models::enums::PaymentMethodType::Paypal => Self::PaypalSdkMetadata,
             api_models::enums::PaymentMethodType::Paze => Self::PazeMetadata,
+            api_models::enums::PaymentMethodType::AmazonPay => Self::AmazonPayMetadata,
             _ => Self::Connector,
         }
     }

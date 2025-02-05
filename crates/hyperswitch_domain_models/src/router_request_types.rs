@@ -858,6 +858,9 @@ pub struct PaymentsSessionData {
     // Minor Unit amount for amount frame work
     pub minor_amount: MinorUnit,
     pub apple_pay_recurring_details: Option<api_models::payments::ApplePayRecurringPaymentRequest>,
+    pub order_tax_amount: Option<MinorUnit>,
+    pub shipping_cost: Option<MinorUnit>,
+    pub metadata: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Clone, Default)]

@@ -215,7 +215,8 @@ impl ConnectorValidation for Adyen {
                         )
                     }
                 },
-                PaymentMethodType::CardRedirect
+                PaymentMethodType::AmazonPay
+                | PaymentMethodType::CardRedirect
                 | PaymentMethodType::DirectCarrierBilling
                 | PaymentMethodType::Fps
                 | PaymentMethodType::DuitNow

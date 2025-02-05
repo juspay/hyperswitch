@@ -214,7 +214,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Adyen => Self::Adyen,
             api_enums::Connector::Adyenplatform => Self::Adyenplatform,
             api_enums::Connector::Airwallex => Self::Airwallex,
-            // api_enums::Connector::Amazonpay => Self::Amazonpay,
+            api_enums::Connector::Amazonpay => Self::Amazonpay,
             api_enums::Connector::Authorizedotnet => Self::Authorizedotnet,
             api_enums::Connector::Bambora => Self::Bambora,
             api_enums::Connector::Bamboraapac => Self::Bamboraapac,
@@ -458,6 +458,7 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::Paypal
             | api_enums::PaymentMethodType::AliPay
             | api_enums::PaymentMethodType::AliPayHk
+            | api_enums::PaymentMethodType::AmazonPay
             | api_enums::PaymentMethodType::Dana
             | api_enums::PaymentMethodType::MbWay
             | api_enums::PaymentMethodType::MobilePay

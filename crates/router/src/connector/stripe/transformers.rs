@@ -694,6 +694,7 @@ impl TryFrom<enums::PaymentMethodType> for StripePaymentMethodType {
             )
             .into()),
             enums::PaymentMethodType::AliPayHk
+            | enums::PaymentMethodType::AmazonPay
             | enums::PaymentMethodType::Atome
             | enums::PaymentMethodType::Bizum
             | enums::PaymentMethodType::Alma
@@ -1053,7 +1054,8 @@ impl ForeignTryFrom<&domain::WalletData> for Option<StripePaymentMethodType> {
                     connector_util::get_unimplemented_payment_method_error_message("stripe"),
                 ))
             }
-            domain::WalletData::PaypalRedirect(_)
+            domain::WalletData::AmazonPay(_)
+            | domain::WalletData::PaypalRedirect(_)
             | domain::WalletData::AliPayQr(_)
             | domain::WalletData::AliPayHkRedirect(_)
             | domain::WalletData::MomoRedirect(_)
@@ -1475,6 +1477,7 @@ impl TryFrom<(&domain::WalletData, Option<types::PaymentMethodToken>)> for Strip
             }
             domain::WalletData::AliPayQr(_)
             | domain::WalletData::AliPayHkRedirect(_)
+            | domain::WalletData::AmazonPay(_)
             | domain::WalletData::MomoRedirect(_)
             | domain::WalletData::KakaoPayRedirect(_)
             | domain::WalletData::GoPayRedirect(_)
