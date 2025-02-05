@@ -7002,12 +7002,28 @@ pub struct PaymentsStartRequest {
 }
 
 /// additional data that might be required by hyperswitch
+#[cfg(feature = "v2")]
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct FeatureMetadata {
     /// Redirection response coming in request as metadata field only for redirection scenarios
     #[schema(value_type = Option<RedirectResponse>)]
     pub redirect_response: Option<RedirectResponse>,
-    // TODO: Convert this to hashedstrings to avoid PII sensitive data
+    /// Additional tags to be used for global search
+    #[schema(value_type = Option<Vec<String>>)]
+    pub search_tags: Option<Vec<HashedString<WithType>>>,
+    /// Recurring payment details required for apple pay Merchant Token
+    pub apple_pay_recurring_details: Option<ApplePayRecurringDetails>,
+    /// revenue recovery data for payment intent
+    pub revenue_recovery_metadata: Option<RevenueRecoveryMetadata>,
+}
+
+/// additional data that might be required by hyperswitch
+#[cfg(feature = "v1")]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct FeatureMetadata {
+    /// Redirection response coming in request as metadata field only for redirection scenarios
+    #[schema(value_type = Option<RedirectResponse>)]
+    pub redirect_response: Option<RedirectResponse>,
     /// Additional tags to be used for global search
     #[schema(value_type = Option<Vec<String>>)]
     pub search_tags: Option<Vec<HashedString<WithType>>>,
@@ -7867,4 +7883,37 @@ mod billing_from_payment_method_data {
 
         assert!(billing_details.is_none());
     }
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize, ToSchema)]
+pub struct RevenueRecoveryMetadata {
+    ///Total number of billing connector + recovery retries for a payment intent.
+    #[schema(value_type = i32,example = "1")]
+    pub retry_count: i32,
+    //if the payment_connector has been called or not
+    pub payment_connector_transmission: bool,
+    // Billing Connector Id to update the invoices
+    #[schema(value_type = String, example = "mca_1234567890")]
+    pub billing_connector_id: id_type::MerchantConnectorAccountId,
+    // Payment Connector Id to retry the payments
+    #[schema(value_type = String, example = "mca_1234567890")]
+    pub active_attempt_payment_connector_id: id_type::MerchantConnectorAccountId,
+    // Billing Connector Mit Token Details
+    #[schema(value_type = BillingConnectorMitTokenDetails)]
+    pub billing_connector_mit_token_details: BillingConnectorMitTokenDetails,
+    //Payment Method Type
+    #[schema(example = "pay_later", value_type = PaymentMethod)]
+    pub payment_method_type: common_enums::PaymentMethod,
+    //PaymentMethod Subtype
+    #[schema(example = "klarna", value_type = PaymentMethodType)]
+    pub payment_method_subtype: common_enums::PaymentMethodType,
+}
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize, ToSchema)]
+#[cfg(feature = "v2")]
+pub struct BillingConnectorMitTokenDetails {
+    //Payment Processor Token To process the retry payment
+    pub payment_processor_token: String,
+    //Connector Customer Id to process the retry payment
+    pub connector_customer_id: String,
 }
