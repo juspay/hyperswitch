@@ -197,17 +197,6 @@ pub async fn update_merchant_active_algorithm_ref(
     Ok(())
 }
 
-#[cfg(feature = "v2")]
-pub async fn update_merchant_active_algorithm_ref(
-    _state: &SessionState,
-    _key_store: &domain::MerchantKeyStore,
-    _config_key: cache::CacheKind<'_>,
-    _algorithm_id: routing_types::RoutingAlgorithmRef,
-) -> RouterResult<()> {
-    // TODO: handle updating the active routing algorithm for v2 in merchant account
-    todo!()
-}
-
 #[cfg(feature = "v1")]
 pub async fn update_profile_active_algorithm_ref(
     db: &dyn StorageInterface,

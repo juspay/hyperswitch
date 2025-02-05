@@ -3798,6 +3798,7 @@ impl ProfileCreateBridge for api::ProfileCreate {
             is_network_tokenization_enabled: self.is_network_tokenization_enabled,
             is_click_to_pay_enabled: self.is_click_to_pay_enabled,
             authentication_product_ids: self.authentication_product_ids,
+            three_ds_decision_manager_config: None,
         }))
     }
 }
@@ -4147,6 +4148,7 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                 is_network_tokenization_enabled: self.is_network_tokenization_enabled,
                 is_click_to_pay_enabled: self.is_click_to_pay_enabled,
                 authentication_product_ids: self.authentication_product_ids,
+                three_ds_decision_manager_config: None,
             },
         )))
     }

@@ -15,10 +15,12 @@ v2 = ["common_utils/v2"]
 diesel = "2.2.3"
 serde = { version = "1.0.197", features = ["derive"] }
 serde_json = "1.0.115"
+strum = { version = "0.26", features = ["derive"] }
 utoipa = { version = "4.2.0", features = ["preserve_order", "preserve_path_order"] }
 
 common_enums = { version = "0.1.0", path = "../common_enums" }
 common_utils = { version = "0.1.0", path = "../common_utils"}
+euclid = { version = "0.1.0", path = "../euclid" }
 
 [lints]
 workspace = true
