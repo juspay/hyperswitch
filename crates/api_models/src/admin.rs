@@ -1867,6 +1867,9 @@ pub struct ProfileCreate {
     #[schema(value_type = Option<Object>, example = r#"{ "click_to_pay": "mca_ushduqwhdohwd", "netcetera": "mca_kwqhudqwd" }"#)]
     pub authentication_product_ids:
         Option<common_types::payments::AuthenticationConnectorAccountMap>,
+
+    ///Indicates if clear pan retries is enabled or not.
+    pub is_clear_pan_retries_enabled: Option<bool>,
 }
 
 #[nutype::nutype(
@@ -1985,6 +1988,9 @@ pub struct ProfileCreate {
     #[schema(value_type = Option<Object>, example = r#"{ "click_to_pay": "mca_ushduqwhdohwd", "netcetera": "mca_kwqhudqwd" }"#)]
     pub authentication_product_ids:
         Option<common_types::payments::AuthenticationConnectorAccountMap>,
+
+    ///Indicates if clear pan retries is enabled or not.
+    pub is_clear_pan_retries_enabled: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -2122,6 +2128,9 @@ pub struct ProfileResponse {
     #[schema(value_type = Option<Object>, example = r#"{ "click_to_pay": "mca_ushduqwhdohwd", "netcetera": "mca_kwqhudqwd" }"#)]
     pub authentication_product_ids:
         Option<common_types::payments::AuthenticationConnectorAccountMap>,
+
+    ///Indicates if clear pan retries is enabled or not.
+    pub is_clear_pan_retries_enabled: bool,
 }
 
 #[cfg(feature = "v2")]
@@ -2246,6 +2255,9 @@ pub struct ProfileResponse {
     #[schema(value_type = Option<Object>, example = r#"{ "click_to_pay": "mca_ushduqwhdohwd", "netcetera": "mca_kwqhudqwd" }"#)]
     pub authentication_product_ids:
         Option<common_types::payments::AuthenticationConnectorAccountMap>,
+
+    ///Indicates if clear pan retries is enabled or not.
+    pub is_clear_pan_retries_enabled: bool,
 }
 
 #[cfg(feature = "v1")]
@@ -2377,6 +2389,9 @@ pub struct ProfileUpdate {
     #[schema(value_type = Option<Object>, example = r#"{ "click_to_pay": "mca_ushduqwhdohwd", "netcetera": "mca_kwqhudqwd" }"#)]
     pub authentication_product_ids:
         Option<common_types::payments::AuthenticationConnectorAccountMap>,
+
+    ///Indicates if clear pan retries is enabled or not.
+    pub is_clear_pan_retries_enabled: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -2489,6 +2504,9 @@ pub struct ProfileUpdate {
     #[schema(value_type = Option<Object>, example = r#"{ "click_to_pay": "mca_ushduqwhdohwd", "netcetera": "mca_kwqhudqwd" }"#)]
     pub authentication_product_ids:
         Option<common_types::payments::AuthenticationConnectorAccountMap>,
+
+    ///Indicates if clear pan retries is enabled or not.
+    pub is_clear_pan_retries_enabled: Option<bool>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
