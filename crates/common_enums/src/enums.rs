@@ -3708,3 +3708,13 @@ pub enum NetworkTokenizationToggle {
     /// Skip network tokenization for the payment method
     Skip,
 }
+
+#[derive(Clone, Copy, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum GooglePayAuthMethod {
+    /// Contain pan data only
+    PanOnly,
+    /// Contain cryptogram data along with pan data
+    #[serde(rename = "CRYPTOGRAM_3DS")]
+    Cryptogram,
+}
