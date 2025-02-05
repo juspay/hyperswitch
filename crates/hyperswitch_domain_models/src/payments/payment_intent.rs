@@ -73,7 +73,7 @@ pub trait PaymentIntentInterface {
         storage_scheme: common_enums::MerchantStorageScheme,
     ) -> error_stack::Result<PaymentIntent, errors::StorageError>;
 
-    #[cfg(all(feature = "v1", feature = "olap"))]
+    #[cfg(all(any(feature = "v1", feature = "v2"), feature = "olap"))]
     async fn filter_payment_intent_by_constraints(
         &self,
         state: &KeyManagerState,
@@ -1068,6 +1068,7 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
     }
 }
 
+#[cfg(feature = "v1")]
 pub enum PaymentIntentFetchConstraints {
     Single {
         payment_intent_id: id_type::PaymentId,
@@ -1075,6 +1076,7 @@ pub enum PaymentIntentFetchConstraints {
     List(Box<PaymentIntentListParams>),
 }
 
+#[cfg(feature = "v1")]
 impl PaymentIntentFetchConstraints {
     pub fn get_profile_id_list(&self) -> Option<Vec<id_type::ProfileId>> {
         if let Self::List(pi_list_params) = self {
@@ -1085,6 +1087,26 @@ impl PaymentIntentFetchConstraints {
     }
 }
 
+#[cfg(feature = "v2")]
+pub enum PaymentIntentFetchConstraints {
+    Single {
+        payment_intent_id: id_type::GlobalPaymentId,
+    },
+    List(Box<PaymentIntentListParams>),
+}
+
+#[cfg(feature = "v2")]
+impl PaymentIntentFetchConstraints {
+    pub fn get_profile_id_list(&self) -> Option<Vec<id_type::ProfileId>> {
+        if let Self::List(pi_list_params) = self {
+            pi_list_params.profile_id.clone()
+        } else {
+            None
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
 pub struct PaymentIntentListParams {
     pub offset: u32,
     pub starting_at: Option<PrimitiveDateTime>,
@@ -1107,6 +1129,30 @@ pub struct PaymentIntentListParams {
     pub merchant_order_reference_id: Option<String>,
 }
 
+#[cfg(feature = "v2")]
+pub struct PaymentIntentListParams {
+    pub offset: u32,
+    pub starting_at: Option<PrimitiveDateTime>,
+    pub ending_at: Option<PrimitiveDateTime>,
+    pub amount_filter: Option<api_models::payments::AmountFilter>,
+    pub connector: Option<Vec<api_models::enums::Connector>>,
+    pub currency: Option<Vec<common_enums::Currency>>,
+    pub status: Option<Vec<common_enums::IntentStatus>>,
+    pub payment_method: Option<Vec<common_enums::PaymentMethod>>,
+    pub payment_method_type: Option<Vec<common_enums::PaymentMethodType>>,
+    pub authentication_type: Option<Vec<common_enums::AuthenticationType>>,
+    pub merchant_connector_id: Option<Vec<id_type::MerchantConnectorAccountId>>,
+    pub profile_id: Option<Vec<id_type::ProfileId>>,
+    pub customer_id: Option<id_type::GlobalCustomerId>,
+    pub starting_after_id: Option<id_type::GlobalPaymentId>,
+    pub ending_before_id: Option<id_type::GlobalPaymentId>,
+    pub limit: Option<u32>,
+    pub order: api_models::payments::Order,
+    pub card_network: Option<Vec<common_enums::CardNetwork>>,
+    pub merchant_order_reference_id: Option<String>,
+}
+
+#[cfg(feature = "v1")]
 impl From<api_models::payments::PaymentListConstraints> for PaymentIntentFetchConstraints {
     fn from(value: api_models::payments::PaymentListConstraints) -> Self {
         let api_models::payments::PaymentListConstraints {
@@ -1144,6 +1190,45 @@ impl From<api_models::payments::PaymentListConstraints> for PaymentIntentFetchCo
     }
 }
 
+#[cfg(feature = "v2")]
+impl From<api_models::payments::PaymentListConstraints> for PaymentIntentFetchConstraints {
+    fn from(value: api_models::payments::PaymentListConstraints) -> Self {
+        let api_models::payments::PaymentListConstraints {
+            customer_id,
+            starting_after,
+            ending_before,
+            limit,
+            created,
+            created_lt,
+            created_gt,
+            created_lte,
+            created_gte,
+        } = value;
+        Self::List(Box::new(PaymentIntentListParams {
+            offset: 0,
+            starting_at: created_gte.or(created_gt).or(created),
+            ending_at: created_lte.or(created_lt).or(created),
+            amount_filter: None,
+            connector: None,
+            currency: None,
+            status: None,
+            payment_method: None,
+            payment_method_type: None,
+            authentication_type: None,
+            merchant_connector_id: None,
+            profile_id: None,
+            customer_id,
+            starting_after_id: starting_after,
+            ending_before_id: ending_before,
+            limit: Some(std::cmp::min(limit, PAYMENTS_LIST_MAX_LIMIT_V1)),
+            order: Default::default(),
+            card_network: None,
+            merchant_order_reference_id: None,
+        }))
+    }
+}
+
+#[cfg(feature = "v1")]
 impl From<common_utils::types::TimeRange> for PaymentIntentFetchConstraints {
     fn from(value: common_utils::types::TimeRange) -> Self {
         Self::List(Box::new(PaymentIntentListParams {
@@ -1170,6 +1255,7 @@ impl From<common_utils::types::TimeRange> for PaymentIntentFetchConstraints {
     }
 }
 
+#[cfg(feature = "v1")]
 impl From<api_models::payments::PaymentListFilterConstraints> for PaymentIntentFetchConstraints {
     fn from(value: api_models::payments::PaymentListFilterConstraints) -> Self {
         let api_models::payments::PaymentListFilterConstraints {
@@ -1219,6 +1305,109 @@ impl From<api_models::payments::PaymentListFilterConstraints> for PaymentIntentF
     }
 }
 
+#[cfg(feature = "v2")]
+impl From<api_models::payments::PaymentListFilterConstraints> for PaymentIntentFetchConstraints {
+    fn from(value: api_models::payments::PaymentListFilterConstraints) -> Self {
+        let api_models::payments::PaymentListFilterConstraints {
+            id,
+            profile_id,
+            customer_id,
+            limit,
+            offset,
+            amount_filter,
+            time_range,
+            connector,
+            currency,
+            status,
+            payment_method,
+            payment_method_type,
+            authentication_type,
+            merchant_connector_id,
+            order,
+            card_network,
+            merchant_order_reference_id,
+        } = value;
+        if let Some(payment_intent_id) = id {
+            Self::Single { payment_intent_id }
+        } else {
+            Self::List(Box::new(PaymentIntentListParams {
+                offset: offset.unwrap_or_default(),
+                starting_at: time_range.map(|t| t.start_time),
+                ending_at: time_range.and_then(|t| t.end_time),
+                amount_filter,
+                connector,
+                currency,
+                status,
+                payment_method,
+                payment_method_type,
+                authentication_type,
+                merchant_connector_id,
+                profile_id: profile_id.map(|profile_id| vec![profile_id]),
+                customer_id,
+                starting_after_id: None,
+                ending_before_id: None,
+                limit: Some(std::cmp::min(limit, PAYMENTS_LIST_MAX_LIMIT_V2)),
+                order,
+                card_network,
+                merchant_order_reference_id,
+            }))
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
+impl<T> TryFrom<(T, Option<Vec<id_type::ProfileId>>)> for PaymentIntentFetchConstraints
+where
+    Self: From<T>,
+{
+    type Error = error_stack::Report<errors::api_error_response::ApiErrorResponse>;
+    fn try_from(
+        (constraints, auth_profile_id_list): (T, Option<Vec<id_type::ProfileId>>),
+    ) -> Result<Self, Self::Error> {
+        let payment_intent_constraints = Self::from(constraints);
+        if let Self::List(mut pi_list_params) = payment_intent_constraints {
+            let profile_id_from_request_body = pi_list_params.profile_id;
+            match (profile_id_from_request_body, auth_profile_id_list) {
+                (None, None) => pi_list_params.profile_id = None,
+                (None, Some(auth_profile_id_list)) => {
+                    pi_list_params.profile_id = Some(auth_profile_id_list)
+                }
+                (Some(profile_id_from_request_body), None) => {
+                    pi_list_params.profile_id = Some(profile_id_from_request_body)
+                }
+                (Some(profile_id_from_request_body), Some(auth_profile_id_list)) => {
+                    let profile_id_from_request_body_is_available_in_auth_profile_id_list =
+                        profile_id_from_request_body
+                            .iter()
+                            .all(|profile_id| auth_profile_id_list.contains(profile_id));
+
+                    if profile_id_from_request_body_is_available_in_auth_profile_id_list {
+                        pi_list_params.profile_id = Some(profile_id_from_request_body)
+                    } else {
+                        // This scenario is very unlikely to happen
+                        let inaccessible_profile_ids: Vec<_> = profile_id_from_request_body
+                            .iter()
+                            .filter(|profile_id| !auth_profile_id_list.contains(profile_id))
+                            .collect();
+                        return Err(error_stack::Report::new(
+                            errors::api_error_response::ApiErrorResponse::PreconditionFailed {
+                                message: format!(
+                                    "Access not available for the given profile_id {:?}",
+                                    inaccessible_profile_ids
+                                ),
+                            },
+                        ));
+                    }
+                }
+            }
+            Ok(Self::List(pi_list_params))
+        } else {
+            Ok(payment_intent_constraints)
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
 impl<T> TryFrom<(T, Option<Vec<id_type::ProfileId>>)> for PaymentIntentFetchConstraints
 where
     Self: From<T>,

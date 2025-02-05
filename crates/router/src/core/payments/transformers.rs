@@ -2565,6 +2565,176 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
     }
 }
 
+#[cfg(feature = "v2")]
+impl ForeignFrom<(storage::PaymentIntent, Option<storage::PaymentAttempt>)>
+    for api::PaymentsResponse
+{
+    fn foreign_from((pi, pa): (storage::PaymentIntent, Option<storage::PaymentAttempt>)) -> Self {
+        Self {
+            id: pi.id,
+            merchant_id: pi.merchant_id,
+            profile_id: pi.profile_id,
+            customer_id: pi.customer_id,
+            payment_method_id: pa.as_ref().and_then(|p| p.payment_method_id.clone()),
+            status: pi.status,
+            amount: api_models::payments::PaymentAmountDetailsResponse::foreign_from((
+                &pi.amount_details,
+                pa.as_ref().map(|p| &p.amount_details),
+            )),
+            created: pi.created_at,
+            payment_method_type: pa.as_ref().and_then(|p| p.payment_method_type.into()),
+            payment_method_subtype: pa.as_ref().and_then(|p| p.payment_method_subtype.into()),
+            connector: pa.as_ref().and_then(|p| p.connector.clone()),
+            merchant_connector_id: pa.as_ref().and_then(|p| p.merchant_connector_id.clone()),
+            customer: None,
+            merchant_reference_id: pi.merchant_reference_id,
+            connector_payment_id: pa.as_ref().and_then(|p| p.connector_payment_id.clone()),
+            connector_response_reference_id: pa
+                .as_ref()
+                .and_then(|p| p.connector_response_reference_id.clone()),
+            metadata: pi.metadata,
+            description: pi.description.map(|val| val.get_string_repr().to_string()),
+            authentication_type: Some(pi.authentication_type),
+            capture_method: Some(pi.capture_method),
+            setup_future_usage: Some(pi.setup_future_usage),
+            attempt_count: pi.attempt_count,
+            error: None,
+            cancellation_reason: pa.as_ref().and_then(|p| p.cancellation_reason.clone()),
+            order_details: None,
+            return_url: pi.return_url,
+            statement_descriptor_name: None,
+            statement_descriptor_suffix: None,
+            allowed_payment_method_types: pi.allowed_payment_method_types,
+            authorization_count: pi.authorization_count,
+            modified_at: pa.as_ref().map(|p| p.modified_at),
+        }
+        // let connector_transaction_id = pa.get_connector_payment_id().map(ToString::to_string);
+        // Self {
+        //     payment_id: pi.payment_id,
+        //     merchant_id: pi.merchant_id,
+        //     status: pi.status,
+        //     amount: pi.amount,
+        //     amount_capturable: pa.amount_capturable,
+        //     client_secret: pi.client_secret.map(|s| s.into()),
+        //     created: Some(pi.created_at),
+        //     currency: pi.currency.map(|c| c.to_string()).unwrap_or_default(),
+        //     description: pi.description,
+        //     metadata: pi.metadata,
+        //     order_details: pi.order_details,
+        //     customer_id: pi.customer_id.clone(),
+        //     connector: pa.connector,
+        //     payment_method: pa.payment_method,
+        //     payment_method_type: pa.payment_method_type,
+        //     business_label: pi.business_label,
+        //     business_country: pi.business_country,
+        //     business_sub_label: pa.business_sub_label,
+        //     setup_future_usage: pi.setup_future_usage,
+        //     capture_method: pa.capture_method,
+        //     authentication_type: pa.authentication_type,
+        //     connector_transaction_id,
+        //     attempt_count: pi.attempt_count,
+        //     profile_id: pi.profile_id,
+        //     merchant_connector_id: pa.merchant_connector_id,
+        //     payment_method_data: pa.payment_method_data.and_then(|data| {
+        //         match data.parse_value("PaymentMethodDataResponseWithBilling") {
+        //             Ok(parsed_data) => Some(parsed_data),
+        //             Err(e) => {
+        //                 router_env::logger::error!("Failed to parse 'PaymentMethodDataResponseWithBilling' from payment method data. Error: {e:?}");
+        //                 None
+        //             }
+        //         }
+        //     }),
+        //     merchant_order_reference_id: pi.merchant_order_reference_id,
+        //     customer: pi.customer_details.and_then(|customer_details|
+        //         match customer_details.into_inner().expose().parse_value::<CustomerData>("CustomerData"){
+        //             Ok(parsed_data) => Some(
+        //                 CustomerDetailsResponse {
+        //                     id: pi.customer_id,
+        //                     name: parsed_data.name,
+        //                     phone: parsed_data.phone,
+        //                     email: parsed_data.email,
+        //                     phone_country_code:parsed_data.phone_country_code
+        //             }),
+        //             Err(e) => {
+        //                 router_env::logger::error!("Failed to parse 'CustomerDetailsResponse' from payment method data. Error: {e:?}");
+        //                 None
+        //             }
+        //         }
+        //     ),
+        //     billing: pi.billing_details.and_then(|billing_details|
+        //         match billing_details.into_inner().expose().parse_value::<Address>("Address") {
+        //             Ok(parsed_data) => Some(parsed_data),
+        //             Err(e) => {
+        //                 router_env::logger::error!("Failed to parse 'BillingAddress' from payment method data. Error: {e:?}");
+        //                 None
+        //             }
+        //         }
+        //     ),
+        //     shipping: pi.shipping_details.and_then(|shipping_details|
+        //         match shipping_details.into_inner().expose().parse_value::<Address>("Address") {
+        //             Ok(parsed_data) => Some(parsed_data),
+        //             Err(e) => {
+        //                 router_env::logger::error!("Failed to parse 'ShippingAddress' from payment method data. Error: {e:?}");
+        //                 None
+        //             }
+        //         }
+        //     ),
+        //     // TODO: fill in details based on requirement
+        //     net_amount: pa.net_amount.get_total_amount(),
+        //     amount_received: None,
+        //     refunds: None,
+        //     disputes: None,
+        //     attempts: None,
+        //     captures: None,
+        //     mandate_id: None,
+        //     mandate_data: None,
+        //     off_session: None,
+        //     capture_on: None,
+        //     payment_token: None,
+        //     email: None,
+        //     name: None,
+        //     phone: None,
+        //     return_url: None,
+        //     statement_descriptor_name: None,
+        //     statement_descriptor_suffix: None,
+        //     next_action: None,
+        //     cancellation_reason: None,
+        //     error_code: None,
+        //     error_message: None,
+        //     unified_code: None,
+        //     unified_message: None,
+        //     payment_experience: None,
+        //     connector_label: None,
+        //     allowed_payment_method_types: None,
+        //     ephemeral_key: None,
+        //     manual_retry_allowed: None,
+        //     frm_message: None,
+        //     connector_metadata: None,
+        //     feature_metadata: None,
+        //     reference_id: None,
+        //     payment_link: None,
+        //     surcharge_details: None,
+        //     merchant_decision: None,
+        //     incremental_authorization_allowed: None,
+        //     authorization_count: None,
+        //     incremental_authorizations: None,
+        //     external_authentication_details: None,
+        //     external_3ds_authentication_attempted: None,
+        //     expires_on: None,
+        //     fingerprint: None,
+        //     browser_info: None,
+        //     payment_method_id: None,
+        //     payment_method_status: None,
+        //     updated: None,
+        //     split_payments: None,
+        //     frm_metadata: None,
+        //     order_tax_amount: None,
+        //     connector_mandate_id:None,
+        //     shipping_cost: None,
+        // }
+    }
+}
+
 impl ForeignFrom<ephemeral_key::EphemeralKey> for api::ephemeral_key::EphemeralKeyCreateResponse {
     fn foreign_from(from: ephemeral_key::EphemeralKey) -> Self {
         Self {

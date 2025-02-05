@@ -126,6 +126,8 @@ Never share your secret api keys. Keep them guarded and secure.
         routes::payments::payment_status,
         routes::payments::payments_connector_session,
         routes::payments::list_payment_methods,
+        routes::payments::payments_list,
+        routes::payments::payments_list_by_filter,
 
         //Routes for payment methods
         routes::payment_method::create_payment_method_api,
@@ -360,7 +362,8 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::CardToken,
         api_models::payments::CustomerAcceptance,
         api_models::payments::PaymentsResponse,
-        api_models::payments::PaymentsCreateResponseOpenApi,
+        // api_models::payments::PaymentsCreateResponseOpenApi,
+        api_models::payments::PaymentListFilterConstraints,
         api_models::payments::PaymentRetrieveBody,
         api_models::payments::PaymentsRetrieveRequest,
         api_models::payments::PaymentsCaptureRequest,
@@ -475,6 +478,9 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::PaymentsConfirmIntentResponse,
         api_models::payments::AmountDetailsResponse,
         api_models::payments::BankCodeResponse,
+        api_models::payments::Order,
+        api_models::payments::SortOn,
+        api_models::payments::SortBy,
         api_models::payments::PaymentMethodListResponseForPayments,
         api_models::payments::ResponsePaymentMethodTypesForPayments,
         api_models::payment_methods::RequiredFieldInfo,

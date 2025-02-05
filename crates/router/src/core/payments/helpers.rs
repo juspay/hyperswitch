@@ -2887,7 +2887,7 @@ where
     Some(func(option1?, option2?))
 }
 
-#[cfg(all(feature = "olap", feature = "v1"))]
+#[cfg(all(any(feature = "v1", feature = "v2"), feature = "olap"))]
 pub(super) async fn filter_by_constraints(
     state: &SessionState,
     constraints: &PaymentIntentFetchConstraints,
@@ -3163,6 +3163,7 @@ pub async fn delete_ephemeral_key(
     Ok(services::ApplicationResponse::Json(response))
 }
 
+#[cfg(feature = "v1")]
 pub fn make_pg_redirect_response(
     payment_id: id_type::PaymentId,
     response: &api::PaymentsResponse,

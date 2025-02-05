@@ -15,7 +15,7 @@ use super::MockDb;
 
 #[async_trait::async_trait]
 impl PaymentIntentInterface for MockDb {
-    #[cfg(all(feature = "v1", feature = "olap"))]
+    #[cfg(all(any(feature = "v1", feature = "v2"), feature = "olap"))]
     async fn filter_payment_intent_by_constraints(
         &self,
         _state: &KeyManagerState,
