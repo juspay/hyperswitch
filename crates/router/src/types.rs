@@ -44,7 +44,8 @@ pub use hyperswitch_domain_models::{
     router_data::{
         AccessToken, AdditionalPaymentMethodConnectorResponse, ApplePayCryptogramData,
         ApplePayPredecryptData, ConnectorAuthType, ConnectorResponseData, ErrorResponse,
-        PaymentMethodBalance, PaymentMethodToken, RecurringMandatePaymentData, RouterData,
+        GooglePayDecryptedData, GooglePayPaymentMethodDetails, PaymentMethodBalance,
+        PaymentMethodToken, RecurringMandatePaymentData, RouterData,
     },
     router_data_v2::{
         AccessTokenFlowData, DisputesFlowData, ExternalAuthenticationFlowData, FilesFlowData,
@@ -53,8 +54,8 @@ pub use hyperswitch_domain_models::{
     },
     router_request_types::{
         unified_authentication_service::{
-            UasAuthenticationResponseData, UasPostAuthenticationRequestData,
-            UasPreAuthenticationRequestData,
+            UasAuthenticationRequestData, UasAuthenticationResponseData,
+            UasPostAuthenticationRequestData, UasPreAuthenticationRequestData,
         },
         AcceptDisputeRequestData, AccessTokenRequestData, AuthorizeSessionTokenData,
         BrowserInformation, ChargeRefunds, ChargeRefundsOptions, CompleteAuthorizeData,

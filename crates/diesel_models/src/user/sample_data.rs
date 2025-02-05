@@ -203,6 +203,7 @@ pub struct PaymentAttemptBatchNew {
     pub order_tax_amount: Option<MinorUnit>,
     pub connector_transaction_data: Option<String>,
     pub connector_mandate_detail: Option<ConnectorMandateReferenceId>,
+    pub card_discovery: Option<common_enums::CardDiscovery>,
 }
 
 #[cfg(feature = "v1")]
@@ -282,6 +283,7 @@ impl PaymentAttemptBatchNew {
             shipping_cost: self.shipping_cost,
             order_tax_amount: self.order_tax_amount,
             connector_mandate_detail: self.connector_mandate_detail,
+            card_discovery: self.card_discovery,
         }
     }
 }

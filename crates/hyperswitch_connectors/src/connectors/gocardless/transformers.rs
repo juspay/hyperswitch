@@ -437,7 +437,9 @@ impl TryFrom<&types::SetupMandateRouterData> for GocardlessMandateRequest {
         let payment_method_token = item.get_payment_method_token()?;
         let customer_bank_account = match payment_method_token {
             PaymentMethodToken::Token(token) => Ok(token),
-            PaymentMethodToken::ApplePayDecrypt(_) | PaymentMethodToken::PazeDecrypt(_) => {
+            PaymentMethodToken::ApplePayDecrypt(_)
+            | PaymentMethodToken::PazeDecrypt(_)
+            | PaymentMethodToken::GooglePayDecrypt(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     "Setup Mandate flow for selected payment method through Gocardless".to_string(),
                 ))
