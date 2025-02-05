@@ -298,9 +298,5 @@ pub struct RevenueRecoveryMetadata {
 }
 
 #[cfg(feature = "v2")]
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, AsExpression)]
-#[diesel(sql_type = Jsonb)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct BillingAccountReference(pub HashMap<id_type::MerchantConnectorAccountId, String>);
-
-#[cfg(feature = "v2")]
-common_utils::impl_to_sql_from_sql_json!(BillingAccountReference);
