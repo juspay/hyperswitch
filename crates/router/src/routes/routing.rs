@@ -688,7 +688,7 @@ pub async fn retrieve_surcharge_decision_manager_config(
     .await
 }
 
-#[cfg(feature = "olap")]
+#[cfg(all(feature = "olap", feature = "v1"))]
 #[instrument(skip_all)]
 pub async fn upsert_decision_manager_config(
     state: web::Data<AppState>,
@@ -720,6 +720,44 @@ pub async fn upsert_decision_manager_config(
         #[cfg(feature = "release")]
         &auth::JWTAuth {
             permission: Permission::MerchantThreeDsDecisionManagerWrite,
+        },
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(all(feature = "olap", feature = "v2"))]
+#[instrument(skip_all)]
+pub async fn upsert_decision_manager_config(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<api_models::conditional_configs::DecisionManagerRequest>,
+) -> impl Responder {
+    let flow = Flow::DecisionManagerUpsertConfig;
+    Box::pin(oss_api::server_wrap(
+        flow,
+        state,
+        &req,
+        json_payload.into_inner(),
+        |state, auth: auth::AuthenticationData, update_decision, _| {
+            conditional_config::upsert_conditional_config(
+                state,
+                auth.key_store,
+                update_decision,
+                auth.profile,
+            )
+        },
+        #[cfg(not(feature = "release"))]
+        auth::auth_type(
+            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::JWTAuth {
+                permission: Permission::ProfileThreeDsDecisionManagerWrite,
+            },
+            req.headers(),
+        ),
+        #[cfg(feature = "release")]
+        &auth::JWTAuth {
+            permission: Permission::ProfileThreeDsDecisionManagerWrite,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -762,6 +800,40 @@ pub async fn delete_decision_manager_config(
     .await
 }
 
+#[cfg(all(feature = "olap", feature = "v2"))]
+#[cfg(feature = "olap")]
+#[instrument(skip_all)]
+pub async fn retrieve_decision_manager_config(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+) -> impl Responder {
+    let flow = Flow::DecisionManagerRetrieveConfig;
+    Box::pin(oss_api::server_wrap(
+        flow,
+        state,
+        &req,
+        (),
+        |state, auth: auth::AuthenticationData, _, _| {
+            conditional_config::retrieve_conditional_config(state, auth.key_store, auth.profile)
+        },
+        #[cfg(not(feature = "release"))]
+        auth::auth_type(
+            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::JWTAuth {
+                permission: Permission::ProfileThreeDsDecisionManagerWrite,
+            },
+            req.headers(),
+        ),
+        #[cfg(feature = "release")]
+        &auth::JWTAuth {
+            permission: Permission::ProfileThreeDsDecisionManagerWrite,
+        },
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(all(feature = "olap", feature = "v1"))]
 #[cfg(feature = "olap")]
 #[instrument(skip_all)]
 pub async fn retrieve_decision_manager_config(

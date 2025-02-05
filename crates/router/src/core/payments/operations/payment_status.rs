@@ -467,6 +467,13 @@ async fn get_tracker_for_sync<
         }).await
         .transpose()?;
 
+    let payment_link_data = payment_intent
+        .payment_link_id
+        .as_ref()
+        .async_map(|id| crate::core::payments::get_payment_link_response_from_id(state, id))
+        .await
+        .transpose()?;
+
     let payment_data = PaymentData {
         flow: PhantomData,
         payment_intent,
@@ -512,7 +519,7 @@ async fn get_tracker_for_sync<
         ephemeral_key: None,
         multiple_capture_data,
         redirect_response: None,
-        payment_link_data: None,
+        payment_link_data,
         surcharge_details: None,
         frm_message: frm_response,
         incremental_authorization_details: None,
