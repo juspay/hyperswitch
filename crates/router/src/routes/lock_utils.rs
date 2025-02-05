@@ -147,7 +147,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::PaymentsPostSessionTokens
             | Flow::PaymentsUpdateIntent
             | Flow::PaymentsCreateAndConfirmIntent
-            | Flow::PaymentStartRedirection => Self::Payments,
+            | Flow::PaymentStartRedirection
+            | Flow::PaymentsRetrieveUsingMerchantReferenceId => Self::Payments,
 
             Flow::PayoutsCreate
             | Flow::PayoutsRetrieve

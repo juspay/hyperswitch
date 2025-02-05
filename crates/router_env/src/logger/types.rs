@@ -144,6 +144,8 @@ pub enum Flow {
     PaymentsRetrieve,
     /// Payments Retrieve force sync flow.
     PaymentsRetrieveForceSync,
+    /// Payments Retrieve using merchant reference id
+    PaymentsRetrieveUsingMerchantReferenceId,
     /// Payments update flow.
     PaymentsUpdate,
     /// Payments confirm flow.
