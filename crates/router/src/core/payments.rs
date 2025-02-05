@@ -557,7 +557,7 @@ where
                             &key_store,
                             &customer,
                             &mca,
-                            &connector,
+                            connector,
                             &mut payment_data,
                             op_ref,
                             Some(header_payload.clone()),
@@ -571,7 +571,7 @@ where
                 ConnectorCallType::Retryable(ref connectors) => {
                     #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
                     let routable_connectors =
-                        convert_connector_data_to_routable_connectors(&connectors)
+                        convert_connector_data_to_routable_connectors(connectors)
                             .map_err(|e| logger::error!(routable_connector_error=?e))
                             .unwrap_or_default();
 
