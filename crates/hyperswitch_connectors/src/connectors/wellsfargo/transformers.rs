@@ -153,6 +153,9 @@ impl TryFrom<&SetupMandateRouterData> for WellsfargoZeroMandateRequest {
                         PaymentMethodToken::PazeDecrypt(_) => {
                             Err(unimplemented_payment_method!("Paze", "Wellsfargo"))?
                         }
+                        PaymentMethodToken::GooglePayDecrypt(_) => {
+                            Err(unimplemented_payment_method!("Google Pay", "Wellsfargo"))?
+                        }
                     },
                     None => (
                         PaymentInformation::ApplePayToken(Box::new(
@@ -1173,6 +1176,9 @@ impl TryFrom<&WellsfargoRouterData<&PaymentsAuthorizeRouterData>> for Wellsfargo
                                     PaymentMethodToken::PazeDecrypt(_) => {
                                         Err(unimplemented_payment_method!("Paze", "Wellsfargo"))?
                                     }
+                                    PaymentMethodToken::GooglePayDecrypt(_) => Err(
+                                        unimplemented_payment_method!("Google Pay", "Wellsfargo"),
+                                    )?,
                                 },
                                 None => {
                                     let email = item.router_data.request.get_email()?;

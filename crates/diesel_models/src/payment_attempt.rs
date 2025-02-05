@@ -94,6 +94,7 @@ pub struct PaymentAttempt {
     pub shipping_cost: Option<MinorUnit>,
     pub order_tax_amount: Option<MinorUnit>,
     pub connector_mandate_detail: Option<ConnectorMandateReferenceId>,
+    pub card_discovery: Option<storage_enums::CardDiscovery>,
 }
 
 #[cfg(feature = "v1")]
@@ -174,6 +175,7 @@ pub struct PaymentAttempt {
     pub connector_transaction_data: Option<String>,
     pub connector_mandate_detail: Option<ConnectorMandateReferenceId>,
     pub processor_transaction_data: Option<String>,
+    pub card_discovery: Option<storage_enums::CardDiscovery>,
 }
 
 #[cfg(feature = "v1")]
@@ -280,6 +282,7 @@ pub struct PaymentAttemptNew {
     pub payment_method_subtype: storage_enums::PaymentMethodType,
     pub id: id_type::GlobalAttemptId,
     pub connector_mandate_detail: Option<ConnectorMandateReferenceId>,
+    pub card_discovery: Option<storage_enums::CardDiscovery>,
 }
 
 #[cfg(feature = "v1")]
@@ -353,6 +356,7 @@ pub struct PaymentAttemptNew {
     pub shipping_cost: Option<MinorUnit>,
     pub order_tax_amount: Option<MinorUnit>,
     pub connector_mandate_detail: Option<ConnectorMandateReferenceId>,
+    pub card_discovery: Option<storage_enums::CardDiscovery>,
 }
 
 #[cfg(feature = "v1")]
@@ -425,6 +429,7 @@ pub enum PaymentAttemptUpdate {
         shipping_cost: Option<MinorUnit>,
         order_tax_amount: Option<MinorUnit>,
         connector_mandate_detail: Option<ConnectorMandateReferenceId>,
+        card_discovery: Option<storage_enums::CardDiscovery>,
     },
     VoidUpdate {
         status: storage_enums::AttemptStatus,
@@ -850,6 +855,7 @@ pub struct PaymentAttemptUpdateInternal {
     pub order_tax_amount: Option<MinorUnit>,
     pub connector_mandate_detail: Option<ConnectorMandateReferenceId>,
     pub processor_transaction_data: Option<String>,
+    pub card_discovery: Option<common_enums::CardDiscovery>,
 }
 
 #[cfg(feature = "v1")]
@@ -1033,6 +1039,7 @@ impl PaymentAttemptUpdate {
             order_tax_amount,
             processor_transaction_data,
             connector_mandate_detail,
+            card_discovery,
         } = PaymentAttemptUpdateInternal::from(self).populate_derived_fields(&source);
         PaymentAttempt {
             amount: amount.unwrap_or(source.amount),
@@ -1091,6 +1098,7 @@ impl PaymentAttemptUpdate {
             processor_transaction_data: processor_transaction_data
                 .or(source.processor_transaction_data),
             connector_mandate_detail: connector_mandate_detail.or(source.connector_mandate_detail),
+            card_discovery: card_discovery.or(source.card_discovery),
             ..source
         }
     }
@@ -2143,6 +2151,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 order_tax_amount: None,
                 processor_transaction_data: None,
                 connector_mandate_detail: None,
+                card_discovery: None,
             },
             PaymentAttemptUpdate::AuthenticationTypeUpdate {
                 authentication_type,
@@ -2199,6 +2208,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 order_tax_amount: None,
                 processor_transaction_data: None,
                 connector_mandate_detail: None,
+                card_discovery: None,
             },
             PaymentAttemptUpdate::ConfirmUpdate {
                 amount,
@@ -2234,6 +2244,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 shipping_cost,
                 order_tax_amount,
                 connector_mandate_detail,
+                card_discovery,
             } => Self {
                 amount: Some(amount),
                 currency: Some(currency),
@@ -2286,6 +2297,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 order_tax_amount,
                 processor_transaction_data: None,
                 connector_mandate_detail,
+                card_discovery,
             },
             PaymentAttemptUpdate::VoidUpdate {
                 status,
@@ -2343,6 +2355,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 order_tax_amount: None,
                 processor_transaction_data: None,
                 connector_mandate_detail: None,
+                card_discovery: None,
             },
             PaymentAttemptUpdate::RejectUpdate {
                 status,
@@ -2401,6 +2414,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 order_tax_amount: None,
                 processor_transaction_data: None,
                 connector_mandate_detail: None,
+                card_discovery: None,
             },
             PaymentAttemptUpdate::BlocklistUpdate {
                 status,
@@ -2459,6 +2473,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 order_tax_amount: None,
                 processor_transaction_data: None,
                 connector_mandate_detail: None,
+                card_discovery: None,
             },
             PaymentAttemptUpdate::ConnectorMandateDetailUpdate {
                 connector_mandate_detail,
@@ -2515,6 +2530,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 order_tax_amount: None,
                 processor_transaction_data: None,
                 connector_mandate_detail,
+                card_discovery: None,
             },
             PaymentAttemptUpdate::PaymentMethodDetailsUpdate {
                 payment_method_id,
@@ -2571,6 +2587,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 order_tax_amount: None,
                 processor_transaction_data: None,
                 connector_mandate_detail: None,
+                card_discovery: None,
             },
             PaymentAttemptUpdate::ResponseUpdate {
                 status,
@@ -2652,6 +2669,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     shipping_cost: None,
                     order_tax_amount: None,
                     connector_mandate_detail,
+                    card_discovery: None,
                 }
             }
             PaymentAttemptUpdate::ErrorUpdate {
@@ -2725,6 +2743,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     shipping_cost: None,
                     order_tax_amount: None,
                     connector_mandate_detail: None,
+                    card_discovery: None,
                 }
             }
             PaymentAttemptUpdate::StatusUpdate { status, updated_by } => Self {
@@ -2779,6 +2798,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 order_tax_amount: None,
                 processor_transaction_data: None,
                 connector_mandate_detail: None,
+                card_discovery: None,
             },
             PaymentAttemptUpdate::UpdateTrackers {
                 payment_token,
@@ -2841,6 +2861,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 order_tax_amount: None,
                 processor_transaction_data: None,
                 connector_mandate_detail: None,
+                card_discovery: None,
             },
             PaymentAttemptUpdate::UnresolvedResponseUpdate {
                 status,
@@ -2910,6 +2931,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     shipping_cost: None,
                     order_tax_amount: None,
                     connector_mandate_detail: None,
+                    card_discovery: None,
                 }
             }
             PaymentAttemptUpdate::PreprocessingUpdate {
@@ -2978,6 +3000,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     shipping_cost: None,
                     order_tax_amount: None,
                     connector_mandate_detail: None,
+                    card_discovery: None,
                 }
             }
             PaymentAttemptUpdate::CaptureUpdate {
@@ -3036,6 +3059,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 order_tax_amount: None,
                 processor_transaction_data: None,
                 connector_mandate_detail: None,
+                card_discovery: None,
             },
             PaymentAttemptUpdate::AmountToCaptureUpdate {
                 status,
@@ -3093,6 +3117,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 order_tax_amount: None,
                 processor_transaction_data: None,
                 connector_mandate_detail: None,
+                card_discovery: None,
             },
             PaymentAttemptUpdate::ConnectorResponse {
                 authentication_data,
@@ -3159,6 +3184,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     shipping_cost: None,
                     order_tax_amount: None,
                     connector_mandate_detail: None,
+                    card_discovery: None,
                 }
             }
             PaymentAttemptUpdate::IncrementalAuthorizationAmountUpdate {
@@ -3216,6 +3242,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 order_tax_amount: None,
                 processor_transaction_data: None,
                 connector_mandate_detail: None,
+                card_discovery: None,
             },
             PaymentAttemptUpdate::AuthenticationUpdate {
                 status,
@@ -3275,6 +3302,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 order_tax_amount: None,
                 processor_transaction_data: None,
                 connector_mandate_detail: None,
+                card_discovery: None,
             },
             PaymentAttemptUpdate::ManualUpdate {
                 status,
@@ -3343,6 +3371,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     shipping_cost: None,
                     order_tax_amount: None,
                     connector_mandate_detail: None,
+                    card_discovery: None,
                 }
             }
             PaymentAttemptUpdate::PostSessionTokensUpdate {
@@ -3400,6 +3429,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 order_tax_amount: None,
                 processor_transaction_data: None,
                 connector_mandate_detail: None,
+                card_discovery: None,
             },
         }
     }

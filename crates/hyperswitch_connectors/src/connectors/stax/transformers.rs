@@ -85,6 +85,9 @@ impl TryFrom<&StaxRouterData<&types::PaymentsAuthorizeRouterData>> for StaxPayme
                         PaymentMethodToken::PazeDecrypt(_) => {
                             Err(unimplemented_payment_method!("Paze", "Stax"))?
                         }
+                        PaymentMethodToken::GooglePayDecrypt(_) => {
+                            Err(unimplemented_payment_method!("Google Pay", "Stax"))?
+                        }
                     },
                     idempotency_id: Some(item.router_data.connector_request_reference_id.clone()),
                 })
@@ -104,6 +107,9 @@ impl TryFrom<&StaxRouterData<&types::PaymentsAuthorizeRouterData>> for StaxPayme
                         )?,
                         PaymentMethodToken::PazeDecrypt(_) => {
                             Err(unimplemented_payment_method!("Paze", "Stax"))?
+                        }
+                        PaymentMethodToken::GooglePayDecrypt(_) => {
+                            Err(unimplemented_payment_method!("Google Pay", "Stax"))?
                         }
                     },
                     idempotency_id: Some(item.router_data.connector_request_reference_id.clone()),

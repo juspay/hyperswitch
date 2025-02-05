@@ -2601,6 +2601,7 @@ pub enum AdditionalPaymentData {
     Wallet {
         apple_pay: Option<ApplepayPaymentMethod>,
         google_pay: Option<additional_info::WalletAdditionalDataForCard>,
+        samsung_pay: Option<additional_info::WalletAdditionalDataForCard>,
     },
     PayLater {
         klarna_sdk: Option<KlarnaSdkPaymentMethod>,
@@ -3874,6 +3875,8 @@ pub enum WalletResponseData {
     ApplePay(Box<additional_info::WalletAdditionalDataForCard>),
     #[schema(value_type = WalletAdditionalDataForCard)]
     GooglePay(Box<additional_info::WalletAdditionalDataForCard>),
+    #[schema(value_type = WalletAdditionalDataForCard)]
+    SamsungPay(Box<additional_info::WalletAdditionalDataForCard>),
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -5410,8 +5413,9 @@ impl From<AdditionalPaymentData> for PaymentMethodDataResponse {
             AdditionalPaymentData::Wallet {
                 apple_pay,
                 google_pay,
-            } => match (apple_pay, google_pay) {
-                (Some(apple_pay_pm), _) => Self::Wallet(Box::new(WalletResponse {
+                samsung_pay,
+            } => match (apple_pay, google_pay, samsung_pay) {
+                (Some(apple_pay_pm), _, _) => Self::Wallet(Box::new(WalletResponse {
                     details: Some(WalletResponseData::ApplePay(Box::new(
                         additional_info::WalletAdditionalDataForCard {
                             last4: apple_pay_pm
@@ -5425,12 +5429,15 @@ impl From<AdditionalPaymentData> for PaymentMethodDataResponse {
                                 .rev()
                                 .collect::<String>(),
                             card_network: apple_pay_pm.network.clone(),
-                            card_type: apple_pay_pm.pm_type.clone(),
+                            card_type: Some(apple_pay_pm.pm_type.clone()),
                         },
                     ))),
                 })),
-                (_, Some(google_pay_pm)) => Self::Wallet(Box::new(WalletResponse {
+                (_, Some(google_pay_pm), _) => Self::Wallet(Box::new(WalletResponse {
                     details: Some(WalletResponseData::GooglePay(Box::new(google_pay_pm))),
+                })),
+                (_, _, Some(samsung_pay_pm)) => Self::Wallet(Box::new(WalletResponse {
+                    details: Some(WalletResponseData::SamsungPay(Box::new(samsung_pay_pm))),
                 })),
                 _ => Self::Wallet(Box::new(WalletResponse { details: None })),
             },
@@ -5975,6 +5982,57 @@ pub struct SessionTokenForSimplifiedApplePay {
     pub initiative_context: String,
     #[schema(value_type = Option<CountryAlpha2>)]
     pub merchant_business_country: Option<api_enums::CountryAlpha2>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct GooglePayWalletDetails {
+    pub google_pay: GooglePayDetails,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct GooglePayDetails {
+    pub provider_details: GooglePayProviderDetails,
+}
+
+// Google Pay Provider Details can of two types: GooglePayMerchantDetails or GooglePayHyperSwitchDetails
+// GooglePayHyperSwitchDetails is not implemented yet
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(untagged)]
+pub enum GooglePayProviderDetails {
+    GooglePayMerchantDetails(GooglePayMerchantDetails),
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct GooglePayMerchantDetails {
+    pub merchant_info: GooglePayMerchantInfo,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct GooglePayMerchantInfo {
+    pub merchant_name: String,
+    pub tokenization_specification: GooglePayTokenizationSpecification,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct GooglePayTokenizationSpecification {
+    #[serde(rename = "type")]
+    pub tokenization_type: GooglePayTokenizationType,
+    pub parameters: GooglePayTokenizationParameters,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum GooglePayTokenizationType {
+    PaymentGateway,
+    Direct,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct GooglePayTokenizationParameters {
+    pub gateway: String,
+    pub public_key: Secret<String>,
+    pub private_key: Secret<String>,
+    pub recipient_id: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
@@ -6548,6 +6606,23 @@ pub struct SdkInformation {
     pub sdk_reference_number: String,
     /// Indicates maximum amount of time in minutes
     pub sdk_max_timeout: u8,
+    /// Indicates the type of 3DS SDK
+    pub sdk_type: Option<SdkType>,
+}
+
+/// Enum representing the type of 3DS SDK.
+#[derive(Serialize, Deserialize, Debug, Clone, ToSchema)]
+pub enum SdkType {
+    #[serde(rename = "01")]
+    DefaultSdk,
+    #[serde(rename = "02")]
+    SplitSdk,
+    #[serde(rename = "03")]
+    LimitedSdk,
+    #[serde(rename = "04")]
+    BrowserSdk,
+    #[serde(rename = "05")]
+    ShellSdk,
 }
 
 #[cfg(feature = "v2")]

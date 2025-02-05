@@ -86,8 +86,8 @@ pub struct NovalnetPaymentsRequestBilling {
 
 #[derive(Default, Debug, Serialize, Clone)]
 pub struct NovalnetPaymentsRequestCustomer {
-    first_name: Secret<String>,
-    last_name: Secret<String>,
+    first_name: Option<Secret<String>>,
+    last_name: Option<Secret<String>>,
     email: Email,
     mobile: Option<Secret<String>>,
     billing: Option<NovalnetPaymentsRequestBilling>,
@@ -215,8 +215,8 @@ impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaym
         };
 
         let customer = NovalnetPaymentsRequestCustomer {
-            first_name: item.router_data.get_billing_first_name()?,
-            last_name: item.router_data.get_billing_last_name()?,
+            first_name: item.router_data.get_optional_billing_first_name(),
+            last_name: item.router_data.get_optional_billing_last_name(),
             email: item
                 .router_data
                 .get_billing_email()
@@ -1477,8 +1477,8 @@ impl TryFrom<&SetupMandateRouterData> for NovalnetPaymentsRequest {
         };
 
         let customer = NovalnetPaymentsRequestCustomer {
-            first_name: req_address.get_first_name()?.clone(),
-            last_name: req_address.get_last_name()?.clone(),
+            first_name: req_address.get_optional_first_name(),
+            last_name: req_address.get_optional_last_name(),
             email: item.request.get_email()?.clone(),
             mobile: item.get_optional_billing_phone_number(),
             billing: Some(billing),

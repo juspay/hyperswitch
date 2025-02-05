@@ -729,6 +729,9 @@ impl TryFrom<&types::PaymentsCompleteAuthorizeRouterData> for Pay3dsRequest {
                     types::PaymentMethodToken::PazeDecrypt(_) => {
                         Err(unimplemented_payment_method!("Paze", "Payme"))?
                     }
+                    types::PaymentMethodToken::GooglePayDecrypt(_) => {
+                        Err(unimplemented_payment_method!("Google Pay", "Payme"))?
+                    }
                 };
                 Ok(Self {
                     buyer_email,
