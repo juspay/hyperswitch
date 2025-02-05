@@ -1,9 +1,9 @@
-use std::collections::HashSet;
+use std::{cmp, collections::HashSet};
 
 use api_models::user_role::role as role_api;
-use common_enums::{EntityType, ParentGroup, PermissionGroup, RoleScope};
+use common_enums::{EntityType, ParentGroup, PermissionGroup};
 use common_utils::generate_id_with_default_len;
-use diesel_models::role::{RoleNew, RoleUpdate};
+use diesel_models::role::{ListRolesByEntityPayload, RoleNew, RoleUpdate};
 use error_stack::{report, ResultExt};
 
 use crate::{
@@ -65,6 +65,43 @@ pub async fn create_role(
     _req_state: ReqState,
 ) -> UserResponse<role_api::RoleInfoWithGroupsResponse> {
     let now = common_utils::date_time::now();
+
+    let user_entity_type = user_from_token
+        .get_role_info_from_db(&state)
+        .await
+        .attach_printable("Invalid role_id in JWT")?
+        .get_entity_type();
+
+    let role_entity_type = req.entity_type.unwrap_or(EntityType::Merchant);
+
+    if matches!(role_entity_type, EntityType::Organization) {
+        return Err(report!(UserErrors::InvalidRoleOperation))
+            .attach_printable("User trying to create org level custom role");
+    }
+
+    // TODO: Remove in PR custom-role-write-pr
+    if matches!(role_entity_type, EntityType::Profile) {
+        return Err(report!(UserErrors::InvalidRoleOperation))
+            .attach_printable("User trying to create profile level custom role");
+    }
+
+    let requestor_entity_from_role_scope = EntityType::from(req.role_scope);
+
+    if requestor_entity_from_role_scope < role_entity_type {
+        return Err(report!(UserErrors::InvalidRoleOperation)).attach_printable(format!(
+            "User is trying to create role of type {} and scope {}",
+            role_entity_type, requestor_entity_from_role_scope
+        ));
+    }
+    let max_from_scope_and_entity = cmp::max(requestor_entity_from_role_scope, role_entity_type);
+
+    if user_entity_type < max_from_scope_and_entity {
+        return Err(report!(UserErrors::InvalidRoleOperation)).attach_printable(format!(
+            "{} is trying to create of scope {} and of type {}",
+            user_entity_type, requestor_entity_from_role_scope, role_entity_type
+        ));
+    }
+
     let role_name = RoleName::new(req.role_name)?;
 
     utils::user_role::validate_role_groups(&req.groups)?;
@@ -77,33 +114,38 @@ pub async fn create_role(
             .tenant_id
             .as_ref()
             .unwrap_or(&state.tenant.tenant_id),
+        &user_from_token.profile_id,
+        &role_entity_type,
     )
     .await?;
 
-    let user_role_info = user_from_token.get_role_info_from_db(&state).await?;
-
-    if matches!(req.role_scope, RoleScope::Organization)
-        && user_role_info.get_entity_type() < EntityType::Organization
-    {
-        return Err(report!(UserErrors::InvalidRoleOperation)).attach_printable(
-            "User does not have sufficient privileges to perform organization-level role operation",
-        );
-    }
+    let (org_id, merchant_id, profile_id) = match role_entity_type {
+        EntityType::Organization | EntityType::Tenant => {
+            (user_from_token.org_id, user_from_token.merchant_id, None)
+        }
+        EntityType::Merchant => (user_from_token.org_id, user_from_token.merchant_id, None),
+        EntityType::Profile => (
+            user_from_token.org_id,
+            user_from_token.merchant_id,
+            Some(user_from_token.profile_id),
+        ),
+    };
 
     let role = state
         .global_store
         .insert_role(RoleNew {
             role_id: generate_id_with_default_len("role"),
             role_name: role_name.get_role_name(),
-            merchant_id: user_from_token.merchant_id,
-            org_id: user_from_token.org_id,
+            merchant_id,
+            org_id,
             groups: req.groups,
             scope: req.role_scope,
-            entity_type: EntityType::Merchant,
+            entity_type: role_entity_type,
             created_by: user_from_token.user_id.clone(),
             last_modified_by: user_from_token.user_id,
             created_at: now,
             last_modified_at: now,
+            profile_id,
             tenant_id: user_from_token.tenant_id.unwrap_or(state.tenant.tenant_id),
         })
         .await
@@ -115,6 +157,7 @@ pub async fn create_role(
             role_id: role.role_id,
             role_name: role.role_name,
             role_scope: role.scope,
+            entity_type: role.entity_type,
         },
     ))
 }
@@ -146,6 +189,7 @@ pub async fn get_role_with_groups(
             role_id: role.role_id,
             role_name: role_info.get_role_name().to_string(),
             role_scope: role_info.get_scope(),
+            entity_type: role_info.get_entity_type(),
         },
     ))
 }
@@ -207,29 +251,12 @@ pub async fn update_role(
 ) -> UserResponse<role_api::RoleInfoWithGroupsResponse> {
     let role_name = req.role_name.map(RoleName::new).transpose()?;
 
-    if let Some(ref role_name) = role_name {
-        utils::user_role::validate_role_name(
-            &state,
-            role_name,
-            &user_from_token.merchant_id,
-            &user_from_token.org_id,
-            user_from_token
-                .tenant_id
-                .as_ref()
-                .unwrap_or(&state.tenant.tenant_id),
-        )
-        .await?;
-    }
-
-    if let Some(ref groups) = req.groups {
-        utils::user_role::validate_role_groups(groups)?;
-    }
-
     let role_info = roles::RoleInfo::from_role_id_in_lineage(
         &state,
         role_id,
         &user_from_token.merchant_id,
         &user_from_token.org_id,
+        &user_from_token.profile_id,
         user_from_token
             .tenant_id
             .as_ref()
@@ -240,11 +267,38 @@ pub async fn update_role(
 
     let user_role_info = user_from_token.get_role_info_from_db(&state).await?;
 
-    if matches!(role_info.get_scope(), RoleScope::Organization)
-        && user_role_info.get_entity_type() != EntityType::Organization
-    {
-        return Err(report!(UserErrors::InvalidRoleOperation))
-            .attach_printable("Non org admin user changing org level role");
+    let requested_entity_from_role_scope = EntityType::from(role_info.get_scope());
+    let requested_role_entity_type = role_info.get_entity_type();
+    let max_from_scope_and_entity =
+        cmp::max(requested_entity_from_role_scope, requested_role_entity_type);
+
+    if user_role_info.get_entity_type() < max_from_scope_and_entity {
+        return Err(report!(UserErrors::InvalidRoleOperation)).attach_printable(format!(
+            "{} is trying to update of scope {} and of type {}",
+            user_role_info.get_entity_type(),
+            requested_entity_from_role_scope,
+            requested_role_entity_type
+        ));
+    }
+
+    if let Some(ref role_name) = role_name {
+        utils::user_role::validate_role_name(
+            &state,
+            role_name,
+            &user_from_token.merchant_id,
+            &user_from_token.org_id,
+            user_from_token
+                .tenant_id
+                .as_ref()
+                .unwrap_or(&state.tenant.tenant_id),
+            &user_from_token.profile_id,
+            &role_info.get_entity_type(),
+        )
+        .await?;
+    }
+
+    if let Some(ref groups) = req.groups {
+        utils::user_role::validate_role_groups(groups)?;
     }
 
     let updated_role = state
@@ -269,6 +323,7 @@ pub async fn update_role(
             role_id: updated_role.role_id,
             role_name: updated_role.role_name,
             role_scope: updated_role.scope,
+            entity_type: updated_role.entity_type,
         },
     ))
 }
@@ -296,40 +351,51 @@ pub async fn list_roles_with_info(
         .collect::<Vec<_>>();
 
     let user_role_entity = user_role_info.get_entity_type();
+    let is_lineage_data_required = request.entity_type.is_none();
+    let tenant_id = user_from_token
+        .tenant_id
+        .as_ref()
+        .unwrap_or(&state.tenant.tenant_id)
+        .to_owned();
     let custom_roles =
         match utils::user_role::get_min_entity(user_role_entity, request.entity_type)? {
             EntityType::Tenant | EntityType::Organization => state
                 .global_store
-                .list_roles_for_org_by_parameters(
-                    user_from_token
-                        .tenant_id
-                        .as_ref()
-                        .unwrap_or(&state.tenant.tenant_id),
-                    &user_from_token.org_id,
-                    None,
-                    request.entity_type,
-                    None,
+                .generic_list_roles_by_entity_type(
+                    ListRolesByEntityPayload::Organization,
+                    is_lineage_data_required,
+                    tenant_id,
+                    user_from_token.org_id,
                 )
                 .await
                 .change_context(UserErrors::InternalServerError)
                 .attach_printable("Failed to get roles")?,
             EntityType::Merchant => state
                 .global_store
-                .list_roles_for_org_by_parameters(
-                    user_from_token
-                        .tenant_id
-                        .as_ref()
-                        .unwrap_or(&state.tenant.tenant_id),
-                    &user_from_token.org_id,
-                    Some(&user_from_token.merchant_id),
-                    request.entity_type,
-                    None,
+                .generic_list_roles_by_entity_type(
+                    ListRolesByEntityPayload::Merchant(user_from_token.merchant_id),
+                    is_lineage_data_required,
+                    tenant_id,
+                    user_from_token.org_id,
                 )
                 .await
                 .change_context(UserErrors::InternalServerError)
                 .attach_printable("Failed to get roles")?,
-            // TODO: Populate this from Db function when support for profile id and profile level custom roles is added
-            EntityType::Profile => Vec::new(),
+
+            EntityType::Profile => state
+                .global_store
+                .generic_list_roles_by_entity_type(
+                    ListRolesByEntityPayload::Profile(
+                        user_from_token.merchant_id,
+                        user_from_token.profile_id,
+                    ),
+                    is_lineage_data_required,
+                    tenant_id,
+                    user_from_token.org_id,
+                )
+                .await
+                .change_context(UserErrors::InternalServerError)
+                .attach_printable("Failed to get roles")?,
         };
 
     role_info_vec.extend(custom_roles.into_iter().map(roles::RoleInfo::from));
@@ -378,18 +444,21 @@ pub async fn list_roles_at_entity_level(
         .map(|(_, role_info)| role_info.clone())
         .collect::<Vec<_>>();
 
+    let tenant_id = user_from_token
+        .tenant_id
+        .as_ref()
+        .unwrap_or(&state.tenant.tenant_id)
+        .to_owned();
+
+    let is_lineage_data_required = false;
     let custom_roles = match req.entity_type {
         EntityType::Tenant | EntityType::Organization => state
             .global_store
-            .list_roles_for_org_by_parameters(
-                user_from_token
-                    .tenant_id
-                    .as_ref()
-                    .unwrap_or(&state.tenant.tenant_id),
-                &user_from_token.org_id,
-                None,
-                Some(req.entity_type),
-                None,
+            .generic_list_roles_by_entity_type(
+                ListRolesByEntityPayload::Organization,
+                is_lineage_data_required,
+                tenant_id,
+                user_from_token.org_id,
             )
             .await
             .change_context(UserErrors::InternalServerError)
@@ -397,21 +466,30 @@ pub async fn list_roles_at_entity_level(
 
         EntityType::Merchant => state
             .global_store
-            .list_roles_for_org_by_parameters(
-                user_from_token
-                    .tenant_id
-                    .as_ref()
-                    .unwrap_or(&state.tenant.tenant_id),
-                &user_from_token.org_id,
-                Some(&user_from_token.merchant_id),
-                Some(req.entity_type),
-                None,
+            .generic_list_roles_by_entity_type(
+                ListRolesByEntityPayload::Merchant(user_from_token.merchant_id),
+                is_lineage_data_required,
+                tenant_id,
+                user_from_token.org_id,
             )
             .await
             .change_context(UserErrors::InternalServerError)
             .attach_printable("Failed to get roles")?,
-        // TODO: Populate this from Db function when support for profile id and profile level custom roles is added
-        EntityType::Profile => Vec::new(),
+
+        EntityType::Profile => state
+            .global_store
+            .generic_list_roles_by_entity_type(
+                ListRolesByEntityPayload::Profile(
+                    user_from_token.merchant_id,
+                    user_from_token.profile_id,
+                ),
+                is_lineage_data_required,
+                tenant_id,
+                user_from_token.org_id,
+            )
+            .await
+            .change_context(UserErrors::InternalServerError)
+            .attach_printable("Failed to get roles")?,
     };
 
     role_info_vec.extend(custom_roles.into_iter().map(roles::RoleInfo::from));

@@ -4,6 +4,7 @@ use common_enums::{EntityType, PermissionGroup};
 use common_utils::id_type;
 use diesel_models::{
     enums::{UserRoleVersion, UserStatus},
+    role::ListRolesByEntityPayload,
     user_role::{UserRole, UserRoleUpdate},
 };
 use error_stack::{report, Report, ResultExt};
@@ -49,6 +50,8 @@ pub async fn validate_role_name(
     merchant_id: &id_type::MerchantId,
     org_id: &id_type::OrganizationId,
     tenant_id: &id_type::TenantId,
+    profile_id: &id_type::ProfileId,
+    entity_type: &EntityType,
 ) -> UserResult<()> {
     let role_name_str = role_name.clone().get_role_name();
 
@@ -56,16 +59,37 @@ pub async fn validate_role_name(
         .iter()
         .any(|(_, role_info)| role_info.get_role_name() == role_name_str);
 
-    // TODO: Create and use find_by_role_name to make this efficient
-    let is_present_in_custom_roles = state
-        .global_store
-        .list_all_roles(merchant_id, org_id, tenant_id)
-        .await
-        .change_context(UserErrors::InternalServerError)?
-        .iter()
-        .any(|role| role.role_name == role_name_str);
+    let entity_type_for_role = match entity_type {
+        EntityType::Tenant | EntityType::Organization => ListRolesByEntityPayload::Organization,
+        EntityType::Merchant => ListRolesByEntityPayload::Merchant(merchant_id.to_owned()),
+        EntityType::Profile => {
+            ListRolesByEntityPayload::Profile(merchant_id.to_owned(), profile_id.to_owned())
+        }
+    };
 
-    if is_present_in_predefined_roles || is_present_in_custom_roles {
+    let is_present_in_custom_role = match state
+        .global_store
+        .generic_list_roles_by_entity_type(
+            entity_type_for_role,
+            false,
+            tenant_id.to_owned(),
+            org_id.to_owned(),
+        )
+        .await
+    {
+        Ok(roles_list) => roles_list
+            .iter()
+            .any(|role| role.role_name == role_name_str),
+        Err(e) => {
+            if e.current_context().is_db_not_found() {
+                false
+            } else {
+                return Err(UserErrors::InternalServerError.into());
+            }
+        }
+    };
+
+    if is_present_in_predefined_roles || is_present_in_custom_role {
         return Err(UserErrors::RoleNameAlreadyExists.into());
     }
 
