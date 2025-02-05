@@ -2039,8 +2039,10 @@ dependencies = [
  "common_enums",
  "common_utils",
  "diesel",
+ "euclid",
  "serde",
  "serde_json",
+ "strum 0.26.3",
  "utoipa",
 ]
 
@@ -3067,6 +3069,7 @@ version = "0.1.0"
 dependencies = [
  "api_models",
  "common_enums",
+ "common_types",
  "connector_configs",
  "currency_conversion",
  "euclid",
