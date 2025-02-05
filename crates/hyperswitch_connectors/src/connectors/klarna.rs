@@ -1,34 +1,58 @@
 pub mod transformers;
 
-use api_models::enums;
+use api_models::webhooks::IncomingWebhookEvent;
 use base64::Engine;
+use common_enums::enums;
 use common_utils::{
-    request::RequestContent,
+    consts::BASE64_ENGINE,
+    errors::CustomResult,
+    ext_traits::BytesExt,
+    request::{Method, Request, RequestBuilder, RequestContent},
     types::{AmountConvertor, MinorUnit, MinorUnitForConnector},
 };
 use error_stack::{report, ResultExt};
-use masking::PeekInterface;
+use hyperswitch_domain_models::{
+    payment_method_data::{PayLaterData, PaymentMethodData},
+    router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
+    router_flow_types::{
+        access_token_auth::AccessTokenAuth,
+        payments::{Authorize, Capture, PSync, PaymentMethodToken, Session, SetupMandate, Void},
+        refunds::{Execute, RSync},
+    },
+    router_request_types::{
+        AccessTokenRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
+        PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
+        RefundsData, SetupMandateRequestData,
+    },
+    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    types::{
+        PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
+        PaymentsSessionRouterData, PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData,
+    },
+};
+use hyperswitch_interfaces::{
+    api::{
+        self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorSpecifications,
+        ConnectorValidation,
+    },
+    configs::Connectors,
+    consts::NO_ERROR_MESSAGE,
+    errors,
+    events::connector_api_logs::ConnectorEvent,
+    types::{self, Response},
+    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
+};
+use masking::{Mask, PeekInterface};
 use router_env::logger;
 use transformers as klarna;
 
 use crate::{
-    configs::settings,
-    connector::{utils as connector_utils, utils::RefundsRequestData},
-    consts,
-    core::errors::{self, CustomResult},
-    events::connector_api_logs::ConnectorEvent,
-    headers,
-    services::{
-        self,
-        request::{self, Mask},
-        ConnectorSpecifications, ConnectorValidation,
+    constants::headers,
+    types::ResponseRouterData,
+    utils::{
+        construct_not_supported_error_report, convert_amount, get_http_header,
+        get_unimplemented_payment_method_error_message, missing_field_err, RefundsRequestData,
     },
-    types::{
-        self,
-        api::{self, ConnectorCommon, ConnectorCommonExt},
-        domain, ErrorResponse, Response,
-    },
-    utils::BytesExt,
 };
 
 #[derive(Clone)]
@@ -57,21 +81,18 @@ impl ConnectorCommon for Klarna {
         "application/json"
     }
 
-    fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
+    fn base_url<'a>(&self, connectors: &'a Connectors) -> &'a str {
         connectors.klarna.base_url.as_ref()
     }
 
     fn get_auth_header(
         &self,
-        auth_type: &types::ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        auth_type: &ConnectorAuthType,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         let auth = klarna::KlarnaAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        let encoded_api_key = consts::BASE64_ENGINE.encode(format!(
-            "{}:{}",
-            auth.username.peek(),
-            auth.password.peek()
-        ));
+        let encoded_api_key =
+            BASE64_ENGINE.encode(format!("{}:{}", auth.username.peek(), auth.password.peek()));
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
             format!("Basic {encoded_api_key}").into_masked(),
@@ -101,7 +122,7 @@ impl ConnectorCommon for Klarna {
             code: response.error_code,
             message: response
                 .error_message
-                .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+                .unwrap_or(NO_ERROR_MESSAGE.to_string()),
             reason,
             attempt_status: None,
             connector_transaction_id: None,
@@ -122,7 +143,7 @@ impl ConnectorValidation for Klarna {
             | enums::CaptureMethod::Manual
             | enums::CaptureMethod::SequentialAutomatic => Ok(()),
             enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => Err(
-                connector_utils::construct_not_supported_error_report(capture_method, self.id()),
+                construct_not_supported_error_report(capture_method, self.id()),
             ),
         }
     }
@@ -138,35 +159,25 @@ impl api::PaymentSession for Klarna {}
 impl api::ConnectorAccessToken for Klarna {}
 impl api::PaymentToken for Klarna {}
 
-impl
-    services::ConnectorIntegration<
-        api::PaymentMethodToken,
-        types::PaymentMethodTokenizationData,
-        types::PaymentsResponseData,
-    > for Klarna
+impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
+    for Klarna
 {
     // Not Implemented (R)
 }
 
-impl
-    services::ConnectorIntegration<
-        api::AccessTokenAuth,
-        types::AccessTokenRequestData,
-        types::AccessToken,
-    > for Klarna
-{
+impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> for Klarna {
     // Not Implemented (R)
 }
 
 impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Klarna
 where
-    Self: services::ConnectorIntegration<Flow, Request, Response>,
+    Self: ConnectorIntegration<Flow, Request, Response>,
 {
     fn build_headers(
         &self,
-        req: &types::RouterData<Flow, Request, Response>,
-        _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        req: &RouterData<Flow, Request, Response>,
+        _connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         let mut header = vec![(
             headers::CONTENT_TYPE.to_string(),
             types::PaymentsAuthorizeType::get_content_type(self)
@@ -195,18 +206,12 @@ fn build_region_specific_endpoint(
     Ok(base_url.replace("{{klarna_region}}", &klarna_region))
 }
 
-impl
-    services::ConnectorIntegration<
-        api::Session,
-        types::PaymentsSessionData,
-        types::PaymentsResponseData,
-    > for Klarna
-{
+impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Klarna {
     fn get_headers(
         &self,
-        req: &types::PaymentsSessionRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        req: &PaymentsSessionRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -216,8 +221,8 @@ impl
 
     fn get_url(
         &self,
-        req: &types::PaymentsSessionRouterData,
-        connectors: &settings::Connectors,
+        req: &PaymentsSessionRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let endpoint =
             build_region_specific_endpoint(self.base_url(connectors), &req.connector_meta_data)?;
@@ -227,10 +232,10 @@ impl
 
     fn get_request_body(
         &self,
-        req: &types::PaymentsSessionRouterData,
-        _connectors: &settings::Connectors,
+        req: &PaymentsSessionRouterData,
+        _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let amount = connector_utils::convert_amount(
+        let amount = convert_amount(
             self.amount_converter,
             req.request.minor_amount,
             req.request.currency,
@@ -244,12 +249,12 @@ impl
 
     fn build_request(
         &self,
-        req: &types::PaymentsSessionRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        req: &PaymentsSessionRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Ok(Some(
-            services::RequestBuilder::new()
-                .method(services::Method::Post)
+            RequestBuilder::new()
+                .method(Method::Post)
                 .url(&types::PaymentsSessionType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::PaymentsSessionType::get_headers(
@@ -264,10 +269,10 @@ impl
 
     fn handle_response(
         &self,
-        data: &types::PaymentsSessionRouterData,
+        data: &PaymentsSessionRouterData,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<types::PaymentsSessionRouterData, errors::ConnectorError> {
+    ) -> CustomResult<PaymentsSessionRouterData, errors::ConnectorError> {
         let response: klarna::KlarnaSessionResponse = res
             .response
             .parse_struct("KlarnaSessionResponse")
@@ -276,7 +281,7 @@ impl
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        types::RouterData::try_from(types::ResponseRouterData {
+        RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -295,23 +300,13 @@ impl
 
 impl api::MandateSetup for Klarna {}
 
-impl
-    services::ConnectorIntegration<
-        api::SetupMandate,
-        types::SetupMandateRequestData,
-        types::PaymentsResponseData,
-    > for Klarna
-{
+impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsResponseData> for Klarna {
     // Not Implemented(R)
     fn build_request(
         &self,
-        _req: &types::RouterData<
-            api::SetupMandate,
-            types::SetupMandateRequestData,
-            types::PaymentsResponseData,
-        >,
-        _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        _req: &RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponseData>,
+        _connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Err(
             errors::ConnectorError::NotImplemented("Setup Mandate flow for Klarna".to_string())
                 .into(),
@@ -319,18 +314,12 @@ impl
     }
 }
 
-impl
-    services::ConnectorIntegration<
-        api::Capture,
-        types::PaymentsCaptureData,
-        types::PaymentsResponseData,
-    > for Klarna
-{
+impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> for Klarna {
     fn get_headers(
         &self,
-        req: &types::PaymentsCaptureRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        req: &PaymentsCaptureRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -340,8 +329,8 @@ impl
 
     fn get_url(
         &self,
-        req: &types::PaymentsCaptureRouterData,
-        connectors: &settings::Connectors,
+        req: &PaymentsCaptureRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let order_id = req.request.connector_transaction_id.clone();
         let endpoint =
@@ -354,10 +343,10 @@ impl
 
     fn get_request_body(
         &self,
-        req: &types::PaymentsCaptureRouterData,
-        _connectors: &settings::Connectors,
+        req: &PaymentsCaptureRouterData,
+        _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let amount = connector_utils::convert_amount(
+        let amount = convert_amount(
             self.amount_converter,
             req.request.minor_amount_to_capture,
             req.request.currency,
@@ -369,11 +358,11 @@ impl
 
     fn build_request(
         &self,
-        req: &types::PaymentsCaptureRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        let request = services::RequestBuilder::new()
-            .method(services::Method::Post)
+        req: &PaymentsCaptureRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        let request = RequestBuilder::new()
+            .method(Method::Post)
             .url(&types::PaymentsCaptureType::get_url(self, req, connectors)?)
             .attach_default_headers()
             .headers(types::PaymentsCaptureType::get_headers(
@@ -388,13 +377,13 @@ impl
 
     fn handle_response(
         &self,
-        data: &types::PaymentsCaptureRouterData,
+        data: &PaymentsCaptureRouterData,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<types::PaymentsCaptureRouterData, errors::ConnectorError> {
+    ) -> CustomResult<PaymentsCaptureRouterData, errors::ConnectorError> {
         match res.headers {
             Some(headers) => {
-                let capture_id = connector_utils::get_http_header("Capture-Id", &headers)
+                let capture_id = get_http_header("Capture-Id", &headers)
                     .attach_printable("Missing capture id in headers")
                     .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
                 let response = klarna::KlarnaCaptureResponse {
@@ -403,7 +392,7 @@ impl
 
                 event_builder.map(|i| i.set_response_body(&response));
                 router_env::logger::info!(connector_response=?response);
-                types::RouterData::try_from(types::ResponseRouterData {
+                RouterData::try_from(ResponseRouterData {
                     response,
                     data: data.clone(),
                     http_code: res.status_code,
@@ -424,22 +413,19 @@ impl
     }
 }
 
-impl
-    services::ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
-    for Klarna
-{
+impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Klarna {
     fn get_headers(
         &self,
-        req: &types::PaymentsSyncRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        req: &PaymentsSyncRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
     fn get_url(
         &self,
-        req: &types::PaymentsSyncRouterData,
-        connectors: &settings::Connectors,
+        req: &PaymentsSyncRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let order_id = req
             .request
@@ -471,12 +457,12 @@ impl
 
     fn build_request(
         &self,
-        req: &types::PaymentsSyncRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        req: &PaymentsSyncRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Ok(Some(
-            services::RequestBuilder::new()
-                .method(services::Method::Get)
+            RequestBuilder::new()
+                .method(Method::Get)
                 .url(&types::PaymentsSyncType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::PaymentsSyncType::get_headers(self, req, connectors)?)
@@ -486,10 +472,10 @@ impl
 
     fn handle_response(
         &self,
-        data: &types::PaymentsSyncRouterData,
+        data: &PaymentsSyncRouterData,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
+    ) -> CustomResult<PaymentsSyncRouterData, errors::ConnectorError> {
         let response: klarna::KlarnaPsyncResponse = res
             .response
             .parse_struct("klarna KlarnaPsyncResponse")
@@ -498,7 +484,7 @@ impl
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        types::RouterData::try_from(types::ResponseRouterData {
+        RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -514,18 +500,12 @@ impl
     }
 }
 
-impl
-    services::ConnectorIntegration<
-        api::Authorize,
-        types::PaymentsAuthorizeData,
-        types::PaymentsResponseData,
-    > for Klarna
-{
+impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData> for Klarna {
     fn get_headers(
         &self,
-        req: &types::PaymentsAuthorizeRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        req: &PaymentsAuthorizeRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -535,25 +515,25 @@ impl
 
     fn get_url(
         &self,
-        req: &types::PaymentsAuthorizeRouterData,
-        connectors: &settings::Connectors,
+        req: &PaymentsAuthorizeRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let payment_method_data = &req.request.payment_method_data;
         let payment_experience = req
             .request
             .payment_experience
             .as_ref()
-            .ok_or_else(connector_utils::missing_field_err("payment_experience"))?;
+            .ok_or_else(missing_field_err("payment_experience"))?;
         let payment_method_type = req
             .request
             .payment_method_type
             .as_ref()
-            .ok_or_else(connector_utils::missing_field_err("payment_method_type"))?;
+            .ok_or_else(missing_field_err("payment_method_type"))?;
         let endpoint =
             build_region_specific_endpoint(self.base_url(connectors), &req.connector_meta_data)?;
 
         match payment_method_data {
-            domain::PaymentMethodData::PayLater(domain::PayLaterData::KlarnaSdk { token }) => {
+            PaymentMethodData::PayLater(PayLaterData::KlarnaSdk { token }) => {
                 match (payment_experience, payment_method_type) {
                     (
                         common_enums::PaymentExperience::InvokeSdkClient,
@@ -671,7 +651,7 @@ impl
                     })),
                 }
             }
-            domain::PaymentMethodData::PayLater(domain::PayLaterData::KlarnaCheckout {}) => {
+            PaymentMethodData::PayLater(PayLaterData::KlarnaCheckout {}) => {
                 match (payment_experience, payment_method_type) {
                     (
                         common_enums::PaymentExperience::RedirectToUrl,
@@ -788,29 +768,27 @@ impl
                 }
             }
 
-            domain::PaymentMethodData::Card(_)
-            | domain::PaymentMethodData::CardRedirect(_)
-            | domain::PaymentMethodData::Wallet(_)
-            | domain::PaymentMethodData::PayLater(_)
-            | domain::PaymentMethodData::BankRedirect(_)
-            | domain::PaymentMethodData::BankDebit(_)
-            | domain::PaymentMethodData::BankTransfer(_)
-            | domain::PaymentMethodData::Crypto(_)
-            | domain::PaymentMethodData::MandatePayment
-            | domain::PaymentMethodData::Reward
-            | domain::PaymentMethodData::RealTimePayment(_)
-            | domain::PaymentMethodData::MobilePayment(_)
-            | domain::PaymentMethodData::Upi(_)
-            | domain::PaymentMethodData::Voucher(_)
-            | domain::PaymentMethodData::OpenBanking(_)
-            | domain::PaymentMethodData::GiftCard(_)
-            | domain::PaymentMethodData::CardToken(_)
-            | domain::PaymentMethodData::NetworkToken(_)
-            | domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+            PaymentMethodData::Card(_)
+            | PaymentMethodData::CardRedirect(_)
+            | PaymentMethodData::Wallet(_)
+            | PaymentMethodData::PayLater(_)
+            | PaymentMethodData::BankRedirect(_)
+            | PaymentMethodData::BankDebit(_)
+            | PaymentMethodData::BankTransfer(_)
+            | PaymentMethodData::Crypto(_)
+            | PaymentMethodData::MandatePayment
+            | PaymentMethodData::Reward
+            | PaymentMethodData::RealTimePayment(_)
+            | PaymentMethodData::MobilePayment(_)
+            | PaymentMethodData::Upi(_)
+            | PaymentMethodData::Voucher(_)
+            | PaymentMethodData::OpenBanking(_)
+            | PaymentMethodData::GiftCard(_)
+            | PaymentMethodData::CardToken(_)
+            | PaymentMethodData::NetworkToken(_)
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                 Err(report!(errors::ConnectorError::NotImplemented(
-                    connector_utils::get_unimplemented_payment_method_error_message(
-                        req.connector.as_str(),
-                    ),
+                    get_unimplemented_payment_method_error_message(req.connector.as_str(),),
                 )))
             }
         }
@@ -818,10 +796,10 @@ impl
 
     fn get_request_body(
         &self,
-        req: &types::PaymentsAuthorizeRouterData,
-        _connectors: &settings::Connectors,
+        req: &PaymentsAuthorizeRouterData,
+        _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let amount = connector_utils::convert_amount(
+        let amount = convert_amount(
             self.amount_converter,
             req.request.minor_amount,
             req.request.currency,
@@ -834,12 +812,12 @@ impl
 
     fn build_request(
         &self,
-        req: &types::PaymentsAuthorizeRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        req: &PaymentsAuthorizeRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Ok(Some(
-            services::RequestBuilder::new()
-                .method(services::Method::Post)
+            RequestBuilder::new()
+                .method(Method::Post)
                 .url(&types::PaymentsAuthorizeType::get_url(
                     self, req, connectors,
                 )?)
@@ -856,10 +834,10 @@ impl
 
     fn handle_response(
         &self,
-        data: &types::PaymentsAuthorizeRouterData,
+        data: &PaymentsAuthorizeRouterData,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
+    ) -> CustomResult<PaymentsAuthorizeRouterData, errors::ConnectorError> {
         let response: klarna::KlarnaAuthResponse = res
             .response
             .parse_struct("KlarnaPaymentsResponse")
@@ -868,7 +846,7 @@ impl
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        types::RouterData::try_from(types::ResponseRouterData {
+        RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -885,25 +863,19 @@ impl
     }
 }
 
-impl
-    services::ConnectorIntegration<
-        api::Void,
-        types::PaymentsCancelData,
-        types::PaymentsResponseData,
-    > for Klarna
-{
+impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Klarna {
     fn get_headers(
         &self,
-        req: &types::PaymentsCancelRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        req: &PaymentsCancelRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
     fn get_url(
         &self,
-        req: &types::PaymentsCancelRouterData,
-        connectors: &settings::Connectors,
+        req: &PaymentsCancelRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let order_id = req.request.connector_transaction_id.clone();
         let endpoint =
@@ -916,12 +888,12 @@ impl
 
     fn build_request(
         &self,
-        req: &types::PaymentsCancelRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        req: &PaymentsCancelRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Ok(Some(
-            services::RequestBuilder::new()
-                .method(services::Method::Post)
+            RequestBuilder::new()
+                .method(Method::Post)
                 .url(&types::PaymentsVoidType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::PaymentsVoidType::get_headers(self, req, connectors)?)
@@ -934,10 +906,10 @@ impl
 
     fn handle_response(
         &self,
-        data: &types::PaymentsCancelRouterData,
+        data: &PaymentsCancelRouterData,
         _event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<types::PaymentsCancelRouterData, errors::ConnectorError> {
+    ) -> CustomResult<PaymentsCancelRouterData, errors::ConnectorError> {
         logger::debug!("Expected zero bytes response, skipped parsing of the response");
 
         let status = if res.status_code == 204 {
@@ -945,7 +917,7 @@ impl
         } else {
             enums::AttemptStatus::VoidFailed
         };
-        Ok(types::PaymentsCancelRouterData {
+        Ok(PaymentsCancelRouterData {
             status,
             ..data.clone()
         })
@@ -964,14 +936,12 @@ impl api::Refund for Klarna {}
 impl api::RefundExecute for Klarna {}
 impl api::RefundSync for Klarna {}
 
-impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsResponseData>
-    for Klarna
-{
+impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Klarna {
     fn get_headers(
         &self,
-        req: &types::RefundsRouterData<api::Execute>,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        req: &RefundsRouterData<Execute>,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -981,8 +951,8 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
 
     fn get_url(
         &self,
-        req: &types::RefundsRouterData<api::Execute>,
-        connectors: &settings::Connectors,
+        req: &RefundsRouterData<Execute>,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let order_id = req.request.connector_transaction_id.clone();
         let endpoint =
@@ -995,10 +965,10 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
 
     fn get_request_body(
         &self,
-        req: &types::RefundsRouterData<api::Execute>,
-        _connectors: &settings::Connectors,
+        req: &RefundsRouterData<Execute>,
+        _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let amount = connector_utils::convert_amount(
+        let amount = convert_amount(
             self.amount_converter,
             req.request.minor_refund_amount,
             req.request.currency,
@@ -1010,11 +980,11 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
 
     fn build_request(
         &self,
-        req: &types::RefundsRouterData<api::Execute>,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        let request = services::RequestBuilder::new()
-            .method(services::Method::Post)
+        req: &RefundsRouterData<Execute>,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        let request = RequestBuilder::new()
+            .method(Method::Post)
             .url(&types::RefundExecuteType::get_url(self, req, connectors)?)
             .attach_default_headers()
             .headers(types::RefundExecuteType::get_headers(
@@ -1029,13 +999,13 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
 
     fn handle_response(
         &self,
-        data: &types::RefundsRouterData<api::Execute>,
+        data: &RefundsRouterData<Execute>,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<types::RefundsRouterData<api::Execute>, errors::ConnectorError> {
+    ) -> CustomResult<RefundsRouterData<Execute>, errors::ConnectorError> {
         match res.headers {
             Some(headers) => {
-                let refund_id = connector_utils::get_http_header("Refund-Id", &headers)
+                let refund_id = get_http_header("Refund-Id", &headers)
                     .attach_printable("Missing refund id in headers")
                     .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
                 let response = klarna::KlarnaRefundResponse {
@@ -1044,7 +1014,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
 
                 event_builder.map(|i| i.set_response_body(&response));
                 router_env::logger::info!(connector_response=?response);
-                types::RouterData::try_from(types::ResponseRouterData {
+                RouterData::try_from(ResponseRouterData {
                     response,
                     data: data.clone(),
                     http_code: res.status_code,
@@ -1064,14 +1034,12 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
     }
 }
 
-impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponseData>
-    for Klarna
-{
+impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Klarna {
     fn get_headers(
         &self,
-        req: &types::RefundSyncRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        req: &RefundSyncRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -1081,8 +1049,8 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
 
     fn get_url(
         &self,
-        req: &types::RefundSyncRouterData,
-        connectors: &settings::Connectors,
+        req: &RefundSyncRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let order_id = req.request.connector_transaction_id.clone();
         let refund_id = req.request.get_connector_refund_id()?;
@@ -1096,12 +1064,12 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
 
     fn build_request(
         &self,
-        req: &types::RefundSyncRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        req: &RefundSyncRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Ok(Some(
-            services::RequestBuilder::new()
-                .method(services::Method::Get)
+            RequestBuilder::new()
+                .method(Method::Get)
                 .url(&types::RefundSyncType::get_url(self, req, connectors)?)
                 .headers(types::RefundSyncType::get_headers(self, req, connectors)?)
                 .build(),
@@ -1110,17 +1078,17 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
 
     fn handle_response(
         &self,
-        data: &types::RefundSyncRouterData,
+        data: &RefundSyncRouterData,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<types::RefundSyncRouterData, errors::ConnectorError> {
+    ) -> CustomResult<RefundSyncRouterData, errors::ConnectorError> {
         let response: klarna::KlarnaRefundSyncResponse = res
             .response
             .parse_struct("klarna KlarnaRefundSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        types::RouterData::try_from(types::ResponseRouterData {
+        RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -1137,24 +1105,24 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
 }
 
 #[async_trait::async_trait]
-impl api::IncomingWebhook for Klarna {
+impl IncomingWebhook for Klarna {
     fn get_webhook_object_reference_id(
         &self,
-        _request: &api::IncomingWebhookRequestDetails<'_>,
+        _request: &IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
         Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 
     fn get_webhook_event_type(
         &self,
-        _request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
-        Ok(api::IncomingWebhookEvent::EventNotSupported)
+        _request: &IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<IncomingWebhookEvent, errors::ConnectorError> {
+        Ok(IncomingWebhookEvent::EventNotSupported)
     }
 
     fn get_webhook_resource_object(
         &self,
-        _request: &api::IncomingWebhookRequestDetails<'_>,
+        _request: &IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
         Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }

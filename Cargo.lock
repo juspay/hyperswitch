@@ -4021,6 +4021,7 @@ dependencies = [
  "serde_qs",
  "serde_urlencoded",
  "serde_with",
+ "sha1",
  "strum 0.26.3",
  "time",
  "url",
