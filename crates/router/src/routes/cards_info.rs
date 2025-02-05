@@ -1,4 +1,5 @@
 use actix_web::{web, HttpRequest, Responder};
+use api_models::cards_info as cards_info_api_types;
 use router_env::{instrument, tracing, Flow};
 
 use super::app::AppState;
@@ -51,6 +52,46 @@ pub async fn card_iin_info(
             cards_info::retrieve_card_info(state, auth.merchant_account, auth.key_store, req)
         },
         &*auth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[instrument(skip_all, fields(flow = ?Flow::CreateCardsInfo))]
+pub async fn create_cards_info(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<cards_info_api_types::CardInfoCreateRequest>,
+) -> impl Responder {
+    let payload = json_payload.into_inner();
+    let flow = Flow::CreateCardsInfo;
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &req,
+        payload,
+        |state, _, payload, _| cards_info::create_card_info(state, payload),
+        &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[instrument(skip_all, fields(flow = ?Flow::UpdateCardsInfo))]
+pub async fn update_cards_info(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<cards_info_api_types::CardInfoUpdateRequest>,
+) -> impl Responder {
+    let payload = json_payload.into_inner();
+    let flow = Flow::UpdateCardsInfo;
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &req,
+        payload,
+        |state, _, payload, _| cards_info::update_card_info(state, payload),
+        &auth::AdminApiAuth,
         api_locking::LockAction::NotApplicable,
     ))
     .await
