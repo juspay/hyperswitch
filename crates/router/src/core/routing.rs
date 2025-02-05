@@ -932,16 +932,54 @@ pub async fn retrieve_default_routing_config(
 ) -> RouterResponse<Vec<routing_types::RoutableConnectorChoice>> {
     metrics::ROUTING_RETRIEVE_DEFAULT_CONFIG.add(1, &[]);
     let db = state.store.as_ref();
+    let key_manager_state = &(&state).into();
+    let key_store = state
+        .store
+        .get_merchant_key_store_by_merchant_id(
+            key_manager_state,
+            merchant_account.get_id(),
+            &state.store.get_master_key().to_vec().into(),
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
+
     let id = profile_id
         .map(|profile_id| profile_id.get_string_repr().to_owned())
         .unwrap_or_else(|| merchant_account.get_id().get_string_repr().to_string());
 
-    helpers::get_merchant_default_config(db, &id, transaction_type)
-        .await
-        .map(|conn_choice| {
-            metrics::ROUTING_RETRIEVE_DEFAULT_CONFIG_SUCCESS_RESPONSE.add(1, &[]);
-            service_api::ApplicationResponse::Json(conn_choice)
-        })
+    let mut connectors = Vec::new();
+    let conn_choice = helpers::get_merchant_default_config(db, &id, transaction_type).await?;
+    for connector in conn_choice.iter() {
+        if let Some(mca_id) = &connector.merchant_connector_id {
+            let mca = state
+                .store
+                .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+                    key_manager_state,
+                    merchant_account.get_id(),
+                    &mca_id,
+                    &key_store,
+                )
+                .await
+                .to_not_found_response(
+                    errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                        id: mca_id.get_string_repr().to_string(),
+                    },
+                )?;
+            if transaction_type == common_enums::TransactionType::Payment
+                && mca.connector_type == common_enums::ConnectorType::PaymentProcessor
+            {
+                connectors.push(connector.clone());
+            }
+
+            if transaction_type == common_enums::TransactionType::Payout
+                && mca.connector_type == common_enums::ConnectorType::PayoutProcessor
+            {
+                connectors.push(connector.clone());
+            }
+        }
+    }
+    metrics::ROUTING_RETRIEVE_DEFAULT_CONFIG_SUCCESS_RESPONSE.add(1, &[]);
+    Ok(service_api::ApplicationResponse::Json(connectors))
 }
 
 #[cfg(feature = "v2")]
