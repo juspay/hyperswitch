@@ -324,9 +324,6 @@ export const connectorDetails = {
       },
     },
     SyncRefund: {
-      Request: {
-        currency: "USD",
-      },
       Response: {
         status: 200,
         body: {

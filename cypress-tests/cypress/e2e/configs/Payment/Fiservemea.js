@@ -128,14 +128,6 @@ export const connectorDetails = {
       },
     },
     SyncRefund: {
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "EUR",
-        customer_acceptance: null,
-      },
       Response: {
         status: 200,
         body: {

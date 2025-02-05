@@ -764,16 +764,7 @@ export const connectorDetails = {
         customer_acceptance: null,
       },
     }),
-    SyncRefund: getCustomExchange({
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "USD",
-        customer_acceptance: null,
-      },
-    }),
+    SyncRefund: getCustomExchange({}),
     MandateSingleUse3DSAutoCapture: getCustomExchange({
       Request: {
         payment_method: "card",

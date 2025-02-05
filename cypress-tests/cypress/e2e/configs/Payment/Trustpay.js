@@ -257,14 +257,6 @@ export const connectorDetails = {
           TIMEOUT: 15000,
         },
       },
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "USD",
-        customer_acceptance: null,
-      },
       Response: {
         status: 200,
         body: {

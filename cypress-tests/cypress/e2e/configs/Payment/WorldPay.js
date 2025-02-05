@@ -441,7 +441,6 @@ export const connectorDetails = {
       },
     },
     SyncRefund: {
-      Request: {},
       Response: {
         body: {
           status: "succeeded",
