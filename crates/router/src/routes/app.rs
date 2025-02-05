@@ -71,7 +71,7 @@ use crate::analytics::AnalyticsProvider;
 #[cfg(feature = "partial-auth")]
 use crate::errors::RouterResult;
 #[cfg(feature = "v1")]
-use crate::routes::cards_info::{card_iin_info,create_cards_info,update_cards_info};
+use crate::routes::cards_info::{card_iin_info, create_cards_info, update_cards_info};
 #[cfg(all(feature = "olap", feature = "v1"))]
 use crate::routes::feature_matrix;
 #[cfg(all(feature = "frm", feature = "oltp"))]
@@ -1794,7 +1794,7 @@ impl Disputes {
 
 pub struct Cards;
 
-#[cfg(feature = "v1")]
+#[cfg(all(feature = "oltp", feature = "v1"))]
 impl Cards {
     pub fn server(state: AppState) -> Scope {
         web::scope("/cards")

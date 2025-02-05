@@ -1,18 +1,21 @@
+use api_models::cards_info as cards_info_api_types;
 use common_utils::fp_utils::when;
+use diesel_models::cards_info as storage;
 use error_stack::{report, ResultExt};
 use router_env::{instrument, tracing};
-use api_models::cards_info as cards_info_api_types;
-use diesel_models::cards_info as storage;
 
 use crate::{
     core::{
-        errors::{self, RouterResponse,StorageErrorExt},
+        errors::{self, RouterResponse, StorageErrorExt},
         payments::helpers,
     },
     db::cards_info::CardsInfoInterface,
     routes,
     services::ApplicationResponse,
-    types::{domain, transformers::{ForeignFrom,ForeignInto}},
+    types::{
+        domain,
+        transformers::{ForeignFrom, ForeignInto},
+    },
 };
 
 fn verify_iin_length(card_iin: &str) -> Result<(), errors::ApiErrorResponse> {
@@ -98,7 +101,7 @@ pub async fn update_card_info(
             bank_code,
             country_code,
             last_updated,
-            last_updated_provider
+            last_updated_provider,
         },
     )
     .await

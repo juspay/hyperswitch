@@ -6,7 +6,7 @@ use crate::{
     core::errors::{self, CustomResult},
     db::MockDb,
     services::Store,
-    types::storage::cards_info::{CardInfo,UpdateCardInfo},
+    types::storage::cards_info::{CardInfo, UpdateCardInfo},
 };
 
 #[async_trait::async_trait]
@@ -15,10 +15,7 @@ pub trait CardsInfoInterface {
         &self,
         _card_iin: &str,
     ) -> CustomResult<Option<CardInfo>, errors::StorageError>;
-    async fn add_card_info(
-        &self,
-        data: CardInfo,
-    ) -> CustomResult<CardInfo, errors::StorageError>;
+    async fn add_card_info(&self, data: CardInfo) -> CustomResult<CardInfo, errors::StorageError>;
     async fn update_card_info(
         &self,
         card_iin: String,
@@ -40,10 +37,7 @@ impl CardsInfoInterface for Store {
     }
 
     #[instrument(skip_all)]
-    async fn add_card_info(
-        &self,
-        data: CardInfo,
-    ) -> CustomResult<CardInfo, errors::StorageError> {
+    async fn add_card_info(&self, data: CardInfo) -> CustomResult<CardInfo, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
         data.insert(&conn)
             .await
@@ -79,10 +73,7 @@ impl CardsInfoInterface for MockDb {
             .cloned())
     }
 
-    async fn add_card_info(
-        &self,
-        _data: CardInfo,
-    ) -> CustomResult<CardInfo, errors::StorageError> {
+    async fn add_card_info(&self, _data: CardInfo) -> CustomResult<CardInfo, errors::StorageError> {
         Err(errors::StorageError::MockDbError)?
     }
 

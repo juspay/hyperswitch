@@ -1,9 +1,9 @@
 use std::fmt::Debug;
 
+use common_utils::events::ApiEventMetric;
+use time::PrimitiveDateTime;
 use utoipa::ToSchema;
 use crate::enums as storage_enums;
-use time::PrimitiveDateTime;
-use common_utils::events::ApiEventMetric;
 
 #[derive(serde::Deserialize, ToSchema)]
 pub struct CardsInfoRequestParams {

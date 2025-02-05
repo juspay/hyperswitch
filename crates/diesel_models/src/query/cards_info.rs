@@ -1,7 +1,13 @@
-use diesel::{associations::HasTable,ExpressionMethods};
+use diesel::{associations::HasTable, ExpressionMethods};
 use error_stack::report;
 
-use crate::{cards_info::{CardInfo,UpdateCardInfo}, schema::cards_info::dsl, query::generics, PgPooledConn, StorageResult,errors};
+use crate::{
+    cards_info::{CardInfo, UpdateCardInfo},
+    errors,
+    query::generics,
+    schema::cards_info::dsl,
+    PgPooledConn, StorageResult,
+};
 
 impl CardInfo {
     pub async fn find_by_iin(conn: &PgPooledConn, card_iin: &str) -> StorageResult<Option<Self>> {
@@ -19,16 +25,10 @@ impl CardInfo {
         card_iin: String,
         data: UpdateCardInfo,
     ) -> StorageResult<Self> {
-        generics::generic_update_with_results::<
-            <Self as HasTable>::Table,
-            UpdateCardInfo,
-            _,
-            _,
-        >(
+        generics::generic_update_with_results::<<Self as HasTable>::Table, UpdateCardInfo, _, _>(
             conn,
-            dsl::card_iin
-                .eq(card_iin),
-                data,
+            dsl::card_iin.eq(card_iin),
+            data,
         )
         .await?
         .first()

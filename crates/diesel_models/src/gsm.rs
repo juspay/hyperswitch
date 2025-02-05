@@ -34,9 +34,9 @@ pub struct GatewayStatusMap {
     pub router_error: Option<String>,
     pub decision: String,
     #[serde(with = "custom_serde::iso8601")]
-    pub created_at: PrimitiveDateTime,//
+    pub created_at: PrimitiveDateTime,
     #[serde(with = "custom_serde::iso8601")]
-    pub last_modified: PrimitiveDateTime,//
+    pub last_modified: PrimitiveDateTime,
     pub step_up_possible: bool,
     pub unified_code: Option<String>,
     pub unified_message: Option<String>,
