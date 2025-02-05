@@ -204,6 +204,7 @@ pub async fn get_filters(
         .filter_map(|fil: DisputeFilterRow| match dim {
             DisputeDimensions::DisputeStage => fil.dispute_stage,
             DisputeDimensions::Connector => fil.connector,
+            DisputeDimensions::Currency => fil.currency.map(|i| i.as_ref().to_string()),
         })
         .collect::<Vec<String>>();
         res.query_data.push(DisputeFilterValue {
