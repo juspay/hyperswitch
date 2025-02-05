@@ -13,7 +13,7 @@ concurrency:
 env:
   CARGO_INCREMENTAL: 0
   CARGO_NET_RETRY: 10
-  PAYMENTS_CONNECTORS: "cybersource stripe"
+  PAYMENTS_CONNECTORS: "cybersource"
   PAYOUTS_CONNECTORS: "wise"
   RUST_BACKTRACE: short
   RUSTUP_MAX_RETRIES: 10
@@ -50,7 +50,7 @@ jobs:
       - name: Install Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: "20"
 
       - name: Install Cypress and dependencies
         run: |
@@ -189,8 +189,7 @@ jobs:
         if: ${{ env.RUN_TESTS == 'true' }}
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: "20"
 
       - name: Install Cypress and dependencies
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -377,8 +376,7 @@ jobs:
         if: ${{ env.RUN_TESTS == 'true' }}
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: "20"
 
       - name: Install Cypress and dependencies
         if: ${{ env.RUN_TESTS == 'true' }}
