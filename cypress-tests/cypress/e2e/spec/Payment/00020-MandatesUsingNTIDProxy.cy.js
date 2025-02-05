@@ -15,8 +15,8 @@ describe("Card - Mandates using Network Transaction Id flow test", () => {
         globalState = new State(state);
         connector = globalState.get("connectorId");
 
-        // Skip entire test suite if connector is not in exclusion list
-        // Here, exclusion list works as an inclusion list
+        // Skip the test if the connector is not in the inclusion list
+        // This is done because only cybersource is known to support at present
         if (
           utils.shouldIncludeConnector(
             connector,
