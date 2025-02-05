@@ -5,7 +5,6 @@ pub(super) mod refunds;
 
 use diesel::{backend::Backend, deserialize::FromSql, serialize::ToSql, sql_types};
 use error_stack::ResultExt;
-use serde_json::error;
 use thiserror::Error;
 
 use crate::{
@@ -27,6 +26,7 @@ pub(crate) enum GlobalEntity {
     Attempt,
     PaymentMethod,
     Refund,
+    PaymentMethodSession,
 }
 
 impl GlobalEntity {
@@ -37,6 +37,7 @@ impl GlobalEntity {
             Self::PaymentMethod => "pm",
             Self::Attempt => "att",
             Self::Refund => "ref",
+            Self::PaymentMethodSession => "pms",
         }
     }
 }
@@ -204,8 +205,8 @@ mod global_id_tests {
         let cell_id = CellId::from_str(cell_id_string).unwrap();
         let global_id = GlobalId::generate(&cell_id, entity);
 
-        /// Generate a regex for globalid
-        /// Eg - 12abc_cus_abcdefghijklmnopqrstuvwxyz1234567890
+        // Generate a regex for globalid
+        // Eg - 12abc_cus_abcdefghijklmnopqrstuvwxyz1234567890
         let regex = regex::Regex::new(r"[a-z0-9]{5}_cus_[a-z0-9]{32}").unwrap();
 
         assert!(regex.is_match(&global_id.0 .0 .0));

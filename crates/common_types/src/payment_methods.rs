@@ -124,3 +124,23 @@ where
 }
 
 common_utils::impl_to_sql_from_sql_json!(PaymentMethodsEnabled);
+
+/// The network tokenization configuration for creating the payment method session
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct NetworkTokenization {
+    /// Enable the network tokenization for payment methods that are created using the payment method session
+    #[schema(value_type = NetworkTokenizationToggle)]
+    pub enable: common_enums::NetworkTokenizationToggle,
+}
+
+/// The Payment Service Provider Configuration for payment methods that are created using the payment method session
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct PspTokenization {
+    /// The tokenization type to be applied for the payment method
+    #[schema(value_type = TokenizationType)]
+    pub tokenization_type: common_enums::TokenizationType,
+
+    /// The merchant connector id to be used for tokenization
+    #[schema(value_type = String)]
+    pub connector_id: common_utils::id_type::MerchantConnectorAccountId,
+}

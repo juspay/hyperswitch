@@ -19,51 +19,69 @@ pub struct EphemeralKeyCreateRequest {
 }
 
 #[cfg(feature = "v2")]
-/// Information required to create an ephemeral key.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
-pub struct EphemeralKeyCreateRequest {
-    /// Customer ID for which an ephemeral key must be created
-    #[schema(
-        min_length = 32,
-        max_length = 64,
-        value_type = String,
-        example = "12345_cus_01926c58bc6e77c09e809964e72af8c8"
-    )]
-    pub customer_id: id_type::GlobalCustomerId,
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq, Eq, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum ResourceId {
+    #[schema(value_type = String)]
+    Customer(id_type::GlobalCustomerId),
 }
 
 #[cfg(feature = "v2")]
-/// ephemeral_key for the customer_id mentioned
+/// Information required to create a client secret.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct ClientSecretCreateRequest {
+    /// Resource ID for which a client secret must be created
+    pub resource_id: ResourceId,
+}
+
+#[cfg(feature = "v2")]
+/// client_secret for the resource_id mentioned
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone, Eq, PartialEq, ToSchema)]
-pub struct EphemeralKeyResponse {
-    /// Ephemeral key id
+pub struct ClientSecretResponse {
+    /// Client Secret id
     #[schema(value_type = String, max_length = 32, min_length = 1)]
-    pub id: id_type::EphemeralKeyId,
-    /// customer_id to which this ephemeral key belongs to
-    #[schema(value_type = String, max_length = 64, min_length = 32, example = "12345_cus_01926c58bc6e77c09e809964e72af8c8")]
-    pub customer_id: id_type::GlobalCustomerId,
-    /// time at which this ephemeral key was created
+    pub id: id_type::ClientSecretId,
+    /// resource_id to which this client secret belongs to
+    #[schema(value_type = ResourceId)]
+    pub resource_id: ResourceId,
+    /// time at which this client secret was created
     pub created_at: time::PrimitiveDateTime,
-    /// time at which this ephemeral key would expire
+    /// time at which this client secret would expire
     pub expires: time::PrimitiveDateTime,
     #[schema(value_type=String)]
-    /// ephemeral key
+    /// client secret
     pub secret: Secret<String>,
 }
 
+#[cfg(feature = "v1")]
 impl common_utils::events::ApiEventMetric for EphemeralKeyCreateRequest {
     fn get_api_event_type(&self) -> Option<common_utils::events::ApiEventsType> {
         Some(common_utils::events::ApiEventsType::Miscellaneous)
     }
 }
 
-#[cfg(feature = "v2")]
-impl common_utils::events::ApiEventMetric for EphemeralKeyResponse {
+#[cfg(feature = "v1")]
+impl common_utils::events::ApiEventMetric for EphemeralKeyCreateResponse {
     fn get_api_event_type(&self) -> Option<common_utils::events::ApiEventsType> {
         Some(common_utils::events::ApiEventsType::Miscellaneous)
     }
 }
 
+#[cfg(feature = "v2")]
+impl common_utils::events::ApiEventMetric for ClientSecretCreateRequest {
+    fn get_api_event_type(&self) -> Option<common_utils::events::ApiEventsType> {
+        Some(common_utils::events::ApiEventsType::Miscellaneous)
+    }
+}
+
+#[cfg(feature = "v2")]
+impl common_utils::events::ApiEventMetric for ClientSecretResponse {
+    fn get_api_event_type(&self) -> Option<common_utils::events::ApiEventsType> {
+        Some(common_utils::events::ApiEventsType::Miscellaneous)
+    }
+}
+
+#[cfg(feature = "v1")]
 /// ephemeral_key for the customer_id mentioned
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone, Eq, PartialEq, ToSchema)]
 pub struct EphemeralKeyCreateResponse {

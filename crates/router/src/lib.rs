@@ -90,8 +90,8 @@ pub mod headers {
     pub const X_REDIRECT_URI: &str = "x-redirect-uri";
     pub const X_TENANT_ID: &str = "x-tenant-id";
     pub const X_CLIENT_SECRET: &str = "X-Client-Secret";
+    pub const X_CUSTOMER_ID: &str = "X-Customer-Id";
     pub const X_CONNECTED_MERCHANT_ID: &str = "x-connected-merchant-id";
-    pub const X_RESOURCE_TYPE: &str = "X-Resource-Type";
 }
 
 pub mod pii {
@@ -149,6 +149,11 @@ pub fn mk_app(
         #[cfg(feature = "oltp")]
         {
             server_app = server_app.service(routes::PaymentMethods::server(state.clone()));
+        }
+
+        #[cfg(all(feature = "v2", feature = "oltp"))]
+        {
+            server_app = server_app.service(routes::PaymentMethodsSession::server(state.clone()));
         }
 
         #[cfg(feature = "v1")]
