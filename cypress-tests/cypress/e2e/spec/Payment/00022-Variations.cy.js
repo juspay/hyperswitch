@@ -227,7 +227,7 @@ describe("Corner cases", () => {
         "CaptureGreaterAmount"
       ];
 
-      cy.captureCallTest(fixtures.captureBody, data, 65000, globalState);
+      cy.captureCallTest(fixtures.captureBody, data, 60000, globalState);
 
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
@@ -281,7 +281,7 @@ describe("Corner cases", () => {
         "card_pm"
       ]["CaptureCapturedAmount"];
 
-      cy.captureCallTest(fixtures.captureBody, data, 65000, globalState);
+      cy.captureCallTest(fixtures.captureBody, data, 60000, globalState);
 
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
@@ -468,7 +468,7 @@ describe("Corner cases", () => {
         "CaptureGreaterAmount"
       ];
 
-      cy.captureCallTest(fixtures.captureBody, data, 65000, globalState);
+      cy.captureCallTest(fixtures.captureBody, data, 60000, globalState);
 
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
@@ -534,7 +534,7 @@ describe("Corner cases", () => {
         ),
       };
 
-      cy.refundCallTest(fixtures.refundBody, newData, 65000, globalState);
+      cy.refundCallTest(fixtures.refundBody, newData, 60000, globalState);
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
   });
@@ -599,7 +599,7 @@ describe("Corner cases", () => {
         ),
       };
 
-      cy.refundCallTest(fixtures.refundBody, newData, 65000, globalState);
+      cy.refundCallTest(fixtures.refundBody, newData, 60000, globalState);
 
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
@@ -632,7 +632,7 @@ describe("Corner cases", () => {
       cy.citForMandatesCallTest(
         fixtures.citConfirmBody,
         data,
-        6500,
+        6000,
         true,
         "manual",
         "new_mandate",
@@ -646,7 +646,7 @@ describe("Corner cases", () => {
         "card_pm"
       ]["Capture"];
 
-      cy.captureCallTest(fixtures.captureBody, data, 6500, globalState);
+      cy.captureCallTest(fixtures.captureBody, data, 6000, globalState);
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
@@ -666,7 +666,7 @@ describe("Corner cases", () => {
       cy.mitForMandatesCallTest(
         fixtures.mitConfirmBody,
         data,
-        65000,
+        60000,
         true,
         "manual",
         globalState

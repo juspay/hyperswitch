@@ -67,7 +67,7 @@ describe("Card - Refund flow - No 3DS", () => {
         "card_pm"
       ]["Refund"];
 
-      cy.refundCallTest(fixtures.refundBody, data, 6500, globalState);
+      cy.refundCallTest(fixtures.refundBody, data, globalState);
 
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
@@ -202,7 +202,7 @@ describe("Card - Refund flow - No 3DS", () => {
           "card_pm"
         ]["Refund"];
 
-        cy.refundCallTest(fixtures.refundBody, data, 6500, globalState);
+        cy.refundCallTest(fixtures.refundBody, data, globalState);
 
         if (shouldContinue)
           shouldContinue = utils.should_continue_further(data);
@@ -344,7 +344,7 @@ describe("Card - Refund flow - No 3DS", () => {
         "card_pm"
       ]["Capture"];
 
-      cy.captureCallTest(fixtures.captureBody, data, 6500, globalState);
+      cy.captureCallTest(fixtures.captureBody, data, 6000, globalState);
 
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
@@ -362,7 +362,7 @@ describe("Card - Refund flow - No 3DS", () => {
         "card_pm"
       ]["manualPaymentRefund"];
 
-      cy.refundCallTest(fixtures.refundBody, data, 6500, globalState);
+      cy.refundCallTest(fixtures.refundBody, data, 6000, globalState);
 
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
@@ -430,7 +430,7 @@ describe("Card - Refund flow - No 3DS", () => {
         "card_pm"
       ]["Capture"];
 
-      cy.captureCallTest(fixtures.captureBody, data, 6500, globalState);
+      cy.captureCallTest(fixtures.captureBody, data, 6000, globalState);
 
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
@@ -801,7 +801,7 @@ describe("Card - Refund flow - 3DS", () => {
         "card_pm"
       ]["Refund"];
 
-      cy.refundCallTest(fixtures.refundBody, data, 6500, globalState);
+      cy.refundCallTest(fixtures.refundBody, data, 6000, globalState);
 
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
@@ -943,7 +943,7 @@ describe("Card - Refund flow - 3DS", () => {
         "card_pm"
       ]["Refund"];
 
-      cy.refundCallTest(fixtures.refundBody, data, 6500, globalState);
+      cy.refundCallTest(fixtures.refundBody, data, 6000, globalState);
 
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
@@ -1092,7 +1092,7 @@ describe("Card - Refund flow - 3DS", () => {
         "card_pm"
       ]["Capture"];
 
-      cy.captureCallTest(fixtures.captureBody, data, 6500, globalState);
+      cy.captureCallTest(fixtures.captureBody, data, 6000, globalState);
 
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
@@ -1110,7 +1110,7 @@ describe("Card - Refund flow - 3DS", () => {
         "card_pm"
       ]["manualPaymentRefund"];
 
-      cy.refundCallTest(fixtures.refundBody, data, 6500, globalState);
+      cy.refundCallTest(fixtures.refundBody, data, 6000, globalState);
 
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
@@ -1183,7 +1183,7 @@ describe("Card - Refund flow - 3DS", () => {
         "card_pm"
       ]["Capture"];
 
-      cy.captureCallTest(fixtures.captureBody, data, 6500, globalState);
+      cy.captureCallTest(fixtures.captureBody, data, 6000, globalState);
 
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });

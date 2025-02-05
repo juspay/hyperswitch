@@ -2317,46 +2317,47 @@ Cypress.Commands.add(
   }
 );
 
-Cypress.Commands.add(
-  "refundCallTest",
-  (requestBody, data, refund_amount, globalState) => {
-    const { Configs: configs = {}, Response: resData } = data || {};
+Cypress.Commands.add("refundCallTest", (requestBody, data, globalState) => {
+  const {
+    Configs: configs = {},
+    Request: reqData,
+    Response: resData,
+  } = data || {};
 
-    const payment_id = globalState.get("paymentID");
+  const payment_id = globalState.get("paymentID");
 
-    // we only need this to set the delay. We don't need the return value
-    execConfig(validateConfig(configs));
+  // we only need this to set the delay. We don't need the return value
+  execConfig(validateConfig(configs));
 
-    requestBody.amount = refund_amount;
-    requestBody.payment_id = payment_id;
+  requestBody.amount = reqData.amount;
+  requestBody.payment_id = payment_id;
 
-    cy.request({
-      method: "POST",
-      url: `${globalState.get("baseUrl")}/refunds`,
-      headers: {
-        "Content-Type": "application/json",
-        "api-key": globalState.get("apiKey"),
-      },
-      failOnStatusCode: false,
-      body: requestBody,
-    }).then((response) => {
-      logRequestId(response.headers["x-request-id"]);
+  cy.request({
+    method: "POST",
+    url: `${globalState.get("baseUrl")}/refunds`,
+    headers: {
+      "Content-Type": "application/json",
+      "api-key": globalState.get("apiKey"),
+    },
+    failOnStatusCode: false,
+    body: requestBody,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
 
-      cy.wrap(response).then(() => {
-        expect(response.headers["content-type"]).to.include("application/json");
-        if (response.status === 200) {
-          globalState.set("refundId", response.body.refund_id);
-          for (const key in resData.body) {
-            expect(resData.body[key]).to.equal(response.body[key]);
-          }
-          expect(response.body.payment_id).to.equal(payment_id);
-        } else {
-          defaultErrorHandler(response, resData);
+    cy.wrap(response).then(() => {
+      expect(response.headers["content-type"]).to.include("application/json");
+      if (response.status === 200) {
+        globalState.set("refundId", response.body.refund_id);
+        for (const key in resData.body) {
+          expect(resData.body[key]).to.equal(response.body[key]);
         }
-      });
+        expect(response.body.payment_id).to.equal(payment_id);
+      } else {
+        defaultErrorHandler(response, resData);
+      }
     });
-  }
-);
+  });
+});
 
 Cypress.Commands.add("syncRefundCallTest", (data, globalState) => {
   const { Response: resData } = data || {};

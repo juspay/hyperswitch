@@ -128,7 +128,7 @@ describe("Card - Mandates using Network Transaction Id flow test", () => {
         cy.mitUsingNTID(
           fixtures.ntidConfirmBody,
           data,
-          6500,
+          6000,
           true,
           "manual",
           globalState
@@ -140,7 +140,7 @@ describe("Card - Mandates using Network Transaction Id flow test", () => {
           "card_pm"
         ]["Capture"];
 
-        cy.captureCallTest(fixtures.captureBody, data, 6500, globalState);
+        cy.captureCallTest(fixtures.captureBody, data, 6000, globalState);
 
         if (shouldContinue)
           shouldContinue = utils.should_continue_further(data);
@@ -154,7 +154,7 @@ describe("Card - Mandates using Network Transaction Id flow test", () => {
         cy.mitUsingNTID(
           fixtures.ntidConfirmBody,
           data,
-          6500,
+          6000,
           true,
           "manual",
           globalState
@@ -166,7 +166,7 @@ describe("Card - Mandates using Network Transaction Id flow test", () => {
           "card_pm"
         ]["Capture"];
 
-        cy.captureCallTest(fixtures.captureBody, data, 6500, globalState);
+        cy.captureCallTest(fixtures.captureBody, data, 6000, globalState);
 
         if (shouldContinue)
           shouldContinue = utils.should_continue_further(data);

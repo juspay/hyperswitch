@@ -173,7 +173,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
-          amount: 6500,
+          amount: 6000,
           amount_capturable: 0,
         },
       },
@@ -192,7 +192,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "partially_captured",
-          amount: 6500,
+          amount: 6000,
           amount_capturable: 0,
         },
       },
@@ -514,7 +514,7 @@ export const connectorDetails = {
     },
     PaymentIntentOffSession: {
       Request: {
-        amount: 6500,
+        amount: 6000,
         authentication_type: "no_three_ds",
         currency: "USD",
         customer_acceptance: null,
@@ -555,7 +555,7 @@ export const connectorDetails = {
         body: {
           status: "requires_payment_method",
           shipping_cost: 50,
-          amount: 6500,
+          amount: 6000,
         },
       },
     },
@@ -574,7 +574,7 @@ export const connectorDetails = {
           status: "succeeded",
           shipping_cost: 50,
           amount_received: 6550,
-          amount: 6500,
+          amount: 6000,
           net_amount: 6550,
         },
       },
