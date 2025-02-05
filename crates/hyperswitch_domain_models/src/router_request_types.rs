@@ -140,8 +140,6 @@ pub struct PaymentsIncrementalAuthorizationData {
     pub currency: storage_enums::Currency,
     pub reason: Option<String>,
     pub connector_transaction_id: String,
-    pub minor_additional_amount: MinorUnit,
-    pub minor_total_amount: MinorUnit,
 }
 
 #[derive(Debug, Clone, Default)]
