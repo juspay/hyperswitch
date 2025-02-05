@@ -172,25 +172,6 @@ impl ConnectorCommon for Jpmorgan {
 }
 
 impl ConnectorValidation for Jpmorgan {
-    fn validate_connector_against_payment_request(
-        &self,
-        capture_method: Option<enums::CaptureMethod>,
-        _payment_method: enums::PaymentMethod,
-        _pmt: Option<enums::PaymentMethodType>,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let capture_method = capture_method.unwrap_or_default();
-        match capture_method {
-            enums::CaptureMethod::Automatic | enums::CaptureMethod::Manual => Ok(()),
-            enums::CaptureMethod::ManualMultiple
-            | enums::CaptureMethod::Scheduled
-            | enums::CaptureMethod::SequentialAutomatic => {
-                Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("Jpmorgan"),
-                ))?
-            }
-        }
-    }
-
     fn validate_psync_reference_id(
         &self,
         data: &PaymentsSyncData,
@@ -858,7 +839,7 @@ lazy_static! {
                 specific_features: Some(
                     api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
                         api_models::feature_matrix::CardSpecificFeatures {
-                            three_ds: common_enums::FeatureStatus::NotSupported,  // but docs has support
+                            three_ds: common_enums::FeatureStatus::NotSupported,
                             non_three_ds: common_enums::FeatureStatus::Supported,
                             supported_card_networks: supported_card_network.clone(),
                         }
@@ -878,7 +859,7 @@ lazy_static! {
                 specific_features: Some(
                     api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
                         api_models::feature_matrix::CardSpecificFeatures {
-                            three_ds: common_enums::FeatureStatus::NotSupported,  // but docs has support
+                            three_ds: common_enums::FeatureStatus::NotSupported,
                             non_three_ds: common_enums::FeatureStatus::Supported,
                             supported_card_networks: supported_card_network.clone(),
                         }
