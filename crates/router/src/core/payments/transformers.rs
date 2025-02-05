@@ -3838,6 +3838,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPreProce
             mandate_id: payment_data.mandate_id,
             related_transaction_id: None,
             enrolled_for_3ds: true,
+            split_payments: payment_data.payment_intent.split_payments,
             metadata: payment_data.payment_intent.metadata.map(Secret::new),
         })
     }

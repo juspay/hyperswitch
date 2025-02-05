@@ -534,6 +534,33 @@ pub fn get_split_refunds(
                 _ => Ok(None),
             }
         }
+        Some(common_types::payments::SplitPaymentsRequest::XenditSplitPayment(_)) => {
+            match (
+                &split_refund_input.payment_charges,
+                &split_refund_input.refund_request,
+            ) {
+                (
+                    Some(common_types::payments::ConnectorChargeResponseData::XenditSplitPayment(
+                        xendit_split_payment_response,
+                    )),
+                    Some(common_types::refunds::SplitRefund::XenditSplitRefund(
+                        split_refund_request,
+                    )),
+                ) => {
+                    let user_id = super::refunds::validator::validate_xendit_charge_refund(
+                        &xendit_split_payment_response,
+                        &split_refund_request,
+                    )?;
+
+                    Ok(user_id.map(|for_user_id| {
+                        router_request_types::SplitRefundsRequest::XenditSplitRefund(
+                            common_types::domain::XenditSplitSubMerchantData { for_user_id },
+                        )
+                    }))
+                }
+                _ => Ok(None),
+            }
+        }
         _ => Ok(None),
     }
 }

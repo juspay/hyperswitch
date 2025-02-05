@@ -41,3 +41,15 @@ pub struct AdyenSplitItem {
     pub description: Option<String>,
 }
 impl_to_sql_from_sql_json!(AdyenSplitItem);
+
+/// Fee information to be charged on the payment being collected for sub-merchant via xendit
+#[derive(
+    Serialize, Deserialize, Debug, Clone, PartialEq, Eq, FromSqlRow, AsExpression, ToSchema,
+)]
+#[diesel(sql_type = Jsonb)]
+#[serde(deny_unknown_fields)]
+pub struct XenditSplitSubMerchantData {
+    /// The sub-account user-id that you want to make this transaction for.
+    pub for_user_id: String,
+}
+impl_to_sql_from_sql_json!(XenditSplitSubMerchantData);
