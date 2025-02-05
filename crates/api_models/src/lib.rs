@@ -23,6 +23,7 @@ pub mod health_check;
 pub mod locker_migration;
 pub mod mandates;
 pub mod organization;
+pub mod payment_method_billing_address_migration;
 pub mod payment_methods;
 pub mod payments;
 #[cfg(feature = "payouts")]

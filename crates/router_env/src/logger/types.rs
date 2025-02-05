@@ -333,6 +333,8 @@ pub enum Flow {
     GsmRuleUpdate,
     /// Apple pay certificates migration
     ApplePayCertificatesMigration,
+    /// Payment Method Billing Address Migration
+    PaymentMethodBillingAddressMigration,
     /// Gsm Rule Delete flow
     GsmRuleDelete,
     /// User Sign Up
