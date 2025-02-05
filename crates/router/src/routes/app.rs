@@ -588,7 +588,8 @@ impl Payments {
                 )
                 .service(
                     web::resource("/capture").route(web::post().to(payments::payments_capture)),
-                ),
+                )
+                .service(web::resource("/void").route(web::post().to(payments::payments_void))),
         );
 
         route

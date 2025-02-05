@@ -45,6 +45,9 @@ pub mod payment_get;
 #[cfg(feature = "v2")]
 pub mod payment_capture_v2;
 
+#[cfg(feature = "v2")]
+pub mod payment_void;
+
 use api_models::enums::FrmSuggestion;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use api_models::routing::RoutableConnectorChoice;
@@ -59,6 +62,8 @@ pub use self::payment_get_intent::PaymentGetIntent;
 pub use self::payment_response::PaymentResponse;
 #[cfg(feature = "v2")]
 pub use self::payment_update_intent::PaymentUpdateIntent;
+#[cfg(feature = "v2")]
+pub use self::payment_void::PaymentVoid;
 #[cfg(feature = "v1")]
 pub use self::{
     payment_approve::PaymentApprove, payment_cancel::PaymentCancel,
