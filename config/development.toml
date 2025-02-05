@@ -565,6 +565,9 @@ debit = { currency = "USD" }
 [pm_filters.fiuu]
 duit_now = { country = "MY", currency = "MYR" }
 
+[pm_filters.inespay]
+sepa = { currency = "EUR" }
+
 [tokenization]
 stripe = { long_lived_token = false, payment_method = "wallet", payment_method_type = { type = "disable_only", list = "google_pay" } }
 checkout = { long_lived_token = false, payment_method = "wallet", apple_pay_pre_decrypt_flow = "network_tokenization" }
@@ -670,6 +673,9 @@ apple_pay_merchant_cert_key = "APPLE_PAY_MERCHNAT_CERTIFICATE_KEY"
 [paze_decrypt_keys]
 paze_private_key = "PAZE_PRIVATE_KEY"
 paze_private_key_passphrase = "PAZE_PRIVATE_KEY_PASSPHRASE"
+
+[google_pay_decrypt_keys]
+google_pay_root_signing_keys = "GOOGLE_PAY_ROOT_SIGNING_KEYS" # Base 64 Encoded Root Signing Keys provided by Google Pay (https://developers.google.com/pay/api/web/guides/resources/payment-data-cryptography)
 
 [generic_link]
 [generic_link.payment_method_collect]
