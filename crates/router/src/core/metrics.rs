@@ -82,6 +82,7 @@ counter_metric!(
     GLOBAL_METER
 );
 counter_metric!(DYNAMIC_SUCCESS_BASED_ROUTING, GLOBAL_METER);
+counter_metric!(DYNAMIC_CONTRACT_BASED_ROUTING, GLOBAL_METER);
 
 #[cfg(feature = "partial-auth")]
 counter_metric!(PARTIAL_AUTH_FAILURE, GLOBAL_METER);
