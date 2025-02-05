@@ -1529,6 +1529,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "72b3254f16251a8381aa12e40e3c4d2f0199f8c6508fbecb9d91f575e0fbb8c6"
 
 [[package]]
+name = "base64-serde"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "77c6d128af408d8ebd08331f0331cf2cf20d19e6c44a7aec58791641ecc8c0b5"
+
+[[package]]
 name = "base64-simd"
 version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2044,6 +2050,7 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "base64 0.22.1",
+ "base64-serde",
  "blake3",
  "bytes 1.7.1",
  "common_enums",
@@ -6581,6 +6588,7 @@ dependencies = [
  "external_services",
  "futures 0.3.30",
  "hex",
+ "hkdf",
  "http 0.2.12",
  "hyper 0.14.30",
  "hyperswitch_connectors",
@@ -6629,6 +6637,7 @@ dependencies = [
  "serde_with",
  "serial_test",
  "sha1",
+ "sha2",
  "storage_impl",
  "strum 0.26.3",
  "tera",

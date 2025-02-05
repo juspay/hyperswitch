@@ -226,6 +226,7 @@ pub struct AccessToken {
 pub enum PaymentMethodToken {
     Token(Secret<String>),
     ApplePayDecrypt(Box<ApplePayPredecryptData>),
+    GooglePayDecrypt(Box<GooglePayDecryptedData>),
     PazeDecrypt(Box<PazeDecryptedData>),
 }
 
@@ -245,6 +246,27 @@ pub struct ApplePayPredecryptData {
 #[serde(rename_all = "camelCase")]
 pub struct ApplePayCryptogramData {
     pub online_payment_cryptogram: Secret<String>,
+    pub eci_indicator: Option<String>,
+}
+
+#[derive(Debug, Clone, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GooglePayDecryptedData {
+    pub message_expiration: String,
+    pub message_id: String,
+    #[serde(rename = "paymentMethod")]
+    pub payment_method_type: String,
+    pub payment_method_details: GooglePayPaymentMethodDetails,
+}
+
+#[derive(Debug, Clone, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GooglePayPaymentMethodDetails {
+    pub auth_method: common_enums::enums::GooglePayAuthMethod,
+    pub expiration_month: cards::CardExpirationMonth,
+    pub expiration_year: cards::CardExpirationYear,
+    pub pan: cards::CardNumber,
+    pub cryptogram: Option<Secret<String>>,
     pub eci_indicator: Option<String>,
 }
 

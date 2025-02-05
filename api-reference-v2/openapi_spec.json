@@ -6875,6 +6875,11 @@
             "type": "object",
             "description": "This field contains the Paze certificates and credentials",
             "nullable": true
+          },
+          "google_pay": {
+            "type": "object",
+            "description": "This field contains the Google Pay certificates and credentials",
+            "nullable": true
           }
         },
         "additionalProperties": false
