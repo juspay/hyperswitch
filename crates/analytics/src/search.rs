@@ -158,6 +158,16 @@ pub async fn msearch_results(
                     .switch()?;
             }
         };
+        if let Some(customer_id) = filters.customer_id {
+            if !customer_id.is_empty() {
+                query_builder
+                    .add_filter_clause(
+                        "customer_id.keyword".to_string(),
+                        convert_to_value(customer_id),
+                    )
+                    .switch()?;
+            }
+        };
     };
 
     if let Some(time_range) = req.time_range {
@@ -351,6 +361,16 @@ pub async fn search_results(
             if !amount.is_empty() {
                 query_builder
                     .add_filter_clause("amount".to_string(), convert_to_value(amount))
+                    .switch()?;
+            }
+        };
+        if let Some(customer_id) = filters.customer_id {
+            if !customer_id.is_empty() {
+                query_builder
+                    .add_filter_clause(
+                        "customer_id.keyword".to_string(),
+                        convert_to_value(customer_id),
+                    )
                     .switch()?;
             }
         };

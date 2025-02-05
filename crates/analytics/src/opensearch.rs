@@ -478,6 +478,7 @@ impl OpenSearchQueryBuilder {
                 "card_last_4.keyword",
                 "payment_id.keyword",
                 "amount",
+                "customer_id.keyword",
             ]),
         }
     }
