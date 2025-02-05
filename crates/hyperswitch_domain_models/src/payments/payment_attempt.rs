@@ -33,9 +33,13 @@ use time::PrimitiveDateTime;
 #[cfg(all(feature = "v1", feature = "olap"))]
 use super::PaymentIntent;
 #[cfg(feature = "v2")]
-use crate::type_encryption::{crypto_operation, CryptoOperation};
-#[cfg(feature = "v2")]
-use crate::{address::Address, merchant_key_store::MerchantKeyStore, router_response_types};
+use crate::{
+    address::Address,
+    consts,
+    merchant_key_store::MerchantKeyStore,
+    router_response_types,
+    type_encryption::{crypto_operation, CryptoOperation},
+};
 use crate::{
     behaviour, errors,
     mandates::{MandateDataType, MandateDetails},
@@ -523,7 +527,7 @@ impl PaymentAttempt {
             connector_token_details: Some(diesel_models::ConnectorTokenDetails {
                 connector_mandate_id: None,
                 connector_mandate_request_reference_id: Some(common_utils::generate_id_with_len(
-                    crate::consts::CONNECTOR_MANDATE_REQUEST_REFERENCE_ID_LENGTH,
+                    consts::CONNECTOR_MANDATE_REQUEST_REFERENCE_ID_LENGTH,
                 )),
             }),
             id,
