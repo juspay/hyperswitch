@@ -10715,6 +10715,20 @@
         },
         "additionalProperties": false
       },
+      "MerchantConnectorAccountFeatureMetadata": {
+        "type": "object",
+        "description": "Feature metadata for merchant connector account",
+        "properties": {
+          "revenue_recovery": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RevenueRecoveryMetadata"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
       "MerchantConnectorCreate": {
         "type": "object",
         "description": "Create a new Merchant Connector for the merchant account. The connector could be a payment processor / facilitator / acquirer or specialized services like Fraud / Accounting etc.\"",
@@ -19336,6 +19350,38 @@
           "manual_retry",
           "requeue"
         ]
+      },
+      "RevenueRecoveryMetadata": {
+        "type": "object",
+        "description": "Revenue recovery metadata for merchant connector account",
+        "required": [
+          "max_retry_count",
+          "billing_connector_retry_threshold",
+          "billing_account_reference"
+        ],
+        "properties": {
+          "max_retry_count": {
+            "type": "integer",
+            "format": "int32",
+            "description": "The maximum number of retries allowed for an invoice. This limit is set by the merchant for each `billing connector`. Once this limit is reached, no further retries will be attempted.",
+            "example": "15",
+            "minimum": 0
+          },
+          "billing_connector_retry_threshold": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Maximum number of `billing connector` retries before revenue recovery can start executing retries.",
+            "example": "10",
+            "minimum": 0
+          },
+          "billing_account_reference": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Billing account reference id is payment gateway id at billing connector end.\nMerchants need to provide a mapping between these merchant connector account and the corresponding account reference IDs for each `billing connector`.",
+            "example": "{ \"mca_vDSg5z6AxnisHq5dbJ6g\": \"stripe_123\", \"mca_vDSg5z6AumisHqh4x5m1\": \"adyen_123\" }",
+            "minimum": 0
+          }
+        }
       },
       "RevokeApiKeyResponse": {
         "type": "object",
