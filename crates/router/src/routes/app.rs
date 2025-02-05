@@ -1519,6 +1519,24 @@ impl Webhooks {
                     .route(
                         web::put().to(receive_incoming_webhook::<webhook_type::OutgoingWebhook>),
                     ),
+            )
+            .service(
+                web::resource("/network_token_requestor/ref")
+                    .route(
+                        web::post().to(receive_network_token_requestor_incoming_webhook::<
+                            webhook_type::OutgoingWebhook,
+                        >),
+                    )
+                    .route(
+                        web::get().to(receive_network_token_requestor_incoming_webhook::<
+                            webhook_type::OutgoingWebhook,
+                        >),
+                    )
+                    .route(
+                        web::put().to(receive_network_token_requestor_incoming_webhook::<
+                            webhook_type::OutgoingWebhook,
+                        >),
+                    ),
             );
 
         #[cfg(feature = "frm")]

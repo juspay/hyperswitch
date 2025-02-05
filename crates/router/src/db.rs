@@ -135,6 +135,7 @@ pub trait StorageInterface:
     + generic_link::GenericLinkInterface
     + relay::RelayInterface
     + user::theme::ThemeInterface
+    + callback_mapper::CallbackMapperInterface
     + 'static
 {
     fn get_scheduler_db(&self) -> Box<dyn scheduler::SchedulerInterface>;
