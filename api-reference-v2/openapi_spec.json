@@ -10810,6 +10810,14 @@
               }
             ],
             "nullable": true
+          },
+          "feature_metadata": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MerchantConnectorAccountFeatureMetadata"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -11070,6 +11078,14 @@
               }
             ],
             "nullable": true
+          },
+          "feature_metadata": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MerchantConnectorAccountFeatureMetadata"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -11164,6 +11180,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/ConnectorWalletDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "feature_metadata": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MerchantConnectorAccountFeatureMetadata"
               }
             ],
             "nullable": true
