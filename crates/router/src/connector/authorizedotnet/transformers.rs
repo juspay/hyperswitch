@@ -1872,13 +1872,13 @@ pub struct PaypalPaymentConfirm {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Paypal {
     #[serde(rename = "payerID")]
-    payer_id: Secret<String>,
+    payer_id: Option<Secret<String>>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PaypalQueryParams {
     #[serde(rename = "PayerID")]
-    payer_id: Secret<String>,
+    payer_id: Option<Secret<String>>,
 }
 
 impl TryFrom<&AuthorizedotnetRouterData<&types::PaymentsCompleteAuthorizeRouterData>>
@@ -1895,10 +1895,13 @@ impl TryFrom<&AuthorizedotnetRouterData<&types::PaymentsCompleteAuthorizeRouterD
             .as_ref()
             .and_then(|redirect_response| redirect_response.params.as_ref())
             .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
-        let payer_id: Secret<String> =
-            serde_urlencoded::from_str::<PaypalQueryParams>(params.peek())
-                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?
-                .payer_id;
+
+        let query_params: PaypalQueryParams = serde_urlencoded::from_str(params.peek())
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)
+            .attach_printable("Failed to parse connector response")?;
+
+        let payer_id = query_params.payer_id;
+
         let transaction_type = match item.router_data.request.capture_method {
             Some(enums::CaptureMethod::Manual) => Ok(TransactionType::ContinueAuthorization),
             Some(enums::CaptureMethod::SequentialAutomatic)
