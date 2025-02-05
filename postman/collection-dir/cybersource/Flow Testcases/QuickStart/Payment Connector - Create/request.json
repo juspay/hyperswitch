@@ -48,6 +48,7 @@
       },
       "test_mode": false,
       "disabled": false,
+      "metadata": {},
       "payment_methods_enabled": [
         {
           "payment_method": "card",
