@@ -139,6 +139,8 @@ impl ConnectorCommon for Datatrans {
         let (cow, _, _) = encoding_rs::ISO_8859_10.decode(&res.response);
         let response = cow.as_ref().to_string();
         if response.starts_with("<html>") {
+            event_builder.map(|i| i.set_response_body(&response));
+            router_env::logger::info!(connector_response=?response);
             Ok(ErrorResponse {
                 status_code: res.status_code,
                 code: response.clone(),
@@ -152,7 +154,6 @@ impl ConnectorCommon for Datatrans {
                 .response
                 .parse_struct("DatatransErrorType")
                 .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
             event_builder.map(|i| i.set_response_body(&response));
             router_env::logger::info!(connector_response=?response);
             Ok(ErrorResponse {
