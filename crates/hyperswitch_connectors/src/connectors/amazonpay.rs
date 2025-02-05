@@ -27,7 +27,10 @@ use hyperswitch_domain_models::{
         PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData,
         PaymentsSyncData, RefundsData, SetupMandateRequestData,
     },
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    router_response_types::{
+        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
+        SupportedPaymentMethods, SupportedPaymentMethodsExt,
+    },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
         PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData,
@@ -44,6 +47,7 @@ use hyperswitch_interfaces::{
     types::{self, Response},
     webhooks,
 };
+use lazy_static::lazy_static;
 use masking::{ExposeInterface, Mask, Maskable, PeekInterface, Secret};
 use openssl::{
     hash::MessageDigest,
@@ -57,7 +61,7 @@ use transformers as amazonpay;
 use crate::{
     constants::headers,
     types::ResponseRouterData,
-    utils::{self, construct_not_supported_error_report, PaymentsSyncRequestData},
+    utils::{self, PaymentsSyncRequestData},
 };
 
 #[derive(Clone)]
@@ -326,25 +330,7 @@ impl ConnectorCommon for Amazonpay {
     }
 }
 
-impl ConnectorValidation for Amazonpay {
-    fn validate_connector_against_payment_request(
-        &self,
-        capture_method: Option<enums::CaptureMethod>,
-        _payment_method: enums::PaymentMethod,
-        _pmt: Option<enums::PaymentMethodType>,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let capture_method = capture_method.unwrap_or_default();
-        match capture_method {
-            enums::CaptureMethod::Automatic => Ok(()),
-            enums::CaptureMethod::Manual
-            | enums::CaptureMethod::ManualMultiple
-            | enums::CaptureMethod::Scheduled
-            | enums::CaptureMethod::SequentialAutomatic => Err(
-                construct_not_supported_error_report(capture_method, self.id()),
-            ),
-        }
-    }
-}
+impl ConnectorValidation for Amazonpay {}
 
 impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Amazonpay {}
 
@@ -902,4 +888,46 @@ impl webhooks::IncomingWebhook for Amazonpay {
     }
 }
 
-impl ConnectorSpecifications for Amazonpay {}
+lazy_static! {
+    static ref AMAZONPAY_SUPPORTED_PAYMENT_METHODS: SupportedPaymentMethods = {
+        let supported_capture_methods = vec![
+            enums::CaptureMethod::Automatic,
+        ];
+
+        let mut amazonpay_supported_payment_methods = SupportedPaymentMethods::new();
+
+        amazonpay_supported_payment_methods.add(
+            enums::PaymentMethod::Wallet,
+            enums::PaymentMethodType::AmazonPay,
+            PaymentMethodDetails{
+                mandates: enums::FeatureStatus::NotSupported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: None,
+            }
+        );
+
+        amazonpay_supported_payment_methods
+    };
+
+    static ref AMAZONPAY_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+        description: "Amazon Pay is an Alternative Payment Method (APM) connector that allows merchants to accept payments using customers' stored Amazon account details, providing a seamless checkout experience.".to_string(),
+        connector_type: enums::PaymentConnectorCategory::AlternativePaymentMethod,
+    };
+
+    static ref AMAZONPAY_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> = Vec::new();
+}
+
+impl ConnectorSpecifications for Amazonpay {
+    fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
+        Some(&*AMAZONPAY_CONNECTOR_INFO)
+    }
+
+    fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
+        Some(&*AMAZONPAY_SUPPORTED_PAYMENT_METHODS)
+    }
+
+    fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
+        Some(&*AMAZONPAY_SUPPORTED_WEBHOOK_FLOWS)
+    }
+}

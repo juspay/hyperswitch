@@ -137,14 +137,13 @@ VuY3OeNxi+dC2r7HppP3O/MJ4gX/RJJfSrcaGP8/Ke1W5+jE97Qy
 tunnel_private_key = ""
 
 [connectors.supported]
-wallets = ["klarna", "mifinity", "braintree", "applepay", "adyen"]
+wallets = ["klarna", "mifinity", "braintree", "applepay", "adyen", "amazonpay"]
 rewards = ["cashtocode", "zen"]
 cards = [
     "aci",
     "adyen",
     "adyenplatform",
     "airwallex",
-    "amazonpay",
     "authorizedotnet",
     "bambora",
     "bamboraapac",
