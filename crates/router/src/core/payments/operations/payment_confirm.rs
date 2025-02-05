@@ -852,16 +852,20 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 request_payment_method_data.payment_method_data.as_ref()
             });
 
+        let customer_id = &payment_data.payment_intent.customer_id;
+
         match payment_method_data {
             Some(api_models::payments::PaymentMethodData::Card(_card)) => {
-                card_testing_guard_utils::validate_card_testing_guard_checks(
-                    state,
-                    request,
-                    payment_method_data,
-                    payment_data,
-                    business_profile,
-                )
-                .await
+                payment_data.card_testing_guard_data =
+                    card_testing_guard_utils::validate_card_testing_guard_checks(
+                        state,
+                        request,
+                        payment_method_data,
+                        customer_id,
+                        business_profile,
+                    )
+                    .await?;
+                Ok(())
             }
             _ => Ok(()),
         }

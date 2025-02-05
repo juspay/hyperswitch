@@ -2049,7 +2049,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
     });
 
     if payment_data.payment_attempt.status == enums::AttemptStatus::Failure {
-        card_testing_guard_utils::increment_blocked_count_in_cache(
+        let _ = card_testing_guard_utils::increment_blocked_count_in_cache(
             state,
             payment_data.card_testing_guard_data.clone(),
         )
