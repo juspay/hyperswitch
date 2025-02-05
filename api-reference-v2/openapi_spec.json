@@ -15504,7 +15504,8 @@
           "status",
           "amount",
           "created",
-          "attempt_count"
+          "attempt_count",
+          "return_url"
         ],
         "properties": {
           "id": {
@@ -15676,8 +15677,7 @@
           "return_url": {
             "type": "string",
             "description": "The URL to redirect after the completion of the operation",
-            "example": "https://hyperswitch.io",
-            "nullable": true
+            "example": "https://hyperswitch.io"
           },
           "statement_descriptor_name": {
             "type": "string",
