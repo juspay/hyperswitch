@@ -1,10 +1,9 @@
 #[cfg(feature = "v1")]
-pub use api_models::payments::PaymentsRequest;
-#[cfg(feature = "v1")]
-pub use api_models::payments::{PaymentListResponse, PaymentListResponseV2, PaymentsResponse};
+pub use api_models::payments::{PaymentListResponse, PaymentListResponseV2};
 #[cfg(feature = "v2")]
 pub use api_models::payments::{
-    PaymentsCreateIntentRequest, PaymentsIntentResponse, PaymentsUpdateIntentRequest,
+    PaymentsConfirmIntentRequest, PaymentsCreateIntentRequest, PaymentsIntentResponse,
+    PaymentsUpdateIntentRequest,
 };
 pub use api_models::{
     feature_matrix::{
@@ -24,10 +23,10 @@ pub use api_models::{
         PaymentsExternalAuthenticationRequest, PaymentsIncrementalAuthorizationRequest,
         PaymentsManualUpdateRequest, PaymentsPostSessionTokensRequest,
         PaymentsPostSessionTokensResponse, PaymentsRedirectRequest, PaymentsRedirectionResponse,
-        PaymentsRejectRequest, PaymentsResponseForm, PaymentsRetrieveRequest,
-        PaymentsSessionRequest, PaymentsSessionResponse, PaymentsStartRequest, PgRedirectResponse,
-        PhoneDetails, RedirectionResponse, SessionToken, UrlDetails, VerifyRequest, VerifyResponse,
-        WalletData,
+        PaymentsRejectRequest, PaymentsRequest, PaymentsResponse, PaymentsResponseForm,
+        PaymentsRetrieveRequest, PaymentsSessionRequest, PaymentsSessionResponse,
+        PaymentsStartRequest, PgRedirectResponse, PhoneDetails, RedirectionResponse, SessionToken,
+        UrlDetails, VerifyRequest, VerifyResponse, WalletData,
     },
 };
 use error_stack::ResultExt;

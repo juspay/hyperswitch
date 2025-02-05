@@ -19,9 +19,8 @@ use serde_json::Value;
 use time::PrimitiveDateTime;
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-use crate::type_encryption::OptionalEncryptableJsonType;
+use crate::{address::Address, type_encryption::OptionalEncryptableJsonType};
 use crate::{
-    address::Address,
     mandates::{CommonMandateReference, PaymentsMandateReference},
     type_encryption::{crypto_operation, AsyncLift, CryptoOperation},
 };
@@ -515,7 +514,7 @@ impl super::behaviour::Conversion for PaymentMethod {
                 payment_method_data,
                 locker_id: storage_model.locker_id.map(VaultId::generate),
                 last_used_at: storage_model.last_used_at,
-                connector_mandate_details: storage_model.connector_mandate_details,
+                connector_mandate_details: storage_model.connector_mandate_details.map(From::from),
                 customer_acceptance: storage_model.customer_acceptance,
                 status: storage_model.status,
                 network_transaction_id: storage_model.network_transaction_id,

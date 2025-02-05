@@ -124,6 +124,7 @@ Never share your secret api keys. Keep them guarded and secure.
         routes::payments::payments_update_intent,
         routes::payments::payments_confirm_intent,
         routes::payments::payment_status,
+        routes::payments::payments_create_and_confirm_intent,
         routes::payments::payments_connector_session,
         routes::payments::list_payment_methods,
 
@@ -366,6 +367,9 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::CardRedirectData,
         api_models::payments::CardToken,
         api_models::payments::CustomerAcceptance,
+        api_models::payments::ConnectorTokenDetails,
+        api_models::payments::PaymentsRequest,
+        api_models::payments::PaymentsResponse,
         api_models::payments::PaymentRetrieveBody,
         api_models::payments::PaymentsRetrieveRequest,
         api_models::payments::PaymentsCaptureRequest,
