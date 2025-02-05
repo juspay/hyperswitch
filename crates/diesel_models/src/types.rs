@@ -109,7 +109,7 @@ pub enum RecurringPaymentIntervalUnit {
     Minute,
 }
 
-common_utils::impl_to_sql_from_sql_json!(ApplePayRecurringDetails); 
+common_utils::impl_to_sql_from_sql_json!(ApplePayRecurringDetails);
 common_utils::impl_to_sql_from_sql_json!(ApplePayRegularBillingDetails);
 common_utils::impl_to_sql_from_sql_json!(RecurringPaymentIntervalUnit);
 
@@ -150,4 +150,3 @@ pub struct BillingConnectorMitTokenDetails {
     //Connector Customer Id to process the retry payment
     pub connector_customer_id: String,
 }
-
