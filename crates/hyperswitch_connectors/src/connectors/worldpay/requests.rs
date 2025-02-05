@@ -32,7 +32,7 @@ pub struct Instruction {
     pub value: PaymentValue,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub debt_repayment: Option<bool>,
-    #[serde(rename = "threeDS")]
+    #[serde(rename = "threeDS", skip_serializing_if = "Option::is_none")]
     pub three_ds: Option<ThreeDSRequest>,
     /// For setting up mandates
     pub token_creation: Option<TokenCreation>,
