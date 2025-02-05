@@ -46,7 +46,7 @@ use transformers as datatrans;
 use crate::{
     constants::headers,
     types::ResponseRouterData,
-    utils::{convert_amount, RefundsRequestData},
+    utils::{convert_amount, RefundsRequestData, RouterData as OtherRouterData},
 };
 
 impl api::Payment for Datatrans {}
@@ -136,21 +136,34 @@ impl ConnectorCommon for Datatrans {
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: datatrans::DatatransErrorResponse = res
-            .response
-            .parse_struct("DatatransErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let (cow, _, _) = encoding_rs::ISO_8859_10.decode(&res.response);
+        let response = cow.as_ref().to_string();
+        if response.starts_with("<html>") {
+            Ok(ErrorResponse {
+                status_code: res.status_code,
+                code: response.clone(),
+                message: response.clone(),
+                reason: Some(response),
+                attempt_status: None,
+                connector_transaction_id: None,
+            })
+        } else {
+            let response: datatrans::DatatransErrorResponse = res
+                .response
+                .parse_struct("DatatransErrorType")
+                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
-        Ok(ErrorResponse {
-            status_code: res.status_code,
-            code: response.error.code,
-            message: response.error.message.clone(),
-            reason: Some(response.error.message.clone()),
-            attempt_status: None,
-            connector_transaction_id: None,
-        })
+            event_builder.map(|i| i.set_response_body(&response));
+            router_env::logger::info!(connector_response=?response);
+            Ok(ErrorResponse {
+                status_code: res.status_code,
+                code: response.error.code.clone(),
+                message: response.error.message.clone(),
+                reason: Some(response.error.message.clone()),
+                attempt_status: None,
+                connector_transaction_id: None,
+            })
+        }
     }
 }
 
@@ -204,11 +217,15 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
 
     fn get_url(
         &self,
-        _req: &PaymentsAuthorizeRouterData,
+        req: &PaymentsAuthorizeRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let base_url = self.base_url(connectors);
-        Ok(format!("{base_url}v1/transactions/authorize"))
+        if req.is_three_ds() {
+            Ok(format!("{base_url}v1/transactions"))
+        } else {
+            Ok(format!("{base_url}v1/transactions/authorize"))
+        }
     }
 
     fn get_request_body(
