@@ -179,6 +179,7 @@ pub async fn update_mca(
         merchant_id: merchant_id.clone(),
         additional_merchant_data: None,
         connector_wallets_details: None,
+        feature_metadata: None,
     };
     let mca_response =
         admin::update_connector(state.clone(), &merchant_id, None, &connector_id, request).await?;
