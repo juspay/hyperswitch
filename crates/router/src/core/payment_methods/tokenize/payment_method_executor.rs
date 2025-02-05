@@ -127,7 +127,7 @@ impl<'a> NetworkTokenizationBuilder<'a, PmValidated> {
         optional_card_info: Option<diesel_models::CardInfo>,
         card_cvc: Option<Secret<String>>,
     ) -> NetworkTokenizationBuilder<'a, PmAssigned> {
-        let card = domain::CardDetailsForNetworkTransactionId {
+        let card = domain::CardDetail {
             card_number: card_from_locker.card_number.clone(),
             card_exp_month: card_from_locker.card_exp_month.clone(),
             card_exp_year: card_from_locker.card_exp_year.clone(),
@@ -172,7 +172,7 @@ impl<'a> NetworkTokenizationBuilder<'a, PmAssigned> {
     pub fn get_optional_card_and_cvc(
         &self,
     ) -> (
-        Option<domain::CardDetailsForNetworkTransactionId>,
+        Option<domain::CardDetail>,
         Option<Secret<String>>,
     ) {
         (self.card.clone(), self.card_cvc.clone())
@@ -385,7 +385,7 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizePaymentMethodRequest> {
         store_token_response: &pm_transformers::StoreCardRespPayload,
         payment_method: domain::PaymentMethod,
         network_token_details: &NetworkTokenizationResponse,
-        card_details: &domain::CardDetailsForNetworkTransactionId,
+        card_details: &domain::CardDetail,
     ) -> RouterResult<domain::PaymentMethod> {
         // Form encrypted network token data
         let enc_token_data = self

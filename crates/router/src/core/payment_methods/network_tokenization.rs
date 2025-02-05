@@ -264,7 +264,7 @@ pub async fn mk_tokenization_req(
 
 pub async fn make_card_network_tokenization_request(
     state: &routes::SessionState,
-    card: &domain::CardDetailsForNetworkTransactionId,
+    card: &domain::CardDetail,
     optional_cvc: Option<Secret<String>>,
     customer_id: &id_type::CustomerId,
 ) -> CustomResult<(CardNetworkTokenResponsePayload, Option<String>), errors::NetworkTokenizationError>

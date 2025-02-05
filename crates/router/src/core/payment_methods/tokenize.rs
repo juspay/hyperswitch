@@ -154,7 +154,7 @@ pub struct NetworkTokenizationBuilder<'a, S: State> {
     pub customer: Option<&'a api::CustomerDetails>,
 
     /// Card details
-    pub card: Option<domain::CardDetailsForNetworkTransactionId>,
+    pub card: Option<domain::CardDetail>,
 
     /// CVC
     pub card_cvc: Option<Secret<String>>,
@@ -206,13 +206,13 @@ pub trait NetworkTokenizationProcess<'a, D> {
     ) -> Self;
     async fn encrypt_card(
         &self,
-        card_details: &domain::CardDetailsForNetworkTransactionId,
+        card_details: &domain::CardDetail,
         saved_to_locker: bool,
     ) -> RouterResult<Encryptable<Secret<serde_json::Value>>>;
     async fn encrypt_network_token(
         &self,
         network_token_details: &NetworkTokenizationResponse,
-        card_details: &domain::CardDetailsForNetworkTransactionId,
+        card_details: &domain::CardDetail,
         saved_to_locker: bool,
     ) -> RouterResult<Encryptable<Secret<serde_json::Value>>>;
     async fn fetch_bin_details_and_validate_card_network(
@@ -230,7 +230,7 @@ pub trait NetworkTokenizationProcess<'a, D> {
     async fn tokenize_card(
         &self,
         customer_id: &id_type::CustomerId,
-        card: &domain::CardDetailsForNetworkTransactionId,
+        card: &domain::CardDetail,
         optional_cvc: Option<Secret<String>>,
     ) -> RouterResult<NetworkTokenizationResponse>;
     async fn store_network_token_in_locker(
@@ -265,7 +265,7 @@ where
     }
     async fn encrypt_card(
         &self,
-        card_details: &domain::CardDetailsForNetworkTransactionId,
+        card_details: &domain::CardDetail,
         saved_to_locker: bool,
     ) -> RouterResult<Encryptable<Secret<serde_json::Value>>> {
         let pm_data = api::PaymentMethodsData::Card(api::CardDetailsPaymentMethod {
@@ -289,7 +289,7 @@ where
     async fn encrypt_network_token(
         &self,
         network_token_details: &NetworkTokenizationResponse,
-        card_details: &domain::CardDetailsForNetworkTransactionId,
+        card_details: &domain::CardDetail,
         saved_to_locker: bool,
     ) -> RouterResult<Encryptable<Secret<serde_json::Value>>> {
         let network_token = &network_token_details.0;
@@ -342,7 +342,7 @@ where
     async fn tokenize_card(
         &self,
         customer_id: &id_type::CustomerId,
-        card: &domain::CardDetailsForNetworkTransactionId,
+        card: &domain::CardDetail,
         optional_cvc: Option<Secret<String>>,
     ) -> RouterResult<NetworkTokenizationResponse> {
         network_tokenization::make_card_network_tokenization_request(

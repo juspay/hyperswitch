@@ -1023,7 +1023,7 @@ pub async fn save_network_token_in_locker(
         let optional_card_cvc = Some(card_data.card_cvc.clone());
         match network_tokenization::make_card_network_tokenization_request(
             state,
-            &domain::CardDetailsForNetworkTransactionId::from(card_data),
+            &domain::CardDetail::from(card_data),
             optional_card_cvc,
             &customer_id,
         )

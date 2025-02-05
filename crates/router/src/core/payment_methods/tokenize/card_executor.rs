@@ -100,7 +100,7 @@ impl<'a> NetworkTokenizationBuilder<'a, CardRequestValidated> {
         card_req: &'a domain::TokenizeCardRequest,
         optional_card_info: Option<diesel_models::CardInfo>,
     ) -> NetworkTokenizationBuilder<'a, CardDetailsAssigned> {
-        let card = domain::CardDetailsForNetworkTransactionId {
+        let card = domain::CardDetail {
             card_number: card_req.raw_card_number.clone(),
             card_exp_month: card_req.card_expiry_month.clone(),
             card_exp_year: card_req.card_expiry_year.clone(),
@@ -172,10 +172,7 @@ impl<'a> NetworkTokenizationBuilder<'a, CardDetailsAssigned> {
 impl<'a> NetworkTokenizationBuilder<'a, CustomerAssigned> {
     pub fn get_optional_card_and_cvc(
         &self,
-    ) -> (
-        Option<domain::CardDetailsForNetworkTransactionId>,
-        Option<masking::Secret<String>>,
-    ) {
+    ) -> (Option<domain::CardDetail>, Option<masking::Secret<String>>) {
         (self.card.clone(), self.card_cvc.clone())
     }
     pub fn set_token_details(
@@ -457,7 +454,7 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizeCardRequest> {
     pub async fn store_card_and_token_in_locker(
         &self,
         network_token: &NetworkTokenizationResponse,
-        card: &domain::CardDetailsForNetworkTransactionId,
+        card: &domain::CardDetail,
         customer_id: &id_type::CustomerId,
     ) -> RouterResult<StoreLockerResponse> {
         let stored_card_resp = self.store_card_in_locker(card, customer_id).await?;
@@ -478,7 +475,7 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizeCardRequest> {
 
     pub async fn store_card_in_locker(
         &self,
-        card: &domain::CardDetailsForNetworkTransactionId,
+        card: &domain::CardDetail,
         customer_id: &id_type::CustomerId,
     ) -> RouterResult<pm_transformers::StoreCardRespPayload> {
         let merchant_id = self.merchant_account.get_id();
@@ -519,7 +516,7 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizeCardRequest> {
         &self,
         stored_locker_resp: &StoreLockerResponse,
         network_token_details: &NetworkTokenizationResponse,
-        card_details: &domain::CardDetailsForNetworkTransactionId,
+        card_details: &domain::CardDetail,
         customer_id: &id_type::CustomerId,
     ) -> RouterResult<domain::PaymentMethod> {
         let payment_method_id = common_utils::generate_id(consts::ID_LENGTH, "pm");

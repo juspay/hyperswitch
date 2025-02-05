@@ -99,6 +99,20 @@ pub struct CardDetailsForNetworkTransactionId {
     pub card_holder_name: Option<Secret<String>>,
 }
 
+#[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize, Default)]
+pub struct CardDetail {
+    pub card_number: cards::CardNumber,
+    pub card_exp_month: Secret<String>,
+    pub card_exp_year: Secret<String>,
+    pub card_issuer: Option<String>,
+    pub card_network: Option<api_enums::CardNetwork>,
+    pub card_type: Option<String>,
+    pub card_issuing_country: Option<String>,
+    pub bank_code: Option<String>,
+    pub nick_name: Option<Secret<String>>,
+    pub card_holder_name: Option<Secret<String>>,
+}
+
 impl CardDetailsForNetworkTransactionId {
     pub fn get_nti_and_card_details_for_mit_flow(
         recurring_details: mandates::RecurringDetails,
@@ -126,7 +140,7 @@ impl CardDetailsForNetworkTransactionId {
     }
 }
 
-impl From<&Card> for CardDetailsForNetworkTransactionId {
+impl From<&Card> for CardDetail {
     fn from(item: &Card) -> Self {
         Self {
             card_number: item.card_number.to_owned(),
