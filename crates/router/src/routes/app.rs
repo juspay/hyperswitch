@@ -1229,6 +1229,14 @@ impl PaymentMethods {
                         .route(web::post().to(payment_methods::migrate_payment_methods)),
                 )
                 .service(
+                    web::resource("/tokenize-card")
+                        .route(web::post().to(payment_methods::tokenize_card_api)),
+                )
+                .service(
+                    web::resource("/tokenize-card-batch")
+                        .route(web::post().to(payment_methods::tokenize_card_batch_api)),
+                )
+                .service(
                     web::resource("/collect")
                         .route(web::post().to(payment_methods::initiate_pm_collect_link_flow)),
                 )

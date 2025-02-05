@@ -1,16 +1,23 @@
 #[cfg(all(
     any(feature = "v1", feature = "v2", feature = "olap", feature = "oltp"),
-    not(feature = "customer_v2")
+    all(not(feature = "customer_v2"), not(feature = "payment_methods_v2"))
 ))]
 use actix_multipart::form::MultipartForm;
 use actix_web::{web, HttpRequest, HttpResponse};
-use common_utils::{errors::CustomResult, id_type};
+use common_utils::{errors::CustomResult, id_type, transformers::ForeignFrom};
 use diesel_models::enums::IntentStatus;
 use error_stack::ResultExt;
-use hyperswitch_domain_models::merchant_key_store::MerchantKeyStore;
+use hyperswitch_domain_models::{
+    bulk_tokenization::CardNetworkTokenizeRequest, merchant_key_store::MerchantKeyStore,
+};
 use router_env::{instrument, logger, tracing, Flow};
 
 use super::app::{AppState, SessionState};
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
+use crate::core::payment_methods::tokenize;
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use crate::core::payment_methods::{
     create_payment_method, delete_payment_method, list_customer_payment_method_util,
@@ -23,7 +30,7 @@ use crate::{
         errors::{self, utils::StorageErrorExt},
         payment_methods::{self as payment_methods_routes, cards},
     },
-    services::{api, authentication as auth, authorization::permissions::Permission},
+    services::{self, api, authentication as auth, authorization::permissions::Permission},
     types::{
         api::payment_methods::{self, PaymentMethodId},
         domain,
@@ -1021,4 +1028,80 @@ impl ParentPaymentMethodToken {
             }
         }
     }
+}
+
+#[cfg(all(
+    any(feature = "v1", feature = "v2", feature = "olap", feature = "oltp"),
+    not(feature = "payment_methods_v2")
+))]
+#[instrument(skip_all, fields(flow = ?Flow::TokenizeCard))]
+pub async fn tokenize_card_api(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<payment_methods::CardNetworkTokenizeRequest>,
+) -> HttpResponse {
+    let flow = Flow::TokenizeCard;
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        json_payload.into_inner(),
+        |state, _, req, _| async move {
+            let merchant_id = req.merchant_id.clone();
+            let (key_store, merchant_account) = get_merchant_account(&state, &merchant_id).await?;
+            let res = Box::pin(cards::tokenize_card_flow(
+                &state,
+                CardNetworkTokenizeRequest::foreign_from(req),
+                &merchant_account,
+                &key_store,
+            ))
+            .await?;
+            Ok(services::ApplicationResponse::Json(res))
+        },
+        &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(all(
+    any(feature = "v1", feature = "v2", feature = "olap", feature = "oltp"),
+    not(feature = "payment_methods_v2")
+))]
+#[instrument(skip_all, fields(flow = ?Flow::TokenizeCardBatch))]
+pub async fn tokenize_card_batch_api(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    MultipartForm(form): MultipartForm<tokenize::CardNetworkTokenizeForm>,
+) -> HttpResponse {
+    let flow = Flow::TokenizeCardBatch;
+    let (merchant_id, records) = match tokenize::get_tokenize_card_form_records(form) {
+        Ok(res) => res,
+        Err(e) => return api::log_and_return_error_response(e.into()),
+    };
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        records,
+        |state, _, req, _| {
+            let merchant_id = merchant_id.clone();
+            async move {
+                let (key_store, merchant_account) =
+                    get_merchant_account(&state, &merchant_id).await?;
+                Box::pin(tokenize::tokenize_cards(
+                    &state,
+                    req,
+                    &merchant_account,
+                    &key_store,
+                ))
+                .await
+            }
+        },
+        &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
 }

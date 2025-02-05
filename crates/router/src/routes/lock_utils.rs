@@ -39,6 +39,7 @@ pub enum ApiIdentifier {
     ApplePayCertificatesMigration,
     Relay,
     Documentation,
+    CardNetworkTokenization,
 }
 
 impl From<Flow> for ApiIdentifier {
@@ -308,6 +309,8 @@ impl From<Flow> for ApiIdentifier {
             Flow::RetrievePollStatus => Self::Poll,
 
             Flow::FeatureMatrix => Self::Documentation,
+
+            Flow::TokenizeCard | Flow::TokenizeCardBatch => Self::CardNetworkTokenization,
         }
     }
 }
