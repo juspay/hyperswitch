@@ -1,6 +1,8 @@
 use api_models::{
     mandates, payment_methods,
-    payments::{additional_info as payment_additional_types, ExtendedCardInfo},
+    payments::{
+        additional_info as payment_additional_types, AmazonPayRedirectData, ExtendedCardInfo,
+    },
 };
 use common_enums::enums as api_enums;
 use common_utils::{
@@ -169,6 +171,7 @@ pub enum WalletData {
     AliPayQr(Box<AliPayQr>),
     AliPayRedirect(AliPayRedirection),
     AliPayHkRedirect(AliPayHkRedirection),
+    AmazonPayRedirect(Box<AmazonPayRedirectData>),
     MomoRedirect(MomoRedirection),
     KakaoPayRedirect(KakaoPayRedirection),
     GoPayRedirect(GoPayRedirection),
@@ -728,6 +731,9 @@ impl From<api_models::payments::WalletData> for WalletData {
             }
             api_models::payments::WalletData::AliPayHkRedirect(_) => {
                 Self::AliPayHkRedirect(AliPayHkRedirection {})
+            }
+            api_models::payments::WalletData::AmazonPayRedirect(_) => {
+                Self::AmazonPayRedirect(Box::new(AmazonPayRedirectData {}))
             }
             api_models::payments::WalletData::MomoRedirect(_) => {
                 Self::MomoRedirect(MomoRedirection {})
@@ -1518,6 +1524,7 @@ impl GetPaymentMethodType for WalletData {
         match self {
             Self::AliPayQr(_) | Self::AliPayRedirect(_) => api_enums::PaymentMethodType::AliPay,
             Self::AliPayHkRedirect(_) => api_enums::PaymentMethodType::AliPayHk,
+            Self::AmazonPayRedirect(_) => api_enums::PaymentMethodType::AmazonPay,
             Self::MomoRedirect(_) => api_enums::PaymentMethodType::Momo,
             Self::KakaoPayRedirect(_) => api_enums::PaymentMethodType::KakaoPay,
             Self::GoPayRedirect(_) => api_enums::PaymentMethodType::GoPay,

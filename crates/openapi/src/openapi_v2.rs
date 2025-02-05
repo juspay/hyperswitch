@@ -440,6 +440,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::AchTransfer,
         api_models::payments::MultibancoTransferInstructions,
         api_models::payments::DokuBankTransferInstructions,
+        api_models::payments::AmazonPayRedirectData,
         api_models::payments::ApplePayRedirectData,
         api_models::payments::ApplePayThirdPartySdkData,
         api_models::payments::GooglePayRedirectData,

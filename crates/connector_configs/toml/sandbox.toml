@@ -3082,6 +3082,8 @@ merchant_secret="Source verification key"
 [[stripe.bank_transfer]]
   payment_method_type = "multibanco"
 [[stripe.wallet]]
+  payment_method_type = "amazon_pay"
+[[stripe.wallet]]
   payment_method_type = "apple_pay"
 [[stripe.wallet]]
   payment_method_type = "google_pay"

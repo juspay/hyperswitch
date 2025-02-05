@@ -5882,6 +5882,9 @@
       "AliPayRedirection": {
         "type": "object"
       },
+      "AmazonPayRedirectData": {
+        "type": "object"
+      },
       "AmountFilter": {
         "type": "object",
         "properties": {
@@ -17247,6 +17250,7 @@
           "ali_pay",
           "ali_pay_hk",
           "alma",
+          "amazon_pay",
           "apple_pay",
           "atome",
           "bacs",
@@ -26179,6 +26183,17 @@
             "properties": {
               "ali_pay_hk_redirect": {
                 "$ref": "#/components/schemas/AliPayHkRedirection"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "amazon_pay_redirect"
+            ],
+            "properties": {
+              "amazon_pay_redirect": {
+                "$ref": "#/components/schemas/AmazonPayRedirectData"
               }
             }
           },

@@ -9489,6 +9489,21 @@ impl Default for settings::RequiredFields {
                         },
                     ),
                     (
+                        enums::PaymentMethodType::AmazonPay,
+                        ConnectorFields {
+                            fields: HashMap::from([
+                                (
+                                    enums::Connector::Stripe,
+                                    RequiredFieldFinal {
+                                        mandate: HashMap::new(),
+                                        non_mandate: HashMap::new(),
+                                        common: HashMap::new(),
+                                    }
+                                ),
+                            ]),
+                        },
+                    ),
+                    (
                         enums::PaymentMethodType::Cashapp,
                         ConnectorFields {
                             fields: HashMap::from([
