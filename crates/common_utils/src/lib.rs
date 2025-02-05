@@ -35,6 +35,8 @@ pub mod hashing;
 #[cfg(feature = "metrics")]
 pub mod metrics;
 
+pub use base64_serializer::Base64Serializer;
+
 /// Date-time utilities.
 pub mod date_time {
     #[cfg(feature = "async_ext")]
@@ -294,6 +296,14 @@ pub trait DbConnectionParams {
             schema,
         )
     }
+}
+
+// Can't add doc comments for macro invocations, neither does the macro allow it.
+#[allow(missing_docs)]
+mod base64_serializer {
+    use base64_serde::base64_serde_type;
+
+    base64_serde_type!(pub Base64Serializer, crate::consts::BASE64_ENGINE);
 }
 
 #[cfg(test)]

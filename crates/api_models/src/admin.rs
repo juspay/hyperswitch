@@ -1498,6 +1498,10 @@ pub struct ConnectorWalletDetails {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[schema(value_type = Option<Object>)]
     pub paze: Option<pii::SecretSerdeValue>,
+    /// This field contains the Google Pay certificates and credentials
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[schema(value_type = Option<Object>)]
+    pub google_pay: Option<pii::SecretSerdeValue>,
 }
 
 /// Create a new Merchant Connector for the merchant account. The connector could be a payment processor / facilitator / acquirer or specialized services like Fraud / Accounting etc."
