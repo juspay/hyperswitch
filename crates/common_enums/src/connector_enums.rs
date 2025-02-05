@@ -85,7 +85,7 @@ pub enum RoutableConnectors {
     Gocardless,
     Helcim,
     Iatapay,
-    // Inespay,
+    Inespay,
     Itaubank,
     Jpmorgan,
     Klarna,
@@ -221,7 +221,7 @@ pub enum Connector {
     Gocardless,
     Gpayments,
     Helcim,
-    // Inespay,
+    Inespay,
     Iatapay,
     Itaubank,
     Jpmorgan,
@@ -370,7 +370,7 @@ impl Connector {
             | Self::Gpayments
             | Self::Helcim
             | Self::Iatapay
-			// | Self::Inespay
+			| Self::Inespay
             | Self::Itaubank
             | Self::Jpmorgan
             | Self::Klarna
@@ -540,6 +540,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Plaid => Self::Plaid,
             RoutableConnectors::Zsl => Self::Zsl,
             RoutableConnectors::Xendit => Self::Xendit,
+            RoutableConnectors::Inespay => Self::Inespay,
         }
     }
 }
