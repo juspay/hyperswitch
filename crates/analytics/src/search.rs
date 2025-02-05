@@ -5,11 +5,16 @@ use api_models::analytics::search::{
 use common_utils::errors::{CustomResult, ReportSwitchExt};
 use error_stack::ResultExt;
 use router_env::tracing;
+use serde_json::Value;
 
 use crate::{
     enums::AuthInfo,
     opensearch::{OpenSearchClient, OpenSearchError, OpenSearchQuery, OpenSearchQueryBuilder},
 };
+
+pub fn convert_to_value<T: Into<Value>>(items: Vec<T>) -> Vec<Value> {
+    items.into_iter().map(|item| item.into()).collect()
+}
 
 pub async fn msearch_results(
     client: &OpenSearchClient,
@@ -38,21 +43,24 @@ pub async fn msearch_results(
         if let Some(currency) = filters.currency {
             if !currency.is_empty() {
                 query_builder
-                    .add_filter_clause("currency.keyword".to_string(), currency.clone())
+                    .add_filter_clause("currency.keyword".to_string(), convert_to_value(currency))
                     .switch()?;
             }
         };
         if let Some(status) = filters.status {
             if !status.is_empty() {
                 query_builder
-                    .add_filter_clause("status.keyword".to_string(), status.clone())
+                    .add_filter_clause("status.keyword".to_string(), convert_to_value(status))
                     .switch()?;
             }
         };
         if let Some(payment_method) = filters.payment_method {
             if !payment_method.is_empty() {
                 query_builder
-                    .add_filter_clause("payment_method.keyword".to_string(), payment_method.clone())
+                    .add_filter_clause(
+                        "payment_method.keyword".to_string(),
+                        convert_to_value(payment_method),
+                    )
                     .switch()?;
             }
         };
@@ -61,15 +69,17 @@ pub async fn msearch_results(
                 query_builder
                     .add_filter_clause(
                         "customer_email.keyword".to_string(),
-                        customer_email
-                            .iter()
-                            .filter_map(|email| {
-                                // TODO: Add trait based inputs instead of converting this to strings
-                                serde_json::to_value(email)
-                                    .ok()
-                                    .and_then(|a| a.as_str().map(|a| a.to_string()))
-                            })
-                            .collect(),
+                        convert_to_value(
+                            customer_email
+                                .iter()
+                                .filter_map(|email| {
+                                    // TODO: Add trait based inputs instead of converting this to strings
+                                    serde_json::to_value(email)
+                                        .ok()
+                                        .and_then(|a| a.as_str().map(|a| a.to_string()))
+                                })
+                                .collect(),
+                        ),
                     )
                     .switch()?;
             }
@@ -79,15 +89,17 @@ pub async fn msearch_results(
                 query_builder
                     .add_filter_clause(
                         "feature_metadata.search_tags.keyword".to_string(),
-                        search_tags
-                            .iter()
-                            .filter_map(|search_tag| {
-                                // TODO: Add trait based inputs instead of converting this to strings
-                                serde_json::to_value(search_tag)
-                                    .ok()
-                                    .and_then(|a| a.as_str().map(|a| a.to_string()))
-                            })
-                            .collect(),
+                        convert_to_value(
+                            search_tags
+                                .iter()
+                                .filter_map(|search_tag| {
+                                    // TODO: Add trait based inputs instead of converting this to strings
+                                    serde_json::to_value(search_tag)
+                                        .ok()
+                                        .and_then(|a| a.as_str().map(|a| a.to_string()))
+                                })
+                                .collect(),
+                        ),
                     )
                     .switch()?;
             }
@@ -95,7 +107,7 @@ pub async fn msearch_results(
         if let Some(connector) = filters.connector {
             if !connector.is_empty() {
                 query_builder
-                    .add_filter_clause("connector.keyword".to_string(), connector.clone())
+                    .add_filter_clause("connector.keyword".to_string(), convert_to_value(connector))
                     .switch()?;
             }
         };
@@ -104,7 +116,7 @@ pub async fn msearch_results(
                 query_builder
                     .add_filter_clause(
                         "payment_method_type.keyword".to_string(),
-                        payment_method_type.clone(),
+                        convert_to_value(payment_method_type),
                     )
                     .switch()?;
             }
@@ -112,21 +124,47 @@ pub async fn msearch_results(
         if let Some(card_network) = filters.card_network {
             if !card_network.is_empty() {
                 query_builder
-                    .add_filter_clause("card_network.keyword".to_string(), card_network.clone())
+                    .add_filter_clause(
+                        "card_network.keyword".to_string(),
+                        convert_to_value(card_network),
+                    )
                     .switch()?;
             }
         };
         if let Some(card_last_4) = filters.card_last_4 {
             if !card_last_4.is_empty() {
                 query_builder
-                    .add_filter_clause("card_last_4.keyword".to_string(), card_last_4.clone())
+                    .add_filter_clause(
+                        "card_last_4.keyword".to_string(),
+                        convert_to_value(card_last_4),
+                    )
                     .switch()?;
             }
         };
         if let Some(payment_id) = filters.payment_id {
             if !payment_id.is_empty() {
                 query_builder
-                    .add_filter_clause("payment_id.keyword".to_string(), payment_id.clone())
+                    .add_filter_clause(
+                        "payment_id.keyword".to_string(),
+                        convert_to_value(payment_id),
+                    )
+                    .switch()?;
+            }
+        };
+        if let Some(amount) = filters.amount {
+            if !amount.is_empty() {
+                query_builder
+                    .add_filter_clause("amount".to_string(), convert_to_value(amount))
+                    .switch()?;
+            }
+        };
+        if let Some(customer_id) = filters.customer_id {
+            if !customer_id.is_empty() {
+                query_builder
+                    .add_filter_clause(
+                        "customer_id.keyword".to_string(),
+                        convert_to_value(customer_id),
+                    )
                     .switch()?;
             }
         };
@@ -211,21 +249,24 @@ pub async fn search_results(
         if let Some(currency) = filters.currency {
             if !currency.is_empty() {
                 query_builder
-                    .add_filter_clause("currency.keyword".to_string(), currency.clone())
+                    .add_filter_clause("currency.keyword".to_string(), convert_to_value(currency))
                     .switch()?;
             }
         };
         if let Some(status) = filters.status {
             if !status.is_empty() {
                 query_builder
-                    .add_filter_clause("status.keyword".to_string(), status.clone())
+                    .add_filter_clause("status.keyword".to_string(), convert_to_value(status))
                     .switch()?;
             }
         };
         if let Some(payment_method) = filters.payment_method {
             if !payment_method.is_empty() {
                 query_builder
-                    .add_filter_clause("payment_method.keyword".to_string(), payment_method.clone())
+                    .add_filter_clause(
+                        "payment_method.keyword".to_string(),
+                        convert_to_value(payment_method),
+                    )
                     .switch()?;
             }
         };
@@ -234,15 +275,17 @@ pub async fn search_results(
                 query_builder
                     .add_filter_clause(
                         "customer_email.keyword".to_string(),
-                        customer_email
-                            .iter()
-                            .filter_map(|email| {
-                                // TODO: Add trait based inputs instead of converting this to strings
-                                serde_json::to_value(email)
-                                    .ok()
-                                    .and_then(|a| a.as_str().map(|a| a.to_string()))
-                            })
-                            .collect(),
+                        convert_to_value(
+                            customer_email
+                                .iter()
+                                .filter_map(|email| {
+                                    // TODO: Add trait based inputs instead of converting this to strings
+                                    serde_json::to_value(email)
+                                        .ok()
+                                        .and_then(|a| a.as_str().map(|a| a.to_string()))
+                                })
+                                .collect(),
+                        ),
                     )
                     .switch()?;
             }
@@ -252,15 +295,17 @@ pub async fn search_results(
                 query_builder
                     .add_filter_clause(
                         "feature_metadata.search_tags.keyword".to_string(),
-                        search_tags
-                            .iter()
-                            .filter_map(|search_tag| {
-                                // TODO: Add trait based inputs instead of converting this to strings
-                                serde_json::to_value(search_tag)
-                                    .ok()
-                                    .and_then(|a| a.as_str().map(|a| a.to_string()))
-                            })
-                            .collect(),
+                        convert_to_value(
+                            search_tags
+                                .iter()
+                                .filter_map(|search_tag| {
+                                    // TODO: Add trait based inputs instead of converting this to strings
+                                    serde_json::to_value(search_tag)
+                                        .ok()
+                                        .and_then(|a| a.as_str().map(|a| a.to_string()))
+                                })
+                                .collect(),
+                        ),
                     )
                     .switch()?;
             }
@@ -268,7 +313,7 @@ pub async fn search_results(
         if let Some(connector) = filters.connector {
             if !connector.is_empty() {
                 query_builder
-                    .add_filter_clause("connector.keyword".to_string(), connector.clone())
+                    .add_filter_clause("connector.keyword".to_string(), convert_to_value(connector))
                     .switch()?;
             }
         };
@@ -277,7 +322,7 @@ pub async fn search_results(
                 query_builder
                     .add_filter_clause(
                         "payment_method_type.keyword".to_string(),
-                        payment_method_type.clone(),
+                        convert_to_value(payment_method_type),
                     )
                     .switch()?;
             }
@@ -285,21 +330,47 @@ pub async fn search_results(
         if let Some(card_network) = filters.card_network {
             if !card_network.is_empty() {
                 query_builder
-                    .add_filter_clause("card_network.keyword".to_string(), card_network.clone())
+                    .add_filter_clause(
+                        "card_network.keyword".to_string(),
+                        convert_to_value(card_network),
+                    )
                     .switch()?;
             }
         };
         if let Some(card_last_4) = filters.card_last_4 {
             if !card_last_4.is_empty() {
                 query_builder
-                    .add_filter_clause("card_last_4.keyword".to_string(), card_last_4.clone())
+                    .add_filter_clause(
+                        "card_last_4.keyword".to_string(),
+                        convert_to_value(card_last_4),
+                    )
                     .switch()?;
             }
         };
         if let Some(payment_id) = filters.payment_id {
             if !payment_id.is_empty() {
                 query_builder
-                    .add_filter_clause("payment_id.keyword".to_string(), payment_id.clone())
+                    .add_filter_clause(
+                        "payment_id.keyword".to_string(),
+                        convert_to_value(payment_id),
+                    )
+                    .switch()?;
+            }
+        };
+        if let Some(amount) = filters.amount {
+            if !amount.is_empty() {
+                query_builder
+                    .add_filter_clause("amount".to_string(), convert_to_value(amount))
+                    .switch()?;
+            }
+        };
+        if let Some(customer_id) = filters.customer_id {
+            if !customer_id.is_empty() {
+                query_builder
+                    .add_filter_clause(
+                        "customer_id.keyword".to_string(),
+                        convert_to_value(customer_id),
+                    )
                     .switch()?;
             }
         };
