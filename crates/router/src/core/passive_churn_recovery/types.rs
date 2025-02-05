@@ -3,9 +3,7 @@ use common_utils::{self, ext_traits::OptionExt, id_type, types::keymanager::KeyM
 use diesel_models::process_tracker::business_status;
 use error_stack::{self, ResultExt};
 use hyperswitch_domain_models::{
-    business_profile,
-    errors::api_error_response,
-    merchant_account,
+    business_profile, merchant_account,
     merchant_key_store::MerchantKeyStore,
     payments::{payment_attempt::PaymentAttempt, PaymentConfirmData, PaymentIntent},
 };
@@ -83,7 +81,7 @@ impl PCRAttemptStatus {
                 let schedule_time = get_schedule_time_to_retry_mit_payments(
                     db,
                     merchant_id,
-                    process_tracker.retry_count + 1,
+                    process.retry_count + 1,
                 )
                 .await;
 
@@ -92,15 +90,14 @@ impl PCRAttemptStatus {
                     // schedule a retry
                     db.retry_process(process.clone(), schedule_time).await?;
                 } else {
-                    let _ = core_pcr::terminal_payment_failure_handling(
+                    core_pcr::terminal_payment_failure_handling(
                         db,
                         key_manager_state,
                         payment_intent.clone(),
                         merchant_key_store,
                         storage_scheme,
                     )
-                    .await
-                    .map_err(|error| logger::error!(?error, "Failed to update the payment intent"));
+                    .await?;
                 }
             }
 
@@ -129,6 +126,7 @@ impl PCRAttemptStatus {
         pcr_data: &pcr_storage_types::PCRPaymentData,
         key_manager_state: &KeyManagerState,
         tracking_data: &pcr_storage_types::PCRWorkflowTrackingData,
+        payment_intent: &PaymentIntent,
     ) -> Result<(), errors::ProcessTrackerError> {
         let db = &*state.store;
 
@@ -164,40 +162,19 @@ impl PCRAttemptStatus {
                     db.retry_process(process_tracker.clone(), schedule_time)
                         .await?;
                 } else {
-                    let payment_intent = db
-                        .find_payment_intent_by_id(
-                            key_manager_state,
-                            &tracking_data.global_payment_id,
-                            &pcr_data.key_store,
-                            pcr_data.merchant_account.storage_scheme,
-                        )
-                        .await
-                        .to_not_found_response(
-                            api_error_response::ApiErrorResponse::PaymentNotFound,
-                        )?;
-                    let _ = core_pcr::terminal_payment_failure_handling(
+                    core_pcr::terminal_payment_failure_handling(
                         db,
                         key_manager_state,
-                        payment_intent,
+                        payment_intent.clone(),
                         &pcr_data.key_store,
                         pcr_data.merchant_account.storage_scheme,
                     )
-                    .await
-                    .map_err(|error| logger::error!(?error, "Failed to update the payment intent"));
+                    .await?;
                 }
 
                 // TODO: Update connecter called field and active attempt
             }
             Self::Processing => {
-                let payment_intent = db
-                    .find_payment_intent_by_id(
-                        key_manager_state,
-                        &tracking_data.global_payment_id,
-                        &pcr_data.key_store,
-                        pcr_data.merchant_account.storage_scheme,
-                    )
-                    .await
-                    .to_not_found_response(api_error_response::ApiErrorResponse::PaymentNotFound)?;
                 // do a psync payment
                 let action = Box::pin(Action::execute_payment_for_psync(
                     state,
@@ -215,7 +192,7 @@ impl PCRAttemptStatus {
                         tracking_data,
                         pcr_data,
                         key_manager_state,
-                        &payment_intent,
+                        payment_intent,
                     )
                     .await?;
             }
@@ -231,7 +208,9 @@ impl PCRAttemptStatus {
 pub enum Decision {
     ExecuteTask,
     PsyncTask(PaymentAttempt),
-    ReviewTask,
+    InvalidTask,
+    ReviewSucceededPayment,
+    ReviewFailedPayment,
 }
 
 impl Decision {
@@ -258,7 +237,9 @@ impl Decision {
                     .change_context(errors::RecoveryError::TaskNotFound)?;
                 Self::PsyncTask(payment_attempt)
             }
-            _ => Self::ReviewTask,
+            (IntentStatus::Failed, true, Some(_)) => Self::ReviewFailedPayment,
+            (IntentStatus::Succeeded, true, Some(_)) => Self::ReviewSucceededPayment,
+            _ => Self::InvalidTask,
         })
     }
 }
@@ -496,7 +477,7 @@ impl Action {
                     pcr_data.merchant_account.storage_scheme,
                 )
                 .await
-                .change_context(errors::RecoveryError::RecoveryFailed)
+                .change_context(errors::RecoveryError::RecoveryPaymentFailed)
                 .attach_printable("Failed to update the payment intent with terminal status")?;
                 Ok(())
             }

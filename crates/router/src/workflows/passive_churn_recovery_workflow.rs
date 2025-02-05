@@ -48,71 +48,74 @@ impl ProcessTrackerWorkflow<SessionState> for ExecutePcrWorkflow {
         state: &'a SessionState,
         process: storage::ProcessTracker,
     ) -> Result<(), errors::ProcessTrackerError> {
+        let tracking_data = process
+            .tracking_data
+            .clone()
+            .parse_value::<pcr_storage_types::PCRWorkflowTrackingData>(
+            "PCRWorkflowTrackingData",
+        )?;
+        let request = PaymentsGetIntentRequest {
+            id: tracking_data.global_payment_id.clone(),
+        };
+        let key_manager_state = &state.into();
+        let pcr_data = extract_data_and_perform_action(state, &tracking_data).await?;
+        let (payment_data, _, _) = payments::payments_intent_operation_core::<
+            api_types::PaymentGetIntent,
+            _,
+            _,
+            PaymentIntentData<api_types::PaymentGetIntent>,
+        >(
+            state,
+            state.get_req_state(),
+            pcr_data.merchant_account.clone(),
+            pcr_data.profile.clone(),
+            pcr_data.key_store.clone(),
+            payments::operations::PaymentGetIntent,
+            request,
+            tracking_data.global_payment_id.clone(),
+            hyperswitch_domain_models::payments::HeaderPayload::default(),
+            pcr_data.platform_merchant_account.clone(),
+        )
+        .await?;
+
         match process.name.as_deref() {
             Some("EXECUTE_WORKFLOW") => {
-                let tracking_data = process
-                    .tracking_data
-                    .clone()
-                    .parse_value::<pcr_storage_types::PCRWorkflowTrackingData>(
-                    "PCRWorkflowTrackingData",
-                )?;
-                let request = PaymentsGetIntentRequest {
-                    id: tracking_data.global_payment_id.clone(),
-                };
-                let key_manager_state = &state.into();
-                let pcr_data = extract_data_and_perform_action(state, &tracking_data).await?;
-                let (payment_data, _, _) = payments::payments_intent_operation_core::<
-                    api_types::PaymentGetIntent,
-                    _,
-                    _,
-                    PaymentIntentData<api_types::PaymentGetIntent>,
-                >(
-                    state,
-                    state.get_req_state(),
-                    pcr_data.merchant_account.clone(),
-                    pcr_data.profile.clone(),
-                    pcr_data.key_store.clone(),
-                    payments::operations::PaymentGetIntent,
-                    request,
-                    tracking_data.global_payment_id,
-                    hyperswitch_domain_models::payments::HeaderPayload::default(),
-                    pcr_data.platform_merchant_account,
-                )
-                .await?;
-
                 // handle the call connector field once it has been added
                 pcr::decide_execute_pcr_workflow(
                     state,
                     &process,
-                    &payment_data.payment_intent,
+                    &tracking_data,
+                    &pcr_data,
                     key_manager_state,
-                    &pcr_data.key_store,
-                    &pcr_data.merchant_account,
-                    &pcr_data.profile,
+                    &payment_data.payment_intent,
                 )
                 .await
             }
             Some("PSYNC_WORKFLOW") => {
-                let key_manager_state = &state.into();
-                let tracking_data = process
-                    .tracking_data
-                    .clone()
-                    .parse_value::<pcr_storage_types::PCRWorkflowTrackingData>(
-                    "PCRWorkflowTrackingData",
-                )?;
-                let pcr_data = extract_data_and_perform_action(state, &tracking_data).await?;
                 Box::pin(pcr::decide_execute_psync_workflow(
                     state,
                     &process,
                     &tracking_data,
                     &pcr_data,
                     key_manager_state,
+                    &payment_data.payment_intent,
                 ))
                 .await?;
                 Ok(())
             }
 
-            Some("REVIEW_WORKFLOW") => todo!(),
+            Some("REVIEW_WORKFLOW") => {
+                pcr::review_workflow(
+                    state,
+                    &process,
+                    &tracking_data,
+                    &pcr_data,
+                    key_manager_state,
+                    &payment_data.payment_intent,
+                )
+                .await?;
+                Ok(())
+            }
             _ => Err(errors::ProcessTrackerError::JobNotFound),
         }
     }
@@ -192,12 +195,9 @@ pub(crate) async fn get_schedule_time_to_retry_mit_payments(
     let mapping = result.map_or_else(
         |error| {
             if error.current_context().is_db_not_found() {
-                logger::debug!("Outgoing webhooks retry config `{key}` not found, ignoring");
+                logger::debug!("PCR retry config `{key}` not found, ignoring");
             } else {
-                logger::error!(
-                    ?error,
-                    "Failed to read outgoing webhooks retry config `{key}`"
-                );
+                logger::error!(?error, "Failed to read PCR retry config `{key}`");
             }
             process_data::PCRPaymentRetryProcessTrackerMapping::default()
         },
