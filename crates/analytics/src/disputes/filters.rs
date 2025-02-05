@@ -1,12 +1,16 @@
 use api_models::analytics::{disputes::DisputeDimensions, Granularity, TimeRange};
 use common_utils::errors::ReportSwitchExt;
+use diesel_models::enums::Currency;
 use error_stack::ResultExt;
 use time::PrimitiveDateTime;
 
 use crate::{
     enums::AuthInfo,
     query::{Aggregate, GroupByClause, QueryBuilder, QueryFilter, ToSql, Window},
-    types::{AnalyticsCollection, AnalyticsDataSource, FiltersError, FiltersResult, LoadRow},
+    types::{
+        AnalyticsCollection, AnalyticsDataSource, DBEnumWrapper, FiltersError, FiltersResult,
+        LoadRow,
+    },
 };
 pub trait DisputeFilterAnalytics: LoadRow<DisputeFilterRow> {}
 
@@ -48,4 +52,5 @@ pub struct DisputeFilterRow {
     pub dispute_status: Option<String>,
     pub connector_status: Option<String>,
     pub dispute_stage: Option<String>,
+    pub currency: Option<DBEnumWrapper<Currency>>,
 }

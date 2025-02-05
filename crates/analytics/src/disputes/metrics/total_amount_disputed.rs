@@ -97,6 +97,7 @@ where
                     DisputeMetricsBucketIdentifier::new(
                         i.dispute_stage.as_ref().map(|i| i.0),
                         i.connector.clone(),
+                        i.currency.as_ref().map(|i| i.0),
                         TimeRange {
                             start_time: match (granularity, i.start_bucket) {
                                 (Some(g), Some(st)) => g.clip_to_start(st)?,
