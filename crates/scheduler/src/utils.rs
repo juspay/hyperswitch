@@ -350,6 +350,25 @@ pub fn get_outgoing_webhook_retry_schedule_time(
     }
 }
 
+pub fn get_pcr_payments_retry_schedule_time(
+    mapping: process_data::PCRPaymentRetryProcessTrackerMapping,
+    merchant_id: &common_utils::id_type::MerchantId,
+    retry_count: i32,
+) -> Option<i32> {
+    let mapping = match mapping.custom_merchant_mapping.get(merchant_id) {
+        Some(map) => map.clone(),
+        None => mapping.default_mapping,
+    };
+    // TODO: check if the current scheduled time is not more than the configured timerange
+
+    // For first try, get the `start_after` time
+    if retry_count == 0 {
+        Some(mapping.start_after)
+    } else {
+        get_delay(retry_count, &mapping.frequencies)
+    }
+}
+
 /// Get the delay based on the retry count
 pub fn get_delay<'a>(
     retry_count: i32,
