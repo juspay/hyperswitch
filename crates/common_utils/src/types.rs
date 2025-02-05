@@ -1426,6 +1426,15 @@ impl TryFrom<masking::Secret<String>> for NameType {
     }
 }
 
+impl NameType {
+    /// This function is used to create NameType from a string without any validation
+    pub fn get_unchecked(card_holder_name: String) -> Self {
+        Self(masking::Secret::new(LengthString::<256, 0>::new_unchecked(
+            card_holder_name,
+        )))
+    }
+}
+
 impl FromStr for NameType {
     type Err = error_stack::Report<ValidationError>;
 

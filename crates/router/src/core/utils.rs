@@ -97,24 +97,12 @@ pub async fn construct_payout_router_data<'a, F>(
             .first_name
             .clone()
             .map(Encryptable::into_inner)
-            .and_then(|name| {
-                NameType::try_from(name.expose())
-                    .map_err(|err| {
-                        router_env::logger::error!("Invalid First Name: {}", err);
-                    })
-                    .ok()
-            });
+            .map(|name| NameType::get_unchecked(name.expose()));
         let last_name = a
             .last_name
             .clone()
             .map(Encryptable::into_inner)
-            .and_then(|name| {
-                NameType::try_from(name.expose())
-                    .map_err(|err| {
-                        router_env::logger::error!("Invalid Last Name: {}", err);
-                    })
-                    .ok()
-            });
+            .map(|name| NameType::get_unchecked(name.expose()));
         let address_details = api_models::payments::AddressDetails {
             city: a.city.to_owned(),
             country: a.country.to_owned(),

@@ -752,24 +752,12 @@ impl From<&domain::Address> for hyperswitch_domain_models::address::Address {
                 .first_name
                 .clone()
                 .map(Encryptable::into_inner)
-                .and_then(|name| {
-                    common_utils::types::NameType::try_from(name.expose())
-                        .map_err(|err| {
-                            router_env::logger::error!("Invalid First Name: {}", err);
-                        })
-                        .ok()
-                });
+                .map(|name| common_utils::types::NameType::get_unchecked(name.expose()));
             let last_name = address
                 .last_name
                 .clone()
                 .map(Encryptable::into_inner)
-                .and_then(|name| {
-                    common_utils::types::NameType::try_from(name.expose())
-                        .map_err(|err| {
-                            router_env::logger::error!("Invalid Last Name {}", err);
-                        })
-                        .ok()
-                });
+                .map(|name| common_utils::types::NameType::get_unchecked(name.expose()));
             Some(hyperswitch_domain_models::address::AddressDetails {
                 city: address.city.clone(),
                 country: address.country,
@@ -820,24 +808,12 @@ impl ForeignFrom<domain::Address> for api_types::Address {
                 .first_name
                 .clone()
                 .map(Encryptable::into_inner)
-                .and_then(|name| {
-                    common_utils::types::NameType::try_from(name.expose())
-                        .map_err(|err| {
-                            router_env::logger::error!("Invalid First Name: {}", err);
-                        })
-                        .ok()
-                });
+                .map(|name| common_utils::types::NameType::get_unchecked(name.expose()));
             let last_name = address
                 .last_name
                 .clone()
                 .map(Encryptable::into_inner)
-                .and_then(|name| {
-                    common_utils::types::NameType::try_from(name.expose())
-                        .map_err(|err| {
-                            router_env::logger::error!("Invalid Last Name {}", err);
-                        })
-                        .ok()
-                });
+                .map(|name| common_utils::types::NameType::get_unchecked(name.expose()));
             Some(api_types::AddressDetails {
                 city: address.city.clone(),
                 country: address.country,
@@ -1800,24 +1776,12 @@ impl From<domain::Address> for payments::AddressDetails {
             .first_name
             .clone()
             .map(Encryptable::into_inner)
-            .and_then(|name| {
-                common_utils::types::NameType::try_from(name.expose())
-                    .map_err(|err| {
-                        router_env::logger::error!("Invalid First Name: {}", err);
-                    })
-                    .ok()
-            });
+            .map(|name| common_utils::types::NameType::get_unchecked(name.expose()));
         let last_name = addr
             .last_name
             .clone()
             .map(Encryptable::into_inner)
-            .and_then(|name| {
-                common_utils::types::NameType::try_from(name.expose())
-                    .map_err(|err| {
-                        router_env::logger::error!("Invalid Last Name {}", err);
-                    })
-                    .ok()
-            });
+            .map(|name| common_utils::types::NameType::get_unchecked(name.expose()));
         Self {
             city: addr.city,
             country: addr.country,
