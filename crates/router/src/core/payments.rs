@@ -393,6 +393,7 @@ where
                     &connector_details,
                     &business_profile,
                     &key_store,
+                    mandate_type,
                 )
                 .await?;
         } else {
@@ -4449,6 +4450,28 @@ pub struct PaymentEvent {
 }
 
 impl<F: Clone> PaymentData<F> {
+    // Get the method by which a card is discovered during a payment
+    #[cfg(feature = "v1")]
+    fn get_card_discovery_for_card_payment_method(&self) -> Option<common_enums::CardDiscovery> {
+        match self.payment_attempt.payment_method {
+            Some(storage_enums::PaymentMethod::Card) => {
+                if self
+                    .token_data
+                    .as_ref()
+                    .map(storage::PaymentTokenData::is_permanent_card)
+                    .unwrap_or(false)
+                {
+                    Some(common_enums::CardDiscovery::SavedCard)
+                } else if self.service_details.is_some() {
+                    Some(common_enums::CardDiscovery::ClickToPay)
+                } else {
+                    Some(common_enums::CardDiscovery::Manual)
+                }
+            }
+            _ => None,
+        }
+    }
+
     fn to_event(&self) -> PaymentEvent {
         PaymentEvent {
             payment_intent: self.payment_intent.clone(),
@@ -6491,12 +6514,17 @@ pub async fn payment_external_authentication(
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 #[instrument(skip_all)]
-pub async fn payment_external_authentication(
+pub async fn payment_external_authentication<F: Clone + Sync>(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     req: api_models::payments::PaymentsExternalAuthenticationRequest,
 ) -> RouterResponse<api_models::payments::PaymentsExternalAuthenticationResponse> {
+    use super::unified_authentication_service::types::ExternalAuthentication;
+    use crate::core::unified_authentication_service::{
+        types::UnifiedAuthenticationService, utils::external_authentication_update_trackers,
+    };
+
     let db = &*state.store;
     let key_manager_state = &(&state).into();
 
@@ -6668,35 +6696,78 @@ pub async fn payment_external_authentication(
         .get_required_value("authentication_connector_details")
         .attach_printable("authentication_connector_details not configured by the merchant")?;
 
-    let authentication_response = Box::pin(authentication_core::perform_authentication(
-        &state,
-        business_profile.merchant_id,
-        authentication_connector,
-        payment_method_details.0,
-        payment_method_details.1,
-        billing_address
-            .as_ref()
-            .map(|address| address.into())
-            .ok_or(errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "billing_address",
-            })?,
-        shipping_address.as_ref().map(|address| address.into()),
-        browser_info,
-        merchant_connector_account,
-        Some(amount),
-        Some(currency),
-        authentication::MessageCategory::Payment,
-        req.device_channel,
-        authentication,
-        return_url,
-        req.sdk_information,
-        req.threeds_method_comp_ind,
-        optional_customer.and_then(|customer| customer.email.map(pii::Email::from)),
-        webhook_url,
-        authentication_details.three_ds_requestor_url.clone(),
-        payment_intent.psd2_sca_exemption_type,
-    ))
-    .await?;
+    let authentication_response =
+        if helpers::is_merchant_eligible_authentication_service(merchant_account.get_id(), &state)
+            .await?
+        {
+            let auth_response =
+                <ExternalAuthentication as UnifiedAuthenticationService<F>>::authentication(
+                    &state,
+                    &business_profile,
+                    payment_method_details.1,
+                    payment_method_details.0,
+                    billing_address
+                        .as_ref()
+                        .map(|address| address.into())
+                        .ok_or(errors::ApiErrorResponse::MissingRequiredField {
+                            field_name: "billing_address",
+                        })?,
+                    shipping_address.as_ref().map(|address| address.into()),
+                    browser_info,
+                    Some(amount),
+                    Some(currency),
+                    authentication::MessageCategory::Payment,
+                    req.device_channel,
+                    authentication.clone(),
+                    return_url,
+                    req.sdk_information,
+                    req.threeds_method_comp_ind,
+                    optional_customer.and_then(|customer| customer.email.map(pii::Email::from)),
+                    webhook_url,
+                    authentication_details.three_ds_requestor_url.clone(),
+                    &merchant_connector_account,
+                    &authentication_connector,
+                )
+                .await?;
+            let authentication = external_authentication_update_trackers(
+                &state,
+                auth_response,
+                authentication.clone(),
+                None,
+            )
+            .await?;
+            authentication::AuthenticationResponse::try_from(authentication)?
+        } else {
+            Box::pin(authentication_core::perform_authentication(
+                &state,
+                business_profile.merchant_id,
+                authentication_connector,
+                payment_method_details.0,
+                payment_method_details.1,
+                billing_address
+                    .as_ref()
+                    .map(|address| address.into())
+                    .ok_or(errors::ApiErrorResponse::MissingRequiredField {
+                        field_name: "billing_address",
+                    })?,
+                shipping_address.as_ref().map(|address| address.into()),
+                browser_info,
+                merchant_connector_account,
+                Some(amount),
+                Some(currency),
+                authentication::MessageCategory::Payment,
+                req.device_channel,
+                authentication,
+                return_url,
+                req.sdk_information,
+                req.threeds_method_comp_ind,
+                optional_customer.and_then(|customer| customer.email.map(pii::Email::from)),
+                webhook_url,
+                authentication_details.three_ds_requestor_url.clone(),
+                payment_intent.psd2_sca_exemption_type,
+            ))
+            .await?
+        };
     Ok(services::ApplicationResponse::Json(
         api_models::payments::PaymentsExternalAuthenticationResponse {
             transaction_status: authentication_response.trans_status,

@@ -3,15 +3,15 @@ pub use diesel_models::types::OrderDetailsWithAmount;
 use crate::{
     router_data::{AccessToken, RouterData},
     router_flow_types::{
-        mandate_revoke::MandateRevoke, AccessTokenAuth, Authorize, AuthorizeSessionToken,
-        CalculateTax, Capture, CompleteAuthorize, CreateConnectorCustomer, Execute,
-        IncrementalAuthorization, PSync, PaymentMethodToken, PostAuthenticate, PostSessionTokens,
-        PreAuthenticate, PreProcessing, RSync, Session, SetupMandate, Void,
+        mandate_revoke::MandateRevoke, AccessTokenAuth, Authenticate, Authorize,
+        AuthorizeSessionToken, CalculateTax, Capture, CompleteAuthorize, CreateConnectorCustomer,
+        Execute, IncrementalAuthorization, PSync, PaymentMethodToken, PostAuthenticate,
+        PostSessionTokens, PreAuthenticate, PreProcessing, RSync, Session, SetupMandate, Void,
     },
     router_request_types::{
         unified_authentication_service::{
-            UasAuthenticationResponseData, UasPostAuthenticationRequestData,
-            UasPreAuthenticationRequestData,
+            UasAuthenticationRequestData, UasAuthenticationResponseData,
+            UasPostAuthenticationRequestData, UasPreAuthenticationRequestData,
         },
         AccessTokenRequestData, AuthorizeSessionTokenData, CompleteAuthorizeData,
         ConnectorCustomerData, MandateRevokeRequestData, PaymentMethodTokenizationData,
@@ -57,7 +57,6 @@ pub type PaymentsSessionRouterData = RouterData<Session, PaymentsSessionData, Pa
 
 pub type UasPostAuthenticationRouterData =
     RouterData<PostAuthenticate, UasPostAuthenticationRequestData, UasAuthenticationResponseData>;
-
 pub type UasPreAuthenticationRouterData =
     RouterData<PreAuthenticate, UasPreAuthenticationRequestData, UasAuthenticationResponseData>;
 
@@ -71,3 +70,6 @@ pub type PaymentsIncrementalAuthorizationRouterData = RouterData<
 
 #[cfg(feature = "payouts")]
 pub type PayoutsRouterData<F> = RouterData<F, PayoutsData, PayoutsResponseData>;
+
+pub type UasAuthenticationRouterData =
+    RouterData<Authenticate, UasAuthenticationRequestData, UasAuthenticationResponseData>;
