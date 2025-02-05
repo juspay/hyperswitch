@@ -78,7 +78,8 @@ use crate::{
         reverse_lookup::ReverseLookupInterface,
         routing_algorithm::RoutingAlgorithmInterface,
         unified_translations::UnifiedTranslationsInterface,
-        CommonStorageInterface, GlobalStorageInterface, MasterKeyInterface, StorageInterface,
+        AccountsStorageInterface, CommonStorageInterface, GlobalStorageInterface,
+        MasterKeyInterface, StorageInterface,
     },
     services::{kafka::KafkaProducer, Store},
     types::{domain, storage, AccessToken},
@@ -3047,12 +3048,16 @@ impl StorageInterface for KafkaStore {
 }
 
 impl GlobalStorageInterface for KafkaStore {}
+impl AccountsStorageInterface for KafkaStore {}
 
 impl CommonStorageInterface for KafkaStore {
     fn get_storage_interface(&self) -> Box<dyn StorageInterface> {
         Box::new(self.clone())
     }
     fn get_global_storage_interface(&self) -> Box<dyn GlobalStorageInterface> {
+        Box::new(self.clone())
+    }
+    fn get_accounts_storage_interface(&self) -> Box<dyn AccountsStorageInterface> {
         Box::new(self.clone())
     }
 }

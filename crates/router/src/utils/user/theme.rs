@@ -100,7 +100,7 @@ fn validate_tenant(state: &SessionState, tenant_id: &id_type::TenantId) -> UserR
 
 async fn validate_org(state: &SessionState, org_id: &id_type::OrganizationId) -> UserResult<()> {
     state
-        .store
+        .accounts_store
         .find_organization_by_org_id(org_id)
         .await
         .to_not_found_response(UserErrors::InvalidThemeLineage("org_id".to_string()))

@@ -1,6 +1,7 @@
 use std::{
     collections::{HashMap, HashSet},
     path::PathBuf,
+    sync::Arc,
 };
 
 #[cfg(feature = "olap")]
@@ -32,11 +33,14 @@ use serde::Deserialize;
 use storage_impl::config::QueueStrategy;
 
 #[cfg(feature = "olap")]
-use crate::analytics::AnalyticsConfig;
+use crate::analytics::{AnalyticsConfig, AnalyticsProvider};
 use crate::{
+    configs,
     core::errors::{ApplicationError, ApplicationResult},
     env::{self, Env},
     events::EventsConfig,
+    routes::app,
+    AppState,
 };
 
 pub const REQUIRED_FIELDS_CONFIG_FILE: &str = "payment_required_fields_v2.toml";
@@ -171,6 +175,91 @@ pub struct DecisionConfig {
 #[derive(Debug, Clone, Default)]
 pub struct TenantConfig(pub HashMap<id_type::TenantId, Tenant>);
 
+impl TenantConfig {
+    /// # Panics
+    ///
+    /// Panics if Failed to create event handler
+    pub async fn get_store_interface_map(
+        &self,
+        storage_impl: &app::StorageImpl,
+        conf: &configs::Settings,
+        cache_store: Arc<storage_impl::redis::RedisStore>,
+        testable: bool,
+    ) -> HashMap<id_type::TenantId, Box<dyn app::StorageInterface>> {
+        #[allow(clippy::expect_used)]
+        let event_handler = conf
+            .events
+            .get_event_handler()
+            .await
+            .expect("Failed to create event handler");
+        futures::future::join_all(self.0.iter().map(|(tenant_name, tenant)| async {
+            let store = AppState::get_store_interface(
+                storage_impl,
+                &event_handler,
+                conf,
+                tenant,
+                cache_store.clone(),
+                testable,
+            )
+            .await
+            .get_storage_interface();
+            (tenant_name.clone(), store)
+        }))
+        .await
+        .into_iter()
+        .collect()
+    }
+    /// # Panics
+    ///
+    /// Panics if Failed to create event handler
+    pub async fn get_accounts_store_interface_map(
+        &self,
+        storage_impl: &app::StorageImpl,
+        conf: &configs::Settings,
+        cache_store: Arc<storage_impl::redis::RedisStore>,
+        testable: bool,
+    ) -> HashMap<id_type::TenantId, Box<dyn app::AccountsStorageInterface>> {
+        #[allow(clippy::expect_used)]
+        let event_handler = conf
+            .events
+            .get_event_handler()
+            .await
+            .expect("Failed to create event handler");
+        futures::future::join_all(self.0.iter().map(|(tenant_name, tenant)| async {
+            let accounts_tenant_internal = AccountsTenantInternal::new(tenant);
+            let store = AppState::get_store_interface(
+                storage_impl,
+                &event_handler,
+                conf,
+                &accounts_tenant_internal,
+                cache_store.clone(),
+                testable,
+            )
+            .await
+            .get_accounts_storage_interface();
+            (tenant_name.clone(), store)
+        }))
+        .await
+        .into_iter()
+        .collect()
+    }
+    #[cfg(feature = "olap")]
+    pub async fn get_pools_map(
+        &self,
+        analytics_config: &AnalyticsConfig,
+    ) -> HashMap<id_type::TenantId, AnalyticsProvider> {
+        futures::future::join_all(self.0.iter().map(|(tenant_name, tenant)| async {
+            (
+                tenant_name.clone(),
+                AnalyticsProvider::from_conf(analytics_config, tenant).await,
+            )
+        }))
+        .await
+        .into_iter()
+        .collect()
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Tenant {
     pub tenant_id: id_type::TenantId,
@@ -181,12 +270,75 @@ pub struct Tenant {
     pub user: TenantUserConfig,
 }
 
+pub struct AccountsTenantInternal {
+    tenant_id: id_type::TenantId,
+    base_url: String,
+    accounts_schema: String,
+    redis_key_prefix: String,
+    clickhouse_database: String,
+    user: TenantUserConfig,
+}
+
+impl AccountsTenantInternal {
+    pub fn new(tenant: &Tenant) -> Self {
+        Self {
+            tenant_id: tenant.tenant_id.clone(),
+            base_url: tenant.base_url.clone(),
+            accounts_schema: tenant.schema.clone(),
+            redis_key_prefix: tenant.redis_key_prefix.clone(),
+            clickhouse_database: tenant.clickhouse_database.clone(),
+            user: tenant.user.clone(),
+        }
+    }
+    pub fn tenant_id(&self) -> &id_type::TenantId {
+        &self.tenant_id
+    }
+
+    pub fn base_url(&self) -> &String {
+        &self.base_url
+    }
+
+    pub fn accounts_schema(&self) -> &String {
+        &self.accounts_schema
+    }
+
+    pub fn redis_key_prefix(&self) -> &String {
+        &self.redis_key_prefix
+    }
+
+    pub fn clickhouse_database(&self) -> &String {
+        &self.clickhouse_database
+    }
+
+    pub fn user(&self) -> &TenantUserConfig {
+        &self.user
+    }
+}
+
 #[derive(Debug, Deserialize, Clone)]
 pub struct TenantUserConfig {
     pub control_center_url: String,
 }
 
+impl storage_impl::config::TenantConfig for AccountsTenantInternal {
+    fn get_tenant_id(&self) -> &id_type::TenantId {
+        self.tenant_id()
+    }
+    fn get_schema(&self) -> &str {
+        self.accounts_schema()
+    }
+    fn get_redis_key_prefix(&self) -> &str {
+        self.redis_key_prefix()
+    }
+    fn get_clickhouse_database(&self) -> &str {
+        self.clickhouse_database()
+    }
+}
+
 impl storage_impl::config::TenantConfig for Tenant {
+    fn get_tenant_id(&self) -> &id_type::TenantId {
+        &self.tenant_id
+    }
     fn get_schema(&self) -> &str {
         self.schema.as_str()
     }
@@ -208,6 +360,9 @@ pub struct GlobalTenant {
 }
 
 impl storage_impl::config::TenantConfig for GlobalTenant {
+    fn get_tenant_id(&self) -> &id_type::TenantId {
+        &self.tenant_id
+    }
     fn get_schema(&self) -> &str {
         self.schema.as_str()
     }
