@@ -5,6 +5,8 @@ use api_models::payments::{ConnectorMandateReferenceId, MandateReferenceId};
 use api_models::routing::RoutableConnectorChoice;
 use async_trait::async_trait;
 use common_enums::{AuthorizationStatus, SessionUpdateStatus};
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+use common_utils::ext_traits::ValueExt;
 use common_utils::{
     ext_traits::{AsyncExt, Encode},
     types::{keymanager::KeyManagerState, ConnectorTransactionId, MinorUnit},
@@ -51,8 +53,6 @@ use crate::{
     },
     utils,
 };
-#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-use common_utils::ext_traits::ValueExt;
 
 #[cfg(feature = "v1")]
 #[derive(Debug, Clone, Copy, router_derive::PaymentOperation)]
