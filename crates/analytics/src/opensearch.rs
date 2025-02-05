@@ -738,13 +738,13 @@ impl OpenSearchQueryBuilder {
                 });
                 let filter_array = self.build_filter_array(case_sensitive_filters.clone(), *index);
                 if !filter_array.is_empty() {
-                    if let Some(query) = payload.get_mut("query") {
-                        if let Some(bool_obj) = query.get_mut("bool") {
-                            if let Some(bool_map) = bool_obj.as_object_mut() {
-                                bool_map.insert("filter".to_string(), Value::Array(filter_array));
-                            }
-                        }
-                    }
+                    payload
+                        .get_mut("query")
+                        .and_then(|query| query.get_mut("bool"))
+                        .and_then(|bool_obj| bool_obj.as_object_mut())
+                        .map(|bool_map| {
+                            bool_map.insert("filter".to_string(), Value::Array(filter_array));
+                        });
                 }
                 payload = self.build_case_insensitive_filters(
                     payload,
