@@ -1044,17 +1044,16 @@ impl ForeignFrom<&domain::MerchantConnectorAccountFeatureMetadata>
             .as_ref()
             .map(
                 |revenue_recovery_metadata| api_models::admin::RevenueRecoveryMetadata {
-                    max_retry_count: revenue_recovery_metadata.max_retry_count.clone(),
+                    max_retry_count: revenue_recovery_metadata.max_retry_count,
                     billing_connector_retry_threshold: revenue_recovery_metadata
-                        .billing_connector_retry_threshold
-                        .clone(),
+                        .billing_connector_retry_threshold,
                     billing_account_reference: revenue_recovery_metadata
                         .mca_reference
                         .recovery_to_billing
                         .clone(),
                 },
             );
-        api_models::admin::MerchantConnectorAccountFeatureMetadata { revenue_recovery }
+        Self { revenue_recovery }
     }
 }
 
@@ -1082,6 +1081,6 @@ impl ForeignTryFrom<&api_models::admin::MerchantConnectorAccountFeatureMetadata>
             })
             .transpose()?;
 
-        Ok(domain::MerchantConnectorAccountFeatureMetadata { revenue_recovery })
+        Ok(Self { revenue_recovery })
     }
 }
