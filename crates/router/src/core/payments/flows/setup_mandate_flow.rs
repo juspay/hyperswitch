@@ -15,6 +15,7 @@ use crate::{
     types::{self, api, domain},
 };
 
+#[cfg(feature = "v1")]
 #[async_trait]
 impl
     ConstructFlowSpecificData<
@@ -23,7 +24,6 @@ impl
         types::PaymentsResponseData,
     > for PaymentData<api::SetupMandate>
 {
-    #[cfg(feature = "v1")]
     async fn construct_router_data<'a>(
         &self,
         state: &SessionState,
@@ -52,7 +52,27 @@ impl
         .await
     }
 
-    #[cfg(feature = "v2")]
+    async fn get_merchant_recipient_data<'a>(
+        &self,
+        _state: &SessionState,
+        _merchant_account: &domain::MerchantAccount,
+        _key_store: &domain::MerchantKeyStore,
+        _merchant_connector_account: &helpers::MerchantConnectorAccountType,
+        _connector: &api::ConnectorData,
+    ) -> RouterResult<Option<types::MerchantRecipientData>> {
+        Ok(None)
+    }
+}
+
+#[cfg(feature = "v2")]
+#[async_trait]
+impl
+    ConstructFlowSpecificData<
+        api::SetupMandate,
+        types::SetupMandateRequestData,
+        types::PaymentsResponseData,
+    > for hyperswitch_domain_models::payments::PaymentConfirmData<api::SetupMandate>
+{
     async fn construct_router_data<'a>(
         &self,
         state: &SessionState,
@@ -64,7 +84,20 @@ impl
         merchant_recipient_data: Option<types::MerchantRecipientData>,
         header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
     ) -> RouterResult<types::SetupMandateRouterData> {
-        todo!()
+        Box::pin(
+            transformers::construct_payment_router_data_for_setup_mandate(
+                state,
+                self.clone(),
+                connector_id,
+                merchant_account,
+                key_store,
+                customer,
+                merchant_connector_account,
+                merchant_recipient_data,
+                header_payload,
+            ),
+        )
+        .await
     }
 
     async fn get_merchant_recipient_data<'a>(

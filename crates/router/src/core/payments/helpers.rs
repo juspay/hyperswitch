@@ -3163,6 +3163,7 @@ pub async fn delete_ephemeral_key(
     Ok(services::ApplicationResponse::Json(response))
 }
 
+#[cfg(feature = "v1")]
 pub fn make_pg_redirect_response(
     payment_id: id_type::PaymentId,
     response: &api::PaymentsResponse,
