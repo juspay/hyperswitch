@@ -170,8 +170,8 @@ SELECT
     ds_trans_id,
     directory_server_id,
     acquirer_country_code,
-    sign_flag,
-    organization_id
+    organization_id,
+    sign_flag
 FROM
     authentication_queue
 WHERE
