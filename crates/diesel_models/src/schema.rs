@@ -1332,6 +1332,8 @@ diesel::table! {
         #[max_length = 64]
         entity_type -> Varchar,
         #[max_length = 64]
+        profile_id -> Nullable<Varchar>,
+        #[max_length = 64]
         tenant_id -> Varchar,
     }
 }
