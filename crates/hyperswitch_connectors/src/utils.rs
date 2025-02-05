@@ -2323,7 +2323,6 @@ pub enum PaymentMethodDataType {
     SwishQr,
     KlarnaRedirect,
     KlarnaSdk,
-    KlarnaCheckout,
     AffirmRedirect,
     AfterpayClearpayRedirect,
     PayBrightRedirect,
@@ -2448,7 +2447,6 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
             PaymentMethodData::PayLater(pay_later_data) => match pay_later_data {
                 payment_method_data::PayLaterData::KlarnaRedirect { .. } => Self::KlarnaRedirect,
                 payment_method_data::PayLaterData::KlarnaSdk { .. } => Self::KlarnaSdk,
-                payment_method_data::PayLaterData::KlarnaCheckout {} => Self::KlarnaCheckout,
                 payment_method_data::PayLaterData::AffirmRedirect {} => Self::AffirmRedirect,
                 payment_method_data::PayLaterData::AfterpayClearpayRedirect { .. } => {
                     Self::AfterpayClearpayRedirect

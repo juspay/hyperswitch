@@ -1272,7 +1272,6 @@ impl TryFrom<&domain::PayLaterData> for PaypalPaymentsRequest {
         match value {
             domain::PayLaterData::KlarnaRedirect { .. }
             | domain::PayLaterData::KlarnaSdk { .. }
-            | domain::PayLaterData::KlarnaCheckout {}
             | domain::PayLaterData::AffirmRedirect {}
             | domain::PayLaterData::AfterpayClearpayRedirect { .. }
             | domain::PayLaterData::PayBrightRedirect {}

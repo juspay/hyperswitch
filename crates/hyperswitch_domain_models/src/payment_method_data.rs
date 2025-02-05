@@ -155,7 +155,6 @@ pub enum CardRedirectData {
 pub enum PayLaterData {
     KlarnaRedirect {},
     KlarnaSdk { token: String },
-    KlarnaCheckout {},
     AffirmRedirect {},
     AfterpayClearpayRedirect {},
     PayBrightRedirect {},
@@ -898,7 +897,6 @@ impl From<api_models::payments::PayLaterData> for PayLaterData {
         match value {
             api_models::payments::PayLaterData::KlarnaRedirect { .. } => Self::KlarnaRedirect {},
             api_models::payments::PayLaterData::KlarnaSdk { token } => Self::KlarnaSdk { token },
-            api_models::payments::PayLaterData::KlarnaCheckout {} => Self::KlarnaCheckout {},
             api_models::payments::PayLaterData::AffirmRedirect {} => Self::AffirmRedirect {},
             api_models::payments::PayLaterData::AfterpayClearpayRedirect { .. } => {
                 Self::AfterpayClearpayRedirect {}
@@ -1552,7 +1550,6 @@ impl GetPaymentMethodType for PayLaterData {
         match self {
             Self::KlarnaRedirect { .. } => api_enums::PaymentMethodType::Klarna,
             Self::KlarnaSdk { .. } => api_enums::PaymentMethodType::Klarna,
-            Self::KlarnaCheckout {} => api_enums::PaymentMethodType::Klarna,
             Self::AffirmRedirect {} => api_enums::PaymentMethodType::Affirm,
             Self::AfterpayClearpayRedirect { .. } => api_enums::PaymentMethodType::AfterpayClearpay,
             Self::PayBrightRedirect {} => api_enums::PaymentMethodType::PayBright,
