@@ -47,6 +47,7 @@ use openssl::{
 };
 #[cfg(feature = "v2")]
 use redis_interface::errors::RedisError;
+use ring::hmac;
 use router_env::{instrument, logger, tracing};
 use uuid::Uuid;
 use x509_parser::parse_x509_certificate;
@@ -4289,6 +4290,7 @@ impl AttemptType {
             organization_id: old_payment_attempt.organization_id,
             profile_id: old_payment_attempt.profile_id,
             connector_mandate_detail: None,
+            card_discovery: None,
         }
     }
 
@@ -5072,6 +5074,9 @@ async fn get_and_merge_apple_pay_metadata(
                     paze: connector_wallets_details_optional
                         .as_ref()
                         .and_then(|d| d.paze.clone()),
+                    google_pay: connector_wallets_details_optional
+                        .as_ref()
+                        .and_then(|d| d.google_pay.clone()),
                 }
             }
             api_models::payments::ApplepaySessionTokenMetadata::ApplePay(apple_pay_metadata) => {
@@ -5090,6 +5095,9 @@ async fn get_and_merge_apple_pay_metadata(
                     paze: connector_wallets_details_optional
                         .as_ref()
                         .and_then(|d| d.paze.clone()),
+                    google_pay: connector_wallets_details_optional
+                        .as_ref()
+                        .and_then(|d| d.google_pay.clone()),
                 }
             }
         };
@@ -5423,6 +5431,543 @@ impl ApplePayData {
             .change_context(errors::ApplePayDecryptionError::DecryptionFailed)?;
 
         Ok(decrypted)
+    }
+}
+
+pub(crate) const SENDER_ID: &[u8] = b"Google";
+pub(crate) const PROTOCOL: &str = "ECv2";
+
+// Structs for keys and the main decryptor
+pub struct GooglePayTokenDecryptor {
+    root_signing_keys: Vec<GooglePayRootSigningKey>,
+    recipient_id: Option<masking::Secret<String>>,
+    private_key: PKey<openssl::pkey::Private>,
+}
+
+#[derive(Debug, Clone, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EncryptedData {
+    signature: String,
+    intermediate_signing_key: IntermediateSigningKey,
+    protocol_version: GooglePayProtocolVersion,
+    #[serde(with = "common_utils::custom_serde::json_string")]
+    signed_message: GooglePaySignedMessage,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GooglePaySignedMessage {
+    #[serde(with = "common_utils::Base64Serializer")]
+    encrypted_message: masking::Secret<Vec<u8>>,
+    #[serde(with = "common_utils::Base64Serializer")]
+    ephemeral_public_key: masking::Secret<Vec<u8>>,
+    #[serde(with = "common_utils::Base64Serializer")]
+    tag: masking::Secret<Vec<u8>>,
+}
+
+#[derive(Debug, Clone, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct IntermediateSigningKey {
+    signed_key: masking::Secret<String>,
+    signatures: Vec<masking::Secret<String>>,
+}
+
+#[derive(Debug, Clone, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GooglePaySignedKey {
+    key_value: masking::Secret<String>,
+    key_expiration: String,
+}
+
+#[derive(Debug, Clone, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GooglePayRootSigningKey {
+    key_value: masking::Secret<String>,
+    key_expiration: String,
+    protocol_version: GooglePayProtocolVersion,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Eq, PartialEq)]
+pub enum GooglePayProtocolVersion {
+    #[serde(rename = "ECv2")]
+    EcProtocolVersion2,
+}
+
+// Check expiration date validity
+fn check_expiration_date_is_valid(
+    expiration: &str,
+) -> CustomResult<bool, errors::GooglePayDecryptionError> {
+    let expiration_ms = expiration
+        .parse::<i128>()
+        .change_context(errors::GooglePayDecryptionError::InvalidExpirationTime)?;
+    // convert milliseconds to nanoseconds (1 millisecond = 1_000_000 nanoseconds) to create OffsetDateTime
+    let expiration_time =
+        time::OffsetDateTime::from_unix_timestamp_nanos(expiration_ms * 1_000_000)
+            .change_context(errors::GooglePayDecryptionError::InvalidExpirationTime)?;
+    let now = time::OffsetDateTime::now_utc();
+
+    Ok(expiration_time > now)
+}
+
+// Construct little endian format of u32
+fn get_little_endian_format(number: u32) -> Vec<u8> {
+    number.to_le_bytes().to_vec()
+}
+
+// Filter and parse the root signing keys based on protocol version and expiration time
+fn filter_root_signing_keys(
+    root_signing_keys: Vec<GooglePayRootSigningKey>,
+) -> CustomResult<Vec<GooglePayRootSigningKey>, errors::GooglePayDecryptionError> {
+    let filtered_root_signing_keys = root_signing_keys
+        .iter()
+        .filter(|key| {
+            key.protocol_version == GooglePayProtocolVersion::EcProtocolVersion2
+                && matches!(
+                    check_expiration_date_is_valid(&key.key_expiration).inspect_err(
+                        |err| logger::warn!(
+                            "Failed to check expirattion due to invalid format: {:?}",
+                            err
+                        )
+                    ),
+                    Ok(true)
+                )
+        })
+        .cloned()
+        .collect::<Vec<GooglePayRootSigningKey>>();
+
+    logger::info!(
+        "Filtered {} out of {} root signing keys",
+        filtered_root_signing_keys.len(),
+        root_signing_keys.len()
+    );
+
+    Ok(filtered_root_signing_keys)
+}
+
+impl GooglePayTokenDecryptor {
+    pub fn new(
+        root_keys: masking::Secret<String>,
+        recipient_id: Option<masking::Secret<String>>,
+        private_key: masking::Secret<String>,
+    ) -> CustomResult<Self, errors::GooglePayDecryptionError> {
+        // base64 decode the private key
+        let decoded_key = BASE64_ENGINE
+            .decode(private_key.expose())
+            .change_context(errors::GooglePayDecryptionError::Base64DecodingFailed)?;
+        // create a private key from the decoded key
+        let private_key = PKey::private_key_from_pkcs8(&decoded_key)
+            .change_context(errors::GooglePayDecryptionError::KeyDeserializationFailed)
+            .attach_printable("cannot convert private key from decode_key")?;
+
+        // parse the root signing keys
+        let root_keys_vector: Vec<GooglePayRootSigningKey> = root_keys
+            .expose()
+            .parse_struct("GooglePayRootSigningKey")
+            .change_context(errors::GooglePayDecryptionError::DeserializationFailed)?;
+
+        // parse and filter the root signing keys by protocol version
+        let filtered_root_signing_keys = filter_root_signing_keys(root_keys_vector)?;
+
+        Ok(Self {
+            root_signing_keys: filtered_root_signing_keys,
+            recipient_id,
+            private_key,
+        })
+    }
+
+    // Decrypt the Google pay token
+    pub fn decrypt_token(
+        &self,
+        data: String,
+        should_verify_signature: bool,
+    ) -> CustomResult<
+        hyperswitch_domain_models::router_data::GooglePayDecryptedData,
+        errors::GooglePayDecryptionError,
+    > {
+        // parse the encrypted data
+        let encrypted_data: EncryptedData = data
+            .parse_struct("EncryptedData")
+            .change_context(errors::GooglePayDecryptionError::DeserializationFailed)?;
+
+        // verify the signature if required
+        if should_verify_signature {
+            self.verify_signature(&encrypted_data)?;
+        }
+
+        let ephemeral_public_key = encrypted_data.signed_message.ephemeral_public_key.peek();
+        let tag = encrypted_data.signed_message.tag.peek();
+        let encrypted_message = encrypted_data.signed_message.encrypted_message.peek();
+
+        // derive the shared key
+        let shared_key = self.get_shared_key(ephemeral_public_key)?;
+
+        // derive the symmetric encryption key and MAC key
+        let derived_key = self.derive_key(ephemeral_public_key, &shared_key)?;
+        // First 32 bytes for AES-256 and Remaining bytes for HMAC
+        let (symmetric_encryption_key, mac_key) = derived_key
+            .split_at_checked(32)
+            .ok_or(errors::GooglePayDecryptionError::ParsingFailed)?;
+
+        // verify the HMAC of the message
+        self.verify_hmac(mac_key, tag, encrypted_message)?;
+
+        // decrypt the message
+        let decrypted = self.decrypt_message(symmetric_encryption_key, encrypted_message)?;
+
+        // parse the decrypted data
+        let decrypted_data: hyperswitch_domain_models::router_data::GooglePayDecryptedData =
+            decrypted
+                .parse_struct("GooglePayDecryptedData")
+                .change_context(errors::GooglePayDecryptionError::DeserializationFailed)?;
+
+        // check the expiration date of the decrypted data
+        if matches!(
+            check_expiration_date_is_valid(&decrypted_data.message_expiration),
+            Ok(true)
+        ) {
+            Ok(decrypted_data)
+        } else {
+            Err(errors::GooglePayDecryptionError::DecryptedTokenExpired.into())
+        }
+    }
+
+    // Verify the signature of the token
+    fn verify_signature(
+        &self,
+        encrypted_data: &EncryptedData,
+    ) -> CustomResult<(), errors::GooglePayDecryptionError> {
+        // check the protocol version
+        if encrypted_data.protocol_version != GooglePayProtocolVersion::EcProtocolVersion2 {
+            return Err(errors::GooglePayDecryptionError::InvalidProtocolVersion.into());
+        }
+
+        // verify the intermediate signing key
+        self.verify_intermediate_signing_key(encrypted_data)?;
+        // validate and fetch the signed key
+        let signed_key = self.validate_signed_key(&encrypted_data.intermediate_signing_key)?;
+        // verify the signature of the token
+        self.verify_message_signature(encrypted_data, &signed_key)
+    }
+
+    // Verify the intermediate signing key
+    fn verify_intermediate_signing_key(
+        &self,
+        encrypted_data: &EncryptedData,
+    ) -> CustomResult<(), errors::GooglePayDecryptionError> {
+        let mut signatrues: Vec<openssl::ecdsa::EcdsaSig> = Vec::new();
+
+        // decode and parse the signatures
+        for signature in encrypted_data.intermediate_signing_key.signatures.iter() {
+            let signature = BASE64_ENGINE
+                .decode(signature.peek())
+                .change_context(errors::GooglePayDecryptionError::Base64DecodingFailed)?;
+            let ecdsa_signature = openssl::ecdsa::EcdsaSig::from_der(&signature)
+                .change_context(errors::GooglePayDecryptionError::EcdsaSignatureParsingFailed)?;
+            signatrues.push(ecdsa_signature);
+        }
+
+        // get the sender id i.e. Google
+        let sender_id = String::from_utf8(SENDER_ID.to_vec())
+            .change_context(errors::GooglePayDecryptionError::DeserializationFailed)?;
+
+        // construct the signed data
+        let signed_data = self.construct_signed_data_for_intermediate_signing_key_verification(
+            &sender_id,
+            PROTOCOL,
+            encrypted_data.intermediate_signing_key.signed_key.peek(),
+        )?;
+
+        // check if any of the signatures are valid for any of the root signing keys
+        for key in self.root_signing_keys.iter() {
+            // decode and create public key
+            let public_key = self
+                .load_public_key(key.key_value.peek())
+                .change_context(errors::GooglePayDecryptionError::DerivingPublicKeyFailed)?;
+            // fetch the ec key from public key
+            let ec_key = public_key
+                .ec_key()
+                .change_context(errors::GooglePayDecryptionError::DerivingEcKeyFailed)?;
+
+            // hash the signed data
+            let message_hash = openssl::sha::sha256(&signed_data);
+
+            // verify if any of the signatures is valid against the given key
+            for signature in signatrues.iter() {
+                let result = signature.verify(&message_hash, &ec_key).change_context(
+                    errors::GooglePayDecryptionError::SignatureVerificationFailed,
+                )?;
+
+                if result {
+                    return Ok(());
+                }
+            }
+        }
+
+        Err(errors::GooglePayDecryptionError::InvalidIntermediateSignature.into())
+    }
+
+    // Construct signed data for intermediate signing key verification
+    fn construct_signed_data_for_intermediate_signing_key_verification(
+        &self,
+        sender_id: &str,
+        protocol_version: &str,
+        signed_key: &str,
+    ) -> CustomResult<Vec<u8>, errors::GooglePayDecryptionError> {
+        let length_of_sender_id = u32::try_from(sender_id.len())
+            .change_context(errors::GooglePayDecryptionError::ParsingFailed)?;
+        let length_of_protocol_version = u32::try_from(protocol_version.len())
+            .change_context(errors::GooglePayDecryptionError::ParsingFailed)?;
+        let length_of_signed_key = u32::try_from(signed_key.len())
+            .change_context(errors::GooglePayDecryptionError::ParsingFailed)?;
+
+        let mut signed_data: Vec<u8> = Vec::new();
+        signed_data.append(&mut get_little_endian_format(length_of_sender_id));
+        signed_data.append(&mut sender_id.as_bytes().to_vec());
+        signed_data.append(&mut get_little_endian_format(length_of_protocol_version));
+        signed_data.append(&mut protocol_version.as_bytes().to_vec());
+        signed_data.append(&mut get_little_endian_format(length_of_signed_key));
+        signed_data.append(&mut signed_key.as_bytes().to_vec());
+
+        Ok(signed_data)
+    }
+
+    // Validate and parse signed key
+    fn validate_signed_key(
+        &self,
+        intermediate_signing_key: &IntermediateSigningKey,
+    ) -> CustomResult<GooglePaySignedKey, errors::GooglePayDecryptionError> {
+        let signed_key: GooglePaySignedKey = intermediate_signing_key
+            .signed_key
+            .clone()
+            .expose()
+            .parse_struct("GooglePaySignedKey")
+            .change_context(errors::GooglePayDecryptionError::SignedKeyParsingFailure)?;
+        if !matches!(
+            check_expiration_date_is_valid(&signed_key.key_expiration),
+            Ok(true)
+        ) {
+            return Err(errors::GooglePayDecryptionError::SignedKeyExpired)?;
+        }
+        Ok(signed_key)
+    }
+
+    // Verify the signed message
+    fn verify_message_signature(
+        &self,
+        encrypted_data: &EncryptedData,
+        signed_key: &GooglePaySignedKey,
+    ) -> CustomResult<(), errors::GooglePayDecryptionError> {
+        // create a public key from the intermediate signing key
+        let public_key = self.load_public_key(signed_key.key_value.peek())?;
+        // base64 decode the signature
+        let signature = BASE64_ENGINE
+            .decode(&encrypted_data.signature)
+            .change_context(errors::GooglePayDecryptionError::Base64DecodingFailed)?;
+
+        // parse the signature using ECDSA
+        let ecdsa_signature = openssl::ecdsa::EcdsaSig::from_der(&signature)
+            .change_context(errors::GooglePayDecryptionError::EcdsaSignatureFailed)?;
+
+        // get the EC key from the public key
+        let ec_key = public_key
+            .ec_key()
+            .change_context(errors::GooglePayDecryptionError::DerivingEcKeyFailed)?;
+
+        // get the sender id i.e. Google
+        let sender_id = String::from_utf8(SENDER_ID.to_vec())
+            .change_context(errors::GooglePayDecryptionError::DeserializationFailed)?;
+
+        // serialize the signed message to string
+        let signed_message = serde_json::to_string(&encrypted_data.signed_message)
+            .change_context(errors::GooglePayDecryptionError::SignedKeyParsingFailure)?;
+
+        // construct the signed data
+        let signed_data = self.construct_signed_data_for_signature_verification(
+            &sender_id,
+            PROTOCOL,
+            &signed_message,
+        )?;
+
+        // hash the signed data
+        let message_hash = openssl::sha::sha256(&signed_data);
+
+        // verify the signature
+        let result = ecdsa_signature
+            .verify(&message_hash, &ec_key)
+            .change_context(errors::GooglePayDecryptionError::SignatureVerificationFailed)?;
+
+        if result {
+            Ok(())
+        } else {
+            Err(errors::GooglePayDecryptionError::InvalidSignature)?
+        }
+    }
+
+    // Fetch the public key
+    fn load_public_key(
+        &self,
+        key: &str,
+    ) -> CustomResult<PKey<openssl::pkey::Public>, errors::GooglePayDecryptionError> {
+        // decode the base64 string
+        let der_data = BASE64_ENGINE
+            .decode(key)
+            .change_context(errors::GooglePayDecryptionError::Base64DecodingFailed)?;
+
+        // parse the DER-encoded data as an EC public key
+        let ec_key = openssl::ec::EcKey::public_key_from_der(&der_data)
+            .change_context(errors::GooglePayDecryptionError::DerivingEcKeyFailed)?;
+
+        // wrap the EC key in a PKey (a more general-purpose public key type in OpenSSL)
+        let public_key = PKey::from_ec_key(ec_key)
+            .change_context(errors::GooglePayDecryptionError::DerivingPublicKeyFailed)?;
+
+        Ok(public_key)
+    }
+
+    // Construct signed data for signature verification
+    fn construct_signed_data_for_signature_verification(
+        &self,
+        sender_id: &str,
+        protocol_version: &str,
+        signed_key: &str,
+    ) -> CustomResult<Vec<u8>, errors::GooglePayDecryptionError> {
+        let recipient_id = self
+            .recipient_id
+            .clone()
+            .ok_or(errors::GooglePayDecryptionError::RecipientIdNotFound)?
+            .expose();
+        let length_of_sender_id = u32::try_from(sender_id.len())
+            .change_context(errors::GooglePayDecryptionError::ParsingFailed)?;
+        let length_of_recipient_id = u32::try_from(recipient_id.len())
+            .change_context(errors::GooglePayDecryptionError::ParsingFailed)?;
+        let length_of_protocol_version = u32::try_from(protocol_version.len())
+            .change_context(errors::GooglePayDecryptionError::ParsingFailed)?;
+        let length_of_signed_key = u32::try_from(signed_key.len())
+            .change_context(errors::GooglePayDecryptionError::ParsingFailed)?;
+
+        let mut signed_data: Vec<u8> = Vec::new();
+        signed_data.append(&mut get_little_endian_format(length_of_sender_id));
+        signed_data.append(&mut sender_id.as_bytes().to_vec());
+        signed_data.append(&mut get_little_endian_format(length_of_recipient_id));
+        signed_data.append(&mut recipient_id.as_bytes().to_vec());
+        signed_data.append(&mut get_little_endian_format(length_of_protocol_version));
+        signed_data.append(&mut protocol_version.as_bytes().to_vec());
+        signed_data.append(&mut get_little_endian_format(length_of_signed_key));
+        signed_data.append(&mut signed_key.as_bytes().to_vec());
+
+        Ok(signed_data)
+    }
+
+    // Derive a shared key using ECDH
+    fn get_shared_key(
+        &self,
+        ephemeral_public_key_bytes: &[u8],
+    ) -> CustomResult<Vec<u8>, errors::GooglePayDecryptionError> {
+        let group = openssl::ec::EcGroup::from_curve_name(openssl::nid::Nid::X9_62_PRIME256V1)
+            .change_context(errors::GooglePayDecryptionError::DerivingEcGroupFailed)?;
+
+        let mut big_num_context = openssl::bn::BigNumContext::new()
+            .change_context(errors::GooglePayDecryptionError::BigNumAllocationFailed)?;
+
+        let ec_key = openssl::ec::EcPoint::from_bytes(
+            &group,
+            ephemeral_public_key_bytes,
+            &mut big_num_context,
+        )
+        .change_context(errors::GooglePayDecryptionError::DerivingEcKeyFailed)?;
+
+        // create an ephemeral public key from the given bytes
+        let ephemeral_public_key = openssl::ec::EcKey::from_public_key(&group, &ec_key)
+            .change_context(errors::GooglePayDecryptionError::DerivingPublicKeyFailed)?;
+
+        // wrap the public key in a PKey
+        let ephemeral_pkey = PKey::from_ec_key(ephemeral_public_key)
+            .change_context(errors::GooglePayDecryptionError::DerivingPublicKeyFailed)?;
+
+        // perform ECDH to derive the shared key
+        let mut deriver = Deriver::new(&self.private_key)
+            .change_context(errors::GooglePayDecryptionError::DerivingSharedSecretKeyFailed)?;
+
+        deriver
+            .set_peer(&ephemeral_pkey)
+            .change_context(errors::GooglePayDecryptionError::DerivingSharedSecretKeyFailed)?;
+
+        let shared_key = deriver
+            .derive_to_vec()
+            .change_context(errors::GooglePayDecryptionError::DerivingSharedSecretKeyFailed)?;
+
+        Ok(shared_key)
+    }
+
+    // Derive symmetric key and MAC key using HKDF
+    fn derive_key(
+        &self,
+        ephemeral_public_key_bytes: &[u8],
+        shared_key: &[u8],
+    ) -> CustomResult<Vec<u8>, errors::GooglePayDecryptionError> {
+        // concatenate ephemeral public key and shared key
+        let input_key_material = [ephemeral_public_key_bytes, shared_key].concat();
+
+        // initialize HKDF with SHA-256 as the hash function
+        // Salt is not provided as per the Google Pay documentation
+        // https://developers.google.com/pay/api/android/guides/resources/payment-data-cryptography#encrypt-spec
+        let hkdf: ::hkdf::Hkdf<sha2::Sha256> = ::hkdf::Hkdf::new(None, &input_key_material);
+
+        // derive 64 bytes for the output key (symmetric encryption + MAC key)
+        let mut output_key = vec![0u8; 64];
+        hkdf.expand(SENDER_ID, &mut output_key).map_err(|err| {
+            logger::error!(
+                "Failed to derive the shared ephemeral key for Google Pay decryption flow: {:?}",
+                err
+            );
+            report!(errors::GooglePayDecryptionError::DerivingSharedEphemeralKeyFailed)
+        })?;
+
+        Ok(output_key)
+    }
+
+    // Verify the Hmac key
+    // https://developers.google.com/pay/api/android/guides/resources/payment-data-cryptography#encrypt-spec
+    fn verify_hmac(
+        &self,
+        mac_key: &[u8],
+        tag: &[u8],
+        encrypted_message: &[u8],
+    ) -> CustomResult<(), errors::GooglePayDecryptionError> {
+        let hmac_key = hmac::Key::new(hmac::HMAC_SHA256, mac_key);
+        hmac::verify(&hmac_key, encrypted_message, tag)
+            .change_context(errors::GooglePayDecryptionError::HmacVerificationFailed)
+    }
+
+    // Method to decrypt the AES-GCM encrypted message
+    fn decrypt_message(
+        &self,
+        symmetric_key: &[u8],
+        encrypted_message: &[u8],
+    ) -> CustomResult<Vec<u8>, errors::GooglePayDecryptionError> {
+        //initialization vector IV is typically used in AES-GCM (Galois/Counter Mode) encryption for randomizing the encryption process.
+        // zero iv is being passed as specified in Google Pay documentation
+        // https://developers.google.com/pay/api/android/guides/resources/payment-data-cryptography#decrypt-token
+        let iv = [0u8; 16];
+
+        // extract the tag from the end of the encrypted message
+        let tag = encrypted_message
+            .get(encrypted_message.len() - 16..)
+            .ok_or(errors::GooglePayDecryptionError::ParsingTagError)?;
+
+        // decrypt the message using AES-256-CTR
+        let cipher = Cipher::aes_256_ctr();
+        let decrypted_data = decrypt_aead(
+            cipher,
+            symmetric_key,
+            Some(&iv),
+            &[],
+            encrypted_message,
+            tag,
+        )
+        .change_context(errors::GooglePayDecryptionError::DecryptionFailed)?;
+
+        Ok(decrypted_data)
     }
 }
 

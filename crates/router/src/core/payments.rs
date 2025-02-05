@@ -3080,7 +3080,61 @@ where
                 paze_decrypted_data,
             ))))
         }
-        _ => Ok(None),
+        TokenizationAction::DecryptGooglePayToken(payment_processing_details) => {
+            let google_pay_data = match payment_data.get_payment_method_data() {
+                Some(domain::PaymentMethodData::Wallet(domain::WalletData::GooglePay(
+                    wallet_data,
+                ))) => {
+                    let decryptor = helpers::GooglePayTokenDecryptor::new(
+                        payment_processing_details
+                            .google_pay_root_signing_keys
+                            .clone(),
+                        payment_processing_details.google_pay_recipient_id.clone(),
+                        payment_processing_details.google_pay_private_key.clone(),
+                    )
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("failed to create google pay token decryptor")?;
+
+                    // should_verify_token is set to false to disable verification of token
+                    Some(
+                        decryptor
+                            .decrypt_token(wallet_data.tokenization_data.token.clone(), false)
+                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable("failed to decrypt google pay token")?,
+                    )
+                }
+                Some(payment_method_data) => {
+                    logger::info!(
+                        "Invalid payment_method_data found for Google Pay Decrypt Flow: {:?}",
+                        payment_method_data.get_payment_method()
+                    );
+                    None
+                }
+                None => {
+                    logger::info!("No payment_method_data found for Google Pay Decrypt Flow");
+                    None
+                }
+            };
+
+            let google_pay_predecrypt = google_pay_data
+                .ok_or(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("failed to get GooglePayDecryptedData in response")?;
+
+            Ok(Some(PaymentMethodToken::GooglePayDecrypt(Box::new(
+                google_pay_predecrypt,
+            ))))
+        }
+        TokenizationAction::ConnectorToken(_) => {
+            logger::info!("Invalid tokenization action found for decryption flow: ConnectorToken",);
+            Ok(None)
+        }
+        token_action => {
+            logger::info!(
+                "Invalid tokenization action found for decryption flow: {:?}",
+                token_action
+            );
+            Ok(None)
+        }
     }
 }
 
@@ -4052,6 +4106,64 @@ fn check_apple_pay_metadata(
     })
 }
 
+fn get_google_pay_connector_wallet_details(
+    state: &SessionState,
+    merchant_connector_account: &helpers::MerchantConnectorAccountType,
+) -> Option<GooglePayPaymentProcessingDetails> {
+    let google_pay_root_signing_keys =
+        state
+            .conf
+            .google_pay_decrypt_keys
+            .as_ref()
+            .map(|google_pay_keys| {
+                google_pay_keys
+                    .get_inner()
+                    .google_pay_root_signing_keys
+                    .clone()
+            });
+    match (
+        google_pay_root_signing_keys,
+        merchant_connector_account.get_connector_wallets_details(),
+    ) {
+        (Some(google_pay_root_signing_keys), Some(wallet_details)) => {
+            let google_pay_wallet_details = wallet_details
+                .parse_value::<api_models::payments::GooglePayWalletDetails>(
+                    "GooglePayWalletDetails",
+                )
+                .map_err(|error| {
+                    logger::warn!(?error, "Failed to Parse Value to GooglePayWalletDetails")
+                });
+
+            google_pay_wallet_details
+                .ok()
+                .map(
+                    |google_pay_wallet_details| {
+                        match google_pay_wallet_details
+                        .google_pay
+                        .provider_details {
+                            api_models::payments::GooglePayProviderDetails::GooglePayMerchantDetails(merchant_details) => {
+                                GooglePayPaymentProcessingDetails {
+                                    google_pay_private_key: merchant_details
+                                        .merchant_info
+                                        .tokenization_specification
+                                        .parameters
+                                        .private_key,
+                                    google_pay_root_signing_keys,
+                                    google_pay_recipient_id: merchant_details
+                                        .merchant_info
+                                        .tokenization_specification
+                                        .parameters
+                                        .recipient_id,
+                                }
+                            }
+                        }
+                    }
+                )
+        }
+        _ => None,
+    }
+}
+
 fn is_payment_method_type_allowed_for_connector(
     current_pm_type: Option<storage::enums::PaymentMethodType>,
     pm_type_filter: Option<PaymentMethodTypeTokenFilter>,
@@ -4066,6 +4178,7 @@ fn is_payment_method_type_allowed_for_connector(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn decide_payment_method_tokenize_action(
     state: &SessionState,
     connector_name: &str,
@@ -4074,6 +4187,7 @@ async fn decide_payment_method_tokenize_action(
     is_connector_tokenization_enabled: bool,
     apple_pay_flow: Option<domain::ApplePayFlow>,
     payment_method_type: Option<storage_enums::PaymentMethodType>,
+    merchant_connector_account: &helpers::MerchantConnectorAccountType,
 ) -> RouterResult<TokenizationAction> {
     if let Some(storage_enums::PaymentMethodType::Paze) = payment_method_type {
         // Paze generates a one time use network token which should not be tokenized in the connector or router.
@@ -4089,6 +4203,20 @@ async fn decide_payment_method_tokenize_action(
             )),
             None => Err(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to fetch Paze configs"),
+        }
+    } else if let Some(storage_enums::PaymentMethodType::GooglePay) = payment_method_type {
+        let google_pay_details =
+            get_google_pay_connector_wallet_details(state, merchant_connector_account);
+
+        match google_pay_details {
+            Some(wallet_details) => Ok(TokenizationAction::DecryptGooglePayToken(wallet_details)),
+            None => {
+                if is_connector_tokenization_enabled {
+                    Ok(TokenizationAction::TokenizeInConnectorAndRouter)
+                } else {
+                    Ok(TokenizationAction::TokenizeInRouter)
+                }
+            }
         }
     } else {
         match pm_parent_token {
@@ -4154,6 +4282,13 @@ pub struct PazePaymentProcessingDetails {
     pub paze_private_key_passphrase: Secret<String>,
 }
 
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct GooglePayPaymentProcessingDetails {
+    pub google_pay_private_key: Secret<String>,
+    pub google_pay_root_signing_keys: Secret<String>,
+    pub google_pay_recipient_id: Option<Secret<String>>,
+}
+
 #[derive(Clone, Debug)]
 pub enum TokenizationAction {
     TokenizeInRouter,
@@ -4164,6 +4299,7 @@ pub enum TokenizationAction {
     DecryptApplePayToken(payments_api::PaymentProcessingDetails),
     TokenizeInConnectorAndApplepayPreDecrypt(payments_api::PaymentProcessingDetails),
     DecryptPazeToken(PazePaymentProcessingDetails),
+    DecryptGooglePayToken(GooglePayPaymentProcessingDetails),
 }
 
 #[cfg(feature = "v2")]
@@ -4254,6 +4390,7 @@ where
                 is_connector_tokenization_enabled,
                 apple_pay_flow,
                 payment_method_type,
+                merchant_connector_account,
             )
             .await?;
 
@@ -4311,6 +4448,11 @@ where
                 ),
                 TokenizationAction::DecryptPazeToken(paze_payment_processing_details) => {
                     TokenizationAction::DecryptPazeToken(paze_payment_processing_details)
+                }
+                TokenizationAction::DecryptGooglePayToken(
+                    google_pay_payment_processing_details,
+                ) => {
+                    TokenizationAction::DecryptGooglePayToken(google_pay_payment_processing_details)
                 }
             };
             (payment_data.to_owned(), connector_tokenization_action)
@@ -4450,6 +4592,28 @@ pub struct PaymentEvent {
 }
 
 impl<F: Clone> PaymentData<F> {
+    // Get the method by which a card is discovered during a payment
+    #[cfg(feature = "v1")]
+    fn get_card_discovery_for_card_payment_method(&self) -> Option<common_enums::CardDiscovery> {
+        match self.payment_attempt.payment_method {
+            Some(storage_enums::PaymentMethod::Card) => {
+                if self
+                    .token_data
+                    .as_ref()
+                    .map(storage::PaymentTokenData::is_permanent_card)
+                    .unwrap_or(false)
+                {
+                    Some(common_enums::CardDiscovery::SavedCard)
+                } else if self.service_details.is_some() {
+                    Some(common_enums::CardDiscovery::ClickToPay)
+                } else {
+                    Some(common_enums::CardDiscovery::Manual)
+                }
+            }
+            _ => None,
+        }
+    }
+
     fn to_event(&self) -> PaymentEvent {
         PaymentEvent {
             payment_intent: self.payment_intent.clone(),
