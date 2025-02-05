@@ -1,8 +1,8 @@
 use std::fmt::Debug;
 
 use common_utils::events::ApiEventMetric;
-use time::PrimitiveDateTime;
 use utoipa::ToSchema;
+
 use crate::enums as storage_enums;
 
 #[derive(serde::Deserialize, ToSchema)]
@@ -44,8 +44,6 @@ pub struct CardInfoCreateRequest {
     pub bank_code_id: Option<String>,
     pub bank_code: Option<String>,
     pub country_code: Option<String>,
-    pub date_created: PrimitiveDateTime,
-    pub last_updated: Option<PrimitiveDateTime>,
     pub last_updated_provider: Option<String>,
 }
 
@@ -62,7 +60,6 @@ pub struct CardInfoUpdateRequest {
     pub bank_code_id: Option<String>,
     pub bank_code: Option<String>,
     pub country_code: Option<String>,
-    pub last_updated: Option<PrimitiveDateTime>,
     pub last_updated_provider: Option<String>,
 }
 

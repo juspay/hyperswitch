@@ -1799,9 +1799,9 @@ impl Cards {
     pub fn server(state: AppState) -> Scope {
         web::scope("/cards")
             .app_data(web::Data::new(state))
-            .service(web::resource("/{bin}").route(web::get().to(card_iin_info)))
             .service(web::resource("/create").route(web::post().to(create_cards_info)))
             .service(web::resource("/update").route(web::post().to(update_cards_info)))
+            .service(web::resource("/{bin}").route(web::get().to(card_iin_info)))
     }
 }
 

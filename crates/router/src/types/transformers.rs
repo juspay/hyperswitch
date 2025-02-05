@@ -2273,8 +2273,8 @@ impl ForeignFrom<card_info_types::CardInfoCreateRequest> for storage::CardInfo {
             bank_code_id: value.bank_code_id,
             bank_code: value.bank_code,
             country_code: value.country_code,
-            date_created: value.date_created,
-            last_updated: value.last_updated,
+            date_created: common_utils::date_time::now(),
+            last_updated: Some(common_utils::date_time::now()),
             last_updated_provider: value.last_updated_provider,
         }
     }

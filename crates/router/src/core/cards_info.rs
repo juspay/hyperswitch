@@ -85,7 +85,6 @@ pub async fn update_card_info(
         bank_code_id,
         bank_code,
         country_code,
-        last_updated,
         last_updated_provider,
     } = card_info_request;
     CardsInfoInterface::update_card_info(
@@ -100,7 +99,7 @@ pub async fn update_card_info(
             bank_code_id,
             bank_code,
             country_code,
-            last_updated,
+            last_updated: Some(common_utils::date_time::now()),
             last_updated_provider,
         },
     )
