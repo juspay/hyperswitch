@@ -435,10 +435,13 @@ mod storage {
                         charges: new.charges.clone(),
                         split_refunds: new.split_refunds.clone(),
                         organization_id: new.organization_id.clone(),
-                        connector_refund_data: new.connector_refund_data.clone(),
-                        connector_transaction_data: new.connector_transaction_data.clone(),
                         unified_code: None,
                         unified_message: None,
+                        processor_refund_data: new.processor_refund_data.clone(),
+                        processor_transaction_data: new.processor_transaction_data.clone(),
+                        // Below fields are deprecated. Please add any new fields above this line.
+                        connector_refund_data: None,
+                        connector_transaction_data: None,
                     };
 
                     let field = format!(
@@ -932,10 +935,13 @@ impl RefundInterface for MockDb {
             charges: new.charges,
             split_refunds: new.split_refunds,
             organization_id: new.organization_id,
-            connector_refund_data: new.connector_refund_data,
-            connector_transaction_data: new.connector_transaction_data,
             unified_code: None,
             unified_message: None,
+            processor_refund_data: new.processor_refund_data.clone(),
+            processor_transaction_data: new.processor_transaction_data.clone(),
+            // Below fields are deprecated. Please add any new fields above this line.
+            connector_refund_data: None,
+            connector_transaction_data: None,
         };
         refunds.push(refund.clone());
         Ok(refund)

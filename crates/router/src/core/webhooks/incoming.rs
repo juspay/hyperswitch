@@ -1023,7 +1023,7 @@ async fn refunds_incoming_webhook_flow(
                 .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
                 .attach_printable("failed refund status mapping from event type")?,
             updated_by: merchant_account.storage_scheme.to_string(),
-            connector_refund_data: None,
+            processor_refund_data: None,
         };
         db.update_refund(
             refund.to_owned(),

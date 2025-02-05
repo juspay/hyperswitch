@@ -171,8 +171,10 @@ pub struct PaymentAttempt {
     pub card_network: Option<String>,
     pub shipping_cost: Option<MinorUnit>,
     pub order_tax_amount: Option<MinorUnit>,
+    /// INFO: This field is deprecated and replaced by processor_transaction_data
     pub connector_transaction_data: Option<String>,
     pub connector_mandate_detail: Option<ConnectorMandateReferenceId>,
+    pub processor_transaction_data: Option<String>,
     pub card_discovery: Option<storage_enums::CardDiscovery>,
 }
 
@@ -182,7 +184,7 @@ impl ConnectorTransactionIdTrait for PaymentAttempt {
         match self
             .connector_transaction_id
             .as_ref()
-            .map(|txn_id| txn_id.get_txn_id(self.connector_transaction_data.as_ref()))
+            .map(|txn_id| txn_id.get_txn_id(self.processor_transaction_data.as_ref()))
             .transpose()
         {
             Ok(txn_id) => txn_id,
@@ -851,8 +853,8 @@ pub struct PaymentAttemptUpdateInternal {
     pub card_network: Option<String>,
     pub shipping_cost: Option<MinorUnit>,
     pub order_tax_amount: Option<MinorUnit>,
-    pub connector_transaction_data: Option<String>,
     pub connector_mandate_detail: Option<ConnectorMandateReferenceId>,
+    pub processor_transaction_data: Option<String>,
     pub card_discovery: Option<common_enums::CardDiscovery>,
 }
 
@@ -1035,7 +1037,7 @@ impl PaymentAttemptUpdate {
             card_network,
             shipping_cost,
             order_tax_amount,
-            connector_transaction_data,
+            processor_transaction_data,
             connector_mandate_detail,
             card_discovery,
         } = PaymentAttemptUpdateInternal::from(self).populate_derived_fields(&source);
@@ -1093,8 +1095,8 @@ impl PaymentAttemptUpdate {
             card_network: card_network.or(source.card_network),
             shipping_cost: shipping_cost.or(source.shipping_cost),
             order_tax_amount: order_tax_amount.or(source.order_tax_amount),
-            connector_transaction_data: connector_transaction_data
-                .or(source.connector_transaction_data),
+            processor_transaction_data: processor_transaction_data
+                .or(source.processor_transaction_data),
             connector_mandate_detail: connector_mandate_detail.or(source.connector_mandate_detail),
             card_discovery: card_discovery.or(source.card_discovery),
             ..source
@@ -1462,7 +1464,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
         //         card_network: None,
         //         shipping_cost: None,
         //         order_tax_amount: None,
-        //         connector_transaction_data: None,
+        //         processor_transaction_data: None,
         //         connector_mandate_detail,
         //     },
         //     PaymentAttemptUpdate::ConnectorMandateDetailUpdate {
@@ -2147,7 +2149,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 card_network: None,
                 shipping_cost: None,
                 order_tax_amount: None,
-                connector_transaction_data: None,
+                processor_transaction_data: None,
                 connector_mandate_detail: None,
                 card_discovery: None,
             },
@@ -2204,7 +2206,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 card_network: None,
                 shipping_cost: None,
                 order_tax_amount: None,
-                connector_transaction_data: None,
+                processor_transaction_data: None,
                 connector_mandate_detail: None,
                 card_discovery: None,
             },
@@ -2293,7 +2295,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 card_network: None,
                 shipping_cost,
                 order_tax_amount,
-                connector_transaction_data: None,
+                processor_transaction_data: None,
                 connector_mandate_detail,
                 card_discovery,
             },
@@ -2351,7 +2353,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 card_network: None,
                 shipping_cost: None,
                 order_tax_amount: None,
-                connector_transaction_data: None,
+                processor_transaction_data: None,
                 connector_mandate_detail: None,
                 card_discovery: None,
             },
@@ -2410,7 +2412,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 card_network: None,
                 shipping_cost: None,
                 order_tax_amount: None,
-                connector_transaction_data: None,
+                processor_transaction_data: None,
                 connector_mandate_detail: None,
                 card_discovery: None,
             },
@@ -2469,7 +2471,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 card_network: None,
                 shipping_cost: None,
                 order_tax_amount: None,
-                connector_transaction_data: None,
+                processor_transaction_data: None,
                 connector_mandate_detail: None,
                 card_discovery: None,
             },
@@ -2526,7 +2528,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 card_network: None,
                 shipping_cost: None,
                 order_tax_amount: None,
-                connector_transaction_data: None,
+                processor_transaction_data: None,
                 connector_mandate_detail,
                 card_discovery: None,
             },
@@ -2583,7 +2585,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 card_network: None,
                 shipping_cost: None,
                 order_tax_amount: None,
-                connector_transaction_data: None,
+                processor_transaction_data: None,
                 connector_mandate_detail: None,
                 card_discovery: None,
             },
@@ -2610,7 +2612,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 charge_id,
                 connector_mandate_detail,
             } => {
-                let (connector_transaction_id, connector_transaction_data) =
+                let (connector_transaction_id, processor_transaction_data) =
                     connector_transaction_id
                         .map(ConnectorTransactionId::form_id_and_data)
                         .map(|(txn_id, txn_data)| (Some(txn_id), txn_data))
@@ -2637,7 +2639,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     unified_message,
                     payment_method_data,
                     charge_id,
-                    connector_transaction_data,
+                    processor_transaction_data,
                     amount: None,
                     net_amount: None,
                     currency: None,
@@ -2684,7 +2686,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 payment_method_data,
                 authentication_type,
             } => {
-                let (connector_transaction_id, connector_transaction_data) =
+                let (connector_transaction_id, processor_transaction_data) =
                     connector_transaction_id
                         .map(ConnectorTransactionId::form_id_and_data)
                         .map(|(txn_id, txn_data)| (Some(txn_id), txn_data))
@@ -2703,7 +2705,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     connector_transaction_id,
                     payment_method_data,
                     authentication_type,
-                    connector_transaction_data,
+                    processor_transaction_data,
                     amount: None,
                     net_amount: None,
                     currency: None,
@@ -2794,7 +2796,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 card_network: None,
                 shipping_cost: None,
                 order_tax_amount: None,
-                connector_transaction_data: None,
+                processor_transaction_data: None,
                 connector_mandate_detail: None,
                 card_discovery: None,
             },
@@ -2857,7 +2859,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 card_network: None,
                 shipping_cost: None,
                 order_tax_amount: None,
-                connector_transaction_data: None,
+                processor_transaction_data: None,
                 connector_mandate_detail: None,
                 card_discovery: None,
             },
@@ -2872,7 +2874,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 connector_response_reference_id,
                 updated_by,
             } => {
-                let (connector_transaction_id, connector_transaction_data) =
+                let (connector_transaction_id, processor_transaction_data) =
                     connector_transaction_id
                         .map(ConnectorTransactionId::form_id_and_data)
                         .map(|(txn_id, txn_data)| (Some(txn_id), txn_data))
@@ -2888,7 +2890,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     error_reason,
                     connector_response_reference_id,
                     updated_by,
-                    connector_transaction_data,
+                    processor_transaction_data,
                     amount: None,
                     net_amount: None,
                     currency: None,
@@ -2941,7 +2943,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 connector_response_reference_id,
                 updated_by,
             } => {
-                let (connector_transaction_id, connector_transaction_data) =
+                let (connector_transaction_id, processor_transaction_data) =
                     connector_transaction_id
                         .map(ConnectorTransactionId::form_id_and_data)
                         .map(|(txn_id, txn_data)| (Some(txn_id), txn_data))
@@ -2955,7 +2957,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     connector_transaction_id,
                     connector_response_reference_id,
                     updated_by,
-                    connector_transaction_data,
+                    processor_transaction_data,
                     amount: None,
                     net_amount: None,
                     currency: None,
@@ -3055,7 +3057,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 card_network: None,
                 shipping_cost: None,
                 order_tax_amount: None,
-                connector_transaction_data: None,
+                processor_transaction_data: None,
                 connector_mandate_detail: None,
                 card_discovery: None,
             },
@@ -3113,7 +3115,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 card_network: None,
                 shipping_cost: None,
                 order_tax_amount: None,
-                connector_transaction_data: None,
+                processor_transaction_data: None,
                 connector_mandate_detail: None,
                 card_discovery: None,
             },
@@ -3125,7 +3127,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 updated_by,
                 charge_id,
             } => {
-                let (connector_transaction_id, connector_transaction_data) =
+                let (connector_transaction_id, processor_transaction_data) =
                     connector_transaction_id
                         .map(ConnectorTransactionId::form_id_and_data)
                         .map(|(txn_id, txn_data)| (Some(txn_id), txn_data))
@@ -3138,7 +3140,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     modified_at: common_utils::date_time::now(),
                     updated_by,
                     charge_id,
-                    connector_transaction_data,
+                    processor_transaction_data,
                     amount: None,
                     net_amount: None,
                     currency: None,
@@ -3238,7 +3240,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 card_network: None,
                 shipping_cost: None,
                 order_tax_amount: None,
-                connector_transaction_data: None,
+                processor_transaction_data: None,
                 connector_mandate_detail: None,
                 card_discovery: None,
             },
@@ -3298,7 +3300,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 card_network: None,
                 shipping_cost: None,
                 order_tax_amount: None,
-                connector_transaction_data: None,
+                processor_transaction_data: None,
                 connector_mandate_detail: None,
                 card_discovery: None,
             },
@@ -3312,7 +3314,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 unified_message,
                 connector_transaction_id,
             } => {
-                let (connector_transaction_id, connector_transaction_data) =
+                let (connector_transaction_id, processor_transaction_data) =
                     connector_transaction_id
                         .map(ConnectorTransactionId::form_id_and_data)
                         .map(|(txn_id, txn_data)| (Some(txn_id), txn_data))
@@ -3327,7 +3329,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     unified_code: unified_code.map(Some),
                     unified_message: unified_message.map(Some),
                     connector_transaction_id,
-                    connector_transaction_data,
+                    processor_transaction_data,
                     amount: None,
                     net_amount: None,
                     currency: None,
@@ -3425,7 +3427,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 card_network: None,
                 shipping_cost: None,
                 order_tax_amount: None,
-                connector_transaction_data: None,
+                processor_transaction_data: None,
                 connector_mandate_detail: None,
                 card_discovery: None,
             },
