@@ -396,7 +396,7 @@ impl Action {
                 }
             }
             Err(_) =>
-            // check for an active attempt being constructed or not
+            // check for an active attempt being present or not
             {
                 match active_attempt_id.clone() {
                     Some(_) => Ok(Self::SyncPayment),

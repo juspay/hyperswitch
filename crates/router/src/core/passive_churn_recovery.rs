@@ -408,7 +408,7 @@ pub async fn review_workflow(
             .await?;
         }
         types::Decision::ReviewFailedPayment => {
-            // get a reschedule time , without increasing the retry cpunt
+            // get a reschedule time for the next retry
             let schedule_time = get_schedule_time_to_retry_mit_payments(
                 db,
                 pcr_data.merchant_account.get_id(),
