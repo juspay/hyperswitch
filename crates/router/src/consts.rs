@@ -218,3 +218,6 @@ pub const REFUND_FLOW_STR: &str = "refund_flow";
 
 /// Default payment method session expiry
 pub const DEFAULT_PAYMENT_METHOD_SESSION_EXPIRY: u32 = 15 * 60; // 15 minutes
+
+/// Authorize flow identifier used for performing GSM operations
+pub const AUTHORIZE_FLOW_STR: &str = "Authorize";
