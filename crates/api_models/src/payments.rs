@@ -437,7 +437,8 @@ pub struct PaymentsIntentResponse {
     #[schema(value_type = CaptureMethod, example = "automatic")]
     pub capture_method: api_enums::CaptureMethod,
 
-    #[schema(value_type = AuthenticationType, example = "no_three_ds", default = "no_three_ds")]
+    /// The authentication type for the payment
+    #[schema(value_type = Option<AuthenticationType>, example = "no_three_ds")]
     pub authentication_type: Option<api_enums::AuthenticationType>,
 
     /// The billing details of the payment. This address will be used for invoicing.
@@ -4894,10 +4895,10 @@ pub struct PaymentsConfirmIntentResponse {
     pub error: Option<ErrorDetails>,
 
     /// The transaction authentication can be set to undergo payer authentication. By default, the authentication will be marked as NO_THREE_DS
-    #[schema(value_type = AuthenticationType, example = "no_three_ds", default = "three_ds")]
+    #[schema(value_type = Option<AuthenticationType>, example = "no_three_ds")]
     pub authentication_type: Option<api_enums::AuthenticationType>,
 
-    /// The transaction authentication can be set to undergo payer authentication. By default, the authentication will be marked as NO_THREE_DS
+    /// The authentication type applied for the payment
     #[schema(value_type = AuthenticationType, example = "no_three_ds", default = "three_ds")]
     pub applied_authentication_type: api_enums::AuthenticationType,
 }

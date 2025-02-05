@@ -173,16 +173,17 @@ pub fn make_dsl_input(
     let mandate_data = dsl_inputs::MandateData {
         mandate_acceptance_type: payments_dsl_input.setup_mandate.as_ref().and_then(
             |mandate_data| {
-                mandate_data.customer_acceptance.clone().map(
-                    |customer_accept| match customer_accept.acceptance_type {
+                mandate_data
+                    .customer_acceptance
+                    .as_ref()
+                    .map(|customer_accept| match customer_accept.acceptance_type {
                         hyperswitch_domain_models::mandates::AcceptanceType::Online => {
                             euclid_enums::MandateAcceptanceType::Online
                         }
                         hyperswitch_domain_models::mandates::AcceptanceType::Offline => {
                             euclid_enums::MandateAcceptanceType::Offline
                         }
-                    },
-                )
+                    })
             },
         ),
         mandate_type: payments_dsl_input
