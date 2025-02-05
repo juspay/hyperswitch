@@ -1293,7 +1293,7 @@ impl MerchantConnectorAccountInterface for MockDb {
             connector_wallets_details: t.connector_wallets_details.map(Encryption::from),
             additional_merchant_data: t.additional_merchant_data.map(|data| data.into()),
             version: t.version,
-            feature_metadata: t.feature_metadata,
+            feature_metadata: t.feature_metadata.map(From::from),
         };
         accounts.push(account.clone());
         account

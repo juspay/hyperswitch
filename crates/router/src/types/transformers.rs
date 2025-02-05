@@ -1291,6 +1291,11 @@ impl ForeignTryFrom<domain::MerchantConnectorAccount>
                 .attach_printable("Failed to encode ConnectorAuthType")?,
         );
 
+        let feature_metadata = item
+            .feature_metadata
+            .as_ref()
+            .map(|metadata|api_models::admin::MerchantConnectorAccountFeatureMetadata::foreign_from(metadata));
+
         let response = Self {
             id: item.get_id(),
             connector_type: item.connector_type,
@@ -1341,7 +1346,7 @@ impl ForeignTryFrom<domain::MerchantConnectorAccount>
                         .change_context(errors::ApiErrorResponse::InternalServerError)
                 })
                 .transpose()?,
-            feature_metadata: item.feature_metadata,
+            feature_metadata,
         };
         Ok(response)
     }

@@ -77,6 +77,11 @@ pub use hyperswitch_domain_models::{
         VerifyWebhookStatus,
     },
 };
+
+#[cfg(feature = "v2")]
+use common_utils::errors::CustomResult;
+#[cfg(feature = "v2")]
+use error_stack::ResultExt;
 #[cfg(feature = "payouts")]
 pub use hyperswitch_domain_models::{
     router_data_v2::PayoutFlowData, router_request_types::PayoutsData,
@@ -1027,5 +1032,60 @@ impl<F1, F2>
             additional_merchant_data: data.additional_merchant_data.clone(),
             connector_mandate_request_reference_id: None,
         }
+    }
+}
+
+
+#[cfg(feature = "v2")]
+impl ForeignFrom<&domain::MerchantConnectorAccountFeatureMetadata>
+    for api_models::admin::MerchantConnectorAccountFeatureMetadata
+{
+    fn foreign_from(item: &domain::MerchantConnectorAccountFeatureMetadata) -> Self {
+        let revenue_recovery =
+            item.revenue_recovery
+                .as_ref()
+                .map(
+                    |revenue_recovery_metadata| api_models::admin::RevenueRecoveryMetadata {
+                        max_retry_count: revenue_recovery_metadata.max_retry_count.clone(),
+                        billing_connector_retry_threshold: revenue_recovery_metadata
+                            .billing_connector_retry_threshold
+                            .clone(),
+                        billing_account_reference: revenue_recovery_metadata
+                            .mca_reference
+                            .recovery_to_billing
+                            .clone(),
+                    },
+                );
+        api_models::admin::MerchantConnectorAccountFeatureMetadata {
+            revenue_recovery,
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
+impl ForeignTryFrom<&api_models::admin::MerchantConnectorAccountFeatureMetadata>
+    for domain::MerchantConnectorAccountFeatureMetadata
+{
+    type Error = errors::ApiErrorResponse;
+    fn foreign_try_from(
+        feature_metadata: &api_models::admin::MerchantConnectorAccountFeatureMetadata,
+    ) -> Result<Self, Self::Error> {
+        let revenue_recovery = feature_metadata
+    .revenue_recovery
+    .as_ref()
+    .map(|revenue_recovery_metadata| {
+        domain::AccountReferenceMap::new(revenue_recovery_metadata.billing_account_reference.clone())
+            .map(|mca_reference| domain::RevenueRecoveryMetadata {
+                max_retry_count: revenue_recovery_metadata.max_retry_count,
+                billing_connector_retry_threshold: revenue_recovery_metadata.billing_connector_retry_threshold,
+                mca_reference,
+            })
+    })
+    .transpose()?; 
+
+
+        Ok(domain::MerchantConnectorAccountFeatureMetadata {
+            revenue_recovery,
+        })
     }
 }

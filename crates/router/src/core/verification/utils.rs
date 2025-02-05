@@ -98,7 +98,7 @@ pub async fn check_existence_and_add_domain_to_db(
         status: None,
         connector_wallets_details: Box::new(None),
         additional_merchant_data: Box::new(None),
-        feature_metadata: None,
+        feature_metadata: Box::new(None),
     };
     state
         .store

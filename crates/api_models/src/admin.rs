@@ -735,8 +735,7 @@ pub struct MerchantConnectorCreate {
 
     /// Additional data that might be required by hyperswitch, to enable some specific features.
     #[schema(value_type = Option<MerchantConnectorAccountFeatureMetadata>)]
-    pub feature_metadata:
-        Option<common_types::merchant_connector_account::MerchantConnectorAccountFeatureMetadata>,
+    pub feature_metadata: Option<MerchantConnectorAccountFeatureMetadata>,
 }
 
 #[cfg(feature = "v2")]
@@ -912,6 +911,28 @@ pub enum AdditionalMerchantData {
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
+/// Feature metadata for merchant connector account
+pub struct MerchantConnectorAccountFeatureMetadata {
+    pub revenue_recovery: Option<RevenueRecoveryMetadata>,
+}
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
+/// Feature metadata for merchant connector account
+pub struct RevenueRecoveryMetadata {
+    /// The maximum number of retries allowed for an invoice. This limit is set by the merchant for each `billing connector`.Once this limit is reached, no further retries will be attempted.
+    #[schema(value_type = u16, example = "15")]
+    pub max_retry_count: u16,
+    /// Maximum number of `billing connector` retries before revenue recovery can start executing retries.
+    #[schema(value_type = u16, example = "10")]
+    pub billing_connector_retry_threshold: u16,
+    /// Billing account reference id is payment gateway id at billing connector end.
+    /// Merchants need to provide a mapping between these merchant connector account and the corresponding  
+    /// account reference IDs for each `billing connector`.
+    #[schema(value_type = u16, example = r#"{ "mca_vDSg5z6AxnisHq5dbJ6g": "stripe_123", "mca_vDSg5z6AumisHqh4x5m1": "adyen_123" }"#)]
+    pub billing_account_reference: HashMap<id_type::MerchantConnectorAccountId, String>,
+}
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum MerchantAccountData {
     Iban {
@@ -1078,8 +1099,7 @@ pub struct MerchantConnectorResponse {
 
     /// This metadata will have different feature-specific metadata.
     #[schema(value_type = Option<MerchantConnectorAccountFeatureMetadata>)]
-    pub feature_metadata:
-        Option<common_types::merchant_connector_account::MerchantConnectorAccountFeatureMetadata>,
+    pub feature_metadata: Option<MerchantConnectorAccountFeatureMetadata>,
 }
 
 #[cfg(feature = "v2")]
@@ -1541,8 +1561,7 @@ pub struct MerchantConnectorUpdate {
 
     /// This metadata will have different feature-specific metadata.
     #[schema(value_type = Option<MerchantConnectorAccountFeatureMetadata>)]
-    pub feature_metadata:
-        Option<common_types::merchant_connector_account::MerchantConnectorAccountFeatureMetadata>,
+    pub feature_metadata: Option<MerchantConnectorAccountFeatureMetadata>,
 }
 
 #[cfg(feature = "v2")]
