@@ -14,12 +14,9 @@ use common_utils::ext_traits::{AsyncExt, Encode, StringExt, ValueExt};
 use diesel_models::payment_attempt::ConnectorMandateReferenceId as DieselConnectorMandateReferenceId;
 use error_stack::{report, ResultExt};
 use futures::FutureExt;
-use hyperswitch_domain_models::router_request_types::unified_authentication_service;
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
-use hyperswitch_domain_models::{
-    card_testing_guard_data::CardTestingGuardData,
-    payments::payment_intent::PaymentIntentUpdateFields,
-};
+use hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdateFields;
+use hyperswitch_domain_models::router_request_types::unified_authentication_service;
 use masking::{ExposeInterface, PeekInterface};
 use router_derive::PaymentOperation;
 use router_env::{instrument, logger, tracing};
@@ -845,12 +842,9 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         &self,
         state: &SessionState,
         request: &api::PaymentsRequest,
-        merchant_account: &domain::MerchantAccount,
         payment_data: &mut PaymentData<F>,
         business_profile: &domain::Profile,
     ) -> RouterResult<()> {
-        let _merchant_id = merchant_account.get_id();
-
         let payment_method_data: Option<&api_models::payments::PaymentMethodData> = request
             .payment_method_data
             .as_ref()
@@ -860,86 +854,14 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
 
         match payment_method_data {
             Some(api_models::payments::PaymentMethodData::Card(_card)) => {
-                match &business_profile.card_testing_guard_config {
-                    Some(card_testing_guard_config) => {
-                        let fingerprint = card_testing_guard_utils::generate_fingerprint(
-                            payment_method_data,
-                            business_profile,
-                        )
-                        .await?;
-
-                        let customer_id = &payment_data.payment_intent.customer_id;
-
-                        let card_testing_guard_expiry =
-                            card_testing_guard_config.card_testing_guard_expiry;
-
-                        let mut card_ip_blocking_cache_key = String::new();
-                        let mut guest_user_card_blocking_cache_key = String::new();
-                        let mut customer_id_blocking_cache_key = String::new();
-
-                        if card_testing_guard_config.is_card_ip_blocking_enabled {
-                            if let Some(browser_info) = &request.browser_info {
-                                let browser_info_parsed =
-                                    serde_json::from_value::<payments::BrowserInformation>(
-                                        browser_info.clone(),
-                                    )
-                                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                                    .attach_printable("could not parse browser_info")?;
-
-                                if let Some(browser_info_ip) = browser_info_parsed.ip_address {
-                                    card_ip_blocking_cache_key =
-                                        helpers::validate_card_ip_blocking_for_business_profile(
-                                            state,
-                                            browser_info_ip,
-                                            fingerprint.clone(),
-                                            card_testing_guard_config,
-                                        )
-                                        .await?;
-                                }
-                            }
-                        }
-
-                        if card_testing_guard_config.is_guest_user_card_blocking_enabled {
-                            guest_user_card_blocking_cache_key =
-                                helpers::validate_guest_user_card_blocking_for_business_profile(
-                                    state,
-                                    fingerprint.clone(),
-                                    customer_id.clone(),
-                                    card_testing_guard_config,
-                                )
-                                .await?;
-                        }
-
-                        if card_testing_guard_config.is_customer_id_blocking_enabled {
-                            if let Some(customer_id) = customer_id.clone() {
-                                customer_id_blocking_cache_key =
-                                    helpers::validate_customer_id_blocking_for_business_profile(
-                                        state,
-                                        customer_id.clone(),
-                                        business_profile.get_id(),
-                                        card_testing_guard_config,
-                                    )
-                                    .await?;
-                            }
-                        }
-
-                        payment_data.card_testing_guard_data = Some(CardTestingGuardData {
-                            is_card_ip_blocking_enabled: card_testing_guard_config
-                                .is_card_ip_blocking_enabled,
-                            card_ip_blocking_cache_key,
-                            is_guest_user_card_blocking_enabled: card_testing_guard_config
-                                .is_guest_user_card_blocking_enabled,
-                            guest_user_card_blocking_cache_key,
-                            is_customer_id_blocking_enabled: card_testing_guard_config
-                                .is_customer_id_blocking_enabled,
-                            customer_id_blocking_cache_key,
-                            card_testing_guard_expiry,
-                        });
-
-                        Ok(())
-                    }
-                    None => Ok(()),
-                }
+                card_testing_guard_utils::validate_card_testing_guard_checks(
+                    state,
+                    request,
+                    payment_method_data,
+                    payment_data,
+                    business_profile,
+                )
+                .await
             }
             _ => Ok(()),
         }
