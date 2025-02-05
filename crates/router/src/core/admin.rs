@@ -2189,9 +2189,7 @@ impl MerchantConnectorAccountUpdateBridge for api_models::admin::MerchantConnect
         let feature_metadata = self
             .feature_metadata
             .as_ref()
-            .map(|feature_metadata| {
-                domain::MerchantConnectorAccountFeatureMetadata::foreign_try_from(feature_metadata)
-            })
+            .map(ForeignTryFrom::foreign_try_from)
             .transpose()?;
 
         Ok(storage::MerchantConnectorAccountUpdate::Update {
@@ -2517,9 +2515,7 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
         let feature_metadata = self
             .feature_metadata
             .as_ref()
-            .map(|feature_metadata| {
-                domain::MerchantConnectorAccountFeatureMetadata::foreign_try_from(feature_metadata)
-            })
+            .map(ForeignTryFrom::foreign_try_from)
             .transpose()?;
         Ok(domain::MerchantConnectorAccount {
             merchant_id: business_profile.merchant_id.clone(),
