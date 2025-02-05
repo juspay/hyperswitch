@@ -171,10 +171,7 @@ impl<'a> NetworkTokenizationBuilder<'a, PmValidated> {
 impl<'a> NetworkTokenizationBuilder<'a, PmAssigned> {
     pub fn get_optional_card_and_cvc(
         &self,
-    ) -> (
-        Option<domain::CardDetail>,
-        Option<Secret<String>>,
-    ) {
+    ) -> (Option<domain::CardDetail>, Option<Secret<String>>) {
         (self.card.clone(), self.card_cvc.clone())
     }
     pub fn set_token_details(
