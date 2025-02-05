@@ -755,7 +755,7 @@ pub enum PaymentAttemptUpdate {
 #[diesel(table_name = payment_attempt)]
 pub struct PaymentAttemptUpdateInternal {
     pub status: Option<storage_enums::AttemptStatus>,
-    // authentication_type: Option<storage_enums::AuthenticationType>,
+    pub authentication_type: Option<storage_enums::AuthenticationType>,
     pub error_message: Option<String>,
     pub connector_payment_id: Option<String>,
     // payment_method_id: Option<String>,

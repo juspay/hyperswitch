@@ -17,9 +17,10 @@ use crate::{
         admin,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         payments::{
-            self, helpers,
+            self, call_decision_manager, helpers,
             operations::{self, ValidateStatusForOperation},
-            populate_surcharge_details, CustomerDetails, PaymentAddress, PaymentData,
+            populate_surcharge_details, CustomerDetails, OperationSessionSetters, PaymentAddress,
+            PaymentData,
         },
         utils as core_utils,
     },
@@ -290,6 +291,30 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
         }
     }
 
+    async fn run_decision_manager<'a>(
+        &'a self,
+        state: &SessionState,
+        payment_data: &mut PaymentConfirmData<F>,
+        business_profile: &domain::Profile,
+    ) -> CustomResult<(), errors::ApiErrorResponse> {
+        let authentication_type = payment_data.payment_intent.authentication_type;
+
+        let authentication_type = match business_profile.three_ds_decision_manager_config.as_ref() {
+            Some(three_ds_decision_manager_config) => call_decision_manager(
+                state,
+                three_ds_decision_manager_config.clone(),
+                payment_data,
+            )?,
+            None => authentication_type,
+        };
+
+        if let Some(auth_type) = authentication_type {
+            payment_data.payment_attempt.authentication_type = auth_type;
+        }
+
+        Ok(())
+    }
+
     #[instrument(skip_all)]
     async fn make_pm_data<'a>(
         &'a self,
@@ -397,11 +422,14 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, PaymentsConfirmInt
                 active_attempt_id: payment_data.payment_attempt.id.clone(),
             };
 
+        let authentication_type = payment_data.payment_attempt.authentication_type;
+
         let payment_attempt_update = hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptUpdate::ConfirmIntent {
             status: attempt_status,
             updated_by: storage_scheme.to_string(),
             connector,
             merchant_connector_id,
+            authentication_type,
         };
 
         let updated_payment_intent = db

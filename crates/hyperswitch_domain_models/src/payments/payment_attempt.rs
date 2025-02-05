@@ -473,6 +473,7 @@ impl PaymentAttempt {
             .transpose()
             .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
             .attach_printable("Unable to decode billing address")?;
+        let authentication_type = payment_intent.authentication_type.unwrap_or_default();
 
         Ok(Self {
             payment_id: payment_intent.id.clone(),
@@ -482,7 +483,7 @@ impl PaymentAttempt {
             // This will be decided by the routing algorithm and updated in update trackers
             // right before calling the connector
             connector: None,
-            authentication_type: payment_intent.authentication_type,
+            authentication_type,
             created_at: now,
             modified_at: now,
             last_synced: None,
@@ -1414,6 +1415,7 @@ pub enum PaymentAttemptUpdate {
         updated_by: String,
         connector: String,
         merchant_connector_id: id_type::MerchantConnectorAccountId,
+        authentication_type: storage_enums::AuthenticationType,
     },
     /// Update the payment attempt on confirming the intent, after calling the connector on success response
     ConfirmIntentResponse {
@@ -2066,6 +2068,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 updated_by,
                 connector,
                 merchant_connector_id,
+                authentication_type,
             } => Self {
                 status: Some(status),
                 error_message: None,
@@ -2083,6 +2086,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 connector_metadata: None,
                 amount_capturable: None,
                 amount_to_capture: None,
+                authentication_type: Some(authentication_type),
             },
             PaymentAttemptUpdate::ErrorUpdate {
                 status,
@@ -2107,6 +2111,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 connector_metadata: None,
                 amount_capturable,
                 amount_to_capture: None,
+                authentication_type: None,
             },
             PaymentAttemptUpdate::ConfirmIntentResponse {
                 status,
@@ -2133,6 +2138,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                     .map(diesel_models::payment_attempt::RedirectForm::from),
                 connector_metadata,
                 amount_to_capture: None,
+                authentication_type: None,
             },
             PaymentAttemptUpdate::SyncUpdate {
                 status,
@@ -2155,6 +2161,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 redirection_data: None,
                 connector_metadata: None,
                 amount_to_capture: None,
+                authentication_type: None,
             },
             PaymentAttemptUpdate::CaptureUpdate {
                 status,
@@ -2177,6 +2184,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 connector: None,
                 redirection_data: None,
                 connector_metadata: None,
+                authentication_type: None,
             },
             PaymentAttemptUpdate::PreCaptureUpdate {
                 amount_to_capture,
@@ -2198,6 +2206,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 status: None,
                 connector_metadata: None,
                 amount_capturable: None,
+                authentication_type: None,
             },
         }
     }

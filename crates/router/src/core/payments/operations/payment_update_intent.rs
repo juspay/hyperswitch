@@ -259,7 +259,7 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentIntentData<F>, PaymentsUpda
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Unable to decode shipping address")?,
             capture_method: capture_method.unwrap_or(payment_intent.capture_method),
-            authentication_type: authentication_type.unwrap_or(payment_intent.authentication_type),
+            authentication_type: authentication_type.or(payment_intent.authentication_type),
             payment_link_config: payment_link_config
                 .map(ApiModelToDieselModelConvertor::convert_from)
                 .or(payment_intent.payment_link_config),
@@ -324,7 +324,7 @@ impl<F: Clone> UpdateTracker<F, payments::PaymentIntentData<F>, PaymentsUpdateIn
                 tax_on_surcharge: intent.amount_details.tax_on_surcharge,
                 routing_algorithm_id: intent.routing_algorithm_id,
                 capture_method: Some(intent.capture_method),
-                authentication_type: Some(intent.authentication_type),
+                authentication_type: intent.authentication_type,
                 billing_address: intent.billing_address,
                 shipping_address: intent.shipping_address,
                 customer_present: Some(intent.customer_present),
