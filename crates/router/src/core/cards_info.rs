@@ -1,15 +1,18 @@
 use common_utils::fp_utils::when;
 use error_stack::{report, ResultExt};
 use router_env::{instrument, tracing};
+use api_models::cards_info as cards_info_api_types;
+use diesel_models::cards_info as storage;
 
 use crate::{
     core::{
-        errors::{self, RouterResponse},
+        errors::{self, RouterResponse,StorageErrorExt},
         payments::helpers,
     },
+    db::cards_info::CardsInfoInterface,
     routes,
     services::ApplicationResponse,
-    types::{domain, transformers::ForeignFrom},
+    types::{domain, transformers::{ForeignFrom,ForeignInto}},
 };
 
 fn verify_iin_length(card_iin: &str) -> Result<(), errors::ApiErrorResponse> {
@@ -24,8 +27,8 @@ pub async fn retrieve_card_info(
     state: routes::SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
-    request: api_models::cards_info::CardsInfoRequest,
-) -> RouterResponse<api_models::cards_info::CardInfoResponse> {
+    request: cards_info_api_types::CardsInfoRequest,
+) -> RouterResponse<cards_info_api_types::CardInfoResponse> {
     let db = state.store.as_ref();
 
     verify_iin_length(&request.card_iin)?;
@@ -45,6 +48,63 @@ pub async fn retrieve_card_info(
         .ok_or(report!(errors::ApiErrorResponse::InvalidCardIin))?;
 
     Ok(ApplicationResponse::Json(
-        api_models::cards_info::CardInfoResponse::foreign_from(card_info),
+        cards_info_api_types::CardInfoResponse::foreign_from(card_info),
     ))
+}
+
+#[instrument(skip_all)]
+pub async fn create_card_info(
+    state: routes::SessionState,
+    card_info_request: cards_info_api_types::CardInfoCreateRequest,
+) -> RouterResponse<cards_info_api_types::CardInfoResponse> {
+    let db = state.store.as_ref();
+    CardsInfoInterface::add_card_info(db, card_info_request.foreign_into())
+        .await
+        .to_duplicate_response(errors::ApiErrorResponse::GenericDuplicateError {
+            message: "CardInfo with given key already exists in our records".to_string(),
+        })
+        .map(|card_info| ApplicationResponse::Json(card_info.foreign_into()))
+}
+
+#[instrument(skip_all)]
+pub async fn update_card_info(
+    state: routes::SessionState,
+    card_info_request: cards_info_api_types::CardInfoUpdateRequest,
+) -> RouterResponse<cards_info_api_types::CardInfoResponse> {
+    let db = state.store.as_ref();
+    let cards_info_api_types::CardInfoUpdateRequest {
+        card_iin,
+        card_issuer,
+        card_network,
+        card_type,
+        card_subtype,
+        card_issuing_country,
+        bank_code_id,
+        bank_code,
+        country_code,
+        last_updated,
+        last_updated_provider,
+    } = card_info_request;
+    CardsInfoInterface::update_card_info(
+        db,
+        card_iin,
+        storage::UpdateCardInfo {
+            card_issuer,
+            card_network,
+            card_type,
+            card_subtype,
+            card_issuing_country,
+            bank_code_id,
+            bank_code,
+            country_code,
+            last_updated,
+            last_updated_provider
+        },
+    )
+    .await
+    .to_not_found_response(errors::ApiErrorResponse::GenericNotFoundError {
+        message: "GSM with given key does not exist in our records".to_string(),
+    })
+    .attach_printable("Failed while updating Gsm rule")
+    .map(|card_info| ApplicationResponse::Json(card_info.foreign_into()))
 }

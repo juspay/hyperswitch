@@ -1,6 +1,9 @@
 use std::fmt::Debug;
 
 use utoipa::ToSchema;
+use crate::enums as storage_enums;
+use time::PrimitiveDateTime;
+use common_utils::events::ApiEventMetric;
 
 #[derive(serde::Deserialize, ToSchema)]
 pub struct CardsInfoRequestParams {
@@ -29,3 +32,38 @@ pub struct CardInfoResponse {
     #[schema(example = "INDIA")]
     pub card_issuing_country: Option<String>,
 }
+
+#[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct CardInfoCreateRequest {
+    pub card_iin: String,
+    pub card_issuer: Option<String>,
+    pub card_network: Option<storage_enums::CardNetwork>,
+    pub card_type: Option<String>,
+    pub card_subtype: Option<String>,
+    pub card_issuing_country: Option<String>,
+    pub bank_code_id: Option<String>,
+    pub bank_code: Option<String>,
+    pub country_code: Option<String>,
+    pub date_created: PrimitiveDateTime,
+    pub last_updated: Option<PrimitiveDateTime>,
+    pub last_updated_provider: Option<String>,
+}
+
+impl ApiEventMetric for CardInfoCreateRequest {}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct CardInfoUpdateRequest {
+    pub card_iin: String,
+    pub card_issuer: Option<String>,
+    pub card_network: Option<storage_enums::CardNetwork>,
+    pub card_type: Option<String>,
+    pub card_subtype: Option<String>,
+    pub card_issuing_country: Option<String>,
+    pub bank_code_id: Option<String>,
+    pub bank_code: Option<String>,
+    pub country_code: Option<String>,
+    pub last_updated: Option<PrimitiveDateTime>,
+    pub last_updated_provider: Option<String>,
+}
+
+impl ApiEventMetric for CardInfoUpdateRequest {}
