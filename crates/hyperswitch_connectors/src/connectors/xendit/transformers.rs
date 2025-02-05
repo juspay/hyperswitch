@@ -360,7 +360,6 @@ impl<F>
                                         reference_id: route.reference_id.clone(),
                                     })
                                     .collect();
-            
                                 let charges = common_types::payments::XenditMultipleSplitResponse {
                                     split_rule_id: item.response.id.clone(),
                                     for_user_id: split_data.for_user_id.clone(),
@@ -368,7 +367,6 @@ impl<F>
                                     description: split_data.description.clone(),
                                     routes,
                                 };
-            
                                 Some(
                                     common_types::payments::ConnectorChargeResponseData::XenditSplitPayment(
                                         common_types::payments::XenditChargeResponseData::MultipleSplits(charges),

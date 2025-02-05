@@ -224,7 +224,6 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                                 xendit::auth_headers::WITH_SPLIT_RULE.to_string(),
                                 xendit_response.split_rule_id.clone().into(),
                             ));
-        
                             if let Some(for_user_id) = &xendit_response.for_user_id {
                                 headers.push((
                                     xendit::auth_headers::FOR_USER_ID.to_string(),
