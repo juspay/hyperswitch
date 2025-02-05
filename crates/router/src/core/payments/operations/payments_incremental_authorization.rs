@@ -173,6 +173,7 @@ impl<F: Send + Clone + Sync>
             tax_data: None,
             session_id: None,
             service_details: None,
+            card_testing_guard_data: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {

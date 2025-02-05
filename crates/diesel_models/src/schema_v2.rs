@@ -224,6 +224,8 @@ diesel::table! {
         max_auto_retries_enabled -> Nullable<Int2>,
         is_click_to_pay_enabled -> Bool,
         authentication_product_ids -> Nullable<Jsonb>,
+        card_testing_guard_config -> Nullable<Jsonb>,
+        card_testing_secret_key -> Nullable<Bytea>,
     }
 }
 

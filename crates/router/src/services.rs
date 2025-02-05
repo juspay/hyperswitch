@@ -12,6 +12,7 @@ pub mod kafka;
 pub mod logger;
 pub mod pm_auth;
 
+pub mod card_testing_guard;
 #[cfg(feature = "olap")]
 pub mod openidconnect;
 

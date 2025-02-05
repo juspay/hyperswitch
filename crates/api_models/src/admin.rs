@@ -236,6 +236,31 @@ impl MerchantAccountCreate {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
+pub struct CardTestingGuardConfig {
+    /// Determines if Card IP Blocking is enabled for profile
+    pub card_ip_blocking_status: CardTestingGuardStatus,
+    /// Determines the unsuccessful payment threshold for Card IP Blocking for profile
+    pub card_ip_blocking_threshold: i32,
+    /// Determines if Guest User Card Blocking is enabled for profile
+    pub guest_user_card_blocking_status: CardTestingGuardStatus,
+    /// Determines the unsuccessful payment threshold for Guest User Card Blocking for profile
+    pub guest_user_card_blocking_threshold: i32,
+    /// Determines if Customer Id Blocking is enabled for profile
+    pub customer_id_blocking_status: CardTestingGuardStatus,
+    /// Determines the unsuccessful payment threshold for Customer Id Blocking for profile
+    pub customer_id_blocking_threshold: i32,
+    /// Determines Redis Expiry for Card Testing Guard for profile
+    pub card_testing_guard_expiry: i32,
+}
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum CardTestingGuardStatus {
+    Enabled,
+    Disabled,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
 pub struct AuthenticationConnectorDetails {
     /// List of authentication connectors
     #[schema(value_type = Vec<AuthenticationConnectors>)]
@@ -1871,6 +1896,9 @@ pub struct ProfileCreate {
     #[schema(value_type = Option<Object>, example = r#"{ "click_to_pay": "mca_ushduqwhdohwd", "netcetera": "mca_kwqhudqwd" }"#)]
     pub authentication_product_ids:
         Option<common_types::payments::AuthenticationConnectorAccountMap>,
+
+    /// Card Testing Guard Configs
+    pub card_testing_guard_config: Option<CardTestingGuardConfig>,
 }
 
 #[nutype::nutype(
@@ -1989,6 +2017,9 @@ pub struct ProfileCreate {
     #[schema(value_type = Option<Object>, example = r#"{ "click_to_pay": "mca_ushduqwhdohwd", "netcetera": "mca_kwqhudqwd" }"#)]
     pub authentication_product_ids:
         Option<common_types::payments::AuthenticationConnectorAccountMap>,
+
+    /// Card Testing Guard Configs
+    pub card_testing_guard_config: Option<CardTestingGuardConfig>,
 }
 
 #[cfg(feature = "v1")]
@@ -2126,6 +2157,9 @@ pub struct ProfileResponse {
     #[schema(value_type = Option<Object>, example = r#"{ "click_to_pay": "mca_ushduqwhdohwd", "netcetera": "mca_kwqhudqwd" }"#)]
     pub authentication_product_ids:
         Option<common_types::payments::AuthenticationConnectorAccountMap>,
+
+    /// Card Testing Guard Configs
+    pub card_testing_guard_config: Option<CardTestingGuardConfig>,
 }
 
 #[cfg(feature = "v2")]
@@ -2250,6 +2284,9 @@ pub struct ProfileResponse {
     #[schema(value_type = Option<Object>, example = r#"{ "click_to_pay": "mca_ushduqwhdohwd", "netcetera": "mca_kwqhudqwd" }"#)]
     pub authentication_product_ids:
         Option<common_types::payments::AuthenticationConnectorAccountMap>,
+
+    /// Card Testing Guard Configs
+    pub card_testing_guard_config: Option<CardTestingGuardConfig>,
 }
 
 #[cfg(feature = "v1")]
@@ -2381,6 +2418,9 @@ pub struct ProfileUpdate {
     #[schema(value_type = Option<Object>, example = r#"{ "click_to_pay": "mca_ushduqwhdohwd", "netcetera": "mca_kwqhudqwd" }"#)]
     pub authentication_product_ids:
         Option<common_types::payments::AuthenticationConnectorAccountMap>,
+
+    /// Card Testing Guard Configs
+    pub card_testing_guard_config: Option<CardTestingGuardConfig>,
 }
 
 #[cfg(feature = "v2")]
@@ -2493,6 +2533,9 @@ pub struct ProfileUpdate {
     #[schema(value_type = Option<Object>, example = r#"{ "click_to_pay": "mca_ushduqwhdohwd", "netcetera": "mca_kwqhudqwd" }"#)]
     pub authentication_product_ids:
         Option<common_types::payments::AuthenticationConnectorAccountMap>,
+
+    /// Card Testing Guard Configs
+    pub card_testing_guard_config: Option<CardTestingGuardConfig>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
