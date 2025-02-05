@@ -60,7 +60,7 @@ use crate::{
 pub fn parse_and_log_keys_in_url_encoded_response<T>(data: &[u8]) {
     match std::str::from_utf8(data) {
         Ok(query_str) => {
-            let loggable_keys = vec![
+            let loggable_keys = [
                 "status",
                 "orderid",
                 "tranID",
@@ -126,7 +126,7 @@ where
     }
 
     // TODO: Remove this after debugging
-    let loggable_keys = vec![
+    let loggable_keys = [
         "StatCode",
         "StatName",
         "TranID",
