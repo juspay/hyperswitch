@@ -6351,29 +6351,33 @@ pub fn validate_platform_request_for_marketplace(
         }
         Some(common_types::payments::SplitPaymentsRequest::XenditSplitPayment(
             xendit_split_payment,
-        )) => {
-            match amount {
-                api::Amount::Zero => {
-                    let total_split_amount: i64 = xendit_split_payment
-                        .routes
-                        .iter()
-                        .map(|route| {
-                            route
-                                .flat_amount
-                                .unwrap_or(MinorUnit::new(0))
-                                .get_amount_as_i64()
-                        })
-                        .sum();
+        )) => match xendit_split_payment {
+            common_types::payments::XenditSplitRequest::MultipleSplits(
+                xendit_multiple_split_payment,
+            ) => {
+                match amount {
+                    api::Amount::Zero => {
+                        let total_split_amount: i64 = xendit_multiple_split_payment
+                            .routes
+                            .iter()
+                            .map(|route| {
+                                route
+                                    .flat_amount
+                                    .unwrap_or(MinorUnit::new(0))
+                                    .get_amount_as_i64()
+                            })
+                            .sum();
 
-                    if total_split_amount != 0 {
-                        return Err(errors::ApiErrorResponse::InvalidDataValue {
-                            field_name: "Sum of split amounts should be equal to the total amount",
-                        });
+                        if total_split_amount != 0 {
+                            return Err(errors::ApiErrorResponse::InvalidDataValue {
+                                field_name:
+                                    "Sum of split amounts should be equal to the total amount",
+                            });
+                        }
                     }
-                }
-                api::Amount::Value(amount) => {
-                    let i64_amount: i64 = amount.into();
-                    let total_split_amount: i64 = xendit_split_payment
+                    api::Amount::Value(amount) => {
+                        let i64_amount: i64 = amount.into();
+                        let total_split_amount: i64 = xendit_multiple_split_payment
                     .routes
                     .into_iter()
                     .map(|route| {
@@ -6397,15 +6401,17 @@ pub fn validate_platform_request_for_marketplace(
                             .into_iter()
                             .sum();
 
-                    if i64_amount < total_split_amount {
-                        return Err(errors::ApiErrorResponse::PreconditionFailed {
-                            message: "Sum of split amounts should be equal to the total amount"
-                                .to_string(),
-                        });
+                        if i64_amount < total_split_amount {
+                            return Err(errors::ApiErrorResponse::PreconditionFailed {
+                                message: "Sum of split amounts should be equal to the total amount"
+                                    .to_string(),
+                            });
+                        }
                     }
-                }
-            };
-        }
+                };
+            }
+            common_types::payments::XenditSplitRequest::SingleSplit(_) => (),
+        },
         None => (),
     }
     Ok(())

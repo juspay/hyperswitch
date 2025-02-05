@@ -3069,11 +3069,9 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for ChargeRefundRequest {
                         },
                     })
                 }
-                types::SplitRefundsRequest::AdyenSplitRefund(_) => {
-                    Err(errors::ConnectorError::MissingRequiredField {
-                        field_name: "stripe_split_refund",
-                    })?
-                }
+                _ => Err(errors::ConnectorError::MissingRequiredField {
+                    field_name: "stripe_split_refund",
+                })?,
             },
         }
     }

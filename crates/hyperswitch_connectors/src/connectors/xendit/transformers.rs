@@ -140,6 +140,7 @@ pub struct CardInformation {
 }
 pub mod auth_headers {
     pub const WITH_SPLIT_RULE: &str = "with-split-rule";
+    pub const FOR_USER_ID: &str = "for-user-id";
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -326,25 +327,71 @@ impl<F>
                 status_code: item.http_code,
             })
         } else {
-            let charges = item
-                .data
-                .response
-                .as_ref()
-                .ok()
-                .and_then(|response| match response {
-                    PaymentsResponseData::TransactionResponse { charges, .. } => charges.clone(),
-                    _ => None,
-                })
-                .and_then(|charges| match charges {
-                    common_types::payments::ConnectorChargeResponseData::XenditSplitPayment(
-                        xendit_response,
-                    ) => Some(
+            let charges = match item.data.request.split_payments.as_ref() {
+                Some(common_types::payments::SplitPaymentsRequest::XenditSplitPayment(
+                    common_types::payments::XenditSplitRequest::MultipleSplits(ref split_data),
+                )) => {
+                    let charge_response =
+                        item.data
+                            .response
+                            .as_ref()
+                            .ok()
+                            .and_then(|response| match response {
+                                PaymentsResponseData::TransactionResponse { charges, .. } => {
+                                    charges.clone()
+                                }
+                                _ => None,
+                            });
+
+                    charge_response
+                        .as_ref()
+                        .and_then(|charges| match charges {
+                            common_types::payments::ConnectorChargeResponseData::XenditSplitPayment(
+                                common_types::payments::XenditChargeResponseData::MultipleSplits(xendit_split_response),
+                            ) => {
+                                let routes: Vec<_> = xendit_split_response
+                                    .routes
+                                    .iter()
+                                    .map(|route| common_types::payments::XenditSplitRoute {
+                                        flat_amount: route.flat_amount,
+                                        percent_amount: route.percent_amount,
+                                        currency: route.currency,
+                                        destination_account_id: route.destination_account_id.clone(),
+                                        reference_id: route.reference_id.clone(),
+                                    })
+                                    .collect();
+            
+                                let charges = common_types::payments::XenditMultipleSplitResponse {
+                                    split_rule_id: item.response.id.clone(),
+                                    for_user_id: split_data.for_user_id.clone(),
+                                    name: split_data.name.clone(),
+                                    description: split_data.description.clone(),
+                                    routes,
+                                };
+            
+                                Some(
+                                    common_types::payments::ConnectorChargeResponseData::XenditSplitPayment(
+                                        common_types::payments::XenditChargeResponseData::MultipleSplits(charges),
+                                    ),
+                                )
+                            }
+                            _ => None,
+                        })
+                }
+                Some(common_types::payments::SplitPaymentsRequest::XenditSplitPayment(
+                    common_types::payments::XenditSplitRequest::SingleSplit(ref split_data),
+                )) => {
+                    let charges = common_types::domain::XenditSplitSubMerchantData {
+                        for_user_id: split_data.for_user_id.clone(),
+                    };
+                    Some(
                         common_types::payments::ConnectorChargeResponseData::XenditSplitPayment(
-                            xendit_response,
+                            common_types::payments::XenditChargeResponseData::SingleSplit(charges),
                         ),
-                    ),
-                    _ => None,
-                });
+                    )
+                }
+                _ => None,
+            };
 
             Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
@@ -460,35 +507,34 @@ impl<F>
             PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        let (for_user_id, routes) = match item.data.request.split_payments {
+        let for_user_id = match item.data.request.split_payments {
             Some(common_types::payments::SplitPaymentsRequest::XenditSplitPayment(
-                ref split_data,
-            )) => (
-                split_data.for_user_id.clone(),
-                Some(
-                    split_data
-                        .routes
-                        .iter()
-                        .map(|route| common_types::payments::XenditSplitRoute {
-                            flat_amount: route.flat_amount,
-                            percent_amount: route.percent_amount,
-                            currency: route.currency,
-                            destination_account_id: route.destination_account_id.clone(),
-                            reference_id: route.reference_id.clone(),
-                        })
-                        .collect(),
-                ),
-            ),
-            _ => (None, None),
+                common_types::payments::XenditSplitRequest::MultipleSplits(ref split_data),
+            )) => split_data.for_user_id.clone(),
+            _ => None,
         };
 
-        let charges = common_types::payments::XenditChargeResponseData {
-            split_rule_id: item.response.id,
-            for_user_id,
-            name: item.response.name,
-            description: item.response.description,
-            routes: routes.unwrap_or(Vec::new()),
-        };
+        let routes = item
+            .response
+            .routes
+            .iter()
+            .map(|route| common_types::payments::XenditSplitRoute {
+                flat_amount: route.flat_amount,
+                percent_amount: route.percent_amount,
+                currency: route.currency,
+                destination_account_id: route.destination_account_id.clone(),
+                reference_id: route.reference_id.clone(),
+            })
+            .collect();
+
+        let charges: common_types::payments::XenditMultipleSplitResponse =
+            common_types::payments::XenditMultipleSplitResponse {
+                split_rule_id: item.response.id,
+                for_user_id,
+                name: item.response.name,
+                description: item.response.description,
+                routes,
+            };
 
         let response = Ok(PaymentsResponseData::TransactionResponse {
             resource_id: ResponseId::NoResponseId,
@@ -499,7 +545,9 @@ impl<F>
             connector_response_reference_id: None,
             incremental_authorization_allowed: None,
             charges: Some(
-                common_types::payments::ConnectorChargeResponseData::XenditSplitPayment(charges),
+                common_types::payments::ConnectorChargeResponseData::XenditSplitPayment(
+                    common_types::payments::XenditChargeResponseData::MultipleSplits(charges),
+                ),
             ),
         });
 
@@ -586,32 +634,26 @@ impl TryFrom<&ConnectorAuthType> for XenditAuthType {
 impl TryFrom<&PaymentsPreProcessingRouterData> for XenditSplitRequestData {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &PaymentsPreProcessingRouterData) -> Result<Self, Self::Error> {
-        if let Some(common_types::payments::SplitPaymentsRequest::XenditSplitPayment(split_data)) =
-            item.request.split_payments.clone()
+        if let Some(common_types::payments::SplitPaymentsRequest::XenditSplitPayment(
+            common_types::payments::XenditSplitRequest::MultipleSplits(ref split_data),
+        )) = item.request.split_payments.clone()
         {
-            let routes = match item.request.split_payments {
-                Some(common_types::payments::SplitPaymentsRequest::XenditSplitPayment(
-                    ref split_data,
-                )) => Some(
-                    split_data
-                        .routes
-                        .iter()
-                        .map(|route| XenditSplitRoute {
-                            flat_amount: route.flat_amount,
-                            percent_amount: route.percent_amount,
-                            currency: route.currency,
-                            destination_account_id: route.destination_account_id.clone(),
-                            reference_id: route.reference_id.clone(),
-                        })
-                        .collect(),
-                ),
-                _ => None,
-            };
+            let routes: Vec<XenditSplitRoute> = split_data
+                .routes
+                .iter()
+                .map(|route| XenditSplitRoute {
+                    flat_amount: route.flat_amount,
+                    percent_amount: route.percent_amount,
+                    currency: route.currency,
+                    destination_account_id: route.destination_account_id.clone(),
+                    reference_id: route.reference_id.clone(),
+                })
+                .collect();
 
             let split_data = XenditSplitRequest {
                 name: split_data.name.clone(),
                 description: split_data.description.clone(),
-                routes: routes.unwrap_or(Vec::new()),
+                routes,
             };
 
             Ok(XenditSplitRequestData { split_data })
@@ -700,4 +742,9 @@ impl TryFrom<RefundsResponseRouterData<RSync, RefundResponse>> for RefundsRouter
             ..item.data
         })
     }
+}
+
+#[derive(Default, Debug, Serialize, Deserialize)]
+pub struct XenditMetadata {
+    pub for_user_id: String,
 }

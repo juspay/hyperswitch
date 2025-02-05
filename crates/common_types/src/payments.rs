@@ -8,7 +8,7 @@ use diesel::{sql_types::Jsonb, AsExpression, FromSqlRow};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-use crate::domain::AdyenSplitData;
+use crate::domain::{AdyenSplitData, XenditSplitSubMerchantData};
 
 #[derive(
     Serialize, Deserialize, Debug, Clone, PartialEq, Eq, FromSqlRow, AsExpression, ToSchema,
@@ -95,6 +95,24 @@ pub struct StripeChargeResponseData {
 }
 impl_to_sql_from_sql_json!(StripeChargeResponseData);
 
+/// Charge Information
+#[derive(
+    Serialize, Deserialize, Debug, Clone, PartialEq, Eq, FromSqlRow, AsExpression, ToSchema,
+)]
+#[diesel(sql_type = Jsonb)]
+#[serde(rename_all = "snake_case")]
+#[serde(deny_unknown_fields)]
+pub enum ConnectorChargeResponseData {
+    /// StripeChargeResponseData
+    StripeSplitPayment(StripeChargeResponseData),
+    /// AdyenChargeResponseData
+    AdyenSplitPayment(AdyenSplitData),
+    /// XenditChargeResponseData
+    XenditSplitPayment(XenditChargeResponseData),
+}
+
+impl_to_sql_from_sql_json!(ConnectorChargeResponseData);
+
 /// Fee information to be charged on the payment being collected via xendit
 #[derive(
     Serialize, Deserialize, Debug, Clone, PartialEq, Eq, FromSqlRow, AsExpression, ToSchema,
@@ -122,7 +140,7 @@ impl_to_sql_from_sql_json!(XenditSplitRoute);
 )]
 #[diesel(sql_type = Jsonb)]
 #[serde(deny_unknown_fields)]
-pub struct XenditSplitRequest {
+pub struct XenditMultipleSplitRequest {
     /// Name to identify split rule. Not required to be unique. Typically based on transaction and/or sub-merchant types.
     pub name: String,
     /// Description to identify fee rule
@@ -132,7 +150,39 @@ pub struct XenditSplitRequest {
     /// Array of objects that define how the platform wants to route the fees and to which accounts.
     pub routes: Vec<XenditSplitRoute>,
 }
+impl_to_sql_from_sql_json!(XenditMultipleSplitRequest);
+
+/// Xendit Charge Request
+#[derive(
+    Serialize, Deserialize, Debug, Clone, PartialEq, Eq, FromSqlRow, AsExpression, ToSchema,
+)]
+#[diesel(sql_type = Jsonb)]
+#[serde(untagged)]
+#[serde(deny_unknown_fields)]
+pub enum XenditSplitRequest {
+    /// Split Between Multiple Accounts
+    MultipleSplits(XenditMultipleSplitRequest),
+    /// Collect Fee for Single Account
+    SingleSplit(XenditSplitSubMerchantData),
+}
+
 impl_to_sql_from_sql_json!(XenditSplitRequest);
+
+/// Charge Information
+#[derive(
+    Serialize, Deserialize, Debug, Clone, PartialEq, Eq, FromSqlRow, AsExpression, ToSchema,
+)]
+#[diesel(sql_type = Jsonb)]
+#[serde(untagged)]
+#[serde(deny_unknown_fields)]
+pub enum XenditChargeResponseData {
+    /// Split Between Multiple Accounts
+    MultipleSplits(XenditMultipleSplitResponse),
+    /// Collect Fee for Single Account
+    SingleSplit(XenditSplitSubMerchantData),
+}
+
+impl_to_sql_from_sql_json!(XenditChargeResponseData);
 
 /// Fee information charged on the payment being collected via xendit
 #[derive(
@@ -140,7 +190,7 @@ impl_to_sql_from_sql_json!(XenditSplitRequest);
 )]
 #[diesel(sql_type = Jsonb)]
 #[serde(deny_unknown_fields)]
-pub struct XenditChargeResponseData {
+pub struct XenditMultipleSplitResponse {
     /// Identifier for split rule created for the payment
     pub split_rule_id: String,
     /// The sub-account user-id that you want to make this transaction for.
@@ -152,22 +202,4 @@ pub struct XenditChargeResponseData {
     /// Array of objects that define how the platform wants to route the fees and to which accounts.
     pub routes: Vec<XenditSplitRoute>,
 }
-impl_to_sql_from_sql_json!(XenditChargeResponseData);
-
-/// Charge Information
-#[derive(
-    Serialize, Deserialize, Debug, Clone, PartialEq, Eq, FromSqlRow, AsExpression, ToSchema,
-)]
-#[diesel(sql_type = Jsonb)]
-#[serde(rename_all = "snake_case")]
-#[serde(deny_unknown_fields)]
-pub enum ConnectorChargeResponseData {
-    /// StripeChargeResponseData
-    StripeSplitPayment(StripeChargeResponseData),
-    /// AdyenChargeResponseData
-    AdyenSplitPayment(AdyenSplitData),
-    /// XenditChargeResponseData
-    XenditSplitPayment(XenditChargeResponseData),
-}
-
-impl_to_sql_from_sql_json!(ConnectorChargeResponseData);
+impl_to_sql_from_sql_json!(XenditMultipleSplitResponse);

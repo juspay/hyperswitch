@@ -3758,7 +3758,9 @@ where
                 (router_data, should_continue_payment)
             } else if connector.connector_name == router_types::Connector::Xendit {
                 match payment_data.get_payment_intent().split_payments {
-                    Some(common_types::payments::SplitPaymentsRequest::XenditSplitPayment(_)) => {
+                    Some(common_types::payments::SplitPaymentsRequest::XenditSplitPayment(
+                        common_types::payments::XenditSplitRequest::MultipleSplits(_),
+                    )) => {
                         router_data = router_data.preprocessing_steps(state, connector).await?;
                         let is_error_in_response = router_data.response.is_err();
                         (router_data, !is_error_in_response)
