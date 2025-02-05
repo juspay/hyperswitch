@@ -1,23 +1,17 @@
-use std::fmt::Debug;
 #[cfg(feature = "v2")]
 use std::collections::HashMap;
-
-use crate::enums as storage_enums;
+use std::fmt::Debug;
 
 use common_utils::{encryption::Encryption, id_type, pii};
-use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
-
 #[cfg(feature = "v2")]
 use diesel::{sql_types::Jsonb, AsExpression};
+use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
+
+use crate::enums as storage_enums;
 #[cfg(feature = "v1")]
 use crate::schema::merchant_connector_account;
 #[cfg(feature = "v2")]
-use crate::{
-    enums,
-    schema_v2::merchant_connector_account,
-    types,
-};
-
+use crate::{enums, schema_v2::merchant_connector_account, types};
 
 #[cfg(feature = "v1")]
 #[derive(
@@ -303,13 +297,10 @@ pub struct RevenueRecoveryMetadata {
     pub billing_account_reference: BillingAccountReference,
 }
 
-
 #[cfg(feature = "v2")]
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, AsExpression)]
 #[diesel(sql_type = Jsonb)]
-pub struct BillingAccountReference(
-    pub HashMap<id_type::MerchantConnectorAccountId, String>,
-);
+pub struct BillingAccountReference(pub HashMap<id_type::MerchantConnectorAccountId, String>);
 
 #[cfg(feature = "v2")]
 common_utils::impl_to_sql_from_sql_json!(BillingAccountReference);

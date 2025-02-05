@@ -2186,10 +2186,13 @@ impl MerchantConnectorAccountUpdateBridge for api_models::admin::MerchantConnect
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed while decrypting connector account details")?;
 
-
-        let feature_metadata = self.feature_metadata.as_ref().map(|feature_metadata| {
-            domain::MerchantConnectorAccountFeatureMetadata::foreign_try_from(feature_metadata)
-        }).transpose()?;
+        let feature_metadata = self
+            .feature_metadata
+            .as_ref()
+            .map(|feature_metadata| {
+                domain::MerchantConnectorAccountFeatureMetadata::foreign_try_from(feature_metadata)
+            })
+            .transpose()?;
 
         Ok(storage::MerchantConnectorAccountUpdate::Update {
             connector_type: Some(self.connector_type),
@@ -2511,9 +2514,13 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed while decrypting connector account details")?;
 
-        let feature_metadata = self.feature_metadata.as_ref().map(|feature_metadata| {
-                    domain::MerchantConnectorAccountFeatureMetadata::foreign_try_from(feature_metadata)
-                }).transpose()?;
+        let feature_metadata = self
+            .feature_metadata
+            .as_ref()
+            .map(|feature_metadata| {
+                domain::MerchantConnectorAccountFeatureMetadata::foreign_try_from(feature_metadata)
+            })
+            .transpose()?;
         Ok(domain::MerchantConnectorAccount {
             merchant_id: business_profile.merchant_id.clone(),
             connector_type: self.connector_type,

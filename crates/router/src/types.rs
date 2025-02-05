@@ -21,7 +21,11 @@ use std::marker::PhantomData;
 pub use api_models::{enums::Connector, mandates};
 #[cfg(feature = "payouts")]
 pub use api_models::{enums::PayoutConnectors, payouts as payout_types};
+#[cfg(feature = "v2")]
+use common_utils::errors::CustomResult;
 pub use common_utils::{pii, pii::Email, request::RequestContent, types::MinorUnit};
+#[cfg(feature = "v2")]
+use error_stack::ResultExt;
 #[cfg(feature = "frm")]
 pub use hyperswitch_domain_models::router_data_v2::FrmFlowData;
 use hyperswitch_domain_models::router_flow_types::{
@@ -77,11 +81,6 @@ pub use hyperswitch_domain_models::{
         VerifyWebhookStatus,
     },
 };
-
-#[cfg(feature = "v2")]
-use common_utils::errors::CustomResult;
-#[cfg(feature = "v2")]
-use error_stack::ResultExt;
 #[cfg(feature = "payouts")]
 pub use hyperswitch_domain_models::{
     router_data_v2::PayoutFlowData, router_request_types::PayoutsData,
@@ -1035,30 +1034,27 @@ impl<F1, F2>
     }
 }
 
-
 #[cfg(feature = "v2")]
 impl ForeignFrom<&domain::MerchantConnectorAccountFeatureMetadata>
     for api_models::admin::MerchantConnectorAccountFeatureMetadata
 {
     fn foreign_from(item: &domain::MerchantConnectorAccountFeatureMetadata) -> Self {
-        let revenue_recovery =
-            item.revenue_recovery
-                .as_ref()
-                .map(
-                    |revenue_recovery_metadata| api_models::admin::RevenueRecoveryMetadata {
-                        max_retry_count: revenue_recovery_metadata.max_retry_count.clone(),
-                        billing_connector_retry_threshold: revenue_recovery_metadata
-                            .billing_connector_retry_threshold
-                            .clone(),
-                        billing_account_reference: revenue_recovery_metadata
-                            .mca_reference
-                            .recovery_to_billing
-                            .clone(),
-                    },
-                );
-        api_models::admin::MerchantConnectorAccountFeatureMetadata {
-            revenue_recovery,
-        }
+        let revenue_recovery = item
+            .revenue_recovery
+            .as_ref()
+            .map(
+                |revenue_recovery_metadata| api_models::admin::RevenueRecoveryMetadata {
+                    max_retry_count: revenue_recovery_metadata.max_retry_count.clone(),
+                    billing_connector_retry_threshold: revenue_recovery_metadata
+                        .billing_connector_retry_threshold
+                        .clone(),
+                    billing_account_reference: revenue_recovery_metadata
+                        .mca_reference
+                        .recovery_to_billing
+                        .clone(),
+                },
+            );
+        api_models::admin::MerchantConnectorAccountFeatureMetadata { revenue_recovery }
     }
 }
 
@@ -1071,21 +1067,21 @@ impl ForeignTryFrom<&api_models::admin::MerchantConnectorAccountFeatureMetadata>
         feature_metadata: &api_models::admin::MerchantConnectorAccountFeatureMetadata,
     ) -> Result<Self, Self::Error> {
         let revenue_recovery = feature_metadata
-    .revenue_recovery
-    .as_ref()
-    .map(|revenue_recovery_metadata| {
-        domain::AccountReferenceMap::new(revenue_recovery_metadata.billing_account_reference.clone())
-            .map(|mca_reference| domain::RevenueRecoveryMetadata {
-                max_retry_count: revenue_recovery_metadata.max_retry_count,
-                billing_connector_retry_threshold: revenue_recovery_metadata.billing_connector_retry_threshold,
-                mca_reference,
+            .revenue_recovery
+            .as_ref()
+            .map(|revenue_recovery_metadata| {
+                domain::AccountReferenceMap::new(
+                    revenue_recovery_metadata.billing_account_reference.clone(),
+                )
+                .map(|mca_reference| domain::RevenueRecoveryMetadata {
+                    max_retry_count: revenue_recovery_metadata.max_retry_count,
+                    billing_connector_retry_threshold: revenue_recovery_metadata
+                        .billing_connector_retry_threshold,
+                    mca_reference,
+                })
             })
-    })
-    .transpose()?; 
+            .transpose()?;
 
-
-        Ok(domain::MerchantConnectorAccountFeatureMetadata {
-            revenue_recovery,
-        })
+        Ok(domain::MerchantConnectorAccountFeatureMetadata { revenue_recovery })
     }
 }

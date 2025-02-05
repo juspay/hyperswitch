@@ -1,6 +1,8 @@
 #[cfg(feature = "v2")]
 use std::collections::HashMap;
 
+#[cfg(feature = "v2")]
+use common_utils::transformers::ForeignTryFrom;
 use common_utils::{
     crypto::Encryptable,
     date_time,
@@ -11,31 +13,24 @@ use common_utils::{
     types::keymanager::{Identifier, KeyManagerState, ToEncryptable},
 };
 #[cfg(feature = "v2")]
-use common_utils::transformers::ForeignTryFrom;
-
-use diesel_models::{enums, merchant_connector_account::MerchantConnectorAccountUpdateInternal};
-
-#[cfg(feature = "v2")]
-use diesel_models::{
-    merchant_connector_account::{
-        BillingAccountReference as DieselBillingAccountReference,
-        MerchantConnectorAccountFeatureMetadata as DieselMerchantConnectorAccountFeatureMetadata,
-        RevenueRecoveryMetadata as DieselRevenueRecoveryMetadata,
-    },
+use diesel_models::merchant_connector_account::{
+    BillingAccountReference as DieselBillingAccountReference,
+    MerchantConnectorAccountFeatureMetadata as DieselMerchantConnectorAccountFeatureMetadata,
+    RevenueRecoveryMetadata as DieselRevenueRecoveryMetadata,
 };
+use diesel_models::{enums, merchant_connector_account::MerchantConnectorAccountUpdateInternal};
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
 use rustc_hash::FxHashMap;
 use serde_json::Value;
 
 use super::behaviour;
+#[cfg(feature = "v2")]
+use crate::errors::{self, api_error_response};
 use crate::{
     router_data,
     type_encryption::{crypto_operation, CryptoOperation},
 };
-
-#[cfg(feature = "v2")]
-use crate::errors::{self, api_error_response};
 
 #[cfg(feature = "v1")]
 #[derive(Clone, Debug, router_derive::ToEncryption)]
@@ -760,51 +755,45 @@ common_utils::create_list_wrapper!(
     }
 );
 
-
 #[cfg(feature = "v2")]
 impl From<MerchantConnectorAccountFeatureMetadata>
     for DieselMerchantConnectorAccountFeatureMetadata
 {
     fn from(feature_metadata: MerchantConnectorAccountFeatureMetadata) -> Self {
-        let revenue_recovery =
-            feature_metadata
-                .revenue_recovery
-                .map(|recovery_metadata| DieselRevenueRecoveryMetadata {
-                    max_retry_count: recovery_metadata.max_retry_count,
-                    billing_connector_retry_threshold: recovery_metadata
-                        .billing_connector_retry_threshold,
-                    billing_account_reference: DieselBillingAccountReference(
-                        recovery_metadata.mca_reference.recovery_to_billing,
-                    ),
-                });
+        let revenue_recovery = feature_metadata.revenue_recovery.map(|recovery_metadata| {
+            DieselRevenueRecoveryMetadata {
+                max_retry_count: recovery_metadata.max_retry_count,
+                billing_connector_retry_threshold: recovery_metadata
+                    .billing_connector_retry_threshold,
+                billing_account_reference: DieselBillingAccountReference(
+                    recovery_metadata.mca_reference.recovery_to_billing,
+                ),
+            }
+        });
         Self { revenue_recovery }
     }
 }
-
 
 #[cfg(feature = "v2")]
 impl From<DieselMerchantConnectorAccountFeatureMetadata>
     for MerchantConnectorAccountFeatureMetadata
 {
     fn from(feature_metadata: DieselMerchantConnectorAccountFeatureMetadata) -> Self {
-        let revenue_recovery =
-            feature_metadata.revenue_recovery.map(|recovery_metadata| {
-                let mut billing_to_recovery = HashMap::new();
-                for (key, value) in &recovery_metadata.billing_account_reference.0 {
-                    billing_to_recovery.insert(value.to_string(), key.clone());
-                }
-                RevenueRecoveryMetadata {
-                    max_retry_count: recovery_metadata.max_retry_count,
-                    billing_connector_retry_threshold: recovery_metadata
-                        .billing_connector_retry_threshold,
-                    mca_reference: AccountReferenceMap {
-                        recovery_to_billing: recovery_metadata.billing_account_reference.0,
-                        billing_to_recovery,
-                    },
-                }
-            });
-        Self {
-            revenue_recovery,
-        }
+        let revenue_recovery = feature_metadata.revenue_recovery.map(|recovery_metadata| {
+            let mut billing_to_recovery = HashMap::new();
+            for (key, value) in &recovery_metadata.billing_account_reference.0 {
+                billing_to_recovery.insert(value.to_string(), key.clone());
+            }
+            RevenueRecoveryMetadata {
+                max_retry_count: recovery_metadata.max_retry_count,
+                billing_connector_retry_threshold: recovery_metadata
+                    .billing_connector_retry_threshold,
+                mca_reference: AccountReferenceMap {
+                    recovery_to_billing: recovery_metadata.billing_account_reference.0,
+                    billing_to_recovery,
+                },
+            }
+        });
+        Self { revenue_recovery }
     }
 }
