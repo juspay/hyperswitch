@@ -1,3 +1,5 @@
+import { generateRandomAmount } from "../../../utils/RequestBodyUtils";
+
 const successfulTestCardDetails = {
   card_number: "4111111111111111",
   card_exp_month: "10",
@@ -5,13 +7,6 @@ const successfulTestCardDetails = {
   card_holder_name: "Juspay Hyperswitch",
   card_cvc: "737",
 };
-
-let random_amount;
-
-function generateRandomAmount() {
-  random_amount = Math.floor(10000 + Math.random() * 90000);
-  return random_amount;
-}
 
 export const connectorDetails = {
   card_pm: {
@@ -24,7 +19,6 @@ export const connectorDetails = {
       },
       Response: {
         status: 200,
-        amount: random_amount,
         body: {
           status: "requires_payment_method",
         },
@@ -40,7 +34,6 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_payment_method",
-          amount: random_amount,
           shipping_cost: 50,
         },
       },
@@ -59,9 +52,9 @@ export const connectorDetails = {
         body: {
           status: "succeeded",
           shipping_cost: 50,
-          amount_received: random_amount + 50,
-          amount: random_amount,
-          net_amount: random_amount + 50,
+          // amount_received: randomAmount + 50,
+          // amount: randomAmount,
+          // net_amount: randomAmount + 50,
         },
       },
     },
@@ -85,6 +78,7 @@ export const connectorDetails = {
     No3DSAutoCapture: {
       Request: {
         payment_method: "card",
+        amount: generateRandomAmount(),
         payment_method_data: {
           card: successfulTestCardDetails,
         },
@@ -112,9 +106,9 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
-          amount: random_amount,
+          // amount: randomAmount,
           amount_capturable: 0,
-          amount_received: random_amount,
+          // amount_received: randomAmount,
         },
       },
     },
