@@ -35,6 +35,7 @@ use hyperswitch_interfaces::{
         ConnectorValidation,
     },
     configs::Connectors,
+    consts::NO_ERROR_CODE,
     errors,
     events::connector_api_logs::ConnectorEvent,
     types::{self, Response},
@@ -143,7 +144,7 @@ impl ConnectorCommon for Datatrans {
             router_env::logger::info!(connector_response=?response);
             Ok(ErrorResponse {
                 status_code: res.status_code,
-                code: response.clone(),
+                code: NO_ERROR_CODE.to_owned(),
                 message: response.clone(),
                 reason: Some(response),
                 attempt_status: None,
