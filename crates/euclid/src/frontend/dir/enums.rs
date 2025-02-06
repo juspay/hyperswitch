@@ -71,6 +71,7 @@ pub enum PayLaterType {
 #[strum(serialize_all = "snake_case")]
 pub enum WalletType {
     GooglePay,
+    AmazonPay,
     ApplePay,
     Paypal,
     AliPay,

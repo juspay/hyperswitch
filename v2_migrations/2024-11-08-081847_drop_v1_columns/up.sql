@@ -87,4 +87,4 @@ ALTER TABLE payment_attempt DROP COLUMN attempt_id,
     DROP COLUMN confirm,
     DROP COLUMN authentication_data,
     DROP COLUMN payment_method_billing_address_id,
-    DROP COLUMN charge_id;
+    DROP COLUMN connector_mandate_detail;

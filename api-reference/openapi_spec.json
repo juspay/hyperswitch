@@ -5955,6 +5955,9 @@
       "AliPayRedirection": {
         "type": "object"
       },
+      "AmazonPayRedirectData": {
+        "type": "object"
+      },
       "AmountFilter": {
         "type": "object",
         "properties": {
@@ -9371,6 +9374,7 @@
           "gocardless",
           "gpayments",
           "helcim",
+          "inespay",
           "iatapay",
           "itaubank",
           "jpmorgan",
@@ -9633,6 +9637,11 @@
           "paze": {
             "type": "object",
             "description": "This field contains the Paze certificates and credentials",
+            "nullable": true
+          },
+          "google_pay": {
+            "type": "object",
+            "description": "This field contains the Google Pay certificates and credentials",
             "nullable": true
           }
         },
@@ -17352,6 +17361,7 @@
           "ali_pay",
           "ali_pay_hk",
           "alma",
+          "amazon_pay",
           "apple_pay",
           "atome",
           "bacs",
@@ -21027,6 +21037,11 @@
             "example": "+1",
             "nullable": true,
             "maxLength": 255
+          },
+          "payout_method_id": {
+            "type": "string",
+            "description": "Identifier for payout method",
+            "nullable": true
           }
         }
       },
@@ -21325,6 +21340,11 @@
             "example": "Invalid card details",
             "nullable": true,
             "maxLength": 1024
+          },
+          "payout_method_id": {
+            "type": "string",
+            "description": "Identifier for payout method",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -21971,6 +21991,11 @@
             "example": "+1",
             "nullable": true,
             "maxLength": 255
+          },
+          "payout_method_id": {
+            "type": "string",
+            "description": "Identifier for payout method",
+            "nullable": true
           }
         }
       },
@@ -22183,6 +22208,11 @@
             "example": "+1",
             "nullable": true,
             "maxLength": 255
+          },
+          "payout_method_id": {
+            "type": "string",
+            "description": "Identifier for payout method",
+            "nullable": true
           }
         }
       },
@@ -24081,6 +24111,7 @@
           "gocardless",
           "helcim",
           "iatapay",
+          "inespay",
           "itaubank",
           "jpmorgan",
           "klarna",
@@ -24634,6 +24665,14 @@
             "format": "int32",
             "description": "Indicates maximum amount of time in minutes",
             "minimum": 0
+          },
+          "sdk_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SdkType"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -24662,6 +24701,17 @@
             "nullable": true
           }
         }
+      },
+      "SdkType": {
+        "type": "string",
+        "description": "Enum representing the type of 3DS SDK.",
+        "enum": [
+          "01",
+          "02",
+          "03",
+          "04",
+          "05"
+        ]
       },
       "SecretInfoToInitiateSdk": {
         "type": "object",
@@ -26224,8 +26274,7 @@
         "type": "object",
         "required": [
           "last4",
-          "card_network",
-          "type"
+          "card_network"
         ],
         "properties": {
           "last4": {
@@ -26238,7 +26287,8 @@
           },
           "type": {
             "type": "string",
-            "description": "The type of payment method"
+            "description": "The type of payment method",
+            "nullable": true
           }
         }
       },
@@ -26274,6 +26324,17 @@
             "properties": {
               "ali_pay_hk_redirect": {
                 "$ref": "#/components/schemas/AliPayHkRedirection"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "amazon_pay_redirect"
+            ],
+            "properties": {
+              "amazon_pay_redirect": {
+                "$ref": "#/components/schemas/AmazonPayRedirectData"
               }
             }
           },
@@ -26592,6 +26653,17 @@
             ],
             "properties": {
               "google_pay": {
+                "$ref": "#/components/schemas/WalletAdditionalDataForCard"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "samsung_pay"
+            ],
+            "properties": {
+              "samsung_pay": {
                 "$ref": "#/components/schemas/WalletAdditionalDataForCard"
               }
             }
