@@ -2710,6 +2710,7 @@ default_imp_for_uas_authentication!(
     connectors::Cashtocode,
     connectors::Chargebee,
     connectors::Coinbase,
+    connectors::Coingate,
     connectors::Cryptopay,
     connectors::CtpMastercard,
     connectors::Cybersource,
