@@ -157,7 +157,7 @@ impl_to_sql_from_sql_json!(XenditMultipleSplitRequest);
     Serialize, Deserialize, Debug, Clone, PartialEq, Eq, FromSqlRow, AsExpression, ToSchema,
 )]
 #[diesel(sql_type = Jsonb)]
-#[serde(untagged)]
+#[serde(rename_all = "snake_case")]
 #[serde(deny_unknown_fields)]
 pub enum XenditSplitRequest {
     /// Split Between Multiple Accounts
@@ -173,7 +173,7 @@ impl_to_sql_from_sql_json!(XenditSplitRequest);
     Serialize, Deserialize, Debug, Clone, PartialEq, Eq, FromSqlRow, AsExpression, ToSchema,
 )]
 #[diesel(sql_type = Jsonb)]
-#[serde(untagged)]
+#[serde(rename_all = "snake_case")]
 #[serde(deny_unknown_fields)]
 pub enum XenditChargeResponseData {
     /// Split Between Multiple Accounts

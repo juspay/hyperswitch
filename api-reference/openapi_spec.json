@@ -26670,10 +26670,26 @@
       "XenditChargeResponseData": {
         "oneOf": [
           {
-            "$ref": "#/components/schemas/XenditMultipleSplitResponse"
+            "type": "object",
+            "required": [
+              "multiple_splits"
+            ],
+            "properties": {
+              "multiple_splits": {
+                "$ref": "#/components/schemas/XenditMultipleSplitResponse"
+              }
+            }
           },
           {
-            "$ref": "#/components/schemas/XenditSplitSubMerchantData"
+            "type": "object",
+            "required": [
+              "single_split"
+            ],
+            "properties": {
+              "single_split": {
+                "$ref": "#/components/schemas/XenditSplitSubMerchantData"
+              }
+            }
           }
         ],
         "description": "Charge Information"
@@ -26750,10 +26766,26 @@
       "XenditSplitRequest": {
         "oneOf": [
           {
-            "$ref": "#/components/schemas/XenditMultipleSplitRequest"
+            "type": "object",
+            "required": [
+              "multiple_splits"
+            ],
+            "properties": {
+              "multiple_splits": {
+                "$ref": "#/components/schemas/XenditMultipleSplitRequest"
+              }
+            }
           },
           {
-            "$ref": "#/components/schemas/XenditSplitSubMerchantData"
+            "type": "object",
+            "required": [
+              "single_split"
+            ],
+            "properties": {
+              "single_split": {
+                "$ref": "#/components/schemas/XenditSplitSubMerchantData"
+              }
+            }
           }
         ],
         "description": "Xendit Charge Request"
