@@ -1347,18 +1347,6 @@ impl PhoneDetailsData for PhoneDetails {
         )))
     }
 }
-#[cfg(feature = "payouts")]
-pub trait PayoutFulfillRequestData {
-    fn get_connector_payout_id(&self) -> Result<String, Error>;
-}
-#[cfg(feature = "payouts")]
-impl PayoutFulfillRequestData for hyperswitch_domain_models::router_request_types::PayoutsData {
-    fn get_connector_payout_id(&self) -> Result<String, Error> {
-        self.connector_payout_id
-            .clone()
-            .ok_or_else(missing_field_err("connector_payout_id"))
-    }
-}
 
 #[cfg(feature = "payouts")]
 pub trait PayoutFulfillRequestData {
