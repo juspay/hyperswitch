@@ -108,6 +108,7 @@ impl TryFrom<(&domain::WalletData, &types::PaymentsAuthorizeRouterData)> for Pay
                 account_id: None,
             })),
             domain::WalletData::AliPayHkRedirect(_)
+            | domain::WalletData::AmazonPayRedirect(_)
             | domain::WalletData::MomoRedirect(_)
             | domain::WalletData::KakaoPayRedirect(_)
             | domain::WalletData::GoPayRedirect(_)
