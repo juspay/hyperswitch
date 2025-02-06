@@ -1260,6 +1260,8 @@ pub trait AddressDetailsData {
     fn get_optional_city(&self) -> Option<String>;
     fn get_optional_line1(&self) -> Option<Secret<String>>;
     fn get_optional_line2(&self) -> Option<Secret<String>>;
+    fn get_optional_first_name(&self) -> Option<Secret<String>>;
+    fn get_optional_last_name(&self) -> Option<Secret<String>>;
 }
 
 impl AddressDetailsData for AddressDetails {
@@ -1368,6 +1370,14 @@ impl AddressDetailsData for AddressDetails {
     fn get_optional_line2(&self) -> Option<Secret<String>> {
         self.line2.clone()
     }
+
+    fn get_optional_first_name(&self) -> Option<Secret<String>> {
+        self.first_name.clone()
+    }
+
+    fn get_optional_last_name(&self) -> Option<Secret<String>> {
+        self.last_name.clone()
+    }
 }
 
 pub trait PhoneDetailsData {
@@ -1407,6 +1417,26 @@ impl PhoneDetailsData for PhoneDetails {
             number_without_plus,
             number.peek()
         )))
+    }
+}
+
+#[cfg(feature = "payouts")]
+pub trait PayoutFulfillRequestData {
+    fn get_connector_payout_id(&self) -> Result<String, Error>;
+    fn get_connector_transfer_method_id(&self) -> Result<String, Error>;
+}
+#[cfg(feature = "payouts")]
+impl PayoutFulfillRequestData for hyperswitch_domain_models::router_request_types::PayoutsData {
+    fn get_connector_payout_id(&self) -> Result<String, Error> {
+        self.connector_payout_id
+            .clone()
+            .ok_or_else(missing_field_err("connector_payout_id"))
+    }
+
+    fn get_connector_transfer_method_id(&self) -> Result<String, Error> {
+        self.connector_transfer_method_id
+            .clone()
+            .ok_or_else(missing_field_err("connector_transfer_method_id"))
     }
 }
 
@@ -2358,6 +2388,7 @@ pub enum PaymentMethodDataType {
     AliPayQr,
     AliPayRedirect,
     AliPayHkRedirect,
+    AmazonPayRedirect,
     MomoRedirect,
     KakaoPayRedirect,
     GoPayRedirect,
@@ -2477,6 +2508,7 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
                 payment_method_data::WalletData::AliPayQr(_) => Self::AliPayQr,
                 payment_method_data::WalletData::AliPayRedirect(_) => Self::AliPayRedirect,
                 payment_method_data::WalletData::AliPayHkRedirect(_) => Self::AliPayHkRedirect,
+                payment_method_data::WalletData::AmazonPayRedirect(_) => Self::AmazonPayRedirect,
                 payment_method_data::WalletData::MomoRedirect(_) => Self::MomoRedirect,
                 payment_method_data::WalletData::KakaoPayRedirect(_) => Self::KakaoPayRedirect,
                 payment_method_data::WalletData::GoPayRedirect(_) => Self::GoPayRedirect,
