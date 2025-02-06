@@ -748,6 +748,7 @@ pub struct Profile {
     pub is_click_to_pay_enabled: bool,
     pub authentication_product_ids:
         Option<common_types::payments::AuthenticationConnectorAccountMap>,
+    pub three_ds_decision_manager_config: Option<common_types::payments::DecisionManagerRecord>,
     pub always_request_overcapture: Option<bool>,
 }
 
@@ -792,6 +793,7 @@ pub struct ProfileSetter {
     pub is_click_to_pay_enabled: bool,
     pub authentication_product_ids:
         Option<common_types::payments::AuthenticationConnectorAccountMap>,
+    pub three_ds_decision_manager_config: Option<common_types::payments::DecisionManagerRecord>,
 }
 
 #[cfg(feature = "v2")]
@@ -841,6 +843,7 @@ impl From<ProfileSetter> for Profile {
             is_network_tokenization_enabled: value.is_network_tokenization_enabled,
             is_click_to_pay_enabled: value.is_click_to_pay_enabled,
             authentication_product_ids: value.authentication_product_ids,
+            three_ds_decision_manager_config: value.three_ds_decision_manager_config,
             always_request_overcapture: None,
         }
     }
@@ -895,6 +898,7 @@ pub struct ProfileGeneralUpdate {
     pub is_click_to_pay_enabled: Option<bool>,
     pub authentication_product_ids:
         Option<common_types::payments::AuthenticationConnectorAccountMap>,
+    pub three_ds_decision_manager_config: Option<common_types::payments::DecisionManagerRecord>,
 }
 
 #[cfg(feature = "v2")]
@@ -919,6 +923,9 @@ pub enum ProfileUpdate {
     },
     CollectCvvDuringPaymentUpdate {
         should_collect_cvv_during_payment: bool,
+    },
+    DecisionManagerRecordUpdate {
+        three_ds_decision_manager_config: common_types::payments::DecisionManagerRecord,
     },
 }
 
@@ -955,6 +962,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     is_network_tokenization_enabled,
                     is_click_to_pay_enabled,
                     authentication_product_ids,
+                    three_ds_decision_manager_config,
                 } = *update;
                 Self {
                     profile_name,
@@ -995,6 +1003,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     max_auto_retries_enabled: None,
                     is_click_to_pay_enabled: None,
                     authentication_product_ids,
+                    three_ds_decision_manager_config,
                 }
             }
             ProfileUpdate::RoutingAlgorithmUpdate {
@@ -1038,6 +1047,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 max_auto_retries_enabled: None,
                 is_click_to_pay_enabled: None,
                 authentication_product_ids: None,
+                three_ds_decision_manager_config: None,
             },
             ProfileUpdate::ExtendedCardInfoUpdate {
                 is_extended_card_info_enabled,
@@ -1079,6 +1089,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 max_auto_retries_enabled: None,
                 is_click_to_pay_enabled: None,
                 authentication_product_ids: None,
+                three_ds_decision_manager_config: None,
             },
             ProfileUpdate::ConnectorAgnosticMitUpdate {
                 is_connector_agnostic_mit_enabled,
@@ -1120,6 +1131,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 max_auto_retries_enabled: None,
                 is_click_to_pay_enabled: None,
                 authentication_product_ids: None,
+                three_ds_decision_manager_config: None,
             },
             ProfileUpdate::DefaultRoutingFallbackUpdate {
                 default_fallback_routing,
@@ -1161,6 +1173,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 max_auto_retries_enabled: None,
                 is_click_to_pay_enabled: None,
                 authentication_product_ids: None,
+                three_ds_decision_manager_config: None,
             },
             ProfileUpdate::NetworkTokenizationUpdate {
                 is_network_tokenization_enabled,
@@ -1202,6 +1215,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 max_auto_retries_enabled: None,
                 is_click_to_pay_enabled: None,
                 authentication_product_ids: None,
+                three_ds_decision_manager_config: None,
             },
             ProfileUpdate::CollectCvvDuringPaymentUpdate {
                 should_collect_cvv_during_payment,
@@ -1243,6 +1257,49 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 max_auto_retries_enabled: None,
                 is_click_to_pay_enabled: None,
                 authentication_product_ids: None,
+                three_ds_decision_manager_config: None,
+            },
+            ProfileUpdate::DecisionManagerRecordUpdate {
+                three_ds_decision_manager_config,
+            } => Self {
+                profile_name: None,
+                modified_at: now,
+                return_url: None,
+                enable_payment_response_hash: None,
+                payment_response_hash_key: None,
+                redirect_to_merchant_with_http_post: None,
+                webhook_details: None,
+                metadata: None,
+                is_recon_enabled: None,
+                applepay_verified_domains: None,
+                payment_link_config: None,
+                session_expiry: None,
+                authentication_connector_details: None,
+                payout_link_config: None,
+                is_extended_card_info_enabled: None,
+                extended_card_info_config: None,
+                is_connector_agnostic_mit_enabled: None,
+                use_billing_as_payment_method_billing: None,
+                collect_shipping_details_from_wallet_connector: None,
+                collect_billing_details_from_wallet_connector: None,
+                outgoing_webhook_custom_http_headers: None,
+                always_collect_billing_details_from_wallet_connector: None,
+                always_collect_shipping_details_from_wallet_connector: None,
+                routing_algorithm_id: None,
+                payout_routing_algorithm_id: None,
+                order_fulfillment_time: None,
+                order_fulfillment_time_origin: None,
+                frm_routing_algorithm_id: None,
+                default_fallback_routing: None,
+                should_collect_cvv_during_payment: None,
+                tax_connector_id: None,
+                is_tax_connector_enabled: None,
+                is_network_tokenization_enabled: None,
+                is_auto_retries_enabled: None,
+                max_auto_retries_enabled: None,
+                is_click_to_pay_enabled: None,
+                authentication_product_ids: None,
+                three_ds_decision_manager_config: Some(three_ds_decision_manager_config),
             },
         }
     }
@@ -1304,6 +1361,7 @@ impl super::behaviour::Conversion for Profile {
             max_auto_retries_enabled: None,
             is_click_to_pay_enabled: self.is_click_to_pay_enabled,
             authentication_product_ids: self.authentication_product_ids,
+            three_ds_decision_manager_config: self.three_ds_decision_manager_config,
             always_request_overcapture: self.always_request_overcapture,
         })
     }
@@ -1375,6 +1433,7 @@ impl super::behaviour::Conversion for Profile {
                 is_network_tokenization_enabled: item.is_network_tokenization_enabled,
                 is_click_to_pay_enabled: item.is_click_to_pay_enabled,
                 authentication_product_ids: item.authentication_product_ids,
+                three_ds_decision_manager_config: item.three_ds_decision_manager_config,
                 always_request_overcapture: item.always_request_overcapture,
             })
         }
@@ -1433,6 +1492,7 @@ impl super::behaviour::Conversion for Profile {
             max_auto_retries_enabled: None,
             is_click_to_pay_enabled: self.is_click_to_pay_enabled,
             authentication_product_ids: self.authentication_product_ids,
+            three_ds_decision_manager_config: self.three_ds_decision_manager_config,
         })
     }
 }

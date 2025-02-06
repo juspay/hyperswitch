@@ -362,6 +362,7 @@ pub async fn generate_sample_data(
             order_tax_amount: None,
             connector_transaction_data,
             connector_mandate_detail: None,
+            card_discovery: None,
             request_overcapture: None,
         };
 

@@ -908,6 +908,7 @@ diesel::table! {
         #[max_length = 512]
         connector_transaction_data -> Nullable<Varchar>,
         connector_mandate_detail -> Nullable<Jsonb>,
+        card_discovery -> Nullable<CardDiscovery>,
         #[max_length = 32]
         request_overcapture -> Nullable<Varchar>,
         #[max_length = 32]
@@ -1337,6 +1338,8 @@ diesel::table! {
         last_modified_by -> Varchar,
         #[max_length = 64]
         entity_type -> Varchar,
+        #[max_length = 64]
+        profile_id -> Nullable<Varchar>,
         #[max_length = 64]
         tenant_id -> Varchar,
     }
