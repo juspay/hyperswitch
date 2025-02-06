@@ -2321,7 +2321,7 @@ Cypress.Commands.add(
           }
         } else {
           throw new Error(
-            `Retrieve Payment Call Failed ${response.body.error.message}`
+            `Retrieve Payment Call Failed with error code "${response.body.error.code}" error message "${response.body.error.message}"`
           );
         }
       });
