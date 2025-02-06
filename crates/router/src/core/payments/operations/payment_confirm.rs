@@ -777,7 +777,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 None, // update_history
                 None, // mandate_metadata
                 Some(common_utils::generate_id_with_len(
-                    consts::CONNECTOR_MANDATE_REQUEST_REFERENCE_ID_LENGTH.to_owned(),
+                    consts::CONNECTOR_MANDATE_REQUEST_REFERENCE_ID_LENGTH,
                 )), // connector_mandate_request_reference_id
             )),
         );
@@ -1632,7 +1632,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
         let m_payment_token = payment_token.clone();
         let m_additional_pm_data = encoded_additional_pm_data
             .clone()
-            .or(payment_data.payment_attempt.payment_method_data);
+            .or(payment_data.payment_attempt.payment_method_data.clone());
         let m_business_sub_label = business_sub_label.clone();
         let m_straight_through_algorithm = straight_through_algorithm.clone();
         let m_error_code = error_code.clone();
@@ -1660,6 +1660,8 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
             ),
             None => (None, None, None),
         };
+
+        let card_discovery = payment_data.get_card_discovery_for_card_payment_method();
 
         let payment_attempt_fut = tokio::spawn(
             async move {
@@ -1708,6 +1710,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                         connector_mandate_detail: payment_data
                             .payment_attempt
                             .connector_mandate_detail,
+                        card_discovery,
                     },
                     storage_scheme,
                 )

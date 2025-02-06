@@ -93,6 +93,7 @@ impl TryFrom<&types::TokenizationRouterData> for TokenRequest {
                 domain::WalletData::AliPayQr(_)
                 | domain::WalletData::AliPayRedirect(_)
                 | domain::WalletData::AliPayHkRedirect(_)
+                | domain::WalletData::AmazonPayRedirect(_)
                 | domain::WalletData::MomoRedirect(_)
                 | domain::WalletData::KakaoPayRedirect(_)
                 | domain::WalletData::GoPayRedirect(_)
@@ -307,6 +308,9 @@ impl TryFrom<&CheckoutRouterData<&types::PaymentsAuthorizeRouterData>> for Payme
                         types::PaymentMethodToken::PazeDecrypt(_) => {
                             Err(unimplemented_payment_method!("Paze", "Checkout"))?
                         }
+                        types::PaymentMethodToken::GooglePayDecrypt(_) => {
+                            Err(unimplemented_payment_method!("Google Pay", "Checkout"))?
+                        }
                     },
                 })),
                 domain::WalletData::ApplePay(_) => {
@@ -336,11 +340,15 @@ impl TryFrom<&CheckoutRouterData<&types::PaymentsAuthorizeRouterData>> for Payme
                         types::PaymentMethodToken::PazeDecrypt(_) => {
                             Err(unimplemented_payment_method!("Paze", "Checkout"))?
                         }
+                        types::PaymentMethodToken::GooglePayDecrypt(_) => {
+                            Err(unimplemented_payment_method!("Google Pay", "Checkout"))?
+                        }
                     }
                 }
                 domain::WalletData::AliPayQr(_)
                 | domain::WalletData::AliPayRedirect(_)
                 | domain::WalletData::AliPayHkRedirect(_)
+                | domain::WalletData::AmazonPayRedirect(_)
                 | domain::WalletData::MomoRedirect(_)
                 | domain::WalletData::KakaoPayRedirect(_)
                 | domain::WalletData::GoPayRedirect(_)

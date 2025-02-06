@@ -153,6 +153,9 @@ impl TryFrom<&SetupMandateRouterData> for WellsfargoZeroMandateRequest {
                         PaymentMethodToken::PazeDecrypt(_) => {
                             Err(unimplemented_payment_method!("Paze", "Wellsfargo"))?
                         }
+                        PaymentMethodToken::GooglePayDecrypt(_) => {
+                            Err(unimplemented_payment_method!("Google Pay", "Wellsfargo"))?
+                        }
                     },
                     None => (
                         PaymentInformation::ApplePayToken(Box::new(
@@ -184,6 +187,7 @@ impl TryFrom<&SetupMandateRouterData> for WellsfargoZeroMandateRequest {
                 WalletData::AliPayQr(_)
                 | WalletData::AliPayRedirect(_)
                 | WalletData::AliPayHkRedirect(_)
+                | WalletData::AmazonPayRedirect(_)
                 | WalletData::MomoRedirect(_)
                 | WalletData::KakaoPayRedirect(_)
                 | WalletData::GoPayRedirect(_)
@@ -1173,6 +1177,9 @@ impl TryFrom<&WellsfargoRouterData<&PaymentsAuthorizeRouterData>> for Wellsfargo
                                     PaymentMethodToken::PazeDecrypt(_) => {
                                         Err(unimplemented_payment_method!("Paze", "Wellsfargo"))?
                                     }
+                                    PaymentMethodToken::GooglePayDecrypt(_) => Err(
+                                        unimplemented_payment_method!("Google Pay", "Wellsfargo"),
+                                    )?,
                                 },
                                 None => {
                                     let email = item.router_data.request.get_email()?;
@@ -1242,6 +1249,7 @@ impl TryFrom<&WellsfargoRouterData<&PaymentsAuthorizeRouterData>> for Wellsfargo
                         WalletData::AliPayQr(_)
                         | WalletData::AliPayRedirect(_)
                         | WalletData::AliPayHkRedirect(_)
+                        | WalletData::AmazonPayRedirect(_)
                         | WalletData::MomoRedirect(_)
                         | WalletData::KakaoPayRedirect(_)
                         | WalletData::GoPayRedirect(_)

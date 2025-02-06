@@ -44,7 +44,8 @@ pub use hyperswitch_domain_models::{
     router_data::{
         AccessToken, AdditionalPaymentMethodConnectorResponse, ApplePayCryptogramData,
         ApplePayPredecryptData, ConnectorAuthType, ConnectorResponseData, ErrorResponse,
-        PaymentMethodBalance, PaymentMethodToken, RecurringMandatePaymentData, RouterData,
+        GooglePayDecryptedData, GooglePayPaymentMethodDetails, PaymentMethodBalance,
+        PaymentMethodToken, RecurringMandatePaymentData, RouterData,
     },
     router_data_v2::{
         AccessTokenFlowData, DisputesFlowData, ExternalAuthenticationFlowData, FilesFlowData,
@@ -543,6 +544,7 @@ pub struct RedirectPaymentFlowResponse<D> {
     pub profile: domain::Profile,
 }
 
+#[cfg(feature = "v1")]
 #[derive(Clone, Debug)]
 pub struct AuthenticatePaymentFlowResponse {
     pub payments_response: api_models::payments::PaymentsResponse,
