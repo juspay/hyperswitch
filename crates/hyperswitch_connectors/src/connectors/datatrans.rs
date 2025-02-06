@@ -16,14 +16,19 @@ use hyperswitch_domain_models::{
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
         payments::{Authorize, Capture, PSync, PaymentMethodToken, Session, SetupMandate, Void},
-        refunds::{Execute, RSync}, IncrementalAuthorization,
+        refunds::{Execute, RSync},
+        IncrementalAuthorization,
     },
     router_request_types::{
-        AccessTokenRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData, PaymentsSessionData, PaymentsSyncData, RefundsData, SetupMandateRequestData
+        AccessTokenRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
+        PaymentsCancelData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
+        PaymentsSessionData, PaymentsSyncData, RefundsData, SetupMandateRequestData,
     },
     router_response_types::{PaymentsResponseData, RefundsResponseData},
     types::{
-        PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData, PaymentsIncrementalAuthorizationRouterData, PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData
+        PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
+        PaymentsIncrementalAuthorizationRouterData, PaymentsSyncRouterData, RefundSyncRouterData,
+        RefundsRouterData,
     },
 };
 use hyperswitch_interfaces::{
@@ -32,6 +37,7 @@ use hyperswitch_interfaces::{
         ConnectorValidation,
     },
     configs::Connectors,
+    consts::NO_ERROR_CODE,
     errors,
     events::connector_api_logs::ConnectorEvent,
     types::{self, Response},
@@ -143,7 +149,7 @@ impl ConnectorCommon for Datatrans {
         router_env::logger::info!(connector_response=?response);
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.error.code,
+            code: NO_ERROR_CODE.to_owned(),
             message: response.error.message.clone(),
             reason: Some(response.error.message.clone()),
             attempt_status: None,
@@ -675,7 +681,7 @@ impl
         &self,
         req: &PaymentsIncrementalAuthorizationRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String,masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
