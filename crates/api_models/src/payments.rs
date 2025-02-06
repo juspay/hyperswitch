@@ -6286,6 +6286,7 @@ pub struct GooglePayWalletDetails {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct GooglePayDetails {
     pub provider_details: GooglePayProviderDetails,
+    pub cards: GpayAllowedMethodsParameters,
 }
 
 // Google Pay Provider Details can of two types: GooglePayMerchantDetails or GooglePayHyperSwitchDetails
@@ -6315,8 +6316,9 @@ pub struct GooglePayTokenizationSpecification {
     pub parameters: GooglePayTokenizationParameters,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, strum::Display)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+#[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
 pub enum GooglePayTokenizationType {
     PaymentGateway,
     Direct,
@@ -6324,9 +6326,9 @@ pub enum GooglePayTokenizationType {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct GooglePayTokenizationParameters {
-    pub gateway: String,
-    pub public_key: Secret<String>,
-    pub private_key: Secret<String>,
+    pub gateway: Option<String>,
+    pub public_key: Option<Secret<String>>,
+    pub private_key: Option<Secret<String>>,
     pub recipient_id: Option<Secret<String>>,
     pub gateway_merchant_id: Option<Secret<String>>,
     pub stripe_publishable_key: Option<Secret<String>>,

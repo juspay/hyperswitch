@@ -1,9 +1,4 @@
-use std::{
-    borrow::Cow,
-    collections::HashSet,
-    str::FromStr,
-    time::{SystemTime, UNIX_EPOCH},
-};
+use std::{borrow::Cow, collections::HashSet, str::FromStr};
 
 #[cfg(feature = "v2")]
 use api_models::ephemeral_key::EphemeralKeyResponse;
@@ -46,22 +41,14 @@ use hyperswitch_interfaces::integrity::{CheckIntegrity, FlowIntegrity, GetIntegr
 use josekit::jwe;
 use masking::{ExposeInterface, PeekInterface, SwitchStrategy};
 use openssl::{
-    bn::BigNumContext,
     derive::Deriver,
-    ec::{EcGroup, EcKey, EcPoint},
-    ecdsa::EcdsaSig,
-    nid::Nid,
-    pkey::{PKey, Private},
-    sha::sha256,
+    pkey::PKey,
     symm::{decrypt_aead, Cipher},
 };
 #[cfg(feature = "v2")]
 use redis_interface::errors::RedisError;
-use ring::hmac;
 use router_env::{instrument, logger, tracing};
-use rust_hkdf::Hkdf;
 use serde::{Deserialize, Serialize};
-use sha2::Sha256;
 use uuid::Uuid;
 use x509_parser::parse_x509_certificate;
 
@@ -5452,7 +5439,7 @@ impl ApplePayData {
 // Structs for keys and the main decryptor
 pub struct GooglePayTokenDecryptor {
     root_signing_keys: Vec<GooglePayRootSigningKey>,
-    recipient_id: Option<masking::Secret<String>>,
+    recipient_id: masking::Secret<String>,
     private_key: PKey<openssl::pkey::Private>,
 }
 
@@ -5559,7 +5546,7 @@ fn filter_root_signing_keys(
 impl GooglePayTokenDecryptor {
     pub fn new(
         root_keys: masking::Secret<String>,
-        recipient_id: Option<masking::Secret<String>>,
+        recipient_id: masking::Secret<String>,
         private_key: masking::Secret<String>,
     ) -> CustomResult<Self, errors::GooglePayDecryptionError> {
         // base64 decode the private key
@@ -5843,11 +5830,7 @@ impl GooglePayTokenDecryptor {
         protocol_version: &str,
         signed_key: &str,
     ) -> CustomResult<Vec<u8>, errors::GooglePayDecryptionError> {
-        let recipient_id = self
-            .recipient_id
-            .clone()
-            .ok_or(errors::GooglePayDecryptionError::RecipientIdNotFound)?
-            .expose();
+        let recipient_id = self.recipient_id.clone().expose();
         let length_of_sender_id = u32::try_from(sender_id.len())
             .change_context(errors::GooglePayDecryptionError::ParsingFailed)?;
         let length_of_recipient_id = u32::try_from(recipient_id.len())
@@ -5927,13 +5910,14 @@ impl GooglePayTokenDecryptor {
 
         // derive 64 bytes for the output key (symmetric encryption + MAC key)
         let mut output_key = vec![0u8; 64];
-        hkdf.expand(consts::SENDER_ID, &mut output_key).map_err(|err| {
-            logger::error!(
+        hkdf.expand(consts::SENDER_ID, &mut output_key)
+            .map_err(|err| {
+                logger::error!(
                 "Failed to derive the shared ephemeral key for Google Pay decryption flow: {:?}",
                 err
             );
-            report!(errors::GooglePayDecryptionError::DerivingSharedEphemeralKeyFailed)
-        })?;
+                report!(errors::GooglePayDecryptionError::DerivingSharedEphemeralKeyFailed)
+            })?;
 
         Ok(output_key)
     }
@@ -5946,8 +5930,8 @@ impl GooglePayTokenDecryptor {
         tag: &[u8],
         encrypted_message: &[u8],
     ) -> CustomResult<(), errors::GooglePayDecryptionError> {
-        let hmac_key = hmac::Key::new(hmac::HMAC_SHA256, mac_key);
-        hmac::verify(&hmac_key, encrypted_message, tag)
+        let hmac_key = ring::hmac::Key::new(ring::hmac::HMAC_SHA256, mac_key);
+        ring::hmac::verify(&hmac_key, encrypted_message, tag)
             .change_context(errors::GooglePayDecryptionError::HmacVerificationFailed)
     }
 

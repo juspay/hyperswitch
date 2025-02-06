@@ -4478,7 +4478,7 @@ pub struct PazePaymentProcessingDetails {
 pub struct GooglePayPaymentProcessingDetails {
     pub google_pay_private_key: Secret<String>,
     pub google_pay_root_signing_keys: Secret<String>,
-    pub google_pay_recipient_id: Option<Secret<String>>,
+    pub google_pay_recipient_id: Secret<String>,
 }
 
 #[derive(Clone, Debug)]

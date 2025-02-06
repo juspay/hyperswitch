@@ -765,11 +765,6 @@ pub struct GooglePayDecryptConfig {
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
-pub struct GooglePayDecryptConfig {
-    pub google_pay_root_signing_keys: Secret<String>,
-}
-
-#[derive(Debug, Deserialize, Clone, Default)]
 #[serde(default)]
 pub struct LockerBasedRecipientConnectorList {
     #[serde(deserialize_with = "deserialize_hashset")]
