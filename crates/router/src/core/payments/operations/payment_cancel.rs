@@ -46,7 +46,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCancelRe
         key_store: &domain::MerchantKeyStore,
         _auth_flow: services::AuthFlow,
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
-        _platform_merchant_account: Option<&domain::MerchantAccount>,
+        platform_merchant_account: Option<&domain::MerchantAccount>,
     ) -> RouterResult<
         operations::GetTrackerResponse<'a, F, api::PaymentsCancelRequest, PaymentData<F>>,
     > {
@@ -69,6 +69,11 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCancelRe
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+        helpers::validate_platform_merchant(
+            payment_intent.platform_merchant_id.as_ref(),
+            platform_merchant_account.map(|ma| ma.get_id()),
+        )?;
 
         helpers::validate_payment_status_against_not_allowed_statuses(
             payment_intent.status,

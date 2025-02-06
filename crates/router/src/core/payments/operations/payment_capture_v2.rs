@@ -142,7 +142,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentCaptureData<F>, PaymentsCaptureReques
         _profile: &domain::Profile,
         key_store: &domain::MerchantKeyStore,
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
-        _platform_merchant_account: Option<&domain::MerchantAccount>,
+        platform_merchant_account: Option<&domain::MerchantAccount>,
     ) -> RouterResult<operations::GetTrackerResponse<PaymentCaptureData<F>>> {
         let db = &*state.store;
         let key_manager_state = &state.into();
@@ -153,6 +153,11 @@ impl<F: Send + Clone> GetTracker<F, PaymentCaptureData<F>, PaymentsCaptureReques
             .find_payment_intent_by_id(key_manager_state, payment_id, key_store, storage_scheme)
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+        helpers::validate_platform_merchant(
+            payment_intent.platform_merchant_id.as_ref(),
+            platform_merchant_account.map(|ma| ma.get_id()),
+        )?;
 
         self.validate_status_for_operation(payment_intent.status)?;
 

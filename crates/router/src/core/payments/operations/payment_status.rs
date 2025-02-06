@@ -3,7 +3,7 @@ use std::marker::PhantomData;
 use api_models::enums::FrmSuggestion;
 use async_trait::async_trait;
 use common_utils::{ext_traits::AsyncExt, types::keymanager::KeyManagerState};
-use error_stack::ResultExt;
+use error_stack::{report, ResultExt};
 use router_derive::PaymentOperation;
 use router_env::{instrument, logger, tracing};
 
@@ -213,7 +213,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRetrieve
         key_store: &domain::MerchantKeyStore,
         _auth_flow: services::AuthFlow,
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
-        _platform_merchant_account: Option<&domain::MerchantAccount>,
+        platform_merchant_account: Option<&domain::MerchantAccount>,
     ) -> RouterResult<
         operations::GetTrackerResponse<'a, F, api::PaymentsRetrieveRequest, PaymentData<F>>,
     > {
@@ -225,6 +225,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRetrieve
             request,
             self,
             merchant_account.storage_scheme,
+            platform_merchant_account,
         )
         .await
     }
@@ -264,6 +265,7 @@ async fn get_tracker_for_sync<
     request: &api::PaymentsRetrieveRequest,
     operation: Op,
     storage_scheme: enums::MerchantStorageScheme,
+    platform_merchant_account: Option<&domain::MerchantAccount>,
 ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRetrieveRequest, PaymentData<F>>>
 {
     let (payment_intent, mut payment_attempt, currency, amount);
@@ -274,6 +276,7 @@ async fn get_tracker_for_sync<
         merchant_account.get_id(),
         key_store,
         storage_scheme,
+        platform_merchant_account,
     )
     .await?;
 
@@ -572,6 +575,7 @@ pub async fn get_payment_intent_payment_attempt(
     merchant_id: &common_utils::id_type::MerchantId,
     key_store: &domain::MerchantKeyStore,
     storage_scheme: enums::MerchantStorageScheme,
+    platform_merchant_account: Option<&domain::MerchantAccount>,
 ) -> RouterResult<(storage::PaymentIntent, storage::PaymentAttempt)> {
     let key_manager_state: KeyManagerState = state.into();
     let db = &*state.store;
@@ -655,4 +659,12 @@ pub async fn get_payment_intent_payment_attempt(
     get_pi_pa()
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
+        .and_then(|(pi, pa)| {
+            helpers::validate_platform_merchant(
+                pi.platform_merchant_id.as_ref(),
+                platform_merchant_account.map(|ma| ma.get_id()),
+            )
+            .map_err(|e| report!(e))?;
+            Ok((pi, pa))
+        })
 }

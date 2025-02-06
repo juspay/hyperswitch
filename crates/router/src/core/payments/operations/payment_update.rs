@@ -56,7 +56,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         key_store: &domain::MerchantKeyStore,
         auth_flow: services::AuthFlow,
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
-        _platform_merchant_account: Option<&domain::MerchantAccount>,
+        platform_merchant_account: Option<&domain::MerchantAccount>,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest, PaymentData<F>>>
     {
         let (mut payment_intent, mut payment_attempt, currency): (_, _, storage_enums::Currency);
@@ -80,6 +80,11 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+        helpers::validate_platform_merchant(
+            payment_intent.platform_merchant_id.as_ref(),
+            platform_merchant_account.map(|ma| ma.get_id()),
+        )?;
 
         if let Some(order_details) = &request.order_details {
             helpers::validate_order_details_amount(
