@@ -88,7 +88,7 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2.7.7
         with: 
-          env-vars: ""
+          env-vars: "RUSTFLAGS CARGO_HOME CARGO_INCREMENTAL CARGO_TERM_COLOR"
           save-if: false
 
       - name: Decrypt connector auth file
