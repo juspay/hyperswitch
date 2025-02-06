@@ -1,5 +1,6 @@
 use common_utils::id_type;
 use diesel::{query_builder::AsChangeset, Identifiable, Insertable, Queryable, Selectable};
+use masking::Secret;
 use time::PrimitiveDateTime;
 
 use crate::{enums, schema::dashboard_metadata};
@@ -12,7 +13,7 @@ pub struct DashboardMetadata {
     pub merchant_id: id_type::MerchantId,
     pub org_id: id_type::OrganizationId,
     pub data_key: enums::DashboardMetadata,
-    pub data_value: serde_json::Value,
+    pub data_value: Secret<serde_json::Value>,
     pub created_by: String,
     pub created_at: PrimitiveDateTime,
     pub last_modified_by: String,
@@ -28,7 +29,7 @@ pub struct DashboardMetadataNew {
     pub merchant_id: id_type::MerchantId,
     pub org_id: id_type::OrganizationId,
     pub data_key: enums::DashboardMetadata,
-    pub data_value: serde_json::Value,
+    pub data_value: Secret<serde_json::Value>,
     pub created_by: String,
     pub created_at: PrimitiveDateTime,
     pub last_modified_by: String,
@@ -41,7 +42,7 @@ pub struct DashboardMetadataNew {
 #[diesel(table_name = dashboard_metadata)]
 pub struct DashboardMetadataUpdateInternal {
     pub data_key: enums::DashboardMetadata,
-    pub data_value: serde_json::Value,
+    pub data_value: Secret<serde_json::Value>,
     pub last_modified_by: String,
     pub last_modified_at: PrimitiveDateTime,
 }
@@ -50,7 +51,7 @@ pub struct DashboardMetadataUpdateInternal {
 pub enum DashboardMetadataUpdate {
     UpdateData {
         data_key: enums::DashboardMetadata,
-        data_value: serde_json::Value,
+        data_value: Secret<serde_json::Value>,
         last_modified_by: String,
     },
 }

@@ -94,6 +94,7 @@ cashtocode.base_url = "https://cluster05.api-test.cashtocode.com"
 chargebee.base_url = "https://$.chargebee.com/api/"
 checkout.base_url = "https://api.sandbox.checkout.com/"
 coinbase.base_url = "https://api.commerce.coinbase.com"
+coingate.base_url = "https://api-sandbox.coingate.com/v2"
 cryptopay.base_url = "https://business-sandbox.cryptopay.me"
 cybersource.base_url = "https://apitest.cybersource.com/"
 datatrans.base_url = "https://api.sandbox.datatrans.com/"
@@ -199,6 +200,7 @@ cards = [
     "braintree",
     "checkout",
     "coinbase",
+    "coingate",
     "cryptopay",
     "cybersource",
     "datatrans",
@@ -338,6 +340,7 @@ card.credit.connector_list = "stripe,adyen,authorizedotnet,cybersource,globalpay
 card.debit.connector_list = "stripe,adyen,authorizedotnet,cybersource,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,braintree,nuvei,payme,wellsfargo,bamboraapac,elavon,fiuu,nexixpay,novalnet,paybox,paypal"      
 pay_later.klarna.connector_list = "adyen"                       
 wallet.apple_pay.connector_list = "stripe,adyen,cybersource,noon,bankofamerica,nexinets,novalnet"        
+wallet.samsung_pay.connector_list = "cybersource"
 wallet.google_pay.connector_list = "stripe,adyen,cybersource,bankofamerica,noon,globalpay,multisafepay,novalnet"            
 wallet.paypal.connector_list = "adyen,globalpay,nexinets,novalnet,paypal"                         
 wallet.momo.connector_list = "adyen"
