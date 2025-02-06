@@ -287,7 +287,7 @@ pub fn make_dsl_input(
             |mandate_data| {
                 mandate_data
                     .customer_acceptance
-                    .clone()
+                    .as_ref()
                     .map(|cat| match cat.acceptance_type {
                         hyperswitch_domain_models::mandates::AcceptanceType::Online => {
                             euclid_enums::MandateAcceptanceType::Online
