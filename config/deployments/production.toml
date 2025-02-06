@@ -43,6 +43,7 @@ bluesnap.secondary_base_url = "https://pay.bluesnap.com/"
 boku.base_url = "https://country-api4-stage.boku.com"
 braintree.base_url = "https://payments.braintree-api.com/graphql"
 cashtocode.base_url = "https://cluster14.api.cashtocode.com"
+chargebee.base_url = "https://$.chargebee.com/api/"
 checkout.base_url = "https://api.checkout.com/"
 coinbase.base_url = "https://api.commerce.coinbase.com"
 cryptopay.base_url = "https://business.cryptopay.me/"
@@ -168,6 +169,7 @@ card.credit.connector_list = "stripe,adyen,authorizedotnet,cybersource,globalpay
 card.debit.connector_list = "stripe,adyen,authorizedotnet,cybersource,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,braintree,nuvei,payme,wellsfargo,bamboraapac,elavon,fiuu,nexixpay,novalnet,paybox,paypal"      
 pay_later.klarna.connector_list = "adyen"                       
 wallet.apple_pay.connector_list = "stripe,adyen,cybersource,noon,bankofamerica,nexinets,novalnet"        
+wallet.samsung_pay.connector_list = "cybersource"
 wallet.google_pay.connector_list = "stripe,adyen,cybersource,bankofamerica,noon,globalpay,multisafepay,novalnet"            
 wallet.paypal.connector_list = "adyen,globalpay,nexinets,novalnet,paypal"                         
 wallet.momo.connector_list = "adyen"
@@ -191,7 +193,7 @@ card.credit = { connector_list = "cybersource" }            # Update Mandate sup
 card.debit = { connector_list = "cybersource" }             # Update Mandate supported payment method type and connector for card 
 
 [network_transaction_id_supported_connectors]
-connector_list = "adyen"
+connector_list = "adyen,stripe"
 
 [payouts]
 payout_eligibility = true            # Defaults the eligibility of a payout method to true in case connector does not provide checks for payout eligibility

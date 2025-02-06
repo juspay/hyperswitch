@@ -1353,6 +1353,14 @@ api_secret="Shared Secret"
 [deutschebank]
 [[deutschebank.bank_debit]]
   payment_method_type = "sepa"
+[[deutschebank.credit]]
+  payment_method_type = "Visa"
+[[deutschebank.credit]]
+  payment_method_type = "Mastercard"
+[[deutschebank.debit]]
+  payment_method_type = "Visa"
+[[deutschebank.debit]]
+  payment_method_type = "Mastercard"
 [deutschebank.connector_auth.SignatureKey]
 api_key="Client ID"
 key1="Merchant ID"
@@ -1710,6 +1718,7 @@ key2="Certificate Key"
   payment_method_type = "Visa"
 [jpmorgan.connector_auth.BodyKey]
 api_key="Access Token"
+key1="Client Secret"
 
 [klarna]
 [[klarna.pay_later]]
@@ -3069,6 +3078,8 @@ merchant_secret="Source verification key"
 [[stripe.bank_transfer]]
   payment_method_type = "multibanco"
 [[stripe.wallet]]
+  payment_method_type = "amazon_pay"
+[[stripe.wallet]]
   payment_method_type = "apple_pay"
 [[stripe.wallet]]
   payment_method_type = "google_pay"
@@ -4370,7 +4381,7 @@ placeholder="Enter locale"
 required=true
 type="Text"
 
-[[ctp_mastercard.metadata.card_brands]]
+[ctp_mastercard.metadata.card_brands]
 name="card_brands"
 label="Card Brands"
 placeholder="Enter Card Brands"
@@ -4378,28 +4389,28 @@ required=true
 type="MultiSelect"
 options=["visa","mastercard"]
 
-[[ctp_mastercard.metadata.acquirer_bin]]
+[ctp_mastercard.metadata.acquirer_bin]
 name="acquirer_bin"
 label="Acquire Bin"
 placeholder="Enter Acquirer Bin"
 required=true
 type="Text"
 
-[[ctp_mastercard.metadata.acquirer_merchant_id]]
+[ctp_mastercard.metadata.acquirer_merchant_id]
 name="acquirer_merchant_id"
 label="Acquire Merchant Id"
 placeholder="Enter Acquirer Merchant Id"
 required=true
 type="Text"
 
-[[ctp_mastercard.metadata.merchant_category_code]]
+[ctp_mastercard.metadata.merchant_category_code]
 name="merchant_category_code"
 label="Merchant Category Code"
 placeholder="Enter Merchant Category Code"
 required=true
 type="Text"
 
-[[ctp_mastercard.metadata.merchant_country_code]]
+[ctp_mastercard.metadata.merchant_country_code]
 name="merchant_country_code"
 label="Merchant Country Code"
 placeholder="Enter Merchant Country Code"

@@ -28,8 +28,17 @@ message EliminationResponse {
 
 message LabelWithStatus {
     string label = 1;
-    bool is_eliminated = 2; 
-    string bucket_name = 3;
+    EliminationInformation elimination_information = 2;
+}
+
+message EliminationInformation {
+    BucketInformation entity = 1;
+    BucketInformation global = 2;
+}
+
+message BucketInformation {
+    bool is_eliminated = 1;
+    repeated string bucket_name = 2;
 }
 
 // API-2 types

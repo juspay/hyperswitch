@@ -1139,6 +1139,14 @@ type="Text"
 [deutschebank]
 [[deutschebank.bank_debit]]
   payment_method_type = "sepa"
+[[deutschebank.credit]]
+  payment_method_type = "Visa"
+[[deutschebank.credit]]
+  payment_method_type = "Mastercard"
+[[deutschebank.debit]]
+  payment_method_type = "Visa"
+[[deutschebank.debit]]
+  payment_method_type = "Mastercard"
 [deutschebank.connector_auth.SignatureKey]
 api_key="Client ID"
 key1="Merchant ID"
@@ -1474,6 +1482,7 @@ key2="Certificate Key"
   payment_method_type = "Visa"
 [jpmorgan.connector_auth.BodyKey]
 api_key="Access Token"
+key1="Client Secret"
 
 [klarna]
 [[klarna.pay_later]]
@@ -2277,6 +2286,8 @@ merchant_secret="Source verification key"
   payment_method_type = "bacs"
 [[stripe.bank_transfer]]
   payment_method_type = "sepa"
+[[stripe.wallet]]
+  payment_method_type = "amazon_pay"
 [[stripe.wallet]]
   payment_method_type = "apple_pay"
 [[stripe.wallet]]
