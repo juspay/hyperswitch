@@ -1322,7 +1322,7 @@ impl behaviour::Conversion for PaymentIntent {
             routing_algorithm_id,
             payment_link_config,
             platform_merchant_id,
-            split_payments
+            split_payments,
         } = self;
         Ok(DieselPaymentIntent {
             skip_external_tax_calculation: Some(amount_details.get_external_tax_action_as_bool()),
