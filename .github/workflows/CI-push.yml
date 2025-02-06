@@ -80,7 +80,7 @@ jobs:
         uses: Swatinem/rust-cache@v2.7.7
         with:
           env-vars: "RUSTFLAGS CARGO_INCREMENTAL"
-          save-if: ${{ github.event_name == 'push' }}
+          save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Install cargo-hack
         uses: baptiste0928/cargo-install@v2.2.0
@@ -186,7 +186,7 @@ jobs:
         uses: Swatinem/rust-cache@v2.7.7
         with:
           env-vars: "RUSTFLAGS CARGO_INCREMENTAL"
-          save-if: ${{ github.event_name == 'push' }}
+          save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Run clippy
         shell: bash
@@ -240,7 +240,7 @@ jobs:
         uses: Swatinem/rust-cache@v2.7.7
         with:
           env-vars: "RUSTFLAGS CARGO_INCREMENTAL"
-          save-if: ${{ github.event_name == 'push' }}
+          save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Run cargo check enabling only the release and v2 features
         shell: bash
