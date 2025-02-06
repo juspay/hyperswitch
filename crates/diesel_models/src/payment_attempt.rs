@@ -278,6 +278,7 @@ pub struct PaymentAttemptNew {
     pub payment_method_subtype: storage_enums::PaymentMethodType,
     pub id: id_type::GlobalAttemptId,
     pub connector_mandate_detail: Option<ConnectorMandateReferenceId>,
+    pub connector: Option<String>,
 }
 
 #[cfg(feature = "v1")]

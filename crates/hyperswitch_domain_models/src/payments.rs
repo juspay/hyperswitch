@@ -224,7 +224,7 @@ impl AmountDetails {
         let order_tax_amount = match self.skip_external_tax_calculation {
             common_enums::TaxCalculationOverride::Skip => {
                 self.tax_details.as_ref().and_then(|tax_details| {
-                    tax_details.get_tax_amount(confirm_intent_request.payment_method_subtype)
+                    tax_details.get_tax_amount(Some(confirm_intent_request.payment_method_subtype))
                 })
             }
             common_enums::TaxCalculationOverride::Calculate => None,
@@ -261,7 +261,7 @@ impl AmountDetails {
         let order_tax_amount = match self.skip_external_tax_calculation {
             common_enums::TaxCalculationOverride::Skip => {
                 self.tax_details.as_ref().and_then(|tax_details| {
-                    tax_details.get_tax_amount(confirm_intent_request.payment_method_subtype)
+                    tax_details.get_tax_amount(None)
                 })
             }
             common_enums::TaxCalculationOverride::Calculate => None,
@@ -618,7 +618,7 @@ where
 
 // TODO: Check if this can be merged with existing payment data
 #[cfg(feature = "v2")]
-#[derive(Clone)]
+#[derive(Clone,Debug)]
 pub struct PaymentConfirmData<F>
 where
     F: Clone,
@@ -628,6 +628,7 @@ where
     pub payment_attempt: PaymentAttempt,
     pub payment_method_data: Option<payment_method_data::PaymentMethodData>,
     pub payment_address: payment_address::PaymentAddress,
+    pub mandate_data: Option<api_models::payments::MandateIds>,
 }
 
 #[cfg(feature = "v2")]

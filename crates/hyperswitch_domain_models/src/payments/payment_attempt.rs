@@ -19,6 +19,7 @@ use diesel_models::{
     PaymentAttemptNew as DieselPaymentAttemptNew,
     PaymentAttemptUpdate as DieselPaymentAttemptUpdate,
 };
+use diesel_models::types::RevenueRecoveryMetadata;
 use error_stack::ResultExt;
 #[cfg(feature = "v2")]
 use masking::PeekInterface;
@@ -548,6 +549,8 @@ impl PaymentAttempt {
             .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
             .attach_printable("Unable to decode billing address")?;
 
+        // let (payment_method_type, payment_method_subtype) = payment_intent.feature_metadata.and_then(|metatdata| metatdata.revenue_recovery_metadata.map(|metadata|( metadata.payment_method_type, metadata.payment_method_subtype)));
+
             Ok(Self {
                 payment_id: payment_intent.id.clone(),
                 merchant_id: payment_intent.merchant_id.clone(),
@@ -584,10 +587,10 @@ impl PaymentAttempt {
                 customer_acceptance: None,
                 profile_id: payment_intent.profile_id.clone(),
                 organization_id: payment_intent.organization_id.clone(),
-                payment_method_type: request.payment_method_type,
+                payment_method_type: storage_enums::PaymentMethod::Card,
                 payment_method_id: None,
                 connector_payment_id: None,
-                payment_method_subtype: request.payment_method_subtype,
+                payment_method_subtype: storage_enums::PaymentMethodType::Credit,   
                 authentication_applied: None,
                 external_reference_id: None,
                 payment_method_billing_address,
@@ -2127,6 +2130,7 @@ impl behaviour::Conversion for PaymentAttempt {
             payment_method_type_v2: self.payment_method_type,
             id: self.id,
             connector_mandate_detail: self.connector_mandate_detail,
+            connector: self.connector,
         })
     }
 }

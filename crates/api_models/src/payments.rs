@@ -33,7 +33,7 @@ use crate::{
     admin::{self, MerchantConnectorInfo},
     disputes, enums as api_enums,
     ephemeral_key::EphemeralKeyCreateResponse,
-    mandates::RecurringDetails,
+    mandates::{RecurringDetails,ProcessorPaymentToken},
     refunds,
 };
 
@@ -4796,17 +4796,17 @@ pub struct ProxyPaymentsIntentRequest {
 
     pub amount: AmountDetails,
 
-    pub recurring_details:RecurringDetails,
+    pub recurring_details:ProcessorPaymentToken,
 
-    pub connector_customer_id:String,
+    // pub connector_customer_id:String,
 
     /// The payment metho:d type to be used for the payment. This should match with the `payment_method_data` provided
-    #[schema(value_type = PaymentMethod, example = "card")]
-    pub payment_method_type: api_enums::PaymentMethod,
+    // #[schema(value_type = PaymentMethod, example = "card")]
+    // pub payment_method_type: api_enums::PaymentMethod,
 
-    /// The payment method subtype to be used for the payment. This should match with the `payment_method_data` provided
-    #[schema(value_type = PaymentMethodType, example = "apple_pay")]
-    pub payment_method_subtype: api_enums::PaymentMethodType,
+    // /// The payment method subtype to be used for the payment. This should match with the `payment_method_data` provided
+    // #[schema(value_type = PaymentMethodType, example = "apple_pay")]
+    // pub payment_method_subtype: api_enums::PaymentMethodType,
 
     pub shipping: Option<Address>,
 

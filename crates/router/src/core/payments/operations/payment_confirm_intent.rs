@@ -251,6 +251,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, PaymentsConfir
             payment_attempt,
             payment_method_data,
             payment_address,
+            mandate_data:None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse { payment_data };
@@ -403,7 +404,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, PaymentsConfirmInt
             connector,
             merchant_connector_id,
         };
-
+       
         let updated_payment_intent = db
             .update_payment_intent(
                 key_manager_state,

@@ -13,9 +13,10 @@ use crate::{
     },
     utils::OptionExt,
 };
-use api_models::payments::ProxyPaymentsIntentRequest;
+use api_models::payments::{ProxyPaymentsIntentRequest,MandateIds,MandateReferenceId,ConnectorMandateReferenceId};
+use hyperswitch_domain_models::payment_method_data::PaymentMethodData;
 use api_models::enums::FrmSuggestion;
-
+// use diesel_models::payment_attempt::ConnectorMandateReferenceId;
 use async_trait::async_trait;
 use common_utils::types::keymanager::ToEncryptable;
 use error_stack::ResultExt;
@@ -170,9 +171,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, ProxyPaymentsI
                 hyperswitch_domain_models::payments::payment_attempt::FromRequestEncryptablePaymentAttempt::to_encryptable(
                     hyperswitch_domain_models::payments::payment_attempt::FromRequestEncryptablePaymentAttempt {
                         payment_method_billing_address: None,
-                        // .map(|address| address.clone().encode_to_value()).transpose()
-                        // .change_context(errors::ApiErrorResponse::InternalServerError)
-                        // .attach_printable("Failed to encode payment_method_billing address")?.map(masking::Secret::new),
                     },
                 ),
             ),
@@ -189,7 +187,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, ProxyPaymentsI
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed while encrypting payment intent details")?;
 
-        let payment_attempt_domain_model =
+        let payment_attempt_domain_model: hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt =
             hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt::proxy_create_domain_model(
                 &payment_intent,
                 cell_id,
@@ -198,7 +196,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, ProxyPaymentsI
                 encrypted_data
             )
             .await?;
-
+        
         let payment_attempt = db
             .insert_payment_attempt(
                 key_manager_state,
@@ -209,6 +207,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, ProxyPaymentsI
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Could not insert payment attempt")?;
+        let processor_payment_token = request.recurring_details.processor_payment_token.clone();
 
         let payment_address = hyperswitch_domain_models::payment_address::PaymentAddress::new(
             payment_intent
@@ -225,13 +224,25 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, ProxyPaymentsI
                 .map(|address| address.into_inner()),
             Some(true),
         );
-
+        let mandate_data_input= MandateIds {
+            mandate_id: None,
+            mandate_reference_id: Some(MandateReferenceId::ConnectorMandateId(
+                ConnectorMandateReferenceId::new(
+                    Some(processor_payment_token),
+                    None,
+                    None,
+                    None,
+                    None,
+                )
+            ))
+        };
         let payment_data = PaymentConfirmData {
             flow: std::marker::PhantomData,
             payment_intent,
             payment_attempt,
-            payment_method_data: None,
+            payment_method_data: Some(PaymentMethodData::MandatePayment),
             payment_address,
+            mandate_data: Some(mandate_data_input),
         };
 
         let get_trackers_response = operations::GetTrackerResponse { payment_data };
@@ -265,7 +276,7 @@ impl<F: Clone + Send + Sync> Domain<F, ProxyPaymentsIntentRequest, PaymentConfir
             _business_profile: &domain::Profile,
         ) -> RouterResult<(
             BoxedConfirmOperation<'a, F>,
-            Option<domain::PaymentMethodData>,
+            Option<PaymentMethodData>,
             Option<String>,
         )> {
             Ok((Box::new(self), None, None))
@@ -282,20 +293,26 @@ impl<F: Clone + Send + Sync> Domain<F, ProxyPaymentsIntentRequest, PaymentConfir
         use crate::core::payments::OperationSessionGetters;
 
        let connector_name =  payment_data.get_payment_attempt_connector();
-       let merchant_connector_id=  payment_data.get_merchant_connector_id_in_attempt();
-
+       if let Some(connector_name) =  connector_name
+     
+      {
+        let merchant_connector_id=  payment_data.get_merchant_connector_id_in_attempt();
         let connector_data = api::ConnectorData::get_connector_by_name(
             &state.conf.connectors,
-            connector_name.get_required_value("connector_name")?,
+            connector_name,
             api::GetToken::Connector,
             merchant_connector_id,
         )?;
 
         Ok(ConnectorCallType::PreDetermined(connector_data))
     }
+    else {
+        Err(error_stack::Report::new(errors::ApiErrorResponse::InternalServerError))
+     
+    }
 }
 
-
+}
 #[async_trait]
 impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, ProxyPaymentsIntentRequest>
     for PaymentProxyIntent

@@ -2412,7 +2412,7 @@ pub async fn proxy_confirm_intent(
                 header_payload.clone(),
             ))
         },
-        &auth::HeaderAuth(auth::ApiKeyAuth),
+        &auth::PublishableKeyAuth,
         locking_action,
     ))
     .await

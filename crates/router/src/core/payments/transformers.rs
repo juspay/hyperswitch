@@ -251,14 +251,13 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         .browser_info
         .clone()
         .map(types::BrowserInformation::from);
-
     // TODO: few fields are repeated in both routerdata and request
     let request = types::PaymentsAuthorizeData {
         payment_method_data: payment_data
             .payment_method_data
             .get_required_value("payment_method_data")?,
         setup_future_usage: Some(payment_data.payment_intent.setup_future_usage),
-        mandate_id: None,
+        mandate_id: payment_data.mandate_data.clone(),
         off_session: None,
         setup_mandate_details: None,
         confirm: true,

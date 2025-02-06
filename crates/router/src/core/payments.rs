@@ -7814,6 +7814,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentConfirmData<F> {
     }
 
     fn get_payment_attempt_connector(&self) -> Option<&str> {
+
         self.payment_attempt.connector.as_deref()
     }
     
