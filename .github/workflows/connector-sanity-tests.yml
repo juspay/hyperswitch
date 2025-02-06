@@ -88,6 +88,7 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2.7.7
         with: 
+          env-vars: ""
           save-if: false
 
       - name: Decrypt connector auth file

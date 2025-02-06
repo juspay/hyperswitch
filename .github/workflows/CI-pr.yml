@@ -127,7 +127,8 @@ jobs:
       - name: Install rust cache
         uses: Swatinem/rust-cache@v2.7.7
         with: 
-            save-if: false
+          env-vars: ""
+          save-if: false
 
       - name: Install cargo-hack
         uses: taiki-e/install-action@v2.33.28
@@ -227,7 +228,8 @@ jobs:
       - name: Install rust cache
         uses: Swatinem/rust-cache@v2.7.7
         with: 
-            save-if: false
+          env-vars: ""
+          save-if: false
 
       - name: Install cargo-hack
         uses: taiki-e/install-action@v2.33.28
@@ -311,7 +313,8 @@ jobs:
       - name: Install rust cache
         uses: Swatinem/rust-cache@v2.7.7
         with: 
-            save-if: false
+          env-vars: ""
+          save-if: false
 
       - name: Install just
         uses: taiki-e/install-action@v2.41.10
