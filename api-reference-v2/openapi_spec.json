@@ -14627,7 +14627,6 @@
           "payment_method_type",
           "payment_method_subtype",
           "merchant_connector_id",
-          "authentication_type",
           "applied_authentication_type"
         ],
         "properties": {
@@ -14734,7 +14733,7 @@
                 "$ref": "#/components/schemas/AuthenticationType"
               }
             ],
-            "default": "three_ds"
+            "nullable": true
           },
           "applied_authentication_type": {
             "allOf": [
@@ -14742,7 +14741,7 @@
                 "$ref": "#/components/schemas/AuthenticationType"
               }
             ],
-            "default": "three_ds"
+            "default": "no_three_ds"
           }
         }
       },
@@ -15101,7 +15100,6 @@
           "client_secret",
           "profile_id",
           "capture_method",
-          "authentication_type",
           "customer_id",
           "customer_present",
           "setup_future_usage",
@@ -15153,7 +15151,7 @@
                 "$ref": "#/components/schemas/AuthenticationType"
               }
             ],
-            "default": "no_three_ds"
+            "nullable": true
           },
           "billing": {
             "allOf": [
