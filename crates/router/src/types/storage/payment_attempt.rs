@@ -216,6 +216,7 @@ mod tests {
             profile_id: common_utils::generate_profile_id_of_default_length(),
             organization_id: Default::default(),
             connector_mandate_detail: Default::default(),
+            card_discovery: Default::default(),
         };
 
         let store = state
@@ -299,6 +300,7 @@ mod tests {
             profile_id: common_utils::generate_profile_id_of_default_length(),
             organization_id: Default::default(),
             connector_mandate_detail: Default::default(),
+            card_discovery: Default::default(),
         };
         let store = state
             .stores
@@ -395,6 +397,7 @@ mod tests {
             profile_id: common_utils::generate_profile_id_of_default_length(),
             organization_id: Default::default(),
             connector_mandate_detail: Default::default(),
+            card_discovery: Default::default(),
         };
         let store = state
             .stores

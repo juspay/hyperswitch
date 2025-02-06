@@ -393,6 +393,7 @@ impl TryFrom<&PaymentMethodData> for SalePaymentMethod {
                 domain::WalletData::AliPayQr(_)
                 | domain::WalletData::AliPayRedirect(_)
                 | domain::WalletData::AliPayHkRedirect(_)
+                | domain::WalletData::AmazonPayRedirect(_)
                 | domain::WalletData::MomoRedirect(_)
                 | domain::WalletData::KakaoPayRedirect(_)
                 | domain::WalletData::GoPayRedirect(_)
@@ -728,6 +729,9 @@ impl TryFrom<&types::PaymentsCompleteAuthorizeRouterData> for Pay3dsRequest {
                     )?,
                     types::PaymentMethodToken::PazeDecrypt(_) => {
                         Err(unimplemented_payment_method!("Paze", "Payme"))?
+                    }
+                    types::PaymentMethodToken::GooglePayDecrypt(_) => {
+                        Err(unimplemented_payment_method!("Google Pay", "Payme"))?
                     }
                 };
                 Ok(Self {
