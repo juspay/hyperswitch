@@ -6599,8 +6599,8 @@ where
                     .attach_printable("failed to perform volume split on routing type")?;
 
             if routing_choice.routing_type.is_dynamic_routing() {
-                let success_based_routing_config_params_interpolator =
-                    routing_helpers::SuccessBasedRoutingConfigParamsInterpolator::new(
+                let dynamic_routing_config_params_interpolator =
+                    routing_helpers::DynamicRoutingConfigParamsInterpolator::new(
                         payment_data.get_payment_attempt().payment_method,
                         payment_data.get_payment_attempt().payment_method_type,
                         payment_data.get_payment_attempt().authentication_type,
@@ -6630,15 +6630,50 @@ where
                             .and_then(|card_isin| card_isin.as_str())
                             .map(|card_isin| card_isin.to_string()),
                     );
-                routing::perform_success_based_routing(
-                    state,
-                    connectors.clone(),
-                    business_profile,
-                    success_based_routing_config_params_interpolator,
-                )
-                .await
-                .map_err(|e| logger::error!(success_rate_routing_error=?e))
-                .unwrap_or(connectors)
+                let mut connectors = if dynamic_routing_config.success_based_algorithm.is_some_and(
+                    |success_based_algo| {
+                        success_based_algo
+                            .algorithm_id_with_timestamp
+                            .algorithm_id
+                            .is_some()
+                    },
+                ) {
+                    logger::info!("Performing success based routing from dynamic_routing service");
+                    routing::perform_success_based_routing(
+                        state,
+                        connectors.clone(),
+                        business_profile,
+                        dynamic_routing_config_params_interpolator.clone(),
+                    )
+                    .await
+                    .map_err(|e| logger::error!(success_rate_routing_error=?e))
+                    .unwrap_or(connectors)
+                } else {
+                    connectors
+                };
+
+                connectors = if dynamic_routing_config
+                    .elimination_routing_algorithm
+                    .is_some_and(|elimination_routing_algo| {
+                        elimination_routing_algo
+                            .algorithm_id_with_timestamp
+                            .algorithm_id
+                            .is_some()
+                    }) {
+                    logger::info!("Performing elimination routing from dynamic_routing service");
+                    routing::perform_elimination_routing(
+                        state,
+                        connectors.clone(),
+                        business_profile,
+                        dynamic_routing_config_params_interpolator,
+                    )
+                    .await
+                    .map_err(|e| logger::error!(elimination_routing_error=?e))
+                    .unwrap_or(connectors)
+                } else {
+                    connectors
+                };
+                connectors
             } else {
                 connectors
             }

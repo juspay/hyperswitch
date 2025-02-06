@@ -743,7 +743,7 @@ pub struct EliminationRoutingConfig {
     pub elimination_analyser_config: Option<EliminationAnalyserConfig>,
 }
 
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, ToSchema)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, ToSchema)]
 pub struct EliminationAnalyserConfig {
     pub bucket_size: Option<u64>,
     pub bucket_leak_interval_in_secs: Option<u64>,
