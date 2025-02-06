@@ -314,7 +314,7 @@ struct AddressStructForDbEntry<'a> {
 }
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
-impl<'a> AddressStructForDbEntry<'a> {
+impl AddressStructForDbEntry<'_> {
     async fn encrypt_customer_address_and_set_to_db(
         &self,
         db: &dyn StorageInterface,
@@ -1029,7 +1029,7 @@ struct AddressStructForDbUpdate<'a> {
 }
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
-impl<'a> AddressStructForDbUpdate<'a> {
+impl AddressStructForDbUpdate<'_> {
     async fn update_address_if_sent(
         &self,
         db: &dyn StorageInterface,
@@ -1131,7 +1131,7 @@ struct VerifyIdForUpdateCustomer<'a> {
 }
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
-impl<'a> VerifyIdForUpdateCustomer<'a> {
+impl VerifyIdForUpdateCustomer<'_> {
     async fn verify_id_and_get_customer_object(
         &self,
         db: &dyn StorageInterface,
@@ -1152,7 +1152,7 @@ impl<'a> VerifyIdForUpdateCustomer<'a> {
 }
 
 #[cfg(all(feature = "v2", feature = "customer_v2"))]
-impl<'a> VerifyIdForUpdateCustomer<'a> {
+impl VerifyIdForUpdateCustomer<'_> {
     async fn verify_id_and_get_customer_object(
         &self,
         db: &dyn StorageInterface,

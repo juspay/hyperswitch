@@ -98,7 +98,7 @@ fn build_connector_feature_details(
             .get_supported_webhook_flows()
             .map(|webhook_flows| webhook_flows.to_vec());
         feature_matrix::ConnectorFeatureMatrixResponse {
-            name: connector_name,
+            name: connector_name.to_uppercase(),
             description: connector_about.map(|about| about.description.clone()),
             category: connector_about.map(|about| about.connector_type),
             supported_webhook_flows,
@@ -142,6 +142,7 @@ fn build_payment_method_wise_feature_details(
                 mandates: feature_metadata.mandates,
                 refunds: feature_metadata.refunds,
                 supported_capture_methods: feature_metadata.supported_capture_methods.clone(),
+                payment_method_specific_features: feature_metadata.specific_features.clone(),
                 supported_countries,
                 supported_currencies,
             }

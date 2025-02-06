@@ -9,6 +9,7 @@ pub use elimination_rate::{
     LabelWithBucketName, UpdateEliminationBucketRequest, UpdateEliminationBucketResponse,
 };
 use error_stack::ResultExt;
+use router_env::{instrument, logger, tracing};
 #[allow(
     missing_docs,
     unused_qualifications,
@@ -21,7 +22,7 @@ pub mod elimination_rate {
 }
 
 use super::{Client, DynamicRoutingError, DynamicRoutingResult};
-use crate::grpc_client::{AddHeaders, GrpcHeaders};
+use crate::grpc_client::{self, GrpcHeaders};
 
 /// The trait Elimination Based Routing would have the functions required to support performance, calculation and invalidation bucket
 #[async_trait::async_trait]
@@ -54,6 +55,7 @@ pub trait EliminationBasedRouting: dyn_clone::DynClone + Send + Sync {
 
 #[async_trait::async_trait]
 impl EliminationBasedRouting for EliminationAnalyserClient<Client> {
+    #[instrument(skip_all)]
     async fn perform_elimination_routing(
         &self,
         id: String,
@@ -69,14 +71,15 @@ impl EliminationBasedRouting for EliminationAnalyserClient<Client> {
 
         let config = configs.map(ForeignTryFrom::foreign_try_from).transpose()?;
 
-        let mut request = tonic::Request::new(EliminationRequest {
-            id,
-            params,
-            labels,
-            config,
-        });
-
-        request.add_headers_to_grpc_request(headers);
+        let request = grpc_client::create_grpc_request(
+            EliminationRequest {
+                id,
+                params,
+                labels,
+                config,
+            },
+            headers,
+        );
 
         let response = self
             .clone()
@@ -87,9 +90,12 @@ impl EliminationBasedRouting for EliminationAnalyserClient<Client> {
             ))?
             .into_inner();
 
+        logger::info!(dynamic_routing_response=?response);
+
         Ok(response)
     }
 
+    #[instrument(skip_all)]
     async fn update_elimination_bucket_config(
         &self,
         id: String,
@@ -110,14 +116,15 @@ impl EliminationBasedRouting for EliminationAnalyserClient<Client> {
             })
             .collect::<Vec<_>>();
 
-        let mut request = tonic::Request::new(UpdateEliminationBucketRequest {
-            id,
-            params,
-            labels_with_bucket_name,
-            config,
-        });
-
-        request.add_headers_to_grpc_request(headers);
+        let request = grpc_client::create_grpc_request(
+            UpdateEliminationBucketRequest {
+                id,
+                params,
+                labels_with_bucket_name,
+                config,
+            },
+            headers,
+        );
 
         let response = self
             .clone()
@@ -127,16 +134,19 @@ impl EliminationBasedRouting for EliminationAnalyserClient<Client> {
                 "Failed to update the elimination bucket".to_string(),
             ))?
             .into_inner();
+
+        logger::info!(dynamic_routing_response=?response);
+
         Ok(response)
     }
+
+    #[instrument(skip_all)]
     async fn invalidate_elimination_bucket(
         &self,
         id: String,
         headers: GrpcHeaders,
     ) -> DynamicRoutingResult<InvalidateBucketResponse> {
-        let mut request = tonic::Request::new(InvalidateBucketRequest { id });
-
-        request.add_headers_to_grpc_request(headers);
+        let request = grpc_client::create_grpc_request(InvalidateBucketRequest { id }, headers);
 
         let response = self
             .clone()
@@ -146,6 +156,9 @@ impl EliminationBasedRouting for EliminationAnalyserClient<Client> {
                 "Failed to invalidate the elimination bucket".to_string(),
             ))?
             .into_inner();
+
+        logger::info!(dynamic_routing_response=?response);
+
         Ok(response)
     }
 }

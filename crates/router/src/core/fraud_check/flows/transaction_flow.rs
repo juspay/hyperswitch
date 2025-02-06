@@ -49,7 +49,7 @@ impl
     #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
     async fn construct_router_data<'a>(
         &self,
-        _state: &SessionState,
+        state: &SessionState,
         connector_id: &str,
         merchant_account: &domain::MerchantAccount,
         _key_store: &domain::MerchantKeyStore,
@@ -77,6 +77,7 @@ impl
         let router_data = RouterData {
             flow: std::marker::PhantomData,
             merchant_id: merchant_account.get_id().clone(),
+            tenant_id: state.tenant.tenant_id.clone(),
             customer_id,
             connector: connector_id.to_string(),
             payment_id: self.payment_intent.payment_id.get_string_repr().to_owned(),
@@ -184,9 +185,9 @@ impl FeatureFrm<frm_api::Transaction, FraudCheckTransactionData> for FrmTransact
     }
 }
 
-pub async fn decide_frm_flow<'a, 'b>(
-    router_data: &'b mut FrmTransactionRouterData,
-    state: &'a SessionState,
+pub async fn decide_frm_flow(
+    router_data: &mut FrmTransactionRouterData,
+    state: &SessionState,
     connector: &frm_api::FraudCheckConnectorData,
     call_connector_action: payments::CallConnectorAction,
     _merchant_account: &domain::MerchantAccount,

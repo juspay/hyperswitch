@@ -24,7 +24,7 @@ use uuid::Uuid;
 
 use super::payments::helpers;
 #[cfg(feature = "payouts")]
-use super::payouts::PayoutData;
+use super::payouts::{helpers as payout_helpers, PayoutData};
 #[cfg(feature = "payouts")]
 use crate::core::payments;
 use crate::{
@@ -54,6 +54,7 @@ const IRRELEVANT_ATTEMPT_ID_IN_DISPUTE_FLOW: &str = "irrelevant_attempt_id_in_di
 #[cfg(all(feature = "payouts", feature = "v2", feature = "customer_v2"))]
 #[instrument(skip_all)]
 pub async fn construct_payout_router_data<'a, F>(
+    _state: &SessionState,
     _connector_data: &api::ConnectorData,
     _merchant_account: &domain::MerchantAccount,
     _payout_data: &mut PayoutData,
@@ -68,6 +69,7 @@ pub async fn construct_payout_router_data<'a, F>(
 ))]
 #[instrument(skip_all)]
 pub async fn construct_payout_router_data<'a, F>(
+    state: &SessionState,
     connector_data: &api::ConnectorData,
     merchant_account: &domain::MerchantAccount,
     payout_data: &mut PayoutData,
@@ -148,10 +150,14 @@ pub async fn construct_payout_router_data<'a, F>(
             _ => None,
         };
 
+    let connector_transfer_method_id =
+        payout_helpers::should_create_connector_transfer_method(&*payout_data, connector_data)?;
+
     let router_data = types::RouterData {
         flow: PhantomData,
         merchant_id: merchant_account.get_id().to_owned(),
         customer_id: customer_details.to_owned().map(|c| c.customer_id),
+        tenant_id: state.tenant.tenant_id.clone(),
         connector_customer: connector_customer_id,
         connector: connector_name.to_string(),
         payment_id: common_utils::id_type::PaymentId::get_irrelevant_id("payout")
@@ -189,6 +195,7 @@ pub async fn construct_payout_router_data<'a, F>(
                     phone: c.phone.map(Encryptable::into_inner),
                     phone_country_code: c.phone_country_code,
                 }),
+            connector_transfer_method_id,
         },
         response: Ok(types::PayoutsResponseData::default()),
         access_token: None,
@@ -285,11 +292,16 @@ pub async fn construct_refund_router_data<'a, F>(
         .payment_method
         .get_required_value("payment_method_type")
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
+    let merchant_connector_account_id_or_connector_name = payment_attempt
+        .merchant_connector_id
+        .as_ref()
+        .map(|mca_id| mca_id.get_string_repr())
+        .unwrap_or(connector_id);
 
     let webhook_url = Some(helpers::create_webhook_url(
         &state.base_url.clone(),
         merchant_account.get_id(),
-        connector_id,
+        merchant_connector_account_id_or_connector_name,
     ));
     let test_mode: Option<bool> = merchant_connector_account.is_test_mode_on();
 
@@ -330,6 +342,7 @@ pub async fn construct_refund_router_data<'a, F>(
         flow: PhantomData,
         merchant_id: merchant_account.get_id().clone(),
         customer_id: payment_intent.customer_id.to_owned(),
+        tenant_id: state.tenant.tenant_id.clone(),
         connector: connector_id.to_string(),
         payment_id: payment_attempt.payment_id.get_string_repr().to_owned(),
         attempt_id: payment_attempt.attempt_id.clone(),
@@ -652,6 +665,7 @@ pub async fn construct_accept_dispute_router_data<'a>(
         flow: PhantomData,
         merchant_id: merchant_account.get_id().clone(),
         connector: dispute.connector.to_string(),
+        tenant_id: state.tenant.tenant_id.clone(),
         payment_id: payment_attempt.payment_id.get_string_repr().to_owned(),
         attempt_id: payment_attempt.attempt_id.clone(),
         status: payment_attempt.status,
@@ -753,6 +767,7 @@ pub async fn construct_submit_evidence_router_data<'a>(
         merchant_id: merchant_account.get_id().clone(),
         connector: connector_id.to_string(),
         payment_id: payment_attempt.payment_id.get_string_repr().to_owned(),
+        tenant_id: state.tenant.tenant_id.clone(),
         attempt_id: payment_attempt.attempt_id.clone(),
         status: payment_attempt.status,
         payment_method,
@@ -851,6 +866,7 @@ pub async fn construct_upload_file_router_data<'a>(
         merchant_id: merchant_account.get_id().clone(),
         connector: connector_id.to_string(),
         payment_id: payment_attempt.payment_id.get_string_repr().to_owned(),
+        tenant_id: state.tenant.tenant_id.clone(),
         attempt_id: payment_attempt.attempt_id.clone(),
         status: payment_attempt.status,
         payment_method,
@@ -910,8 +926,8 @@ pub async fn construct_upload_file_router_data<'a>(
 }
 
 #[cfg(feature = "v2")]
-pub async fn construct_payments_dynamic_tax_calculation_router_data<'a, F: Clone>(
-    state: &'a SessionState,
+pub async fn construct_payments_dynamic_tax_calculation_router_data<F: Clone>(
+    state: &SessionState,
     merchant_account: &domain::MerchantAccount,
     _key_store: &domain::MerchantKeyStore,
     payment_data: &mut PaymentData<F>,
@@ -921,8 +937,8 @@ pub async fn construct_payments_dynamic_tax_calculation_router_data<'a, F: Clone
 }
 
 #[cfg(feature = "v1")]
-pub async fn construct_payments_dynamic_tax_calculation_router_data<'a, F: Clone>(
-    state: &'a SessionState,
+pub async fn construct_payments_dynamic_tax_calculation_router_data<F: Clone>(
+    state: &SessionState,
     merchant_account: &domain::MerchantAccount,
     _key_store: &domain::MerchantKeyStore,
     payment_data: &mut PaymentData<F>,
@@ -978,6 +994,7 @@ pub async fn construct_payments_dynamic_tax_calculation_router_data<'a, F: Clone
         connector: merchant_connector_account.connector_name.clone(),
         payment_id: payment_attempt.payment_id.get_string_repr().to_owned(),
         attempt_id: payment_attempt.attempt_id.clone(),
+        tenant_id: state.tenant.tenant_id.clone(),
         status: payment_attempt.status,
         payment_method: diesel_models::enums::PaymentMethod::default(),
         connector_auth_type,
@@ -1076,6 +1093,7 @@ pub async fn construct_defend_dispute_router_data<'a>(
         merchant_id: merchant_account.get_id().clone(),
         connector: connector_id.to_string(),
         payment_id: payment_attempt.payment_id.get_string_repr().to_owned(),
+        tenant_id: state.tenant.tenant_id.clone(),
         attempt_id: payment_attempt.attempt_id.clone(),
         status: payment_attempt.status,
         payment_method,
@@ -1169,6 +1187,7 @@ pub async fn construct_retrieve_file_router_data<'a>(
         flow: PhantomData,
         merchant_id: merchant_account.get_id().clone(),
         connector: connector_id.to_string(),
+        tenant_id: state.tenant.tenant_id.clone(),
         customer_id: None,
         connector_customer: None,
         payment_id: common_utils::id_type::PaymentId::get_irrelevant_id("dispute")
@@ -1400,6 +1419,7 @@ pub fn get_external_authentication_request_poll_id(
     payment_id.get_external_authentication_request_poll_id()
 }
 
+#[cfg(feature = "v1")]
 pub fn get_html_redirect_response_for_external_authentication(
     return_url_with_query_params: String,
     payment_response: &api_models::payments::PaymentsResponse,

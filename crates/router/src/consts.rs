@@ -6,7 +6,9 @@ pub mod user_role;
 use std::collections::HashSet;
 
 use common_utils::consts;
+pub use hyperswitch_domain_models::consts::CONNECTOR_MANDATE_REQUEST_REFERENCE_ID_LENGTH;
 pub use hyperswitch_interfaces::consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE};
+
 // ID generation
 pub(crate) const ID_LENGTH: usize = 20;
 pub(crate) const MAX_ID_LENGTH: usize = 64;
@@ -41,7 +43,6 @@ pub const DEFAULT_LIST_API_LIMIT: u16 = 10;
 pub(crate) const UNSUPPORTED_ERROR_MESSAGE: &str = "Unsupported response type";
 pub(crate) const LOW_BALANCE_ERROR_MESSAGE: &str = "Insufficient balance in the payment method";
 pub(crate) const CONNECTOR_UNAUTHORIZED_ERROR: &str = "Authentication Error from the connector";
-pub(crate) const REFUND_VOIDED: &str = "Refund request has been voided.";
 
 pub(crate) const CANNOT_CONTINUE_AUTH: &str =
     "Cannot continue with Authorization due to failed Liability Shift.";
@@ -137,9 +138,6 @@ pub const DEFAULT_UNIFIED_ERROR_MESSAGE: &str = "Something went wrong";
 // Recon's feature tag
 pub const RECON_FEATURE_TAG: &str = "RECONCILIATION AND SETTLEMENT";
 
-// Length of the unique reference ID generated for connector mandate requests
-pub const CONNECTOR_MANDATE_REQUEST_REFERENCE_ID_LENGTH: usize = 18;
-
 /// Default allowed domains for payment links
 pub const DEFAULT_ALLOWED_DOMAINS: Option<HashSet<String>> = None;
 
@@ -210,3 +208,13 @@ pub const DYNAMIC_ROUTING_MAX_VOLUME: u8 = 100;
 
 /// Click To Pay
 pub const CLICK_TO_PAY: &str = "click_to_pay";
+
+/// Merchant eligible for authentication service config
+pub const AUTHENTICATION_SERVICE_ELIGIBLE_CONFIG: &str =
+    "merchants_eligible_for_authentication_service";
+
+/// Refund flow identifier used for performing GSM operations
+pub const REFUND_FLOW_STR: &str = "refund_flow";
+
+/// Authorize flow identifier used for performing GSM operations
+pub const AUTHORIZE_FLOW_STR: &str = "Authorize";

@@ -46,7 +46,6 @@ pub async fn initiate_payout_link(
     key_store: domain::MerchantKeyStore,
     req: payouts::PayoutLinkInitiateRequest,
     request_headers: &header::HeaderMap,
-    locale: String,
 ) -> RouterResponse<services::GenericLinkFormData> {
     let db: &dyn StorageInterface = &*state.store;
     let merchant_id = merchant_account.get_id();
@@ -128,7 +127,7 @@ pub async fn initiate_payout_link(
                 GenericLinks {
                     allowed_domains,
                     data: GenericLinksData::ExpiredLink(expired_link_data),
-                    locale,
+                    locale: state.locale,
                 },
             )))
         }
@@ -245,7 +244,7 @@ pub async fn initiate_payout_link(
                 enabled_payment_methods_with_required_fields,
                 amount,
                 currency: payout.destination_currency,
-                locale: locale.clone(),
+                locale: state.locale.clone(),
                 form_layout: link_data.form_layout,
                 test_mode: link_data.test_mode.unwrap_or(false),
             };
@@ -270,7 +269,7 @@ pub async fn initiate_payout_link(
                 GenericLinks {
                     allowed_domains,
                     data: GenericLinksData::PayoutLink(generic_form_data),
-                    locale,
+                    locale: state.locale.clone(),
                 },
             )))
         }
@@ -282,7 +281,7 @@ pub async fn initiate_payout_link(
                     &state,
                     payout_attempt.unified_code.as_ref(),
                     payout_attempt.unified_message.as_ref(),
-                    &locale,
+                    &state.locale.clone(),
                 )
                 .await?;
             let js_data = payouts::PayoutLinkStatusDetails {
@@ -322,7 +321,7 @@ pub async fn initiate_payout_link(
                 GenericLinks {
                     allowed_domains,
                     data: GenericLinksData::PayoutLinkStatus(generic_status_data),
-                    locale,
+                    locale: state.locale.clone(),
                 },
             )))
         }

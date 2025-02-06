@@ -218,6 +218,57 @@ pub async fn payments_get_intent(
 }
 
 #[cfg(feature = "v2")]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsCreateAndConfirmIntent, payment_id))]
+pub async fn payments_create_and_confirm_intent(
+    state: web::Data<app::AppState>,
+    req: actix_web::HttpRequest,
+    json_payload: web::Json<payment_types::PaymentsRequest>,
+) -> impl Responder {
+    let flow = Flow::PaymentsCreateAndConfirmIntent;
+    let header_payload = match HeaderPayload::foreign_try_from(req.headers()) {
+        Ok(headers) => headers,
+        Err(err) => {
+            return api::log_and_return_error_response(err);
+        }
+    };
+
+    let global_payment_id =
+        common_utils::id_type::GlobalPaymentId::generate(&state.conf.cell_information.id);
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        json_payload.into_inner(),
+        |state, auth: auth::AuthenticationData, request, req_state| {
+            payments::payments_create_and_confirm_intent(
+                state,
+                req_state,
+                auth.merchant_account,
+                auth.profile,
+                auth.key_store,
+                request,
+                global_payment_id.clone(),
+                header_payload.clone(),
+                auth.platform_merchant_account,
+            )
+        },
+        match env::which() {
+            env::Env::Production => &auth::HeaderAuth(auth::ApiKeyAuth),
+            _ => auth::auth_type(
+                &auth::HeaderAuth(auth::ApiKeyAuth),
+                &auth::JWTAuth {
+                    permission: Permission::ProfilePaymentWrite,
+                },
+                req.headers(),
+            ),
+        },
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(feature = "v2")]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsUpdateIntent, payment_id))]
 pub async fn payments_update_intent(
     state: web::Data<app::AppState>,
@@ -602,7 +653,14 @@ pub async fn payments_confirm(
         return http_not_implemented();
     };
 
-    if let Err(err) = helpers::populate_ip_into_browser_info(&req, &mut payload) {
+    let header_payload = match HeaderPayload::foreign_try_from(req.headers()) {
+        Ok(headers) => headers,
+        Err(err) => {
+            return api::log_and_return_error_response(err);
+        }
+    };
+
+    if let Err(err) = helpers::populate_browser_info(&req, &mut payload, &header_payload) {
         return api::log_and_return_error_response(err);
     }
 
@@ -610,12 +668,6 @@ pub async fn payments_confirm(
     tracing::Span::current().record("payment_id", payment_id.get_string_repr());
     payload.payment_id = Some(payment_types::PaymentIdType::PaymentIntentId(payment_id));
     payload.confirm = Some(true);
-    let header_payload = match HeaderPayload::foreign_try_from(req.headers()) {
-        Ok(headers) => headers,
-        Err(err) => {
-            return api::log_and_return_error_response(err);
-        }
-    };
 
     let (auth_type, auth_flow) =
         match auth::check_client_secret_and_get_auth(req.headers(), &payload) {
@@ -1702,12 +1754,9 @@ pub async fn payments_external_authentication(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            payments::payment_external_authentication(
-                state,
-                auth.merchant_account,
-                auth.key_store,
-                req,
-            )
+            payments::payment_external_authentication::<
+                hyperswitch_domain_models::router_flow_types::Authenticate,
+            >(state, auth.merchant_account, auth.key_store, req)
         },
         &auth::HeaderAuth(auth::PublishableKeyAuth),
         locking_action,

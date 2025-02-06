@@ -41,7 +41,7 @@ pub fn make_pm_graph(
     Ok(())
 }
 
-pub async fn get_merchant_pm_filter_graph<'a>(
+pub async fn get_merchant_pm_filter_graph(
     state: &SessionState,
     key: &str,
 ) -> Option<Arc<hyperswitch_constraint_graph::ConstraintGraph<dir::DirValue>>> {

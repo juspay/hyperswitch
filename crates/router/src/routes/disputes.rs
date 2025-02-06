@@ -168,6 +168,7 @@ pub async fn retrieve_disputes_list_profile(
     .await
 }
 
+#[cfg(feature = "v1")]
 /// Disputes - Disputes Filters
 #[utoipa::path(
     get,

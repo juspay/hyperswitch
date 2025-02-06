@@ -148,12 +148,6 @@ pub struct Browser {
 }
 
 #[derive(Debug, Serialize)]
-pub struct Location {
-    lat: String,
-    lon: String,
-}
-
-#[derive(Debug, Serialize)]
 pub struct Mobile {
     device_model: Option<String>,
     os_type: Option<String>,
@@ -343,6 +337,7 @@ fn get_wallet_details(
         WalletData::AliPayQr(_)
         | WalletData::AliPayRedirect(_)
         | WalletData::AliPayHkRedirect(_)
+        | WalletData::AmazonPayRedirect(_)
         | WalletData::MomoRedirect(_)
         | WalletData::KakaoPayRedirect(_)
         | WalletData::GoPayRedirect(_)

@@ -44,7 +44,8 @@ pub use hyperswitch_domain_models::{
     router_data::{
         AccessToken, AdditionalPaymentMethodConnectorResponse, ApplePayCryptogramData,
         ApplePayPredecryptData, ConnectorAuthType, ConnectorResponseData, ErrorResponse,
-        PaymentMethodBalance, PaymentMethodToken, RecurringMandatePaymentData, RouterData,
+        GooglePayDecryptedData, GooglePayPaymentMethodDetails, PaymentMethodBalance,
+        PaymentMethodToken, RecurringMandatePaymentData, RouterData,
     },
     router_data_v2::{
         AccessTokenFlowData, DisputesFlowData, ExternalAuthenticationFlowData, FilesFlowData,
@@ -53,8 +54,8 @@ pub use hyperswitch_domain_models::{
     },
     router_request_types::{
         unified_authentication_service::{
-            UasAuthenticationResponseData, UasPostAuthenticationRequestData,
-            UasPreAuthenticationRequestData,
+            UasAuthenticationRequestData, UasAuthenticationResponseData,
+            UasPostAuthenticationRequestData, UasPreAuthenticationRequestData,
         },
         AcceptDisputeRequestData, AccessTokenRequestData, AuthorizeSessionTokenData,
         BrowserInformation, ChargeRefunds, ChargeRefundsOptions, CompleteAuthorizeData,
@@ -542,6 +543,7 @@ pub struct RedirectPaymentFlowResponse<D> {
     pub profile: domain::Profile,
 }
 
+#[cfg(feature = "v1")]
 #[derive(Clone, Debug)]
 pub struct AuthenticatePaymentFlowResponse {
     pub payments_response: api_models::payments::PaymentsResponse,
@@ -914,6 +916,7 @@ impl<F1, F2, T1, T2> ForeignFrom<(&RouterData<F1, T1, PaymentsResponseData>, T2)
             merchant_id: data.merchant_id.clone(),
             connector: data.connector.clone(),
             attempt_id: data.attempt_id.clone(),
+            tenant_id: data.tenant_id.clone(),
             status: data.status,
             payment_method: data.payment_method,
             connector_auth_type: data.connector_auth_type.clone(),
@@ -983,6 +986,7 @@ impl<F1, F2>
             merchant_id: data.merchant_id.clone(),
             connector: data.connector.clone(),
             attempt_id: data.attempt_id.clone(),
+            tenant_id: data.tenant_id.clone(),
             status: data.status,
             payment_method: data.payment_method,
             connector_auth_type: data.connector_auth_type.clone(),

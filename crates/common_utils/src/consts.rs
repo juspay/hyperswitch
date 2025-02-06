@@ -149,3 +149,6 @@ pub const APPLEPAY_VALIDATION_URL: &str =
 
 /// Request ID
 pub const X_REQUEST_ID: &str = "x-request-id";
+
+/// Default Tenant ID for the `Global` tenant
+pub const DEFAULT_GLOBAL_TENANT_ID: &str = "global";

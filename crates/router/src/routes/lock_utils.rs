@@ -146,6 +146,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::PaymentsGetIntent
             | Flow::PaymentsPostSessionTokens
             | Flow::PaymentsUpdateIntent
+            | Flow::PaymentsCreateAndConfirmIntent
             | Flow::PaymentStartRedirection => Self::Payments,
 
             Flow::PayoutsCreate
@@ -171,6 +172,7 @@ impl From<Flow> for ApiIdentifier {
 
             Flow::FrmFulfillment
             | Flow::IncomingWebhookReceive
+            | Flow::IncomingRelayWebhookReceive
             | Flow::WebhookEventInitialDeliveryAttemptList
             | Flow::WebhookEventDeliveryAttemptList
             | Flow::WebhookEventDeliveryRetry => Self::Webhooks,

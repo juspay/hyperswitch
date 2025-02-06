@@ -79,6 +79,12 @@ pub trait UserRoleInterface {
         payload: ListUserRolesByUserIdPayload<'a>,
     ) -> CustomResult<Vec<storage::UserRole>, errors::StorageError>;
 
+    async fn list_user_roles_by_user_id_across_tenants(
+        &self,
+        user_id: &str,
+        limit: Option<u32>,
+    ) -> CustomResult<Vec<storage::UserRole>, errors::StorageError>;
+
     async fn list_user_roles_by_org_id<'a>(
         &self,
         payload: ListUserRolesByOrgIdPayload<'a>,
@@ -190,6 +196,21 @@ impl UserRoleInterface for Store {
             payload.status,
             payload.version,
             payload.limit,
+        )
+        .await
+        .map_err(|error| report!(errors::StorageError::from(error)))
+    }
+
+    async fn list_user_roles_by_user_id_across_tenants(
+        &self,
+        user_id: &str,
+        limit: Option<u32>,
+    ) -> CustomResult<Vec<storage::UserRole>, errors::StorageError> {
+        let conn = connection::pg_connection_read(self).await?;
+        storage::UserRole::list_user_roles_by_user_id_across_tenants(
+            &conn,
+            user_id.to_owned(),
+            limit,
         )
         .await
         .map_err(|error| report!(errors::StorageError::from(error)))
@@ -469,6 +490,26 @@ impl UserRoleInterface for MockDb {
         if let Some(Ok(limit)) = payload.limit.map(|val| val.try_into()) {
             filtered_roles = filtered_roles.into_iter().take(limit).collect();
         }
+        Ok(filtered_roles)
+    }
+
+    async fn list_user_roles_by_user_id_across_tenants(
+        &self,
+        user_id: &str,
+        limit: Option<u32>,
+    ) -> CustomResult<Vec<storage::UserRole>, errors::StorageError> {
+        let user_roles = self.user_roles.lock().await;
+
+        let filtered_roles: Vec<_> = user_roles
+            .iter()
+            .filter(|role| role.user_id == user_id)
+            .cloned()
+            .collect();
+
+        if let Some(Ok(limit)) = limit.map(|val| val.try_into()) {
+            return Ok(filtered_roles.into_iter().take(limit).collect());
+        }
+
         Ok(filtered_roles)
     }
 
