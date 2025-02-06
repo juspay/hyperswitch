@@ -27,6 +27,7 @@ pub struct Connectors {
     pub chargebee: ConnectorParams,
     pub checkout: ConnectorParams,
     pub coinbase: ConnectorParams,
+    pub coingate: ConnectorParams,
     pub cryptopay: ConnectorParams,
     pub ctp_mastercard: NoParams,
     pub cybersource: ConnectorParams,
