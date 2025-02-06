@@ -2502,7 +2502,7 @@ impl
             domain::BankRedirectData::Giropay { .. }
             | domain::BankRedirectData::Interac { .. }
             | domain::BankRedirectData::LocalBankRedirect {}
-            | domain::BankRedirectData::Przelewy24 { .. } 
+            | domain::BankRedirectData::Przelewy24 { .. }
             | domain::BankRedirectData::Sofort { .. } => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Adyen"),
@@ -3129,7 +3129,7 @@ fn get_redirect_extra_details(
     match item.request.payment_method_data {
         domain::PaymentMethodData::BankRedirect(
             domain::BankRedirectData::Trustly { .. }
-            | domain::BankRedirectData::OpenBankingUk { .. }
+            | domain::BankRedirectData::OpenBankingUk { .. },
         ) => {
             let country = item.get_optional_billing_country();
             Ok((None, country))
