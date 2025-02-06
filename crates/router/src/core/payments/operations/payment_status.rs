@@ -575,7 +575,7 @@ pub async fn get_payment_intent_payment_attempt(
     merchant_id: &common_utils::id_type::MerchantId,
     key_store: &domain::MerchantKeyStore,
     storage_scheme: enums::MerchantStorageScheme,
-    platform_merchant_account: Option<&domain::MerchantAccount>,
+    _platform_merchant_account: Option<&domain::MerchantAccount>,
 ) -> RouterResult<(storage::PaymentIntent, storage::PaymentAttempt)> {
     let key_manager_state: KeyManagerState = state.into();
     let db = &*state.store;
@@ -659,12 +659,6 @@ pub async fn get_payment_intent_payment_attempt(
     get_pi_pa()
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
-        .and_then(|(pi, pa)| {
-            helpers::validate_platform_merchant(
-                pi.platform_merchant_id.as_ref(),
-                platform_merchant_account.map(|ma| ma.get_id()),
-            )
-            .map_err(|e| report!(e))?;
-            Ok((pi, pa))
-        })
+
+    // TODO (#7195): Add platfrom merchant account validation once client_secret auth is solved
 }

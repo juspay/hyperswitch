@@ -10,7 +10,7 @@ use super::{BoxedOperation, Domain, GetTracker, Operation, ValidateRequest};
 use crate::{
     core::{
         errors::{self, RouterResult, StorageErrorExt},
-        payments::{self, operations, operations::ValidateStatusForOperation},
+        payments::{self, helpers, operations, operations::ValidateStatusForOperation},
     },
     routes::SessionState,
     types::{api, domain, storage::enums},
@@ -112,10 +112,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, payments::PaymentIntentData<F>, Payme
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
-        helpers::validate_platform_merchant(
-            payment_intent.platform_merchant_id.as_ref(),
-            platform_merchant_account.map(|ma| ma.get_id()),
-        )?;
+        // TODO (#7195): Add platfrom merchant account validation once publishable key auth is solved
 
         self.validate_status_for_operation(payment_intent.status)?;
 
