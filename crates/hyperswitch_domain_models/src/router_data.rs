@@ -1160,7 +1160,7 @@ impl
                     network_txn_id,
                     connector_response_reference_id,
                     incremental_authorization_allowed,
-                    charge_id,
+                    charges,
                 } => {
                     let attempt_status = self.get_attempt_status_for_db_update(payment_data);
 
