@@ -264,6 +264,7 @@ pub struct Tenant {
     pub tenant_id: id_type::TenantId,
     pub base_url: String,
     pub schema: String,
+    pub accounts_schema: String,
     pub redis_key_prefix: String,
     pub clickhouse_database: String,
     pub user: TenantUserConfig,
@@ -283,7 +284,7 @@ impl AccountsTenantInternal {
         Self {
             tenant_id: tenant.tenant_id.clone(),
             base_url: tenant.base_url.clone(),
-            accounts_schema: tenant.schema.clone(),
+            accounts_schema: tenant.accounts_schema.clone(),
             redis_key_prefix: tenant.redis_key_prefix.clone(),
             clickhouse_database: tenant.clickhouse_database.clone(),
             user: tenant.user.clone(),
@@ -1318,6 +1319,7 @@ impl<'de> Deserialize<'de> for TenantConfig {
         struct Inner {
             base_url: String,
             schema: String,
+            accounts_schema: String,
             redis_key_prefix: String,
             clickhouse_database: String,
             user: TenantUserConfig,
@@ -1335,6 +1337,7 @@ impl<'de> Deserialize<'de> for TenantConfig {
                             tenant_id: key,
                             base_url: value.base_url,
                             schema: value.schema,
+                            accounts_schema: value.accounts_schema,
                             redis_key_prefix: value.redis_key_prefix,
                             clickhouse_database: value.clickhouse_database,
                             user: value.user,
