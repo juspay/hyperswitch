@@ -560,7 +560,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                     None, // update_history
                     None, // mandate_metadata
                     Some(common_utils::generate_id_with_len(
-                        consts::CONNECTOR_MANDATE_REQUEST_REFERENCE_ID_LENGTH.to_owned(),
+                        consts::CONNECTOR_MANDATE_REQUEST_REFERENCE_ID_LENGTH,
                     )), // connector_mandate_request_reference_id
                 ),
             ));
@@ -1178,6 +1178,14 @@ impl PaymentCreate {
                                 Some(api_models::payments::AdditionalPaymentData::Wallet {
                                     apple_pay: None,
                                     google_pay: Some(wallet.into()),
+                                    samsung_pay: None,
+                                })
+                            }
+                            Some(enums::PaymentMethodType::SamsungPay) => {
+                                Some(api_models::payments::AdditionalPaymentData::Wallet {
+                                    apple_pay: None,
+                                    google_pay: None,
+                                    samsung_pay: Some(wallet.into()),
                                 })
                             }
                             _ => None,
@@ -1298,6 +1306,7 @@ impl PaymentCreate {
                 organization_id: organization_id.clone(),
                 profile_id,
                 connector_mandate_detail: None,
+                card_discovery: None,
             },
             additional_pm_data,
 
