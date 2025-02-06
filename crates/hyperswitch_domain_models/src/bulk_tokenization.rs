@@ -146,7 +146,7 @@ impl ForeignTryFrom<CardNetworkTokenizeRecord> for payment_methods_api::CardNetw
             record.card_expiry_year,
             record.payment_method_id,
         ) {
-            (Some(raw_card_number), Some(card_expiry_month), Some(card_expiry_year), _) => {
+            (Some(raw_card_number), Some(card_expiry_month), Some(card_expiry_year), None) => {
                 Ok(Self {
                     merchant_id,
                     data: payment_methods_api::TokenizeDataRequest::Card(
@@ -169,7 +169,7 @@ impl ForeignTryFrom<CardNetworkTokenizeRecord> for payment_methods_api::CardNetw
                     payment_method_issuer: record.payment_method_issuer,
                 })
             }
-            (_, _, _, Some(payment_method_id)) => Ok(Self {
+            (None, None, None, Some(payment_method_id)) => Ok(Self {
                 merchant_id,
                 data: payment_methods_api::TokenizeDataRequest::PaymentMethod(
                     payment_methods_api::TokenizePaymentMethodRequest {
@@ -182,8 +182,8 @@ impl ForeignTryFrom<CardNetworkTokenizeRecord> for payment_methods_api::CardNetw
                 metadata: None,
                 payment_method_issuer: record.payment_method_issuer,
             }),
-            _ => Err(report!(errors::ValidationError::MissingRequiredField {
-                field_name: "card details or payment_method_id".to_string(),
+            _ => Err(report!(errors::ValidationError::InvalidValue {
+                message: "Invalid record in bulk tokenization - expected one of card details or payment method details".to_string()
             })),
         }
     }
