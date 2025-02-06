@@ -15602,17 +15602,6 @@
           {
             "type": "object",
             "required": [
-              "klarna_checkout"
-            ],
-            "properties": {
-              "klarna_checkout": {
-                "type": "object"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
               "affirm_redirect"
             ],
             "properties": {
