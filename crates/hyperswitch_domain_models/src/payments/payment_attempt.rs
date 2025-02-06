@@ -408,6 +408,10 @@ pub struct PaymentAttempt {
     pub connector_token_details: Option<diesel_models::ConnectorTokenDetails>,
     /// Indicates the method by which a card is discovered during a payment
     pub card_discovery: Option<common_enums::CardDiscovery>,
+    /// Whether to request for overcapture
+    pub request_overcapture: Option<storage_enums::OverCaptureRequest>,
+    /// Whether overcapture was applied
+    pub overcapture_status: Option<storage_enums::OverCaptureStatus>,
 }
 
 impl PaymentAttempt {
@@ -532,6 +536,8 @@ impl PaymentAttempt {
             }),
             id,
             card_discovery: None,
+            overcapture_status: None,
+            request_overcapture: None,
         })
     }
 }
@@ -603,6 +609,8 @@ pub struct PaymentAttempt {
     pub organization_id: id_type::OrganizationId,
     pub connector_mandate_detail: Option<ConnectorMandateReferenceId>,
     pub card_discovery: Option<common_enums::CardDiscovery>,
+    pub request_overcapture: Option<storage_enums::OverCaptureRequest>,
+    pub overcapture_status: Option<storage_enums::OverCaptureStatus>,
 }
 
 #[cfg(feature = "v1")]
@@ -917,6 +925,7 @@ pub enum PaymentAttemptUpdate {
         customer_acceptance: Option<pii::SecretSerdeValue>,
         connector_mandate_detail: Option<ConnectorMandateReferenceId>,
         card_discovery: Option<common_enums::CardDiscovery>,
+        request_overcapture: Option<storage_enums::OverCaptureRequest>,
     },
     RejectUpdate {
         status: storage_enums::AttemptStatus,
@@ -965,6 +974,7 @@ pub enum PaymentAttemptUpdate {
         payment_method_data: Option<serde_json::Value>,
         charge_id: Option<String>,
         connector_mandate_detail: Option<ConnectorMandateReferenceId>,
+        overcapture_status: Option<storage_enums::OverCaptureStatus>,
     },
     UnresolvedResponseUpdate {
         status: storage_enums::AttemptStatus,
@@ -1170,6 +1180,7 @@ impl PaymentAttemptUpdate {
                 customer_acceptance,
                 connector_mandate_detail,
                 card_discovery,
+                request_overcapture,
             } => DieselPaymentAttemptUpdate::ConfirmUpdate {
                 amount: net_amount.get_order_amount(),
                 currency,
@@ -1205,6 +1216,7 @@ impl PaymentAttemptUpdate {
                 order_tax_amount: net_amount.get_order_tax_amount(),
                 connector_mandate_detail,
                 card_discovery,
+                request_overcapture,
             },
             Self::VoidUpdate {
                 status,
@@ -1237,6 +1249,7 @@ impl PaymentAttemptUpdate {
                 payment_method_data,
                 charge_id,
                 connector_mandate_detail,
+                overcapture_status,
             } => DieselPaymentAttemptUpdate::ResponseUpdate {
                 status,
                 connector,
@@ -1259,6 +1272,7 @@ impl PaymentAttemptUpdate {
                 payment_method_data,
                 charge_id,
                 connector_mandate_detail,
+                overcapture_status,
             },
             Self::UnresolvedResponseUpdate {
                 status,
@@ -1574,6 +1588,8 @@ impl behaviour::Conversion for PaymentAttempt {
             shipping_cost: self.net_amount.get_shipping_cost(),
             connector_mandate_detail: self.connector_mandate_detail,
             card_discovery: self.card_discovery,
+            request_overcapture: self.request_overcapture,
+            overcapture_status: self.overcapture_status,
         })
     }
 
@@ -1656,6 +1672,8 @@ impl behaviour::Conversion for PaymentAttempt {
                 organization_id: storage_model.organization_id,
                 connector_mandate_detail: storage_model.connector_mandate_detail,
                 card_discovery: storage_model.card_discovery,
+                request_overcapture: storage_model.request_overcapture,
+                overcapture_status: storage_model.overcapture_status,
             })
         }
         .await
@@ -1807,6 +1825,8 @@ impl behaviour::Conversion for PaymentAttempt {
             connector,
             connector_token_details,
             card_discovery,
+            request_overcapture,
+            overcapture_status,
         } = self;
 
         let AttemptAmountDetails {
@@ -1885,6 +1905,8 @@ impl behaviour::Conversion for PaymentAttempt {
             connector_payment_data,
             connector_token_details,
             card_discovery,
+            overcapture_status,
+            request_overcapture,
         })
     }
 
@@ -1997,6 +2019,8 @@ impl behaviour::Conversion for PaymentAttempt {
                 payment_method_billing_address,
                 connector_token_details: storage_model.connector_token_details,
                 card_discovery: storage_model.card_discovery,
+                request_overcapture: storage_model.request_overcapture,
+                overcapture_status: storage_model.overcapture_status,
             })
         }
         .await

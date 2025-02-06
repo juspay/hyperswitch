@@ -178,6 +178,7 @@ impl ForeignTryFrom<domain::Profile> for ProfileResponse {
             max_auto_retries_enabled: item.max_auto_retries_enabled,
             is_click_to_pay_enabled: item.is_click_to_pay_enabled,
             authentication_product_ids: item.authentication_product_ids,
+            always_request_overcapture: item.always_request_overcapture,
         })
     }
 }
@@ -377,5 +378,6 @@ pub async fn create_profile_from_merchant_account(
         max_auto_retries_enabled: request.max_auto_retries_enabled.map(i16::from),
         is_click_to_pay_enabled: request.is_click_to_pay_enabled,
         authentication_product_ids: request.authentication_product_ids,
+        always_request_overcapture: request.always_request_overcapture,
     }))
 }

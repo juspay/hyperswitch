@@ -302,6 +302,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         integrity_object: None,
         shipping_cost: payment_data.payment_intent.amount_details.shipping_cost,
         additional_payment_method_data: None,
+        request_overcapture: None,
     };
     let connector_mandate_request_reference_id = payment_data
         .payment_attempt
@@ -2502,6 +2503,7 @@ where
             order_tax_amount,
             connector_mandate_id,
             shipping_cost: payment_intent.shipping_cost,
+            overcapture_status: payment_attempt.overcapture_status,
         };
 
         services::ApplicationResponse::JsonWithHeaders((payments_response, headers))
@@ -2758,6 +2760,7 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             order_tax_amount: None,
             connector_mandate_id:None,
             shipping_cost: None,
+            overcapture_status: pa.overcapture_status,
         }
     }
 }
@@ -3023,6 +3026,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             .clone();
         let shipping_cost = payment_data.payment_intent.shipping_cost;
 
+        let request_overcapture = payment_data.payment_attempt.request_overcapture;
+
         Ok(Self {
             payment_method_data: (payment_method_data.get_required_value("payment_method_data")?),
             setup_future_usage: payment_data.payment_intent.setup_future_usage,
@@ -3074,6 +3079,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             integrity_object: None,
             additional_payment_method_data,
             shipping_cost,
+            request_overcapture,
         })
     }
 }

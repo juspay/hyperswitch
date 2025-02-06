@@ -15792,6 +15792,22 @@
           }
         }
       },
+      "OverCaptureRequest": {
+        "type": "string",
+        "description": "Whether overcapture is requested or not",
+        "enum": [
+          "enable",
+          "skip"
+        ]
+      },
+      "OverCaptureStatus": {
+        "type": "string",
+        "description": "Whether overcapture is allowed by the connector",
+        "enum": [
+          "applicable",
+          "not_applicable"
+        ]
+      },
       "PayLaterData": {
         "oneOf": [
           {
@@ -18176,6 +18192,14 @@
               }
             ],
             "nullable": true
+          },
+          "request_overcapture": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OverCaptureRequest"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -18566,6 +18590,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/CtpServiceDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "request_overcapture": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OverCaptureRequest"
               }
             ],
             "nullable": true
@@ -19107,6 +19139,14 @@
           "connector_mandate_id": {
             "type": "string",
             "description": "Connector Identifier for the payment method",
+            "nullable": true
+          },
+          "overcapture_status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OverCaptureStatus"
+              }
+            ],
             "nullable": true
           }
         }
@@ -19786,6 +19826,14 @@
               }
             ],
             "nullable": true
+          },
+          "request_overcapture": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OverCaptureRequest"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -20351,6 +20399,14 @@
             "type": "string",
             "description": "Connector Identifier for the payment method",
             "nullable": true
+          },
+          "overcapture_status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OverCaptureStatus"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -20839,6 +20895,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/CtpServiceDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "request_overcapture": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OverCaptureRequest"
               }
             ],
             "nullable": true
@@ -22828,6 +22892,11 @@
             "type": "object",
             "description": "Product authentication ids",
             "nullable": true
+          },
+          "always_request_overcapture": {
+            "type": "boolean",
+            "description": "Indicates if the overcapture is always requested or not.",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -23068,6 +23137,13 @@
           "authentication_product_ids": {
             "type": "object",
             "description": "Product authentication ids",
+            "nullable": true
+          },
+          "always_request_overcapture": {
+            "type": "boolean",
+            "description": "Indicates if the overcapture is always requested or not.",
+            "default": false,
+            "example": false,
             "nullable": true
           }
         }

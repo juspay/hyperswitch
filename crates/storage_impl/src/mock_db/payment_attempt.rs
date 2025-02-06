@@ -196,6 +196,8 @@ impl PaymentAttemptInterface for MockDb {
             profile_id: payment_attempt.profile_id,
             connector_mandate_detail: payment_attempt.connector_mandate_detail,
             card_discovery: payment_attempt.card_discovery,
+            request_overcapture: None,
+            overcapture_status: None,
         };
         payment_attempts.push(payment_attempt.clone());
         Ok(payment_attempt)

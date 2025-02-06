@@ -1871,6 +1871,10 @@ pub struct ProfileCreate {
     #[schema(value_type = Option<Object>, example = r#"{ "click_to_pay": "mca_ushduqwhdohwd", "netcetera": "mca_kwqhudqwd" }"#)]
     pub authentication_product_ids:
         Option<common_types::payments::AuthenticationConnectorAccountMap>,
+
+    /// Indicates if the overcapture is always requested or not.
+    #[serde(default)]
+    pub always_request_overcapture: Option<bool>,
 }
 
 #[nutype::nutype(
@@ -2126,6 +2130,10 @@ pub struct ProfileResponse {
     #[schema(value_type = Option<Object>, example = r#"{ "click_to_pay": "mca_ushduqwhdohwd", "netcetera": "mca_kwqhudqwd" }"#)]
     pub authentication_product_ids:
         Option<common_types::payments::AuthenticationConnectorAccountMap>,
+
+    /// Indicates if the overcapture is always requested or not.
+    #[schema(default = false, example = false)]
+    pub always_request_overcapture: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -2381,6 +2389,10 @@ pub struct ProfileUpdate {
     #[schema(value_type = Option<Object>, example = r#"{ "click_to_pay": "mca_ushduqwhdohwd", "netcetera": "mca_kwqhudqwd" }"#)]
     pub authentication_product_ids:
         Option<common_types::payments::AuthenticationConnectorAccountMap>,
+
+    /// Indicates if the overcapture is always requested or not.
+    #[schema(example = false)]
+    pub always_request_overcapture: Option<bool>,
 }
 
 #[cfg(feature = "v2")]

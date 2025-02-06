@@ -44,8 +44,8 @@ pub use hyperswitch_domain_models::{
     router_data::{
         AccessToken, AdditionalPaymentMethodConnectorResponse, ApplePayCryptogramData,
         ApplePayPredecryptData, ConnectorAuthType, ConnectorResponseData, ErrorResponse,
-        GooglePayDecryptedData, GooglePayPaymentMethodDetails, PaymentMethodBalance,
-        PaymentMethodToken, RecurringMandatePaymentData, RouterData,
+        GooglePayDecryptedData, GooglePayPaymentMethodDetails, OverCaptureData,
+        PaymentMethodBalance, PaymentMethodToken, RecurringMandatePaymentData, RouterData,
     },
     router_data_v2::{
         AccessTokenFlowData, DisputesFlowData, ExternalAuthenticationFlowData, FilesFlowData,
@@ -255,6 +255,7 @@ pub trait Capturable {
         &self,
         _payment_data: &PaymentData<F>,
         _attempt_status: common_enums::AttemptStatus,
+        _maximum_capturable_amount: Option<MinorUnit>,
     ) -> Option<i64>
     where
         F: Clone,
@@ -281,6 +282,7 @@ impl Capturable for PaymentsAuthorizeData {
         &self,
         payment_data: &PaymentData<F>,
         attempt_status: common_enums::AttemptStatus,
+        maximum_capturable_amount: Option<MinorUnit>,
     ) -> Option<i64>
     where
         F: Clone,
@@ -303,7 +305,7 @@ impl Capturable for PaymentsAuthorizeData {
                     | common_enums::IntentStatus::PartiallyCapturedAndCapturable => None,
                 }
             },
-            common_enums::CaptureMethod::Manual => Some(payment_data.payment_attempt.get_total_amount().get_amount_as_i64()),
+            common_enums::CaptureMethod::Manual => Some(maximum_capturable_amount.unwrap_or(payment_data.payment_attempt.get_total_amount()).get_amount_as_i64()),
             // In case of manual multiple, amount capturable must be inferred from all captures.
             common_enums::CaptureMethod::ManualMultiple |
             // Scheduled capture is not supported as of now
@@ -324,6 +326,7 @@ impl Capturable for PaymentsCaptureData {
         &self,
         _payment_data: &PaymentData<F>,
         attempt_status: common_enums::AttemptStatus,
+        _maximum_capturable_amount: Option<MinorUnit>,
     ) -> Option<i64>
     where
         F: Clone,
@@ -362,6 +365,7 @@ impl Capturable for CompleteAuthorizeData {
         &self,
         payment_data: &PaymentData<F>,
         attempt_status: common_enums::AttemptStatus,
+        maximum_capturable_amount: Option<MinorUnit>,
     ) -> Option<i64>
     where
         F: Clone,
@@ -386,7 +390,7 @@ impl Capturable for CompleteAuthorizeData {
                     | common_enums::IntentStatus::PartiallyCapturedAndCapturable => None,
                 }
             },
-            common_enums::CaptureMethod::Manual => Some(payment_data.payment_attempt.get_total_amount().get_amount_as_i64()),
+            common_enums::CaptureMethod::Manual => Some(maximum_capturable_amount.unwrap_or(payment_data.payment_attempt.get_total_amount()).get_amount_as_i64()),
             // In case of manual multiple, amount capturable must be inferred from all captures.
             common_enums::CaptureMethod::ManualMultiple |
             // Scheduled capture is not supported as of now
@@ -414,6 +418,7 @@ impl Capturable for PaymentsCancelData {
         &self,
         _payment_data: &PaymentData<F>,
         attempt_status: common_enums::AttemptStatus,
+        _maximum_capturable_amount: Option<MinorUnit>,
     ) -> Option<i64>
     where
         F: Clone,
@@ -442,6 +447,7 @@ impl Capturable for PaymentsIncrementalAuthorizationData {
         &self,
         _payment_data: &PaymentData<F>,
         _attempt_status: common_enums::AttemptStatus,
+        _maximum_capturable_amount: Option<MinorUnit>,
     ) -> Option<i64>
     where
         F: Clone,
@@ -480,6 +486,7 @@ impl Capturable for PaymentsSyncData {
         &self,
         _payment_data: &PaymentData<F>,
         attempt_status: common_enums::AttemptStatus,
+        _maximum_capturable_amount: Option<MinorUnit>,
     ) -> Option<i64>
     where
         F: Clone,
@@ -900,6 +907,7 @@ impl ForeignFrom<&SetupMandateRouterData> for PaymentsAuthorizeData {
             integrity_object: None,
             additional_payment_method_data: None,
             shipping_cost: data.request.shipping_cost,
+            request_overcapture: None,
         }
     }
 }

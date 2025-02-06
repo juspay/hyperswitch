@@ -1,6 +1,6 @@
 use common_enums::{
-    AttemptStatus, AuthenticationType, CaptureMethod, Currency, PaymentExperience, PaymentMethod,
-    PaymentMethodType,
+    AttemptStatus, AuthenticationType, CaptureMethod, Currency, OverCaptureRequest,
+    PaymentExperience, PaymentMethod, PaymentMethodType,
 };
 use common_utils::types::{ConnectorTransactionId, MinorUnit};
 use serde::{Deserialize, Serialize};
@@ -204,6 +204,7 @@ pub struct PaymentAttemptBatchNew {
     pub connector_transaction_data: Option<String>,
     pub connector_mandate_detail: Option<ConnectorMandateReferenceId>,
     pub card_discovery: Option<common_enums::CardDiscovery>,
+    pub request_overcapture: Option<OverCaptureRequest>,
 }
 
 #[cfg(feature = "v1")]

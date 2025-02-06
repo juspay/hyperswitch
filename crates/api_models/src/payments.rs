@@ -1034,6 +1034,10 @@ pub struct PaymentsRequest {
     /// Service details for click to pay external authentication
     #[schema(value_type = Option<CtpServiceDetails>)]
     pub ctp_service_details: Option<CtpServiceDetails>,
+
+    /// Whether to request overcapture on this payment
+    #[schema(value_type = Option<OverCaptureRequest>)]
+    pub request_overcapture: Option<api_enums::OverCaptureRequest>,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -4754,6 +4758,10 @@ pub struct PaymentsResponse {
 
     /// Connector Identifier for the payment method
     pub connector_mandate_id: Option<String>,
+
+    /// Whether the payment is overcaptureable or not
+    #[schema(value_type = Option<OverCaptureStatus>)]
+    pub overcapture_status: Option<common_enums::OverCaptureStatus>,
 }
 
 // Serialize is implemented because, this will be serialized in the api events.
