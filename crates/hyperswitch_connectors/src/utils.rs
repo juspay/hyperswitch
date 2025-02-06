@@ -1302,11 +1302,11 @@ impl AddressDetailsData for AddressDetails {
     }
 
     fn get_optional_first_name(&self) -> Option<Secret<String>> {
-        self.first_name.clone()
+        self.first_name.clone().map(From::from)
     }
 
     fn get_optional_last_name(&self) -> Option<Secret<String>> {
-        self.last_name.clone()
+        self.last_name.clone().map(From::from)
     }
 }
 
