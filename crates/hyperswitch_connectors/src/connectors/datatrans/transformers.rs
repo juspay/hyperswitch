@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use common_enums::enums;
 use common_utils::{pii::Email, request::Method, types::MinorUnit};
 use hyperswitch_domain_models::{
@@ -14,7 +16,6 @@ use hyperswitch_interfaces::{
 };
 use masking::Secret;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 
 use crate::{
     types::{
