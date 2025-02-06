@@ -1446,7 +1446,12 @@ pub async fn get_payments_aggregates(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            payments::get_aggregates_for_payments(state, auth.merchant_account, Some(vec![auth.profile.get_id().clone()]), req)
+            payments::get_aggregates_for_payments(
+                state,
+                auth.merchant_account,
+                Some(vec![auth.profile.get_id().clone()]),
+                req,
+            )
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),

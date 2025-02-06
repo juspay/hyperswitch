@@ -1850,10 +1850,7 @@ impl PaymentIntentInterface for KafkaStore {
             )
             .await
     }
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        feature="olap",
-    ))]
+    #[cfg(all(any(feature = "v1", feature = "v2"), feature = "olap",))]
     async fn get_intent_status_with_count(
         &self,
         merchant_id: &id_type::MerchantId,
