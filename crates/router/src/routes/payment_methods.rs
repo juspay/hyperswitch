@@ -117,7 +117,7 @@ pub async fn create_payment_method_intent_api(
             ))
             .await
         },
-        &auth::V2Auth::ApiKeyAuth,
+        &auth::V2ApiKeyAuth,
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -175,7 +175,7 @@ pub async fn payment_method_update_api(
                 &payment_method_id,
             )
         },
-        &auth::V2Auth::ApiKeyAuth,
+        &auth::V2ApiKeyAuth,
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -911,7 +911,7 @@ pub async fn payment_methods_session_create(
             )
             .await
         },
-        &auth::V2Auth::ApiKeyAuth,
+        &auth::V2ApiKeyAuth,
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -941,12 +941,15 @@ pub async fn payment_methods_session_retrieve(
             )
             .await
         },
-        &vec![
-            auth::V2Auth::ApiKeyAuth,
-            auth::V2Auth::ClientAuth(diesel_models::ResourceId::PaymentMethodSession(
-                payment_method_session_id,
-            )),
-        ],
+        auth::api_or_client_auth(
+            &auth::V2ApiKeyAuth,
+            &auth::V2ClientAuth(
+                common_utils::types::authentication::ResourceId::PaymentMethodSession(
+                    payment_method_session_id,
+                ),
+            ),
+            req.headers(),
+        ),
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -976,9 +979,11 @@ pub async fn payment_method_session_list_payment_methods(
                 payment_method_session_id,
             )
         },
-        &auth::V2Auth::ClientAuth(diesel_models::ResourceId::PaymentMethodSession(
-            payment_method_session_id,
-        )),
+        &auth::V2ClientAuth(
+            common_utils::types::authentication::ResourceId::PaymentMethodSession(
+                payment_method_session_id,
+            ),
+        ),
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -1036,9 +1041,11 @@ pub async fn payment_method_session_update_saved_payment_method(
                 request.request,
             )
         },
-        &auth::V2Auth::ClientAuth(diesel_models::ResourceId::PaymentMethodSession(
-            payment_method_session_id,
-        )),
+        &auth::V2ClientAuth(
+            common_utils::types::authentication::ResourceId::PaymentMethodSession(
+                payment_method_session_id,
+            ),
+        ),
         api_locking::LockAction::NotApplicable,
     ))
     .await

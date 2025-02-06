@@ -3079,7 +3079,7 @@ pub async fn make_client_secret(
 
     let resource_id = match resource_id {
         api_models::ephemeral_key::ResourceId::Customer(global_customer_id) => {
-            diesel_models::ResourceId::Customer(global_customer_id)
+            common_utils::types::authentication::ResourceId::Customer(global_customer_id)
         }
     };
 
@@ -3097,7 +3097,7 @@ pub async fn make_client_secret(
 pub async fn create_client_secret(
     state: &SessionState,
     merchant_id: &id_type::MerchantId,
-    resource_id: diesel_models::ephemeral_key::ResourceId,
+    resource_id: common_utils::types::authentication::ResourceId,
 ) -> RouterResult<ephemeral_key::ClientSecretType> {
     use common_utils::generate_time_ordered_id;
 

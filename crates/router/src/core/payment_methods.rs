@@ -1838,7 +1838,9 @@ pub async fn payment_methods_session_create(
     let client_secret = payment_helpers::create_client_secret(
         &state,
         merchant_account.get_id(),
-        diesel_models::ResourceId::PaymentMethodSession(payment_methods_session_id.clone()),
+        util_types::authentication::ResourceId::PaymentMethodSession(
+            payment_methods_session_id.clone(),
+        ),
     )
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)

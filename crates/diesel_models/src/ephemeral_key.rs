@@ -6,7 +6,7 @@ pub struct ClientSecretTypeNew {
     pub id: common_utils::id_type::ClientSecretId,
     pub merchant_id: common_utils::id_type::MerchantId,
     pub secret: Secret<String>,
-    pub resource_id: ResourceId,
+    pub resource_id: common_utils::types::authentication::ResourceId,
 }
 
 #[cfg(feature = "v2")]
@@ -14,7 +14,7 @@ pub struct ClientSecretTypeNew {
 pub struct ClientSecretType {
     pub id: common_utils::id_type::ClientSecretId,
     pub merchant_id: common_utils::id_type::MerchantId,
-    pub resource_id: ResourceId,
+    pub resource_id: common_utils::types::authentication::ResourceId,
     pub created_at: time::PrimitiveDateTime,
     pub expires: time::PrimitiveDateTime,
     pub secret: Secret<String>,
@@ -47,25 +47,5 @@ pub struct EphemeralKey {
 impl common_utils::events::ApiEventMetric for EphemeralKey {
     fn get_api_event_type(&self) -> Option<common_utils::events::ApiEventsType> {
         Some(common_utils::events::ApiEventsType::Miscellaneous)
-    }
-}
-
-#[cfg(feature = "v2")]
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "snake_case")]
-pub enum ResourceId {
-    Payment(common_utils::id_type::GlobalPaymentId),
-    Customer(common_utils::id_type::GlobalCustomerId),
-    PaymentMethodSession(common_utils::id_type::GlobalPaymentMethodSessionId),
-}
-
-#[cfg(feature = "v2")]
-impl ResourceId {
-    pub fn to_str(&self) -> &str {
-        match self {
-            Self::Payment(id) => id.get_string_repr(),
-            Self::Customer(id) => id.get_string_repr(),
-            Self::PaymentMethodSession(id) => id.get_string_repr(),
-        }
     }
 }
