@@ -561,6 +561,12 @@ impl Payments {
                     .route(web::post().to(payments::payments_create_intent)),
             );
 
+        route =
+            route
+                .service(web::resource("/ref/{merchant_reference_id}").route(
+                    web::get().to(payments::payment_get_intent_using_merchant_reference_id),
+                ));
+
         route = route.service(
             web::scope("/{payment_id}")
                 .service(
