@@ -704,6 +704,7 @@ export const connectorDetails = {
     }),
     Refund: getCustomExchange({
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -724,6 +725,7 @@ export const connectorDetails = {
     }),
     manualPaymentRefund: getCustomExchange({
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -740,6 +742,7 @@ export const connectorDetails = {
     }),
     manualPaymentPartialRefund: getCustomExchange({
       Request: {
+        amount: 2000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -756,6 +759,7 @@ export const connectorDetails = {
     }),
     PartialRefund: getCustomExchange({
       Request: {
+        amount: 2000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,

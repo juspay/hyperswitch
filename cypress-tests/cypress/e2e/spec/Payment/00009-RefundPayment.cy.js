@@ -135,7 +135,7 @@ describe("Card - Refund flow - No 3DS", () => {
         "card_pm"
       ]["PartialRefund"];
 
-      cy.refundCallTest(fixtures.refundBody, data, 1200, globalState);
+      cy.refundCallTest(fixtures.refundBody, data, globalState);
 
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
@@ -145,7 +145,7 @@ describe("Card - Refund flow - No 3DS", () => {
         "card_pm"
       ]["PartialRefund"];
 
-      cy.refundCallTest(fixtures.refundBody, data, 1200, globalState);
+      cy.refundCallTest(fixtures.refundBody, data, globalState);
 
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
@@ -262,7 +262,7 @@ describe("Card - Refund flow - No 3DS", () => {
           "card_pm"
         ]["PartialRefund"];
 
-        cy.refundCallTest(fixtures.refundBody, data, 3000, globalState);
+        cy.refundCallTest(fixtures.refundBody, data, globalState);
 
         if (shouldContinue)
           shouldContinue = utils.should_continue_further(data);
@@ -273,7 +273,7 @@ describe("Card - Refund flow - No 3DS", () => {
           "card_pm"
         ]["PartialRefund"];
 
-        cy.refundCallTest(fixtures.refundBody, data, 3000, globalState);
+        cy.refundCallTest(fixtures.refundBody, data, globalState);
 
         if (shouldContinue)
           shouldContinue = utils.should_continue_further(data);
@@ -362,7 +362,7 @@ describe("Card - Refund flow - No 3DS", () => {
         "card_pm"
       ]["manualPaymentRefund"];
 
-      cy.refundCallTest(fixtures.refundBody, data, 6000, globalState);
+      cy.refundCallTest(fixtures.refundBody, data, globalState);
 
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
@@ -448,7 +448,7 @@ describe("Card - Refund flow - No 3DS", () => {
         "card_pm"
       ]["manualPaymentPartialRefund"];
 
-      cy.refundCallTest(fixtures.refundBody, data, 3000, globalState);
+      cy.refundCallTest(fixtures.refundBody, data, globalState);
 
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
@@ -457,7 +457,7 @@ describe("Card - Refund flow - No 3DS", () => {
         "card_pm"
       ]["manualPaymentPartialRefund"];
 
-      cy.refundCallTest(fixtures.refundBody, data, 3000, globalState);
+      cy.refundCallTest(fixtures.refundBody, data, globalState);
 
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
@@ -546,7 +546,7 @@ describe("Card - Refund flow - No 3DS", () => {
         "card_pm"
       ]["manualPaymentRefund"];
 
-      cy.refundCallTest(fixtures.refundBody, data, 100, globalState);
+      cy.refundCallTest(fixtures.refundBody, data, globalState);
 
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
@@ -632,7 +632,7 @@ describe("Card - Refund flow - No 3DS", () => {
         "card_pm"
       ]["manualPaymentPartialRefund"];
 
-      cy.refundCallTest(fixtures.refundBody, data, 100, globalState);
+      cy.refundCallTest(fixtures.refundBody, data, globalState);
 
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
@@ -713,7 +713,7 @@ describe("Card - Refund flow - No 3DS", () => {
           "card_pm"
         ]["Refund"];
 
-        cy.refundCallTest(fixtures.refundBody, data, 6000, globalState);
+        cy.refundCallTest(fixtures.refundBody, data, globalState);
 
         if (shouldContinue)
           shouldContinue = utils.should_continue_further(data);
@@ -801,7 +801,7 @@ describe("Card - Refund flow - 3DS", () => {
         "card_pm"
       ]["Refund"];
 
-      cy.refundCallTest(fixtures.refundBody, data, 6000, globalState);
+      cy.refundCallTest(fixtures.refundBody, data, globalState);
 
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
@@ -874,7 +874,7 @@ describe("Card - Refund flow - 3DS", () => {
         "card_pm"
       ]["PartialRefund"];
 
-      cy.refundCallTest(fixtures.refundBody, data, 1200, globalState);
+      cy.refundCallTest(fixtures.refundBody, data, globalState);
 
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
@@ -884,7 +884,7 @@ describe("Card - Refund flow - 3DS", () => {
         "card_pm"
       ]["PartialRefund"];
 
-      cy.refundCallTest(fixtures.refundBody, data, 1200, globalState);
+      cy.refundCallTest(fixtures.refundBody, data, globalState);
 
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
@@ -943,7 +943,7 @@ describe("Card - Refund flow - 3DS", () => {
         "card_pm"
       ]["Refund"];
 
-      cy.refundCallTest(fixtures.refundBody, data, 6000, globalState);
+      cy.refundCallTest(fixtures.refundBody, data, globalState);
 
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
@@ -1005,7 +1005,7 @@ describe("Card - Refund flow - 3DS", () => {
           "card_pm"
         ]["PartialRefund"];
 
-        cy.refundCallTest(fixtures.refundBody, data, 3000, globalState);
+        cy.refundCallTest(fixtures.refundBody, data, globalState);
 
         if (shouldContinue)
           shouldContinue = utils.should_continue_further(data);
@@ -1016,7 +1016,7 @@ describe("Card - Refund flow - 3DS", () => {
           "card_pm"
         ]["PartialRefund"];
 
-        cy.refundCallTest(fixtures.refundBody, data, 3000, globalState);
+        cy.refundCallTest(fixtures.refundBody, data, globalState);
 
         if (shouldContinue)
           shouldContinue = utils.should_continue_further(data);
@@ -1110,7 +1110,7 @@ describe("Card - Refund flow - 3DS", () => {
         "card_pm"
       ]["manualPaymentRefund"];
 
-      cy.refundCallTest(fixtures.refundBody, data, 6000, globalState);
+      cy.refundCallTest(fixtures.refundBody, data, globalState);
 
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
@@ -1201,7 +1201,7 @@ describe("Card - Refund flow - 3DS", () => {
         "card_pm"
       ]["manualPaymentPartialRefund"];
 
-      cy.refundCallTest(fixtures.refundBody, data, 5000, globalState);
+      cy.refundCallTest(fixtures.refundBody, data, globalState);
 
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
@@ -1210,7 +1210,7 @@ describe("Card - Refund flow - 3DS", () => {
         "card_pm"
       ]["manualPaymentPartialRefund"];
 
-      cy.refundCallTest(fixtures.refundBody, data, 1500, globalState);
+      cy.refundCallTest(fixtures.refundBody, data, globalState);
 
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
@@ -1301,7 +1301,7 @@ describe("Card - Refund flow - 3DS", () => {
         "card_pm"
       ]["manualPaymentRefund"];
 
-      cy.refundCallTest(fixtures.refundBody, data, 100, globalState);
+      cy.refundCallTest(fixtures.refundBody, data, globalState);
 
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
@@ -1392,7 +1392,7 @@ describe("Card - Refund flow - 3DS", () => {
         "card_pm"
       ]["manualPaymentRefund"];
 
-      cy.refundCallTest(fixtures.refundBody, data, 50, globalState);
+      cy.refundCallTest(fixtures.refundBody, data, globalState);
 
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });

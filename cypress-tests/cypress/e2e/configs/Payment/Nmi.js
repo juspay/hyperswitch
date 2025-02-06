@@ -187,6 +187,7 @@ export const connectorDetails = {
 
     Refund: {
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -202,6 +203,7 @@ export const connectorDetails = {
     },
     PartialRefund: {
       Request: {
+        amount: 2000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -217,6 +219,7 @@ export const connectorDetails = {
     },
     manualPaymentRefund: {
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -232,6 +235,7 @@ export const connectorDetails = {
     },
     manualPaymentPartialRefund: {
       Request: {
+        amount: 2000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
