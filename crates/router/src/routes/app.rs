@@ -551,9 +551,15 @@ pub struct Payments;
 impl Payments {
     pub fn server(state: AppState) -> Scope {
         let mut route = web::scope("/v2/payments").app_data(web::Data::new(state));
-        route = route.service(
-            web::resource("/create-intent").route(web::post().to(payments::payments_create_intent)),
-        );
+        route = route
+            .service(
+                web::resource("")
+                    .route(web::post().to(payments::payments_create_and_confirm_intent)),
+            )
+            .service(
+                web::resource("/create-intent")
+                    .route(web::post().to(payments::payments_create_intent)),
+            );
 
         route=route.service(
             web::resource("/aggregate").route(web::get().to(payments::get_payments_aggregates)),
@@ -1829,7 +1835,12 @@ impl Profile {
                                 &TransactionType::Payment,
                             )
                         },
-                    ))),
+                    )))
+                    .service(
+                        web::resource("/decision")
+                            .route(web::put().to(routing::upsert_decision_manager_config))
+                            .route(web::get().to(routing::retrieve_decision_manager_config)),
+                    ),
             )
     }
 }
