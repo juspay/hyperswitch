@@ -329,53 +329,18 @@ impl<F>
         } else {
             let charges = match item.data.request.split_payments.as_ref() {
                 Some(common_types::payments::SplitPaymentsRequest::XenditSplitPayment(
-                    common_types::payments::XenditSplitRequest::MultipleSplits(ref split_data),
-                )) => {
-                    let charge_response =
-                        item.data
-                            .response
-                            .as_ref()
-                            .ok()
-                            .and_then(|response| match response {
-                                PaymentsResponseData::TransactionResponse { charges, .. } => {
-                                    charges.clone()
-                                }
-                                _ => None,
-                            });
-
-                    charge_response
-                        .as_ref()
-                        .and_then(|charges| match charges {
-                            common_types::payments::ConnectorChargeResponseData::XenditSplitPayment(
-                                common_types::payments::XenditChargeResponseData::MultipleSplits(xendit_split_response),
-                            ) => {
-                                let routes: Vec<_> = xendit_split_response
-                                    .routes
-                                    .iter()
-                                    .map(|route| common_types::payments::XenditSplitRoute {
-                                        flat_amount: route.flat_amount,
-                                        percent_amount: route.percent_amount,
-                                        currency: route.currency,
-                                        destination_account_id: route.destination_account_id.clone(),
-                                        reference_id: route.reference_id.clone(),
-                                    })
-                                    .collect();
-                                let charges = common_types::payments::XenditMultipleSplitResponse {
-                                    split_rule_id: item.response.id.clone(),
-                                    for_user_id: split_data.for_user_id.clone(),
-                                    name: split_data.name.clone(),
-                                    description: split_data.description.clone(),
-                                    routes,
-                                };
-                                Some(
-                                    common_types::payments::ConnectorChargeResponseData::XenditSplitPayment(
-                                        common_types::payments::XenditChargeResponseData::MultipleSplits(charges),
-                                    ),
-                                )
-                            }
-                            _ => None,
-                        })
-                }
+                    common_types::payments::XenditSplitRequest::MultipleSplits(_),
+                )) => item
+                    .data
+                    .response
+                    .as_ref()
+                    .ok()
+                    .and_then(|response| match response {
+                        PaymentsResponseData::TransactionResponse { charges, .. } => {
+                            charges.clone()
+                        }
+                        _ => None,
+                    }),
                 Some(common_types::payments::SplitPaymentsRequest::XenditSplitPayment(
                     common_types::payments::XenditSplitRequest::SingleSplit(ref split_data),
                 )) => {

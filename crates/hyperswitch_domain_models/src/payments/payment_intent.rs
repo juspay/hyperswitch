@@ -1322,6 +1322,7 @@ impl behaviour::Conversion for PaymentIntent {
             routing_algorithm_id,
             payment_link_config,
             platform_merchant_id,
+            split_payments
         } = self;
         Ok(DieselPaymentIntent {
             skip_external_tax_calculation: Some(amount_details.get_external_tax_action_as_bool()),
@@ -1393,7 +1394,7 @@ impl behaviour::Conversion for PaymentIntent {
             routing_algorithm_id,
             psd2_sca_exemption_type: None,
             platform_merchant_id,
-            split_payments: None,
+            split_payments,
         })
     }
     async fn convert_back(
@@ -1520,6 +1521,7 @@ impl behaviour::Conversion for PaymentIntent {
                 payment_link_config: storage_model.payment_link_config,
                 routing_algorithm_id: storage_model.routing_algorithm_id,
                 platform_merchant_id: storage_model.platform_merchant_id,
+                split_payments: storage_model.split_payments,
             })
         }
         .await
