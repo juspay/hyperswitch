@@ -1,16 +1,12 @@
 pub mod transformers;
 
-use error_stack::{report, ResultExt};
-use masking::{ExposeInterface, Mask};
-
 use common_utils::{
     errors::CustomResult,
     ext_traits::BytesExt,
     request::{Method, Request, RequestBuilder, RequestContent},
     types::{AmountConvertor, StringMinorUnit, StringMinorUnitForConnector},
 };
-
-use crate::{constants::headers, types::ResponseRouterData, utils};
+use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
@@ -40,8 +36,10 @@ use hyperswitch_interfaces::{
     types::{self, Response},
     webhooks,
 };
-
+use masking::{ExposeInterface, Mask};
 use transformers as coingate;
+
+use crate::{constants::headers, types::ResponseRouterData, utils};
 
 #[derive(Clone)]
 pub struct Coingate {
