@@ -566,6 +566,8 @@ debit = { currency = "USD" }
 
 [pm_filters.fiuu]
 duit_now = { country = "MY", currency = "MYR" }
+apple_pay = { country = "MY", currency = "MYR" }
+google_pay = { country = "MY", currency = "MYR" }
 
 [pm_filters.inespay]
 sepa = { currency = "EUR" }
