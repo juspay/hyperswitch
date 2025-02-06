@@ -209,6 +209,7 @@ pub struct PaymentAttemptBatchNew {
     pub request_extended_authorization: Option<RequestExtendedAuthorizationBool>,
     pub extended_authorization_applied: Option<ExtendedAuthorizationAppliedBool>,
     pub capture_before: Option<PrimitiveDateTime>,
+    pub card_discovery: Option<common_enums::CardDiscovery>,
 }
 
 #[cfg(feature = "v1")]
@@ -291,6 +292,7 @@ impl PaymentAttemptBatchNew {
             request_extended_authorization: self.request_extended_authorization,
             extended_authorization_applied: self.extended_authorization_applied,
             capture_before: self.capture_before,
+            card_discovery: self.card_discovery,
         }
     }
 }

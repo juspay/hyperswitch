@@ -220,6 +220,7 @@ mod tests {
             request_extended_authorization: Default::default(),
             extended_authorization_applied: Default::default(),
             capture_before: Default::default(),
+            card_discovery: Default::default(),
         };
 
         let store = state
@@ -307,6 +308,7 @@ mod tests {
             request_extended_authorization: Default::default(),
             extended_authorization_applied: Default::default(),
             capture_before: Default::default(),
+            card_discovery: Default::default(),
         };
         let store = state
             .stores
@@ -407,6 +409,7 @@ mod tests {
             request_extended_authorization: Default::default(),
             extended_authorization_applied: Default::default(),
             capture_before: Default::default(),
+            card_discovery: Default::default(),
         };
         let store = state
             .stores

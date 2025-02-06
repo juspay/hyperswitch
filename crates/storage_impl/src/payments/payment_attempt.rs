@@ -567,6 +567,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     request_extended_authorization: payment_attempt.request_extended_authorization,
                     extended_authorization_applied: payment_attempt.extended_authorization_applied,
                     capture_before: payment_attempt.capture_before,
+                    card_discovery: payment_attempt.card_discovery,
                 };
 
                 let field = format!("pa_{}", created_attempt.attempt_id);
@@ -1517,6 +1518,7 @@ impl DataModelExt for PaymentAttempt {
             request_extended_authorization: self.request_extended_authorization,
             extended_authorization_applied: self.extended_authorization_applied,
             capture_before: self.capture_before,
+            card_discovery: self.card_discovery,
         }
     }
 
@@ -1596,6 +1598,7 @@ impl DataModelExt for PaymentAttempt {
             request_extended_authorization: storage_model.request_extended_authorization,
             extended_authorization_applied: storage_model.extended_authorization_applied,
             capture_before: storage_model.capture_before,
+            card_discovery: storage_model.card_discovery,
         }
     }
 }
@@ -1682,6 +1685,7 @@ impl DataModelExt for PaymentAttemptNew {
             request_extended_authorization: self.request_extended_authorization,
             extended_authorization_applied: self.extended_authorization_applied,
             capture_before: self.capture_before,
+            card_discovery: self.card_discovery,
         }
     }
 
@@ -1757,6 +1761,7 @@ impl DataModelExt for PaymentAttemptNew {
             request_extended_authorization: storage_model.request_extended_authorization,
             extended_authorization_applied: storage_model.extended_authorization_applied,
             capture_before: storage_model.capture_before,
+            card_discovery: storage_model.card_discovery,
         }
     }
 }

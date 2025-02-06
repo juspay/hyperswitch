@@ -911,6 +911,7 @@ diesel::table! {
         request_extended_authorization -> Nullable<Bool>,
         extended_authorization_applied -> Nullable<Bool>,
         capture_before -> Nullable<Timestamp>,
+        card_discovery -> Nullable<CardDiscovery>,
     }
 }
 
@@ -1335,6 +1336,8 @@ diesel::table! {
         last_modified_by -> Varchar,
         #[max_length = 64]
         entity_type -> Varchar,
+        #[max_length = 64]
+        profile_id -> Nullable<Varchar>,
         #[max_length = 64]
         tenant_id -> Varchar,
     }

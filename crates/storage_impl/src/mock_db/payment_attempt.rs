@@ -198,6 +198,7 @@ impl PaymentAttemptInterface for MockDb {
             request_extended_authorization: payment_attempt.request_extended_authorization,
             extended_authorization_applied: payment_attempt.extended_authorization_applied,
             capture_before: payment_attempt.capture_before,
+            card_discovery: payment_attempt.card_discovery,
         };
         payment_attempts.push(payment_attempt.clone());
         Ok(payment_attempt)
