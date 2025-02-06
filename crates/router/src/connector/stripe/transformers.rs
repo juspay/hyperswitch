@@ -531,6 +531,7 @@ pub enum StripeWallet {
     ApplepayToken(StripeApplePay),
     GooglepayToken(GooglePayToken),
     ApplepayPayment(ApplepayPayment),
+    AmazonpayPayment(AmazonpayPayment),
     WechatpayPayment(WechatpayPayment),
     AlipayPayment(AlipayPayment),
     Cashapp(CashappPayment),
@@ -578,6 +579,12 @@ pub struct ApplepayPayment {
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
+pub struct AmazonpayPayment {
+    #[serde(rename = "payment_method_data[type]")]
+    pub payment_method_types: StripePaymentMethodType,
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct AlipayPayment {
     #[serde(rename = "payment_method_data[type]")]
     pub payment_method_data_type: StripePaymentMethodType,
@@ -620,6 +627,8 @@ pub enum StripePaymentMethodType {
     Affirm,
     AfterpayClearpay,
     Alipay,
+    #[serde(rename = "amazon_pay")]
+    AmazonPay,
     #[serde(rename = "au_becs_debit")]
     Becs,
     #[serde(rename = "bacs_debit")]
@@ -667,6 +676,7 @@ impl TryFrom<enums::PaymentMethodType> for StripePaymentMethodType {
             enums::PaymentMethodType::Giropay => Ok(Self::Giropay),
             enums::PaymentMethodType::Ideal => Ok(Self::Ideal),
             enums::PaymentMethodType::Sofort => Ok(Self::Sofort),
+            enums::PaymentMethodType::AmazonPay => Ok(Self::AmazonPay),
             enums::PaymentMethodType::ApplePay => Ok(Self::Card),
             enums::PaymentMethodType::Ach => Ok(Self::Ach),
             enums::PaymentMethodType::Sepa => Ok(Self::Sepa),
@@ -1048,6 +1058,9 @@ impl ForeignTryFrom<&domain::WalletData> for Option<StripePaymentMethodType> {
             domain::WalletData::GooglePay(_) => Ok(Some(StripePaymentMethodType::Card)),
             domain::WalletData::WeChatPayQr(_) => Ok(Some(StripePaymentMethodType::Wechatpay)),
             domain::WalletData::CashappQr(_) => Ok(Some(StripePaymentMethodType::Cashapp)),
+            domain::WalletData::AmazonPayRedirect(_) => {
+                Ok(Some(StripePaymentMethodType::AmazonPay))
+            }
             domain::WalletData::MobilePayRedirect(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     connector_util::get_unimplemented_payment_method_error_message("stripe"),
@@ -1466,6 +1479,11 @@ impl TryFrom<(&domain::WalletData, Option<types::PaymentMethodToken>)> for Strip
                     payment_method_data_type: StripePaymentMethodType::Cashapp,
                 })))
             }
+            domain::WalletData::AmazonPayRedirect(_) => Ok(Self::Wallet(
+                StripeWallet::AmazonpayPayment(AmazonpayPayment {
+                    payment_method_types: StripePaymentMethodType::AmazonPay,
+                }),
+            )),
             domain::WalletData::GooglePay(gpay_data) => Ok(Self::try_from(gpay_data)?),
             domain::WalletData::PaypalRedirect(_) | domain::WalletData::MobilePayRedirect(_) => {
                 Err(errors::ConnectorError::NotImplemented(
@@ -2301,6 +2319,7 @@ pub enum StripePaymentMethodDetailsResponse {
     Klarna,
     Affirm,
     AfterpayClearpay,
+    AmazonPay,
     ApplePay,
     #[serde(rename = "us_bank_account")]
     Ach,
@@ -2348,6 +2367,7 @@ impl StripePaymentMethodDetailsResponse {
             | Self::Klarna
             | Self::Affirm
             | Self::AfterpayClearpay
+            | Self::AmazonPay
             | Self::ApplePay
             | Self::Ach
             | Self::Sepa
@@ -2664,6 +2684,7 @@ impl<F, T>
                             | Some(StripePaymentMethodDetailsResponse::Klarna)
                             | Some(StripePaymentMethodDetailsResponse::Affirm)
                             | Some(StripePaymentMethodDetailsResponse::AfterpayClearpay)
+                            | Some(StripePaymentMethodDetailsResponse::AmazonPay)
                             | Some(StripePaymentMethodDetailsResponse::ApplePay)
                             | Some(StripePaymentMethodDetailsResponse::Ach)
                             | Some(StripePaymentMethodDetailsResponse::Sepa)
@@ -3273,6 +3294,7 @@ pub enum StripePaymentMethodOptions {
     Klarna {},
     Affirm {},
     AfterpayClearpay {},
+    AmazonPay {},
     Eps {},
     Giropay {},
     Ideal {},

@@ -224,6 +224,7 @@ diesel::table! {
         max_auto_retries_enabled -> Nullable<Int2>,
         is_click_to_pay_enabled -> Bool,
         authentication_product_ids -> Nullable<Jsonb>,
+        three_ds_decision_manager_config -> Nullable<Jsonb>,
     }
 }
 
@@ -873,11 +874,11 @@ diesel::table! {
         redirection_data -> Nullable<Jsonb>,
         #[max_length = 512]
         connector_payment_data -> Nullable<Varchar>,
+        connector_token_details -> Nullable<Jsonb>,
         #[max_length = 64]
         id -> Varchar,
         shipping_cost -> Nullable<Int8>,
         order_tax_amount -> Nullable<Int8>,
-        connector_mandate_detail -> Nullable<Jsonb>,
         card_discovery -> Nullable<CardDiscovery>,
     }
 }
@@ -1279,6 +1280,8 @@ diesel::table! {
         last_modified_by -> Varchar,
         #[max_length = 64]
         entity_type -> Varchar,
+        #[max_length = 64]
+        profile_id -> Nullable<Varchar>,
         #[max_length = 64]
         tenant_id -> Varchar,
     }
