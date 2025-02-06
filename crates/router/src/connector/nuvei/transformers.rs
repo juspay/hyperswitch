@@ -900,6 +900,7 @@ where
                 domain::WalletData::AliPayQr(_)
                 | domain::WalletData::AliPayRedirect(_)
                 | domain::WalletData::AliPayHkRedirect(_)
+                | domain::WalletData::AmazonPayRedirect(_)
                 | domain::WalletData::MomoRedirect(_)
                 | domain::WalletData::KakaoPayRedirect(_)
                 | domain::WalletData::GoPayRedirect(_)
@@ -975,7 +976,6 @@ where
                     get_pay_later_info(AlternativePaymentMethodType::AfterPay, item)
                 }
                 domain::PayLaterData::KlarnaSdk { .. }
-                | domain::PayLaterData::KlarnaCheckout {}
                 | domain::PayLaterData::AffirmRedirect {}
                 | domain::PayLaterData::PayBrightRedirect {}
                 | domain::PayLaterData::WalleyRedirect {}

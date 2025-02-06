@@ -45,7 +45,7 @@ generate_permissions! {
         },
         ThreeDsDecisionManager: {
             scopes: [Read, Write],
-            entities: [Merchant]
+            entities: [Merchant, Profile]
         },
         SurchargeDecisionManager: {
             scopes: [Read, Write],

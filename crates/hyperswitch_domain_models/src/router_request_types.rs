@@ -489,6 +489,7 @@ pub struct BrowserInformation {
     pub os_type: Option<String>,
     pub os_version: Option<String>,
     pub device_model: Option<String>,
+    pub accept_language: Option<String>,
 }
 
 #[cfg(feature = "v2")]
@@ -508,6 +509,7 @@ impl From<common_utils::types::BrowserInformation> for BrowserInformation {
             os_type: value.os_type,
             os_version: value.os_version,
             device_model: value.device_model,
+            accept_language: value.accept_language,
         }
     }
 }
@@ -821,6 +823,7 @@ pub struct PayoutsData {
     // New minor amount for amount framework
     pub minor_amount: MinorUnit,
     pub priority: Option<storage_enums::PayoutSendPriority>,
+    pub connector_transfer_method_id: Option<String>,
 }
 
 #[derive(Debug, Default, Clone)]

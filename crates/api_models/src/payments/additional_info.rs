@@ -219,5 +219,5 @@ pub struct WalletAdditionalDataForCard {
     pub card_network: String,
     /// The type of payment method
     #[serde(rename = "type")]
-    pub card_type: String,
+    pub card_type: Option<String>,
 }
