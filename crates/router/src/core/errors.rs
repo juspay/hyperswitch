@@ -246,8 +246,10 @@ pub enum PazeDecryptionError {
 
 #[derive(Debug, thiserror::Error)]
 pub enum GooglePayDecryptionError {
-    #[error("Failed to fetch time delta for expiration")]
-    SystemTimeError,
+    #[error("Recipient ID not found")]
+    RecipientIdNotFound,
+    #[error("Invalid expiration time")]
+    InvalidExpirationTime,
     #[error("Failed to base64 decode input data")]
     Base64DecodingFailed,
     #[error("Failed to decrypt input data")]

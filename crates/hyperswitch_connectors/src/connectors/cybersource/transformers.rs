@@ -253,6 +253,7 @@ impl TryFrom<&SetupMandateRouterData> for CybersourceZeroMandateRequest {
                 WalletData::AliPayQr(_)
                 | WalletData::AliPayRedirect(_)
                 | WalletData::AliPayHkRedirect(_)
+                | WalletData::AmazonPayRedirect(_)
                 | WalletData::MomoRedirect(_)
                 | WalletData::KakaoPayRedirect(_)
                 | WalletData::GoPayRedirect(_)
@@ -423,6 +424,7 @@ pub enum CybersourcePaymentInitiatorTypes {
 pub struct CaptureOptions {
     capture_sequence_number: u32,
     total_capture_count: u32,
+    is_final: Option<bool>,
 }
 
 #[derive(Debug, Serialize)]
@@ -1775,22 +1777,25 @@ impl
         let payment_information =
             PaymentInformation::GooglePay(Box::new(GooglePayPaymentInformation {
                 tokenized_card: TokenizedCard {
-                    number: google_pay_decrypted_data.payment_method_details.pan,
+                    number: Secret::new(
+                        google_pay_decrypted_data
+                            .payment_method_details
+                            .pan
+                            .get_card_no(),
+                    ),
                     cryptogram: google_pay_decrypted_data.payment_method_details.cryptogram,
                     transaction_type: TransactionType::GooglePay,
                     expiration_year: Secret::new(
                         google_pay_decrypted_data
                             .payment_method_details
                             .expiration_year
-                            .expose()
-                            .to_string(),
+                            .four_digits(),
                     ),
                     expiration_month: Secret::new(
                         google_pay_decrypted_data
                             .payment_method_details
                             .expiration_month
-                            .expose()
-                            .to_string(),
+                            .two_digits(),
                     ),
                 },
             }));
@@ -2062,6 +2067,7 @@ impl TryFrom<&CybersourceRouterData<&PaymentsAuthorizeRouterData>> for Cybersour
                         WalletData::AliPayQr(_)
                         | WalletData::AliPayRedirect(_)
                         | WalletData::AliPayHkRedirect(_)
+                        | WalletData::AmazonPayRedirect(_)
                         | WalletData::MomoRedirect(_)
                         | WalletData::KakaoPayRedirect(_)
                         | WalletData::GoPayRedirect(_)
@@ -2267,11 +2273,18 @@ impl TryFrom<&CybersourceRouterData<&PaymentsCaptureRouterData>>
             .clone()
             .map(convert_metadata_to_merchant_defined_info);
 
+        let is_final = matches!(
+            item.router_data.request.capture_method,
+            Some(enums::CaptureMethod::Manual)
+        )
+        .then_some(true);
+
         Ok(Self {
             processing_information: ProcessingInformation {
                 capture_options: Some(CaptureOptions {
                     capture_sequence_number: 1,
                     total_capture_count: 1,
+                    is_final,
                 }),
                 action_list: None,
                 action_token_types: None,

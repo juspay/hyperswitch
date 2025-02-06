@@ -54,8 +54,8 @@ pub use hyperswitch_domain_models::{
     },
     router_request_types::{
         unified_authentication_service::{
-            UasAuthenticationResponseData, UasPostAuthenticationRequestData,
-            UasPreAuthenticationRequestData,
+            UasAuthenticationRequestData, UasAuthenticationResponseData,
+            UasPostAuthenticationRequestData, UasPreAuthenticationRequestData,
         },
         AcceptDisputeRequestData, AccessTokenRequestData, AuthorizeSessionTokenData,
         BrowserInformation, ChargeRefunds, ChargeRefundsOptions, CompleteAuthorizeData,
@@ -543,6 +543,7 @@ pub struct RedirectPaymentFlowResponse<D> {
     pub profile: domain::Profile,
 }
 
+#[cfg(feature = "v1")]
 #[derive(Clone, Debug)]
 pub struct AuthenticatePaymentFlowResponse {
     pub payments_response: api_models::payments::PaymentsResponse,

@@ -759,6 +759,11 @@ pub struct PazeDecryptConfig {
     pub paze_private_key_passphrase: Secret<String>,
 }
 
+#[derive(Debug, Deserialize, Clone)]
+pub struct GooglePayDecryptConfig {
+    pub google_pay_root_signing_keys: Secret<String>,
+}
+
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct GooglePayDecryptConfig {
     pub google_pay_root_signing_keys: Secret<String>,
@@ -913,6 +918,11 @@ impl Settings<SecuredSecret> {
             .transpose()?;
 
         self.paze_decrypt_keys
+            .as_ref()
+            .map(|x| x.get_inner().validate())
+            .transpose()?;
+
+        self.google_pay_decrypt_keys
             .as_ref()
             .map(|x| x.get_inner().validate())
             .transpose()?;
