@@ -1056,7 +1056,7 @@ fn create_gpay_session_token(
 }
 
 /// Card Type for Google Pay Allowerd Payment Methods
-pub const CARD: &str = "CARD";
+pub(crate) const CARD: &str = "CARD";
 
 fn get_allowed_payment_methods_from_cards(
     gpay_info: payment_types::GooglePayWalletDetails,
