@@ -95,3 +95,34 @@ ADD COLUMN IF NOT EXISTS attempt_id VARCHAR(64) NOT NULL,
 CREATE INDEX payment_attempt_connector_transaction_id_merchant_id_index ON payment_attempt (connector_transaction_id, merchant_id);
 
 CREATE UNIQUE INDEX payment_attempt_payment_id_merchant_id_attempt_id_index ON payment_attempt (payment_id, merchant_id, attempt_id);
+
+-- Payment Methods
+CREATE TYPE "PaymentMethodIssuerCode" AS ENUM (
+    'jp_hdfc',
+    'jp_icici',
+    'jp_googlepay',
+    'jp_applepay',
+    'jp_phonepe',
+    'jp_wechat',
+    'jp_sofort',
+    'jp_giropay',
+    'jp_sepa',
+    'jp_bacs'
+);
+
+ALTER TABLE payment_methods
+    ADD COLUMN IF NOT EXISTS payment_method_id VARCHAR(64) NOT NULL,
+    ADD COLUMN IF NOT EXISTS accepted_currency "Currency" [ ],
+    ADD COLUMN IF NOT EXISTS scheme VARCHAR(32),
+    ADD COLUMN IF NOT EXISTS token VARCHAR(128),
+    ADD COLUMN IF NOT EXISTS cardholder_name VARCHAR(255),
+    ADD COLUMN IF NOT EXISTS issuer_name VARCHAR(64),
+    ADD COLUMN IF NOT EXISTS issuer_country VARCHAR(64),
+    ADD COLUMN IF NOT EXISTS is_stored BOOLEAN,
+    ADD COLUMN IF NOT EXISTS direct_debit_token VARCHAR(128),
+    ADD COLUMN IF NOT EXISTS swift_code VARCHAR(32),
+    ADD COLUMN IF NOT EXISTS payment_method_issuer VARCHAR(128),
+    ADD COLUMN IF NOT EXISTS metadata JSON,
+    ADD COLUMN IF NOT EXISTS payment_method VARCHAR,
+    ADD COLUMN IF NOT EXISTS payment_method_type VARCHAR(64),
+    ADD COLUMN IF NOT EXISTS payment_method_issuer_code "PaymentMethodIssuerCode";

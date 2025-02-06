@@ -33,3 +33,10 @@ ALTER TABLE payment_attempt DROP COLUMN id;
 
 ALTER TABLE payment_attempt
 ADD COLUMN IF NOT EXISTS id VARCHAR(64);
+
+------------------------ Payment Methods -----------------------
+ALTER TABLE payment_methods DROP COLUMN IF EXISTS id;
+
+ALTER TABLE payment_methods 
+ADD COLUMN IF NOT EXISTS id VARCHAR(64);
+

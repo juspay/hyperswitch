@@ -24,3 +24,9 @@ ALTER TABLE payment_attempt DROP COLUMN IF EXISTS id;
 
 ALTER TABLE payment_attempt
 ADD id SERIAL;
+
+------------------------ Payment Methods -----------------------
+ALTER TABLE payment_methods DROP COLUMN IF EXISTS id;
+
+ALTER TABLE payment_methods 
+ADD COLUMN IF NOT EXISTS id SERIAL;

@@ -47,3 +47,9 @@ ALTER TABLE payment_attempt DROP COLUMN payment_method_type_v2,
 
 ALTER TABLE merchant_connector_account
 ALTER COLUMN payment_methods_enabled TYPE JSON [ ];
+
+
+ALTER TABLE payment_methods
+    DROP COLUMN IF EXISTS locker_fingerprint_id,
+    DROP COLUMN IF EXISTS payment_method_type_v2,
+    DROP COLUMN IF EXISTS payment_method_subtype;

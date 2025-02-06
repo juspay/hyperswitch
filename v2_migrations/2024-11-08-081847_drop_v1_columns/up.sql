@@ -88,3 +88,22 @@ ALTER TABLE payment_attempt DROP COLUMN attempt_id,
     DROP COLUMN authentication_data,
     DROP COLUMN payment_method_billing_address_id,
     DROP COLUMN connector_mandate_detail;
+
+ALTER TABLE payment_methods
+    DROP COLUMN IF EXISTS payment_method_id,
+    DROP COLUMN IF EXISTS accepted_currency,
+    DROP COLUMN IF EXISTS scheme,
+    DROP COLUMN IF EXISTS token,
+    DROP COLUMN IF EXISTS cardholder_name,
+    DROP COLUMN IF EXISTS issuer_name,
+    DROP COLUMN IF EXISTS issuer_country,
+    DROP COLUMN IF EXISTS payer_country,
+    DROP COLUMN IF EXISTS is_stored,
+    DROP COLUMN IF EXISTS direct_debit_token,
+    DROP COLUMN IF EXISTS swift_code,
+    DROP COLUMN IF EXISTS payment_method_issuer,
+    DROP COLUMN IF EXISTS payment_method_issuer_code,
+    DROP COLUMN IF EXISTS metadata,
+    DROP COLUMN IF EXISTS payment_method,
+    DROP COLUMN IF EXISTS payment_method_type;
+DROP TYPE IF EXISTS "PaymentMethodIssuerCode";

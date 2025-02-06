@@ -136,3 +136,9 @@ ALTER COLUMN active_attempt_id DROP NOT NULL;
 
 ALTER TABLE payment_intent
 ALTER COLUMN active_attempt_id DROP DEFAULT;
+
+------------------------ Payment Methods -----------------------
+ALTER TABLE payment_methods DROP CONSTRAINT IF EXISTS payment_methods_pkey;
+
+ALTER TABLE payment_methods 
+ADD PRIMARY KEY (id);

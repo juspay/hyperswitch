@@ -110,3 +110,9 @@ ALTER COLUMN net_amount DROP NOT NULL;
 
 ALTER TABLE payment_attempt
 ADD PRIMARY KEY (attempt_id, merchant_id);
+
+------------------------ Payment Methods -----------------------
+ALTER TABLE payment_methods DROP CONSTRAINT payment_methods_pkey;
+
+ALTER TABLE payment_methods 
+ADD PRIMARY KEY (payment_method_id);
