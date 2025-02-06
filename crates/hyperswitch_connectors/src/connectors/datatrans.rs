@@ -47,7 +47,7 @@ use transformers as datatrans;
 use crate::{
     constants::headers,
     types::ResponseRouterData,
-    utils::{convert_amount, RefundsRequestData, RouterData as OtherRouterData},
+    utils::{self, convert_amount, RefundsRequestData, RouterData as OtherRouterData},
 };
 
 impl api::Payment for Datatrans {}
@@ -139,7 +139,7 @@ impl ConnectorCommon for Datatrans {
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         let (cow, _, _) = encoding_rs::ISO_8859_10.decode(&res.response);
         let response = cow.as_ref().to_string();
-        if response.starts_with("<html>") {
+        if utils::is_html_response(&response) {
             event_builder.map(|i| i.set_response_body(&response));
             router_env::logger::info!(connector_response=?response);
             Ok(ErrorResponse {

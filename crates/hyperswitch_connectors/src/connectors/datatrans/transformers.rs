@@ -32,12 +32,6 @@ const TRANSACTION_ALREADY_SETTLED: &str = "already settled";
 const REDIRECTION_SBX_URL: &str = "https://pay.sandbox.datatrans.com";
 const REDIRECTION_PROD_URL: &str = "https://pay.datatrans.com";
 
-// #[derive(Debug, Clone, Serialize, Deserialize)]
-// #[serde(untagged)]
-// pub enum DatatransErrorType {
-//     Message(String),
-//     Error(DatatransErrorResponse),
-// }
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct DatatransErrorResponse {
     pub error: DatatransError,
@@ -325,11 +319,11 @@ fn create_card_details(
             cardholder: CardHolder {
                 cardholder_name: item.router_data.get_billing_full_name()?,
                 email: item.router_data.request.get_email()?,
-                bill_addr_line1: billing.get_line1().ok().clone(),
-                bill_addr_post_code: billing.get_zip().ok().clone(),
-                bill_addr_city: billing.get_city().ok().clone(),
-                bill_addr_state: billing.get_state().ok().clone(),
-                bill_addr_country: billing.get_country().ok().clone(),
+                bill_addr_line1: billing.get_line1().ok().cloned(),
+                bill_addr_post_code: billing.get_zip().ok().cloned(),
+                bill_addr_city: billing.get_city().ok().cloned(),
+                bill_addr_state: billing.get_state().ok().cloned(),
+                bill_addr_country: billing.get_country().ok().copied(),
             },
         });
     }

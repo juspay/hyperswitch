@@ -2667,6 +2667,10 @@ pub fn deserialize_xml_to_struct<T: serde::de::DeserializeOwned>(
     Ok(result)
 }
 
+pub fn is_html_response(response: &str) -> bool {
+    response.starts_with("<html>") || response.starts_with("<!DOCTYPE html>")
+}
+
 #[cfg(feature = "payouts")]
 pub trait PayoutsData {
     fn get_transfer_id(&self) -> Result<String, Error>;
