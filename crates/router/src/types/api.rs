@@ -359,6 +359,7 @@ impl ConnectorData {
                     Ok(ConnectorEnum::Old(Box::new(connector::Braintree::new())))
                 }
                 enums::Connector::Cashtocode => {
+                    // enums::Connector::Chargebee => Ok(ConnectorEnum::Old(Box::new(connector::Chargebee))),
                     Ok(ConnectorEnum::Old(Box::new(connector::Cashtocode::new())))
                 }
                 enums::Connector::Checkout => {
@@ -441,9 +442,9 @@ impl ConnectorData {
                 enums::Connector::Iatapay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Iatapay::new())))
                 }
-                // enums::Connector::Inespay => {
-                //     Ok(ConnectorEnum::Old(Box::new(connector::Inespay::new())))
-                // }
+                enums::Connector::Inespay => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Inespay::new())))
+                }
                 enums::Connector::Itaubank => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Itaubank::new())))
                 }

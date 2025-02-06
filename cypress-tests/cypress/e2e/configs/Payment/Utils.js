@@ -4,10 +4,8 @@ import { connectorDetails as adyenConnectorDetails } from "./Adyen.js";
 import { connectorDetails as bankOfAmericaConnectorDetails } from "./BankOfAmerica.js";
 import { connectorDetails as bluesnapConnectorDetails } from "./Bluesnap.js";
 import { connectorDetails as checkoutConnectorDetails } from "./Checkout.js";
-import {
-  connectorDetails as CommonConnectorDetails,
-  updateDefaultStatusCode,
-} from "./Commons.js";
+import { connectorDetails as CommonConnectorDetails } from "./Commons.js";
+import { updateDefaultStatusCode } from "./Modifiers.js";
 import { connectorDetails as cybersourceConnectorDetails } from "./Cybersource.js";
 import { connectorDetails as datatransConnectorDetails } from "./Datatrans.js";
 import { connectorDetails as elavonConnectorDetails } from "./Elavon.js";
@@ -227,12 +225,10 @@ function getConnectorConfig(
   const mcaConfig = getConnectorDetails(globalState.get("connectorId"));
 
   return {
-    config: {
-      CONNECTOR_CREDENTIAL:
-        multipleConnector?.nextConnector && multipleConnectors?.status
-          ? multipleConnector
-          : mcaConfig?.multi_credential_config || multipleConnector,
-    },
+    CONNECTOR_CREDENTIAL:
+      multipleConnector?.nextConnector && multipleConnectors?.status
+        ? multipleConnector
+        : mcaConfig?.multi_credential_config || multipleConnector,
     multipleConnectors,
   };
 }
@@ -243,13 +239,12 @@ export function createBusinessProfile(
   globalState,
   multipleConnector = { nextConnector: false }
 ) {
-  const { config, multipleConnectors } = getConnectorConfig(
-    globalState,
-    multipleConnector
-  );
+  const config = getConnectorConfig(globalState, multipleConnector);
   const { profilePrefix } = execConfig(config);
 
-  if (shouldProceedWithOperation(multipleConnector, multipleConnectors)) {
+  if (
+    shouldProceedWithOperation(multipleConnector, config.multipleConnectors)
+  ) {
     cy.createBusinessProfileTest(
       createBusinessProfileBody,
       globalState,
@@ -266,13 +261,12 @@ export function createMerchantConnectorAccount(
   paymentMethodsEnabled,
   multipleConnector = { nextConnector: false }
 ) {
-  const { config, multipleConnectors } = getConnectorConfig(
-    globalState,
-    multipleConnector
-  );
+  const config = getConnectorConfig(globalState, multipleConnector);
   const { profilePrefix, merchantConnectorPrefix } = execConfig(config);
 
-  if (shouldProceedWithOperation(multipleConnector, multipleConnectors)) {
+  if (
+    shouldProceedWithOperation(multipleConnector, config.multipleConnectors)
+  ) {
     cy.createConnectorCallTest(
       paymentType,
       createMerchantConnectorAccountBody,

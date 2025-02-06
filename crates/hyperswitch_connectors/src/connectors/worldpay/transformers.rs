@@ -156,6 +156,7 @@ fn fetch_payment_instrument(
             WalletData::AliPayQr(_)
             | WalletData::AliPayRedirect(_)
             | WalletData::AliPayHkRedirect(_)
+            | WalletData::AmazonPayRedirect(_)
             | WalletData::MomoRedirect(_)
             | WalletData::KakaoPayRedirect(_)
             | WalletData::GoPayRedirect(_)
@@ -390,8 +391,14 @@ fn create_three_ds_request<T: WorldpayPaymentsRequestData>(
     router_data: &T,
     is_mandate_payment: bool,
 ) -> Result<Option<ThreeDSRequest>, error_stack::Report<errors::ConnectorError>> {
-    match router_data.get_auth_type() {
-        enums::AuthenticationType::ThreeDs => {
+    match (
+        router_data.get_auth_type(),
+        router_data.get_payment_method_data(),
+    ) {
+        // 3DS for NTI flow
+        (_, PaymentMethodData::CardDetailsForNetworkTransactionId(_)) => Ok(None),
+        // 3DS for regular payments
+        (enums::AuthenticationType::ThreeDs, _) => {
             let browser_info = router_data.get_browser_info().ok_or(
                 errors::ConnectorError::MissingRequiredField {
                     field_name: "browser_info",
@@ -439,6 +446,7 @@ fn create_three_ds_request<T: WorldpayPaymentsRequestData>(
                 },
             }))
         }
+        // Non 3DS
         _ => Ok(None),
     }
 }
