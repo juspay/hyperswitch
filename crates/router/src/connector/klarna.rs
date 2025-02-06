@@ -672,7 +672,7 @@ impl
                     })),
                 }
             }
-            domain::PaymentMethodData::PayLater(domain::PayLaterData::KlarnaCheckout {}) => {
+            domain::PaymentMethodData::PayLater(domain::PayLaterData::KlarnaRedirect {}) => {
                 match (payment_experience, payment_method_type) {
                     (
                         common_enums::PaymentExperience::RedirectToUrl,

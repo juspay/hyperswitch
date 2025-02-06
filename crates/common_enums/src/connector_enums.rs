@@ -68,6 +68,7 @@ pub enum RoutableConnectors {
     // Chargebee,
     Checkout,
     Coinbase,
+    // Coingate,
     Cryptopay,
     Cybersource,
     Datatrans,
