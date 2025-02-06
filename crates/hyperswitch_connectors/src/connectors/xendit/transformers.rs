@@ -105,7 +105,7 @@ pub struct XenditSplitRoute {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct XenditSplitRequest {
     pub name: String,
-    pub description: Option<String>,
+    pub description: String,
     pub routes: Vec<XenditSplitRoute>,
 }
 
@@ -119,7 +119,7 @@ pub struct XenditSplitRequestData {
 pub struct XenditSplitResponse {
     id: String,
     name: String,
-    description: Option<String>,
+    description: String,
     routes: Vec<XenditSplitRoute>,
 }
 
@@ -654,7 +654,7 @@ impl TryFrom<&PaymentsPreProcessingRouterData> for XenditSplitRequestData {
                 routes,
             };
 
-            Ok(XenditSplitRequestData { split_data })
+            Ok(Self { split_data })
         } else {
             Err(errors::ConnectorError::NotImplemented(
                 get_unimplemented_payment_method_error_message("Xendit"),

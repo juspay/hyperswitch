@@ -215,23 +215,27 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             Some(common_types::payments::SplitPaymentsRequest::XenditSplitPayment(
                 common_types::payments::XenditSplitRequest::MultipleSplits(_),
             )) => {
-                if let Ok(response) = req.response.as_ref() {
-                    if let PaymentsResponseData::TransactionResponse { charges: Some(
-                        common_types::payments::ConnectorChargeResponseData::XenditSplitPayment(common_types::payments::XenditChargeResponseData::MultipleSplits(
-                            xendit_response,
-                        ))), .. } = response {
-                            headers.push((
-                                xendit::auth_headers::WITH_SPLIT_RULE.to_string(),
-                                xendit_response.split_rule_id.clone().into(),
-                            ));
-                            if let Some(for_user_id) = &xendit_response.for_user_id {
-                                headers.push((
-                                    xendit::auth_headers::FOR_USER_ID.to_string(),
-                                    for_user_id.clone().into(),
-                                ))
-                            };
-                        };
-                }
+                if let Ok(PaymentsResponseData::TransactionResponse {
+                    charges:
+                        Some(common_types::payments::ConnectorChargeResponseData::XenditSplitPayment(
+                            common_types::payments::XenditChargeResponseData::MultipleSplits(
+                                xendit_response,
+                            ),
+                        )),
+                    ..
+                }) = req.response.as_ref()
+                {
+                    headers.push((
+                        xendit::auth_headers::WITH_SPLIT_RULE.to_string(),
+                        xendit_response.split_rule_id.clone().into(),
+                    ));
+                    if let Some(for_user_id) = &xendit_response.for_user_id {
+                        headers.push((
+                            xendit::auth_headers::FOR_USER_ID.to_string(),
+                            for_user_id.clone().into(),
+                        ))
+                    };
+                };
             }
             Some(common_types::payments::SplitPaymentsRequest::XenditSplitPayment(
                 common_types::payments::XenditSplitRequest::SingleSplit(single_split_data),
@@ -603,14 +607,13 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Xendit 
         connectors: &Connectors,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         let mut headers = self.build_headers(req, connectors)?;
-        match &req.request.split_refunds {
-            Some(SplitRefundsRequest::XenditSplitRefund(sub_merchant_data)) => {
-                headers.push((
-                    xendit::auth_headers::FOR_USER_ID.to_string(),
-                    sub_merchant_data.for_user_id.clone().into(),
-                ));
-            }
-            _ => (),
+        if let Some(SplitRefundsRequest::XenditSplitRefund(sub_merchant_data)) =
+            &req.request.split_refunds
+        {
+            headers.push((
+                xendit::auth_headers::FOR_USER_ID.to_string(),
+                sub_merchant_data.for_user_id.clone().into(),
+            ));
         };
 
         Ok(headers)
@@ -700,14 +703,13 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Xendit {
         connectors: &Connectors,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         let mut headers = self.build_headers(req, connectors)?;
-        match &req.request.split_refunds {
-            Some(SplitRefundsRequest::XenditSplitRefund(sub_merchant_data)) => {
-                headers.push((
-                    xendit::auth_headers::FOR_USER_ID.to_string(),
-                    sub_merchant_data.for_user_id.clone().into(),
-                ));
-            }
-            _ => (),
+        if let Some(SplitRefundsRequest::XenditSplitRefund(sub_merchant_data)) =
+            &req.request.split_refunds
+        {
+            headers.push((
+                xendit::auth_headers::FOR_USER_ID.to_string(),
+                sub_merchant_data.for_user_id.clone().into(),
+            ));
         };
 
         Ok(headers)

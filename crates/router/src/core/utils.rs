@@ -548,8 +548,8 @@ pub fn get_split_refunds(
                     )),
                 ) => {
                     let user_id = super::refunds::validator::validate_xendit_charge_refund(
-                        &xendit_split_payment_response,
-                        &split_refund_request,
+                        xendit_split_payment_response,
+                        split_refund_request,
                     )?;
 
                     Ok(user_id.map(|for_user_id| {

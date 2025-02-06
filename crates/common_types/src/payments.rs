@@ -144,7 +144,7 @@ pub struct XenditMultipleSplitRequest {
     /// Name to identify split rule. Not required to be unique. Typically based on transaction and/or sub-merchant types.
     pub name: String,
     /// Description to identify fee rule
-    pub description: Option<String>,
+    pub description: String,
     /// The sub-account user-id that you want to make this transaction for.
     pub for_user_id: Option<String>,
     /// Array of objects that define how the platform wants to route the fees and to which accounts.
@@ -198,7 +198,7 @@ pub struct XenditMultipleSplitResponse {
     /// Name to identify split rule. Not required to be unique. Typically based on transaction and/or sub-merchant types.
     pub name: String,
     /// Description to identify fee rule
-    pub description: Option<String>,
+    pub description: String,
     /// Array of objects that define how the platform wants to route the fees and to which accounts.
     pub routes: Vec<XenditSplitRoute>,
 }
