@@ -475,13 +475,7 @@ export const connectorDetails = {
         },
       },
       Request: {
-        payment_method: "card",
-        amount: 6000000,
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "IDR",
-        customer_acceptance: null,
+        amount_to_capture: 6000000,
       },
       Response: {
         status: 200,
@@ -501,15 +495,15 @@ export const connectorDetails = {
         },
       },
       Request: {
-        amount: 6000000,
+        amount_to_capture: 3000000,
       },
       Response: {
         status: 200,
         body: {
           status: "partially_captured",
-          amount: 6000000,
+          amount: 3000000,
           amount_capturable: 0,
-          amount_received: 100,
+          amount_received: 3000000,
         },
       },
     },

@@ -649,16 +649,13 @@ export const connectorDetails = {
     }),
     Capture: getCustomExchange({
       Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "USD",
-        customer_acceptance: null,
+        amount_to_capture: 6000,
       },
     }),
     PartialCapture: getCustomExchange({
-      Request: {},
+      Request: {
+        amount_to_capture: 2000,
+      },
     }),
     Void: getCustomExchange({
       Request: {},
@@ -1332,12 +1329,7 @@ export const connectorDetails = {
     CaptureGreaterAmount: {
       Request: {
         Request: {
-          payment_method: "card",
-          payment_method_data: {
-            card: successfulNo3DSCardDetails,
-          },
-          currency: "USD",
-          customer_acceptance: null,
+          amount_to_capture: 6000000,
         },
       },
       Response: {
@@ -1354,12 +1346,7 @@ export const connectorDetails = {
     CaptureCapturedAmount: getCustomExchange({
       Request: {
         Request: {
-          payment_method: "card",
-          payment_method_data: {
-            card: successfulNo3DSCardDetails,
-          },
-          currency: "USD",
-          customer_acceptance: null,
+          amount_to_capture: 6000,
         },
       },
       Response: {

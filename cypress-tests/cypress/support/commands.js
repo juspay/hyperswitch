@@ -2161,44 +2161,48 @@ Cypress.Commands.add(
   }
 );
 
-Cypress.Commands.add(
-  "captureCallTest",
-  (requestBody, data, amount_to_capture, globalState) => {
-    const { Configs: configs = {}, Response: resData } = data || {};
+Cypress.Commands.add("captureCallTest", (requestBody, data, globalState) => {
+  const {
+    Configs: configs = {},
+    Request: reqData,
+    Response: resData,
+  } = data || {};
 
-    const configInfo = execConfig(validateConfig(configs));
-    const payment_id = globalState.get("paymentID");
-    const profile_id = globalState.get(`${configInfo.profilePrefix}Id`);
+  const configInfo = execConfig(validateConfig(configs));
+  const paymentId = globalState.get("paymentID");
+  const profileId = globalState.get(`${configInfo.profilePrefix}Id`);
 
-    requestBody.amount_to_capture = amount_to_capture;
-    requestBody.profile_id = profile_id;
+  requestBody.profile_id = profileId;
 
-    cy.request({
-      method: "POST",
-      url: `${globalState.get("baseUrl")}/payments/${payment_id}/capture`,
-      headers: {
-        "Content-Type": "application/json",
-        "api-key": globalState.get("apiKey"),
-      },
-      failOnStatusCode: false,
-      body: requestBody,
-    }).then((response) => {
-      logRequestId(response.headers["x-request-id"]);
-
-      cy.wrap(response).then(() => {
-        expect(response.headers["content-type"]).to.include("application/json");
-        if (response.body.capture_method !== undefined) {
-          expect(response.body.payment_id).to.equal(payment_id);
-          for (const key in resData.body) {
-            expect(resData.body[key]).to.equal(response.body[key]);
-          }
-        } else {
-          defaultErrorHandler(response, resData);
-        }
-      });
-    });
+  for (const key in reqData) {
+    requestBody[key] = reqData[key];
   }
-);
+
+  cy.request({
+    method: "POST",
+    url: `${globalState.get("baseUrl")}/payments/${paymentId}/capture`,
+    headers: {
+      "Content-Type": "application/json",
+      "api-key": globalState.get("apiKey"),
+    },
+    failOnStatusCode: false,
+    body: requestBody,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    cy.wrap(response).then(() => {
+      expect(response.headers["content-type"]).to.include("application/json");
+      if (response.body.capture_method !== undefined) {
+        expect(response.body.payment_id).to.equal(paymentId);
+        for (const key in resData.body) {
+          expect(resData.body[key]).to.equal(response.body[key]);
+        }
+      } else {
+        defaultErrorHandler(response, resData);
+      }
+    });
+  });
+});
 
 Cypress.Commands.add("voidCallTest", (requestBody, data, globalState) => {
   const {

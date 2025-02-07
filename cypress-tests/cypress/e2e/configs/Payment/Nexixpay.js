@@ -180,11 +180,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulThreeDSTestCardDetails,
-        },
-        customer_acceptance: null,
+        amount_to_capture: 6000,
       },
       Response: {
         status: 200,
@@ -200,14 +196,16 @@ export const connectorDetails = {
       Configs: {
         TRIGGER_SKIP: true,
       },
-      Request: {},
+      Request: {
+        amount_to_capture: 2000,
+      },
       Response: {
         status: 200,
         body: {
           status: "processing",
           amount: 6000,
           amount_capturable: 6000,
-          amount_received: 100,
+          amount_received: 2000,
         },
       },
     },

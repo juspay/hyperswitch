@@ -227,7 +227,7 @@ describe("Corner cases", () => {
         "CaptureGreaterAmount"
       ];
 
-      cy.captureCallTest(fixtures.captureBody, data, 60000, globalState);
+      cy.captureCallTest(fixtures.captureBody, data, globalState);
 
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
@@ -281,7 +281,7 @@ describe("Corner cases", () => {
         "card_pm"
       ]["CaptureCapturedAmount"];
 
-      cy.captureCallTest(fixtures.captureBody, data, 60000, globalState);
+      cy.captureCallTest(fixtures.captureBody, data, globalState);
 
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
@@ -468,7 +468,7 @@ describe("Corner cases", () => {
         "CaptureGreaterAmount"
       ];
 
-      cy.captureCallTest(fixtures.captureBody, data, 60000, globalState);
+      cy.captureCallTest(fixtures.captureBody, data, globalState);
 
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
@@ -646,7 +646,7 @@ describe("Corner cases", () => {
         "card_pm"
       ]["Capture"];
 
-      cy.captureCallTest(fixtures.captureBody, data, 6000, globalState);
+      cy.captureCallTest(fixtures.captureBody, data, globalState);
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 

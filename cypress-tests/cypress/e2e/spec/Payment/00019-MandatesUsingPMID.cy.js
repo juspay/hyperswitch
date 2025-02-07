@@ -131,7 +131,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           "card_pm"
         ]["Capture"];
 
-        cy.captureCallTest(fixtures.captureBody, data, 6000, globalState);
+        cy.captureCallTest(fixtures.captureBody, data, globalState);
 
         if (shouldContinue)
           shouldContinue = utils.should_continue_further(data);
@@ -250,7 +250,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           "card_pm"
         ]["Capture"];
 
-        cy.captureCallTest(fixtures.captureBody, data, 6000, globalState);
+        cy.captureCallTest(fixtures.captureBody, data, globalState);
 
         if (shouldContinue)
           shouldContinue = utils.should_continue_further(data);
@@ -276,7 +276,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           "card_pm"
         ]["Capture"];
 
-        cy.captureCallTest(fixtures.captureBody, data, 6000, globalState);
+        cy.captureCallTest(fixtures.captureBody, data, globalState);
 
         if (shouldContinue)
           shouldContinue = utils.should_continue_further(data);
@@ -302,7 +302,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           "card_pm"
         ]["Capture"];
 
-        cy.captureCallTest(fixtures.captureBody, data, 6000, globalState);
+        cy.captureCallTest(fixtures.captureBody, data, globalState);
 
         if (shouldContinue)
           shouldContinue = utils.should_continue_further(data);
@@ -416,7 +416,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           "card_pm"
         ]["Capture"];
 
-        cy.captureCallTest(fixtures.captureBody, data, 6000, globalState);
+        cy.captureCallTest(fixtures.captureBody, data, globalState);
 
         if (shouldContinue)
           shouldContinue = utils.should_continue_further(data);

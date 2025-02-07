@@ -116,9 +116,9 @@ export const connectorDetails = {
         body: {
           status: "succeeded",
           shipping_cost: 50,
-          amount_received: 6550,
+          amount_received: 6050,
           amount: 6000,
-          net_amount: 6550,
+          net_amount: 6050,
         },
       },
     },
@@ -212,12 +212,7 @@ export const connectorDetails = {
     },
     Capture: {
       Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "USD",
-        customer_acceptance: null,
+        amount_to_capture: 6000,
       },
       Response: {
         status: 200,
@@ -231,7 +226,9 @@ export const connectorDetails = {
     },
 
     PartialCapture: {
-      Request: {},
+      Request: {
+        amount_to_capture: 2000,
+      },
       Response: {
         status: 200,
         body: {

@@ -344,7 +344,7 @@ describe("Card - Refund flow - No 3DS", () => {
         "card_pm"
       ]["Capture"];
 
-      cy.captureCallTest(fixtures.captureBody, data, 6000, globalState);
+      cy.captureCallTest(fixtures.captureBody, data, globalState);
 
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
@@ -430,7 +430,7 @@ describe("Card - Refund flow - No 3DS", () => {
         "card_pm"
       ]["Capture"];
 
-      cy.captureCallTest(fixtures.captureBody, data, 6000, globalState);
+      cy.captureCallTest(fixtures.captureBody, data, globalState);
 
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
@@ -528,7 +528,7 @@ describe("Card - Refund flow - No 3DS", () => {
         "card_pm"
       ]["PartialCapture"];
 
-      cy.captureCallTest(fixtures.captureBody, data, 100, globalState);
+      cy.captureCallTest(fixtures.captureBody, data, globalState);
 
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
@@ -544,7 +544,7 @@ describe("Card - Refund flow - No 3DS", () => {
     it("refund-call-test", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "card_pm"
-      ]["manualPaymentRefund"];
+      ]["manualPaymentPartialRefund"];
 
       cy.refundCallTest(fixtures.refundBody, data, globalState);
 
@@ -614,7 +614,7 @@ describe("Card - Refund flow - No 3DS", () => {
         "card_pm"
       ]["PartialCapture"];
 
-      cy.captureCallTest(fixtures.captureBody, data, 100, globalState);
+      cy.captureCallTest(fixtures.captureBody, data, globalState);
 
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
@@ -1092,7 +1092,7 @@ describe("Card - Refund flow - 3DS", () => {
         "card_pm"
       ]["Capture"];
 
-      cy.captureCallTest(fixtures.captureBody, data, 6000, globalState);
+      cy.captureCallTest(fixtures.captureBody, data, globalState);
 
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
@@ -1183,7 +1183,7 @@ describe("Card - Refund flow - 3DS", () => {
         "card_pm"
       ]["Capture"];
 
-      cy.captureCallTest(fixtures.captureBody, data, 6000, globalState);
+      cy.captureCallTest(fixtures.captureBody, data, globalState);
 
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
@@ -1283,7 +1283,7 @@ describe("Card - Refund flow - 3DS", () => {
         "card_pm"
       ]["PartialCapture"];
 
-      cy.captureCallTest(fixtures.captureBody, data, 100, globalState);
+      cy.captureCallTest(fixtures.captureBody, data, globalState);
 
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
@@ -1299,7 +1299,7 @@ describe("Card - Refund flow - 3DS", () => {
     it("refund-call-test", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "card_pm"
-      ]["manualPaymentRefund"];
+      ]["manualPaymentPartialRefund"];
 
       cy.refundCallTest(fixtures.refundBody, data, globalState);
 
@@ -1374,7 +1374,7 @@ describe("Card - Refund flow - 3DS", () => {
         "card_pm"
       ]["PartialCapture"];
 
-      cy.captureCallTest(fixtures.captureBody, data, 100, globalState);
+      cy.captureCallTest(fixtures.captureBody, data, globalState);
 
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
@@ -1390,7 +1390,7 @@ describe("Card - Refund flow - 3DS", () => {
     it("refund-call-test", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "card_pm"
-      ]["manualPaymentRefund"];
+      ]["manualPaymentPartialRefund"];
 
       cy.refundCallTest(fixtures.refundBody, data, globalState);
 

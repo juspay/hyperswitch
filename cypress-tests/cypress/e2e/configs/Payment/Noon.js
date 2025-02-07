@@ -227,11 +227,7 @@ export const connectorDetails = {
     },
     Capture: {
       Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        customer_acceptance: null,
+        amount_to_capture: 6000,
       },
       Response: {
         status: 200,
@@ -244,7 +240,9 @@ export const connectorDetails = {
       },
     },
     PartialCapture: {
-      Request: {},
+      Request: {
+        amount_to_capture: 2000,
+      },
       Response: {
         status: 200,
         body: {
