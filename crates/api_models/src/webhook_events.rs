@@ -5,7 +5,7 @@ use time::PrimitiveDateTime;
 use utoipa::ToSchema;
 
 /// The constraints to apply when filtering events.
-#[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
 pub struct EventListConstraints {
     /// Filter events created after the specified time.
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
@@ -30,7 +30,7 @@ pub struct EventListConstraints {
     pub profile_id: Option<common_utils::id_type::ProfileId>,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum EventListConstraintsInternal {
     GenericFilter {
         created_after: Option<PrimitiveDateTime>,
@@ -44,7 +44,7 @@ pub enum EventListConstraintsInternal {
 }
 
 /// The response body for each item when listing events.
-#[derive(Debug, Serialize, ToSchema)]
+#[derive(Debug, Serialize, ToSchema, Deserialize)]
 pub struct EventListItemResponse {
     /// The identifier for the Event.
     #[schema(max_length = 64, example = "evt_018e31720d1b7a2b82677d3032cab959")]
@@ -80,6 +80,29 @@ pub struct EventListItemResponse {
     #[schema(example = "2022-09-10T10:11:12Z")]
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created: PrimitiveDateTime,
+}
+
+#[derive(Debug, Serialize, ToSchema)]
+pub struct TotalEventsResponse{
+    pub events: Vec<EventListItemResponse>,
+    pub total_count: i64
+}
+
+impl TotalEventsResponse{
+    pub fn new(total_count: i64, events: Vec<EventListItemResponse>) -> Self {
+        Self {
+            events,
+            total_count
+        }
+    }
+}
+
+impl common_utils::events::ApiEventMetric for TotalEventsResponse{
+    fn get_api_event_type(&self) -> Option<common_utils::events::ApiEventsType> {
+        Some(common_utils::events::ApiEventsType::Events { 
+            merchant_id: self.events.get(0).map(|event| event.merchant_id.clone())?
+        })
+    }
 }
 
 /// The response body for retrieving an event.

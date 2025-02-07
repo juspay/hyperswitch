@@ -92,6 +92,16 @@ where
         event: domain::EventUpdate,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::Event, errors::StorageError>;
+
+    async fn count_initial_events_by_constraints(
+        &self,
+        merchant_id: &common_utils::id_type::MerchantId,
+        profile_id: Option<common_utils::id_type::ProfileId>,
+        created_after: Option<time::PrimitiveDateTime>,
+        created_before: Option<time::PrimitiveDateTime>,
+        limit: Option<u16>,
+        offset: Option<u16>,
+    ) -> CustomResult<i64, errors::StorageError>;
 }
 
 #[async_trait::async_trait]
@@ -350,6 +360,29 @@ impl EventInterface for Store {
             )
             .await
             .change_context(errors::StorageError::DecryptionError)
+    }
+
+    async fn count_initial_events_by_constraints(
+        &self,
+        merchant_id: &common_utils::id_type::MerchantId,
+        profile_id: Option<common_utils::id_type::ProfileId>,
+        created_after: Option<time::PrimitiveDateTime>,
+        created_before: Option<time::PrimitiveDateTime>,
+        limit: Option<u16>,
+        offset: Option<u16>,
+    ) -> CustomResult<i64, errors::StorageError>{
+        let conn = connection::pg_connection_read(self).await?;
+        storage::Event::count_initial_attempts_by_constraints(
+            &conn,
+            merchant_id,
+            profile_id,
+            created_after,
+            created_before,
+            limit,
+            offset,
+        )
+        .await
+        .map_err(|error| report!(errors::StorageError::from(error)))
     }
 }
 
@@ -691,6 +724,32 @@ impl EventInterface for MockDb {
             )
             .await
             .change_context(errors::StorageError::DecryptionError)
+    }
+
+    #[allow(unused_variables)]
+    async fn count_initial_events_by_constraints(
+        &self,
+        merchant_id: &common_utils::id_type::MerchantId,
+        profile_id: Option<common_utils::id_type::ProfileId>,
+        created_after: Option<time::PrimitiveDateTime>,
+        created_before: Option<time::PrimitiveDateTime>,
+        limit: Option<u16>,
+        offset: Option<u16>,
+    ) -> CustomResult<i64, errors::StorageError> {
+        // let res = self.list_initial_events_by_merchant_id_constraints(
+        //     state,
+        //     merchant_id,
+        //     created_after,
+        //     created_before,
+        //     limit,
+        //     offset,
+        //     merchant_key_store
+        // ).await?;
+
+        // i64::try_from(res.len())
+        // .change_context(errors::StorageError::DecryptionError)
+        // .attach_printable("Error while converting from usize to i64")
+        Ok(100000)
     }
 }
 
