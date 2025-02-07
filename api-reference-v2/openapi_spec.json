@@ -14736,12 +14736,7 @@
             "nullable": true
           },
           "applied_authentication_type": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/AuthenticationType"
-              }
-            ],
-            "default": "no_three_ds"
+            "$ref": "#/components/schemas/AuthenticationType"
           }
         }
       },
