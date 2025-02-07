@@ -285,7 +285,7 @@ impl TryFrom<&KlarnaRouterData<&types::PaymentsAuthorizeRouterData>> for KlarnaP
                     })),
                 }
             }
-            PaymentMethodData::PayLater(PayLaterData::KlarnaCheckout {}) => {
+            PaymentMethodData::PayLater(PayLaterData::KlarnaRedirect {}) => {
                 match request.order_details.clone() {
                     Some(order_details) => Ok(Self {
                         purchase_country: item.router_data.get_billing_country()?,

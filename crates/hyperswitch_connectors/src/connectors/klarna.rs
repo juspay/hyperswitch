@@ -652,7 +652,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                     })),
                 }
             }
-            PaymentMethodData::PayLater(PayLaterData::KlarnaCheckout {}) => {
+            PaymentMethodData::PayLater(PayLaterData::KlarnaRedirect {}) => {
                 match (payment_experience, payment_method_type) {
                     (
                         common_enums::PaymentExperience::RedirectToUrl,

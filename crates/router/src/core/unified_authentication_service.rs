@@ -410,6 +410,7 @@ pub async fn create_new_authentication(
     authentication_id: &str,
     service_details: Option<payments::CtpServiceDetails>,
     authentication_status: common_enums::AuthenticationStatus,
+    organization_id: common_utils::id_type::OrganizationId,
 ) -> RouterResult<Authentication> {
     let service_details_value = service_details
         .map(serde_json::to_value)
@@ -453,6 +454,7 @@ pub async fn create_new_authentication(
         directory_server_id: None,
         acquirer_country_code: None,
         service_details: service_details_value,
+        organization_id,
     };
     state
         .store
