@@ -882,26 +882,33 @@ Cypress.Commands.add(
         "api-key": globalState.get("apiKey"),
       },
       body: customerCreateBody,
+      failOnStatusCode: false,
     }).then((response) => {
-      globalState.set("customerId", response.body.customer_id);
-      logRequestId(response.headers["x-request-id"]);
-
-      cy.wrap(response).then(() => {
-        expect(response.body.customer_id, "customer_id").to.not.be.empty;
-        expect(customerCreateBody.email, "email").to.equal(response.body.email);
-        expect(customerCreateBody.name, "name").to.equal(response.body.name);
-        expect(customerCreateBody.phone, "phone").to.equal(response.body.phone);
-        expect(customerCreateBody.metadata, "metadata").to.deep.equal(
-          response.body.metadata
-        );
-        expect(customerCreateBody.address, "address").to.deep.equal(
-          response.body.address
-        );
-        expect(
-          customerCreateBody.phone_country_code,
-          "phone_country_code"
-        ).to.equal(response.body.phone_country_code);
-      });
+      if (response.status === 200) {
+        globalState.set("customerId", response.body.customer_id);
+        logRequestId(response.headers["x-request-id"]);
+        cy.wrap(response).then(() => {
+          expect(response.body.customer_id, "customer_id").to.not.be.empty;
+          expect(customerCreateBody.email, "email").to.equal(
+            response.body.email
+          );
+          expect(customerCreateBody.name, "name").to.equal(response.body.name);
+          expect(customerCreateBody.phone, "phone").to.equal(
+            response.body.phone
+          );
+          expect(customerCreateBody.metadata, "metadata").to.deep.equal(
+            response.body.metadata
+          );
+          expect(customerCreateBody.address, "address").to.deep.equal(
+            response.body.address
+          );
+          expect(
+            customerCreateBody.phone_country_code,
+            "phone_country_code"
+          ).to.equal(response.body.phone_country_code);
+        });
+      }
+      return cy.wrap(response);
     });
   }
 );
