@@ -798,7 +798,7 @@ impl TryFrom<&types::PaymentsCancelRouterData> for NmiCancelRequest {
         match &item.request.cancellation_reason {
             Some(cancellation_reason) => {
                 let void_reason: NmiVoidReason = serde_json::from_str(&format!("\"{}\"", cancellation_reason))
-                    .map_err(|_| errors::ConnectorError::NotSupported { 
+                    .map_err(|_| errors::ConnectorError::NotSupported {
                         message: format!("Json deserialise error: unknown variant `{}` expected to be one of `fraud`, `user_cancel`, `icc_rejected`,  `icc_card_removed`, `icc_no_confirmation`, `pos_timeout`. This cancellation_reason", cancellation_reason), 
                         connector: "nmi" 
                     })?;
@@ -808,13 +808,11 @@ impl TryFrom<&types::PaymentsCancelRouterData> for NmiCancelRequest {
                     transactionid: item.request.connector_transaction_id.clone(),
                     void_reason,
                 })
-            },
-            None => {
-                Err(errors::ConnectorError::MissingRequiredField {
-                    field_name: "cancellation_reason".into(),
-                }
-                .into())
-            },
+            }
+            None => Err(errors::ConnectorError::MissingRequiredField {
+                field_name: "cancellation_reason",
+            }
+            .into()),
         }
     }
 }
