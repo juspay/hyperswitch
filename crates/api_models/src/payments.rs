@@ -1390,8 +1390,6 @@ pub struct PaymentAttemptResponse {
 //     /// Amount related information for this payment and attempt
 //     pub amount: PaymentAmountDetailsResponse,
 
-
-
 // }
 
 #[derive(
@@ -4992,7 +4990,6 @@ pub struct PaymentsRetrieveResponse {
 
     /// The billing address associated with the payment intent
     pub billing: Option<Address>,
-
     // pub attempts: Option<Vec<PaymentAttemptResponse>>
 }
 

@@ -170,21 +170,21 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentStatusData<F>, PaymentsRetriev
         );
 
         let attempts = payment_intent
-        .active_attempt_id
-        .as_ref()
-        .async_map(|active_attempt| async {
-            db.find_payment_attempts_by_payment_intent_id(
-                key_manager_state,
-                payment_id,
-                key_store,
-                storage_scheme,
-            )
+            .active_attempt_id
+            .as_ref()
+            .async_map(|active_attempt| async {
+                db.find_payment_attempts_by_payment_intent_id(
+                    key_manager_state,
+                    payment_id,
+                    key_store,
+                    storage_scheme,
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Could not find payment attempt given the attempt id")
+            })
             .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Could not find payment attempt given the attempt id")
-        })
-        .await
-        .transpose()?;
+            .transpose()?;
 
         let payment_data = PaymentStatusData {
             flow: std::marker::PhantomData,
