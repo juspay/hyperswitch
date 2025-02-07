@@ -95,6 +95,7 @@ macro_rules! default_imp_for_authorize_session_token {
 }
 
 default_imp_for_authorize_session_token!(
+    connectors::Moneris,
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Bambora,
@@ -170,6 +171,7 @@ macro_rules! default_imp_for_calculate_tax {
 }
 
 default_imp_for_calculate_tax!(
+    connectors::Moneris,
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Bambora,
@@ -245,6 +247,7 @@ macro_rules! default_imp_for_session_update {
 }
 
 default_imp_for_session_update!(
+    connectors::Moneris,
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Bambora,
@@ -321,6 +324,7 @@ macro_rules! default_imp_for_post_session_tokens {
 }
 
 default_imp_for_post_session_tokens!(
+    connectors::Moneris,
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Bambora,
@@ -399,6 +403,7 @@ macro_rules! default_imp_for_complete_authorize {
 }
 
 default_imp_for_complete_authorize!(
+    connectors::Moneris,
     connectors::Amazonpay,
     connectors::Bamboraapac,
     connectors::Bankofamerica,
@@ -463,6 +468,7 @@ macro_rules! default_imp_for_incremental_authorization {
 }
 
 default_imp_for_incremental_authorization!(
+    connectors::Moneris,
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Bambora,
@@ -538,6 +544,7 @@ macro_rules! default_imp_for_create_customer {
 }
 
 default_imp_for_create_customer!(
+    connectors::Moneris,
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Bambora,
@@ -615,6 +622,7 @@ macro_rules! default_imp_for_connector_redirect_response {
 }
 
 default_imp_for_connector_redirect_response!(
+    connectors::Moneris,
     connectors::Amazonpay,
     connectors::Billwerk,
     connectors::Bitpay,
@@ -682,6 +690,7 @@ macro_rules! default_imp_for_pre_processing_steps{
 }
 
 default_imp_for_pre_processing_steps!(
+    connectors::Moneris,
     connectors::Amazonpay,
     connectors::Bambora,
     connectors::Bamboraapac,
@@ -754,6 +763,7 @@ macro_rules! default_imp_for_post_processing_steps{
 }
 
 default_imp_for_post_processing_steps!(
+    connectors::Moneris,
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Bambora,
@@ -831,6 +841,7 @@ macro_rules! default_imp_for_approve {
 }
 
 default_imp_for_approve!(
+    connectors::Moneris,
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Bambora,
@@ -908,6 +919,7 @@ macro_rules! default_imp_for_reject {
 }
 
 default_imp_for_reject!(
+    connectors::Moneris,
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Bambora,
@@ -985,6 +997,7 @@ macro_rules! default_imp_for_webhook_source_verification {
 }
 
 default_imp_for_webhook_source_verification!(
+    connectors::Moneris,
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Bambora,
@@ -1063,6 +1076,7 @@ macro_rules! default_imp_for_accept_dispute {
 }
 
 default_imp_for_accept_dispute!(
+    connectors::Moneris,
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Bambora,
@@ -1140,6 +1154,7 @@ macro_rules! default_imp_for_submit_evidence {
 }
 
 default_imp_for_submit_evidence!(
+    connectors::Moneris,
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Bambora,
@@ -1217,6 +1232,7 @@ macro_rules! default_imp_for_defend_dispute {
 }
 
 default_imp_for_defend_dispute!(
+    connectors::Moneris,
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Bambora,
@@ -1303,6 +1319,7 @@ macro_rules! default_imp_for_file_upload {
 }
 
 default_imp_for_file_upload!(
+    connectors::Moneris,
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Bambora,
@@ -1373,6 +1390,7 @@ macro_rules! default_imp_for_payouts {
 }
 
 default_imp_for_payouts!(
+    connectors::Moneris,
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Bambora,
@@ -1450,6 +1468,7 @@ macro_rules! default_imp_for_payouts_create {
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_create!(
+    connectors::Moneris,
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Bambora,
@@ -1529,6 +1548,7 @@ macro_rules! default_imp_for_payouts_retrieve {
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_retrieve!(
+    connectors::Moneris,
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Bambora,
@@ -1608,6 +1628,7 @@ macro_rules! default_imp_for_payouts_eligibility {
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_eligibility!(
+    connectors::Moneris,
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Bambora,
@@ -1687,6 +1708,7 @@ macro_rules! default_imp_for_payouts_fulfill {
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_fulfill!(
+    connectors::Moneris,
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Bambora,
@@ -1765,6 +1787,7 @@ macro_rules! default_imp_for_payouts_cancel {
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_cancel!(
+    connectors::Moneris,
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Bambora,
@@ -1844,6 +1867,7 @@ macro_rules! default_imp_for_payouts_quote {
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_quote!(
+    connectors::Moneris,
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Bambora,
@@ -1923,6 +1947,7 @@ macro_rules! default_imp_for_payouts_recipient {
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_recipient!(
+    connectors::Moneris,
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Bambora,
@@ -2002,6 +2027,7 @@ macro_rules! default_imp_for_payouts_recipient_account {
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_recipient_account!(
+    connectors::Moneris,
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Bambora,
@@ -2081,6 +2107,7 @@ macro_rules! default_imp_for_frm_sale {
 
 #[cfg(feature = "frm")]
 default_imp_for_frm_sale!(
+    connectors::Moneris,
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Bambora,
@@ -2160,6 +2187,7 @@ macro_rules! default_imp_for_frm_checkout {
 
 #[cfg(feature = "frm")]
 default_imp_for_frm_checkout!(
+    connectors::Moneris,
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Bambora,
@@ -2239,6 +2267,7 @@ macro_rules! default_imp_for_frm_transaction {
 
 #[cfg(feature = "frm")]
 default_imp_for_frm_transaction!(
+    connectors::Moneris,
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Bambora,
@@ -2318,6 +2347,7 @@ macro_rules! default_imp_for_frm_fulfillment {
 
 #[cfg(feature = "frm")]
 default_imp_for_frm_fulfillment!(
+    connectors::Moneris,
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Bambora,
@@ -2397,6 +2427,7 @@ macro_rules! default_imp_for_frm_record_return {
 
 #[cfg(feature = "frm")]
 default_imp_for_frm_record_return!(
+    connectors::Moneris,
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Bambora,
@@ -2473,6 +2504,7 @@ macro_rules! default_imp_for_revoking_mandates {
 }
 
 default_imp_for_revoking_mandates!(
+    connectors::Moneris,
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Bambora,
@@ -2548,6 +2580,7 @@ macro_rules! default_imp_for_uas_pre_authentication {
 }
 
 default_imp_for_uas_pre_authentication!(
+    connectors::Moneris,
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Bambora,
@@ -2623,6 +2656,7 @@ macro_rules! default_imp_for_uas_post_authentication {
 }
 
 default_imp_for_uas_post_authentication!(
+    connectors::Moneris,
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Bambora,
@@ -2698,6 +2732,7 @@ macro_rules! default_imp_for_uas_authentication {
 }
 
 default_imp_for_uas_authentication!(
+    connectors::Moneris,
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Bambora,

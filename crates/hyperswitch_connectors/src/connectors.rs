@@ -29,6 +29,7 @@ pub mod helcim;
 pub mod inespay;
 pub mod jpmorgan;
 pub mod mollie;
+pub mod moneris;
 pub mod multisafepay;
 pub mod nexinets;
 pub mod nexixpay;
@@ -66,7 +67,7 @@ pub use self::{
     cybersource::Cybersource, datatrans::Datatrans, deutschebank::Deutschebank,
     digitalvirgo::Digitalvirgo, dlocal::Dlocal, elavon::Elavon, fiserv::Fiserv,
     fiservemea::Fiservemea, fiuu::Fiuu, forte::Forte, globepay::Globepay, gocardless::Gocardless,
-    helcim::Helcim, inespay::Inespay, jpmorgan::Jpmorgan, mollie::Mollie,
+    helcim::Helcim, inespay::Inespay, jpmorgan::Jpmorgan, mollie::Mollie, moneris::Moneris,
     multisafepay::Multisafepay, nexinets::Nexinets, nexixpay::Nexixpay, nomupay::Nomupay,
     novalnet::Novalnet, paybox::Paybox, payeezy::Payeezy, payu::Payu, placetopay::Placetopay,
     powertranz::Powertranz, prophetpay::Prophetpay, rapyd::Rapyd, razorpay::Razorpay,

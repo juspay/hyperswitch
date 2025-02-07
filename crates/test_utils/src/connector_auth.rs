@@ -56,6 +56,7 @@ pub struct ConnectorAuthentication {
     pub jpmorgan: Option<BodyKey>,
     pub mifinity: Option<HeaderKey>,
     pub mollie: Option<BodyKey>,
+    pub moneris: Option<HeaderKey>,
     pub multisafepay: Option<HeaderKey>,
     pub netcetera: Option<HeaderKey>,
     pub nexinets: Option<BodyKey>,
