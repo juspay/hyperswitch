@@ -978,7 +978,6 @@ where
                     get_pay_later_info(AlternativePaymentMethodType::AfterPay, item)
                 }
                 domain::PayLaterData::KlarnaSdk { .. }
-                | domain::PayLaterData::KlarnaCheckout {}
                 | domain::PayLaterData::AffirmRedirect {}
                 | domain::PayLaterData::PayBrightRedirect {}
                 | domain::PayLaterData::WalleyRedirect {}

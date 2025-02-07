@@ -1527,6 +1527,70 @@ where
 
 #[cfg(feature = "v2")]
 #[allow(clippy::too_many_arguments)]
+pub async fn payments_get_intent_using_merchant_reference(
+    state: SessionState,
+    merchant_account: domain::MerchantAccount,
+    profile: domain::Profile,
+    key_store: domain::MerchantKeyStore,
+    req_state: ReqState,
+    merchant_reference_id: &id_type::PaymentReferenceId,
+    header_payload: HeaderPayload,
+    platform_merchant_account: Option<domain::MerchantAccount>,
+) -> RouterResponse<api::PaymentsIntentResponse> {
+    let db = state.store.as_ref();
+    let storage_scheme = merchant_account.storage_scheme;
+    let key_manager_state = &(&state).into();
+    let payment_intent = db
+        .find_payment_intent_by_merchant_reference_id_profile_id(
+            key_manager_state,
+            merchant_reference_id,
+            profile.get_id(),
+            &key_store,
+            &storage_scheme,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+    let (payment_data, _req, customer) = Box::pin(payments_intent_operation_core::<
+        api::PaymentGetIntent,
+        _,
+        _,
+        PaymentIntentData<api::PaymentGetIntent>,
+    >(
+        &state,
+        req_state,
+        merchant_account.clone(),
+        profile.clone(),
+        key_store.clone(),
+        operations::PaymentGetIntent,
+        api_models::payments::PaymentsGetIntentRequest {
+            id: payment_intent.get_id().clone(),
+        },
+        payment_intent.get_id().clone(),
+        header_payload.clone(),
+        platform_merchant_account,
+    ))
+    .await?;
+
+    transformers::ToResponse::<
+        api::PaymentGetIntent,
+        PaymentIntentData<api::PaymentGetIntent>,
+        operations::PaymentGetIntent,
+    >::generate_response(
+        payment_data,
+        customer,
+        &state.base_url,
+        operations::PaymentGetIntent,
+        &state.conf.connector_request_reference_id_config,
+        None,
+        None,
+        header_payload.x_hs_latency,
+        &merchant_account,
+    )
+}
+
+#[cfg(feature = "v2")]
+#[allow(clippy::too_many_arguments)]
 pub async fn payments_core<F, Res, Req, Op, FData, D>(
     state: SessionState,
     req_state: ReqState,
@@ -6610,8 +6674,8 @@ where
                     .attach_printable("failed to perform volume split on routing type")?;
 
             if routing_choice.routing_type.is_dynamic_routing() {
-                let success_based_routing_config_params_interpolator =
-                    routing_helpers::SuccessBasedRoutingConfigParamsInterpolator::new(
+                let dynamic_routing_config_params_interpolator =
+                    routing_helpers::DynamicRoutingConfigParamsInterpolator::new(
                         payment_data.get_payment_attempt().payment_method,
                         payment_data.get_payment_attempt().payment_method_type,
                         payment_data.get_payment_attempt().authentication_type,
@@ -6641,14 +6705,15 @@ where
                             .and_then(|card_isin| card_isin.as_str())
                             .map(|card_isin| card_isin.to_string()),
                     );
-                routing::perform_success_based_routing(
+
+                routing::perform_dynamic_routing(
                     state,
                     connectors.clone(),
                     business_profile,
-                    success_based_routing_config_params_interpolator,
+                    dynamic_routing_config_params_interpolator,
                 )
                 .await
-                .map_err(|e| logger::error!(success_rate_routing_error=?e))
+                .map_err(|e| logger::error!(dynamic_routing_error=?e))
                 .unwrap_or(connectors)
             } else {
                 connectors

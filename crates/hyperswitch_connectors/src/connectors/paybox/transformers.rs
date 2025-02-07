@@ -615,9 +615,7 @@ pub fn parse_paybox_response(
 ) -> CustomResult<PayboxResponse, errors::ConnectorError> {
     let (cow, _, _) = encoding_rs::ISO_8859_15.decode(&query_bytes);
     let response_str = cow.as_ref().trim();
-    if (response_str.starts_with("<html>") || response_str.starts_with("<!DOCTYPE html>"))
-        && is_three_ds
-    {
+    if utils::is_html_response(response_str) && is_three_ds {
         let response = response_str.to_string();
         return Ok(if response.contains("Erreur 201") {
             PayboxResponse::Error(response)

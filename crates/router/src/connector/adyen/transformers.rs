@@ -2374,8 +2374,7 @@ impl
                 check_required_field(billing_address, "billing")?;
                 Ok(AdyenPaymentMethod::Atome)
             }
-            domain::payments::PayLaterData::KlarnaCheckout {}
-            | domain::payments::PayLaterData::KlarnaSdk { .. } => {
+            domain::payments::PayLaterData::KlarnaSdk { .. } => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Adyen"),
                 )
