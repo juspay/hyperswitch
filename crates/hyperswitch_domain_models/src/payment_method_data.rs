@@ -1,6 +1,8 @@
 use api_models::{
     mandates, payment_methods,
-    payments::{additional_info as payment_additional_types, ExtendedCardInfo},
+    payments::{
+        additional_info as payment_additional_types, AmazonPayRedirectData, ExtendedCardInfo,
+    },
 };
 use common_enums::enums as api_enums;
 use common_utils::{
@@ -155,7 +157,6 @@ pub enum CardRedirectData {
 pub enum PayLaterData {
     KlarnaRedirect {},
     KlarnaSdk { token: String },
-    KlarnaCheckout {},
     AffirmRedirect {},
     AfterpayClearpayRedirect {},
     PayBrightRedirect {},
@@ -169,6 +170,7 @@ pub enum WalletData {
     AliPayQr(Box<AliPayQr>),
     AliPayRedirect(AliPayRedirection),
     AliPayHkRedirect(AliPayHkRedirection),
+    AmazonPayRedirect(Box<AmazonPayRedirectData>),
     MomoRedirect(MomoRedirection),
     KakaoPayRedirect(KakaoPayRedirection),
     GoPayRedirect(GoPayRedirection),
@@ -729,6 +731,9 @@ impl From<api_models::payments::WalletData> for WalletData {
             api_models::payments::WalletData::AliPayHkRedirect(_) => {
                 Self::AliPayHkRedirect(AliPayHkRedirection {})
             }
+            api_models::payments::WalletData::AmazonPayRedirect(_) => {
+                Self::AmazonPayRedirect(Box::new(AmazonPayRedirectData {}))
+            }
             api_models::payments::WalletData::MomoRedirect(_) => {
                 Self::MomoRedirect(MomoRedirection {})
             }
@@ -898,7 +903,6 @@ impl From<api_models::payments::PayLaterData> for PayLaterData {
         match value {
             api_models::payments::PayLaterData::KlarnaRedirect { .. } => Self::KlarnaRedirect {},
             api_models::payments::PayLaterData::KlarnaSdk { token } => Self::KlarnaSdk { token },
-            api_models::payments::PayLaterData::KlarnaCheckout {} => Self::KlarnaCheckout {},
             api_models::payments::PayLaterData::AffirmRedirect {} => Self::AffirmRedirect {},
             api_models::payments::PayLaterData::AfterpayClearpayRedirect { .. } => {
                 Self::AfterpayClearpayRedirect {}
@@ -1518,6 +1522,7 @@ impl GetPaymentMethodType for WalletData {
         match self {
             Self::AliPayQr(_) | Self::AliPayRedirect(_) => api_enums::PaymentMethodType::AliPay,
             Self::AliPayHkRedirect(_) => api_enums::PaymentMethodType::AliPayHk,
+            Self::AmazonPayRedirect(_) => api_enums::PaymentMethodType::AmazonPay,
             Self::MomoRedirect(_) => api_enums::PaymentMethodType::Momo,
             Self::KakaoPayRedirect(_) => api_enums::PaymentMethodType::KakaoPay,
             Self::GoPayRedirect(_) => api_enums::PaymentMethodType::GoPay,
@@ -1552,7 +1557,6 @@ impl GetPaymentMethodType for PayLaterData {
         match self {
             Self::KlarnaRedirect { .. } => api_enums::PaymentMethodType::Klarna,
             Self::KlarnaSdk { .. } => api_enums::PaymentMethodType::Klarna,
-            Self::KlarnaCheckout {} => api_enums::PaymentMethodType::Klarna,
             Self::AffirmRedirect {} => api_enums::PaymentMethodType::Affirm,
             Self::AfterpayClearpayRedirect { .. } => api_enums::PaymentMethodType::AfterpayClearpay,
             Self::PayBrightRedirect {} => api_enums::PaymentMethodType::PayBright,

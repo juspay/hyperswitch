@@ -10,15 +10,14 @@
     "Scenario8-Refund full payment",
     "Scenario9-Create a mandate and recurring payment",
     "Scenario10-Partial refund",
-    "Scenario11-Bank Redirect-sofort",
-    "Scenario12-Bank Redirect-eps",
-    "Scenario13-Refund recurring payment",
-    "Scenario14-Bank debit-ach",
-    "Scenario15-Bank debit-Bacs",
-    "Scenario16-Bank Redirect-Trustly",
-    "Scenario17-Add card flow",
-    "Scenario18-Pass Invalid CVV for save card flow and verify failed payment",
-    "Scenario19-Don't Pass CVV for save card flow and verify failed payment Copy",
-    "Scenario20-Create Gift Card payment"
+    "Scenario11-Bank Redirect-eps",
+    "Scenario12-Refund recurring payment",
+    "Scenario13-Bank debit-ach",
+    "Scenario14-Bank debit-Bacs",
+    "Scenario15-Bank Redirect-Trustly",
+    "Scenario16-Add card flow",
+    "Scenario17-Pass Invalid CVV for save card flow and verify failed payment",
+    "Scenario18-Don't Pass CVV for save card flow and verify failed payment Copy",
+    "Scenario19-Create Gift Card payment"
   ]
 }
