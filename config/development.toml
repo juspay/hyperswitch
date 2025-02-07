@@ -108,6 +108,7 @@ cards = [
     "braintree",
     "checkout",
     "coinbase",
+    "coingate",
     "cryptopay",
     "cybersource",
     "datatrans",
@@ -215,6 +216,7 @@ cashtocode.base_url = "https://cluster05.api-test.cashtocode.com"
 chargebee.base_url = "https://$.chargebee.com/api/"
 checkout.base_url = "https://api.sandbox.checkout.com/"
 coinbase.base_url = "https://api.commerce.coinbase.com"
+coingate.base_url = "https://api-sandbox.coingate.com/v2"
 cryptopay.base_url = "https://business-sandbox.cryptopay.me"
 cybersource.base_url = "https://apitest.cybersource.com/"
 datatrans.base_url = "https://api.sandbox.datatrans.com/"
@@ -564,6 +566,8 @@ debit = { currency = "USD" }
 
 [pm_filters.fiuu]
 duit_now = { country = "MY", currency = "MYR" }
+apple_pay = { country = "MY", currency = "MYR" }
+google_pay = { country = "MY", currency = "MYR" }
 
 [pm_filters.inespay]
 sepa = { currency = "EUR" }

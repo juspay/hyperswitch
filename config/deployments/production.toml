@@ -46,6 +46,7 @@ cashtocode.base_url = "https://cluster14.api.cashtocode.com"
 chargebee.base_url = "https://$.chargebee.com/api/"
 checkout.base_url = "https://api.checkout.com/"
 coinbase.base_url = "https://api.commerce.coinbase.com"
+coingate.base_url = "https://api.coingate.com/v2"
 cryptopay.base_url = "https://business.cryptopay.me/"
 cybersource.base_url = "https://api.cybersource.com/"
 datatrans.base_url = "https://api.datatrans.com/"
@@ -397,7 +398,9 @@ local_bank_transfer = { country = "CN", currency = "CNY" }
 
 
 [pm_filters.fiuu]
-duit_now = { country ="MY", currency = "MYR" }
+duit_now = { country = "MY", currency = "MYR" }
+apple_pay = { country = "MY", currency = "MYR" }
+google_pay = { country = "MY", currency = "MYR" }
 
 [payout_method_filters.adyenplatform]
 sepa = { country = "ES,SK,AT,NL,DE,BE,FR,FI,PT,IE,EE,LT,LV,IT,CZ,DE,HU,NO,PL,SE,GB,CH" , currency = "EUR,CZK,DKK,HUF,NOK,PLN,SEK,GBP,CHF" }
