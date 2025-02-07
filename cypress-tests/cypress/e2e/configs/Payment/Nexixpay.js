@@ -224,11 +224,6 @@ export const connectorDetails = {
       },
       Request: {
         amount: 6000,
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulThreeDSTestCardDetails,
-        },
-        customer_acceptance: null,
       },
       Response: {
         status: 200,
@@ -243,11 +238,6 @@ export const connectorDetails = {
       },
       Request: {
         amount: 2000,
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulThreeDSTestCardDetails,
-        },
-        customer_acceptance: null,
       },
       Response: {
         status: 200,
@@ -404,12 +394,6 @@ export const connectorDetails = {
       },
       Request: {
         amount: 6000,
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulThreeDSTestCardDetails,
-        },
-        currency: "EUR",
-        customer_acceptance: null,
       },
       Response: {
         status: 200,

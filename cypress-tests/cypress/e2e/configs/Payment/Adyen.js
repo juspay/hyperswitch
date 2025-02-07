@@ -19,7 +19,7 @@ const successfulThreeDSTestCardDetails = {
 const failedNo3DSCardDetails = {
   card_number: "4242424242424242",
   card_exp_month: "01",
-  card_exp_year: "25",
+  card_exp_year: "35",
   card_holder_name: "joseph Doe",
   card_cvc: "123",
 };
@@ -257,7 +257,6 @@ export const connectorDetails = {
     Refund: {
       Request: {
         amount: 6000,
-        currency: "USD",
       },
       Response: {
         status: 200,
@@ -269,7 +268,6 @@ export const connectorDetails = {
     PartialRefund: {
       Request: {
         amount: 2000,
-        currency: "USD",
       },
       Response: {
         status: 200,
@@ -281,12 +279,6 @@ export const connectorDetails = {
     manualPaymentRefund: {
       Request: {
         amount: 6000,
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "USD",
-        customer_acceptance: null,
       },
       Response: {
         status: 400,
@@ -303,12 +295,6 @@ export const connectorDetails = {
     manualPaymentPartialRefund: {
       Request: {
         amount: 2000,
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "USD",
-        customer_acceptance: null,
       },
       Response: {
         status: 400,

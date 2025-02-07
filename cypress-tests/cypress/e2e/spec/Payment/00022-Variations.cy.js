@@ -27,9 +27,9 @@ describe("Corner cases", () => {
     });
 
     it("[Payment] Invalid card number", () => {
-      const data = getConnectorDetails(globalState.get("commons"))["card_pm"][
-        "InvalidCardNumber"
-      ];
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["InvalidCardNumber"];
 
       cy.createConfirmPaymentTest(
         paymentIntentBody,
@@ -41,9 +41,9 @@ describe("Corner cases", () => {
     });
 
     it("[Payment] Invalid expiry month", () => {
-      const data = getConnectorDetails(globalState.get("commons"))["card_pm"][
-        "InvalidExpiryMonth"
-      ];
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["InvalidExpiryMonth"];
 
       cy.createConfirmPaymentTest(
         paymentIntentBody,
@@ -55,9 +55,9 @@ describe("Corner cases", () => {
     });
 
     it("[Payment] Invalid expiry year", () => {
-      const data = getConnectorDetails(globalState.get("commons"))["card_pm"][
-        "InvalidExpiryYear"
-      ];
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["InvalidExpiryYear"];
 
       cy.createConfirmPaymentTest(
         paymentIntentBody,
@@ -69,9 +69,9 @@ describe("Corner cases", () => {
     });
 
     it("[Payment] Invalid card CVV", () => {
-      const data = getConnectorDetails(globalState.get("commons"))["card_pm"][
-        "InvalidCardCvv"
-      ];
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["InvalidCardCvv"];
 
       cy.createConfirmPaymentTest(
         paymentIntentBody,
@@ -83,9 +83,9 @@ describe("Corner cases", () => {
     });
 
     it("[Payment] Invalid currency", () => {
-      const data = getConnectorDetails(globalState.get("commons"))["card_pm"][
-        "InvalidCurrency"
-      ];
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["InvalidCurrency"];
 
       cy.createConfirmPaymentTest(
         paymentIntentBody,
@@ -97,9 +97,9 @@ describe("Corner cases", () => {
     });
 
     it("[Payment] Invalid capture method", () => {
-      const data = getConnectorDetails(globalState.get("commons"))["card_pm"][
-        "InvalidCaptureMethod"
-      ];
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["InvalidCaptureMethod"];
 
       cy.createConfirmPaymentTest(
         paymentIntentBody,
@@ -111,9 +111,9 @@ describe("Corner cases", () => {
     });
 
     it("[Payment] Invalid payment method", () => {
-      const data = getConnectorDetails(globalState.get("commons"))["card_pm"][
-        "InvalidPaymentMethod"
-      ];
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["InvalidPaymentMethod"];
 
       cy.createConfirmPaymentTest(
         paymentIntentBody,
@@ -125,9 +125,9 @@ describe("Corner cases", () => {
     });
 
     it("[Payment] Invalid `amount_to_capture`", () => {
-      const data = getConnectorDetails(globalState.get("commons"))["card_pm"][
-        "InvalidAmountToCapture"
-      ];
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["InvalidAmountToCapture"];
 
       cy.createConfirmPaymentTest(
         paymentIntentBody,
@@ -139,9 +139,9 @@ describe("Corner cases", () => {
     });
 
     it("[Payment] Missing required params", () => {
-      const data = getConnectorDetails(globalState.get("commons"))["card_pm"][
-        "MissingRequiredParam"
-      ];
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["MissingRequiredParam"];
 
       cy.createConfirmPaymentTest(
         paymentIntentBody,
@@ -165,9 +165,9 @@ describe("Corner cases", () => {
     });
 
     it("Create payment intent", () => {
-      const data = getConnectorDetails(globalState.get("commons"))["card_pm"][
-        "PaymentIntent"
-      ];
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["PaymentIntent"];
 
       cy.createPaymentIntentTest(
         paymentIntentBody,
@@ -179,9 +179,9 @@ describe("Corner cases", () => {
     });
 
     it("Confirm payment intent", () => {
-      const data = getConnectorDetails(globalState.get("commons"))["card_pm"][
-        "PaymentIntentErrored"
-      ];
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["PaymentIntentErrored"];
 
       cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
     });
@@ -223,9 +223,9 @@ describe("Corner cases", () => {
     });
 
     it("Capture call", () => {
-      const data = getConnectorDetails(globalState.get("commons"))["card_pm"][
-        "CaptureGreaterAmount"
-      ];
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["CaptureGreaterAmount"];
 
       cy.captureCallTest(fixtures.captureBody, data, globalState);
 
@@ -520,21 +520,9 @@ describe("Corner cases", () => {
     it("Refund call", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "card_pm"
-      ]["Refund"];
-      const commonData = getConnectorDetails(globalState.get("commons"))[
-        "card_pm"
-      ]["Refund"];
+      ]["RefundGreaterAmount"];
 
-      const newData = {
-        ...data,
-        Response: utils.getConnectorFlowDetails(
-          data,
-          commonData,
-          "ResponseCustom"
-        ),
-      };
-
-      cy.refundCallTest(fixtures.refundBody, newData, 60000, globalState);
+      cy.refundCallTest(fixtures.refundBody, data, globalState);
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
   });
@@ -585,21 +573,9 @@ describe("Corner cases", () => {
     it("Refund call", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "card_pm"
-      ]["Refund"];
-      const commonData = getConnectorDetails(globalState.get("commons"))[
-        "card_pm"
-      ]["Refund"];
+      ]["RefundGreaterAmount"];
 
-      const newData = {
-        ...data,
-        Response: utils.getConnectorFlowDetails(
-          data,
-          commonData,
-          "ResponseCustom"
-        ),
-      };
-
-      cy.refundCallTest(fixtures.refundBody, newData, 60000, globalState);
+      cy.refundCallTest(fixtures.refundBody, data, globalState);
 
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
@@ -673,6 +649,7 @@ describe("Corner cases", () => {
       );
     });
   });
+
   context("Card-NoThreeDS fail payment flow test", () => {
     let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
 
@@ -715,10 +692,6 @@ describe("Corner cases", () => {
 
       cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
-    });
-
-    it("retrieve-payment-call-test", () => {
-      cy.retrievePaymentCallTest(globalState);
     });
   });
 });

@@ -702,33 +702,11 @@ export const connectorDetails = {
     Refund: getCustomExchange({
       Request: {
         amount: 6000,
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "USD",
-        customer_acceptance: null,
-      },
-      ResponseCustom: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            message: "The refund amount exceeds the amount captured",
-            code: "IR_13",
-          },
-        },
       },
     }),
     manualPaymentRefund: getCustomExchange({
       Request: {
         amount: 6000,
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "USD",
-        customer_acceptance: null,
       },
       Response: {
         status: 200,
@@ -740,12 +718,6 @@ export const connectorDetails = {
     manualPaymentPartialRefund: getCustomExchange({
       Request: {
         amount: 2000,
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "USD",
-        customer_acceptance: null,
       },
       Response: {
         status: 200,
@@ -757,12 +729,6 @@ export const connectorDetails = {
     PartialRefund: getCustomExchange({
       Request: {
         amount: 2000,
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "USD",
-        customer_acceptance: null,
       },
     }),
     SyncRefund: getCustomExchange({}),
@@ -1328,9 +1294,7 @@ export const connectorDetails = {
     },
     CaptureGreaterAmount: {
       Request: {
-        Request: {
-          amount_to_capture: 6000000,
-        },
+        amount_to_capture: 6000000,
       },
       Response: {
         status: 400,
@@ -1382,6 +1346,22 @@ export const connectorDetails = {
         },
       },
     }),
+    
+    RefundGreaterAmount: {
+      Request: {
+        amount: 6000000,
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message: "The refund amount exceeds the amount captured",
+            code: "IR_13",
+          },
+        },
+      },
+    },
     MITAutoCapture: getCustomExchange({
       Request: {},
       Response: {

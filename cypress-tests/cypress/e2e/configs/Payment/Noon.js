@@ -264,12 +264,6 @@ export const connectorDetails = {
     Refund: {
       Request: {
         amount: 6000,
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "AED",
-        customer_acceptance: null,
       },
       Response: {
         status: 200,
@@ -281,12 +275,6 @@ export const connectorDetails = {
     manualPaymentRefund: {
       Request: {
         amount: 6000,
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "AED",
-        customer_acceptance: null,
       },
       Response: {
         status: 200,
@@ -299,11 +287,6 @@ export const connectorDetails = {
     manualPaymentPartialRefund: {
       Request: {
         amount: 2000,
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        customer_acceptance: null,
       },
       Response: {
         status: 200,
@@ -316,11 +299,6 @@ export const connectorDetails = {
     PartialRefund: {
       Request: {
         amount: 2000,
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        customer_acceptance: null,
       },
       Response: {
         status: 200,
