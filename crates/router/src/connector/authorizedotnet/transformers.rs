@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+
 use common_utils::{
     errors::CustomResult,
     ext_traits::{Encode, ValueExt},
@@ -6,6 +8,7 @@ use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface, Secret, StrongSecret};
 use rand::distributions::{Alphanumeric, DistString};
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
 use crate::{
     connector::utils::{
@@ -143,10 +146,25 @@ struct TransactionRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     bill_to: Option<BillTo>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    user_fields: Option<UserFields>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     processing_options: Option<ProcessingOptions>,
     #[serde(skip_serializing_if = "Option::is_none")]
     subsequent_auth_information: Option<SubsequentAuthInformation>,
     authorization_indicator_type: Option<AuthorizationIndicator>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UserFields {
+    user_field: Vec<UserField>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UserField {
+    name: String,
+    value: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -297,6 +315,25 @@ pub enum ValidationMode {
     TestMode,
     // liveMode submits a zero-dollar or one-cent transaction (depending on card type and processor support) to confirm that the card number belongs to an active credit or debit account.
     LiveMode,
+}
+
+impl ForeignTryFrom<Value> for Vec<UserField> {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn foreign_try_from(metadata: Value) -> Result<Self, Self::Error> {
+        let hashmap: BTreeMap<String, Value> = serde_json::from_str(&metadata.to_string())
+            .change_context(errors::ConnectorError::RequestEncodingFailedWithReason(
+                "Failed to serialize request metadata".to_owned(),
+            ))
+            .attach_printable("")?;
+        let mut vector: Self = Self::new();
+        for (key, value) in hashmap {
+            vector.push(UserField {
+                name: key,
+                value: value.to_string(),
+            });
+        }
+        Ok(vector)
+    }
 }
 
 impl TryFrom<&types::SetupMandateRouterData> for CreateCustomerProfileRequest {
@@ -622,6 +659,12 @@ impl
                     zip: address.zip.clone(),
                     country: address.country,
                 }),
+            user_fields: match item.router_data.request.metadata.clone() {
+                Some(metadata) => Some(UserFields {
+                    user_field: Vec::<UserField>::foreign_try_from(metadata)?,
+                }),
+                None => None,
+            },
             processing_options: Some(ProcessingOptions {
                 is_subsequent_auth: true,
             }),
@@ -675,6 +718,12 @@ impl
             },
             customer: None,
             bill_to: None,
+            user_fields: match item.router_data.request.metadata.clone() {
+                Some(metadata) => Some(UserFields {
+                    user_field: Vec::<UserField>::foreign_try_from(metadata)?,
+                }),
+                None => None,
+            },
             processing_options: Some(ProcessingOptions {
                 is_subsequent_auth: true,
             }),
@@ -764,6 +813,12 @@ impl
                     zip: address.zip.clone(),
                     country: address.country,
                 }),
+            user_fields: match item.router_data.request.metadata.clone() {
+                Some(metadata) => Some(UserFields {
+                    user_field: Vec::<UserField>::foreign_try_from(metadata)?,
+                }),
+                None => None,
+            },
             processing_options: None,
             subsequent_auth_information: None,
             authorization_indicator_type: match item.router_data.request.capture_method {
@@ -815,6 +870,12 @@ impl
                     zip: address.zip.clone(),
                     country: address.country,
                 }),
+            user_fields: match item.router_data.request.metadata.clone() {
+                Some(metadata) => Some(UserFields {
+                    user_field: Vec::<UserField>::foreign_try_from(metadata)?,
+                }),
+                None => None,
+            },
             processing_options: None,
             subsequent_auth_information: None,
             authorization_indicator_type: match item.router_data.request.capture_method {
@@ -1748,6 +1809,7 @@ fn get_wallet_data(
         domain::WalletData::AliPayQr(_)
         | domain::WalletData::AliPayRedirect(_)
         | domain::WalletData::AliPayHkRedirect(_)
+        | domain::WalletData::AmazonPayRedirect(_)
         | domain::WalletData::MomoRedirect(_)
         | domain::WalletData::KakaoPayRedirect(_)
         | domain::WalletData::GoPayRedirect(_)
@@ -1811,13 +1873,13 @@ pub struct PaypalPaymentConfirm {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Paypal {
     #[serde(rename = "payerID")]
-    payer_id: Secret<String>,
+    payer_id: Option<Secret<String>>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PaypalQueryParams {
     #[serde(rename = "PayerID")]
-    payer_id: Secret<String>,
+    payer_id: Option<Secret<String>>,
 }
 
 impl TryFrom<&AuthorizedotnetRouterData<&types::PaymentsCompleteAuthorizeRouterData>>
@@ -1834,10 +1896,13 @@ impl TryFrom<&AuthorizedotnetRouterData<&types::PaymentsCompleteAuthorizeRouterD
             .as_ref()
             .and_then(|redirect_response| redirect_response.params.as_ref())
             .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
-        let payer_id: Secret<String> =
-            serde_urlencoded::from_str::<PaypalQueryParams>(params.peek())
-                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?
-                .payer_id;
+
+        let query_params: PaypalQueryParams = serde_urlencoded::from_str(params.peek())
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)
+            .attach_printable("Failed to parse connector response")?;
+
+        let payer_id = query_params.payer_id;
+
         let transaction_type = match item.router_data.request.capture_method {
             Some(enums::CaptureMethod::Manual) => Ok(TransactionType::ContinueAuthorization),
             Some(enums::CaptureMethod::SequentialAutomatic)

@@ -24,6 +24,12 @@ where
                 .attach_printable("Error adding dispute stage filter")?;
         }
 
+        if !self.currency.is_empty() {
+            builder
+                .add_filter_in_range_clause(DisputeDimensions::Currency, &self.currency)
+                .attach_printable("Error adding currency filter")?;
+        }
+
         Ok(())
     }
 }
