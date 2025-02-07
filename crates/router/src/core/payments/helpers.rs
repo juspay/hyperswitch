@@ -3432,9 +3432,7 @@ pub fn validate_platform_merchant(
         }
         (Some(_), None) | (None, Some(_)) => {
             return Err(report!(errors::ApiErrorResponse::InvalidPlatformOperation))
-                .attach_printable(format!(
-                    "Platform merchant id is missing in either data or auth"
-                ));
+                .attach_printable("Platform merchant id is missing in either data or auth");
         }
         (None, None) => {}
     }

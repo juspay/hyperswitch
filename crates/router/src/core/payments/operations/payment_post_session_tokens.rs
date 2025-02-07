@@ -45,7 +45,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsPostSess
         key_store: &domain::MerchantKeyStore,
         _auth_flow: services::AuthFlow,
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
-        platform_merchant_account: Option<&domain::MerchantAccount>,
+        _platform_merchant_account: Option<&domain::MerchantAccount>,
     ) -> RouterResult<
         operations::GetTrackerResponse<
             'a,
@@ -73,7 +73,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsPostSess
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
-        // TODO (#7195): Add platfrom merchant account validation once publishable key auth is solved
+        // TODO (#7195): Add platform merchant account validation once publishable key auth is solved
 
         helpers::authenticate_client_secret(Some(request.client_secret.peek()), &payment_intent)?;
 

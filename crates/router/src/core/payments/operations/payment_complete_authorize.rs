@@ -73,7 +73,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
-        // TODO (#7195): Add platfrom merchant account validation once client_secret auth is solved
+        // TODO (#7195): Add platform merchant account validation once client_secret auth is solved
 
         payment_intent.setup_future_usage = request
             .setup_future_usage

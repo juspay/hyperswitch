@@ -170,7 +170,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, PaymentsConfir
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
-        // TODO (#7195): Add platfrom merchant account validation once publishable key auth is solved
+        // TODO (#7195): Add platform merchant account validation once publishable key auth is solved
 
         self.validate_status_for_operation(payment_intent.status)?;
         let client_secret = header_payload

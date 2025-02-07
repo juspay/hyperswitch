@@ -77,7 +77,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         key_store: &domain::MerchantKeyStore,
         auth_flow: services::AuthFlow,
         header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
-        platform_merchant_account: Option<&domain::MerchantAccount>,
+        _platform_merchant_account: Option<&domain::MerchantAccount>,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest, PaymentData<F>>>
     {
         let key_manager_state = &state.into();
@@ -106,7 +106,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
-        // TODO (#7195): Add platfrom merchant account validation once client_secret auth is solved
+        // TODO (#7195): Add platform merchant account validation once client_secret auth is solved
 
         if let Some(order_details) = &request.order_details {
             helpers::validate_order_details_amount(

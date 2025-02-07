@@ -3,7 +3,7 @@ use std::marker::PhantomData;
 use api_models::enums::FrmSuggestion;
 use async_trait::async_trait;
 use common_utils::{ext_traits::AsyncExt, types::keymanager::KeyManagerState};
-use error_stack::{report, ResultExt};
+use error_stack::ResultExt;
 use router_derive::PaymentOperation;
 use router_env::{instrument, logger, tracing};
 
@@ -253,6 +253,7 @@ async fn get_tracker_for_sync<
     any(feature = "v2", feature = "v1"),
     not(feature = "payment_methods_v2")
 ))]
+#[allow(clippy::too_many_arguments)]
 async fn get_tracker_for_sync<
     'a,
     F: Send + Clone,
@@ -667,5 +668,5 @@ pub async fn get_payment_intent_payment_attempt(
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
 
-    // TODO (#7195): Add platfrom merchant account validation once client_secret auth is solved
+    // TODO (#7195): Add platform merchant account validation once client_secret auth is solved
 }
