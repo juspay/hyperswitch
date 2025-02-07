@@ -416,28 +416,6 @@ impl<F>
                     charges: None,
                 })
             }
-            DatatransResponse::ThreeDSResponse(response) => {
-                let redirection_link = match item.data.test_mode {
-                    Some(true) => format!("{}/v1/start", REDIRECTION_SBX_URL),
-                    Some(false) | None => format!("{}/v1/start", REDIRECTION_PROD_URL),
-                };
-                Ok(PaymentsResponseData::TransactionResponse {
-                    resource_id: ResponseId::ConnectorTransactionId(
-                        response.transaction_id.clone(),
-                    ),
-                    redirection_data: Box::new(Some(RedirectForm::Form {
-                        endpoint: format!("{}/{}", redirection_link, response.transaction_id),
-                        method: Method::Get,
-                        form_fields: HashMap::new(),
-                    })),
-                    mandate_reference: Box::new(None),
-                    connector_metadata: None,
-                    network_txn_id: None,
-                    connector_response_reference_id: None,
-                    incremental_authorization_allowed: None,
-                    charges: None,
-                })
-            }
         };
         Ok(Self {
             status,
