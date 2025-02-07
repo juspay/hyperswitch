@@ -1,7 +1,8 @@
 use common_utils::events::{ApiEventMetric, ApiEventsType};
 
 use crate::hypersense::{
-    HypersenseLogoutTokenRequest, HypersenseTokenResponse, HypersenseVerifyTokenRequest, HypersenseVerifyTokenResponse
+    HypersenseLogoutTokenRequest, HypersenseTokenResponse, HypersenseVerifyTokenRequest,
+    HypersenseVerifyTokenResponse,
 };
 
 impl ApiEventMetric for HypersenseTokenResponse {

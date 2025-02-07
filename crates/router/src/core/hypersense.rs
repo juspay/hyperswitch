@@ -47,7 +47,9 @@ pub async fn logout_hypersense_token(
         .await
         .change_context(errors::ApiErrorResponse::Unauthorized)?;
 
-    authentication::blacklist::insert_user_in_blacklist(&state, &token.user_id).await.change_context(errors::ApiErrorResponse::InvalidJwtToken)?;
+    authentication::blacklist::insert_user_in_blacklist(&state, &token.user_id)
+        .await
+        .change_context(errors::ApiErrorResponse::InvalidJwtToken)?;
 
     Ok(service_api::ApplicationResponse::StatusOk)
 }
@@ -62,8 +64,9 @@ pub async fn verify_hypersense_token(
         .await
         .change_context(errors::ApiErrorResponse::Unauthorized)?;
 
-    if authentication::blacklist::check_user_in_blacklist(&state, &token.user_id, token.exp).await? {
-        return Err(errors::ApiErrorResponse::InvalidJwtToken.into());   
+    if authentication::blacklist::check_user_in_blacklist(&state, &token.user_id, token.exp).await?
+    {
+        return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
     }
 
     token.check_service_type(&ExternalServiceType::Hypersense)?;

@@ -1291,7 +1291,8 @@ impl Hypersense {
             .service(
                 web::resource("/verify_token")
                     .route(web::post().to(hypersense_routes::verify_hypersense_token)),
-            ).service(
+            )
+            .service(
                 web::resource("/logout")
                     .route(web::post().to(hypersense_routes::logout_hypersense_token)),
             )
