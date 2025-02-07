@@ -222,6 +222,14 @@ describe("Corner cases", () => {
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
+    it("Retrieve payment", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["No3DSManualCapture"];
+
+      cy.retrievePaymentCallTest(globalState, data);
+    });
+
     it("Capture call", () => {
       const data = getConnectorDetails(globalState.get("commons"))["card_pm"][
         "CaptureGreaterAmount"
