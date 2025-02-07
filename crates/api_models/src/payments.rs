@@ -5178,7 +5178,7 @@ pub struct PaymentsConfirmIntentResponse {
     pub authentication_type: Option<api_enums::AuthenticationType>,
 
     /// The authentication type applied for the payment
-    #[schema(value_type = AuthenticationType, example = "no_three_ds", default = "no_three_ds")]
+    #[schema(value_type = AuthenticationType, example = "no_three_ds")]
     pub applied_authentication_type: api_enums::AuthenticationType,
 }
 
