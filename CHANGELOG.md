@@ -4,6 +4,14 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.02.05.0-hotfix1
+
+### Bug Fixes
+
+- **core:** Add payment_link_data in PaymentData for Psync ([#7205](https://github.com/juspay/hyperswitch/pull/7205)) ([`60f5a3e`](https://github.com/juspay/hyperswitch/commit/60f5a3e084d2e774928c85e9a28a314a5e086363))
+
+- - -
+
 ## 2025.02.05.0
 
 ### Features
