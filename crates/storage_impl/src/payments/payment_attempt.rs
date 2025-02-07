@@ -425,6 +425,43 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
             .change_context(errors::StorageError::DecryptionError)
     }
 
+    #[cfg(feature = "v2")]
+    #[instrument(skip_all)]
+    async fn find_payment_attempts_by_payment_intent_id(
+        &self,
+        key_manager_state: &KeyManagerState,
+        payment_id: &common_utils::id_type::GlobalPaymentId,
+        merchant_key_store: &MerchantKeyStore,
+        _storage_scheme: MerchantStorageScheme,
+    ) -> error_stack::Result<Vec<PaymentAttempt>, errors::StorageError> {
+        use common_utils::ext_traits::AsyncExt;
+
+        let conn = pg_connection_read(self).await?;
+        DieselPaymentAttempt::find_by_payment_id(&conn, payment_id)
+            .await
+            .map_err(|er| {
+                let new_err = diesel_error_to_data_error(*er.current_context());
+                er.change_context(new_err)
+            })
+            .async_and_then(|payment_attempts| async {
+                let mut domain_payment_attempts = Vec::with_capacity(payment_attempts.len());
+                for attempt in payment_attempts.into_iter() {
+                    domain_payment_attempts.push(
+                        attempt
+                            .convert(
+                                key_manager_state,
+                                merchant_key_store.key.get_inner(),
+                                merchant_key_store.merchant_id.clone().into(),
+                            )
+                            .await
+                            .change_context(errors::StorageError::DecryptionError)?,
+                    );
+                }
+                Ok(domain_payment_attempts)
+            })
+            .await
+    }
+
     #[cfg(all(feature = "v1", feature = "olap"))]
     #[instrument(skip_all)]
     async fn get_total_count_of_filtered_payment_attempts(
@@ -1194,6 +1231,25 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                 key_manager_state,
                 merchant_key_store,
                 attempt_id,
+                storage_scheme,
+            )
+            .await
+    }
+
+    #[cfg(feature = "v2")]
+    #[instrument(skip_all)]
+    async fn find_payment_attempts_by_payment_intent_id(
+        &self,
+        key_manager_state: &KeyManagerState,
+        payment_id: &common_utils::id_type::GlobalPaymentId,
+        merchant_key_store: &MerchantKeyStore,
+        storage_scheme: MerchantStorageScheme,
+    ) -> error_stack::Result<Vec<PaymentAttempt>, errors::StorageError> {
+        self.router_store
+            .find_payment_attempts_by_payment_intent_id(
+                key_manager_state,
+                payment_id,
+                merchant_key_store,
                 storage_scheme,
             )
             .await

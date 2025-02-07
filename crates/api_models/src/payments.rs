@@ -1313,6 +1313,7 @@ impl RequestSurchargeDetails {
     }
 }
 
+// #[cfg(feature = "v1")]
 #[derive(Debug, serde::Serialize, Clone, PartialEq, ToSchema, router_derive::PolymorphicSchema)]
 pub struct PaymentAttemptResponse {
     /// Unique identifier for the attempt
@@ -1380,6 +1381,18 @@ pub struct PaymentAttemptResponse {
     /// Value passed in X-CLIENT-VERSION header during payments confirm request by the client
     pub client_version: Option<String>,
 }
+
+// #[cfg(feature = "v2")]
+// #[derive(Debug, serde::Serialize, Clone, PartialEq, ToSchema, router_derive::PolymorphicSchema)]
+// pub struct PaymentAttemptResponse {
+//     id: id_type::GlobalAttemptId,
+//     status: common_enums::AttemptStatus,
+//     /// Amount related information for this payment and attempt
+//     pub amount: PaymentAmountDetailsResponse,
+
+
+
+// }
 
 #[derive(
     Default, Debug, serde::Serialize, Clone, PartialEq, ToSchema, router_derive::PolymorphicSchema,
@@ -4798,7 +4811,10 @@ pub struct PaymentsRetrieveRequest {
     /// If this is set to true, the status will be fetched from the connector
     #[serde(default)]
     pub force_sync: bool,
-
+    /// A boolean used to indicate if all the attempts needs to be fetched for the intent.
+    /// If this is set to true, attempts list will be available in the response.
+    #[serde(default)]
+    pub expand_attempts: bool,
     /// These are the query params that are sent in case of redirect response.
     /// These can be ingested by the connector to take necessary actions.
     pub param: Option<String>,
@@ -4976,6 +4992,8 @@ pub struct PaymentsRetrieveResponse {
 
     /// The billing address associated with the payment intent
     pub billing: Option<Address>,
+
+    // pub attempts: Option<Vec<PaymentAttemptResponse>>
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]

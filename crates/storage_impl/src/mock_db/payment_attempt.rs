@@ -81,6 +81,18 @@ impl PaymentAttemptInterface for MockDb {
         Err(StorageError::MockDbError)?
     }
 
+    #[cfg(feature = "v2")]
+    async fn find_payment_attempts_by_payment_intent_id(
+        &self,
+        _key_manager_state: &KeyManagerState,
+        _id: &id_type::GlobalPaymentId,
+        _merchant_key_store: &MerchantKeyStore,
+        _storage_scheme: common_enums::MerchantStorageScheme,
+    ) -> error_stack::Result<Vec<PaymentAttempt>, StorageError> {
+        // [#172]: Implement function for `MockDb`
+        Err(StorageError::MockDbError)?
+    }
+
     #[cfg(feature = "v1")]
     async fn find_payment_attempt_by_preprocessing_id_merchant_id(
         &self,
