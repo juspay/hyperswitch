@@ -1546,7 +1546,6 @@ export const connectorDetails = {
       },
     },
   },
-
   upi_pm: {
     PaymentIntent: getCustomExchange({
       Request: {
