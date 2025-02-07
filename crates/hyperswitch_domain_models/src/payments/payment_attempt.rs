@@ -19,6 +19,7 @@ use diesel_models::{
     PaymentAttemptNew as DieselPaymentAttemptNew,
     PaymentAttemptUpdate as DieselPaymentAttemptUpdate,
 };
+#[cfg(feature = "v2")]
 use diesel_models::types::RevenueRecoveryMetadata;
 use error_stack::ResultExt;
 #[cfg(feature = "v2")]
