@@ -99,7 +99,8 @@ fn build_connector_feature_details(
             .map(|webhook_flows| webhook_flows.to_vec());
         feature_matrix::ConnectorFeatureMatrixResponse {
             name: connector_name.to_uppercase(),
-            description: connector_about.map(|about| about.description.clone()),
+            display_name: connector_about.map(|about| about.display_name.to_string()),
+            description: connector_about.map(|about| about.description.to_string()),
             category: connector_about.map(|about| about.connector_type),
             supported_webhook_flows,
             supported_payment_methods,
