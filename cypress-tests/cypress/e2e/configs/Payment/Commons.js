@@ -1545,19 +1545,6 @@ export const connectorDetails = {
         },
       },
     },
-    DuplicateCustomerID: {
-      Request: {},
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            message: "Customer with the given `customer_id` already exists",
-            code: "IR_12",
-          },
-        },
-      },
-    },
   },
 
   upi_pm: {
