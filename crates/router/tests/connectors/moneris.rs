@@ -9,7 +9,7 @@ use crate::utils::{self, ConnectorActions};
 struct MonerisTest;
 impl ConnectorActions for MonerisTest {}
 impl utils::Connector for MonerisTest {
-     fn get_data(&self) -> api::ConnectorData {
+    fn get_data(&self) -> api::ConnectorData {
         use router::connector::Moneris;
         utils::construct_connector_data_old(
             Box::new(Moneris::new()),
