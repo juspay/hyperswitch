@@ -412,7 +412,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
             .await
     }
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), feature = "olap",))]
+    #[cfg(feature = "olap")]
     async fn get_intent_status_with_count(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
@@ -770,7 +770,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         .await
     }
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), feature = "olap",))]
+    #[cfg(feature = "olap")]
     #[instrument(skip_all)]
     async fn get_intent_status_with_count(
         &self,
