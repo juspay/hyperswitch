@@ -120,10 +120,14 @@ pub async fn get_user_details(
 ) -> UserResponse<user_api::GetUserDetailsResponse> {
     let user = user_from_token.get_user_from_db(&state).await?;
     let verification_days_left = utils::user::get_verification_days_left(&state, &user)?;
-    let role_info = roles::RoleInfo::from_role_id_and_org_id(
+    let role_info = roles::RoleInfo::from_role_id_org_id_tenant_id(
         &state,
         &user_from_token.role_id,
         &user_from_token.org_id,
+        user_from_token
+            .tenant_id
+            .as_ref()
+            .unwrap_or(&state.tenant.tenant_id),
     )
     .await
     .change_context(UserErrors::InternalServerError)?;
@@ -637,6 +641,11 @@ async fn handle_invitation(
         &request.role_id,
         &user_from_token.merchant_id,
         &user_from_token.org_id,
+        &user_from_token.profile_id,
+        user_from_token
+            .tenant_id
+            .as_ref()
+            .unwrap_or(&state.tenant.tenant_id),
     )
     .await
     .to_not_found_response(UserErrors::InvalidRoleId)?;
@@ -1159,10 +1168,14 @@ pub async fn resend_invite(
         .get_entity_id_and_type()
         .ok_or(UserErrors::InternalServerError)?;
 
-    let invitee_role_info = roles::RoleInfo::from_role_id_and_org_id(
+    let invitee_role_info = roles::RoleInfo::from_role_id_org_id_tenant_id(
         &state,
         &user_role.role_id,
         &user_from_token.org_id,
+        user_from_token
+            .tenant_id
+            .as_ref()
+            .unwrap_or(&state.tenant.tenant_id),
     )
     .await
     .change_context(UserErrors::InternalServerError)?;
@@ -1405,7 +1418,7 @@ pub async fn create_tenant_user(
         .change_context(UserErrors::InternalServerError)
         .attach_printable("Failed to get merchants list for org")?
         .pop()
-        .ok_or(UserErrors::InternalServerError)
+        .ok_or(UserErrors::InvalidRoleOperation)
         .attach_printable("No merchants found in the tenancy")?;
 
     let new_user = domain::NewUser::try_from((
@@ -1546,10 +1559,14 @@ pub async fn list_user_roles_details(
         .await
         .to_not_found_response(UserErrors::InvalidRoleOperation)?;
 
-    let requestor_role_info = roles::RoleInfo::from_role_id_and_org_id(
+    let requestor_role_info = roles::RoleInfo::from_role_id_org_id_tenant_id(
         &state,
         &user_from_token.role_id,
         &user_from_token.org_id,
+        user_from_token
+            .tenant_id
+            .as_ref()
+            .unwrap_or(&state.tenant.tenant_id),
     )
     .await
     .to_not_found_response(UserErrors::InternalServerError)
@@ -1700,10 +1717,14 @@ pub async fn list_user_roles_details(
             .collect::<HashSet<_>>()
             .into_iter()
             .map(|role_id| async {
-                let role_info = roles::RoleInfo::from_role_id_and_org_id(
+                let role_info = roles::RoleInfo::from_role_id_org_id_tenant_id(
                     &state,
                     &role_id,
                     &user_from_token.org_id,
+                    user_from_token
+                        .tenant_id
+                        .as_ref()
+                        .unwrap_or(&state.tenant.tenant_id),
                 )
                 .await
                 .change_context(UserErrors::InternalServerError)?;
@@ -2813,10 +2834,14 @@ pub async fn list_orgs_for_user(
     state: SessionState,
     user_from_token: auth::UserFromToken,
 ) -> UserResponse<Vec<user_api::ListOrgsForUserResponse>> {
-    let role_info = roles::RoleInfo::from_role_id_and_org_id(
+    let role_info = roles::RoleInfo::from_role_id_org_id_tenant_id(
         &state,
         &user_from_token.role_id,
         &user_from_token.org_id,
+        user_from_token
+            .tenant_id
+            .as_ref()
+            .unwrap_or(&state.tenant.tenant_id),
     )
     .await
     .change_context(UserErrors::InternalServerError)?;
@@ -2891,10 +2916,14 @@ pub async fn list_merchants_for_user_in_org(
     state: SessionState,
     user_from_token: auth::UserFromToken,
 ) -> UserResponse<Vec<user_api::ListMerchantsForUserInOrgResponse>> {
-    let role_info = roles::RoleInfo::from_role_id_and_org_id(
+    let role_info = roles::RoleInfo::from_role_id_org_id_tenant_id(
         &state,
         &user_from_token.role_id,
         &user_from_token.org_id,
+        user_from_token
+            .tenant_id
+            .as_ref()
+            .unwrap_or(&state.tenant.tenant_id),
     )
     .await
     .change_context(UserErrors::InternalServerError)?;
@@ -2967,10 +2996,14 @@ pub async fn list_profiles_for_user_in_org_and_merchant_account(
     state: SessionState,
     user_from_token: auth::UserFromToken,
 ) -> UserResponse<Vec<user_api::ListProfilesForUserInOrgAndMerchantAccountResponse>> {
-    let role_info = roles::RoleInfo::from_role_id_and_org_id(
+    let role_info = roles::RoleInfo::from_role_id_org_id_tenant_id(
         &state,
         &user_from_token.role_id,
         &user_from_token.org_id,
+        user_from_token
+            .tenant_id
+            .as_ref()
+            .unwrap_or(&state.tenant.tenant_id),
     )
     .await
     .change_context(UserErrors::InternalServerError)?;
@@ -3059,10 +3092,14 @@ pub async fn switch_org_for_user(
         .into());
     }
 
-    let role_info = roles::RoleInfo::from_role_id_and_org_id(
+    let role_info = roles::RoleInfo::from_role_id_org_id_tenant_id(
         &state,
         &user_from_token.role_id,
         &user_from_token.org_id,
+        user_from_token
+            .tenant_id
+            .as_ref()
+            .unwrap_or(&state.tenant.tenant_id),
     )
     .await
     .change_context(UserErrors::InternalServerError)
@@ -3150,12 +3187,20 @@ pub async fn switch_org_for_user(
         request.org_id.clone(),
         role_id.clone(),
         profile_id.clone(),
-        user_from_token.tenant_id,
+        user_from_token.tenant_id.clone(),
     )
     .await?;
 
-    utils::user_role::set_role_info_in_cache_by_role_id_org_id(&state, &role_id, &request.org_id)
-        .await;
+    utils::user_role::set_role_info_in_cache_by_role_id_org_id(
+        &state,
+        &role_id,
+        &request.org_id,
+        user_from_token
+            .tenant_id
+            .as_ref()
+            .unwrap_or(&state.tenant.tenant_id),
+    )
+    .await;
 
     let response = user_api::TokenResponse {
         token: token.clone(),
@@ -3178,10 +3223,14 @@ pub async fn switch_merchant_for_user_in_org(
     }
 
     let key_manager_state = &(&state).into();
-    let role_info = roles::RoleInfo::from_role_id_and_org_id(
+    let role_info = roles::RoleInfo::from_role_id_org_id_tenant_id(
         &state,
         &user_from_token.role_id,
         &user_from_token.org_id,
+        user_from_token
+            .tenant_id
+            .as_ref()
+            .unwrap_or(&state.tenant.tenant_id),
     )
     .await
     .change_context(UserErrors::InternalServerError)
@@ -3333,11 +3382,20 @@ pub async fn switch_merchant_for_user_in_org(
         org_id.clone(),
         role_id.clone(),
         profile_id,
-        user_from_token.tenant_id,
+        user_from_token.tenant_id.clone(),
     )
     .await?;
 
-    utils::user_role::set_role_info_in_cache_by_role_id_org_id(&state, &role_id, &org_id).await;
+    utils::user_role::set_role_info_in_cache_by_role_id_org_id(
+        &state,
+        &role_id,
+        &org_id,
+        user_from_token
+            .tenant_id
+            .as_ref()
+            .unwrap_or(&state.tenant.tenant_id),
+    )
+    .await;
 
     let response = user_api::TokenResponse {
         token: token.clone(),
@@ -3360,10 +3418,14 @@ pub async fn switch_profile_for_user_in_org_and_merchant(
     }
 
     let key_manager_state = &(&state).into();
-    let role_info = roles::RoleInfo::from_role_id_and_org_id(
+    let role_info = roles::RoleInfo::from_role_id_org_id_tenant_id(
         &state,
         &user_from_token.role_id,
         &user_from_token.org_id,
+        user_from_token
+            .tenant_id
+            .as_ref()
+            .unwrap_or(&state.tenant.tenant_id),
     )
     .await
     .change_context(UserErrors::InternalServerError)
@@ -3436,7 +3498,7 @@ pub async fn switch_profile_for_user_in_org_and_merchant(
         user_from_token.org_id.clone(),
         role_id.clone(),
         profile_id,
-        user_from_token.tenant_id,
+        user_from_token.tenant_id.clone(),
     )
     .await?;
 
@@ -3444,6 +3506,10 @@ pub async fn switch_profile_for_user_in_org_and_merchant(
         &state,
         &role_id,
         &user_from_token.org_id,
+        user_from_token
+            .tenant_id
+            .as_ref()
+            .unwrap_or(&state.tenant.tenant_id),
     )
     .await;
 

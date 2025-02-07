@@ -4082,7 +4082,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/DynamicRoutingFeatures"
+                "$ref": "#/components/schemas/SuccessBasedRoutingConfig"
               }
             }
           },
@@ -4229,7 +4229,7 @@
           {
             "name": "enable",
             "in": "query",
-            "description": "Feature to enable for success based routing",
+            "description": "Feature to enable for elimination based routing",
             "required": true,
             "schema": {
               "$ref": "#/components/schemas/DynamicRoutingFeatures"
@@ -4249,6 +4249,174 @@
           },
           "400": {
             "description": "Request body is malformed"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Resource missing"
+          },
+          "422": {
+            "description": "Unprocessable request"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          },
+          {
+            "jwt_key": []
+          }
+        ]
+      }
+    },
+    "/account/:account_id/business_profile/:profile_id/dynamic_routing/contracts/toggle": {
+      "post": {
+        "tags": [
+          "Routing"
+        ],
+        "summary": "Routing - Toggle Contract routing for profile",
+        "description": "Create a Contract based dynamic routing algorithm",
+        "operationId": "Toggle contract routing algorithm",
+        "parameters": [
+          {
+            "name": "account_id",
+            "in": "path",
+            "description": "Merchant id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "profile_id",
+            "in": "path",
+            "description": "Profile id under which Dynamic routing needs to be toggled",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "enable",
+            "in": "query",
+            "description": "Feature to enable for contract based routing",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/DynamicRoutingFeatures"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ContractBasedRoutingConfig"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Routing Algorithm created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoutingDictionaryRecord"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request body is malformed"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Resource missing"
+          },
+          "422": {
+            "description": "Unprocessable request"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          },
+          {
+            "jwt_key": []
+          }
+        ]
+      }
+    },
+    "/account/{account_id}/business_profile/{profile_id}/dynamic_routing/contracts/config/{algorithm_id}": {
+      "patch": {
+        "tags": [
+          "Routing"
+        ],
+        "summary": "Routing - Update contract based dynamic routing config for profile",
+        "description": "Update contract based dynamic routing algorithm",
+        "operationId": "Update contract based dynamic routing configs",
+        "parameters": [
+          {
+            "name": "account_id",
+            "in": "path",
+            "description": "Merchant id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "profile_id",
+            "in": "path",
+            "description": "Profile id under which Dynamic routing needs to be toggled",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "algorithm_id",
+            "in": "path",
+            "description": "Contract based routing algorithm id which was last activated to update the config",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ContractBasedRoutingConfig"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Routing Algorithm updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoutingDictionaryRecord"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Update body is malformed"
           },
           "403": {
             "description": "Forbidden"
@@ -5880,6 +6048,9 @@
         "type": "object"
       },
       "AliPayRedirection": {
+        "type": "object"
+      },
+      "AmazonPayRedirectData": {
         "type": "object"
       },
       "AmountFilter": {
@@ -9053,6 +9224,29 @@
           }
         }
       },
+      "CardSpecificFeatures": {
+        "type": "object",
+        "required": [
+          "three_ds",
+          "no_three_ds",
+          "supported_card_networks"
+        ],
+        "properties": {
+          "three_ds": {
+            "$ref": "#/components/schemas/FeatureStatus"
+          },
+          "no_three_ds": {
+            "$ref": "#/components/schemas/FeatureStatus"
+          },
+          "supported_card_networks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CardNetwork"
+            },
+            "description": "List of supported card networks"
+          }
+        }
+      },
       "CardToken": {
         "type": "object",
         "required": [
@@ -9233,7 +9427,6 @@
       },
       "Connector": {
         "type": "string",
-        "description": "A connector is an integration to fulfill payments",
         "enum": [
           "adyenplatform",
           "phonypay",
@@ -9276,6 +9469,7 @@
           "gocardless",
           "gpayments",
           "helcim",
+          "inespay",
           "iatapay",
           "itaubank",
           "jpmorgan",
@@ -9317,6 +9511,7 @@
           "signifyd",
           "plaid",
           "riskified",
+          "xendit",
           "zen",
           "zsl"
         ]
@@ -9330,6 +9525,10 @@
         "properties": {
           "name": {
             "type": "string"
+          },
+          "display_name": {
+            "type": "string",
+            "nullable": true
           },
           "description": {
             "type": "string",
@@ -9500,9 +9699,62 @@
             "type": "object",
             "description": "This field contains the Paze certificates and credentials",
             "nullable": true
+          },
+          "google_pay": {
+            "type": "object",
+            "description": "This field contains the Google Pay certificates and credentials",
+            "nullable": true
           }
         },
         "additionalProperties": false
+      },
+      "ContractBasedRoutingConfig": {
+        "type": "object",
+        "properties": {
+          "config": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ContractBasedRoutingConfigBody"
+              }
+            ],
+            "nullable": true
+          },
+          "label_info": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LabelInformation"
+            },
+            "nullable": true
+          }
+        }
+      },
+      "ContractBasedRoutingConfigBody": {
+        "type": "object",
+        "properties": {
+          "constants": {
+            "type": "array",
+            "items": {
+              "type": "number",
+              "format": "double"
+            },
+            "nullable": true
+          },
+          "time_scale": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ContractBasedTimeScale"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "ContractBasedTimeScale": {
+        "type": "string",
+        "enum": [
+          "day",
+          "month"
+        ]
       },
       "CountryAlpha2": {
         "type": "string",
@@ -12854,6 +13106,33 @@
           }
         }
       },
+      "LabelInformation": {
+        "type": "object",
+        "required": [
+          "label",
+          "target_count",
+          "target_time",
+          "mca_id"
+        ],
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "target_count": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "target_time": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "mca_id": {
+            "type": "string"
+          }
+        }
+      },
       "LinkedRoutingConfigRetrieveResponse": {
         "oneOf": [
           {
@@ -15570,17 +15849,6 @@
           {
             "type": "object",
             "required": [
-              "klarna_checkout"
-            ],
-            "properties": {
-              "klarna_checkout": {
-                "type": "object"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
               "affirm_redirect"
             ],
             "properties": {
@@ -17190,6 +17458,13 @@
           }
         }
       },
+      "PaymentMethodSpecificFeatures": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/CardSpecificFeatures"
+          }
+        ]
+      },
       "PaymentMethodStatus": {
         "type": "string",
         "description": "Payment Method Status",
@@ -17211,6 +17486,7 @@
           "ali_pay",
           "ali_pay_hk",
           "alma",
+          "amazon_pay",
           "apple_pay",
           "atome",
           "bacs",
@@ -20886,6 +21162,11 @@
             "example": "+1",
             "nullable": true,
             "maxLength": 255
+          },
+          "payout_method_id": {
+            "type": "string",
+            "description": "Identifier for payout method",
+            "nullable": true
           }
         }
       },
@@ -21184,6 +21465,11 @@
             "example": "Invalid card details",
             "nullable": true,
             "maxLength": 1024
+          },
+          "payout_method_id": {
+            "type": "string",
+            "description": "Identifier for payout method",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -21830,6 +22116,11 @@
             "example": "+1",
             "nullable": true,
             "maxLength": 255
+          },
+          "payout_method_id": {
+            "type": "string",
+            "description": "Identifier for payout method",
+            "nullable": true
           }
         }
       },
@@ -22042,6 +22333,11 @@
             "example": "+1",
             "nullable": true,
             "maxLength": 255
+          },
+          "payout_method_id": {
+            "type": "string",
+            "description": "Identifier for payout method",
+            "nullable": true
           }
         }
       },
@@ -23898,7 +24194,7 @@
       },
       "RoutableConnectors": {
         "type": "string",
-        "description": "Connectors eligible for payments routing",
+        "description": "RoutableConnectors are the subset of Connectors that are eligible for payments routing",
         "enum": [
           "adyenplatform",
           "phonypay",
@@ -23940,6 +24236,7 @@
           "gocardless",
           "helcim",
           "iatapay",
+          "inespay",
           "itaubank",
           "jpmorgan",
           "klarna",
@@ -24493,6 +24790,14 @@
             "format": "int32",
             "description": "Indicates maximum amount of time in minutes",
             "minimum": 0
+          },
+          "sdk_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SdkType"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -24521,6 +24826,17 @@
             "nullable": true
           }
         }
+      },
+      "SdkType": {
+        "type": "string",
+        "description": "Enum representing the type of 3DS SDK.",
+        "enum": [
+          "01",
+          "02",
+          "03",
+          "04",
+          "05"
+        ]
       },
       "SecretInfoToInitiateSdk": {
         "type": "object",
@@ -25172,54 +25488,76 @@
               }
             ],
             "nullable": true
+          },
+          "specificity_level": {
+            "$ref": "#/components/schemas/SuccessRateSpecificityLevel"
           }
         }
       },
+      "SuccessRateSpecificityLevel": {
+        "type": "string",
+        "enum": [
+          "merchant",
+          "global"
+        ]
+      },
       "SupportedPaymentMethod": {
-        "type": "object",
-        "required": [
-          "payment_method",
-          "payment_method_type",
-          "mandates",
-          "refunds",
-          "supported_capture_methods"
-        ],
-        "properties": {
-          "payment_method": {
-            "$ref": "#/components/schemas/PaymentMethod"
+        "allOf": [
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodSpecificFeatures"
+              }
+            ],
+            "nullable": true
           },
-          "payment_method_type": {
-            "$ref": "#/components/schemas/PaymentMethodType"
-          },
-          "mandates": {
-            "$ref": "#/components/schemas/FeatureStatus"
-          },
-          "refunds": {
-            "$ref": "#/components/schemas/FeatureStatus"
-          },
-          "supported_capture_methods": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/CaptureMethod"
+          {
+            "type": "object",
+            "required": [
+              "payment_method",
+              "payment_method_type",
+              "mandates",
+              "refunds",
+              "supported_capture_methods"
+            ],
+            "properties": {
+              "payment_method": {
+                "$ref": "#/components/schemas/PaymentMethod"
+              },
+              "payment_method_type": {
+                "$ref": "#/components/schemas/PaymentMethodType"
+              },
+              "mandates": {
+                "$ref": "#/components/schemas/FeatureStatus"
+              },
+              "refunds": {
+                "$ref": "#/components/schemas/FeatureStatus"
+              },
+              "supported_capture_methods": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/CaptureMethod"
+                }
+              },
+              "supported_countries": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/CountryAlpha2"
+                },
+                "uniqueItems": true,
+                "nullable": true
+              },
+              "supported_currencies": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/Currency"
+                },
+                "uniqueItems": true,
+                "nullable": true
+              }
             }
-          },
-          "supported_countries": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/CountryAlpha2"
-            },
-            "uniqueItems": true,
-            "nullable": true
-          },
-          "supported_currencies": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/Currency"
-            },
-            "uniqueItems": true,
-            "nullable": true
           }
-        }
+        ]
       },
       "SurchargeDetailsResponse": {
         "type": "object",
@@ -26031,8 +26369,7 @@
         "type": "object",
         "required": [
           "last4",
-          "card_network",
-          "type"
+          "card_network"
         ],
         "properties": {
           "last4": {
@@ -26045,7 +26382,8 @@
           },
           "type": {
             "type": "string",
-            "description": "The type of payment method"
+            "description": "The type of payment method",
+            "nullable": true
           }
         }
       },
@@ -26081,6 +26419,17 @@
             "properties": {
               "ali_pay_hk_redirect": {
                 "$ref": "#/components/schemas/AliPayHkRedirection"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "amazon_pay_redirect"
+            ],
+            "properties": {
+              "amazon_pay_redirect": {
+                "$ref": "#/components/schemas/AmazonPayRedirectData"
               }
             }
           },
@@ -26399,6 +26748,17 @@
             ],
             "properties": {
               "google_pay": {
+                "$ref": "#/components/schemas/WalletAdditionalDataForCard"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "samsung_pay"
+            ],
+            "properties": {
+              "samsung_pay": {
                 "$ref": "#/components/schemas/WalletAdditionalDataForCard"
               }
             }

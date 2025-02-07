@@ -109,9 +109,15 @@ pub async fn relay_refund(
 
     let merchant_id = merchant_account.get_id();
 
+    #[cfg(feature = "v1")]
+    let connector_name = &connector_account.connector_name;
+
+    #[cfg(feature = "v2")]
+    let connector_name = &connector_account.connector_name.to_string();
+
     let connector_data = api::ConnectorData::get_connector_by_name(
         &state.conf.connectors,
-        &connector_account.connector_name,
+        connector_name,
         api::GetToken::Connector,
         Some(connector_id.clone()),
     )?;
@@ -124,7 +130,6 @@ pub async fn relay_refund(
 
     let router_data = utils::construct_relay_refund_router_data(
         state,
-        &connector_account.connector_name,
         merchant_id,
         &connector_account,
         relay_record,
@@ -289,9 +294,15 @@ pub async fn sync_relay_refund_with_gateway(
     let connector_id = &relay_record.connector_id;
     let merchant_id = merchant_account.get_id();
 
+    #[cfg(feature = "v1")]
+    let connector_name = &connector_account.connector_name;
+
+    #[cfg(feature = "v2")]
+    let connector_name = &connector_account.connector_name.to_string();
+
     let connector_data: api::ConnectorData = api::ConnectorData::get_connector_by_name(
         &state.conf.connectors,
-        &connector_account.connector_name,
+        connector_name,
         api::GetToken::Connector,
         Some(connector_id.clone()),
     )
@@ -300,7 +311,6 @@ pub async fn sync_relay_refund_with_gateway(
 
     let router_data = utils::construct_relay_refund_router_data(
         state,
-        &connector_account.connector_name,
         merchant_id,
         &connector_account,
         relay_record,

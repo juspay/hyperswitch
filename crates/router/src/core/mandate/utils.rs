@@ -7,6 +7,7 @@ use error_stack::ResultExt;
 use crate::{
     core::{errors, payments::helpers},
     types::{self, domain, PaymentAddress},
+    SessionState,
 };
 
 const IRRELEVANT_ATTEMPT_ID_IN_MANDATE_REVOKE_FLOW: &str =
@@ -16,6 +17,7 @@ const IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_MANDATE_REVOKE_FLOW: &str =
     "irrelevant_connector_request_reference_id_in_mandate_revoke_flow";
 
 pub async fn construct_mandate_revoke_router_data(
+    state: &SessionState,
     merchant_connector_account: helpers::MerchantConnectorAccountType,
     merchant_account: &domain::MerchantAccount,
     mandate: Mandate,
@@ -28,6 +30,7 @@ pub async fn construct_mandate_revoke_router_data(
         flow: PhantomData,
         merchant_id: merchant_account.get_id().clone(),
         customer_id: Some(mandate.customer_id),
+        tenant_id: state.tenant.tenant_id.clone(),
         connector_customer: None,
         connector: mandate.connector,
         payment_id: mandate

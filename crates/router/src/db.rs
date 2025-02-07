@@ -6,6 +6,7 @@ pub mod blocklist;
 pub mod blocklist_fingerprint;
 pub mod blocklist_lookup;
 pub mod business_profile;
+pub mod callback_mapper;
 pub mod capture;
 pub mod cards_info;
 pub mod configs;

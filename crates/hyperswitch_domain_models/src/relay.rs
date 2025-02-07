@@ -81,7 +81,7 @@ impl RelayUpdate {
         match response {
             Err(error) => Self::ErrorUpdate {
                 error_code: error.code,
-                error_message: error.message,
+                error_message: error.reason.unwrap_or(error.message),
                 status: common_enums::RelayStatus::Failure,
             },
             Ok(response) => Self::StatusUpdate {

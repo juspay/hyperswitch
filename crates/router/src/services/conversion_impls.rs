@@ -1,3 +1,4 @@
+use common_utils::id_type;
 use error_stack::ResultExt;
 #[cfg(feature = "frm")]
 use hyperswitch_domain_models::router_data_v2::flow_common_types::FrmFlowData;
@@ -23,17 +24,19 @@ fn get_irrelevant_id_string(id_name: &str, flow_name: &str) -> String {
     format!("irrelevant {id_name} in {flow_name} flow")
 }
 fn get_default_router_data<F, Req, Resp>(
+    tenant_id: id_type::TenantId,
     flow_name: &str,
     request: Req,
     response: Result<Resp, router_data::ErrorResponse>,
 ) -> RouterData<F, Req, Resp> {
     RouterData {
+        tenant_id,
         flow: std::marker::PhantomData,
-        merchant_id: common_utils::id_type::MerchantId::get_irrelevant_merchant_id(),
+        merchant_id: id_type::MerchantId::get_irrelevant_merchant_id(),
         customer_id: None,
         connector_customer: None,
         connector: get_irrelevant_id_string("connector", flow_name),
-        payment_id: common_utils::id_type::PaymentId::get_irrelevant_id(flow_name)
+        payment_id: id_type::PaymentId::get_irrelevant_id(flow_name)
             .get_string_repr()
             .to_owned(),
         attempt_id: get_irrelevant_id_string("attempt_id", flow_name),
@@ -93,6 +96,7 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for AccessTo
         let resource_common_data = Self {};
         Ok(RouterDataV2 {
             flow: std::marker::PhantomData,
+            tenant_id: old_router_data.tenant_id.clone(),
             resource_common_data,
             connector_auth_type: old_router_data.connector_auth_type.clone(),
             request: old_router_data.request.clone(),
@@ -109,7 +113,12 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for AccessTo
         let Self {} = new_router_data.resource_common_data;
         let request = new_router_data.request.clone();
         let response = new_router_data.response.clone();
-        let router_data = get_default_router_data("access token", request, response);
+        let router_data = get_default_router_data(
+            new_router_data.tenant_id.clone(),
+            "access token",
+            request,
+            response,
+        );
         Ok(router_data)
     }
 }
@@ -153,6 +162,7 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for PaymentF
         };
         Ok(RouterDataV2 {
             flow: std::marker::PhantomData,
+            tenant_id: old_router_data.tenant_id.clone(),
             resource_common_data,
             connector_auth_type: old_router_data.connector_auth_type.clone(),
             request: old_router_data.request.clone(),
@@ -196,8 +206,12 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for PaymentF
             connector_response,
             payment_method_status,
         } = new_router_data.resource_common_data;
-        let mut router_data =
-            get_default_router_data("payment", new_router_data.request, new_router_data.response);
+        let mut router_data = get_default_router_data(
+            new_router_data.tenant_id.clone(),
+            "payment",
+            new_router_data.request,
+            new_router_data.response,
+        );
         router_data.merchant_id = merchant_id;
         router_data.customer_id = customer_id;
         router_data.connector_customer = connector_customer;
@@ -256,6 +270,7 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for RefundFl
         };
         Ok(RouterDataV2 {
             flow: std::marker::PhantomData,
+            tenant_id: old_router_data.tenant_id.clone(),
             resource_common_data,
             connector_auth_type: old_router_data.connector_auth_type.clone(),
             request: old_router_data.request.clone(),
@@ -282,8 +297,12 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for RefundFl
             connector_request_reference_id,
             refund_id,
         } = new_router_data.resource_common_data;
-        let mut router_data =
-            get_default_router_data("refund", new_router_data.request, new_router_data.response);
+        let mut router_data = get_default_router_data(
+            new_router_data.tenant_id.clone(),
+            "refund",
+            new_router_data.request,
+            new_router_data.response,
+        );
         router_data.merchant_id = merchant_id;
         router_data.customer_id = customer_id;
         router_data.payment_id = payment_id;
@@ -323,6 +342,7 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for Disputes
         };
         Ok(RouterDataV2 {
             flow: std::marker::PhantomData,
+            tenant_id: old_router_data.tenant_id.clone(),
             resource_common_data,
             connector_auth_type: old_router_data.connector_auth_type.clone(),
             request: old_router_data.request.clone(),
@@ -348,6 +368,7 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for Disputes
             dispute_id,
         } = new_router_data.resource_common_data;
         let mut router_data = get_default_router_data(
+            new_router_data.tenant_id.clone(),
             "Disputes",
             new_router_data.request,
             new_router_data.response,
@@ -386,6 +407,7 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for FrmFlowD
             minor_amount_captured: old_router_data.minor_amount_captured,
         };
         Ok(RouterDataV2 {
+            tenant_id: old_router_data.tenant_id.clone(),
             flow: std::marker::PhantomData,
             resource_common_data,
             connector_auth_type: old_router_data.connector_auth_type.clone(),
@@ -412,8 +434,12 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for FrmFlowD
             amount_captured,
             minor_amount_captured,
         } = new_router_data.resource_common_data;
-        let mut router_data =
-            get_default_router_data("frm", new_router_data.request, new_router_data.response);
+        let mut router_data = get_default_router_data(
+            new_router_data.tenant_id.clone(),
+            "frm",
+            new_router_data.request,
+            new_router_data.response,
+        );
 
         router_data.merchant_id = merchant_id;
         router_data.payment_id = payment_id;
@@ -446,6 +472,7 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for FilesFlo
         };
         Ok(RouterDataV2 {
             flow: std::marker::PhantomData,
+            tenant_id: old_router_data.tenant_id.clone(),
             resource_common_data,
             connector_auth_type: old_router_data.connector_auth_type.clone(),
             request: old_router_data.request.clone(),
@@ -466,8 +493,12 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for FilesFlo
             connector_meta_data,
             connector_request_reference_id,
         } = new_router_data.resource_common_data;
-        let mut router_data =
-            get_default_router_data("files", new_router_data.request, new_router_data.response);
+        let mut router_data = get_default_router_data(
+            new_router_data.tenant_id.clone(),
+            "files",
+            new_router_data.request,
+            new_router_data.response,
+        );
         router_data.merchant_id = merchant_id;
         router_data.payment_id = payment_id;
         router_data.attempt_id = attempt_id;
@@ -489,6 +520,7 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for WebhookS
             merchant_id: old_router_data.merchant_id.clone(),
         };
         Ok(RouterDataV2 {
+            tenant_id: old_router_data.tenant_id.clone(),
             flow: std::marker::PhantomData,
             resource_common_data,
             connector_auth_type: old_router_data.connector_auth_type.clone(),
@@ -505,6 +537,7 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for WebhookS
     {
         let Self { merchant_id } = new_router_data.resource_common_data;
         let mut router_data = get_default_router_data(
+            new_router_data.tenant_id.clone(),
             "webhook source verify",
             new_router_data.request,
             new_router_data.response,
@@ -532,6 +565,7 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for MandateR
         };
         Ok(RouterDataV2 {
             flow: std::marker::PhantomData,
+            tenant_id: old_router_data.tenant_id.clone(),
             resource_common_data,
             connector_auth_type: old_router_data.connector_auth_type.clone(),
             request: old_router_data.request.clone(),
@@ -551,6 +585,7 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for MandateR
             payment_id,
         } = new_router_data.resource_common_data;
         let mut router_data = get_default_router_data(
+            new_router_data.tenant_id.clone(),
             "mandate revoke",
             new_router_data.request,
             new_router_data.response,
@@ -559,7 +594,7 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for MandateR
         router_data.customer_id = Some(customer_id);
         router_data.payment_id = payment_id
             .unwrap_or_else(|| {
-                common_utils::id_type::PaymentId::get_irrelevant_id("mandate revoke")
+                id_type::PaymentId::get_irrelevant_id("mandate revoke")
                     .get_string_repr()
                     .to_owned()
             })
@@ -588,6 +623,7 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for PayoutFl
             quote_id: old_router_data.quote_id.clone(),
         };
         Ok(RouterDataV2 {
+            tenant_id: old_router_data.tenant_id.clone(),
             flow: std::marker::PhantomData,
             resource_common_data,
             connector_auth_type: old_router_data.connector_auth_type.clone(),
@@ -613,8 +649,12 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for PayoutFl
             payout_method_data,
             quote_id,
         } = new_router_data.resource_common_data;
-        let mut router_data =
-            get_default_router_data("payout", new_router_data.request, new_router_data.response);
+        let mut router_data = get_default_router_data(
+            new_router_data.tenant_id.clone(),
+            "payout",
+            new_router_data.request,
+            new_router_data.response,
+        );
         router_data.merchant_id = merchant_id;
         router_data.customer_id = customer_id;
         router_data.connector_customer = connector_customer;
@@ -642,6 +682,7 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp>
             address: old_router_data.address.clone(),
         };
         Ok(RouterDataV2 {
+            tenant_id: old_router_data.tenant_id.clone(),
             flow: std::marker::PhantomData,
             resource_common_data,
             connector_auth_type: old_router_data.connector_auth_type.clone(),
@@ -662,6 +703,7 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp>
             address,
         } = new_router_data.resource_common_data;
         let mut router_data = get_default_router_data(
+            new_router_data.tenant_id.clone(),
             "external authentication",
             new_router_data.request,
             new_router_data.response,
@@ -692,6 +734,7 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for UasFlowD
         };
         Ok(RouterDataV2 {
             flow: std::marker::PhantomData,
+            tenant_id: old_router_data.tenant_id.clone(),
             resource_common_data,
             connector_auth_type: old_router_data.connector_auth_type.clone(),
             request: old_router_data.request.clone(),
@@ -709,8 +752,12 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for UasFlowD
             authenticate_by,
             source_authentication_id,
         } = new_router_data.resource_common_data;
-        let mut router_data =
-            get_default_router_data("uas", new_router_data.request, new_router_data.response);
+        let mut router_data = get_default_router_data(
+            new_router_data.tenant_id.clone(),
+            "uas",
+            new_router_data.request,
+            new_router_data.response,
+        );
         router_data.connector = authenticate_by;
         router_data.authentication_id = Some(source_authentication_id);
         Ok(router_data)

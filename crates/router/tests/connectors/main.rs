@@ -22,6 +22,7 @@ mod bitpay;
 mod bluesnap;
 mod boku;
 mod cashtocode;
+mod chargebee;
 mod checkout;
 mod coinbase;
 mod cryptopay;

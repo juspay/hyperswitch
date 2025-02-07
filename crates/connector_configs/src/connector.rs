@@ -196,7 +196,7 @@ pub struct ConnectorConfig {
     pub gocardless: Option<ConnectorTomlConfig>,
     pub gpayments: Option<ConnectorTomlConfig>,
     pub helcim: Option<ConnectorTomlConfig>,
-    // pub inespay: Option<ConnectorTomlConfig>,
+    pub inespay: Option<ConnectorTomlConfig>,
     pub jpmorgan: Option<ConnectorTomlConfig>,
     pub klarna: Option<ConnectorTomlConfig>,
     pub mifinity: Option<ConnectorTomlConfig>,
@@ -358,7 +358,7 @@ impl ConnectorConfig {
             Connector::Gocardless => Ok(connector_data.gocardless),
             Connector::Gpayments => Ok(connector_data.gpayments),
             Connector::Helcim => Ok(connector_data.helcim),
-            // Connector::Inespay => Ok(connector_data.inespay),
+            Connector::Inespay => Ok(connector_data.inespay),
             Connector::Jpmorgan => Ok(connector_data.jpmorgan),
             Connector::Klarna => Ok(connector_data.klarna),
             Connector::Mifinity => Ok(connector_data.mifinity),
@@ -414,6 +414,7 @@ impl ConnectorConfig {
             Connector::DummyConnector7 => Ok(connector_data.paypal_test),
             Connector::Netcetera => Ok(connector_data.netcetera),
             Connector::CtpMastercard => Ok(connector_data.ctp_mastercard),
+            Connector::Xendit => Ok(connector_data.xendit),
         }
     }
 }

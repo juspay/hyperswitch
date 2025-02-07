@@ -59,7 +59,7 @@ use crate::{
     types::ResponseRouterData,
     utils::{
         self, PaymentsAuthorizeRequestData, PaymentsCompleteAuthorizeRequestData,
-        RefundsRequestData,
+        RefundsRequestData, RouterData as ConnectorRouterData,
     },
 };
 
@@ -131,7 +131,7 @@ impl ConnectorCommon for Deutschebank {
     }
 
     fn get_currency_unit(&self) -> api::CurrencyUnit {
-        api::CurrencyUnit::Base
+        api::CurrencyUnit::Minor
     }
 
     fn common_get_content_type(&self) -> &'static str {
@@ -159,9 +159,9 @@ impl ConnectorCommon for Deutschebank {
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: deutschebank::DeutschebankErrorResponse = res
+        let response: deutschebank::PaymentsErrorResponse = res
             .response
-            .parse_struct("DeutschebankErrorResponse")
+            .parse_struct("PaymentsErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         event_builder.map(|i| i.set_response_body(&response));
@@ -289,7 +289,33 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> 
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res, event_builder)
+        let response: deutschebank::DeutschebankError = res
+            .response
+            .parse_struct("DeutschebankError")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        match response {
+            deutschebank::DeutschebankError::PaymentsErrorResponse(response) => Ok(ErrorResponse {
+                status_code: res.status_code,
+                code: response.rc,
+                message: response.message.clone(),
+                reason: Some(response.message),
+                attempt_status: None,
+                connector_transaction_id: None,
+            }),
+            deutschebank::DeutschebankError::AccessTokenErrorResponse(response) => {
+                Ok(ErrorResponse {
+                    status_code: res.status_code,
+                    code: response.cause.clone(),
+                    message: response.cause.clone(),
+                    reason: Some(response.description),
+                    attempt_status: None,
+                    connector_transaction_id: None,
+                })
+            }
+        }
     }
 }
 
@@ -311,18 +337,30 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         req: &PaymentsAuthorizeRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        if req.request.connector_mandate_id().is_none() {
+        let event_id = req.connector_request_reference_id.clone();
+        let tx_action = if req.request.is_auto_capture()? {
+            "authorization"
+        } else {
+            "preauthorization"
+        };
+
+        if req.is_three_ds() && req.request.is_card() {
+            Ok(format!(
+                "{}/services/v2.1/headless3DSecure/event/{event_id}/{tx_action}/initialize",
+                self.base_url(connectors)
+            ))
+        } else if !req.is_three_ds() && req.request.is_card() {
+            Err(errors::ConnectorError::NotSupported {
+                message: "Non-ThreeDs".to_owned(),
+                connector: "deutschebank",
+            }
+            .into())
+        } else if req.request.connector_mandate_id().is_none() {
             Ok(format!(
                 "{}/services/v2.1/managedmandate",
                 self.base_url(connectors)
             ))
         } else {
-            let event_id = req.connector_request_reference_id.clone();
-            let tx_action = if req.request.is_auto_capture()? {
-                "authorization"
-            } else {
-                "preauthorization"
-            };
             Ok(format!(
                 "{}/services/v2.1/payment/event/{event_id}/directdebit/{tx_action}",
                 self.base_url(connectors)
@@ -375,7 +413,19 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        if data.request.connector_mandate_id().is_none() {
+        if data.is_three_ds() && data.request.is_card() {
+            let response: deutschebank::DeutschebankThreeDSInitializeResponse = res
+                .response
+                .parse_struct("DeutschebankPaymentsAuthorizeResponse")
+                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+            event_builder.map(|i| i.set_response_body(&response));
+            router_env::logger::info!(connector_response=?response);
+            RouterData::try_from(ResponseRouterData {
+                response,
+                data: data.clone(),
+                http_code: res.status_code,
+            })
+        } else if data.request.connector_mandate_id().is_none() {
             let response: deutschebank::DeutschebankMandatePostResponse = res
                 .response
                 .parse_struct("DeutschebankMandatePostResponse")
@@ -437,10 +487,18 @@ impl ConnectorIntegration<CompleteAuthorize, CompleteAuthorizeData, PaymentsResp
         } else {
             "preauthorization"
         };
-        Ok(format!(
-            "{}/services/v2.1/payment/event/{event_id}/directdebit/{tx_action}",
-            self.base_url(connectors)
-        ))
+
+        if req.is_three_ds() && matches!(req.payment_method, enums::PaymentMethod::Card) {
+            Ok(format!(
+                "{}/services/v2.1//headless3DSecure/event/{event_id}/final",
+                self.base_url(connectors)
+            ))
+        } else {
+            Ok(format!(
+                "{}/services/v2.1/payment/event/{event_id}/directdebit/{tx_action}",
+                self.base_url(connectors)
+            ))
+        }
     }
 
     fn get_request_body(
@@ -453,10 +511,9 @@ impl ConnectorIntegration<CompleteAuthorize, CompleteAuthorizeData, PaymentsResp
             req.request.minor_amount,
             req.request.currency,
         )?;
-
         let connector_router_data = deutschebank::DeutschebankRouterData::from((amount, req));
         let connector_req =
-            deutschebank::DeutschebankDirectDebitRequest::try_from(&connector_router_data)?;
+            deutschebank::DeutschebankCompleteAuthorizeRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -881,9 +938,6 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Deutscheb
                 .url(&types::RefundSyncType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::RefundSyncType::get_headers(self, req, connectors)?)
-                .set_body(types::RefundSyncType::get_request_body(
-                    self, req, connectors,
-                )?)
                 .build(),
         ))
     }
@@ -947,15 +1001,60 @@ lazy_static! {
             enums::CaptureMethod::Manual,
             enums::CaptureMethod::SequentialAutomatic,
         ];
+
+        let supported_card_network = vec![
+            common_enums::CardNetwork::Visa,
+            common_enums::CardNetwork::Mastercard,
+        ];
+
         let mut deutschebank_supported_payment_methods = SupportedPaymentMethods::new();
 
         deutschebank_supported_payment_methods.add(
             enums::PaymentMethod::BankDebit,
             enums::PaymentMethodType::Sepa,
             PaymentMethodDetails{
+                mandates: enums::FeatureStatus::Supported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: None,
+            }
+        );
+
+        deutschebank_supported_payment_methods.add(
+            enums::PaymentMethod::Card,
+            enums::PaymentMethodType::Credit,
+            PaymentMethodDetails{
                 mandates: enums::FeatureStatus::NotSupported,
-                refunds: enums::FeatureStatus::NotSupported,
-                supported_capture_methods,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: Some(
+                    api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
+                        api_models::feature_matrix::CardSpecificFeatures {
+                            three_ds: common_enums::FeatureStatus::Supported,
+                            no_three_ds: common_enums::FeatureStatus::NotSupported,
+                            supported_card_networks: supported_card_network.clone(),
+                        }
+                    }),
+                ),
+            }
+        );
+
+        deutschebank_supported_payment_methods.add(
+            enums::PaymentMethod::Card,
+            enums::PaymentMethodType::Debit,
+            PaymentMethodDetails{
+                mandates: enums::FeatureStatus::NotSupported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: Some(
+                    api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
+                        api_models::feature_matrix::CardSpecificFeatures {
+                            three_ds: common_enums::FeatureStatus::Supported,
+                            no_three_ds: common_enums::FeatureStatus::NotSupported,
+                            supported_card_networks: supported_card_network.clone(),
+                        }
+                    }),
+                ),
             }
         );
 
@@ -963,9 +1062,9 @@ lazy_static! {
     };
 
     static ref DEUTSCHEBANK_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+        display_name: "Deutsche Bank",
         description:
-            "Deutsche Bank is a German multinational investment bank and financial services company "
-                .to_string(),
+            "Deutsche Bank is a German multinational investment bank and financial services company ",
         connector_type: enums::PaymentConnectorCategory::BankAcquirer,
     };
 

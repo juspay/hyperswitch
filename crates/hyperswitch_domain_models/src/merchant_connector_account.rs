@@ -1,5 +1,3 @@
-#[cfg(feature = "v2")]
-use api_models::admin;
 use common_utils::{
     crypto::Encryptable,
     date_time,
@@ -12,15 +10,12 @@ use common_utils::{
 use diesel_models::{enums, merchant_connector_account::MerchantConnectorAccountUpdateInternal};
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
-#[cfg(feature = "v2")]
-use router_env::logger;
 use rustc_hash::FxHashMap;
 use serde_json::Value;
 
 use super::behaviour;
-#[cfg(feature = "v2")]
-use crate::errors::api_error_response::ApiErrorResponse;
 use crate::{
+    mandates::CommonMandateReference,
     router_data,
     type_encryption::{crypto_operation, CryptoOperation},
 };
@@ -62,7 +57,6 @@ impl MerchantConnectorAccount {
     pub fn get_id(&self) -> id_type::MerchantConnectorAccountId {
         self.merchant_connector_id.clone()
     }
-
     pub fn get_connector_account_details(
         &self,
     ) -> error_stack::Result<router_data::ConnectorAuthType, common_utils::errors::ParsingError>
@@ -72,6 +66,11 @@ impl MerchantConnectorAccount {
             .clone()
             .parse_value("ConnectorAuthType")
     }
+
+    pub fn get_connector_wallets_details(&self) -> Option<Secret<Value>> {
+        self.connector_wallets_details.as_deref().cloned()
+    }
+
     pub fn get_connector_test_mode(&self) -> Option<bool> {
         self.test_mode
     }
@@ -82,7 +81,7 @@ impl MerchantConnectorAccount {
 pub struct MerchantConnectorAccount {
     pub id: id_type::MerchantConnectorAccountId,
     pub merchant_id: id_type::MerchantId,
-    pub connector_name: String,
+    pub connector_name: common_enums::connector_enums::Connector,
     #[encrypt]
     pub connector_account_details: Encryptable<Secret<Value>>,
     pub disabled: Option<bool>,
@@ -130,6 +129,11 @@ impl MerchantConnectorAccount {
             .clone()
             .parse_value("ConnectorAuthType")
     }
+
+    pub fn get_connector_wallets_details(&self) -> Option<Secret<Value>> {
+        self.connector_wallets_details.as_deref().cloned()
+    }
+
     pub fn get_connector_test_mode(&self) -> Option<bool> {
         todo!()
     }
@@ -142,7 +146,7 @@ impl MerchantConnectorAccount {
 pub struct PaymentMethodsEnabledForConnector {
     pub payment_methods_enabled: common_types::payment_methods::RequestPaymentMethodTypes,
     pub payment_method: common_enums::PaymentMethod,
-    pub connector: String,
+    pub connector: common_enums::connector_enums::Connector,
 }
 
 #[cfg(feature = "v2")]
@@ -172,11 +176,8 @@ impl FlattenedPaymentMethodsEnabled {
                             payment_method.payment_method_subtypes.unwrap_or_default();
                         let length = request_payment_methods_enabled.len();
                         request_payment_methods_enabled.into_iter().zip(
-                            std::iter::repeat((
-                                connector_name.clone(),
-                                payment_method.payment_method_type,
-                            ))
-                            .take(length),
+                            std::iter::repeat((connector_name, payment_method.payment_method_type))
+                                .take(length),
                         )
                     })
             })
@@ -184,7 +185,7 @@ impl FlattenedPaymentMethodsEnabled {
                 |(request_payment_methods, (connector_name, payment_method))| {
                     PaymentMethodsEnabledForConnector {
                         payment_methods_enabled: request_payment_methods,
-                        connector: connector_name.clone(),
+                        connector: connector_name,
                         payment_method,
                     }
                 },
@@ -659,7 +660,7 @@ common_utils::create_list_wrapper!(
         pub fn is_merchant_connector_account_id_in_connector_mandate_details(
             &self,
             profile_id: Option<&id_type::ProfileId>,
-            connector_mandate_details: &diesel_models::PaymentsMandateReference,
+            connector_mandate_details: &CommonMandateReference,
         ) -> bool {
             let mca_ids = self
                 .iter()
@@ -671,8 +672,11 @@ common_utils::create_list_wrapper!(
                 .collect::<std::collections::HashSet<_>>();
 
             connector_mandate_details
-                .keys()
-                .any(|mca_id| mca_ids.contains(mca_id))
+            .payments
+            .as_ref()
+            .as_ref().is_some_and(|payments| {
+                payments.0.keys().any(|mca_id| mca_ids.contains(mca_id))
+            })
         }
     }
 );

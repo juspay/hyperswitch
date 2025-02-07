@@ -149,6 +149,7 @@ impl PaymentsResponseData {
             .into()),
         }
     }
+
     pub fn merge_transaction_responses(
         auth_response: &Self,
         capture_response: &Self,
@@ -206,6 +207,31 @@ impl PaymentsResponseData {
             .into()),
         }
     }
+
+    #[cfg(feature = "v2")]
+    pub fn get_updated_connector_token_details(
+        &self,
+        original_connector_mandate_request_reference_id: Option<String>,
+    ) -> Option<diesel_models::ConnectorTokenDetails> {
+        if let Self::TransactionResponse {
+            mandate_reference, ..
+        } = self
+        {
+            mandate_reference.clone().map(|mandate_ref| {
+                let connector_mandate_id = mandate_ref.connector_mandate_id;
+                let connector_mandate_request_reference_id = mandate_ref
+                    .connector_mandate_request_reference_id
+                    .or(original_connector_mandate_request_reference_id);
+
+                diesel_models::ConnectorTokenDetails {
+                    connector_mandate_id,
+                    connector_mandate_request_reference_id,
+                }
+            })
+        } else {
+            None
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -235,6 +261,10 @@ pub enum RedirectForm {
     CybersourceConsumerAuth {
         access_token: String,
         step_up_url: String,
+    },
+    DeutschebankThreeDSChallengeFlow {
+        acs_url: String,
+        creq: String,
     },
     Payme,
     Braintree {
@@ -313,6 +343,9 @@ impl From<RedirectForm> for diesel_models::payment_attempt::RedirectForm {
                 access_token,
                 step_up_url,
             },
+            RedirectForm::DeutschebankThreeDSChallengeFlow { acs_url, creq } => {
+                Self::DeutschebankThreeDSChallengeFlow { acs_url, creq }
+            }
             RedirectForm::Payme => Self::Payme,
             RedirectForm::Braintree {
                 client_token,
@@ -392,6 +425,9 @@ impl From<diesel_models::payment_attempt::RedirectForm> for RedirectForm {
                 access_token,
                 step_up_url,
             },
+            diesel_models::RedirectForm::DeutschebankThreeDSChallengeFlow { acs_url, creq } => {
+                Self::DeutschebankThreeDSChallengeFlow { acs_url, creq }
+            }
             diesel_models::payment_attempt::RedirectForm::Payme => Self::Payme,
             diesel_models::payment_attempt::RedirectForm::Braintree {
                 client_token,
@@ -521,6 +557,8 @@ pub struct PaymentMethodDetails {
     pub refunds: common_enums::FeatureStatus,
     /// List of supported capture methods
     pub supported_capture_methods: Vec<common_enums::CaptureMethod>,
+    /// Payment method specific features
+    pub specific_features: Option<api_models::feature_matrix::PaymentMethodSpecificFeatures>,
 }
 
 /// list of payment method types and metadata related to them
@@ -531,9 +569,10 @@ pub type SupportedPaymentMethods = HashMap<common_enums::PaymentMethod, PaymentM
 
 #[derive(Debug, Clone)]
 pub struct ConnectorInfo {
+    /// Display name of the Connector
+    pub display_name: &'static str,
     /// Description of the connector.
-    pub description: String,
-
+    pub description: &'static str,
     /// Connector Type
     pub connector_type: common_enums::PaymentConnectorCategory,
 }

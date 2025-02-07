@@ -85,8 +85,8 @@ Never share your secret api keys. Keep them guarded and secure.
         routes::payments::payments_post_session_tokens,
 
         // Routes for relay
-        routes::relay,
-        routes::relay_retrieve,
+        routes::relay::relay,
+        routes::relay::relay_retrieve,
 
         // Routes for refunds
         routes::refunds::refunds_create,
@@ -166,6 +166,8 @@ Never share your secret api keys. Keep them guarded and secure.
         routes::routing::success_based_routing_update_configs,
         routes::routing::toggle_success_based_routing,
         routes::routing::toggle_elimination_routing,
+        routes::routing::contract_based_routing_setup_config,
+        routes::routing::contract_based_routing_update_configs,
 
         // Routes for blocklist
         routes::blocklist::remove_entry_from_blocklist,
@@ -479,6 +481,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::AchTransfer,
         api_models::payments::MultibancoTransferInstructions,
         api_models::payments::DokuBankTransferInstructions,
+        api_models::payments::AmazonPayRedirectData,
         api_models::payments::ApplePayRedirectData,
         api_models::payments::ApplePayThirdPartySdkData,
         api_models::payments::GooglePayRedirectData,
@@ -614,6 +617,10 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::routing::DynamicRoutingConfigParams,
         api_models::routing::CurrentBlockThreshold,
         api_models::routing::SuccessBasedRoutingConfigBody,
+        api_models::routing::ContractBasedRoutingConfig,
+        api_models::routing::ContractBasedRoutingConfigBody,
+        api_models::routing::LabelInformation,
+        api_models::routing::ContractBasedTimeScale,
         api_models::routing::LinkedRoutingConfigRetrieveResponse,
         api_models::routing::RoutingRetrieveResponse,
         api_models::routing::ProfileDefaultRoutingConfig,
@@ -624,6 +631,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::routing::StraightThroughAlgorithm,
         api_models::routing::ConnectorVolumeSplit,
         api_models::routing::ConnectorSelection,
+        api_models::routing::SuccessRateSpecificityLevel,
         api_models::routing::ToggleDynamicRoutingQuery,
         api_models::routing::ToggleDynamicRoutingPath,
         api_models::routing::ast::RoutableChoiceKind,
@@ -652,6 +660,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::enums::PaymentChargeType,
         api_models::enums::StripeChargeType,
         api_models::payments::CustomerDetailsResponse,
+        api_models::payments::SdkType,
         api_models::payments::OpenBankingData,
         api_models::payments::OpenBankingSessionToken,
         api_models::payments::BankDebitResponse,
@@ -694,6 +703,8 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::feature_matrix::FeatureMatrixListResponse,
         api_models::feature_matrix::FeatureMatrixRequest,
         api_models::feature_matrix::ConnectorFeatureMatrixResponse,
+        api_models::feature_matrix::PaymentMethodSpecificFeatures,
+        api_models::feature_matrix::CardSpecificFeatures,
         api_models::feature_matrix::SupportedPaymentMethod,
     )),
     modifiers(&SecurityAddon)

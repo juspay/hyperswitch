@@ -181,6 +181,15 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         )
         .await?;
 
+        helpers::validate_allowed_payment_method_types_request(
+            state,
+            &profile_id,
+            merchant_account,
+            merchant_key_store,
+            request.allowed_payment_method_types.clone(),
+        )
+        .await?;
+
         let customer_details = helpers::get_customer_details_from_request(request);
 
         let shipping_address = helpers::create_or_find_address_for_payment_by_request(
@@ -551,7 +560,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                     None, // update_history
                     None, // mandate_metadata
                     Some(common_utils::generate_id_with_len(
-                        consts::CONNECTOR_MANDATE_REQUEST_REFERENCE_ID_LENGTH.to_owned(),
+                        consts::CONNECTOR_MANDATE_REQUEST_REFERENCE_ID_LENGTH,
                     )), // connector_mandate_request_reference_id
                 ),
             ));
@@ -1169,6 +1178,14 @@ impl PaymentCreate {
                                 Some(api_models::payments::AdditionalPaymentData::Wallet {
                                     apple_pay: None,
                                     google_pay: Some(wallet.into()),
+                                    samsung_pay: None,
+                                })
+                            }
+                            Some(enums::PaymentMethodType::SamsungPay) => {
+                                Some(api_models::payments::AdditionalPaymentData::Wallet {
+                                    apple_pay: None,
+                                    google_pay: None,
+                                    samsung_pay: Some(wallet.into()),
                                 })
                             }
                             _ => None,
@@ -1193,7 +1210,7 @@ impl PaymentCreate {
             payment_id.get_attempt_id(1)
         };
 
-        if request.mandate_data.as_ref().map_or(false, |mandate_data| {
+        if request.mandate_data.as_ref().is_some_and(|mandate_data| {
             mandate_data.update_mandate_id.is_some() && mandate_data.mandate_type.is_some()
         }) {
             Err(errors::ApiErrorResponse::InvalidRequestData {message:"Only one field out of 'mandate_type' and 'update_mandate_id' was expected, found both".to_string()})?
@@ -1289,6 +1306,7 @@ impl PaymentCreate {
                 organization_id: organization_id.clone(),
                 profile_id,
                 connector_mandate_detail: None,
+                card_discovery: None,
             },
             additional_pm_data,
 

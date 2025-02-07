@@ -314,6 +314,7 @@ impl TryFrom<&NoonRouterData<&types::PaymentsAuthorizeRouterData>> for NoonPayme
                         domain::WalletData::AliPayQr(_)
                         | domain::WalletData::AliPayRedirect(_)
                         | domain::WalletData::AliPayHkRedirect(_)
+                        | domain::WalletData::AmazonPayRedirect(_)
                         | domain::WalletData::MomoRedirect(_)
                         | domain::WalletData::KakaoPayRedirect(_)
                         | domain::WalletData::GoPayRedirect(_)
@@ -879,7 +880,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundSyncResponse>>
                 transaction
                     .transaction_reference
                     .clone()
-                    .map_or(false, |transaction_instance| {
+                    .is_some_and(|transaction_instance| {
                         transaction_instance == item.data.request.refund_id
                     })
             })

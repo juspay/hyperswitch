@@ -103,7 +103,10 @@ mod storage {
                 .get_redis_conn()
                 .map_err(Into::<errors::StorageError>::into)?
                 .serialize_and_set_multiple_hash_field_if_not_exist(
-                    &[(&secret_key, &created_ek), (&id_key, &created_ek)],
+                    &[
+                        (&secret_key.as_str().into(), &created_ek),
+                        (&id_key.as_str().into(), &created_ek),
+                    ],
                     "ephkey",
                     None,
                 )
@@ -120,12 +123,12 @@ mod storage {
                     let expire_at = expires.assume_utc().unix_timestamp();
                     self.get_redis_conn()
                         .map_err(Into::<errors::StorageError>::into)?
-                        .set_expire_at(&secret_key, expire_at)
+                        .set_expire_at(&secret_key.into(), expire_at)
                         .await
                         .change_context(errors::StorageError::KVError)?;
                     self.get_redis_conn()
                         .map_err(Into::<errors::StorageError>::into)?
-                        .set_expire_at(&id_key, expire_at)
+                        .set_expire_at(&id_key.into(), expire_at)
                         .await
                         .change_context(errors::StorageError::KVError)?;
                     Ok(created_ek)
@@ -161,8 +164,8 @@ mod storage {
                 .map_err(Into::<errors::StorageError>::into)?
                 .serialize_and_set_multiple_hash_field_if_not_exist(
                     &[
-                        (&secret_key, &created_ephemeral_key),
-                        (&id_key, &created_ephemeral_key),
+                        (&secret_key.as_str().into(), &created_ephemeral_key),
+                        (&id_key.as_str().into(), &created_ephemeral_key),
                     ],
                     "ephkey",
                     None,
@@ -180,12 +183,12 @@ mod storage {
                     let expire_at = expires.assume_utc().unix_timestamp();
                     self.get_redis_conn()
                         .map_err(Into::<errors::StorageError>::into)?
-                        .set_expire_at(&secret_key, expire_at)
+                        .set_expire_at(&secret_key.into(), expire_at)
                         .await
                         .change_context(errors::StorageError::KVError)?;
                     self.get_redis_conn()
                         .map_err(Into::<errors::StorageError>::into)?
-                        .set_expire_at(&id_key, expire_at)
+                        .set_expire_at(&id_key.into(), expire_at)
                         .await
                         .change_context(errors::StorageError::KVError)?;
                     Ok(created_ephemeral_key)
@@ -203,7 +206,7 @@ mod storage {
             let key = format!("epkey_{key}");
             self.get_redis_conn()
                 .map_err(Into::<errors::StorageError>::into)?
-                .get_hash_field_and_deserialize(&key, "ephkey", "EphemeralKey")
+                .get_hash_field_and_deserialize(&key.into(), "ephkey", "EphemeralKey")
                 .await
                 .change_context(errors::StorageError::KVError)
         }
@@ -217,7 +220,7 @@ mod storage {
             let key = format!("epkey_{key}");
             self.get_redis_conn()
                 .map_err(Into::<errors::StorageError>::into)?
-                .get_hash_field_and_deserialize(&key, "ephkey", "EphemeralKeyType")
+                .get_hash_field_and_deserialize(&key.into(), "ephkey", "EphemeralKeyType")
                 .await
                 .change_context(errors::StorageError::KVError)
         }
@@ -231,13 +234,13 @@ mod storage {
 
             self.get_redis_conn()
                 .map_err(Into::<errors::StorageError>::into)?
-                .delete_key(&format!("epkey_{}", &ek.id))
+                .delete_key(&format!("epkey_{}", &ek.id).into())
                 .await
                 .change_context(errors::StorageError::KVError)?;
 
             self.get_redis_conn()
                 .map_err(Into::<errors::StorageError>::into)?
-                .delete_key(&format!("epkey_{}", &ek.secret))
+                .delete_key(&format!("epkey_{}", &ek.secret).into())
                 .await
                 .change_context(errors::StorageError::KVError)?;
             Ok(ek)
@@ -254,7 +257,7 @@ mod storage {
 
             self.get_redis_conn()
                 .map_err(Into::<errors::StorageError>::into)?
-                .delete_key(&redis_id_key)
+                .delete_key(&redis_id_key.as_str().into())
                 .await
                 .map_err(|err| match err.current_context() {
                     RedisError::NotFound => {
@@ -265,7 +268,7 @@ mod storage {
 
             self.get_redis_conn()
                 .map_err(Into::<errors::StorageError>::into)?
-                .delete_key(&secret_key)
+                .delete_key(&secret_key.as_str().into())
                 .await
                 .map_err(|err| match err.current_context() {
                     RedisError::NotFound => {

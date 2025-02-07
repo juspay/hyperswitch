@@ -577,6 +577,7 @@ impl
                         | common_enums::PaymentMethodType::AliPay
                         | common_enums::PaymentMethodType::AliPayHk
                         | common_enums::PaymentMethodType::Alma
+                        | common_enums::PaymentMethodType::AmazonPay
                         | common_enums::PaymentMethodType::ApplePay
                         | common_enums::PaymentMethodType::Atome
                         | common_enums::PaymentMethodType::Bacs
@@ -671,7 +672,7 @@ impl
                     })),
                 }
             }
-            domain::PaymentMethodData::PayLater(domain::PayLaterData::KlarnaCheckout {}) => {
+            domain::PaymentMethodData::PayLater(domain::PayLaterData::KlarnaRedirect {}) => {
                 match (payment_experience, payment_method_type) {
                     (
                         common_enums::PaymentExperience::RedirectToUrl,
@@ -693,6 +694,7 @@ impl
                         | common_enums::PaymentMethodType::AliPay
                         | common_enums::PaymentMethodType::AliPayHk
                         | common_enums::PaymentMethodType::Alma
+                        | common_enums::PaymentMethodType::AmazonPay
                         | common_enums::PaymentMethodType::ApplePay
                         | common_enums::PaymentMethodType::Atome
                         | common_enums::PaymentMethodType::Bacs

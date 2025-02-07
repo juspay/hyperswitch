@@ -215,7 +215,8 @@ impl ConnectorValidation for Adyen {
                         )
                     }
                 },
-                PaymentMethodType::CardRedirect
+                PaymentMethodType::AmazonPay
+                | PaymentMethodType::CardRedirect
                 | PaymentMethodType::DirectCarrierBilling
                 | PaymentMethodType::Fps
                 | PaymentMethodType::DuitNow
@@ -1001,7 +1002,7 @@ impl
                     reason: Some(consts::LOW_BALANCE_ERROR_MESSAGE.to_string()),
                     status_code: res.status_code,
                     attempt_status: Some(enums::AttemptStatus::Failure),
-                    connector_transaction_id: None,
+                    connector_transaction_id: Some(response.psp_reference),
                 }),
                 ..data.clone()
             })
