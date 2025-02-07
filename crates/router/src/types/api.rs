@@ -368,6 +368,7 @@ impl ConnectorData {
                 enums::Connector::Coinbase => {
                     Ok(ConnectorEnum::Old(Box::new(&connector::Coinbase)))
                 }
+                // enums::Connector::Coingate => Ok(ConnectorEnum::Old(Box::new(connector::Coingate))),
                 enums::Connector::Cryptopay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Cryptopay::new())))
                 }
@@ -442,9 +443,9 @@ impl ConnectorData {
                 enums::Connector::Iatapay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Iatapay::new())))
                 }
-                // enums::Connector::Inespay => {
-                //     Ok(ConnectorEnum::Old(Box::new(connector::Inespay::new())))
-                // }
+                enums::Connector::Inespay => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Inespay::new())))
+                }
                 enums::Connector::Itaubank => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Itaubank::new())))
                 }

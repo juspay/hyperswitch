@@ -1557,6 +1557,7 @@ pub enum PaymentMethodType {
     AliPay,
     AliPayHk,
     Alma,
+    AmazonPay,
     ApplePay,
     Atome,
     Bacs,
@@ -2840,8 +2841,19 @@ pub enum TransactionType {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum RoleScope {
-    Merchant,
     Organization,
+    Merchant,
+    Profile,
+}
+
+impl From<RoleScope> for EntityType {
+    fn from(role_scope: RoleScope) -> Self {
+        match role_scope {
+            RoleScope::Organization => Self::Organization,
+            RoleScope::Merchant => Self::Merchant,
+            RoleScope::Profile => Self::Profile,
+        }
+    }
 }
 
 /// Indicates the transaction status
@@ -2924,8 +2936,6 @@ pub enum PermissionGroup {
     ReconReportsManage,
     ReconOpsView,
     ReconOpsManage,
-    // TODO: To be deprecated, make sure DB is migrated before removing
-    ReconOps,
 }
 
 #[derive(Clone, Debug, serde::Serialize, PartialEq, Eq, Hash, strum::EnumIter)]
@@ -3296,6 +3306,7 @@ pub enum ApiVersion {
     serde::Serialize,
     strum::Display,
     strum::EnumString,
+    strum::EnumIter,
     ToSchema,
     Hash,
 )]
@@ -3674,4 +3685,14 @@ pub enum PaymentConnectorCategory {
 pub enum FeatureStatus {
     NotSupported,
     Supported,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum GooglePayAuthMethod {
+    /// Contain pan data only
+    PanOnly,
+    /// Contain cryptogram data along with pan data
+    #[serde(rename = "CRYPTOGRAM_3DS")]
+    Cryptogram,
 }

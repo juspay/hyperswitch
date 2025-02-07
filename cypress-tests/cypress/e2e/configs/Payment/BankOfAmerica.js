@@ -1,3 +1,5 @@
+import { getCustomExchange } from "./Modifiers";
+
 const successfulNo3DSCardDetails = {
   card_number: "4242424242424242",
   card_exp_month: "01",
@@ -112,7 +114,7 @@ export const connectorDetails = {
         },
       },
     },
-    "3DSManualCapture": {
+    "3DSManualCapture": getCustomExchange({
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -122,14 +124,8 @@ export const connectorDetails = {
         customer_acceptance: null,
         setup_future_usage: "on_session",
       },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_capture",
-        },
-      },
-    },
-    "3DSAutoCapture": {
+    }),
+    "3DSAutoCapture": getCustomExchange({
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -139,13 +135,7 @@ export const connectorDetails = {
         customer_acceptance: null,
         setup_future_usage: "on_session",
       },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_customer_action",
-        },
-      },
-    },
+    }),
     No3DSManualCapture: {
       Request: {
         payment_method: "card",
@@ -270,7 +260,7 @@ export const connectorDetails = {
         },
       },
     },
-    MandateSingleUse3DSAutoCapture: {
+    MandateSingleUse3DSAutoCapture: getCustomExchange({
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -279,14 +269,8 @@ export const connectorDetails = {
         currency: "USD",
         mandate_data: singleUseMandateData,
       },
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
-      },
-    },
-    MandateSingleUse3DSManualCapture: {
+    }),
+    MandateSingleUse3DSManualCapture: getCustomExchange({
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -295,13 +279,7 @@ export const connectorDetails = {
         currency: "USD",
         mandate_data: singleUseMandateData,
       },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_customer_action",
-        },
-      },
-    },
+    }),
     MandateSingleUseNo3DSAutoCapture: {
       Request: {
         payment_method: "card",
@@ -366,7 +344,7 @@ export const connectorDetails = {
         },
       },
     },
-    MandateMultiUse3DSAutoCapture: {
+    MandateMultiUse3DSAutoCapture: getCustomExchange({
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -375,14 +353,8 @@ export const connectorDetails = {
         currency: "USD",
         mandate_data: multiUseMandateData,
       },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_capture",
-        },
-      },
-    },
-    MandateMultiUse3DSManualCapture: {
+    }),
+    MandateMultiUse3DSManualCapture: getCustomExchange({
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -391,13 +363,7 @@ export const connectorDetails = {
         currency: "USD",
         mandate_data: multiUseMandateData,
       },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_capture",
-        },
-      },
-    },
+    }),
     MITAutoCapture: {
       Request: {},
       Response: {
@@ -628,7 +594,7 @@ export const connectorDetails = {
         },
       },
     },
-    PaymentMethodIdMandate3DSAutoCapture: {
+    PaymentMethodIdMandate3DSAutoCapture: getCustomExchange({
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -646,14 +612,8 @@ export const connectorDetails = {
           },
         },
       },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_customer_action",
-        },
-      },
-    },
-    PaymentMethodIdMandate3DSManualCapture: {
+    }),
+    PaymentMethodIdMandate3DSManualCapture: getCustomExchange({
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -670,13 +630,7 @@ export const connectorDetails = {
           },
         },
       },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_customer_action",
-        },
-      },
-    },
+    }),
   },
   pm_list: {
     PmListResponse: {

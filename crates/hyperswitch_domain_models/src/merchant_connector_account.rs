@@ -15,6 +15,7 @@ use serde_json::Value;
 
 use super::behaviour;
 use crate::{
+    mandates::CommonMandateReference,
     router_data,
     type_encryption::{crypto_operation, CryptoOperation},
 };
@@ -659,7 +660,7 @@ common_utils::create_list_wrapper!(
         pub fn is_merchant_connector_account_id_in_connector_mandate_details(
             &self,
             profile_id: Option<&id_type::ProfileId>,
-            connector_mandate_details: &diesel_models::PaymentsMandateReference,
+            connector_mandate_details: &CommonMandateReference,
         ) -> bool {
             let mca_ids = self
                 .iter()
@@ -671,8 +672,11 @@ common_utils::create_list_wrapper!(
                 .collect::<std::collections::HashSet<_>>();
 
             connector_mandate_details
-                .keys()
-                .any(|mca_id| mca_ids.contains(mca_id))
+            .payments
+            .as_ref()
+            .as_ref().is_some_and(|payments| {
+                payments.0.keys().any(|mca_id| mca_ids.contains(mca_id))
+            })
         }
     }
 );
