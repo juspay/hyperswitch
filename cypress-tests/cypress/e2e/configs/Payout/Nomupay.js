@@ -192,6 +192,7 @@ export const connectorDetails = {
           payout_token: "token",
           payout_type: "bank",
           billing: get_billing(4),
+          recurring: true,
         },
         Response: {
           status: 200,
