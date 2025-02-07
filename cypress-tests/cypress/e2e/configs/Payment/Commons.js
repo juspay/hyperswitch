@@ -1346,7 +1346,7 @@ export const connectorDetails = {
         },
       },
     }),
-    
+
     RefundGreaterAmount: {
       Request: {
         amount: 6000000,
