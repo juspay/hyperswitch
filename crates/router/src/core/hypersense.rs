@@ -80,7 +80,7 @@ pub async fn verify_hypersense_token(
         })?;
 
     let email = user_in_db.email.clone();
-    let name = user_in_db.name.into();
+    let name = user_in_db.name;
 
     Ok(service_api::ApplicationResponse::Json(
         hypersense_api::HypersenseVerifyTokenResponse {
