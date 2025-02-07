@@ -15,7 +15,20 @@ use cards::CardNumber;
 use cards::{CardNumber, NetworkToken};
 
 
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CardData {
+    pub card_number: CardNumber,
+    pub exp_month: Secret<String>,
+    pub exp_year: Secret<String>,
+    pub card_security_code: Secret<String>,
+}
 
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CardData {
@@ -99,10 +112,21 @@ pub struct GenerateNetworkTokenResponsePayload {
     pub token_status: String,
 }
 
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
 #[derive(Debug, Serialize)]
 pub struct GetCardToken {
     pub card_reference: String,
     pub customer_id: id_type::CustomerId,
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[derive(Debug, Serialize)]
+pub struct GetCardToken {
+    pub card_reference: String,
+    pub customer_id: id_type::GlobalCustomerId,
 }
 #[derive(Debug, Deserialize)]
 pub struct AuthenticationDetails {
@@ -123,10 +147,21 @@ pub struct TokenResponse {
     pub token_details: TokenDetails,
 }
 
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
 #[derive(Debug, Serialize, Deserialize)]
 pub struct DeleteCardToken {
     pub card_reference: String, //network token requestor ref id
     pub customer_id: id_type::CustomerId,
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[derive(Debug, Serialize, Deserialize)]
+pub struct DeleteCardToken {
+    pub card_reference: String, //network token requestor ref id
+    pub customer_id: id_type::GlobalCustomerId,
 }
 
 #[derive(Debug, Deserialize, Eq, PartialEq)]
@@ -152,10 +187,21 @@ pub struct DeleteNetworkTokenResponse {
     pub status: DeleteNetworkTokenStatus,
 }
 
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CheckTokenStatus {
     pub card_reference: String,
     pub customer_id: id_type::CustomerId,
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CheckTokenStatus {
+    pub card_reference: String,
+    pub customer_id: id_type::GlobalCustomerId,
 }
 
 #[derive(Debug, Deserialize)]

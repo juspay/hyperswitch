@@ -637,25 +637,6 @@ pub struct NetworkTokenDetails {
     pub nick_name: Option<Secret<String>>,
 }
 
-// #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-// impl From<NetworkTokenData> for CardDetailsPaymentMethod {
-//     fn from(item: NetworkTokenData) -> Self {
-//         Self {
-//             issuer_country: item.card_issuing_country.map(|c| c.to_string()),
-//             last4_digits: Some(item.card_number.get_last4()),
-//             expiry_month: Some(item.card_exp_month),
-//             expiry_year: Some(item.card_exp_year),
-//             card_holder_name: item.card_holder_name,
-//             nick_name: item.nick_name,
-//             card_isin: None,
-//             card_issuer: item.card_issuer,
-//             card_network: item.card_network,
-//             card_type: item.card_type.map(|card| card.to_string()),
-//             saved_to_locker: true,
-//         }
-//     }
-// }
-
 #[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum MobilePaymentData {
@@ -1781,9 +1762,9 @@ impl From<GooglePayWalletData> for payment_methods::PaymentMethodDataWalletInfo 
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub enum PaymentMethodsData {
-    Card(payment_methods::CardDetailsPaymentMethod),
-    BankDetails(payment_methods::PaymentMethodDataBankCreds),
-    WalletDetails(payment_methods::PaymentMethodDataWalletInfo),
+    Card(CardDetailsPaymentMethod),
+    BankDetails(payment_methods::PaymentMethodDataBankCreds),  //PaymentMethodDataBankCreds and its transformations should be moved to the domain models 
+    WalletDetails(payment_methods::PaymentMethodDataWalletInfo), //PaymentMethodDataWalletInfo and its transformations should be moved to the domain models 
     NetworkToken(NetworkTokenDetailsPaymentMethod),
 }
 

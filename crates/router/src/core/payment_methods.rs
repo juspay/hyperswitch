@@ -910,7 +910,7 @@ pub async fn create_payment_method(
     )
     .await;
 
-    let network_tokenization_resp =network_tokenize_and_vault_the_pmd(
+    let network_tokenization_resp = network_tokenize_and_vault_the_pmd(
         state,
         &payment_method_data,
         merchant_account,
@@ -919,7 +919,15 @@ pub async fn create_payment_method(
         profile.is_network_tokenization_enabled,
         &customer_id,
     )
-    .await.ok();
+    .await
+    .map_err(|e| {
+        services::logger::error!(
+            "Failed to network tokenize the payment method for customer {}. Error: {} ",
+            e,
+            customer_id.get_string_repr()
+        );
+    })
+    .ok();
 
     let response = match vaulting_result {
         Ok((vaulting_resp, fingerprint_id)) => {
@@ -984,7 +992,6 @@ pub struct NetworkTokenPaymentMethodDetails {
     network_token_requestor_reference_id: String,
     network_token_locker_id: String,
     network_token_pmd: Encryptable<Secret<serde_json::Value>>,
-    //add finger print id for network token entry
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
@@ -997,13 +1004,13 @@ pub async fn network_tokenize_and_vault_the_pmd(
     network_tokenization_enabled_for_profile: bool,
     customer_id: &id_type::GlobalCustomerId,
 ) -> RouterResult<NetworkTokenPaymentMethodDetails> {
-    let cond1 = match network_tokenization {
+    let is_network_tokenization_enabled_for_pm = match network_tokenization {
         Some(network_tokenization) => network_tokenization.enabled,
         None => false,
     };
-    //check for card network as well
+
     match (
-        cond1,
+        is_network_tokenization_enabled_for_pm,
         payment_method_data,
         network_tokenization_enabled_for_profile,
     ) {
@@ -1018,30 +1025,39 @@ pub async fn network_tokenize_and_vault_the_pmd(
                 Ok((resp, network_token_req_ref_id)) => {
                     let network_token_vaulting_data =
                         pm_types::PaymentMethodVaultingData::NetworkToken(resp);
-                    let vaulting_result = vault_payment_method(
+                    let vaulting_result = vault::add_payment_method_to_vault(
                         state,
-                        &network_token_vaulting_data,
                         merchant_account,
-                        key_store,
+                        &network_token_vaulting_data,
                         None,
                     )
                     .await;
                     match vaulting_result {
-                        Ok((vaulting_resp, fingerprint_id)) => {
+                        Ok(vaulting_resp) => {
                             let key_manager_state = &(state).into();
                             let network_token = match network_token_vaulting_data {
                                 pm_types::PaymentMethodVaultingData::Card(card) => {
-                                    payment_method_data::PaymentMethodsData::Card(card.clone().into())
+                                    payment_method_data::PaymentMethodsData::Card(
+                                        payment_method_data::CardDetailsPaymentMethod::from(card.clone())
+                                    )
                                 }
-                                pm_types::PaymentMethodVaultingData::NetworkToken(network_token) => {
-                                    payment_method_data::PaymentMethodsData::NetworkToken(network_token.clone().into())
-                                }
+                                pm_types::PaymentMethodVaultingData::NetworkToken(
+                                    network_token,
+                                ) => {
+                                    payment_method_data::PaymentMethodsData::NetworkToken(
+                                        payment_method_data::NetworkTokenDetailsPaymentMethod::from(network_token.clone())
+                                    )
+                                },
                             };
-                            let network_token_pmd: Encryptable<Secret<serde_json::Value>>=
-                                cards::create_encrypted_data(key_manager_state, key_store, network_token)
-                                    .await
-                                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                                    .attach_printable("Unable to encrypt Payment method data")?;
+                            let network_token_pmd: Encryptable<Secret<serde_json::Value>> =
+                                cards::create_encrypted_data(
+                                    key_manager_state,
+                                    key_store,
+                                    network_token,
+                                )
+                                .await
+                                .change_context(errors::ApiErrorResponse::InternalServerError)
+                                .attach_printable("Unable to encrypt Payment method data")?;
 
                             let network_token_locker_id =
                                 vaulting_resp.vault_id.get_string_repr().clone();
@@ -1054,14 +1070,17 @@ pub async fn network_tokenize_and_vault_the_pmd(
                         }
                         Err(e) => {
                             services::logger::error!(
-                                "Failed to vault network tokenized payment method: {}",
-                                e
+                                "Failed to vault network token of payment method: {} for customer: {}",
+                                e, customer_id.get_string_repr()
                             );
+                            //todo! - In case of failed to vault the network token, the network token entry should be deleted at Token Service
                             Err(report!(errors::ApiErrorResponse::InternalServerError)
-                                .attach_printable("Failed to vault network tokenized payment method"))
+                                .attach_printable(
+                                    "Failed to vault network tokenized payment method",
+                                ))
                         }
                     }
-                },
+                }
                 Err(e) => {
                     services::logger::error!(
                         "Failed to vault network tokenized payment method: {}",
@@ -1072,15 +1091,10 @@ pub async fn network_tokenize_and_vault_the_pmd(
                 }
             }
         }
-        _ => Err(report!(errors::ApiErrorResponse::NotSupported{message: "Network Tokenization is not supported for this payment method".to_string()})),
+        _ => Err(report!(errors::ApiErrorResponse::NotSupported {
+            message: "Network Tokenization is not supported for this payment method".to_string()
+        })),
     }
-
-    //vaildate if profile.network_tokenization is enabled
-    //validate if network_tokenization is present and enabled true
-    //validate if payment_method_data is card
-    //generate network token
-    //if OK() then store in vault
-    //return struct {ref_id, network token pmd, network token locker id}
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
@@ -1644,11 +1658,15 @@ pub async fn create_pm_additional_data_update(
 ) -> RouterResult<storage::PaymentMethodUpdate> {
     let card = match pmd {
         pm_types::PaymentMethodVaultingData::Card(card) => {
-            payment_method_data::PaymentMethodsData::Card(card.clone().into())
+            payment_method_data::PaymentMethodsData::Card(
+                payment_method_data::CardDetailsPaymentMethod::from(card.clone())
+            )
         }
         pm_types::PaymentMethodVaultingData::NetworkToken(network_token) => {
-            payment_method_data::PaymentMethodsData::NetworkToken(network_token.clone().into())
-        }
+            payment_method_data::PaymentMethodsData::NetworkToken(
+                payment_method_data::NetworkTokenDetailsPaymentMethod::from(network_token.clone())
+            )
+        } 
     };
     let key_manager_state = &(state).into();
     let pmd: Encryptable<Secret<serde_json::Value>> =

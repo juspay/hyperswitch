@@ -33,168 +33,6 @@ use crate::{
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use hyperswitch_domain_models::payment_method_data::NetworkTokenDetails;
 
-// #[derive(Debug, Serialize, Deserialize)]
-// #[serde(rename_all = "camelCase")]
-// pub struct CardData {
-//     card_number: CardNumber,
-//     exp_month: Secret<String>,
-//     exp_year: Secret<String>,
-//     #[serde(skip_serializing_if = "Option::is_none")]
-//     card_security_code: Option<Secret<String>>,
-// }
-
-// #[cfg(all(
-//     any(feature = "v1", feature = "v2"),
-//     not(feature = "payment_methods_v2")
-// ))]
-// #[derive(Debug, Serialize)]
-// #[serde(rename_all = "camelCase")]
-// pub struct OrderData {
-//     consent_id: String,
-//     customer_id: id_type::CustomerId,
-// }
-
-// #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-// #[derive(Debug, Serialize)]
-// #[serde(rename_all = "camelCase")]
-// pub struct OrderData {
-//     consent_id: String,
-//     customer_id: id_type::GlobalCustomerId,
-// }
-
-// #[derive(Debug, Serialize)]
-// #[serde(rename_all = "camelCase")]
-// pub struct ApiPayload {
-//     service: String,
-//     card_data: Secret<String>, //encrypted card data
-//     order_data: OrderData,
-//     key_id: String,
-//     should_send_token: bool,
-// }
-
-// #[derive(Debug, Deserialize, Eq, PartialEq)]
-// pub struct CardNetworkTokenResponse {
-//     payload: Secret<String>, //encrypted payload
-// }
-
-// #[cfg(all(
-//     any(feature = "v1", feature = "v2"),
-//     not(feature = "payment_methods_v2")
-// ))]
-// #[derive(Debug, Clone, Deserialize)]
-// #[serde(rename_all = "camelCase")]
-// pub struct CardNetworkTokenResponsePayload {
-//     pub card_brand: api_enums::CardNetwork,
-//     pub card_fingerprint: Option<Secret<String>>,
-//     pub card_reference: String,
-//     pub correlation_id: String,
-//     pub customer_id: String,
-//     pub par: String,
-//     pub token: CardNumber,
-//     pub token_expiry_month: Secret<String>,
-//     pub token_expiry_year: Secret<String>,
-//     pub token_isin: String,
-//     pub token_last_four: String,
-//     pub token_status: String,
-// }
-
-// #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-// #[derive(Debug, Clone, Deserialize)]
-// #[serde(rename_all = "camelCase")]
-// pub struct GenerateNetworkTokenResponsePayload {
-//     pub card_brand: api_enums::CardNetwork,
-//     pub card_fingerprint: Option<Secret<String>>,
-//     pub card_reference: String,
-//     pub correlation_id: String,
-//     pub customer_id: String,
-//     pub par: String,
-//     pub token: NetworkToken,
-//     pub token_expiry_month: Secret<String>,
-//     pub token_expiry_year: Secret<String>,
-//     pub token_isin: String,
-//     pub token_last_four: String,
-//     pub token_status: String,
-// }
-
-// #[derive(Debug, Serialize)]
-// pub struct GetCardToken {
-//     card_reference: String,
-//     customer_id: id_type::CustomerId,
-// }
-// #[derive(Debug, Deserialize)]
-// pub struct AuthenticationDetails {
-//     cryptogram: Secret<String>,
-//     token: CardNumber, //network token
-// }
-
-// #[derive(Debug, Serialize, Deserialize)]
-// pub struct TokenDetails {
-//     exp_month: Secret<String>,
-//     exp_year: Secret<String>,
-// }
-
-// #[derive(Debug, Deserialize)]
-// pub struct TokenResponse {
-//     authentication_details: AuthenticationDetails,
-//     network: api_enums::CardNetwork,
-//     token_details: TokenDetails,
-// }
-
-// #[derive(Debug, Serialize, Deserialize)]
-// pub struct DeleteCardToken {
-//     card_reference: String, //network token requestor ref id
-//     customer_id: id_type::CustomerId,
-// }
-
-// #[derive(Debug, Deserialize, Eq, PartialEq)]
-// #[serde(rename_all = "UPPERCASE")]
-// pub enum DeleteNetworkTokenStatus {
-//     Success,
-// }
-
-// #[derive(Debug, Deserialize, Eq, PartialEq)]
-// pub struct NetworkTokenErrorInfo {
-//     code: String,
-//     developer_message: String,
-// }
-
-// #[derive(Debug, Deserialize, Eq, PartialEq)]
-// pub struct NetworkTokenErrorResponse {
-//     error_message: String,
-//     error_info: NetworkTokenErrorInfo,
-// }
-
-// #[derive(Debug, Deserialize, Eq, PartialEq)]
-// pub struct DeleteNetworkTokenResponse {
-//     status: DeleteNetworkTokenStatus,
-// }
-
-// #[derive(Debug, Serialize, Deserialize)]
-// pub struct CheckTokenStatus {
-//     card_reference: String,
-//     customer_id: id_type::CustomerId,
-// }
-
-// #[derive(Debug, Deserialize)]
-// #[serde(rename_all = "UPPERCASE")]
-// pub enum TokenStatus {
-//     Active,
-//     Inactive,
-// }
-
-// #[derive(Debug, Deserialize)]
-// #[serde(rename_all = "camelCase")]
-// pub struct CheckTokenStatusResponsePayload {
-//     token_expiry_month: Secret<String>,
-//     token_expiry_year: Secret<String>,
-//     token_status: TokenStatus,
-// }
-
-// #[derive(Debug, Deserialize)]
-// pub struct CheckTokenStatusResponse {
-//     payload: CheckTokenStatusResponsePayload,
-// }
-
 pub const NETWORK_TOKEN_SERVICE: &str = "NETWORK_TOKEN";
 
 #[cfg(all(
@@ -290,7 +128,6 @@ pub async fn mk_tokenization_req(
         .response
         .parse_struct("Card Network Tokenization Response")
         .change_context(errors::NetworkTokenizationError::ResponseDeserializationFailed)?;
-    logger::debug!("Network Token Response: {:?}", network_response); //added for debugging, will be removed
 
     let dec_key = tokenization_service.private_key.peek().clone();
 
@@ -441,7 +278,7 @@ pub async fn make_card_network_tokenization_request(
         card_number: card.card_number.clone(),
         exp_month: card.card_exp_month.clone(),
         exp_year: card.card_exp_year.clone(),
-        card_security_code: Some(card.card_cvc.clone()),
+        card_security_code: card.card_cvc.clone(),
     };
 
     let payload = card_data
@@ -477,7 +314,7 @@ pub async fn make_card_network_tokenization_request(
     }
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]  
 pub async fn make_card_network_tokenization_request(
     state: &routes::SessionState,
     card: &api_payment_methods::CardDetail,
@@ -486,7 +323,6 @@ pub async fn make_card_network_tokenization_request(
     (NetworkTokenDetails, String),
     errors::NetworkTokenizationError,
 > {
-
 
     let card_data = domain::CardData {
         card_number: card.card_number.clone(),
@@ -555,6 +391,74 @@ pub async fn get_network_token(
     let payload = domain::GetCardToken {
         card_reference: network_token_requestor_ref_id,
         customer_id,
+    };
+
+    request.add_header(headers::CONTENT_TYPE, "application/json".into());
+    request.add_header(
+        headers::AUTHORIZATION,
+        tokenization_service
+            .token_service_api_key
+            .clone()
+            .peek()
+            .clone()
+            .into_masked(),
+    );
+    request.add_default_headers();
+    request.set_body(RequestContent::Json(Box::new(payload)));
+
+    logger::info!("Request to fetch network token: {:?}", request);
+
+    // Send the request using `call_connector_api`
+    let response = services::call_connector_api(state, request, "get network token")
+        .await
+        .change_context(errors::NetworkTokenizationError::ResponseDeserializationFailed);
+
+    let res = response
+        .change_context(errors::NetworkTokenizationError::ResponseDeserializationFailed)
+        .attach_printable("Error while receiving response")
+        .and_then(|inner| match inner {
+            Err(err_res) => {
+                let parsed_error: domain::NetworkTokenErrorResponse = err_res
+                    .response
+                    .parse_struct("Card Network Tokenization Response")
+                    .change_context(
+                        errors::NetworkTokenizationError::ResponseDeserializationFailed,
+                    )?;
+                logger::error!(
+                    error_code = %parsed_error.error_info.code,
+                    developer_message = %parsed_error.error_info.developer_message,
+                    "Network tokenization error: {}",
+                    parsed_error.error_message
+                );
+                Err(errors::NetworkTokenizationError::ResponseDeserializationFailed)
+                    .attach_printable(format!("Response Deserialization Failed: {err_res:?}"))
+            }
+            Ok(res) => Ok(res),
+        })?;
+
+    let token_response: domain::TokenResponse = res
+        .response
+        .parse_struct("Get Network Token Response")
+        .change_context(errors::NetworkTokenizationError::ResponseDeserializationFailed)?;
+    logger::info!("Fetch Network Token Response: {:?}", token_response);
+
+    Ok(token_response)
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+pub async fn get_network_token(
+    state: &routes::SessionState,
+    customer_id: &id_type::GlobalCustomerId,
+    network_token_requestor_ref_id: String,
+    tokenization_service: &settings::NetworkTokenizationService,
+) -> CustomResult<domain::TokenResponse, errors::NetworkTokenizationError> {
+    let mut request = services::Request::new(
+        services::Method::Post,
+        tokenization_service.fetch_token_url.as_str(),
+    );
+    let payload = domain::GetCardToken {
+        card_reference: network_token_requestor_ref_id,
+        customer_id: customer_id.clone(),
     };
 
     request.add_header(headers::CONTENT_TYPE, "application/json".into());
@@ -744,6 +648,10 @@ pub async fn do_status_check_for_network_token(
     }
 }
 
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
 pub async fn check_token_status_with_tokenization_service(
     state: &routes::SessionState,
     customer_id: &id_type::CustomerId,
@@ -817,6 +725,21 @@ pub async fn check_token_status_with_tokenization_service(
     }
 }
 
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+pub async fn check_token_status_with_tokenization_service(
+    _state: &routes::SessionState,
+    _customer_id: &id_type::GlobalCustomerId,
+    _network_token_requestor_reference_id: String,
+    _tokenization_service: &settings::NetworkTokenizationService,
+) -> CustomResult<(Option<Secret<String>>, Option<Secret<String>>), errors::NetworkTokenizationError>
+{
+    todo!()
+}
+
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
 pub async fn delete_network_token_from_locker_and_token_service(
     state: &routes::SessionState,
     customer_id: &id_type::CustomerId,
@@ -861,6 +784,10 @@ pub async fn delete_network_token_from_locker_and_token_service(
     Ok(resp)
 }
 
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
 pub async fn delete_network_token_from_tokenization_service(
     state: &routes::SessionState,
     network_token_requestor_reference_id: String,
@@ -934,4 +861,16 @@ pub async fn delete_network_token_from_tokenization_service(
         Err(errors::NetworkTokenizationError::DeleteNetworkTokenFailed)
             .attach_printable("Delete Token at Token service failed")
     }
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+pub async fn delete_network_token_from_locker_and_token_service(
+    _state: &routes::SessionState,
+    _customer_id: &id_type::GlobalCustomerId,
+    _merchant_id: &id_type::MerchantId,
+    _payment_method_id: String,
+    _network_token_locker_id: Option<String>,
+    _network_token_requestor_reference_id: String,
+) -> errors::RouterResult<DeleteCardResp> {
+    todo!()
 }

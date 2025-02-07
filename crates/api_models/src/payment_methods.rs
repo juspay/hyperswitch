@@ -136,13 +136,14 @@ pub struct PaymentMethodCreate {
     #[schema(value_type = Option<Address>)]
     pub billing: Option<payments::Address>,
 
-    
+    /// Network Tokenization details
     pub network_tokenization: Option<NetworkTokenization>,
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 pub struct NetworkTokenization{
+    /// Indicates whether payment method data [card] should be tokenized
     pub enabled: bool,
 }
 
@@ -1117,7 +1118,7 @@ impl From<CardDetail> for CardDetailsPaymentMethod {
             saved_to_locker: true,
         }
     }
-}///
+}
 
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
