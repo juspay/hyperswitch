@@ -4,7 +4,7 @@ pub mod connector_integration_v2_impls;
 pub mod customers;
 pub mod flows;
 pub mod helpers;
-pub mod operations;      
+pub mod operations;
 
 #[cfg(feature = "retry")]
 pub mod retry;
@@ -73,7 +73,7 @@ use time;
 pub use self::operations::{
     PaymentApprove, PaymentCancel, PaymentCapture, PaymentConfirm, PaymentCreate,
     PaymentIncrementalAuthorization, PaymentPostSessionTokens, PaymentReject, PaymentSession,
-    PaymentSessionUpdate, PaymentStatus, PaymentUpdate
+    PaymentSessionUpdate, PaymentStatus, PaymentUpdate,
 };
 use self::{
     conditional_configs::perform_decision_management,
@@ -1066,7 +1066,7 @@ where
 
     // Get the trackers related to track the state of the payment
     let operations::GetTrackerResponse { mut payment_data } = get_tracker_response;
-        // consume the req merchant_connector_id and set it in the payment_data
+    // consume the req merchant_connector_id and set it in the payment_data
     let connector = operation
         .to_domain()?
         .perform_routing(
@@ -1112,7 +1112,7 @@ where
         ConnectorCallType::Skip => payment_data,
     };
 
-    Ok((payment_data,req,None,None))
+    Ok((payment_data, req, None, None))
 }
 
 #[cfg(feature = "v2")]
@@ -7756,7 +7756,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentData<F> {
     fn get_address(&self) -> &PaymentAddress {
         &self.address
     }
-    fn  get_merchant_connector_id_in_attempt(&self) -> Option<id_type::MerchantConnectorAccountId> {
+    fn get_merchant_connector_id_in_attempt(&self) -> Option<id_type::MerchantConnectorAccountId> {
         self.payment_attempt.merchant_connector_id.clone()
     }
     fn get_creds_identifier(&self) -> Option<&str> {
@@ -8076,10 +8076,10 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentIntentData<F> {
     }
 
     fn get_payment_attempt_connector(&self) -> Option<&str> {
-      todo!()
+        todo!()
     }
 
-    fn get_merchant_connector_id_in_attempt(&self) -> Option<id_type::MerchantConnectorAccountId>{
+    fn get_merchant_connector_id_in_attempt(&self) -> Option<id_type::MerchantConnectorAccountId> {
         todo!()
     }
 
@@ -8292,11 +8292,10 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentConfirmData<F> {
     }
 
     fn get_payment_attempt_connector(&self) -> Option<&str> {
-
         self.payment_attempt.connector.as_deref()
     }
-    
-    fn  get_merchant_connector_id_in_attempt(&self) -> Option<id_type::MerchantConnectorAccountId> {
+
+    fn get_merchant_connector_id_in_attempt(&self) -> Option<id_type::MerchantConnectorAccountId> {
         self.payment_attempt.merchant_connector_id.clone()
     }
 
@@ -8419,7 +8418,6 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentConfirmData<F> {
     }
 }
 
-
 #[cfg(feature = "v2")]
 impl<F: Clone> OperationSessionGetters<F> for PaymentStatusData<F> {
     #[track_caller]
@@ -8515,7 +8513,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentStatusData<F> {
         todo!()
     }
 
-    fn get_merchant_connector_id_in_attempt(&self) -> Option<id_type::MerchantConnectorAccountId>{
+    fn get_merchant_connector_id_in_attempt(&self) -> Option<id_type::MerchantConnectorAccountId> {
         todo!()
     }
 
@@ -8733,7 +8731,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentCaptureData<F> {
         todo!()
     }
 
-    fn get_merchant_connector_id_in_attempt(&self) -> Option<id_type::MerchantConnectorAccountId>{
+    fn get_merchant_connector_id_in_attempt(&self) -> Option<id_type::MerchantConnectorAccountId> {
         todo!()
     }
 

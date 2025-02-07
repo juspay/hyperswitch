@@ -1,4 +1,21 @@
-use super::{Domain, GetTracker, Operation, UpdateTracker, ValidateRequest,PostUpdateTracker};
+use api_models::{
+    enums::FrmSuggestion,
+    payments::{
+        ConnectorMandateReferenceId, MandateIds, MandateReferenceId, ProxyPaymentsIntentRequest,
+    },
+};
+// use diesel_models::payment_attempt::ConnectorMandateReferenceId;
+use async_trait::async_trait;
+use common_enums::enums;
+use common_utils::types::keymanager::ToEncryptable;
+use error_stack::ResultExt;
+use hyperswitch_domain_models::{
+    payment_method_data::PaymentMethodData, payments::PaymentConfirmData,
+};
+use masking::PeekInterface;
+use router_env::{instrument, tracing};
+
+use super::{Domain, GetTracker, Operation, PostUpdateTracker, UpdateTracker, ValidateRequest};
 use crate::{
     core::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
@@ -13,17 +30,6 @@ use crate::{
     },
     utils::OptionExt,
 };
-use api_models::payments::{ProxyPaymentsIntentRequest,MandateIds,MandateReferenceId,ConnectorMandateReferenceId};
-use hyperswitch_domain_models::payment_method_data::PaymentMethodData;
-use api_models::enums::FrmSuggestion;
-// use diesel_models::payment_attempt::ConnectorMandateReferenceId;
-use async_trait::async_trait;
-use common_utils::types::keymanager::ToEncryptable;
-use error_stack::ResultExt;
-use hyperswitch_domain_models::payments::PaymentConfirmData;
-use masking::PeekInterface;
-use router_env::{instrument, tracing};
-use common_enums::enums;
 
 #[derive(Debug, Clone, Copy)]
 pub struct PaymentProxyIntent;
@@ -196,7 +202,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, ProxyPaymentsI
                 encrypted_data
             )
             .await?;
-        
+
         let payment_attempt = db
             .insert_payment_attempt(
                 key_manager_state,
@@ -224,7 +230,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, ProxyPaymentsI
                 .map(|address| address.into_inner()),
             Some(true),
         );
-        let mandate_data_input= MandateIds {
+        let mandate_data_input = MandateIds {
             mandate_id: None,
             mandate_reference_id: Some(MandateReferenceId::ConnectorMandateId(
                 ConnectorMandateReferenceId::new(
@@ -233,8 +239,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, ProxyPaymentsI
                     None,
                     None,
                     None,
-                )
-            ))
+                ),
+            )),
         };
         let payment_data = PaymentConfirmData {
             flow: std::marker::PhantomData,
@@ -252,35 +258,36 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, ProxyPaymentsI
 }
 
 #[async_trait]
-impl<F: Clone + Send + Sync> Domain<F, ProxyPaymentsIntentRequest, PaymentConfirmData<F>> 
-    for PaymentProxyIntent {
-        async fn get_customer_details<'a>(
-            &'a self,
-            _state: &SessionState,
-            _payment_data: &mut PaymentConfirmData<F>,
-            _merchant_key_store: &domain::MerchantKeyStore,
-            _storage_scheme: storage_enums::MerchantStorageScheme,
-        ) -> CustomResult<(BoxedConfirmOperation<'a, F>, Option<domain::Customer>), errors::StorageError>
-        {
-            Ok((Box::new(self), None))
-        }
-    
-        #[instrument(skip_all)]
-        async fn make_pm_data<'a>(
-            &'a self,
-            _state: &'a SessionState,
-            _payment_data: &mut PaymentConfirmData<F>,
-            _storage_scheme: storage_enums::MerchantStorageScheme,
-            _key_store: &domain::MerchantKeyStore,
-            _customer: &Option<domain::Customer>,
-            _business_profile: &domain::Profile,
-        ) -> RouterResult<(
-            BoxedConfirmOperation<'a, F>,
-            Option<PaymentMethodData>,
-            Option<String>,
-        )> {
-            Ok((Box::new(self), None, None))
-        }
+impl<F: Clone + Send + Sync> Domain<F, ProxyPaymentsIntentRequest, PaymentConfirmData<F>>
+    for PaymentProxyIntent
+{
+    async fn get_customer_details<'a>(
+        &'a self,
+        _state: &SessionState,
+        _payment_data: &mut PaymentConfirmData<F>,
+        _merchant_key_store: &domain::MerchantKeyStore,
+        _storage_scheme: storage_enums::MerchantStorageScheme,
+    ) -> CustomResult<(BoxedConfirmOperation<'a, F>, Option<domain::Customer>), errors::StorageError>
+    {
+        Ok((Box::new(self), None))
+    }
+
+    #[instrument(skip_all)]
+    async fn make_pm_data<'a>(
+        &'a self,
+        _state: &'a SessionState,
+        _payment_data: &mut PaymentConfirmData<F>,
+        _storage_scheme: storage_enums::MerchantStorageScheme,
+        _key_store: &domain::MerchantKeyStore,
+        _customer: &Option<domain::Customer>,
+        _business_profile: &domain::Profile,
+    ) -> RouterResult<(
+        BoxedConfirmOperation<'a, F>,
+        Option<PaymentMethodData>,
+        Option<String>,
+    )> {
+        Ok((Box::new(self), None, None))
+    }
 
     async fn perform_routing<'a>(
         &'a self,
@@ -292,26 +299,23 @@ impl<F: Clone + Send + Sync> Domain<F, ProxyPaymentsIntentRequest, PaymentConfir
     ) -> CustomResult<ConnectorCallType, errors::ApiErrorResponse> {
         use crate::core::payments::OperationSessionGetters;
 
-       let connector_name =  payment_data.get_payment_attempt_connector();
-       if let Some(connector_name) =  connector_name
-     
-      {
-        let merchant_connector_id=  payment_data.get_merchant_connector_id_in_attempt();
-        let connector_data = api::ConnectorData::get_connector_by_name(
-            &state.conf.connectors,
-            connector_name,
-            api::GetToken::Connector,
-            merchant_connector_id,
-        )?;
+        let connector_name = payment_data.get_payment_attempt_connector();
+        if let Some(connector_name) = connector_name {
+            let merchant_connector_id = payment_data.get_merchant_connector_id_in_attempt();
+            let connector_data = api::ConnectorData::get_connector_by_name(
+                &state.conf.connectors,
+                connector_name,
+                api::GetToken::Connector,
+                merchant_connector_id,
+            )?;
 
-        Ok(ConnectorCallType::PreDetermined(connector_data))
+            Ok(ConnectorCallType::PreDetermined(connector_data))
+        } else {
+            Err(error_stack::Report::new(
+                errors::ApiErrorResponse::InternalServerError,
+            ))
+        }
     }
-    else {
-        Err(error_stack::Report::new(errors::ApiErrorResponse::InternalServerError))
-     
-    }
-}
-
 }
 #[async_trait]
 impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, ProxyPaymentsIntentRequest>
@@ -400,7 +404,6 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, ProxyPaymentsInten
         Ok((Box::new(self), payment_data))
     }
 }
-
 
 #[cfg(feature = "v2")]
 #[async_trait]

@@ -2393,7 +2393,6 @@ pub async fn payment_confirm_intent(
     .await
 }
 
-
 #[cfg(feature = "v2")]
 #[instrument(skip_all, fields(flow = ?Flow::ProxyConfirmIntent, payment_id))]
 pub async fn proxy_confirm_intent(

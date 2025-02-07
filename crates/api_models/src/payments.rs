@@ -33,7 +33,7 @@ use crate::{
     admin::{self, MerchantConnectorInfo},
     disputes, enums as api_enums,
     ephemeral_key::EphemeralKeyCreateResponse,
-    mandates::{RecurringDetails,ProcessorPaymentToken},
+    mandates::{ProcessorPaymentToken, RecurringDetails},
     refunds,
 };
 
@@ -4790,7 +4790,6 @@ pub struct PaymentsConfirmIntentRequest {
     /// Additional details required by 3DS 2.0
     #[schema(value_type = Option<BrowserInformation>)]
     pub browser_info: Option<common_utils::types::BrowserInformation>,
-
 }
 
 #[cfg(feature = "v2")]
@@ -4804,7 +4803,7 @@ pub struct ProxyPaymentsIntentRequest {
 
     pub amount: AmountDetails,
 
-    pub recurring_details:ProcessorPaymentToken,
+    pub recurring_details: ProcessorPaymentToken,
 
     pub shipping: Option<Address>,
 
@@ -4814,7 +4813,7 @@ pub struct ProxyPaymentsIntentRequest {
 
     #[schema(example = "stripe")]
     pub connector: String,
-    
+
     #[schema(value_type = String)]
     pub merchant_connector_id: id_type::MerchantConnectorAccountId,
 }

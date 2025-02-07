@@ -259,11 +259,10 @@ impl AmountDetails {
         };
 
         let order_tax_amount = match self.skip_external_tax_calculation {
-            common_enums::TaxCalculationOverride::Skip => {
-                self.tax_details.as_ref().and_then(|tax_details| {
-                    tax_details.get_tax_amount(None)
-                })
-            }
+            common_enums::TaxCalculationOverride::Skip => self
+                .tax_details
+                .as_ref()
+                .and_then(|tax_details| tax_details.get_tax_amount(None)),
             common_enums::TaxCalculationOverride::Calculate => None,
         };
 
@@ -618,7 +617,7 @@ where
 
 // TODO: Check if this can be merged with existing payment data
 #[cfg(feature = "v2")]
-#[derive(Clone,Debug)]
+#[derive(Clone, Debug)]
 pub struct PaymentConfirmData<F>
 where
     F: Clone,
