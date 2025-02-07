@@ -3317,6 +3317,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCaptureD
             browser_info,
             metadata: payment_data.payment_intent.metadata,
             integrity_object: None,
+            split_payments: payment_data.payment_intent.split_payments,
         })
     }
 }

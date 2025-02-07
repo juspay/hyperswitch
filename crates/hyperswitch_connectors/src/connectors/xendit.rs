@@ -506,7 +506,31 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         req: &PaymentsCaptureRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        self.build_headers(req, connectors)
+        let mut headers = self.build_headers(req, connectors)?;
+
+        match &req.request.split_payments {
+            Some(common_types::payments::SplitPaymentsRequest::XenditSplitPayment(
+                common_types::payments::XenditSplitRequest::MultipleSplits(xendit_request),
+            )) => {
+                if let Some(for_user_id) = &xendit_request.for_user_id {
+                    headers.push((
+                        xendit::auth_headers::FOR_USER_ID.to_string(),
+                        for_user_id.clone().into(),
+                    ))
+                };
+            }
+            Some(common_types::payments::SplitPaymentsRequest::XenditSplitPayment(
+                common_types::payments::XenditSplitRequest::SingleSplit(single_split_data),
+            )) => {
+                headers.push((
+                    xendit::auth_headers::FOR_USER_ID.to_string(),
+                    single_split_data.for_user_id.clone().into(),
+                ));
+            }
+            _ => (),
+        };
+
+        Ok(headers)
     }
 
     fn get_content_type(&self) -> &'static str {
