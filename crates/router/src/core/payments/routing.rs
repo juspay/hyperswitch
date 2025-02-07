@@ -14,6 +14,8 @@ use api_models::{
     enums::{self as api_enums, CountryAlpha2},
     routing::ConnectorSelection,
 };
+#[cfg(feature = "dynamic_routing")]
+use common_utils::ext_traits::AsyncExt;
 use diesel_models::enums as storage_enums;
 use error_stack::ResultExt;
 use euclid::{
@@ -23,8 +25,9 @@ use euclid::{
     frontend::{ast, dir as euclid_dir},
 };
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-use external_services::grpc_client::dynamic_routing::success_rate_client::{
-    CalSuccessRateResponse, SuccessBasedDynamicRouting,
+use external_services::grpc_client::dynamic_routing::{
+    contract_routing_client::{CalContractScoreResponse, ContractBasedDynamicRouting},
+    success_rate_client::{CalSuccessRateResponse, SuccessBasedDynamicRouting},
 };
 use hyperswitch_domain_models::address::Address;
 use kgraph_utils::{
@@ -1281,41 +1284,93 @@ pub fn make_dsl_input_for_surcharge(
     Ok(backend_input)
 }
 
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+pub async fn perform_dynamic_routing(
+    state: &SessionState,
+    routable_connectors: Vec<api_routing::RoutableConnectorChoice>,
+    profile: &domain::Profile,
+    dynamic_routing_config_params_interpolator: routing::helpers::DynamicRoutingConfigParamsInterpolator,
+) -> RoutingResult<Vec<api_routing::RoutableConnectorChoice>> {
+    let dynamic_routing_algo_ref: api_routing::DynamicRoutingAlgorithmRef = profile
+        .dynamic_routing_algorithm
+        .clone()
+        .map(|val| val.parse_value("DynamicRoutingAlgorithmRef"))
+        .transpose()
+        .change_context(errors::RoutingError::DeserializationError {
+            from: "JSON".to_string(),
+            to: "DynamicRoutingAlgorithmRef".to_string(),
+        })
+        .attach_printable("unable to deserialize DynamicRoutingAlgorithmRef from JSON")?
+        .ok_or(errors::RoutingError::GenericNotFoundError {
+            field: "dynamic_routing_algorithm".to_string(),
+        })?;
+
+    logger::debug!(
+        "performing dynamic_routing for profile {}",
+        profile.get_id().get_string_repr()
+    );
+
+    let connector_list = match dynamic_routing_algo_ref
+        .success_based_algorithm
+        .as_ref()
+        .async_map(|algorithm| {
+            perform_success_based_routing(
+                state,
+                routable_connectors.clone(),
+                profile.get_id(),
+                dynamic_routing_config_params_interpolator.clone(),
+                algorithm.clone(),
+            )
+        })
+        .await
+        .transpose()
+        .inspect_err(|e| logger::error!(dynamic_routing_error=?e))
+        .ok()
+        .flatten()
+    {
+        Some(success_based_list) => success_based_list,
+        None => {
+            // Only run contract based if success based returns None
+            dynamic_routing_algo_ref
+                .contract_based_routing
+                .as_ref()
+                .async_map(|algorithm| {
+                    perform_contract_based_routing(
+                        state,
+                        routable_connectors.clone(),
+                        profile.get_id(),
+                        dynamic_routing_config_params_interpolator,
+                        algorithm.clone(),
+                    )
+                })
+                .await
+                .transpose()
+                .inspect_err(|e| logger::error!(dynamic_routing_error=?e))
+                .ok()
+                .flatten()
+                .unwrap_or(routable_connectors)
+        }
+    };
+
+    Ok(connector_list)
+}
+
 /// success based dynamic routing
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 #[instrument(skip_all)]
 pub async fn perform_success_based_routing(
     state: &SessionState,
     routable_connectors: Vec<api_routing::RoutableConnectorChoice>,
-    business_profile: &domain::Profile,
-    success_based_routing_config_params_interpolator: routing::helpers::SuccessBasedRoutingConfigParamsInterpolator,
+    profile_id: &common_utils::id_type::ProfileId,
+    success_based_routing_config_params_interpolator: routing::helpers::DynamicRoutingConfigParamsInterpolator,
+    success_based_algo_ref: api_routing::SuccessBasedAlgorithm,
 ) -> RoutingResult<Vec<api_routing::RoutableConnectorChoice>> {
-    let success_based_dynamic_routing_algo_ref: api_routing::DynamicRoutingAlgorithmRef =
-        business_profile
-            .dynamic_routing_algorithm
-            .clone()
-            .map(|val| val.parse_value("DynamicRoutingAlgorithmRef"))
-            .transpose()
-            .change_context(errors::RoutingError::DeserializationError {
-                from: "JSON".to_string(),
-                to: "DynamicRoutingAlgorithmRef".to_string(),
-            })
-            .attach_printable("unable to deserialize DynamicRoutingAlgorithmRef from JSON")?
-            .unwrap_or_default();
-
-    let success_based_algo_ref = success_based_dynamic_routing_algo_ref
-        .success_based_algorithm
-        .ok_or(errors::RoutingError::GenericNotFoundError { field: "success_based_algorithm".to_string() })
-        .attach_printable(
-            "success_based_algorithm not found in dynamic_routing_algorithm from business_profile table",
-        )?;
-
     if success_based_algo_ref.enabled_feature
         == api_routing::DynamicRoutingFeatures::DynamicConnectorSelection
     {
         logger::debug!(
             "performing success_based_routing for profile {}",
-            business_profile.get_id().get_string_repr()
+            profile_id.get_string_repr()
         );
         let client = state
             .grpc_client
@@ -1325,18 +1380,18 @@ pub async fn perform_success_based_routing(
             .ok_or(errors::RoutingError::SuccessRateClientInitializationError)
             .attach_printable("success_rate gRPC client not found")?;
 
-        let success_based_routing_configs = routing::helpers::fetch_success_based_routing_configs(
+        let success_based_routing_configs = routing::helpers::fetch_dynamic_routing_configs::<
+            api_routing::SuccessBasedRoutingConfig,
+        >(
             state,
-            business_profile,
+            profile_id,
             success_based_algo_ref
                 .algorithm_id_with_timestamp
                 .algorithm_id
                 .ok_or(errors::RoutingError::GenericNotFoundError {
                     field: "success_based_routing_algorithm_id".to_string(),
                 })
-                .attach_printable(
-                    "success_based_routing_algorithm_id not found in business_profile",
-                )?,
+                .attach_printable("success_based_routing_algorithm_id not found in profile_id")?,
         )
         .await
         .change_context(errors::RoutingError::SuccessBasedRoutingConfigError)
@@ -1352,7 +1407,7 @@ pub async fn perform_success_based_routing(
 
         let success_based_connectors: CalSuccessRateResponse = client
             .calculate_success_rate(
-                business_profile.get_id().get_string_repr().into(),
+                profile_id.get_string_repr().into(),
                 success_based_routing_configs,
                 success_based_routing_config_params,
                 routable_connectors,
@@ -1393,6 +1448,98 @@ pub async fn perform_success_based_routing(
             });
         }
         logger::debug!(success_based_routing_connectors=?connectors);
+        Ok(connectors)
+    } else {
+        Ok(routable_connectors)
+    }
+}
+
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+pub async fn perform_contract_based_routing(
+    state: &SessionState,
+    routable_connectors: Vec<api_routing::RoutableConnectorChoice>,
+    profile_id: &common_utils::id_type::ProfileId,
+    _dynamic_routing_config_params_interpolator: routing::helpers::DynamicRoutingConfigParamsInterpolator,
+    contract_based_algo_ref: api_routing::ContractRoutingAlgorithm,
+) -> RoutingResult<Vec<api_routing::RoutableConnectorChoice>> {
+    if contract_based_algo_ref.enabled_feature
+        == api_routing::DynamicRoutingFeatures::DynamicConnectorSelection
+    {
+        logger::debug!(
+            "performing contract_based_routing for profile {}",
+            profile_id.get_string_repr()
+        );
+        let client = state
+            .grpc_client
+            .dynamic_routing
+            .contract_based_client
+            .as_ref()
+            .ok_or(errors::RoutingError::ContractRoutingClientInitializationError)
+            .attach_printable("contract routing gRPC client not found")?;
+
+        let contract_based_routing_configs = routing::helpers::fetch_dynamic_routing_configs::<
+            api_routing::ContractBasedRoutingConfig,
+        >(
+            state,
+            profile_id,
+            contract_based_algo_ref
+                .algorithm_id_with_timestamp
+                .algorithm_id
+                .ok_or(errors::RoutingError::GenericNotFoundError {
+                    field: "contract_based_routing_algorithm_id".to_string(),
+                })
+                .attach_printable("contract_based_routing_algorithm_id not found in profile_id")?,
+        )
+        .await
+        .change_context(errors::RoutingError::ContractBasedRoutingConfigError)
+        .attach_printable("unable to fetch contract based dynamic routing configs")?;
+
+        let contract_based_connectors: CalContractScoreResponse = client
+            .calculate_contract_score(
+                profile_id.get_string_repr().into(),
+                contract_based_routing_configs,
+                "".to_string(),
+                routable_connectors,
+                state.get_grpc_headers(),
+            )
+            .await
+            .change_context(errors::RoutingError::ContractScoreCalculationError)
+            .attach_printable(
+                "unable to calculate/fetch contract score from dynamic routing service",
+            )?;
+
+        let mut connectors = Vec::with_capacity(contract_based_connectors.labels_with_score.len());
+
+        for label_with_score in contract_based_connectors.labels_with_score {
+            let (connector, merchant_connector_id) = label_with_score.label
+                .split_once(':')
+                .ok_or(errors::RoutingError::InvalidContractBasedConnectorLabel(label_with_score.label.to_string()))
+                .attach_printable(
+                    "unable to split connector_name and mca_id from the label obtained by the dynamic routing service",
+                )?;
+
+            connectors.push(api_routing::RoutableConnectorChoice {
+                choice_kind: api_routing::RoutableChoiceKind::FullStruct,
+                connector: common_enums::RoutableConnectors::from_str(connector)
+                    .change_context(errors::RoutingError::GenericConversionError {
+                        from: "String".to_string(),
+                        to: "RoutableConnectors".to_string(),
+                    })
+                    .attach_printable("unable to convert String to RoutableConnectors")?,
+                merchant_connector_id: Some(
+                    common_utils::id_type::MerchantConnectorAccountId::wrap(
+                        merchant_connector_id.to_string(),
+                    )
+                    .change_context(errors::RoutingError::GenericConversionError {
+                        from: "String".to_string(),
+                        to: "MerchantConnectorAccountId".to_string(),
+                    })
+                    .attach_printable("unable to convert MerchantConnectorAccountId from string")?,
+                ),
+            });
+        }
+
+        logger::debug!(contract_based_routing_connectors=?connectors);
         Ok(connectors)
     } else {
         Ok(routable_connectors)
