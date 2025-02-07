@@ -1228,8 +1228,13 @@ impl TryFrom<PaymentsSyncResponseRouterData<FiuuPaymentResponse>> for PaymentsSy
                 let error_response = if status == enums::AttemptStatus::Failure {
                     Some(ErrorResponse {
                         status_code: item.http_code,
-                        code: response.error_code.unwrap_or_default(),
-                        message: response.error_desc.clone().unwrap_or_default(),
+                        code: response
+                            .error_code
+                            .unwrap_or(consts::NO_ERROR_CODE.to_owned()),
+                        message: response
+                            .error_desc
+                            .clone()
+                            .unwrap_or(consts::NO_ERROR_MESSAGE.to_owned()),
                         reason: response.error_desc,
                         attempt_status: Some(enums::AttemptStatus::Failure),
                         connector_transaction_id: Some(txn_id.clone()),
