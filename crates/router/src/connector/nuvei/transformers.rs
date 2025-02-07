@@ -4,6 +4,7 @@ use common_utils::{
     ext_traits::Encode,
     fp_utils,
     pii::{Email, IpAddress},
+    types::StringMajorUnit,
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::mandates::{MandateData, MandateDataType};
@@ -22,6 +23,22 @@ use crate::{
     types::{self, api, domain, storage::enums, transformers::ForeignTryFrom, BrowserInformation},
     utils::OptionExt,
 };
+
+#[derive(Debug, Serialize)]
+pub struct NuveiRouterData<T> {
+    pub amount: StringMajorUnit,
+    pub router_data: T,
+}
+
+impl<T> TryFrom<(StringMajorUnit, T)> for NuveiRouterData<T> {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from((amount, item): (StringMajorUnit, T)) -> Result<Self, Self::Error> {
+        Ok(Self {
+            amount,
+            router_data: item,
+        })
+    }
+}
 
 trait NuveiAuthorizePreprocessingCommon {
     fn get_browser_info(&self) -> Option<BrowserInformation>;
@@ -193,7 +210,7 @@ pub struct NuveiPaymentsRequest {
     pub merchant_id: Secret<String>,
     pub merchant_site_id: Secret<String>,
     pub client_request_id: Secret<String>,
-    pub amount: String,
+    pub amount: StringMajorUnit,
     pub currency: diesel_models::enums::Currency,
     /// This ID uniquely identifies your consumer/user in your system.
     pub user_token_id: Option<Email>,
@@ -222,7 +239,7 @@ pub struct NuveiInitPaymentRequest {
     pub merchant_id: Secret<String>,
     pub merchant_site_id: Secret<String>,
     pub client_request_id: String,
-    pub amount: String,
+    pub amount: StringMajorUnit,
     pub currency: String,
     pub payment_option: PaymentOption,
     pub checksum: Secret<String>,
@@ -236,7 +253,7 @@ pub struct NuveiPaymentFlowRequest {
     pub merchant_id: Secret<String>,
     pub merchant_site_id: Secret<String>,
     pub client_request_id: String,
-    pub amount: String,
+    pub amount: StringMajorUnit,
     pub currency: diesel_models::enums::Currency,
     pub related_transaction_id: Option<String>,
     pub checksum: Secret<String>,
@@ -1305,7 +1322,7 @@ impl TryFrom<NuveiPaymentRequestData> for NuveiPaymentFlowRequest {
 
 #[derive(Debug, Clone, Default)]
 pub struct NuveiPaymentRequestData {
-    pub amount: String,
+    pub amount: StringMajorUnit,
     pub currency: diesel_models::enums::Currency,
     pub related_transaction_id: Option<String>,
     pub client_request_id: String,
