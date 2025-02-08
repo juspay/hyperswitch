@@ -2,7 +2,7 @@ use std::str::FromStr;
 
 use api_models::payments::{DeviceChannel, ThreeDsCompletionIndicator};
 use base64::Engine;
-use common_utils::{date_time,types::StringMajorUnit};
+use common_utils::{date_time, types::StringMajorUnit};
 use error_stack::ResultExt;
 use iso_currency::Currency;
 use isocountry;
@@ -27,16 +27,9 @@ pub struct ThreedsecureioRouterData<T> {
     pub router_data: T,
 }
 
-impl<T> TryFrom<(StringMajorUnit, T)>
-    for ThreedsecureioRouterData<T>
-{
+impl<T> TryFrom<(StringMajorUnit, T)> for ThreedsecureioRouterData<T> {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        (amount, item): (
-            StringMajorUnit,
-            T,
-        ),
-    ) -> Result<Self, Self::Error> {
+    fn try_from((amount, item): (StringMajorUnit, T)) -> Result<Self, Self::Error> {
         Ok(Self {
             amount,
             router_data: item,
