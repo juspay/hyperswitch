@@ -568,6 +568,7 @@ pub fn get_default_config_key(
     }
 }
 
+#[cfg(any(feature = "dynamic_routing", feature = "v1"))]
 #[async_trait::async_trait]
 pub trait DynamicRoutingCache {
     async fn get_cached_dynamic_routing_config_for_profile(
@@ -586,6 +587,7 @@ pub trait DynamicRoutingCache {
         Fut: futures::Future<Output = errors::CustomResult<T, errors::StorageError>> + Send;
 }
 
+#[cfg(any(feature = "dynamic_routing", feature = "v1"))]
 #[async_trait::async_trait]
 impl DynamicRoutingCache for routing_types::SuccessBasedRoutingConfig {
     async fn get_cached_dynamic_routing_config_for_profile(
@@ -622,6 +624,7 @@ impl DynamicRoutingCache for routing_types::SuccessBasedRoutingConfig {
     }
 }
 
+#[cfg(any(feature = "dynamic_routing", feature = "v1"))]
 #[async_trait::async_trait]
 impl DynamicRoutingCache for routing_types::ContractBasedRoutingConfig {
     async fn get_cached_dynamic_routing_config_for_profile(
