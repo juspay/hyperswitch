@@ -37,7 +37,7 @@ impl<T> TryFrom<(StringMajorUnit, T)> for ThreedsecureioRouterData<T> {
     }
 }
 
-impl<T> TryFrom<(i64, T)> for ThreedsecureioRouterData<T> {
+impl<T> TryFrom<(StringMajorUnit, T)> for ThreedsecureioRouterData<T> {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from((amount, router_data): (StringMajorUnit, T)) -> Result<Self, Self::Error> {
         Ok(Self {

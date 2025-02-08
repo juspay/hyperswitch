@@ -23,11 +23,8 @@ use crate::{
     utils::{self, BytesExt},
 };
 
-use common_utils::types::{AmountConvertor , StringMajorUnit,StringMajorUnitForConnector};
-
-#[derive(Debug, Clone)]
-pub struct Threedsecureio;
-
+use super::utils::convert_amount;
+use common_utils::types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector};
 #[derive(Clone)]
 pub struct Threedsecureio {
     amount_converter: &'static (dyn AmountConvertor<Output = StringMajorUnit> + Sync),
@@ -257,13 +254,13 @@ impl
         req: &types::authentication::ConnectorAuthenticationRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let amount_to_capture = connector_utils::convert_amount(
+        let amount = convert_amount(
             self.amount_converter,
             req.request.minor_amount_to_capture,
             req.request.currency,
         )?;
         let connector_router_data =
-           threedsecureio::ThreedsecureioRouterData::try_from((amount_to_capture, req))?;
+            threedsecureio::ThreedsecureioRouterData::try_from((amount, req))?;
         let req_obj =
             threedsecureio::ThreedsecureioAuthenticationRequest::try_from(&connector_router_data);
         Ok(RequestContent::Json(Box::new(req_obj?)))
@@ -360,8 +357,8 @@ impl
         req: &types::authentication::PreAuthNRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        
-        let connector_router_data = threedsecureio::ThreedsecureioRouterData::try_from((0, req))?;
+        let connector_router_data =
+            threedsecureio::ThreedsecureioRouterData::try_from((StringMajorUnit::zero, req))?;
         let req_obj = threedsecureio::ThreedsecureioPreAuthenticationRequest::try_from(
             &connector_router_data,
         )?;
