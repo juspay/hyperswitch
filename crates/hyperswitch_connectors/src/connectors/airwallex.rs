@@ -1125,7 +1125,7 @@ lazy_static! {
                     api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
                         api_models::feature_matrix::CardSpecificFeatures {
                             three_ds: common_enums::FeatureStatus::Supported,
-                            non_three_ds: common_enums::FeatureStatus::Supported,
+                            no_three_ds: common_enums::FeatureStatus::Supported,
                             supported_card_networks: supported_card_network.clone(),
                         }
                     }),
@@ -1144,7 +1144,7 @@ lazy_static! {
                     api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
                         api_models::feature_matrix::CardSpecificFeatures {
                             three_ds: common_enums::FeatureStatus::Supported,
-                            non_three_ds: common_enums::FeatureStatus::Supported,
+                            no_three_ds: common_enums::FeatureStatus::Supported,
                             supported_card_networks: supported_card_network.clone(),
                         }
                     }),
@@ -1167,7 +1167,8 @@ lazy_static! {
     };
 
     static ref AIRWALLEX_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
-        description: "Airwallex is a multinational financial technology company offering financial services and software as a service (SaaS)".to_string(),
+        display_name: "Airwallex",
+        description: "Airwallex is a multinational financial technology company offering financial services and software as a service (SaaS)",
         connector_type: enums::PaymentConnectorCategory::PaymentGateway,
     };
 

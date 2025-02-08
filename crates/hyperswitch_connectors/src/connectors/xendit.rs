@@ -648,7 +648,7 @@ lazy_static! {
                     api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
                         api_models::feature_matrix::CardSpecificFeatures {
                             three_ds: common_enums::FeatureStatus::Supported,
-                            non_three_ds: common_enums::FeatureStatus::Supported,
+                            no_three_ds: common_enums::FeatureStatus::Supported,
                             supported_card_networks: supported_card_network.clone(),
                         }
                     }),
@@ -667,7 +667,7 @@ lazy_static! {
                     api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
                         api_models::feature_matrix::CardSpecificFeatures {
                             three_ds: common_enums::FeatureStatus::Supported,
-                            non_three_ds: common_enums::FeatureStatus::Supported,
+                            no_three_ds: common_enums::FeatureStatus::Supported,
                             supported_card_networks: supported_card_network.clone(),
                         }
                     }),
@@ -679,7 +679,8 @@ lazy_static! {
     };
 
     static ref XENDIT_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
-        description: "Xendit is a financial technology company that provides payment solutions and simplifies the payment process for businesses in Indonesia, the Philippines and Southeast Asia, from SMEs and e-commerce startups to large enterprises.".to_string(),
+        display_name: "Xendit",
+        description: "Xendit is a financial technology company that provides payment solutions and simplifies the payment process for businesses in Indonesia, the Philippines and Southeast Asia, from SMEs and e-commerce startups to large enterprises.",
         connector_type: enums::PaymentConnectorCategory::PaymentGateway,
     };
 

@@ -1015,7 +1015,7 @@ lazy_static! {
                     api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
                         api_models::feature_matrix::CardSpecificFeatures {
                             three_ds: common_enums::FeatureStatus::Supported,
-                            non_three_ds: common_enums::FeatureStatus::Supported,
+                            no_three_ds: common_enums::FeatureStatus::Supported,
                             supported_card_networks: supported_card_network.clone(),
                         }
                     }),
@@ -1034,7 +1034,7 @@ lazy_static! {
                     api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
                         api_models::feature_matrix::CardSpecificFeatures {
                             three_ds: common_enums::FeatureStatus::Supported,
-                            non_three_ds: common_enums::FeatureStatus::Supported,
+                            no_three_ds: common_enums::FeatureStatus::Supported,
                             supported_card_networks: supported_card_network.clone(),
                         }
                     }),
@@ -1079,7 +1079,8 @@ lazy_static! {
     };
 
     static ref NOVALNET_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
-        description: "Novalnet provides tailored, data-driven payment solutions that maximize acceptance, boost conversions, and deliver seamless customer experiences worldwide.".to_string(),
+        display_name: "Novalnet",
+        description: "Novalnet provides tailored, data-driven payment solutions that maximize acceptance, boost conversions, and deliver seamless customer experiences worldwide.",
         connector_type: enums::PaymentConnectorCategory::PaymentGateway,
     };
 

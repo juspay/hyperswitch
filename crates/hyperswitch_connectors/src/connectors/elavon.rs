@@ -615,7 +615,7 @@ lazy_static! {
                     api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
                         api_models::feature_matrix::CardSpecificFeatures {
                             three_ds: common_enums::FeatureStatus::NotSupported,
-                            non_three_ds: common_enums::FeatureStatus::Supported,
+                            no_three_ds: common_enums::FeatureStatus::Supported,
                             supported_card_networks: supported_card_network.clone(),
                         }
                     }),
@@ -634,7 +634,7 @@ lazy_static! {
                     api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
                         api_models::feature_matrix::CardSpecificFeatures {
                             three_ds: common_enums::FeatureStatus::NotSupported,
-                            non_three_ds: common_enums::FeatureStatus::Supported,
+                            no_three_ds: common_enums::FeatureStatus::Supported,
                             supported_card_networks: supported_card_network.clone(),
                         }
                     }),
@@ -646,7 +646,8 @@ lazy_static! {
     };
 
     static ref ELAVON_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
-        description: "Elavon, a wholly owned subsidiary of U.S. Bank, has been a global leader in payment processing for more than 30 years.".to_string(),
+        display_name: "Elavon",
+        description: "Elavon, a wholly owned subsidiary of U.S. Bank, has been a global leader in payment processing for more than 30 years.",
         connector_type: enums::PaymentConnectorCategory::PaymentGateway,
     };
 
