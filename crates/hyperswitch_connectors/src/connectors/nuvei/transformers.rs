@@ -923,33 +923,33 @@ where
                     None,
                     item,
                 )),
-                domain::WalletData::AliPayQr(_)
-                | domain::WalletData::AliPayRedirect(_)
-                | domain::WalletData::AliPayHkRedirect(_)
-                | domain::WalletData::AmazonPay(_)
-                | domain::WalletData::AmazonPayRedirect(_)
-                | domain::WalletData::MomoRedirect(_)
-                | domain::WalletData::KakaoPayRedirect(_)
-                | domain::WalletData::GoPayRedirect(_)
-                | domain::WalletData::GcashRedirect(_)
-                | domain::WalletData::ApplePayRedirect(_)
-                | domain::WalletData::ApplePayThirdPartySdk(_)
-                | domain::WalletData::DanaRedirect {}
-                | domain::WalletData::GooglePayRedirect(_)
-                | domain::WalletData::GooglePayThirdPartySdk(_)
-                | domain::WalletData::MbWayRedirect(_)
-                | domain::WalletData::MobilePayRedirect(_)
-                | domain::WalletData::PaypalSdk(_)
-                | domain::WalletData::Paze(_)
-                | domain::WalletData::SamsungPay(_)
-                | domain::WalletData::TwintRedirect {}
-                | domain::WalletData::VippsRedirect {}
-                | domain::WalletData::TouchNGoRedirect(_)
-                | domain::WalletData::WeChatPayRedirect(_)
-                | domain::WalletData::CashappQr(_)
-                | domain::WalletData::SwishQr(_)
-                | domain::WalletData::WeChatPayQr(_)
-                | domain::WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
+                WalletData::AliPayQr(_)
+                | WalletData::AliPayRedirect(_)
+                | WalletData::AliPayHkRedirect(_)
+                | WalletData::AmazonPay(_)
+                | WalletData::AmazonPayRedirect(_)
+                | WalletData::MomoRedirect(_)
+                | WalletData::KakaoPayRedirect(_)
+                | WalletData::GoPayRedirect(_)
+                | WalletData::GcashRedirect(_)
+                | WalletData::ApplePayRedirect(_)
+                | WalletData::ApplePayThirdPartySdk(_)
+                | WalletData::DanaRedirect {}
+                | WalletData::GooglePayRedirect(_)
+                | WalletData::GooglePayThirdPartySdk(_)
+                | WalletData::MbWayRedirect(_)
+                | WalletData::MobilePayRedirect(_)
+                | WalletData::PaypalSdk(_)
+                | WalletData::Paze(_)
+                | WalletData::SamsungPay(_)
+                | WalletData::TwintRedirect {}
+                | WalletData::VippsRedirect {}
+                | WalletData::TouchNGoRedirect(_)
+                | WalletData::WeChatPayRedirect(_)
+                | WalletData::CashappQr(_)
+                | WalletData::SwishQr(_)
+                | WalletData::WeChatPayQr(_)
+                | WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("nuvei"),
                 )
                 .into()),

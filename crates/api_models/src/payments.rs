@@ -2445,7 +2445,9 @@ impl GetPaymentMethodType for WalletData {
         match self {
             Self::AliPayQr(_) | Self::AliPayRedirect(_) => api_enums::PaymentMethodType::AliPay,
             Self::AliPayHkRedirect(_) => api_enums::PaymentMethodType::AliPayHk,
-            Self::AmazonPay(_) | Self::AmazonPayRedirect(_) => api_enums::PaymentMethodType::AmazonPay,
+            Self::AmazonPay(_) | Self::AmazonPayRedirect(_) => {
+                api_enums::PaymentMethodType::AmazonPay
+            }
             Self::MomoRedirect(_) => api_enums::PaymentMethodType::Momo,
             Self::KakaoPayRedirect(_) => api_enums::PaymentMethodType::KakaoPay,
             Self::GoPayRedirect(_) => api_enums::PaymentMethodType::GoPay,

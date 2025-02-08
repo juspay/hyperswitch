@@ -114,34 +114,34 @@ impl TryFrom<(&WalletData, &PaymentsAuthorizeRouterData)> for PaymentDetails {
                 payment_brand: PaymentBrand::AliPay,
                 account_id: None,
             })),
-            domain::WalletData::AliPayHkRedirect(_)
-            | domain::WalletData::AmazonPayRedirect(_)
-            | domain::WalletData::MomoRedirect(_)
-            | domain::WalletData::KakaoPayRedirect(_)
-            | domain::WalletData::GoPayRedirect(_)
-            | domain::WalletData::GcashRedirect(_)
-            | domain::WalletData::AmazonPay(_)
-            | domain::WalletData::ApplePay(_)
-            | domain::WalletData::ApplePayThirdPartySdk(_)
-            | domain::WalletData::DanaRedirect { .. }
-            | domain::WalletData::GooglePay(_)
-            | domain::WalletData::GooglePayThirdPartySdk(_)
-            | domain::WalletData::MobilePayRedirect(_)
-            | domain::WalletData::PaypalRedirect(_)
-            | domain::WalletData::PaypalSdk(_)
-            | domain::WalletData::Paze(_)
-            | domain::WalletData::SamsungPay(_)
-            | domain::WalletData::TwintRedirect { .. }
-            | domain::WalletData::VippsRedirect { .. }
-            | domain::WalletData::TouchNGoRedirect(_)
-            | domain::WalletData::WeChatPayRedirect(_)
-            | domain::WalletData::WeChatPayQr(_)
-            | domain::WalletData::CashappQr(_)
-            | domain::WalletData::SwishQr(_)
-            | domain::WalletData::AliPayQr(_)
-            | domain::WalletData::ApplePayRedirect(_)
-            | domain::WalletData::GooglePayRedirect(_)
-            | domain::WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
+            WalletData::AliPayHkRedirect(_)
+            | WalletData::AmazonPayRedirect(_)
+            | WalletData::MomoRedirect(_)
+            | WalletData::KakaoPayRedirect(_)
+            | WalletData::GoPayRedirect(_)
+            | WalletData::GcashRedirect(_)
+            | WalletData::AmazonPay(_)
+            | WalletData::ApplePay(_)
+            | WalletData::ApplePayThirdPartySdk(_)
+            | WalletData::DanaRedirect { .. }
+            | WalletData::GooglePay(_)
+            | WalletData::GooglePayThirdPartySdk(_)
+            | WalletData::MobilePayRedirect(_)
+            | WalletData::PaypalRedirect(_)
+            | WalletData::PaypalSdk(_)
+            | WalletData::Paze(_)
+            | WalletData::SamsungPay(_)
+            | WalletData::TwintRedirect { .. }
+            | WalletData::VippsRedirect { .. }
+            | WalletData::TouchNGoRedirect(_)
+            | WalletData::WeChatPayRedirect(_)
+            | WalletData::WeChatPayQr(_)
+            | WalletData::CashappQr(_)
+            | WalletData::SwishQr(_)
+            | WalletData::AliPayQr(_)
+            | WalletData::ApplePayRedirect(_)
+            | WalletData::GooglePayRedirect(_)
+            | WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
                 "Payment method".to_string(),
             ))?,
         };

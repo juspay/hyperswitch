@@ -16,16 +16,13 @@ use hyperswitch_domain_models::{
     router_data::{AccessToken, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
-        payments::{
-            Authorize, Capture, CompleteAuthorize, PSync, PaymentMethodToken, Session,
-            SetupMandate, Void,
-        },
+        payments::{Authorize, Capture, PSync, PaymentMethodToken, Session, SetupMandate, Void},
         refunds::{Execute, RSync},
     },
     router_request_types::{
-        AccessTokenRequestData, CompleteAuthorizeData, PaymentMethodTokenizationData,
-        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData,
-        PaymentsSyncData, RefundsData, SetupMandateRequestData,
+        AccessTokenRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
+        PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
+        RefundsData, SetupMandateRequestData,
     },
     router_response_types::{
         ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
@@ -198,7 +195,6 @@ impl api::Refund for Amazonpay {}
 impl api::RefundExecute for Amazonpay {}
 impl api::RefundSync for Amazonpay {}
 impl api::PaymentToken for Amazonpay {}
-impl api::PaymentsCompleteAuthorize for Amazonpay {}
 
 impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
     for Amazonpay
@@ -469,11 +465,6 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res, event_builder)
     }
-}
-
-impl ConnectorIntegration<CompleteAuthorize, CompleteAuthorizeData, PaymentsResponseData>
-    for Amazonpay
-{
 }
 
 impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Amazonpay {
@@ -911,7 +902,8 @@ lazy_static! {
     };
 
     static ref AMAZONPAY_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
-        description: "Amazon Pay is an Alternative Payment Method (APM) connector that allows merchants to accept payments using customers' stored Amazon account details, providing a seamless checkout experience.".to_string(),
+        display_name: "Amazon Pay",
+        description: "Amazon Pay is an Alternative Payment Method (APM) connector that allows merchants to accept payments using customers' stored Amazon account details, providing a seamless checkout experience.",
         connector_type: enums::PaymentConnectorCategory::AlternativePaymentMethod,
     };
 

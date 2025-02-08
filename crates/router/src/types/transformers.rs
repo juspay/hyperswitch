@@ -465,7 +465,7 @@ impl ForeignFrom<api_enums::IntentStatus> for Option<storage_enums::EventType> {
 impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
     fn foreign_from(payment_method_type: api_enums::PaymentMethodType) -> Self {
         match payment_method_type {
-            | api_enums::PaymentMethodType::ApplePay
+            api_enums::PaymentMethodType::ApplePay
             | api_enums::PaymentMethodType::GooglePay
             | api_enums::PaymentMethodType::Paypal
             | api_enums::PaymentMethodType::AliPay
