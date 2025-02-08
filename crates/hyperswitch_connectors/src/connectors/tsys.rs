@@ -675,7 +675,7 @@ lazy_static! {
                     api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
                         api_models::feature_matrix::CardSpecificFeatures {
                             three_ds: common_enums::FeatureStatus::NotSupported,
-                            non_three_ds: common_enums::FeatureStatus::Supported,
+                            no_three_ds: common_enums::FeatureStatus::Supported,
                             supported_card_networks: supported_card_network.clone(),
                         }
                     }),
@@ -694,7 +694,7 @@ lazy_static! {
                     api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
                         api_models::feature_matrix::CardSpecificFeatures {
                             three_ds: common_enums::FeatureStatus::NotSupported,
-                            non_three_ds: common_enums::FeatureStatus::Supported,
+                            no_three_ds: common_enums::FeatureStatus::Supported,
                             supported_card_networks: supported_card_network.clone(),
                         }
                     }),
@@ -706,7 +706,8 @@ lazy_static! {
     };
 
     static ref TSYS_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
-        description: "TSYS, a Global Payments company, is the payment stack for the future, powered by unmatched expertise.".to_string(),
+        display_name: "Tsys",
+        description: "TSYS, a Global Payments company, is the payment stack for the future, powered by unmatched expertise.",
         connector_type: enums::PaymentConnectorCategory::BankAcquirer,
     };
 

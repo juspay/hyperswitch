@@ -811,7 +811,7 @@ lazy_static! {
                     api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
                         api_models::feature_matrix::CardSpecificFeatures {
                             three_ds: common_enums::FeatureStatus::NotSupported,
-                            non_three_ds: common_enums::FeatureStatus::Supported,
+                            no_three_ds: common_enums::FeatureStatus::Supported,
                             supported_card_networks: supported_card_network.clone(),
                         }
                     }),
@@ -830,7 +830,7 @@ lazy_static! {
                     api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
                         api_models::feature_matrix::CardSpecificFeatures {
                             three_ds: common_enums::FeatureStatus::NotSupported,
-                            non_three_ds: common_enums::FeatureStatus::Supported,
+                            no_three_ds: common_enums::FeatureStatus::Supported,
                             supported_card_networks: supported_card_network.clone(),
                         }
                     }),
@@ -842,7 +842,8 @@ lazy_static! {
     };
 
     static ref FISERVEMEA_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
-        description: "Fiserv powers over 6+ million merchants and 10,000+ financial institutions enabling them to accept billions of payments a year.".to_string(),
+        display_name: "Fiservemea",
+        description: "Fiserv powers over 6+ million merchants and 10,000+ financial institutions enabling them to accept billions of payments a year.",
         connector_type: enums::PaymentConnectorCategory::BankAcquirer,
     };
 
