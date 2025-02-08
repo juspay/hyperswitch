@@ -103,6 +103,52 @@ pub struct PlainCardDetails {
     pub number: cards::CardNumber,
     pub expiry_month: Secret<String>,
     pub expiry_year: Secret<String>,
+    pub cvv: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "3D")]
+    pub three_ds: Option<ThreeDSecureData>,
+}
+
+#[derive(Serialize, Clone, Debug)]
+pub struct ThreedsInfo {
+    cardholder: CardHolder,
+}
+
+#[derive(Serialize, Clone, Debug)]
+#[serde(untagged)]
+pub enum ThreeDSecureData {
+    Cardholder(ThreedsInfo),
+    Authentication(ThreeDSData),
+}
+#[derive(Debug, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct ThreeDSData {
+    #[serde(rename = "threeDSTransactionId")]
+    pub three_ds_transaction_id: String,
+    pub cavv: String,
+    pub eci: String,
+    pub xid: String,
+    #[serde(rename = "threeDSVersion")]
+    pub three_ds_version: String,
+    #[serde(rename = "authenticationResponse")]
+    pub authentication_response: String,
+}
+
+#[derive(Debug, Serialize, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CardHolder {
+    cardholder_name: Secret<String>,
+    email: Email,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    bill_addr_line1: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    bill_addr_post_code: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    bill_addr_city: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    bill_addr_state: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    bill_addr_country: Option<common_enums::CountryAlpha2>,
 }
 
 #[derive(Debug, Clone, Serialize, Default, Deserialize)]
@@ -173,10 +219,18 @@ impl TryFrom<&DatatransRouterData<&types::PaymentsAuthorizeRouterData>>
                     expiry_year: req_card.get_card_expiry_year_2_digit()?,
                 },
                 refno: item.router_data.connector_request_reference_id.clone(),
-                auto_settle: matches!(
-                    item.router_data.request.capture_method,
-                    Some(enums::CaptureMethod::Automatic)
-                ),
+                auto_settle: item.router_data.request.is_auto_capture()?,
+                redirect: if item.router_data.is_three_ds()
+                    && item.router_data.request.authentication_data.is_none()
+                {
+                    Some(RedirectUrls {
+                        success_url: item.router_data.request.router_return_url.clone(),
+                        cancel_url: item.router_data.request.router_return_url.clone(),
+                        error_url: item.router_data.request.router_return_url.clone(),
+                    })
+                } else {
+                    None
+                },
             }),
             PaymentMethodData::Wallet(_)
             | PaymentMethodData::PayLater(_)
@@ -226,7 +280,54 @@ fn get_status(item: &DatatransResponse, is_auto_capture: bool) -> enums::Attempt
                 enums::AttemptStatus::Authorized
             }
         }
+        DatatransResponse::ThreeDSResponse(_) => enums::AttemptStatus::AuthenticationPending,
     }
+}
+
+fn create_card_details(
+    item: &DatatransRouterData<&types::PaymentsAuthorizeRouterData>,
+    card: &Card,
+) -> Result<PlainCardDetails, error_stack::Report<errors::ConnectorError>> {
+    let mut details = PlainCardDetails {
+        res_type: "PLAIN".to_string(),
+        number: card.card_number.clone(),
+        expiry_month: card.card_exp_month.clone(),
+        expiry_year: card.get_card_expiry_year_2_digit()?,
+        cvv: card.card_cvc.clone(),
+        three_ds: None,
+    };
+
+    if let Some(auth_data) = &item.router_data.request.authentication_data {
+        details.three_ds = Some(ThreeDSecureData::Authentication(ThreeDSData {
+            three_ds_transaction_id: auth_data.ds_trans_id.clone().ok_or(
+                errors::ConnectorError::MissingRequiredField {
+                    field_name: "three_ds_transaction_id",
+                },
+            )?,
+            cavv: auth_data.cavv.clone(),
+            eci: auth_data
+                .eci
+                .clone()
+                .ok_or(errors::ConnectorError::MissingRequiredField { field_name: "eci" })?,
+            xid: auth_data.threeds_server_transaction_id.clone(),
+            three_ds_version: auth_data.message_version.to_string(),
+            authentication_response: "Y".to_string().into(),
+        }));
+    } else if item.router_data.is_three_ds() {
+        let billing = item.router_data.get_billing_address()?;
+        details.three_ds = Some(ThreeDSecureData::Cardholder(ThreedsInfo {
+            cardholder: CardHolder {
+                cardholder_name: item.router_data.get_billing_full_name()?,
+                email: item.router_data.request.get_email()?,
+                bill_addr_line1: billing.get_line1().ok().cloned(),
+                bill_addr_post_code: billing.get_zip().ok().cloned(),
+                bill_addr_city: billing.get_city().ok().cloned(),
+                bill_addr_state: billing.get_state().ok().cloned(),
+                bill_addr_country: billing.get_country().ok().copied(),
+            },
+        }));
+    }
+    Ok(details)
 }
 
 impl From<SyncResponse> for enums::AttemptStatus {
