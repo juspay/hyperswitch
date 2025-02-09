@@ -154,9 +154,9 @@ pub enum ThreeDSecureData {
 #[serde(rename_all = "camelCase")]
 pub struct ThreeDSData {
     #[serde(rename = "threeDSTransactionId")]
-    pub three_ds_transaction_id: String,
+    pub three_ds_transaction_id: Secret<String>,
     pub cavv: Secret<String>,
-    pub eci: Secret<String>,
+    pub eci: String,
     pub xid: Secret<String>,
     #[serde(rename = "threeDSVersion")]
     pub three_ds_version: String,
