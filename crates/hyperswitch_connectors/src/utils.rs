@@ -10,7 +10,7 @@ use common_enums::{
 };
 use common_utils::{
     consts::BASE64_ENGINE,
-    errors::{CustomResult, ReportSwitchExt},
+    errors::{CustomResult, ParsingError, ReportSwitchExt},
     ext_traits::{OptionExt, StringExt, ValueExt},
     id_type,
     pii::{self, Email, IpAddress},
@@ -29,6 +29,7 @@ use hyperswitch_domain_models::{
         PaymentsCancelData, PaymentsCaptureData, PaymentsPreProcessingData, PaymentsSyncData,
         RefundsData, ResponseId, SetupMandateRequestData,
     },
+    router_response_types::CaptureSyncResponse,
     types::OrderDetailsWithAmount,
 };
 use hyperswitch_interfaces::{api, consts, errors, types::Response};
@@ -39,6 +40,7 @@ use regex::Regex;
 use router_env::logger;
 use serde::Serializer;
 use serde_json::Value;
+use time::PrimitiveDateTime;
 
 use crate::{constants::UNSUPPORTED_ERROR_MESSAGE, types::RefreshTokenRouterData};
 
@@ -64,6 +66,11 @@ pub(crate) fn to_currency_base_unit_with_zero_decimal_check(
         .change_context(errors::ConnectorError::RequestEncodingFailed)
 }
 
+pub(crate) fn get_timestamp_in_milliseconds(datetime: &PrimitiveDateTime) -> i64 {
+    let utc_datetime = datetime.assume_utc();
+    utc_datetime.unix_timestamp() * 1000
+}
+
 pub(crate) fn get_amount_as_string(
     currency_unit: &api::CurrencyUnit,
     amount: i64,
@@ -74,6 +81,12 @@ pub(crate) fn get_amount_as_string(
         api::CurrencyUnit::Base => to_currency_base_unit(amount, currency)?,
     };
     Ok(amount)
+}
+
+pub(crate) fn base64_decode(data: String) -> Result<Vec<u8>, Error> {
+    BASE64_ENGINE
+        .decode(data)
+        .change_context(errors::ConnectorError::ResponseDeserializationFailed)
 }
 
 pub(crate) fn to_currency_base_unit(
@@ -139,6 +152,47 @@ pub(crate) fn get_error_code_error_message_based_on_priority(
         .first()
         .map(|&(error_code_message, _)| error_code_message)
         .cloned()
+}
+
+pub trait MultipleCaptureSyncResponse {
+    fn get_connector_capture_id(&self) -> String;
+    fn get_capture_attempt_status(&self) -> AttemptStatus;
+    fn is_capture_response(&self) -> bool;
+    fn get_connector_reference_id(&self) -> Option<String> {
+        None
+    }
+    fn get_amount_captured(&self) -> Result<Option<MinorUnit>, error_stack::Report<ParsingError>>;
+}
+
+pub(crate) fn construct_captures_response_hashmap<T>(
+    capture_sync_response_list: Vec<T>,
+) -> CustomResult<HashMap<String, CaptureSyncResponse>, errors::ConnectorError>
+where
+    T: MultipleCaptureSyncResponse,
+{
+    let mut hashmap = HashMap::new();
+    for capture_sync_response in capture_sync_response_list {
+        let connector_capture_id = capture_sync_response.get_connector_capture_id();
+        if capture_sync_response.is_capture_response() {
+            hashmap.insert(
+                connector_capture_id.clone(),
+                CaptureSyncResponse::Success {
+                    resource_id: ResponseId::ConnectorTransactionId(connector_capture_id),
+                    status: capture_sync_response.get_capture_attempt_status(),
+                    connector_response_reference_id: capture_sync_response
+                        .get_connector_reference_id(),
+                    amount: capture_sync_response
+                        .get_amount_captured()
+                        .change_context(errors::ConnectorError::AmountConversionFailed)
+                        .attach_printable(
+                            "failed to convert back captured response amount to minor unit",
+                        )?,
+                },
+            );
+        }
+    }
+
+    Ok(hashmap)
 }
 
 #[derive(Clone, Debug, serde::Serialize)]
@@ -303,6 +357,24 @@ pub(crate) fn convert_amount<T>(
     amount_convertor
         .convert(amount, currency)
         .change_context(errors::ConnectorError::AmountConversionFailed)
+}
+
+pub(crate) fn validate_currency(
+    request_currency: enums::Currency,
+    merchant_config_currency: Option<enums::Currency>,
+) -> Result<(), errors::ConnectorError> {
+    let merchant_config_currency =
+        merchant_config_currency.ok_or(errors::ConnectorError::NoConnectorMetaData)?;
+    if request_currency != merchant_config_currency {
+        Err(errors::ConnectorError::NotSupported {
+            message: format!(
+                "currency {} is not supported for this merchant account",
+                request_currency
+            ),
+            connector: "Braintree",
+        })?
+    }
+    Ok(())
 }
 
 pub(crate) fn convert_back_amount_to_minor_units<T>(
@@ -1188,6 +1260,8 @@ pub trait AddressDetailsData {
     fn get_optional_city(&self) -> Option<String>;
     fn get_optional_line1(&self) -> Option<Secret<String>>;
     fn get_optional_line2(&self) -> Option<Secret<String>>;
+    fn get_optional_first_name(&self) -> Option<Secret<String>>;
+    fn get_optional_last_name(&self) -> Option<Secret<String>>;
 }
 
 impl AddressDetailsData for AddressDetails {
@@ -1296,6 +1370,14 @@ impl AddressDetailsData for AddressDetails {
     fn get_optional_line2(&self) -> Option<Secret<String>> {
         self.line2.clone()
     }
+
+    fn get_optional_first_name(&self) -> Option<Secret<String>> {
+        self.first_name.clone()
+    }
+
+    fn get_optional_last_name(&self) -> Option<Secret<String>> {
+        self.last_name.clone()
+    }
 }
 
 pub trait PhoneDetailsData {
@@ -1335,6 +1417,26 @@ impl PhoneDetailsData for PhoneDetails {
             number_without_plus,
             number.peek()
         )))
+    }
+}
+
+#[cfg(feature = "payouts")]
+pub trait PayoutFulfillRequestData {
+    fn get_connector_payout_id(&self) -> Result<String, Error>;
+    fn get_connector_transfer_method_id(&self) -> Result<String, Error>;
+}
+#[cfg(feature = "payouts")]
+impl PayoutFulfillRequestData for hyperswitch_domain_models::router_request_types::PayoutsData {
+    fn get_connector_payout_id(&self) -> Result<String, Error> {
+        self.connector_payout_id
+            .clone()
+            .ok_or_else(missing_field_err("connector_payout_id"))
+    }
+
+    fn get_connector_transfer_method_id(&self) -> Result<String, Error> {
+        self.connector_transfer_method_id
+            .clone()
+            .ok_or_else(missing_field_err("connector_transfer_method_id"))
     }
 }
 
@@ -1673,6 +1775,7 @@ pub trait RefundsRequestData {
     fn get_connector_refund_id(&self) -> Result<String, Error>;
     fn get_webhook_url(&self) -> Result<String, Error>;
     fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
+    fn get_connector_metadata(&self) -> Result<Value, Error>;
 }
 
 impl RefundsRequestData for RefundsData {
@@ -1697,6 +1800,11 @@ impl RefundsRequestData for RefundsData {
         self.browser_info
             .clone()
             .and_then(|browser_info| browser_info.language)
+    }
+    fn get_connector_metadata(&self) -> Result<Value, Error> {
+        self.connector_metadata
+            .clone()
+            .ok_or_else(missing_field_err("connector_metadata"))
     }
 }
 
@@ -1825,6 +1933,8 @@ impl PaymentsCompleteAuthorizeRequestData for CompleteAuthorizeData {
 }
 pub trait AddressData {
     fn get_optional_full_name(&self) -> Option<Secret<String>>;
+    fn get_email(&self) -> Result<Email, Error>;
+    fn get_phone_with_country_code(&self) -> Result<Secret<String>, Error>;
 }
 
 impl AddressData for Address {
@@ -1832,6 +1942,18 @@ impl AddressData for Address {
         self.address
             .as_ref()
             .and_then(|billing_address| billing_address.get_optional_full_name())
+    }
+
+    fn get_email(&self) -> Result<Email, Error> {
+        self.email.clone().ok_or_else(missing_field_err("email"))
+    }
+
+    fn get_phone_with_country_code(&self) -> Result<Secret<String>, Error> {
+        self.phone
+            .clone()
+            .map(|phone_details| phone_details.get_number_with_country_code())
+            .transpose()?
+            .ok_or_else(missing_field_err("phone"))
     }
 }
 pub trait PaymentsPreProcessingRequestData {
@@ -2266,6 +2388,7 @@ pub enum PaymentMethodDataType {
     AliPayQr,
     AliPayRedirect,
     AliPayHkRedirect,
+    AmazonPayRedirect,
     MomoRedirect,
     KakaoPayRedirect,
     GoPayRedirect,
@@ -2293,7 +2416,6 @@ pub enum PaymentMethodDataType {
     SwishQr,
     KlarnaRedirect,
     KlarnaSdk,
-    KlarnaCheckout,
     AffirmRedirect,
     AfterpayClearpayRedirect,
     PayBrightRedirect,
@@ -2385,6 +2507,7 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
                 payment_method_data::WalletData::AliPayQr(_) => Self::AliPayQr,
                 payment_method_data::WalletData::AliPayRedirect(_) => Self::AliPayRedirect,
                 payment_method_data::WalletData::AliPayHkRedirect(_) => Self::AliPayHkRedirect,
+                payment_method_data::WalletData::AmazonPayRedirect(_) => Self::AmazonPayRedirect,
                 payment_method_data::WalletData::MomoRedirect(_) => Self::MomoRedirect,
                 payment_method_data::WalletData::KakaoPayRedirect(_) => Self::KakaoPayRedirect,
                 payment_method_data::WalletData::GoPayRedirect(_) => Self::GoPayRedirect,
@@ -2418,7 +2541,6 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
             PaymentMethodData::PayLater(pay_later_data) => match pay_later_data {
                 payment_method_data::PayLaterData::KlarnaRedirect { .. } => Self::KlarnaRedirect,
                 payment_method_data::PayLaterData::KlarnaSdk { .. } => Self::KlarnaSdk,
-                payment_method_data::PayLaterData::KlarnaCheckout {} => Self::KlarnaCheckout,
                 payment_method_data::PayLaterData::AffirmRedirect {} => Self::AffirmRedirect,
                 payment_method_data::PayLaterData::AfterpayClearpayRedirect { .. } => {
                     Self::AfterpayClearpayRedirect
@@ -2633,6 +2755,10 @@ pub fn deserialize_xml_to_struct<T: serde::de::DeserializeOwned>(
     })?;
 
     Ok(result)
+}
+
+pub fn is_html_response(response: &str) -> bool {
+    response.starts_with("<html>") || response.starts_with("<!DOCTYPE html>")
 }
 
 #[cfg(feature = "payouts")]

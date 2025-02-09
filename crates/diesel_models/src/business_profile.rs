@@ -316,6 +316,7 @@ pub struct Profile {
     pub is_click_to_pay_enabled: bool,
     pub authentication_product_ids:
         Option<common_types::payments::AuthenticationConnectorAccountMap>,
+    pub three_ds_decision_manager_config: Option<common_types::payments::DecisionManagerRecord>,
     pub is_clear_pan_retries_enabled: bool,
 }
 
@@ -378,6 +379,7 @@ pub struct ProfileNew {
     pub is_click_to_pay_enabled: bool,
     pub authentication_product_ids:
         Option<common_types::payments::AuthenticationConnectorAccountMap>,
+    pub three_ds_decision_manager_config: Option<common_types::payments::DecisionManagerRecord>,
     pub is_clear_pan_retries_enabled: Option<bool>,
 }
 
@@ -424,6 +426,7 @@ pub struct ProfileUpdateInternal {
     pub is_click_to_pay_enabled: Option<bool>,
     pub authentication_product_ids:
         Option<common_types::payments::AuthenticationConnectorAccountMap>,
+    pub three_ds_decision_manager_config: Option<common_types::payments::DecisionManagerRecord>,
     pub is_clear_pan_retries_enabled: Option<bool>,
 }
 
@@ -468,6 +471,7 @@ impl ProfileUpdateInternal {
             max_auto_retries_enabled,
             is_click_to_pay_enabled,
             authentication_product_ids,
+            three_ds_decision_manager_config,
             is_clear_pan_retries_enabled,
         } = self;
         Profile {
@@ -537,6 +541,8 @@ impl ProfileUpdateInternal {
                 .unwrap_or(source.is_click_to_pay_enabled),
             authentication_product_ids: authentication_product_ids
                 .or(source.authentication_product_ids),
+            three_ds_decision_manager_config: three_ds_decision_manager_config
+                .or(source.three_ds_decision_manager_config),
             is_clear_pan_retries_enabled: is_clear_pan_retries_enabled
                 .unwrap_or(source.is_clear_pan_retries_enabled),
         }
