@@ -351,7 +351,7 @@ fn create_card_details(
                 .ok_or(errors::ConnectorError::MissingRequiredField { field_name: "eci" })?,
             xid: auth_data.threeds_server_transaction_id.clone(),
             three_ds_version: auth_data.message_version.to_string(),
-            authentication_response: "Y".to_string().into(),
+            authentication_response: "Y".to_string(),
         }));
     } else if item.router_data.is_three_ds() {
         let billing = item.router_data.get_billing_address()?;
