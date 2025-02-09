@@ -308,3 +308,6 @@ api_key="API Key"
 
 [chargebee]
 api_key= "API Key"
+
+[stripebilling]
+api_key= "API Key"
