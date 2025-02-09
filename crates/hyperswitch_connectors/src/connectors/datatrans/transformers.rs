@@ -155,9 +155,9 @@ pub enum ThreeDSecureData {
 pub struct ThreeDSData {
     #[serde(rename = "threeDSTransactionId")]
     pub three_ds_transaction_id: String,
-    pub cavv: String,
-    pub eci: String,
-    pub xid: String,
+    pub cavv: Secret<String>,
+    pub eci: Secret<String>,
+    pub xid: Secret<String>,
     #[serde(rename = "threeDSVersion")]
     pub three_ds_version: String,
     #[serde(rename = "authenticationResponse")]
@@ -339,17 +339,17 @@ fn create_card_details(
 
     if let Some(auth_data) = &item.router_data.request.authentication_data {
         details.three_ds = Some(ThreeDSecureData::Authentication(ThreeDSData {
-            three_ds_transaction_id: auth_data.ds_trans_id.clone().ok_or(
+            three_ds_transaction_id: Secret::new(auth_data.ds_trans_id.clone().ok_or(
                 errors::ConnectorError::MissingRequiredField {
                     field_name: "three_ds_transaction_id",
                 },
-            )?,
-            cavv: auth_data.cavv.clone(),
+            )?),
+            cavv: Secret::new(auth_data.cavv.clone()),
             eci: auth_data
                 .eci
                 .clone()
                 .ok_or(errors::ConnectorError::MissingRequiredField { field_name: "eci" })?,
-            xid: auth_data.threeds_server_transaction_id.clone(),
+            xid: Secret::new(auth_data.threeds_server_transaction_id.clone()),
             three_ds_version: auth_data.message_version.to_string(),
             authentication_response: "Y".to_string(),
         }));
