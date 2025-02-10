@@ -1744,7 +1744,7 @@ fn get_payment_response(
                         .unwrap_or(info_response.id.clone()),
                 ),
                 incremental_authorization_allowed,
-                charge_id: None,
+                charges: None,
             })
         }
     }
@@ -1949,7 +1949,7 @@ impl
                     incremental_authorization_allowed: Some(
                         mandate_status == enums::AttemptStatus::Authorized,
                     ),
-                    charge_id: None,
+                    charges: None,
                 }),
             },
             connector_response,
@@ -2066,7 +2066,7 @@ impl<F>
                                 .map(|cref| cref.code)
                                 .unwrap_or(Some(item.response.id)),
                             incremental_authorization_allowed,
-                            charge_id: None,
+                            charges: None,
                         }),
                         ..item.data
                     })
@@ -2082,7 +2082,7 @@ impl<F>
                     network_txn_id: None,
                     connector_response_reference_id: Some(item.response.id),
                     incremental_authorization_allowed: None,
-                    charge_id: None,
+                    charges: None,
                 }),
                 ..item.data
             }),

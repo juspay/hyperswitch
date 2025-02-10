@@ -4,6 +4,24 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.02.10.0
+
+### Features
+
+- **connector:**
+  - [DataTrans] ADD 3DS Flow ([#6026](https://github.com/juspay/hyperswitch/pull/6026)) ([`4693d21`](https://github.com/juspay/hyperswitch/commit/4693d21b7c26055ed33fadd3f53943715ab71516))
+  - [DATATRANS] Add Support for External 3DS ([#7226](https://github.com/juspay/hyperswitch/pull/7226)) ([`45882bd`](https://github.com/juspay/hyperswitch/commit/45882bdb76f7f031776aa10692fabd792627b891))
+- **opensearch:** Add amount and customer_id as filters and handle name for different indexes ([#7073](https://github.com/juspay/hyperswitch/pull/7073)) ([`df328c5`](https://github.com/juspay/hyperswitch/commit/df328c5e520b89b09e1b684d039f1d9613d78613))
+
+### Refactors
+
+- **connector:** Move connectors Aci, Braintree, Globalpay, Iatapay, Itaubank, Klarna, Mifinity and Nuvei from router to hyperswitch_connectors crate ([#7167](https://github.com/juspay/hyperswitch/pull/7167)) ([`7dfe400`](https://github.com/juspay/hyperswitch/commit/7dfe400401daf7081f9240ed52064281b302ba57))
+- **router:** Add display_name field to connector feature api ([#7121](https://github.com/juspay/hyperswitch/pull/7121)) ([`50784ad`](https://github.com/juspay/hyperswitch/commit/50784ad1c13f0aa66a1da566ddd25e2621021538))
+
+**Full Changelog:** [`2025.02.07.0...2025.02.10.0`](https://github.com/juspay/hyperswitch/compare/2025.02.07.0...2025.02.10.0)
+
+- - -
+
 ## 2025.02.07.0
 
 ### Features
