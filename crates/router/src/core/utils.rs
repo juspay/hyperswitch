@@ -1688,8 +1688,8 @@ pub(crate) trait ValidatePlatformMerchant {
         &self,
         auth_platform_merchant_id: Option<&common_utils::id_type::MerchantId>,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
-        let data_plaform_merchant_id = self.get_platform_merchant_id();
-        match (data_plaform_merchant_id, auth_platform_merchant_id) {
+        let data_platform_merchant_id = self.get_platform_merchant_id();
+        match (data_platform_merchant_id, auth_platform_merchant_id) {
             (Some(data_platform_merchant_id), Some(auth_platform_merchant_id)) => {
                 common_utils::fp_utils::when(
                     data_platform_merchant_id != auth_platform_merchant_id,
