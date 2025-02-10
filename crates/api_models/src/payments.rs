@@ -1877,7 +1877,6 @@ pub enum PayLaterData {
         /// The token for the sdk workflow
         token: String,
     },
-    KlarnaCheckout {},
     /// For Affirm redirect as PayLater Option
     AffirmRedirect {},
     /// For AfterpayClearpay redirect as PayLater Option
@@ -1935,7 +1934,6 @@ impl GetAddressFromPaymentMethodData for PayLaterData {
             | Self::WalleyRedirect {}
             | Self::AlmaRedirect {}
             | Self::KlarnaSdk { .. }
-            | Self::KlarnaCheckout {}
             | Self::AffirmRedirect {}
             | Self::AtomeRedirect {} => None,
         }
@@ -2398,7 +2396,6 @@ impl GetPaymentMethodType for PayLaterData {
         match self {
             Self::KlarnaRedirect { .. } => api_enums::PaymentMethodType::Klarna,
             Self::KlarnaSdk { .. } => api_enums::PaymentMethodType::Klarna,
-            Self::KlarnaCheckout {} => api_enums::PaymentMethodType::Klarna,
             Self::AffirmRedirect {} => api_enums::PaymentMethodType::Affirm,
             Self::AfterpayClearpayRedirect { .. } => api_enums::PaymentMethodType::AfterpayClearpay,
             Self::PayBrightRedirect {} => api_enums::PaymentMethodType::PayBright,

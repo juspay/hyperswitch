@@ -31,8 +31,9 @@ use crate::{
         PaymentsExternalAuthenticationRequest, PaymentsExternalAuthenticationResponse,
         PaymentsIncrementalAuthorizationRequest, PaymentsManualUpdateRequest,
         PaymentsManualUpdateResponse, PaymentsPostSessionTokensRequest,
-        PaymentsPostSessionTokensResponse, PaymentsRejectRequest, PaymentsRetrieveRequest,
-        PaymentsSessionResponse, PaymentsStartRequest, RedirectionResponse,
+        PaymentsPostSessionTokensResponse, PaymentsRejectRequest, PaymentsResponse,
+        PaymentsRetrieveRequest, PaymentsSessionResponse, PaymentsStartRequest,
+        RedirectionResponse,
     },
 };
 

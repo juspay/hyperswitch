@@ -14,6 +14,9 @@ pub fn spawn_metrics_collector(metrics_collection_interval_in_secs: Option<u16>)
         &cache::PM_FILTERS_CGRAPH_CACHE,
         &cache::DECISION_MANAGER_CACHE,
         &cache::SURCHARGE_CACHE,
+        &cache::SUCCESS_BASED_DYNAMIC_ALGORITHM_CACHE,
+        &cache::CONTRACT_BASED_DYNAMIC_ALGORITHM_CACHE,
+        &cache::ELIMINATION_BASED_DYNAMIC_ALGORITHM_CACHE,
     ];
 
     tokio::spawn(async move {
