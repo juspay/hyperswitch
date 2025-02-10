@@ -183,7 +183,7 @@ impl<F: Clone + Sync> UnifiedAuthenticationService<F> for ClickToPay {
         let (checkout_event_status, confirmation_reason) =
             utils::get_checkout_event_status_and_reason(payment_attempt_status);
 
-        let ctp_details = payment_data.service_details.clone();
+        let click_to_pay_details = payment_data.service_details.clone();
 
         let authentication_confirmation_data = UasConfirmationRequestData {
             x_src_flow_id: payment_data
@@ -192,17 +192,17 @@ impl<F: Clone + Sync> UnifiedAuthenticationService<F> for ClickToPay {
                 .and_then(|details| details.x_src_flow_id.clone()),
             transaction_amount: payment_data.payment_attempt.net_amount.get_order_amount(),
             transaction_currency: currency,
-            checkout_event_type: Some("01".to_string()),
+            checkout_event_type: Some("01".to_string()), // hardcoded to '01' since only authorise flow is implemented
             checkout_event_status: checkout_event_status.clone(),
             confirmation_status: checkout_event_status.clone(),
             confirmation_reason,
             confirmation_timestamp: Some(current_time),
-            network_authorization_code: Some("01".to_string()),
-            network_transaction_identifier: Some("01".to_string()),
-            correlation_id: ctp_details
+            network_authorization_code: Some("01".to_string()), // hardcoded to '01' since only authorise flow is implemented
+            network_transaction_identifier: Some("01".to_string()), // hardcoded to '01' since only authorise flow is implemented
+            correlation_id: click_to_pay_details
                 .clone()
                 .and_then(|details| details.correlation_id),
-            merchant_transaction_id: ctp_details
+            merchant_transaction_id: click_to_pay_details
                 .and_then(|details| details.merchant_transaction_id),
         };
 

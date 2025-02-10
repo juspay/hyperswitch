@@ -129,12 +129,15 @@ pub struct UasConfirmationRequestData {
     pub x_src_flow_id: Option<String>,
     pub transaction_amount: MinorUnit,
     pub transaction_currency: common_enums::Currency,
+    // Type of event associated with the checkout. Valid values are: - 01 - Authorise - 02 - Capture - 03 - Refund - 04 - Cancel - 05 - Fraud - 06 - Chargeback - 07 - Other
     pub checkout_event_type: Option<String>,
     pub checkout_event_status: Option<String>,
     pub confirmation_status: Option<String>,
     pub confirmation_reason: Option<String>,
     pub confirmation_timestamp: Option<PrimitiveDateTime>,
+    // Authorisation code associated with an approved transaction.
     pub network_authorization_code: Option<String>,
+    // The unique authorisation related tracing value assigned by a Payment Network and provided in an authorisation response. Required only when checkoutEventType=01. If checkoutEventType=01 and the value of networkTransactionIdentifier is unknown, please pass UNAVLB
     pub network_transaction_identifier: Option<String>,
     pub correlation_id: Option<String>,
     pub merchant_transaction_id: Option<String>,

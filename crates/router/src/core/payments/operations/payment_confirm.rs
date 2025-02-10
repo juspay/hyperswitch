@@ -1189,7 +1189,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     let click_to_pay_mca_id = authentication_product_ids
                     .get_click_to_pay_connector_account_id()
                     .change_context(errors::ApiErrorResponse::MissingRequiredField {
-                        field_name: "authentication_product_ids",
+                        field_name: "click_to_pay_mca_id",
                     })?;
                     let key_manager_state = &(state).into();
                     let merchant_id = &business_profile.merchant_id;
