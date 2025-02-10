@@ -562,6 +562,31 @@ pub fn get_split_refunds(
                         )
                     }))
                 }
+                (
+                    Some(common_types::payments::ConnectorChargeResponseData::XenditSplitPayment(
+                        xendit_split_payment_response,
+                    )),
+                    None,
+                ) => {
+                    let option_for_user_id = match xendit_split_payment_response {
+                        common_types::payments::XenditChargeResponseData::MultipleSplits(
+                            common_types::payments::XenditMultipleSplitResponse {
+                                for_user_id, ..
+                            },
+                        ) => for_user_id.clone(),
+                        common_types::payments::XenditChargeResponseData::SingleSplit(
+                            common_types::domain::XenditSplitSubMerchantData { for_user_id },
+                        ) => Some(for_user_id.clone()),
+                    };
+
+                    if option_for_user_id.is_some() {
+                        Err(errors::ApiErrorResponse::MissingRequiredField {
+                            field_name: "split_refunds.xendit_split_refund.for_user_id",
+                        })?
+                    } else {
+                        Ok(None)
+                    }
+                }
                 _ => Ok(None),
             }
         }
