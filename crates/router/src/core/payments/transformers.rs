@@ -1082,7 +1082,7 @@ where
         network_txn_id: None,
         connector_response_reference_id: None,
         incremental_authorization_allowed: None,
-        charge_id: None,
+        charges: None,
     });
 
     let additional_data = PaymentAdditionalData {
@@ -2300,24 +2300,6 @@ where
             )
         });
 
-        let split_payments_response = match payment_intent.split_payments {
-            None => None,
-            Some(split_payments) => match split_payments {
-                common_types::payments::SplitPaymentsRequest::StripeSplitPayment(
-                    stripe_split_payment,
-                ) => Some(
-                    api_models::payments::SplitPaymentsResponse::StripeSplitPayment(
-                        api_models::payments::StripeSplitPaymentsResponse {
-                            charge_id: payment_attempt.charge_id.clone(),
-                            charge_type: stripe_split_payment.charge_type,
-                            application_fees: stripe_split_payment.application_fees,
-                            transfer_account_id: stripe_split_payment.transfer_account_id,
-                        },
-                    ),
-                ),
-            },
-        };
-
         let mandate_data = payment_data.get_setup_mandate().map(|d| api::MandateData {
             customer_acceptance: d
                 .customer_acceptance
@@ -2496,7 +2478,7 @@ where
                 .get_payment_method_info()
                 .map(|info| info.status),
             updated: Some(payment_intent.modified_at),
-            split_payments: split_payments_response,
+            split_payments: payment_attempt.charges,
             frm_metadata: payment_intent.frm_metadata,
             merchant_order_reference_id: payment_intent.merchant_order_reference_id,
             order_tax_amount,

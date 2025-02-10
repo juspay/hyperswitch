@@ -912,6 +912,7 @@ diesel::table! {
         connector_mandate_detail -> Nullable<Jsonb>,
         processor_transaction_data -> Nullable<Text>,
         card_discovery -> Nullable<CardDiscovery>,
+        charges -> Nullable<Jsonb>,
     }
 }
 
