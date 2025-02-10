@@ -11,7 +11,7 @@ use common_utils::{
     request::{Method, Request, RequestBuilder, RequestContent},
     types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector},
 };
-use error_stack::{report, ResultExt};
+use error_stack::{report, Report, ResultExt};
 use hyperswitch_domain_models::{
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
@@ -55,9 +55,9 @@ use crate::{
     utils::{
         construct_not_supported_error_report, convert_amount,
         get_error_code_error_message_based_on_priority, get_header_key_value, get_http_header,
-        to_connector_meta_from_secret, to_currency_lower_unit, ConnectorErrorType,
-        ConnectorErrorTypeMapping, ForeignTryFrom, PaymentsAuthorizeRequestData,
-        RefundsRequestData, RouterData as _,
+        handle_json_response_deserialization_failure, to_connector_meta_from_secret,
+        to_currency_lower_unit, ConnectorErrorType, ConnectorErrorTypeMapping, ForeignTryFrom,
+        PaymentsAuthorizeRequestData, RefundsRequestData, RouterData as _,
     },
 };
 
@@ -132,74 +132,84 @@ impl ConnectorCommon for Bluesnap {
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         logger::debug!(bluesnap_error_response=?res);
-        let response: bluesnap::BluesnapErrors = res
-            .response
-            .parse_struct("BluesnapErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let response_data: Result<
+            bluesnap::BluesnapErrors,
+            Report<common_utils::errors::ParsingError>,
+        > = res.response.parse_struct("BluesnapErrors");
 
-        event_builder.map(|i| i.set_error_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
+        match response_data {
+            Ok(response) => {
+                event_builder.map(|i| i.set_error_response_body(&response));
+                router_env::logger::info!(connector_response=?response);
 
-        let response_error_message = match response {
-            bluesnap::BluesnapErrors::Payment(error_response) => {
-                let error_list = error_response.message.clone();
-                let option_error_code_message = get_error_code_error_message_based_on_priority(
-                    self.clone(),
-                    error_list.into_iter().map(|errors| errors.into()).collect(),
-                );
-                let reason = error_response
-                    .message
-                    .iter()
-                    .map(|error| error.description.clone())
-                    .collect::<Vec<String>>()
-                    .join(" & ");
-                ErrorResponse {
-                    status_code: res.status_code,
-                    code: option_error_code_message
-                        .clone()
-                        .map(|error_code_message| error_code_message.error_code)
-                        .unwrap_or(NO_ERROR_CODE.to_string()),
-                    message: option_error_code_message
-                        .map(|error_code_message| error_code_message.error_message)
-                        .unwrap_or(NO_ERROR_MESSAGE.to_string()),
-                    reason: Some(reason),
-                    attempt_status: None,
-                    connector_transaction_id: None,
-                }
-            }
-            bluesnap::BluesnapErrors::Auth(error_res) => ErrorResponse {
-                status_code: res.status_code,
-                code: error_res.error_code.clone(),
-                message: error_res.error_name.clone().unwrap_or(error_res.error_code),
-                reason: Some(error_res.error_description),
-                attempt_status: None,
-                connector_transaction_id: None,
-            },
-            bluesnap::BluesnapErrors::General(error_response) => {
-                let (error_res, attempt_status) = if res.status_code == 403
-                    && error_response.contains(BLUESNAP_TRANSACTION_NOT_FOUND)
-                {
-                    (
-                        format!(
-                            "{} in bluesnap dashboard",
-                            REQUEST_TIMEOUT_PAYMENT_NOT_FOUND
-                        ),
-                        Some(enums::AttemptStatus::Failure), // when bluesnap throws 403 for payment not found, we update the payment status to failure.
-                    )
-                } else {
-                    (error_response.clone(), None)
+                let response_error_message = match response {
+                    bluesnap::BluesnapErrors::Payment(error_response) => {
+                        let error_list = error_response.message.clone();
+                        let option_error_code_message =
+                            get_error_code_error_message_based_on_priority(
+                                self.clone(),
+                                error_list.into_iter().map(|errors| errors.into()).collect(),
+                            );
+                        let reason = error_response
+                            .message
+                            .iter()
+                            .map(|error| error.description.clone())
+                            .collect::<Vec<String>>()
+                            .join(" & ");
+                        ErrorResponse {
+                            status_code: res.status_code,
+                            code: option_error_code_message
+                                .clone()
+                                .map(|error_code_message| error_code_message.error_code)
+                                .unwrap_or(NO_ERROR_CODE.to_string()),
+                            message: option_error_code_message
+                                .map(|error_code_message| error_code_message.error_message)
+                                .unwrap_or(NO_ERROR_MESSAGE.to_string()),
+                            reason: Some(reason),
+                            attempt_status: None,
+                            connector_transaction_id: None,
+                        }
+                    }
+                    bluesnap::BluesnapErrors::Auth(error_res) => ErrorResponse {
+                        status_code: res.status_code,
+                        code: error_res.error_code.clone(),
+                        message: error_res.error_name.clone().unwrap_or(error_res.error_code),
+                        reason: Some(error_res.error_description),
+                        attempt_status: None,
+                        connector_transaction_id: None,
+                    },
+                    bluesnap::BluesnapErrors::General(error_response) => {
+                        let (error_res, attempt_status) = if res.status_code == 403
+                            && error_response.contains(BLUESNAP_TRANSACTION_NOT_FOUND)
+                        {
+                            (
+                                format!(
+                                    "{} in bluesnap dashboard",
+                                    REQUEST_TIMEOUT_PAYMENT_NOT_FOUND
+                                ),
+                                Some(enums::AttemptStatus::Failure), // when bluesnap throws 403 for payment not found, we update the payment status to failure.
+                            )
+                        } else {
+                            (error_response.clone(), None)
+                        };
+                        ErrorResponse {
+                            status_code: res.status_code,
+                            code: NO_ERROR_CODE.to_string(),
+                            message: error_response,
+                            reason: Some(error_res),
+                            attempt_status,
+                            connector_transaction_id: None,
+                        }
+                    }
                 };
-                ErrorResponse {
-                    status_code: res.status_code,
-                    code: NO_ERROR_CODE.to_string(),
-                    message: error_response,
-                    reason: Some(error_res),
-                    attempt_status,
-                    connector_transaction_id: None,
-                }
+                Ok(response_error_message)
             }
-        };
-        Ok(response_error_message)
+            Err(error_msg) => {
+                event_builder.map(|event| event.set_error(serde_json::json!({"error": res.response.escape_ascii().to_string(), "status_code": res.status_code})));
+                router_env::logger::error!(deserialization_error =? error_msg);
+                handle_json_response_deserialization_failure(res, "bluesnap")
+            }
+        }
     }
 }
 
@@ -750,7 +760,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         network_txn_id: None,
                         connector_response_reference_id: None,
                         incremental_authorization_allowed: None,
-                        charge_id: None,
+                        charges: None,
                     }),
                     ..data.clone()
                 })

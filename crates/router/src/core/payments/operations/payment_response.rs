@@ -5,6 +5,8 @@ use api_models::payments::{ConnectorMandateReferenceId, MandateReferenceId};
 use api_models::routing::RoutableConnectorChoice;
 use async_trait::async_trait;
 use common_enums::{AuthorizationStatus, SessionUpdateStatus};
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+use common_utils::ext_traits::ValueExt;
 use common_utils::{
     ext_traits::{AsyncExt, Encode},
     types::{keymanager::KeyManagerState, ConnectorTransactionId, MinorUnit},
@@ -1532,7 +1534,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                             connector_metadata,
                             connector_response_reference_id,
                             incremental_authorization_allowed,
-                            charge_id,
+                            charges,
                             ..
                         } => {
                             payment_data
@@ -1718,11 +1720,11 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                         authentication_data,
                                         encoded_data,
                                         payment_method_data: additional_payment_method_data,
-                                        charge_id,
                                         connector_mandate_detail: payment_data
                                             .payment_attempt
                                             .connector_mandate_detail
                                             .clone(),
+                                        charges,
                                     }),
                                 ),
                             };
@@ -1961,11 +1963,22 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
         if payment_intent.status.is_in_terminal_state()
             && business_profile.dynamic_routing_algorithm.is_some()
         {
+            let dynamic_routing_algo_ref: api_models::routing::DynamicRoutingAlgorithmRef =
+                business_profile
+                    .dynamic_routing_algorithm
+                    .clone()
+                    .map(|val| val.parse_value("DynamicRoutingAlgorithmRef"))
+                    .transpose()
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("unable to deserialize DynamicRoutingAlgorithmRef from JSON")?
+                    .ok_or(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("DynamicRoutingAlgorithmRef not found in profile")?;
+
             let state = state.clone();
-            let business_profile = business_profile.clone();
+            let profile_id = business_profile.get_id().to_owned();
             let payment_attempt = payment_attempt.clone();
-            let success_based_routing_config_params_interpolator =
-                routing_helpers::SuccessBasedRoutingConfigParamsInterpolator::new(
+            let dynamic_routing_config_params_interpolator =
+                routing_helpers::DynamicRoutingConfigParamsInterpolator::new(
                     payment_attempt.payment_method,
                     payment_attempt.payment_method_type,
                     payment_attempt.authentication_type,
@@ -1999,12 +2012,25 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                     routing_helpers::push_metrics_with_update_window_for_success_based_routing(
                         &state,
                         &payment_attempt,
-                        routable_connectors,
-                        &business_profile,
-                        success_based_routing_config_params_interpolator,
+                        routable_connectors.clone(),
+                        &profile_id,
+                        dynamic_routing_algo_ref.clone(),
+                        dynamic_routing_config_params_interpolator.clone(),
                     )
                     .await
-                    .map_err(|e| logger::error!(dynamic_routing_metrics_error=?e))
+                    .map_err(|e| logger::error!(success_based_routing_metrics_error=?e))
+                    .ok();
+
+                    routing_helpers::push_metrics_with_update_window_for_contract_based_routing(
+                        &state,
+                        &payment_attempt,
+                        routable_connectors,
+                        &profile_id,
+                        dynamic_routing_algo_ref,
+                        dynamic_routing_config_params_interpolator,
+                    )
+                    .await
+                    .map_err(|e| logger::error!(contract_based_routing_metrics_error=?e))
                     .ok();
                 }
                 .in_current_span(),

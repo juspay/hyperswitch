@@ -13,8 +13,7 @@ use common_utils::{
 use diesel_models::process_tracker::business_status;
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
-    router_data::ErrorResponse,
-    router_request_types::{SplitRefundsRequest, StripeSplitRefund},
+    router_data::ErrorResponse, router_request_types::SplitRefundsRequest,
 };
 use hyperswitch_interfaces::integrity::{CheckIntegrity, FlowIntegrity, GetIntegrityObject};
 use router_env::{instrument, tracing};
@@ -514,18 +513,12 @@ pub async fn refund_retrieve_core(
         .await
         .transpose()?;
 
-    let split_refunds_req: Option<SplitRefundsRequest> = payment_intent
-        .split_payments
-        .clone()
-        .zip(refund.split_refunds.clone())
-        .map(|(split_payments, split_refunds)| {
-            SplitRefundsRequest::try_from(SplitRefundInput {
-                refund_request: split_refunds,
-                payment_charges: split_payments,
-                charge_id: payment_attempt.charge_id.clone(),
-            })
-        })
-        .transpose()?;
+    let split_refunds_req = core_utils::get_split_refunds(SplitRefundInput {
+        split_payment_request: payment_intent.split_payments.clone(),
+        payment_charges: payment_attempt.charges.clone(),
+        charge_id: payment_attempt.charge_id.clone(),
+        refund_request: refund.split_refunds.clone(),
+    })?;
 
     let unified_translated_message = if let (Some(unified_code), Some(unified_message)) =
         (refund.unified_code.clone(), refund.unified_message.clone())
@@ -814,32 +807,12 @@ pub async fn validate_and_create_refund(
     creds_identifier: Option<String>,
 ) -> RouterResult<refunds::RefundResponse> {
     let db = &*state.store;
-
-    let split_refunds = match payment_intent.split_payments.as_ref() {
-        Some(common_types::payments::SplitPaymentsRequest::StripeSplitPayment(stripe_payment)) => {
-            if let Some(charge_id) = payment_attempt.charge_id.clone() {
-                let refund_request = req
-                    .split_refunds
-                    .clone()
-                    .get_required_value("split_refunds")?;
-
-                let options = validator::validate_charge_refund(
-                    &refund_request,
-                    &stripe_payment.charge_type,
-                )?;
-
-                Some(SplitRefundsRequest::StripeSplitRefund(StripeSplitRefund {
-                    charge_id,
-                    charge_type: stripe_payment.charge_type.clone(),
-                    transfer_account_id: stripe_payment.transfer_account_id.clone(),
-                    options,
-                }))
-            } else {
-                None
-            }
-        }
-        _ => None,
-    };
+    let split_refunds = core_utils::get_split_refunds(SplitRefundInput {
+        split_payment_request: payment_intent.split_payments.clone(),
+        payment_charges: payment_attempt.charges.clone(),
+        charge_id: payment_attempt.charge_id.clone(),
+        refund_request: req.split_refunds.clone(),
+    })?;
 
     // Only for initial dev and testing
     let refund_type = req.refund_type.unwrap_or_default();
@@ -1554,36 +1527,12 @@ pub async fn trigger_refund_execute_workflow(
                 )
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
-
-            let split_refunds = match payment_intent.split_payments.as_ref() {
-                Some(common_types::payments::SplitPaymentsRequest::StripeSplitPayment(
-                    stripe_payment,
-                )) => {
-                    let refund_request = refund
-                        .split_refunds
-                        .clone()
-                        .get_required_value("split_refunds")?;
-
-                    let options = validator::validate_charge_refund(
-                        &refund_request,
-                        &stripe_payment.charge_type,
-                    )?;
-
-                    let charge_id = payment_attempt.charge_id.clone().ok_or_else(|| {
-                        report!(errors::ApiErrorResponse::InternalServerError).attach_printable(
-                "Transaction is invalid. Missing field \"charge_id\" in payment_attempt.",
-            )
-                    })?;
-
-                    Some(SplitRefundsRequest::StripeSplitRefund(StripeSplitRefund {
-                        charge_id,
-                        charge_type: stripe_payment.charge_type.clone(),
-                        transfer_account_id: stripe_payment.transfer_account_id.clone(),
-                        options,
-                    }))
-                }
-                _ => None,
-            };
+            let split_refunds = core_utils::get_split_refunds(SplitRefundInput {
+                split_payment_request: payment_intent.split_payments.clone(),
+                payment_charges: payment_attempt.charges.clone(),
+                charge_id: payment_attempt.charge_id.clone(),
+                refund_request: refund.split_refunds.clone(),
+            })?;
 
             //trigger refund request to gateway
             let updated_refund = Box::pin(trigger_refund_to_gateway(

@@ -814,7 +814,7 @@ impl<F>
                     network_txn_id: None,
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
-                    charge_id: None,
+                    charges: None,
                 }),
                 ..item.data
             }),
@@ -850,7 +850,7 @@ impl<F>
                             network_txn_id: None,
                             connector_response_reference_id: None,
                             incremental_authorization_allowed: None,
-                            charge_id: None,
+                            charges: None,
                         }),
                         ..item.data
                     })
@@ -906,7 +906,7 @@ impl<F>
                             network_txn_id: None,
                             connector_response_reference_id: None,
                             incremental_authorization_allowed: None,
-                            charge_id: None,
+                            charges: None,
                         })
                     };
                     Ok(Self {
@@ -952,7 +952,7 @@ impl<F>
                                 network_txn_id: None,
                                 connector_response_reference_id: None,
                                 incremental_authorization_allowed: None,
-                                charge_id: None,
+                                charges: None,
                             })
                         };
                         Self {
@@ -971,7 +971,7 @@ impl<F>
                             network_txn_id: None,
                             connector_response_reference_id: None,
                             incremental_authorization_allowed: None,
-                            charge_id: None,
+                            charges: None,
                         });
                         Self {
                             response,
@@ -1145,8 +1145,8 @@ pub struct FiuuPaymentSyncResponse {
     stat_name: StatName,
     #[serde(rename = "TranID")]
     tran_id: String,
-    error_code: String,
-    error_desc: String,
+    error_code: Option<String>,
+    error_desc: Option<String>,
     #[serde(rename = "miscellaneous")]
     miscellaneous: Option<HashMap<String, Secret<String>>>,
     #[serde(rename = "SchemeTransactionID")]
@@ -1228,9 +1228,14 @@ impl TryFrom<PaymentsSyncResponseRouterData<FiuuPaymentResponse>> for PaymentsSy
                 let error_response = if status == enums::AttemptStatus::Failure {
                     Some(ErrorResponse {
                         status_code: item.http_code,
-                        code: response.error_code.clone(),
-                        message: response.error_desc.clone(),
-                        reason: Some(response.error_desc),
+                        code: response
+                            .error_code
+                            .unwrap_or(consts::NO_ERROR_CODE.to_owned()),
+                        message: response
+                            .error_desc
+                            .clone()
+                            .unwrap_or(consts::NO_ERROR_MESSAGE.to_owned()),
+                        reason: response.error_desc,
                         attempt_status: Some(enums::AttemptStatus::Failure),
                         connector_transaction_id: Some(txn_id.clone()),
                     })
@@ -1248,7 +1253,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<FiuuPaymentResponse>> for PaymentsSy
                         .map(|id| id.clone().expose()),
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
-                    charge_id: None,
+                    charges: None,
                 };
                 Ok(Self {
                     status,
@@ -1310,7 +1315,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<FiuuPaymentResponse>> for PaymentsSy
                     network_txn_id: None,
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
-                    charge_id: None,
+                    charges: None,
                 };
                 Ok(Self {
                     status,
@@ -1481,7 +1486,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<PaymentCaptureResponse>>
             network_txn_id: None,
             connector_response_reference_id: None,
             incremental_authorization_allowed: None,
-            charge_id: None,
+            charges: None,
         };
         Ok(Self {
             status,
@@ -1594,7 +1599,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<FiuuPaymentCancelResponse>>
             network_txn_id: None,
             connector_response_reference_id: None,
             incremental_authorization_allowed: None,
-            charge_id: None,
+            charges: None,
         };
         Ok(Self {
             status,
@@ -1759,7 +1764,7 @@ pub struct FiuuWebhooksPaymentResponse {
     pub amount: StringMajorUnit,
     pub currency: String,
     pub domain: Secret<String>,
-    pub appcode: Secret<String>,
+    pub appcode: Option<Secret<String>>,
     pub paydate: String,
     pub channel: String,
     pub error_desc: Option<String>,
