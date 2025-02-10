@@ -16450,7 +16450,7 @@
             "items": {
               "$ref": "#/components/schemas/PaymentAttemptResponse"
             },
-            "description": "List payment attempts associated with payment intent",
+            "description": "List of payment attempts associated with payment intent",
             "nullable": true
           }
         }
