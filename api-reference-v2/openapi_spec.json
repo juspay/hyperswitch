@@ -8925,7 +8925,7 @@
           "revenue_recovery_metadata": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/RevenueRecoveryMetadata"
+                "$ref": "#/components/schemas/PaymentIntentRevenueRecoveryMetadata"
               }
             ],
             "nullable": true
@@ -13074,6 +13074,46 @@
               "stripe",
               "adyen"
             ]
+          }
+        }
+      },
+      "PaymentIntentRevenueRecoveryMetadata": {
+        "type": "object",
+        "required": [
+          "retry_count",
+          "payment_connector_transmission",
+          "billing_connector_id",
+          "active_attempt_payment_connector_id",
+          "billing_connector_mit_token_details",
+          "payment_method_type",
+          "payment_method_subtype"
+        ],
+        "properties": {
+          "retry_count": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Total number of billing connector + recovery retries for a payment intent.",
+            "example": "1"
+          },
+          "payment_connector_transmission": {
+            "type": "boolean"
+          },
+          "billing_connector_id": {
+            "type": "string",
+            "example": "mca_1234567890"
+          },
+          "active_attempt_payment_connector_id": {
+            "type": "string",
+            "example": "mca_1234567890"
+          },
+          "billing_connector_mit_token_details": {
+            "$ref": "#/components/schemas/BillingConnectorMitTokenDetails"
+          },
+          "payment_method_type": {
+            "$ref": "#/components/schemas/PaymentMethod"
+          },
+          "payment_method_subtype": {
+            "$ref": "#/components/schemas/PaymentMethodType"
           }
         }
       },

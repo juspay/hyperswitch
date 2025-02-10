@@ -43,14 +43,14 @@ use api_models::payments::{
 #[cfg(feature = "v2")]
 use api_models::payments::{
     BillingConnectorMitTokenDetails as ApiBillingConnectorMitTokenDetails,
-    RevenueRecoveryMetadata as ApiRevenueRecoveryMetadata,
+    PaymentIntentRevenueRecoveryMetadata as ApiRevenueRecoveryMetadata,
 };
 use diesel_models::types::{
     ApplePayRecurringDetails, ApplePayRegularBillingDetails, FeatureMetadata,
     OrderDetailsWithAmount, RecurringPaymentIntervalUnit, RedirectResponse,
 };
 #[cfg(feature = "v2")]
-use diesel_models::types::{BillingConnectorMitTokenDetails, RevenueRecoveryMetadata};
+use diesel_models::types::{BillingConnectorMitTokenDetails, PaymentIntentRevenueRecoveryMetadata};
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize)]
 pub enum RemoteStorageObject<T: ForeignIDRef> {
@@ -135,7 +135,7 @@ impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
             apple_pay_recurring_details: apple_pay_recurring_details
                 .map(ApplePayRecurringDetails::convert_from),
             revenue_recovery_metadata: revenue_recovery_metadata
-                .map(RevenueRecoveryMetadata::convert_from),
+                .map(PaymentIntentRevenueRecoveryMetadata::convert_from),
         }
     }
 
@@ -254,7 +254,7 @@ impl ApiModelToDieselModelConvertor<ApiApplePayRecurringDetails> for ApplePayRec
 }
 
 #[cfg(feature = "v2")]
-impl ApiModelToDieselModelConvertor<ApiRevenueRecoveryMetadata> for RevenueRecoveryMetadata {
+impl ApiModelToDieselModelConvertor<ApiRevenueRecoveryMetadata> for PaymentIntentRevenueRecoveryMetadata {
     fn convert_from(from: ApiRevenueRecoveryMetadata) -> Self {
         Self {
             retry_count: from.retry_count,

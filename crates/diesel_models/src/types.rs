@@ -53,7 +53,7 @@ pub struct FeatureMetadata {
     /// Recurring payment details required for apple pay Merchant Token
     pub apple_pay_recurring_details: Option<ApplePayRecurringDetails>,
     /// revenue recovery data for payment intent
-    pub revenue_recovery_metadata: Option<RevenueRecoveryMetadata>,
+    pub revenue_recovery_metadata: Option<PaymentIntentRevenueRecoveryMetadata>,
 }
 
 #[cfg(feature = "v1")]
@@ -125,7 +125,7 @@ common_utils::impl_to_sql_from_sql_json!(RedirectResponse);
 
 #[cfg(feature = "v2")]
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
-pub struct RevenueRecoveryMetadata {
+pub struct PaymentIntentRevenueRecoveryMetadata {
     ///Total number of billing connector + recovery retries for a payment intent.
     pub retry_count: i32,
     //if the payment_connector has been called or not

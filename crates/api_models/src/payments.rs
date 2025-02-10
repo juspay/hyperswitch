@@ -6987,7 +6987,7 @@ pub struct FeatureMetadata {
     /// Recurring payment details required for apple pay Merchant Token
     pub apple_pay_recurring_details: Option<ApplePayRecurringDetails>,
     /// revenue recovery data for payment intent
-    pub revenue_recovery_metadata: Option<RevenueRecoveryMetadata>,
+    pub revenue_recovery_metadata: Option<PaymentIntentRevenueRecoveryMetadata>,
 }
 
 /// additional data that might be required by hyperswitch
@@ -7860,7 +7860,7 @@ mod billing_from_payment_method_data {
 
 #[cfg(feature = "v2")]
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize, ToSchema)]
-pub struct RevenueRecoveryMetadata {
+pub struct PaymentIntentRevenueRecoveryMetadata {
     ///Total number of billing connector + recovery retries for a payment intent.
     #[schema(value_type = i32,example = "1")]
     pub retry_count: i32,
