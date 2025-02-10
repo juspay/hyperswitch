@@ -1445,6 +1445,7 @@ pub struct PaymentAttemptResponse {
     pub payment_token: Option<String>,
 
     /// Additional data related to some connectors
+    #[schema(value_type = Option<ConnectorMetadata>)]
     pub connector_metadata: Option<pii::SecretSerdeValue>,
 
     /// Payment Experience for the current payment

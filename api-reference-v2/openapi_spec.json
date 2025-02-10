@@ -12718,7 +12718,7 @@
           "connector_metadata": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/pii.SecretSerdeValue"
+                "$ref": "#/components/schemas/ConnectorMetadata"
               }
             ],
             "nullable": true
