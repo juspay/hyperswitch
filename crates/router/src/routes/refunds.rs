@@ -43,6 +43,7 @@ pub async fn refunds_create(
                 auth.profile_id,
                 auth.key_store,
                 req,
+                auth.platform_merchant_account,
             )
         },
         auth::auth_type(

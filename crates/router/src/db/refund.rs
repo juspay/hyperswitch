@@ -439,6 +439,7 @@ mod storage {
                         connector_transaction_data: new.connector_transaction_data.clone(),
                         unified_code: None,
                         unified_message: None,
+                        platform_merchant_id: new.platform_merchant_id.clone(),
                     };
 
                     let field = format!(
@@ -936,6 +937,7 @@ impl RefundInterface for MockDb {
             connector_transaction_data: new.connector_transaction_data,
             unified_code: None,
             unified_message: None,
+            platform_merchant_id: new.platform_merchant_id,
         };
         refunds.push(refund.clone());
         Ok(refund)

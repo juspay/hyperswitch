@@ -52,6 +52,7 @@ pub async fn refund_create_core(
     _profile_id: Option<common_utils::id_type::ProfileId>,
     key_store: domain::MerchantKeyStore,
     req: refunds::RefundRequest,
+    platform_merchant_account: Option<domain::MerchantAccount>,
 ) -> RouterResponse<refunds::RefundResponse> {
     let db = &*state.store;
     let (merchant_id, payment_intent, payment_attempt, amount);
@@ -129,6 +130,7 @@ pub async fn refund_create_core(
         amount,
         req,
         creds_identifier,
+        platform_merchant_account,
     ))
     .await
     .map(services::ApplicationResponse::Json)
@@ -805,6 +807,7 @@ pub async fn validate_and_create_refund(
     refund_amount: MinorUnit,
     req: refunds::RefundRequest,
     creds_identifier: Option<String>,
+    platform_merchant_account: Option<domain::MerchantAccount>,
 ) -> RouterResult<refunds::RefundResponse> {
     let db = &*state.store;
     let split_refunds = core_utils::get_split_refunds(SplitRefundInput {
@@ -884,6 +887,7 @@ pub async fn validate_and_create_refund(
         .attach_printable("No connector populated in payment attempt")?;
     let (connector_transaction_id, connector_transaction_data) =
         ConnectorTransactionId::form_id_and_data(connector_transaction_id);
+
     let refund_create_req = storage::RefundNew {
         refund_id: refund_id.to_string(),
         internal_reference_id: utils::generate_id(consts::ID_LENGTH, "refid"),
@@ -914,6 +918,8 @@ pub async fn validate_and_create_refund(
         organization_id: merchant_account.organization_id.clone(),
         connector_refund_data: None,
         connector_transaction_data,
+        platform_merchant_id: platform_merchant_account
+            .map(|platform_merchant_account| platform_merchant_account.get_id().to_owned()),
     };
 
     let refund = match db
