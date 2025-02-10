@@ -1357,8 +1357,6 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
             },
             ProfileUpdate::DecisionManagerRecordUpdate {
                 three_ds_decision_manager_config,
-                card_testing_guard_config: None,
-                card_testing_secret_key: None,
             } => Self {
                 profile_name: None,
                 modified_at: now,
