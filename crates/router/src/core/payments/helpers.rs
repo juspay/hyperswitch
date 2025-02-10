@@ -5553,14 +5553,17 @@ impl GooglePayTokenDecryptor {
         let decoded_key = BASE64_ENGINE
             .decode(private_key.expose())
             .change_context(errors::GooglePayDecryptionError::Base64DecodingFailed)?;
+        // base64 decode the root signing keys
+        let decoded_root_signing_keys = BASE64_ENGINE
+            .decode(root_keys.expose())
+            .change_context(errors::GooglePayDecryptionError::Base64DecodingFailed)?;
         // create a private key from the decoded key
         let private_key = PKey::private_key_from_pkcs8(&decoded_key)
             .change_context(errors::GooglePayDecryptionError::KeyDeserializationFailed)
             .attach_printable("cannot convert private key from decode_key")?;
 
         // parse the root signing keys
-        let root_keys_vector: Vec<GooglePayRootSigningKey> = root_keys
-            .expose()
+        let root_keys_vector: Vec<GooglePayRootSigningKey> = decoded_root_signing_keys
             .parse_struct("GooglePayRootSigningKey")
             .change_context(errors::GooglePayDecryptionError::DeserializationFailed)?;
 

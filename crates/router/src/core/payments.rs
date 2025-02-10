@@ -4360,17 +4360,11 @@ fn get_google_pay_connector_wallet_details(
     state: &SessionState,
     merchant_connector_account: &helpers::MerchantConnectorAccountType,
 ) -> Option<GooglePayPaymentProcessingDetails> {
-    let google_pay_root_signing_keys =
-        state
-            .conf
-            .google_pay_decrypt_keys
-            .as_ref()
-            .map(|google_pay_keys| {
-                google_pay_keys
-                    .get_inner()
-                    .google_pay_root_signing_keys
-                    .clone()
-            });
+    let google_pay_root_signing_keys = state
+        .conf
+        .google_pay_decrypt_keys
+        .as_ref()
+        .map(|google_pay_keys| google_pay_keys.google_pay_root_signing_keys.clone());
     match merchant_connector_account.get_connector_wallets_details() {
         Some(wallet_details) => {
             let google_pay_wallet_details = wallet_details
