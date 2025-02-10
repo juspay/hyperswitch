@@ -752,7 +752,6 @@ impl TryFrom<&PayLaterData> for ZenPaymentsRequest {
         match value {
             PayLaterData::KlarnaRedirect { .. }
             | PayLaterData::KlarnaSdk { .. }
-            | PayLaterData::KlarnaCheckout {}
             | PayLaterData::AffirmRedirect {}
             | PayLaterData::AfterpayClearpayRedirect { .. }
             | PayLaterData::PayBrightRedirect {}
