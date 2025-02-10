@@ -124,6 +124,7 @@ pub async fn perform_post_authentication(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn perform_pre_authentication(
     state: &SessionState,
     key_store: &domain::MerchantKeyStore,
@@ -132,6 +133,7 @@ pub async fn perform_pre_authentication(
     business_profile: &domain::Profile,
     acquirer_details: Option<types::AcquirerDetails>,
     payment_id: Option<common_utils::id_type::PaymentId>,
+    organization_id: common_utils::id_type::OrganizationId,
 ) -> CustomResult<storage::Authentication, ApiErrorResponse> {
     let (authentication_connector, three_ds_connector_account) =
         utils::get_authentication_connector_data(state, key_store, business_profile).await?;
@@ -147,6 +149,7 @@ pub async fn perform_pre_authentication(
             .get_mca_id()
             .ok_or(ApiErrorResponse::InternalServerError)
             .attach_printable("Error while finding mca_id from merchant_connector_account")?,
+        organization_id,
     )
     .await?;
 
