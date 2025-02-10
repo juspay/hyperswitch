@@ -200,9 +200,8 @@ migrate_v2 operation=default_operation *args='':
     set -euo pipefail
 
     EXIT_CODE=0
-    just copy_migrations
-    just run_migration {{ operation }} {{ resultant_dir }} {{ v2_config_file_dir }} {{ database_url }} {{ args }} || EXIT_CODE=$?
-    just delete_dir_if_exists
+    just run_migration {{ operation }} {{ v1_migration_dir }} {{ v1_config_file_dir }} {{ database_url }} {{ args }} || EXIT_CODE=$?
+    just run_migration {{ operation }} {{ v2_migration_dir }} {{ v2_config_file_dir }} {{ database_url }} {{ args }} || EXIT_CODE=$?
     exit $EXIT_CODE
 
 # Drop database if exists and then create a new 'hyperswitch_db' Database

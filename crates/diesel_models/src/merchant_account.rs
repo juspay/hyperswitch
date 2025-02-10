@@ -150,8 +150,8 @@ pub struct MerchantAccount {
     pub organization_id: common_utils::id_type::OrganizationId,
     pub recon_status: storage_enums::ReconStatus,
     pub version: common_enums::ApiVersion,
-    pub id: common_utils::id_type::MerchantId,
     pub is_platform_account: bool,
+    pub id: common_utils::id_type::MerchantId,
 }
 
 #[cfg(feature = "v2")]
