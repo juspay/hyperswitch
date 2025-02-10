@@ -52,6 +52,7 @@ pub struct MerchantAccount {
     pub pm_collect_link_config: Option<serde_json::Value>,
     pub version: common_enums::ApiVersion,
     pub is_platform_account: bool,
+    pub id: Option<common_utils::id_type::MerchantId>,
 }
 
 #[cfg(feature = "v1")]
@@ -120,6 +121,7 @@ impl From<MerchantAccountSetter> for MerchantAccount {
             pm_collect_link_config: item.pm_collect_link_config,
             version: item.version,
             is_platform_account: item.is_platform_account,
+            id: None,
         }
     }
 }
@@ -235,6 +237,7 @@ pub struct MerchantAccountNew {
     pub pm_collect_link_config: Option<serde_json::Value>,
     pub version: common_enums::ApiVersion,
     pub is_platform_account: bool,
+    pub id: Option<common_utils::id_type::MerchantId>,
 }
 
 #[cfg(feature = "v2")]
@@ -399,6 +402,7 @@ impl MerchantAccountUpdateInternal {
             pm_collect_link_config: pm_collect_link_config.or(source.pm_collect_link_config),
             version: source.version,
             is_platform_account: is_platform_account.unwrap_or(source.is_platform_account),
+            id: source.id,
         }
     }
 }

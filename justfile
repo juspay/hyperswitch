@@ -168,8 +168,20 @@ resultant_dir := source_directory() / 'final-migrations'
 # Copy v1 and v2 migrations to a single directory
 [private]
 copy_migrations:
-    @mkdir -p {{ resultant_dir }}
-    @cp -r {{ v1_migration_dir }}/. {{ v2_migration_dir }}/. {{ resultant_dir }}/
+    #! /usr/bin/env bash
+    mkdir -p {{resultant_dir}}
+    cp -r {{v1_migration_dir}}/* {{resultant_dir}}/
+
+    # Prefix v2 migrations with 9
+    sh -c '
+    for dir in "{{v2_migration_dir}}"/*; do
+        if [ -d "$dir" ]; then
+            base_name=$(basename "$dir")
+            new_name="9$base_name" 
+            cp -r "$dir" "{{resultant_dir}}/$new_name"
+        fi
+    done
+    '
     echo "Created {{ resultant_dir }}"
 
 # Delete the newly created directory
@@ -200,8 +212,9 @@ migrate_v2 operation=default_operation *args='':
     set -euo pipefail
 
     EXIT_CODE=0
-    just run_migration {{ operation }} {{ v1_migration_dir }} {{ v1_config_file_dir }} {{ database_url }} {{ args }} || EXIT_CODE=$?
-    just run_migration {{ operation }} {{ v2_migration_dir }} {{ v2_config_file_dir }} {{ database_url }} {{ args }} || EXIT_CODE=$?
+    just copy_migrations
+    just run_migration {{ operation }} {{ resultant_dir }} {{ v2_config_file_dir }} {{ database_url }} {{ args }} || EXIT_CODE=$?
+    just delete_dir_if_exists
     exit $EXIT_CODE
 
 # Drop database if exists and then create a new 'hyperswitch_db' Database

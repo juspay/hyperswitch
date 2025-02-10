@@ -5,7 +5,6 @@ diesel::table! {
     use crate::enums::diesel_exports::*;
 
     address (address_id) {
-        id -> Nullable<Int4>,
         #[max_length = 64]
         address_id -> Varchar,
         #[max_length = 128]
@@ -130,7 +129,6 @@ diesel::table! {
     use crate::enums::diesel_exports::*;
 
     blocklist (merchant_id, fingerprint_id) {
-        id -> Int4,
         #[max_length = 64]
         merchant_id -> Varchar,
         #[max_length = 64]
@@ -145,8 +143,7 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
-    blocklist_fingerprint (id) {
-        id -> Int4,
+    blocklist_fingerprint (merchant_id, fingerprint_id) {
         #[max_length = 64]
         merchant_id -> Varchar,
         #[max_length = 64]
@@ -161,8 +158,7 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
-    blocklist_lookup (id) {
-        id -> Int4,
+    blocklist_lookup (merchant_id, fingerprint) {
         #[max_length = 64]
         merchant_id -> Varchar,
         fingerprint -> Text,
@@ -310,7 +306,6 @@ diesel::table! {
     use crate::enums::diesel_exports::*;
 
     configs (key) {
-        id -> Int4,
         #[max_length = 255]
         key -> Varchar,
         config -> Text,
@@ -378,7 +373,6 @@ diesel::table! {
     use crate::enums::diesel_exports::*;
 
     dispute (dispute_id) {
-        id -> Int4,
         #[max_length = 64]
         dispute_id -> Varchar,
         #[max_length = 255]
@@ -629,8 +623,7 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
-    locker_mock_up (id) {
-        id -> Int4,
+    locker_mock_up (card_id) {
         #[max_length = 255]
         card_id -> Varchar,
         #[max_length = 255]
@@ -667,7 +660,6 @@ diesel::table! {
     use crate::enums::diesel_exports::*;
 
     mandate (mandate_id) {
-        id -> Int4,
         #[max_length = 64]
         mandate_id -> Varchar,
         #[max_length = 64]
@@ -1151,7 +1143,6 @@ diesel::table! {
     use crate::enums::diesel_exports::*;
 
     refund (merchant_id, refund_id) {
-        id -> Int4,
         #[max_length = 64]
         internal_reference_id -> Varchar,
         #[max_length = 64]
@@ -1260,7 +1251,6 @@ diesel::table! {
     use crate::enums::diesel_exports::*;
 
     roles (role_id) {
-        id -> Int4,
         #[max_length = 64]
         role_name -> Varchar,
         #[max_length = 64]
@@ -1435,7 +1425,6 @@ diesel::table! {
     use crate::enums::diesel_exports::*;
 
     users (user_id) {
-        id -> Int4,
         #[max_length = 64]
         user_id -> Varchar,
         #[max_length = 255]

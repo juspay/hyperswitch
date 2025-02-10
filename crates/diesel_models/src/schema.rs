@@ -732,6 +732,8 @@ diesel::table! {
         pm_collect_link_config -> Nullable<Jsonb>,
         version -> ApiVersion,
         is_platform_account -> Bool,
+        #[max_length = 64]
+        id -> Nullable<Varchar>,
     }
 }
 

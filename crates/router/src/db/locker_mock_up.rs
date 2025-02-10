@@ -1,4 +1,4 @@
-use error_stack::{report, ResultExt};
+use error_stack::report;
 use router_env::{instrument, tracing};
 
 use super::{MockDb, Store};
