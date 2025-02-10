@@ -4171,6 +4171,25 @@ impl ForeignFrom<hyperswitch_domain_models::payments::payment_attempt::ErrorDeta
 }
 
 #[cfg(feature = "v2")]
+impl ForeignFrom<&hyperswitch_domain_models::payments::payment_attempt::AttemptAmountDetails>
+    for api_models::payments::PaymentAttemptAmountDetails
+{
+    fn foreign_from(
+        amount: &hyperswitch_domain_models::payments::payment_attempt::AttemptAmountDetails,
+    ) -> Self {
+        Self {
+            net_amount: amount.get_net_amount(),
+            amount_to_capture: amount.get_amount_to_capture(),
+            surcharge_amount: amount.get_surcharge_amount(),
+            tax_on_surcharge: amount.get_tax_on_surcharge(),
+            amount_capturable: amount.get_amount_capturable(),
+            shipping_cost: amount.get_shipping_cost(),
+            order_tax_amount: amount.get_order_tax_amount(),
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
 impl ForeignFrom<hyperswitch_domain_models::payments::AmountDetails>
     for api_models::payments::AmountDetailsResponse
 {

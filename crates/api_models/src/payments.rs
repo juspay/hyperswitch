@@ -657,6 +657,30 @@ pub struct PaymentAmountDetailsResponse {
 }
 
 #[cfg(feature = "v2")]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, ToSchema, serde::Deserialize,)]
+
+pub struct PaymentAttemptAmountDetails {
+    /// The total amount of the order including tax, surcharge and shipping cost
+    pub net_amount: MinorUnit,
+    /// The amount that was requested to be captured for this payment
+    pub amount_to_capture: Option<MinorUnit>,
+    /// Surcharge amount for the payment attempt.
+    /// This is either derived by surcharge rules, or sent by the merchant
+    pub surcharge_amount: Option<MinorUnit>,
+    /// Tax amount for the payment attempt
+    /// This is either derived by surcharge rules, or sent by the merchant
+    pub tax_on_surcharge: Option<MinorUnit>,
+    /// The total amount that can be captured for this payment attempt.
+    pub amount_capturable: MinorUnit,
+    /// Shipping cost for the payment attempt.
+    /// Shipping cost for the payment attempt.
+    pub shipping_cost: Option<MinorUnit>,
+    /// Tax amount for the order.
+    /// This is either derived by calling an external tax processor, or sent by the merchant
+    pub order_tax_amount: Option<MinorUnit>,
+}
+
+#[cfg(feature = "v2")]
 impl AmountDetails {
     pub fn new(amount_details_setter: AmountDetailsSetter) -> Self {
         Self {
@@ -7840,4 +7864,63 @@ mod billing_from_payment_method_data {
 
         assert!(billing_details.is_none());
     }
+}
+
+// Serialize is required because the api event requires Serialize to be implemented
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
+#[serde(deny_unknown_fields)]
+#[cfg(feature = "v2")]
+pub struct PaymentsAttemptRecordRequest {
+    /// The amount details for the payment
+    pub amount_details: PaymentAttemptAmountDetails,
+
+    #[schema(value_type = AttemptStatus, example = "charged")]
+    pub status: enums::AttemptStatus,
+
+    /// The billing details of the payment. This address will be used for invoicing.
+    pub billing: Option<Address>,
+
+    /// The shipping address for the payment
+    pub shipping: Option<Address>,
+
+    /// If there was an error while calling the connector, the error message is received here
+    pub error_message: Option<String>,
+
+    /// If there was an error while calling the connectors the error code is received here
+    pub error_code: Option<String>,
+
+    /// A description for the payment
+    #[schema(example = "It's my first payment request", value_type = Option<String>)]
+    pub description: Option<common_utils::types::Description>,
+
+    /// A unique identifier for a payment provided by the connector
+    pub connector_transaction_id: Option<String>,
+
+    /// The payment method that is to be used
+    #[schema(value_type = PaymentMethod, example = "bank_transfer")]
+    pub payment_method_type: api_enums::PaymentMethod,
+
+    /// A unique reference identifier for a connector provided by the external system to identify payment connector.
+    pub merchant_connector_reference_id: Option<String>,
+
+    /// The payment method subtype to be used for the payment. This should match with the `payment_method_data` provided
+    #[schema(value_type = PaymentMethodType, example = "apple_pay")]
+    pub payment_method_subtype: api_enums::PaymentMethodType,
+
+    /// The payment method information provided for making a payment
+    #[schema(value_type = Option<PaymentMethodDataResponseWithBilling>, example = "bank_transfer")]
+    #[serde(serialize_with = "serialize_payment_method_data_response")]
+    pub payment_method_data: Option<PaymentMethodDataResponseWithBilling>,
+
+    /// Metadata is useful for storing additional, unstructured information on an object.
+    #[schema(value_type = Option<Object>, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
+    pub metadata: Option<pii::SecretSerdeValue>,
+
+    /// Additional data that might be required by hyperswitch based on the requested features by the merchants.
+    pub feature_metadata: Option<FeatureMetadata>,
+
+    /// Time at which the payment attempt was created
+    #[schema(value_type = PrimitiveDateTime, example = "2022-09-10T10:11:12Z")]
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub created_at: PrimitiveDateTime,
 }

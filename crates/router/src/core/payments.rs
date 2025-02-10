@@ -1029,6 +1029,69 @@ where
 #[cfg(feature = "v2")]
 #[allow(clippy::too_many_arguments, clippy::type_complexity)]
 #[instrument(skip_all, fields(payment_id, merchant_id))]
+pub async fn record_attempt_operation_core<F, Req, Op, D>(
+    state: &SessionState,
+    req_state: ReqState,
+    merchant_account: domain::MerchantAccount,
+    profile: domain::Profile,
+    key_store: domain::MerchantKeyStore,
+    operation: Op,
+    req: Req,
+    payment_id: id_type::GlobalPaymentId,
+    header_payload: HeaderPayload,
+    platform_merchant_account: Option<domain::MerchantAccount>,
+) -> RouterResult<(D, Req, Option<domain::Customer>)>
+where
+    F: Send + Clone + Sync,
+    Req: Clone,
+    Op: Operation<F, Req, Data = D> + Send + Sync,
+    D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
+{
+    let operation: BoxedOperation<'_, F, Req, D> = Box::new(operation);
+
+    tracing::Span::current().record("merchant_id", merchant_account.get_id().get_string_repr());
+
+    let _validate_result = operation
+        .to_validate_request()?
+        .validate_request(&req, &merchant_account)?;
+
+    tracing::Span::current().record("global_payment_id", payment_id.get_string_repr());
+
+    let operations::GetTrackerResponse { mut payment_data } = operation
+        .to_get_tracker()?
+        .get_trackers(
+            state,
+            &payment_id,
+            &req,
+            &merchant_account,
+            &profile,
+            &key_store,
+            &header_payload,
+            platform_merchant_account.as_ref(),
+        )
+        .await?;
+
+    let (_operation, payment_data) = operation
+        .to_update_tracker()?
+        .update_trackers(
+            state,
+            req_state,
+            payment_data,
+            None,
+            merchant_account.storage_scheme,
+            None,
+            &key_store,
+            None,
+            header_payload,
+        )
+        .await?;
+
+    Ok((payment_data, req, None))
+}
+
+#[cfg(feature = "v2")]
+#[allow(clippy::too_many_arguments, clippy::type_complexity)]
+#[instrument(skip_all, fields(payment_id, merchant_id))]
 pub async fn payments_intent_operation_core<F, Req, Op, D>(
     state: &SessionState,
     req_state: ReqState,
@@ -1476,6 +1539,56 @@ where
         header_payload.x_hs_latency,
     )
 }
+
+#[cfg(feature = "v2")]
+#[allow(clippy::too_many_arguments)]
+pub async fn record_attempt_core<F, Res, Req, Op, D>(
+    state: SessionState,
+    req_state: ReqState,
+    merchant_account: domain::MerchantAccount,
+    profile: domain::Profile,
+    key_store: domain::MerchantKeyStore,
+    operation: Op,
+    req: Req,
+    payment_id: id_type::GlobalPaymentId,
+    header_payload: HeaderPayload,
+    platform_merchant_account: Option<domain::MerchantAccount>,
+) -> RouterResponse<Res>
+where
+    F: Send + Clone + Sync,
+    Op: Operation<F, Req, Data = D> + Send + Sync + Clone,
+    Req: Debug + Clone,
+    D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
+    Res: transformers::ToResponse<F, D, Op>,
+{
+    let (payment_data, _req, customer) = record_attempt_operation_core::<_, _, _, _>(
+        &state,
+        req_state,
+        merchant_account.clone(),
+        profile,
+        key_store,
+        operation.clone(),
+        req,
+        payment_id,
+        header_payload.clone(),
+        platform_merchant_account,
+    )
+    .await?;
+
+    Res::generate_response(
+        payment_data,
+        customer,
+        &state.base_url,
+        operation,
+        &state.conf.connector_request_reference_id_config,
+        None,
+        None,
+        header_payload.x_hs_latency,
+        &merchant_account,
+    )
+}
+
+
 
 #[cfg(feature = "v2")]
 #[allow(clippy::too_many_arguments)]

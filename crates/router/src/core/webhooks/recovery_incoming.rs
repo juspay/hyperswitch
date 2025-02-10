@@ -4,7 +4,7 @@ use hyperswitch_interfaces::webhooks::IncomingWebhookRequestDetails;
 use router_env::{instrument, tracing};
 
 use crate::{
-    core::errors::{self, CustomResult},
+    core::{errors::{self, CustomResult}, payments},
     routes::SessionState,
     services::connector_integration_interface::ConnectorEnum,
     types::{
@@ -64,3 +64,46 @@ pub async fn recovery_incoming_webhook_flow(
         )),
     }
 }
+
+
+// /// Trait definition
+// pub trait RecoveryTrait {
+//     /// Get the payment intent
+//     fn get_intent(&self) -> Result<hyperswitch_domain_models::payments::PaymentIntent, ApiErrorResponse>;
+//     /// Get the payment attempt
+//     fn get_attempt(&self) -> Result<hyperswitch_domain_models::payments::PaymentAttempt, ApiErrorResponse>;
+// }
+
+// /// Implement the trait for RecoveryPayload
+// impl RecoveryTrait for RecoveryPayload {
+//     async fn get_intent(&self) -> Result<PaymentIntent, ApiErrorResponse> {
+//         let (payment_data, _req, customer, connector_http_status_code, external_latency) =
+//                 Box::pin(payments::record_attempt_core::<
+//                     api::Psync,
+//                     _,
+//                     _,
+//                     _,
+//                     PaymentAttemptRecordData<api::RecordAttempt>,
+//                 >(
+//                     &state,
+//                     req_state,
+//                     merchant_account.clone(),
+//                     key_store.clone(),
+//                     profile,
+//                     payments::operations::PaymentGet,
+//                     api::PaymentsRetrieveRequest {
+//                         force_sync: true,
+//                         param: None,
+//                     },
+//                     get_trackers_response,
+//                     consume_or_trigger_flow,
+//                     HeaderPayload::default(),
+//                 ))
+//                 .await?;
+
+//     }
+
+//     fn get_attempt(&self) -> Result<PaymentAttempt, ApiErrorResponse> {
+//         todo!("Implement the logic to retrieve the payment attempt");
+//     }
+// }

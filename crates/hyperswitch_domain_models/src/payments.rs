@@ -628,3 +628,14 @@ where
         &self.payment_intent.id
     }
 }
+
+#[cfg(feature = "v2")]
+#[derive(Clone)]
+pub struct PaymentAttemptRecordData<F>
+where
+    F: Clone,
+{
+    pub flow: PhantomData<F>,
+    pub payment_intent: PaymentIntent,
+    pub payment_attempt: PaymentAttempt,
+}

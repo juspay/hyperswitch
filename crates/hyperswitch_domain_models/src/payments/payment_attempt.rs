@@ -539,6 +539,105 @@ impl PaymentAttempt {
             card_discovery: None,
         })
     }
+
+    /// Construct the domain model from the ConfirmIntentRequest and PaymentIntent
+    #[cfg(feature = "v2")]
+    pub async fn create_domain_model_using_record_request(
+        payment_intent: &super::PaymentIntent,
+        cell_id: id_type::CellId,
+        storage_scheme: storage_enums::MerchantStorageScheme,
+        request: &api_models::payments::PaymentsAttemptRecordRequest,
+        encrypted_data: DecryptedPaymentAttempt,
+    ) -> CustomResult<Self, errors::api_error_response::ApiErrorResponse> {
+        let id = id_type::GlobalAttemptId::generate(&cell_id);
+
+        let amount_details = AttemptAmountDetails {
+            net_amount: request.amount_details.net_amount,
+            amount_to_capture: request.amount_details.amount_to_capture,
+            surcharge_amount: request.amount_details.surcharge_amount,
+            tax_on_surcharge: request.amount_details.tax_on_surcharge,
+            amount_capturable: request.amount_details.amount_capturable,
+            shipping_cost: request.amount_details.shipping_cost,
+            order_tax_amount: request.amount_details.order_tax_amount,
+        };
+
+        let payment_method_data = request
+            .payment_method_data.as_ref().and_then(|data|
+            data.payment_method_data
+            .as_ref()
+            .map(|data| {
+                serde_json::to_value(data)
+                    .change_context(
+                        errors::api_error_response::ApiErrorResponse::InternalServerError,
+                    )
+                    .attach_printable(
+                        "Unable to serialize payment method data from record attempt request",
+                    )
+                    .map(Secret::new)
+            })).transpose()?;
+
+        let now = common_utils::date_time::now();
+
+        let payment_method_billing_address = encrypted_data
+            .payment_method_billing_address
+            .as_ref()
+            .map(|data| {
+                data.clone()
+                    .deserialize_inner_value(|value| value.parse_value("Address"))
+            })
+            .transpose()
+            .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to decode billing address")?;
+
+        Ok(Self {
+            payment_id: payment_intent.id.clone(),
+            merchant_id: payment_intent.merchant_id.clone(),
+            amount_details,
+            status: request.status,
+            //This field should be changed.
+            connector: None,
+            authentication_type: payment_intent.authentication_type,
+            created_at: request.created_at,
+            modified_at: now,
+            last_synced: None,
+            cancellation_reason: None,
+            browser_info: None,
+            payment_token: None,
+            connector_metadata: None,
+            payment_experience: None,
+            payment_method_data,
+            routing_result: None,
+            preprocessing_step_id: None,
+            multiple_capture_count: None,
+            connector_response_reference_id: None,
+            updated_by: storage_scheme.to_string(),
+            redirection_data: None,
+            encoded_data: None,
+            merchant_connector_id: None,
+            external_three_ds_authentication_attempted: None,
+            authentication_connector: None,
+            authentication_id: None,
+            fingerprint_id: None,
+            client_source: None,
+            client_version: None,
+            customer_acceptance: None,
+            profile_id: payment_intent.profile_id.clone(),
+            organization_id: payment_intent.organization_id.clone(),
+            payment_method_type: request.payment_method_type,
+            payment_method_id: None,
+            connector_payment_id: request.connector_transaction_id.clone(),
+            payment_method_subtype: request.payment_method_subtype,
+            authentication_applied: None,
+            external_reference_id: None,
+            payment_method_billing_address,
+            error: None,
+            feature_metadata: None,
+            id,
+            connector_token_details: None,
+            card_discovery: None,
+            charges: None,
+        })
+    }
 }
 
 #[cfg(feature = "v1")]

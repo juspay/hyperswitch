@@ -314,6 +314,12 @@ pub enum PaymentIntentUpdate {
         amount_captured: Option<MinorUnit>,
         updated_by: String,
     },
+    RecordUpdate {
+        status: common_enums::IntentStatus,
+        feature_metadata: Box<Option<diesel_models::types::FeatureMetadata>>,
+        active_attempt_id: id_type::GlobalAttemptId,
+        updated_by: String,
+    },
     /// UpdateIntent
     UpdateIntent(Box<PaymentIntentUpdateFields>),
 }
@@ -605,6 +611,46 @@ impl From<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal {
                     updated_by,
                 }
             }
+            PaymentIntentUpdate::RecordUpdate { status, 
+                feature_metadata, 
+                active_attempt_id,
+                updated_by } => 
+                Self {
+                status: Some(status),
+                amount_captured: None,
+                active_attempt_id: Some(active_attempt_id),
+                modified_at: common_utils::date_time::now(),
+                amount: None,
+                currency: None,
+                shipping_cost: None,
+                tax_details: None,
+                skip_external_tax_calculation: None,
+                surcharge_applicable: None,
+                surcharge_amount: None,
+                tax_on_surcharge: None,
+                routing_algorithm_id: None,
+                capture_method: None,
+                authentication_type: None,
+                billing_address: None,
+                shipping_address: None,
+                customer_present: None,
+                description: None,
+                return_url: None,
+                setup_future_usage: None,
+                apply_mit_exemption: None,
+                statement_descriptor: None,
+                order_details: None,
+                allowed_payment_method_types: None,
+                metadata: None,
+                connector_metadata: None,
+                feature_metadata: *feature_metadata,
+                payment_link_config: None,
+                request_incremental_authorization: None,
+                session_expiry: None,
+                frm_metadata: None,
+                request_external_three_ds_authentication: None,
+                updated_by,
+            },
         }
     }
 }
