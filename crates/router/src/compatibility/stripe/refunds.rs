@@ -50,7 +50,14 @@ pub async fn refund_create(
         &req,
         create_refund_req,
         |state, auth: auth::AuthenticationData, req, _| {
-            refunds::refund_create_core(state, auth.merchant_account, None, auth.key_store, req)
+            refunds::refund_create_core(
+                state,
+                auth.merchant_account,
+                None,
+                auth.key_store,
+                req,
+                auth.platform_merchant_account,
+            )
         },
         &auth::HeaderAuth(auth::ApiKeyAuth),
         api_locking::LockAction::NotApplicable,

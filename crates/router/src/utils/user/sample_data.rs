@@ -403,6 +403,7 @@ pub async fn generate_sample_data(
                 organization_id: org_id.clone(),
                 connector_refund_data: None,
                 connector_transaction_data,
+                platform_merchant_id: None,
             })
         } else {
             None
