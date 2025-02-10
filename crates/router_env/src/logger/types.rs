@@ -144,6 +144,8 @@ pub enum Flow {
     PaymentsRetrieve,
     /// Payments Retrieve force sync flow.
     PaymentsRetrieveForceSync,
+    /// Payments Retrieve using merchant reference id
+    PaymentsRetrieveUsingMerchantReferenceId,
     /// Payments update flow.
     PaymentsUpdate,
     /// Payments confirm flow.
@@ -172,6 +174,10 @@ pub enum Flow {
     PaymentsGetIntent,
     /// Payments Update Intent flow
     PaymentsUpdateIntent,
+    /// Payments confirm intent flow
+    PaymentsConfirmIntent,
+    /// Payments create and confirm intent flow
+    PaymentsCreateAndConfirmIntent,
     #[cfg(feature = "payouts")]
     /// Payouts create flow
     PayoutsCreate,
@@ -527,8 +533,6 @@ pub enum Flow {
     PaymentsManualUpdate,
     /// Dynamic Tax Calcultion
     SessionUpdateTaxCalculation,
-    /// Payments confirm intent
-    PaymentsConfirmIntent,
     /// Payments post session tokens flow
     PaymentsPostSessionTokens,
     /// Payments start redirection flow
