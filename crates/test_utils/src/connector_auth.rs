@@ -30,6 +30,7 @@ pub struct ConnectorAuthentication {
     pub chargebee: Option<HeaderKey>,
     pub checkout: Option<SignatureKey>,
     pub coinbase: Option<HeaderKey>,
+    pub coingate: Option<HeaderKey>,
     pub cryptopay: Option<BodyKey>,
     pub cybersource: Option<SignatureKey>,
     pub datatrans: Option<HeaderKey>,

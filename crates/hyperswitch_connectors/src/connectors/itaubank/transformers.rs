@@ -1,16 +1,24 @@
-use api_models::payments;
-use common_utils::{ext_traits::Encode, types::StringMajorUnit};
+use api_models::payments::QrCodeInformation;
+use common_enums::enums;
+use common_utils::{errors::CustomResult, ext_traits::Encode, types::StringMajorUnit};
 use error_stack::ResultExt;
+use hyperswitch_domain_models::{
+    payment_method_data::{BankTransferData, PaymentMethodData},
+    router_data::{AccessToken, ConnectorAuthType, RouterData},
+    router_flow_types::refunds::{Execute, RSync},
+    router_request_types::ResponseId,
+    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    types,
+};
+use hyperswitch_interfaces::errors;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 use url::Url;
 
 use crate::{
-    connector::utils::{self, RouterData},
-    core::errors,
-    types::{self, api, domain, storage::enums},
-    utils as crate_utils,
+    types::{RefundsResponseRouterData, ResponseRouterData},
+    utils::{get_timestamp_in_milliseconds, QrImage, RouterData as _},
 };
 
 pub struct ItaubankRouterData<T> {
@@ -55,9 +63,9 @@ impl TryFrom<&ItaubankRouterData<&types::PaymentsAuthorizeRouterData>> for Itaub
         item: &ItaubankRouterData<&types::PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
         match item.router_data.request.payment_method_data.clone() {
-            domain::PaymentMethodData::BankTransfer(bank_transfer_data) => {
+            PaymentMethodData::BankTransfer(bank_transfer_data) => {
                 match *bank_transfer_data {
-                    domain::BankTransferData::Pix { pix_key, cpf, cnpj } => {
+                    BankTransferData::Pix { pix_key, cpf, cnpj } => {
                         let nome = item.router_data.get_optional_billing_full_name();
                         // cpf and cnpj are mutually exclusive
                         let devedor = match (cnpj, cpf) {
@@ -85,19 +93,19 @@ impl TryFrom<&ItaubankRouterData<&types::PaymentsAuthorizeRouterData>> for Itaub
                             devedor,
                         })
                     }
-                    domain::BankTransferData::AchBankTransfer {}
-                    | domain::BankTransferData::SepaBankTransfer {}
-                    | domain::BankTransferData::BacsBankTransfer {}
-                    | domain::BankTransferData::MultibancoBankTransfer {}
-                    | domain::BankTransferData::PermataBankTransfer {}
-                    | domain::BankTransferData::BcaBankTransfer {}
-                    | domain::BankTransferData::BniVaBankTransfer {}
-                    | domain::BankTransferData::BriVaBankTransfer {}
-                    | domain::BankTransferData::CimbVaBankTransfer {}
-                    | domain::BankTransferData::DanamonVaBankTransfer {}
-                    | domain::BankTransferData::MandiriVaBankTransfer {}
-                    | domain::BankTransferData::Pse {}
-                    | domain::BankTransferData::LocalBankTransfer { .. } => {
+                    BankTransferData::AchBankTransfer {}
+                    | BankTransferData::SepaBankTransfer {}
+                    | BankTransferData::BacsBankTransfer {}
+                    | BankTransferData::MultibancoBankTransfer {}
+                    | BankTransferData::PermataBankTransfer {}
+                    | BankTransferData::BcaBankTransfer {}
+                    | BankTransferData::BniVaBankTransfer {}
+                    | BankTransferData::BriVaBankTransfer {}
+                    | BankTransferData::CimbVaBankTransfer {}
+                    | BankTransferData::DanamonVaBankTransfer {}
+                    | BankTransferData::MandiriVaBankTransfer {}
+                    | BankTransferData::Pse {}
+                    | BankTransferData::LocalBankTransfer { .. } => {
                         Err(errors::ConnectorError::NotImplemented(
                             "Selected payment method through itaubank".to_string(),
                         )
@@ -105,24 +113,24 @@ impl TryFrom<&ItaubankRouterData<&types::PaymentsAuthorizeRouterData>> for Itaub
                     }
                 }
             }
-            domain::PaymentMethodData::Card(_)
-            | domain::PaymentMethodData::CardRedirect(_)
-            | domain::PaymentMethodData::Wallet(_)
-            | domain::PaymentMethodData::PayLater(_)
-            | domain::PaymentMethodData::BankRedirect(_)
-            | domain::PaymentMethodData::BankDebit(_)
-            | domain::PaymentMethodData::Crypto(_)
-            | domain::PaymentMethodData::MandatePayment
-            | domain::PaymentMethodData::Reward
-            | domain::PaymentMethodData::RealTimePayment(_)
-            | domain::PaymentMethodData::MobilePayment(_)
-            | domain::PaymentMethodData::Upi(_)
-            | domain::PaymentMethodData::Voucher(_)
-            | domain::PaymentMethodData::GiftCard(_)
-            | domain::PaymentMethodData::CardToken(_)
-            | domain::PaymentMethodData::OpenBanking(_)
-            | domain::PaymentMethodData::NetworkToken(_)
-            | domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+            PaymentMethodData::Card(_)
+            | PaymentMethodData::CardRedirect(_)
+            | PaymentMethodData::Wallet(_)
+            | PaymentMethodData::PayLater(_)
+            | PaymentMethodData::BankRedirect(_)
+            | PaymentMethodData::BankDebit(_)
+            | PaymentMethodData::Crypto(_)
+            | PaymentMethodData::MandatePayment
+            | PaymentMethodData::Reward
+            | PaymentMethodData::RealTimePayment(_)
+            | PaymentMethodData::MobilePayment(_)
+            | PaymentMethodData::Upi(_)
+            | PaymentMethodData::Voucher(_)
+            | PaymentMethodData::GiftCard(_)
+            | PaymentMethodData::CardToken(_)
+            | PaymentMethodData::OpenBanking(_)
+            | PaymentMethodData::NetworkToken(_)
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     "Selected payment method through itaubank".to_string(),
                 )
@@ -139,11 +147,11 @@ pub struct ItaubankAuthType {
     pub(super) certificate_key: Option<Secret<String>>,
 }
 
-impl TryFrom<&types::ConnectorAuthType> for ItaubankAuthType {
+impl TryFrom<&ConnectorAuthType> for ItaubankAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
+    fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            types::ConnectorAuthType::MultiAuthKey {
+            ConnectorAuthType::MultiAuthKey {
                 api_key,
                 key1,
                 api_secret,
@@ -154,7 +162,7 @@ impl TryFrom<&types::ConnectorAuthType> for ItaubankAuthType {
                 certificate: Some(api_secret.to_owned()),
                 certificate_key: Some(key2.to_owned()),
             }),
-            types::ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
+            ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
                 client_secret: api_key.to_owned(),
                 client_id: key1.to_owned(),
                 certificate: None,
@@ -206,15 +214,15 @@ pub struct ItaubankTokenErrorResponse {
     pub user_message: Option<String>,
 }
 
-impl<F, T> TryFrom<types::ResponseRouterData<F, ItaubankUpdateTokenResponse, T, types::AccessToken>>
-    for types::RouterData<F, T, types::AccessToken>
+impl<F, T> TryFrom<ResponseRouterData<F, ItaubankUpdateTokenResponse, T, AccessToken>>
+    for RouterData<F, T, AccessToken>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<F, ItaubankUpdateTokenResponse, T, types::AccessToken>,
+        item: ResponseRouterData<F, ItaubankUpdateTokenResponse, T, AccessToken>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            response: Ok(types::AccessToken {
+            response: Ok(AccessToken {
                 token: item.response.access_token,
                 expires: item.response.expires_in,
             }),
@@ -261,26 +269,18 @@ pub struct ItaubankPixExpireTime {
     expiracao: i64,
 }
 
-impl<F, T>
-    TryFrom<types::ResponseRouterData<F, ItaubankPaymentsResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+impl<F, T> TryFrom<ResponseRouterData<F, ItaubankPaymentsResponse, T, PaymentsResponseData>>
+    for RouterData<F, T, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<
-            F,
-            ItaubankPaymentsResponse,
-            T,
-            types::PaymentsResponseData,
-        >,
+        item: ResponseRouterData<F, ItaubankPaymentsResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let connector_metadata = get_qr_code_data(&item.response)?;
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.status),
-            response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(
-                    item.response.txid.to_owned(),
-                ),
+            response: Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(item.response.txid.to_owned()),
                 redirection_data: Box::new(None),
                 mandate_reference: Box::new(None),
                 connector_metadata,
@@ -296,18 +296,18 @@ impl<F, T>
 
 fn get_qr_code_data(
     response: &ItaubankPaymentsResponse,
-) -> errors::CustomResult<Option<serde_json::Value>, errors::ConnectorError> {
-    let creation_time = utils::get_timestamp_in_milliseconds(&response.calendario.criacao);
+) -> CustomResult<Option<serde_json::Value>, errors::ConnectorError> {
+    let creation_time = get_timestamp_in_milliseconds(&response.calendario.criacao);
     // convert expiration to milliseconds and add to creation time
     let expiration_time = creation_time + (response.calendario.expiracao * 1000);
 
-    let image_data = crate_utils::QrImage::new_from_data(response.pix_qr_value.clone())
+    let image_data = QrImage::new_from_data(response.pix_qr_value.clone())
         .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
 
     let image_data_url = Url::parse(image_data.data.clone().as_str())
         .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
 
-    let qr_code_info = payments::QrCodeInformation::QrDataUrl {
+    let qr_code_info = QrCodeInformation::QrDataUrl {
         image_data_url,
         display_to_timestamp: Some(expiration_time),
     };
@@ -336,19 +336,12 @@ pub struct ItaubankMetaData {
     pub pix_id: Option<String>,
 }
 
-impl<F, T>
-    TryFrom<
-        types::ResponseRouterData<F, ItaubankPaymentsSyncResponse, T, types::PaymentsResponseData>,
-    > for types::RouterData<F, T, types::PaymentsResponseData>
+impl<F, T> TryFrom<ResponseRouterData<F, ItaubankPaymentsSyncResponse, T, PaymentsResponseData>>
+    for RouterData<F, T, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<
-            F,
-            ItaubankPaymentsSyncResponse,
-            T,
-            types::PaymentsResponseData,
-        >,
+        item: ResponseRouterData<F, ItaubankPaymentsSyncResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let pix_data = item
             .response
@@ -365,10 +358,8 @@ impl<F, T>
 
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.status),
-            response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(
-                    item.response.txid.to_owned(),
-                ),
+            response: Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(item.response.txid.to_owned()),
                 redirection_data: Box::new(None),
                 mandate_reference: Box::new(None),
                 connector_metadata,
@@ -424,15 +415,15 @@ pub struct RefundResponse {
     status: RefundStatus,
 }
 
-impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
-    for types::RefundsRouterData<api::Execute>
+impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>>
+    for types::RefundsRouterData<Execute>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::RefundsResponseRouterData<api::Execute, RefundResponse>,
+        item: RefundsResponseRouterData<Execute, RefundResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            response: Ok(types::RefundsResponseData {
+            response: Ok(RefundsResponseData {
                 connector_refund_id: item.response.rtr_id,
                 refund_status: enums::RefundStatus::from(item.response.status),
             }),
@@ -441,15 +432,13 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
     }
 }
 
-impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
-    for types::RefundsRouterData<api::RSync>
-{
+impl TryFrom<RefundsResponseRouterData<RSync, RefundResponse>> for types::RefundsRouterData<RSync> {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::RefundsResponseRouterData<api::RSync, RefundResponse>,
+        item: RefundsResponseRouterData<RSync, RefundResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            response: Ok(types::RefundsResponseData {
+            response: Ok(RefundsResponseData {
                 connector_refund_id: item.response.rtr_id.to_string(),
                 refund_status: enums::RefundStatus::from(item.response.status),
             }),
