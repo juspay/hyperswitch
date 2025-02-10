@@ -24,7 +24,7 @@ use uuid::Uuid;
 
 use super::payments::helpers;
 #[cfg(feature = "payouts")]
-use super::payouts::PayoutData;
+use super::payouts::{helpers as payout_helpers, PayoutData};
 #[cfg(feature = "payouts")]
 use crate::core::payments;
 use crate::{
@@ -150,6 +150,9 @@ pub async fn construct_payout_router_data<'a, F>(
             _ => None,
         };
 
+    let connector_transfer_method_id =
+        payout_helpers::should_create_connector_transfer_method(&*payout_data, connector_data)?;
+
     let router_data = types::RouterData {
         flow: PhantomData,
         merchant_id: merchant_account.get_id().to_owned(),
@@ -192,6 +195,7 @@ pub async fn construct_payout_router_data<'a, F>(
                     phone: c.phone.map(Encryptable::into_inner),
                     phone_country_code: c.phone_country_code,
                 }),
+            connector_transfer_method_id,
         },
         response: Ok(types::PayoutsResponseData::default()),
         access_token: None,
@@ -457,6 +461,86 @@ pub fn validate_uuid(uuid: String, key: &str) -> Result<String, errors::ApiError
     }
 }
 
+#[cfg(feature = "v1")]
+pub fn get_split_refunds(
+    split_refund_input: super::refunds::transformers::SplitRefundInput,
+) -> RouterResult<Option<router_request_types::SplitRefundsRequest>> {
+    match split_refund_input.split_payment_request.as_ref() {
+        Some(common_types::payments::SplitPaymentsRequest::StripeSplitPayment(stripe_payment)) => {
+            let (charge_id_option, charge_type_option) = match (
+                &split_refund_input.payment_charges,
+                &split_refund_input.split_payment_request,
+            ) {
+                (
+                    Some(common_types::payments::ConnectorChargeResponseData::StripeSplitPayment(
+                        stripe_split_payment_response,
+                    )),
+                    _,
+                ) => (
+                    stripe_split_payment_response.charge_id.clone(),
+                    Some(stripe_split_payment_response.charge_type.clone()),
+                ),
+                (
+                    _,
+                    Some(common_types::payments::SplitPaymentsRequest::StripeSplitPayment(
+                        stripe_split_payment_request,
+                    )),
+                ) => (
+                    split_refund_input.charge_id,
+                    Some(stripe_split_payment_request.charge_type.clone()),
+                ),
+                (_, _) => (None, None),
+            };
+
+            if let Some(charge_id) = charge_id_option {
+                let options = super::refunds::validator::validate_stripe_charge_refund(
+                    charge_type_option,
+                    &split_refund_input.refund_request,
+                )?;
+
+                Ok(Some(
+                    router_request_types::SplitRefundsRequest::StripeSplitRefund(
+                        router_request_types::StripeSplitRefund {
+                            charge_id,
+                            charge_type: stripe_payment.charge_type.clone(),
+                            transfer_account_id: stripe_payment.transfer_account_id.clone(),
+                            options,
+                        },
+                    ),
+                ))
+            } else {
+                Ok(None)
+            }
+        }
+        Some(common_types::payments::SplitPaymentsRequest::AdyenSplitPayment(_)) => {
+            match &split_refund_input.payment_charges {
+                Some(common_types::payments::ConnectorChargeResponseData::AdyenSplitPayment(
+                    adyen_split_payment_response,
+                )) => {
+                    if let Some(common_types::refunds::SplitRefund::AdyenSplitRefund(
+                        split_refund_request,
+                    )) = split_refund_input.refund_request.clone()
+                    {
+                        super::refunds::validator::validate_adyen_charge_refund(
+                            adyen_split_payment_response,
+                            &split_refund_request,
+                        )?;
+
+                        Ok(Some(
+                            router_request_types::SplitRefundsRequest::AdyenSplitRefund(
+                                split_refund_request,
+                            ),
+                        ))
+                    } else {
+                        Ok(None)
+                    }
+                }
+                _ => Ok(None),
+            }
+        }
+        _ => Ok(None),
+    }
+}
 #[cfg(test)]
 mod tests {
     #![allow(clippy::expect_used)]
@@ -1415,6 +1499,7 @@ pub fn get_external_authentication_request_poll_id(
     payment_id.get_external_authentication_request_poll_id()
 }
 
+#[cfg(feature = "v1")]
 pub fn get_html_redirect_response_for_external_authentication(
     return_url_with_query_params: String,
     payment_response: &api_models::payments::PaymentsResponse,

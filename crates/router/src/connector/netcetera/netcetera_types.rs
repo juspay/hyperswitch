@@ -1372,6 +1372,15 @@ pub struct Browser {
     accept_language: Option<Vec<String>>,
 }
 
+// Split by comma and return the list of accept languages
+// If Accept-Language is : fr-CH, fr;q=0.9, en;q=0.8, de;q=0.7, List should be [fr-CH, fr, en, de]
+pub fn get_list_of_accept_languages(accept_language: String) -> Vec<String> {
+    accept_language
+        .split(',')
+        .map(|lang| lang.split(';').next().unwrap_or(lang).trim().to_string())
+        .collect()
+}
+
 impl From<crate::types::BrowserInformation> for Browser {
     fn from(value: crate::types::BrowserInformation) -> Self {
         Self {
@@ -1388,8 +1397,11 @@ impl From<crate::types::BrowserInformation> for Browser {
             browser_user_agent: value.user_agent,
             challenge_window_size: Some(ChallengeWindowSizeEnum::FullScreen),
             browser_javascript_enabled: value.java_script_enabled,
-            // Hardcoding to "en" for now, as there's no accept_language in BrowserInformation
-            accept_language: Some(vec!["en".to_string()]),
+            // Default to ["en"] locale if accept_language is not provided
+            accept_language: value
+                .accept_language
+                .map(get_list_of_accept_languages)
+                .or(Some(vec!["en".to_string()])),
         }
     }
 }
@@ -1526,7 +1538,7 @@ pub struct Sdk {
     ///
     /// This field is required for requests where deviceChannel = 01 (APP).
     /// Available for supporting EMV 3DS 2.3.1 and later versions.
-    sdk_type: Option<SdkTypeEnum>,
+    sdk_type: Option<SdkType>,
 
     /// Indicates the characteristics of a Default-SDK.
     ///
@@ -1551,16 +1563,35 @@ impl From<api_models::payments::SdkInformation> for Sdk {
             sdk_reference_number: Some(sdk_info.sdk_reference_number),
             sdk_trans_id: Some(sdk_info.sdk_trans_id),
             sdk_server_signed_content: None,
-            sdk_type: None,
-            default_sdk_type: None,
+            sdk_type: sdk_info
+                .sdk_type
+                .map(SdkType::from)
+                .or(Some(SdkType::DefaultSdk)),
+            default_sdk_type: Some(DefaultSdkType {
+                // hardcoding this value because, it's the only value that is accepted
+                sdk_variant: "01".to_string(),
+                wrapped_ind: None,
+            }),
             split_sdk_type: None,
+        }
+    }
+}
+
+impl From<api_models::payments::SdkType> for SdkType {
+    fn from(sdk_type: api_models::payments::SdkType) -> Self {
+        match sdk_type {
+            api_models::payments::SdkType::DefaultSdk => Self::DefaultSdk,
+            api_models::payments::SdkType::SplitSdk => Self::SplitSdk,
+            api_models::payments::SdkType::LimitedSdk => Self::LimitedSdk,
+            api_models::payments::SdkType::BrowserSdk => Self::BrowserSdk,
+            api_models::payments::SdkType::ShellSdk => Self::ShellSdk,
         }
     }
 }
 
 /// Enum representing the type of 3DS SDK.
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub enum SdkTypeEnum {
+pub enum SdkType {
     #[serde(rename = "01")]
     DefaultSdk,
     #[serde(rename = "02")]

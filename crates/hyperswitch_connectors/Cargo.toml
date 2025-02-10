@@ -36,6 +36,7 @@ serde_json = "1.0.115"
 serde_qs = "0.12.0"
 serde_urlencoded = "0.7.1"
 serde_with = "3.7.0"
+sha1 = { version = "0.10.6" }
 strum = { version = "0.26", features = ["derive"] }
 time = "0.3.35"
 url = "2.5.0"

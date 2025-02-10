@@ -43,7 +43,7 @@ jobs:
 
     env:
       # Use `sccache` for caching compilation artifacts
-      RUSTC_WRAPPER: sccache
+      # RUSTC_WRAPPER: sccache
       RUSTFLAGS: "-D warnings"
 
     strategy:
@@ -78,15 +78,15 @@ jobs:
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
           
-      - name: Install sccache
-        uses: taiki-e/install-action@v2.33.28
-        with:
-          tool: sccache
-          checksum: true
-
-      # - uses: Swatinem/rust-cache@v2.7.0
+      # - name: Install sccache
+      #   uses: taiki-e/install-action@v2.33.28
       #   with:
-      #     save-if: ${{ github.event_name == 'push' }}
+      #     tool: sccache
+      #     checksum: true
+
+      - uses: Swatinem/rust-cache@v2.7.7
+        with:
+          save-if: ${{ github.event_name == 'push' }}
 
       - name: Install cargo-hack
         uses: baptiste0928/cargo-install@v2.2.0
@@ -140,7 +140,7 @@ jobs:
 
     env:
       # Use `sccache` for caching compilation artifacts
-      RUSTC_WRAPPER: sccache
+      # RUSTC_WRAPPER: sccache
       RUSTFLAGS: "-D warnings"
 
     strategy:
@@ -170,11 +170,11 @@ jobs:
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Install sccache
-        uses: taiki-e/install-action@v2.33.28
-        with:
-          tool: sccache
-          checksum: true
+      # - name: Install sccache
+      #   uses: taiki-e/install-action@v2.33.28
+      #   with:
+      #     tool: sccache
+      #     checksum: true
 
       - name: Install cargo-hack
         uses: baptiste0928/cargo-install@v2.2.0
@@ -196,13 +196,13 @@ jobs:
       #   with:
       #     crate: cargo-nextest
 
-      # - uses: Swatinem/rust-cache@v2.7.0
-      #   with:
-      #     save-if: ${{ github.event_name == 'push' }}
+      - uses: Swatinem/rust-cache@v2.7.7
+        with:
+          save-if: ${{ github.event_name == 'push' }}
 
       - name: Run clippy
         shell: bash
-        run: just clippy --jobs 2
+        run: just clippy
 
       - name: Cargo hack
         if: ${{ github.event_name == 'push' }}
@@ -249,7 +249,7 @@ jobs:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install rust cache
-        uses: Swatinem/rust-cache@v2.7.0
+        uses: Swatinem/rust-cache@v2.7.7
 
       - name: Run cargo check enabling only the release and v2 features
         shell: bash

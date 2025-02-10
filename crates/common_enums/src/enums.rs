@@ -181,6 +181,31 @@ impl AttemptStatus {
     }
 }
 
+/// Indicates the method by which a card is discovered during a payment
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Hash,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum CardDiscovery {
+    #[default]
+    Manual,
+    SavedCard,
+    ClickToPay,
+}
+
 /// Pass this parameter to force 3DS or non 3DS auth for this payment. Some connectors will still force 3DS auth even in case of passing 'no_three_ds' here and vice versa. Default value is 'no_three_ds' if not set
 #[derive(
     Clone,
@@ -1534,6 +1559,7 @@ pub enum PaymentMethodType {
     AliPay,
     AliPayHk,
     Alma,
+    AmazonPay,
     ApplePay,
     Atome,
     Bacs,
@@ -2817,8 +2843,19 @@ pub enum TransactionType {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum RoleScope {
-    Merchant,
     Organization,
+    Merchant,
+    Profile,
+}
+
+impl From<RoleScope> for EntityType {
+    fn from(role_scope: RoleScope) -> Self {
+        match role_scope {
+            RoleScope::Organization => Self::Organization,
+            RoleScope::Merchant => Self::Merchant,
+            RoleScope::Profile => Self::Profile,
+        }
+    }
 }
 
 /// Indicates the transaction status
@@ -2901,8 +2938,6 @@ pub enum PermissionGroup {
     ReconReportsManage,
     ReconOpsView,
     ReconOpsManage,
-    // TODO: To be deprecated, make sure DB is migrated before removing
-    ReconOps,
 }
 
 #[derive(Clone, Debug, serde::Serialize, PartialEq, Eq, Hash, strum::EnumIter)]
@@ -3273,6 +3308,7 @@ pub enum ApiVersion {
     serde::Serialize,
     strum::Display,
     strum::EnumString,
+    strum::EnumIter,
     ToSchema,
     Hash,
 )]
@@ -3651,4 +3687,52 @@ pub enum PaymentConnectorCategory {
 pub enum FeatureStatus {
     NotSupported,
     Supported,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum GooglePayAuthMethod {
+    /// Contain pan data only
+    PanOnly,
+    /// Contain cryptogram data along with pan data
+    #[serde(rename = "CRYPTOGRAM_3DS")]
+    Cryptogram,
+}
+
+#[derive(
+    Clone,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[strum(serialize_all = "PascalCase")]
+#[serde(rename_all = "PascalCase")]
+pub enum AdyenSplitType {
+    /// Books split amount to the specified account.
+    BalanceAccount,
+    /// The aggregated amount of the interchange and scheme fees.
+    AcquiringFees,
+    /// The aggregated amount of all transaction fees.
+    PaymentFee,
+    /// The aggregated amount of Adyen's commission and markup fees.
+    AdyenFees,
+    ///  The transaction fees due to Adyen under blended rates.
+    AdyenCommission,
+    /// The transaction fees due to Adyen under Interchange ++ pricing.
+    AdyenMarkup,
+    ///  The fees paid to the issuer for each payment made with the card network.
+    Interchange,
+    ///  The fees paid to the card scheme for using their network.
+    SchemeFee,
+    /// Your platform's commission on the payment (specified in amount), booked to your liable balance account.
+    Commission,
+    /// Allows you and your users to top up balance accounts using direct debit, card payments, or other payment methods.
+    TopUp,
+    /// The value-added tax charged on the payment, booked to your platforms liable balance account.
+    Vat,
 }
