@@ -3940,7 +3940,7 @@ where
                 let customer_update = customers::update_connector_customer_in_customers(
                     &label,
                     customer.as_ref(),
-                    &connector_customer_id,
+                    connector_customer_id.clone(),
                 )
                 .await;
 
@@ -3991,14 +3991,14 @@ where
                 Some(merchant_connector_account.get_id()),
             )?;
 
-            let label = merchant_connector_account
-                .get_id()
-                .get_string_repr()
-                .to_owned();
+            let merchant_connector_id = merchant_connector_account.get_id();
 
             let (should_call_connector, existing_connector_customer_id) =
                 customers::should_call_connector_create_customer(
-                    state, &connector, customer, &label,
+                    state,
+                    &connector,
+                    customer,
+                    &merchant_connector_id,
                 );
 
             if should_call_connector {
@@ -4021,9 +4021,9 @@ where
                     .await?;
 
                 let customer_update = customers::update_connector_customer_in_customers(
-                    &label,
+                    merchant_connector_id,
                     customer.as_ref(),
-                    &connector_customer_id,
+                    connector_customer_id.clone(),
                 )
                 .await;
 
