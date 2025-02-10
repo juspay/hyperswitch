@@ -3419,27 +3419,6 @@ pub(crate) fn validate_payment_status_against_not_allowed_statuses(
     })
 }
 
-pub fn validate_platform_merchant(
-    data_platform_merchant_id: Option<&id_type::MerchantId>,
-    auth_platform_merchant_id: Option<&id_type::MerchantId>,
-) -> CustomResult<(), errors::ApiErrorResponse> {
-    match (data_platform_merchant_id, auth_platform_merchant_id) {
-        (Some(data_platform_merchant_id), Some(auth_platform_merchant_id)) => {
-            if data_platform_merchant_id != auth_platform_merchant_id {
-                return Err(report!(errors::ApiErrorResponse::PaymentNotFound)).attach_printable(format!(
-                     "Data platform merchant id: {data_platform_merchant_id:?} does not match with auth platform merchant id: {auth_platform_merchant_id:?}"));
-            }
-        }
-        (Some(_), None) | (None, Some(_)) => {
-            return Err(report!(errors::ApiErrorResponse::InvalidPlatformOperation))
-                .attach_printable("Platform merchant id is missing in either data or auth");
-        }
-        (None, None) => {}
-    }
-
-    Ok(())
-}
-
 #[instrument(skip_all)]
 pub(crate) fn validate_pm_or_token_given(
     payment_method: &Option<api_enums::PaymentMethod>,

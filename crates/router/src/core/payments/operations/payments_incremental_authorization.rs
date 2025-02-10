@@ -15,6 +15,7 @@ use crate::{
             self, helpers, operations, CustomerDetails, IncrementalAuthorizationDetails,
             PaymentAddress,
         },
+        utils::ValidatePlatformMerchant,
     },
     routes::{app::ReqState, SessionState},
     services,
@@ -77,10 +78,8 @@ impl<F: Send + Clone + Sync>
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
-        helpers::validate_platform_merchant(
-            payment_intent.platform_merchant_id.as_ref(),
-            platform_merchant_account.map(|ma| ma.get_id()),
-        )?;
+        payment_intent
+            .validate_platform_merchant(platform_merchant_account.map(|ma| ma.get_id()))?;
 
         helpers::validate_payment_status_against_allowed_statuses(
             payment_intent.status,

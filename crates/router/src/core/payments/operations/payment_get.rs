@@ -13,6 +13,7 @@ use crate::{
             helpers,
             operations::{self, ValidateStatusForOperation},
         },
+        utils::ValidatePlatformMerchant,
     },
     routes::{app::ReqState, SessionState},
     types::{
@@ -134,10 +135,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentStatusData<F>, PaymentsRetriev
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
-        helpers::validate_platform_merchant(
-            payment_intent.platform_merchant_id.as_ref(),
-            platform_merchant_account.map(|ma| ma.get_id()),
-        )?;
+        payment_intent
+            .validate_platform_merchant(platform_merchant_account.map(|ma| ma.get_id()))?;
 
         let payment_attempt = payment_intent
             .active_attempt_id
