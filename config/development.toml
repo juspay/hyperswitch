@@ -565,6 +565,9 @@ debit = { currency = "USD" }
 [pm_filters.fiuu]
 duit_now = { country = "MY", currency = "MYR" }
 
+[pm_filters.inespay]
+sepa = { currency = "EUR" }
+
 [pm_filters.rapyd]
 apple_pay = { country = "AL,AS,AD,AR,AM,AU,AT,AZ,BH,BE,BM,BA,BR,BG,CA,KH,KY,CL,CO,CR,HR,CY,CZ,DK,DO,EC,SV,EE,FO,FI,FR,GE,DE,GI,GR,GL,GU,GT,GG,HN,HK,HU,IS,IE,IM,IL,IT,JP,KZ,KG,KW,LV,LI,LT,LU,MO,MY,MT,MX,MD,MC,ME,MA,NL,NZ,NI,MK,MP,NO,PA,PY,PR,PE,PL,PT,QA,RO,SM,RS,SG,SK,SI,ZA,ES,SE,CH,TW,TJ,TH,UA,AE,GB,US,UY,VI,VN", currency = "EUR,GBP,ISK,USD" }
 google_pay = { country = "AM,AT,AU,AZ,BA,BE,BG,BY,CA,CH,CL,CN,CO,CR,CY,CZ,DE,DK,DO,EC,EE,EG,ES,FI,FR,GB,GE,GL,GR,GT,HK,HN,HR,HU,IE,IL,IM,IS,IT,JE,JP,JO,KZ,KW,LA,LI,LT,LU,LV,MA,MC,MD,ME,MO,MN,MT,MX,MY,NC,NL,NO,NZ,OM,PA,PE,PL,PR,PT,QA,RO,RS,SA,SE,SG,SI,SK,SM,SV,TH,TW,UA,US,UY,VA,VN,ZA", currency = "EUR,GBP,ISK,USD" }
@@ -660,6 +663,7 @@ card.credit.connector_list = "stripe,adyen,authorizedotnet,cybersource,globalpay
 card.debit.connector_list = "stripe,adyen,authorizedotnet,cybersource,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,braintree,nuvei,payme,wellsfargo,bamboraapac,elavon,fiuu,nexixpay,novalnet,paybox,paypal"
 pay_later.klarna.connector_list = "adyen"
 wallet.apple_pay.connector_list = "stripe,adyen,cybersource,noon,bankofamerica,nexinets,novalnet"
+wallet.samsung_pay.connector_list = "cybersource"
 wallet.google_pay.connector_list = "stripe,adyen,cybersource,bankofamerica,noon,globalpay,multisafepay,novalnet"
 wallet.paypal.connector_list = "adyen,globalpay,nexinets,novalnet,paypal"
 wallet.momo.connector_list = "adyen"
@@ -701,6 +705,9 @@ apple_pay_merchant_cert_key = "APPLE_PAY_MERCHNAT_CERTIFICATE_KEY"
 [paze_decrypt_keys]
 paze_private_key = "PAZE_PRIVATE_KEY"
 paze_private_key_passphrase = "PAZE_PRIVATE_KEY_PASSPHRASE"
+
+[google_pay_decrypt_keys]
+google_pay_root_signing_keys = "GOOGLE_PAY_ROOT_SIGNING_KEYS" # Base 64 Encoded Root Signing Keys provided by Google Pay (https://developers.google.com/pay/api/web/guides/resources/payment-data-cryptography)
 
 [generic_link]
 [generic_link.payment_method_collect]
