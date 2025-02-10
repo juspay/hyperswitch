@@ -1306,7 +1306,7 @@ pub async fn get_filters_for_payments(
 }
 
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsFilters))]
-#[cfg(all(feature = "olap", feature = "v1"))]
+#[cfg(feature = "olap", feature = "v1")]
 pub async fn get_payment_filters(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
@@ -1320,9 +1320,13 @@ pub async fn get_payment_filters(
         |state, auth: auth::AuthenticationData, _, _| {
             payments::get_payment_filters(state, auth.merchant_account, None)
         },
-        &auth::JWTAuth {
-            permission: Permission::MerchantPaymentRead,
-        },
+        auth::auth_type(
+            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::JWTAuth {
+                permission: Permission::ProfilePaymentRead,
+            },
+            req.headers(),
+        ),
         api_locking::LockAction::NotApplicable,
     ))
     .await
