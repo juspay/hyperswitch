@@ -7040,8 +7040,9 @@ pub fn validate_platform_request_for_marketplace(
 
                         if i64_amount < total_split_amount {
                             return Err(errors::ApiErrorResponse::PreconditionFailed {
-                                message: "Sum of split amounts should be equal to the total amount"
-                                    .to_string(),
+                                message:
+                                    "The sum of split amounts should not exceed the total amount"
+                                        .to_string(),
                             });
                         }
                     }
