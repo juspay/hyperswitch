@@ -1492,7 +1492,7 @@ where
             .map(api_models::payments::ErrorDetails::foreign_from);
         let attempts = self.attempts.as_ref().map(|attempts| {
             attempts
-                .into_iter()
+                .iter()
                 .map(api_models::payments::PaymentAttemptResponse::foreign_from)
                 .collect()
         });
@@ -3983,7 +3983,7 @@ impl ForeignFrom<&hyperswitch_domain_models::payments::payment_attempt::PaymentA
     ) -> Self {
         Self {
             id: attempt.get_id().to_owned(),
-            status: attempt.status.clone(),
+            status: attempt.status,
             amount: api_models::payments::PaymentAttemptAmountDetails::foreign_from(
                 &attempt.amount_details,
             ),
@@ -3991,15 +3991,15 @@ impl ForeignFrom<&hyperswitch_domain_models::payments::payment_attempt::PaymentA
             error: attempt
                 .error
                 .clone()
-                .map(&api_models::payments::ErrorDetails::foreign_from),
-            authentication_type: attempt.authentication_type.clone(),
-            created_at: attempt.created_at.clone(),
-            modified_at: attempt.modified_at.clone(),
+                .map(api_models::payments::ErrorDetails::foreign_from),
+            authentication_type: attempt.authentication_type,
+            created_at: attempt.created_at,
+            modified_at: attempt.modified_at,
             cancellation_reason: attempt.cancellation_reason.clone(),
             payment_token: attempt.payment_token.clone(),
             connector_metadata: attempt.connector_metadata.clone(),
-            payment_experience: attempt.payment_experience.clone(),
-            payment_method_type: attempt.payment_method_type.clone(),
+            payment_experience: attempt.payment_experience,
+            payment_method_type: attempt.payment_method_type,
             connector_reference_id: attempt.connector_response_reference_id.clone(),
             payment_method_subtype: attempt.get_payment_method_type(),
             connector_payment_id: attempt.get_connector_payment_id().map(ToString::to_string),

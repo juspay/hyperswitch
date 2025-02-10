@@ -5077,7 +5077,7 @@ pub struct PaymentsRetrieveResponse {
     /// The billing address associated with the payment intent
     pub billing: Option<Address>,
 
-    /// List payment attempts associated with payment intent
+    /// List of payment attempts associated with payment intent
     pub attempts: Option<Vec<PaymentAttemptResponse>>,
 }
 
