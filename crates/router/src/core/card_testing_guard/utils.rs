@@ -33,20 +33,37 @@ pub async fn validate_card_testing_guard_checks(
 
             if card_testing_guard_config.is_card_ip_blocking_enabled {
                 if let Some(browser_info) = &request.browser_info {
-                    let browser_info_parsed =
-                        serde_json::from_value::<BrowserInformation>(browser_info.clone())
-                            .change_context(errors::ApiErrorResponse::InternalServerError)
-                            .attach_printable("could not parse browser_info")?;
+                    #[cfg(feature = "v1")]
+                    {
+                        let browser_info =
+                            serde_json::from_value::<BrowserInformation>(browser_info.clone())
+                                .change_context(errors::ApiErrorResponse::InternalServerError)
+                                .attach_printable("could not parse browser_info")?;
 
-                    if let Some(browser_info_ip) = browser_info_parsed.ip_address {
-                        card_ip_blocking_cache_key =
-                            helpers::validate_card_ip_blocking_for_business_profile(
-                                state,
-                                browser_info_ip,
-                                fingerprint.clone(),
-                                card_testing_guard_config,
-                            )
-                            .await?;
+                        if let Some(browser_info_ip) = browser_info.ip_address {
+                            card_ip_blocking_cache_key =
+                                helpers::validate_card_ip_blocking_for_business_profile(
+                                    state,
+                                    browser_info_ip,
+                                    fingerprint.clone(),
+                                    card_testing_guard_config,
+                                )
+                                .await?;
+                        }
+                    }
+
+                    #[cfg(feature = "v2")]
+                    {
+                        if let Some(browser_info_ip) = browser_info.ip_address {
+                            card_ip_blocking_cache_key =
+                                helpers::validate_card_ip_blocking_for_business_profile(
+                                    state,
+                                    browser_info_ip,
+                                    fingerprint.clone(),
+                                    card_testing_guard_config,
+                                )
+                                .await?;
+                        }
                     }
                 }
             }
