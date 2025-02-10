@@ -341,6 +341,7 @@ impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaym
                     WalletDataPaymentMethod::AliPayQr(_)
                     | WalletDataPaymentMethod::AliPayRedirect(_)
                     | WalletDataPaymentMethod::AliPayHkRedirect(_)
+                    | WalletDataPaymentMethod::AmazonPayRedirect(_)
                     | WalletDataPaymentMethod::MomoRedirect(_)
                     | WalletDataPaymentMethod::KakaoPayRedirect(_)
                     | WalletDataPaymentMethod::GoPayRedirect(_)
@@ -671,7 +672,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, NovalnetPaymentsResponse, T, PaymentsRe
                         network_txn_id: None,
                         connector_response_reference_id: transaction_id.clone(),
                         incremental_authorization_allowed: None,
-                        charge_id: None,
+                        charges: None,
                     }),
                     ..item.data
                 })
@@ -1073,7 +1074,7 @@ impl<F>
                         network_txn_id: None,
                         connector_response_reference_id: transaction_id.clone(),
                         incremental_authorization_allowed: None,
-                        charge_id: None,
+                        charges: None,
                     }),
                     ..item.data
                 })
@@ -1157,7 +1158,7 @@ impl<F>
                         network_txn_id: None,
                         connector_response_reference_id: transaction_id.clone(),
                         incremental_authorization_allowed: None,
-                        charge_id: None,
+                        charges: None,
                     }),
                     ..item.data
                 })
@@ -1326,7 +1327,7 @@ impl<F>
                         network_txn_id: None,
                         connector_response_reference_id: transaction_id.clone(),
                         incremental_authorization_allowed: None,
-                        charge_id: None,
+                        charges: None,
                     }),
                     ..item.data
                 })
@@ -1586,6 +1587,7 @@ impl TryFrom<&SetupMandateRouterData> for NovalnetPaymentsRequest {
                 WalletDataPaymentMethod::AliPayQr(_)
                 | WalletDataPaymentMethod::AliPayRedirect(_)
                 | WalletDataPaymentMethod::AliPayHkRedirect(_)
+                | WalletDataPaymentMethod::AmazonPayRedirect(_)
                 | WalletDataPaymentMethod::MomoRedirect(_)
                 | WalletDataPaymentMethod::KakaoPayRedirect(_)
                 | WalletDataPaymentMethod::GoPayRedirect(_)

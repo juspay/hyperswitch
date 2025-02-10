@@ -777,7 +777,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 None, // update_history
                 None, // mandate_metadata
                 Some(common_utils::generate_id_with_len(
-                    consts::CONNECTOR_MANDATE_REQUEST_REFERENCE_ID_LENGTH.to_owned(),
+                    consts::CONNECTOR_MANDATE_REQUEST_REFERENCE_ID_LENGTH,
                 )), // connector_mandate_request_reference_id
             )),
         );
@@ -983,6 +983,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     business_profile,
                     Some(acquirer_details),
                     Some(payment_data.payment_attempt.payment_id.clone()),
+                    payment_data.payment_attempt.organization_id.clone(),
                 )
                 .await?;
                 if authentication.is_separate_authn_required()
@@ -1175,6 +1176,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     &authentication_id,
                     payment_data.service_details.clone(),
                     authentication_status,
+                    payment_data.payment_attempt.organization_id.clone(),
                 )
                 .await?;
             },
@@ -1197,6 +1199,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                         .get_mca_id()
                         .ok_or(errors::ApiErrorResponse::InternalServerError)
                         .attach_printable("Error while finding mca_id from merchant_connector_account")?,
+                    payment_data.payment_attempt.organization_id.clone(),
                 )
                 .await?;
 

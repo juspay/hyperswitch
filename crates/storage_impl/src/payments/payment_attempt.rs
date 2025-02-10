@@ -578,6 +578,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     error_reason: payment_attempt.error_reason.clone(),
                     multiple_capture_count: payment_attempt.multiple_capture_count,
                     connector_response_reference_id: None,
+                    charge_id: None,
                     amount_capturable: payment_attempt.amount_capturable,
                     updated_by: storage_scheme.to_string(),
                     authentication_data: payment_attempt.authentication_data.clone(),
@@ -594,7 +595,6 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                         .payment_method_billing_address_id
                         .clone(),
                     fingerprint_id: payment_attempt.fingerprint_id.clone(),
-                    charge_id: payment_attempt.charge_id.clone(),
                     client_source: payment_attempt.client_source.clone(),
                     client_version: payment_attempt.client_version.clone(),
                     customer_acceptance: payment_attempt.customer_acceptance.clone(),
@@ -602,6 +602,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     profile_id: payment_attempt.profile_id.clone(),
                     connector_mandate_detail: payment_attempt.connector_mandate_detail.clone(),
                     card_discovery: payment_attempt.card_discovery,
+                    charges: None,
                 };
 
                 let field = format!("pa_{}", created_attempt.attempt_id);
@@ -1569,6 +1570,7 @@ impl DataModelExt for PaymentAttempt {
             order_tax_amount: self.net_amount.get_order_tax_amount(),
             connector_mandate_detail: self.connector_mandate_detail,
             card_discovery: self.card_discovery,
+            charges: self.charges,
         }
     }
 
@@ -1646,6 +1648,7 @@ impl DataModelExt for PaymentAttempt {
             profile_id: storage_model.profile_id,
             connector_mandate_detail: storage_model.connector_mandate_detail,
             card_discovery: storage_model.card_discovery,
+            charges: storage_model.charges,
         }
     }
 }
@@ -1720,7 +1723,6 @@ impl DataModelExt for PaymentAttemptNew {
             mandate_data: self.mandate_data.map(|d| d.to_storage_model()),
             payment_method_billing_address_id: self.payment_method_billing_address_id,
             fingerprint_id: self.fingerprint_id,
-            charge_id: self.charge_id,
             client_source: self.client_source,
             client_version: self.client_version,
             customer_acceptance: self.customer_acceptance,
@@ -1795,7 +1797,6 @@ impl DataModelExt for PaymentAttemptNew {
                 .map(MandateDetails::from_storage_model),
             payment_method_billing_address_id: storage_model.payment_method_billing_address_id,
             fingerprint_id: storage_model.fingerprint_id,
-            charge_id: storage_model.charge_id,
             client_source: storage_model.client_source,
             client_version: storage_model.client_version,
             customer_acceptance: storage_model.customer_acceptance,

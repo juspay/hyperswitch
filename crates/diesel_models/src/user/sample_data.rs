@@ -274,7 +274,6 @@ impl PaymentAttemptBatchNew {
             mandate_data: self.mandate_data,
             payment_method_billing_address_id: self.payment_method_billing_address_id,
             fingerprint_id: self.fingerprint_id,
-            charge_id: self.charge_id,
             client_source: self.client_source,
             client_version: self.client_version,
             customer_acceptance: self.customer_acceptance,
