@@ -563,6 +563,10 @@ impl Payments {
             .service(
                 web::resource("/aggregate")
                     .route(web::get().to(payments::get_payments_aggregates)),
+            )
+            .service(
+                web::resource("/profile/aggregate")
+                    .route(web::get().to(payments::get_payments_aggregates_profile)),
             );
         route = route.service(
             web::scope("/{payment_id}")
