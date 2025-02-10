@@ -63,7 +63,7 @@ pub async fn create_link_token(
     let pm_auth_key = payload.payment_id.get_pm_auth_key();
 
     redis_conn
-        .exists::<Vec<u8>>(&pm_auth_key)
+        .exists::<Vec<u8>>(&pm_auth_key.as_str().into())
         .await
         .change_context(ApiErrorResponse::InvalidRequestData {
             message: "Incorrect payment_id provided in request".to_string(),
@@ -77,7 +77,7 @@ pub async fn create_link_token(
 
     let pm_auth_configs = redis_conn
         .get_and_deserialize_key::<Vec<api_models::pm_auth::PaymentMethodAuthConnectorChoice>>(
-            pm_auth_key.as_str(),
+            &pm_auth_key.as_str().into(),
             "Vec<PaymentMethodAuthConnectorChoice>",
         )
         .await
@@ -772,7 +772,7 @@ async fn get_selected_config_from_redis(
     let pm_auth_key = payload.payment_id.get_pm_auth_key();
 
     redis_conn
-        .exists::<Vec<u8>>(&pm_auth_key)
+        .exists::<Vec<u8>>(&pm_auth_key.as_str().into())
         .await
         .change_context(ApiErrorResponse::InvalidRequestData {
             message: "Incorrect payment_id provided in request".to_string(),
@@ -786,7 +786,7 @@ async fn get_selected_config_from_redis(
 
     let pm_auth_configs = redis_conn
         .get_and_deserialize_key::<Vec<api_models::pm_auth::PaymentMethodAuthConnectorChoice>>(
-            pm_auth_key.as_str(),
+            &pm_auth_key.as_str().into(),
             "Vec<PaymentMethodAuthConnectorChoice>",
         )
         .await

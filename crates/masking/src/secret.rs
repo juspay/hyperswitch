@@ -156,3 +156,10 @@ where
         SecretValue::default().into()
     }
 }
+
+// Required by base64-serde to serialize Secret of Vec<u8> which contains the base64 decoded value
+impl AsRef<[u8]> for Secret<Vec<u8>> {
+    fn as_ref(&self) -> &[u8] {
+        self.peek().as_slice()
+    }
+}

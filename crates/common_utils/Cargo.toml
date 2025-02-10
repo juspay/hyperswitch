@@ -26,6 +26,7 @@ payment_methods_v2 = []
 [dependencies]
 async-trait = { version = "0.1.79", optional = true }
 base64 = "0.22.0"
+base64-serde = "0.8.0"
 blake3 = { version = "1.5.1", features = ["serde"] }
 bytes = "1.6.0"
 diesel = "2.2.3"

@@ -563,9 +563,21 @@ pub struct Payments;
 impl Payments {
     pub fn server(state: AppState) -> Scope {
         let mut route = web::scope("/v2/payments").app_data(web::Data::new(state));
-        route = route.service(
-            web::resource("/create-intent").route(web::post().to(payments::payments_create_intent)),
-        );
+        route = route
+            .service(
+                web::resource("")
+                    .route(web::post().to(payments::payments_create_and_confirm_intent)),
+            )
+            .service(
+                web::resource("/create-intent")
+                    .route(web::post().to(payments::payments_create_intent)),
+            );
+
+        route =
+            route
+                .service(web::resource("/ref/{merchant_reference_id}").route(
+                    web::get().to(payments::payment_get_intent_using_merchant_reference_id),
+                ));
 
         route = route.service(
             web::scope("/{payment_id}")
@@ -1838,7 +1850,12 @@ impl Profile {
                                 &TransactionType::Payment,
                             )
                         },
-                    ))),
+                    )))
+                    .service(
+                        web::resource("/decision")
+                            .route(web::put().to(routing::upsert_decision_manager_config))
+                            .route(web::get().to(routing::retrieve_decision_manager_config)),
+                    ),
             )
     }
 }
@@ -1872,14 +1889,27 @@ impl Profile {
                             )),
                     )
                     .service(
+                        web::resource("/set_volume_split")
+                            .route(web::post().to(routing::set_dynamic_routing_volume_split)),
+                    )
+                    .service(
                         web::scope("/elimination").service(
                             web::resource("/toggle")
                                 .route(web::post().to(routing::toggle_elimination_routing)),
                         ),
                     )
                     .service(
-                        web::resource("/set_volume_split")
-                            .route(web::post().to(routing::set_dynamic_routing_volume_split)),
+                        web::scope("/contracts")
+                            .service(web::resource("/toggle").route(
+                                web::post().to(routing::contract_based_routing_setup_config),
+                            ))
+                            .service(web::resource("/config/{algorithm_id}").route(
+                                web::patch().to(|state, req, path, payload| {
+                                    routing::contract_based_routing_update_configs(
+                                        state, req, path, payload,
+                                    )
+                                }),
+                            )),
                     ),
             );
         }
