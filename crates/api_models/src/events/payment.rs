@@ -11,7 +11,7 @@ use super::{
 ))]
 use crate::payment_methods::CustomerPaymentMethodsListResponse;
 #[cfg(feature = "v1")]
-use crate::payments::{PaymentListResponse, PaymentListResponseV2, PaymentsResponse};
+use crate::payments::{PaymentListResponse, PaymentListResponseV2};
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use crate::{events, payment_methods::CustomerPaymentMethodsListResponse};
 use crate::{
