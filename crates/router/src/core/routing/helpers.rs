@@ -2,10 +2,9 @@
 //!
 //! Functions that are used to perform the retrieval of merchant's
 //! routing dict, configs, defaults
-use std::fmt::Debug;
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
 use std::str::FromStr;
-use std::sync::Arc;
+use std::{fmt::Debug, sync::Arc};
 
 use api_models::routing as routing_types;
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
