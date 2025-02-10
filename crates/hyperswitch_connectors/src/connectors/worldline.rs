@@ -876,7 +876,7 @@ lazy_static! {
                     api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
                         api_models::feature_matrix::CardSpecificFeatures {
                             three_ds: common_enums::FeatureStatus::Supported,
-                            non_three_ds: common_enums::FeatureStatus::Supported,
+                            no_three_ds: common_enums::FeatureStatus::Supported,
                             supported_card_networks: supported_card_network.clone(),
                         }
                     }),
@@ -895,7 +895,7 @@ lazy_static! {
                     api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
                         api_models::feature_matrix::CardSpecificFeatures {
                             three_ds: common_enums::FeatureStatus::Supported,
-                            non_three_ds: common_enums::FeatureStatus::Supported,
+                            no_three_ds: common_enums::FeatureStatus::Supported,
                             supported_card_networks: supported_card_network.clone(),
                         }
                     }),
@@ -906,7 +906,8 @@ lazy_static! {
         worldline_supported_payment_methods
     };
     static ref WORLDLINE_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
-        description: "WORLDLINE".to_string(),
+        display_name: "Worldline",
+        description: "Worldline, Europe's leading payment service provider",
         connector_type: enums::PaymentConnectorCategory::PaymentGateway,
     };
     static ref WORLDLINE_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> =

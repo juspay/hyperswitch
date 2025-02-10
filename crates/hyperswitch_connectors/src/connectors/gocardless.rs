@@ -902,8 +902,8 @@ lazy_static! {
         gocardless_supported_payment_methods
     };
     static ref GOCARDLESS_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
-        description: "GoCardless is a fintech company that specialises in bank payments including recurring payments."
-            .to_string(),
+        display_name: "GoCardless",
+        description: "GoCardless is a fintech company that specialises in bank payments including recurring payments.",
         connector_type: enums::PaymentConnectorCategory::PaymentGateway,
     };
     static ref GOCARDLESS_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> = vec![enums::EventClass::Payments, enums::EventClass::Refunds, enums::EventClass::Mandates];

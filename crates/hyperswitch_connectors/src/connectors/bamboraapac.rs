@@ -765,7 +765,7 @@ lazy_static! {
                     api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
                         api_models::feature_matrix::CardSpecificFeatures {
                             three_ds: common_enums::FeatureStatus::NotSupported,
-                            non_three_ds: common_enums::FeatureStatus::Supported,
+                            no_three_ds: common_enums::FeatureStatus::Supported,
                             supported_card_networks: supported_card_network.clone(),
                         }
                     }),
@@ -775,11 +775,13 @@ lazy_static! {
 
         bamboraapac_supported_payment_methods
     };
+
     static ref BAMBORAAPAC_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
-        description: "Bambora Asia-Pacific, provides comprehensive payment solutions, offering merchants smart and smooth payment processing capabilities."
-            .to_string(),
+        display_name: "Bambora Asia-Pacific",
+        description: "Bambora Asia-Pacific, provides comprehensive payment solutions, offering merchants smart and smooth payment processing capabilities.",
         connector_type: enums::PaymentConnectorCategory::PaymentGateway,
     };
+
     static ref BAMBORAAPAC_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> = Vec::new();
 }
 

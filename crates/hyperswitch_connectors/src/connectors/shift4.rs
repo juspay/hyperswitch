@@ -912,7 +912,7 @@ lazy_static! {
                     api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
                         api_models::feature_matrix::CardSpecificFeatures {
                             three_ds: common_enums::FeatureStatus::Supported,
-                            non_three_ds: common_enums::FeatureStatus::Supported,
+                            no_three_ds: common_enums::FeatureStatus::Supported,
                             supported_card_networks: supported_card_network.clone(),
                         }
                     }),
@@ -931,7 +931,7 @@ lazy_static! {
                     api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
                         api_models::feature_matrix::CardSpecificFeatures {
                             three_ds: common_enums::FeatureStatus::Supported,
-                            non_three_ds: common_enums::FeatureStatus::Supported,
+                            no_three_ds: common_enums::FeatureStatus::Supported,
                             supported_card_networks: supported_card_network.clone(),
                         }
                     }),
@@ -943,9 +943,9 @@ lazy_static! {
     };
 
     static ref SHIFT4_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+        display_name: "Shift4",
         description:
-            "Shift4 Payments, Inc. is an American payment processing company based in Allentown, Pennsylvania. "
-                .to_string(),
+            "Shift4 Payments, Inc. is an American payment processing company based in Allentown, Pennsylvania. ",
         connector_type: enums::PaymentConnectorCategory::PaymentGateway,
     };
 

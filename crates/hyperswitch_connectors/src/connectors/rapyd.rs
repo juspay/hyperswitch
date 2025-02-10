@@ -990,7 +990,7 @@ lazy_static! {
                     api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
                         api_models::feature_matrix::CardSpecificFeatures {
                             three_ds: common_enums::FeatureStatus::Supported,
-                            non_three_ds: common_enums::FeatureStatus::Supported,
+                            no_three_ds: common_enums::FeatureStatus::Supported,
                             supported_card_networks: supported_card_network.clone(),
                         }
                     }),
@@ -1009,7 +1009,7 @@ lazy_static! {
                     api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
                         api_models::feature_matrix::CardSpecificFeatures {
                             three_ds: common_enums::FeatureStatus::Supported,
-                            non_three_ds: common_enums::FeatureStatus::Supported,
+                            no_three_ds: common_enums::FeatureStatus::Supported,
                             supported_card_networks: supported_card_network.clone(),
                         }
                     }),
@@ -1021,9 +1021,9 @@ lazy_static! {
     };
 
     static ref RAPYD_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+        display_name: "Billwerk",
         description:
-            "Rapyd is a fintech company that enables businesses to collect payments in local currencies across the globe "
-                .to_string(),
+            "Rapyd is a fintech company that enables businesses to collect payments in local currencies across the globe ",
         connector_type: enums::PaymentConnectorCategory::PaymentGateway,
     };
 
