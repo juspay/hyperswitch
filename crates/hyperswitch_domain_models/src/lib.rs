@@ -254,7 +254,9 @@ impl ApiModelToDieselModelConvertor<ApiApplePayRecurringDetails> for ApplePayRec
 }
 
 #[cfg(feature = "v2")]
-impl ApiModelToDieselModelConvertor<ApiRevenueRecoveryMetadata> for PaymentIntentRevenueRecoveryMetadata {
+impl ApiModelToDieselModelConvertor<ApiRevenueRecoveryMetadata>
+    for PaymentIntentRevenueRecoveryMetadata
+{
     fn convert_from(from: ApiRevenueRecoveryMetadata) -> Self {
         Self {
             retry_count: from.retry_count,
