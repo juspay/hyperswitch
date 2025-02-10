@@ -5439,6 +5439,8 @@ pub struct PaymentListFilterConstraints {
     pub card_network: Option<Vec<enums::CardNetwork>>,
     /// The identifier for merchant order reference id
     pub merchant_order_reference_id: Option<String>,
+    /// Indicates the method by which a card is discovered during a payment
+    pub card_discovery: Option<Vec<enums::CardDiscovery>>,
 }
 
 impl PaymentListFilterConstraints {
@@ -5449,6 +5451,7 @@ impl PaymentListFilterConstraints {
             && self.authentication_type.is_none()
             && self.merchant_connector_id.is_none()
             && self.card_network.is_none()
+            && self.card_discovery.is_none()
     }
 }
 

@@ -437,6 +437,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
         authentication_type: Option<Vec<common_enums::AuthenticationType>>,
         merchant_connector_id: Option<Vec<common_utils::id_type::MerchantConnectorAccountId>>,
         card_network: Option<Vec<common_enums::CardNetwork>>,
+        card_discovery: Option<Vec<common_enums::CardDiscovery>>,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<i64, errors::StorageError> {
         let conn = self
@@ -461,6 +462,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
             authentication_type,
             merchant_connector_id,
             card_network,
+            card_discovery,
         )
         .await
         .map_err(|er| {
@@ -1348,6 +1350,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
         authentication_type: Option<Vec<common_enums::AuthenticationType>>,
         merchant_connector_id: Option<Vec<common_utils::id_type::MerchantConnectorAccountId>>,
         card_network: Option<Vec<common_enums::CardNetwork>>,
+        card_discovery: Option<Vec<common_enums::CardDiscovery>>,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<i64, errors::StorageError> {
         self.router_store
@@ -1360,6 +1363,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                 authentication_type,
                 merchant_connector_id,
                 card_network,
+                card_discovery,
                 storage_scheme,
             )
             .await
