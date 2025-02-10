@@ -4,6 +4,18 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.01.20.0-hotfix2
+
+### Bug Fixes
+
+- **connector:** [fiuu] update PSync and webhooks response ([#7231](https://github.com/juspay/hyperswitch/pull/7231)) ([`135465e`](https://github.com/juspay/hyperswitch/commit/135465ef3079e325367f37ea95bcc4a5a4a2b44c))
+
+### Miscellaneous Tasks
+
+- **connector:** [Fiuu] log keys in the PSync response ([#7206](https://github.com/juspay/hyperswitch/pull/7206)) ([`9a25e88`](https://github.com/juspay/hyperswitch/commit/9a25e88bf5df0761dec8fbc3d1ee883a64418afa))
+
+- - -
+
 ## 2025.01.20.0-hotfix1
 
 ### Refactors
