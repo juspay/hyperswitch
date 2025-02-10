@@ -68,6 +68,7 @@ pub enum RoutableConnectors {
     // Chargebee,
     Checkout,
     Coinbase,
+    // Coingate,
     Cryptopay,
     Cybersource,
     Datatrans,
@@ -416,12 +417,11 @@ impl Connector {
             | Self::Razorpay
             | Self::Riskified
             | Self::Threedsecureio
-            | Self::Datatrans
             | Self::Netcetera
             | Self::CtpMastercard
             | Self::Noon
             | Self::Stripe => false,
-            Self::Checkout | Self::Nmi | Self::Cybersource => true,
+            Self::Checkout | Self::Nmi |Self::Datatrans|Self::Cybersource => true,
         }
     }
 
