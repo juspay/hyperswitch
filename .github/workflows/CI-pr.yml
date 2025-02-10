@@ -127,7 +127,7 @@ jobs:
       - name: Install rust cache
         uses: Swatinem/rust-cache@v2.7.7
         with: 
-          env-vars: "RUSTFLAGS CARGO_HOME CARGO_INCREMENTAL CARGO_TERM_COLOR"
+          env-vars: ""
           save-if: false
 
       - name: Install cargo-hack
@@ -228,7 +228,7 @@ jobs:
       - name: Install rust cache
         uses: Swatinem/rust-cache@v2.7.7
         with: 
-          env-vars: "RUSTFLAGS CARGO_HOME CARGO_INCREMENTAL CARGO_TERM_COLOR"
+          env-vars: ""
           save-if: false
 
       - name: Install cargo-hack
@@ -313,7 +313,7 @@ jobs:
       - name: Install rust cache
         uses: Swatinem/rust-cache@v2.7.7
         with: 
-          env-vars: "RUSTFLAGS CARGO_HOME CARGO_INCREMENTAL CARGO_TERM_COLOR"
+          env-vars: ""
           save-if: false
 
       - name: Install just
