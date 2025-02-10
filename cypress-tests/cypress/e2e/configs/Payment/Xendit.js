@@ -166,7 +166,7 @@ export const connectorDetails = {
     },
     manualPaymentPartialRefund: {
       Request: {
-        amount: 2000,
+        amount: 2000000,
       },
       Response: {
         status: 200,
@@ -177,7 +177,7 @@ export const connectorDetails = {
     },
     manualPaymentRefund: {
       Request: {
-        amount: 6000,
+        amount: 6000000,
       },
       Response: {
         status: 200,
@@ -483,21 +483,21 @@ export const connectorDetails = {
         },
       },
       Request: {
-        amount_to_capture: 3000000,
+        amount_to_capture: 2000000,
       },
       Response: {
         status: 200,
         body: {
           status: "partially_captured",
-          amount: 3000000,
+          amount: 2000000,
           amount_capturable: 0,
-          amount_received: 3000000,
+          amount_received: 2000000,
         },
       },
     },
     Refund: {
       Request: {
-        amount: 6000,
+        amount: 6000000,
       },
       Response: {
         status: 200,
@@ -521,7 +521,7 @@ export const connectorDetails = {
     },
     PartialRefund: {
       Request: {
-        amount: 2000,
+        amount: 2000000,
       },
       Response: {
         status: 200,
