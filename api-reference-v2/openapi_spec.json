@@ -2338,58 +2338,6 @@
         ]
       }
     },
-    "/v2/payment-methods/{id}/list-enabled-payment-methods": {
-      "get": {
-        "tags": [
-          "Payment Methods"
-        ],
-        "summary": "Payment Methods - Payment Methods List",
-        "description": "List the payment methods eligible for a payment method.",
-        "operationId": "List Payment methods for a Payment Method Intent",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "description": "The global payment method id",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "X-Profile-Id",
-            "in": "header",
-            "description": "Profile ID associated to the payment method intent",
-            "required": true,
-            "schema": {
-              "type": "string"
-            },
-            "example": "pro_abcdefghijklmnop"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Get the payment methods",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PaymentMethodListResponseForPayments"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "No payment method found with the given id"
-          }
-        },
-        "security": [
-          {
-            "api_key": [],
-            "ephemeral_key": []
-          }
-        ]
-      }
-    },
     "/v2/payment-methods/{id}/confirm-intent": {
       "post": {
         "tags": [
