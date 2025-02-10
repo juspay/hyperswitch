@@ -5,7 +5,6 @@ import * as utils from "../../configs/Payout/Utils";
 let globalState;
 let payoutBody;
 
-
 describe("[Payout] Saved Bank transfer", () => {
   let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
 

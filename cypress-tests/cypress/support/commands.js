@@ -3172,7 +3172,7 @@ Cypress.Commands.add(
     createConfirmPayoutBody.customer_id = globalState.get("customerId");
     createConfirmPayoutBody.auto_fulfill = auto_fulfill;
     createConfirmPayoutBody.confirm = confirm;
-    createConfirmPayoutBody.payout_method_id = globalState.data.paymentMethodId
+    createConfirmPayoutBody.payout_method_id = globalState.data.paymentMethodId;
     delete createConfirmPayoutBody.payout_token;
 
     cy.request({
