@@ -434,6 +434,7 @@ function handleSubmit(e) {
       },
     })
     .then(function (result) {
+      console.log("<<>>here -- after redirection");
       var error = result.error;
       if (error) {
         if (error.type === "validation_error") {
@@ -441,8 +442,13 @@ function handleSubmit(e) {
         } else {
           showMessage(translations.unexpectedError);
         }
-      } else {
-        redirectToStatus();
+      } else if (true){
+        console.log("^^^^^^ elsee true");
+      var url = new URL(paymentDetails.return_url);
+        window.location.href = url.toString();
+      }else{
+        console.log("<<>>here -- after redirection else");
+        redirectToStatus(); //
       }
     })
     .catch(function (error) {

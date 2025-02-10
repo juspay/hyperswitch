@@ -1745,7 +1745,7 @@ pub struct PaymentLink;
 #[cfg(all(feature = "olap", feature = "v1"))]
 impl PaymentLink {
     pub fn server(state: AppState) -> Scope {
-        web::scope("/payment_link")
+        web::scope("/api/payment_link")
             .app_data(web::Data::new(state))
             .service(web::resource("/list").route(web::post().to(payment_link::payments_link_list)))
             .service(

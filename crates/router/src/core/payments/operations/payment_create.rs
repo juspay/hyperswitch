@@ -1573,7 +1573,7 @@ async fn create_payment_link(
     let payment_link_id = utils::generate_id(consts::ID_LENGTH, "plink");
     let locale_str = locale.unwrap_or("en".to_owned());
     let open_payment_link = format!(
-        "{}/payment_link/{}/{}?locale={}",
+        "{}/api/payment_link/{}/{}?locale={}",
         domain_name,
         merchant_id.get_string_repr(),
         payment_id.get_string_repr(),

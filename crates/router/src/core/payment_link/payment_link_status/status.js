@@ -140,6 +140,8 @@ function renderStatusDetails(paymentDetails) {
   var paymentId = createItem(translations.refId, paymentDetails.payment_id);
   // @ts-ignore
   statusDetails.items.push(paymentId);
+    console.log("<<>> paymentDetails",paymentDetails);
+  console.log("<<>> status",status);
 
   // Status specific information
   switch (status) {
@@ -261,6 +263,7 @@ function renderStatusDetails(paymentDetails) {
     }
     statusContentNode.append(statusDetailsNode);
   }
+  console.log("<<>> redirect",paymentDetails.redirect);
 
   if (paymentDetails.redirect === true) {
     // Form redirect text
