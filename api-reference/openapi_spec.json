@@ -6081,6 +6081,79 @@
           "Vat"
         ]
       },
+      "AdyenSplitData": {
+        "type": "object",
+        "description": "Fee information for Split Payments to be charged on the payment being collected for Adyen",
+        "required": [
+          "split_items"
+        ],
+        "properties": {
+          "store": {
+            "type": "string",
+            "description": "The store identifier",
+            "nullable": true
+          },
+          "split_items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdyenSplitItem"
+            },
+            "description": "Data for the split items"
+          }
+        },
+        "additionalProperties": false
+      },
+      "AdyenSplitItem": {
+        "type": "object",
+        "description": "Data for the split items",
+        "required": [
+          "amount",
+          "split_type",
+          "reference"
+        ],
+        "properties": {
+          "amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The amount of the split item",
+            "example": 6540
+          },
+          "split_type": {
+            "$ref": "#/components/schemas/AdyenSplitType"
+          },
+          "account": {
+            "type": "string",
+            "description": "The unique identifier of the account to which the split amount is allocated.",
+            "nullable": true
+          },
+          "reference": {
+            "type": "string",
+            "description": "Unique Identifier for the split item"
+          },
+          "description": {
+            "type": "string",
+            "description": "Description for the part of the payment that will be allocated to the specified account.",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "AdyenSplitType": {
+        "type": "string",
+        "enum": [
+          "BalanceAccount",
+          "AcquiringFees",
+          "PaymentFee",
+          "AdyenFees",
+          "AdyenCommission",
+          "AdyenMarkup",
+          "Interchange",
+          "SchemeFee",
+          "Commission",
+          "TopUp",
+          "Vat"
+        ]
+      },
       "AirwallexData": {
         "type": "object",
         "properties": {
@@ -9621,6 +9694,33 @@
             "properties": {
               "xendit_split_payment": {
                 "$ref": "#/components/schemas/XenditChargeResponseData"
+              }
+            }
+          }
+        ],
+        "description": "Charge Information"
+      },
+      "ConnectorChargeResponseData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "stripe_split_payment"
+            ],
+            "properties": {
+              "stripe_split_payment": {
+                "$ref": "#/components/schemas/StripeChargeResponseData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "adyen_split_payment"
+            ],
+            "properties": {
+              "adyen_split_payment": {
+                "$ref": "#/components/schemas/AdyenSplitData"
               }
             }
           }
@@ -25427,6 +25527,17 @@
             "properties": {
               "xendit_split_refund": {
                 "$ref": "#/components/schemas/XenditSplitSubMerchantData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "adyen_split_refund"
+            ],
+            "properties": {
+              "adyen_split_refund": {
+                "$ref": "#/components/schemas/AdyenSplitData"
               }
             }
           }
