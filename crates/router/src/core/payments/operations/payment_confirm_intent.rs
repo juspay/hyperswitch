@@ -432,6 +432,25 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, PaymentsConfirmInt
 
         payment_data.payment_attempt = updated_payment_attempt;
 
+        if let Some((customer, updated_customer)) = customer.zip(updated_customer) {
+            let customer_id = customer.get_id().clone();
+            let customer_merchant_id = customer.merchant_id.clone();
+
+            let _updated_customer = db
+                .update_customer_by_global_id(
+                    key_manager_state,
+                    &customer_id,
+                    customer,
+                    &customer_merchant_id,
+                    updated_customer,
+                    key_store,
+                    storage_scheme,
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to update customer during `update_trackers`")?;
+        }
+
         Ok((Box::new(self), payment_data))
     }
 }
