@@ -8,7 +8,6 @@ pub mod ebanx;
 pub mod gpayments;
 pub mod netcetera;
 pub mod nmi;
-pub mod noon;
 pub mod opayo;
 pub mod opennode;
 pub mod payme;
@@ -40,8 +39,8 @@ pub use hyperswitch_connectors::connectors::{
     inespay::Inespay, itaubank, itaubank::Itaubank, jpmorgan, jpmorgan::Jpmorgan, klarna,
     klarna::Klarna, mifinity, mifinity::Mifinity, mollie, mollie::Mollie, multisafepay,
     multisafepay::Multisafepay, nexinets, nexinets::Nexinets, nexixpay, nexixpay::Nexixpay,
-    nomupay, nomupay::Nomupay, novalnet, novalnet::Novalnet, nuvei, nuvei::Nuvei, paybox,
-    paybox::Paybox, payeezy, payeezy::Payeezy, payu, payu::Payu, placetopay,
+    nomupay, nomupay::Nomupay, noon, noon::Noon, novalnet, novalnet::Novalnet, nuvei, nuvei::Nuvei,
+    paybox, paybox::Paybox, payeezy, payeezy::Payeezy, payu, payu::Payu, placetopay,
     placetopay::Placetopay, powertranz, powertranz::Powertranz, prophetpay, prophetpay::Prophetpay,
     rapyd, rapyd::Rapyd, razorpay, razorpay::Razorpay, redsys, redsys::Redsys, shift4,
     shift4::Shift4, square, square::Square, stax, stax::Stax, taxjar, taxjar::Taxjar, thunes,
@@ -56,8 +55,7 @@ pub use self::dummyconnector::DummyConnector;
 pub use self::{
     adyen::Adyen, adyenplatform::Adyenplatform, authorizedotnet::Authorizedotnet,
     checkout::Checkout, ebanx::Ebanx, gpayments::Gpayments, netcetera::Netcetera, nmi::Nmi,
-    noon::Noon, opayo::Opayo, opennode::Opennode, payme::Payme, payone::Payone, paypal::Paypal,
-    plaid::Plaid, riskified::Riskified, signifyd::Signifyd, stripe::Stripe,
-    threedsecureio::Threedsecureio, trustpay::Trustpay, wellsfargopayout::Wellsfargopayout,
-    wise::Wise,
+    opayo::Opayo, opennode::Opennode, payme::Payme, payone::Payone, paypal::Paypal, plaid::Plaid,
+    riskified::Riskified, signifyd::Signifyd, stripe::Stripe, threedsecureio::Threedsecureio,
+    trustpay::Trustpay, wellsfargopayout::Wellsfargopayout, wise::Wise,
 };
