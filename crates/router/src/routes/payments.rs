@@ -1424,7 +1424,7 @@ pub async fn get_payments_aggregates(
             payments::get_aggregates_for_payments(state, auth.merchant_account, None, req)
         },
         &auth::JWTAuth {
-            permission: Permission::ProfilePaymentRead,
+            permission: Permission::MerchantPaymentRead,
         },
         api_locking::LockAction::NotApplicable,
     ))
