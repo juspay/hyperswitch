@@ -484,11 +484,20 @@ impl<T: Clone> Encryptable<T> {
         F: FnOnce(T) -> CustomResult<U, errors::ParsingError>,
         U: Clone,
     {
-        // Option::map(self, f)
         let inner = self.inner;
         let encrypted = self.encrypted;
         let inner = f(inner)?;
         Ok(Encryptable { inner, encrypted })
+    }
+
+    /// consume self and modify the inner value
+    pub fn map<U: Clone>(self, f: impl FnOnce(T) -> U) -> Encryptable<U> {
+        let encrypted_data = self.encrypted;
+        let masked_data = f(self.inner);
+        Encryptable {
+            inner: masked_data,
+            encrypted: encrypted_data,
+        }
     }
 }
 
