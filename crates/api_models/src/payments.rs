@@ -7865,7 +7865,7 @@ pub struct PaymentIntentRevenueRecoveryMetadata {
     #[schema(value_type = i32,example = "1")]
     pub retry_count: i32,
     ///if the payment_connector has been called or not
-    pub payment_connector_transmission: bool,
+    pub payment_connector_transmission: PaymentConnectorTransmission,
     /// Billing Connector Id to update the invoices
     #[schema(value_type = String, example = "mca_1234567890")]
     pub billing_connector_id: id_type::MerchantConnectorAccountId,
@@ -7889,4 +7889,14 @@ pub struct BillingConnectorMitTokenDetails {
     pub payment_processor_token: String,
     ///Connector Customer Id to process the retry payment
     pub connector_customer_id: String,
+}
+
+#[cfg(feature="v2")]
+#[derive(Clone, Copy, Debug, Eq, PartialEq,serde::Serialize, serde::Deserialize,ToSchema)]
+#[serde(rename="snake_case")]
+pub enum PaymentConnectorTransmission{
+    ///Connector Call Failed
+    ConnectorCallFailed,
+    ///Connector Call Success
+    ConnectorCallSucceeded
 }

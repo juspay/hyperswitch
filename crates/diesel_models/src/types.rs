@@ -6,7 +6,7 @@ use diesel::{
     AsExpression, FromSqlRow,
 };
 use masking::{Secret, WithType};
-use serde::{Deserialize, Serialize};
+use serde::{self,Deserialize, Serialize};
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, FromSqlRow, AsExpression)]
 #[diesel(sql_type = Jsonb)]
 pub struct OrderDetailsWithAmount {
@@ -129,7 +129,7 @@ pub struct PaymentIntentRevenueRecoveryMetadata {
     ///Total number of billing connector + recovery retries for a payment intent.
     pub retry_count: i32,
     ///if the payment_connector has been called or not
-    pub payment_connector_transmission: bool,
+    pub payment_connector_transmission: PaymentConnectorTransmission,
     /// Billing Connector Id to update the invoices
     pub billing_connector_id: common_utils::id_type::MerchantConnectorAccountId,
     /// Payment Connector Id to retry the payments
@@ -149,4 +149,15 @@ pub struct BillingConnectorMitTokenDetails {
     pub payment_processor_token: String,
     ///Connector Customer Id to process the retry payment
     pub connector_customer_id: String,
+}
+
+
+#[cfg(feature="v2")]
+#[derive(Clone, Copy, Debug, Eq, PartialEq,Serialize,Deserialize)]
+#[serde(rename="snake_case")]
+pub enum PaymentConnectorTransmission{
+    ///Connector Call Failed
+    ConnectorCallFailed,
+    ///Connector Call Success
+    ConnectorCallSucceeded
 }

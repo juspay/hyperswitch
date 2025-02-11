@@ -461,6 +461,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::RequestSurchargeDetails,
         api_models::payments::PaymentIntentRevenueRecoveryMetadata,
         api_models::payments::BillingConnectorMitTokenDetails,
+        api_models::payments::PaymentConnectorTransmission,
         api_models::payments::PaymentAttemptResponse,
         api_models::payments::CaptureResponse,
         api_models::payments::PaymentsIncrementalAuthorizationRequest,

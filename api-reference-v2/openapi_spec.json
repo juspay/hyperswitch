@@ -13022,6 +13022,13 @@
           "bank_acquirer"
         ]
       },
+      "PaymentConnectorTransmission": {
+        "type": "string",
+        "enum": [
+          "ConnectorCallFailed",
+          "ConnectorCallSucceeded"
+        ]
+      },
       "PaymentCreatePaymentLinkConfig": {
         "allOf": [
           {
@@ -13098,8 +13105,7 @@
             "example": "1"
           },
           "payment_connector_transmission": {
-            "type": "boolean",
-            "description": "if the payment_connector has been called or not"
+            "$ref": "#/components/schemas/PaymentConnectorTransmission"
           },
           "billing_connector_id": {
             "type": "string",
