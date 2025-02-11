@@ -1,4 +1,4 @@
-use std::{fmt, str::FromStr};
+use std::str::FromStr;
 
 use actix_web::http::header::HeaderMap;
 #[cfg(all(
@@ -193,19 +193,13 @@ impl AuthenticationType {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, serde::Deserialize, strum::Display)]
 #[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 pub enum ExternalServiceType {
     Hypersense,
 }
 
-impl fmt::Display for ExternalServiceType {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Hypersense => write!(f, "hypersense"),
-        }
-    }
-}
 #[cfg(feature = "olap")]
 #[derive(Clone, Debug)]
 pub struct UserFromSinglePurposeToken {
