@@ -242,6 +242,21 @@ impl PaymentAttempt {
         .await
     }
 
+    #[cfg(feature = "v2")]
+    pub async fn find_by_payment_id(
+        conn: &PgPooledConn,
+        payment_id: &common_utils::id_type::GlobalPaymentId,
+    ) -> StorageResult<Vec<Self>> {
+        generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
+            conn,
+            dsl::payment_id.eq(payment_id.to_owned()),
+            None,
+            None,
+            Some(dsl::created_at.asc()),
+        )
+        .await
+    }
+
     #[cfg(feature = "v1")]
     pub async fn find_by_merchant_id_preprocessing_id(
         conn: &PgPooledConn,
