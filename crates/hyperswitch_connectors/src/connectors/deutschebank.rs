@@ -1031,7 +1031,7 @@ lazy_static! {
                     api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
                         api_models::feature_matrix::CardSpecificFeatures {
                             three_ds: common_enums::FeatureStatus::Supported,
-                            non_three_ds: common_enums::FeatureStatus::NotSupported,
+                            no_three_ds: common_enums::FeatureStatus::NotSupported,
                             supported_card_networks: supported_card_network.clone(),
                         }
                     }),
@@ -1050,7 +1050,7 @@ lazy_static! {
                     api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
                         api_models::feature_matrix::CardSpecificFeatures {
                             three_ds: common_enums::FeatureStatus::Supported,
-                            non_three_ds: common_enums::FeatureStatus::NotSupported,
+                            no_three_ds: common_enums::FeatureStatus::NotSupported,
                             supported_card_networks: supported_card_network.clone(),
                         }
                     }),
@@ -1062,9 +1062,9 @@ lazy_static! {
     };
 
     static ref DEUTSCHEBANK_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+        display_name: "Deutsche Bank",
         description:
-            "Deutsche Bank is a German multinational investment bank and financial services company "
-                .to_string(),
+            "Deutsche Bank is a German multinational investment bank and financial services company ",
         connector_type: enums::PaymentConnectorCategory::BankAcquirer,
     };
 
