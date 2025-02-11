@@ -45,6 +45,7 @@ pub mod novalnet;
 pub mod nuvei;
 pub mod paybox;
 pub mod payeezy;
+pub mod payme;
 pub mod payu;
 pub mod placetopay;
 pub mod powertranz;
@@ -78,10 +79,11 @@ pub use self::{
     globepay::Globepay, gocardless::Gocardless, helcim::Helcim, iatapay::Iatapay, inespay::Inespay,
     itaubank::Itaubank, jpmorgan::Jpmorgan, klarna::Klarna, mifinity::Mifinity, mollie::Mollie,
     multisafepay::Multisafepay, nexinets::Nexinets, nexixpay::Nexixpay, nomupay::Nomupay,
-    noon::Noon, novalnet::Novalnet, nuvei::Nuvei, paybox::Paybox, payeezy::Payeezy, payu::Payu,
-    placetopay::Placetopay, powertranz::Powertranz, prophetpay::Prophetpay, rapyd::Rapyd,
-    razorpay::Razorpay, redsys::Redsys, shift4::Shift4, square::Square, stax::Stax, taxjar::Taxjar,
-    thunes::Thunes, tsys::Tsys, unified_authentication_service::UnifiedAuthenticationService,
-    volt::Volt, wellsfargo::Wellsfargo, worldline::Worldline, worldpay::Worldpay, xendit::Xendit,
-    zen::Zen, zsl::Zsl,
+    noon::Noon, novalnet::Novalnet, nuvei::Nuvei, paybox::Paybox, payeezy::Payeezy, payme::Payme,
+    payu::Payu, placetopay::Placetopay, powertranz::Powertranz, prophetpay::Prophetpay,
+    rapyd::Rapyd, razorpay::Razorpay, redsys::Redsys, shift4::Shift4, square::Square, stax::Stax,
+    taxjar::Taxjar, thunes::Thunes, tsys::Tsys,
+    unified_authentication_service::UnifiedAuthenticationService, volt::Volt,
+    wellsfargo::Wellsfargo, worldline::Worldline, worldpay::Worldpay, xendit::Xendit, zen::Zen,
+    zsl::Zsl,
 };
