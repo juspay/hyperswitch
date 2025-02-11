@@ -1293,6 +1293,7 @@ impl MerchantConnectorAccountInterface for MockDb {
             connector_wallets_details: t.connector_wallets_details.map(Encryption::from),
             additional_merchant_data: t.additional_merchant_data.map(|data| data.into()),
             version: t.version,
+            feature_metadata: t.feature_metadata.map(From::from),
         };
         accounts.push(account.clone());
         account
@@ -1850,6 +1851,7 @@ mod merchant_connector_account_cache_tests {
             ),
             additional_merchant_data: None,
             version: hyperswitch_domain_models::consts::API_VERSION,
+            feature_metadata: None,
         };
 
         db.insert_merchant_connector_account(key_manager_state, mca.clone(), &merchant_key)

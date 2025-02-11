@@ -763,6 +763,7 @@ diesel::table! {
         version -> ApiVersion,
         #[max_length = 64]
         id -> Varchar,
+        feature_metadata -> Nullable<Jsonb>,
     }
 }
 
@@ -849,8 +850,6 @@ diesel::table! {
         #[max_length = 64]
         fingerprint_id -> Nullable<Varchar>,
         #[max_length = 64]
-        charge_id -> Nullable<Varchar>,
-        #[max_length = 64]
         client_source -> Nullable<Varchar>,
         #[max_length = 64]
         client_version -> Nullable<Varchar>,
@@ -881,6 +880,7 @@ diesel::table! {
         shipping_cost -> Nullable<Int8>,
         order_tax_amount -> Nullable<Int8>,
         card_discovery -> Nullable<CardDiscovery>,
+        charges -> Nullable<Jsonb>,
     }
 }
 
