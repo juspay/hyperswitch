@@ -48,6 +48,7 @@ pub struct Authentication {
     pub directory_server_id: Option<String>,
     pub acquirer_country_code: Option<String>,
     pub service_details: Option<serde_json::Value>,
+    pub organization_id: common_utils::id_type::OrganizationId,
 }
 
 impl Authentication {
@@ -96,6 +97,7 @@ pub struct AuthenticationNew {
     pub directory_server_id: Option<String>,
     pub acquirer_country_code: Option<String>,
     pub service_details: Option<serde_json::Value>,
+    pub organization_id: common_utils::id_type::OrganizationId,
 }
 
 #[derive(Debug)]

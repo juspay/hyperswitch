@@ -89,7 +89,8 @@ ADD COLUMN IF NOT EXISTS attempt_id VARCHAR(64) NOT NULL,
     ADD COLUMN confirm BOOLEAN,
     ADD COLUMN authentication_data JSONB,
     ADD COLUMN payment_method_billing_address_id VARCHAR(64),
-    ADD COLUMN connector_mandate_detail JSONB;
+    ADD COLUMN connector_mandate_detail JSONB,
+    ADD COLUMN charge_id VARCHAR(64);
 
 -- Create the index which was dropped because of dropping the column
 CREATE INDEX payment_attempt_connector_transaction_id_merchant_id_index ON payment_attempt (connector_transaction_id, merchant_id);

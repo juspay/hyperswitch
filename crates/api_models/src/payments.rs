@@ -1876,7 +1876,6 @@ pub enum PayLaterData {
         /// The token for the sdk workflow
         token: String,
     },
-    KlarnaCheckout {},
     /// For Affirm redirect as PayLater Option
     AffirmRedirect {},
     /// For AfterpayClearpay redirect as PayLater Option
@@ -1934,7 +1933,6 @@ impl GetAddressFromPaymentMethodData for PayLaterData {
             | Self::WalleyRedirect {}
             | Self::AlmaRedirect {}
             | Self::KlarnaSdk { .. }
-            | Self::KlarnaCheckout {}
             | Self::AffirmRedirect {}
             | Self::AtomeRedirect {} => None,
         }
@@ -2397,7 +2395,6 @@ impl GetPaymentMethodType for PayLaterData {
         match self {
             Self::KlarnaRedirect { .. } => api_enums::PaymentMethodType::Klarna,
             Self::KlarnaSdk { .. } => api_enums::PaymentMethodType::Klarna,
-            Self::KlarnaCheckout {} => api_enums::PaymentMethodType::Klarna,
             Self::AffirmRedirect {} => api_enums::PaymentMethodType::Affirm,
             Self::AfterpayClearpayRedirect { .. } => api_enums::PaymentMethodType::AfterpayClearpay,
             Self::PayBrightRedirect {} => api_enums::PaymentMethodType::PayBright,
@@ -4737,7 +4734,8 @@ pub struct PaymentsResponse {
     pub updated: Option<PrimitiveDateTime>,
 
     /// Fee information to be charged on the payment being collected
-    pub split_payments: Option<SplitPaymentsResponse>,
+    #[schema(value_type = Option<ConnectorChargeResponseData>)]
+    pub split_payments: Option<common_types::payments::ConnectorChargeResponseData>,
 
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. FRM Metadata is useful for storing additional, structured information on an object related to FRM.
     #[schema(value_type = Option<Object>, example = r#"{ "fulfillment_method" : "deliver", "coverage_request" : "fraud" }"#)]
@@ -5277,31 +5275,6 @@ pub struct PaymentStartRedirectionParams {
     pub publishable_key: String,
     /// The identifier for business profile
     pub profile_id: id_type::ProfileId,
-}
-
-/// Fee information to be charged on the payment being collected
-#[derive(Setter, Clone, Debug, PartialEq, serde::Serialize, ToSchema)]
-pub struct StripeSplitPaymentsResponse {
-    /// Identifier for charge created for the payment
-    pub charge_id: Option<String>,
-
-    /// Type of charge (connector specific)
-    #[schema(value_type = PaymentChargeType, example = "direct")]
-    pub charge_type: api_enums::PaymentChargeType,
-
-    /// Platform fees collected on the payment
-    #[schema(value_type = i64, example = 6540)]
-    pub application_fees: MinorUnit,
-
-    /// Identifier for the reseller's account where the funds were transferred
-    pub transfer_account_id: String,
-}
-
-#[derive(Clone, Debug, PartialEq, serde::Serialize, ToSchema)]
-#[serde(rename_all = "snake_case")]
-pub enum SplitPaymentsResponse {
-    /// StripeSplitPaymentsResponse
-    StripeSplitPayment(StripeSplitPaymentsResponse),
 }
 
 /// Details of external authentication
