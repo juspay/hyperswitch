@@ -5,9 +5,9 @@ use std::{
 };
 pub mod additional_info;
 use cards::CardNumber;
-use common_enums::ProductType;
-#[cfg(feature="v2")]
+#[cfg(feature = "v2")]
 use common_enums::enums::PaymentConnectorTransmission;
+use common_enums::ProductType;
 #[cfg(feature = "v2")]
 use common_utils::id_type::GlobalPaymentId;
 use common_utils::{

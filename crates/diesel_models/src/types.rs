@@ -1,6 +1,5 @@
 #[cfg(feature = "v2")]
-use common_enums::{PaymentMethod, PaymentMethodType,enums::PaymentConnectorTransmission};
-
+use common_enums::{enums::PaymentConnectorTransmission, PaymentMethod, PaymentMethodType};
 use common_utils::{hashing::HashedString, pii, types::MinorUnit};
 use diesel::{
     sql_types::{Json, Jsonb},
@@ -151,5 +150,3 @@ pub struct BillingConnectorMitTokenDetails {
     ///Connector Customer Id to process the retry payment
     pub connector_customer_id: String,
 }
-
-
