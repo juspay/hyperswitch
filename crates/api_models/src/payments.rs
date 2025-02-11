@@ -6013,7 +6013,7 @@ pub struct GpayTokenParameters {
     pub protocol_version: Option<String>,
     /// The public key provided by the merchant
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub public_key: Option<String>,
+    pub public_key: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -6313,7 +6313,7 @@ pub struct GooglePayTokenizationSpecification {
     pub parameters: GooglePayTokenizationParameters,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, strum::Display)]
+#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize, strum::Display)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 #[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
 pub enum GooglePayTokenizationType {

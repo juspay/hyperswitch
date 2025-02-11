@@ -4403,7 +4403,10 @@ fn get_google_pay_connector_wallet_details(
                                                 google_pay_recipient_id
                                             })
                                         }
-                                        _ => None,
+                                        _ => {
+                                            logger::warn!("One or more of the following fields are missing in GooglePayMerchantDetails: google_pay_private_key, google_pay_root_signing_keys, google_pay_recipient_id");
+                                            None
+                                        }
                                     }
                             }
                         }

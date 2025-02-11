@@ -1072,7 +1072,7 @@ fn get_allowed_payment_methods_from_cards(
     let protocol_version: Option<String> = gpay_token_specific_data
         .parameters
         .public_key
-        .clone()
+        .as_ref()
         .map(|_| PROTOCOL.to_string());
 
     Ok(payment_types::GpayAllowedPaymentMethods {
@@ -1086,11 +1086,7 @@ fn get_allowed_payment_methods_from_cards(
             token_specification_type: gpay_token_specific_data.tokenization_type.to_string(),
             parameters: payment_types::GpayTokenParameters {
                 protocol_version,
-                public_key: gpay_token_specific_data
-                    .parameters
-                    .public_key
-                    .clone()
-                    .expose_option(),
+                public_key: gpay_token_specific_data.parameters.public_key.clone(),
                 gateway: gpay_token_specific_data.parameters.gateway.clone(),
                 gateway_merchant_id: gpay_token_specific_data
                     .parameters

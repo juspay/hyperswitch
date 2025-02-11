@@ -220,7 +220,7 @@ pub const REFUND_FLOW_STR: &str = "refund_flow";
 pub const AUTHORIZE_FLOW_STR: &str = "Authorize";
 
 /// Protocol Version for encrypted Google Pay Token
-pub const PROTOCOL: &str = "ECv2";
+pub(crate) const PROTOCOL: &str = "ECv2";
 
 /// Sender ID for Google Pay Decryption
-pub const SENDER_ID: &[u8] = b"Google";
+pub(crate) const SENDER_ID: &[u8] = b"Google";
