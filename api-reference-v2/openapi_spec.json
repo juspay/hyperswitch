@@ -2498,6 +2498,47 @@
         ]
       }
     },
+    "/v2/customers/{id}/saved-payment-methods": {
+      "delete": {
+        "tags": [
+          "Payment Methods"
+        ],
+        "summary": "Payment Method - List Customer Saved Payment Methods",
+        "description": "List the payment methods saved for a customer",
+        "operationId": "List Customer Saved Payment Methods",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The unique identifier for the customer",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Payment Methods Retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerPaymentMethodsListResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Customer Not Found"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
     "/v2/payment-method-session": {
       "post": {
         "tags": [

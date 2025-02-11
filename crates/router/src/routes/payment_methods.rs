@@ -11,6 +11,8 @@ use hyperswitch_domain_models::merchant_key_store::MerchantKeyStore;
 use router_env::{instrument, logger, tracing, Flow};
 
 use super::app::{AppState, SessionState};
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+use crate::core::payment_methods::list_customer_payment_method_core;
 use crate::{
     core::{
         api_locking,
@@ -574,6 +576,43 @@ pub async fn initiate_pm_collect_link_flow(
             )
         },
         &auth::ApiKeyAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(all(feature = "v2", feature = "olap"))]
+#[instrument(skip_all, fields(flow = ?Flow::CustomerPaymentMethodsList))]
+pub async fn list_customer_payment_method_api(
+    state: web::Data<AppState>,
+    customer_id: web::Path<id_type::GlobalCustomerId>,
+    req: HttpRequest,
+    query_payload: web::Query<api_models::payment_methods::PaymentMethodListRequest>,
+) -> HttpResponse {
+    let flow = Flow::CustomerPaymentMethodsList;
+    let payload = query_payload.into_inner();
+    let customer_id = customer_id.into_inner();
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth: auth::AuthenticationData, _, _| {
+            payment_methods_routes::list_saved_payment_methods_for_customer(
+                state,
+                auth.merchant_account,
+                auth.key_store,
+                customer_id.clone(),
+            )
+        },
+        auth::auth_type(
+            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::JWTAuth {
+                permission: Permission::MerchantCustomerRead,
+            },
+            req.headers(),
+        ),
         api_locking::LockAction::NotApplicable,
     ))
     .await

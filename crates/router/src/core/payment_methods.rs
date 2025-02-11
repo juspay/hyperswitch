@@ -1099,6 +1099,23 @@ pub async fn list_payment_methods_for_session(
     ))
 }
 
+#[cfg(all(feature = "v2", feature = "olap"))]
+#[instrument(skip_all)]
+pub async fn list_saved_payment_methods_for_customer(
+    state: SessionState,
+    merchant_account: domain::MerchantAccount,
+    key_store: domain::MerchantKeyStore,
+    customer_id: id_type::GlobalCustomerId,
+) -> RouterResponse<api::CustomerPaymentMethodsListResponse> {
+    let customer_payment_methods =
+        list_customer_payment_method_core(&state, &merchant_account, &key_store, &customer_id)
+            .await?;
+
+    Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
+        customer_payment_methods,
+    ))
+}
+
 #[cfg(feature = "v2")]
 /// Container for the inputs required for the required fields
 struct RequiredFieldsInput {
@@ -1463,11 +1480,7 @@ fn get_pm_list_context(
     Ok(payment_method_retrieval_context)
 }
 
-#[cfg(all(
-    feature = "v2",
-    feature = "payment_methods_v2",
-    feature = "customer_v2"
-))]
+#[cfg(all(feature = "v2", feature = "olap"))]
 pub async fn list_customer_payment_method_core(
     state: &SessionState,
     merchant_account: &domain::MerchantAccount,
