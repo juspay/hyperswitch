@@ -327,20 +327,24 @@ impl super::behaviour::Conversion for Customer {
 
 #[cfg(all(feature = "v2", feature = "customer_v2"))]
 #[derive(Clone, Debug)]
+pub struct CustomerGeneralUpdate {
+    pub name: crypto::OptionalEncryptableName,
+    pub email: Box<crypto::OptionalEncryptableEmail>,
+    pub phone: Box<crypto::OptionalEncryptablePhone>,
+    pub description: Option<Description>,
+    pub phone_country_code: Option<String>,
+    pub metadata: Option<pii::SecretSerdeValue>,
+    pub connector_customer: Box<Option<diesel_models::ConnectorCustomerMap>>,
+    pub default_billing_address: Option<Encryption>,
+    pub default_shipping_address: Option<Encryption>,
+    pub default_payment_method_id: Option<Option<id_type::GlobalPaymentMethodId>>,
+    pub status: Option<DeleteStatus>,
+}
+
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[derive(Clone, Debug)]
 pub enum CustomerUpdate {
-    Update {
-        name: crypto::OptionalEncryptableName,
-        email: Box<crypto::OptionalEncryptableEmail>,
-        phone: Box<crypto::OptionalEncryptablePhone>,
-        description: Option<Description>,
-        phone_country_code: Option<String>,
-        metadata: Option<pii::SecretSerdeValue>,
-        connector_customer: Box<Option<diesel_models::ConnectorCustomerMap>>,
-        default_billing_address: Option<Encryption>,
-        default_shipping_address: Option<Encryption>,
-        default_payment_method_id: Option<Option<id_type::GlobalPaymentMethodId>>,
-        status: Option<DeleteStatus>,
-    },
+    Update(Box<CustomerGeneralUpdate>),
     ConnectorCustomer {
         connector_customer: Option<diesel_models::ConnectorCustomerMap>,
     },
@@ -353,33 +357,36 @@ pub enum CustomerUpdate {
 impl From<CustomerUpdate> for CustomerUpdateInternal {
     fn from(customer_update: CustomerUpdate) -> Self {
         match customer_update {
-            CustomerUpdate::Update {
-                name,
-                email,
-                phone,
-                description,
-                phone_country_code,
-                metadata,
-                connector_customer,
-                default_billing_address,
-                default_shipping_address,
-                default_payment_method_id,
-                status,
-            } => Self {
-                name: name.map(Encryption::from),
-                email: email.map(Encryption::from),
-                phone: phone.map(Encryption::from),
-                description,
-                phone_country_code,
-                metadata,
-                connector_customer: *connector_customer,
-                modified_at: date_time::now(),
-                default_billing_address,
-                default_shipping_address,
-                default_payment_method_id,
-                updated_by: None,
-                status,
-            },
+            CustomerUpdate::Update(update) => {
+                let CustomerGeneralUpdate {
+                    name,
+                    email,
+                    phone,
+                    description,
+                    phone_country_code,
+                    metadata,
+                    connector_customer,
+                    default_billing_address,
+                    default_shipping_address,
+                    default_payment_method_id,
+                    status,
+                } = *update;
+                Self {
+                    name: name.map(Encryption::from),
+                    email: email.map(Encryption::from),
+                    phone: phone.map(Encryption::from),
+                    description,
+                    phone_country_code,
+                    metadata,
+                    connector_customer: *connector_customer,
+                    modified_at: date_time::now(),
+                    default_billing_address,
+                    default_shipping_address,
+                    default_payment_method_id,
+                    updated_by: None,
+                    status,
+                }
+            }
             CustomerUpdate::ConnectorCustomer { connector_customer } => Self {
                 connector_customer,
                 name: None,
