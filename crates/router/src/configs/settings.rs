@@ -226,12 +226,11 @@ impl TenantConfig {
             .await
             .expect("Failed to create event handler");
         futures::future::join_all(self.0.iter().map(|(tenant_name, tenant)| async {
-            let accounts_tenant_internal = AccountsTenantInternal::new(tenant);
             let store = AppState::get_store_interface(
                 storage_impl,
                 &event_handler,
                 conf,
-                &accounts_tenant_internal,
+                tenant,
                 cache_store.clone(),
                 testable,
             )
@@ -271,74 +270,17 @@ pub struct Tenant {
     pub user: TenantUserConfig,
 }
 
-pub struct AccountsTenantInternal {
-    tenant_id: id_type::TenantId,
-    base_url: String,
-    accounts_schema: String,
-    redis_key_prefix: String,
-    clickhouse_database: String,
-    user: TenantUserConfig,
-}
-
-impl AccountsTenantInternal {
-    pub fn new(tenant: &Tenant) -> Self {
-        Self {
-            tenant_id: tenant.tenant_id.clone(),
-            base_url: tenant.base_url.clone(),
-            accounts_schema: tenant.accounts_schema.clone(),
-            redis_key_prefix: tenant.redis_key_prefix.clone(),
-            clickhouse_database: tenant.clickhouse_database.clone(),
-            user: tenant.user.clone(),
-        }
-    }
-    pub fn tenant_id(&self) -> &id_type::TenantId {
-        &self.tenant_id
-    }
-
-    pub fn base_url(&self) -> &String {
-        &self.base_url
-    }
-
-    pub fn accounts_schema(&self) -> &String {
-        &self.accounts_schema
-    }
-
-    pub fn redis_key_prefix(&self) -> &String {
-        &self.redis_key_prefix
-    }
-
-    pub fn clickhouse_database(&self) -> &String {
-        &self.clickhouse_database
-    }
-
-    pub fn user(&self) -> &TenantUserConfig {
-        &self.user
-    }
-}
-
 #[derive(Debug, Deserialize, Clone)]
 pub struct TenantUserConfig {
     pub control_center_url: String,
 }
 
-impl storage_impl::config::TenantConfig for AccountsTenantInternal {
-    fn get_tenant_id(&self) -> &id_type::TenantId {
-        self.tenant_id()
-    }
-    fn get_schema(&self) -> &str {
-        self.accounts_schema()
-    }
-    fn get_redis_key_prefix(&self) -> &str {
-        self.redis_key_prefix()
-    }
-    fn get_clickhouse_database(&self) -> &str {
-        self.clickhouse_database()
-    }
-}
-
 impl storage_impl::config::TenantConfig for Tenant {
     fn get_tenant_id(&self) -> &id_type::TenantId {
         &self.tenant_id
+    }
+    fn get_accounts_schema(&self) -> &str {
+        self.accounts_schema.as_str()
     }
     fn get_schema(&self) -> &str {
         self.schema.as_str()
@@ -351,6 +293,7 @@ impl storage_impl::config::TenantConfig for Tenant {
     }
 }
 
+// Todo: Global tenant should not be part of tenant config(https://github.com/juspay/hyperswitch/issues/7237)
 #[derive(Debug, Deserialize, Clone)]
 pub struct GlobalTenant {
     #[serde(default = "id_type::TenantId::get_default_global_tenant_id")]
@@ -359,10 +302,13 @@ pub struct GlobalTenant {
     pub redis_key_prefix: String,
     pub clickhouse_database: String,
 }
-
+// Todo: Global tenant should not be part of tenant config
 impl storage_impl::config::TenantConfig for GlobalTenant {
     fn get_tenant_id(&self) -> &id_type::TenantId {
         &self.tenant_id
+    }
+    fn get_accounts_schema(&self) -> &str {
+        self.schema.as_str()
     }
     fn get_schema(&self) -> &str {
         self.schema.as_str()

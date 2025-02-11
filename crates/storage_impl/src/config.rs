@@ -36,6 +36,7 @@ impl DbConnectionParams for Database {
 pub trait TenantConfig: Send + Sync {
     fn get_tenant_id(&self) -> &id_type::TenantId;
     fn get_schema(&self) -> &str;
+    fn get_accounts_schema(&self) -> &str;
     fn get_redis_key_prefix(&self) -> &str;
     fn get_clickhouse_database(&self) -> &str;
 }
