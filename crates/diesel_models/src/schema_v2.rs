@@ -763,6 +763,7 @@ diesel::table! {
         version -> ApiVersion,
         #[max_length = 64]
         id -> Varchar,
+        feature_metadata -> Nullable<Jsonb>,
     }
 }
 
