@@ -623,12 +623,12 @@ mod storage {
 
                     let redis_entry = kv::TypedSql {
                         op: kv::DBOperation::Update {
-                            updatable: Box::new(kv::Updateable::RefundUpdate(
+                            updatable: Box::new(kv::Updateable::RefundUpdate(Box::new(
                                 kv::RefundUpdateMems {
                                     orig: this,
                                     update_data: refund,
                                 },
-                            )),
+                            ))),
                         },
                     };
 
