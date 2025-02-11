@@ -2,6 +2,10 @@
 //!
 //! Functions that are used to perform the retrieval of merchant's
 //! routing dict, configs, defaults
+#[cfg(all(feature = "dynamic_routing", feature = "v1"))]
+use std::str::FromStr;
+use std::{fmt::Debug, sync::Arc};
+
 use api_models::routing as routing_types;
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
 use common_utils::ext_traits::ValueExt;
@@ -24,9 +28,6 @@ use router_env::logger;
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
 use router_env::{instrument, tracing};
 use rustc_hash::FxHashSet;
-#[cfg(all(feature = "dynamic_routing", feature = "v1"))]
-use std::str::FromStr;
-use std::{fmt::Debug, sync::Arc};
 use storage_impl::redis::cache;
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
 use storage_impl::redis::cache::Cacheable;
