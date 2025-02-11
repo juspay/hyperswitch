@@ -73,7 +73,7 @@ host = "http://127.0.0.1:3000"
 host_rs = "http://127.0.0.1:3000"
 mock_locker = true
 basilisk_host = ""
-locker_enabled = false
+locker_enabled = true
 ttl_for_storage_in_secs = 220752000
 
 [forex_api]
