@@ -43,7 +43,6 @@ use api_models::payments::{
 #[cfg(feature = "v2")]
 use api_models::payments::{
     BillingConnectorMitTokenDetails as ApiBillingConnectorMitTokenDetails,
-    PaymentConnectorTransmission as ApiPaymentConnectorTransmission,
     PaymentIntentRevenueRecoveryMetadata as ApiRevenueRecoveryMetadata,
 };
 use diesel_models::types::{
