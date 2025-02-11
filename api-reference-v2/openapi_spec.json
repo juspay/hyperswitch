@@ -12815,71 +12815,92 @@
           }
         }
       },
+      "PaymentAttemptAmountDetails": {
+        "type": "object",
+        "required": [
+          "net_amount",
+          "amount_capturable"
+        ],
+        "properties": {
+          "net_amount": {
+            "$ref": "#/components/schemas/MinorUnit"
+          },
+          "amount_to_capture": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
+          },
+          "surcharge_amount": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
+          },
+          "tax_on_surcharge": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
+          },
+          "amount_capturable": {
+            "$ref": "#/components/schemas/MinorUnit"
+          },
+          "shipping_cost": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
+          },
+          "order_tax_amount": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
       "PaymentAttemptResponse": {
         "type": "object",
         "required": [
-          "attempt_id",
+          "id",
           "status",
           "amount",
+          "authentication_type",
           "created_at",
           "modified_at"
         ],
         "properties": {
-          "attempt_id": {
+          "id": {
             "type": "string",
-            "description": "Unique identifier for the attempt"
+            "description": "The global identifier for the payment attempt"
           },
           "status": {
             "$ref": "#/components/schemas/AttemptStatus"
           },
           "amount": {
-            "type": "integer",
-            "format": "int64",
-            "description": "The payment attempt amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,",
-            "example": 6540
-          },
-          "order_tax_amount": {
-            "type": "integer",
-            "format": "int64",
-            "description": "The payment attempt tax_amount.",
-            "example": 6540,
-            "nullable": true
-          },
-          "currency": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/Currency"
-              }
-            ],
-            "nullable": true
+            "$ref": "#/components/schemas/PaymentAttemptAmountDetails"
           },
           "connector": {
             "type": "string",
-            "description": "The connector used for the payment",
+            "description": "Name of the connector that was used for the payment attempt.",
+            "example": "stripe",
             "nullable": true
           },
-          "error_message": {
-            "type": "string",
-            "description": "If there was an error while calling the connector, the error message is received here",
-            "nullable": true
-          },
-          "payment_method": {
+          "error": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/PaymentMethod"
-              }
-            ],
-            "nullable": true
-          },
-          "connector_transaction_id": {
-            "type": "string",
-            "description": "A unique identifier for a payment provided by the connector",
-            "nullable": true
-          },
-          "capture_method": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/CaptureMethod"
+                "$ref": "#/components/schemas/ErrorDetails"
               }
             ],
             "nullable": true
@@ -12890,43 +12911,35 @@
                 "$ref": "#/components/schemas/AuthenticationType"
               }
             ],
-            "default": "three_ds",
-            "nullable": true
+            "default": "three_ds"
           },
           "created_at": {
             "type": "string",
             "format": "date-time",
-            "description": "Time at which the payment attempt was created",
-            "example": "2022-09-10T10:11:12Z"
+            "description": "Date and time of Payment attempt creation"
           },
           "modified_at": {
             "type": "string",
             "format": "date-time",
-            "description": "Time at which the payment attempt was last modified",
-            "example": "2022-09-10T10:11:12Z"
+            "description": "Time at which the payment attempt was last modified"
           },
           "cancellation_reason": {
             "type": "string",
-            "description": "If the payment was cancelled the reason will be provided here",
-            "nullable": true
-          },
-          "mandate_id": {
-            "type": "string",
-            "description": "A unique identifier to link the payment to a mandate, can be use instead of payment_method_data",
-            "nullable": true
-          },
-          "error_code": {
-            "type": "string",
-            "description": "If there was an error while calling the connectors the error code is received here",
+            "description": "The reason for the cancellation of the payment attempt. Some connectors will have strict rules regarding the values this can have\nCancellation reason will be validated at the connector level when building the request",
             "nullable": true
           },
           "payment_token": {
             "type": "string",
-            "description": "Provide a reference to a stored payment method",
+            "description": "Payment token is the token used for temporary use in case the payment method is stored in vault",
+            "example": "187282ab-40ef-47a9-9206-5099ba31e432",
             "nullable": true
           },
           "connector_metadata": {
-            "description": "Additional data related to some connectors",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ConnectorMetadata"
+              }
+            ],
             "nullable": true
           },
           "payment_experience": {
@@ -12940,25 +12953,35 @@
           "payment_method_type": {
             "allOf": [
               {
+                "$ref": "#/components/schemas/PaymentMethod"
+              }
+            ],
+            "nullable": true
+          },
+          "connector_reference_id": {
+            "type": "string",
+            "description": "reference(Identifier) to the payment at connector side",
+            "example": "993672945374576J",
+            "nullable": true
+          },
+          "payment_method_subtype": {
+            "allOf": [
+              {
                 "$ref": "#/components/schemas/PaymentMethodType"
               }
             ],
             "nullable": true
           },
-          "reference_id": {
+          "connector_payment_id": {
             "type": "string",
-            "description": "Reference to the payment at connector side",
+            "description": "A unique identifier for a payment provided by the connector",
             "example": "993672945374576J",
             "nullable": true
           },
-          "unified_code": {
+          "payment_method_id": {
             "type": "string",
-            "description": "(This field is not live yet)Error code unified across the connectors is received here if there was an error while calling connector",
-            "nullable": true
-          },
-          "unified_message": {
-            "type": "string",
-            "description": "(This field is not live yet)Error message unified across the connectors is received here if there was an error while calling connector",
+            "description": "Identifier for Payment Method used for the payment attempt",
+            "example": "12345_pm_01926c58bc6e77c09e809964e72af8c8",
             "nullable": true
           },
           "client_source": {
@@ -15729,6 +15752,10 @@
             "type": "boolean",
             "description": "A boolean used to indicate if the payment status should be fetched from the connector\nIf this is set to true, the status will be fetched from the connector"
           },
+          "expand_attempts": {
+            "type": "boolean",
+            "description": "A boolean used to indicate if all the attempts needs to be fetched for the intent.\nIf this is set to true, attempts list will be available in the response."
+          },
           "param": {
             "type": "string",
             "description": "These are the query params that are sent in case of redirect response.\nThese can be ingested by the connector to take necessary actions.",
@@ -15855,6 +15882,14 @@
                 "$ref": "#/components/schemas/Address"
               }
             ],
+            "nullable": true
+          },
+          "attempts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PaymentAttemptResponse"
+            },
+            "description": "List of payment attempts associated with payment intent",
             "nullable": true
           }
         }
