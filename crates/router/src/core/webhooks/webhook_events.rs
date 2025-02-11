@@ -84,7 +84,7 @@ pub async fn list_initial_delivery_attempts(
             let created_after = match created_after {
                 Some(created_after) => {
                     if created_after < past_90_days_ago {
-                        Err(errors::ApiErrorResponse::InvalidRequestData { message: format!("You can only request data till past {EVENT_DELIVERY_LIMIT_DAYS} days from now") })
+                        Err(errors::ApiErrorResponse::InvalidRequestData { message: format!("You can only request this data from the past {EVENT_DELIVERY_LIMIT_DAYS} days or earlier.") })
                     }else{
                         Ok(created_after)
                     }
@@ -95,7 +95,7 @@ pub async fn list_initial_delivery_attempts(
             let created_before = match created_before{
                 Some(created_before) => {
                     if created_before < past_90_days_ago{
-                        Err(errors::ApiErrorResponse::InvalidRequestData { message: format!("You can only request data till past {EVENT_DELIVERY_LIMIT_DAYS} days from now") })
+                        Err(errors::ApiErrorResponse::InvalidRequestData { message: format!("You can only request this data from the past {EVENT_DELIVERY_LIMIT_DAYS} days or earlier.") })
                     }
                     else{
                         Ok(created_before)

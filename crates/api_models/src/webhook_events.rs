@@ -100,7 +100,7 @@ impl TotalEventsResponse {
 impl common_utils::events::ApiEventMetric for TotalEventsResponse {
     fn get_api_event_type(&self) -> Option<common_utils::events::ApiEventsType> {
         Some(common_utils::events::ApiEventsType::Events {
-            merchant_id: self.events.get(0).map(|event| event.merchant_id.clone())?,
+            merchant_id: self.events.first().map(|event| event.merchant_id.clone())?,
         })
     }
 }
