@@ -4755,6 +4755,9 @@ pub struct PaymentsResponse {
 
     /// Connector Identifier for the payment method
     pub connector_mandate_id: Option<String>,
+
+    /// Method through which card was discovered
+    pub card_discovery: Option<enums::CardDiscovery>,
 }
 
 // Serialize is implemented because, this will be serialized in the api events.
@@ -5485,6 +5488,8 @@ pub struct PaymentListFiltersV2 {
     pub authentication_type: Vec<enums::AuthenticationType>,
     /// The list of available card networks
     pub card_network: Vec<enums::CardNetwork>,
+    /// The list of available Card discovery methods
+    pub card_discovery: Vec<enums::CardDiscovery>,
 }
 
 #[derive(Clone, Debug, serde::Serialize)]

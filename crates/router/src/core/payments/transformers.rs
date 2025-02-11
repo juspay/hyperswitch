@@ -2484,6 +2484,7 @@ where
             order_tax_amount,
             connector_mandate_id,
             shipping_cost: payment_intent.shipping_cost,
+            card_discovery: payment_attempt.card_discovery,
         };
 
         services::ApplicationResponse::JsonWithHeaders((payments_response, headers))
@@ -2740,6 +2741,7 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             order_tax_amount: None,
             connector_mandate_id:None,
             shipping_cost: None,
+            card_discovery: pa.card_discovery
         }
     }
 }
