@@ -37,6 +37,7 @@ pub enum ApiIdentifier {
     Recon,
     Poll,
     ApplePayCertificatesMigration,
+    PaymentMethodBillingAddressMigration,
     Relay,
     Documentation,
 }
@@ -309,6 +310,9 @@ impl From<Flow> for ApiIdentifier {
             Flow::RetrievePollStatus => Self::Poll,
 
             Flow::FeatureMatrix => Self::Documentation,
+            Flow::PaymentMethodBillingAddressMigration => {
+                Self::PaymentMethodBillingAddressMigration
+            }
         }
     }
 }

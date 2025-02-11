@@ -263,6 +263,9 @@ pub enum PaymentMethodUpdate {
         connector_mandate_details: Option<pii::SecretSerdeValue>,
         network_transaction_id: Option<Secret<String>>,
     },
+    PaymentMethodBillingAddressUpdate {
+        payment_method_billing_address: Option<Encryption>,
+    },
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
@@ -406,6 +409,7 @@ pub struct PaymentMethodUpdateInternal {
     network_token_locker_id: Option<String>,
     network_token_payment_method_data: Option<Encryption>,
     scheme: Option<String>,
+    payment_method_billing_address: Option<Encryption>,
 }
 
 #[cfg(all(
@@ -431,6 +435,7 @@ impl PaymentMethodUpdateInternal {
             network_token_locker_id,
             network_token_payment_method_data,
             scheme,
+            payment_method_billing_address,
         } = self;
 
         PaymentMethod {
@@ -463,7 +468,8 @@ impl PaymentMethodUpdateInternal {
             status: status.unwrap_or(source.status),
             network_transaction_id: network_transaction_id.or(source.network_transaction_id),
             client_secret: source.client_secret,
-            payment_method_billing_address: source.payment_method_billing_address,
+            payment_method_billing_address: payment_method_billing_address
+                .or(source.payment_method_billing_address),
             updated_by: updated_by.or(source.updated_by),
             version: source.version,
             network_token_requestor_reference_id: network_token_requestor_reference_id
@@ -502,6 +508,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 network_token_locker_id: None,
                 network_token_payment_method_data: None,
                 scheme: None,
+                payment_method_billing_address: None,
             },
             PaymentMethodUpdate::PaymentMethodDataUpdate {
                 payment_method_data,
@@ -522,6 +529,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 network_token_locker_id: None,
                 network_token_payment_method_data: None,
                 scheme: None,
+                payment_method_billing_address: None,
             },
             PaymentMethodUpdate::LastUsedUpdate { last_used_at } => Self {
                 metadata: None,
@@ -540,6 +548,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 network_token_locker_id: None,
                 network_token_payment_method_data: None,
                 scheme: None,
+                payment_method_billing_address: None,
             },
             PaymentMethodUpdate::UpdatePaymentMethodDataAndLastUsed {
                 payment_method_data,
@@ -562,6 +571,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 network_token_locker_id: None,
                 network_token_payment_method_data: None,
                 scheme,
+                payment_method_billing_address: None,
             },
             PaymentMethodUpdate::NetworkTransactionIdAndStatusUpdate {
                 network_transaction_id,
@@ -583,6 +593,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 network_token_locker_id: None,
                 network_token_payment_method_data: None,
                 scheme: None,
+                payment_method_billing_address: None,
             },
             PaymentMethodUpdate::StatusUpdate { status } => Self {
                 metadata: None,
@@ -601,6 +612,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 network_token_locker_id: None,
                 network_token_payment_method_data: None,
                 scheme: None,
+                payment_method_billing_address: None,
             },
             PaymentMethodUpdate::AdditionalDataUpdate {
                 payment_method_data,
@@ -629,6 +641,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 network_token_locker_id,
                 network_token_payment_method_data,
                 scheme: None,
+                payment_method_billing_address: None,
             },
             PaymentMethodUpdate::ConnectorMandateDetailsUpdate {
                 connector_mandate_details,
@@ -649,6 +662,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 network_token_locker_id: None,
                 network_token_payment_method_data: None,
                 scheme: None,
+                payment_method_billing_address: None,
             },
             PaymentMethodUpdate::NetworkTokenDataUpdate {
                 network_token_requestor_reference_id,
@@ -671,6 +685,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 network_token_locker_id,
                 network_token_payment_method_data,
                 scheme: None,
+                payment_method_billing_address: None,
             },
             PaymentMethodUpdate::ConnectorNetworkTransactionIdAndMandateDetailsUpdate {
                 connector_mandate_details,
@@ -693,6 +708,28 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 network_token_locker_id: None,
                 network_token_payment_method_data: None,
                 scheme: None,
+                payment_method_billing_address: None,
+            },
+            PaymentMethodUpdate::PaymentMethodBillingAddressUpdate {
+                payment_method_billing_address,
+            } => Self {
+                metadata: None,
+                payment_method_data: None,
+                last_used_at: None,
+                status: None,
+                locker_id: None,
+                payment_method: None,
+                connector_mandate_details: None,
+                updated_by: None,
+                payment_method_issuer: None,
+                payment_method_type: None,
+                last_modified: common_utils::date_time::now(),
+                network_transaction_id: None,
+                network_token_requestor_reference_id: None,
+                network_token_locker_id: None,
+                network_token_payment_method_data: None,
+                scheme: None,
+                payment_method_billing_address,
             },
         }
     }
