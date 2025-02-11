@@ -6013,6 +6013,7 @@ pub struct GpayTokenParameters {
     pub protocol_version: Option<String>,
     /// The public key provided by the merchant
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[schema(value_type = Option<String>)]
     pub public_key: Option<Secret<String>>,
 }
 
