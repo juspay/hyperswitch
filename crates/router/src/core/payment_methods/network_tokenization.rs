@@ -2,10 +2,6 @@
 use std::fmt::Debug;
 
 use api_models::payment_methods as api_payment_methods;
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use cards::{CardNumber, NetworkToken};
@@ -16,7 +12,13 @@ use common_utils::{
     metrics::utils::record_operation_time,
     request::RequestContent,
 };
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
 use error_stack::ResultExt;
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+use error_stack::{report, ResultExt};
 use josekit::jwe;
 use masking::{ExposeInterface, Mask, PeekInterface, Secret};
 
@@ -240,7 +242,7 @@ pub async fn mk_tokenization_req(
         .response
         .parse_struct("Card Network Tokenization Response")
         .change_context(errors::NetworkTokenizationError::ResponseDeserializationFailed)?;
-    logger::debug!("Network Token Response: {:?}", network_response); //added for debugging, will be removed
+    logger::debug!("Network Token Response: {:?}", network_response);
 
     let dec_key = tokenization_service.private_key.peek().clone();
 
@@ -337,14 +339,21 @@ pub async fn make_card_network_tokenization_request(
         .change_context(errors::NetworkTokenizationError::RequestEncodingFailed)?;
 
     let payload_bytes = payload.as_bytes();
-    let (resp, network_token_req_ref_id) = if let Some(network_tokenization_service) = &state.conf.network_tokenization_service {
+    let network_tokenization_service = match &state.conf.network_tokenization_service {
+        Some(nt_service) => Ok(nt_service.get_inner()),
+        None => Err(report!(
+            errors::NetworkTokenizationError::NetworkTokenizationServiceNotConfigured
+        )),
+    }?;
+
+    let (resp, network_token_req_ref_id) = 
         record_operation_time(
             async {
                 mk_tokenization_req(
                     state,
                     payload_bytes,
                     customer_id.clone(),
-                    network_tokenization_service.get_inner(),
+                    network_tokenization_service,
                 )
                 .await
                 .inspect_err(
@@ -355,13 +364,7 @@ pub async fn make_card_network_tokenization_request(
             router_env::metric_attributes!(("locker", "rust")),
         )
         .await
-    } else {
-        Err(errors::NetworkTokenizationError::NetworkTokenizationServiceNotConfigured)
-            .inspect_err(|_| {
-                logger::error!("Network Tokenization Service not configured");
-            })
-            .attach_printable("Network Tokenization Service not configured")
-    }?;
+    ?;
 
     let network_token_details = NetworkTokenDetails{
         network_token: resp.token,
