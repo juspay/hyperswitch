@@ -676,6 +676,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::webhook_events::EventRetrieveResponse,
         api_models::webhook_events::OutgoingWebhookRequestContent,
         api_models::webhook_events::OutgoingWebhookResponseContent,
+        api_models::webhook_events::TotalEventsResponse,
         api_models::enums::WebhookDeliveryAttempt,
         api_models::enums::PaymentChargeType,
         api_models::enums::StripeChargeType,
