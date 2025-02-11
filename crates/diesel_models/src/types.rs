@@ -6,7 +6,7 @@ use diesel::{
     AsExpression, FromSqlRow,
 };
 use masking::{Secret, WithType};
-use serde::{self,Deserialize, Serialize};
+use serde::{self, Deserialize, Serialize};
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, FromSqlRow, AsExpression)]
 #[diesel(sql_type = Jsonb)]
 pub struct OrderDetailsWithAmount {
@@ -151,13 +151,12 @@ pub struct BillingConnectorMitTokenDetails {
     pub connector_customer_id: String,
 }
 
-
-#[cfg(feature="v2")]
-#[derive(Clone, Copy, Debug, Eq, PartialEq,Serialize,Deserialize)]
-#[serde(rename="snake_case")]
-pub enum PaymentConnectorTransmission{
+#[cfg(feature = "v2")]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename = "snake_case")]
+pub enum PaymentConnectorTransmission {
     ///Connector Call Failed
     ConnectorCallFailed,
     ///Connector Call Success
-    ConnectorCallSucceeded
+    ConnectorCallSucceeded,
 }
