@@ -1293,8 +1293,8 @@ impl Hypersense {
                     .route(web::post().to(hypersense_routes::verify_hypersense_token)),
             )
             .service(
-                web::resource("/logout")
-                    .route(web::post().to(hypersense_routes::logout_hypersense_token)),
+                web::resource("/signout")
+                    .route(web::post().to(hypersense_routes::signout_hypersense_token)),
             )
     }
 }

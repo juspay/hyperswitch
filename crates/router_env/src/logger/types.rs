@@ -543,8 +543,8 @@ pub enum Flow {
     HypersenseTokenRequest,
     /// Verify Hypersense Token
     HypersenseVerifyToken,
-    /// Logout Hypersense Token
-    HypersenseLogoutToken,
+    /// Signout Hypersense Token
+    HypersenseSignoutToken,
 }
 
 /// Trait for providing generic behaviour to flow metric

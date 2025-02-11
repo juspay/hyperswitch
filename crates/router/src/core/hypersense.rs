@@ -38,9 +38,9 @@ pub async fn generate_hypersense_token(
     ))
 }
 
-pub async fn logout_hypersense_token(
+pub async fn signout_hypersense_token(
     state: SessionState,
-    json_payload: hypersense_api::HypersenseLogoutTokenRequest,
+    json_payload: hypersense_api::HypersenseSignoutTokenRequest,
 ) -> RouterResponse<()> {
     let token_from_payload = json_payload.token.expose();
     let token = authentication::decode_jwt::<ExternalToken>(&token_from_payload, &state)

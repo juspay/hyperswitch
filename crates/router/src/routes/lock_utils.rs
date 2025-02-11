@@ -310,7 +310,7 @@ impl From<Flow> for ApiIdentifier {
             Flow::FeatureMatrix => Self::Documentation,
             Flow::HypersenseTokenRequest
             | Flow::HypersenseVerifyToken
-            | Flow::HypersenseLogoutToken => Self::Hypersense,
+            | Flow::HypersenseSignoutToken => Self::Hypersense,
         }
     }
 }
