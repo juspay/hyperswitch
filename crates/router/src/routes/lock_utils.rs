@@ -311,7 +311,7 @@ impl From<Flow> for ApiIdentifier {
             Flow::RetrievePollStatus => Self::Poll,
 
             Flow::FeatureMatrix => Self::Documentation,
- 
+
             Flow::HypersenseTokenRequest
             | Flow::HypersenseVerifyToken
             | Flow::HypersenseSignoutToken => Self::Hypersense,
