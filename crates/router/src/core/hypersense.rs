@@ -4,7 +4,6 @@ use masking::ExposeInterface;
 
 use crate::{
     core::errors::{self, RouterResponse},
-    db::domain::UserFromStorage,
     services::{
         api as service_api,
         authentication::{self, ExternalServiceType, ExternalToken},
@@ -71,16 +70,11 @@ pub async fn verify_hypersense_token(
 
     token.check_service_type(&ExternalServiceType::Hypersense)?;
 
-    let UserFromStorage(user_in_db) = token
-        .get_user_from_db(&state)
+    let user_in_db = state
+        .global_store
+        .find_user_by_id(&token.user_id)
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable_lazy(|| {
-            format!(
-                "Failed to fetch the user from DB for user_id - {}",
-                &token.user_id
-            )
-        })?;
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
     let email = user_in_db.email.clone();
     let name = user_in_db.name;
