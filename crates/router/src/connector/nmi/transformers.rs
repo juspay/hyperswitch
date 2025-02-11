@@ -916,7 +916,7 @@ impl TryFrom<types::PaymentsResponseRouterData<StandardResponse>>
                 {
                     enums::AttemptStatus::CaptureInitiated
                 } else {
-                    enums::AttemptStatus::Authorizing
+                    enums::AttemptStatus::Authorized
                 },
             ),
             Response::Declined | Response::Error => (
