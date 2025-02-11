@@ -1380,6 +1380,27 @@ impl AddressDetailsData for AddressDetails {
     }
 }
 
+pub trait AdditionalCardInfo {
+    fn get_card_expiry_year_2_digit(&self) -> Result<Secret<String>, errors::ConnectorError>;
+}
+
+impl AdditionalCardInfo for payments::AdditionalCardInfo {
+    fn get_card_expiry_year_2_digit(&self) -> Result<Secret<String>, errors::ConnectorError> {
+        let binding =
+            self.card_exp_year
+                .clone()
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "card_exp_year",
+                })?;
+        let year = binding.peek();
+        Ok(Secret::new(
+            year.get(year.len() - 2..)
+                .ok_or(errors::ConnectorError::RequestEncodingFailed)?
+                .to_string(),
+        ))
+    }
+}
+
 pub trait PhoneDetailsData {
     fn get_number(&self) -> Result<Secret<String>, Error>;
     fn get_country_code(&self) -> Result<String, Error>;

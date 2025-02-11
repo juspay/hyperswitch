@@ -12,6 +12,7 @@ use common_utils::{
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
+    payment_method_data::PaymentMethodData,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
@@ -47,7 +48,10 @@ use transformers as datatrans;
 use crate::{
     constants::headers,
     types::ResponseRouterData,
-    utils::{self, convert_amount, RefundsRequestData, RouterData as OtherRouterData},
+    utils::{
+        self, convert_amount, PaymentsAuthorizeRequestData, RefundsRequestData,
+        RouterData as OtherRouterData,
+    },
 };
 
 impl api::Payment for Datatrans {}
@@ -191,6 +195,22 @@ impl ConnectorValidation for Datatrans {
             }
         }
     }
+
+    fn validate_mandate_payment(
+        &self,
+        _pm_type: Option<PaymentMethodType>,
+        pm_data: PaymentMethodData,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let connector = self.id();
+        match pm_data {
+            PaymentMethodData::Card(_) => Ok(()),
+            _ => Err(errors::ConnectorError::NotSupported {
+                message: " mandate payment".to_string(),
+                connector,
+            }
+            .into()),
+        }
+    }
 }
 
 impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Datatrans {
@@ -223,10 +243,19 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let base_url = self.base_url(connectors);
-        if req.is_three_ds() && req.request.authentication_data.is_none() {
+        if req.request.payment_method_data == PaymentMethodData::MandatePayment {
+            // MIT
+            Ok(format!("{base_url}v1/transactions/authorize"))
+        } else if req.request.is_mandate_payment() {
+            // CIT
             Ok(format!("{base_url}v1/transactions"))
         } else {
-            Ok(format!("{base_url}v1/transactions/authorize"))
+            // Direct
+            if req.is_three_ds() && req.request.authentication_data.is_none() {
+                Ok(format!("{base_url}v1/transactions"))
+            } else {
+                Ok(format!("{base_url}v1/transactions/authorize"))
+            }
         }
     }
 

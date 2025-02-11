@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use api_models::payments::{self, AdditionalPaymentData};
 use common_enums::enums;
 use common_utils::{pii::Email, request::Method, types::MinorUnit};
 use hyperswitch_domain_models::{
@@ -7,7 +8,9 @@ use hyperswitch_domain_models::{
     router_data::{ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::refunds::{Execute, RSync},
     router_request_types::{PaymentsAuthorizeData, ResponseId},
-    router_response_types::{PaymentsResponseData, RedirectForm, RefundsResponseData},
+    router_response_types::{
+        MandateReference, PaymentsResponseData, RedirectForm, RefundsResponseData,
+    },
     types,
 };
 use hyperswitch_interfaces::{
@@ -23,7 +26,7 @@ use crate::{
         PaymentsSyncResponseRouterData, RefundsResponseRouterData, ResponseRouterData,
     },
     utils::{
-        get_unimplemented_payment_method_error_message, AddressDetailsData, CardData as _,
+        get_unimplemented_payment_method_error_message, AdditionalCardInfo, CardData as _,
         PaymentsAuthorizeRequestData, RouterData as _,
     },
 };
@@ -52,11 +55,18 @@ pub struct DatatransRouterData<T> {
 pub struct DatatransPaymentsRequest {
     pub amount: MinorUnit,
     pub currency: enums::Currency,
-    pub card: PlainCardDetails,
+    pub card: DataTransPaymentDetails,
     pub refno: String,
     pub auto_settle: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub redirect: Option<RedirectUrls>,
+    pub option: Option<DataTransCreateAlias>,
+}
+
+#[derive(Debug, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct DataTransCreateAlias {
+    pub create_alias: bool,
 }
 
 #[derive(Debug, Serialize, Clone)]
@@ -111,6 +121,13 @@ pub struct SyncResponse {
     pub res_type: TransactionType,
     pub status: TransactionStatus,
     pub detail: SyncDetails,
+    pub card: Option<SyncCardDetails>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct SyncCardDetails {
+    pub alias: String,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -127,6 +144,14 @@ pub struct FailDetails {
 
 #[derive(Serialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
+#[serde(untagged)]
+pub enum DataTransPaymentDetails {
+    Cards(PlainCardDetails),
+    Mandate(MandateDetails),
+}
+
+#[derive(Serialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
 pub struct PlainCardDetails {
     #[serde(rename = "type")]
     pub res_type: String,
@@ -137,6 +162,16 @@ pub struct PlainCardDetails {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(rename = "3D")]
     pub three_ds: Option<ThreeDSecureData>,
+}
+
+#[derive(Serialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct MandateDetails {
+    #[serde(rename = "type")]
+    pub res_type: String,
+    pub alias: String,
+    pub expiry_month: Secret<String>,
+    pub expiry_year: Secret<String>,
 }
 
 #[derive(Serialize, Clone, Debug)]
@@ -157,7 +192,7 @@ pub struct ThreeDSData {
     pub three_ds_transaction_id: Secret<String>,
     pub cavv: Secret<String>,
     pub eci: Option<String>,
-    pub xid: Secret<String>,
+    pub xid: Option<Secret<String>>,
     #[serde(rename = "threeDSVersion")]
     pub three_ds_version: String,
     #[serde(rename = "authenticationResponse")]
@@ -169,16 +204,6 @@ pub struct ThreeDSData {
 pub struct CardHolder {
     cardholder_name: Secret<String>,
     email: Email,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    bill_addr_line1: Option<Secret<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    bill_addr_post_code: Option<Secret<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    bill_addr_city: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    bill_addr_state: Option<Secret<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    bill_addr_country: Option<common_enums::CountryAlpha2>,
 }
 
 #[derive(Debug, Clone, Serialize, Default, Deserialize)]
@@ -254,31 +279,63 @@ impl TryFrom<&DatatransRouterData<&types::PaymentsAuthorizeRouterData>>
         item: &DatatransRouterData<&types::PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
         match item.router_data.request.payment_method_data.clone() {
-            PaymentMethodData::Card(req_card) => Ok(Self {
-                amount: item.amount,
-                currency: item.router_data.request.currency,
-                card: create_card_details(item, &req_card)?,
-                refno: item.router_data.connector_request_reference_id.clone(),
-                auto_settle: item.router_data.request.is_auto_capture()?,
-                redirect: if item.router_data.is_three_ds()
-                    && item.router_data.request.authentication_data.is_none()
-                {
-                    Some(RedirectUrls {
-                        success_url: item.router_data.request.router_return_url.clone(),
-                        cancel_url: item.router_data.request.router_return_url.clone(),
-                        error_url: item.router_data.request.router_return_url.clone(),
-                    })
-                } else {
-                    None
-                },
-            }),
+            PaymentMethodData::Card(req_card) => {
+                let option = item
+                    .router_data
+                    .request
+                    .is_mandate_payment()
+                    .then_some(DataTransCreateAlias { create_alias: true });
+                Ok(Self {
+                    amount: item.amount,
+                    currency: item.router_data.request.currency,
+                    card: create_card_details(item, &req_card)?,
+                    refno: item.router_data.connector_request_reference_id.clone(),
+                    auto_settle: item.router_data.request.is_auto_capture()?,
+                    option,
+                    redirect: if item.router_data.is_three_ds()
+                        && item.router_data.request.authentication_data.is_none()
+                    {
+                        Some(RedirectUrls {
+                            success_url: item.router_data.request.router_return_url.clone(),
+                            cancel_url: item.router_data.request.router_return_url.clone(),
+                            error_url: item.router_data.request.router_return_url.clone(),
+                        })
+                    } else {
+                        None
+                    },
+                })
+            }
+            PaymentMethodData::MandatePayment => {
+                let addtional_payment_data = match item
+                    .router_data
+                    .request
+                    .additional_payment_method_data
+                    .clone()
+                    .ok_or(errors::ConnectorError::MissingRequiredField {
+                        field_name: "additional_payment_method_data",
+                    })? {
+                    AdditionalPaymentData::Card(card) => *card,
+                    _ => Err(errors::ConnectorError::NotSupported {
+                        message: "Payment Method Not Supported".to_string(),
+                        connector: "DataTrans",
+                    })?,
+                };
+                Ok(Self {
+                    amount: item.amount,
+                    currency: item.router_data.request.currency,
+                    card: create_mandate_details(item, &addtional_payment_data)?,
+                    refno: item.router_data.connector_request_reference_id.clone(),
+                    auto_settle: item.router_data.request.is_auto_capture()?,
+                    option: None,
+                    redirect: None,
+                })
+            }
             PaymentMethodData::Wallet(_)
             | PaymentMethodData::PayLater(_)
             | PaymentMethodData::BankRedirect(_)
             | PaymentMethodData::BankDebit(_)
             | PaymentMethodData::BankTransfer(_)
             | PaymentMethodData::Crypto(_)
-            | PaymentMethodData::MandatePayment
             | PaymentMethodData::Reward
             | PaymentMethodData::RealTimePayment(_)
             | PaymentMethodData::MobilePayment(_)
@@ -327,7 +384,7 @@ fn get_status(item: &DatatransResponse, is_auto_capture: bool) -> enums::Attempt
 fn create_card_details(
     item: &DatatransRouterData<&types::PaymentsAuthorizeRouterData>,
     card: &Card,
-) -> Result<PlainCardDetails, error_stack::Report<errors::ConnectorError>> {
+) -> Result<DataTransPaymentDetails, error_stack::Report<errors::ConnectorError>> {
     let mut details = PlainCardDetails {
         res_type: "PLAIN".to_string(),
         number: card.card_number.clone(),
@@ -342,30 +399,36 @@ fn create_card_details(
             three_ds_transaction_id: Secret::new(auth_data.threeds_server_transaction_id.clone()),
             cavv: Secret::new(auth_data.cavv.clone()),
             eci: auth_data.eci.clone(),
-            xid: Secret::new(
-                auth_data
-                    .ds_trans_id
-                    .clone()
-                    .ok_or(errors::ConnectorError::MissingRequiredField { field_name: "xid" })?,
-            ),
+            xid: auth_data.ds_trans_id.clone().map(Secret::new),
             three_ds_version: auth_data.message_version.to_string(),
             authentication_response: "Y".to_string(),
         }));
     } else if item.router_data.is_three_ds() {
-        let billing = item.router_data.get_billing_address()?;
         details.three_ds = Some(ThreeDSecureData::Cardholder(ThreedsInfo {
             cardholder: CardHolder {
                 cardholder_name: item.router_data.get_billing_full_name()?,
                 email: item.router_data.request.get_email()?,
-                bill_addr_line1: billing.get_line1().ok().cloned(),
-                bill_addr_post_code: billing.get_zip().ok().cloned(),
-                bill_addr_city: billing.get_city().ok().cloned(),
-                bill_addr_state: billing.get_state().ok().cloned(),
-                bill_addr_country: billing.get_country().ok().copied(),
             },
         }));
     }
-    Ok(details)
+    Ok(DataTransPaymentDetails::Cards(details))
+}
+
+fn create_mandate_details(
+    item: &DatatransRouterData<&types::PaymentsAuthorizeRouterData>,
+    addtional_card_details: &payments::AdditionalCardInfo,
+) -> Result<DataTransPaymentDetails, error_stack::Report<errors::ConnectorError>> {
+    let alias = item.router_data.request.get_connector_mandate_id()?;
+    Ok(DataTransPaymentDetails::Mandate(MandateDetails {
+        res_type: "ALIAS".to_string(),
+        alias,
+        expiry_month: addtional_card_details.card_exp_month.clone().ok_or(
+            errors::ConnectorError::MissingRequiredField {
+                field_name: "card_exp_month",
+            },
+        )?,
+        expiry_year: addtional_card_details.get_card_expiry_year_2_digit()?,
+    }))
 }
 
 impl From<SyncResponse> for enums::AttemptStatus {
@@ -574,12 +637,19 @@ impl TryFrom<PaymentsSyncResponseRouterData<DatatransSyncResponse>>
                         connector_transaction_id: None,
                     })
                 } else {
+                    let mandate_reference =
+                        sync_response.card.as_ref().map(|card| MandateReference {
+                            connector_mandate_id: Some(card.alias.clone()),
+                            payment_method_id: None,
+                            mandate_metadata: None,
+                            connector_mandate_request_reference_id: None,
+                        });
                     Ok(PaymentsResponseData::TransactionResponse {
                         resource_id: ResponseId::ConnectorTransactionId(
                             sync_response.transaction_id.to_string(),
                         ),
                         redirection_data: Box::new(None),
-                        mandate_reference: Box::new(None),
+                        mandate_reference: Box::new(mandate_reference),
                         connector_metadata: None,
                         network_txn_id: None,
                         connector_response_reference_id: None,
