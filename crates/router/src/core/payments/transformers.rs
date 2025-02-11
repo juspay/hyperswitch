@@ -1082,7 +1082,7 @@ where
         network_txn_id: None,
         connector_response_reference_id: None,
         incremental_authorization_allowed: None,
-        charge_id: None,
+        charges: None,
     });
 
     let additional_data = PaymentAdditionalData {
@@ -1687,6 +1687,12 @@ where
         let error = optional_payment_attempt
             .and_then(|payment_attempt| payment_attempt.error.clone())
             .map(api_models::payments::ErrorDetails::foreign_from);
+        let attempts = self.attempts.as_ref().map(|attempts| {
+            attempts
+                .iter()
+                .map(api_models::payments::PaymentAttemptResponse::foreign_from)
+                .collect()
+        });
 
         let payment_method_data =
             Some(api_models::payments::PaymentMethodDataResponseWithBilling {
@@ -1729,6 +1735,7 @@ where
             merchant_connector_id,
             browser_info: None,
             error,
+            attempts,
         };
 
         Ok(services::ApplicationResponse::JsonWithHeaders((
@@ -1922,7 +1929,7 @@ pub fn payments_to_payments_response<Op, F: Clone, D>(
     _connector_http_status_code: Option<u16>,
     _external_latency: Option<u128>,
     _is_latency_header_enabled: Option<bool>,
-) -> RouterResponse<api::PaymentsResponse>
+) -> RouterResponse<api_models::payments::PaymentsRetrieveResponse>
 where
     Op: Debug,
     D: OperationSessionGetters<F>,
@@ -2300,24 +2307,6 @@ where
             )
         });
 
-        let split_payments_response = match payment_intent.split_payments {
-            None => None,
-            Some(split_payments) => match split_payments {
-                common_types::payments::SplitPaymentsRequest::StripeSplitPayment(
-                    stripe_split_payment,
-                ) => Some(
-                    api_models::payments::SplitPaymentsResponse::StripeSplitPayment(
-                        api_models::payments::StripeSplitPaymentsResponse {
-                            charge_id: payment_attempt.charge_id.clone(),
-                            charge_type: stripe_split_payment.charge_type,
-                            application_fees: stripe_split_payment.application_fees,
-                            transfer_account_id: stripe_split_payment.transfer_account_id,
-                        },
-                    ),
-                ),
-            },
-        };
-
         let mandate_data = payment_data.get_setup_mandate().map(|d| api::MandateData {
             customer_acceptance: d
                 .customer_acceptance
@@ -2496,7 +2485,7 @@ where
                 .get_payment_method_info()
                 .map(|info| info.status),
             updated: Some(payment_intent.modified_at),
-            split_payments: split_payments_response,
+            split_payments: payment_attempt.charges,
             frm_metadata: payment_intent.frm_metadata,
             merchant_order_reference_id: payment_intent.merchant_order_reference_id,
             order_tax_amount,
@@ -2762,6 +2751,7 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
     }
 }
 
+#[cfg(feature = "v1")]
 impl ForeignFrom<ephemeral_key::EphemeralKey> for api::ephemeral_key::EphemeralKeyCreateResponse {
     fn foreign_from(from: ephemeral_key::EphemeralKey) -> Self {
         Self {
@@ -4160,6 +4150,61 @@ impl
                 .map(|attempt| attempt.get_amount_capturable())
                 .unwrap_or(MinorUnit::zero()),
             amount_captured: intent_amount_details.amount_captured,
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
+impl ForeignFrom<&hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt>
+    for api_models::payments::PaymentAttemptResponse
+{
+    fn foreign_from(
+        attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
+    ) -> Self {
+        Self {
+            id: attempt.get_id().to_owned(),
+            status: attempt.status,
+            amount: api_models::payments::PaymentAttemptAmountDetails::foreign_from(
+                &attempt.amount_details,
+            ),
+            connector: attempt.connector.clone(),
+            error: attempt
+                .error
+                .clone()
+                .map(api_models::payments::ErrorDetails::foreign_from),
+            authentication_type: attempt.authentication_type,
+            created_at: attempt.created_at,
+            modified_at: attempt.modified_at,
+            cancellation_reason: attempt.cancellation_reason.clone(),
+            payment_token: attempt.payment_token.clone(),
+            connector_metadata: attempt.connector_metadata.clone(),
+            payment_experience: attempt.payment_experience,
+            payment_method_type: attempt.payment_method_type,
+            connector_reference_id: attempt.connector_response_reference_id.clone(),
+            payment_method_subtype: attempt.get_payment_method_type(),
+            connector_payment_id: attempt.get_connector_payment_id().map(ToString::to_string),
+            payment_method_id: attempt.payment_method_id.clone(),
+            client_source: attempt.client_source.clone(),
+            client_version: attempt.client_version.clone(),
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
+impl ForeignFrom<&hyperswitch_domain_models::payments::payment_attempt::AttemptAmountDetails>
+    for api_models::payments::PaymentAttemptAmountDetails
+{
+    fn foreign_from(
+        amount: &hyperswitch_domain_models::payments::payment_attempt::AttemptAmountDetails,
+    ) -> Self {
+        Self {
+            net_amount: amount.get_net_amount(),
+            amount_to_capture: amount.get_amount_to_capture(),
+            surcharge_amount: amount.get_surcharge_amount(),
+            tax_on_surcharge: amount.get_tax_on_surcharge(),
+            amount_capturable: amount.get_amount_capturable(),
+            shipping_cost: amount.get_shipping_cost(),
+            order_tax_amount: amount.get_order_tax_amount(),
         }
     }
 }

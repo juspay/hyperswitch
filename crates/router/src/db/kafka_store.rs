@@ -7,7 +7,7 @@ use common_utils::{
     types::{keymanager::KeyManagerState, theme::ThemeLineage},
 };
 #[cfg(feature = "v2")]
-use diesel_models::ephemeral_key::{EphemeralKeyType, EphemeralKeyTypeNew};
+use diesel_models::ephemeral_key::{ClientSecretType, ClientSecretTypeNew};
 use diesel_models::{
     enums,
     enums::ProcessTrackerStatus,
@@ -39,6 +39,7 @@ use time::PrimitiveDateTime;
 
 use super::{
     dashboard_metadata::DashboardMetadataInterface,
+    ephemeral_key::ClientSecretInterface,
     role::RoleInterface,
     user::{sample_data::BatchSampleDataInterface, theme::ThemeInterface, UserInterface},
     user_authentication_method::UserAuthenticationMethodInterface,
@@ -50,6 +51,7 @@ use crate::services::kafka::payout::KafkaPayout;
 use crate::{
     core::errors::{self, ProcessTrackerError},
     db::{
+        self,
         address::AddressInterface,
         api_keys::ApiKeyInterface,
         authentication::AuthenticationInterface,
@@ -658,45 +660,48 @@ impl EphemeralKeyInterface for KafkaStore {
         self.diesel_store.create_ephemeral_key(ek, validity).await
     }
 
-    #[cfg(feature = "v2")]
-    async fn create_ephemeral_key(
+    #[cfg(feature = "v1")]
+    async fn get_ephemeral_key(
         &self,
-        ek: EphemeralKeyTypeNew,
+        key: &str,
+    ) -> CustomResult<EphemeralKey, errors::StorageError> {
+        self.diesel_store.get_ephemeral_key(key).await
+    }
+
+    #[cfg(feature = "v1")]
+    async fn delete_ephemeral_key(
+        &self,
+        id: &str,
+    ) -> CustomResult<EphemeralKey, errors::StorageError> {
+        self.diesel_store.delete_ephemeral_key(id).await
+    }
+}
+
+#[async_trait::async_trait]
+impl ClientSecretInterface for KafkaStore {
+    #[cfg(feature = "v2")]
+    async fn create_client_secret(
+        &self,
+        ek: ClientSecretTypeNew,
         validity: i64,
-    ) -> CustomResult<EphemeralKeyType, errors::StorageError> {
-        self.diesel_store.create_ephemeral_key(ek, validity).await
-    }
-
-    #[cfg(feature = "v1")]
-    async fn get_ephemeral_key(
-        &self,
-        key: &str,
-    ) -> CustomResult<EphemeralKey, errors::StorageError> {
-        self.diesel_store.get_ephemeral_key(key).await
+    ) -> CustomResult<ClientSecretType, errors::StorageError> {
+        self.diesel_store.create_client_secret(ek, validity).await
     }
 
     #[cfg(feature = "v2")]
-    async fn get_ephemeral_key(
+    async fn get_client_secret(
         &self,
         key: &str,
-    ) -> CustomResult<EphemeralKeyType, errors::StorageError> {
-        self.diesel_store.get_ephemeral_key(key).await
-    }
-
-    #[cfg(feature = "v1")]
-    async fn delete_ephemeral_key(
-        &self,
-        id: &str,
-    ) -> CustomResult<EphemeralKey, errors::StorageError> {
-        self.diesel_store.delete_ephemeral_key(id).await
+    ) -> CustomResult<ClientSecretType, errors::StorageError> {
+        self.diesel_store.get_client_secret(key).await
     }
 
     #[cfg(feature = "v2")]
-    async fn delete_ephemeral_key(
+    async fn delete_client_secret(
         &self,
         id: &str,
-    ) -> CustomResult<EphemeralKeyType, errors::StorageError> {
-        self.diesel_store.delete_ephemeral_key(id).await
+    ) -> CustomResult<ClientSecretType, errors::StorageError> {
+        self.diesel_store.delete_client_secret(id).await
     }
 }
 
@@ -1613,6 +1618,24 @@ impl PaymentAttemptInterface for KafkaStore {
                 key_manager_state,
                 merchant_key_store,
                 attempt_id,
+                storage_scheme,
+            )
+            .await
+    }
+
+    #[cfg(feature = "v2")]
+    async fn find_payment_attempts_by_payment_intent_id(
+        &self,
+        key_manager_state: &KeyManagerState,
+        payment_id: &id_type::GlobalPaymentId,
+        merchant_key_store: &domain::MerchantKeyStore,
+        storage_scheme: MerchantStorageScheme,
+    ) -> error_stack::Result<Vec<storage::PaymentAttempt>, errors::DataStorageError> {
+        self.diesel_store
+            .find_payment_attempts_by_payment_intent_id(
+                key_manager_state,
+                payment_id,
+                merchant_key_store,
                 storage_scheme,
             )
             .await
@@ -3903,6 +3926,40 @@ impl ThemeInterface for KafkaStore {
             .await
     }
 }
+
+#[async_trait::async_trait]
+#[cfg(feature = "v2")]
+impl db::payment_method_session::PaymentMethodsSessionInterface for KafkaStore {
+    async fn insert_payment_methods_session(
+        &self,
+        state: &KeyManagerState,
+        key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
+        payment_methods_session: hyperswitch_domain_models::payment_methods::PaymentMethodsSession,
+        validity: i64,
+    ) -> CustomResult<(), errors::StorageError> {
+        self.diesel_store
+            .insert_payment_methods_session(state, key_store, payment_methods_session, validity)
+            .await
+    }
+
+    async fn get_payment_methods_session(
+        &self,
+        state: &KeyManagerState,
+        key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
+        id: &id_type::GlobalPaymentMethodSessionId,
+    ) -> CustomResult<
+        hyperswitch_domain_models::payment_methods::PaymentMethodsSession,
+        errors::StorageError,
+    > {
+        self.diesel_store
+            .get_payment_methods_session(state, key_store, id)
+            .await
+    }
+}
+
+#[async_trait::async_trait]
+#[cfg(feature = "v1")]
+impl db::payment_method_session::PaymentMethodsSessionInterface for KafkaStore {}
 
 #[async_trait::async_trait]
 impl CallbackMapperInterface for KafkaStore {

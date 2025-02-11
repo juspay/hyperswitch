@@ -169,11 +169,32 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentStatusData<F>, PaymentsRetriev
             Some(true),
         );
 
+        let attempts = match request.expand_attempts {
+            true => payment_intent
+                .active_attempt_id
+                .as_ref()
+                .async_map(|active_attempt| async {
+                    db.find_payment_attempts_by_payment_intent_id(
+                        key_manager_state,
+                        payment_id,
+                        key_store,
+                        storage_scheme,
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Could not find payment attempts for the given the intent id")
+                })
+                .await
+                .transpose()?,
+            false => None,
+        };
+
         let payment_data = PaymentStatusData {
             flow: std::marker::PhantomData,
             payment_intent,
             payment_attempt,
             payment_address,
+            attempts,
             should_sync_with_connector,
         };
 
