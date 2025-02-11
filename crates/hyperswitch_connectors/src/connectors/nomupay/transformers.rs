@@ -16,7 +16,7 @@ use crate::utils::PayoutFulfillRequestData;
 #[cfg(feature = "payouts")]
 use crate::{types::PayoutsResponseRouterData, utils::RouterData as UtilsRouterData};
 
-pub const OTHER: &str = "OTHER";
+pub const PURPOSE_OF_PAYMENT_IS_OTHER: &str = "OTHER";
 
 pub struct NomupayRouterData<T> {
     pub amount: FloatMajorUnit, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
@@ -47,8 +47,8 @@ pub struct Address {
 #[serde(rename_all = "UPPERCASE")]
 pub enum ProfileType {
     #[default]
-    INDIVIDUAL,
-    BUSINESS,
+    Individual,
+    Businness,
 }
 
 #[cfg(feature = "payouts")]
@@ -57,8 +57,8 @@ impl From<PayoutEntityType> for ProfileType {
         match entity {
             PayoutEntityType::Personal
             | PayoutEntityType::NaturalPerson
-            | PayoutEntityType::Individual => Self::INDIVIDUAL,
-            _ => Self::BUSINESS,
+            | PayoutEntityType::Individual => Self::Individual,
+            _ => Self::Businness,
         }
     }
 }
@@ -295,7 +295,6 @@ pub struct NomupayErrorResponse {
 
 pub struct NomupayAuthType {
     pub(super) kid: Secret<String>,
-    #[allow(dead_code)]
     pub(super) eid: Secret<String>,
 }
 
@@ -326,20 +325,6 @@ pub enum NomupayPaymentStatus {
     PendingAccountKyc,
 }
 
-impl From<NomupayPaymentStatus> for common_enums::AttemptStatus {
-    fn from(item: NomupayPaymentStatus) -> Self {
-        match item {
-            NomupayPaymentStatus::Processed => Self::Charged,
-            NomupayPaymentStatus::Failed => Self::Failure,
-            NomupayPaymentStatus::Processing => Self::Authorizing,
-            NomupayPaymentStatus::Pending | NomupayPaymentStatus::Scheduled => Self::Pending,
-            NomupayPaymentStatus::PendingAccountActivation => Self::AuthenticationPending,
-            NomupayPaymentStatus::PendingTransferMethodCreation => Self::PaymentMethodAwaited,
-            NomupayPaymentStatus::PendingAccountKyc => Self::AuthenticationPending,
-        }
-    }
-}
-
 impl From<NomupayPaymentStatus> for PayoutStatus {
     fn from(item: NomupayPaymentStatus) -> Self {
         match item {
@@ -355,6 +340,33 @@ impl From<NomupayPaymentStatus> for PayoutStatus {
     }
 }
 
+fn get_profile<F>(
+    item: &PayoutsRouterData<F>,
+    entity_type: PayoutEntityType,
+) -> Result<Profile, error_stack::Report<errors::ConnectorError>> {
+    let my_address = Address {
+        country: item.get_billing_country()?,
+        state_province: item.get_billing_state()?,
+        street: item.get_billing_line1()?,
+        city: item.get_billing_city()?,
+        postal_code: item.get_billing_zip()?,
+    };
+
+    Ok(Profile {
+        profile_type: ProfileType::from(entity_type),
+        first_name: item.get_billing_first_name()?,
+        last_name: item.get_billing_last_name()?,
+        date_of_birth: Secret::new("1991-01-01".to_string()), // Query raised with Nomupay regarding why this field is required
+        gender: NomupayGender::Other, // Query raised with Nomupay regarding why this field is required
+        email_address: item.get_billing_email()?,
+        phone_number_country_code: item
+            .get_billing_phone()
+            .map(|phone| phone.country_code.clone())?,
+        phone_number: Some(item.get_billing_phone_number()?),
+        address: my_address,
+    })
+}
+
 // PoRecipient Request
 #[cfg(feature = "payouts")]
 impl<F> TryFrom<&PayoutsRouterData<F>> for OnboardSubAccountRequest {
@@ -363,27 +375,7 @@ impl<F> TryFrom<&PayoutsRouterData<F>> for OnboardSubAccountRequest {
         let request = item.request.to_owned();
         let payout_type = request.payout_type;
 
-        let my_address = Address {
-            country: item.get_billing_country()?,
-            state_province: item.get_billing_state()?,
-            street: item.get_billing_line1()?,
-            city: item.get_billing_city()?,
-            postal_code: item.get_billing_zip()?,
-        };
-
-        let profile = Profile {
-            profile_type: ProfileType::from(request.entity_type),
-            first_name: item.get_billing_first_name()?,
-            last_name: item.get_billing_last_name()?,
-            date_of_birth: Secret::new("1991-01-01".to_string()), // Query raised with Nomupay regarding why this field is required
-            gender: NomupayGender::Other, // Query raised with Nomupay regarding why this field is required
-            email_address: item.get_billing_email()?,
-            phone_number_country_code: item
-                .get_billing_phone()
-                .map(|phone| phone.country_code.clone())?,
-            phone_number: Some(item.get_billing_phone_number()?),
-            address: my_address,
-        };
+        let profile = get_profile(item, request.entity_type)?;
 
         let nomupay_auth_type = NomupayAuthType::try_from(&item.connector_auth_type)?;
 
@@ -442,27 +434,7 @@ impl<F> TryFrom<&PayoutsRouterData<F>> for OnboardTransferMethodRequest {
                         .get_billing_country()
                         .unwrap_or(enums::CountryAlpha2::CA);
 
-                    let my_address = Address {
-                        country: item.get_billing_country()?,
-                        state_province: item.get_billing_state()?,
-                        street: item.get_billing_line1()?,
-                        city: item.get_billing_city()?,
-                        postal_code: item.get_billing_zip()?,
-                    };
-
-                    let profile = Profile {
-                        profile_type: ProfileType::from(item.request.entity_type),
-                        first_name: item.get_billing_first_name()?,
-                        last_name: item.get_billing_last_name()?,
-                        date_of_birth: Secret::new("1991-01-01".to_string()), // Query raised with Nomupay regarding why this field is required
-                        gender: NomupayGender::Other, // Query raised with Nomupay regarding why this field is required
-                        email_address: item.get_billing_email()?,
-                        phone_number_country_code: item
-                            .get_billing_phone()
-                            .map(|phone| phone.country_code.clone())?,
-                        phone_number: Some(item.get_billing_phone_number()?),
-                        address: my_address,
-                    };
+                    let profile = get_profile(item, item.request.entity_type)?;
 
                     Ok(Self {
                         country_code: country_iso2_code,
@@ -526,7 +498,7 @@ impl<F> TryFrom<(&PayoutsRouterData<F>, FloatMajorUnit)> for NomupayPaymentReque
             payment_reference: item.request.clone().payout_id,
             amount,
             currency_code: item.request.destination_currency,
-            purpose: OTHER.to_string(),
+            purpose: PURPOSE_OF_PAYMENT_IS_OTHER.to_string(),
             description: item.description.clone(),
             internal_memo: item.description.clone(),
         })

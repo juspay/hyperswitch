@@ -67,7 +67,6 @@ use crate::{types::ResponseRouterData, utils::RouterData as RouterDataTrait};
 
 #[derive(Clone)]
 pub struct Nomupay {
-    #[allow(dead_code)]
     amount_converter: &'static (dyn AmountConvertor<Output = FloatMajorUnit> + Sync),
 }
 
@@ -80,9 +79,9 @@ impl Nomupay {
 }
 
 fn get_private_key(
-    metadata: Option<pii::SecretSerdeValue>,
+    metadata: &Option<pii::SecretSerdeValue>,
 ) -> Result<String, errors::ConnectorError> {
-    match nomupay::NomupayMetadata::try_from(&metadata) {
+    match nomupay::NomupayMetadata::try_from(metadata.as_ref()) {
         Ok(nomupay_metadata) => Ok(nomupay_metadata.private_key.expose()),
         Err(_e) => Err(errors::ConnectorError::NoConnectorMetaData),
     }
@@ -104,7 +103,7 @@ fn box_to_jwt_payload(
 }
 
 fn get_signature(
-    metadata: Option<pii::SecretSerdeValue>,
+    metadata: &Option<pii::SecretSerdeValue>,
     auth: nomupay::NomupayAuthType,
     body: RequestContent,
     method: &str,
@@ -133,7 +132,7 @@ fn get_signature(
                     .change_context(errors::ConnectorError::ProcessingStepFailed(None))?,
             };
 
-            let private_key = get_private_key(metadata.to_owned())?;
+            let private_key = get_private_key(metadata)?;
 
             let signer = ES256
                 .signer_from_pem(&private_key)
@@ -197,13 +196,7 @@ where
             .collect();
         let req_method = if is_post_req { "POST" } else { "GET" };
 
-        let sign = get_signature(
-            req.connector_meta_data.to_owned(),
-            auth,
-            body,
-            req_method,
-            path,
-        )?;
+        let sign = get_signature(&req.connector_meta_data, auth, body, req_method, path)?;
 
         let mut header = vec![(
             headers::CONTENT_TYPE.to_string(),
@@ -221,10 +214,10 @@ where
     }
 }
 
-impl TryFrom<&Option<pii::SecretSerdeValue>> for nomupay::NomupayMetadata {
+impl TryFrom<Option<&pii::SecretSerdeValue>> for nomupay::NomupayMetadata {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(meta_data: &Option<pii::SecretSerdeValue>) -> Result<Self, Self::Error> {
-        let metadata: Self = utils::to_connector_meta_from_secret::<Self>(meta_data.clone())
+    fn try_from(meta_data: Option<&pii::SecretSerdeValue>) -> Result<Self, Self::Error> {
+        let metadata: Self = utils::to_connector_meta_from_secret::<Self>(meta_data.cloned())
             .change_context(errors::ConnectorError::InvalidConnectorConfig {
                 config: "metadata",
             })?;
@@ -380,15 +373,15 @@ impl ConnectorIntegration<PoSync, PayoutsData, PayoutsResponseData> for Nomupay 
         req: &PayoutsRouterData<PoSync>,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let nomupay_pmt = req.request.connector_payout_id.clone().ok_or(
-            errors::ConnectorError::MissingRequiredField {
-                field_name: "connector_payout_id",
-            },
-        )?;
+        let nomupay_payout_id = req
+            .request
+            .connector_payout_id
+            .clone()
+            .ok_or_else(utils::missing_field_err("connector_payout_id"))?;
         Ok(format!(
             "{}/v1alpha1/payments/{}",
             self.base_url(connectors),
-            nomupay_pmt
+            nomupay_payout_id
         ))
     }
 
@@ -428,7 +421,7 @@ impl ConnectorIntegration<PoSync, PayoutsData, PayoutsResponseData> for Nomupay 
     ) -> CustomResult<PayoutsRouterData<PoSync>, errors::ConnectorError> {
         let response: nomupay::NomupayPaymentResponse = res
             .response
-            .parse_struct("NomupayFulfillResponse")
+            .parse_struct("NomupayPaymentResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         event_builder.map(|i| i.set_response_body(&response));
@@ -527,7 +520,7 @@ impl ConnectorIntegration<PoRecipient, PayoutsData, PayoutsResponseData> for Nom
     ) -> CustomResult<PayoutsRouterData<PoRecipient>, errors::ConnectorError> {
         let response: nomupay::OnboardSubAccountResponse = res
             .response
-            .parse_struct("NomupayRecipientCreateResponse")
+            .parse_struct("OnboardSubAccountResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         event_builder.map(|i| i.set_response_body(&response));
@@ -611,7 +604,7 @@ impl ConnectorIntegration<PoRecipientAccount, PayoutsData, PayoutsResponseData> 
     ) -> CustomResult<PayoutsRouterData<PoRecipientAccount>, errors::ConnectorError> {
         let response: nomupay::OnboardTransferMethodResponse = res
             .response
-            .parse_struct("NomupayRecipientAccountCreateResponse")
+            .parse_struct("OnboardTransferMethodResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         event_builder.map(|i| i.set_response_body(&response));
@@ -694,7 +687,7 @@ impl ConnectorIntegration<PoFulfill, PayoutsData, PayoutsResponseData> for Nomup
     ) -> CustomResult<PayoutsRouterData<PoFulfill>, errors::ConnectorError> {
         let response: nomupay::NomupayPaymentResponse = res
             .response
-            .parse_struct("NomupayFulfillResponse")
+            .parse_struct("NomupayPaymentResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         event_builder.map(|i| i.set_response_body(&response));

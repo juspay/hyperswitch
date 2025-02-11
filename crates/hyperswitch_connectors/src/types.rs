@@ -33,7 +33,6 @@ pub type PayoutsResponseRouterData<F, R> =
     ResponseRouterData<F, R, PayoutsData, PayoutsResponseData>;
 
 // TODO: Remove `ResponseRouterData` from router crate after all the related type aliases are moved to this crate.
-
 pub struct ResponseRouterData<Flow, R, Request, Response> {
     pub response: R,
     pub data: RouterData<Flow, Request, Response>,
