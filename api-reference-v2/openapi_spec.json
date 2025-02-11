@@ -5661,10 +5661,12 @@
         ],
         "properties": {
           "payment_processor_token": {
-            "type": "string"
+            "type": "string",
+            "description": "Payment Processor Token To process the retry payment"
           },
           "connector_customer_id": {
-            "type": "string"
+            "type": "string",
+            "description": "Connector Customer Id to process the retry payment"
           }
         }
       },
@@ -8922,7 +8924,7 @@
             ],
             "nullable": true
           },
-          "revenue_recovery_metadata": {
+          "payment_revenue_recovery_metadata": {
             "allOf": [
               {
                 "$ref": "#/components/schemas/PaymentIntentRevenueRecoveryMetadata"
@@ -13096,14 +13098,17 @@
             "example": "1"
           },
           "payment_connector_transmission": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "if the payment_connector has been called or not"
           },
           "billing_connector_id": {
             "type": "string",
+            "description": "Billing Connector Id to update the invoices",
             "example": "mca_1234567890"
           },
           "active_attempt_payment_connector_id": {
             "type": "string",
+            "description": "Payment Connector Id to retry the payments",
             "example": "mca_1234567890"
           },
           "billing_connector_mit_token_details": {

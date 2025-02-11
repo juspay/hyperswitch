@@ -53,7 +53,7 @@ pub struct FeatureMetadata {
     /// Recurring payment details required for apple pay Merchant Token
     pub apple_pay_recurring_details: Option<ApplePayRecurringDetails>,
     /// revenue recovery data for payment intent
-    pub revenue_recovery_metadata: Option<PaymentIntentRevenueRecoveryMetadata>,
+    pub payment_revenue_recovery_metadata: Option<PaymentIntentRevenueRecoveryMetadata>,
 }
 
 #[cfg(feature = "v1")]
@@ -128,25 +128,25 @@ common_utils::impl_to_sql_from_sql_json!(RedirectResponse);
 pub struct PaymentIntentRevenueRecoveryMetadata {
     ///Total number of billing connector + recovery retries for a payment intent.
     pub retry_count: i32,
-    //if the payment_connector has been called or not
+    ///if the payment_connector has been called or not
     pub payment_connector_transmission: bool,
-    // Billing Connector Id to update the invoices
+    /// Billing Connector Id to update the invoices
     pub billing_connector_id: common_utils::id_type::MerchantConnectorAccountId,
-    // Payment Connector Id to retry the payments
+    /// Payment Connector Id to retry the payments
     pub active_attempt_payment_connector_id: common_utils::id_type::MerchantConnectorAccountId,
-    // Billing Connector Mit Token Details
+    /// Billing Connector Mit Token Details
     pub billing_connector_mit_token_details: BillingConnectorMitTokenDetails,
-    //Payment Method Type
+    ///Payment Method Type
     pub payment_method_type: PaymentMethod,
-    //PaymentMethod Subtype
+    ///PaymentMethod Subtype
     pub payment_method_subtype: PaymentMethodType,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 #[cfg(feature = "v2")]
 pub struct BillingConnectorMitTokenDetails {
-    //Payment Processor Token To process the retry payment
+    ///Payment Processor Token To process the retry payment
     pub payment_processor_token: String,
-    //Connector Customer Id to process the retry payment
+    ///Connector Customer Id to process the retry payment
     pub connector_customer_id: String,
 }
