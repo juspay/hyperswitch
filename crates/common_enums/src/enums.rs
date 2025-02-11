@@ -3734,3 +3734,13 @@ pub enum AdyenSplitType {
     /// The value-added tax charged on the payment, booked to your platforms liable balance account.
     Vat,
 }
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq,serde::Serialize, serde::Deserialize,ToSchema)]
+#[serde(rename="snake_case")]
+pub enum PaymentConnectorTransmission{
+    ///Connector Call Failed
+    ConnectorCallFailed,
+    ///Connector Call Success
+    ConnectorCallSucceeded
+}
+

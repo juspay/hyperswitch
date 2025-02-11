@@ -1,5 +1,6 @@
 #[cfg(feature = "v2")]
-use common_enums::{PaymentMethod, PaymentMethodType};
+use common_enums::{PaymentMethod, PaymentMethodType,enums::PaymentConnectorTransmission};
+
 use common_utils::{hashing::HashedString, pii, types::MinorUnit};
 use diesel::{
     sql_types::{Json, Jsonb},
@@ -151,12 +152,4 @@ pub struct BillingConnectorMitTokenDetails {
     pub connector_customer_id: String,
 }
 
-#[cfg(feature = "v2")]
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
-#[serde(rename = "snake_case")]
-pub enum PaymentConnectorTransmission {
-    ///Connector Call Failed
-    ConnectorCallFailed,
-    ///Connector Call Success
-    ConnectorCallSucceeded,
-}
+

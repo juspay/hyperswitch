@@ -6,6 +6,8 @@ use std::{
 pub mod additional_info;
 use cards::CardNumber;
 use common_enums::ProductType;
+#[cfg(feature="v2")]
+use common_enums::enums::PaymentConnectorTransmission;
 #[cfg(feature = "v2")]
 use common_utils::id_type::GlobalPaymentId;
 use common_utils::{
@@ -7889,14 +7891,4 @@ pub struct BillingConnectorMitTokenDetails {
     pub payment_processor_token: String,
     ///Connector Customer Id to process the retry payment
     pub connector_customer_id: String,
-}
-
-#[cfg(feature = "v2")]
-#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
-#[serde(rename = "snake_case")]
-pub enum PaymentConnectorTransmission {
-    ///Connector Call Failed
-    ConnectorCallFailed,
-    ///Connector Call Success
-    ConnectorCallSucceeded,
 }
