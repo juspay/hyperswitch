@@ -1,6 +1,8 @@
+use common_utils;
 use error_stack::ResultExt;
 use masking::PeekInterface;
 use router_env::{instrument, tracing};
+
 use crate::{
     core::errors::{self, RouterResponse, StorageErrorExt},
     routes::SessionState,
@@ -8,10 +10,9 @@ use crate::{
     types::{api, domain, storage, transformers::ForeignTryFrom},
     utils::{OptionExt, StringExt},
 };
-use common_utils;
 
 const INITIAL_DELIVERY_ATTEMPTS_LIST_MAX_LIMIT: i64 = 100;
-const MAX_DAYS: i64 = 90;
+const EVENT_DELIVERY_LIMIT_DAYS: i64 = 90;
 
 #[derive(Debug)]
 enum MerchantAccountOrProfile {
@@ -26,15 +27,19 @@ pub async fn list_initial_delivery_attempts(
     api_constraints: api::webhook_events::EventListConstraints,
 ) -> RouterResponse<api::webhook_events::TotalEventsResponse> {
     let profile_id = api_constraints.profile_id.clone();
-    let constraints =
-        api::webhook_events::EventListConstraintsInternal::foreign_try_from(api_constraints.clone())?;
+    let constraints = api::webhook_events::EventListConstraintsInternal::foreign_try_from(
+        api_constraints.clone(),
+    )?;
 
     let store = state.store.as_ref();
     let key_manager_state = &(&state).into();
     let (account, key_store) =
         get_account_and_key_store(state.clone(), merchant_id.clone(), profile_id.clone()).await?;
 
-    let events = match constraints.clone() {
+    let now = common_utils::date_time::now();
+    let past_90_days_ago = now - time::Duration::days(EVENT_DELIVERY_LIMIT_DAYS);
+
+    let events = match constraints {
         api_models::webhook_events::EventListConstraintsInternal::ObjectIdFilter { object_id  } => {
             match account {
                 MerchantAccountOrProfile::MerchantAccount(merchant_account) => store
@@ -74,32 +79,31 @@ pub async fn list_initial_delivery_attempts(
             };
 
             let now = common_utils::date_time::now();
-            let before_limit = now - time::Duration::days(MAX_DAYS);
+            let past_90_days_ago = now - time::Duration::days(EVENT_DELIVERY_LIMIT_DAYS);
 
             let created_after = match created_after {
                 Some(created_after) => {
-                    if (created_after > before_limit){
-                        Err(errors::ApiErrorResponse::InvalidRequestData { message: format!("You can only request data till past {MAX_DAYS} days from now") })
+                    if created_after < past_90_days_ago {
+                        Err(errors::ApiErrorResponse::InvalidRequestData { message: format!("You can only request data till past {EVENT_DELIVERY_LIMIT_DAYS} days from now") })
                     }else{
                         Ok(created_after)
                     }
                 },
-                None => Ok(now)
+                None => Ok(past_90_days_ago)
             }?;
 
             let created_before = match created_before{
                 Some(created_before) => {
-                    if (created_before > before_limit){
-                        Err(errors::ApiErrorResponse::InvalidRequestData { message: format!("You can only request data till past {MAX_DAYS} days from now") })
+                    if created_before < past_90_days_ago{
+                        Err(errors::ApiErrorResponse::InvalidRequestData { message: format!("You can only request data till past {EVENT_DELIVERY_LIMIT_DAYS} days from now") })
                     }
                     else{
                         Ok(created_before)
                     }
                 },
-                None => Ok(before_limit)
+                None => Ok(now)
             }?;
 
-            
             match account {
                 MerchantAccountOrProfile::MerchantAccount(merchant_account) => store
                 .list_initial_events_by_merchant_id_constraints(key_manager_state,
@@ -132,57 +136,22 @@ pub async fn list_initial_delivery_attempts(
         .map(api::webhook_events::EventListItemResponse::try_from)
         .collect::<Result<Vec<_>, _>>()?;
 
-    // let total_count = match constraints {
-    //     api_models::webhook_events::EventListConstraintsInternal::ObjectIdFilter { .. } => {
-    //         i64::try_from(events.len())
-    //         .change_context(errors::ApiErrorResponse::InternalServerError)
-    //         .attach_printable("Error while converting from usize to i64")
-    //     }
-    //     api_models::webhook_events::EventListConstraintsInternal::GenericFilter { 
-    //         created_after, 
-    //         created_before, 
-    //         limit, 
-    //         offset 
-    //     } => {
-    //         match account {
-    //             MerchantAccountOrProfile::MerchantAccount(merchant_account) => store
-    //             .count_initial_events_by_merchant_id_constraints(key_manager_state,
-    //                merchant_account.get_id(),
-    //                 created_after,
-    //                 created_before,
-    //                 limit,
-    //                 offset,
-    //                 &key_store,
-    //             )
-    //             .await,
-    //             MerchantAccountOrProfile::Profile(business_profile) => store
-    //             .count_initial_events_by_profile_id_constraints(key_manager_state,
-    //                 business_profile.get_id(),
-    //                 created_after,
-    //                 created_before,
-    //                 limit,
-    //                 offset,
-    //                 &key_store,
-    //             )
-    //             .await,
-    //         }.change_context(errors::ApiErrorResponse::InternalServerError)
-    //         .attach_printable("Failed to list events with specified constraints")
-    //     }   
-    // }?;
-    
-    let total_count = store.count_initial_events_by_constraints(
-        &merchant_id, 
-        profile_id, 
-        api_constraints.created_after, 
-        api_constraints.created_before, 
-        api_constraints.limit, 
-        api_constraints.offset, 
-    ).await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Failed to count events from events")?;
+    let created_after = api_constraints.created_after.unwrap_or(past_90_days_ago);
+    let created_before = api_constraints.created_before.unwrap_or(now);
+
+    let total_count = store
+        .count_initial_events_by_constraints(
+            &merchant_id,
+            profile_id,
+            created_after,
+            created_before,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to get total events count")?;
 
     Ok(ApplicationResponse::Json(
-        api::webhook_events::TotalEventsResponse::new(total_count, events)
+        api::webhook_events::TotalEventsResponse::new(total_count, events),
     ))
 }
 

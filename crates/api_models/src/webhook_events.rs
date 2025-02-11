@@ -30,7 +30,7 @@ pub struct EventListConstraints {
     pub profile_id: Option<common_utils::id_type::ProfileId>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub enum EventListConstraintsInternal {
     GenericFilter {
         created_after: Option<PrimitiveDateTime>,
@@ -83,24 +83,24 @@ pub struct EventListItemResponse {
 }
 
 #[derive(Debug, Serialize, ToSchema)]
-pub struct TotalEventsResponse{
+pub struct TotalEventsResponse {
     pub events: Vec<EventListItemResponse>,
-    pub total_count: i64
+    pub total_count: i64,
 }
 
-impl TotalEventsResponse{
+impl TotalEventsResponse {
     pub fn new(total_count: i64, events: Vec<EventListItemResponse>) -> Self {
         Self {
             events,
-            total_count
+            total_count,
         }
     }
 }
 
-impl common_utils::events::ApiEventMetric for TotalEventsResponse{
+impl common_utils::events::ApiEventMetric for TotalEventsResponse {
     fn get_api_event_type(&self) -> Option<common_utils::events::ApiEventsType> {
-        Some(common_utils::events::ApiEventsType::Events { 
-            merchant_id: self.events.get(0).map(|event| event.merchant_id.clone())?
+        Some(common_utils::events::ApiEventsType::Events {
+            merchant_id: self.events.get(0).map(|event| event.merchant_id.clone())?,
         })
     }
 }
