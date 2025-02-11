@@ -26,7 +26,7 @@ use super::{requests::*, response::*};
 use crate::{
     types::ResponseRouterData,
     utils::{
-        self, AddressData, CardData, ForeignTryFrom, PaymentsAuthorizeRequestData,
+        self, AddressData, ApplePay, CardData, ForeignTryFrom, PaymentsAuthorizeRequestData,
         PaymentsSetupMandateRequestData, RouterData as RouterDataTrait,
     },
 };
@@ -150,12 +150,13 @@ fn fetch_payment_instrument(
             })),
             WalletData::ApplePay(data) => Ok(PaymentInstrument::Applepay(WalletPayment {
                 payment_type: PaymentType::Encrypted,
-                wallet_token: Secret::new(data.payment_data),
+                wallet_token: data.get_applepay_decoded_payment_data()?,
                 ..WalletPayment::default()
             })),
             WalletData::AliPayQr(_)
             | WalletData::AliPayRedirect(_)
             | WalletData::AliPayHkRedirect(_)
+            | WalletData::AmazonPayRedirect(_)
             | WalletData::MomoRedirect(_)
             | WalletData::KakaoPayRedirect(_)
             | WalletData::GoPayRedirect(_)
@@ -390,8 +391,14 @@ fn create_three_ds_request<T: WorldpayPaymentsRequestData>(
     router_data: &T,
     is_mandate_payment: bool,
 ) -> Result<Option<ThreeDSRequest>, error_stack::Report<errors::ConnectorError>> {
-    match router_data.get_auth_type() {
-        enums::AuthenticationType::ThreeDs => {
+    match (
+        router_data.get_auth_type(),
+        router_data.get_payment_method_data(),
+    ) {
+        // 3DS for NTI flow
+        (_, PaymentMethodData::CardDetailsForNetworkTransactionId(_)) => Ok(None),
+        // 3DS for regular payments
+        (enums::AuthenticationType::ThreeDs, _) => {
             let browser_info = router_data.get_browser_info().ok_or(
                 errors::ConnectorError::MissingRequiredField {
                     field_name: "browser_info",
@@ -439,6 +446,7 @@ fn create_three_ds_request<T: WorldpayPaymentsRequestData>(
                 },
             }))
         }
+        // Non 3DS
         _ => Ok(None),
     }
 }
@@ -763,7 +771,7 @@ impl<F, T>
                 network_txn_id: network_txn_id.map(|id| id.expose()),
                 connector_response_reference_id: optional_correlation_id.clone(),
                 incremental_authorization_allowed: None,
-                charge_id: None,
+                charges: None,
             }),
             (Some(reason), _) => Err(ErrorResponse {
                 code: worldpay_status.to_string(),

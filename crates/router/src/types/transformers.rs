@@ -225,8 +225,10 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Boku => Self::Boku,
             api_enums::Connector::Braintree => Self::Braintree,
             api_enums::Connector::Cashtocode => Self::Cashtocode,
+            // api_enums::Connector::Chargebee => Self::Chargebee,
             api_enums::Connector::Checkout => Self::Checkout,
             api_enums::Connector::Coinbase => Self::Coinbase,
+            // api_enums::Connector::Coingate => Self::Coingate,
             api_enums::Connector::Cryptopay => Self::Cryptopay,
             api_enums::Connector::CtpMastercard => {
                 Err(common_utils::errors::ValidationError::InvalidValue {
@@ -254,7 +256,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             }
             api_enums::Connector::Helcim => Self::Helcim,
             api_enums::Connector::Iatapay => Self::Iatapay,
-            // api_enums::Connector::Inespay => Self::Inespay,
+            api_enums::Connector::Inespay => Self::Inespay,
             api_enums::Connector::Itaubank => Self::Itaubank,
             api_enums::Connector::Jpmorgan => Self::Jpmorgan,
             api_enums::Connector::Klarna => Self::Klarna,
@@ -452,7 +454,8 @@ impl ForeignFrom<api_enums::IntentStatus> for Option<storage_enums::EventType> {
 impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
     fn foreign_from(payment_method_type: api_enums::PaymentMethodType) -> Self {
         match payment_method_type {
-            api_enums::PaymentMethodType::ApplePay
+            api_enums::PaymentMethodType::AmazonPay
+            | api_enums::PaymentMethodType::ApplePay
             | api_enums::PaymentMethodType::GooglePay
             | api_enums::PaymentMethodType::Paypal
             | api_enums::PaymentMethodType::AliPay
@@ -1290,6 +1293,10 @@ impl ForeignTryFrom<domain::MerchantConnectorAccount>
                 .attach_printable("Failed to encode ConnectorAuthType")?,
         );
 
+        let feature_metadata = item.feature_metadata.as_ref().map(|metadata| {
+            api_models::admin::MerchantConnectorAccountFeatureMetadata::foreign_from(metadata)
+        });
+
         let response = Self {
             id: item.get_id(),
             connector_type: item.connector_type,
@@ -1340,6 +1347,7 @@ impl ForeignTryFrom<domain::MerchantConnectorAccount>
                         .change_context(errors::ApiErrorResponse::InternalServerError)
                 })
                 .transpose()?,
+            feature_metadata,
         };
         Ok(response)
     }
@@ -1402,8 +1410,8 @@ impl ForeignFrom<storage::Capture> for payments::CaptureResponse {
 }
 
 #[cfg(feature = "payouts")]
-impl ForeignFrom<api_models::payouts::PayoutMethodData> for api_enums::PaymentMethodType {
-    fn foreign_from(value: api_models::payouts::PayoutMethodData) -> Self {
+impl ForeignFrom<&api_models::payouts::PayoutMethodData> for api_enums::PaymentMethodType {
+    fn foreign_from(value: &api_models::payouts::PayoutMethodData) -> Self {
         match value {
             api_models::payouts::PayoutMethodData::Bank(bank) => Self::foreign_from(bank),
             api_models::payouts::PayoutMethodData::Card(_) => Self::Debit,
@@ -1413,8 +1421,8 @@ impl ForeignFrom<api_models::payouts::PayoutMethodData> for api_enums::PaymentMe
 }
 
 #[cfg(feature = "payouts")]
-impl ForeignFrom<api_models::payouts::Bank> for api_enums::PaymentMethodType {
-    fn foreign_from(value: api_models::payouts::Bank) -> Self {
+impl ForeignFrom<&api_models::payouts::Bank> for api_enums::PaymentMethodType {
+    fn foreign_from(value: &api_models::payouts::Bank) -> Self {
         match value {
             api_models::payouts::Bank::Ach(_) => Self::Ach,
             api_models::payouts::Bank::Bacs(_) => Self::Bacs,
@@ -1425,8 +1433,8 @@ impl ForeignFrom<api_models::payouts::Bank> for api_enums::PaymentMethodType {
 }
 
 #[cfg(feature = "payouts")]
-impl ForeignFrom<api_models::payouts::Wallet> for api_enums::PaymentMethodType {
-    fn foreign_from(value: api_models::payouts::Wallet) -> Self {
+impl ForeignFrom<&api_models::payouts::Wallet> for api_enums::PaymentMethodType {
+    fn foreign_from(value: &api_models::payouts::Wallet) -> Self {
         match value {
             api_models::payouts::Wallet::Paypal(_) => Self::Paypal,
             api_models::payouts::Wallet::Venmo(_) => Self::Venmo,
@@ -1435,10 +1443,21 @@ impl ForeignFrom<api_models::payouts::Wallet> for api_enums::PaymentMethodType {
 }
 
 #[cfg(feature = "payouts")]
-impl ForeignFrom<api_models::payouts::PayoutMethodData> for api_enums::PaymentMethod {
-    fn foreign_from(value: api_models::payouts::PayoutMethodData) -> Self {
+impl ForeignFrom<&api_models::payouts::PayoutMethodData> for api_enums::PaymentMethod {
+    fn foreign_from(value: &api_models::payouts::PayoutMethodData) -> Self {
         match value {
             api_models::payouts::PayoutMethodData::Bank(_) => Self::BankTransfer,
+            api_models::payouts::PayoutMethodData::Card(_) => Self::Card,
+            api_models::payouts::PayoutMethodData::Wallet(_) => Self::Wallet,
+        }
+    }
+}
+
+#[cfg(feature = "payouts")]
+impl ForeignFrom<&api_models::payouts::PayoutMethodData> for api_models::enums::PayoutType {
+    fn foreign_from(value: &api_models::payouts::PayoutMethodData) -> Self {
+        match value {
+            api_models::payouts::PayoutMethodData::Bank(_) => Self::Bank,
             api_models::payouts::PayoutMethodData::Card(_) => Self::Card,
             api_models::payouts::PayoutMethodData::Wallet(_) => Self::Wallet,
         }

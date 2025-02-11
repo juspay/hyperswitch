@@ -194,6 +194,20 @@ impl PaymentMethodIntentConfirm {
     }
 }
 
+/// This struct is used internally only
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
+pub struct PaymentMethodIntentConfirmInternal {
+    pub id: id_type::GlobalPaymentMethodId,
+    pub request: PaymentMethodIntentConfirm,
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+impl From<PaymentMethodIntentConfirmInternal> for PaymentMethodIntentConfirm {
+    fn from(item: PaymentMethodIntentConfirmInternal) -> Self {
+        item.request
+    }
+}
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
 /// This struct is only used by and internal api to migrate payment method
 pub struct PaymentMethodMigrate {
@@ -243,7 +257,8 @@ pub struct PaymentMethodMigrate {
     pub billing: Option<payments::Address>,
 
     /// The connector mandate details of the payment method
-    pub connector_mandate_details: Option<PaymentsMandateReference>,
+    #[serde(deserialize_with = "deserialize_connector_mandate_details")]
+    pub connector_mandate_details: Option<CommonMandateReference>,
 
     // The CIT (customer initiated transaction) transaction id associated with the payment method
     pub network_transaction_id: Option<String>,
@@ -267,17 +282,101 @@ pub struct PaymentMethodMigrateResponse {
     pub network_transaction_id_migrated: Option<bool>,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PaymentsMandateReference(
     pub HashMap<id_type::MerchantConnectorAccountId, PaymentsMandateReferenceRecord>,
 );
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct PayoutsMandateReference(
+    pub HashMap<id_type::MerchantConnectorAccountId, PayoutsMandateReferenceRecord>,
+);
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct PayoutsMandateReferenceRecord {
+    pub transfer_method_id: Option<String>,
+}
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct PaymentsMandateReferenceRecord {
     pub connector_mandate_id: String,
     pub payment_method_type: Option<common_enums::PaymentMethodType>,
     pub original_payment_authorized_amount: Option<i64>,
     pub original_payment_authorized_currency: Option<common_enums::Currency>,
+}
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct CommonMandateReference {
+    pub payments: Option<PaymentsMandateReference>,
+    pub payouts: Option<PayoutsMandateReference>,
+}
+
+impl From<CommonMandateReference> for PaymentsMandateReference {
+    fn from(common_mandate: CommonMandateReference) -> Self {
+        common_mandate.payments.unwrap_or_default()
+    }
+}
+
+impl From<PaymentsMandateReference> for CommonMandateReference {
+    fn from(payments_reference: PaymentsMandateReference) -> Self {
+        Self {
+            payments: Some(payments_reference),
+            payouts: None,
+        }
+    }
+}
+
+fn deserialize_connector_mandate_details<'de, D>(
+    deserializer: D,
+) -> Result<Option<CommonMandateReference>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let value: Option<serde_json::Value> =
+        <Option<serde_json::Value> as de::Deserialize>::deserialize(deserializer)?;
+
+    let payments_data = value
+        .clone()
+        .map(|mut mandate_details| {
+            mandate_details
+                .as_object_mut()
+                .map(|obj| obj.remove("payouts"));
+
+            serde_json::from_value::<PaymentsMandateReference>(mandate_details)
+        })
+        .transpose()
+        .map_err(|err| {
+            let err_msg = format!("{err:?}");
+            de::Error::custom(format_args!(
+                "Failed to deserialize PaymentsMandateReference `{}`",
+                err_msg
+            ))
+        })?;
+
+    let payouts_data = value
+        .clone()
+        .map(|mandate_details| {
+            serde_json::from_value::<Option<CommonMandateReference>>(mandate_details).map(
+                |optional_common_mandate_details| {
+                    optional_common_mandate_details
+                        .and_then(|common_mandate_details| common_mandate_details.payouts)
+                },
+            )
+        })
+        .transpose()
+        .map_err(|err| {
+            let err_msg = format!("{err:?}");
+            de::Error::custom(format_args!(
+                "Failed to deserialize CommonMandateReference `{}`",
+                err_msg
+            ))
+        })?
+        .flatten();
+
+    Ok(Some(CommonMandateReference {
+        payments: payments_data,
+        payouts: payouts_data,
+    }))
 }
 
 #[cfg(all(
@@ -313,7 +412,12 @@ impl PaymentMethodCreate {
             payment_method_issuer_code: payment_method_migrate.payment_method_issuer_code,
             metadata: payment_method_migrate.metadata.clone(),
             payment_method_data: payment_method_migrate.payment_method_data.clone(),
-            connector_mandate_details: payment_method_migrate.connector_mandate_details.clone(),
+            connector_mandate_details: payment_method_migrate
+                .connector_mandate_details
+                .clone()
+                .map(|common_mandate_reference| {
+                    PaymentsMandateReference::from(common_mandate_reference)
+                }),
             client_secret: None,
             billing: payment_method_migrate.billing.clone(),
             card: card_details,
@@ -781,10 +885,6 @@ pub struct PaymentMethodResponse {
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub last_used_at: Option<time::PrimitiveDateTime>,
 
-    /// For Client based calls
-    #[schema(value_type=Option<String>)]
-    pub ephemeral_key: Option<masking::Secret<String>>,
-
     pub payment_method_data: Option<PaymentMethodResponseData>,
 }
 
@@ -829,7 +929,7 @@ pub struct PaymentMethodDataWalletInfo {
     pub card_network: String,
     /// The type of payment method
     #[serde(rename = "type")]
-    pub card_type: String,
+    pub card_type: Option<String>,
 }
 
 impl From<payments::additional_info::WalletAdditionalDataForCard> for PaymentMethodDataWalletInfo {
@@ -1015,6 +1115,9 @@ impl From<CardDetailFromLocker> for payments::AdditionalCardInfo {
 pub struct PaymentMethodListResponse {
     /// The list of payment methods that are enabled for the business profile
     pub payment_methods_enabled: Vec<ResponsePaymentMethodTypes>,
+
+    /// The list of saved payment methods of the customer
+    pub customer_payment_methods: Vec<CustomerPaymentMethod>,
 }
 
 #[cfg(all(
@@ -1707,8 +1810,6 @@ pub struct CustomerPaymentMethodsListResponse {
 pub struct CustomerPaymentMethodsListResponse {
     /// List of payment methods for customer
     pub customer_payment_methods: Vec<CustomerPaymentMethod>,
-    /// Returns whether a customer id is not tied to a payment intent (only when the request is made against a client secret)
-    pub is_guest_customer: Option<bool>,
 }
 
 #[cfg(all(
@@ -1754,12 +1855,9 @@ pub struct CustomerDefaultPaymentMethodResponse {
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 #[derive(Debug, Clone, serde::Serialize, ToSchema)]
 pub struct CustomerPaymentMethod {
-    /// Token for payment method in temporary card locker which gets refreshed often
-    #[schema(example = "7ebf443f-a050-4067-84e5-e6f6d4800aef")]
-    pub payment_token: Option<String>,
-    /// The unique identifier of the customer.
-    #[schema(example = "pm_iouuy468iyuowqs")]
-    pub payment_method_id: String,
+    /// The unique identifier of the payment method.
+    #[schema(value_type = String, example = "12345_pm_01926c58bc6e77c09e809964e72af8c8")]
+    pub id: id_type::GlobalPaymentMethodId,
 
     /// The unique identifier of the customer.
     #[schema(
@@ -1775,8 +1873,8 @@ pub struct CustomerPaymentMethod {
     pub payment_method_type: api_enums::PaymentMethod,
 
     /// This is a sub-category of payment method.
-    #[schema(value_type = Option<PaymentMethodType>,example = "credit_card")]
-    pub payment_method_subtype: Option<api_enums::PaymentMethodType>,
+    #[schema(value_type = PaymentMethodType,example = "credit")]
+    pub payment_method_subtype: api_enums::PaymentMethodType,
 
     /// Indicates whether the payment method is eligible for recurring payments
     #[schema(example = true)]
@@ -1794,17 +1892,15 @@ pub struct CustomerPaymentMethod {
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created: time::PrimitiveDateTime,
 
-    /// Surcharge details for this saved card
-    pub surcharge_details: Option<SurchargeDetailsResponse>,
-
     /// Whether this payment method requires CVV to be collected
     #[schema(example = true)]
     pub requires_cvv: bool,
 
     ///  A timestamp (ISO 8601 code) that determines when the payment method was last used
-    #[schema(value_type = Option<PrimitiveDateTime>,example = "2024-02-24T11:04:09.922Z")]
-    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
-    pub last_used_at: Option<time::PrimitiveDateTime>,
+    #[schema(value_type = PrimitiveDateTime,example = "2024-02-24T11:04:09.922Z")]
+    #[serde(default, with = "common_utils::custom_serde::iso8601")]
+    pub last_used_at: time::PrimitiveDateTime,
+
     /// Indicates if the payment method has been set to default or not
     #[schema(example = true)]
     pub is_default: bool,
@@ -2209,6 +2305,7 @@ type PaymentMethodMigrationResponseType = (
     Result<PaymentMethodMigrateResponse, String>,
     PaymentMethodRecord,
 );
+
 #[cfg(all(
     any(feature = "v2", feature = "v1"),
     not(feature = "payment_methods_v2")
@@ -2328,7 +2425,11 @@ impl
                 }),
                 email: record.email,
             }),
-            connector_mandate_details,
+            connector_mandate_details: connector_mandate_details.map(
+                |payments_mandate_reference| {
+                    CommonMandateReference::from(payments_mandate_reference)
+                },
+            ),
             metadata: None,
             payment_method_issuer_code: None,
             card_network: None,
@@ -2370,29 +2471,72 @@ impl From<(PaymentMethodRecord, id_type::MerchantId)> for customers::CustomerReq
     }
 }
 
-// #[cfg(feature = "v2")]
-// impl From<PaymentMethodRecord> for customers::CustomerRequest {
-//     fn from(record: PaymentMethodRecord) -> Self {
-//         Self {
-//             merchant_reference_id: Some(record.customer_id),
-//             name: record.name.unwrap(),
-//             email: record.email.unwrap(),
-//             phone: record.phone,
-//             description: None,
-//             phone_country_code: record.phone_country_code,
-//             default_billing_address: Some(payments::AddressDetails {
-//                 city: Some(record.billing_address_city),
-//                 country: record.billing_address_country,
-//                 line1: Some(record.billing_address_line1),
-//                 line2: record.billing_address_line2,
-//                 state: Some(record.billing_address_state),
-//                 line3: record.billing_address_line3,
-//                 zip: Some(record.billing_address_zip),
-//                 first_name: Some(record.billing_address_first_name),
-//                 last_name: Some(record.billing_address_last_name),
-//             }),
-//             default_shipping_address: None,
-//             metadata: None,
-//         }
-//     }
-// }
+#[cfg(feature = "v2")]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct PaymentMethodSessionRequest {
+    /// The customer id for which the payment methods session is to be created
+    #[schema(value_type = String, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
+    pub customer_id: id_type::GlobalCustomerId,
+
+    /// The billing address details of the customer. This will also be used for any new payment methods added during the session
+    #[schema(value_type = Option<Address>)]
+    pub billing: Option<payments::Address>,
+
+    /// The tokenization type to be applied
+    #[schema(value_type = Option<PspTokenization>)]
+    pub psp_tokenization: Option<common_types::payment_methods::PspTokenization>,
+
+    /// The network tokenization configuration if applicable
+    #[schema(value_type = Option<NetworkTokenization>)]
+    pub network_tokenization: Option<common_types::payment_methods::NetworkTokenization>,
+
+    /// The time (seconds ) when the session will expire
+    /// If not provided, the session will expire in 15 minutes
+    #[schema(example = 900, default = 900)]
+    pub expires_in: Option<u32>,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct PaymentMethodSessionUpdateSavedPaymentMethod {
+    /// The payment method id of the payment method to be updated
+    #[schema(value_type = String, example = "12345_pm_01926c58bc6e77c09e809964e72af8c8")]
+    pub payment_method_id: id_type::GlobalPaymentMethodId,
+
+    /// The update request for the payment method update
+    #[serde(flatten)]
+    pub payment_method_update_request: PaymentMethodUpdate,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct PaymentMethodsSessionResponse {
+    #[schema(value_type = String, example = "12345_pms_01926c58bc6e77c09e809964e72af8c8")]
+    pub id: id_type::GlobalPaymentMethodSessionId,
+
+    /// The customer id for which the payment methods session is to be created
+    #[schema(value_type = String, example = "12345_cus_01926c58bc6e77c09e809964e72af8c8")]
+    pub customer_id: id_type::GlobalCustomerId,
+
+    /// The billing address details of the customer. This will also be used for any new payment methods added during the session
+    #[schema(value_type = Option<Address>)]
+    pub billing: Option<payments::Address>,
+
+    /// The tokenization type to be applied
+    #[schema(value_type = Option<PspTokenization>)]
+    pub psp_tokenization: Option<common_types::payment_methods::PspTokenization>,
+
+    /// The network tokenization configuration if applicable
+    #[schema(value_type = Option<NetworkTokenization>)]
+    pub network_tokenization: Option<common_types::payment_methods::NetworkTokenization>,
+
+    /// The iso timestamp when the session will expire
+    /// Trying to retrieve the session or any operations on the session after this time will result in an error
+    #[schema(value_type = PrimitiveDateTime, example = "2023-01-18T11:04:09.922Z")]
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub expires_at: time::PrimitiveDateTime,
+
+    /// Client Secret
+    #[schema(value_type = String)]
+    pub client_secret: masking::Secret<String>,
+}

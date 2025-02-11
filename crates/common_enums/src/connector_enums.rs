@@ -65,8 +65,10 @@ pub enum RoutableConnectors {
     Boku,
     Braintree,
     Cashtocode,
+    // Chargebee,
     Checkout,
     Coinbase,
+    // Coingate,
     Cryptopay,
     Cybersource,
     Datatrans,
@@ -84,7 +86,7 @@ pub enum RoutableConnectors {
     Gocardless,
     Helcim,
     Iatapay,
-    // Inespay,
+    Inespay,
     Itaubank,
     Jpmorgan,
     Klarna,
@@ -199,6 +201,7 @@ pub enum Connector {
     Boku,
     Braintree,
     Cashtocode,
+    // Chargebee,
     Checkout,
     Coinbase,
     Cryptopay,
@@ -219,7 +222,7 @@ pub enum Connector {
     Gocardless,
     Gpayments,
     Helcim,
-    // Inespay,
+    Inespay,
     Iatapay,
     Itaubank,
     Jpmorgan,
@@ -350,6 +353,7 @@ impl Connector {
             | Self::Boku
             | Self::Braintree
             | Self::Cashtocode
+            // | Self::Chargebee
             | Self::Coinbase
             | Self::Cryptopay
             | Self::Deutschebank
@@ -367,7 +371,7 @@ impl Connector {
             | Self::Gpayments
             | Self::Helcim
             | Self::Iatapay
-			// | Self::Inespay
+			| Self::Inespay
             | Self::Itaubank
             | Self::Jpmorgan
             | Self::Klarna
@@ -412,12 +416,11 @@ impl Connector {
             | Self::Razorpay
             | Self::Riskified
             | Self::Threedsecureio
-            | Self::Datatrans
             | Self::Netcetera
             | Self::CtpMastercard
             | Self::Noon
             | Self::Stripe => false,
-            Self::Checkout | Self::Nmi | Self::Cybersource => true,
+            Self::Checkout | Self::Nmi |Self::Datatrans|Self::Cybersource => true,
         }
     }
 
@@ -537,6 +540,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Plaid => Self::Plaid,
             RoutableConnectors::Zsl => Self::Zsl,
             RoutableConnectors::Xendit => Self::Xendit,
+            RoutableConnectors::Inespay => Self::Inespay,
         }
     }
 }
