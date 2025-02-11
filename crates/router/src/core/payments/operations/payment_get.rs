@@ -170,7 +170,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentStatusData<F>, PaymentsRetriev
         );
 
         let attempts = match request.expand_attempts {
-            Some(true) => payment_intent
+            true => payment_intent
                 .active_attempt_id
                 .as_ref()
                 .async_map(|active_attempt| async {
@@ -186,7 +186,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentStatusData<F>, PaymentsRetriev
                 })
                 .await
                 .transpose()?,
-            _ => None,
+            false => None,
         };
 
         let payment_data = PaymentStatusData {

@@ -12878,8 +12878,7 @@
           "amount",
           "authentication_type",
           "created_at",
-          "modified_at",
-          "payment_method_id"
+          "modified_at"
         ],
         "properties": {
           "id": {
@@ -12982,7 +12981,8 @@
           "payment_method_id": {
             "type": "string",
             "description": "Identifier for Payment Method used for the payment attempt",
-            "example": "12345_pm_01926c58bc6e77c09e809964e72af8c8"
+            "example": "12345_pm_01926c58bc6e77c09e809964e72af8c8",
+            "nullable": true
           },
           "client_source": {
             "type": "string",
@@ -15754,8 +15754,7 @@
           },
           "expand_attempts": {
             "type": "boolean",
-            "description": "A boolean used to indicate if all the attempts needs to be fetched for the intent.\nIf this is set to true, attempts list will be available in the response.",
-            "nullable": true
+            "description": "A boolean used to indicate if all the attempts needs to be fetched for the intent.\nIf this is set to true, attempts list will be available in the response."
           },
           "param": {
             "type": "string",

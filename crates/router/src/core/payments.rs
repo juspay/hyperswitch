@@ -2327,7 +2327,7 @@ impl PaymentRedirectFlow for PaymentRedirectSync {
         let payment_sync_request = api::PaymentsRetrieveRequest {
             param: Some(req.query_params.clone()),
             force_sync: true,
-            expand_attempts: None,
+            expand_attempts: false,
         };
 
         let operation = operations::PaymentGet;

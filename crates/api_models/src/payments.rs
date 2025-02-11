@@ -1469,7 +1469,7 @@ pub struct PaymentAttemptResponse {
     pub connector_payment_id: Option<String>,
 
     /// Identifier for Payment Method used for the payment attempt
-    #[schema(value_type = String, example = "12345_pm_01926c58bc6e77c09e809964e72af8c8")]
+    #[schema(value_type = Option<String>, example = "12345_pm_01926c58bc6e77c09e809964e72af8c8")]
     pub payment_method_id: Option<id_type::GlobalPaymentMethodId>,
 
     /// Value passed in X-CLIENT-SOURCE header during payments confirm request by the client
@@ -5169,7 +5169,7 @@ pub struct PaymentsRetrieveRequest {
     /// A boolean used to indicate if all the attempts needs to be fetched for the intent.
     /// If this is set to true, attempts list will be available in the response.
     #[serde(default)]
-    pub expand_attempts: Option<bool>,
+    pub expand_attempts: bool,
     /// These are the query params that are sent in case of redirect response.
     /// These can be ingested by the connector to take necessary actions.
     pub param: Option<String>,
