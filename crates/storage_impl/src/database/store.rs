@@ -104,7 +104,7 @@ impl DatabaseStore for ReplicaStore {
         .attach_printable("failed to create replica pool")?;
 
         let accounts_replica_pool = diesel_make_pg_pool(
-            &master_config,
+            &replica_config,
             tenant_config.get_accounts_schema(),
             test_transaction,
         )
