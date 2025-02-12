@@ -18,7 +18,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     types::{RefreshTokenRouterData, RefundsResponseRouterData, ResponseRouterData},
-    utils::{BrowserInformationData, PaymentsAuthorizeRequestData,  CardData as _,},
+    utils::{BrowserInformationData, CardData as _, PaymentsAuthorizeRequestData},
 };
 
 const CLIENT_CREDENTIALS: &str = "client_credentials";
