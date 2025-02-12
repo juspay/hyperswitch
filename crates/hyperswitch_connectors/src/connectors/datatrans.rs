@@ -23,7 +23,10 @@ use hyperswitch_domain_models::{
         PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
         RefundsData, SetupMandateRequestData,
     },
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    router_response_types::{
+        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
+        SupportedPaymentMethods, SupportedPaymentMethodsExt,
+    },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
         PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData,
@@ -41,6 +44,7 @@ use hyperswitch_interfaces::{
     types::{self, Response},
     webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
 };
+use lazy_static::lazy_static;
 use masking::{Mask, PeekInterface};
 use transformers as datatrans;
 
@@ -706,4 +710,90 @@ impl IncomingWebhook for Datatrans {
     }
 }
 
-impl ConnectorSpecifications for Datatrans {}
+lazy_static! {
+    static ref DATATRANS_SUPPORTED_PAYMENT_METHODS: SupportedPaymentMethods = {
+        let supported_capture_methods = vec![
+            CaptureMethod::Automatic,
+            CaptureMethod::Manual,
+            CaptureMethod::SequentialAutomatic,
+        ];
+
+        let supported_card_network = vec![
+            common_enums::CardNetwork::Visa,
+            common_enums::CardNetwork::Mastercard,
+            common_enums::CardNetwork::AmericanExpress,
+            common_enums::CardNetwork::JCB,
+            common_enums::CardNetwork::DinersClub,
+            common_enums::CardNetwork::Discover,
+            common_enums::CardNetwork::Visa,
+            common_enums::CardNetwork::UnionPay,
+            common_enums::CardNetwork::Maestro,
+        ];
+
+        let mut datatrans_supported_payment_methods = SupportedPaymentMethods::new();
+
+        datatrans_supported_payment_methods.add(
+            PaymentMethod::Card,
+            PaymentMethodType::Credit,
+            PaymentMethodDetails{
+                mandates: common_enums::enums::FeatureStatus::NotSupported,
+                refunds: common_enums::enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: Some(
+                    api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
+                        api_models::feature_matrix::CardSpecificFeatures {
+                            three_ds: common_enums::FeatureStatus::Supported,
+                            no_three_ds: common_enums::FeatureStatus::Supported,
+                            supported_card_networks: supported_card_network.clone(),
+                        }
+                    }),
+                ),
+            }
+        );
+
+        datatrans_supported_payment_methods.add(
+            PaymentMethod::Card,
+            PaymentMethodType::Debit,
+            PaymentMethodDetails{
+                mandates: common_enums::enums::FeatureStatus::NotSupported,
+                refunds: common_enums::enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: Some(
+                    api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
+                        api_models::feature_matrix::CardSpecificFeatures {
+                            three_ds: common_enums::FeatureStatus::Supported,
+                            no_three_ds: common_enums::FeatureStatus::Supported,
+                            supported_card_networks: supported_card_network.clone(),
+                        }
+                    }),
+                ),
+            }
+        );
+
+        datatrans_supported_payment_methods
+    };
+
+    static ref DATATRANS_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+        display_name: "Datatrans",
+        description:
+            "Datatrans is a payment gateway that facilitates the processing of payments, including hosting smart payment forms and correctly routing payment information.",
+        connector_type: common_enums::enums::PaymentConnectorCategory::PaymentGateway,
+    };
+
+    static ref DATATRANS_SUPPORTED_WEBHOOK_FLOWS: Vec<common_enums::enums::EventClass> = Vec::new();
+
+}
+
+impl ConnectorSpecifications for Datatrans {
+    fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
+        Some(&*DATATRANS_CONNECTOR_INFO)
+    }
+
+    fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
+        Some(&*DATATRANS_SUPPORTED_PAYMENT_METHODS)
+    }
+
+    fn get_supported_webhook_flows(&self) -> Option<&'static [common_enums::enums::EventClass]> {
+        Some(&*DATATRANS_SUPPORTED_WEBHOOK_FLOWS)
+    }
+}

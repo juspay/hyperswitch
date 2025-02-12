@@ -719,6 +719,7 @@ lazy_static! {
         let supported_capture_methods = vec![
             enums::CaptureMethod::Automatic,
             enums::CaptureMethod::Manual,
+            enums::CaptureMethod::SequentialAutomatic,
         ];
 
         let mut boku_supported_payment_methods = SupportedPaymentMethods::new();

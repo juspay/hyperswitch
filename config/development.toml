@@ -573,6 +573,20 @@ google_pay = { country = "MY", currency = "MYR" }
 [pm_filters.inespay]
 sepa = { currency = "EUR" }
 
+[pm_filters.boku]
+
+
+[pm_filters.datatrans]
+credit = { country = "",  currency = "" }
+debit = { country = "",  currency = "" }
+
+[pm_filters.cryptopay]
+
+
+[pm_filters.payeezy]
+credit = { country = "",  currency = "" }
+debit = { country = "",  currency = "" }
+
 [tokenization]
 stripe = { long_lived_token = false, payment_method = "wallet", payment_method_type = { type = "disable_only", list = "google_pay" } }
 checkout = { long_lived_token = false, payment_method = "wallet", apple_pay_pre_decrypt_flow = "network_tokenization" }

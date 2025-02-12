@@ -409,6 +409,20 @@ sepa = { country = "ES,SK,AT,NL,DE,BE,FR,FI,PT,IE,EE,LT,LV,IT,CZ,DE,HU,NO,PL,SE,
 [payout_method_filters.stripe]
 ach = { country = "US", currency = "USD" }
 
+[pm_filters.boku]
+
+
+[pm_filters.datatrans]
+credit = { country = "",  currency = "" }
+debit = { country = "",  currency = "" }
+
+[pm_filters.cryptopay]
+
+
+[pm_filters.payeezy]
+credit = { country = "",  currency = "" }
+debit = { country = "",  currency = "" }
+
 [temp_locker_enable_config]
 bluesnap.payment_method = "card"
 nuvei.payment_method = "card"
