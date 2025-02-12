@@ -246,6 +246,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Fiservemea => Self::Fiservemea,
             api_enums::Connector::Fiuu => Self::Fiuu,
             api_enums::Connector::Forte => Self::Forte,
+            // api_enums::Connector::Getnet => Self::Getnet,
             api_enums::Connector::Globalpay => Self::Globalpay,
             api_enums::Connector::Globepay => Self::Globepay,
             api_enums::Connector::Gocardless => Self::Gocardless,
@@ -1293,6 +1294,10 @@ impl ForeignTryFrom<domain::MerchantConnectorAccount>
                 .attach_printable("Failed to encode ConnectorAuthType")?,
         );
 
+        let feature_metadata = item.feature_metadata.as_ref().map(|metadata| {
+            api_models::admin::MerchantConnectorAccountFeatureMetadata::foreign_from(metadata)
+        });
+
         let response = Self {
             id: item.get_id(),
             connector_type: item.connector_type,
@@ -1343,6 +1348,7 @@ impl ForeignTryFrom<domain::MerchantConnectorAccount>
                         .change_context(errors::ApiErrorResponse::InternalServerError)
                 })
                 .transpose()?,
+            feature_metadata,
         };
         Ok(response)
     }

@@ -543,6 +543,12 @@ pub enum Flow {
     RelayRetrieve,
     /// Incoming Relay Webhook Receive
     IncomingRelayWebhookReceive,
+    /// Payment Method Session Create
+    PaymentMethodSessionCreate,
+    /// Payment Method Session Retrieve
+    PaymentMethodSessionRetrieve,
+    /// Update a saved payment method using the payment methods session
+    PaymentMethodSessionUpdateSavedPaymentMethod,
 }
 
 /// Trait for providing generic behaviour to flow metric
