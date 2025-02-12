@@ -143,7 +143,6 @@ impl<F, T> TryFrom<ResponseRouterData<F, CoingatePaymentsResponse, T, PaymentsRe
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
 pub struct CoingateErrorResponse {
     pub status_code: u16,
-    pub code: Option<String>,
     pub message: String,
     pub reason: String,
 }
