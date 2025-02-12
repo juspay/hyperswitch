@@ -235,7 +235,7 @@ pub async fn trigger_refund_to_gateway(
                             refund_error_code: Some("NOT_IMPLEMENTED".to_string()),
                             updated_by: storage_scheme.to_string(),
                             connector_refund_id: None,
-                            connector_refund_data: None,
+                            processor_refund_data: None,
                             unified_code: None,
                             unified_message: None,
                         })
@@ -249,7 +249,7 @@ pub async fn trigger_refund_to_gateway(
                             refund_error_code: Some("NOT_SUPPORTED".to_string()),
                             updated_by: storage_scheme.to_string(),
                             connector_refund_id: None,
-                            connector_refund_data: None,
+                            processor_refund_data: None,
                             unified_code: None,
                             unified_message: None,
                         })
@@ -332,7 +332,7 @@ pub async fn trigger_refund_to_gateway(
                 refund_error_code: Some(err.code),
                 updated_by: storage_scheme.to_string(),
                 connector_refund_id: None,
-                connector_refund_data: None,
+                processor_refund_data: None,
                 unified_code: Some(unified_code),
                 unified_message: Some(unified_message),
             }
@@ -341,7 +341,7 @@ pub async fn trigger_refund_to_gateway(
             // match on connector integrity checks
             match router_data_res.integrity_check.clone() {
                 Err(err) => {
-                    let (refund_connector_transaction_id, connector_refund_data) =
+                    let (refund_connector_transaction_id, processor_refund_data) =
                         err.connector_transaction_id.map_or((None, None), |txn_id| {
                             let (refund_id, refund_data) =
                                 ConnectorTransactionId::form_id_and_data(txn_id);
@@ -363,7 +363,7 @@ pub async fn trigger_refund_to_gateway(
                         refund_error_code: Some("IE".to_string()),
                         updated_by: storage_scheme.to_string(),
                         connector_refund_id: refund_connector_transaction_id,
-                        connector_refund_data,
+                        processor_refund_data,
                         unified_code: None,
                         unified_message: None,
                     }
@@ -378,7 +378,7 @@ pub async fn trigger_refund_to_gateway(
                             )),
                         )
                     }
-                    let (connector_refund_id, connector_refund_data) =
+                    let (connector_refund_id, processor_refund_data) =
                         ConnectorTransactionId::form_id_and_data(response.connector_refund_id);
                     storage::RefundUpdate::Update {
                         connector_refund_id,
@@ -387,7 +387,7 @@ pub async fn trigger_refund_to_gateway(
                         refund_error_message: None,
                         refund_arn: "".to_string(),
                         updated_by: storage_scheme.to_string(),
-                        connector_refund_data,
+                        processor_refund_data,
                     }
                 }
             }
@@ -677,7 +677,7 @@ pub async fn sync_refund_with_gateway(
                 refund_error_code: Some(error_message.code),
                 updated_by: storage_scheme.to_string(),
                 connector_refund_id: None,
-                connector_refund_data: None,
+                processor_refund_data: None,
                 unified_code: None,
                 unified_message: None,
             }
@@ -691,7 +691,7 @@ pub async fn sync_refund_with_gateway(
                         ("merchant_id", merchant_account.get_id().clone()),
                     ),
                 );
-                let (refund_connector_transaction_id, connector_refund_data) = err
+                let (refund_connector_transaction_id, processor_refund_data) = err
                     .connector_transaction_id
                     .map_or((None, None), |refund_id| {
                         let (refund_id, refund_data) =
@@ -707,13 +707,13 @@ pub async fn sync_refund_with_gateway(
                     refund_error_code: Some("IE".to_string()),
                     updated_by: storage_scheme.to_string(),
                     connector_refund_id: refund_connector_transaction_id,
-                    connector_refund_data,
+                    processor_refund_data,
                     unified_code: None,
                     unified_message: None,
                 }
             }
             Ok(()) => {
-                let (connector_refund_id, connector_refund_data) =
+                let (connector_refund_id, processor_refund_data) =
                     ConnectorTransactionId::form_id_and_data(response.connector_refund_id);
                 storage::RefundUpdate::Update {
                     connector_refund_id,
@@ -722,7 +722,7 @@ pub async fn sync_refund_with_gateway(
                     refund_error_message: None,
                     refund_arn: "".to_string(),
                     updated_by: storage_scheme.to_string(),
-                    connector_refund_data,
+                    processor_refund_data,
                 }
             }
         },
@@ -882,7 +882,7 @@ pub async fn validate_and_create_refund(
         .clone()
         .ok_or(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("No connector populated in payment attempt")?;
-    let (connector_transaction_id, connector_transaction_data) =
+    let (connector_transaction_id, processor_transaction_data) =
         ConnectorTransactionId::form_id_and_data(connector_transaction_id);
     let refund_create_req = storage::RefundNew {
         refund_id: refund_id.to_string(),
@@ -912,8 +912,8 @@ pub async fn validate_and_create_refund(
         refund_arn: None,
         updated_by: Default::default(),
         organization_id: merchant_account.organization_id.clone(),
-        connector_refund_data: None,
-        connector_transaction_data,
+        processor_transaction_data,
+        processor_refund_data: None,
     };
 
     let refund = match db
@@ -1584,7 +1584,7 @@ pub fn refund_to_refund_core_workflow_model(
         connector_transaction_id: refund.connector_transaction_id.clone(),
         merchant_id: refund.merchant_id.clone(),
         payment_id: refund.payment_id.clone(),
-        connector_transaction_data: refund.connector_transaction_data.clone(),
+        processor_transaction_data: refund.processor_transaction_data.clone(),
     }
 }
 
