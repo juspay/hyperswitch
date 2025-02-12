@@ -16,7 +16,7 @@ use serde::{Deserialize, Serialize};
 use crate::types::{RefundsResponseRouterData, ResponseRouterData};
 
 pub struct AmazonpayRouterData<T> {
-    pub amount: StringMajorUnit, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
+    pub amount: StringMajorUnit,
     pub router_data: T,
 }
 
@@ -62,8 +62,6 @@ pub struct AddressDetails {
     address_line_2: Option<String>,
     address_line_3: Option<String>,
     city: Option<String>,
-    // country: Option<String>,
-    // district: Option<String>,
     state_or_region: Option<String>,
     postal_code: Option<String>,
     country_code: Option<common_enums::CountryAlpha2>,
@@ -72,7 +70,6 @@ pub struct AddressDetails {
 
 #[derive(Default, Debug, Serialize, PartialEq)]
 pub enum PaymentIntent {
-    Authorize,
     #[default]
     AuthorizeWithCapture,
 }
@@ -81,11 +78,10 @@ fn get_amazonpay_capture_type(
     item: Option<CaptureMethod>,
 ) -> CustomResult<Option<PaymentIntent>, errors::ConnectorError> {
     match item {
-        Some(CaptureMethod::Manual) => Ok(Some(PaymentIntent::Authorize)),
-        Some(CaptureMethod::Automatic) | None => Ok(Some(PaymentIntent::AuthorizeWithCapture)),
-        Some(item) => Err(errors::ConnectorError::FlowNotSupported {
-            flow: item.to_string(),
-            connector: "Amazonpay".to_string(),
+        Some(CaptureMethod::Automatic) => Ok(Some(PaymentIntent::AuthorizeWithCapture)),
+        Some(_) => Err(errors::ConnectorError::CaptureMethodNotSupported.into()),
+        None => Err(errors::ConnectorError::MissingRequiredField {
+            field_name: "capture_method",
         }
         .into()),
     }
@@ -120,8 +116,6 @@ impl TryFrom<&AmazonpayRouterData<&PaymentsAuthorizeRouterData>> for AmazonpayFi
                         .clone()
                         .map(|l3| l3.peek().to_string()),
                     city: address_details.city.clone(),
-                    // country: address_details.country.map(|country| country.to_string()),
-                    // district: None, // If no specific field is available, set to None
                     state_or_region: address_details
                         .state
                         .clone()
@@ -213,7 +207,7 @@ pub struct PaymentDetails {
     payment_intent: String,
     can_handle_pending_authorization: bool,
     charge_amount: ChargeAmount,
-    total_order_amount: ChargeAmount, // have to see
+    total_order_amount: ChargeAmount,
     presentment_currency: String,
     soft_descriptor: String,
     allow_overcharge: bool,
@@ -337,7 +331,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, AmazonpayFinalizeResponse, T, PaymentsR
                 network_txn_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
-                charge_id: None,
+                charges: None,
             }),
             ..item.data
         })
@@ -533,7 +527,7 @@ pub struct RefundResponse {
     refund_amount: ChargeAmount,
     status_details: RefundStatusDetails,
     soft_descriptor: String,
-    release_environment: String,
+    release_environment: ReleaseEnvironment,
     disbursement_details: Option<String>,
 }
 
