@@ -4496,7 +4496,7 @@ dependencies = [
 [[package]]
 name = "josekit"
 version = "0.8.6"
-source = "git+https://github.com/sumanmaji4/josekit-rs.git?rev=7ad7eae5a2241f9b75c87157da56b3d64830474a#7ad7eae5a2241f9b75c87157da56b3d64830474a"
+source = "git+https://github.com/sumanmaji4/josekit-rs.git?rev=78576ead7db6910540b88a69a436ec4f8c910664#78576ead7db6910540b88a69a436ec4f8c910664"
 dependencies = [
  "anyhow",
  "base64 0.21.7",

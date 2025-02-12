@@ -340,6 +340,7 @@ impl From<NomupayPaymentStatus> for PayoutStatus {
     }
 }
 
+#[cfg(feature = "payouts")]
 fn get_profile<F>(
     item: &PayoutsRouterData<F>,
     entity_type: PayoutEntityType,
