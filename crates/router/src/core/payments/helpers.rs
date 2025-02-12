@@ -1,7 +1,7 @@
 use std::{borrow::Cow, collections::HashSet, str::FromStr};
 
 #[cfg(feature = "v2")]
-use api_models::ephemeral_key::EphemeralKeyResponse;
+use api_models::ephemeral_key::ClientSecretResponse;
 use api_models::{
     mandates::RecurringDetails,
     payments::{additional_info as payment_additional_types, RequestSurchargeDetails},
@@ -3055,76 +3055,70 @@ pub async fn make_ephemeral_key(
 }
 
 #[cfg(feature = "v2")]
-pub async fn make_ephemeral_key(
+pub async fn make_client_secret(
     state: SessionState,
-    customer_id: id_type::GlobalCustomerId,
+    resource_id: api_models::ephemeral_key::ResourceId,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     headers: &actix_web::http::header::HeaderMap,
-) -> errors::RouterResponse<EphemeralKeyResponse> {
+) -> errors::RouterResponse<ClientSecretResponse> {
     let db = &state.store;
     let key_manager_state = &((&state).into());
-    db.find_customer_by_global_id(
-        key_manager_state,
-        &customer_id,
-        merchant_account.get_id(),
-        &key_store,
-        merchant_account.storage_scheme,
-    )
-    .await
-    .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
 
-    let resource_type = services::authentication::get_header_value_by_key(
-        headers::X_RESOURCE_TYPE.to_string(),
-        headers,
-    )?
-    .map(ephemeral_key::ResourceType::from_str)
-    .transpose()
-    .change_context(errors::ApiErrorResponse::InvalidRequestData {
-        message: format!("`{}` header is invalid", headers::X_RESOURCE_TYPE),
-    })?
-    .get_required_value("ResourceType")
-    .attach_printable("Failed to convert ResourceType from string")?;
+    match &resource_id {
+        api_models::ephemeral_key::ResourceId::Customer(global_customer_id) => {
+            db.find_customer_by_global_id(
+                key_manager_state,
+                global_customer_id,
+                merchant_account.get_id(),
+                &key_store,
+                merchant_account.storage_scheme,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
+        }
+    }
 
-    let ephemeral_key = create_ephemeral_key(
-        &state,
-        &customer_id,
-        merchant_account.get_id(),
-        resource_type,
-    )
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Unable to create ephemeral key")?;
+    let resource_id = match resource_id {
+        api_models::ephemeral_key::ResourceId::Customer(global_customer_id) => {
+            common_utils::types::authentication::ResourceId::Customer(global_customer_id)
+        }
+    };
 
-    let response = EphemeralKeyResponse::foreign_from(ephemeral_key);
+    let client_secret = create_client_secret(&state, merchant_account.get_id(), resource_id)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to create client secret")?;
+
+    let response = ClientSecretResponse::foreign_try_from(client_secret)
+        .attach_printable("Only customer is supported as resource_id in response")?;
     Ok(services::ApplicationResponse::Json(response))
 }
 
 #[cfg(feature = "v2")]
-pub async fn create_ephemeral_key(
+pub async fn create_client_secret(
     state: &SessionState,
-    customer_id: &id_type::GlobalCustomerId,
     merchant_id: &id_type::MerchantId,
-    resource_type: ephemeral_key::ResourceType,
-) -> RouterResult<ephemeral_key::EphemeralKeyType> {
+    resource_id: common_utils::types::authentication::ResourceId,
+) -> RouterResult<ephemeral_key::ClientSecretType> {
     use common_utils::generate_time_ordered_id;
 
     let store = &state.store;
-    let id = id_type::EphemeralKeyId::generate();
-    let secret = masking::Secret::new(generate_time_ordered_id("epk"));
-    let ephemeral_key = ephemeral_key::EphemeralKeyTypeNew {
+    let id = id_type::ClientSecretId::generate();
+    let secret = masking::Secret::new(generate_time_ordered_id("cs"));
+
+    let client_secret = ephemeral_key::ClientSecretTypeNew {
         id,
-        customer_id: customer_id.to_owned(),
         merchant_id: merchant_id.to_owned(),
         secret,
-        resource_type,
+        resource_id,
     };
-    let ephemeral_key = store
-        .create_ephemeral_key(ephemeral_key, state.conf.eph_key.validity)
+    let client_secret = store
+        .create_client_secret(client_secret, state.conf.eph_key.validity)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Unable to create ephemeral key")?;
-    Ok(ephemeral_key)
+        .attach_printable("Unable to create client secret")?;
+    Ok(client_secret)
 }
 
 #[cfg(feature = "v1")]
@@ -3142,13 +3136,13 @@ pub async fn delete_ephemeral_key(
 }
 
 #[cfg(feature = "v2")]
-pub async fn delete_ephemeral_key(
+pub async fn delete_client_secret(
     state: SessionState,
     ephemeral_key_id: String,
-) -> errors::RouterResponse<EphemeralKeyResponse> {
+) -> errors::RouterResponse<ClientSecretResponse> {
     let db = state.store.as_ref();
     let ephemeral_key = db
-        .delete_ephemeral_key(&ephemeral_key_id)
+        .delete_client_secret(&ephemeral_key_id)
         .await
         .map_err(|err| match err.current_context() {
             errors::StorageError::ValueNotFound(_) => {
@@ -3160,7 +3154,8 @@ pub async fn delete_ephemeral_key(
         })
         .attach_printable("Unable to delete ephemeral key")?;
 
-    let response = EphemeralKeyResponse::foreign_from(ephemeral_key);
+    let response = ClientSecretResponse::foreign_try_from(ephemeral_key)
+        .attach_printable("Only customer is supported as resource_id in response")?;
     Ok(services::ApplicationResponse::Json(response))
 }
 
@@ -4285,7 +4280,6 @@ impl AttemptType {
             // New payment method billing address can be passed for a retry
             payment_method_billing_address_id: None,
             fingerprint_id: None,
-            charge_id: None,
             client_source: old_payment_attempt.client_source,
             client_version: old_payment_attempt.client_version,
             customer_acceptance: old_payment_attempt.customer_acceptance,
@@ -6882,15 +6876,14 @@ pub async fn validate_merchant_connector_ids_in_connector_mandate_details(
     Ok(())
 }
 
-pub fn validate_platform_fees_for_marketplace(
+pub fn validate_platform_request_for_marketplace(
     amount: api::Amount,
     split_payments: Option<common_types::payments::SplitPaymentsRequest>,
 ) -> Result<(), errors::ApiErrorResponse> {
-    if let Some(common_types::payments::SplitPaymentsRequest::StripeSplitPayment(
-        stripe_split_payment,
-    )) = split_payments
-    {
-        match amount {
+    match split_payments {
+        Some(common_types::payments::SplitPaymentsRequest::StripeSplitPayment(
+            stripe_split_payment,
+        )) => match amount {
             api::Amount::Zero => {
                 if stripe_split_payment.application_fees.get_amount_as_i64() != 0 {
                     return Err(errors::ApiErrorResponse::InvalidDataValue {
@@ -6905,7 +6898,90 @@ pub fn validate_platform_fees_for_marketplace(
                     });
                 }
             }
+        },
+        Some(common_types::payments::SplitPaymentsRequest::AdyenSplitPayment(
+            adyen_split_payment,
+        )) => {
+            let total_split_amount: i64 = adyen_split_payment
+                .split_items
+                .iter()
+                .map(|split_item| {
+                    split_item
+                        .amount
+                        .unwrap_or(MinorUnit::new(0))
+                        .get_amount_as_i64()
+                })
+                .sum();
+
+            match amount {
+                api::Amount::Zero => {
+                    if total_split_amount != 0 {
+                        return Err(errors::ApiErrorResponse::InvalidDataValue {
+                            field_name: "Sum of split amounts should be equal to the total amount",
+                        });
+                    }
+                }
+                api::Amount::Value(amount) => {
+                    let i64_amount: i64 = amount.into();
+                    if !adyen_split_payment.split_items.is_empty()
+                        && i64_amount != total_split_amount
+                    {
+                        return Err(errors::ApiErrorResponse::PreconditionFailed {
+                            message: "Sum of split amounts should be equal to the total amount"
+                                .to_string(),
+                        });
+                    }
+                }
+            };
+            adyen_split_payment
+                .split_items
+                .iter()
+                .try_for_each(|split_item| {
+                    match split_item.split_type {
+                        common_enums::AdyenSplitType::BalanceAccount => {
+                            if split_item.account.is_none() {
+                                return Err(errors::ApiErrorResponse::MissingRequiredField {
+                                    field_name:
+                                        "split_payments.adyen_split_payment.split_items.account",
+                                });
+                            }
+                        }
+                        common_enums::AdyenSplitType::Commission
+                        | enums::AdyenSplitType::Vat
+                        | enums::AdyenSplitType::TopUp => {
+                            if split_item.amount.is_none() {
+                                return Err(errors::ApiErrorResponse::MissingRequiredField {
+                                    field_name:
+                                        "split_payments.adyen_split_payment.split_items.amount",
+                                });
+                            }
+                            if let enums::AdyenSplitType::TopUp = split_item.split_type {
+                                if split_item.account.is_none() {
+                                    return Err(errors::ApiErrorResponse::MissingRequiredField {
+                                        field_name:
+                                            "split_payments.adyen_split_payment.split_items.account",
+                                    });
+                                }
+                                if adyen_split_payment.store.is_some() {
+                                    return Err(errors::ApiErrorResponse::PreconditionFailed {
+                                        message: "Topup split payment is not available via Adyen Platform"
+                                            .to_string(),
+                                    });
+                                }
+                            }
+                        }
+                        enums::AdyenSplitType::AcquiringFees
+                        | enums::AdyenSplitType::PaymentFee
+                        | enums::AdyenSplitType::AdyenFees
+                        | enums::AdyenSplitType::AdyenCommission
+                        | enums::AdyenSplitType::AdyenMarkup
+                        | enums::AdyenSplitType::Interchange
+                        | enums::AdyenSplitType::SchemeFee => {}
+                    };
+                    Ok(())
+                })?;
         }
+        None => (),
     }
     Ok(())
 }

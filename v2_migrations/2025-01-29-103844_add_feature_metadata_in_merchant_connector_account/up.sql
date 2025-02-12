@@ -1,0 +1,2 @@
+ALTER TABLE merchant_connector_account
+ADD COLUMN feature_metadata JSONB;
