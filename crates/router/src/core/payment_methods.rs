@@ -51,10 +51,10 @@ use hyperswitch_domain_models::api::{GenericLinks, GenericLinksData};
 ))]
 use hyperswitch_domain_models::mandates::CommonMandateReference;
 use hyperswitch_domain_models::payments::{payment_attempt::PaymentAttempt, PaymentIntent};
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
-use masking::{ PeekInterface, Secret};
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use masking::{ExposeInterface, PeekInterface, Secret};
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+use masking::{PeekInterface, Secret};
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use masking::{PeekInterface, Secret};
 use router_env::{instrument, tracing};
@@ -2140,10 +2140,7 @@ pub async fn handle_metadata_update(
         card_type: None,
     };
 
-    let payment_method_request = fetch_payment_method_create_request(
-        &card_data,
-        payment_method,
-    );
+    let payment_method_request = fetch_payment_method_create_request(&card_data, payment_method);
 
     let (res, _) = cards::add_card_to_locker(
         state,
