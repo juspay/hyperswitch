@@ -82,6 +82,7 @@ pub struct PaymentAttempt {
     pub shipping_cost: Option<MinorUnit>,
     pub order_tax_amount: Option<MinorUnit>,
     pub card_discovery: Option<storage_enums::CardDiscovery>,
+    pub charges: Option<common_types::payments::ConnectorChargeResponseData>,
     pub payment_method_type_v2: storage_enums::PaymentMethod,
     pub connector_payment_id: Option<ConnectorTransactionId>,
     pub payment_method_subtype: storage_enums::PaymentMethodType,
@@ -94,7 +95,6 @@ pub struct PaymentAttempt {
     pub connector_payment_data: Option<String>,
     pub connector_token_details: Option<ConnectorTokenDetails>,
     pub id: id_type::GlobalAttemptId,
-    pub charges: Option<common_types::payments::ConnectorChargeResponseData>,
 }
 
 #[cfg(feature = "v1")]
@@ -296,12 +296,12 @@ pub struct PaymentAttemptNew {
     pub card_network: Option<String>,
     pub shipping_cost: Option<MinorUnit>,
     pub order_tax_amount: Option<MinorUnit>,
+    pub charges: Option<common_types::payments::ConnectorChargeResponseData>,
     pub payment_method_type_v2: storage_enums::PaymentMethod,
     pub payment_method_subtype: storage_enums::PaymentMethodType,
     pub id: id_type::GlobalAttemptId,
     pub connector_token_details: Option<ConnectorTokenDetails>,
     pub card_discovery: Option<storage_enums::CardDiscovery>,
-    pub charges: Option<common_types::payments::ConnectorChargeResponseData>,
 }
 
 #[cfg(feature = "v1")]
