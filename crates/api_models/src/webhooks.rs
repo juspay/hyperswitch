@@ -166,7 +166,7 @@ impl WebhookResponseTracker {
             Self::Payment { payment_id, .. }
             | Self::Refund { payment_id, .. }
             | Self::Dispute { payment_id, .. } => Some(payment_id.to_owned()),
-            Self::NoEffect | Self::Mandate { .. } => None,
+            Self::NoEffect | Self::Mandate { .. } | Self::PaymentMethod{ .. } => None,
             #[cfg(feature = "payouts")]
             Self::Payout { .. } => None,
             Self::Relay { .. } => None,

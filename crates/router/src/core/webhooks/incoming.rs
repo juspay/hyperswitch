@@ -7,7 +7,7 @@ use api_models::webhooks::{self, WebhookResponseTracker};
 use common_utils::{
     errors::ReportSwitchExt,
     events::ApiEventsType,
-    ext_traits::{ByteSliceExt, ValueExt},
+    ext_traits::ByteSliceExt,
 };
 use diesel_models::ConnectorMandateReferenceId;
 use error_stack::{report, ResultExt};
@@ -128,6 +128,7 @@ pub async fn incoming_webhooks_wrapper<W: types::OutgoingWebhookType>(
     Ok(application_response)
 }
 
+#[cfg(feature = "v1")]
 #[allow(clippy::too_many_arguments)]
 pub async fn network_token_incoming_webhooks_wrapper<W: types::OutgoingWebhookType>(
     flow: &impl router_env::types::FlowMetric,
@@ -664,6 +665,7 @@ fn handle_incoming_webhook_error(
 
 #[allow(clippy::too_many_arguments)]
 #[instrument(skip_all)]
+#[cfg(feature = "v1")]
 async fn network_token_incoming_webhooks_core<W: types::OutgoingWebhookType>(
     state: &SessionState,
     _req_state: ReqState,
@@ -682,7 +684,6 @@ async fn network_token_incoming_webhooks_core<W: types::OutgoingWebhookType>(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Could not convert webhook effect to string")?;
 
-    // let nt_sevice = get_mandate_value(&state.conf.network_tokenization_service)?;
     let nt_service = match &state.conf.network_tokenization_service {
         Some(nt_service) => Ok(nt_service.get_inner()),
         None => Err(report!(
@@ -711,13 +712,18 @@ async fn network_token_incoming_webhooks_core<W: types::OutgoingWebhookType>(
         router_env::metric_attributes!((MERCHANT_ID, merchant_id.clone())),
     );
 
-    let (payment_method, merchant_account, key_store) =
-        payment_methods::fetch_payment_method_and_merchant_account_for_network_token_webhooks(
+    let (merchant_account, key_store) =
+        payment_methods::fetch_merchant_account_for_network_token_webhooks(
             state,
-            &merchant_id,
-            &payment_method_id,
+            merchant_id,
         )
-        .await?; //move it to diff func
+        .await?;
+    let payment_method = payment_methods::fetch_payment_method_for_network_token_webhooks(
+        state,
+        &merchant_account,
+        &key_store,
+        payment_method_id,
+    ).await?;
 
     let webhook_resp_tracker = match response {
         network_tokenization::NetworkTokenWebhookResponse::PanMetadataUpdate(ref data) => {
@@ -788,14 +794,6 @@ impl Authorization {
 
         Ok(())
     }
-
-    // pub fn add_metrics(self, context: &metrics::CONTEXT, merchant_id: String) {
-    //     metrics::WEBHOOK_SOURCE_VERIFIED_COUNT.add(
-    //         context,
-    //         1,
-    //         &[metrics::KeyValue::new(MERCHANT_ID, merchant_id)],
-    //     );
-    // }
 }
 
 #[allow(clippy::too_many_arguments)]

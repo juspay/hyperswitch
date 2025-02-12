@@ -719,10 +719,10 @@ pub enum NetworkTokenWebhookResponse {
 impl NetworkTokenWebhookResponse {
     fn get_network_token_requestor_ref_id(&self) -> String {
         match self {
-            NetworkTokenWebhookResponse::PanMetadataUpdate(data) => {
+            Self::PanMetadataUpdate(data) => {
                 data.card.card_reference.clone()
             }
-            NetworkTokenWebhookResponse::NetworkTokenMetadataUpdate(data) => {
+            Self::NetworkTokenMetadataUpdate(data) => {
                 data.token.card_reference.clone()
             }
         }

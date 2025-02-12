@@ -13,8 +13,6 @@ pub mod vault;
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use std::collections::HashSet;
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-use std::str::FromStr;
 use std::{borrow::Cow, str::FromStr};
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
@@ -24,9 +22,8 @@ pub use api_models::enums::Connector;
 pub use api_models::{enums::PayoutConnectors, payouts as payout_types};
 use api_models::{payment_methods, webhooks::WebhookResponseTracker};
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
-use common_utils::ext_traits::Encode;
 use common_utils::{
-    consts::DEFAULT_LOCALE, crypto::Encryptable, ext_traits::AsyncExt, fp_utils::when, id_type,
+    consts::DEFAULT_LOCALE, crypto::Encryptable, ext_traits::{AsyncExt, Encode}, fp_utils::when, id_type,
 };
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use common_utils::{
@@ -36,6 +33,7 @@ use common_utils::{
     generate_id,
     request::RequestContent,
     types as util_types,
+    id_type,
 };
 use diesel_models::{
     enums, GenericLinkNew, PaymentMethodCollectLink, PaymentMethodCollectLinkData,
@@ -51,7 +49,8 @@ use hyperswitch_domain_models::api::{GenericLinks, GenericLinksData};
 use hyperswitch_domain_models::mandates::CommonMandateReference;
 use hyperswitch_domain_models::payments::{payment_attempt::PaymentAttempt, PaymentIntent};
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-use masking::ExposeInterface;
+use masking::{PeekInterface, Secret};
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use masking::{ExposeInterface, PeekInterface, Secret};
 use router_env::{instrument, tracing};
 use time::Duration;
@@ -2001,6 +2000,7 @@ impl pm_types::SavedPMLPaymentsInfo {
     }
 }
 
+#[cfg(feature = "v1")]
 pub fn get_network_token_payment_method_create_request(
     network_token_data: payment_methods::CardDetail,
     payment_method: &domain::PaymentMethod,
@@ -2026,12 +2026,11 @@ pub fn get_network_token_payment_method_create_request(
     }
 }
 
-pub async fn fetch_payment_method_and_merchant_account_for_network_token_webhooks(
+#[cfg(feature = "v1")]
+pub async fn fetch_merchant_account_for_network_token_webhooks(
     state: &SessionState,
     merchant_id: &id_type::MerchantId,
-    payment_method_id: &str,
 ) -> RouterResult<(
-    domain::PaymentMethod,
     domain::MerchantAccount,
     domain::MerchantKeyStore,
 )> {
@@ -2054,10 +2053,25 @@ pub async fn fetch_payment_method_and_merchant_account_for_network_token_webhook
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
+    Ok((merchant_account, key_store))
+}
+
+#[cfg(feature = "v1")]
+pub async fn fetch_payment_method_for_network_token_webhooks(
+    state: &SessionState,
+    merchant_account: &domain::MerchantAccount,
+    key_store: &domain::MerchantKeyStore,
+    payment_method_id: &str,
+) -> RouterResult<
+    domain::PaymentMethod,
+> {
+    let db = &*state.store;
+    let key_manager_state = &(state).into();
+
     let payment_method = db
         .find_payment_method(
             key_manager_state,
-            &key_store,
+            key_store,
             payment_method_id,
             merchant_account.storage_scheme,
         )
@@ -2065,9 +2079,10 @@ pub async fn fetch_payment_method_and_merchant_account_for_network_token_webhook
         .change_context(errors::ApiErrorResponse::WebhookResourceNotFound)
         .attach_printable("Failed to fetch the payment method")?;
 
-    Ok((payment_method, merchant_account, key_store))
+    Ok(payment_method)
 }
 
+#[cfg(feature = "v1")]
 pub async fn handle_metadata_update(
     state: &SessionState,
     metadata: &network_tokenization::NetworkTokenRequestorData,
