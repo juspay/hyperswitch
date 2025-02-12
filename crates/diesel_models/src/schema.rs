@@ -272,6 +272,7 @@ diesel::table! {
         connector_response_reference_id -> Nullable<Varchar>,
         #[max_length = 512]
         connector_capture_data -> Nullable<Varchar>,
+        processor_capture_data -> Nullable<Text>,
     }
 }
 
@@ -913,6 +914,7 @@ diesel::table! {
         request_extended_authorization -> Nullable<Bool>,
         extended_authorization_applied -> Nullable<Bool>,
         capture_before -> Nullable<Timestamp>,
+        processor_transaction_data -> Nullable<Text>,
         card_discovery -> Nullable<CardDiscovery>,
         charges -> Nullable<Jsonb>,
     }
@@ -1266,6 +1268,8 @@ diesel::table! {
         unified_code -> Nullable<Varchar>,
         #[max_length = 1024]
         unified_message -> Nullable<Varchar>,
+        processor_refund_data -> Nullable<Text>,
+        processor_transaction_data -> Nullable<Text>,
     }
 }
 

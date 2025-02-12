@@ -38,6 +38,7 @@ mod fiserv;
 mod fiservemea;
 mod fiuu;
 mod forte;
+mod getnet;
 mod globalpay;
 mod globepay;
 mod gocardless;

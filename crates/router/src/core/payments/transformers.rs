@@ -1929,7 +1929,7 @@ pub fn payments_to_payments_response<Op, F: Clone, D>(
     _connector_http_status_code: Option<u16>,
     _external_latency: Option<u128>,
     _is_latency_header_enabled: Option<bool>,
-) -> RouterResponse<api::PaymentsResponse>
+) -> RouterResponse<api_models::payments::PaymentsRetrieveResponse>
 where
     Op: Debug,
     D: OperationSessionGetters<F>,
@@ -2755,6 +2755,7 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
     }
 }
 
+#[cfg(feature = "v1")]
 impl ForeignFrom<ephemeral_key::EphemeralKey> for api::ephemeral_key::EphemeralKeyCreateResponse {
     fn foreign_from(from: ephemeral_key::EphemeralKey) -> Self {
         Self {
@@ -3850,7 +3851,7 @@ impl ForeignTryFrom<types::CaptureSyncResponse> for storage::CaptureUpdate {
                 connector_response_reference_id,
                 ..
             } => {
-                let (connector_capture_id, connector_capture_data) = match resource_id {
+                let (connector_capture_id, processor_capture_data) = match resource_id {
                     types::ResponseId::EncodedData(_) | types::ResponseId::NoResponseId => {
                         (None, None)
                     }
@@ -3864,7 +3865,7 @@ impl ForeignTryFrom<types::CaptureSyncResponse> for storage::CaptureUpdate {
                     status: enums::CaptureStatus::foreign_try_from(status)?,
                     connector_capture_id,
                     connector_response_reference_id,
-                    connector_capture_data,
+                    processor_capture_data,
                 })
             }
             types::CaptureSyncResponse::Error {
