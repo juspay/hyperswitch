@@ -2366,7 +2366,9 @@ Cypress.Commands.add("refundCallTest", (requestBody, data, globalState) => {
   // we only need this to set the delay. We don't need the return value
   execConfig(validateConfig(configs));
 
-  requestBody = { ...reqData };
+  for (const key in reqData) {
+    requestBody[key] = reqData[key];
+  }
   requestBody.payment_id = payment_id;
 
   cy.request({
