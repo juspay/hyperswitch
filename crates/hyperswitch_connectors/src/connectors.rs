@@ -1,6 +1,7 @@
 pub mod aci;
 pub mod airwallex;
 pub mod amazonpay;
+pub mod authorizedotnet;
 pub mod bambora;
 pub mod bamboraapac;
 pub mod bankofamerica;
@@ -70,9 +71,9 @@ pub mod zen;
 pub mod zsl;
 
 pub use self::{
-    aci::Aci, airwallex::Airwallex, amazonpay::Amazonpay, bambora::Bambora,
-    bamboraapac::Bamboraapac, bankofamerica::Bankofamerica, billwerk::Billwerk, bitpay::Bitpay,
-    bluesnap::Bluesnap, boku::Boku, braintree::Braintree, cashtocode::Cashtocode,
+    aci::Aci, airwallex::Airwallex, amazonpay::Amazonpay, authorizedotnet::Authorizedotnet,
+    bambora::Bambora, bamboraapac::Bamboraapac, bankofamerica::Bankofamerica, billwerk::Billwerk,
+    bitpay::Bitpay, bluesnap::Bluesnap, boku::Boku, braintree::Braintree, cashtocode::Cashtocode,
     chargebee::Chargebee, coinbase::Coinbase, coingate::Coingate, cryptopay::Cryptopay,
     ctp_mastercard::CtpMastercard, cybersource::Cybersource, datatrans::Datatrans,
     deutschebank::Deutschebank, digitalvirgo::Digitalvirgo, dlocal::Dlocal, elavon::Elavon,

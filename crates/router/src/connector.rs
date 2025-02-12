@@ -1,6 +1,5 @@
 pub mod adyen;
 pub mod adyenplatform;
-pub mod authorizedotnet;
 pub mod checkout;
 #[cfg(feature = "dummy_connector")]
 pub mod dummyconnector;
@@ -23,14 +22,14 @@ pub mod wellsfargopayout;
 pub mod wise;
 
 pub use hyperswitch_connectors::connectors::{
-    aci, aci::Aci, airwallex, airwallex::Airwallex, amazonpay, amazonpay::Amazonpay, bambora,
-    bambora::Bambora, bamboraapac, bamboraapac::Bamboraapac, bankofamerica,
-    bankofamerica::Bankofamerica, billwerk, billwerk::Billwerk, bitpay, bitpay::Bitpay, bluesnap,
-    bluesnap::Bluesnap, boku, boku::Boku, braintree, braintree::Braintree, cashtocode,
-    cashtocode::Cashtocode, chargebee::Chargebee, coinbase, coinbase::Coinbase, coingate,
-    coingate::Coingate, cryptopay, cryptopay::Cryptopay, ctp_mastercard,
-    ctp_mastercard::CtpMastercard, cybersource, cybersource::Cybersource, datatrans,
-    datatrans::Datatrans, deutschebank, deutschebank::Deutschebank, digitalvirgo,
+    aci, aci::Aci, airwallex, airwallex::Airwallex, amazonpay, amazonpay::Amazonpay,
+    authorizedotnet, authorizedotnet::Authorizedotnet, bambora, bambora::Bambora, bamboraapac,
+    bamboraapac::Bamboraapac, bankofamerica, bankofamerica::Bankofamerica, billwerk,
+    billwerk::Billwerk, bitpay, bitpay::Bitpay, bluesnap, bluesnap::Bluesnap, boku, boku::Boku,
+    braintree, braintree::Braintree, cashtocode, cashtocode::Cashtocode, chargebee::Chargebee,
+    coinbase, coinbase::Coinbase, coingate, coingate::Coingate, cryptopay, cryptopay::Cryptopay,
+    ctp_mastercard, ctp_mastercard::CtpMastercard, cybersource, cybersource::Cybersource,
+    datatrans, datatrans::Datatrans, deutschebank, deutschebank::Deutschebank, digitalvirgo,
     digitalvirgo::Digitalvirgo, dlocal, dlocal::Dlocal, elavon, elavon::Elavon, fiserv,
     fiserv::Fiserv, fiservemea, fiservemea::Fiservemea, fiuu, fiuu::Fiuu, forte, forte::Forte,
     getnet, getnet::Getnet, globalpay, globalpay::Globalpay, globepay, globepay::Globepay,
@@ -52,9 +51,9 @@ pub use hyperswitch_connectors::connectors::{
 #[cfg(feature = "dummy_connector")]
 pub use self::dummyconnector::DummyConnector;
 pub use self::{
-    adyen::Adyen, adyenplatform::Adyenplatform, authorizedotnet::Authorizedotnet,
-    checkout::Checkout, ebanx::Ebanx, gpayments::Gpayments, netcetera::Netcetera, nmi::Nmi,
-    opayo::Opayo, opennode::Opennode, payone::Payone, paypal::Paypal, plaid::Plaid,
-    riskified::Riskified, signifyd::Signifyd, stripe::Stripe, threedsecureio::Threedsecureio,
-    trustpay::Trustpay, wellsfargopayout::Wellsfargopayout, wise::Wise,
+    adyen::Adyen, adyenplatform::Adyenplatform, checkout::Checkout, ebanx::Ebanx,
+    gpayments::Gpayments, netcetera::Netcetera, nmi::Nmi, opayo::Opayo, opennode::Opennode,
+    payone::Payone, paypal::Paypal, plaid::Plaid, riskified::Riskified, signifyd::Signifyd,
+    stripe::Stripe, threedsecureio::Threedsecureio, trustpay::Trustpay,
+    wellsfargopayout::Wellsfargopayout, wise::Wise,
 };
