@@ -893,6 +893,7 @@ Cypress.Commands.add(
       if (response.status === 200) {
         globalState.set("customerId", response.body.customer_id);
         logRequestId(response.headers["x-request-id"]);
+
         cy.wrap(response).then(() => {
           expect(response.body.customer_id, "customer_id").to.not.be.empty;
           expect(customerCreateBody.email, "email").to.equal(
@@ -913,8 +914,12 @@ Cypress.Commands.add(
             "phone_country_code"
           ).to.equal(response.body.phone_country_code);
         });
+      } else if (response.status === 400) {
+        expect(response.body.error.code).to.equal("IR_12");
+        expect(response.body.error.message).to.equal(
+          "Customer with the given `customer_id` already exists"
+        );
       }
-      return cy.wrap(response);
     });
   }
 );
@@ -2358,7 +2363,7 @@ Cypress.Commands.add("refundCallTest", (requestBody, data, globalState) => {
   // we only need this to set the delay. We don't need the return value
   execConfig(validateConfig(configs));
 
-  requestBody.amount = reqData.amount;
+  requestBody = { ...reqData };
   requestBody.payment_id = payment_id;
 
   cy.request({

@@ -1493,7 +1493,9 @@ export const connectorDetails = {
       },
     },
     DuplicateRefundID: {
-      Request: {},
+      Request: {
+        amount: 2000,
+      },
       Response: {
         status: 400,
         body: {
