@@ -92,7 +92,7 @@ pub enum RoutableConnectors {
     Klarna,
     Mifinity,
     Mollie,
-    // Moneris,
+    Moneris,
     Multisafepay,
     Nexinets,
     Nexixpay,
@@ -230,7 +230,7 @@ pub enum Connector {
     Klarna,
     Mifinity,
     Mollie,
-    // Moneris,
+    Moneris,
     Multisafepay,
     Netcetera,
     Nexinets,
@@ -315,6 +315,7 @@ impl Connector {
                 | (Self::Deutschebank, _)
                 | (Self::Globalpay, _)
                 | (Self::Jpmorgan, _)
+                | (Self::Moneris, _)
                 | (Self::Paypal, _)
                 | (Self::Payu, _)
                 | (Self::Trustpay, PaymentMethod::BankRedirect)
@@ -379,7 +380,7 @@ impl Connector {
             | Self::Klarna
             | Self::Mifinity
             | Self::Mollie
-            // | Self::Moneris
+            | Self::Moneris
             | Self::Multisafepay
             | Self::Nexinets
             | Self::Nexixpay
@@ -509,6 +510,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Klarna => Self::Klarna,
             RoutableConnectors::Mifinity => Self::Mifinity,
             RoutableConnectors::Mollie => Self::Mollie,
+            RoutableConnectors::Moneris => Self::Moneris,
             RoutableConnectors::Multisafepay => Self::Multisafepay,
             RoutableConnectors::Nexinets => Self::Nexinets,
             RoutableConnectors::Nexixpay => Self::Nexixpay,
