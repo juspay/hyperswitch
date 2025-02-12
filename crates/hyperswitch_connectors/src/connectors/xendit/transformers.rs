@@ -320,7 +320,7 @@ impl<F>
                     item.response.reference_id.peek().to_string(),
                 ),
                 incremental_authorization_allowed: None,
-                charge_id: None,
+                charges: None,
             })
         };
         Ok(Self {
@@ -378,7 +378,7 @@ impl<F>
                     item.response.reference_id.peek().to_string(),
                 ),
                 incremental_authorization_allowed: None,
-                charge_id: None,
+                charges: None,
             })
         };
         Ok(Self {
@@ -427,7 +427,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<XenditPaymentResponse>> for Payments
                 network_txn_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
-                charge_id: None,
+                charges: None,
             })
         };
         Ok(Self {

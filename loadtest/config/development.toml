@@ -111,6 +111,7 @@ fiuu.base_url = "https://sandbox.merchant.razer.com/"
 fiuu.secondary_base_url="https://sandbox.merchant.razer.com/"
 fiuu.third_base_url="https://api.merchant.razer.com/"
 forte.base_url = "https://sandbox.forte.net/api/v3"
+getnet.base_url = "https://api-test.getneteurope.com/engine/rest"
 globalpay.base_url = "https://apis.sandbox.globalpay.com/ucp/"
 globepay.base_url = "https://pay.globepay.co/"
 gocardless.base_url = "https://api-sandbox.gocardless.com"
@@ -216,6 +217,7 @@ cards = [
     "fiservemea",
     "fiuu",
     "forte",
+    "getnet",
     "globalpay",
     "globepay",
     "gocardless",
@@ -355,8 +357,8 @@ wallet.twint.connector_list = "adyen"
 wallet.vipps.connector_list = "adyen"
 
 bank_redirect.ideal.connector_list = "stripe,adyen,globalpay,multisafepay,nexinets"   
-bank_redirect.sofort.connector_list = "stripe,adyen,globalpay"  
-bank_redirect.giropay.connector_list = "adyen,globalpay,multisafepay,nexinets"        
+bank_redirect.sofort.connector_list = "stripe,globalpay"  
+bank_redirect.giropay.connector_list = "globalpay,multisafepay,nexinets"        
 bank_redirect.bancontact_card.connector_list="adyen,stripe"
 bank_redirect.trustly.connector_list="adyen"
 bank_redirect.open_banking_uk.connector_list="adyen"

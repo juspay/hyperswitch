@@ -67,8 +67,10 @@ use crate::{
     services::encryption,
     types::{
         api::{self, payment_methods::PaymentMethodCreateExt},
+        domain::types as domain_types,
         payment_methods as pm_types,
         storage::{ephemeral_key, PaymentMethodListContext},
+        transformers::{ForeignFrom, ForeignTryFrom},
     },
     utils::ext_traits::OptionExt,
 };
@@ -852,6 +854,8 @@ pub async fn create_payment_method(
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
 ) -> RouterResponse<api::PaymentMethodResponse> {
+    use common_utils::ext_traits::ValueExt;
+
     req.validate()?;
 
     let db = &*state.store;
@@ -870,14 +874,20 @@ pub async fn create_payment_method(
     .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
     .attach_printable("Customer not found for the payment method")?;
 
-    let payment_method_billing_address: Option<Encryptable<Secret<serde_json::Value>>> = req
+    let payment_method_billing_address = req
         .billing
         .clone()
         .async_map(|billing| cards::create_encrypted_data(key_manager_state, key_store, billing))
         .await
         .transpose()
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Unable to encrypt Payment method billing address")?;
+        .attach_printable("Unable to encrypt Payment method billing address")?
+        .map(|encoded_address| {
+            encoded_address.deserialize_inner_value(|value| value.parse_value("Address"))
+        })
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to parse Payment method billing address")?;
 
     // create pm
     let payment_method_id =
@@ -885,7 +895,7 @@ pub async fn create_payment_method(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Unable to generate GlobalPaymentMethodId")?;
 
-    let (payment_method, ephemeral_key) = create_payment_method_for_intent(
+    let payment_method = create_payment_method_for_intent(
         state,
         req.metadata.clone(),
         &customer_id,
@@ -935,10 +945,7 @@ pub async fn create_payment_method(
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to update payment method in db")?;
 
-            let resp = pm_transforms::generate_payment_method_response(
-                &payment_method,
-                Some(ephemeral_key),
-            )?;
+            let resp = pm_transforms::generate_payment_method_response(&payment_method)?;
 
             Ok(resp)
         }
@@ -989,14 +996,20 @@ pub async fn payment_method_intent_create(
     .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
     .attach_printable("Customer not found for the payment method")?;
 
-    let payment_method_billing_address: Option<Encryptable<Secret<serde_json::Value>>> = req
+    let payment_method_billing_address = req
         .billing
         .clone()
         .async_map(|billing| cards::create_encrypted_data(key_manager_state, key_store, billing))
         .await
         .transpose()
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Unable to encrypt Payment method billing address")?;
+        .attach_printable("Unable to encrypt Payment method billing address")?
+        .map(|encoded_address| {
+            encoded_address.deserialize_inner_value(|value| value.parse_value("Address"))
+        })
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to parse Payment method billing address")?;
 
     // create pm entry
 
@@ -1005,7 +1018,7 @@ pub async fn payment_method_intent_create(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Unable to generate GlobalPaymentMethodId")?;
 
-    let (payment_method, ephemeral_key) = create_payment_method_for_intent(
+    let payment_method = create_payment_method_for_intent(
         state,
         req.metadata.clone(),
         &customer_id,
@@ -1018,120 +1031,9 @@ pub async fn payment_method_intent_create(
     .await
     .attach_printable("Failed to add Payment method to DB")?;
 
-    let resp =
-        pm_transforms::generate_payment_method_response(&payment_method, Some(ephemeral_key))?;
+    let resp = pm_transforms::generate_payment_method_response(&payment_method)?;
 
     Ok(services::ApplicationResponse::Json(resp))
-}
-
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-#[instrument(skip_all)]
-pub async fn payment_method_intent_confirm(
-    state: &SessionState,
-    req: api::PaymentMethodIntentConfirm,
-    merchant_account: &domain::MerchantAccount,
-    key_store: &domain::MerchantKeyStore,
-    pm_id: id_type::GlobalPaymentMethodId,
-) -> RouterResponse<api::PaymentMethodResponse> {
-    let key_manager_state = &(state).into();
-    req.validate()?;
-
-    let db = &*state.store;
-
-    let payment_method = db
-        .find_payment_method(
-            &(state.into()),
-            key_store,
-            &pm_id,
-            merchant_account.storage_scheme,
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
-        .attach_printable("Unable to find payment method")?;
-
-    when(
-        payment_method.status != enums::PaymentMethodStatus::AwaitingData,
-        || {
-            Err(errors::ApiErrorResponse::InvalidRequestData {
-                message: "Invalid pm_id provided: This Payment method cannot be confirmed"
-                    .to_string(),
-            })
-        },
-    )?;
-
-    let customer_id = payment_method.customer_id.to_owned();
-    db.find_customer_by_global_id(
-        key_manager_state,
-        &customer_id,
-        merchant_account.get_id(),
-        key_store,
-        merchant_account.storage_scheme,
-    )
-    .await
-    .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
-
-    let payment_method_data = pm_types::PaymentMethodVaultingData::from(req.payment_method_data);
-
-    let vaulting_result = vault_payment_method(
-        state,
-        &payment_method_data,
-        merchant_account,
-        key_store,
-        None,
-    )
-    .await;
-
-    let response = match vaulting_result {
-        Ok((vaulting_resp, fingerprint_id)) => {
-            let pm_update = create_pm_additional_data_update(
-                &payment_method_data,
-                state,
-                key_store,
-                Some(vaulting_resp.vault_id.get_string_repr().clone()),
-                Some(req.payment_method_type),
-                Some(req.payment_method_subtype),
-                Some(fingerprint_id),
-            )
-            .await
-            .attach_printable("Unable to create Payment method data")?;
-
-            let payment_method = db
-                .update_payment_method(
-                    &(state.into()),
-                    key_store,
-                    payment_method,
-                    pm_update,
-                    merchant_account.storage_scheme,
-                )
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to update payment method in db")?;
-
-            let resp = pm_transforms::generate_payment_method_response(&payment_method, None)?;
-
-            Ok(resp)
-        }
-        Err(e) => {
-            let pm_update = storage::PaymentMethodUpdate::StatusUpdate {
-                status: Some(enums::PaymentMethodStatus::Inactive),
-            };
-
-            db.update_payment_method(
-                &(state.into()),
-                key_store,
-                payment_method,
-                pm_update,
-                merchant_account.storage_scheme,
-            )
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to update payment method in db")?;
-
-            Err(e)
-        }
-    }?;
-
-    Ok(services::ApplicationResponse::Json(response))
 }
 
 #[cfg(feature = "v2")]
@@ -1146,6 +1048,55 @@ impl PerformFilteringOnEnabledPaymentMethods
     fn perform_filtering(self) -> FilteredPaymentMethodsEnabled {
         FilteredPaymentMethodsEnabled(self.payment_methods_enabled)
     }
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[instrument(skip_all)]
+pub async fn list_payment_methods_for_session(
+    state: SessionState,
+    merchant_account: domain::MerchantAccount,
+    key_store: domain::MerchantKeyStore,
+    profile: domain::Profile,
+    payment_method_session_id: id_type::GlobalPaymentMethodSessionId,
+) -> RouterResponse<api::PaymentMethodListResponse> {
+    let key_manager_state = &(&state).into();
+
+    let db = &*state.store;
+
+    let payment_method_session = db
+        .get_payment_methods_session(key_manager_state, &key_store, &payment_method_session_id)
+        .await
+        .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
+        .attach_printable("Unable to find payment method")?;
+
+    let payment_connector_accounts = db
+        .list_enabled_connector_accounts_by_profile_id(
+            key_manager_state,
+            profile.get_id(),
+            &key_store,
+            common_enums::ConnectorType::PaymentProcessor,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("error when fetching merchant connector accounts")?;
+
+    let customer_payment_methods = list_customer_payment_method_core(
+        &state,
+        &merchant_account,
+        &key_store,
+        &payment_method_session.customer_id,
+    )
+    .await?;
+
+    let response =
+        hyperswitch_domain_models::merchant_connector_account::FlattenedPaymentMethodsEnabled::from_payment_connectors_list(payment_connector_accounts)
+            .perform_filtering()
+            .get_required_fields(RequiredFieldsInput::new(state.conf.required_fields.clone()))
+            .generate_response(customer_payment_methods.customer_payment_methods);
+
+    Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
+        response,
+    ))
 }
 
 #[cfg(feature = "v2")]
@@ -1262,7 +1213,10 @@ struct RequiredFieldsForEnabledPaymentMethodTypes(Vec<RequiredFieldsForEnabledPa
 
 #[cfg(feature = "v2")]
 impl RequiredFieldsForEnabledPaymentMethodTypes {
-    fn generate_response(self) -> payment_methods::PaymentMethodListResponse {
+    fn generate_response(
+        self,
+        customer_payment_methods: Vec<payment_methods::CustomerPaymentMethod>,
+    ) -> payment_methods::PaymentMethodListResponse {
         let response_payment_methods = self
             .0
             .into_iter()
@@ -1278,119 +1232,9 @@ impl RequiredFieldsForEnabledPaymentMethodTypes {
 
         payment_methods::PaymentMethodListResponse {
             payment_methods_enabled: response_payment_methods,
+            customer_payment_methods,
         }
     }
-}
-
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-#[instrument(skip_all)]
-pub async fn list_payment_methods_enabled(
-    state: SessionState,
-    merchant_account: domain::MerchantAccount,
-    key_store: domain::MerchantKeyStore,
-    profile: domain::Profile,
-    payment_method_id: id_type::GlobalPaymentMethodId,
-) -> RouterResponse<api::PaymentMethodListResponse> {
-    let key_manager_state = &(&state).into();
-
-    let db = &*state.store;
-
-    db.find_payment_method(
-        key_manager_state,
-        &key_store,
-        &payment_method_id,
-        merchant_account.storage_scheme,
-    )
-    .await
-    .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
-    .attach_printable("Unable to find payment method")?;
-
-    let payment_connector_accounts = db
-        .list_enabled_connector_accounts_by_profile_id(
-            key_manager_state,
-            profile.get_id(),
-            &key_store,
-            common_enums::ConnectorType::PaymentProcessor,
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("error when fetching merchant connector accounts")?;
-
-    let response =
-        hyperswitch_domain_models::merchant_connector_account::FlattenedPaymentMethodsEnabled::from_payment_connectors_list(payment_connector_accounts)
-            .perform_filtering()
-            .get_required_fields(RequiredFieldsInput::new(state.conf.required_fields.clone()))
-            .generate_response();
-
-    Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
-        response,
-    ))
-}
-
-#[cfg(all(
-    feature = "v2",
-    feature = "payment_methods_v2",
-    feature = "customer_v2"
-))]
-#[instrument(skip_all)]
-#[allow(clippy::too_many_arguments)]
-pub async fn create_payment_method_in_db(
-    state: &SessionState,
-    req: &api::PaymentMethodCreate,
-    customer_id: &id_type::GlobalCustomerId,
-    payment_method_id: id_type::GlobalPaymentMethodId,
-    locker_id: Option<domain::VaultId>,
-    merchant_id: &id_type::MerchantId,
-    customer_acceptance: Option<common_utils::pii::SecretSerdeValue>,
-    payment_method_data: domain::types::OptionalEncryptableJsonType<
-        api::payment_methods::PaymentMethodsData,
-    >,
-    key_store: &domain::MerchantKeyStore,
-    connector_mandate_details: Option<CommonMandateReference>,
-    status: Option<enums::PaymentMethodStatus>,
-    network_transaction_id: Option<String>,
-    storage_scheme: enums::MerchantStorageScheme,
-    payment_method_billing_address: crypto::OptionalEncryptableValue,
-    card_scheme: Option<String>,
-) -> errors::CustomResult<domain::PaymentMethod, errors::ApiErrorResponse> {
-    let db = &*state.store;
-    let current_time = common_utils::date_time::now();
-
-    let response = db
-        .insert_payment_method(
-            &state.into(),
-            key_store,
-            domain::PaymentMethod {
-                customer_id: customer_id.to_owned(),
-                merchant_id: merchant_id.to_owned(),
-                id: payment_method_id,
-                locker_id,
-                payment_method_type: Some(req.payment_method_type),
-                payment_method_subtype: Some(req.payment_method_subtype),
-                payment_method_data,
-                connector_mandate_details,
-                customer_acceptance,
-                client_secret: None,
-                status: status.unwrap_or(enums::PaymentMethodStatus::Active),
-                network_transaction_id: network_transaction_id.to_owned(),
-                created_at: current_time,
-                last_modified: current_time,
-                last_used_at: current_time,
-                payment_method_billing_address,
-                updated_by: None,
-                version: domain::consts::API_VERSION,
-                locker_fingerprint_id: None,
-                network_token_locker_id: None,
-                network_token_payment_method_data: None,
-                network_token_requestor_reference_id: None,
-            },
-            storage_scheme,
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to add payment method in db")?;
-
-    Ok(response)
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
@@ -1404,18 +1248,11 @@ pub async fn create_payment_method_for_intent(
     merchant_id: &id_type::MerchantId,
     key_store: &domain::MerchantKeyStore,
     storage_scheme: enums::MerchantStorageScheme,
-    payment_method_billing_address: crypto::OptionalEncryptableValue,
-) -> errors::CustomResult<(domain::PaymentMethod, Secret<String>), errors::ApiErrorResponse> {
+    payment_method_billing_address: Option<
+        Encryptable<hyperswitch_domain_models::address::Address>,
+    >,
+) -> errors::CustomResult<domain::PaymentMethod, errors::ApiErrorResponse> {
     let db = &*state.store;
-    let ephemeral_key = payment_helpers::create_ephemeral_key(
-        state,
-        customer_id,
-        merchant_id,
-        ephemeral_key::ResourceType::PaymentMethod,
-    )
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Failed to create ephemeral_key")?;
 
     let current_time = common_utils::date_time::now();
 
@@ -1453,7 +1290,7 @@ pub async fn create_payment_method_for_intent(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to add payment method in db")?;
 
-    Ok((response, ephemeral_key.secret))
+    Ok(response)
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
@@ -1537,12 +1374,14 @@ pub async fn vault_payment_method(
     Ok((resp_from_vault, fingerprint_id_from_vault))
 }
 
+// TODO: check if this function will be used for listing the customer payment methods for payments
+#[allow(unused)]
 #[cfg(all(
     feature = "v2",
     feature = "payment_methods_v2",
     feature = "customer_v2"
 ))]
-async fn get_pm_list_context(
+fn get_pm_list_context(
     payment_method_type: enums::PaymentMethod,
     payment_method: &domain::PaymentMethod,
     is_payment_associated: bool,
@@ -1550,7 +1389,7 @@ async fn get_pm_list_context(
     let payment_method_data = payment_method
         .payment_method_data
         .clone()
-        .map(|payment_method_data| payment_method_data.into_inner().expose().into_inner());
+        .map(|payment_method_data| payment_method_data.into_inner());
 
     let payment_method_retrieval_context = match payment_method_data {
         Some(payment_methods::PaymentMethodsData::Card(card)) => {
@@ -1629,316 +1468,39 @@ async fn get_pm_list_context(
     feature = "payment_methods_v2",
     feature = "customer_v2"
 ))]
-pub async fn list_customer_payment_method_util(
-    state: SessionState,
-    merchant_account: domain::MerchantAccount,
-    profile: domain::Profile,
-    key_store: domain::MerchantKeyStore,
-    req: Option<api::PaymentMethodListRequest>,
-    customer_id: Option<id_type::GlobalCustomerId>,
-    is_payment_associated: bool,
-) -> RouterResponse<api::CustomerPaymentMethodsListResponse> {
-    let limit = req.as_ref().and_then(|pml_req| pml_req.limit);
-
-    let (customer_id, payment_intent) = if is_payment_associated {
-        let cloned_secret = req.and_then(|r| r.client_secret.clone());
-        let payment_intent = payment_helpers::verify_payment_intent_time_and_client_secret(
-            &state,
-            &merchant_account,
-            &key_store,
-            cloned_secret,
-        )
-        .await?;
-
-        (
-            payment_intent
-                .as_ref()
-                .and_then(|pi| pi.customer_id.clone()),
-            payment_intent,
-        )
-    } else {
-        (customer_id, None)
-    };
-
-    let resp = if let Some(cust) = customer_id {
-        Box::pin(list_customer_payment_method(
-            &state,
-            &merchant_account,
-            profile,
-            key_store,
-            payment_intent,
-            &cust,
-            limit,
-            is_payment_associated,
-        ))
-        .await?
-    } else {
-        let response = api::CustomerPaymentMethodsListResponse {
-            customer_payment_methods: Vec::new(),
-            is_guest_customer: Some(true),
-        };
-        services::ApplicationResponse::Json(response)
-    };
-
-    Ok(resp)
-}
-
-#[allow(clippy::too_many_arguments)]
-#[cfg(all(
-    feature = "v2",
-    feature = "payment_methods_v2",
-    feature = "customer_v2"
-))]
-pub async fn list_customer_payment_method(
+pub async fn list_customer_payment_method_core(
     state: &SessionState,
     merchant_account: &domain::MerchantAccount,
-    profile: domain::Profile,
-    key_store: domain::MerchantKeyStore,
-    payment_intent: Option<PaymentIntent>,
+    key_store: &domain::MerchantKeyStore,
     customer_id: &id_type::GlobalCustomerId,
-    limit: Option<i64>,
-    is_payment_associated: bool,
-) -> RouterResponse<api::CustomerPaymentMethodsListResponse> {
+) -> RouterResult<api::CustomerPaymentMethodsListResponse> {
     let db = &*state.store;
     let key_manager_state = &(state).into();
-
-    let customer = db
-        .find_customer_by_global_id(
-            key_manager_state,
-            customer_id,
-            merchant_account.get_id(),
-            &key_store,
-            merchant_account.storage_scheme,
-        )
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
-
-    let payments_info = payment_intent
-        .async_map(|pi| {
-            pm_types::SavedPMLPaymentsInfo::form_payments_info(
-                pi,
-                merchant_account,
-                profile,
-                db,
-                key_manager_state,
-                &key_store,
-            )
-        })
-        .await
-        .transpose()?;
 
     let saved_payment_methods = db
         .find_payment_method_by_global_customer_id_merchant_id_status(
             key_manager_state,
-            &key_store,
+            key_store,
             customer_id,
             merchant_account.get_id(),
             common_enums::PaymentMethodStatus::Active,
-            limit,
+            None,
             merchant_account.storage_scheme,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
 
-    let mut filtered_saved_payment_methods_ctx = Vec::new();
-    for payment_method in saved_payment_methods.into_iter() {
-        let payment_method_type = payment_method
-            .get_payment_method_type()
-            .get_required_value("payment_method")?;
-        let parent_payment_method_token =
-            is_payment_associated.then(|| generate_id(consts::ID_LENGTH, "token"));
-
-        let pm_list_context =
-            get_pm_list_context(payment_method_type, &payment_method, is_payment_associated)
-                .await?;
-
-        if let Some(ctx) = pm_list_context {
-            filtered_saved_payment_methods_ctx.push((
-                ctx,
-                parent_payment_method_token,
-                payment_method,
-            ));
-        }
-    }
-
-    let merchant_connector_accounts = if filtered_saved_payment_methods_ctx.iter().any(
-        |(_pm_list_context, _parent_payment_method_token, pm)| {
-            pm.connector_mandate_details.is_some()
-        },
-    ) {
-        db.find_merchant_connector_account_by_merchant_id_and_disabled_list(
-            key_manager_state,
-            merchant_account.get_id(),
-            true,
-            &key_store,
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::MerchantAccountNotFound)?
-    } else {
-        Vec::new()
-    };
-    let merchant_connector_accounts =
-        domain::MerchantConnectorAccounts::new(merchant_connector_accounts);
-
-    let pm_list_futures = filtered_saved_payment_methods_ctx
+    let customer_payment_methods = saved_payment_methods
         .into_iter()
-        .map(|ctx| {
-            generate_saved_pm_response(
-                state,
-                &key_store,
-                merchant_account,
-                &merchant_connector_accounts,
-                ctx,
-                &customer,
-                payments_info.as_ref(),
-            )
-        })
-        .collect::<Vec<_>>();
+        .map(ForeignTryFrom::foreign_try_from)
+        .collect::<Result<Vec<api::CustomerPaymentMethod>, _>>()
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
-    let customer_pms = futures::future::join_all(pm_list_futures)
-        .await
-        .into_iter()
-        .collect::<Result<Vec<_>, _>>()
-        .attach_printable("Failed to obtain customer payment methods")?;
-
-    let mut response = api::CustomerPaymentMethodsListResponse {
-        customer_payment_methods: customer_pms,
-        is_guest_customer: is_payment_associated.then_some(false), //to return this key only when the request is tied to a payment intent
+    let response = api::CustomerPaymentMethodsListResponse {
+        customer_payment_methods,
     };
 
-    /*
-    TODO: Implement surcharge for v2
-    if is_payment_associated {
-        Box::pin(cards::perform_surcharge_ops(
-            payments_info.as_ref().map(|pi| pi.payment_intent.clone()),
-            state,
-            merchant_account,
-            key_store,
-            payments_info.map(|pi| pi.profile),
-            &mut response,
-        ))
-        .await?;
-    }
-    */
-
-    Ok(services::ApplicationResponse::Json(response))
-}
-
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-async fn generate_saved_pm_response(
-    state: &SessionState,
-    key_store: &domain::MerchantKeyStore,
-    merchant_account: &domain::MerchantAccount,
-    merchant_connector_accounts: &domain::MerchantConnectorAccounts,
-    (pm_list_context, parent_payment_method_token, pm): (
-        PaymentMethodListContext,
-        Option<String>,
-        domain::PaymentMethod,
-    ),
-    customer: &domain::Customer,
-    payment_info: Option<&pm_types::SavedPMLPaymentsInfo>,
-) -> Result<api::CustomerPaymentMethod, error_stack::Report<errors::ApiErrorResponse>> {
-    let payment_method_type = pm
-        .get_payment_method_type()
-        .get_required_value("payment_method_type")?;
-
-    let bank_details = if payment_method_type == enums::PaymentMethod::BankDebit {
-        cards::get_masked_bank_details(&pm)
-            .await
-            .unwrap_or_else(|err| {
-                logger::error!(error=?err);
-                None
-            })
-    } else {
-        None
-    };
-
-    let payment_method_billing = pm
-        .payment_method_billing_address
-        .clone()
-        .map(|decrypted_data| decrypted_data.into_inner().expose())
-        .map(|decrypted_value| decrypted_value.parse_value("payment_method_billing_address"))
-        .transpose()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("unable to parse payment method billing address details")?;
-
-    let (is_connector_agnostic_mit_enabled, requires_cvv, off_session_payment_flag, profile_id) =
-        payment_info
-            .map(|pi| {
-                (
-                    pi.is_connector_agnostic_mit_enabled,
-                    pi.collect_cvv_during_payment,
-                    pi.off_session_payment_flag,
-                    Some(pi.profile.get_id().to_owned()),
-                )
-            })
-            .unwrap_or((false, false, false, Default::default()));
-
-    let mca_enabled = cards::get_mca_status(
-        state,
-        key_store,
-        profile_id,
-        merchant_account.get_id(),
-        is_connector_agnostic_mit_enabled,
-        pm.connector_mandate_details.as_ref(),
-        pm.network_transaction_id.as_ref(),
-        merchant_connector_accounts,
-    )
-    .await;
-
-    let requires_cvv = if is_connector_agnostic_mit_enabled {
-        requires_cvv
-            && !(off_session_payment_flag
-                && (pm.connector_mandate_details.is_some() || pm.network_transaction_id.is_some()))
-    } else {
-        requires_cvv && !(off_session_payment_flag && pm.connector_mandate_details.is_some())
-    };
-
-    let pmd = match &pm_list_context {
-        PaymentMethodListContext::Card { card_details, .. } => {
-            Some(api::PaymentMethodListData::Card(card_details.clone()))
-        }
-        #[cfg(feature = "payouts")]
-        PaymentMethodListContext::BankTransfer {
-            bank_transfer_details,
-            ..
-        } => Some(api::PaymentMethodListData::Bank(
-            bank_transfer_details.clone(),
-        )),
-        PaymentMethodListContext::Bank { .. } | PaymentMethodListContext::TemporaryToken { .. } => {
-            None
-        }
-    };
-
-    let pma = api::CustomerPaymentMethod {
-        payment_token: parent_payment_method_token.clone(),
-        payment_method_id: pm.get_id().get_string_repr().to_owned(),
-        customer_id: pm.customer_id.to_owned(),
-        payment_method_type,
-        payment_method_subtype: pm.get_payment_method_subtype(),
-        payment_method_data: pmd,
-        recurring_enabled: mca_enabled,
-        created: pm.created_at,
-        bank: bank_details,
-        surcharge_details: None,
-        requires_cvv: requires_cvv
-            && !(off_session_payment_flag && pm.connector_mandate_details.is_some()),
-        last_used_at: Some(pm.last_used_at),
-        is_default: customer
-            .default_payment_method_id
-            .as_ref()
-            .is_some_and(|payment_method_id| payment_method_id == pm.get_id().get_string_repr()),
-        billing: payment_method_billing,
-    };
-
-    payment_info
-        .async_map(|pi| {
-            pi.perform_payment_ops(state, parent_payment_method_token, &pma, pm_list_context)
-        })
-        .await
-        .transpose()?;
-
-    Ok(pma)
+    Ok(response)
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
@@ -1972,7 +1534,7 @@ pub async fn retrieve_payment_method(
     let pmd = payment_method
         .payment_method_data
         .clone()
-        .map(|x| x.into_inner().expose().into_inner())
+        .map(|x| x.into_inner())
         .and_then(|pmd| match pmd {
             api::PaymentMethodsData::Card(card) => {
                 Some(api::PaymentMethodResponseData::Card(card.into()))
@@ -1989,7 +1551,6 @@ pub async fn retrieve_payment_method(
         created: Some(payment_method.created_at),
         recurring_enabled: false,
         last_used_at: Some(payment_method.last_used_at),
-        ephemeral_key: None,
         payment_method_data: pmd,
     };
 
@@ -2001,21 +1562,33 @@ pub async fn retrieve_payment_method(
 pub async fn update_payment_method(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
-    req: api::PaymentMethodUpdate,
-    payment_method_id: &str,
     key_store: domain::MerchantKeyStore,
+    req: api::PaymentMethodUpdate,
+    payment_method_id: &id_type::GlobalPaymentMethodId,
 ) -> RouterResponse<api::PaymentMethodResponse> {
-    let db = state.store.as_ref();
+    let response =
+        update_payment_method_core(state, merchant_account, key_store, req, payment_method_id)
+            .await?;
 
-    let pm_id = id_type::GlobalPaymentMethodId::generate_from_string(payment_method_id.to_string())
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Unable to generate GlobalPaymentMethodId")?;
+    Ok(services::ApplicationResponse::Json(response))
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[instrument(skip_all)]
+pub async fn update_payment_method_core(
+    state: SessionState,
+    merchant_account: domain::MerchantAccount,
+    key_store: domain::MerchantKeyStore,
+    req: api::PaymentMethodUpdate,
+    payment_method_id: &id_type::GlobalPaymentMethodId,
+) -> RouterResult<api::PaymentMethodResponse> {
+    let db = state.store.as_ref();
 
     let payment_method = db
         .find_payment_method(
             &((&state).into()),
             &key_store,
-            &pm_id,
+            payment_method_id,
             merchant_account.storage_scheme,
         )
         .await
@@ -2076,11 +1649,11 @@ pub async fn update_payment_method(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to update payment method in db")?;
 
-    let response = pm_transforms::generate_payment_method_response(&payment_method, None)?;
+    let response = pm_transforms::generate_payment_method_response(&payment_method)?;
 
     // Add a PT task to handle payment_method delete from vault
 
-    Ok(services::ApplicationResponse::Json(response))
+    Ok(response)
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
@@ -2135,6 +1708,7 @@ pub async fn delete_payment_method(
     let pm_update = storage::PaymentMethodUpdate::StatusUpdate {
         status: Some(enums::PaymentMethodStatus::Inactive),
     };
+
     db.update_payment_method(
         &((&state).into()),
         &key_store,
@@ -2154,6 +1728,216 @@ pub async fn delete_payment_method(
     let response = api::PaymentMethodDeleteResponse { id: pm_id };
 
     Ok(services::ApplicationResponse::Json(response))
+}
+
+#[cfg(feature = "v2")]
+#[async_trait::async_trait]
+trait EncryptableData {
+    type Output;
+    async fn encrypt_data(
+        &self,
+        key_manager_state: &common_utils::types::keymanager::KeyManagerState,
+        key_store: &domain::MerchantKeyStore,
+    ) -> RouterResult<Self::Output>;
+}
+
+#[cfg(feature = "v2")]
+#[async_trait::async_trait]
+impl EncryptableData for payment_methods::PaymentMethodSessionRequest {
+    type Output = hyperswitch_domain_models::payment_methods::DecryptedPaymentMethodsSession;
+
+    async fn encrypt_data(
+        &self,
+        key_manager_state: &common_utils::types::keymanager::KeyManagerState,
+        key_store: &domain::MerchantKeyStore,
+    ) -> RouterResult<Self::Output> {
+        use common_utils::types::keymanager::ToEncryptable;
+
+        let encrypted_billing_address = self
+            .billing
+            .clone()
+            .map(|address| address.encode_to_value())
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to encode billing address")?
+            .map(Secret::new);
+
+        let batch_encrypted_data = domain_types::crypto_operation(
+            key_manager_state,
+            common_utils::type_name!(hyperswitch_domain_models::payment_methods::PaymentMethodsSession),
+            domain_types::CryptoOperation::BatchEncrypt(
+                hyperswitch_domain_models::payment_methods::FromRequestEncryptablePaymentMethodsSession::to_encryptable(
+                    hyperswitch_domain_models::payment_methods::FromRequestEncryptablePaymentMethodsSession {
+                       billing: encrypted_billing_address,
+                    },
+                ),
+            ),
+            common_utils::types::keymanager::Identifier::Merchant(key_store.merchant_id.clone()),
+            key_store.key.peek(),
+        )
+        .await
+        .and_then(|val| val.try_into_batchoperation())
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed while encrypting payment methods session details".to_string())?;
+
+        let encrypted_data =
+        hyperswitch_domain_models::payment_methods::FromRequestEncryptablePaymentMethodsSession::from_encryptable(
+            batch_encrypted_data,
+        )
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed while encrypting payment methods session detailss")?;
+
+        Ok(encrypted_data)
+    }
+}
+
+#[cfg(feature = "v2")]
+pub async fn payment_methods_session_create(
+    state: SessionState,
+    merchant_account: domain::MerchantAccount,
+    key_store: domain::MerchantKeyStore,
+    request: payment_methods::PaymentMethodSessionRequest,
+) -> RouterResponse<payment_methods::PaymentMethodsSessionResponse> {
+    let db = state.store.as_ref();
+    let key_manager_state = &(&state).into();
+
+    db.find_customer_by_global_id(
+        key_manager_state,
+        &request.customer_id,
+        merchant_account.get_id(),
+        &key_store,
+        merchant_account.storage_scheme,
+    )
+    .await
+    .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
+
+    let payment_methods_session_id =
+        id_type::GlobalPaymentMethodSessionId::generate(&state.conf.cell_information.id)
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to generate GlobalPaymentMethodSessionId")?;
+
+    let encrypted_data = request
+        .encrypt_data(key_manager_state, &key_store)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to encrypt payment methods session data")?;
+
+    let billing = encrypted_data
+        .billing
+        .as_ref()
+        .map(|data| {
+            data.clone()
+                .deserialize_inner_value(|value| value.parse_value("Address"))
+        })
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to decode billing address")?;
+
+    // If not passed in the request, use the default value from constants
+    let expires_in = request
+        .expires_in
+        .unwrap_or(consts::DEFAULT_PAYMENT_METHOD_SESSION_EXPIRY)
+        .into();
+
+    let expires_at = common_utils::date_time::now().saturating_add(Duration::seconds(expires_in));
+
+    let client_secret = payment_helpers::create_client_secret(
+        &state,
+        merchant_account.get_id(),
+        util_types::authentication::ResourceId::PaymentMethodSession(
+            payment_methods_session_id.clone(),
+        ),
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Unable to create client secret")?;
+
+    let payment_method_session_domain_model =
+        hyperswitch_domain_models::payment_methods::PaymentMethodsSession {
+            id: payment_methods_session_id,
+            customer_id: request.customer_id,
+            billing,
+            psp_tokenization: request.psp_tokenization,
+            network_tokenization: request.network_tokenization,
+            expires_at,
+        };
+
+    db.insert_payment_methods_session(
+        key_manager_state,
+        &key_store,
+        payment_method_session_domain_model.clone(),
+        expires_in,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to insert payment methods session in db")?;
+
+    let response = payment_methods::PaymentMethodsSessionResponse::foreign_from((
+        payment_method_session_domain_model,
+        client_secret.secret,
+    ));
+
+    Ok(services::ApplicationResponse::Json(response))
+}
+
+#[cfg(feature = "v2")]
+pub async fn payment_methods_session_retrieve(
+    state: SessionState,
+    _merchant_account: domain::MerchantAccount,
+    key_store: domain::MerchantKeyStore,
+    payment_method_session_id: id_type::GlobalPaymentMethodSessionId,
+) -> RouterResponse<payment_methods::PaymentMethodsSessionResponse> {
+    let db = state.store.as_ref();
+    let key_manager_state = &(&state).into();
+
+    let payment_method_session_domain_model = db
+        .get_payment_methods_session(key_manager_state, &key_store, &payment_method_session_id)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::GenericNotFoundError {
+            message: "payment methods session does not exist or has expired".to_string(),
+        })
+        .attach_printable("Failed to retrieve payment methods session from db")?;
+
+    let response = payment_methods::PaymentMethodsSessionResponse::foreign_from((
+        payment_method_session_domain_model,
+        Secret::new("CLIENT_SECRET_REDACTED".to_string()),
+    ));
+
+    Ok(services::ApplicationResponse::Json(response))
+}
+
+#[cfg(feature = "v2")]
+pub async fn payment_methods_session_update_payment_method(
+    state: SessionState,
+    merchant_account: domain::MerchantAccount,
+    key_store: domain::MerchantKeyStore,
+    payment_method_session_id: id_type::GlobalPaymentMethodSessionId,
+    request: payment_methods::PaymentMethodSessionUpdateSavedPaymentMethod,
+) -> RouterResponse<payment_methods::PaymentMethodResponse> {
+    let db = state.store.as_ref();
+    let key_manager_state = &(&state).into();
+
+    // Validate if the session still exists
+    db.get_payment_methods_session(key_manager_state, &key_store, &payment_method_session_id)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::GenericNotFoundError {
+            message: "payment methods session does not exist or has expired".to_string(),
+        })
+        .attach_printable("Failed to retrieve payment methods session from db")?;
+
+    let payment_method_update_request = request.payment_method_update_request;
+
+    let updated_payment_method = update_payment_method_core(
+        state,
+        merchant_account,
+        key_store,
+        payment_method_update_request,
+        &request.payment_method_id,
+    )
+    .await
+    .attach_printable("Failed to update saved payment method")?;
+
+    Ok(services::ApplicationResponse::Json(updated_payment_method))
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]

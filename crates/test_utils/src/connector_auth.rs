@@ -45,6 +45,7 @@ pub struct ConnectorAuthentication {
     pub fiservemea: Option<HeaderKey>,
     pub fiuu: Option<HeaderKey>,
     pub forte: Option<MultiAuthKey>,
+    pub getnet: Option<HeaderKey>,
     pub globalpay: Option<BodyKey>,
     pub globepay: Option<BodyKey>,
     pub gocardless: Option<HeaderKey>,
