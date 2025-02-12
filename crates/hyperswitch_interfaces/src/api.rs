@@ -98,6 +98,11 @@ pub trait ConnectorIntegration<T, Req, Resp>:
         mime::APPLICATION_JSON.essence_str()
     }
 
+    /// fn get_content_type
+    fn get_accept_type(&self) -> &'static str {
+        mime::APPLICATION_JSON.essence_str()
+    }
+
     /// primarily used when creating signature based on request method of payment flow
     fn get_http_method(&self) -> Method {
         Method::Post
