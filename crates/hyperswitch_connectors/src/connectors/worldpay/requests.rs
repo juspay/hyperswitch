@@ -149,14 +149,12 @@ pub struct ExpiryDate {
 #[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BillingAddress {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub address1: Option<Secret<String>>,
+    pub address1: Secret<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub address2: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub address3: Option<Secret<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub city: Option<String>,
+    pub city: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub state: Option<Secret<String>>,
     pub postal_code: Secret<String>,

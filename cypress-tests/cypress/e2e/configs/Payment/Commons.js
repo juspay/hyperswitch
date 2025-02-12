@@ -567,7 +567,7 @@ export const connectorDetails = {
         body: {
           status: "requires_payment_method",
           shipping_cost: 50,
-          amount: 6500,
+          amount: 6000,
         },
       },
     }),
@@ -649,16 +649,13 @@ export const connectorDetails = {
     }),
     Capture: getCustomExchange({
       Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "USD",
-        customer_acceptance: null,
+        amount_to_capture: 6000,
       },
     }),
     PartialCapture: getCustomExchange({
-      Request: {},
+      Request: {
+        amount_to_capture: 2000,
+      },
     }),
     Void: getCustomExchange({
       Request: {},
@@ -704,32 +701,12 @@ export const connectorDetails = {
     }),
     Refund: getCustomExchange({
       Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "USD",
-        customer_acceptance: null,
-      },
-      ResponseCustom: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            message: "The refund amount exceeds the amount captured",
-            code: "IR_13",
-          },
-        },
+        amount: 6000,
       },
     }),
     manualPaymentRefund: getCustomExchange({
       Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "USD",
-        customer_acceptance: null,
+        amount: 6000,
       },
       Response: {
         status: 200,
@@ -740,12 +717,7 @@ export const connectorDetails = {
     }),
     manualPaymentPartialRefund: getCustomExchange({
       Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "USD",
-        customer_acceptance: null,
+        amount: 2000,
       },
       Response: {
         status: 200,
@@ -756,24 +728,10 @@ export const connectorDetails = {
     }),
     PartialRefund: getCustomExchange({
       Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "USD",
-        customer_acceptance: null,
+        amount: 2000,
       },
     }),
-    SyncRefund: getCustomExchange({
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "USD",
-        customer_acceptance: null,
-      },
-    }),
+    SyncRefund: getCustomExchange({}),
     MandateSingleUse3DSAutoCapture: getCustomExchange({
       Request: {
         payment_method: "card",
@@ -1336,14 +1294,7 @@ export const connectorDetails = {
     },
     CaptureGreaterAmount: {
       Request: {
-        Request: {
-          payment_method: "card",
-          payment_method_data: {
-            card: successfulNo3DSCardDetails,
-          },
-          currency: "USD",
-          customer_acceptance: null,
-        },
+        amount_to_capture: 6000000,
       },
       Response: {
         status: 400,
@@ -1359,12 +1310,7 @@ export const connectorDetails = {
     CaptureCapturedAmount: getCustomExchange({
       Request: {
         Request: {
-          payment_method: "card",
-          payment_method_data: {
-            card: successfulNo3DSCardDetails,
-          },
-          currency: "USD",
-          customer_acceptance: null,
+          amount_to_capture: 6000,
         },
       },
       Response: {
@@ -1400,6 +1346,21 @@ export const connectorDetails = {
         },
       },
     }),
+    RefundGreaterAmount: {
+      Request: {
+        amount: 6000000,
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message: "The refund amount exceeds the amount captured",
+            code: "IR_13",
+          },
+        },
+      },
+    },
     MITAutoCapture: getCustomExchange({
       Request: {},
       Response: {

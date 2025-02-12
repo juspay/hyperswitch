@@ -160,7 +160,7 @@ impl ApiEventMetric for PaymentsRequest {
 }
 
 #[cfg(feature = "v2")]
-impl ApiEventMetric for PaymentsResponse {
+impl ApiEventMetric for payments::PaymentsResponse {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::Payment {
             payment_id: self.id.clone(),
