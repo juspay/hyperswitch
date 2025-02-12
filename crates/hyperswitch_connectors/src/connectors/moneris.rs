@@ -107,12 +107,10 @@ where
             .access_token
             .clone()
             .ok_or(errors::ConnectorError::FailedToObtainAuthType)?;
-        println!("$$$$$ access_token{:?}", access_token.token.peek());
         let auth_header = (
             headers::AUTHORIZATION.to_string(),
             format!("Bearer {}", access_token.token.peek()).into_masked(),
         );
-        println!("$$$$$ auth_header{:?}", auth_header);
         header.push(auth_header);
         Ok(header)
     }
@@ -152,7 +150,6 @@ impl ConnectorCommon for Moneris {
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        println!("$$$$$ error response {:?}", res.response);
         let response: moneris::MonerisErrorResponse = res
             .response
             .parse_struct("MonerisErrorResponse")
@@ -161,11 +158,20 @@ impl ConnectorCommon for Moneris {
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
+        let reason = match &response.errors {
+            Some(error_list) => error_list
+                .iter()
+                .map(|error| error.parameter_name.clone())
+                .collect::<Vec<String>>()
+                .join(" & "),
+            None => response.title.clone(),
+        };
+
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.code,
-            message: response.message,
-            reason: response.reason,
+            code: response.category,
+            message: response.title,
+            reason: Some(reason),
             attempt_status: None,
             connector_transaction_id: None,
         })
@@ -223,11 +229,6 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> 
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = moneris::MonerisAuthRequest::try_from(req)?;
-        let printrequest =
-            common_utils::ext_traits::Encode::encode_to_string_of_json(&connector_req)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        println!("$$$$$ access token req {:?}", printrequest);
-
         Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
     }
 
@@ -254,7 +255,6 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> 
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<RefreshTokenRouterData, errors::ConnectorError> {
-        println!("$$$$$ access token response {:?}", res.response);
         let response: moneris::MonerisAuthResponse = res
             .response
             .parse_struct("Moneris MonerisAuthResponse")
@@ -275,7 +275,6 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> 
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        println!("$$$$$ access token error response {:?}", res.response);
         // auth error have different structure than common error
         let response: moneris::MonerisAuthErrorResponse = res
             .response
@@ -330,10 +329,6 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
 
         let connector_router_data = moneris::MonerisRouterData::from((amount, req));
         let connector_req = moneris::MonerisPaymentsRequest::try_from(&connector_router_data)?;
-        let printrequest =
-            common_utils::ext_traits::Encode::encode_to_string_of_json(&connector_req)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        println!("$$$$$ auth req{:?}", printrequest);
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -365,7 +360,6 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        println!("$$$$$ auth response {:?}", res.response);
         let response: moneris::MonerisPaymentsResponse = res
             .response
             .parse_struct("Moneris PaymentsAuthorizeResponse")
@@ -499,10 +493,6 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         let connector_router_data = moneris::MonerisRouterData::from((amount, req));
         let connector_req =
             moneris::MonerisPaymentsCaptureRequest::try_from(&connector_router_data)?;
-        let printrequest =
-            common_utils::ext_traits::Encode::encode_to_string_of_json(&connector_req)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        println!("$$$$$ auth req{:?}", printrequest);
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -756,7 +746,6 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Moneris {
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<RefundSyncRouterData, errors::ConnectorError> {
-        print!("$$$$$ refund sync response {:?}", res.response);
         let response: moneris::RefundResponse = res
             .response
             .parse_struct("moneris RefundSyncResponse")

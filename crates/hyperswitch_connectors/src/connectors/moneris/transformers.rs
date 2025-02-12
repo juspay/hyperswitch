@@ -90,7 +90,7 @@ impl TryFrom<&MonerisRouterData<&PaymentsAuthorizeRouterData>> for MonerisPaymen
                 let idempotency_key = uuid::Uuid::new_v4().to_string();
                 let amount = Amount {
                     currency: item.router_data.request.currency,
-                    amount: item.amount.clone(),
+                    amount: item.amount,
                 };
                 let payment_method = PaymentMethod {
                     payment_method_source: PaymentMethodSource::Card,
@@ -131,8 +131,6 @@ impl TryFrom<&MonerisRouterData<&PaymentsAuthorizeRouterData>> for MonerisPaymen
     }
 }
 
-//TODO: Fill the struct with respective fields
-// Auth Struct
 pub struct MonerisAuthType {
     pub(super) client_id: Secret<String>,
     pub(super) client_secret: Secret<String>,
@@ -193,15 +191,17 @@ impl<F, T> TryFrom<ResponseRouterData<F, MonerisAuthResponse, T, AccessToken>>
         Ok(Self {
             response: Ok(AccessToken {
                 token: item.response.access_token,
-                expires: item.response.expires_in.parse().unwrap(),
+                expires: item
+                    .response
+                    .expires_in
+                    .parse::<i64>()
+                    .change_context(errors::ConnectorError::ResponseDeserializationFailed)?,
             }),
             ..item.data
         })
     }
 }
 
-// PaymentsResponse
-//TODO: Append the remaining status flags
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum MonerisPaymentStatus {
@@ -218,7 +218,7 @@ impl From<MonerisPaymentStatus> for common_enums::AttemptStatus {
     fn from(item: MonerisPaymentStatus) -> Self {
         match item {
             MonerisPaymentStatus::Succeeded => Self::Charged,
-            MonerisPaymentStatus::Authorized => Self::Authorized, //capture
+            MonerisPaymentStatus::Authorized => Self::Authorized,
             MonerisPaymentStatus::Canceled => Self::Voided,
             MonerisPaymentStatus::Declined | MonerisPaymentStatus::DeclinedRetry => Self::Failure,
             MonerisPaymentStatus::Processing => Self::Authorizing,
@@ -226,7 +226,6 @@ impl From<MonerisPaymentStatus> for common_enums::AttemptStatus {
     }
 }
 
-//TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct MonerisPaymentsResponse {
@@ -270,7 +269,7 @@ impl TryFrom<&MonerisRouterData<&PaymentsCaptureRouterData>> for MonerisPayments
     fn try_from(item: &MonerisRouterData<&PaymentsCaptureRouterData>) -> Result<Self, Self::Error> {
         let amount = Amount {
             currency: item.router_data.request.currency,
-            amount: item.amount.clone(),
+            amount: item.amount,
         };
         let idempotency_key = uuid::Uuid::new_v4().to_string();
         Ok(Self {
@@ -313,7 +312,7 @@ impl<F> TryFrom<&MonerisRouterData<&RefundsRouterData<F>>> for MonerisRefundRequ
     fn try_from(item: &MonerisRouterData<&RefundsRouterData<F>>) -> Result<Self, Self::Error> {
         let refund_amount = Amount {
             currency: item.router_data.request.currency,
-            amount: item.amount.clone(),
+            amount: item.amount,
         };
         let idempotency_key = uuid::Uuid::new_v4().to_string();
         let reason = item.router_data.request.reason.clone();
@@ -385,13 +384,20 @@ impl TryFrom<RefundsResponseRouterData<RSync, RefundResponse>> for RefundsRouter
     }
 }
 
-//TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct MonerisErrorResponse {
-    pub status_code: u16,
-    pub code: String,
-    pub message: String,
-    pub reason: Option<String>,
+    pub status: u16,
+    pub category: String,
+    pub title: String,
+    pub errors: Option<Vec<MonerisError>>,
+}
+
+#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct MonerisError {
+    pub reason_code: String,
+    pub parameter_name: String,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
