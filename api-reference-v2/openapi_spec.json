@@ -6342,7 +6342,8 @@
           "card_exp_month",
           "card_exp_year",
           "card_holder_name",
-          "card_issuing_country"
+          "card_issuing_country",
+          "card_cvc"
         ],
         "properties": {
           "card_number": {
@@ -6394,6 +6395,11 @@
               }
             ],
             "nullable": true
+          },
+          "card_cvc": {
+            "type": "string",
+            "description": "The CVC number for the card\nThis is optional in case the card needs to be vaulted",
+            "example": "242"
           }
         },
         "additionalProperties": false
@@ -13741,6 +13747,22 @@
               }
             ],
             "nullable": true
+          },
+          "psp_tokenization": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PspTokenization"
+              }
+            ],
+            "nullable": true
+          },
+          "network_tokenization": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/NetworkTokenization"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -15025,6 +15047,11 @@
               }
             ],
             "nullable": true
+          },
+          "payment_method_id": {
+            "type": "string",
+            "description": "The payment_method_id to be associated with the payment",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -15887,6 +15914,11 @@
                 "$ref": "#/components/schemas/BrowserInformation"
               }
             ],
+            "nullable": true
+          },
+          "payment_method_id": {
+            "type": "string",
+            "description": "The payment_method_id to be associated with the payment",
             "nullable": true
           }
         },
@@ -18124,8 +18156,7 @@
         "type": "object",
         "description": "The Payment Service Provider Configuration for payment methods that are created using the payment method session",
         "required": [
-          "tokenization_type",
-          "connector_id"
+          "tokenization_type"
         ],
         "properties": {
           "tokenization_type": {
@@ -18133,7 +18164,8 @@
           },
           "connector_id": {
             "type": "string",
-            "description": "The merchant connector id to be used for tokenization"
+            "description": "The merchant connector id to be used for tokenization",
+            "nullable": true
           }
         }
       },
