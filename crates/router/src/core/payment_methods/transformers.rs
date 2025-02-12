@@ -16,7 +16,7 @@ use router_env::tracing_actix_web::RequestId;
 use serde::{Deserialize, Serialize};
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-use crate::types::payment_methods as pm_types;
+use crate::types::{payment_methods as pm_types, transformers};
 use crate::{
     configs::settings,
     core::errors::{self, CustomResult},
@@ -551,12 +551,11 @@ pub fn generate_pm_vaulting_req_from_update_request(
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 pub fn generate_payment_method_response(
     pm: &domain::PaymentMethod,
-    ephemeral_key: Option<Secret<String>>,
 ) -> errors::RouterResult<api::PaymentMethodResponse> {
     let pmd = pm
         .payment_method_data
         .clone()
-        .map(|data| data.into_inner().expose().into_inner())
+        .map(|data| data.into_inner())
         .and_then(|data| match data {
             api::PaymentMethodsData::Card(card) => {
                 Some(api::PaymentMethodResponseData::Card(card.into()))
@@ -573,7 +572,6 @@ pub fn generate_payment_method_response(
         created: Some(pm.created_at),
         recurring_enabled: false,
         last_used_at: Some(pm.last_used_at),
-        ephemeral_key,
         payment_method_data: pmd,
     };
 
@@ -910,4 +908,94 @@ pub fn mk_card_value2(
         .encode_to_string_of_json()
         .change_context(errors::VaultError::FetchCardFailed)?;
     Ok(value2_req)
+}
+
+#[cfg(feature = "v2")]
+impl transformers::ForeignTryFrom<domain::PaymentMethod> for api::CustomerPaymentMethod {
+    type Error = error_stack::Report<errors::ValidationError>;
+
+    fn foreign_try_from(item: domain::PaymentMethod) -> Result<Self, Self::Error> {
+        // For payment methods that are active we should always have the payment method subtype
+        let payment_method_subtype =
+            item.payment_method_subtype
+                .ok_or(errors::ValidationError::MissingRequiredField {
+                    field_name: "payment_method_subtype".to_string(),
+                })?;
+
+        // For payment methods that are active we should always have the payment method type
+        let payment_method_type =
+            item.payment_method_type
+                .ok_or(errors::ValidationError::MissingRequiredField {
+                    field_name: "payment_method_type".to_string(),
+                })?;
+
+        let payment_method_data = item
+            .payment_method_data
+            .map(|payment_method_data| payment_method_data.into_inner())
+            .map(|payment_method_data| match payment_method_data {
+                api_models::payment_methods::PaymentMethodsData::Card(
+                    card_details_payment_method,
+                ) => {
+                    let card_details = api::CardDetailFromLocker::from(card_details_payment_method);
+                    api_models::payment_methods::PaymentMethodListData::Card(card_details)
+                }
+                api_models::payment_methods::PaymentMethodsData::BankDetails(..) => todo!(),
+                api_models::payment_methods::PaymentMethodsData::WalletDetails(..) => {
+                    todo!()
+                }
+            });
+
+        let payment_method_billing = item
+            .payment_method_billing_address
+            .clone()
+            .map(|billing| billing.into_inner())
+            .map(From::from);
+
+        // TODO: check how we can get this field
+        let recurring_enabled = true;
+
+        Ok(Self {
+            id: item.id,
+            customer_id: item.customer_id,
+            payment_method_type,
+            payment_method_subtype,
+            created: item.created_at,
+            last_used_at: item.last_used_at,
+            recurring_enabled,
+            payment_method_data,
+            bank: None,
+            requires_cvv: true,
+            is_default: false,
+            billing: payment_method_billing,
+        })
+    }
+}
+
+#[cfg(feature = "v2")]
+impl
+    transformers::ForeignFrom<(
+        hyperswitch_domain_models::payment_methods::PaymentMethodsSession,
+        Secret<String>,
+    )> for api_models::payment_methods::PaymentMethodsSessionResponse
+{
+    fn foreign_from(
+        item: (
+            hyperswitch_domain_models::payment_methods::PaymentMethodsSession,
+            Secret<String>,
+        ),
+    ) -> Self {
+        let (session, client_secret) = item;
+        Self {
+            id: session.id,
+            customer_id: session.customer_id,
+            billing: session
+                .billing
+                .map(|address| address.into_inner())
+                .map(From::from),
+            psp_tokenization: session.psp_tokenization,
+            network_tokenization: session.network_tokenization,
+            expires_at: session.expires_at,
+            client_secret,
+        }
+    }
 }

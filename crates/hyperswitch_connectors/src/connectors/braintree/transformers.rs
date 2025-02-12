@@ -458,7 +458,7 @@ impl<F>
                         network_txn_id: None,
                         connector_response_reference_id: None,
                         incremental_authorization_allowed: None,
-                        charge_id: None,
+                        charges: None,
                     })
                 };
                 Ok(Self {
@@ -481,7 +481,7 @@ impl<F>
                     network_txn_id: None,
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
-                    charge_id: None,
+                    charges: None,
                 }),
                 ..item.data
             }),
@@ -634,7 +634,7 @@ impl<F>
                         network_txn_id: None,
                         connector_response_reference_id: None,
                         incremental_authorization_allowed: None,
-                        charge_id: None,
+                        charges: None,
                     })
                 };
                 Ok(Self {
@@ -657,7 +657,7 @@ impl<F>
                     network_txn_id: None,
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
-                    charge_id: None,
+                    charges: None,
                 }),
                 ..item.data
             }),
@@ -717,7 +717,7 @@ impl<F>
                         network_txn_id: None,
                         connector_response_reference_id: None,
                         incremental_authorization_allowed: None,
-                        charge_id: None,
+                        charges: None,
                     })
                 };
                 Ok(Self {
@@ -782,7 +782,7 @@ impl<F>
                         network_txn_id: None,
                         connector_response_reference_id: None,
                         incremental_authorization_allowed: None,
-                        charge_id: None,
+                        charges: None,
                     })
                 };
                 Ok(Self {
@@ -1287,7 +1287,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<BraintreeCaptureResponse>>
                         network_txn_id: None,
                         connector_response_reference_id: None,
                         incremental_authorization_allowed: None,
-                        charge_id: None,
+                        charges: None,
                     })
                 };
                 Ok(Self {
@@ -1396,7 +1396,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, BraintreeCancelResponse, T, PaymentsRes
                         network_txn_id: None,
                         connector_response_reference_id: None,
                         incremental_authorization_allowed: None,
-                        charge_id: None,
+                        charges: None,
                     })
                 };
                 Ok(Self {
@@ -1498,7 +1498,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, BraintreePSyncResponse, T, PaymentsResp
                         network_txn_id: None,
                         connector_response_reference_id: None,
                         incremental_authorization_allowed: None,
-                        charge_id: None,
+                        charges: None,
                     })
                 };
                 Ok(Self {

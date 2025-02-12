@@ -1,30 +1,29 @@
 #[cfg(feature = "v2")]
 use masking::{PeekInterface, Secret};
+
 #[cfg(feature = "v2")]
-pub struct EphemeralKeyTypeNew {
-    pub id: common_utils::id_type::EphemeralKeyId,
+pub struct ClientSecretTypeNew {
+    pub id: common_utils::id_type::ClientSecretId,
     pub merchant_id: common_utils::id_type::MerchantId,
-    pub customer_id: common_utils::id_type::GlobalCustomerId,
     pub secret: Secret<String>,
-    pub resource_type: ResourceType,
+    pub resource_id: common_utils::types::authentication::ResourceId,
 }
 
 #[cfg(feature = "v2")]
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
-pub struct EphemeralKeyType {
-    pub id: common_utils::id_type::EphemeralKeyId,
+pub struct ClientSecretType {
+    pub id: common_utils::id_type::ClientSecretId,
     pub merchant_id: common_utils::id_type::MerchantId,
-    pub customer_id: common_utils::id_type::GlobalCustomerId,
-    pub resource_type: ResourceType,
+    pub resource_id: common_utils::types::authentication::ResourceId,
     pub created_at: time::PrimitiveDateTime,
     pub expires: time::PrimitiveDateTime,
     pub secret: Secret<String>,
 }
 
 #[cfg(feature = "v2")]
-impl EphemeralKeyType {
+impl ClientSecretType {
     pub fn generate_secret_key(&self) -> String {
-        format!("epkey_{}", self.secret.peek())
+        format!("cs_{}", self.secret.peek())
     }
 }
 
@@ -49,22 +48,4 @@ impl common_utils::events::ApiEventMetric for EphemeralKey {
     fn get_api_event_type(&self) -> Option<common_utils::events::ApiEventsType> {
         Some(common_utils::events::ApiEventsType::Miscellaneous)
     }
-}
-
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    serde::Serialize,
-    serde::Deserialize,
-    strum::Display,
-    strum::EnumString,
-    PartialEq,
-    Eq,
-)]
-#[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "snake_case")]
-pub enum ResourceType {
-    Payment,
-    PaymentMethod,
 }
