@@ -19212,6 +19212,14 @@
             "type": "string",
             "description": "Connector Identifier for the payment method",
             "nullable": true
+          },
+          "card_discovery": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardDiscovery"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -20454,6 +20462,14 @@
           "connector_mandate_id": {
             "type": "string",
             "description": "Connector Identifier for the payment method",
+            "nullable": true
+          },
+          "card_discovery": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardDiscovery"
+              }
+            ],
             "nullable": true
           }
         }

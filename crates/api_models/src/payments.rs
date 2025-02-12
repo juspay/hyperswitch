@@ -4757,6 +4757,7 @@ pub struct PaymentsResponse {
     pub connector_mandate_id: Option<String>,
 
     /// Method through which card was discovered
+    #[schema(value_type = Option<CardDiscovery>)]
     pub card_discovery: Option<enums::CardDiscovery>,
 }
 
