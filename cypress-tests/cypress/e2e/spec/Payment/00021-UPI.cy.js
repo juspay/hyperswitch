@@ -78,7 +78,7 @@ describe("UPI Payments - Hyperswitch", () => {
         "upi_pm"
       ]["Refund"];
 
-      cy.refundCallTest(fixtures.refundBody, data, 6500, globalState);
+      cy.refundCallTest(fixtures.refundBody, data, globalState);
 
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });

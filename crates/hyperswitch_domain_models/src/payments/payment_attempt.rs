@@ -1512,7 +1512,7 @@ impl behaviour::Conversion for PaymentAttempt {
             .and_then(|card| card.get("card_network"))
             .and_then(|network| network.as_str())
             .map(|network| network.to_string());
-        let (connector_transaction_id, connector_transaction_data) = self
+        let (connector_transaction_id, processor_transaction_data) = self
             .connector_transaction_id
             .map(ConnectorTransactionId::form_id_and_data)
             .map(|(txn_id, txn_data)| (Some(txn_id), txn_data))
@@ -1579,12 +1579,14 @@ impl behaviour::Conversion for PaymentAttempt {
             profile_id: self.profile_id,
             organization_id: self.organization_id,
             card_network,
-            connector_transaction_data,
             order_tax_amount: self.net_amount.get_order_tax_amount(),
             shipping_cost: self.net_amount.get_shipping_cost(),
             connector_mandate_detail: self.connector_mandate_detail,
+            processor_transaction_data,
             card_discovery: self.card_discovery,
             charges: self.charges,
+            // Below fields are deprecated. Please add any new fields above this line.
+            connector_transaction_data: None,
         })
     }
 
