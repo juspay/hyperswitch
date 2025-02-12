@@ -13741,6 +13741,14 @@
               }
             ],
             "nullable": true
+          },
+          "network_tokenization": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/NetworkTokenization"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false

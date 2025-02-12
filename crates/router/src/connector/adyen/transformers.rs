@@ -4,7 +4,9 @@ use api_models::{enums, payments, webhooks};
 use cards::CardNumber;
 use common_utils::{errors::ParsingError, ext_traits::Encode, id_type, pii, types::MinorUnit};
 use error_stack::{report, ResultExt};
-use hyperswitch_domain_models::{router_request_types::SubmitEvidenceRequestData, network_tokenization::NetworkTokenNumber};
+use hyperswitch_domain_models::{
+    network_tokenization::NetworkTokenNumber, router_request_types::SubmitEvidenceRequestData,
+};
 use masking::{ExposeInterface, PeekInterface};
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
@@ -640,7 +642,7 @@ pub enum AdyenPaymentMethod<'a> {
     PayEasy(Box<JCSVoucherData>),
     Pix(Box<PmdForPaymentType>),
     NetworkToken(Box<AdyenNetworkTokenData>),
-    AdyenPaze(Box<AdyenPazeData>)
+    AdyenPaze(Box<AdyenPazeData>),
 }
 
 #[derive(Debug, Clone, Serialize)]

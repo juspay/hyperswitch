@@ -106,7 +106,7 @@ impl CardNumber {
     }
 }
 
-impl NetworkToken{
+impl NetworkToken {
     pub fn get_card_isin(&self) -> String {
         self.0.peek().chars().take(6).collect::<String>()
     }
@@ -128,7 +128,6 @@ impl NetworkToken{
             .rev()
             .collect::<String>()
     }
-
 }
 
 impl FromStr for CardNumber {

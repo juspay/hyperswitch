@@ -2,7 +2,6 @@
 use std::fmt::Debug;
 
 use api_models::payment_methods as api_payment_methods;
-
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use cards::{CardNumber, NetworkToken};
 use common_utils::{
@@ -19,6 +18,8 @@ use common_utils::{
 use error_stack::ResultExt;
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use error_stack::{report, ResultExt};
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+use hyperswitch_domain_models::payment_method_data::NetworkTokenDetails;
 use josekit::jwe;
 use masking::{ExposeInterface, Mask, PeekInterface, Secret};
 
@@ -31,9 +32,6 @@ use crate::{
     settings,
     types::{api, domain},
 };
-
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-use hyperswitch_domain_models::payment_method_data::NetworkTokenDetails;
 
 pub const NETWORK_TOKEN_SERVICE: &str = "NETWORK_TOKEN";
 
@@ -161,7 +159,6 @@ pub async fn mk_tokenization_req(
     (domain::GenerateNetworkTokenResponsePayload, String),
     errors::NetworkTokenizationError,
 > {
-
     let enc_key = tokenization_service.public_key.peek().clone();
 
     let key_id = tokenization_service.key_id.clone();
@@ -316,16 +313,12 @@ pub async fn make_card_network_tokenization_request(
     }
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]  
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 pub async fn make_card_network_tokenization_request(
     state: &routes::SessionState,
     card: &api_payment_methods::CardDetail,
     customer_id: &id_type::GlobalCustomerId,
-) -> CustomResult<
-    (NetworkTokenDetails, String),
-    errors::NetworkTokenizationError,
-> {
-
+) -> CustomResult<(NetworkTokenDetails, String), errors::NetworkTokenizationError> {
     let card_data = domain::CardData {
         card_number: card.card_number.clone(),
         exp_month: card.card_exp_month.clone(),
@@ -346,34 +339,30 @@ pub async fn make_card_network_tokenization_request(
         )),
     }?;
 
-    let (resp, network_token_req_ref_id) = 
-        record_operation_time(
-            async {
-                mk_tokenization_req(
-                    state,
-                    payload_bytes,
-                    customer_id.clone(),
-                    network_tokenization_service,
-                )
-                .await
-                .inspect_err(
-                    |e| logger::error!(error=?e, "Error while making tokenization request"),
-                )
-            },
-            &metrics::GENERATE_NETWORK_TOKEN_TIME,
-            router_env::metric_attributes!(("locker", "rust")),
-        )
-        .await
-    ?;
+    let (resp, network_token_req_ref_id) = record_operation_time(
+        async {
+            mk_tokenization_req(
+                state,
+                payload_bytes,
+                customer_id.clone(),
+                network_tokenization_service,
+            )
+            .await
+            .inspect_err(|e| logger::error!(error=?e, "Error while making tokenization request"))
+        },
+        &metrics::GENERATE_NETWORK_TOKEN_TIME,
+        router_env::metric_attributes!(("locker", "rust")),
+    )
+    .await?;
 
-    let network_token_details = NetworkTokenDetails{
+    let network_token_details = NetworkTokenDetails {
         network_token: resp.token,
         network_token_exp_month: resp.token_expiry_month,
         network_token_exp_year: resp.token_expiry_year,
         card_issuer: card.card_issuer.clone(),
         card_network: Some(resp.card_brand),
         card_type: card.card_type.clone(),
-        card_issuing_country: card.card_issuing_country, 
+        card_issuing_country: card.card_issuing_country,
         card_holder_name: card.card_holder_name.clone(),
         nick_name: card.nick_name.clone(),
     };
