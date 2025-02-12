@@ -7,7 +7,7 @@ use hyperswitch_domain_models::{
     payment_method_data::{Card, PaymentMethodData},
     router_data::{ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::refunds::{Execute, RSync},
-    router_request_types::{PaymentsAuthorizeData, ResponseId},
+    router_request_types::{PaymentsAuthorizeData, ResponseId, SetupMandateRequestData},
     router_response_types::{
         MandateReference, PaymentsResponseData, RedirectForm, RefundsResponseData,
     },
@@ -27,7 +27,7 @@ use crate::{
     },
     utils::{
         get_unimplemented_payment_method_error_message, AdditionalCardInfo, CardData as _,
-        PaymentsAuthorizeRequestData, RouterData as _,
+        PaymentsAuthorizeRequestData, PaymentsSetupMandateRequestData, RouterData as _,
     },
 };
 
@@ -53,7 +53,7 @@ pub struct DatatransRouterData<T> {
 #[derive(Debug, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct DatatransPaymentsRequest {
-    pub amount: MinorUnit,
+    pub amount: Option<MinorUnit>,
     pub currency: enums::Currency,
     pub card: DataTransPaymentDetails,
     pub refno: String,
@@ -271,6 +271,61 @@ impl<T> TryFrom<(MinorUnit, T)> for DatatransRouterData<T> {
     }
 }
 
+impl TryFrom<&types::SetupMandateRouterData> for DatatransPaymentsRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &types::SetupMandateRouterData) -> Result<Self, Self::Error> {
+        match item.request.payment_method_data.clone() {
+            PaymentMethodData::Card(req_card) => Ok(Self {
+                amount: None,
+                currency: item.request.currency,
+                card: DataTransPaymentDetails::Cards(PlainCardDetails {
+                    res_type: "PLAIN".to_string(),
+                    number: req_card.card_number.clone(),
+                    expiry_month: req_card.card_exp_month.clone(),
+                    expiry_year: req_card.get_card_expiry_year_2_digit()?,
+                    cvv: req_card.card_cvc.clone(),
+                    three_ds: Some(ThreeDSecureData::Cardholder(ThreedsInfo {
+                        cardholder: CardHolder {
+                            cardholder_name: item.get_billing_full_name()?,
+                            email: item.request.get_email()?,
+                        },
+                    })),
+                }),
+                refno: item.connector_request_reference_id.clone(),
+                auto_settle: true, // zero auth doesn't support manual capture
+                option: Some(DataTransCreateAlias { create_alias: true }),
+                redirect: Some(RedirectUrls {
+                    success_url: item.request.router_return_url.clone(),
+                    cancel_url: item.request.router_return_url.clone(),
+                    error_url: item.request.router_return_url.clone(),
+                }),
+            }),
+            PaymentMethodData::Wallet(_)
+            | PaymentMethodData::PayLater(_)
+            | PaymentMethodData::BankRedirect(_)
+            | PaymentMethodData::BankDebit(_)
+            | PaymentMethodData::BankTransfer(_)
+            | PaymentMethodData::MandatePayment
+            | PaymentMethodData::Crypto(_)
+            | PaymentMethodData::Reward
+            | PaymentMethodData::RealTimePayment(_)
+            | PaymentMethodData::MobilePayment(_)
+            | PaymentMethodData::Upi(_)
+            | PaymentMethodData::CardRedirect(_)
+            | PaymentMethodData::Voucher(_)
+            | PaymentMethodData::GiftCard(_)
+            | PaymentMethodData::OpenBanking(_)
+            | PaymentMethodData::CardToken(_)
+            | PaymentMethodData::NetworkToken(_)
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    get_unimplemented_payment_method_error_message("Datatrans"),
+                ))?
+            }
+        }
+    }
+}
+
 impl TryFrom<&DatatransRouterData<&types::PaymentsAuthorizeRouterData>>
     for DatatransPaymentsRequest
 {
@@ -280,33 +335,34 @@ impl TryFrom<&DatatransRouterData<&types::PaymentsAuthorizeRouterData>>
     ) -> Result<Self, Self::Error> {
         match item.router_data.request.payment_method_data.clone() {
             PaymentMethodData::Card(req_card) => {
-                let option = item
-                    .router_data
-                    .request
-                    .is_mandate_payment()
-                    .then_some(DataTransCreateAlias { create_alias: true });
+                let is_mandate_payment = item.router_data.request.is_mandate_payment();
+                let option =
+                    is_mandate_payment.then_some(DataTransCreateAlias { create_alias: true });
+                // provides return url for only mandate payment(CIT) or 3ds through datatrans
+                let redirect = if is_mandate_payment
+                    || (item.router_data.is_three_ds()
+                        && item.router_data.request.authentication_data.is_none())
+                {
+                    Some(RedirectUrls {
+                        success_url: item.router_data.request.router_return_url.clone(),
+                        cancel_url: item.router_data.request.router_return_url.clone(),
+                        error_url: item.router_data.request.router_return_url.clone(),
+                    })
+                } else {
+                    None
+                };
                 Ok(Self {
-                    amount: item.amount,
+                    amount: Some(item.amount),
                     currency: item.router_data.request.currency,
                     card: create_card_details(item, &req_card)?,
                     refno: item.router_data.connector_request_reference_id.clone(),
                     auto_settle: item.router_data.request.is_auto_capture()?,
                     option,
-                    redirect: if item.router_data.is_three_ds()
-                        && item.router_data.request.authentication_data.is_none()
-                    {
-                        Some(RedirectUrls {
-                            success_url: item.router_data.request.router_return_url.clone(),
-                            cancel_url: item.router_data.request.router_return_url.clone(),
-                            error_url: item.router_data.request.router_return_url.clone(),
-                        })
-                    } else {
-                        None
-                    },
+                    redirect,
                 })
             }
             PaymentMethodData::MandatePayment => {
-                let addtional_payment_data = match item
+                let additional_payment_data = match item
                     .router_data
                     .request
                     .additional_payment_method_data
@@ -321,9 +377,9 @@ impl TryFrom<&DatatransRouterData<&types::PaymentsAuthorizeRouterData>>
                     })?,
                 };
                 Ok(Self {
-                    amount: item.amount,
+                    amount: Some(item.amount),
                     currency: item.router_data.request.currency,
-                    card: create_mandate_details(item, &addtional_payment_data)?,
+                    card: create_mandate_details(item, &additional_payment_data)?,
                     refno: item.router_data.connector_request_reference_id.clone(),
                     auto_settle: item.router_data.request.is_auto_capture()?,
                     option: None,
@@ -416,18 +472,18 @@ fn create_card_details(
 
 fn create_mandate_details(
     item: &DatatransRouterData<&types::PaymentsAuthorizeRouterData>,
-    addtional_card_details: &payments::AdditionalCardInfo,
+    additional_card_details: &payments::AdditionalCardInfo,
 ) -> Result<DataTransPaymentDetails, error_stack::Report<errors::ConnectorError>> {
     let alias = item.router_data.request.get_connector_mandate_id()?;
     Ok(DataTransPaymentDetails::Mandate(MandateDetails {
         res_type: "ALIAS".to_string(),
         alias,
-        expiry_month: addtional_card_details.card_exp_month.clone().ok_or(
+        expiry_month: additional_card_details.card_exp_month.clone().ok_or(
             errors::ConnectorError::MissingRequiredField {
                 field_name: "card_exp_month",
             },
         )?,
-        expiry_year: addtional_card_details.get_card_expiry_year_2_digit()?,
+        expiry_year: additional_card_details.get_card_expiry_year_2_digit()?,
     }))
 }
 
@@ -441,7 +497,15 @@ impl From<SyncResponse> for enums::AttemptStatus {
                 TransactionStatus::Failed => Self::Failure,
                 TransactionStatus::Initialized | TransactionStatus::Authenticated => Self::Pending,
             },
-            TransactionType::Credit | TransactionType::CardCheck => Self::Failure,
+            TransactionType::CardCheck => match item.status {
+                TransactionStatus::Settled
+                | TransactionStatus::Transmitted
+                | TransactionStatus::Authorized => Self::Charged,
+                TransactionStatus::Canceled => Self::Voided,
+                TransactionStatus::Failed => Self::Failure,
+                TransactionStatus::Initialized | TransactionStatus::Authenticated => Self::Pending,
+            },
+            TransactionType::Credit => Self::Failure,
         }
     }
 }
@@ -471,6 +535,75 @@ impl<F>
         item: ResponseRouterData<F, DatatransResponse, PaymentsAuthorizeData, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let status = get_status(&item.response, item.data.request.is_auto_capture()?);
+        let response = match &item.response {
+            DatatransResponse::ErrorResponse(error) => Err(ErrorResponse {
+                code: error.code.clone(),
+                message: error.message.clone(),
+                reason: Some(error.message.clone()),
+                attempt_status: None,
+                connector_transaction_id: None,
+                status_code: item.http_code,
+            }),
+            DatatransResponse::TransactionResponse(response) => {
+                Ok(PaymentsResponseData::TransactionResponse {
+                    resource_id: ResponseId::ConnectorTransactionId(
+                        response.transaction_id.clone(),
+                    ),
+                    redirection_data: Box::new(None),
+                    mandate_reference: Box::new(None),
+                    connector_metadata: None,
+                    network_txn_id: None,
+                    connector_response_reference_id: None,
+                    incremental_authorization_allowed: None,
+                    charges: None,
+                })
+            }
+            DatatransResponse::ThreeDSResponse(response) => {
+                let redirection_link = match item.data.test_mode {
+                    Some(true) => format!("{}/v1/start", REDIRECTION_SBX_URL),
+                    Some(false) | None => format!("{}/v1/start", REDIRECTION_PROD_URL),
+                };
+                Ok(PaymentsResponseData::TransactionResponse {
+                    resource_id: ResponseId::ConnectorTransactionId(
+                        response.transaction_id.clone(),
+                    ),
+                    redirection_data: Box::new(Some(RedirectForm::Form {
+                        endpoint: format!("{}/{}", redirection_link, response.transaction_id),
+                        method: Method::Get,
+                        form_fields: HashMap::new(),
+                    })),
+                    mandate_reference: Box::new(None),
+                    connector_metadata: None,
+                    network_txn_id: None,
+                    connector_response_reference_id: None,
+                    incremental_authorization_allowed: None,
+                    charges: None,
+                })
+            }
+        };
+        Ok(Self {
+            status,
+            response,
+            ..item.data
+        })
+    }
+}
+
+impl<F>
+    TryFrom<ResponseRouterData<F, DatatransResponse, SetupMandateRequestData, PaymentsResponseData>>
+    for RouterData<F, SetupMandateRequestData, PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<
+            F,
+            DatatransResponse,
+            SetupMandateRequestData,
+            PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        // zero auth doesn't support manual capture
+        let status = get_status(&item.response, true);
         let response = match &item.response {
             DatatransResponse::ErrorResponse(error) => Err(ErrorResponse {
                 code: error.code.clone(),
