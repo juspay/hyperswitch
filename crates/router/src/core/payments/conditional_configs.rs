@@ -6,6 +6,8 @@ use router_env::{instrument, tracing};
 use storage_impl::redis::cache::{self, DECISION_MANAGER_CACHE};
 
 use super::routing::make_dsl_input;
+#[cfg(feature = "v2")]
+use crate::{core::errors::RouterResult, types::domain};
 use crate::{
     core::{errors, errors::ConditionalConfigError as ConfigError, routing as core_routing},
     routes,
@@ -13,6 +15,7 @@ use crate::{
 pub type ConditionalConfigResult<O> = errors::CustomResult<O, ConfigError>;
 
 #[instrument(skip_all)]
+#[cfg(feature = "v1")]
 pub async fn perform_decision_management(
     state: &routes::SessionState,
     algorithm_ref: routing::RoutingAlgorithmRef,
@@ -55,6 +58,23 @@ pub async fn perform_decision_management(
         make_dsl_input(payment_data).change_context(ConfigError::InputConstructionError)?;
 
     execute_dsl_and_get_conditional_config(backend_input, &interpreter)
+}
+
+#[cfg(feature = "v2")]
+pub fn perform_decision_management(
+    record: common_types::payments::DecisionManagerRecord,
+    payment_data: &core_routing::PaymentsDslInput<'_>,
+) -> RouterResult<common_types::payments::ConditionalConfigs> {
+    let interpreter = backend::VirInterpreterBackend::with_program(record.program)
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Error initializing DSL interpreter backend")?;
+
+    let backend_input = make_dsl_input(payment_data)
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Error constructing DSL input")?;
+    execute_dsl_and_get_conditional_config(backend_input, &interpreter)
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Error executing DSL")
 }
 
 pub fn execute_dsl_and_get_conditional_config(
