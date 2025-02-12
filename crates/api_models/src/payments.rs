@@ -34,7 +34,7 @@ use crate::payment_methods;
 use crate::{
     admin::{self, MerchantConnectorInfo},
     disputes, enums as api_enums,
-    mandates::{RecurringDetails,ProcessorPaymentToken},
+    mandates::{ProcessorPaymentToken, RecurringDetails},
     refunds,
 };
 

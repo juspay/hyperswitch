@@ -531,7 +531,7 @@ pub enum Flow {
     PaymentsManualUpdate,
     /// Dynamic Tax Calcultion
     SessionUpdateTaxCalculation,
-    /// Payments Create Intent 
+    /// Payments Create Intent
     ProxyConfirmIntent,
     /// Payments post session tokens flow
     PaymentsPostSessionTokens,

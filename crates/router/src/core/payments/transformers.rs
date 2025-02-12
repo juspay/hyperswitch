@@ -313,7 +313,11 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         .feature_metadata
         .as_ref()
         .and_then(|fm| fm.revenue_recovery_metadata.as_ref())
-        .map(|rrm| rrm.billing_connector_mit_token_details.connector_customer_id.clone());    
+        .map(|rrm| {
+            rrm.billing_connector_mit_token_details
+                .connector_customer_id
+                .clone()
+        });
     // TODO: evaluate the fields in router data, if they are required or not
     let router_data = types::RouterData {
         flow: PhantomData,

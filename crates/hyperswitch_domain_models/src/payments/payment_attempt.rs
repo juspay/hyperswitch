@@ -547,7 +547,7 @@ impl PaymentAttempt {
         })
     }
 
-        #[cfg(feature = "v2")]
+    #[cfg(feature = "v2")]
     pub async fn proxy_create_domain_model(
         payment_intent: &super::PaymentIntent,
         cell_id: id_type::CellId,
@@ -558,7 +558,8 @@ impl PaymentAttempt {
         let id = id_type::GlobalAttemptId::generate(&cell_id);
         let intent_amount_details = payment_intent.amount_details.clone();
 
-        let attempt_amount_details = intent_amount_details.proxy_create_attempt_amount_details(request);
+        let attempt_amount_details =
+            intent_amount_details.proxy_create_attempt_amount_details(request);
 
         let now = common_utils::date_time::now();
         let payment_method_billing_address = encrypted_data
@@ -571,61 +572,60 @@ impl PaymentAttempt {
             .transpose()
             .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
             .attach_printable("Unable to decode billing address")?;
-        let connector_token=Some(diesel_models::ConnectorTokenDetails {
-                connector_mandate_id: None,
-                    connector_mandate_request_reference_id: Some(common_utils::generate_id_with_len(
-                    consts::CONNECTOR_MANDATE_REQUEST_REFERENCE_ID_LENGTH,
-                )),
-            });
-            Ok(Self {
-                payment_id: payment_intent.id.clone(),
-                merchant_id: payment_intent.merchant_id.clone(),
-                amount_details: attempt_amount_details,
-                status: common_enums::AttemptStatus::Started,
-                // This will be decided by the routing algorithm and updated in update trackers
-                // right before calling the connector
-                connector: Some(request.connector.clone()),
-                authentication_type: payment_intent.authentication_type,
-                created_at: now,
-                modified_at: now,
-                last_synced: None,
-                cancellation_reason: None,
-                browser_info: request.browser_info.clone(),
-                payment_token: None,
-                connector_metadata: None,
-                payment_experience: None,
-                payment_method_data: None,
-                routing_result: None,
-                preprocessing_step_id: None,
-                multiple_capture_count: None,
-                connector_response_reference_id: None,
-                updated_by: storage_scheme.to_string(),
-                redirection_data: None,
-                encoded_data: None,
-                merchant_connector_id: Some(request.merchant_connector_id.clone()),
-                external_three_ds_authentication_attempted: None,
-                authentication_connector: None,
-                authentication_id: None,
-                fingerprint_id: None,
-                charges: None,
-                client_source: None,
-                client_version: None,
-                customer_acceptance: None,
-                profile_id: payment_intent.profile_id.clone(),
-                organization_id: payment_intent.organization_id.clone(),
-                payment_method_type: storage_enums::PaymentMethod::Card,
-                payment_method_id: None,
-                connector_payment_id: None,
-                payment_method_subtype: storage_enums::PaymentMethodType::Credit,   
-                authentication_applied: None,
-                external_reference_id: None,
-                payment_method_billing_address,
-                error: None,
-                connector_token_details: connector_token,
+        let connector_token = Some(diesel_models::ConnectorTokenDetails {
+            connector_mandate_id: None,
+            connector_mandate_request_reference_id: Some(common_utils::generate_id_with_len(
+                consts::CONNECTOR_MANDATE_REQUEST_REFERENCE_ID_LENGTH,
+            )),
+        });
+        Ok(Self {
+            payment_id: payment_intent.id.clone(),
+            merchant_id: payment_intent.merchant_id.clone(),
+            amount_details: attempt_amount_details,
+            status: common_enums::AttemptStatus::Started,
+            // This will be decided by the routing algorithm and updated in update trackers
+            // right before calling the connector
+            connector: Some(request.connector.clone()),
+            authentication_type: payment_intent.authentication_type,
+            created_at: now,
+            modified_at: now,
+            last_synced: None,
+            cancellation_reason: None,
+            browser_info: request.browser_info.clone(),
+            payment_token: None,
+            connector_metadata: None,
+            payment_experience: None,
+            payment_method_data: None,
+            routing_result: None,
+            preprocessing_step_id: None,
+            multiple_capture_count: None,
+            connector_response_reference_id: None,
+            updated_by: storage_scheme.to_string(),
+            redirection_data: None,
+            encoded_data: None,
+            merchant_connector_id: Some(request.merchant_connector_id.clone()),
+            external_three_ds_authentication_attempted: None,
+            authentication_connector: None,
+            authentication_id: None,
+            fingerprint_id: None,
+            charges: None,
+            client_source: None,
+            client_version: None,
+            customer_acceptance: None,
+            profile_id: payment_intent.profile_id.clone(),
+            organization_id: payment_intent.organization_id.clone(),
+            payment_method_type: storage_enums::PaymentMethod::Card,
+            payment_method_id: None,
+            connector_payment_id: None,
+            payment_method_subtype: storage_enums::PaymentMethodType::Credit,
+            authentication_applied: None,
+            external_reference_id: None,
+            payment_method_billing_address,
+            error: None,
+            connector_token_details: connector_token,
             id,
-                card_discovery: None,
+            card_discovery: None,
         })
-
     }
 }
 

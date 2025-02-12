@@ -84,7 +84,6 @@ pub trait ApiModelToDieselModelConvertor<F> {
     fn convert_back(self) -> F;
 }
 
-
 impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
     fn convert_from(from: ApiFeatureMetadata) -> Self {
         #[cfg(feature = "v1")]
@@ -106,9 +105,9 @@ impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
             search_tags,
             apple_pay_recurring_details: apple_pay_recurring_details
                 .map(ApplePayRecurringDetails::convert_from),
-                #[cfg(feature = "v2")]
-                revenue_recovery_metadata: revenue_recovery_metadata
-                    .map(RevenueRecoveryMetadata::convert_from),
+            #[cfg(feature = "v2")]
+            revenue_recovery_metadata: revenue_recovery_metadata
+                .map(RevenueRecoveryMetadata::convert_from),
         }
     }
 
@@ -132,7 +131,7 @@ impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
             search_tags,
             apple_pay_recurring_details: apple_pay_recurring_details
                 .map(|value| value.convert_back()),
-                #[cfg(feature = "v2")]
+            #[cfg(feature = "v2")]
             revenue_recovery_metadata: revenue_recovery_metadata.map(|value| value.convert_back()),
         }
     }
