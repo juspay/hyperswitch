@@ -16,8 +16,8 @@ use common_utils::{
 use diesel_models::{
     ephemeral_key,
     payment_attempt::ConnectorMandateReferenceId as DieselConnectorMandateReferenceId,
+    types::BillingConnectorMitTokenDetails,
 };
-use diesel_models::types::BillingConnectorMitTokenDetails;
 use error_stack::{report, ResultExt};
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::ApiModelToDieselModelConvertor;
@@ -314,7 +314,11 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         .feature_metadata
         .as_ref()
         .and_then(|fm| fm.revenue_recovery_metadata.as_ref())
-        .map(|rrm| rrm.billing_connector_mit_token_details.connector_customer_id.clone());    
+        .map(|rrm| {
+            rrm.billing_connector_mit_token_details
+                .connector_customer_id
+                .clone()
+        });
     // TODO: evaluate the fields in router data, if they are required or not
     let router_data = types::RouterData {
         flow: PhantomData,
@@ -359,7 +363,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         payment_method_status: None,
         payment_method_token: None,
         // fill this with the connector customer id
-        connector_customer: connector_customer_id,     
+        connector_customer: connector_customer_id,
         recurring_mandate_payment_data: None,
         // TODO: This has to be generated as the reference id based on the connector configuration
         // Some connectros might not accept accept the global id. This has to be done when generating the reference id
