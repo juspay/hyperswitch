@@ -50,8 +50,6 @@ use hyperswitch_domain_models::mandates::CommonMandateReference;
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use hyperswitch_domain_models::payment_method_data;
 use hyperswitch_domain_models::payments::{payment_attempt::PaymentAttempt, PaymentIntent};
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-use masking::ExposeInterface;
 use masking::{PeekInterface, Secret};
 use router_env::{instrument, tracing};
 use time::Duration;
@@ -1013,7 +1011,7 @@ pub async fn network_tokenize_and_vault_the_pmd(
     payment_method_data: &pm_types::PaymentMethodVaultingData,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
-    network_tokenization: Option<payment_methods::NetworkTokenization>,
+    network_tokenization: Option<common_types::payment_methods::NetworkTokenization>,
     network_tokenization_enabled_for_profile: bool,
     customer_id: &id_type::GlobalCustomerId,
 ) -> RouterResult<NetworkTokenPaymentMethodDetails> {
@@ -1023,7 +1021,10 @@ pub async fn network_tokenize_and_vault_the_pmd(
         }))
     })?;
 
-    let is_network_tokenization_enabled_for_pm = network_tokenization.is_some_and(|nt| nt.enabled);
+    let is_network_tokenization_enabled_for_pm = network_tokenization
+        .as_ref()
+        .map(|nt| matches!(nt.enable, common_enums::NetworkTokenizationToggle::Enable))
+        .unwrap_or(false);
 
     let card_data = match payment_method_data {
         pm_types::PaymentMethodVaultingData::Card(data)
