@@ -11,8 +11,6 @@ use hyperswitch_domain_models::merchant_key_store::MerchantKeyStore;
 use router_env::{instrument, logger, tracing, Flow};
 
 use super::app::{AppState, SessionState};
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-use crate::core::payment_methods::list_customer_payment_method_core;
 use crate::{
     core::{
         api_locking,

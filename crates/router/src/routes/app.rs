@@ -1015,13 +1015,10 @@ impl Customers {
                         .route(web::get().to(customers::customers_retrieve))
                         .route(web::delete().to(customers::customers_delete)),
                 )
-        }
-        #[cfg(all(feature = "olap", feature = "v2"))]
-        {
-            route = route.service(
-                web::resource("/{customer_id}/saved-payment-methods")
-                    .route(web::get().to(payment_methods::list_customer_payment_method_api)),
-            );
+                .service(
+                    web::resource("/{id}/saved-payment-methods")
+                        .route(web::get().to(payment_methods::list_customer_payment_method_api)),
+                )
         }
         route
     }
