@@ -9,7 +9,10 @@ use common_utils::{
 use error_stack::ResultExt;
 use masking::{ExposeInterface, Secret};
 
-use crate::{network_tokenization::NetworkTokenNumber, payment_address::PaymentAddress, payment_method_data, payments};
+use crate::{
+    network_tokenization::NetworkTokenNumber, payment_address::PaymentAddress, payment_method_data,
+    payments,
+};
 #[cfg(feature = "v2")]
 use crate::{
     payments::{

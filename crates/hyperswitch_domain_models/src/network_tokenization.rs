@@ -1,11 +1,6 @@
-use common_utils::id_type;
-use masking::Secret;
-use serde::{Deserialize, Serialize};
-
 use std::fmt::Debug;
 
 use api_models::enums as api_enums;
-
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
     not(feature = "payment_methods_v2")
@@ -13,7 +8,9 @@ use api_models::enums as api_enums;
 use cards::CardNumber;
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use cards::{CardNumber, NetworkToken};
-
+use common_utils::id_type;
+use masking::Secret;
+use serde::{Deserialize, Serialize};
 
 #[cfg(all(
     any(feature = "v1", feature = "v2"),

@@ -1,5 +1,6 @@
 use api_models::{
-    mandates, payment_methods::{self},
+    mandates,
+    payment_methods::{self},
     payments::{
         additional_info as payment_additional_types, AmazonPayRedirectData, ExtendedCardInfo,
     },
@@ -15,7 +16,6 @@ use common_utils::{
 use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use time::Date;
-
 
 // We need to derive Serialize and Deserialize because some parts of payment method data are being
 // stored in the database as serde_json::Value
@@ -592,7 +592,6 @@ pub struct SepaAndBacsBillingDetails {
     any(feature = "v1", feature = "v2"),
     not(feature = "payment_methods_v2")
 ))]
-
 #[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize, Default)]
 pub struct NetworkTokenData {
     pub token_number: cards::CardNumber,
@@ -1759,7 +1758,7 @@ impl From<GooglePayWalletData> for payment_methods::PaymentMethodDataWalletInfo 
         Self {
             last4: item.info.card_details,
             card_network: item.info.card_network,
-            card_type: Some(item.pm_type), 
+            card_type: Some(item.pm_type),
         }
     }
 }
@@ -1767,11 +1766,10 @@ impl From<GooglePayWalletData> for payment_methods::PaymentMethodDataWalletInfo 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub enum PaymentMethodsData {
     Card(CardDetailsPaymentMethod),
-    BankDetails(payment_methods::PaymentMethodDataBankCreds),  //PaymentMethodDataBankCreds and its transformations should be moved to the domain models 
-    WalletDetails(payment_methods::PaymentMethodDataWalletInfo), //PaymentMethodDataWalletInfo and its transformations should be moved to the domain models 
+    BankDetails(payment_methods::PaymentMethodDataBankCreds), //PaymentMethodDataBankCreds and its transformations should be moved to the domain models
+    WalletDetails(payment_methods::PaymentMethodDataWalletInfo), //PaymentMethodDataWalletInfo and its transformations should be moved to the domain models
     NetworkToken(NetworkTokenDetailsPaymentMethod),
 }
-
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct NetworkTokenDetailsPaymentMethod {
@@ -1808,7 +1806,6 @@ pub struct CardDetailsPaymentMethod {
     #[serde(default = "saved_in_locker_default")]
     pub saved_to_locker: bool,
 }
-
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 impl From<payment_methods::CardDetail> for CardDetailsPaymentMethod {

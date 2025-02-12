@@ -22,12 +22,12 @@ use diesel_models::{enums, types::OrderDetailsWithAmount};
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
     mandates,
+    network_tokenization::NetworkTokenNumber,
     payments::payment_attempt::PaymentAttempt,
     router_request_types::{
         AuthoriseIntegrityObject, CaptureIntegrityObject, RefundIntegrityObject,
         SyncIntegrityObject,
     },
-    network_tokenization::NetworkTokenNumber
 };
 use masking::{Deserialize, ExposeInterface, Secret};
 use once_cell::sync::Lazy;
@@ -3227,12 +3227,12 @@ impl NetworkTokenData for domain::NetworkTokenData {
         any(feature = "v1", feature = "v2"),
         not(feature = "payment_methods_v2")
     ))]
-    fn get_network_token(&self) -> NetworkTokenNumber{
+    fn get_network_token(&self) -> NetworkTokenNumber {
         self.token_number.clone()
     }
 
     #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-    fn get_network_token(&self) -> NetworkTokenNumber{
+    fn get_network_token(&self) -> NetworkTokenNumber {
         self.network_token.clone()
     }
 
@@ -3240,12 +3240,12 @@ impl NetworkTokenData for domain::NetworkTokenData {
         any(feature = "v1", feature = "v2"),
         not(feature = "payment_methods_v2")
     ))]
-    fn get_network_token_expiry_month(&self) -> Secret<String>{
+    fn get_network_token_expiry_month(&self) -> Secret<String> {
         self.token_exp_month.clone()
     }
 
     #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-    fn get_network_token_expiry_month(&self) -> Secret<String>{
+    fn get_network_token_expiry_month(&self) -> Secret<String> {
         self.network_token_exp_month.clone()
     }
 
@@ -3253,12 +3253,12 @@ impl NetworkTokenData for domain::NetworkTokenData {
         any(feature = "v1", feature = "v2"),
         not(feature = "payment_methods_v2")
     ))]
-    fn get_network_token_expiry_year(&self) -> Secret<String>{
+    fn get_network_token_expiry_year(&self) -> Secret<String> {
         self.token_exp_year.clone()
     }
 
     #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-    fn get_network_token_expiry_year(&self) -> Secret<String>{
+    fn get_network_token_expiry_year(&self) -> Secret<String> {
         self.network_token_exp_year.clone()
     }
 
@@ -3266,12 +3266,12 @@ impl NetworkTokenData for domain::NetworkTokenData {
         any(feature = "v1", feature = "v2"),
         not(feature = "payment_methods_v2")
     ))]
-    fn get_cryptogram(&self) -> Option<Secret<String>>{
+    fn get_cryptogram(&self) -> Option<Secret<String>> {
         self.token_cryptogram.clone()
     }
 
     #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-    fn get_cryptogram(&self) -> Option<Secret<String>>{
+    fn get_cryptogram(&self) -> Option<Secret<String>> {
         self.cryptogram.clone()
     }
 }

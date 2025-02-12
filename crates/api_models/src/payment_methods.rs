@@ -142,7 +142,7 @@ pub struct PaymentMethodCreate {
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
-pub struct NetworkTokenization{
+pub struct NetworkTokenization {
     /// Indicates whether payment method data [card] should be tokenized
     pub enabled: bool,
 }
@@ -557,7 +557,15 @@ pub struct CardDetail {
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 #[derive(
-    Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema, strum::EnumString, strum::Display, Eq, PartialEq,
+    Debug,
+    serde::Deserialize,
+    serde::Serialize,
+    Clone,
+    ToSchema,
+    strum::EnumString,
+    strum::Display,
+    Eq,
+    PartialEq,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum CardType {
