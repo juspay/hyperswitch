@@ -23,17 +23,20 @@ pub use api_models::{enums::PayoutConnectors, payouts as payout_types};
 use api_models::{payment_methods, webhooks::WebhookResponseTracker};
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use common_utils::{
-    consts::DEFAULT_LOCALE, crypto::Encryptable, ext_traits::{AsyncExt, Encode}, fp_utils::when, id_type,
+    consts::DEFAULT_LOCALE,
+    crypto::Encryptable,
+    ext_traits::{AsyncExt, Encode},
+    fp_utils::when,
+    id_type,
 };
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use common_utils::{
     crypto::{self, Encryptable},
     ext_traits::{AsyncExt, Encode, StringExt, ValueExt},
     fp_utils::when,
-    generate_id,
+    generate_id, id_type,
     request::RequestContent,
     types as util_types,
-    id_type,
 };
 use diesel_models::{
     enums, GenericLinkNew, PaymentMethodCollectLink, PaymentMethodCollectLinkData,
@@ -48,9 +51,9 @@ use hyperswitch_domain_models::api::{GenericLinks, GenericLinksData};
 ))]
 use hyperswitch_domain_models::mandates::CommonMandateReference;
 use hyperswitch_domain_models::payments::{payment_attempt::PaymentAttempt, PaymentIntent};
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-use masking::{PeekInterface, Secret};
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+use masking::{ PeekInterface, Secret};
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use masking::{ExposeInterface, PeekInterface, Secret};
 use router_env::{instrument, tracing};
 use time::Duration;
@@ -2001,8 +2004,8 @@ impl pm_types::SavedPMLPaymentsInfo {
 }
 
 #[cfg(feature = "v1")]
-pub fn get_network_token_payment_method_create_request(
-    network_token_data: payment_methods::CardDetail,
+pub fn fetch_payment_method_create_request(
+    data: &payment_methods::CardDetail,
     payment_method: &domain::PaymentMethod,
 ) -> payment_methods::PaymentMethodCreate {
     payment_methods::PaymentMethodCreate {
@@ -2016,9 +2019,10 @@ pub fn get_network_token_payment_method_create_request(
         connector_mandate_details: None,
         client_secret: None,
         billing: None,
-        card: Some(network_token_data.clone()),
-        card_network: network_token_data
+        card: Some(data.clone()),
+        card_network: data
             .card_network
+            .clone()
             .map(|card_network| card_network.to_string()),
         bank_transfer: None,
         wallet: None,
@@ -2030,10 +2034,7 @@ pub fn get_network_token_payment_method_create_request(
 pub async fn fetch_merchant_account_for_network_token_webhooks(
     state: &SessionState,
     merchant_id: &id_type::MerchantId,
-) -> RouterResult<(
-    domain::MerchantAccount,
-    domain::MerchantKeyStore,
-)> {
+) -> RouterResult<(domain::MerchantAccount, domain::MerchantKeyStore)> {
     let db = &*state.store;
     let key_manager_state = &(state).into();
 
@@ -2062,9 +2063,7 @@ pub async fn fetch_payment_method_for_network_token_webhooks(
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
     payment_method_id: &str,
-) -> RouterResult<
-    domain::PaymentMethod,
-> {
+) -> RouterResult<domain::PaymentMethod> {
     let db = &*state.store;
     let key_manager_state = &(state).into();
 
@@ -2083,30 +2082,19 @@ pub async fn fetch_payment_method_for_network_token_webhooks(
 }
 
 #[cfg(feature = "v1")]
+#[allow(clippy::too_many_arguments)]
 pub async fn handle_metadata_update(
     state: &SessionState,
     metadata: &network_tokenization::NetworkTokenRequestorData,
-    locker_id: Option<String>,
-    payment_method: domain::PaymentMethod,
+    locker_id: String,
+    payment_method: &domain::PaymentMethod,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
+    decrypted_data: payment_methods::CardDetailFromLocker,
     is_pan_update: bool,
 ) -> RouterResult<WebhookResponseTracker> {
     let merchant_id = merchant_account.get_id();
     let customer_id = &payment_method.customer_id;
-    let decrypted_data = payment_method
-        .payment_method_data
-        .clone()
-        .map(|x| x.into_inner().expose())
-        .and_then(|v| serde_json::from_value::<payment_methods::PaymentMethodsData>(v).ok())
-        .and_then(|pmd| match pmd {
-            payment_methods::PaymentMethodsData::Card(token) => {
-                Some(payment_methods::CardDetailFromLocker::from(token))
-            }
-            _ => None,
-        })
-        .ok_or(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to obtain decrypted token object from db")?; //decrypted data should be payment method data if card else network token payment method data
 
     when(
         decrypted_data.expiry_year.unwrap_or_default() == metadata.expiry_year,
@@ -2117,37 +2105,26 @@ pub async fn handle_metadata_update(
         },
     )?;
 
-    let mut card = match locker_id.as_ref() {
-        Some(locker_id) => cards::get_card_from_locker(state, customer_id, merchant_id, locker_id)
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to fetch token information from the locker")?,
-        None => return Err(errors::ApiErrorResponse::InternalServerError.into()),
-    };
+    let mut card = cards::get_card_from_locker(state, customer_id, merchant_id, &locker_id)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to fetch token information from the locker")?;
 
     card.card_exp_year = metadata.expiry_year.clone();
     card.card_exp_month = metadata.expiry_month.clone();
 
-    locker_id
-        .as_ref()
-        .async_map(|locker_id| {
-            cards::delete_card_from_locker(state, customer_id, merchant_id, locker_id)
-        })
+    cards::delete_card_from_locker(state, customer_id, merchant_id, &locker_id)
         .await
-        .transpose()
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("failed to delete network token information from the permanent locker")?;
 
     let card_network = card
         .card_brand
-        .map(|card_brand| {
-            enums::CardNetwork::from_str(&card_brand).change_context(
-                errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "card network",
-                },
-            )
-        })
-        .transpose()?;
+        .map(|card_brand| enums::CardNetwork::from_str(&card_brand))
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InvalidDataValue {
+            field_name: "card network",
+        })?;
 
     let card_data = payment_methods::CardDetail {
         card_number: card.card_number.clone(),
@@ -2161,8 +2138,10 @@ pub async fn handle_metadata_update(
         card_type: None,
     };
 
-    let payment_method_request =
-        get_network_token_payment_method_create_request(card_data.clone(), &payment_method);
+    let payment_method_request = fetch_payment_method_create_request(
+        &card_data,
+        payment_method,
+    );
 
     let (res, _) = cards::add_card_to_locker(
         state,
@@ -2222,7 +2201,7 @@ pub async fn handle_metadata_update(
     db.update_payment_method(
         &key_manager_state,
         key_store,
-        payment_method,
+        payment_method.clone(),
         pm_update,
         merchant_account.storage_scheme,
     )
