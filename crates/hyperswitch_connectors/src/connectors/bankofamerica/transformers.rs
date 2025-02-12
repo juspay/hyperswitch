@@ -431,7 +431,7 @@ impl<F, T>
                                     .unwrap_or(info_response.id),
                             ),
                             incremental_authorization_allowed: None,
-                            charge_id: None,
+                            charges: None,
                         }),
                     },
                     connector_response,
@@ -1518,7 +1518,7 @@ fn get_payment_response(
                         .unwrap_or(info_response.id.clone()),
                 ),
                 incremental_authorization_allowed: None,
-                charge_id: None,
+                charges: None,
             })
         }
     }
@@ -1816,7 +1816,7 @@ impl<F>
                                 .map(|cref| cref.code)
                                 .unwrap_or(Some(item.response.id)),
                             incremental_authorization_allowed: None,
-                            charge_id: None,
+                            charges: None,
                         }),
                         connector_response,
                         ..item.data
@@ -1833,7 +1833,7 @@ impl<F>
                     network_txn_id: None,
                     connector_response_reference_id: Some(item.response.id),
                     incremental_authorization_allowed: None,
-                    charge_id: None,
+                    charges: None,
                 }),
                 ..item.data
             }),

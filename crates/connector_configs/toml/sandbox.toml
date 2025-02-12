@@ -4114,6 +4114,25 @@ key1="Public Api Key"
 [datatrans.connector_auth.BodyKey]
 api_key = "Passcode"
 key1 = "datatrans MerchantId"
+[datatrans.metadata.acquirer_bin]
+name="acquirer_bin"
+label="Acquirer Bin"
+placeholder="Enter Acquirer Bin"
+required=false
+type="Text"
+[datatrans.metadata.acquirer_merchant_id]
+name="acquirer_merchant_id"
+label="Acquirer Merchant ID"
+placeholder="Enter Acquirer Merchant ID"
+required=false
+type="Text"
+[datatrans.metadata.acquirer_country_code]
+name="acquirer_country_code"
+label="Acquirer Country Code"
+placeholder="Enter Acquirer Country Code"
+required=false
+type="Text"
+
 
 [paybox]
 [[paybox.credit]]
@@ -4464,3 +4483,12 @@ type="Text"
   payment_method_type = "UnionPay"
 [xendit.connector_auth.HeaderKey]
 api_key="API Key"
+
+[inespay]
+[[inespay.bank_debit]]
+  payment_method_type = "sepa"
+[inespay.connector_auth.BodyKey]
+api_key="API Key"
+key1="API Token"
+[inespay.connector_webhook_details]
+merchant_secret="API Key"
