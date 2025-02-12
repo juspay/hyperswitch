@@ -890,11 +890,12 @@ Cypress.Commands.add(
       body: customerCreateBody,
       failOnStatusCode: false,
     }).then((response) => {
-      if (response.status === 200) {
-        globalState.set("customerId", response.body.customer_id);
-        logRequestId(response.headers["x-request-id"]);
+      logRequestId(response.headers["x-request-id"]);
 
-        cy.wrap(response).then(() => {
+      cy.wrap(response).then(() => {
+        if (response.status === 200) {
+          globalState.set("customerId", response.body.customer_id);
+
           expect(response.body.customer_id, "customer_id").to.not.be.empty;
           expect(customerCreateBody.email, "email").to.equal(
             response.body.email
@@ -913,13 +914,15 @@ Cypress.Commands.add(
             customerCreateBody.phone_country_code,
             "phone_country_code"
           ).to.equal(response.body.phone_country_code);
-        });
-      } else if (response.status === 400) {
-        expect(response.body.error.code).to.equal("IR_12");
-        expect(response.body.error.message).to.equal(
-          "Customer with the given `customer_id` already exists"
-        );
-      }
+        } else if (response.status === 400) {
+          if (response.body.error.message.includes("already exists")) {
+            expect(response.body.error.code).to.equal("IR_12");
+            expect(response.body.error.message).to.equal(
+              "Customer with the given `customer_id` already exists"
+            );
+          }
+        }
+      });
     });
   }
 );

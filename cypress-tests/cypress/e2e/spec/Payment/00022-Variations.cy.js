@@ -809,10 +809,10 @@ describe("Corner cases", () => {
     });
 
     it("Create a customer with a duplicate customer ID", () => {
-      const cusdata = fixtures.customerCreateBody;
-      cusdata.customer_id = globalState.get("customerId");
+      const customerData = fixtures.customerCreateBody;
+      customerData.customer_id = globalState.get("customerId");
 
-      cy.createCustomerCallTest(cusdata, globalState);
+      cy.createCustomerCallTest(customerData, globalState);
     });
   });
 });
