@@ -161,25 +161,20 @@ export const connectorDetails = {
     },
     Capture: {
       Request: {
-        payment_method: "card",
-        payment_method_type: "debit",
-        payment_method_data: {
-          card: successfulNoThreeDsCardDetailsRequest,
-        },
-        currency: "USD",
-        customer_acceptance: null,
+        amount_to_capture: 6000,
       },
       Response: {
         status: 200,
         body: {
           status: "succeeded",
-          amount: 6500,
+          amount: 6000,
           amount_capturable: 0,
         },
       },
     },
     PartialCapture: {
       Request: {
+        amount_to_capture: 2000,
         payment_method: "card",
         payment_method_type: "debit",
         payment_method_data: {
@@ -192,7 +187,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "partially_captured",
-          amount: 6500,
+          amount: 6000,
           amount_capturable: 0,
         },
       },
@@ -397,7 +392,9 @@ export const connectorDetails = {
       },
     },
     Refund: {
-      Request: {},
+      Request: {
+        amount: 6000,
+      },
       Response: {
         body: {
           status: "succeeded",
@@ -405,7 +402,9 @@ export const connectorDetails = {
       },
     },
     PartialRefund: {
-      Request: {},
+      Request: {
+        amount: 2000,
+      },
       Response: {
         body: {
           status: "succeeded",
@@ -414,11 +413,7 @@ export const connectorDetails = {
     },
     manualPaymentRefund: {
       Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNoThreeDsCardDetailsRequest,
-        },
-        currency: "USD",
+        amount: 6000,
       },
       Response: {
         body: {
@@ -428,11 +423,7 @@ export const connectorDetails = {
     },
     manualPaymentPartialRefund: {
       Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNoThreeDsCardDetailsRequest,
-        },
-        currency: "USD",
+        amount: 2000,
       },
       Response: {
         body: {
@@ -441,7 +432,6 @@ export const connectorDetails = {
       },
     },
     SyncRefund: {
-      Request: {},
       Response: {
         body: {
           status: "succeeded",
@@ -514,7 +504,7 @@ export const connectorDetails = {
     },
     PaymentIntentOffSession: {
       Request: {
-        amount: 6500,
+        amount: 6000,
         authentication_type: "no_three_ds",
         currency: "USD",
         customer_acceptance: null,
@@ -555,7 +545,7 @@ export const connectorDetails = {
         body: {
           status: "requires_payment_method",
           shipping_cost: 50,
-          amount: 6500,
+          amount: 6000,
         },
       },
     },
@@ -573,9 +563,9 @@ export const connectorDetails = {
         body: {
           status: "succeeded",
           shipping_cost: 50,
-          amount_received: 6550,
-          amount: 6500,
-          net_amount: 6550,
+          amount_received: 6050,
+          amount: 6000,
+          net_amount: 6050,
         },
       },
     },

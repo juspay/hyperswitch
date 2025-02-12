@@ -153,6 +153,15 @@ pub trait PaymentAttemptInterface {
         storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<PaymentAttempt, errors::StorageError>;
 
+    #[cfg(feature = "v2")]
+    async fn find_payment_attempts_by_payment_intent_id(
+        &self,
+        state: &KeyManagerState,
+        payment_id: &id_type::GlobalPaymentId,
+        merchant_key_store: &MerchantKeyStore,
+        storage_scheme: common_enums::MerchantStorageScheme,
+    ) -> error_stack::Result<Vec<PaymentAttempt>, errors::StorageError>;
+
     #[cfg(feature = "v1")]
     async fn find_payment_attempt_by_preprocessing_id_merchant_id(
         &self,
@@ -380,7 +389,6 @@ pub struct PaymentAttempt {
     /// The foreign key reference to the authentication details
     pub authentication_id: Option<String>,
     pub fingerprint_id: Option<String>,
-    pub charge_id: Option<String>,
     pub client_source: Option<String>,
     pub client_version: Option<String>,
     // TODO: use a type here instead of value
@@ -410,6 +418,8 @@ pub struct PaymentAttempt {
     pub connector_token_details: Option<diesel_models::ConnectorTokenDetails>,
     /// Indicates the method by which a card is discovered during a payment
     pub card_discovery: Option<common_enums::CardDiscovery>,
+    /// Split payment data
+    pub charges: Option<common_types::payments::ConnectorChargeResponseData>,
 }
 
 impl PaymentAttempt {
@@ -512,7 +522,7 @@ impl PaymentAttempt {
             authentication_connector: None,
             authentication_id: None,
             fingerprint_id: None,
-            charge_id: None,
+            charges: None,
             client_source: None,
             client_version: None,
             customer_acceptance: None,
@@ -681,6 +691,7 @@ pub struct PaymentAttempt {
     pub organization_id: id_type::OrganizationId,
     pub connector_mandate_detail: Option<ConnectorMandateReferenceId>,
     pub card_discovery: Option<common_enums::CardDiscovery>,
+    pub charges: Option<common_types::payments::ConnectorChargeResponseData>,
 }
 
 #[cfg(feature = "v1")]
@@ -920,7 +931,6 @@ pub struct PaymentAttemptNew {
     pub mandate_data: Option<MandateDetails>,
     pub payment_method_billing_address_id: Option<String>,
     pub fingerprint_id: Option<String>,
-    pub charge_id: Option<String>,
     pub client_source: Option<String>,
     pub client_version: Option<String>,
     pub customer_acceptance: Option<pii::SecretSerdeValue>,
@@ -1041,8 +1051,8 @@ pub enum PaymentAttemptUpdate {
         unified_code: Option<Option<String>>,
         unified_message: Option<Option<String>>,
         payment_method_data: Option<serde_json::Value>,
-        charge_id: Option<String>,
         connector_mandate_detail: Option<ConnectorMandateReferenceId>,
+        charges: Option<common_types::payments::ConnectorChargeResponseData>,
     },
     UnresolvedResponseUpdate {
         status: storage_enums::AttemptStatus,
@@ -1097,7 +1107,7 @@ pub enum PaymentAttemptUpdate {
         encoded_data: Option<String>,
         connector_transaction_id: Option<String>,
         connector: Option<String>,
-        charge_id: Option<String>,
+        charges: Option<common_types::payments::ConnectorChargeResponseData>,
         updated_by: String,
     },
     IncrementalAuthorizationAmountUpdate {
@@ -1313,8 +1323,8 @@ impl PaymentAttemptUpdate {
                 unified_code,
                 unified_message,
                 payment_method_data,
-                charge_id,
                 connector_mandate_detail,
+                charges,
             } => DieselPaymentAttemptUpdate::ResponseUpdate {
                 status,
                 connector,
@@ -1335,8 +1345,8 @@ impl PaymentAttemptUpdate {
                 unified_code,
                 unified_message,
                 payment_method_data,
-                charge_id,
                 connector_mandate_detail,
+                charges,
             },
             Self::UnresolvedResponseUpdate {
                 status,
@@ -1440,14 +1450,14 @@ impl PaymentAttemptUpdate {
                 encoded_data,
                 connector_transaction_id,
                 connector,
-                charge_id,
+                charges,
                 updated_by,
             } => DieselPaymentAttemptUpdate::ConnectorResponse {
                 authentication_data,
                 encoded_data,
                 connector_transaction_id,
+                charges,
                 connector,
-                charge_id,
                 updated_by,
             },
             Self::IncrementalAuthorizationAmountUpdate {
@@ -1652,6 +1662,7 @@ impl behaviour::Conversion for PaymentAttempt {
             shipping_cost: self.net_amount.get_shipping_cost(),
             connector_mandate_detail: self.connector_mandate_detail,
             card_discovery: self.card_discovery,
+            charges: self.charges,
         })
     }
 
@@ -1734,6 +1745,7 @@ impl behaviour::Conversion for PaymentAttempt {
                 organization_id: storage_model.organization_id,
                 connector_mandate_detail: storage_model.connector_mandate_detail,
                 card_discovery: storage_model.card_discovery,
+                charges: storage_model.charges,
             })
         }
         .await
@@ -1806,7 +1818,6 @@ impl behaviour::Conversion for PaymentAttempt {
             mandate_data: self.mandate_data.map(Into::into),
             fingerprint_id: self.fingerprint_id,
             payment_method_billing_address_id: self.payment_method_billing_address_id,
-            charge_id: self.charge_id,
             client_source: self.client_source,
             client_version: self.client_version,
             customer_acceptance: self.customer_acceptance,
@@ -1868,7 +1879,6 @@ impl behaviour::Conversion for PaymentAttempt {
             authentication_connector,
             authentication_id,
             fingerprint_id,
-            charge_id,
             client_source,
             client_version,
             customer_acceptance,
@@ -1885,6 +1895,7 @@ impl behaviour::Conversion for PaymentAttempt {
             connector,
             connector_token_details,
             card_discovery,
+            charges,
         } = self;
 
         let AttemptAmountDetails {
@@ -1944,7 +1955,6 @@ impl behaviour::Conversion for PaymentAttempt {
             authentication_connector,
             authentication_id,
             fingerprint_id,
-            charge_id,
             client_source,
             client_version,
             customer_acceptance,
@@ -1963,6 +1973,7 @@ impl behaviour::Conversion for PaymentAttempt {
             connector_payment_data,
             connector_token_details,
             card_discovery,
+            charges,
         })
     }
 
@@ -2062,7 +2073,7 @@ impl behaviour::Conversion for PaymentAttempt {
                 authentication_connector: storage_model.authentication_connector,
                 authentication_id: storage_model.authentication_id,
                 fingerprint_id: storage_model.fingerprint_id,
-                charge_id: storage_model.charge_id,
+                charges: storage_model.charges,
                 client_source: storage_model.client_source,
                 client_version: storage_model.client_version,
                 customer_acceptance: storage_model.customer_acceptance,
@@ -2142,7 +2153,6 @@ impl behaviour::Conversion for PaymentAttempt {
             authentication_connector: self.authentication_connector,
             authentication_id: self.authentication_id,
             fingerprint_id: self.fingerprint_id,
-            charge_id: self.charge_id,
             client_source: self.client_source,
             client_version: self.client_version,
             customer_acceptance: self.customer_acceptance,
@@ -2161,6 +2171,7 @@ impl behaviour::Conversion for PaymentAttempt {
             connector_token_details: self.connector_token_details,
             card_discovery: self.card_discovery,
             connector: self.connector,
+            charges: self.charges,
         })
     }
 }
