@@ -143,6 +143,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::PaymentsManualUpdate
             | Flow::SessionUpdateTaxCalculation
             | Flow::PaymentsConfirmIntent
+            | Flow::ProxyConfirmIntent
             | Flow::PaymentsCreateIntent
             | Flow::PaymentsGetIntent
             | Flow::PaymentsPostSessionTokens

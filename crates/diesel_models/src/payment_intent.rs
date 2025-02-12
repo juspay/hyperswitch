@@ -215,11 +215,14 @@ impl TaxDetails {
     /// Get the tax amount
     /// If default tax is present, return the default tax amount
     /// If default tax is not present, return the tax amount based on the payment method if it matches the provided payment method type
-    pub fn get_tax_amount(&self, payment_method: PaymentMethodType) -> Option<MinorUnit> {
+    pub fn get_tax_amount(&self, payment_method: Option<PaymentMethodType>) -> Option<MinorUnit> {
         self.payment_method_type
             .as_ref()
-            .filter(|payment_method_type_tax| payment_method_type_tax.pmt == payment_method)
-            .map(|payment_method_type_tax| payment_method_type_tax.order_tax_amount)
+            .zip(payment_method)
+            .filter(|(payment_method_type_tax, payment_method)| {
+                payment_method_type_tax.pmt == *payment_method
+            })
+            .map(|(payment_method_type_tax, _)| payment_method_type_tax.order_tax_amount)
             .or_else(|| self.get_default_tax_amount())
     }
 

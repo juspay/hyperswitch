@@ -302,6 +302,7 @@ pub struct PaymentAttemptNew {
     pub connector_token_details: Option<ConnectorTokenDetails>,
     pub card_discovery: Option<storage_enums::CardDiscovery>,
     pub charges: Option<common_types::payments::ConnectorChargeResponseData>,
+    pub connector: Option<String>,
 }
 
 #[cfg(feature = "v1")]

@@ -1,3 +1,5 @@
+#[cfg(feature = "v2")]
+use common_enums::{PaymentMethod, PaymentMethodType};
 use common_utils::{hashing::HashedString, pii, types::MinorUnit};
 use diesel::{
     sql_types::{Json, Jsonb},
@@ -40,6 +42,22 @@ impl masking::SerializableSecret for OrderDetailsWithAmount {}
 
 common_utils::impl_to_sql_from_sql_json!(OrderDetailsWithAmount);
 
+#[cfg(feature = "v2")]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]
+#[diesel(sql_type = Json)]
+pub struct FeatureMetadata {
+    /// Redirection response coming in request as metadata field only for redirection scenarios
+    pub redirect_response: Option<RedirectResponse>,
+    // TODO: Convert this to hashedstrings to avoid PII sensitive data
+    /// Additional tags to be used for global search
+    pub search_tags: Option<Vec<HashedString<WithType>>>,
+    /// Recurring payment details required for apple pay Merchant Token
+    pub apple_pay_recurring_details: Option<ApplePayRecurringDetails>,
+    /// revenue recovery data for payment intent
+    pub revenue_recovery_metadata: Option<RevenueRecoveryMetadata>,
+}
+
+#[cfg(feature = "v1")]
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]
 #[diesel(sql_type = Json)]
 pub struct FeatureMetadata {
@@ -106,3 +124,38 @@ pub struct RedirectResponse {
 }
 impl masking::SerializableSecret for RedirectResponse {}
 common_utils::impl_to_sql_from_sql_json!(RedirectResponse);
+
+#[cfg(feature = "v2")]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]
+#[diesel(sql_type = Json)]
+pub struct RevenueRecoveryMetadata {
+    ///Total number of billing connector + recovery retries for a payment intent.
+    pub retry_count: i32,
+    //if the payment_connector has been called or not
+    pub payment_connector_transmission: bool,
+    // Billing Connector Id to update the invoices
+    pub billing_connector_id: common_utils::id_type::MerchantConnectorAccountId,
+    // Payment Connector Id to retry the payments
+    pub active_attempt_payment_connector_id: common_utils::id_type::MerchantConnectorAccountId,
+    // Billing Connector Mit Token Details
+    pub billing_connector_mit_token_details: BillingConnectorMitTokenDetails,
+    //Payment Method Type
+    pub payment_method_type: PaymentMethod,
+    //PaymentMethod Subtype
+    pub payment_method_subtype: PaymentMethodType,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]
+#[diesel(sql_type = Json)]
+#[cfg(feature = "v2")]
+pub struct BillingConnectorMitTokenDetails {
+    //Payment Processor Token To process the retry payment
+    pub payment_processor_token: String,
+    //Connector Customer Id to process the retry payment
+    pub connector_customer_id: String,
+}
+
+#[cfg(feature = "v2")]
+common_utils::impl_to_sql_from_sql_json!(RevenueRecoveryMetadata);
+#[cfg(feature = "v2")]
+common_utils::impl_to_sql_from_sql_json!(BillingConnectorMitTokenDetails);
