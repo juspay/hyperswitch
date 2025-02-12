@@ -1370,6 +1370,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 forte::transformers::ForteAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            // api_enums::Connector::Getnet => {
+            //     getnet::transformers::GetnetAuthType::try_from(self.auth_type)?;
+            //     Ok(())
+            // }
             api_enums::Connector::Globalpay => {
                 globalpay::transformers::GlobalpayAuthType::try_from(self.auth_type)?;
                 Ok(())
@@ -1395,10 +1399,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 iatapay::transformers::IatapayAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
-            // api_enums::Connector::Inespay => {
-            //     inespay::transformers::InespayAuthType::try_from(self.auth_type)?;
-            //     Ok(())
-            // }
+            api_enums::Connector::Inespay => {
+                inespay::transformers::InespayAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Itaubank => {
                 itaubank::transformers::ItaubankAuthType::try_from(self.auth_type)?;
                 Ok(())
@@ -2186,6 +2190,12 @@ impl MerchantConnectorAccountUpdateBridge for api_models::admin::MerchantConnect
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed while decrypting connector account details")?;
 
+        let feature_metadata = self
+            .feature_metadata
+            .as_ref()
+            .map(ForeignTryFrom::foreign_try_from)
+            .transpose()?;
+
         Ok(storage::MerchantConnectorAccountUpdate::Update {
             connector_type: Some(self.connector_type),
             connector_label: self.connector_label.clone(),
@@ -2195,18 +2205,21 @@ impl MerchantConnectorAccountUpdateBridge for api_models::admin::MerchantConnect
             metadata: self.metadata,
             frm_configs,
             connector_webhook_details: match &self.connector_webhook_details {
-                Some(connector_webhook_details) => connector_webhook_details
-                    .encode_to_value()
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .map(Some)?
-                    .map(Secret::new),
-                None => None,
+                Some(connector_webhook_details) => Box::new(
+                    connector_webhook_details
+                        .encode_to_value()
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .map(Some)?
+                        .map(Secret::new),
+                ),
+                None => Box::new(None),
             },
             applepay_verified_domains: None,
             pm_auth_config: Box::new(self.pm_auth_config),
             status: Some(connector_status),
             additional_merchant_data: Box::new(encrypted_data.additional_merchant_data),
             connector_wallets_details: Box::new(encrypted_data.connector_wallets_details),
+            feature_metadata: Box::new(feature_metadata),
         })
     }
 }
@@ -2503,6 +2516,11 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed while decrypting connector account details")?;
 
+        let feature_metadata = self
+            .feature_metadata
+            .as_ref()
+            .map(ForeignTryFrom::foreign_try_from)
+            .transpose()?;
         Ok(domain::MerchantConnectorAccount {
             merchant_id: business_profile.merchant_id.clone(),
             connector_type: self.connector_type,
@@ -2534,6 +2552,7 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
             connector_wallets_details: encrypted_data.connector_wallets_details,
             additional_merchant_data: encrypted_data.additional_merchant_data,
             version: hyperswitch_domain_models::consts::API_VERSION,
+            feature_metadata,
         })
     }
 
@@ -3618,13 +3637,6 @@ impl ProfileCreateBridge for api::ProfileCreate {
             })
             .transpose()?;
 
-        let authentication_product_ids = self
-            .authentication_product_ids
-            .map(serde_json::to_value)
-            .transpose()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("failed to parse product authentication id's to value")?;
-
         Ok(domain::Profile::from(domain::ProfileSetter {
             profile_id,
             merchant_id: merchant_account.get_id().clone(),
@@ -3695,7 +3707,7 @@ impl ProfileCreateBridge for api::ProfileCreate {
             is_auto_retries_enabled: self.is_auto_retries_enabled.unwrap_or_default(),
             max_auto_retries_enabled: self.max_auto_retries_enabled.map(i16::from),
             is_click_to_pay_enabled: self.is_click_to_pay_enabled,
-            authentication_product_ids,
+            authentication_product_ids: self.authentication_product_ids,
         }))
     }
 
@@ -3746,13 +3758,6 @@ impl ProfileCreateBridge for api::ProfileCreate {
                 )),
             })
             .transpose()?;
-
-        let authentication_product_ids = self
-            .authentication_product_ids
-            .map(serde_json::to_value)
-            .transpose()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("failed to parse product authentication id's to value")?;
 
         Ok(domain::Profile::from(domain::ProfileSetter {
             id: profile_id,
@@ -3811,7 +3816,8 @@ impl ProfileCreateBridge for api::ProfileCreate {
             is_tax_connector_enabled: self.is_tax_connector_enabled,
             is_network_tokenization_enabled: self.is_network_tokenization_enabled,
             is_click_to_pay_enabled: self.is_click_to_pay_enabled,
-            authentication_product_ids,
+            authentication_product_ids: self.authentication_product_ids,
+            three_ds_decision_manager_config: None,
         }))
     }
 }
@@ -4019,13 +4025,6 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
             })
             .transpose()?;
 
-        let authentication_product_ids = self
-            .authentication_product_ids
-            .map(serde_json::to_value)
-            .transpose()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("failed to parse product authentication id's to value")?;
-
         Ok(domain::ProfileUpdate::Update(Box::new(
             domain::ProfileGeneralUpdate {
                 profile_name: self.profile_name,
@@ -4069,7 +4068,7 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                 is_auto_retries_enabled: self.is_auto_retries_enabled,
                 max_auto_retries_enabled: self.max_auto_retries_enabled.map(i16::from),
                 is_click_to_pay_enabled: self.is_click_to_pay_enabled,
-                authentication_product_ids,
+                authentication_product_ids: self.authentication_product_ids,
             },
         )))
     }
@@ -4132,13 +4131,6 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
             })
             .transpose()?;
 
-        let authentication_product_ids = self
-            .authentication_product_ids
-            .map(serde_json::to_value)
-            .transpose()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("failed to parse product authentication id's to value")?;
-
         Ok(domain::ProfileUpdate::Update(Box::new(
             domain::ProfileGeneralUpdate {
                 profile_name: self.profile_name,
@@ -4174,7 +4166,8 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                     .always_collect_shipping_details_from_wallet_connector,
                 is_network_tokenization_enabled: self.is_network_tokenization_enabled,
                 is_click_to_pay_enabled: self.is_click_to_pay_enabled,
-                authentication_product_ids,
+                authentication_product_ids: self.authentication_product_ids,
+                three_ds_decision_manager_config: None,
             },
         )))
     }

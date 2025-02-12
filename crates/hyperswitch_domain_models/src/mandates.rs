@@ -1,10 +1,17 @@
+use std::collections::HashMap;
+
 use api_models::payments::{
     AcceptanceType as ApiAcceptanceType, CustomerAcceptance as ApiCustomerAcceptance,
     MandateAmountData as ApiMandateAmountData, MandateData as ApiMandateData, MandateType,
     OnlineMandate as ApiOnlineMandate,
 };
 use common_enums::Currency;
-use common_utils::{date_time, errors::ParsingError, pii, types::MinorUnit};
+use common_utils::{
+    date_time,
+    errors::{CustomResult, ParsingError},
+    pii,
+    types::MinorUnit,
+};
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
 use time::PrimitiveDateTime;
@@ -252,5 +259,255 @@ impl MandateAmountData {
     }
     pub fn get_metadata(&self) -> Option<pii::SecretSerdeValue> {
         self.metadata.clone()
+    }
+}
+
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct PaymentsMandateReferenceRecord {
+    pub connector_mandate_id: String,
+    pub payment_method_type: Option<common_enums::PaymentMethodType>,
+    pub original_payment_authorized_amount: Option<i64>,
+    pub original_payment_authorized_currency: Option<Currency>,
+    pub mandate_metadata: Option<pii::SecretSerdeValue>,
+    pub connector_mandate_status: Option<common_enums::ConnectorMandateStatus>,
+    pub connector_mandate_request_reference_id: Option<String>,
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct PaymentsMandateReferenceRecord {
+    pub connector_mandate_id: String,
+    pub payment_method_subtype: Option<common_enums::PaymentMethodType>,
+    pub original_payment_authorized_amount: Option<i64>,
+    pub original_payment_authorized_currency: Option<Currency>,
+    pub mandate_metadata: Option<pii::SecretSerdeValue>,
+    pub connector_mandate_status: Option<common_enums::ConnectorMandateStatus>,
+    pub connector_mandate_request_reference_id: Option<String>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct PayoutsMandateReferenceRecord {
+    pub transfer_method_id: Option<String>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct PayoutsMandateReference(
+    pub HashMap<common_utils::id_type::MerchantConnectorAccountId, PayoutsMandateReferenceRecord>,
+);
+
+impl std::ops::Deref for PayoutsMandateReference {
+    type Target =
+        HashMap<common_utils::id_type::MerchantConnectorAccountId, PayoutsMandateReferenceRecord>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl std::ops::DerefMut for PayoutsMandateReference {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct PaymentsMandateReference(
+    pub HashMap<common_utils::id_type::MerchantConnectorAccountId, PaymentsMandateReferenceRecord>,
+);
+
+impl std::ops::Deref for PaymentsMandateReference {
+    type Target =
+        HashMap<common_utils::id_type::MerchantConnectorAccountId, PaymentsMandateReferenceRecord>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl std::ops::DerefMut for PaymentsMandateReference {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct CommonMandateReference {
+    pub payments: Option<PaymentsMandateReference>,
+    pub payouts: Option<PayoutsMandateReference>,
+}
+
+impl CommonMandateReference {
+    pub fn get_mandate_details_value(&self) -> CustomResult<serde_json::Value, ParsingError> {
+        let mut payments = self
+            .payments
+            .as_ref()
+            .map_or_else(|| Ok(serde_json::json!({})), serde_json::to_value)
+            .change_context(ParsingError::StructParseFailure("payment mandate details"))?;
+
+        self.payouts
+            .as_ref()
+            .map(|payouts_mandate| {
+                serde_json::to_value(payouts_mandate).map(|payouts_mandate_value| {
+                    payments.as_object_mut().map(|payments_object| {
+                        payments_object.insert("payouts".to_string(), payouts_mandate_value);
+                    })
+                })
+            })
+            .transpose()
+            .change_context(ParsingError::StructParseFailure("payout mandate details"))?;
+
+        Ok(payments)
+    }
+}
+
+impl From<diesel_models::CommonMandateReference> for CommonMandateReference {
+    fn from(value: diesel_models::CommonMandateReference) -> Self {
+        Self {
+            payments: value.payments.map(|payments| payments.into()),
+            payouts: value.payouts.map(|payouts| payouts.into()),
+        }
+    }
+}
+
+impl From<CommonMandateReference> for diesel_models::CommonMandateReference {
+    fn from(value: CommonMandateReference) -> Self {
+        Self {
+            payments: value.payments.map(|payments| payments.into()),
+            payouts: value.payouts.map(|payouts| payouts.into()),
+        }
+    }
+}
+
+impl From<diesel_models::PayoutsMandateReference> for PayoutsMandateReference {
+    fn from(value: diesel_models::PayoutsMandateReference) -> Self {
+        Self(
+            value
+                .0
+                .into_iter()
+                .map(|(key, record)| (key, record.into()))
+                .collect(),
+        )
+    }
+}
+
+impl From<PayoutsMandateReference> for diesel_models::PayoutsMandateReference {
+    fn from(value: PayoutsMandateReference) -> Self {
+        Self(
+            value
+                .0
+                .into_iter()
+                .map(|(key, record)| (key, record.into()))
+                .collect(),
+        )
+    }
+}
+
+impl From<diesel_models::PaymentsMandateReference> for PaymentsMandateReference {
+    fn from(value: diesel_models::PaymentsMandateReference) -> Self {
+        Self(
+            value
+                .0
+                .into_iter()
+                .map(|(key, record)| (key, record.into()))
+                .collect(),
+        )
+    }
+}
+
+impl From<PaymentsMandateReference> for diesel_models::PaymentsMandateReference {
+    fn from(value: PaymentsMandateReference) -> Self {
+        Self(
+            value
+                .0
+                .into_iter()
+                .map(|(key, record)| (key, record.into()))
+                .collect(),
+        )
+    }
+}
+
+impl From<diesel_models::PayoutsMandateReferenceRecord> for PayoutsMandateReferenceRecord {
+    fn from(value: diesel_models::PayoutsMandateReferenceRecord) -> Self {
+        Self {
+            transfer_method_id: value.transfer_method_id,
+        }
+    }
+}
+
+impl From<PayoutsMandateReferenceRecord> for diesel_models::PayoutsMandateReferenceRecord {
+    fn from(value: PayoutsMandateReferenceRecord) -> Self {
+        Self {
+            transfer_method_id: value.transfer_method_id,
+        }
+    }
+}
+
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
+impl From<diesel_models::PaymentsMandateReferenceRecord> for PaymentsMandateReferenceRecord {
+    fn from(value: diesel_models::PaymentsMandateReferenceRecord) -> Self {
+        Self {
+            connector_mandate_id: value.connector_mandate_id,
+            payment_method_type: value.payment_method_type,
+            original_payment_authorized_amount: value.original_payment_authorized_amount,
+            original_payment_authorized_currency: value.original_payment_authorized_currency,
+            mandate_metadata: value.mandate_metadata,
+            connector_mandate_status: value.connector_mandate_status,
+            connector_mandate_request_reference_id: value.connector_mandate_request_reference_id,
+        }
+    }
+}
+
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
+impl From<PaymentsMandateReferenceRecord> for diesel_models::PaymentsMandateReferenceRecord {
+    fn from(value: PaymentsMandateReferenceRecord) -> Self {
+        Self {
+            connector_mandate_id: value.connector_mandate_id,
+            payment_method_type: value.payment_method_type,
+            original_payment_authorized_amount: value.original_payment_authorized_amount,
+            original_payment_authorized_currency: value.original_payment_authorized_currency,
+            mandate_metadata: value.mandate_metadata,
+            connector_mandate_status: value.connector_mandate_status,
+            connector_mandate_request_reference_id: value.connector_mandate_request_reference_id,
+        }
+    }
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+impl From<diesel_models::PaymentsMandateReferenceRecord> for PaymentsMandateReferenceRecord {
+    fn from(value: diesel_models::PaymentsMandateReferenceRecord) -> Self {
+        Self {
+            connector_mandate_id: value.connector_mandate_id,
+            payment_method_subtype: value.payment_method_subtype,
+            original_payment_authorized_amount: value.original_payment_authorized_amount,
+            original_payment_authorized_currency: value.original_payment_authorized_currency,
+            mandate_metadata: value.mandate_metadata,
+            connector_mandate_status: value.connector_mandate_status,
+            connector_mandate_request_reference_id: value.connector_mandate_request_reference_id,
+        }
+    }
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+impl From<PaymentsMandateReferenceRecord> for diesel_models::PaymentsMandateReferenceRecord {
+    fn from(value: PaymentsMandateReferenceRecord) -> Self {
+        Self {
+            connector_mandate_id: value.connector_mandate_id,
+            payment_method_subtype: value.payment_method_subtype,
+            original_payment_authorized_amount: value.original_payment_authorized_amount,
+            original_payment_authorized_currency: value.original_payment_authorized_currency,
+            mandate_metadata: value.mandate_metadata,
+            connector_mandate_status: value.connector_mandate_status,
+            connector_mandate_request_reference_id: value.connector_mandate_request_reference_id,
+        }
     }
 }

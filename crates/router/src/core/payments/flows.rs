@@ -14,11 +14,12 @@ pub mod setup_mandate_flow;
 use async_trait::async_trait;
 use hyperswitch_domain_models::{
     mandates::CustomerAcceptance,
-    router_flow_types::{PostAuthenticate, PreAuthenticate},
+    router_flow_types::{Authenticate, PostAuthenticate, PreAuthenticate},
     router_request_types::PaymentsCaptureData,
 };
 use hyperswitch_interfaces::api::{
-    payouts::Payouts, UasPostAuthentication, UasPreAuthentication, UnifiedAuthenticationService,
+    payouts::Payouts, UasAuthentication, UasPostAuthentication, UasPreAuthentication,
+    UnifiedAuthenticationService,
 };
 
 #[cfg(feature = "frm")]
@@ -213,16 +214,10 @@ impl<const T: u8>
 
 default_imp_for_complete_authorize!(
     connector::Adyenplatform,
-    connector::Aci,
     connector::Adyen,
-    connector::Bankofamerica,
     connector::Checkout,
     connector::Ebanx,
     connector::Gpayments,
-    connector::Iatapay,
-    connector::Itaubank,
-    connector::Klarna,
-    connector::Mifinity,
     connector::Netcetera,
     connector::Noon,
     connector::Opayo,
@@ -235,7 +230,6 @@ default_imp_for_complete_authorize!(
     connector::Threedsecureio,
     connector::Trustpay,
     connector::Wise,
-    connector::Wellsfargo,
     connector::Wellsfargopayout
 );
 macro_rules! default_imp_for_webhook_source_verification {
@@ -266,24 +260,14 @@ impl<const T: u8>
 }
 default_imp_for_webhook_source_verification!(
     connector::Adyenplatform,
-    connector::Aci,
     connector::Adyen,
     connector::Authorizedotnet,
-    connector::Bankofamerica,
-    connector::Braintree,
     connector::Checkout,
-    connector::Cybersource,
     connector::Ebanx,
-    connector::Globalpay,
     connector::Gpayments,
-    connector::Iatapay,
-    connector::Itaubank,
-    connector::Klarna,
-    connector::Mifinity,
     connector::Netcetera,
     connector::Nmi,
     connector::Noon,
-    connector::Nuvei,
     connector::Opayo,
     connector::Opennode,
     connector::Payme,
@@ -294,7 +278,6 @@ default_imp_for_webhook_source_verification!(
     connector::Stripe,
     connector::Threedsecureio,
     connector::Trustpay,
-    connector::Wellsfargo,
     connector::Wellsfargopayout,
     connector::Wise
 );
@@ -328,24 +311,14 @@ impl<const T: u8>
 
 default_imp_for_create_customer!(
     connector::Adyenplatform,
-    connector::Aci,
     connector::Adyen,
     connector::Authorizedotnet,
-    connector::Bankofamerica,
-    connector::Braintree,
     connector::Checkout,
-    connector::Cybersource,
     connector::Ebanx,
-    connector::Globalpay,
     connector::Gpayments,
-    connector::Iatapay,
-    connector::Itaubank,
-    connector::Klarna,
-    connector::Mifinity,
     connector::Netcetera,
     connector::Nmi,
     connector::Noon,
-    connector::Nuvei,
     connector::Opayo,
     connector::Opennode,
     connector::Payme,
@@ -356,7 +329,6 @@ default_imp_for_create_customer!(
     connector::Signifyd,
     connector::Threedsecureio,
     connector::Trustpay,
-    connector::Wellsfargo,
     connector::Wellsfargopayout,
     connector::Wise
 );
@@ -392,16 +364,9 @@ impl<const T: u8> services::ConnectorRedirectResponse for connector::DummyConnec
 
 default_imp_for_connector_redirect_response!(
     connector::Adyenplatform,
-    connector::Aci,
     connector::Adyen,
-    connector::Bankofamerica,
-    connector::Cybersource,
     connector::Ebanx,
     connector::Gpayments,
-    connector::Iatapay,
-    connector::Itaubank,
-    connector::Klarna,
-    connector::Mifinity,
     connector::Netcetera,
     connector::Opayo,
     connector::Opennode,
@@ -410,7 +375,6 @@ default_imp_for_connector_redirect_response!(
     connector::Riskified,
     connector::Signifyd,
     connector::Threedsecureio,
-    connector::Wellsfargo,
     connector::Wellsfargopayout,
     connector::Wise
 );
@@ -442,8 +406,10 @@ default_imp_for_connector_request_id!(
     connector::Boku,
     connector::Braintree,
     connector::Cashtocode,
+    connector::Chargebee,
     connector::Checkout,
     connector::Coinbase,
+    connector::Coingate,
     connector::Cryptopay,
     connector::Cybersource,
     connector::Datatrans,
@@ -456,6 +422,7 @@ default_imp_for_connector_request_id!(
     connector::Fiservemea,
     connector::Fiuu,
     connector::Forte,
+    connector::Getnet,
     connector::Globalpay,
     connector::Globepay,
     connector::Gocardless,
@@ -545,22 +512,12 @@ impl<const T: u8>
 
 default_imp_for_accept_dispute!(
     connector::Adyenplatform,
-    connector::Aci,
     connector::Authorizedotnet,
-    connector::Bankofamerica,
-    connector::Braintree,
-    connector::Cybersource,
     connector::Ebanx,
-    connector::Globalpay,
     connector::Gpayments,
-    connector::Iatapay,
-    connector::Itaubank,
-    connector::Klarna,
-    connector::Mifinity,
     connector::Netcetera,
     connector::Nmi,
     connector::Noon,
-    connector::Nuvei,
     connector::Opayo,
     connector::Opennode,
     connector::Payme,
@@ -572,7 +529,6 @@ default_imp_for_accept_dispute!(
     connector::Stripe,
     connector::Threedsecureio,
     connector::Trustpay,
-    connector::Wellsfargo,
     connector::Wellsfargopayout,
     connector::Wise
 );
@@ -628,22 +584,12 @@ impl<const T: u8>
 
 default_imp_for_file_upload!(
     connector::Adyenplatform,
-    connector::Aci,
     connector::Authorizedotnet,
-    connector::Bankofamerica,
-    connector::Braintree,
-    connector::Cybersource,
     connector::Ebanx,
-    connector::Globalpay,
     connector::Gpayments,
-    connector::Iatapay,
-    connector::Itaubank,
-    connector::Klarna,
-    connector::Mifinity,
     connector::Netcetera,
     connector::Nmi,
     connector::Noon,
-    connector::Nuvei,
     connector::Opayo,
     connector::Payme,
     connector::Payone,
@@ -654,7 +600,6 @@ default_imp_for_file_upload!(
     connector::Threedsecureio,
     connector::Trustpay,
     connector::Opennode,
-    connector::Wellsfargo,
     connector::Wellsfargopayout,
     connector::Wise
 );
@@ -688,22 +633,12 @@ impl<const T: u8>
 
 default_imp_for_submit_evidence!(
     connector::Adyenplatform,
-    connector::Aci,
     connector::Authorizedotnet,
-    connector::Bankofamerica,
-    connector::Braintree,
-    connector::Cybersource,
     connector::Ebanx,
-    connector::Globalpay,
     connector::Gpayments,
-    connector::Iatapay,
-    connector::Itaubank,
-    connector::Klarna,
-    connector::Mifinity,
     connector::Netcetera,
     connector::Nmi,
     connector::Noon,
-    connector::Nuvei,
     connector::Opayo,
     connector::Payme,
     connector::Payone,
@@ -714,7 +649,6 @@ default_imp_for_submit_evidence!(
     connector::Threedsecureio,
     connector::Trustpay,
     connector::Opennode,
-    connector::Wellsfargo,
     connector::Wellsfargopayout,
     connector::Wise
 );
@@ -748,22 +682,12 @@ impl<const T: u8>
 
 default_imp_for_defend_dispute!(
     connector::Adyenplatform,
-    connector::Aci,
     connector::Authorizedotnet,
-    connector::Bankofamerica,
-    connector::Braintree,
-    connector::Cybersource,
     connector::Ebanx,
-    connector::Globalpay,
     connector::Gpayments,
-    connector::Iatapay,
-    connector::Itaubank,
-    connector::Klarna,
-    connector::Mifinity,
     connector::Netcetera,
     connector::Nmi,
     connector::Noon,
-    connector::Nuvei,
     connector::Opayo,
     connector::Payme,
     connector::Payone,
@@ -775,7 +699,6 @@ default_imp_for_defend_dispute!(
     connector::Threedsecureio,
     connector::Trustpay,
     connector::Opennode,
-    connector::Wellsfargo,
     connector::Wellsfargopayout,
     connector::Wise
 );
@@ -824,18 +747,10 @@ impl<const T: u8>
 
 default_imp_for_pre_processing_steps!(
     connector::Adyenplatform,
-    connector::Aci,
     connector::Authorizedotnet,
-    connector::Bankofamerica,
-    connector::Braintree,
     connector::Checkout,
     connector::Ebanx,
-    connector::Iatapay,
-    connector::Itaubank,
-    connector::Globalpay,
     connector::Gpayments,
-    connector::Klarna,
-    connector::Mifinity,
     connector::Netcetera,
     connector::Noon,
     connector::Opayo,
@@ -845,7 +760,6 @@ default_imp_for_pre_processing_steps!(
     connector::Riskified,
     connector::Signifyd,
     connector::Threedsecureio,
-    connector::Wellsfargo,
     connector::Wellsfargopayout,
     connector::Wise
 );
@@ -865,25 +779,15 @@ impl<const T: u8>
 default_imp_for_post_processing_steps!(
     connector::Adyenplatform,
     connector::Adyen,
-    connector::Bankofamerica,
-    connector::Cybersource,
     connector::Nmi,
-    connector::Nuvei,
     connector::Payme,
     connector::Paypal,
     connector::Stripe,
     connector::Trustpay,
-    connector::Aci,
     connector::Authorizedotnet,
-    connector::Braintree,
     connector::Checkout,
     connector::Ebanx,
-    connector::Iatapay,
-    connector::Itaubank,
-    connector::Globalpay,
     connector::Gpayments,
-    connector::Klarna,
-    connector::Mifinity,
     connector::Netcetera,
     connector::Noon,
     connector::Opayo,
@@ -892,7 +796,6 @@ default_imp_for_post_processing_steps!(
     connector::Riskified,
     connector::Signifyd,
     connector::Threedsecureio,
-    connector::Wellsfargo,
     connector::Wellsfargopayout,
     connector::Wise
 );
@@ -909,21 +812,12 @@ macro_rules! default_imp_for_payouts {
 impl<const T: u8> Payouts for connector::DummyConnector<T> {}
 
 default_imp_for_payouts!(
-    connector::Aci,
     connector::Authorizedotnet,
-    connector::Bankofamerica,
-    connector::Braintree,
     connector::Checkout,
-    connector::Globalpay,
     connector::Gpayments,
-    connector::Iatapay,
-    connector::Itaubank,
-    connector::Klarna,
-    connector::Mifinity,
     connector::Netcetera,
     connector::Nmi,
     connector::Noon,
-    connector::Nuvei,
     connector::Opayo,
     connector::Opennode,
     connector::Payme,
@@ -932,7 +826,6 @@ default_imp_for_payouts!(
     connector::Signifyd,
     connector::Threedsecureio,
     connector::Trustpay,
-    connector::Wellsfargo,
     connector::Wellsfargopayout
 );
 
@@ -966,22 +859,12 @@ impl<const T: u8>
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_create!(
     connector::Adyenplatform,
-    connector::Aci,
     connector::Authorizedotnet,
-    connector::Bankofamerica,
-    connector::Braintree,
     connector::Checkout,
-    connector::Cybersource,
-    connector::Globalpay,
     connector::Gpayments,
-    connector::Iatapay,
-    connector::Itaubank,
-    connector::Klarna,
-    connector::Mifinity,
     connector::Netcetera,
     connector::Nmi,
     connector::Noon,
-    connector::Nuvei,
     connector::Opayo,
     connector::Opennode,
     connector::Payme,
@@ -991,7 +874,6 @@ default_imp_for_payouts_create!(
     connector::Signifyd,
     connector::Threedsecureio,
     connector::Trustpay,
-    connector::Wellsfargo,
     connector::Wellsfargopayout
 );
 
@@ -1025,24 +907,14 @@ impl<const T: u8>
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_retrieve!(
     connector::Adyenplatform,
-    connector::Aci,
     connector::Adyen,
     connector::Authorizedotnet,
-    connector::Bankofamerica,
-    connector::Braintree,
     connector::Checkout,
-    connector::Cybersource,
     connector::Ebanx,
-    connector::Globalpay,
     connector::Gpayments,
-    connector::Iatapay,
-    connector::Itaubank,
-    connector::Klarna,
-    connector::Mifinity,
     connector::Netcetera,
     connector::Nmi,
     connector::Noon,
-    connector::Nuvei,
     connector::Opayo,
     connector::Opennode,
     connector::Payme,
@@ -1053,7 +925,6 @@ default_imp_for_payouts_retrieve!(
     connector::Stripe,
     connector::Threedsecureio,
     connector::Trustpay,
-    connector::Wellsfargo,
     connector::Wellsfargopayout,
     connector::Wise
 );
@@ -1091,22 +962,12 @@ impl<const T: u8>
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_eligibility!(
     connector::Adyenplatform,
-    connector::Aci,
     connector::Authorizedotnet,
-    connector::Bankofamerica,
-    connector::Braintree,
     connector::Checkout,
-    connector::Cybersource,
-    connector::Globalpay,
     connector::Gpayments,
-    connector::Iatapay,
-    connector::Itaubank,
-    connector::Klarna,
-    connector::Mifinity,
     connector::Netcetera,
     connector::Nmi,
     connector::Noon,
-    connector::Nuvei,
     connector::Opayo,
     connector::Opennode,
     connector::Payme,
@@ -1118,7 +979,6 @@ default_imp_for_payouts_eligibility!(
     connector::Stripe,
     connector::Threedsecureio,
     connector::Trustpay,
-    connector::Wellsfargo,
     connector::Wellsfargopayout
 );
 
@@ -1151,21 +1011,12 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_fulfill!(
-    connector::Aci,
     connector::Authorizedotnet,
-    connector::Bankofamerica,
-    connector::Braintree,
     connector::Checkout,
-    connector::Globalpay,
     connector::Gpayments,
-    connector::Iatapay,
-    connector::Itaubank,
-    connector::Klarna,
-    connector::Mifinity,
     connector::Netcetera,
     connector::Nmi,
     connector::Noon,
-    connector::Nuvei,
     connector::Opayo,
     connector::Opennode,
     connector::Payme,
@@ -1174,7 +1025,6 @@ default_imp_for_payouts_fulfill!(
     connector::Signifyd,
     connector::Threedsecureio,
     connector::Trustpay,
-    connector::Wellsfargo,
     connector::Wellsfargopayout
 );
 
@@ -1208,22 +1058,12 @@ impl<const T: u8>
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_cancel!(
     connector::Adyenplatform,
-    connector::Aci,
     connector::Authorizedotnet,
-    connector::Bankofamerica,
-    connector::Braintree,
     connector::Checkout,
-    connector::Cybersource,
-    connector::Globalpay,
     connector::Gpayments,
-    connector::Iatapay,
-    connector::Itaubank,
-    connector::Klarna,
-    connector::Mifinity,
     connector::Netcetera,
     connector::Nmi,
     connector::Noon,
-    connector::Nuvei,
     connector::Opayo,
     connector::Opennode,
     connector::Payme,
@@ -1234,7 +1074,6 @@ default_imp_for_payouts_cancel!(
     connector::Signifyd,
     connector::Threedsecureio,
     connector::Trustpay,
-    connector::Wellsfargo,
     connector::Wellsfargopayout
 );
 
@@ -1268,23 +1107,13 @@ impl<const T: u8>
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_quote!(
     connector::Adyenplatform,
-    connector::Aci,
     connector::Adyen,
     connector::Authorizedotnet,
-    connector::Bankofamerica,
-    connector::Braintree,
     connector::Checkout,
-    connector::Cybersource,
-    connector::Globalpay,
     connector::Gpayments,
-    connector::Iatapay,
-    connector::Itaubank,
-    connector::Klarna,
-    connector::Mifinity,
     connector::Netcetera,
     connector::Nmi,
     connector::Noon,
-    connector::Nuvei,
     connector::Opayo,
     connector::Opennode,
     connector::Payme,
@@ -1296,7 +1125,6 @@ default_imp_for_payouts_quote!(
     connector::Stripe,
     connector::Threedsecureio,
     connector::Trustpay,
-    connector::Wellsfargo,
     connector::Wellsfargopayout
 );
 
@@ -1330,23 +1158,13 @@ impl<const T: u8>
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_recipient!(
     connector::Adyenplatform,
-    connector::Aci,
     connector::Adyen,
     connector::Authorizedotnet,
-    connector::Bankofamerica,
-    connector::Braintree,
     connector::Checkout,
-    connector::Cybersource,
-    connector::Globalpay,
     connector::Gpayments,
-    connector::Iatapay,
-    connector::Itaubank,
-    connector::Klarna,
-    connector::Mifinity,
     connector::Netcetera,
     connector::Nmi,
     connector::Noon,
-    connector::Nuvei,
     connector::Opayo,
     connector::Opennode,
     connector::Payme,
@@ -1357,7 +1175,6 @@ default_imp_for_payouts_recipient!(
     connector::Signifyd,
     connector::Threedsecureio,
     connector::Trustpay,
-    connector::Wellsfargo,
     connector::Wellsfargopayout
 );
 
@@ -1394,24 +1211,14 @@ impl<const T: u8>
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_recipient_account!(
     connector::Adyenplatform,
-    connector::Aci,
     connector::Adyen,
     connector::Authorizedotnet,
-    connector::Bankofamerica,
-    connector::Braintree,
     connector::Checkout,
-    connector::Cybersource,
     connector::Ebanx,
-    connector::Globalpay,
     connector::Gpayments,
-    connector::Iatapay,
-    connector::Itaubank,
-    connector::Klarna,
-    connector::Mifinity,
     connector::Netcetera,
     connector::Nmi,
     connector::Noon,
-    connector::Nuvei,
     connector::Opayo,
     connector::Opennode,
     connector::Payme,
@@ -1422,7 +1229,6 @@ default_imp_for_payouts_recipient_account!(
     connector::Signifyd,
     connector::Threedsecureio,
     connector::Trustpay,
-    connector::Wellsfargo,
     connector::Wellsfargopayout,
     connector::Wise
 );
@@ -1456,24 +1262,14 @@ impl<const T: u8>
 
 default_imp_for_approve!(
     connector::Adyenplatform,
-    connector::Aci,
     connector::Adyen,
     connector::Authorizedotnet,
-    connector::Bankofamerica,
-    connector::Braintree,
     connector::Checkout,
-    connector::Cybersource,
     connector::Ebanx,
-    connector::Globalpay,
     connector::Gpayments,
-    connector::Iatapay,
-    connector::Itaubank,
-    connector::Klarna,
-    connector::Mifinity,
     connector::Netcetera,
     connector::Nmi,
     connector::Noon,
-    connector::Nuvei,
     connector::Opayo,
     connector::Opennode,
     connector::Payme,
@@ -1485,7 +1281,6 @@ default_imp_for_approve!(
     connector::Stripe,
     connector::Threedsecureio,
     connector::Trustpay,
-    connector::Wellsfargo,
     connector::Wellsfargopayout,
     connector::Wise
 );
@@ -1519,24 +1314,14 @@ impl<const T: u8>
 
 default_imp_for_reject!(
     connector::Adyenplatform,
-    connector::Aci,
     connector::Adyen,
     connector::Authorizedotnet,
-    connector::Bankofamerica,
-    connector::Braintree,
     connector::Checkout,
-    connector::Cybersource,
     connector::Ebanx,
-    connector::Globalpay,
     connector::Gpayments,
-    connector::Iatapay,
-    connector::Itaubank,
-    connector::Klarna,
-    connector::Mifinity,
     connector::Netcetera,
     connector::Nmi,
     connector::Noon,
-    connector::Nuvei,
     connector::Opayo,
     connector::Opennode,
     connector::Payme,
@@ -1548,7 +1333,6 @@ default_imp_for_reject!(
     connector::Stripe,
     connector::Threedsecureio,
     connector::Trustpay,
-    connector::Wellsfargo,
     connector::Wellsfargopayout,
     connector::Wise
 );
@@ -1580,10 +1364,12 @@ default_imp_for_fraud_check!(
     connector::Boku,
     connector::Braintree,
     connector::Cashtocode,
+    connector::Chargebee,
     connector::Checkout,
     connector::Cryptopay,
     connector::Cybersource,
     connector::Coinbase,
+    connector::Coingate,
     connector::Datatrans,
     connector::Deutschebank,
     connector::Digitalvirgo,
@@ -1594,6 +1380,7 @@ default_imp_for_fraud_check!(
     connector::Fiservemea,
     connector::Fiuu,
     connector::Forte,
+    connector::Getnet,
     connector::Globalpay,
     connector::Globepay,
     connector::Gocardless,
@@ -1682,24 +1469,14 @@ impl<const T: u8>
 #[cfg(feature = "frm")]
 default_imp_for_frm_sale!(
     connector::Adyenplatform,
-    connector::Aci,
     connector::Adyen,
     connector::Authorizedotnet,
-    connector::Bankofamerica,
-    connector::Braintree,
     connector::Checkout,
-    connector::Cybersource,
     connector::Ebanx,
-    connector::Globalpay,
     connector::Gpayments,
-    connector::Iatapay,
-    connector::Itaubank,
-    connector::Klarna,
-    connector::Mifinity,
     connector::Netcetera,
     connector::Nmi,
     connector::Noon,
-    connector::Nuvei,
     connector::Opayo,
     connector::Opennode,
     connector::Payme,
@@ -1709,7 +1486,6 @@ default_imp_for_frm_sale!(
     connector::Stripe,
     connector::Threedsecureio,
     connector::Trustpay,
-    connector::Wellsfargo,
     connector::Wellsfargopayout,
     connector::Wise
 );
@@ -1745,24 +1521,14 @@ impl<const T: u8>
 #[cfg(feature = "frm")]
 default_imp_for_frm_checkout!(
     connector::Adyenplatform,
-    connector::Aci,
     connector::Adyen,
     connector::Authorizedotnet,
-    connector::Bankofamerica,
-    connector::Braintree,
     connector::Checkout,
-    connector::Cybersource,
     connector::Ebanx,
-    connector::Globalpay,
     connector::Gpayments,
-    connector::Iatapay,
-    connector::Itaubank,
-    connector::Klarna,
-    connector::Mifinity,
     connector::Netcetera,
     connector::Nmi,
     connector::Noon,
-    connector::Nuvei,
     connector::Opayo,
     connector::Opennode,
     connector::Payme,
@@ -1772,7 +1538,6 @@ default_imp_for_frm_checkout!(
     connector::Stripe,
     connector::Threedsecureio,
     connector::Trustpay,
-    connector::Wellsfargo,
     connector::Wellsfargopayout,
     connector::Wise
 );
@@ -1808,24 +1573,14 @@ impl<const T: u8>
 #[cfg(feature = "frm")]
 default_imp_for_frm_transaction!(
     connector::Adyenplatform,
-    connector::Aci,
     connector::Adyen,
     connector::Authorizedotnet,
-    connector::Bankofamerica,
-    connector::Braintree,
     connector::Checkout,
-    connector::Cybersource,
     connector::Ebanx,
-    connector::Globalpay,
     connector::Gpayments,
-    connector::Iatapay,
-    connector::Itaubank,
-    connector::Klarna,
-    connector::Mifinity,
     connector::Netcetera,
     connector::Nmi,
     connector::Noon,
-    connector::Nuvei,
     connector::Opayo,
     connector::Opennode,
     connector::Payme,
@@ -1835,7 +1590,6 @@ default_imp_for_frm_transaction!(
     connector::Stripe,
     connector::Threedsecureio,
     connector::Trustpay,
-    connector::Wellsfargo,
     connector::Wellsfargopayout,
     connector::Wise
 );
@@ -1871,24 +1625,14 @@ impl<const T: u8>
 #[cfg(feature = "frm")]
 default_imp_for_frm_fulfillment!(
     connector::Adyenplatform,
-    connector::Aci,
     connector::Adyen,
     connector::Authorizedotnet,
-    connector::Bankofamerica,
-    connector::Braintree,
     connector::Checkout,
-    connector::Cybersource,
     connector::Ebanx,
-    connector::Globalpay,
     connector::Gpayments,
-    connector::Iatapay,
-    connector::Itaubank,
-    connector::Klarna,
-    connector::Mifinity,
     connector::Netcetera,
     connector::Nmi,
     connector::Noon,
-    connector::Nuvei,
     connector::Opayo,
     connector::Opennode,
     connector::Payme,
@@ -1898,7 +1642,6 @@ default_imp_for_frm_fulfillment!(
     connector::Stripe,
     connector::Threedsecureio,
     connector::Trustpay,
-    connector::Wellsfargo,
     connector::Wellsfargopayout,
     connector::Wise
 );
@@ -1934,24 +1677,14 @@ impl<const T: u8>
 #[cfg(feature = "frm")]
 default_imp_for_frm_record_return!(
     connector::Adyenplatform,
-    connector::Aci,
     connector::Adyen,
     connector::Authorizedotnet,
-    connector::Bankofamerica,
-    connector::Braintree,
     connector::Checkout,
-    connector::Cybersource,
     connector::Ebanx,
-    connector::Globalpay,
     connector::Gpayments,
-    connector::Iatapay,
-    connector::Itaubank,
-    connector::Klarna,
-    connector::Mifinity,
     connector::Netcetera,
     connector::Nmi,
     connector::Noon,
-    connector::Nuvei,
     connector::Opayo,
     connector::Opennode,
     connector::Payme,
@@ -1961,7 +1694,6 @@ default_imp_for_frm_record_return!(
     connector::Stripe,
     connector::Threedsecureio,
     connector::Trustpay,
-    connector::Wellsfargo,
     connector::Wellsfargopayout,
     connector::Wise
 );
@@ -1995,23 +1727,14 @@ impl<const T: u8>
 
 default_imp_for_incremental_authorization!(
     connector::Adyenplatform,
-    connector::Aci,
     connector::Adyen,
     connector::Authorizedotnet,
-    connector::Bankofamerica,
-    connector::Braintree,
     connector::Checkout,
     connector::Ebanx,
-    connector::Globalpay,
     connector::Gpayments,
-    connector::Iatapay,
-    connector::Itaubank,
-    connector::Klarna,
-    connector::Mifinity,
     connector::Netcetera,
     connector::Nmi,
     connector::Noon,
-    connector::Nuvei,
     connector::Opayo,
     connector::Opennode,
     connector::Payme,
@@ -2054,22 +1777,13 @@ impl<const T: u8>
 }
 default_imp_for_revoking_mandates!(
     connector::Adyenplatform,
-    connector::Aci,
     connector::Adyen,
     connector::Authorizedotnet,
-    connector::Bankofamerica,
-    connector::Braintree,
     connector::Checkout,
     connector::Ebanx,
-    connector::Globalpay,
     connector::Gpayments,
-    connector::Iatapay,
-    connector::Itaubank,
-    connector::Klarna,
-    connector::Mifinity,
     connector::Netcetera,
     connector::Nmi,
-    connector::Nuvei,
     connector::Opayo,
     connector::Opennode,
     connector::Payme,
@@ -2186,9 +1900,11 @@ default_imp_for_connector_authentication!(
     connector::Boku,
     connector::Braintree,
     connector::Cashtocode,
+    connector::Chargebee,
     connector::Checkout,
     connector::Cryptopay,
     connector::Coinbase,
+    connector::Coingate,
     connector::Cybersource,
     connector::Datatrans,
     connector::Deutschebank,
@@ -2200,6 +1916,7 @@ default_imp_for_connector_authentication!(
     connector::Fiservemea,
     connector::Fiuu,
     connector::Forte,
+    connector::Getnet,
     connector::Globalpay,
     connector::Globepay,
     connector::Gocardless,
@@ -2281,21 +1998,12 @@ impl<const T: u8>
 {
 }
 default_imp_for_authorize_session_token!(
-    connector::Aci,
     connector::Adyen,
     connector::Adyenplatform,
     connector::Authorizedotnet,
-    connector::Bankofamerica,
-    connector::Braintree,
     connector::Checkout,
-    connector::Cybersource,
     connector::Ebanx,
-    connector::Globalpay,
     connector::Gpayments,
-    connector::Iatapay,
-    connector::Itaubank,
-    connector::Klarna,
-    connector::Mifinity,
     connector::Netcetera,
     connector::Nmi,
     connector::Noon,
@@ -2310,7 +2018,6 @@ default_imp_for_authorize_session_token!(
     connector::Stripe,
     connector::Threedsecureio,
     connector::Trustpay,
-    connector::Wellsfargo,
     connector::Wellsfargopayout,
     connector::Wise
 );
@@ -2341,23 +2048,13 @@ impl<const T: u8>
 }
 
 default_imp_for_calculate_tax!(
-    connector::Aci,
     connector::Adyen,
     connector::Adyenplatform,
     connector::Authorizedotnet,
-    connector::Bankofamerica,
-    connector::Braintree,
     connector::Checkout,
-    connector::Cybersource,
     connector::Ebanx,
-    connector::Globalpay,
     connector::Gpayments,
-    connector::Iatapay,
-    connector::Itaubank,
-    connector::Klarna,
-    connector::Mifinity,
     connector::Netcetera,
-    connector::Nuvei,
     connector::Nmi,
     connector::Noon,
     connector::Opayo,
@@ -2371,7 +2068,6 @@ default_imp_for_calculate_tax!(
     connector::Stripe,
     connector::Threedsecureio,
     connector::Trustpay,
-    connector::Wellsfargo,
     connector::Wellsfargopayout,
     connector::Wise
 );
@@ -2402,23 +2098,13 @@ impl<const T: u8>
 }
 
 default_imp_for_session_update!(
-    connector::Aci,
     connector::Adyen,
     connector::Adyenplatform,
     connector::Authorizedotnet,
-    connector::Bankofamerica,
-    connector::Braintree,
     connector::Checkout,
-    connector::Cybersource,
     connector::Ebanx,
-    connector::Globalpay,
     connector::Gpayments,
-    connector::Iatapay,
-    connector::Itaubank,
-    connector::Klarna,
-    connector::Mifinity,
     connector::Netcetera,
-    connector::Nuvei,
     connector::Nmi,
     connector::Noon,
     connector::Opayo,
@@ -2431,7 +2117,6 @@ default_imp_for_session_update!(
     connector::Stripe,
     connector::Threedsecureio,
     connector::Trustpay,
-    connector::Wellsfargo,
     connector::Wellsfargopayout,
     connector::Wise
 );
@@ -2462,23 +2147,13 @@ impl<const T: u8>
 }
 
 default_imp_for_post_session_tokens!(
-    connector::Aci,
     connector::Adyen,
     connector::Adyenplatform,
     connector::Authorizedotnet,
-    connector::Bankofamerica,
-    connector::Braintree,
     connector::Checkout,
-    connector::Cybersource,
     connector::Ebanx,
-    connector::Globalpay,
     connector::Gpayments,
-    connector::Iatapay,
-    connector::Itaubank,
-    connector::Klarna,
-    connector::Mifinity,
     connector::Netcetera,
-    connector::Nuvei,
     connector::Nmi,
     connector::Noon,
     connector::Opayo,
@@ -2491,7 +2166,6 @@ default_imp_for_post_session_tokens!(
     connector::Stripe,
     connector::Threedsecureio,
     connector::Trustpay,
-    connector::Wellsfargo,
     connector::Wellsfargopayout,
     connector::Wise
 );
@@ -2526,24 +2200,14 @@ impl<const T: u8>
 
 default_imp_for_uas_pre_authentication!(
     connector::Adyenplatform,
-    connector::Aci,
     connector::Adyen,
     connector::Authorizedotnet,
-    connector::Bankofamerica,
-    connector::Braintree,
     connector::Checkout,
-    connector::Cybersource,
     connector::Ebanx,
-    connector::Globalpay,
     connector::Gpayments,
-    connector::Iatapay,
-    connector::Itaubank,
-    connector::Klarna,
-    connector::Mifinity,
     connector::Netcetera,
     connector::Nmi,
     connector::Noon,
-    connector::Nuvei,
     connector::Opayo,
     connector::Opennode,
     connector::Payme,
@@ -2555,7 +2219,6 @@ default_imp_for_uas_pre_authentication!(
     connector::Stripe,
     connector::Threedsecureio,
     connector::Trustpay,
-    connector::Wellsfargo,
     connector::Wellsfargopayout,
     connector::Wise
 );
@@ -2587,24 +2250,14 @@ impl<const T: u8>
 
 default_imp_for_uas_post_authentication!(
     connector::Adyenplatform,
-    connector::Aci,
     connector::Adyen,
     connector::Authorizedotnet,
-    connector::Bankofamerica,
-    connector::Braintree,
     connector::Checkout,
-    connector::Cybersource,
     connector::Ebanx,
-    connector::Globalpay,
     connector::Gpayments,
-    connector::Iatapay,
-    connector::Itaubank,
-    connector::Klarna,
-    connector::Mifinity,
     connector::Netcetera,
     connector::Nmi,
     connector::Noon,
-    connector::Nuvei,
     connector::Opayo,
     connector::Opennode,
     connector::Payme,
@@ -2616,7 +2269,56 @@ default_imp_for_uas_post_authentication!(
     connector::Stripe,
     connector::Threedsecureio,
     connector::Trustpay,
-    connector::Wellsfargo,
+    connector::Wellsfargopayout,
+    connector::Wise
+);
+
+macro_rules! default_imp_for_uas_authentication {
+    ($($path:ident::$connector:ident),*) => {
+        $( impl UasAuthentication for $path::$connector {}
+            impl
+            services::ConnectorIntegration<
+                Authenticate,
+                types::UasAuthenticationRequestData,
+                types::UasAuthenticationResponseData
+        > for $path::$connector
+        {}
+    )*
+    };
+}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> UasAuthentication for connector::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    services::ConnectorIntegration<
+        Authenticate,
+        types::UasAuthenticationRequestData,
+        types::UasAuthenticationResponseData,
+    > for connector::DummyConnector<T>
+{
+}
+
+default_imp_for_uas_authentication!(
+    connector::Adyenplatform,
+    connector::Adyen,
+    connector::Authorizedotnet,
+    connector::Checkout,
+    connector::Ebanx,
+    connector::Gpayments,
+    connector::Netcetera,
+    connector::Nmi,
+    connector::Noon,
+    connector::Opayo,
+    connector::Opennode,
+    connector::Payme,
+    connector::Payone,
+    connector::Paypal,
+    connector::Plaid,
+    connector::Riskified,
+    connector::Signifyd,
+    connector::Stripe,
+    connector::Threedsecureio,
+    connector::Trustpay,
     connector::Wellsfargopayout,
     connector::Wise
 );

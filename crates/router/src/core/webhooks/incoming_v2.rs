@@ -431,6 +431,7 @@ async fn payments_incoming_webhook_flow(
                     payments::operations::PaymentGet,
                     api::PaymentsRetrieveRequest {
                         force_sync: true,
+                        expand_attempts: false,
                         param: None,
                     },
                     get_trackers_response,
@@ -630,6 +631,7 @@ where
             flow: PhantomData,
             payment_intent,
             payment_attempt: Some(payment_attempt),
+            attempts: None,
             should_sync_with_connector: true,
             payment_address,
         },

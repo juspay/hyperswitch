@@ -99,6 +99,7 @@ pub struct Settings<S: SecretState> {
     pub payout_method_filters: ConnectorFilters,
     pub applepay_decrypt_keys: SecretStateContainer<ApplePayDecryptConfig, S>,
     pub paze_decrypt_keys: Option<SecretStateContainer<PazeDecryptConfig, S>>,
+    pub google_pay_decrypt_keys: Option<SecretStateContainer<GooglePayDecryptConfig, S>>,
     pub multiple_api_version_supported_connectors: MultipleApiVersionSupportedConnectors,
     pub applepay_merchant_configs: SecretStateContainer<ApplepayMerchantConfigs, S>,
     pub lock_settings: LockSettings,
@@ -303,16 +304,11 @@ pub struct PaymentLink {
 #[derive(Debug, Deserialize, Clone, Default)]
 #[serde(default)]
 pub struct ForexApi {
-    pub local_fetch_retry_count: u64,
     pub api_key: Secret<String>,
     pub fallback_api_key: Secret<String>,
-    /// in ms
+    /// in s
     pub call_delay: i64,
-    /// in ms
-    pub local_fetch_retry_delay: u64,
-    /// in ms
-    pub api_timeout: u64,
-    /// in ms
+    /// in s
     pub redis_lock_timeout: u64,
 }
 
@@ -764,6 +760,11 @@ pub struct PazeDecryptConfig {
     pub paze_private_key_passphrase: Secret<String>,
 }
 
+#[derive(Debug, Deserialize, Clone)]
+pub struct GooglePayDecryptConfig {
+    pub google_pay_root_signing_keys: Secret<String>,
+}
+
 #[derive(Debug, Deserialize, Clone, Default)]
 #[serde(default)]
 pub struct LockerBasedRecipientConnectorList {
@@ -913,6 +914,11 @@ impl Settings<SecuredSecret> {
             .transpose()?;
 
         self.paze_decrypt_keys
+            .as_ref()
+            .map(|x| x.get_inner().validate())
+            .transpose()?;
+
+        self.google_pay_decrypt_keys
             .as_ref()
             .map(|x| x.get_inner().validate())
             .transpose()?;
