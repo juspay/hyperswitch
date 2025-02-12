@@ -4,11 +4,7 @@ use actix_web::FromRequest;
 #[cfg(feature = "payouts")]
 use api_models::payouts as payout_models;
 use api_models::webhooks::{self, WebhookResponseTracker};
-use common_utils::{
-    errors::ReportSwitchExt,
-    events::ApiEventsType,
-    ext_traits::ByteSliceExt,
-};
+use common_utils::{errors::ReportSwitchExt, events::ApiEventsType, ext_traits::ByteSliceExt};
 use diesel_models::ConnectorMandateReferenceId;
 use error_stack::{report, ResultExt};
 use http::HeaderValue;
@@ -713,17 +709,15 @@ async fn network_token_incoming_webhooks_core<W: types::OutgoingWebhookType>(
     );
 
     let (merchant_account, key_store) =
-        payment_methods::fetch_merchant_account_for_network_token_webhooks(
-            state,
-            merchant_id,
-        )
-        .await?;
+        payment_methods::fetch_merchant_account_for_network_token_webhooks(state, merchant_id)
+            .await?;
     let payment_method = payment_methods::fetch_payment_method_for_network_token_webhooks(
         state,
         &merchant_account,
         &key_store,
         payment_method_id,
-    ).await?;
+    )
+    .await?;
 
     let webhook_resp_tracker = match response {
         network_tokenization::NetworkTokenWebhookResponse::PanMetadataUpdate(ref data) => {

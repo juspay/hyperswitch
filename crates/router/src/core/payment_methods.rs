@@ -23,17 +23,20 @@ pub use api_models::{enums::PayoutConnectors, payouts as payout_types};
 use api_models::{payment_methods, webhooks::WebhookResponseTracker};
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use common_utils::{
-    consts::DEFAULT_LOCALE, crypto::Encryptable, ext_traits::{AsyncExt, Encode}, fp_utils::when, id_type,
+    consts::DEFAULT_LOCALE,
+    crypto::Encryptable,
+    ext_traits::{AsyncExt, Encode},
+    fp_utils::when,
+    id_type,
 };
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use common_utils::{
     crypto::{self, Encryptable},
     ext_traits::{AsyncExt, Encode, StringExt, ValueExt},
     fp_utils::when,
-    generate_id,
+    generate_id, id_type,
     request::RequestContent,
     types as util_types,
-    id_type,
 };
 use diesel_models::{
     enums, GenericLinkNew, PaymentMethodCollectLink, PaymentMethodCollectLinkData,
@@ -48,10 +51,10 @@ use hyperswitch_domain_models::api::{GenericLinks, GenericLinksData};
 ))]
 use hyperswitch_domain_models::mandates::CommonMandateReference;
 use hyperswitch_domain_models::payments::{payment_attempt::PaymentAttempt, PaymentIntent};
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-use masking::{PeekInterface, Secret};
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use masking::{ExposeInterface, PeekInterface, Secret};
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+use masking::{PeekInterface, Secret};
 use router_env::{instrument, tracing};
 use time::Duration;
 
@@ -2030,10 +2033,7 @@ pub fn get_network_token_payment_method_create_request(
 pub async fn fetch_merchant_account_for_network_token_webhooks(
     state: &SessionState,
     merchant_id: &id_type::MerchantId,
-) -> RouterResult<(
-    domain::MerchantAccount,
-    domain::MerchantKeyStore,
-)> {
+) -> RouterResult<(domain::MerchantAccount, domain::MerchantKeyStore)> {
     let db = &*state.store;
     let key_manager_state = &(state).into();
 
@@ -2062,9 +2062,7 @@ pub async fn fetch_payment_method_for_network_token_webhooks(
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
     payment_method_id: &str,
-) -> RouterResult<
-    domain::PaymentMethod,
-> {
+) -> RouterResult<domain::PaymentMethod> {
     let db = &*state.store;
     let key_manager_state = &(state).into();
 
