@@ -124,8 +124,8 @@ jobs:
       - name: Build and Cache Rust Dependencies
         uses: Swatinem/rust-cache@v2.7.7
         with: 
-          env-vars: ""
-          save-if: false
+          shared-key: "rust-cache-test_connectors"
+          save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Install Diesel CLI with Postgres Support
         uses: baptiste0928/cargo-install@v2.2.0

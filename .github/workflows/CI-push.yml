@@ -79,7 +79,7 @@ jobs:
       - name: Install rust cache
         uses: Swatinem/rust-cache@v2.7.7
         with:
-          env-vars: ""
+          shared-key: "rust-cache-check-msrv"
           save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Install cargo-hack
@@ -185,7 +185,7 @@ jobs:
       - name: Install rust cache
         uses: Swatinem/rust-cache@v2.7.7
         with:
-          env-vars: ""
+          shared-key: "rust-cache-test"
           save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Run clippy
@@ -239,7 +239,7 @@ jobs:
       - name: Install rust cache
         uses: Swatinem/rust-cache@v2.7.7
         with:
-          env-vars: ""
+          shared-key: "rust-cache-check-v2"
           save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Run cargo check enabling only the release and v2 features
