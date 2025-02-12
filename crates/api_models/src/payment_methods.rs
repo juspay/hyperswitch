@@ -135,6 +135,14 @@ pub struct PaymentMethodCreate {
     /// The billing details of the payment method
     #[schema(value_type = Option<Address>)]
     pub billing: Option<payments::Address>,
+
+    /// The tokenization type to be applied
+    #[schema(value_type = Option<PspTokenization>)]
+    pub psp_tokenization: Option<common_types::payment_methods::PspTokenization>,
+
+    /// The network tokenization configuration if applicable
+    #[schema(value_type = Option<NetworkTokenization>)]
+    pub network_tokenization: Option<common_types::payment_methods::NetworkTokenization>,
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
@@ -555,6 +563,11 @@ pub enum CardType {
     Debit,
 }
 
+// We cannot use the card struct that we have for payments for the following reason
+// The card struct used for payments has card_cvc as mandatory
+// but when vulting the card, we do not need cvc to be collected from the user
+// This is because, the vaulted payment method can be used for future transactions in the presence of the customer
+// when the customer is on_session again, the cvc can be collected from the customer
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
@@ -592,6 +605,11 @@ pub struct CardDetail {
 
     /// Card Type
     pub card_type: Option<CardType>,
+
+    /// The CVC number for the card
+    /// This is optional in case the card needs to be vaulted
+    #[schema(value_type = String, example = "242")]
+    pub card_cvc: Option<masking::Secret<String>>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
@@ -766,6 +784,7 @@ impl CardDetailUpdate {
             card_network: None,
             card_issuer: None,
             card_type: None,
+            card_cvc: None,
         }
     }
 }
@@ -2506,6 +2525,21 @@ pub struct PaymentMethodSessionUpdateSavedPaymentMethod {
     /// The update request for the payment method update
     #[serde(flatten)]
     pub payment_method_update_request: PaymentMethodUpdate,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct PaymentMethodSessionConfirmRequest {
+    /// The payment method type
+    #[schema(value_type = PaymentMethod, example = "card")]
+    pub payment_method_type: common_enums::PaymentMethod,
+
+    /// The payment method subtype
+    #[schema(value_type = PaymentMethodType, example = "credit")]
+    pub payment_method_subtype: common_enums::PaymentMethodType,
+
+    /// The payment instrument data to be used for the payment
+    pub payment_method_data: payments::PaymentMethodDataRequest,
 }
 
 #[cfg(feature = "v2")]

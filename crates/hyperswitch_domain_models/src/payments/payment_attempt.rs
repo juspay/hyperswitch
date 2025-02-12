@@ -518,7 +518,7 @@ impl PaymentAttempt {
             profile_id: payment_intent.profile_id.clone(),
             organization_id: payment_intent.organization_id.clone(),
             payment_method_type: request.payment_method_type,
-            payment_method_id: None,
+            payment_method_id: request.payment_method_id.clone(),
             connector_payment_id: None,
             payment_method_subtype: request.payment_method_subtype,
             authentication_applied: None,

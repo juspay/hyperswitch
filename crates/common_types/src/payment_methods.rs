@@ -141,6 +141,6 @@ pub struct PspTokenization {
     pub tokenization_type: common_enums::TokenizationType,
 
     /// The merchant connector id to be used for tokenization
-    #[schema(value_type = String)]
-    pub connector_id: common_utils::id_type::MerchantConnectorAccountId,
+    #[schema(value_type = Option<String>)]
+    pub connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
 }

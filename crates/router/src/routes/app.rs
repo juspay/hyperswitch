@@ -1276,6 +1276,10 @@ impl PaymentMethodsSession {
                     web::get().to(payment_methods::payment_method_session_list_payment_methods),
                 ))
                 .service(
+                    web::resource("/confirm")
+                        .route(web::post().to(payment_methods::payment_method_session_confirm)),
+                )
+                .service(
                     web::resource("/update-saved-payment-method").route(
                         web::put().to(
                             payment_methods::payment_method_session_update_saved_payment_method,

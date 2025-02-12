@@ -6,8 +6,6 @@ use std::{
 pub mod additional_info;
 use cards::CardNumber;
 use common_enums::ProductType;
-#[cfg(feature = "v2")]
-use common_utils::id_type::GlobalPaymentId;
 use common_utils::{
     consts::default_payments_list_limit,
     crypto,
@@ -557,6 +555,22 @@ pub struct AmountDetails {
     surcharge_amount: Option<MinorUnit>,
     /// tax on surcharge amount
     tax_on_surcharge: Option<MinorUnit>,
+}
+
+#[cfg(feature = "v2")]
+impl AmountDetails {
+    pub fn new_for_zero_auth_payment(currency: common_enums::Currency) -> Self {
+        Self {
+            order_amount: Amount::Zero,
+            currency,
+            shipping_cost: None,
+            order_tax_amount: None,
+            skip_external_tax_calculation: common_enums::TaxCalculationOverride::Skip,
+            skip_surcharge_calculation: common_enums::SurchargeCalculationOverride::Skip,
+            surcharge_amount: None,
+            tax_on_surcharge: None,
+        }
+    }
 }
 
 #[cfg(feature = "v2")]
@@ -1709,6 +1723,43 @@ pub struct Card {
     /// The card holder's nick name
     #[schema(value_type = Option<String>, example = "John Test")]
     pub nick_name: Option<Secret<String>>,
+}
+
+#[cfg(feature = "v2")]
+impl TryFrom<payment_methods::CardDetail> for Card {
+    type Error = error_stack::Report<ValidationError>;
+
+    fn try_from(value: payment_methods::CardDetail) -> Result<Self, Self::Error> {
+        use common_utils::ext_traits::OptionExt;
+
+        let payment_methods::CardDetail {
+            card_number,
+            card_exp_month,
+            card_exp_year,
+            card_holder_name,
+            nick_name,
+            card_network,
+            card_issuer,
+            card_cvc,
+            ..
+        } = value;
+
+        let card_cvc = card_cvc.get_required_value("card_cvc")?;
+
+        Ok(Self {
+            card_number,
+            card_exp_month,
+            card_exp_year,
+            card_holder_name,
+            card_cvc,
+            card_issuer,
+            card_network,
+            card_type: None,
+            card_issuing_country: None,
+            bank_code: None,
+            nick_name,
+        })
+    }
 }
 
 #[derive(Default, Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -4792,6 +4843,10 @@ pub struct PaymentsConfirmIntentRequest {
     /// Additional details required by 3DS 2.0
     #[schema(value_type = Option<BrowserInformation>)]
     pub browser_info: Option<common_utils::types::BrowserInformation>,
+
+    /// The payment_method_id to be associated with the payment
+    #[schema(value_type = Option<String>)]
+    pub payment_method_id: Option<id_type::GlobalPaymentMethodId>,
 }
 
 // This struct contains the union of fields in `PaymentsCreateIntentRequest` and
@@ -4928,6 +4983,10 @@ pub struct PaymentsRequest {
     /// Additional details required by 3DS 2.0
     #[schema(value_type = Option<BrowserInformation>)]
     pub browser_info: Option<common_utils::types::BrowserInformation>,
+
+    /// The payment_method_id to be associated with the payment
+    #[schema(value_type = Option<String>)]
+    pub payment_method_id: Option<id_type::GlobalPaymentMethodId>,
 }
 
 #[cfg(feature = "v2")]
@@ -4976,6 +5035,7 @@ impl From<&PaymentsRequest> for PaymentsConfirmIntentRequest {
             shipping: request.shipping.clone(),
             customer_acceptance: request.customer_acceptance.clone(),
             browser_info: request.browser_info.clone(),
+            payment_method_id: request.payment_method_id.clone(),
         }
     }
 }

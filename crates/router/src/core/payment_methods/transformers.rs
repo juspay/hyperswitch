@@ -544,6 +544,7 @@ pub fn generate_pm_vaulting_req_from_update_request(
             card_type: card_create.card_type,
             card_holder_name: update_card.card_holder_name,
             nick_name: update_card.nick_name,
+            card_cvc: None,
         }),
     }
 }

@@ -214,6 +214,18 @@ where
 
             payments_response_operation
                 .to_post_update_tracker()?
+                .save_pm_and_mandate(
+                    state,
+                    &router_data,
+                    &merchant_account,
+                    &key_store,
+                    &mut payment_data,
+                    &profile,
+                )
+                .await?;
+
+            payments_response_operation
+                .to_post_update_tracker()?
                 .update_tracker(
                     state,
                     payment_data,
@@ -1683,16 +1695,14 @@ pub(crate) async fn payments_create_and_confirm_intent(
     profile: domain::Profile,
     key_store: domain::MerchantKeyStore,
     request: payments_api::PaymentsRequest,
-    payment_id: id_type::GlobalPaymentId,
     mut header_payload: HeaderPayload,
     platform_merchant_account: Option<domain::MerchantAccount>,
 ) -> RouterResponse<payments_api::PaymentsResponse> {
-    use actix_http::body::MessageBody;
-    use common_utils::ext_traits::BytesExt;
     use hyperswitch_domain_models::{
-        payments::{PaymentConfirmData, PaymentIntentData},
-        router_flow_types::{Authorize, PaymentCreateIntent, SetupMandate},
+        payments::PaymentIntentData, router_flow_types::PaymentCreateIntent,
     };
+
+    let payment_id = id_type::GlobalPaymentId::generate(&state.conf.cell_information.id);
 
     let payload = payments_api::PaymentsCreateIntentRequest::from(&request);
 

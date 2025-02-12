@@ -549,6 +549,8 @@ pub enum Flow {
     PaymentMethodSessionRetrieve,
     /// Update a saved payment method using the payment methods session
     PaymentMethodSessionUpdateSavedPaymentMethod,
+    /// Confirm a payment method session with payment method data
+    PaymentMethodSessionConfirm,
 }
 
 /// Trait for providing generic behaviour to flow metric
