@@ -1016,13 +1016,6 @@ impl Customers {
                         .route(web::delete().to(customers::customers_delete)),
                 )
         }
-        #[cfg(all(feature = "oltp", feature = "v2", feature = "payment_methods_v2"))]
-        {
-            route = route.service(
-                web::resource("/{customer_id}/saved-payment-methods")
-                    .route(web::get().to(payment_methods::list_customer_payment_method_api)),
-            );
-        }
         route
     }
 }
@@ -1182,14 +1175,9 @@ impl PaymentMethods {
                         .route(web::get().to(payment_methods::payment_method_retrieve_api))
                         .route(web::delete().to(payment_methods::payment_method_delete_api)),
                 )
-                .service(
-                    web::resource("/list-enabled-payment-methods")
-                        .route(web::get().to(payment_methods::list_payment_methods_enabled)),
-                )
-                .service(
-                    web::resource("/confirm-intent")
-                        .route(web::post().to(payment_methods::confirm_payment_method_intent_api)),
-                )
+                .service(web::resource("/list-enabled-payment-methods").route(
+                    web::get().to(payment_methods::payment_method_session_list_payment_methods),
+                ))
                 .service(
                     web::resource("/update-saved-payment-method")
                         .route(web::put().to(payment_methods::payment_method_update_api)),
@@ -1262,6 +1250,40 @@ impl PaymentMethods {
                     web::resource("/auth/exchange").route(web::post().to(pm_auth::exchange_token)),
                 )
         }
+        route
+    }
+}
+
+#[cfg(all(feature = "v2", feature = "oltp"))]
+pub struct PaymentMethodsSession;
+
+#[cfg(all(feature = "v2", feature = "oltp"))]
+impl PaymentMethodsSession {
+    pub fn server(state: AppState) -> Scope {
+        let mut route = web::scope("/v2/payment-methods-session").app_data(web::Data::new(state));
+        route = route.service(
+            web::resource("")
+                .route(web::post().to(payment_methods::payment_methods_session_create)),
+        );
+
+        route = route.service(
+            web::scope("/{payment_method_session_id}")
+                .service(
+                    web::resource("")
+                        .route(web::get().to(payment_methods::payment_methods_session_retrieve)),
+                )
+                .service(web::resource("/list-payment-methods").route(
+                    web::get().to(payment_methods::payment_method_session_list_payment_methods),
+                ))
+                .service(
+                    web::resource("/update-saved-payment-method").route(
+                        web::put().to(
+                            payment_methods::payment_method_session_update_saved_payment_method,
+                        ),
+                    ),
+                ),
+        );
+
         route
     }
 }
@@ -1483,10 +1505,10 @@ impl EphemeralKey {
 #[cfg(feature = "v2")]
 impl EphemeralKey {
     pub fn server(config: AppState) -> Scope {
-        web::scope("/v2/ephemeral-keys")
+        web::scope("/v2/client-secret")
             .app_data(web::Data::new(config))
-            .service(web::resource("").route(web::post().to(ephemeral_key_create)))
-            .service(web::resource("/{id}").route(web::delete().to(ephemeral_key_delete)))
+            .service(web::resource("").route(web::post().to(client_secret_create)))
+            .service(web::resource("/{id}").route(web::delete().to(client_secret_delete)))
     }
 }
 

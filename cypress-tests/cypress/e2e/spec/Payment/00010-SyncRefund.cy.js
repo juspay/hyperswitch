@@ -66,7 +66,7 @@ describe("Card - Sync Refund flow test", () => {
       "Refund"
     ];
 
-    cy.refundCallTest(fixtures.refundBody, data, 6500, globalState);
+    cy.refundCallTest(fixtures.refundBody, data, globalState);
 
     if (shouldContinue) shouldContinue = utils.should_continue_further(data);
   });
