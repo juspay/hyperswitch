@@ -238,8 +238,7 @@ diesel::table! {
     callback_mapper (id, type_) {
         #[max_length = 128]
         id -> Varchar,
-        #[sql_name = "type"]
-        #[max_length = 64]
+        #[sql_name = "type", max_length = 64]
         type_ -> Varchar,
         data -> Jsonb,
         created_at -> Timestamp,
@@ -880,10 +879,10 @@ diesel::table! {
         id -> Varchar,
         shipping_cost -> Nullable<Int8>,
         order_tax_amount -> Nullable<Int8>,
-        card_discovery -> Nullable<CardDiscovery>,
         request_extended_authorization -> Nullable<Bool>,
         extended_authorization_applied -> Nullable<Bool>,
         capture_before -> Nullable<Timestamp>,
+        card_discovery -> Nullable<CardDiscovery>,
         charges -> Nullable<Jsonb>,
     }
 }
