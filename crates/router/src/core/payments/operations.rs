@@ -300,6 +300,7 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
         Ok(())
     }
 
+    #[allow(clippy::too_many_arguments)]
     async fn call_unified_authentication_service_if_eligible<'a>(
         &'a self,
         _state: &SessionState,
@@ -308,6 +309,7 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
         _connector_call_type: &ConnectorCallType,
         _merchant_account: &domain::Profile,
         _key_store: &domain::MerchantKeyStore,
+        _mandate_type: Option<api_models::payments::MandateTransactionType>,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
         Ok(())
     }

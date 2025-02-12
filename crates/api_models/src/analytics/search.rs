@@ -14,6 +14,8 @@ pub struct SearchFilters {
     pub card_network: Option<Vec<String>>,
     pub card_last_4: Option<Vec<String>>,
     pub payment_id: Option<Vec<String>>,
+    pub amount: Option<Vec<u64>>,
+    pub customer_id: Option<Vec<String>>,
 }
 impl SearchFilters {
     pub fn is_all_none(&self) -> bool {
@@ -27,6 +29,8 @@ impl SearchFilters {
             && self.card_network.is_none()
             && self.card_last_4.is_none()
             && self.payment_id.is_none()
+            && self.amount.is_none()
+            && self.customer_id.is_none()
     }
 }
 

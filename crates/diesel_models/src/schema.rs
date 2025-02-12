@@ -121,6 +121,8 @@ diesel::table! {
         #[max_length = 64]
         acquirer_country_code -> Nullable<Varchar>,
         service_details -> Nullable<Jsonb>,
+        #[max_length = 32]
+        organization_id -> Varchar,
     }
 }
 
@@ -435,6 +437,8 @@ diesel::table! {
         created_at -> Timestamp,
         #[max_length = 64]
         payment_method_type -> Nullable<Varchar>,
+        #[max_length = 64]
+        global_success_based_connector -> Nullable<Varchar>,
     }
 }
 
@@ -905,6 +909,8 @@ diesel::table! {
         #[max_length = 512]
         connector_transaction_data -> Nullable<Varchar>,
         connector_mandate_detail -> Nullable<Jsonb>,
+        card_discovery -> Nullable<CardDiscovery>,
+        charges -> Nullable<Jsonb>,
     }
 }
 
@@ -1328,6 +1334,8 @@ diesel::table! {
         last_modified_by -> Varchar,
         #[max_length = 64]
         entity_type -> Varchar,
+        #[max_length = 64]
+        profile_id -> Nullable<Varchar>,
         #[max_length = 64]
         tenant_id -> Varchar,
     }

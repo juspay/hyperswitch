@@ -42,6 +42,7 @@ pub struct KafkaAuthenticationEvent<'a> {
     pub ds_trans_id: Option<&'a String>,
     pub directory_server_id: Option<&'a String>,
     pub acquirer_country_code: Option<&'a String>,
+    pub organization_id: &'a common_utils::id_type::OrganizationId,
 }
 
 impl<'a> KafkaAuthenticationEvent<'a> {
@@ -83,6 +84,7 @@ impl<'a> KafkaAuthenticationEvent<'a> {
             ds_trans_id: authentication.ds_trans_id.as_ref(),
             directory_server_id: authentication.directory_server_id.as_ref(),
             acquirer_country_code: authentication.acquirer_country_code.as_ref(),
+            organization_id: &authentication.organization_id,
         }
     }
 }

@@ -22,6 +22,7 @@ v2 = []
 [dependencies]
 api_models = { version = "0.1.0", path = "../api_models", package = "api_models" }
 common_enums = { version = "0.1.0", path = "../common_enums" }
+common_types = { version = "0.1.0", path = "../common_types" }
 connector_configs = { version = "0.1.0", path = "../connector_configs" }
 currency_conversion = { version = "0.1.0", path = "../currency_conversion" }
 euclid = { version = "0.1.0", path = "../euclid", features = [] }

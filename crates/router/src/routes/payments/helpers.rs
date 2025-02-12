@@ -8,9 +8,10 @@ use crate::{
 };
 
 #[cfg(feature = "v1")]
-pub fn populate_ip_into_browser_info(
+pub fn populate_browser_info(
     req: &actix_web::HttpRequest,
     payload: &mut api::PaymentsRequest,
+    header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
 ) -> RouterResult<()> {
     let mut browser_info: types::BrowserInformation = payload
         .browser_info
@@ -34,6 +35,7 @@ pub fn populate_ip_into_browser_info(
             os_type: None,
             os_version: None,
             device_model: None,
+            accept_language: None,
         });
 
     let ip_address = req
@@ -58,6 +60,13 @@ pub fn populate_ip_into_browser_info(
                 None
             })
     });
+
+    // If the locale is present in the header payload, we will use it as the accept language
+    if header_payload.locale.is_some() {
+        browser_info.accept_language = browser_info
+            .accept_language
+            .or(header_payload.locale.clone());
+    }
 
     if let Some(api::MandateData {
         customer_acceptance:

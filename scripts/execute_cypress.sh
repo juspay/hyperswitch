@@ -158,12 +158,13 @@ function cleanup() {
 function main() {
   local command="${1:-}"
   local jobs="${2:-5}"
+  local test_dir="${3:-cypress-tests}"
 
-  # Ensure script runs from 'cypress-tests' directory
-  if [[ "$(basename "$PWD")" != "cypress-tests" ]]; then
-    print_color "yellow" "Changing directory to 'cypress-tests'..."
-    cd cypress-tests || {
-      print_color "red" "ERROR: Directory 'cypress-tests' not found!"
+  # Ensure script runs from the specified test directory (default: cypress-tests)
+  if [[ "$(basename "$PWD")" != "$(basename "$test_dir")" ]]; then
+    print_color "yellow" "Changing directory to '${test_dir}'..."
+    cd "${test_dir}" || {
+      print_color "red" "ERROR: Directory '${test_dir}' not found!"
       exit 1
     }
   fi

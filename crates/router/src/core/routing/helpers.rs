@@ -4,8 +4,7 @@
 //! routing dict, configs, defaults
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
 use std::str::FromStr;
-#[cfg(any(feature = "dynamic_routing", feature = "v1"))]
-use std::sync::Arc;
+use std::{fmt::Debug, sync::Arc};
 
 use api_models::routing as routing_types;
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
@@ -18,7 +17,10 @@ use diesel_models::dynamic_routing_stats::DynamicRoutingStatsNew;
 use diesel_models::routing_algorithm;
 use error_stack::ResultExt;
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
-use external_services::grpc_client::dynamic_routing::success_rate_client::SuccessBasedDynamicRouting;
+use external_services::grpc_client::dynamic_routing::{
+    contract_routing_client::ContractBasedDynamicRouting,
+    success_rate_client::SuccessBasedDynamicRouting,
+};
 #[cfg(feature = "v1")]
 use hyperswitch_domain_models::api::ApplicationResponse;
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
@@ -26,7 +28,7 @@ use router_env::logger;
 #[cfg(any(feature = "dynamic_routing", feature = "v1"))]
 use router_env::{instrument, tracing};
 use rustc_hash::FxHashSet;
-use storage_impl::redis::cache;
+use storage_impl::redis::cache::{self, Cacheable};
 
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
 use crate::db::errors::StorageErrorExt;
@@ -45,6 +47,8 @@ pub const SUCCESS_BASED_DYNAMIC_ROUTING_ALGORITHM: &str =
     "Success rate based dynamic routing algorithm";
 pub const ELIMINATION_BASED_DYNAMIC_ROUTING_ALGORITHM: &str =
     "Elimination based dynamic routing algorithm";
+pub const CONTRACT_BASED_DYNAMIC_ROUTING_ALGORITHM: &str =
+    "Contract based dynamic routing algorithm";
 
 /// Provides us with all the configured configs of the Merchant in the ascending time configured
 /// manner and chooses the first of them
@@ -195,17 +199,6 @@ pub async fn update_merchant_active_algorithm_ref(
         .attach_printable("Failed to invalidate the config cache")?;
 
     Ok(())
-}
-
-#[cfg(feature = "v2")]
-pub async fn update_merchant_active_algorithm_ref(
-    _state: &SessionState,
-    _key_store: &domain::MerchantKeyStore,
-    _config_key: cache::CacheKind<'_>,
-    _algorithm_id: routing_types::RoutingAlgorithmRef,
-) -> RouterResult<()> {
-    // TODO: handle updating the active routing algorithm for v2 in merchant account
-    todo!()
 }
 
 #[cfg(feature = "v1")]
@@ -573,78 +566,146 @@ pub fn get_default_config_key(
     }
 }
 
-/// Retrieves cached success_based routing configs specific to tenant and profile
-#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-pub async fn get_cached_success_based_routing_config_for_profile(
-    state: &SessionState,
-    key: &str,
-) -> Option<Arc<routing_types::SuccessBasedRoutingConfig>> {
-    cache::SUCCESS_BASED_DYNAMIC_ALGORITHM_CACHE
-        .get_val::<Arc<routing_types::SuccessBasedRoutingConfig>>(cache::CacheKey {
-            key: key.to_string(),
-            prefix: state.tenant.redis_key_prefix.clone(),
-        })
-        .await
+#[async_trait::async_trait]
+pub trait DynamicRoutingCache {
+    async fn get_cached_dynamic_routing_config_for_profile(
+        state: &SessionState,
+        key: &str,
+    ) -> Option<Arc<Self>>;
+
+    async fn refresh_dynamic_routing_cache<T, F, Fut>(
+        state: &SessionState,
+        key: &str,
+        func: F,
+    ) -> RouterResult<T>
+    where
+        F: FnOnce() -> Fut + Send,
+        T: Cacheable + serde::Serialize + serde::de::DeserializeOwned + Debug + Clone,
+        Fut: futures::Future<Output = errors::CustomResult<T, errors::StorageError>> + Send;
 }
 
-/// Refreshes the cached success_based routing configs specific to tenant and profile
-#[cfg(feature = "v1")]
-pub async fn refresh_success_based_routing_cache(
-    state: &SessionState,
-    key: &str,
-    success_based_routing_config: routing_types::SuccessBasedRoutingConfig,
-) -> Arc<routing_types::SuccessBasedRoutingConfig> {
-    let config = Arc::new(success_based_routing_config);
-    cache::SUCCESS_BASED_DYNAMIC_ALGORITHM_CACHE
-        .push(
-            cache::CacheKey {
+#[async_trait::async_trait]
+impl DynamicRoutingCache for routing_types::SuccessBasedRoutingConfig {
+    async fn get_cached_dynamic_routing_config_for_profile(
+        state: &SessionState,
+        key: &str,
+    ) -> Option<Arc<Self>> {
+        cache::SUCCESS_BASED_DYNAMIC_ALGORITHM_CACHE
+            .get_val::<Arc<Self>>(cache::CacheKey {
                 key: key.to_string(),
                 prefix: state.tenant.redis_key_prefix.clone(),
-            },
-            config.clone(),
+            })
+            .await
+    }
+
+    async fn refresh_dynamic_routing_cache<T, F, Fut>(
+        state: &SessionState,
+        key: &str,
+        func: F,
+    ) -> RouterResult<T>
+    where
+        F: FnOnce() -> Fut + Send,
+        T: Cacheable + serde::Serialize + serde::de::DeserializeOwned + Debug + Clone,
+        Fut: futures::Future<Output = errors::CustomResult<T, errors::StorageError>> + Send,
+    {
+        cache::get_or_populate_in_memory(
+            state.store.get_cache_store().as_ref(),
+            key,
+            func,
+            &cache::SUCCESS_BASED_DYNAMIC_ALGORITHM_CACHE,
         )
-        .await;
-    config
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("unable to populate SUCCESS_BASED_DYNAMIC_ALGORITHM_CACHE")
+    }
 }
 
-/// Checked fetch of success based routing configs
+#[async_trait::async_trait]
+impl DynamicRoutingCache for routing_types::ContractBasedRoutingConfig {
+    async fn get_cached_dynamic_routing_config_for_profile(
+        state: &SessionState,
+        key: &str,
+    ) -> Option<Arc<Self>> {
+        cache::CONTRACT_BASED_DYNAMIC_ALGORITHM_CACHE
+            .get_val::<Arc<Self>>(cache::CacheKey {
+                key: key.to_string(),
+                prefix: state.tenant.redis_key_prefix.clone(),
+            })
+            .await
+    }
+
+    async fn refresh_dynamic_routing_cache<T, F, Fut>(
+        state: &SessionState,
+        key: &str,
+        func: F,
+    ) -> RouterResult<T>
+    where
+        F: FnOnce() -> Fut + Send,
+        T: Cacheable + serde::Serialize + serde::de::DeserializeOwned + Debug + Clone,
+        Fut: futures::Future<Output = errors::CustomResult<T, errors::StorageError>> + Send,
+    {
+        cache::get_or_populate_in_memory(
+            state.store.get_cache_store().as_ref(),
+            key,
+            func,
+            &cache::CONTRACT_BASED_DYNAMIC_ALGORITHM_CACHE,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("unable to populate CONTRACT_BASED_DYNAMIC_ALGORITHM_CACHE")
+    }
+}
+
+/// Cfetch dynamic routing configs
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 #[instrument(skip_all)]
-pub async fn fetch_success_based_routing_configs(
+pub async fn fetch_dynamic_routing_configs<T>(
     state: &SessionState,
-    business_profile: &domain::Profile,
-    success_based_routing_id: id_type::RoutingId,
-) -> RouterResult<routing_types::SuccessBasedRoutingConfig> {
+    profile_id: &id_type::ProfileId,
+    routing_id: id_type::RoutingId,
+) -> RouterResult<T>
+where
+    T: serde::de::DeserializeOwned
+        + Clone
+        + DynamicRoutingCache
+        + Cacheable
+        + serde::Serialize
+        + Debug,
+{
     let key = format!(
         "{}_{}",
-        business_profile.get_id().get_string_repr(),
-        success_based_routing_id.get_string_repr()
+        profile_id.get_string_repr(),
+        routing_id.get_string_repr()
     );
 
     if let Some(config) =
-        get_cached_success_based_routing_config_for_profile(state, key.as_str()).await
+        T::get_cached_dynamic_routing_config_for_profile(state, key.as_str()).await
     {
         Ok(config.as_ref().clone())
     } else {
-        let success_rate_algorithm = state
-            .store
-            .find_routing_algorithm_by_profile_id_algorithm_id(
-                business_profile.get_id(),
-                &success_based_routing_id,
-            )
-            .await
-            .change_context(errors::ApiErrorResponse::ResourceIdNotFound)
-            .attach_printable("unable to retrieve success_rate_algorithm for profile from db")?;
+        let func = || async {
+            let routing_algorithm = state
+                .store
+                .find_routing_algorithm_by_profile_id_algorithm_id(profile_id, &routing_id)
+                .await
+                .change_context(errors::StorageError::ValueNotFound(
+                    "RoutingAlgorithm".to_string(),
+                ))
+                .attach_printable("unable to retrieve routing_algorithm for profile from db")?;
 
-        let success_rate_config = success_rate_algorithm
-            .algorithm_data
-            .parse_value::<routing_types::SuccessBasedRoutingConfig>("SuccessBasedRoutingConfig")
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("unable to parse success_based_routing_config struct")?;
+            let dynamic_routing_config = routing_algorithm
+                .algorithm_data
+                .parse_value::<T>("dynamic_routing_config")
+                .change_context(errors::StorageError::DeserializationFailed)
+                .attach_printable("unable to parse dynamic_routing_config")?;
 
-        refresh_success_based_routing_cache(state, key.as_str(), success_rate_config.clone()).await;
+            Ok(dynamic_routing_config)
+        };
 
-        Ok(success_rate_config)
+        let dynamic_routing_config =
+            T::refresh_dynamic_routing_cache(state, key.as_str(), func).await?;
+
+        Ok(dynamic_routing_config)
     }
 }
 
@@ -655,20 +716,11 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
     state: &SessionState,
     payment_attempt: &storage::PaymentAttempt,
     routable_connectors: Vec<routing_types::RoutableConnectorChoice>,
-    business_profile: &domain::Profile,
-    success_based_routing_config_params_interpolator: SuccessBasedRoutingConfigParamsInterpolator,
+    profile_id: &id_type::ProfileId,
+    dynamic_routing_algo_ref: routing_types::DynamicRoutingAlgorithmRef,
+    dynamic_routing_config_params_interpolator: DynamicRoutingConfigParamsInterpolator,
 ) -> RouterResult<()> {
-    let success_based_dynamic_routing_algo_ref: routing_types::DynamicRoutingAlgorithmRef =
-        business_profile
-            .dynamic_routing_algorithm
-            .clone()
-            .map(|val| val.parse_value("DynamicRoutingAlgorithmRef"))
-            .transpose()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to deserialize DynamicRoutingAlgorithmRef from JSON")?
-            .unwrap_or_default();
-
-    let success_based_algo_ref = success_based_dynamic_routing_algo_ref
+    let success_based_algo_ref = dynamic_routing_algo_ref
         .success_based_algorithm
         .ok_or(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("success_based_algorithm not found in dynamic_routing_algorithm from business_profile table")?;
@@ -689,22 +741,23 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
             },
         )?;
 
-        let success_based_routing_configs = fetch_success_based_routing_configs(
-            state,
-            business_profile,
-            success_based_algo_ref
-                .algorithm_id_with_timestamp
-                .algorithm_id
-                .ok_or(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable(
-                    "success_based_routing_algorithm_id not found in business_profile",
-                )?,
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("unable to retrieve success_rate based dynamic routing configs")?;
+        let success_based_routing_configs =
+            fetch_dynamic_routing_configs::<routing_types::SuccessBasedRoutingConfig>(
+                state,
+                profile_id,
+                success_based_algo_ref
+                    .algorithm_id_with_timestamp
+                    .algorithm_id
+                    .ok_or(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable(
+                        "success_based_routing_algorithm_id not found in business_profile",
+                    )?,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("unable to retrieve success_rate based dynamic routing configs")?;
 
-        let success_based_routing_config_params = success_based_routing_config_params_interpolator
+        let success_based_routing_config_params = dynamic_routing_config_params_interpolator
             .get_string_val(
                 success_based_routing_configs
                     .params
@@ -714,8 +767,8 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
             );
 
         let success_based_connectors = client
-            .calculate_success_rate(
-                business_profile.get_id().get_string_repr().into(),
+            .calculate_entity_and_global_success_rate(
+                profile_id.get_string_repr().into(),
                 success_based_routing_configs.clone(),
                 success_based_routing_config_params.clone(),
                 routable_connectors.clone(),
@@ -728,30 +781,36 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
             )?;
 
         let payment_status_attribute =
-            get_desired_payment_status_for_success_routing_metrics(payment_attempt.status);
+            get_desired_payment_status_for_dynamic_routing_metrics(payment_attempt.status);
 
-        let first_success_based_connector_label = &success_based_connectors
-            .labels_with_score
+        let first_merchant_success_based_connector = &success_based_connectors
+            .entity_scores_with_labels
             .first()
             .ok_or(errors::ApiErrorResponse::InternalServerError)
             .attach_printable(
                 "unable to fetch the first connector from list of connectors obtained from dynamic routing service",
-            )?
-            .label
-            .to_string();
+            )?;
 
-        let (first_success_based_connector, _) = first_success_based_connector_label
+        let (first_merchant_success_based_connector_label, _) = first_merchant_success_based_connector.label
             .split_once(':')
             .ok_or(errors::ApiErrorResponse::InternalServerError)
             .attach_printable(format!(
                 "unable to split connector_name and mca_id from the first connector {:?} obtained from dynamic routing service",
-                first_success_based_connector_label
+                first_merchant_success_based_connector.label
             ))?;
 
-        let outcome = get_success_based_metrics_outcome_for_payment(
+        let first_global_success_based_connector = &success_based_connectors
+            .global_scores_with_labels
+            .first()
+            .ok_or(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable(
+                "unable to fetch the first global connector from list of connectors obtained from dynamic routing service",
+            )?;
+
+        let outcome = get_dynamic_routing_based_metrics_outcome_for_payment(
             payment_status_attribute,
             payment_connector.to_string(),
-            first_success_based_connector.to_string(),
+            first_merchant_success_based_connector_label.to_string(),
         );
 
         let dynamic_routing_stats = DynamicRoutingStatsNew {
@@ -760,7 +819,8 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
             merchant_id: payment_attempt.merchant_id.to_owned(),
             profile_id: payment_attempt.profile_id.to_owned(),
             amount: payment_attempt.get_total_amount(),
-            success_based_routing_connector: first_success_based_connector.to_string(),
+            success_based_routing_connector: first_merchant_success_based_connector_label
+                .to_string(),
             payment_connector: payment_connector.to_string(),
             payment_method_type: payment_attempt.payment_method_type,
             currency: payment_attempt.currency,
@@ -770,6 +830,9 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
             payment_status: payment_attempt.status,
             conclusive_classification: outcome,
             created_at: common_utils::date_time::now(),
+            global_success_based_connector: Some(
+                first_global_success_based_connector.label.to_string(),
+            ),
         };
 
         core_metrics::DYNAMIC_SUCCESS_BASED_ROUTING.add(
@@ -788,8 +851,20 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
                     ),
                 ),
                 (
-                    "success_based_routing_connector",
-                    first_success_based_connector.to_string(),
+                    "merchant_specific_success_based_routing_connector",
+                    first_merchant_success_based_connector_label.to_string(),
+                ),
+                (
+                    "merchant_specific_success_based_routing_connector_score",
+                    first_merchant_success_based_connector.score.to_string(),
+                ),
+                (
+                    "global_success_based_routing_connector",
+                    first_global_success_based_connector.label.to_string(),
+                ),
+                (
+                    "global_success_based_routing_connector_score",
+                    first_global_success_based_connector.score.to_string(),
                 ),
                 ("payment_connector", payment_connector.to_string()),
                 (
@@ -841,7 +916,7 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
 
         client
             .update_success_rate(
-                business_profile.get_id().get_string_repr().into(),
+                profile_id.get_string_repr().into(),
                 success_based_routing_configs,
                 success_based_routing_config_params,
                 vec![routing_types::RoutableConnectorChoiceWithStatus::new(
@@ -869,8 +944,212 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
     }
 }
 
+/// metrics for contract based dynamic routing
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-fn get_desired_payment_status_for_success_routing_metrics(
+#[instrument(skip_all)]
+pub async fn push_metrics_with_update_window_for_contract_based_routing(
+    state: &SessionState,
+    payment_attempt: &storage::PaymentAttempt,
+    routable_connectors: Vec<routing_types::RoutableConnectorChoice>,
+    profile_id: &id_type::ProfileId,
+    dynamic_routing_algo_ref: routing_types::DynamicRoutingAlgorithmRef,
+    _dynamic_routing_config_params_interpolator: DynamicRoutingConfigParamsInterpolator,
+) -> RouterResult<()> {
+    let contract_routing_algo_ref = dynamic_routing_algo_ref
+        .contract_based_routing
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("contract_routing_algorithm not found in dynamic_routing_algorithm from business_profile table")?;
+
+    if contract_routing_algo_ref.enabled_feature != routing_types::DynamicRoutingFeatures::None {
+        let client = state
+            .grpc_client
+            .dynamic_routing
+            .contract_based_client
+            .clone()
+            .ok_or(errors::ApiErrorResponse::GenericNotFoundError {
+                message: "contract_routing gRPC client not found".to_string(),
+            })?;
+
+        let payment_connector = &payment_attempt.connector.clone().ok_or(
+            errors::ApiErrorResponse::GenericNotFoundError {
+                message: "unable to derive payment connector from payment attempt".to_string(),
+            },
+        )?;
+
+        let contract_based_routing_config =
+            fetch_dynamic_routing_configs::<routing_types::ContractBasedRoutingConfig>(
+                state,
+                profile_id,
+                contract_routing_algo_ref
+                    .algorithm_id_with_timestamp
+                    .algorithm_id
+                    .ok_or(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable(
+                        "contract_based_routing_algorithm_id not found in business_profile",
+                    )?,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("unable to retrieve contract based dynamic routing configs")?;
+
+        let mut existing_label_info = None;
+
+        contract_based_routing_config
+            .label_info
+            .as_ref()
+            .map(|label_info_vec| {
+                for label_info in label_info_vec {
+                    if Some(&label_info.mca_id) == payment_attempt.merchant_connector_id.as_ref() {
+                        existing_label_info = Some(label_info.clone());
+                    }
+                }
+            });
+
+        let final_label_info = existing_label_info
+            .ok_or(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("unable to get LabelInformation from ContractBasedRoutingConfig")?;
+
+        logger::debug!(
+            "contract based routing: matched LabelInformation - {:?}",
+            final_label_info
+        );
+
+        let request_label_info = routing_types::LabelInformation {
+            label: format!(
+                "{}:{}",
+                final_label_info.label.clone(),
+                final_label_info.mca_id.get_string_repr()
+            ),
+            target_count: final_label_info.target_count,
+            target_time: final_label_info.target_time,
+            mca_id: final_label_info.mca_id.to_owned(),
+        };
+
+        let payment_status_attribute =
+            get_desired_payment_status_for_dynamic_routing_metrics(payment_attempt.status);
+
+        if payment_status_attribute == common_enums::AttemptStatus::Charged {
+            client
+                .update_contracts(
+                    profile_id.get_string_repr().into(),
+                    vec![request_label_info],
+                    "".to_string(),
+                    vec![],
+                    state.get_grpc_headers(),
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable(
+                    "unable to update contract based routing window in dynamic routing service",
+                )?;
+        }
+
+        let contract_scores = client
+            .calculate_contract_score(
+                profile_id.get_string_repr().into(),
+                contract_based_routing_config.clone(),
+                "".to_string(),
+                routable_connectors.clone(),
+                state.get_grpc_headers(),
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable(
+                "unable to calculate/fetch contract scores from dynamic routing service",
+            )?;
+
+        let first_contract_based_connector = &contract_scores
+            .labels_with_score
+            .first()
+            .ok_or(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable(
+                "unable to fetch the first connector from list of connectors obtained from dynamic routing service",
+            )?;
+
+        let (first_contract_based_connector, connector_score, current_payment_cnt) = (first_contract_based_connector.label
+            .split_once(':')
+            .ok_or(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable(format!(
+                "unable to split connector_name and mca_id from the first connector {:?} obtained from dynamic routing service",
+                first_contract_based_connector
+            ))?
+            .0, first_contract_based_connector.score, first_contract_based_connector.current_count );
+
+        core_metrics::DYNAMIC_CONTRACT_BASED_ROUTING.add(
+            1,
+            router_env::metric_attributes!(
+                (
+                    "tenant",
+                    state.tenant.tenant_id.get_string_repr().to_owned(),
+                ),
+                (
+                    "merchant_profile_id",
+                    format!(
+                        "{}:{}",
+                        payment_attempt.merchant_id.get_string_repr(),
+                        payment_attempt.profile_id.get_string_repr()
+                    ),
+                ),
+                (
+                    "contract_based_routing_connector",
+                    first_contract_based_connector.to_string(),
+                ),
+                (
+                    "contract_based_routing_connector_score",
+                    connector_score.to_string(),
+                ),
+                (
+                    "current_payment_count_contract_based_routing_connector",
+                    current_payment_cnt.to_string(),
+                ),
+                ("payment_connector", payment_connector.to_string()),
+                (
+                    "currency",
+                    payment_attempt
+                        .currency
+                        .map_or_else(|| "None".to_string(), |currency| currency.to_string()),
+                ),
+                (
+                    "payment_method",
+                    payment_attempt.payment_method.map_or_else(
+                        || "None".to_string(),
+                        |payment_method| payment_method.to_string(),
+                    ),
+                ),
+                (
+                    "payment_method_type",
+                    payment_attempt.payment_method_type.map_or_else(
+                        || "None".to_string(),
+                        |payment_method_type| payment_method_type.to_string(),
+                    ),
+                ),
+                (
+                    "capture_method",
+                    payment_attempt.capture_method.map_or_else(
+                        || "None".to_string(),
+                        |capture_method| capture_method.to_string(),
+                    ),
+                ),
+                (
+                    "authentication_type",
+                    payment_attempt.authentication_type.map_or_else(
+                        || "None".to_string(),
+                        |authentication_type| authentication_type.to_string(),
+                    ),
+                ),
+                ("payment_status", payment_attempt.status.to_string()),
+            ),
+        );
+        logger::debug!("successfully pushed contract_based_routing metrics");
+
+        Ok(())
+    } else {
+        Ok(())
+    }
+}
+
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+fn get_desired_payment_status_for_dynamic_routing_metrics(
     attempt_status: common_enums::AttemptStatus,
 ) -> common_enums::AttemptStatus {
     match attempt_status {
@@ -906,7 +1185,7 @@ fn get_desired_payment_status_for_success_routing_metrics(
 }
 
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-fn get_success_based_metrics_outcome_for_payment(
+fn get_dynamic_routing_based_metrics_outcome_for_payment(
     payment_status_attribute: common_enums::AttemptStatus,
     payment_connector: String,
     first_success_based_connector: String,
@@ -946,7 +1225,6 @@ pub async fn disable_dynamic_routing_algorithm(
 ) -> RouterResult<ApplicationResponse<routing_types::RoutingDictionaryRecord>> {
     let db = state.store.as_ref();
     let key_manager_state = &state.into();
-    let timestamp = common_utils::date_time::now_unix_timestamp();
     let profile_id = business_profile.get_id().clone();
     let (algorithm_id, dynamic_routing_algorithm, cache_entries_to_redact) =
         match dynamic_routing_type {
@@ -977,14 +1255,12 @@ pub async fn disable_dynamic_routing_algorithm(
                     routing_types::DynamicRoutingAlgorithmRef {
                         success_based_algorithm: Some(routing_types::SuccessBasedAlgorithm {
                             algorithm_id_with_timestamp:
-                                routing_types::DynamicAlgorithmWithTimestamp {
-                                    algorithm_id: None,
-                                    timestamp,
-                                },
+                                routing_types::DynamicAlgorithmWithTimestamp::new(None),
                             enabled_feature: routing_types::DynamicRoutingFeatures::None,
                         }),
                         elimination_routing_algorithm: dynamic_routing_algo_ref
                             .elimination_routing_algorithm,
+                        contract_based_routing: dynamic_routing_algo_ref.contract_based_routing,
                         dynamic_routing_volume_split: dynamic_routing_algo_ref
                             .dynamic_routing_volume_split,
                     },
@@ -1022,13 +1298,49 @@ pub async fn disable_dynamic_routing_algorithm(
                         elimination_routing_algorithm: Some(
                             routing_types::EliminationRoutingAlgorithm {
                                 algorithm_id_with_timestamp:
-                                    routing_types::DynamicAlgorithmWithTimestamp {
-                                        algorithm_id: None,
-                                        timestamp,
-                                    },
+                                    routing_types::DynamicAlgorithmWithTimestamp::new(None),
                                 enabled_feature: routing_types::DynamicRoutingFeatures::None,
                             },
                         ),
+                        contract_based_routing: dynamic_routing_algo_ref.contract_based_routing,
+                    },
+                    cache_entries_to_redact,
+                )
+            }
+            routing_types::DynamicRoutingType::ContractBasedRouting => {
+                let Some(algorithm_ref) = dynamic_routing_algo_ref.contract_based_routing else {
+                    Err(errors::ApiErrorResponse::PreconditionFailed {
+                        message: "Contract routing is already disabled".to_string(),
+                    })?
+                };
+                let Some(algorithm_id) = algorithm_ref.algorithm_id_with_timestamp.algorithm_id
+                else {
+                    Err(errors::ApiErrorResponse::PreconditionFailed {
+                        message: "Algorithm is already inactive".to_string(),
+                    })?
+                };
+                let cache_key = format!(
+                    "{}_{}",
+                    business_profile.get_id().get_string_repr(),
+                    algorithm_id.get_string_repr()
+                );
+                let cache_entries_to_redact =
+                    vec![cache::CacheKind::ContractBasedDynamicRoutingCache(
+                        cache_key.into(),
+                    )];
+                (
+                    algorithm_id,
+                    routing_types::DynamicRoutingAlgorithmRef {
+                        success_based_algorithm: dynamic_routing_algo_ref.success_based_algorithm,
+                        elimination_routing_algorithm: dynamic_routing_algo_ref
+                            .elimination_routing_algorithm,
+                        dynamic_routing_volume_split: dynamic_routing_algo_ref
+                            .dynamic_routing_volume_split,
+                        contract_based_routing: Some(routing_types::ContractRoutingAlgorithm {
+                            algorithm_id_with_timestamp:
+                                routing_types::DynamicAlgorithmWithTimestamp::new(None),
+                            enabled_feature: routing_types::DynamicRoutingFeatures::None,
+                        }),
                     },
                     cache_entries_to_redact,
                 )
@@ -1077,15 +1389,18 @@ pub async fn enable_dynamic_routing_algorithm(
     dynamic_routing_algo_ref: routing_types::DynamicRoutingAlgorithmRef,
     dynamic_routing_type: routing_types::DynamicRoutingType,
 ) -> RouterResult<ApplicationResponse<routing_types::RoutingDictionaryRecord>> {
-    let dynamic_routing = dynamic_routing_algo_ref.clone();
+    let mut dynamic_routing = dynamic_routing_algo_ref.clone();
     match dynamic_routing_type {
         routing_types::DynamicRoutingType::SuccessRateBasedRouting => {
+            dynamic_routing
+                .disable_algorithm_id(routing_types::DynamicRoutingType::ContractBasedRouting);
+
             enable_specific_routing_algorithm(
                 state,
                 key_store,
                 business_profile,
                 feature_to_enable,
-                dynamic_routing_algo_ref,
+                dynamic_routing.clone(),
                 dynamic_routing_type,
                 dynamic_routing.success_based_algorithm,
             )
@@ -1097,11 +1412,17 @@ pub async fn enable_dynamic_routing_algorithm(
                 key_store,
                 business_profile,
                 feature_to_enable,
-                dynamic_routing_algo_ref,
+                dynamic_routing.clone(),
                 dynamic_routing_type,
                 dynamic_routing.elimination_routing_algorithm,
             )
             .await
+        }
+        routing_types::DynamicRoutingType::ContractBasedRouting => {
+            Err((errors::ApiErrorResponse::InvalidRequestData {
+                message: "Contract routing cannot be set as default".to_string(),
+            })
+            .into())
         }
     }
 }
@@ -1117,7 +1438,7 @@ pub async fn enable_specific_routing_algorithm<A>(
     algo_type: Option<A>,
 ) -> RouterResult<ApplicationResponse<routing_types::RoutingDictionaryRecord>>
 where
-    A: routing_types::DynamicRoutingAlgoAccessor + Clone + std::fmt::Debug,
+    A: routing_types::DynamicRoutingAlgoAccessor + Clone + Debug,
 {
     // Algorithm wasn't created yet
     let Some(mut algo_type) = algo_type else {
@@ -1158,9 +1479,8 @@ where
         }
         .into());
     };
-    *algo_type_enabled_features = feature_to_enable.clone();
-    dynamic_routing_algo_ref
-        .update_specific_ref(dynamic_routing_type.clone(), feature_to_enable.clone());
+    *algo_type_enabled_features = feature_to_enable;
+    dynamic_routing_algo_ref.update_enabled_features(dynamic_routing_type, feature_to_enable);
     update_business_profile_active_dynamic_algorithm_ref(
         db,
         &state.into(),
@@ -1231,6 +1551,13 @@ pub async fn default_specific_dynamic_routing_setup(
                 algorithm_for: common_enums::TransactionType::Payment,
             }
         }
+
+        routing_types::DynamicRoutingType::ContractBasedRouting => {
+            return Err((errors::ApiErrorResponse::InvalidRequestData {
+                message: "Contract routing cannot be set as default".to_string(),
+            })
+            .into())
+        }
     };
 
     let record = db
@@ -1262,7 +1589,8 @@ pub async fn default_specific_dynamic_routing_setup(
     Ok(ApplicationResponse::Json(new_record))
 }
 
-pub struct SuccessBasedRoutingConfigParamsInterpolator {
+#[derive(Debug, Clone)]
+pub struct DynamicRoutingConfigParamsInterpolator {
     pub payment_method: Option<common_enums::PaymentMethod>,
     pub payment_method_type: Option<common_enums::PaymentMethodType>,
     pub authentication_type: Option<common_enums::AuthenticationType>,
@@ -1272,7 +1600,7 @@ pub struct SuccessBasedRoutingConfigParamsInterpolator {
     pub card_bin: Option<String>,
 }
 
-impl SuccessBasedRoutingConfigParamsInterpolator {
+impl DynamicRoutingConfigParamsInterpolator {
     pub fn new(
         payment_method: Option<common_enums::PaymentMethod>,
         payment_method_type: Option<common_enums::PaymentMethodType>,
