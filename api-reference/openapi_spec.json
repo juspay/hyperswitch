@@ -9098,6 +9098,15 @@
         },
         "additionalProperties": false
       },
+      "CardDiscovery": {
+        "type": "string",
+        "description": "Indicates the method by which a card is discovered during a payment",
+        "enum": [
+          "manual",
+          "saved_card",
+          "click_to_pay"
+        ]
+      },
       "CardNetwork": {
         "type": "string",
         "description": "Indicates the card network.",
