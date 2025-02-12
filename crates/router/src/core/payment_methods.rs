@@ -55,6 +55,8 @@ use hyperswitch_domain_models::payments::{payment_attempt::PaymentAttempt, Payme
 use masking::{ PeekInterface, Secret};
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use masking::{ExposeInterface, PeekInterface, Secret};
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+use masking::{PeekInterface, Secret};
 use router_env::{instrument, tracing};
 use time::Duration;
 
