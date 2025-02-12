@@ -68,7 +68,7 @@ pub enum RoutableConnectors {
     // Chargebee,
     Checkout,
     Coinbase,
-    // Coingate,
+    Coingate,
     Cryptopay,
     Cybersource,
     Datatrans,
@@ -205,6 +205,7 @@ pub enum Connector {
     // Chargebee,
     Checkout,
     Coinbase,
+    Coingate,
     Cryptopay,
     CtpMastercard,
     Cybersource,
@@ -357,6 +358,7 @@ impl Connector {
             | Self::Cashtocode
             // | Self::Chargebee
             | Self::Coinbase
+            |Self::Coingate
             | Self::Cryptopay
             | Self::Deutschebank
             | Self::Digitalvirgo
@@ -544,6 +546,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Zsl => Self::Zsl,
             RoutableConnectors::Xendit => Self::Xendit,
             RoutableConnectors::Inespay => Self::Inespay,
+            RoutableConnectors::Coingate => Self::Coingate,
         }
     }
 }

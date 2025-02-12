@@ -1317,10 +1317,15 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 coinbase::transformers::CoinbaseConnectorMeta::try_from(self.connector_meta_data)?;
                 Ok(())
             }
+            api_enums::Connector::Coingate => {
+                coingate::transformers::CoingateAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Cryptopay => {
                 cryptopay::transformers::CryptopayAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+
             api_enums::Connector::CtpMastercard => Ok(()),
             api_enums::Connector::Cybersource => {
                 cybersource::transformers::CybersourceAuthType::try_from(self.auth_type)?;
