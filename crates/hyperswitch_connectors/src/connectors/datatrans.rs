@@ -223,7 +223,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let base_url = self.base_url(connectors);
-        if req.is_three_ds() {
+        if req.is_three_ds() && req.request.authentication_data.is_none() {
             Ok(format!("{base_url}v1/transactions"))
         } else {
             Ok(format!("{base_url}v1/transactions/authorize"))

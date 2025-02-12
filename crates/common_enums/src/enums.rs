@@ -3687,6 +3687,39 @@ pub enum FeatureStatus {
     Supported,
 }
 
+/// The type of tokenization to use for the payment method
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    ToSchema,
+)]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+pub enum TokenizationType {
+    /// Create a single use token for the given payment method
+    /// The user might have to go through additional factor authentication when using the single use token if required by the payment method
+    SingleUse,
+    /// Create a multi use token for the given payment method
+    /// User will have to complete the additional factor authentication only once when creating the multi use token
+    /// This will create a mandate at the connector which can be used for recurring payments
+    MultiUse,
+}
+
+/// The network tokenization toggle, whether to enable or skip the network tokenization
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
+pub enum NetworkTokenizationToggle {
+    /// Enable network tokenization for the payment method
+    Enable,
+    /// Skip network tokenization for the payment method
+    Skip,
+}
+
 #[derive(Clone, Copy, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum GooglePayAuthMethod {
@@ -3695,4 +3728,42 @@ pub enum GooglePayAuthMethod {
     /// Contain cryptogram data along with pan data
     #[serde(rename = "CRYPTOGRAM_3DS")]
     Cryptogram,
+}
+
+#[derive(
+    Clone,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[strum(serialize_all = "PascalCase")]
+#[serde(rename_all = "PascalCase")]
+pub enum AdyenSplitType {
+    /// Books split amount to the specified account.
+    BalanceAccount,
+    /// The aggregated amount of the interchange and scheme fees.
+    AcquiringFees,
+    /// The aggregated amount of all transaction fees.
+    PaymentFee,
+    /// The aggregated amount of Adyen's commission and markup fees.
+    AdyenFees,
+    ///  The transaction fees due to Adyen under blended rates.
+    AdyenCommission,
+    /// The transaction fees due to Adyen under Interchange ++ pricing.
+    AdyenMarkup,
+    ///  The fees paid to the issuer for each payment made with the card network.
+    Interchange,
+    ///  The fees paid to the card scheme for using their network.
+    SchemeFee,
+    /// Your platform's commission on the payment (specified in amount), booked to your liable balance account.
+    Commission,
+    /// Allows you and your users to top up balance accounts using direct debit, card payments, or other payment methods.
+    TopUp,
+    /// The value-added tax charged on the payment, booked to your platforms liable balance account.
+    Vat,
 }

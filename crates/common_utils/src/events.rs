@@ -112,8 +112,13 @@ pub enum ApiEventsType {
         poll_id: String,
     },
     Analytics,
-    EphemeralKey {
-        key_id: id_type::EphemeralKeyId,
+    #[cfg(feature = "v2")]
+    ClientSecret {
+        key_id: id_type::ClientSecretId,
+    },
+    #[cfg(feature = "v2")]
+    PaymentMethodSession {
+        payment_method_session_id: id_type::GlobalPaymentMethodSessionId,
     },
 }
 
