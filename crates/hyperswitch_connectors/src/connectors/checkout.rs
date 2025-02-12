@@ -1,39 +1,69 @@
 pub mod transformers;
 
+use common_enums::{enums, CallConnectorAction, PaymentAction};
 use common_utils::{
     crypto,
+    errors::CustomResult,
     ext_traits::ByteSliceExt,
-    request::RequestContent,
+    request::{Method, Request, RequestBuilder, RequestContent},
     types::{AmountConvertor, MinorUnit, MinorUnitForConnector},
 };
-use diesel_models::enums;
 use error_stack::ResultExt;
-use masking::PeekInterface;
-
-use self::transformers as checkout;
-use super::utils::{
-    self as conn_utils, ConnectorErrorType, ConnectorErrorTypeMapping, RefundsRequestData,
-};
-use crate::{
-    configs::settings,
-    connector::utils as connector_utils,
-    consts,
-    core::{
-        errors::{self, CustomResult},
-        payments,
+use hyperswitch_domain_models::{
+    router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
+    router_flow_types::{
+        access_token_auth::AccessTokenAuth,
+        payments::{Authorize, Capture, PSync, PaymentMethodToken, Session, SetupMandate, Void},
+        refunds::{Execute, RSync},
+        Accept, Defend, Evidence, Retrieve, Upload,
     },
-    events::connector_api_logs::ConnectorEvent,
-    headers,
-    services::{
-        self,
-        request::{self, Mask},
-        ConnectorIntegration, ConnectorSpecifications, ConnectorValidation,
+    router_request_types::{
+        AcceptDisputeRequestData, AccessTokenRequestData, DefendDisputeRequestData,
+        PaymentMethodTokenizationData, PaymentsAuthorizeData, PaymentsCancelData,
+        PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData, RefundsData,
+        RetrieveFileRequestData, SetupMandateRequestData, SubmitEvidenceRequestData,
+        SyncRequestType, UploadFileRequestData,
+    },
+    router_response_types::{
+        AcceptDisputeResponse, DefendDisputeResponse, PaymentsResponseData, RefundsResponseData,
+        RetrieveFileResponse, SubmitEvidenceResponse, UploadFileResponse,
     },
     types::{
-        self,
-        api::{self, ConnectorCommon, ConnectorCommonExt},
+        PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
+        PaymentsSyncRouterData, RefundsRouterData, TokenizationRouterData,
     },
-    utils::BytesExt,
+};
+use hyperswitch_interfaces::{
+    api::{
+        self,
+        disputes::{AcceptDispute, DefendDispute, Dispute, SubmitEvidence},
+        files::{FilePurpose, FileUpload, RetrieveFile, UploadFile},
+        CaptureSyncMethod, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration,
+        ConnectorSpecifications, ConnectorValidation, MandateSetup,
+    },
+    configs::Connectors,
+    consts,
+    disputes::DisputePayload,
+    errors,
+    events::connector_api_logs::ConnectorEvent,
+    types::{
+        AcceptDisputeType, DefendDisputeType, PaymentsAuthorizeType, PaymentsCaptureType,
+        PaymentsSyncType, PaymentsVoidType, RefundExecuteType, RefundSyncType, Response,
+        SubmitEvidenceType, TokenizationType, UploadFileType,
+    },
+    webhooks,
+};
+use masking::{Mask, Maskable, PeekInterface};
+use transformers::CheckoutErrorResponse;
+
+use self::transformers as checkout;
+use crate::{
+    constants::headers,
+    types::{
+        AcceptDisputeRouterData, DefendDisputeRouterData, ResponseRouterData,
+        SubmitEvidenceRouterData, UploadFileRouterData,
+    },
+    utils::{self, ConnectorErrorType, RefundsRequestData},
 };
 
 #[derive(Clone)]
@@ -55,12 +85,12 @@ where
 {
     fn build_headers(
         &self,
-        req: &types::RouterData<Flow, Request, Response>,
-        _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        req: &RouterData<Flow, Request, Response>,
+        _connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
         let mut header = vec![(
             headers::CONTENT_TYPE.to_string(),
-            types::PaymentsAuthorizeType::get_content_type(self)
+            PaymentsAuthorizeType::get_content_type(self)
                 .to_string()
                 .into(),
         )];
@@ -85,8 +115,8 @@ impl ConnectorCommon for Checkout {
 
     fn get_auth_header(
         &self,
-        auth_type: &types::ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        auth_type: &ConnectorAuthType,
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
         let auth = checkout::CheckoutAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(
@@ -95,15 +125,15 @@ impl ConnectorCommon for Checkout {
         )])
     }
 
-    fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
+    fn base_url<'a>(&self, connectors: &'a Connectors) -> &'a str {
         connectors.checkout.base_url.as_ref()
     }
     fn build_error_response(
         &self,
-        res: types::Response,
+        res: Response,
         event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
-        let response: checkout::ErrorResponse = if res.response.is_empty() {
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        let response: CheckoutErrorResponse = if res.response.is_empty() {
             let (error_codes, error_type) = if res.status_code == 401 {
                 (
                     Some(vec!["Invalid api key".to_string()]),
@@ -112,7 +142,7 @@ impl ConnectorCommon for Checkout {
             } else {
                 (None, None)
             };
-            checkout::ErrorResponse {
+            CheckoutErrorResponse {
                 request_id: None,
                 error_codes,
                 error_type,
@@ -127,14 +157,14 @@ impl ConnectorCommon for Checkout {
         router_env::logger::info!(connector_response=?response);
 
         let errors_list = response.error_codes.clone().unwrap_or_default();
-        let option_error_code_message = conn_utils::get_error_code_error_message_based_on_priority(
+        let option_error_code_message = utils::get_error_code_error_message_based_on_priority(
             self.clone(),
             errors_list
                 .into_iter()
                 .map(|errors| errors.into())
                 .collect(),
         );
-        Ok(types::ErrorResponse {
+        Ok(ErrorResponse {
             status_code: res.status_code,
             code: option_error_code_message
                 .clone()
@@ -166,9 +196,10 @@ impl ConnectorValidation for Checkout {
             | enums::CaptureMethod::SequentialAutomatic
             | enums::CaptureMethod::Manual
             | enums::CaptureMethod::ManualMultiple => Ok(()),
-            enums::CaptureMethod::Scheduled => Err(
-                connector_utils::construct_not_implemented_error_report(capture_method, self.id()),
-            ),
+            enums::CaptureMethod::Scheduled => Err(utils::construct_not_implemented_error_report(
+                capture_method,
+                self.id(),
+            )),
         }
     }
 }
@@ -181,24 +212,20 @@ impl api::PaymentVoid for Checkout {}
 impl api::PaymentCapture for Checkout {}
 impl api::PaymentSession for Checkout {}
 impl api::ConnectorAccessToken for Checkout {}
-impl api::AcceptDispute for Checkout {}
+impl AcceptDispute for Checkout {}
 impl api::PaymentToken for Checkout {}
-impl api::Dispute for Checkout {}
-impl api::RetrieveFile for Checkout {}
-impl api::DefendDispute for Checkout {}
+impl Dispute for Checkout {}
+impl RetrieveFile for Checkout {}
+impl DefendDispute for Checkout {}
 
-impl
-    ConnectorIntegration<
-        api::PaymentMethodToken,
-        types::PaymentMethodTokenizationData,
-        types::PaymentsResponseData,
-    > for Checkout
+impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
+    for Checkout
 {
     fn get_headers(
         &self,
-        req: &types::TokenizationRouterData,
-        _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        req: &TokenizationRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
         let mut header = vec![(
             headers::CONTENT_TYPE.to_string(),
             self.common_get_content_type().to_string().into(),
@@ -219,16 +246,16 @@ impl
 
     fn get_url(
         &self,
-        _req: &types::TokenizationRouterData,
-        connectors: &settings::Connectors,
+        _req: &TokenizationRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!("{}tokens", self.base_url(connectors)))
     }
 
     fn get_request_body(
         &self,
-        req: &types::TokenizationRouterData,
-        _connectors: &settings::Connectors,
+        req: &TokenizationRouterData,
+        _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = checkout::TokenRequest::try_from(req)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
@@ -236,30 +263,28 @@ impl
 
     fn build_request(
         &self,
-        req: &types::TokenizationRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        req: &TokenizationRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Ok(Some(
-            services::RequestBuilder::new()
-                .method(services::Method::Post)
-                .url(&types::TokenizationType::get_url(self, req, connectors)?)
+            RequestBuilder::new()
+                .method(Method::Post)
+                .url(&TokenizationType::get_url(self, req, connectors)?)
                 .attach_default_headers()
-                .headers(types::TokenizationType::get_headers(self, req, connectors)?)
-                .set_body(types::TokenizationType::get_request_body(
-                    self, req, connectors,
-                )?)
+                .headers(TokenizationType::get_headers(self, req, connectors)?)
+                .set_body(TokenizationType::get_request_body(self, req, connectors)?)
                 .build(),
         ))
     }
 
     fn handle_response(
         &self,
-        data: &types::TokenizationRouterData,
+        data: &TokenizationRouterData,
         event_builder: Option<&mut ConnectorEvent>,
-        res: types::Response,
-    ) -> CustomResult<types::TokenizationRouterData, errors::ConnectorError>
+        res: Response,
+    ) -> CustomResult<TokenizationRouterData, errors::ConnectorError>
     where
-        types::PaymentsResponseData: Clone,
+        PaymentsResponseData: Clone,
     {
         let response: checkout::CheckoutTokenResponse = res
             .response
@@ -267,7 +292,7 @@ impl
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        types::RouterData::try_from(types::ResponseRouterData {
+        RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -277,44 +302,32 @@ impl
 
     fn get_error_response(
         &self,
-        res: types::Response,
+        res: Response,
         event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res, event_builder)
     }
 }
 
-impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>
-    for Checkout
-{
+impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Checkout {
     // Not Implemented (R)
 }
 
-impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken>
-    for Checkout
-{
+impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> for Checkout {
     // Not Implemented (R)
 }
 
-impl api::MandateSetup for Checkout {}
+impl MandateSetup for Checkout {}
 
-impl
-    ConnectorIntegration<
-        api::SetupMandate,
-        types::SetupMandateRequestData,
-        types::PaymentsResponseData,
-    > for Checkout
+impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsResponseData>
+    for Checkout
 {
     // Issue: #173
     fn build_request(
         &self,
-        _req: &types::RouterData<
-            api::SetupMandate,
-            types::SetupMandateRequestData,
-            types::PaymentsResponseData,
-        >,
-        _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        _req: &RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponseData>,
+        _connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Err(
             errors::ConnectorError::NotImplemented("Setup Mandate flow for Checkout".to_string())
                 .into(),
@@ -322,21 +335,19 @@ impl
     }
 }
 
-impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::PaymentsResponseData>
-    for Checkout
-{
+impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> for Checkout {
     fn get_headers(
         &self,
-        req: &types::PaymentsCaptureRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        req: &PaymentsCaptureRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
     fn get_url(
         &self,
-        req: &types::PaymentsCaptureRouterData,
-        connectors: &settings::Connectors,
+        req: &PaymentsCaptureRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let id = req.request.connector_transaction_id.as_str();
         Ok(format!(
@@ -346,10 +357,10 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
     }
     fn get_request_body(
         &self,
-        req: &types::PaymentsCaptureRouterData,
-        _connectors: &settings::Connectors,
+        req: &PaymentsCaptureRouterData,
+        _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let amount = connector_utils::convert_amount(
+        let amount = utils::convert_amount(
             self.amount_converter,
             req.request.minor_amount_to_capture,
             req.request.currency,
@@ -362,18 +373,16 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
 
     fn build_request(
         &self,
-        req: &types::PaymentsCaptureRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        req: &PaymentsCaptureRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Ok(Some(
-            services::RequestBuilder::new()
-                .method(services::Method::Post)
-                .url(&types::PaymentsCaptureType::get_url(self, req, connectors)?)
+            RequestBuilder::new()
+                .method(Method::Post)
+                .url(&PaymentsCaptureType::get_url(self, req, connectors)?)
                 .attach_default_headers()
-                .headers(types::PaymentsCaptureType::get_headers(
-                    self, req, connectors,
-                )?)
-                .set_body(types::PaymentsCaptureType::get_request_body(
+                .headers(PaymentsCaptureType::get_headers(self, req, connectors)?)
+                .set_body(PaymentsCaptureType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -382,17 +391,17 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
 
     fn handle_response(
         &self,
-        data: &types::PaymentsCaptureRouterData,
+        data: &PaymentsCaptureRouterData,
         event_builder: Option<&mut ConnectorEvent>,
-        res: types::Response,
-    ) -> CustomResult<types::PaymentsCaptureRouterData, errors::ConnectorError> {
+        res: Response,
+    ) -> CustomResult<PaymentsCaptureRouterData, errors::ConnectorError> {
         let response: checkout::PaymentCaptureResponse = res
             .response
             .parse_struct("CaptureResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        types::RouterData::try_from(types::ResponseRouterData {
+        RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -402,32 +411,30 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
 
     fn get_error_response(
         &self,
-        res: types::Response,
+        res: Response,
         event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res, event_builder)
     }
 }
 
-impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
-    for Checkout
-{
+impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Checkout {
     fn get_headers(
         &self,
-        req: &types::PaymentsSyncRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        req: &PaymentsSyncRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
     fn get_url(
         &self,
-        req: &types::PaymentsSyncRouterData,
-        connectors: &settings::Connectors,
+        req: &PaymentsSyncRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let suffix = match req.request.sync_type {
-            types::SyncRequestType::MultipleCaptureSync(_) => "/actions",
-            types::SyncRequestType::SinglePaymentSync => "",
+            SyncRequestType::MultipleCaptureSync(_) => "/actions",
+            SyncRequestType::SinglePaymentSync => "",
         };
         Ok(format!(
             "{}{}{}{}",
@@ -443,53 +450,53 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
 
     fn build_request(
         &self,
-        req: &types::PaymentsSyncRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        req: &PaymentsSyncRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Ok(Some(
-            services::RequestBuilder::new()
-                .method(services::Method::Get)
-                .url(&types::PaymentsSyncType::get_url(self, req, connectors)?)
+            RequestBuilder::new()
+                .method(Method::Get)
+                .url(&PaymentsSyncType::get_url(self, req, connectors)?)
                 .attach_default_headers()
-                .headers(types::PaymentsSyncType::get_headers(self, req, connectors)?)
+                .headers(PaymentsSyncType::get_headers(self, req, connectors)?)
                 .build(),
         ))
     }
 
     fn handle_response(
         &self,
-        data: &types::PaymentsSyncRouterData,
+        data: &PaymentsSyncRouterData,
         event_builder: Option<&mut ConnectorEvent>,
-        res: types::Response,
-    ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError>
+        res: Response,
+    ) -> CustomResult<PaymentsSyncRouterData, errors::ConnectorError>
     where
-        api::PSync: Clone,
-        types::PaymentsSyncData: Clone,
-        types::PaymentsResponseData: Clone,
+        PSync: Clone,
+        PaymentsSyncData: Clone,
+        PaymentsResponseData: Clone,
     {
         match &data.request.sync_type {
-            types::SyncRequestType::MultipleCaptureSync(_) => {
+            SyncRequestType::MultipleCaptureSync(_) => {
                 let response: checkout::PaymentsResponseEnum = res
                     .response
                     .parse_struct("checkout::PaymentsResponseEnum")
                     .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
                 event_builder.map(|i| i.set_response_body(&response));
                 router_env::logger::info!(connector_response=?response);
-                types::RouterData::try_from(types::ResponseRouterData {
+                RouterData::try_from(ResponseRouterData {
                     response,
                     data: data.clone(),
                     http_code: res.status_code,
                 })
                 .change_context(errors::ConnectorError::ResponseHandlingFailed)
             }
-            types::SyncRequestType::SinglePaymentSync => {
+            SyncRequestType::SinglePaymentSync => {
                 let response: checkout::PaymentsResponse = res
                     .response
                     .parse_struct("PaymentsResponse")
                     .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
                 event_builder.map(|i| i.set_response_body(&response));
                 router_env::logger::info!(connector_response=?response);
-                types::RouterData::try_from(types::ResponseRouterData {
+                RouterData::try_from(ResponseRouterData {
                     response,
                     data: data.clone(),
                     http_code: res.status_code,
@@ -501,44 +508,42 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
 
     fn get_multiple_capture_sync_method(
         &self,
-    ) -> CustomResult<services::CaptureSyncMethod, errors::ConnectorError> {
-        Ok(services::CaptureSyncMethod::Bulk)
+    ) -> CustomResult<CaptureSyncMethod, errors::ConnectorError> {
+        Ok(CaptureSyncMethod::Bulk)
     }
 
     fn get_error_response(
         &self,
-        res: types::Response,
+        res: Response,
         event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res, event_builder)
     }
 }
 
-impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData>
-    for Checkout
-{
+impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData> for Checkout {
     fn get_headers(
         &self,
-        req: &types::PaymentsAuthorizeRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        req: &PaymentsAuthorizeRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
     fn get_url(
         &self,
-        _req: &types::PaymentsAuthorizeRouterData,
-        connectors: &settings::Connectors,
+        _req: &PaymentsAuthorizeRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!("{}{}", self.base_url(connectors), "payments"))
     }
 
     fn get_request_body(
         &self,
-        req: &types::PaymentsAuthorizeRouterData,
-        _connectors: &settings::Connectors,
+        req: &PaymentsAuthorizeRouterData,
+        _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let amount = connector_utils::convert_amount(
+        let amount = utils::convert_amount(
             self.amount_converter,
             req.request.minor_amount,
             req.request.currency,
@@ -550,24 +555,16 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     }
     fn build_request(
         &self,
-        req: &types::RouterData<
-            api::Authorize,
-            types::PaymentsAuthorizeData,
-            types::PaymentsResponseData,
-        >,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        req: &RouterData<Authorize, PaymentsAuthorizeData, PaymentsResponseData>,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Ok(Some(
-            services::RequestBuilder::new()
-                .method(services::Method::Post)
-                .url(&types::PaymentsAuthorizeType::get_url(
-                    self, req, connectors,
-                )?)
+            RequestBuilder::new()
+                .method(Method::Post)
+                .url(&PaymentsAuthorizeType::get_url(self, req, connectors)?)
                 .attach_default_headers()
-                .headers(types::PaymentsAuthorizeType::get_headers(
-                    self, req, connectors,
-                )?)
-                .set_body(types::PaymentsAuthorizeType::get_request_body(
+                .headers(PaymentsAuthorizeType::get_headers(self, req, connectors)?)
+                .set_body(PaymentsAuthorizeType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -576,17 +573,17 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
 
     fn handle_response(
         &self,
-        data: &types::PaymentsAuthorizeRouterData,
+        data: &PaymentsAuthorizeRouterData,
         event_builder: Option<&mut ConnectorEvent>,
-        res: types::Response,
-    ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
+        res: Response,
+    ) -> CustomResult<PaymentsAuthorizeRouterData, errors::ConnectorError> {
         let response: checkout::PaymentsResponse = res
             .response
             .parse_struct("PaymentIntentResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        types::RouterData::try_from(types::ResponseRouterData {
+        RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -596,28 +593,26 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
 
     fn get_error_response(
         &self,
-        res: types::Response,
+        res: Response,
         event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res, event_builder)
     }
 }
 
-impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>
-    for Checkout
-{
+impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Checkout {
     fn get_headers(
         &self,
-        req: &types::PaymentsCancelRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        req: &PaymentsCancelRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
     fn get_url(
         &self,
-        req: &types::PaymentsCancelRouterData,
-        connectors: &settings::Connectors,
+        req: &PaymentsCancelRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
             "{}payments/{}/voids",
@@ -628,36 +623,34 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
 
     fn get_request_body(
         &self,
-        req: &types::PaymentsCancelRouterData,
-        _connectors: &settings::Connectors,
+        req: &PaymentsCancelRouterData,
+        _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = checkout::PaymentVoidRequest::try_from(req)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
     fn build_request(
         &self,
-        req: &types::PaymentsCancelRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        req: &PaymentsCancelRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Ok(Some(
-            services::RequestBuilder::new()
-                .method(services::Method::Post)
-                .url(&types::PaymentsVoidType::get_url(self, req, connectors)?)
+            RequestBuilder::new()
+                .method(Method::Post)
+                .url(&PaymentsVoidType::get_url(self, req, connectors)?)
                 .attach_default_headers()
-                .headers(types::PaymentsVoidType::get_headers(self, req, connectors)?)
-                .set_body(types::PaymentsVoidType::get_request_body(
-                    self, req, connectors,
-                )?)
+                .headers(PaymentsVoidType::get_headers(self, req, connectors)?)
+                .set_body(PaymentsVoidType::get_request_body(self, req, connectors)?)
                 .build(),
         ))
     }
 
     fn handle_response(
         &self,
-        data: &types::PaymentsCancelRouterData,
+        data: &PaymentsCancelRouterData,
         event_builder: Option<&mut ConnectorEvent>,
-        res: types::Response,
-    ) -> CustomResult<types::PaymentsCancelRouterData, errors::ConnectorError> {
+        res: Response,
+    ) -> CustomResult<PaymentsCancelRouterData, errors::ConnectorError> {
         let mut response: checkout::PaymentVoidResponse = res
             .response
             .parse_struct("PaymentVoidResponse")
@@ -667,7 +660,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
 
         response.status = res.status_code;
 
-        types::RouterData::try_from(types::ResponseRouterData {
+        RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -677,9 +670,9 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
 
     fn get_error_response(
         &self,
-        res: types::Response,
+        res: Response,
         event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res, event_builder)
     }
 }
@@ -688,14 +681,12 @@ impl api::Refund for Checkout {}
 impl api::RefundExecute for Checkout {}
 impl api::RefundSync for Checkout {}
 
-impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsResponseData>
-    for Checkout
-{
+impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Checkout {
     fn get_headers(
         &self,
-        req: &types::RefundsRouterData<api::Execute>,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        req: &RefundsRouterData<Execute>,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -705,8 +696,8 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
 
     fn get_url(
         &self,
-        req: &types::RefundsRouterData<api::Execute>,
-        connectors: &settings::Connectors,
+        req: &RefundsRouterData<Execute>,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let id = req.request.connector_transaction_id.clone();
         Ok(format!(
@@ -718,10 +709,10 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
 
     fn get_request_body(
         &self,
-        req: &types::RefundsRouterData<api::Execute>,
-        _connectors: &settings::Connectors,
+        req: &RefundsRouterData<Execute>,
+        _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let amount = connector_utils::convert_amount(
+        let amount = utils::convert_amount(
             self.amount_converter,
             req.request.minor_refund_amount,
             req.request.currency,
@@ -734,29 +725,25 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
 
     fn build_request(
         &self,
-        req: &types::RefundsRouterData<api::Execute>,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        let request = services::RequestBuilder::new()
-            .method(services::Method::Post)
-            .url(&types::RefundExecuteType::get_url(self, req, connectors)?)
+        req: &RefundsRouterData<Execute>,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        let request = RequestBuilder::new()
+            .method(Method::Post)
+            .url(&RefundExecuteType::get_url(self, req, connectors)?)
             .attach_default_headers()
-            .headers(types::RefundExecuteType::get_headers(
-                self, req, connectors,
-            )?)
-            .set_body(types::RefundExecuteType::get_request_body(
-                self, req, connectors,
-            )?)
+            .headers(RefundExecuteType::get_headers(self, req, connectors)?)
+            .set_body(RefundExecuteType::get_request_body(self, req, connectors)?)
             .build();
         Ok(Some(request))
     }
 
     fn handle_response(
         &self,
-        data: &types::RefundsRouterData<api::Execute>,
+        data: &RefundsRouterData<Execute>,
         event_builder: Option<&mut ConnectorEvent>,
-        res: types::Response,
-    ) -> CustomResult<types::RefundsRouterData<api::Execute>, errors::ConnectorError> {
+        res: Response,
+    ) -> CustomResult<RefundsRouterData<Execute>, errors::ConnectorError> {
         let response: checkout::RefundResponse = res
             .response
             .parse_struct("checkout::RefundResponse")
@@ -767,7 +754,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
             response,
             status: res.status_code,
         };
-        types::RouterData::try_from(types::ResponseRouterData {
+        RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -777,26 +764,26 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
 
     fn get_error_response(
         &self,
-        res: types::Response,
+        res: Response,
         event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res, event_builder)
     }
 }
 
-impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponseData> for Checkout {
+impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Checkout {
     fn get_headers(
         &self,
-        req: &types::RefundsRouterData<api::RSync>,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        req: &RefundsRouterData<RSync>,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
     fn get_url(
         &self,
-        req: &types::RefundsRouterData<api::RSync>,
-        connectors: &settings::Connectors,
+        req: &RefundsRouterData<RSync>,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let id = req.request.connector_transaction_id.clone();
         Ok(format!(
@@ -808,25 +795,25 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
 
     fn build_request(
         &self,
-        req: &types::RefundsRouterData<api::RSync>,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        req: &RefundsRouterData<RSync>,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Ok(Some(
-            services::RequestBuilder::new()
-                .method(services::Method::Get)
-                .url(&types::RefundSyncType::get_url(self, req, connectors)?)
+            RequestBuilder::new()
+                .method(Method::Get)
+                .url(&RefundSyncType::get_url(self, req, connectors)?)
                 .attach_default_headers()
-                .headers(types::RefundSyncType::get_headers(self, req, connectors)?)
+                .headers(RefundSyncType::get_headers(self, req, connectors)?)
                 .build(),
         ))
     }
 
     fn handle_response(
         &self,
-        data: &types::RefundsRouterData<api::RSync>,
+        data: &RefundsRouterData<RSync>,
         event_builder: Option<&mut ConnectorEvent>,
-        res: types::Response,
-    ) -> CustomResult<types::RefundsRouterData<api::RSync>, errors::ConnectorError> {
+        res: Response,
+    ) -> CustomResult<RefundsRouterData<RSync>, errors::ConnectorError> {
         let refund_action_id = data.request.get_connector_refund_id()?;
 
         let response: Vec<checkout::ActionResponse> = res
@@ -841,7 +828,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
             .iter()
             .find(|&x| x.action_id.clone() == refund_action_id)
             .ok_or(errors::ConnectorError::ResponseHandlingFailed)?;
-        types::RouterData::try_from(types::ResponseRouterData {
+        RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -851,27 +838,22 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
 
     fn get_error_response(
         &self,
-        res: types::Response,
+        res: Response,
         event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res, event_builder)
     }
 }
 
-impl
-    ConnectorIntegration<api::Accept, types::AcceptDisputeRequestData, types::AcceptDisputeResponse>
-    for Checkout
-{
+impl ConnectorIntegration<Accept, AcceptDisputeRequestData, AcceptDisputeResponse> for Checkout {
     fn get_headers(
         &self,
-        req: &types::AcceptDisputeRouterData,
-        _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        req: &AcceptDisputeRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
         let mut header = vec![(
             headers::CONTENT_TYPE.to_string(),
-            types::AcceptDisputeType::get_content_type(self)
-                .to_string()
-                .into(),
+            AcceptDisputeType::get_content_type(self).to_string().into(),
         )];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
@@ -880,8 +862,8 @@ impl
 
     fn get_url(
         &self,
-        req: &types::AcceptDisputeRouterData,
-        connectors: &settings::Connectors,
+        req: &AcceptDisputeRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
             "{}{}{}{}",
@@ -894,30 +876,28 @@ impl
 
     fn build_request(
         &self,
-        req: &types::AcceptDisputeRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        req: &AcceptDisputeRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Ok(Some(
-            services::RequestBuilder::new()
-                .method(services::Method::Post)
-                .url(&types::AcceptDisputeType::get_url(self, req, connectors)?)
+            RequestBuilder::new()
+                .method(Method::Post)
+                .url(&AcceptDisputeType::get_url(self, req, connectors)?)
                 .attach_default_headers()
-                .headers(types::AcceptDisputeType::get_headers(
-                    self, req, connectors,
-                )?)
+                .headers(AcceptDisputeType::get_headers(self, req, connectors)?)
                 .build(),
         ))
     }
 
     fn handle_response(
         &self,
-        data: &types::AcceptDisputeRouterData,
+        data: &AcceptDisputeRouterData,
         _event_builder: Option<&mut ConnectorEvent>,
-        _res: types::Response,
-    ) -> CustomResult<types::AcceptDisputeRouterData, errors::ConnectorError> {
-        Ok(types::AcceptDisputeRouterData {
-            response: Ok(types::AcceptDisputeResponse {
-                dispute_status: api::enums::DisputeStatus::DisputeAccepted,
+        _res: Response,
+    ) -> CustomResult<AcceptDisputeRouterData, errors::ConnectorError> {
+        Ok(AcceptDisputeRouterData {
+            response: Ok(AcceptDisputeResponse {
+                dispute_status: enums::DisputeStatus::DisputeAccepted,
                 connector_status: None,
             }),
             ..data.clone()
@@ -926,31 +906,27 @@ impl
 
     fn get_error_response(
         &self,
-        res: types::Response,
+        res: Response,
         event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res, event_builder)
     }
 }
 
-impl api::UploadFile for Checkout {}
+impl UploadFile for Checkout {}
 
-impl
-    ConnectorIntegration<api::Retrieve, types::RetrieveFileRequestData, types::RetrieveFileResponse>
-    for Checkout
-{
-}
+impl ConnectorIntegration<Retrieve, RetrieveFileRequestData, RetrieveFileResponse> for Checkout {}
 
 #[async_trait::async_trait]
-impl api::FileUpload for Checkout {
+impl FileUpload for Checkout {
     fn validate_file_upload(
         &self,
-        purpose: api::FilePurpose,
+        purpose: FilePurpose,
         file_size: i32,
         file_type: mime::Mime,
     ) -> CustomResult<(), errors::ConnectorError> {
         match purpose {
-            api::FilePurpose::DisputeEvidence => {
+            FilePurpose::DisputeEvidence => {
                 let supported_file_types =
                     ["image/jpeg", "image/jpg", "image/png", "application/pdf"];
                 // 4 Megabytes (MB)
@@ -970,18 +946,12 @@ impl api::FileUpload for Checkout {
     }
 }
 
-impl ConnectorIntegration<api::Upload, types::UploadFileRequestData, types::UploadFileResponse>
-    for Checkout
-{
+impl ConnectorIntegration<Upload, UploadFileRequestData, UploadFileResponse> for Checkout {
     fn get_headers(
         &self,
-        req: &types::RouterData<
-            api::Upload,
-            types::UploadFileRequestData,
-            types::UploadFileResponse,
-        >,
-        _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        req: &RouterData<Upload, UploadFileRequestData, UploadFileResponse>,
+        _connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
         self.get_auth_header(&req.connector_auth_type)
     }
 
@@ -991,16 +961,16 @@ impl ConnectorIntegration<api::Upload, types::UploadFileRequestData, types::Uplo
 
     fn get_url(
         &self,
-        _req: &types::UploadFileRouterData,
-        connectors: &settings::Connectors,
+        _req: &UploadFileRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!("{}{}", self.base_url(connectors), "files"))
     }
 
     fn get_request_body(
         &self,
-        req: &types::UploadFileRouterData,
-        _connectors: &settings::Connectors,
+        req: &UploadFileRouterData,
+        _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = transformers::construct_file_upload_request(req.clone())?;
         Ok(RequestContent::FormData(connector_req))
@@ -1008,29 +978,27 @@ impl ConnectorIntegration<api::Upload, types::UploadFileRequestData, types::Uplo
 
     fn build_request(
         &self,
-        req: &types::UploadFileRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        req: &UploadFileRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Ok(Some(
-            services::RequestBuilder::new()
-                .method(services::Method::Post)
-                .url(&types::UploadFileType::get_url(self, req, connectors)?)
+            RequestBuilder::new()
+                .method(Method::Post)
+                .url(&UploadFileType::get_url(self, req, connectors)?)
                 .attach_default_headers()
-                .headers(types::UploadFileType::get_headers(self, req, connectors)?)
-                .set_body(types::UploadFileType::get_request_body(
-                    self, req, connectors,
-                )?)
+                .headers(UploadFileType::get_headers(self, req, connectors)?)
+                .set_body(UploadFileType::get_request_body(self, req, connectors)?)
                 .build(),
         ))
     }
 
     fn handle_response(
         &self,
-        data: &types::UploadFileRouterData,
+        data: &UploadFileRouterData,
         event_builder: Option<&mut ConnectorEvent>,
-        res: types::Response,
+        res: Response,
     ) -> CustomResult<
-        types::RouterData<api::Upload, types::UploadFileRequestData, types::UploadFileResponse>,
+        RouterData<Upload, UploadFileRequestData, UploadFileResponse>,
         errors::ConnectorError,
     > {
         let response: checkout::FileUploadResponse = res
@@ -1039,8 +1007,8 @@ impl ConnectorIntegration<api::Upload, types::UploadFileRequestData, types::Uplo
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        Ok(types::UploadFileRouterData {
-            response: Ok(types::UploadFileResponse {
+        Ok(UploadFileRouterData {
+            response: Ok(UploadFileResponse {
                 provider_file_id: response.file_id,
             }),
             ..data.clone()
@@ -1049,30 +1017,26 @@ impl ConnectorIntegration<api::Upload, types::UploadFileRequestData, types::Uplo
 
     fn get_error_response(
         &self,
-        res: types::Response,
+        res: Response,
         event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res, event_builder)
     }
 }
 
-impl api::SubmitEvidence for Checkout {}
+impl SubmitEvidence for Checkout {}
 
-impl
-    ConnectorIntegration<
-        api::Evidence,
-        types::SubmitEvidenceRequestData,
-        types::SubmitEvidenceResponse,
-    > for Checkout
+impl ConnectorIntegration<Evidence, SubmitEvidenceRequestData, SubmitEvidenceResponse>
+    for Checkout
 {
     fn get_headers(
         &self,
-        req: &types::SubmitEvidenceRouterData,
-        _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        req: &SubmitEvidenceRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
         let mut header = vec![(
             headers::CONTENT_TYPE.to_string(),
-            types::SubmitEvidenceType::get_content_type(self)
+            SubmitEvidenceType::get_content_type(self)
                 .to_string()
                 .into(),
         )];
@@ -1083,8 +1047,8 @@ impl
 
     fn get_url(
         &self,
-        req: &types::SubmitEvidenceRouterData,
-        connectors: &settings::Connectors,
+        req: &SubmitEvidenceRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
             "{}disputes/{}/evidence",
@@ -1095,8 +1059,8 @@ impl
 
     fn get_request_body(
         &self,
-        req: &types::SubmitEvidenceRouterData,
-        _connectors: &settings::Connectors,
+        req: &SubmitEvidenceRouterData,
+        _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = checkout::Evidence::try_from(req)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
@@ -1104,31 +1068,27 @@ impl
 
     fn build_request(
         &self,
-        req: &types::SubmitEvidenceRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        let request = services::RequestBuilder::new()
-            .method(services::Method::Put)
-            .url(&types::SubmitEvidenceType::get_url(self, req, connectors)?)
+        req: &SubmitEvidenceRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        let request = RequestBuilder::new()
+            .method(Method::Put)
+            .url(&SubmitEvidenceType::get_url(self, req, connectors)?)
             .attach_default_headers()
-            .headers(types::SubmitEvidenceType::get_headers(
-                self, req, connectors,
-            )?)
-            .set_body(types::SubmitEvidenceType::get_request_body(
-                self, req, connectors,
-            )?)
+            .headers(SubmitEvidenceType::get_headers(self, req, connectors)?)
+            .set_body(SubmitEvidenceType::get_request_body(self, req, connectors)?)
             .build();
         Ok(Some(request))
     }
 
     fn handle_response(
         &self,
-        data: &types::SubmitEvidenceRouterData,
+        data: &SubmitEvidenceRouterData,
         _event_builder: Option<&mut ConnectorEvent>,
-        _res: types::Response,
-    ) -> CustomResult<types::SubmitEvidenceRouterData, errors::ConnectorError> {
-        Ok(types::SubmitEvidenceRouterData {
-            response: Ok(types::SubmitEvidenceResponse {
+        _res: Response,
+    ) -> CustomResult<SubmitEvidenceRouterData, errors::ConnectorError> {
+        Ok(SubmitEvidenceRouterData {
+            response: Ok(SubmitEvidenceResponse {
                 dispute_status: api_models::enums::DisputeStatus::DisputeChallenged,
                 connector_status: None,
             }),
@@ -1138,27 +1098,22 @@ impl
 
     fn get_error_response(
         &self,
-        res: types::Response,
+        res: Response,
         event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res, event_builder)
     }
 }
 
-impl
-    ConnectorIntegration<api::Defend, types::DefendDisputeRequestData, types::DefendDisputeResponse>
-    for Checkout
-{
+impl ConnectorIntegration<Defend, DefendDisputeRequestData, DefendDisputeResponse> for Checkout {
     fn get_headers(
         &self,
-        req: &types::DefendDisputeRouterData,
-        _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        req: &DefendDisputeRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
         let mut header = vec![(
             headers::CONTENT_TYPE.to_string(),
-            types::DefendDisputeType::get_content_type(self)
-                .to_string()
-                .into(),
+            DefendDisputeType::get_content_type(self).to_string().into(),
         )];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
@@ -1167,8 +1122,8 @@ impl
 
     fn get_url(
         &self,
-        req: &types::DefendDisputeRouterData,
-        connectors: &settings::Connectors,
+        req: &DefendDisputeRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
             "{}disputes/{}/evidence",
@@ -1179,30 +1134,28 @@ impl
 
     fn build_request(
         &self,
-        req: &types::DefendDisputeRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        req: &DefendDisputeRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Ok(Some(
-            services::RequestBuilder::new()
-                .method(services::Method::Post)
-                .url(&types::DefendDisputeType::get_url(self, req, connectors)?)
+            RequestBuilder::new()
+                .method(Method::Post)
+                .url(&DefendDisputeType::get_url(self, req, connectors)?)
                 .attach_default_headers()
-                .headers(types::DefendDisputeType::get_headers(
-                    self, req, connectors,
-                )?)
+                .headers(DefendDisputeType::get_headers(self, req, connectors)?)
                 .build(),
         ))
     }
 
     fn handle_response(
         &self,
-        data: &types::DefendDisputeRouterData,
+        data: &DefendDisputeRouterData,
         _event_builder: Option<&mut ConnectorEvent>,
-        _res: types::Response,
-    ) -> CustomResult<types::DefendDisputeRouterData, errors::ConnectorError> {
-        Ok(types::DefendDisputeRouterData {
-            response: Ok(types::DefendDisputeResponse {
-                dispute_status: api::enums::DisputeStatus::DisputeChallenged,
+        _res: Response,
+    ) -> CustomResult<DefendDisputeRouterData, errors::ConnectorError> {
+        Ok(DefendDisputeRouterData {
+            response: Ok(DefendDisputeResponse {
+                dispute_status: enums::DisputeStatus::DisputeChallenged,
                 connector_status: None,
             }),
             ..data.clone()
@@ -1211,33 +1164,33 @@ impl
 
     fn get_error_response(
         &self,
-        res: types::Response,
+        res: Response,
         event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res, event_builder)
     }
 }
 
 #[async_trait::async_trait]
-impl api::IncomingWebhook for Checkout {
+impl webhooks::IncomingWebhook for Checkout {
     fn get_webhook_source_verification_algorithm(
         &self,
-        _request: &api::IncomingWebhookRequestDetails<'_>,
+        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn crypto::VerifySignature + Send>, errors::ConnectorError> {
         Ok(Box::new(crypto::HmacSha256))
     }
     fn get_webhook_source_verification_signature(
         &self,
-        request: &api::IncomingWebhookRequestDetails<'_>,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
         _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let signature = conn_utils::get_header_key_value("cko-signature", request.headers)
+        let signature = utils::get_header_key_value("cko-signature", request.headers)
             .change_context(errors::ConnectorError::WebhookSignatureNotFound)?;
         hex::decode(signature).change_context(errors::ConnectorError::WebhookSignatureNotFound)
     }
     fn get_webhook_source_verification_message(
         &self,
-        request: &api::IncomingWebhookRequestDetails<'_>,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
         _merchant_id: &common_utils::id_type::MerchantId,
         _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
@@ -1245,7 +1198,7 @@ impl api::IncomingWebhook for Checkout {
     }
     fn get_webhook_object_reference_id(
         &self,
-        request: &api::IncomingWebhookRequestDetails<'_>,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
         let details: checkout::CheckoutWebhookBody = request
             .body
@@ -1292,19 +1245,21 @@ impl api::IncomingWebhook for Checkout {
 
     fn get_webhook_event_type(
         &self,
-        request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
         let details: checkout::CheckoutWebhookEventTypeBody = request
             .body
             .parse_struct("CheckoutWebhookBody")
             .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
 
-        Ok(api::IncomingWebhookEvent::from(details.transaction_type))
+        Ok(api_models::webhooks::IncomingWebhookEvent::from(
+            details.transaction_type,
+        ))
     }
 
     fn get_webhook_resource_object(
         &self,
-        request: &api::IncomingWebhookRequestDetails<'_>,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
         let event_type_data: checkout::CheckoutWebhookEventTypeBody = request
             .body
@@ -1326,13 +1281,13 @@ impl api::IncomingWebhook for Checkout {
 
     fn get_dispute_details(
         &self,
-        request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<api::disputes::DisputePayload, errors::ConnectorError> {
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<DisputePayload, errors::ConnectorError> {
         let dispute_details: checkout::CheckoutDisputeWebhookBody = request
             .body
             .parse_struct("CheckoutWebhookBody")
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
-        Ok(api::disputes::DisputePayload {
+        Ok(DisputePayload {
             amount: dispute_details.data.amount.to_string(),
             currency: dispute_details.data.currency,
             dispute_stage: api_models::enums::DisputeStage::from(
@@ -1349,24 +1304,24 @@ impl api::IncomingWebhook for Checkout {
     }
 }
 
-impl services::ConnectorRedirectResponse for Checkout {
+impl api::ConnectorRedirectResponse for Checkout {
     fn get_flow_type(
         &self,
         _query_params: &str,
         _json_payload: Option<serde_json::Value>,
-        action: services::PaymentAction,
-    ) -> CustomResult<payments::CallConnectorAction, errors::ConnectorError> {
+        action: PaymentAction,
+    ) -> CustomResult<CallConnectorAction, errors::ConnectorError> {
         match action {
-            services::PaymentAction::PSync
-            | services::PaymentAction::CompleteAuthorize
-            | services::PaymentAction::PaymentAuthenticateCompleteAuthorize => {
-                Ok(payments::CallConnectorAction::Trigger)
+            PaymentAction::PSync
+            | PaymentAction::CompleteAuthorize
+            | PaymentAction::PaymentAuthenticateCompleteAuthorize => {
+                Ok(CallConnectorAction::Trigger)
             }
         }
     }
 }
 
-impl ConnectorErrorTypeMapping for Checkout {
+impl utils::ConnectorErrorTypeMapping for Checkout {
     fn get_connector_error_type(
         &self,
         error_code: String,
