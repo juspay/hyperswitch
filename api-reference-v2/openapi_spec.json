@@ -9000,7 +9000,6 @@
       },
       "FeatureMetadata": {
         "type": "object",
-        "description": "additional data that might be required by hyperswitch",
         "properties": {
           "redirect_response": {
             "allOf": [
@@ -9022,6 +9021,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/ApplePayRecurringDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "revenue_recovery_metadata": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RevenueRecoveryMetadata"
               }
             ],
             "nullable": true
