@@ -92,6 +92,8 @@ jobs:
       RUSTC_WRAPPER: "sccache"
       RUSTFLAGS: "-D warnings"
       SCCACHE_GHA_ENABLED: "on"
+      SCCACHE_LOG : "debug" 
+      SCCACHE_NO_DAEMON: "1"
 
     strategy:
       fail-fast: false
@@ -189,6 +191,8 @@ jobs:
       RUSTC_WRAPPER: "sccache"
       RUSTFLAGS: "-D warnings"
       SCCACHE_GHA_ENABLED: "on"
+      SCCACHE_LOG : "debug" 
+      SCCACHE_NO_DAEMON: "1"
 
     strategy:
       fail-fast: false
@@ -306,6 +310,8 @@ jobs:
     env:
       RUSTC_WRAPPER: "sccache"
       SCCACHE_GHA_ENABLED: "on"
+      SCCACHE_LOG : "debug" 
+      SCCACHE_NO_DAEMON: "1"
 
     steps:
       - name: Checkout repository
