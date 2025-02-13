@@ -4,6 +4,18 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.02.10.0-hotfix1
+
+### Bug Fixes
+
+- **connectors:** [fiuu] zero amount mandate flow for wallets ([#7261](https://github.com/juspay/hyperswitch/pull/7261)) ([`7abd151`](https://github.com/juspay/hyperswitch/commit/7abd15180f43225c5dc87f7113ae8c75327f7638))
+
+### Refactors
+
+- **schema:** Add a new column for storing large connector transaction IDs ([#7253](https://github.com/juspay/hyperswitch/pull/7253)) ([`3aa910e`](https://github.com/juspay/hyperswitch/commit/3aa910efc0038c19628ecf42cf675335e6d680cc))
+
+- - -
+
 ## 2025.02.10.0
 
 ### Features
