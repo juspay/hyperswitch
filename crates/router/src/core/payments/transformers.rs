@@ -16,8 +16,10 @@ use common_utils::{
 use diesel_models::{
     ephemeral_key,
     payment_attempt::ConnectorMandateReferenceId as DieselConnectorMandateReferenceId,
-    types::BillingConnectorMitTokenDetails,
 };
+#[cfg(feature = "v2")]
+use diesel_models::types::BillingConnectorMitTokenDetails;
+
 use error_stack::{report, ResultExt};
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::ApiModelToDieselModelConvertor;

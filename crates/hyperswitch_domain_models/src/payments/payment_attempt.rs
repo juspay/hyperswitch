@@ -574,6 +574,7 @@ impl PaymentAttempt {
                 consts::CONNECTOR_MANDATE_REQUEST_REFERENCE_ID_LENGTH,
             )),
         });
+        let authentication_type = payment_intent.authentication_type.unwrap_or_default();
         Ok(Self {
             payment_id: payment_intent.id.clone(),
             merchant_id: payment_intent.merchant_id.clone(),
@@ -582,7 +583,7 @@ impl PaymentAttempt {
             // This will be decided by the routing algorithm and updated in update trackers
             // right before calling the connector
             connector: Some(request.connector.clone()),
-            authentication_type: payment_intent.authentication_type,
+            authentication_type,
             created_at: now,
             modified_at: now,
             last_synced: None,
@@ -604,7 +605,7 @@ impl PaymentAttempt {
             authentication_connector: None,
             authentication_id: None,
             fingerprint_id: None,
-            charge_id: None,
+            charges: None,
             client_source: None,
             client_version: None,
             customer_acceptance: None,
