@@ -18,12 +18,12 @@ pub mod customers;
 pub mod disputes;
 pub mod encryption;
 pub mod errors;
+pub mod external_service_auth;
 pub mod files;
 #[cfg(feature = "frm")]
 pub mod fraud_check;
 pub mod gsm;
 pub mod health_check;
-pub mod hypersense;
 #[cfg(feature = "v1")]
 pub mod locker_migration;
 pub mod mandate;

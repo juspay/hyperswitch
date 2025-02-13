@@ -1,4 +1,4 @@
-use api_models::hypersense as hypersense_api;
+use api_models::external_service_auth as external_service_auth_api;
 use error_stack::ResultExt;
 use masking::ExposeInterface;
 
@@ -11,35 +11,36 @@ use crate::{
     SessionState,
 };
 
-pub async fn generate_hypersense_token(
+pub async fn generate_external_token(
     state: SessionState,
     user: authentication::UserFromToken,
-) -> RouterResponse<hypersense_api::HypersenseTokenResponse> {
+    external_service: ExternalServiceType,
+) -> RouterResponse<external_service_auth_api::ExternalTokenResponse> {
     let token = ExternalToken::new_token(
         user.user_id.clone(),
         user.merchant_id.clone(),
         &state.conf,
-        ExternalServiceType::Hypersense,
+        external_service.clone(),
     )
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable_lazy(|| {
         format!(
-            "Failed to create hypersense token for params [user_id, mid] [{}, {:?}]",
-            user.user_id, user.merchant_id,
+            "Failed to create external token for params [user_id, mid, external_service] [{}, {:?}, {:?}]",
+            user.user_id, user.merchant_id, external_service,
         )
     })?;
 
     Ok(service_api::ApplicationResponse::Json(
-        hypersense_api::HypersenseTokenResponse {
+        external_service_auth_api::ExternalTokenResponse {
             token: token.into(),
         },
     ))
 }
 
-pub async fn signout_hypersense_token(
+pub async fn signout_external_token(
     state: SessionState,
-    json_payload: hypersense_api::HypersenseSignoutTokenRequest,
+    json_payload: external_service_auth_api::ExternalSignoutTokenRequest,
 ) -> RouterResponse<()> {
     let token_from_payload = json_payload.token.expose();
     let token = authentication::decode_jwt::<ExternalToken>(&token_from_payload, &state)
@@ -53,10 +54,11 @@ pub async fn signout_hypersense_token(
     Ok(service_api::ApplicationResponse::StatusOk)
 }
 
-pub async fn verify_hypersense_token(
+pub async fn verify_external_token(
     state: SessionState,
-    json_payload: hypersense_api::HypersenseVerifyTokenRequest,
-) -> RouterResponse<hypersense_api::HypersenseVerifyTokenResponse> {
+    json_payload: external_service_auth_api::ExternalVerifyTokenRequest,
+    external_service: ExternalServiceType,
+) -> RouterResponse<external_service_auth_api::ExternalVerifyTokenResponse> {
     let token_from_payload = json_payload.token.expose();
 
     let token = authentication::decode_jwt::<ExternalToken>(&token_from_payload, &state)
@@ -68,7 +70,7 @@ pub async fn verify_hypersense_token(
         return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
     }
 
-    token.check_service_type(&ExternalServiceType::Hypersense)?;
+    token.check_service_type(&external_service)?;
 
     let user_in_db = state
         .global_store
@@ -80,7 +82,7 @@ pub async fn verify_hypersense_token(
     let name = user_in_db.name;
 
     Ok(service_api::ApplicationResponse::Json(
-        hypersense_api::HypersenseVerifyTokenResponse {
+        external_service_auth_api::ExternalVerifyTokenResponse::Hypersense {
             user_id: user_in_db.user_id,
             merchant_id: token.merchant_id,
             name,

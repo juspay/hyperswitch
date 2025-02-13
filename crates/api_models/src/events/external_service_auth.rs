@@ -1,31 +1,31 @@
 use common_utils::events::{ApiEventMetric, ApiEventsType};
 
-use crate::hypersense::{
-    HypersenseSignoutTokenRequest, HypersenseTokenResponse, HypersenseVerifyTokenRequest,
-    HypersenseVerifyTokenResponse,
+use crate::external_service_auth::{
+    ExternalSignoutTokenRequest, ExternalTokenResponse, ExternalVerifyTokenRequest,
+    ExternalVerifyTokenResponse,
 };
 
-impl ApiEventMetric for HypersenseTokenResponse {
+impl ApiEventMetric for ExternalTokenResponse {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::Hypersense)
     }
 }
 
-impl ApiEventMetric for HypersenseVerifyTokenRequest {
+impl ApiEventMetric for ExternalVerifyTokenRequest {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::Hypersense)
     }
 }
 
-impl ApiEventMetric for HypersenseVerifyTokenResponse {
+impl ApiEventMetric for ExternalVerifyTokenResponse {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::User {
-            user_id: self.user_id.clone(),
+            user_id: self.get_user_id().to_string(),
         })
     }
 }
 
-impl ApiEventMetric for HypersenseSignoutTokenRequest {
+impl ApiEventMetric for ExternalSignoutTokenRequest {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::Hypersense)
     }
