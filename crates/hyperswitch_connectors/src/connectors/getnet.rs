@@ -1,23 +1,17 @@
 pub mod transformers;
-
-use actix_web::services;
 use api_models::webhooks::IncomingWebhookEvent;
 use base64::Engine;
 use common_enums::enums;
 use common_utils::{
-    consts::{self, BASE64_ENGINE},
+    consts::BASE64_ENGINE,
     crypto,
     errors::CustomResult,
-    ext_traits::{ByteSliceExt, BytesExt, Encode},
+    ext_traits::BytesExt,
     request::{Method, Request, RequestBuilder, RequestContent},
-    types::{
-        AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector, MinorUnit,
-        MinorUnitForConnector,
-    },
+    types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector},
 };
-use error_stack::{report, ResultExt};
+use error_stack::ResultExt;
 use hyperswitch_domain_models::{
-    api::ApplicationResponse,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
@@ -41,13 +35,13 @@ use hyperswitch_interfaces::{
         ConnectorValidation,
     },
     configs::Connectors,
-    errors::{self, ConnectorError},
+    errors::{self},
     events::connector_api_logs::ConnectorEvent,
     types::{self, Response},
-    webhooks::{self, IncomingWebhookFlowError, IncomingWebhookRequestDetails},
+    webhooks::{self},
 };
 use masking::{Mask, PeekInterface};
-use transformers::{self as getnet, GetnetPaymentStatus};
+use transformers as getnet;
 
 use crate::{
     connectors::paybox::transformers::parse_url_encoded_to_struct, constants::headers,
@@ -101,8 +95,8 @@ where
                 self.get_content_type().to_string().into(),
             ),
             (
-                headers::ACCEPT.to_string(),               // Add the Accept header
-                self.get_accept_type().to_string().into(), // Value for the Accept header
+                headers::ACCEPT.to_string(),
+                self.get_accept_type().to_string().into(),
             ),
         ];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
@@ -137,13 +131,8 @@ impl ConnectorCommon for Getnet {
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         let auth = getnet::GetnetAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        println!("$$$ auth_type {:?}", auth_type);
-        let encoded_api_key = common_utils::consts::BASE64_ENGINE.encode(format!(
-            "{}:{}",
-            auth.username.peek(),
-            auth.password.peek()
-        ));
-        println!("$$$ encoded_api_key {:?}", encoded_api_key);
+        let encoded_api_key =
+            BASE64_ENGINE.encode(format!("{}:{}", auth.username.peek(), auth.password.peek()));
 
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
@@ -156,7 +145,6 @@ impl ConnectorCommon for Getnet {
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        println!("$$$ error {:?} ", res.response);
         let response: getnet::GetnetErrorResponse = res
             .response
             .parse_struct("GetnetErrorResponse")
@@ -222,7 +210,6 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         _req: &PaymentsAuthorizeRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        println!("inside connector");
         let endpoint = self.base_url(connectors);
         Ok(format!("{endpoint}/payments/"))
     }
@@ -237,18 +224,9 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             req.request.minor_amount,
             req.request.currency,
         )?;
-        // println!("$$$ req {:?} ", req);
-
         let connector_router_data = getnet::GetnetRouterData::from((amount, req));
-        // println!(
-        //     "$$$ connector_router_data {:?} ",
-        //     connector_router_data.router_data
-        // );
-
         let connector_req = getnet::GetnetPaymentsRequest::try_from(&connector_router_data)?;
-        // println!("$$$ request {:?} ", connector_req);
         let res = RequestContent::Json(Box::new(connector_req));
-        // println!("$$$ request2 {:?} ", res);
 
         Ok(res)
     }
@@ -258,8 +236,6 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         req: &PaymentsAuthorizeRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
-        let header = types::PaymentsAuthorizeType::get_headers(self, req, connectors)?;
-        // println!("$$$ header {:?} ", header);
         Ok(Some(
             RequestBuilder::new()
                 .method(Method::Post)
@@ -283,8 +259,6 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        // println!("$$$ response {:?} {:?}", res.status_code, res.response);
-
         let response: getnet::GetnetPaymentsResponse = res
             .response
             .parse_struct("Getnet PaymentsAuthorizeResponse")
@@ -303,8 +277,6 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        println!("$$$ error auth {:?} ", res.response);
-
         self.build_error_response(res, event_builder)
     }
 }
@@ -327,14 +299,10 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Get
         req: &PaymentsSyncRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        // let auth = getnet::GetnetAuthType::try_from(req.connector_auth_type)
-        //     .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        // let auth_type=getnet::GetnetAuthType::try_from(&req.connector_auth_type);
-        // let merchant_id=auth_type.merchant_id;
-        // Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
-
+        let auth = getnet::GetnetAuthType::try_from(&req.connector_auth_type)
+            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+        let id = auth.merchant_id;
         let endpoint = self.base_url(connectors);
-        println!("$$$ get_url psync {:?}", req);
         let transaction_id = req
             .request
             .connector_transaction_id
@@ -342,8 +310,8 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Get
             .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
 
         Ok(format!(
-            "{endpoint}/merchants/5c4a8a42-04a8-4970-a595-262f0ba0a108/payments/{}",
-            transaction_id
+            "{}/merchants/{:?}/payments/{}",
+            endpoint, id, transaction_id
         ))
     }
 
@@ -352,8 +320,6 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Get
         req: &PaymentsSyncRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
-        let url = &types::PaymentsSyncType::get_url(self, req, connectors)?;
-        println!("$$$ in psync endpoint {:?} ", url);
         Ok(Some(
             RequestBuilder::new()
                 .method(Method::Get)
@@ -388,8 +354,6 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Get
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        println!("$$$ error psync {:?} ", res.response);
-
         self.build_error_response(res, event_builder)
     }
 }
@@ -412,7 +376,6 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         _req: &PaymentsCaptureRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        println!("inside capture");
         let endpoint = self.base_url(connectors);
         Ok(format!("{endpoint}/payments/"))
     }
@@ -422,8 +385,6 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         req: &PaymentsCaptureRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        // println!("$$$ request capture {:?} ", req);
-
         let amount = utils::convert_amount(
             self.amount_converter,
             req.request.minor_amount_to_capture,
@@ -432,11 +393,6 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
 
         let connector_router_data = getnet::GetnetRouterData::from((amount, req));
         let connector_req = getnet::GetnetCaptureRequest::try_from(&connector_router_data)?;
-        let printrequest = Encode::encode_to_string_of_json(&connector_req)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        // println!("$$$$$ {:?}", printrequest);
-        // println!("$$$ request capture 2 {:?} ", connector_req);
-
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -466,8 +422,6 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsCaptureRouterData, errors::ConnectorError> {
-        // println!("$$$ response capture {:?} ", res.response);
-
         let response: getnet::GetnetCaptureResponse = res
             .response
             .parse_struct("Getnet PaymentsCaptureResponse")
@@ -487,12 +441,9 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        println!("$$$ error capture {:?} ", res.response);
-
         self.build_error_response(res, event_builder)
     }
 }
-// impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Getnet {}
 
 impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Getnet {
     fn get_headers(
@@ -512,7 +463,6 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Ge
         _req: &PaymentsCancelRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        println!("$$$ inside cancel");
         let endpoint = self.base_url(connectors);
         Ok(format!("{endpoint}/payments/"))
     }
@@ -570,8 +520,6 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Ge
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        println!("$$$ error cancel {:?} ", res.response);
-
         self.build_error_response(res, event_builder)
     }
 }
@@ -594,7 +542,6 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Getnet 
         _req: &RefundsRouterData<Execute>,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        println!("$$$ inside refund");
         let endpoint = self.base_url(connectors);
         Ok(format!("{endpoint}/payments/"))
     }
@@ -658,8 +605,6 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Getnet 
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        println!("$$$ error refund {:?} ", res.response);
-
         self.build_error_response(res, event_builder)
     }
 }
@@ -679,10 +624,16 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Getnet {
 
     fn get_url(
         &self,
-        _req: &RefundSyncRouterData,
-        _connectors: &Connectors,
+        req: &RefundSyncRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        let endpoint = self.base_url(connectors);
+        let transaction_id = req.request.connector_transaction_id.clone();
+
+        Ok(format!(
+            "{endpoint}/merchants/5c4a8a42-04a8-4970-a595-262f0ba0a108/payments/{}",
+            transaction_id
+        ))
     }
 
     fn build_request(
@@ -727,8 +678,6 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Getnet {
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        println!("$$$ error rsync {:?} ", res.response);
-
         self.build_error_response(res, event_builder)
     }
 }
@@ -736,49 +685,24 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Getnet {
 fn get_webhook_object_from_body(
     body: &[u8],
 ) -> CustomResult<getnet::GetnetWebhookNotificationResponseBody, errors::ConnectorError> {
-    // println!("$$$ Received body: {:?}", body);
-    println!("$$$ in get_webhook_object_from_body");
-
-    let body_bytes = bytes::Bytes::copy_from_slice(body.into());
+    let body_bytes = bytes::Bytes::copy_from_slice(body);
     let parsed_param: getnet::GetnetWebhookNotificationResponse =
         parse_url_encoded_to_struct(body_bytes)
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
-    // println!("$$$ Parsed Param: {:?}", parsed_param);
     let response_base64 = &parsed_param.response_base64;
-    // println!("$$$ Response Base64: {:?}", response_base64);
-
     let decoded_response = BASE64_ENGINE
         .decode(response_base64)
         .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
-    // println!("$$$ Decoded Response: {:?}", decoded_response);
-
-    let decoded_str = String::from_utf8_lossy(&decoded_response);
-    // println!("$$$ decoded string: {}", decoded_str);
 
     let getnet_webhook_notification_response: getnet::GetnetWebhookNotificationResponseBody =
         match serde_json::from_slice::<getnet::GetnetWebhookNotificationResponseBody>(
             &decoded_response,
         ) {
-            Ok(response) => {
-                // Successful parsing, just return the response
-                response
-            }
-            Err(e) => {
-                // Print error only when an error occurs
-                println!("Error deserializing response: {:?}", e);
-                return Err(errors::ConnectorError::WebhookBodyDecodingFailed)?; // Propagate the error
+            Ok(response) => response,
+            Err(_e) => {
+                return Err(errors::ConnectorError::WebhookBodyDecodingFailed)?;
             }
         };
-
-    // let getnet_webhook_notification_response: getnet::GetnetWebhookNotificationResponseBody = decoded_response
-    //     .parse_struct("GetnetWebhookNotificationResponseBody")
-    //     .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
-    // println!("$$$ parsing done ");
-
-    // println!(
-    //     "$$$ Final Webhook Notification Response: {:?}",
-    //     getnet_webhook_notification_response
-    // );
 
     Ok(getnet_webhook_notification_response)
 }
@@ -786,16 +710,10 @@ fn get_webhook_object_from_body(
 fn get_webhook_response(
     body: &[u8],
 ) -> CustomResult<getnet::GetnetWebhookNotificationResponse, errors::ConnectorError> {
-    println!("$$$ in get_webhook_response");
-
-    // println!("$$$ Received body: {:?}", body);
-
-    let body_bytes = bytes::Bytes::copy_from_slice(body.into());
+    let body_bytes = bytes::Bytes::copy_from_slice(body);
     let parsed_param: getnet::GetnetWebhookNotificationResponse =
         parse_url_encoded_to_struct(body_bytes)
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
-    // println!("$$$ Parsed Param: {:?}", parsed_param);
-
     Ok(parsed_param)
 }
 
@@ -805,8 +723,6 @@ impl webhooks::IncomingWebhook for Getnet {
         &self,
         _request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn crypto::VerifySignature + Send>, errors::ConnectorError> {
-        println!("$$$ in get_webhook_source_verification_algorithm");
-
         Ok(Box::new(crypto::Sha256))
     }
 
@@ -815,48 +731,21 @@ impl webhooks::IncomingWebhook for Getnet {
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
         _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        println!("$$$ in get_webhook_source_verification_signature");
-
         let notif_item = get_webhook_response(request.body)
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
-        // to be corrected
-        // hex::decode(notif_item.response_signature_base64)
-        //     .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)
-        // println!(
-        //     "$$$ in notif get_webhook_source_verification_signature {:?}",
-        //     notif_item
-        // );
-        // let sanitized_base64 = notif_item.response_signature_base64.replace(" ", "");
-        // println!("$$$ notif_item get_webhook_source_verification_signature {:?}", notif_item);
-        // println!("$$$ in notif sanitized_base64 {:?}",sanitized_base64);
-
-        match consts::BASE64_ENGINE.decode(&notif_item.response_base64) {
-            Ok(decoded_signature) => {
-                println!("$$$ Decoding succeeded: {:?}", decoded_signature);
-                Ok(decoded_signature) // Return the successfully decoded signature
-            }
-            Err(e) => {
-                println!("$$$ Decoding failed: {:?}", e);
-                consts::BASE64_ENGINE
-                    .decode(&notif_item.response_base64)
-                    .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
-            }
-        }
+        BASE64_ENGINE
+            .decode(&notif_item.response_base64)
+            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
     }
 
     fn get_webhook_source_verification_message(
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
         _merchant_id: &common_utils::id_type::MerchantId,
-        connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        println!("$$$ in get_webhook_source_verification_message");
-
         let notif = get_webhook_object_from_body(request.body)
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
-        // to be corrected
-        // println!("$$$ notif get_webhook_source_verification_message {:?}", notif);
-
         let serialized_notif = serde_json::to_vec(&notif)
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
 
@@ -867,12 +756,8 @@ impl webhooks::IncomingWebhook for Getnet {
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        println!("$$$ in get_webhook_object_reference_id");
-
         let notif = get_webhook_object_from_body(request.body)
             .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
-        // println!("$$$ notif get_webhook_object_reference_id {:?}", notif);
-
         Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
             api_models::payments::PaymentIdType::ConnectorTransactionId(
                 notif.payment.transaction_id.to_string(),
@@ -883,23 +768,13 @@ impl webhooks::IncomingWebhook for Getnet {
     fn get_webhook_event_type(
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<IncomingWebhookEvent, ConnectorError> {
-        println!("$$$ in get_webhook_event_type");
-        // println!("$$$ request {:?}", request);
-
+    ) -> CustomResult<IncomingWebhookEvent, errors::ConnectorError> {
         let notif = get_webhook_object_from_body(request.body)
             .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
-        // println!("$$$ notif get_webhook_event_type {:?}", notif);
-
         let incoming_webhook_event = getnet::get_incoming_webhook_event(
             notif.payment.transaction_type,
             notif.payment.transaction_state,
         );
-        println!(
-            "$$$ incoming_webhook_event get_webhook_event_type {:?}",
-            incoming_webhook_event
-        );
-
         Ok(incoming_webhook_event)
     }
 
@@ -907,12 +782,8 @@ impl webhooks::IncomingWebhook for Getnet {
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
-        println!("$$$ in get_webhook_resource_object");
-
         let notif = get_webhook_object_from_body(request.body)
             .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
-        // println!("$$$ notif get_webhook_resource_object {:?}", notif);
-
         Ok(Box::new(notif))
     }
 }

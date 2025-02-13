@@ -1,11 +1,9 @@
 use api_models::webhooks::IncomingWebhookEvent;
 use cards::CardNumber;
-use common_enums::{enums, AttemptStatus, CountryAlpha2};
+use common_enums::{enums, AttemptStatus, CaptureMethod, CountryAlpha2};
 use common_utils::{
-    ext_traits::Encode,
-    pii::{self, Email, IpAddress},
-    transformers::{ForeignFrom, ForeignTryFrom},
-    types::{FloatMajorUnit, MinorUnit},
+    pii::{self, Email},
+    types::FloatMajorUnit,
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
@@ -163,7 +161,7 @@ pub struct GetnetPaymentsRequest {
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 pub struct GetnetCard {
-    number: cards::CardNumber,
+    number: CardNumber,
     expiry_month: Secret<String>,
     expiry_year: Secret<String>,
     cvc: Secret<String>,
@@ -175,13 +173,15 @@ impl TryFrom<&GetnetRouterData<&PaymentsAuthorizeRouterData>> for GetnetPayments
     fn try_from(
         item: &GetnetRouterData<&PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
-        // let auth_type=
-        println!("$$$ item req auth type {:?} ", item.router_data.auth_type);
-        println!("$$$ item req router data {:?} ", item.router_data);
-        // let auth = GetnetAuthType::try_from(auth_type)
-        // .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         match item.router_data.request.payment_method_data.clone() {
             PaymentMethodData::Card(ref req_card) => {
+                if item.router_data.is_three_ds() {
+                    return Err(errors::ConnectorError::NotSupported {
+                        message: "3DS payments".to_string(),
+                        connector: "Getnet",
+                    }
+                    .into());
+                }
                 let request = &item.router_data.request;
                 let auth_type = GetnetAuthType::try_from(&item.router_data.connector_auth_type)
                     .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
@@ -226,16 +226,10 @@ impl TryFrom<&GetnetRouterData<&PaymentsAuthorizeRouterData>> for GetnetPayments
                         name: GetnetPaymentMethods::CreditCard,
                     }],
                 };
-                println!(
-                    "$$$ webhook {:?} ",
-                    item.router_data.request.get_webhook_url()
-                );
                 let notifications: NotificationContainer = NotificationContainer {
                     format: NotificationFormat::JsonSigned,
 
                     notification: vec![Notification {
-                        // url: "https://webhook.site/0bbfb076-7b0e-4e97-a902-a1f3782b12aa"
-                        //     .to_string(),
                         url: Some(item.router_data.request.get_webhook_url()?),
                     }],
                 };
@@ -256,7 +250,7 @@ impl TryFrom<&GetnetRouterData<&PaymentsAuthorizeRouterData>> for GetnetPayments
                     notifications: Some(notifications),
                 };
 
-                Ok(GetnetPaymentsRequest {
+                Ok(Self {
                     payment: payment_data,
                 })
             }
@@ -307,40 +301,6 @@ impl From<GetnetPaymentStatus> for AttemptStatus {
         }
     }
 }
-
-// impl ForeignFrom<(GetnetPaymentStatus, bool)> for enums::AttemptStatus {
-//     fn foreign_from((getnet_status, is_auto_capture): (GetnetPaymentStatus, bool)) -> Self {
-//         match getnet_status {
-//             GetnetPaymentStatus::Success => {
-//                 // If auto capture is true, return Charged, otherwise return Authorized
-//                 if is_auto_capture {
-//                     Self::Charged
-//                 } else {
-//                     Self::Authorized
-//                 }
-//             }
-//             GetnetPaymentStatus::InProgress => Self::Pending,  // Mapping InProgress to Pending
-//             GetnetPaymentStatus::Failed => Self::Failure,      // Mapping Failed to Failure
-//         }
-//     }
-// }
-
-// impl ForeignFrom<(GetnetPaymentStatus, bool)> for AttemptStatus {
-//     fn foreign_from((getnet_status, is_auto_capture): (GetnetPaymentStatus, bool)) -> Self {
-//         match getnet_status {
-//             GetnetPaymentStatus::Success => {
-//                 // If auto capture, return Charged, else return Authorized
-//                 if is_auto_capture {
-//                     Self::Charged
-//                 } else {
-//                     Self::Authorized
-//                 }
-//             }
-//             GetnetPaymentStatus::InProgress => Self::Pending,
-//             GetnetPaymentStatus::Failed => Self::Failure,
-//         }
-//     }
-// }
 
 #[derive(Default, Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct Status {
@@ -432,9 +392,6 @@ impl<F>
             PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        // println!("$$$ item {:?} ",item);
-        // let auth = GetnetAuthType::try_from(ConnectorAuthType::SignatureKey )
-        //     .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(Self {
             status: authorization_attempt_status_from_transaction_state(
                 item.response.payment.transaction_state,
@@ -464,8 +421,7 @@ pub fn psync_attempt_status_from_transaction_state(
 ) -> AttemptStatus {
     match getnet_status {
         GetnetPaymentStatus::Success => {
-            if (is_auto_capture && transaction_type == GetnetTransactionType::CaptureAuthorization)
-            {
+            if is_auto_capture && transaction_type == GetnetTransactionType::CaptureAuthorization {
                 AttemptStatus::Charged
             } else {
                 AttemptStatus::Authorized
@@ -516,8 +472,6 @@ pub struct CapturePaymentData {
     pub parent_transaction_id: String,
     #[serde(rename = "requested-amount")]
     pub requested_amount: Amount,
-    // #[serde(rename = "ip-address")]
-    // pub ip_address: Secret<String, pii::IpAddress>,
     pub notifications: NotificationContainer,
 }
 
@@ -528,18 +482,6 @@ pub struct GetnetCaptureRequest {
 impl TryFrom<&GetnetRouterData<&PaymentsCaptureRouterData>> for GetnetCaptureRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &GetnetRouterData<&PaymentsCaptureRouterData>) -> Result<Self, Self::Error> {
-        // let printrequest = Encode::encode_to_string_of_json(&item)
-        // .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        // println!("$$$ item {:?}", printrequest);
-        // println!("$$$ capture item {:?} ",item.);
-        println!("$$$ capture router data {:?} ", item.router_data);
-
-        println!("$$$ capture request {:?} ", item.router_data.request);
-        println!("$$$ capture auth_type {:?} ", item.router_data.auth_type);
-        println!(
-            "$$$ capture connector_auth_type {:?} ",
-            item.router_data.connector_auth_type
-        );
         let request = &item.router_data.request;
         let auth_type = GetnetAuthType::try_from(&item.router_data.connector_auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
@@ -552,12 +494,12 @@ impl TryFrom<&GetnetRouterData<&PaymentsCaptureRouterData>> for GetnetCaptureReq
             currency: request.currency,
         };
         let req = &item.router_data.request;
-        // let url = req.webhook_url.clone();
+        let webhook_url = &req.webhook_url;
         let notifications = NotificationContainer {
             format: NotificationFormat::JsonSigned,
 
             notification: vec![Notification {
-                url: Some("https://3489-110-227-219-118.ngrok-free.app/webhooks/merchant_1739344096/mca_mw9DlmbePjcFKXZIxQBY".to_string()),
+                url: webhook_url.clone(),
             }],
         };
         let transaction_type = GetnetTransactionType::CaptureAuthorization;
@@ -567,11 +509,10 @@ impl TryFrom<&GetnetRouterData<&PaymentsCaptureRouterData>> for GetnetCaptureReq
             transaction_type,
             parent_transaction_id: item.router_data.request.connector_transaction_id.clone(),
             requested_amount,
-            // ip_address: request.get_browser_info()?.get_ip_address()?,
             notifications,
         };
 
-        Ok(GetnetCaptureRequest {
+        Ok(Self {
             payment: capture_payment_data,
         })
     }
@@ -671,8 +612,6 @@ pub struct RefundPaymentData {
     pub transaction_type: GetnetTransactionType,
     #[serde(rename = "parent-transaction-id")]
     pub parent_transaction_id: String,
-    // #[serde(rename = "ip-address")]
-    // pub ip_address: Secret<String, pii::IpAddress>,
     pub notifications: NotificationContainer,
 }
 #[derive(Debug, Serialize)]
@@ -684,20 +623,9 @@ impl<F> TryFrom<&GetnetRouterData<&RefundsRouterData<F>>> for GetnetRefundReques
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &GetnetRouterData<&RefundsRouterData<F>>) -> Result<Self, Self::Error> {
         let request = &item.router_data.request;
-        println!("$$$ refund item {:?} ", item.router_data.request);
-        println!("$$$ refund auth_type {:?} ", item.router_data.auth_type);
-        println!(
-            "$$$ refund connector_auth_type {:?} ",
-            item.router_data.connector_auth_type
-        );
-
         let auth_type = GetnetAuthType::try_from(&item.router_data.connector_auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        println!("$$$ refund username {:?} ", auth_type.username);
-        println!("$$$ refund password {:?} ", auth_type.password);
-        println!("$$$ refund merchant_id {:?} ", auth_type.merchant_id);
-        let req = &item.router_data.request;
-        let url = req.webhook_url.clone();
+        let url = request.webhook_url.clone();
 
         let merchant_account_id = MerchantAccountId {
             value: auth_type.merchant_id,
@@ -706,17 +634,27 @@ impl<F> TryFrom<&GetnetRouterData<&RefundsRouterData<F>>> for GetnetRefundReques
             format: NotificationFormat::JsonSigned,
             notification: vec![Notification { url }],
         };
-        let transaction_type = GetnetTransactionType::RefundPurchase;
+        let capture_method = request.capture_method;
+        let transaction_type = match capture_method {
+            Some(CaptureMethod::Automatic) => GetnetTransactionType::RefundPurchase,
+            Some(CaptureMethod::Manual) => GetnetTransactionType::RefundCapture,
+            Some(CaptureMethod::ManualMultiple)
+            | Some(CaptureMethod::Scheduled)
+            | Some(CaptureMethod::SequentialAutomatic)
+            | None => {
+                return Err(errors::ConnectorError::CaptureMethodNotSupported {}.into());
+            }
+        };
+
         let refund_payment_data = RefundPaymentData {
             merchant_account_id,
             request_id: format!("{}_2", item.router_data.payment_id.clone()),
             transaction_type,
             parent_transaction_id: item.router_data.request.connector_transaction_id.clone(),
-            // ip_address: request.get_browser_info()?.get_ip_address()?,
             notifications,
         };
 
-        Ok(GetnetRefundRequest {
+        Ok(Self {
             payment: refund_payment_data,
         })
     }
@@ -826,8 +764,6 @@ pub struct CancelPaymentData {
     pub transaction_type: GetnetTransactionType,
     #[serde(rename = "parent-transaction-id")]
     pub parent_transaction_id: String,
-    // #[serde(rename = "ip-address")]
-    // pub ip_address: Secret<String, pii::IpAddress>,
     pub notifications: NotificationContainer,
 }
 
@@ -838,7 +774,7 @@ pub struct GetnetCancelRequest {
 use rand::{distributions::Alphanumeric, Rng};
 
 fn generate_random_id(length: usize) -> String {
-    let mut rng = rand::thread_rng();
+    let rng = rand::thread_rng();
     let id: String = rng
         .sample_iter(&Alphanumeric)
         .take(length)
@@ -849,38 +785,38 @@ fn generate_random_id(length: usize) -> String {
 impl TryFrom<&PaymentsCancelRouterData> for GetnetCancelRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &PaymentsCancelRouterData) -> Result<Self, Self::Error> {
-        // println!("$$$ item req auth type {:?} ",item.router_data.auth_type);
-        println!("$$$ cancel item {:?} ", item.connector_auth_type);
-        println!("$$$ cancel item {:?} ", item);
-
-        // println!("$$$ capture request {:?} ",item.router_data.request);
-        // println!("$$$ capture auth_type {:?} ",item.router_data.auth_type);
-        // println!("$$$ capture connector_auth_type {:?} ",item.router_data.connector_auth_type);
-        let auth_type = GetnetAuthType::try_from(&item.connector_auth_type).unwrap();
-        println!(
-            "$$$ capture connector_auth_type {:?} ",
-            auth_type.merchant_id
-        );
+        let auth_type = GetnetAuthType::try_from(&item.connector_auth_type)
+            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
 
         let merchant_account_id = MerchantAccountId {
-            value: auth_type.merchant_id, // Example value
+            value: auth_type.merchant_id,
         };
+        let webhook_url = &item.request.webhook_url;
         let notifications = NotificationContainer {
             format: NotificationFormat::JsonSigned,
 
             notification: vec![Notification {
-                url: Some("https://3489-110-227-219-118.ngrok-free.app/webhooks/merchant_1739344096/mca_mw9DlmbePjcFKXZIxQBY".to_string()),
+                url: webhook_url.clone(),
             }],
         };
-        let transaction_type = GetnetTransactionType::VoidAuthorization;
-
+        let capture_method = &item.request.capture_method;
+        let transaction_type = match capture_method {
+            Some(CaptureMethod::Automatic) => GetnetTransactionType::VoidAuthorization,
+            Some(CaptureMethod::Manual) => GetnetTransactionType::VoidCapture,
+            Some(CaptureMethod::ManualMultiple)
+            | Some(CaptureMethod::Scheduled)
+            | Some(CaptureMethod::SequentialAutomatic) => {
+                return Err(errors::ConnectorError::CaptureMethodNotSupported {}.into());
+            }
+            None => {
+                return Err(errors::ConnectorError::CaptureMethodNotSupported {}.into());
+            }
+        };
         let cancel_payment_data = CancelPaymentData {
             merchant_account_id,
-            // request_id: format!("{}_2", item.request.payment_id.clone()),
             request_id: generate_random_id(10),
             transaction_type,
             parent_transaction_id: item.request.connector_transaction_id.clone(),
-            // ip_address: request.get_browser_info()?.get_ip_address()?,
             notifications,
         };
         Ok(Self {
@@ -902,6 +838,8 @@ pub enum GetnetTransactionType {
     RefundCapture,
     #[serde(rename = "void-authorization")]
     VoidAuthorization,
+    #[serde(rename = "void-capture")]
+    VoidCapture,
     Authorization,
 }
 
@@ -1001,9 +939,6 @@ pub struct GetnetWebhookNotificationResponse {
     pub response_signature_algorithm: String,
     #[serde(rename = "response-base64")]
     pub response_base64: String,
-    // pub event: NovalnetWebhookEvent,
-    // pub result: ResultData,
-    // pub transaction: NovalnetWebhookTransactionData,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
@@ -1058,57 +993,46 @@ pub fn get_incoming_webhook_event(
     transaction_status: GetnetPaymentStatus,
 ) -> IncomingWebhookEvent {
     match transaction_type {
-        GetnetTransactionType::Purchase => {
-            println!("$$$ here1 {:?}", transaction_status);
-            match transaction_status {
-                GetnetPaymentStatus::Success => IncomingWebhookEvent::PaymentIntentSuccess,
-                GetnetPaymentStatus::Failed => IncomingWebhookEvent::PaymentIntentFailure,
-                GetnetPaymentStatus::InProgress => IncomingWebhookEvent::PaymentIntentProcessing,
-            }
-        }
+        GetnetTransactionType::Purchase => match transaction_status {
+            GetnetPaymentStatus::Success => IncomingWebhookEvent::PaymentIntentSuccess,
+            GetnetPaymentStatus::Failed => IncomingWebhookEvent::PaymentIntentFailure,
+            GetnetPaymentStatus::InProgress => IncomingWebhookEvent::PaymentIntentProcessing,
+        },
 
-        GetnetTransactionType::Authorization => {
-            println!("$$$ here2 {:?}", transaction_status);
-            match transaction_status {
-                GetnetPaymentStatus::Success => {
-                    IncomingWebhookEvent::PaymentIntentAuthorizationSuccess
-                }
-                GetnetPaymentStatus::Failed => {
-                    IncomingWebhookEvent::PaymentIntentAuthorizationFailure
-                }
-                GetnetPaymentStatus::InProgress => IncomingWebhookEvent::PaymentIntentProcessing,
-            }
-        }
+        GetnetTransactionType::Authorization => match transaction_status {
+            GetnetPaymentStatus::Success => IncomingWebhookEvent::PaymentIntentAuthorizationSuccess,
+            GetnetPaymentStatus::Failed => IncomingWebhookEvent::PaymentIntentAuthorizationFailure,
+            GetnetPaymentStatus::InProgress => IncomingWebhookEvent::PaymentIntentProcessing,
+        },
 
-        GetnetTransactionType::CaptureAuthorization => {
-            println!("$$$ here3 {:?}", transaction_status);
-            match transaction_status {
-                GetnetPaymentStatus::Success => IncomingWebhookEvent::PaymentIntentCaptureSuccess,
-                GetnetPaymentStatus::Failed => IncomingWebhookEvent::PaymentIntentCaptureFailure,
-                GetnetPaymentStatus::InProgress => {
-                    IncomingWebhookEvent::PaymentIntentCaptureFailure
-                }
-            }
-        }
+        GetnetTransactionType::CaptureAuthorization => match transaction_status {
+            GetnetPaymentStatus::Success => IncomingWebhookEvent::PaymentIntentCaptureSuccess,
+            GetnetPaymentStatus::Failed => IncomingWebhookEvent::PaymentIntentCaptureFailure,
+            GetnetPaymentStatus::InProgress => IncomingWebhookEvent::PaymentIntentCaptureFailure,
+        },
 
-        GetnetTransactionType::RefundPurchase => {
-            println!("$$$ here4 {:?}", transaction_status);
-            match transaction_status {
-                GetnetPaymentStatus::Success => IncomingWebhookEvent::RefundSuccess,
-                GetnetPaymentStatus::Failed => IncomingWebhookEvent::RefundFailure,
-                GetnetPaymentStatus::InProgress => IncomingWebhookEvent::RefundFailure,
-            }
-        }
+        GetnetTransactionType::RefundPurchase => match transaction_status {
+            GetnetPaymentStatus::Success => IncomingWebhookEvent::RefundSuccess,
+            GetnetPaymentStatus::Failed => IncomingWebhookEvent::RefundFailure,
+            GetnetPaymentStatus::InProgress => IncomingWebhookEvent::RefundFailure,
+        },
 
-        GetnetTransactionType::VoidAuthorization => {
-            println!("$$$ here5 {:?}", transaction_status);
-            match transaction_status {
-                GetnetPaymentStatus::Success => IncomingWebhookEvent::PaymentIntentCancelled,
-                GetnetPaymentStatus::Failed => IncomingWebhookEvent::PaymentIntentCancelFailure,
-                GetnetPaymentStatus::InProgress => IncomingWebhookEvent::PaymentIntentCancelFailure,
-            }
-        }
+        GetnetTransactionType::RefundCapture => match transaction_status {
+            GetnetPaymentStatus::Success => IncomingWebhookEvent::RefundSuccess,
+            GetnetPaymentStatus::Failed => IncomingWebhookEvent::RefundFailure,
+            GetnetPaymentStatus::InProgress => IncomingWebhookEvent::RefundFailure,
+        },
 
-        _ => IncomingWebhookEvent::EventNotSupported,
+        GetnetTransactionType::VoidAuthorization => match transaction_status {
+            GetnetPaymentStatus::Success => IncomingWebhookEvent::PaymentIntentCancelled,
+            GetnetPaymentStatus::Failed => IncomingWebhookEvent::PaymentIntentCancelFailure,
+            GetnetPaymentStatus::InProgress => IncomingWebhookEvent::PaymentIntentCancelFailure,
+        },
+
+        GetnetTransactionType::VoidCapture => match transaction_status {
+            GetnetPaymentStatus::Success => IncomingWebhookEvent::PaymentIntentCancelled,
+            GetnetPaymentStatus::Failed => IncomingWebhookEvent::PaymentIntentCancelFailure,
+            GetnetPaymentStatus::InProgress => IncomingWebhookEvent::PaymentIntentCancelFailure,
+        },
     }
 }
