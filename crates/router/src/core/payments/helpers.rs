@@ -1251,8 +1251,7 @@ pub fn create_webhook_url(
     merchant_connector_id_or_connector_name: &str,
 ) -> String {
     format!(
-        "{}/webhooks/{}/{}",
-        router_base_url,
+        "https://3489-110-227-219-118.ngrok-free.app/webhooks/{}/{}",
         merchant_id.get_string_repr(),
         merchant_connector_id_or_connector_name,
     )

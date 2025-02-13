@@ -124,6 +124,7 @@ pub struct PaymentsCaptureData {
     pub minor_payment_amount: MinorUnit,
     pub minor_amount_to_capture: MinorUnit,
     pub integrity_object: Option<CaptureIntegrityObject>,
+    pub webhook_url: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -466,6 +467,8 @@ pub struct PaymentsCancelData {
 
     // minor amount data for amount framework
     pub minor_amount: Option<MinorUnit>,
+    pub webhook_url: Option<String>,
+    pub capture_method: Option<storage_enums::CaptureMethod>,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -642,6 +645,7 @@ pub struct RefundsData {
     pub refund_status: storage_enums::RefundStatus,
     pub merchant_account_id: Option<Secret<String>>,
     pub merchant_config_currency: Option<storage_enums::Currency>,
+    pub capture_method: Option<storage_enums::CaptureMethod>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
