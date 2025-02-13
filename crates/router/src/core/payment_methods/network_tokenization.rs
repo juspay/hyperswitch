@@ -79,21 +79,22 @@ pub struct GetCardToken {
 }
 #[derive(Debug, Deserialize)]
 pub struct AuthenticationDetails {
-    cryptogram: Secret<String>,
-    token: CardNumber, //network token
+    pub cryptogram: Secret<String>,
+    pub token: CardNumber, //network token
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TokenDetails {
-    exp_month: Secret<String>,
-    exp_year: Secret<String>,
+    pub exp_month: Secret<String>,
+    pub exp_year: Secret<String>,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct TokenResponse {
-    authentication_details: AuthenticationDetails,
-    network: api_enums::CardNetwork,
-    token_details: TokenDetails,
+    pub authentication_details: AuthenticationDetails,
+    pub network: api_enums::CardNetwork,
+    pub token_details: TokenDetails,
+    pub eci: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

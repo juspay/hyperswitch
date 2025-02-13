@@ -32,6 +32,7 @@ use crate::{
     connector::{Helcim, Nexinets},
     core::{
         errors::{self, RouterResponse, RouterResult},
+        payment_methods::network_tokenization,
         payments::{self, helpers},
         utils as core_utils,
     },
@@ -4449,5 +4450,24 @@ impl ForeignFrom<(Self, Option<&api_models::payments::AdditionalPaymentData>)>
                 }
                 Some(card_type_in_bin_store)
             })
+    }
+}
+
+#[cfg(feature = "v1")]
+impl From<network_tokenization::TokenResponse> for domain::NetworkTokenData {
+    fn from(token_response: network_tokenization::TokenResponse) -> Self {
+        Self {
+            token_number: token_response.authentication_details.token,
+            token_exp_month: token_response.token_details.exp_month,
+            token_exp_year: token_response.token_details.exp_year,
+            token_cryptogram: Some(token_response.authentication_details.cryptogram),
+            card_issuer: None,
+            card_network: Some(token_response.network),
+            card_type: None,
+            card_issuing_country: None,
+            bank_code: None,
+            nick_name: None,
+            eci: token_response.eci,
+        }
     }
 }

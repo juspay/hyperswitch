@@ -3708,6 +3708,7 @@ impl ProfileCreateBridge for api::ProfileCreate {
             max_auto_retries_enabled: self.max_auto_retries_enabled.map(i16::from),
             is_click_to_pay_enabled: self.is_click_to_pay_enabled,
             authentication_product_ids: self.authentication_product_ids,
+            is_pre_network_tokenization_enabled: self.is_pre_network_tokenization_enabled,
         }))
     }
 
@@ -3818,6 +3819,7 @@ impl ProfileCreateBridge for api::ProfileCreate {
             is_click_to_pay_enabled: self.is_click_to_pay_enabled,
             authentication_product_ids: self.authentication_product_ids,
             three_ds_decision_manager_config: None,
+            is_pre_network_tokenization_enabled: self.is_pre_network_tokenization_enabled,
         }))
     }
 }
@@ -4069,6 +4071,7 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                 max_auto_retries_enabled: self.max_auto_retries_enabled.map(i16::from),
                 is_click_to_pay_enabled: self.is_click_to_pay_enabled,
                 authentication_product_ids: self.authentication_product_ids,
+                is_pre_network_tokenization_enabled: self.is_pre_network_tokenization_enabled,
             },
         )))
     }
@@ -4168,6 +4171,7 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                 is_click_to_pay_enabled: self.is_click_to_pay_enabled,
                 authentication_product_ids: self.authentication_product_ids,
                 three_ds_decision_manager_config: None,
+                is_pre_network_tokenization_enabled: self.is_pre_network_tokenization_enabled,
             },
         )))
     }

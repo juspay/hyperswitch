@@ -227,6 +227,7 @@ diesel::table! {
         is_click_to_pay_enabled -> Bool,
         authentication_product_ids -> Nullable<Jsonb>,
         three_ds_decision_manager_config -> Nullable<Jsonb>,
+        is_pre_network_tokenization_enabled -> Bool,
     }
 }
 
