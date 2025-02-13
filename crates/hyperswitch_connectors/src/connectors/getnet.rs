@@ -301,7 +301,8 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Get
     ) -> CustomResult<String, errors::ConnectorError> {
         let auth = getnet::GetnetAuthType::try_from(&req.connector_auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        let id = auth.merchant_id;
+        let id = auth.merchant_id.peek();
+
         let endpoint = self.base_url(connectors);
         let transaction_id = req
             .request
@@ -310,7 +311,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Get
             .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
 
         Ok(format!(
-            "{}/merchants/{:?}/payments/{}",
+            "{}/merchants/{}/payments/{}",
             endpoint, id, transaction_id
         ))
     }
@@ -627,12 +628,15 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Getnet {
         req: &RefundSyncRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
+        let auth = getnet::GetnetAuthType::try_from(&req.connector_auth_type)
+            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+        let merchant_id = auth.merchant_id.peek();
         let endpoint = self.base_url(connectors);
         let transaction_id = req.request.connector_transaction_id.clone();
 
         Ok(format!(
-            "{endpoint}/merchants/5c4a8a42-04a8-4970-a595-262f0ba0a108/payments/{}",
-            transaction_id
+            "{}/merchants/{}/payments/{}",
+            endpoint, merchant_id, transaction_id
         ))
     }
 
@@ -758,11 +762,20 @@ impl webhooks::IncomingWebhook for Getnet {
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
         let notif = get_webhook_object_from_body(request.body)
             .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
-        Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
-            api_models::payments::PaymentIdType::ConnectorTransactionId(
-                notif.payment.transaction_id.to_string(),
-            ),
-        ))
+        let transaction_type = &notif.payment.transaction_type;
+        if getnet::is_refund_event(transaction_type) {
+            Ok(api_models::webhooks::ObjectReferenceId::RefundId(
+                api_models::webhooks::RefundIdType::ConnectorRefundId(
+                    notif.payment.transaction_id.to_string(),
+                ),
+            ))
+        } else {
+            Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+                api_models::payments::PaymentIdType::ConnectorTransactionId(
+                    notif.payment.transaction_id.to_string(),
+                ),
+            ))
+        }
     }
 
     fn get_webhook_event_type(

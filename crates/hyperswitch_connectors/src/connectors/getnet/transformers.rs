@@ -218,7 +218,10 @@ impl TryFrom<&GetnetRouterData<&PaymentsAuthorizeRouterData>> for GetnetPayments
                     expiration_month: req_card.card_exp_month.clone(),
                     expiration_year: req_card.card_exp_year.clone(),
                     card_security_code: req_card.card_cvc.clone(),
-                    card_type: req_card.card_type.clone(),
+                    card_type: req_card
+                        .card_network
+                        .as_ref()
+                        .map(|network| network.to_string().to_lowercase()),
                 };
 
                 let payment_method = PaymentMethodContainer {
@@ -325,7 +328,7 @@ pub struct CardToken {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct PaymentResponseData {
     pub statuses: Statuses,
-    pub descriptor: String,
+    pub descriptor: Option<String>,
     pub notifications: NotificationContainer,
     #[serde(rename = "merchant-account-id")]
     pub merchant_account_id: MerchantAccountId,
@@ -701,7 +704,8 @@ pub struct RefundResponseData {
     #[serde(rename = "requested-amount")]
     pub requested_amount: Amount,
     #[serde(rename = "parent-transaction-id")]
-    pub parent_transaction_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub parent_transaction_id: Option<String>,
     #[serde(rename = "account-holder")]
     pub account_holder: AccountHolder,
     #[serde(rename = "card-token")]
@@ -711,7 +715,8 @@ pub struct RefundResponseData {
     #[serde(rename = "payment-methods")]
     pub payment_methods: PaymentMethodContainer,
     #[serde(rename = "parent-transaction-amount")]
-    pub parent_transaction_amount: Amount,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub parent_transaction_amount: Option<Amount>,
     #[serde(rename = "api-id")]
     pub api_id: String,
     #[serde(rename = "self")]
@@ -801,8 +806,8 @@ impl TryFrom<&PaymentsCancelRouterData> for GetnetCancelRequest {
         };
         let capture_method = &item.request.capture_method;
         let transaction_type = match capture_method {
-            Some(CaptureMethod::Automatic) => GetnetTransactionType::VoidAuthorization,
-            Some(CaptureMethod::Manual) => GetnetTransactionType::VoidCapture,
+            Some(CaptureMethod::Automatic) => GetnetTransactionType::VoidCapture,
+            Some(CaptureMethod::Manual) => GetnetTransactionType::VoidAuthorization,
             Some(CaptureMethod::ManualMultiple)
             | Some(CaptureMethod::Scheduled)
             | Some(CaptureMethod::SequentialAutomatic) => {
@@ -975,7 +980,8 @@ pub struct WebhookResponseData {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub parent_transaction_amount: Option<Amount>,
     #[serde(rename = "authorization-code")]
-    pub authorization_code: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub authorization_code: Option<String>,
     #[serde(rename = "api-id")]
     pub api_id: String,
     #[serde(rename = "provider-account-id")]
@@ -986,6 +992,13 @@ pub struct WebhookResponseData {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct GetnetWebhookNotificationResponseBody {
     pub payment: WebhookResponseData,
+}
+
+pub fn is_refund_event(transaction_type: &GetnetTransactionType) -> bool {
+    matches!(
+        transaction_type,
+        GetnetTransactionType::RefundPurchase | GetnetTransactionType::RefundCapture
+    )
 }
 
 pub fn get_incoming_webhook_event(
