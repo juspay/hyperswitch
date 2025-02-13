@@ -34,10 +34,11 @@ use crate::payment_methods;
 use crate::{
     admin::{self, MerchantConnectorInfo},
     disputes, enums as api_enums,
-    ephemeral_key::EphemeralKeyCreateResponse,
-    mandates::{ProcessorPaymentToken, RecurringDetails},
+    mandates:: RecurringDetails,
     refunds,
 };
+#[cfg(feature = "v2")]
+use crate::mandates::ProcessorPaymentToken;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum PaymentOp {
@@ -4913,7 +4914,7 @@ pub struct ProxyPaymentsIntentRequest {
 
     #[schema(example = "stripe")]
     pub connector: String,
-
+    
     #[schema(value_type = String)]
     pub merchant_connector_id: id_type::MerchantConnectorAccountId,
 }

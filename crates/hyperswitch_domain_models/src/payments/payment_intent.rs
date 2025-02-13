@@ -302,6 +302,7 @@ pub enum PaymentIntentUpdate {
         status: common_enums::IntentStatus,
         amount_captured: Option<MinorUnit>,
         updated_by: String,
+        feature_metadata: Option<diesel_models::types::FeatureMetadata>,
     },
     /// SyncUpdate of ConfirmIntent in PostUpdateTrackers
     SyncUpdate {
@@ -412,6 +413,7 @@ impl From<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal {
                 status,
                 updated_by,
                 amount_captured,
+                feature_metadata,
             } => Self {
                 status: Some(status),
                 active_attempt_id: None,
@@ -440,7 +442,7 @@ impl From<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal {
                 allowed_payment_method_types: None,
                 metadata: None,
                 connector_metadata: None,
-                feature_metadata: None,
+                feature_metadata,
                 payment_link_config: None,
                 request_incremental_authorization: None,
                 session_expiry: None,

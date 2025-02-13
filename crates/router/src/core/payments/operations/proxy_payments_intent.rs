@@ -41,9 +41,10 @@ impl ValidateStatusForOperation for PaymentProxyIntent {
         intent_status: common_enums::IntentStatus,
     ) -> Result<(), errors::ApiErrorResponse> {
         match intent_status {
-            common_enums::IntentStatus::RequiresPaymentMethod => Ok(()),
+            //Failed state is included here so that in PCR, retries can be done for failed payments, otherwise for a failed attempt it was asking for new payment_intent
+            common_enums::IntentStatus::RequiresPaymentMethod
+            | common_enums::IntentStatus::Failed => Ok(()),
             common_enums::IntentStatus::Succeeded
-            | common_enums::IntentStatus::Failed
             | common_enums::IntentStatus::Cancelled
             | common_enums::IntentStatus::Processing
             | common_enums::IntentStatus::RequiresCustomerAction
@@ -162,6 +163,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, ProxyPaymentsI
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
         self.validate_status_for_operation(payment_intent.status)?;
+        
         let client_secret = header_payload
             .client_secret
             .as_ref()
