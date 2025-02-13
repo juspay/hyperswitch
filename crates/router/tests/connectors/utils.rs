@@ -388,6 +388,7 @@ pub trait ConnectorActions: Connector {
         payment_data: Option<types::RefundsData>,
         payment_info: Option<PaymentInfo>,
     ) -> Result<types::RefundSyncRouterData, Report<ConnectorError>> {
+        println!("$$$ in rsync {:?} ", payment_data);
         let integration = self.get_data().connector.get_connector_integration();
         let request = self.generate_data(
             payment_data.unwrap_or_else(|| types::RefundsData {
@@ -408,6 +409,7 @@ pub trait ConnectorActions: Connector {
                 refund_status: enums::RefundStatus::Pending,
                 merchant_account_id: None,
                 merchant_config_currency: None,
+                capture_method: None,
             }),
             payment_info,
         );
@@ -1075,6 +1077,7 @@ impl Default for PaymentRefundType {
             refund_status: enums::RefundStatus::Pending,
             merchant_account_id: None,
             merchant_config_currency: None,
+            capture_method: None,
         };
         Self(data)
     }
