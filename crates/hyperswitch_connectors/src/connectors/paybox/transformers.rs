@@ -702,7 +702,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, PayboxCaptureResponse, T, PaymentsRespo
                     network_txn_id: None,
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
-                    charge_id: None,
+                    charges: None,
                 }),
                 amount_captured: None,
                 ..item.data
@@ -761,7 +761,7 @@ impl<F> TryFrom<ResponseRouterData<F, PayboxResponse, PaymentsAuthorizeData, Pay
                             network_txn_id: None,
                             connector_response_reference_id: None,
                             incremental_authorization_allowed: None,
-                            charge_id: None,
+                            charges: None,
                         }),
                         ..item.data
                     }),
@@ -790,7 +790,7 @@ impl<F> TryFrom<ResponseRouterData<F, PayboxResponse, PaymentsAuthorizeData, Pay
                     network_txn_id: None,
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
-                    charge_id: None,
+                    charges: None,
                 }),
                 ..item.data
             }),
@@ -833,7 +833,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, PayboxSyncResponse, T, PaymentsResponse
                     network_txn_id: None,
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
-                    charge_id: None,
+                    charges: None,
                 }),
                 ..item.data
             }),
@@ -1021,7 +1021,7 @@ impl<F>
                     network_txn_id: None,
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
-                    charge_id: None,
+                    charges: None,
                 }),
                 ..item.data
             }),

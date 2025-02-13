@@ -13514,5 +13514,14 @@ pub fn get_worldpay_billing_required_fields() -> HashMap<String, RequiredFieldIn
                 value: None,
             },
         ),
+        (
+            "billing.address.zip".to_string(),
+            RequiredFieldInfo {
+                required_field: "payment_method_data.billing.address.zip".to_string(),
+                display_name: "zip".to_string(),
+                field_type: enums::FieldType::UserAddressPincode,
+                value: None,
+            },
+        ),
     ])
 }

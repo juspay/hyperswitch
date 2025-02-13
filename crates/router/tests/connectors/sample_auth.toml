@@ -290,6 +290,9 @@ api_secret = "Client Key"
 [thunes]
 api_key="API Key"
 
+[getnet]
+api_key="API Key"
+
 [inespay]
 api_key="API Key"
 
@@ -307,6 +310,9 @@ api_key="API Key"
 api_key="API Key"
 
 [chargebee]
+api_key= "API Key"
+
+[moneris]
 api_key= "API Key"
 
 [stripebilling]

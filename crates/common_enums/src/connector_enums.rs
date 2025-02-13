@@ -81,6 +81,7 @@ pub enum RoutableConnectors {
     Fiservemea,
     Fiuu,
     Forte,
+    // Getnet,
     Globalpay,
     Globepay,
     Gocardless,
@@ -92,6 +93,7 @@ pub enum RoutableConnectors {
     Klarna,
     Mifinity,
     Mollie,
+    // Moneris,
     Multisafepay,
     Nexinets,
     Nexixpay,
@@ -218,6 +220,7 @@ pub enum Connector {
     Fiservemea,
     Fiuu,
     Forte,
+    // Getnet,
     Globalpay,
     Globepay,
     Gocardless,
@@ -230,6 +233,7 @@ pub enum Connector {
     Klarna,
     Mifinity,
     Mollie,
+    // Moneris,
     Multisafepay,
     Netcetera,
     Nexinets,
@@ -367,6 +371,7 @@ impl Connector {
             | Self::Fiservemea
             | Self::Fiuu
             | Self::Forte
+            // | Self::Getnet
             | Self::Globalpay
             | Self::Globepay
             | Self::Gocardless
@@ -379,6 +384,7 @@ impl Connector {
             | Self::Klarna
             | Self::Mifinity
             | Self::Mollie
+            // | Self::Moneris
             | Self::Multisafepay
             | Self::Nexinets
             | Self::Nexixpay
@@ -419,12 +425,11 @@ impl Connector {
             | Self::Razorpay
             | Self::Riskified
             | Self::Threedsecureio
-            | Self::Datatrans
             | Self::Netcetera
             | Self::CtpMastercard
             | Self::Noon
             | Self::Stripe => false,
-            Self::Checkout | Self::Nmi | Self::Cybersource => true,
+            Self::Checkout | Self::Nmi |Self::Datatrans|Self::Cybersource => true,
         }
     }
 
