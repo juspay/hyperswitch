@@ -150,7 +150,7 @@ pub async fn mk_tokenization_req(
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-pub async fn mk_tokenization_req(
+pub async fn generate_network_token(
     state: &routes::SessionState,
     payload_bytes: &[u8],
     customer_id: id_type::GlobalCustomerId,
@@ -341,7 +341,7 @@ pub async fn make_card_network_tokenization_request(
 
     let (resp, network_token_req_ref_id) = record_operation_time(
         async {
-            mk_tokenization_req(
+            generate_network_token(
                 state,
                 payload_bytes,
                 customer_id.clone(),
