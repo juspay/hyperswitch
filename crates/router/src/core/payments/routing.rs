@@ -173,7 +173,112 @@ pub fn make_dsl_input_for_payouts(
 pub fn make_dsl_input(
     payments_dsl_input: &routing::PaymentsDslInput<'_>,
 ) -> RoutingResult<dsl_inputs::BackendInput> {
-    todo!()
+    let mandate_data = dsl_inputs::MandateData {
+        mandate_acceptance_type: payments_dsl_input.setup_mandate.as_ref().and_then(
+            |mandate_data| {
+                mandate_data
+                    .customer_acceptance
+                    .as_ref()
+                    .map(|customer_accept| match customer_accept.acceptance_type {
+                        hyperswitch_domain_models::mandates::AcceptanceType::Online => {
+                            euclid_enums::MandateAcceptanceType::Online
+                        }
+                        hyperswitch_domain_models::mandates::AcceptanceType::Offline => {
+                            euclid_enums::MandateAcceptanceType::Offline
+                        }
+                    })
+            },
+        ),
+        mandate_type: payments_dsl_input
+            .setup_mandate
+            .as_ref()
+            .and_then(|mandate_data| {
+                mandate_data
+                    .mandate_type
+                    .clone()
+                    .map(|mandate_type| match mandate_type {
+                        hyperswitch_domain_models::mandates::MandateDataType::SingleUse(_) => {
+                            euclid_enums::MandateType::SingleUse
+                        }
+                        hyperswitch_domain_models::mandates::MandateDataType::MultiUse(_) => {
+                            euclid_enums::MandateType::MultiUse
+                        }
+                    })
+            }),
+        payment_type: Some(
+            if payments_dsl_input
+                .recurring_details
+                .as_ref()
+                .is_some_and(|data| {
+                    matches!(
+                        data,
+                        api_models::mandates::RecurringDetails::ProcessorPaymentToken(_)
+                    )
+                })
+            {
+                euclid_enums::PaymentType::PptMandate
+            } else {
+                payments_dsl_input.setup_mandate.map_or_else(
+                    || euclid_enums::PaymentType::NonMandate,
+                    |_| euclid_enums::PaymentType::SetupMandate,
+                )
+            },
+        ),
+    };
+    let payment_method_input = dsl_inputs::PaymentMethodInput {
+        payment_method: Some(payments_dsl_input.payment_attempt.payment_method_type),
+        payment_method_type: Some(payments_dsl_input.payment_attempt.payment_method_subtype),
+        card_network: payments_dsl_input
+            .payment_method_data
+            .as_ref()
+            .and_then(|pm_data| match pm_data {
+                domain::PaymentMethodData::Card(card) => card.card_network.clone(),
+
+                _ => None,
+            }),
+    };
+
+    let payment_input = dsl_inputs::PaymentInput {
+        amount: payments_dsl_input
+            .payment_attempt
+            .amount_details
+            .get_net_amount(),
+        card_bin: payments_dsl_input.payment_method_data.as_ref().and_then(
+            |pm_data| match pm_data {
+                domain::PaymentMethodData::Card(card) => Some(card.card_number.get_card_isin()),
+                _ => None,
+            },
+        ),
+        currency: payments_dsl_input.currency,
+        authentication_type: Some(payments_dsl_input.payment_attempt.authentication_type),
+        capture_method: Some(payments_dsl_input.payment_intent.capture_method),
+        business_country: None,
+        billing_country: payments_dsl_input
+            .address
+            .get_payment_method_billing()
+            .and_then(|billing_address| billing_address.address.as_ref())
+            .and_then(|address_details| address_details.country)
+            .map(api_enums::Country::from_alpha2),
+        business_label: None,
+        setup_future_usage: Some(payments_dsl_input.payment_intent.setup_future_usage),
+    };
+
+    let metadata = payments_dsl_input
+        .payment_intent
+        .metadata
+        .clone()
+        .map(|value| value.parse_value("routing_parameters"))
+        .transpose()
+        .change_context(errors::RoutingError::MetadataParsingError)
+        .attach_printable("Unable to parse routing_parameters from metadata of payment_intent")
+        .unwrap_or(None);
+
+    Ok(dsl_inputs::BackendInput {
+        metadata,
+        payment: payment_input,
+        payment_method: payment_method_input,
+        mandate: mandate_data,
+    })
 }
 
 #[cfg(feature = "v1")]
@@ -185,7 +290,7 @@ pub fn make_dsl_input(
             |mandate_data| {
                 mandate_data
                     .customer_acceptance
-                    .clone()
+                    .as_ref()
                     .map(|cat| match cat.acceptance_type {
                         hyperswitch_domain_models::mandates::AcceptanceType::Online => {
                             euclid_enums::MandateAcceptanceType::Online
