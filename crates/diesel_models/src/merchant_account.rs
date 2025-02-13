@@ -94,7 +94,7 @@ pub struct MerchantAccountSetter {
 impl From<MerchantAccountSetter> for MerchantAccount {
     fn from(item: MerchantAccountSetter) -> Self {
         Self {
-            id: Some(item.merchant),
+            id: Some(item.merchant_id.clone()),
             merchant_id: item.merchant_id,
             return_url: item.return_url,
             enable_payment_response_hash: item.enable_payment_response_hash,
