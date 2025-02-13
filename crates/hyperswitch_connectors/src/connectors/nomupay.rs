@@ -7,7 +7,6 @@ use common_utils::{
     ext_traits::BytesExt,
     pii,
     request::{Method, RequestContent},
-    // types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector},
 };
 #[cfg(feature = "payouts")]
 use common_utils::{
