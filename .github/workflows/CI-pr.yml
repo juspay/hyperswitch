@@ -89,7 +89,9 @@ jobs:
     runs-on: ${{ matrix.runner }}
 
     env:
+      RUSTC_WRAPPER: "sccache"
       RUSTFLAGS: "-D warnings"
+      SCCACHE_GHA_ENABLED: "on"
 
     strategy:
       fail-fast: false
@@ -124,11 +126,17 @@ jobs:
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
       
-      - name: Install rust cache
-        uses: Swatinem/rust-cache@v2.7.7
-        with: 
-          shared-key: "rust-cache-check-msrv"
-          save-if: false
+      - name: Install sccache
+        uses: taiki-e/install-action@v2.33.28
+        with:
+          tool: sccache
+          checksum: true
+      
+      # - name: Install rust cache
+      #   uses: Swatinem/rust-cache@v2.7.7
+      #   with: 
+      #     shared-key: "rust-cache-check-msrv"
+      #     save-if: false
 
       - name: Install cargo-hack
         uses: taiki-e/install-action@v2.33.28
@@ -178,7 +186,9 @@ jobs:
     runs-on: ${{ matrix.runner }}
 
     env:
+      RUSTC_WRAPPER: "sccache"
       RUSTFLAGS: "-D warnings"
+      SCCACHE_GHA_ENABLED: "on"
 
     strategy:
       fail-fast: false
@@ -225,11 +235,16 @@ jobs:
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Install rust cache
-        uses: Swatinem/rust-cache@v2.7.7
-        with: 
-          shared-key: "rust-cache-test"
-          save-if: false
+      - name: Install sccache
+        uses: taiki-e/install-action@v2.33.28
+        with:
+          tool: sccache
+          checksum: true
+      # - name: Install rust cache
+      #   uses: Swatinem/rust-cache@v2.7.7
+      #   with: 
+      #     shared-key: "rust-cache-test"
+      #     save-if: false
 
       - name: Install cargo-hack
         uses: taiki-e/install-action@v2.33.28
@@ -288,6 +303,9 @@ jobs:
   check-v2:
     name: Check compilation for V2 features
     runs-on: ubuntu-latest
+    env:
+      RUSTC_WRAPPER: "sccache"
+      SCCACHE_GHA_ENABLED: "on"
 
     steps:
       - name: Checkout repository
@@ -309,12 +327,16 @@ jobs:
         uses: arduino/setup-protoc@v3
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Install rust cache
-        uses: Swatinem/rust-cache@v2.7.7
-        with: 
-          shared-key: "rust-cache-check-v2"
-          save-if: false
+      - name: Install sccache
+        uses: taiki-e/install-action@v2.33.28
+        with:
+          tool: sccache
+          checksum: true
+      # - name: Install rust cache
+      #   uses: Swatinem/rust-cache@v2.7.7
+      #   with: 
+      #     shared-key: "rust-cache-check-v2"
+      #     save-if: false
 
       - name: Install just
         uses: taiki-e/install-action@v2.41.10

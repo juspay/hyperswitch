@@ -42,7 +42,9 @@ jobs:
     runs-on: ${{ matrix.runner }}
 
     env:
+      RUSTC_WRAPPER: "sccache"
       RUSTFLAGS: "-D warnings"
+      SCCACHE_GHA_ENABLED: "on"
 
     strategy:
       fail-fast: true
@@ -76,11 +78,17 @@ jobs:
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Install rust cache
-        uses: Swatinem/rust-cache@v2.7.7
+      - name: Install sccache
+        uses: taiki-e/install-action@v2.33.28
         with:
-          shared-key: "rust-cache-check-msrv"
-          save-if: ${{ github.ref == 'refs/heads/main' }}
+          tool: sccache
+          checksum: true
+
+      # - name: Install rust cache
+      #   uses: Swatinem/rust-cache@v2.7.7
+      #   with:
+      #     shared-key: "rust-cache-check-msrv"
+      #     save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Install cargo-hack
         uses: baptiste0928/cargo-install@v2.2.0
@@ -133,7 +141,9 @@ jobs:
     runs-on: ${{ matrix.runner }}
 
     env:
+      RUSTC_WRAPPER: "sccache"
       RUSTFLAGS: "-D warnings"
+      SCCACHE_GHA_ENABLED: "on"
 
     strategy:
       fail-fast: true
@@ -181,12 +191,17 @@ jobs:
       #   uses: baptiste0928/cargo-install@v2.2.0
       #   with:
       #     crate: cargo-nextest
-
-      - name: Install rust cache
-        uses: Swatinem/rust-cache@v2.7.7
+      - name: Install sccache
+        uses: taiki-e/install-action@v2.33.28
         with:
-          shared-key: "rust-cache-test"
-          save-if: ${{ github.ref == 'refs/heads/main' }}
+          tool: sccache
+          checksum: true
+
+      # - name: Install rust cache
+      #   uses: Swatinem/rust-cache@v2.7.7
+      #   with:
+      #     shared-key: "rust-cache-test"
+      #     save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Run clippy
         shell: bash
@@ -216,6 +231,10 @@ jobs:
     name: Check compilation for V2 features
     runs-on: ubuntu-latest
 
+    env:
+      RUSTC_WRAPPER: "sccache"
+      SCCACHE_GHA_ENABLED: "on"
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -236,11 +255,17 @@ jobs:
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Install rust cache
-        uses: Swatinem/rust-cache@v2.7.7
+      - name: Install sccache
+        uses: taiki-e/install-action@v2.33.28
         with:
-          shared-key: "rust-cache-check-v2"
-          save-if: ${{ github.ref == 'refs/heads/main' }}
+          tool: sccache
+          checksum: true
+
+      # - name: Install rust cache
+      #   uses: Swatinem/rust-cache@v2.7.7
+      #   with:
+      #     shared-key: "rust-cache-check-v2"
+      #     save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Run cargo check enabling only the release and v2 features
         shell: bash
