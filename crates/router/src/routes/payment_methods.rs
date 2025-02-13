@@ -946,15 +946,18 @@ pub async fn payment_methods_session_update(
             )
             .await
         }},
-        &vec![
-            auth::V2Auth::ApiKeyAuth,
-            auth::V2Auth::ClientAuth(diesel_models::ResourceId::PaymentMethodSession(
-                payment_method_session_id.clone(),
-            )),
-        ],
-        api_locking::LockAction::NotApplicable,
-    ))
-    .await
+            auth::api_or_client_auth(
+            &auth::V2ApiKeyAuth,
+            &auth::V2ClientAuth(
+                        common_utils::types::authentication::ResourceId::PaymentMethodSession(
+                            payment_method_session_id.clone(),
+                        ),
+                    ),
+                    req.headers(),
+                ),
+                api_locking::LockAction::NotApplicable,        
+        ))
+                .await
 }
 
 #[cfg(feature = "v2")]
