@@ -295,6 +295,7 @@ pub struct NomupayErrorResponse {
 
 pub struct NomupayAuthType {
     pub(super) kid: Secret<String>,
+    #[cfg(feature = "payouts")]
     pub(super) eid: Secret<String>,
 }
 
@@ -302,6 +303,7 @@ impl TryFrom<&ConnectorAuthType> for NomupayAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
+            #[cfg(feature = "payouts")]
             ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
                 kid: api_key.to_owned(),
                 eid: key1.to_owned(),

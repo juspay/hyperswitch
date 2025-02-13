@@ -21,7 +21,7 @@ error-stack = "0.4.1"
 hex = "0.4.3"
 http = "0.2.12"
 image = { version = "0.25.1", default-features = false, features = ["png"] }
-josekit = { git = "https://github.com/sumanmaji4/josekit-rs.git", rev = "78576ead7db6910540b88a69a436ec4f8c910664", features = ["empty-str-for-empty-jwt-payload"]}
+josekit = { git = "https://github.com/sumanmaji4/josekit-rs.git", rev = "5ab54876c29a84f86aef8c169413a46026883efe", features = ["support-empty-payload"]}
 mime = "0.3.17"
 once_cell = "1.19.0"
 qrcode = "0.14.0"

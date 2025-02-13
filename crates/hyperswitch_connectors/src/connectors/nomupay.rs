@@ -2,13 +2,16 @@ pub mod transformers;
 
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-#[cfg(feature = "payouts")]
-use common_utils::request::{Request, RequestBuilder};
 use common_utils::{
     errors::CustomResult,
     ext_traits::BytesExt,
     pii,
     request::{Method, RequestContent},
+    // types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector},
+};
+#[cfg(feature = "payouts")]
+use common_utils::{
+    request::{Request, RequestBuilder},
     types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector},
 };
 use error_stack::{report, ResultExt};
@@ -67,12 +70,14 @@ use crate::{types::ResponseRouterData, utils::RouterData as RouterDataTrait};
 
 #[derive(Clone)]
 pub struct Nomupay {
+    #[cfg(feature = "payouts")]
     amount_converter: &'static (dyn AmountConvertor<Output = FloatMajorUnit> + Sync),
 }
 
 impl Nomupay {
     pub fn new() -> &'static Self {
         &Self {
+            #[cfg(feature = "payouts")]
             amount_converter: &FloatMajorUnitForConnector,
         }
     }
