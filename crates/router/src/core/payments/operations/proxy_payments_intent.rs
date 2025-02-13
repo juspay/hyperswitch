@@ -163,7 +163,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, ProxyPaymentsI
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
         self.validate_status_for_operation(payment_intent.status)?;
-        
+
         let client_secret = header_payload
             .client_secret
             .as_ref()
