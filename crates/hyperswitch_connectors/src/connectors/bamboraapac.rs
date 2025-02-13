@@ -745,11 +745,7 @@ lazy_static! {
         let supported_card_network = vec![
             common_enums::CardNetwork::Visa,
             common_enums::CardNetwork::Mastercard,
-            common_enums::CardNetwork::AmericanExpress,
             common_enums::CardNetwork::DinersClub,
-            common_enums::CardNetwork::JCB,
-            common_enums::CardNetwork::UnionPay,
-            common_enums::CardNetwork::Discover,
         ];
 
         let mut bamboraapac_supported_payment_methods = SupportedPaymentMethods::new();
@@ -764,7 +760,26 @@ lazy_static! {
                 specific_features: Some(
                     api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
                         api_models::feature_matrix::CardSpecificFeatures {
-                            three_ds: common_enums::FeatureStatus::NotSupported,
+                            three_ds: common_enums::FeatureStatus::Supported,
+                            no_three_ds: common_enums::FeatureStatus::Supported,
+                            supported_card_networks: supported_card_network.clone(),
+                        }
+                    }),
+                ),
+            },
+        );
+
+        bamboraapac_supported_payment_methods.add(
+            enums::PaymentMethod::Card,
+            enums::PaymentMethodType::Debit,
+            PaymentMethodDetails {
+                mandates: common_enums::FeatureStatus::Supported,
+                refunds: common_enums::FeatureStatus::Supported,
+                supported_capture_methods: default_capture_methods.clone(),
+                specific_features: Some(
+                    api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
+                        api_models::feature_matrix::CardSpecificFeatures {
+                            three_ds: common_enums::FeatureStatus::Supported,
                             no_three_ds: common_enums::FeatureStatus::Supported,
                             supported_card_networks: supported_card_network.clone(),
                         }
