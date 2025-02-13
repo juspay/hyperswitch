@@ -531,6 +531,7 @@ pub enum StripeWallet {
     ApplepayToken(StripeApplePay),
     GooglepayToken(GooglePayToken),
     ApplepayPayment(ApplepayPayment),
+    AmazonpayPayment(AmazonpayPayment),
     WechatpayPayment(WechatpayPayment),
     AlipayPayment(AlipayPayment),
     Cashapp(CashappPayment),
@@ -578,6 +579,12 @@ pub struct ApplepayPayment {
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
+pub struct AmazonpayPayment {
+    #[serde(rename = "payment_method_data[type]")]
+    pub payment_method_types: StripePaymentMethodType,
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct AlipayPayment {
     #[serde(rename = "payment_method_data[type]")]
     pub payment_method_data_type: StripePaymentMethodType,
@@ -620,6 +627,8 @@ pub enum StripePaymentMethodType {
     Affirm,
     AfterpayClearpay,
     Alipay,
+    #[serde(rename = "amazon_pay")]
+    AmazonPay,
     #[serde(rename = "au_becs_debit")]
     Becs,
     #[serde(rename = "bacs_debit")]
@@ -667,6 +676,7 @@ impl TryFrom<enums::PaymentMethodType> for StripePaymentMethodType {
             enums::PaymentMethodType::Giropay => Ok(Self::Giropay),
             enums::PaymentMethodType::Ideal => Ok(Self::Ideal),
             enums::PaymentMethodType::Sofort => Ok(Self::Sofort),
+            enums::PaymentMethodType::AmazonPay => Ok(Self::AmazonPay),
             enums::PaymentMethodType::ApplePay => Ok(Self::Card),
             enums::PaymentMethodType::Ach => Ok(Self::Ach),
             enums::PaymentMethodType::Sepa => Ok(Self::Sepa),
@@ -992,7 +1002,6 @@ impl TryFrom<&domain::payments::PayLaterData> for StripePaymentMethodType {
             }
 
             domain::PayLaterData::KlarnaSdk { .. }
-            | domain::PayLaterData::KlarnaCheckout {}
             | domain::PayLaterData::PayBrightRedirect {}
             | domain::PayLaterData::WalleyRedirect {}
             | domain::PayLaterData::AlmaRedirect {}
@@ -1048,6 +1057,9 @@ impl ForeignTryFrom<&domain::WalletData> for Option<StripePaymentMethodType> {
             domain::WalletData::GooglePay(_) => Ok(Some(StripePaymentMethodType::Card)),
             domain::WalletData::WeChatPayQr(_) => Ok(Some(StripePaymentMethodType::Wechatpay)),
             domain::WalletData::CashappQr(_) => Ok(Some(StripePaymentMethodType::Cashapp)),
+            domain::WalletData::AmazonPayRedirect(_) => {
+                Ok(Some(StripePaymentMethodType::AmazonPay))
+            }
             domain::WalletData::MobilePayRedirect(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     connector_util::get_unimplemented_payment_method_error_message("stripe"),
@@ -1466,6 +1478,11 @@ impl TryFrom<(&domain::WalletData, Option<types::PaymentMethodToken>)> for Strip
                     payment_method_data_type: StripePaymentMethodType::Cashapp,
                 })))
             }
+            domain::WalletData::AmazonPayRedirect(_) => Ok(Self::Wallet(
+                StripeWallet::AmazonpayPayment(AmazonpayPayment {
+                    payment_method_types: StripePaymentMethodType::AmazonPay,
+                }),
+            )),
             domain::WalletData::GooglePay(gpay_data) => Ok(Self::try_from(gpay_data)?),
             domain::WalletData::PaypalRedirect(_) | domain::WalletData::MobilePayRedirect(_) => {
                 Err(errors::ConnectorError::NotImplemented(
@@ -1956,7 +1973,9 @@ impl TryFrom<(&types::PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntent
                 };
                 (charges, None)
             }
-            None => (None, item.connector_customer.to_owned().map(Secret::new)),
+            Some(common_types::payments::SplitPaymentsRequest::AdyenSplitPayment(_)) | None => {
+                (None, item.connector_customer.to_owned().map(Secret::new))
+            }
         };
 
         Ok(Self {
@@ -2301,6 +2320,7 @@ pub enum StripePaymentMethodDetailsResponse {
     Klarna,
     Affirm,
     AfterpayClearpay,
+    AmazonPay,
     ApplePay,
     #[serde(rename = "us_bank_account")]
     Ach,
@@ -2348,6 +2368,7 @@ impl StripePaymentMethodDetailsResponse {
             | Self::Klarna
             | Self::Affirm
             | Self::AfterpayClearpay
+            | Self::AmazonPay
             | Self::ApplePay
             | Self::Ach
             | Self::Sepa
@@ -2454,6 +2475,8 @@ fn extract_payment_method_connector_response_from_latest_attempt(
 impl<F, T>
     TryFrom<types::ResponseRouterData<F, PaymentIntentResponse, T, types::PaymentsResponseData>>
     for types::RouterData<F, T, types::PaymentsResponseData>
+where
+    T: connector_util::SplitPaymentData,
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -2507,14 +2530,16 @@ impl<F, T>
                 item.response.id.clone(),
             ))
         } else {
-            let charge_id = item
+            let charges = item
                 .response
                 .latest_charge
                 .as_ref()
                 .map(|charge| match charge {
-                    StripeChargeEnum::ChargeId(charge_id) => charge_id.clone(),
+                    StripeChargeEnum::ChargeId(charges) => charges.clone(),
                     StripeChargeEnum::ChargeObject(charge) => charge.id.clone(),
-                });
+                })
+                .and_then(|charge_id| construct_charge_response(charge_id, &item.data.request));
+
             Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.id.clone()),
                 redirection_data: Box::new(redirection_data),
@@ -2523,7 +2548,7 @@ impl<F, T>
                 network_txn_id,
                 connector_response_reference_id: Some(item.response.id),
                 incremental_authorization_allowed: None,
-                charge_id,
+                charges,
             })
         };
 
@@ -2612,6 +2637,8 @@ pub fn get_connector_metadata(
 impl<F, T>
     TryFrom<types::ResponseRouterData<F, PaymentIntentSyncResponse, T, types::PaymentsResponseData>>
     for types::RouterData<F, T, types::PaymentsResponseData>
+where
+    T: connector_util::SplitPaymentData,
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -2664,6 +2691,7 @@ impl<F, T>
                             | Some(StripePaymentMethodDetailsResponse::Klarna)
                             | Some(StripePaymentMethodDetailsResponse::Affirm)
                             | Some(StripePaymentMethodDetailsResponse::AfterpayClearpay)
+                            | Some(StripePaymentMethodDetailsResponse::AmazonPay)
                             | Some(StripePaymentMethodDetailsResponse::ApplePay)
                             | Some(StripePaymentMethodDetailsResponse::Ach)
                             | Some(StripePaymentMethodDetailsResponse::Sepa)
@@ -2715,14 +2743,16 @@ impl<F, T>
                     }),
                 _ => None,
             };
-            let charge_id = item
+            let charges = item
                 .response
                 .latest_charge
                 .as_ref()
                 .map(|charge| match charge {
-                    StripeChargeEnum::ChargeId(charge_id) => charge_id.clone(),
+                    StripeChargeEnum::ChargeId(charges) => charges.clone(),
                     StripeChargeEnum::ChargeObject(charge) => charge.id.clone(),
-                });
+                })
+                .and_then(|charge_id| construct_charge_response(charge_id, &item.data.request));
+
             Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.id.clone()),
                 redirection_data: Box::new(redirection_data),
@@ -2731,7 +2761,7 @@ impl<F, T>
                 network_txn_id: network_transaction_id,
                 connector_response_reference_id: Some(item.response.id.clone()),
                 incremental_authorization_allowed: None,
-                charge_id,
+                charges,
             })
         };
 
@@ -2811,7 +2841,7 @@ impl<F, T>
                 network_txn_id: network_transaction_id,
                 connector_response_reference_id: Some(item.response.id),
                 incremental_authorization_allowed: None,
-                charge_id: None,
+                charges: None,
             })
         };
 
@@ -3062,6 +3092,11 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for ChargeRefundRequest {
                         },
                     })
                 }
+                types::SplitRefundsRequest::AdyenSplitRefund(_) => {
+                    Err(errors::ConnectorError::MissingRequiredField {
+                        field_name: "stripe_split_refund",
+                    })?
+                }
             },
         }
     }
@@ -3273,6 +3308,7 @@ pub enum StripePaymentMethodOptions {
     Klarna {},
     Affirm {},
     AfterpayClearpay {},
+    AmazonPay {},
     Eps {},
     Giropay {},
     Ideal {},
@@ -3522,7 +3558,7 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, ChargesResponse, T, types::Payme
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.id.clone()),
                 incremental_authorization_allowed: None,
-                charge_id: Some(item.response.id),
+                charges: None,
             })
         };
 
@@ -4148,6 +4184,34 @@ pub(super) fn transform_headers_for_connect_platform(
             transfer_account_id.into_masked(),
         )];
         header.append(&mut customer_account_header);
+    }
+}
+
+pub fn construct_charge_response<T>(
+    charge_id: String,
+    request: &T,
+) -> Option<common_types::payments::ConnectorChargeResponseData>
+where
+    T: connector_util::SplitPaymentData,
+{
+    let charge_request = request.get_split_payment_data();
+    if let Some(common_types::payments::SplitPaymentsRequest::StripeSplitPayment(
+        stripe_split_payment,
+    )) = charge_request
+    {
+        let stripe_charge_response = common_types::payments::StripeChargeResponseData {
+            charge_id: Some(charge_id),
+            charge_type: stripe_split_payment.charge_type,
+            application_fees: stripe_split_payment.application_fees,
+            transfer_account_id: stripe_split_payment.transfer_account_id,
+        };
+        Some(
+            common_types::payments::ConnectorChargeResponseData::StripeSplitPayment(
+                stripe_charge_response,
+            ),
+        )
+    } else {
+        None
     }
 }
 
