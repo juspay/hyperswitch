@@ -27,7 +27,7 @@ use crate::{
     },
     utils::{
         get_unimplemented_payment_method_error_message, AdditionalCardInfo, CardData as _,
-        PaymentsAuthorizeRequestData, PaymentsSetupMandateRequestData, RouterData as _,
+        PaymentsAuthorizeRequestData, RouterData as _,
     },
 };
 
@@ -287,7 +287,7 @@ impl TryFrom<&types::SetupMandateRouterData> for DatatransPaymentsRequest {
                     three_ds: Some(ThreeDSecureData::Cardholder(ThreedsInfo {
                         cardholder: CardHolder {
                             cardholder_name: item.get_billing_full_name()?,
-                            email: item.request.get_email()?,
+                            email: item.get_billing_email()?,
                         },
                     })),
                 }),
@@ -463,7 +463,7 @@ fn create_card_details(
         details.three_ds = Some(ThreeDSecureData::Cardholder(ThreedsInfo {
             cardholder: CardHolder {
                 cardholder_name: item.router_data.get_billing_full_name()?,
-                email: item.router_data.request.get_email()?,
+                email: item.router_data.get_billing_email()?,
             },
         }));
     }
