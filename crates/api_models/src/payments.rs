@@ -438,8 +438,9 @@ pub struct PaymentsIntentResponse {
     #[schema(value_type = CaptureMethod, example = "automatic")]
     pub capture_method: api_enums::CaptureMethod,
 
-    #[schema(value_type = AuthenticationType, example = "no_three_ds", default = "no_three_ds")]
-    pub authentication_type: api_enums::AuthenticationType,
+    /// The authentication type for the payment
+    #[schema(value_type = Option<AuthenticationType>, example = "no_three_ds")]
+    pub authentication_type: Option<api_enums::AuthenticationType>,
 
     /// The billing details of the payment. This address will be used for invoicing.
     #[schema(value_type = Option<Address>)]
@@ -5288,6 +5289,14 @@ pub struct PaymentsConfirmIntentResponse {
 
     /// Error details for the payment if any
     pub error: Option<ErrorDetails>,
+
+    /// The transaction authentication can be set to undergo payer authentication. By default, the authentication will be marked as NO_THREE_DS
+    #[schema(value_type = Option<AuthenticationType>, example = "no_three_ds")]
+    pub authentication_type: Option<api_enums::AuthenticationType>,
+
+    /// The authentication type applied for the payment
+    #[schema(value_type = AuthenticationType, example = "no_three_ds")]
+    pub applied_authentication_type: api_enums::AuthenticationType,
 }
 
 /// Token information that can be used to initiate transactions by the merchant.
@@ -6094,7 +6103,8 @@ pub enum GpayBillingAddressFormat {
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct GpayTokenParameters {
     /// The name of the connector
-    pub gateway: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub gateway: Option<String>,
     /// The merchant ID registered in the connector associated
     #[serde(skip_serializing_if = "Option::is_none")]
     pub gateway_merchant_id: Option<String>,
@@ -6105,6 +6115,13 @@ pub struct GpayTokenParameters {
         rename = "stripe:publishableKey"
     )]
     pub stripe_publishable_key: Option<String>,
+    /// The protocol version for encryption
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub protocol_version: Option<String>,
+    /// The public key provided by the merchant
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[schema(value_type = Option<String>)]
+    pub public_key: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -6374,6 +6391,7 @@ pub struct GooglePayWalletDetails {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct GooglePayDetails {
     pub provider_details: GooglePayProviderDetails,
+    pub cards: GpayAllowedMethodsParameters,
 }
 
 // Google Pay Provider Details can of two types: GooglePayMerchantDetails or GooglePayHyperSwitchDetails
@@ -6392,6 +6410,7 @@ pub struct GooglePayMerchantDetails {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct GooglePayMerchantInfo {
     pub merchant_name: String,
+    pub merchant_id: Option<String>,
     pub tokenization_specification: GooglePayTokenizationSpecification,
 }
 
@@ -6402,8 +6421,9 @@ pub struct GooglePayTokenizationSpecification {
     pub parameters: GooglePayTokenizationParameters,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize, strum::Display)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+#[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
 pub enum GooglePayTokenizationType {
     PaymentGateway,
     Direct,
@@ -6411,10 +6431,13 @@ pub enum GooglePayTokenizationType {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct GooglePayTokenizationParameters {
-    pub gateway: String,
-    pub public_key: Secret<String>,
-    pub private_key: Secret<String>,
+    pub gateway: Option<String>,
+    pub public_key: Option<Secret<String>>,
+    pub private_key: Option<Secret<String>>,
     pub recipient_id: Option<Secret<String>>,
+    pub gateway_merchant_id: Option<Secret<String>>,
+    pub stripe_publishable_key: Option<Secret<String>>,
+    pub stripe_version: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]

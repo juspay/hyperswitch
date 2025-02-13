@@ -492,6 +492,7 @@ impl PaymentAttempt {
             .transpose()
             .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
             .attach_printable("Unable to decode billing address")?;
+        let authentication_type = payment_intent.authentication_type.unwrap_or_default();
 
         Ok(Self {
             payment_id: payment_intent.id.clone(),
@@ -501,7 +502,7 @@ impl PaymentAttempt {
             // This will be decided by the routing algorithm and updated in update trackers
             // right before calling the connector
             connector: None,
-            authentication_type: payment_intent.authentication_type,
+            authentication_type,
             created_at: now,
             modified_at: now,
             last_synced: None,
@@ -1556,6 +1557,7 @@ pub enum PaymentAttemptUpdate {
         updated_by: String,
         connector: String,
         merchant_connector_id: id_type::MerchantConnectorAccountId,
+        authentication_type: storage_enums::AuthenticationType,
     },
     /// Update the payment attempt on confirming the intent, after calling the connector on success response
     ConfirmIntentResponse(Box<ConfirmIntentResponseUpdate>),
@@ -1615,7 +1617,7 @@ impl behaviour::Conversion for PaymentAttempt {
             .and_then(|card| card.get("card_network"))
             .and_then(|network| network.as_str())
             .map(|network| network.to_string());
-        let (connector_transaction_id, connector_transaction_data) = self
+        let (connector_transaction_id, processor_transaction_data) = self
             .connector_transaction_id
             .map(ConnectorTransactionId::form_id_and_data)
             .map(|(txn_id, txn_data)| (Some(txn_id), txn_data))
@@ -1682,12 +1684,14 @@ impl behaviour::Conversion for PaymentAttempt {
             profile_id: self.profile_id,
             organization_id: self.organization_id,
             card_network,
-            connector_transaction_data,
             order_tax_amount: self.net_amount.get_order_tax_amount(),
             shipping_cost: self.net_amount.get_shipping_cost(),
             connector_mandate_detail: self.connector_mandate_detail,
+            processor_transaction_data,
             card_discovery: self.card_discovery,
             charges: self.charges,
+            // Below fields are deprecated. Please add any new fields above this line.
+            connector_transaction_data: None,
         })
     }
 
@@ -2213,6 +2217,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 updated_by,
                 connector,
                 merchant_connector_id,
+                authentication_type,
             } => Self {
                 status: Some(status),
                 error_message: None,
@@ -2231,6 +2236,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 amount_capturable: None,
                 amount_to_capture: None,
                 connector_token_details: None,
+                authentication_type: Some(authentication_type),
                 feature_metadata: None,
             },
             PaymentAttemptUpdate::ErrorUpdate {
@@ -2257,6 +2263,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 amount_capturable,
                 amount_to_capture: None,
                 connector_token_details: None,
+                authentication_type: None,
                 feature_metadata: None,
             },
             PaymentAttemptUpdate::ConfirmIntentResponse(confirm_intent_response_update) => {
@@ -2288,6 +2295,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                     connector_metadata,
                     amount_to_capture: None,
                     connector_token_details,
+                    authentication_type: None,
                     feature_metadata: None,
                 }
             }
@@ -2313,6 +2321,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 connector_metadata: None,
                 amount_to_capture: None,
                 connector_token_details: None,
+                authentication_type: None,
                 feature_metadata: None,
             },
             PaymentAttemptUpdate::CaptureUpdate {
@@ -2337,6 +2346,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 redirection_data: None,
                 connector_metadata: None,
                 connector_token_details: None,
+                authentication_type: None,
                 feature_metadata: None,
             },
             PaymentAttemptUpdate::PreCaptureUpdate {
@@ -2360,6 +2370,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 connector_metadata: None,
                 amount_capturable: None,
                 connector_token_details: None,
+                authentication_type: None,
                 feature_metadata: None,
             },
         }

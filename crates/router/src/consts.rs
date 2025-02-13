@@ -220,3 +220,9 @@ pub const DEFAULT_PAYMENT_METHOD_SESSION_EXPIRY: u32 = 15 * 60; // 15 minutes
 
 /// Authorize flow identifier used for performing GSM operations
 pub const AUTHORIZE_FLOW_STR: &str = "Authorize";
+
+/// Protocol Version for encrypted Google Pay Token
+pub(crate) const PROTOCOL: &str = "ECv2";
+
+/// Sender ID for Google Pay Decryption
+pub(crate) const SENDER_ID: &[u8] = b"Google";

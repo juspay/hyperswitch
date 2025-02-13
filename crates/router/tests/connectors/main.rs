@@ -50,6 +50,7 @@ mod itaubank;
 mod jpmorgan;
 mod mifinity;
 mod mollie;
+mod moneris;
 mod multisafepay;
 mod netcetera;
 mod nexinets;
