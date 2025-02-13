@@ -166,14 +166,21 @@ impl<'a> CardInfoMigrateExecutor<'a> {
         Self { state, record }
     }
 
-    async fn fetch_card_info(&self) -> Result<Option<diesel_models::CardInfo>, error_stack::Report<storage_impl::errors::StorageError>> {
+    async fn fetch_card_info(
+        &self,
+    ) -> Result<
+        Option<card_info_models::CardInfo>,
+        error_stack::Report<storage_impl::errors::StorageError>,
+    > {
         let db = self.state.store.as_ref();
         db.get_card_info(&self.record.card_iin).await
     }
 
     async fn add_card_info(&self) -> RouterResponse<card_info_models::CardInfo> {
         let db = self.state.store.as_ref();
-        let card_info = CardsInfoInterface::add_card_info(db, self.record.foreign_into()).await?;
+        let card_info = CardsInfoInterface::add_card_info(db, self.record.clone().foreign_into())
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)?;
         Ok(ApplicationResponse::Json(card_info))
     }
 
@@ -181,7 +188,7 @@ impl<'a> CardInfoMigrateExecutor<'a> {
         let db = self.state.store.as_ref();
         let card_info = CardsInfoInterface::update_card_info(
             db,
-            self.record.card_iin,
+            self.record.card_iin.clone(),
             card_info_models::UpdateCardInfo {
                 card_issuer: self.record.card_issuer.clone(),
                 card_network: self.record.card_network.clone(),
@@ -195,7 +202,8 @@ impl<'a> CardInfoMigrateExecutor<'a> {
                 last_updated_provider: self.record.last_updated_provider.clone(),
             },
         )
-        .await?;
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
         Ok(ApplicationResponse::Json(card_info))
     }
 }
@@ -295,43 +303,32 @@ async fn card_info_flow(
             let updated_card_info = executor
                 .update_card_info()
                 .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)?;  
+                .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
             match updated_card_info {
-                ApplicationResponse::Json(updated_info) => builder.set_updated_card_info(updated_info),
+                ApplicationResponse::Json(updated_info) => {
+                    builder.set_updated_card_info(updated_info)
+                }
                 _ => return Err(report!(errors::ApiErrorResponse::InternalServerError)),
             }
         }
-        Ok(None) => return Err(report!(errors::ApiErrorResponse::InvalidRequestData {
-            message: "Card not found".into(),
-        })),
-        Err(err) => match err.current_context() {
-            storage_impl::errors::StorageError::DatabaseError(db_err)
-                if matches!(db_err.current_context(), diesel_models::errors::DatabaseError::NotFound) =>
-            {
-                return Err(report!(errors::ApiErrorResponse::InvalidRequestData {
-                    message: "Invalid card_iin_number".into(),
-                }));
-            }
-            storage_impl::errors::StorageError::ValueNotFound(_) => {
-                let builder = builder.transition();
-                let added_card_info = executor
-                    .add_card_info()
-                    .await
-                    .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        Ok(None) => {
+            let builder = builder.transition();
+            let added_card_info = executor
+                .add_card_info()
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
-                match added_card_info {
-                    ApplicationResponse::Json(added_info) => builder.set_added_card_info(added_info),
-                    _ => return Err(report!(errors::ApiErrorResponse::InternalServerError)),
-                }
+            match added_card_info {
+                ApplicationResponse::Json(added_info) => builder.set_added_card_info(added_info),
+                _ => return Err(report!(errors::ApiErrorResponse::InternalServerError)),
             }
-            _ => {
-                logger::info!("Error fetching payment method: {:?}", err);
-                return Err(report!(errors::ApiErrorResponse::InternalServerError));
-            }
-        },
+        }
+        Err(err) => {
+            logger::info!("Error fetching card info: {:?}", err);
+            return Err(report!(errors::ApiErrorResponse::InternalServerError));
+        }
     };
 
     Ok(ApplicationResponse::Json(builder.build()))
 }
-
