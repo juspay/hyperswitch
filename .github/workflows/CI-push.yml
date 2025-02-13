@@ -44,7 +44,7 @@ jobs:
     env:
       RUSTC_WRAPPER: "sccache"
       RUSTFLAGS: "-D warnings"
-      SCCACHE_GHA_ENABLED: "on"
+      SCCACHE_GHA_ENABLED: "1"
 
     strategy:
       fail-fast: true
@@ -143,7 +143,7 @@ jobs:
     env:
       RUSTC_WRAPPER: "sccache"
       RUSTFLAGS: "-D warnings"
-      SCCACHE_GHA_ENABLED: "on"
+      SCCACHE_GHA_ENABLED: "1"
 
     strategy:
       fail-fast: true
@@ -233,7 +233,7 @@ jobs:
 
     env:
       RUSTC_WRAPPER: "sccache"
-      SCCACHE_GHA_ENABLED: "on"
+      SCCACHE_GHA_ENABLED: "1"
 
     steps:
       - name: Checkout repository

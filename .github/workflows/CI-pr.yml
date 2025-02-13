@@ -91,7 +91,7 @@ jobs:
     env:
       RUSTC_WRAPPER: "sccache"
       RUSTFLAGS: "-D warnings"
-      SCCACHE_GHA_ENABLED: "on"
+      SCCACHE_GHA_ENABLED: "1"
       SCCACHE_LOG : "debug" 
       SCCACHE_NO_DAEMON: "1"
 
@@ -190,7 +190,7 @@ jobs:
     env:
       RUSTC_WRAPPER: "sccache"
       RUSTFLAGS: "-D warnings"
-      SCCACHE_GHA_ENABLED: "on"
+      SCCACHE_GHA_ENABLED: "1"
       SCCACHE_LOG : "debug" 
       SCCACHE_NO_DAEMON: "1"
 
@@ -309,7 +309,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       RUSTC_WRAPPER: "sccache"
-      SCCACHE_GHA_ENABLED: "on"
+      SCCACHE_GHA_ENABLED: "1"
       SCCACHE_LOG : "debug" 
       SCCACHE_NO_DAEMON: "1"
 
