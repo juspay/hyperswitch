@@ -10,7 +10,6 @@ pub struct PaymentMethodsSession {
     pub expires_at: time::PrimitiveDateTime,
 }
 
-
 #[cfg(feature = "v2")]
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct PaymentMethodsSessionUpdate {

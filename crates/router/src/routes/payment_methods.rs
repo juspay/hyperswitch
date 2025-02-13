@@ -937,27 +937,28 @@ pub async fn payment_methods_session_update(
         |state, auth: auth::AuthenticationData, req, _| {
             let value = payment_method_session_id.clone();
             async move {
-            payment_methods_routes::payment_methods_session_update(
-                state,
-                auth.merchant_account,
-                auth.key_store,
-                value.clone(),
-                req,
-            )
-            .await
-        }},
-            auth::api_or_client_auth(
+                payment_methods_routes::payment_methods_session_update(
+                    state,
+                    auth.merchant_account,
+                    auth.key_store,
+                    value.clone(),
+                    req,
+                )
+                .await
+            }
+        },
+        auth::api_or_client_auth(
             &auth::V2ApiKeyAuth,
             &auth::V2ClientAuth(
-                        common_utils::types::authentication::ResourceId::PaymentMethodSession(
-                            payment_method_session_id.clone(),
-                        ),
-                    ),
-                    req.headers(),
+                common_utils::types::authentication::ResourceId::PaymentMethodSession(
+                    payment_method_session_id.clone(),
                 ),
-                api_locking::LockAction::NotApplicable,        
-        ))
-                .await
+            ),
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
 }
 
 #[cfg(feature = "v2")]
