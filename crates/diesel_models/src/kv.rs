@@ -227,7 +227,7 @@ pub enum Insertable {
 pub enum Updateable {
     PaymentIntentUpdate(Box<PaymentIntentUpdateMems>),
     PaymentAttemptUpdate(Box<PaymentAttemptUpdateMems>),
-    RefundUpdate(RefundUpdateMems),
+    RefundUpdate(Box<RefundUpdateMems>),
     CustomerUpdate(CustomerUpdateMems),
     AddressUpdate(Box<AddressUpdateMems>),
     PayoutsUpdate(PayoutsUpdateMems),

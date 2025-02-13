@@ -1663,7 +1663,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                 .multiple_capture_data
                             {
                                 Some(multiple_capture_data) => {
-                                    let (connector_capture_id, connector_capture_data) =
+                                    let (connector_capture_id, processor_capture_data) =
                                         match resource_id {
                                             types::ResponseId::NoResponseId => (None, None),
                                             types::ResponseId::ConnectorTransactionId(id)
@@ -1679,7 +1679,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                         )?,
                                         connector_capture_id: connector_capture_id.clone(),
                                         connector_response_reference_id,
-                                        connector_capture_data: connector_capture_data.clone(),
+                                        processor_capture_data: processor_capture_data.clone(),
                                     };
                                     let capture_update_list = vec![(
                                         multiple_capture_data.get_latest_capture().clone(),
