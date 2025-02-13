@@ -128,7 +128,7 @@ common_utils::impl_to_sql_from_sql_json!(RedirectResponse);
 pub struct PaymentRevenueRecoveryMetadata {
     /// Total number of billing connector + recovery retries for a payment intent.
     pub total_retry_count: u16,
-    /// Flag for the payment connector's call 
+    /// Flag for the payment connector's call
     pub payment_connector_transmission: PaymentConnectorTransmission,
     /// Billing Connector Id to update the invoices
     pub billing_connector_id: common_utils::id_type::MerchantConnectorAccountId,
@@ -147,6 +147,6 @@ pub struct PaymentRevenueRecoveryMetadata {
 pub struct BillingConnectorPaymentDetails {
     /// Payment Processor Token to process the Revenue Recovery Payment
     pub payment_processor_token: String,
-    /// Billing Connector's Customer Id 
+    /// Billing Connector's Customer Id
     pub connector_customer_id: String,
 }

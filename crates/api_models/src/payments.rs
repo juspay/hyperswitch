@@ -7866,7 +7866,7 @@ pub struct PaymentRevenueRecoveryMetadata {
     /// Total number of billing connector + recovery retries for a payment intent.
     #[schema(value_type = u16,example = "1")]
     pub total_retry_count: u16,
-    /// Flag for the payment connector's call 
+    /// Flag for the payment connector's call
     pub payment_connector_transmission: PaymentConnectorTransmission,
     /// Billing Connector Id to update the invoices
     #[schema(value_type = String, example = "mca_1234567890")]
@@ -7889,6 +7889,6 @@ pub struct PaymentRevenueRecoveryMetadata {
 pub struct BillingConnectorPaymentDetails {
     /// Payment Processor Token to process the Revenue Recovery Payment
     pub payment_processor_token: String,
-    /// Billing Connector's Customer Id 
+    /// Billing Connector's Customer Id
     pub connector_customer_id: String,
 }
