@@ -127,7 +127,7 @@ common_utils::impl_to_sql_from_sql_json!(RedirectResponse);
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct PaymentIntentRevenueRecoveryMetadata {
     ///Total number of billing connector + recovery retries for a payment intent.
-    pub retry_count: i32,
+    pub retry_count: u16,
     ///if the payment_connector has been called or not
     pub payment_connector_transmission: PaymentConnectorTransmission,
     /// Billing Connector Id to update the invoices

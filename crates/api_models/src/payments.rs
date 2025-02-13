@@ -7864,8 +7864,8 @@ mod billing_from_payment_method_data {
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize, ToSchema)]
 pub struct PaymentIntentRevenueRecoveryMetadata {
     ///Total number of billing connector + recovery retries for a payment intent.
-    #[schema(value_type = i32,example = "1")]
-    pub retry_count: i32,
+    #[schema(value_type = u16,example = "1")]
+    pub retry_count: u16,
     ///if the payment_connector has been called or not
     pub payment_connector_transmission: PaymentConnectorTransmission,
     /// Billing Connector Id to update the invoices
