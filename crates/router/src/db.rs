@@ -30,6 +30,7 @@ pub mod merchant_key_store;
 pub mod organization;
 pub mod payment_link;
 pub mod payment_method;
+pub mod payment_method_session;
 pub mod refund;
 pub mod relay;
 pub mod reverse_lookup;
@@ -40,6 +41,7 @@ pub mod user;
 pub mod user_authentication_method;
 pub mod user_key_store;
 pub mod user_role;
+
 use common_utils::id_type;
 use diesel_models::{
     fraud_check::{FraudCheck, FraudCheckUpdate},
@@ -97,6 +99,7 @@ pub trait StorageInterface:
     + dashboard_metadata::DashboardMetadataInterface
     + dispute::DisputeInterface
     + ephemeral_key::EphemeralKeyInterface
+    + ephemeral_key::ClientSecretInterface
     + events::EventInterface
     + file::FileMetadataInterface
     + FraudCheckInterface
@@ -135,6 +138,7 @@ pub trait StorageInterface:
     + generic_link::GenericLinkInterface
     + relay::RelayInterface
     + user::theme::ThemeInterface
+    + payment_method_session::PaymentMethodsSessionInterface
     + 'static
 {
     fn get_scheduler_db(&self) -> Box<dyn scheduler::SchedulerInterface>;

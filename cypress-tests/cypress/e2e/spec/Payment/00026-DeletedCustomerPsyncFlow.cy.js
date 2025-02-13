@@ -211,7 +211,7 @@ describe("Card - Customer Deletion and Psync", () => {
           "card_pm"
         ]["Capture"];
 
-        cy.captureCallTest(fixtures.captureBody, data, 6500, globalState);
+        cy.captureCallTest(fixtures.captureBody, data, globalState);
 
         if (shouldContinue)
           shouldContinue = utils.should_continue_further(data);
@@ -307,7 +307,7 @@ describe("Card - Customer Deletion and Psync", () => {
           "card_pm"
         ]["Capture"];
 
-        cy.captureCallTest(fixtures.captureBody, data, 6500, globalState);
+        cy.captureCallTest(fixtures.captureBody, data, globalState);
 
         if (shouldContinue)
           shouldContinue = utils.should_continue_further(data);
