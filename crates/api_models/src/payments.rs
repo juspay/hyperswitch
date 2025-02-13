@@ -658,7 +658,7 @@ pub struct PaymentAmountDetailsResponse {
 }
 
 #[cfg(feature = "v2")]
-#[derive(Clone, Debug, PartialEq, serde::Serialize, ToSchema)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 
 pub struct PaymentAttemptAmountDetails {
     /// The total amount of the order including tax, surcharge and shipping cost
@@ -1477,6 +1477,24 @@ pub struct PaymentAttemptResponse {
     pub client_source: Option<String>,
     /// Value passed in X-CLIENT-VERSION header during payments confirm request by the client
     pub client_version: Option<String>,
+    /// feature_metadata required for s
+    pub feature_metadata: Option<PaymentAttemptFeatureMetadata>
+}
+
+#[cfg(feature = "v2")]
+#[derive(
+    Clone, Debug, serde::Deserialize, serde::Serialize,PartialEq,
+)]
+pub struct PaymentAttemptFeatureMetadata {
+    pub passive_churn_recovery: Option<PassiveChurnRecoveryData>,
+}
+
+#[cfg(feature = "v2")]
+#[derive(
+    Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq,
+)]
+pub struct PassiveChurnRecoveryData {
+    pub triggered_by:  enums::TriggeredBy,
 }
 
 #[derive(
@@ -7986,7 +8004,7 @@ pub struct PaymentsAttemptRecordRequest {
     /// The payment method subtype to be used for the payment. This should match with the `payment_method_data` provided
     #[schema(value_type = PaymentMethodType, example = "apple_pay")]
     pub payment_method_subtype: api_enums::PaymentMethodType,
-
+    /// Should i change this type to payment method data request with billing ?
     /// The payment method information provided for making a payment
     #[schema(value_type = Option<PaymentMethodDataResponseWithBilling>, example = "bank_transfer")]
     #[serde(serialize_with = "serialize_payment_method_data_response")]

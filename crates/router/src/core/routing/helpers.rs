@@ -566,6 +566,7 @@ pub fn get_default_config_key(
     }
 }
 
+#[cfg(all(feature = "dynamic_routing", feature = "v1"))]
 #[async_trait::async_trait]
 pub trait DynamicRoutingCache {
     async fn get_cached_dynamic_routing_config_for_profile(
@@ -583,7 +584,7 @@ pub trait DynamicRoutingCache {
         T: Cacheable + serde::Serialize + serde::de::DeserializeOwned + Debug + Clone,
         Fut: futures::Future<Output = errors::CustomResult<T, errors::StorageError>> + Send;
 }
-
+#[cfg(all(feature = "dynamic_routing", feature = "v1"))]
 #[async_trait::async_trait]
 impl DynamicRoutingCache for routing_types::SuccessBasedRoutingConfig {
     async fn get_cached_dynamic_routing_config_for_profile(
@@ -619,7 +620,7 @@ impl DynamicRoutingCache for routing_types::SuccessBasedRoutingConfig {
         .attach_printable("unable to populate SUCCESS_BASED_DYNAMIC_ALGORITHM_CACHE")
     }
 }
-
+#[cfg(all(feature = "dynamic_routing", feature = "v1"))]
 #[async_trait::async_trait]
 impl DynamicRoutingCache for routing_types::ContractBasedRoutingConfig {
     async fn get_cached_dynamic_routing_config_for_profile(
@@ -1502,6 +1503,7 @@ where
     Ok(ApplicationResponse::Json(updated_routing_record))
 }
 
+#[cfg(all(feature = "dynamic_routing", feature = "v1"))]
 #[cfg(feature = "v1")]
 #[instrument(skip_all)]
 pub async fn default_specific_dynamic_routing_setup(

@@ -1745,6 +1745,29 @@ where
     }
 }
 
+#[cfg(feature = "v2")]
+impl<F> GenerateResponse<api_models::payments::PaymentAttemptResponse>
+    for hyperswitch_domain_models::payments::PaymentAttemptRecordData<F>
+where
+    F: Clone,
+{
+    fn generate_response(
+        self,
+        _state: &SessionState,
+        _connector_http_status_code: Option<u16>,
+        _external_latency: Option<u128>,
+        _is_latency_header_enabled: Option<bool>,
+        _merchant_account: &domain::MerchantAccount,
+    ) -> RouterResponse<api_models::payments::PaymentAttemptResponse> {
+        let payment_attempt = self.payment_attempt;
+        let response = api_models::payments::PaymentAttemptResponse::foreign_from(&payment_attempt);
+        Ok(services::ApplicationResponse::JsonWithHeaders((
+            response,
+            vec![],
+        )))
+    }
+}
+
 #[cfg(feature = "v1")]
 impl<F, Op, D> ToResponse<F, D, Op> for api::PaymentsPostSessionTokensResponse
 where
@@ -4186,6 +4209,10 @@ impl ForeignFrom<&hyperswitch_domain_models::payments::payment_attempt::PaymentA
             payment_method_id: attempt.payment_method_id.clone(),
             client_source: attempt.client_source.clone(),
             client_version: attempt.client_version.clone(),
+            feature_metadata: attempt
+                .feature_metadata
+                .as_ref()
+                .map(api_models::payments::PaymentAttemptFeatureMetadata::foreign_from),
         }
     }
 }
@@ -4205,6 +4232,24 @@ impl ForeignFrom<&hyperswitch_domain_models::payments::payment_attempt::AttemptA
             amount_capturable: amount.get_amount_capturable(),
             shipping_cost: amount.get_shipping_cost(),
             order_tax_amount: amount.get_order_tax_amount(),
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
+impl ForeignFrom<&diesel_models::PaymentAttemptFeatureMetadata>
+    for api_models::payments::PaymentAttemptFeatureMetadata
+{
+    fn foreign_from(feature_metadata: &diesel_models::PaymentAttemptFeatureMetadata) -> Self {
+        let passive_churn_recovery =
+            feature_metadata
+                .passive_churn_recovery
+                .as_ref()
+                .map(|recovery| api_models::payments::PassiveChurnRecoveryData {
+                    triggered_by: recovery.triggered_by.to_owned(),
+                });
+        Self {
+            passive_churn_recovery,
         }
     }
 }
@@ -4229,25 +4274,6 @@ impl ForeignFrom<hyperswitch_domain_models::payments::payment_attempt::ErrorDeta
             message: reason.unwrap_or(message),
             unified_code,
             unified_message,
-        }
-    }
-}
-
-#[cfg(feature = "v2")]
-impl ForeignFrom<&hyperswitch_domain_models::payments::payment_attempt::AttemptAmountDetails>
-    for api_models::payments::PaymentAttemptAmountDetails
-{
-    fn foreign_from(
-        amount: &hyperswitch_domain_models::payments::payment_attempt::AttemptAmountDetails,
-    ) -> Self {
-        Self {
-            net_amount: amount.get_net_amount(),
-            amount_to_capture: amount.get_amount_to_capture(),
-            surcharge_amount: amount.get_surcharge_amount(),
-            tax_on_surcharge: amount.get_tax_on_surcharge(),
-            amount_capturable: amount.get_amount_capturable(),
-            shipping_cost: amount.get_shipping_cost(),
-            order_tax_amount: amount.get_order_tax_amount(),
         }
     }
 }

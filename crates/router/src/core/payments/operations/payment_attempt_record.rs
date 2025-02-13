@@ -110,10 +110,10 @@ impl<F: Send + Clone + Sync>
         payment_id: &common_utils::id_type::GlobalPaymentId,
         request: &PaymentsAttemptRecordRequest,
         merchant_account: &domain::MerchantAccount,
-        profile: &domain::Profile,
+        _profile: &domain::Profile,
         key_store: &domain::MerchantKeyStore,
         header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
-        platform_merchant_account: Option<&domain::MerchantAccount>,
+        _platform_merchant_account: Option<&domain::MerchantAccount>,
     ) -> RouterResult<operations::GetTrackerResponse<PaymentAttemptRecordData<F>>> {
         let db = &*state.store;
         let key_manager_state = &state.into();
@@ -224,7 +224,8 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentAttemptRecordData<F>, PaymentsAtte
     {
         let feature_metadata = payment_data.payment_intent.feature_metadata.clone();
         let payment_intent_update = hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdate::RecordUpdate
-        { status: common_enums::IntentStatus::Failed, 
+        { 
+            status: common_enums::IntentStatus::Failed, 
             feature_metadata: Box::new(feature_metadata),
             active_attempt_id: payment_data.payment_attempt.id.clone(),
             updated_by: storage_scheme.to_string(),
@@ -302,11 +303,11 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsAttemptRecordRequest, PaymentAtte
     #[instrument(skip_all)]
     async fn perform_routing<'a>(
         &'a self,
-        merchant_account: &domain::MerchantAccount,
-        business_profile: &domain::Profile,
-        state: &SessionState,
-        payment_data: &mut PaymentAttemptRecordData<F>,
-        mechant_key_store: &domain::MerchantKeyStore,
+        _merchant_account: &domain::MerchantAccount,
+        _business_profile: &domain::Profile,
+        _state: &SessionState,
+        _payment_data: &mut PaymentAttemptRecordData<F>,
+        _mechant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<api::ConnectorCallType, errors::ApiErrorResponse> {
         Ok(api::ConnectorCallType::Skip)
     }

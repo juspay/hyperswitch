@@ -363,6 +363,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                             &connector,
                             &request_details,
                             event_type,
+                            req_state,
                         ))
                         .await
                         .attach_printable("Recovery incoming webhook flow for payments failed")?
@@ -538,7 +539,7 @@ async fn payments_incoming_webhook_flow(
     }
 }
 
-async fn get_trackers_response_for_payment_get_operation<F>(
+pub async fn get_trackers_response_for_payment_get_operation<F>(
     db: &dyn StorageInterface,
     payment_id: &api::PaymentIdType,
     profile_id: &common_utils::id_type::ProfileId,
