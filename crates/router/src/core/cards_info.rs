@@ -174,14 +174,14 @@ impl<'a> CardInfoMigrateExecutor<'a> {
     async fn add_card_info(&self) -> RouterResponse<card_info_models::CardInfo> {
         let db = self.state.store.as_ref();
         let card_info = CardsInfoInterface::add_card_info(db, self.record.foreign_into()).await?;
-        Ok(card_info)
+        Ok(ApplicationResponse::Json(card_info))
     }
 
     async fn update_card_info(&self) -> RouterResponse<card_info_models::CardInfo> {
         let db = self.state.store.as_ref();
         let card_info = CardsInfoInterface::update_card_info(
             db,
-            &self.record.card_iin,
+            self.record.card_iin,
             card_info_models::UpdateCardInfo {
                 card_issuer: self.record.card_issuer.clone(),
                 card_network: self.record.card_network.clone(),
@@ -196,7 +196,7 @@ impl<'a> CardInfoMigrateExecutor<'a> {
             },
         )
         .await?;
-        Ok(card_info)
+        Ok(ApplicationResponse::Json(card_info))
     }
 }
 
@@ -285,59 +285,53 @@ async fn card_info_flow(
     record: cards_info_api_types::CardInfoUpdateRequest,
     state: routes::SessionState,
 ) -> RouterResponse<cards_info_api_types::CardInfoMigrateRecord> {
-    let mut builder = CardInfoBuilder::<CardInfoFetch>::new();
+    let builder = CardInfoBuilder::<CardInfoFetch>::new();
     let executor = CardInfoMigrateExecutor::new(&state, &record);
     let fetched_card_info_details = executor.fetch_card_info().await;
 
-    let updated_card_info = match fetched_card_info_details {
-        Ok(fetched_card_info) => match fetched_card_info {
-            ApplicationResponse::Json(Some(card_info)) => {
-                let builder = builder.set_card_info(card_info);
-                let updated_card_info = executor
-                    .update_card_info()
-                    .await
-                    .map_err(|err| *err.current_context())?;
-                match updated_card_info {
-                    ApplicationResponse::Json(updated_info) => {
-                        builder.set_updated_card_info(updated_info)
-                    }
-                    _ => return Err(report!(errors::ApiErrorResponse::InternalServerError)),
-                }
+    let builder = match fetched_card_info_details {
+        Ok(Some(card_info)) => {
+            let builder = builder.set_card_info(card_info);
+            let updated_card_info = executor
+                .update_card_info()
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)?;  
+
+            match updated_card_info {
+                ApplicationResponse::Json(updated_info) => builder.set_updated_card_info(updated_info),
+                _ => return Err(report!(errors::ApiErrorResponse::InternalServerError)),
             }
-            _ => return Err(report!(errors::ApiErrorResponse::InternalServerError)),
-        },
+        }
+        Ok(None) => return Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+            message: "Card not found".into(),
+        })),
         Err(err) => match err.current_context() {
-            storage_impl::errors::StorageError::DatabaseError(err)
-                if matches!(
-                    err.current_context(),
-                    diesel_models::errors::DatabaseError::NotFound
-                ) =>
+            storage_impl::errors::StorageError::DatabaseError(db_err)
+                if matches!(db_err.current_context(), diesel_models::errors::DatabaseError::NotFound) =>
             {
-                report!(errors::ApiErrorResponse::InvalidRequestData {
+                return Err(report!(errors::ApiErrorResponse::InvalidRequestData {
                     message: "Invalid card_iin_number".into(),
-                })
+                }));
             }
             storage_impl::errors::StorageError::ValueNotFound(_) => {
                 let builder = builder.transition();
                 let added_card_info = executor
                     .add_card_info()
                     .await
-                    .map_err(|err| *err.current_context())?;
+                    .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
                 match added_card_info {
-                    ApplicationResponse::Json(added_info) => {
-                        builder.set_added_card_info(added_info)
-                    }
+                    ApplicationResponse::Json(added_info) => builder.set_added_card_info(added_info),
                     _ => return Err(report!(errors::ApiErrorResponse::InternalServerError)),
                 }
             }
-            err => {
-                logger::info!("Error fetching payment_method: {:?}", err);
-                report!(errors::ApiErrorResponse::InternalServerError)
+            _ => {
+                logger::info!("Error fetching payment method: {:?}", err);
+                return Err(report!(errors::ApiErrorResponse::InternalServerError));
             }
         },
     };
-    // let builder = CardInfoBuilder::<CardInfoResponse>::build();
-    Ok(builder.build())
 
-    // Ok(ApplicationResponse::Json(builder.build()))
+    Ok(ApplicationResponse::Json(builder.build()))
 }
+
