@@ -53,7 +53,7 @@ if (!isFramed) {
       redirectionFlags: {
         shouldRemoveBeforeUnloadEvents: true,
         shouldUseTopRedirection: true,
-      }
+      },
     });
     // @ts-ignore
     widgets = hyper.widgets({
@@ -63,7 +63,7 @@ if (!isFramed) {
     });
     var type =
       paymentDetails.sdk_layout === "spaced_accordion" ||
-        paymentDetails.sdk_layout === "accordion"
+      paymentDetails.sdk_layout === "accordion"
         ? "accordion"
         : paymentDetails.sdk_layout;
 
@@ -109,9 +109,19 @@ if (!isFramed) {
   function redirectToStatus() {
     var paymentDetails = window.__PAYMENT_DETAILS;
     var arr = window.location.pathname.split("/");
-    arr.splice(0, 3);
-    arr.unshift("status");
-    arr.unshift("payment_link");
+
+    // NOTE - This code preserves '/api' in url for integ and sbx envs
+    // e.g. url for integ/sbx - https://integ.hyperswitch.io/api/payment_link/s/merchant_1234/pay_1234?locale=en
+    // e.g. url for others - https://abc.dev.com/payment_link/s/merchant_1234/pay_1234?locale=en
+    var hasApiInPath = arr.includes("api");
+    if (hasApiInPath) {
+      arr.splice(0, 4);
+      arr.unshift("api", "payment_link", "status");
+    } else {
+      arr.splice(0, 3);
+      arr.unshift("payment_link", "status");
+    }
+
     let returnUrl =
       window.location.origin +
       "/" +
@@ -127,9 +137,10 @@ if (!isFramed) {
       var { paymentId, merchantId, attemptId, connector } = parseRoute(url);
       var urlToPost = getEnvRoute(url);
       var message = {
-        message: "CRITICAL ERROR - Failed to redirect top document. Falling back to redirecting using window.location",
+        message:
+          "CRITICAL ERROR - Failed to redirect top document. Falling back to redirecting using window.location",
         reason: error.message,
-      }
+      };
       var log = {
         message,
         url,

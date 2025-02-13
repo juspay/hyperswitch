@@ -99,7 +99,7 @@ pub struct Settings<S: SecretState> {
     pub payout_method_filters: ConnectorFilters,
     pub applepay_decrypt_keys: SecretStateContainer<ApplePayDecryptConfig, S>,
     pub paze_decrypt_keys: Option<SecretStateContainer<PazeDecryptConfig, S>>,
-    pub google_pay_decrypt_keys: Option<SecretStateContainer<GooglePayDecryptConfig, S>>,
+    pub google_pay_decrypt_keys: Option<GooglePayDecryptConfig>,
     pub multiple_api_version_supported_connectors: MultipleApiVersionSupportedConnectors,
     pub applepay_merchant_configs: SecretStateContainer<ApplepayMerchantConfigs, S>,
     pub lock_settings: LockSettings,
@@ -919,7 +919,7 @@ impl Settings<SecuredSecret> {
 
         self.google_pay_decrypt_keys
             .as_ref()
-            .map(|x| x.get_inner().validate())
+            .map(|x| x.validate())
             .transpose()?;
 
         self.key_manager.get_inner().validate()?;

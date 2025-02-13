@@ -176,6 +176,13 @@ where
         .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
         .attach_printable("Failed while fetching/creating customer")?;
 
+    operation
+        .to_domain()?
+        .run_decision_manager(state, &mut payment_data, &profile)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to run decision manager")?;
+
     let connector = operation
         .to_domain()?
         .perform_routing(
@@ -1152,17 +1159,30 @@ where
 // TODO: Move to business profile surcharge column
 #[instrument(skip_all)]
 #[cfg(feature = "v2")]
-pub async fn call_decision_manager<F, D>(
+pub fn call_decision_manager<F>(
     state: &SessionState,
-    merchant_account: &domain::MerchantAccount,
-    _business_profile: &domain::Profile,
-    payment_data: &D,
+    record: common_types::payments::DecisionManagerRecord,
+    payment_data: &PaymentConfirmData<F>,
 ) -> RouterResult<Option<enums::AuthenticationType>>
 where
     F: Clone,
-    D: OperationSessionGetters<F>,
 {
-    todo!()
+    let payment_method_data = payment_data.get_payment_method_data();
+    let payment_dsl_data = core_routing::PaymentsDslInput::new(
+        None,
+        payment_data.get_payment_attempt(),
+        payment_data.get_payment_intent(),
+        payment_method_data,
+        payment_data.get_address(),
+        None,
+        payment_data.get_currency(),
+    );
+
+    let output = perform_decision_management(record, &payment_dsl_data)
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Could not decode the conditional config")?;
+
+    Ok(output.override_3ds)
 }
 
 #[cfg(feature = "v2")]
@@ -2327,6 +2347,7 @@ impl PaymentRedirectFlow for PaymentRedirectSync {
         let payment_sync_request = api::PaymentsRetrieveRequest {
             param: Some(req.query_params.clone()),
             force_sync: true,
+            expand_attempts: false,
         };
 
         let operation = operations::PaymentGet;
@@ -4360,22 +4381,13 @@ fn get_google_pay_connector_wallet_details(
     state: &SessionState,
     merchant_connector_account: &helpers::MerchantConnectorAccountType,
 ) -> Option<GooglePayPaymentProcessingDetails> {
-    let google_pay_root_signing_keys =
-        state
-            .conf
-            .google_pay_decrypt_keys
-            .as_ref()
-            .map(|google_pay_keys| {
-                google_pay_keys
-                    .get_inner()
-                    .google_pay_root_signing_keys
-                    .clone()
-            });
-    match (
-        google_pay_root_signing_keys,
-        merchant_connector_account.get_connector_wallets_details(),
-    ) {
-        (Some(google_pay_root_signing_keys), Some(wallet_details)) => {
+    let google_pay_root_signing_keys = state
+        .conf
+        .google_pay_decrypt_keys
+        .as_ref()
+        .map(|google_pay_keys| google_pay_keys.google_pay_root_signing_keys.clone());
+    match merchant_connector_account.get_connector_wallets_details() {
+        Some(wallet_details) => {
             let google_pay_wallet_details = wallet_details
                 .parse_value::<api_models::payments::GooglePayWalletDetails>(
                     "GooglePayWalletDetails",
@@ -4386,31 +4398,43 @@ fn get_google_pay_connector_wallet_details(
 
             google_pay_wallet_details
                 .ok()
-                .map(
+                .and_then(
                     |google_pay_wallet_details| {
                         match google_pay_wallet_details
                         .google_pay
                         .provider_details {
                             api_models::payments::GooglePayProviderDetails::GooglePayMerchantDetails(merchant_details) => {
-                                GooglePayPaymentProcessingDetails {
-                                    google_pay_private_key: merchant_details
+                                match (
+                                    merchant_details
                                         .merchant_info
                                         .tokenization_specification
                                         .parameters
                                         .private_key,
                                     google_pay_root_signing_keys,
-                                    google_pay_recipient_id: merchant_details
+                                    merchant_details
                                         .merchant_info
                                         .tokenization_specification
                                         .parameters
                                         .recipient_id,
-                                }
+                                    ) {
+                                        (Some(google_pay_private_key), Some(google_pay_root_signing_keys), Some(google_pay_recipient_id)) => {
+                                            Some(GooglePayPaymentProcessingDetails {
+                                                google_pay_private_key,
+                                                google_pay_root_signing_keys,
+                                                google_pay_recipient_id
+                                            })
+                                        }
+                                        _ => {
+                                            logger::warn!("One or more of the following fields are missing in GooglePayMerchantDetails: google_pay_private_key, google_pay_root_signing_keys, google_pay_recipient_id");
+                                            None
+                                        }
+                                    }
                             }
                         }
                     }
                 )
         }
-        _ => None,
+        None => None,
     }
 }
 
@@ -4536,7 +4560,7 @@ pub struct PazePaymentProcessingDetails {
 pub struct GooglePayPaymentProcessingDetails {
     pub google_pay_private_key: Secret<String>,
     pub google_pay_root_signing_keys: Secret<String>,
-    pub google_pay_recipient_id: Option<Secret<String>>,
+    pub google_pay_recipient_id: Secret<String>,
 }
 
 #[derive(Clone, Debug)]
