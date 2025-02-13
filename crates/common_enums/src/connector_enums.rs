@@ -93,6 +93,7 @@ pub enum RoutableConnectors {
     Klarna,
     Mifinity,
     Mollie,
+    // Moneris,
     Multisafepay,
     Nexinets,
     Nexixpay,
@@ -231,6 +232,7 @@ pub enum Connector {
     Klarna,
     Mifinity,
     Mollie,
+    // Moneris,
     Multisafepay,
     Netcetera,
     Nexinets,
@@ -380,6 +382,7 @@ impl Connector {
             | Self::Klarna
             | Self::Mifinity
             | Self::Mollie
+            // | Self::Moneris
             | Self::Multisafepay
             | Self::Nexinets
             | Self::Nexixpay

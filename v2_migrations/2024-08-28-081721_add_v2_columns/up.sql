@@ -51,7 +51,7 @@ ADD COLUMN payment_method_type_v2 VARCHAR,
     ADD COLUMN tax_on_surcharge BIGINT,
     ADD COLUMN payment_method_billing_address BYTEA,
     ADD COLUMN redirection_data JSONB,
-    ADD COLUMN connector_payment_data VARCHAR(512),
+    ADD COLUMN connector_payment_data TEXT,
     ADD COLUMN connector_token_details JSONB;
 
 -- Change the type of the column from JSON to JSONB

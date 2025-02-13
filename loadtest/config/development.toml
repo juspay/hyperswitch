@@ -125,6 +125,7 @@ jpmorgan.secondary_base_url="https://id.payments.jpmorgan.com"
 klarna.base_url = "https://api{{klarna_region}}.playground.klarna.com/"
 mifinity.base_url = "https://demo.mifinity.com/"
 mollie.base_url = "https://api.mollie.com/v2/"
+moneris.base_url = "https://api.sb.moneris.io"
 mollie.secondary_base_url = "https://api.cc.mollie.com/v1/"
 multisafepay.base_url = "https://testapi.multisafepay.com/"
 netcetera.base_url = "https://{{merchant_endpoint_prefix}}.3ds-server.prev.netcetera-cloud-payment.ch"
@@ -227,6 +228,7 @@ cards = [
     "itaubank",
     "jpmorgan",
     "mollie",
+    "moneris",
     "multisafepay",
     "netcetera",
     "nexinets",
@@ -355,8 +357,8 @@ wallet.twint.connector_list = "adyen"
 wallet.vipps.connector_list = "adyen"
 
 bank_redirect.ideal.connector_list = "stripe,adyen,globalpay,multisafepay,nexinets"   
-bank_redirect.sofort.connector_list = "stripe,adyen,globalpay"  
-bank_redirect.giropay.connector_list = "adyen,globalpay,multisafepay,nexinets"        
+bank_redirect.sofort.connector_list = "stripe,globalpay"  
+bank_redirect.giropay.connector_list = "globalpay,multisafepay,nexinets"        
 bank_redirect.bancontact_card.connector_list="adyen,stripe"
 bank_redirect.trustly.connector_list="adyen"
 bank_redirect.open_banking_uk.connector_list="adyen"
