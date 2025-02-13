@@ -53,7 +53,7 @@ pub struct FeatureMetadata {
     /// Recurring payment details required for apple pay Merchant Token
     pub apple_pay_recurring_details: Option<ApplePayRecurringDetails>,
     /// revenue recovery data for payment intent
-    pub payment_revenue_recovery_metadata: Option<PaymentIntentRevenueRecoveryMetadata>,
+    pub payment_revenue_recovery_metadata: Option<PaymentRevenueRecoveryMetadata>,
 }
 
 #[cfg(feature = "v1")]
@@ -125,28 +125,28 @@ common_utils::impl_to_sql_from_sql_json!(RedirectResponse);
 
 #[cfg(feature = "v2")]
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
-pub struct PaymentIntentRevenueRecoveryMetadata {
-    ///Total number of billing connector + recovery retries for a payment intent.
-    pub retry_count: u16,
-    ///if the payment_connector has been called or not
+pub struct PaymentRevenueRecoveryMetadata {
+    /// Total number of billing connector + recovery retries for a payment intent.
+    pub total_retry_count: u16,
+    /// Flag for the payment connector's call 
     pub payment_connector_transmission: PaymentConnectorTransmission,
     /// Billing Connector Id to update the invoices
     pub billing_connector_id: common_utils::id_type::MerchantConnectorAccountId,
     /// Payment Connector Id to retry the payments
     pub active_attempt_payment_connector_id: common_utils::id_type::MerchantConnectorAccountId,
-    /// Billing Connector Mit Token Details
-    pub billing_connector_mit_token_details: BillingConnectorMitTokenDetails,
+    /// Billing Connector Payment Details
+    pub billing_connector_payment_details: BillingConnectorPaymentDetails,
     ///Payment Method Type
     pub payment_method_type: PaymentMethod,
-    ///PaymentMethod Subtype
+    /// PaymentMethod Subtype
     pub payment_method_subtype: PaymentMethodType,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 #[cfg(feature = "v2")]
-pub struct BillingConnectorMitTokenDetails {
-    ///Payment Processor Token To process the retry payment
+pub struct BillingConnectorPaymentDetails {
+    /// Payment Processor Token to process the Revenue Recovery Payment
     pub payment_processor_token: String,
-    ///Connector Customer Id to process the retry payment
+    /// Billing Connector's Customer Id 
     pub connector_customer_id: String,
 }

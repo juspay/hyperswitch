@@ -6989,7 +6989,7 @@ pub struct FeatureMetadata {
     /// Recurring payment details required for apple pay Merchant Token
     pub apple_pay_recurring_details: Option<ApplePayRecurringDetails>,
     /// revenue recovery data for payment intent
-    pub payment_revenue_recovery_metadata: Option<PaymentIntentRevenueRecoveryMetadata>,
+    pub payment_revenue_recovery_metadata: Option<PaymentRevenueRecoveryMetadata>,
 }
 
 /// additional data that might be required by hyperswitch
@@ -7861,12 +7861,12 @@ mod billing_from_payment_method_data {
 }
 
 #[cfg(feature = "v2")]
-#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize, ToSchema)]
-pub struct PaymentIntentRevenueRecoveryMetadata {
-    ///Total number of billing connector + recovery retries for a payment intent.
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct PaymentRevenueRecoveryMetadata {
+    /// Total number of billing connector + recovery retries for a payment intent.
     #[schema(value_type = u16,example = "1")]
-    pub retry_count: u16,
-    ///if the payment_connector has been called or not
+    pub total_retry_count: u16,
+    /// Flag for the payment connector's call 
     pub payment_connector_transmission: PaymentConnectorTransmission,
     /// Billing Connector Id to update the invoices
     #[schema(value_type = String, example = "mca_1234567890")]
@@ -7874,21 +7874,21 @@ pub struct PaymentIntentRevenueRecoveryMetadata {
     /// Payment Connector Id to retry the payments
     #[schema(value_type = String, example = "mca_1234567890")]
     pub active_attempt_payment_connector_id: id_type::MerchantConnectorAccountId,
-    /// Billing Connector Mit Token Details
-    #[schema(value_type = BillingConnectorMitTokenDetails)]
-    pub billing_connector_mit_token_details: BillingConnectorMitTokenDetails,
-    ///Payment Method Type
+    /// Billing Connector Payment Details
+    #[schema(value_type = BillingConnectorPaymentDetails)]
+    pub billing_connector_payment_details: BillingConnectorPaymentDetails,
+    /// Payment Method Type
     #[schema(example = "pay_later", value_type = PaymentMethod)]
     pub payment_method_type: common_enums::PaymentMethod,
-    ///PaymentMethod Subtype
+    /// PaymentMethod Subtype
     #[schema(example = "klarna", value_type = PaymentMethodType)]
     pub payment_method_subtype: common_enums::PaymentMethodType,
 }
-#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[cfg(feature = "v2")]
-pub struct BillingConnectorMitTokenDetails {
-    ///Payment Processor Token To process the retry payment
+pub struct BillingConnectorPaymentDetails {
+    /// Payment Processor Token to process the Revenue Recovery Payment
     pub payment_processor_token: String,
-    ///Connector Customer Id to process the retry payment
+    /// Billing Connector's Customer Id 
     pub connector_customer_id: String,
 }

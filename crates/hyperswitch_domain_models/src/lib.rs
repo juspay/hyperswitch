@@ -42,15 +42,15 @@ use api_models::payments::{
 };
 #[cfg(feature = "v2")]
 use api_models::payments::{
-    BillingConnectorMitTokenDetails as ApiBillingConnectorMitTokenDetails,
-    PaymentIntentRevenueRecoveryMetadata as ApiRevenueRecoveryMetadata,
+    BillingConnectorPaymentDetails as ApiBillingConnectorPaymentDetails,
+    PaymentRevenueRecoveryMetadata as ApiRevenueRecoveryMetadata,
 };
 use diesel_models::types::{
     ApplePayRecurringDetails, ApplePayRegularBillingDetails, FeatureMetadata,
     OrderDetailsWithAmount, RecurringPaymentIntervalUnit, RedirectResponse,
 };
 #[cfg(feature = "v2")]
-use diesel_models::types::{BillingConnectorMitTokenDetails, PaymentIntentRevenueRecoveryMetadata};
+use diesel_models::types::{BillingConnectorPaymentDetails, PaymentRevenueRecoveryMetadata};
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize)]
 pub enum RemoteStorageObject<T: ForeignIDRef> {
@@ -135,7 +135,7 @@ impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
             apple_pay_recurring_details: apple_pay_recurring_details
                 .map(ApplePayRecurringDetails::convert_from),
             payment_revenue_recovery_metadata: payment_revenue_recovery_metadata
-                .map(PaymentIntentRevenueRecoveryMetadata::convert_from),
+                .map(PaymentRevenueRecoveryMetadata::convert_from),
         }
     }
 
@@ -256,16 +256,16 @@ impl ApiModelToDieselModelConvertor<ApiApplePayRecurringDetails> for ApplePayRec
 
 #[cfg(feature = "v2")]
 impl ApiModelToDieselModelConvertor<ApiRevenueRecoveryMetadata>
-    for PaymentIntentRevenueRecoveryMetadata
+    for PaymentRevenueRecoveryMetadata
 {
     fn convert_from(from: ApiRevenueRecoveryMetadata) -> Self {
         Self {
-            retry_count: from.retry_count,
+            total_retry_count: from.total_retry_count,
             payment_connector_transmission: from.payment_connector_transmission,
             billing_connector_id: from.billing_connector_id,
             active_attempt_payment_connector_id: from.active_attempt_payment_connector_id,
-            billing_connector_mit_token_details: BillingConnectorMitTokenDetails::convert_from(
-                from.billing_connector_mit_token_details,
+            billing_connector_payment_details: BillingConnectorPaymentDetails::convert_from(
+                from.billing_connector_payment_details,
             ),
             payment_method_type: from.payment_method_type,
             payment_method_subtype: from.payment_method_subtype,
@@ -274,12 +274,12 @@ impl ApiModelToDieselModelConvertor<ApiRevenueRecoveryMetadata>
 
     fn convert_back(self) -> ApiRevenueRecoveryMetadata {
         ApiRevenueRecoveryMetadata {
-            retry_count: self.retry_count,
+            total_retry_count: self.total_retry_count,
             payment_connector_transmission: self.payment_connector_transmission,
             billing_connector_id: self.billing_connector_id,
             active_attempt_payment_connector_id: self.active_attempt_payment_connector_id,
-            billing_connector_mit_token_details: self
-                .billing_connector_mit_token_details
+            billing_connector_payment_details: self
+                .billing_connector_payment_details
                 .convert_back(),
             payment_method_type: self.payment_method_type,
             payment_method_subtype: self.payment_method_subtype,
@@ -288,18 +288,18 @@ impl ApiModelToDieselModelConvertor<ApiRevenueRecoveryMetadata>
 }
 
 #[cfg(feature = "v2")]
-impl ApiModelToDieselModelConvertor<ApiBillingConnectorMitTokenDetails>
-    for BillingConnectorMitTokenDetails
+impl ApiModelToDieselModelConvertor<ApiBillingConnectorPaymentDetails>
+    for BillingConnectorPaymentDetails
 {
-    fn convert_from(from: ApiBillingConnectorMitTokenDetails) -> Self {
+    fn convert_from(from: ApiBillingConnectorPaymentDetails) -> Self {
         Self {
             payment_processor_token: from.payment_processor_token,
             connector_customer_id: from.connector_customer_id,
         }
     }
 
-    fn convert_back(self) -> ApiBillingConnectorMitTokenDetails {
-        ApiBillingConnectorMitTokenDetails {
+    fn convert_back(self) -> ApiBillingConnectorPaymentDetails {
+        ApiBillingConnectorPaymentDetails {
             payment_processor_token: self.payment_processor_token,
             connector_customer_id: self.connector_customer_id,
         }

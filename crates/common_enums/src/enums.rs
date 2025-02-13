@@ -3738,8 +3738,8 @@ pub enum AdyenSplitType {
 #[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 #[serde(rename = "snake_case")]
 pub enum PaymentConnectorTransmission {
-    ///Connector Call Failed
+    /// Failed to call the payment connector
     ConnectorCallFailed,
-    ///Connector Call Success
+    /// Payment Connector call succeeded
     ConnectorCallSucceeded,
 }
