@@ -7008,24 +7008,24 @@ pub fn validate_platform_request_for_marketplace(
                         }
                     }
                     api::Amount::Value(amount) => {
-                        let i64_amount: i64 = amount.into();
+                        let total_payment_amount: i64 = amount.into();
                         let total_split_amount: i64 = xendit_multiple_split_payment
                     .routes
                     .into_iter()
                     .map(|route| {
                         if route.flat_amount.is_none() && route.percent_amount.is_none() {
-                            Err(errors::ApiErrorResponse::MissingRequiredField {
-                                field_name: "split_payments.xendit_split_payment.routes.flat_amount or split_payments.xendit_split_payment.routes.percent_amount",
+                            Err(errors::ApiErrorResponse::InvalidRequestData {
+                                message: "Expected either split_payments.xendit_split_payment.routes.flat_amount or split_payments.xendit_split_payment.routes.percent_amount to be provided".to_string(),
                             })
                         } else if route.flat_amount.is_some() && route.percent_amount.is_some(){
                             Err(errors::ApiErrorResponse::InvalidRequestData {
-                                message: "Expected one of split_payments.xendit_split_payment.routes.flat_amount or split_payments.xendit_split_payment.routes.percent_amount, not both".to_string(),
+                                message: "Expected either split_payments.xendit_split_payment.routes.flat_amount or split_payments.xendit_split_payment.routes.percent_amount, but not both".to_string(),
                             })
                         } else {
                             Ok(route
                                 .flat_amount
                                 .map(|amount| amount.get_amount_as_i64())
-                                .or(route.percent_amount.map(|percentage| (percentage * i64_amount) / 100))
+                                .or(route.percent_amount.map(|percentage| (percentage * total_payment_amount) / 100))
                                 .unwrap_or(0))
                             }
                             })
@@ -7033,7 +7033,7 @@ pub fn validate_platform_request_for_marketplace(
                             .into_iter()
                             .sum();
 
-                        if i64_amount < total_split_amount {
+                        if total_payment_amount < total_split_amount {
                             return Err(errors::ApiErrorResponse::PreconditionFailed {
                                 message:
                                     "The sum of split amounts should not exceed the total amount"
