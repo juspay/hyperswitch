@@ -96,7 +96,7 @@ pub async fn mk_tokenization_req(
 
     let response = services::call_connector_api(state, request, "generate_token")
         .await
-        .change_context(errors::NetworkTokenizationError::ResponseDeserializationFailed);
+        .change_context(errors::NetworkTokenizationError::ApiError);
 
     let res = response
         .change_context(errors::NetworkTokenizationError::ResponseDeserializationFailed)
@@ -207,7 +207,7 @@ pub async fn generate_network_token(
 
     let response = services::call_connector_api(state, request, "generate_token")
         .await
-        .change_context(errors::NetworkTokenizationError::ResponseDeserializationFailed);
+        .change_context(errors::NetworkTokenizationError::ApiError);
 
     let res = response
         .change_context(errors::NetworkTokenizationError::ResponseDeserializationFailed)
@@ -403,7 +403,7 @@ pub async fn get_network_token(
     // Send the request using `call_connector_api`
     let response = services::call_connector_api(state, request, "get network token")
         .await
-        .change_context(errors::NetworkTokenizationError::ResponseDeserializationFailed);
+        .change_context(errors::NetworkTokenizationError::ApiError);
 
     let res = response
         .change_context(errors::NetworkTokenizationError::ResponseDeserializationFailed)
@@ -471,7 +471,7 @@ pub async fn get_network_token(
     // Send the request using `call_connector_api`
     let response = services::call_connector_api(state, request, "get network token")
         .await
-        .change_context(errors::NetworkTokenizationError::ResponseDeserializationFailed);
+        .change_context(errors::NetworkTokenizationError::ApiError);
 
     let res = response
         .change_context(errors::NetworkTokenizationError::ResponseDeserializationFailed)
@@ -676,7 +676,7 @@ pub async fn check_token_status_with_tokenization_service(
     // Send the request using `call_connector_api`
     let response = services::call_connector_api(state, request, "Check Network token Status")
         .await
-        .change_context(errors::NetworkTokenizationError::ResponseDeserializationFailed);
+        .change_context(errors::NetworkTokenizationError::ApiError);
     let res = response
         .change_context(errors::NetworkTokenizationError::ResponseDeserializationFailed)
         .attach_printable("Error while receiving response")
@@ -813,7 +813,7 @@ pub async fn delete_network_token_from_tokenization_service(
     // Send the request using `call_connector_api`
     let response = services::call_connector_api(state, request, "delete network token")
         .await
-        .change_context(errors::NetworkTokenizationError::DeleteNetworkTokenFailed);
+        .change_context(errors::NetworkTokenizationError::ApiError);
     let res = response
         .change_context(errors::NetworkTokenizationError::ResponseDeserializationFailed)
         .attach_printable("Error while receiving response")
